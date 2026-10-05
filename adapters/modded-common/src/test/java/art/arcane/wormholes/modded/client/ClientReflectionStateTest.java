@@ -1,16 +1,14 @@
 package art.arcane.wormholes.modded.client;
 
-import net.minecraft.SharedConstants;
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.SynchedEntityData;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.decoration.Mannequin;
 import net.minecraft.world.item.ItemStack;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.lang.reflect.Field;
@@ -30,13 +28,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
-public class ClientReflectionStateTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class ClientReflectionStateTest extends MinecraftTestBase {
     @Test
     public void reflectionUsesEachSourceHandAndExactUseClockWithoutRestarting() throws ReflectiveOperationException {
         for (InteractionHand hand : InteractionHand.values()) {

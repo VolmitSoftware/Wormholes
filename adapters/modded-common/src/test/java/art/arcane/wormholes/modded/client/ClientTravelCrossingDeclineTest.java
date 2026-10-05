@@ -1,8 +1,8 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import net.minecraft.SharedConstants;
 import net.minecraft.client.Camera;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
@@ -10,10 +10,8 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.RegistryAccess;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.MockedStatic;
 
@@ -22,6 +20,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
+import static art.arcane.wormholes.modded.client.ClientTravelTestFixtures.set;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -33,13 +32,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class ClientTravelCrossingDeclineTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class ClientTravelCrossingDeclineTest extends MinecraftTestBase {
     @Test
     public void unreadyPreparationDeclinesOnlyAtItsPhysicalApertureAndKeepsArrivalCover() throws ReflectiveOperationException {
         try (Fixture fixture = new Fixture()) {
@@ -95,12 +88,6 @@ public class ClientTravelCrossingDeclineTest {
         Field field = target.getClass().getDeclaredField(name);
         field.setAccessible(true);
         return field.get(target);
-    }
-
-    private static void set(Object target, String name, Object value) throws ReflectiveOperationException {
-        Field field = target.getClass().getDeclaredField(name);
-        field.setAccessible(true);
-        field.set(target, value);
     }
 
     private static final class Fixture implements AutoCloseable {

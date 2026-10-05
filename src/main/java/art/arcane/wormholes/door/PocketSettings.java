@@ -1,5 +1,6 @@
 package art.arcane.wormholes.door;
 
+import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.config.toml.PocketsConfig;
@@ -21,13 +22,7 @@ public final class PocketSettings {
         return settings == null ? FALLBACK : settings.getPockets();
     }
 
-    public static PocketRules defaultRules() {
-        PocketsConfig pockets = current();
-        return new PocketRules(
-            pockets.rulesDefaultMobs,
-            pockets.rulesDefaultPvp,
-            pockets.rulesDefaultKeepInventory,
-            pockets.rulesDefaultFixedTime,
-            PocketRules.BuildPolicy.parse(pockets.rulesDefaultBuild));
+    public static PocketCreationDefaults creationDefaults() {
+        return PocketCreationDefaults.from(Settings.POCKET_SHELL, current());
     }
 }

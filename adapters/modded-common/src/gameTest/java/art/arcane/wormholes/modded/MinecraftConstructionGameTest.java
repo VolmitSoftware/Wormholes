@@ -50,7 +50,7 @@ public final class MinecraftConstructionGameTest {
             runes(player);
             return nether(player).thenComposeAsync(ignored -> end(player), runtime.server())
                 .thenApplyAsync(ignored -> {
-                    LoggerFactory.getLogger("WormholesGameTest").info("WORMHOLES_GAME_TEST_PASS construction rune_placement rune_claim_guard rune_build vanilla_ignition nether_pair frame_cleanup end_pair return_path");
+                    LoggerFactory.getLogger("WormholesGameTest").info("WORMHOLES_GAME_TEST_PASS construction rune_placement rune_claim_guard rune_build vanilla_ignition nether_pair frame_cleanup end_one_way");
                     return true;
                 }, runtime.server()).whenCompleteAsync((result, failure) -> close(), runtime.server());
         } catch (Throwable failure) {
@@ -132,8 +132,11 @@ public final class MinecraftConstructionGameTest {
             MinecraftPortal target = runtime.portals().get(source.getCounterpartId());
             helper.assertTrue(source.getDimensionalKind() == DimensionalPortalKind.END_SOURCE && target != null
                 && target.getDimensionalKind() == DimensionalPortalKind.END_ARRIVAL, "End pair kinds were lost");
-            helper.assertTrue(source.getId().equals(target.getDestinationId()) && source.isIncomingTraversalsEnabled()
-                && target.isOutgoingTraversalsEnabled(), "End arrival has no return path");
+            helper.assertTrue(target.getId().equals(source.getDestinationId()) && target.getDestinationId() == null,
+                "End entry did not link only to its arrival");
+            helper.assertTrue(source.isOutgoingTraversalsEnabled() && !source.isIncomingTraversalsEnabled()
+                && !target.isOutgoingTraversalsEnabled() && target.isIncomingTraversalsEnabled(),
+                "End entry and arrival did not enforce one-way travel");
             created.add(source.getId());
             created.add(target.getId());
             return true;

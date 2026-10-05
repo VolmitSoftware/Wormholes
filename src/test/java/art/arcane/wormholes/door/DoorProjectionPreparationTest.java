@@ -1,7 +1,6 @@
 package art.arcane.wormholes.door;
 
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
-import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.survival.doors.dimension.PocketWorldService;
 import org.bukkit.World;
 import org.bukkit.plugin.Plugin;
@@ -42,10 +41,10 @@ final class DoorProjectionPreparationTest {
                 harness.coordinator.prepareProjection(harness.source, harness.observer);
                 assertEquals(1, harness.allocation.size());
                 assertTrue(harness.coordinator.preparingProjection(harness.binding));
-                verify(harness.state, never()).getOrAllocatePocket(any(PocketBinding.class), any(PocketShell.class));
+                verify(harness.state, never()).getOrAllocatePocket(any(PocketBinding.class), any(PocketCreationDefaults.class));
 
                 harness.allocation.getFirst().run();
-                verify(harness.state).getOrAllocatePocket(harness.binding, Settings.POCKET_SHELL);
+                verify(harness.state).getOrAllocatePocket(harness.binding, PocketSettings.creationDefaults());
                 verify(harness.structures, never()).provision(any(), any(), eq(true));
                 assertEquals(1, harness.provision.size());
                 assertTrue(harness.coordinator.preparingProjection(harness.binding));
@@ -77,6 +76,25 @@ final class DoorProjectionPreparationTest {
             verify(harness.structures, never()).provision(any(), any(), eq(true));
             verify(harness.state, never()).registerEndpoint(any());
             assertFalse(harness.coordinator.preparingProjection(harness.binding));
+        }
+    }
+
+    @Test
+    void previewAllocationUsesConfiguredCreationRules() throws Exception {
+        PocketCreationDefaults defaults = new PocketCreationDefaults(PocketShell.defaults(),
+            new PocketRules(true, true, false, 6000L, PocketRules.BuildPolicy.OWNER));
+        try (MockedStatic<PocketSettings> settings = mockStatic(PocketSettings.class);
+             MockedStatic<FoliaScheduler> scheduler = mockStatic(FoliaScheduler.class)) {
+            settings.when(PocketSettings::creationDefaults).thenReturn(defaults);
+            Harness harness = new Harness(DoorKind.PUBLIC);
+            scheduler.when(() -> FoliaScheduler.runAsync(eq(harness.plugin), any(Runnable.class)))
+                .thenAnswer(invocation -> {
+                    harness.allocation.add(invocation.getArgument(1));
+                    return true;
+                });
+            harness.coordinator.prepareProjection(harness.source, harness.observer);
+            harness.allocation.getFirst().run();
+            verify(harness.state).getOrAllocatePocket(harness.binding, defaults);
         }
     }
 
@@ -113,7 +131,7 @@ final class DoorProjectionPreparationTest {
             when(state.resolveDestination(identity, observer)).thenReturn(new PocketDoorDestination(binding));
             when(state.findEndpointByItem(identity.itemId())).thenReturn(Optional.of(source));
             space = new PocketSpace(UUID.randomUUID(), binding, 0, 8, 80, 8, PocketShell.defaults());
-            when(state.getOrAllocatePocket(binding, Settings.POCKET_SHELL)).thenReturn(space);
+            when(state.getOrAllocatePocket(binding, PocketSettings.creationDefaults())).thenReturn(space);
             when(state.findPocket(binding)).thenReturn(Optional.of(space));
             PocketLayout layout = new PocketLayout(space);
             when(structures.layout(space)).thenReturn(layout);

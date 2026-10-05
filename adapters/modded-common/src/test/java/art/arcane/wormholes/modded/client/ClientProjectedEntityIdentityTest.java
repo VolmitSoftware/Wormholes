@@ -1,18 +1,16 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.network.view.EntityDeltaCodec;
 import art.arcane.wormholes.network.view.EntityVisual;
-import net.minecraft.SharedConstants;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoRemovePacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.world.entity.Entity;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -31,13 +29,7 @@ import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class ClientProjectedEntityIdentityTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class ClientProjectedEntityIdentityTest extends MinecraftTestBase {
     @Test
     public void branchesCoexistWithTheSourceAndMetadataUpdatesKeepTheirEntities() {
         UUID source = UUID.randomUUID();

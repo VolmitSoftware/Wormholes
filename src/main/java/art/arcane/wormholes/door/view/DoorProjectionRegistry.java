@@ -163,13 +163,31 @@ public final class DoorProjectionRegistry {
         if (!closed.compareAndSet(false, true)) {
             return;
         }
+        IllegalStateException failures = null;
         for (DoorProjectionAdapter adapter : adapters.values()) {
-            adapter.destroy();
+            try {
+                adapter.destroy();
+            } catch (Throwable failure) {
+                if (failures == null) {
+                    failures = new IllegalStateException("Could not close dimensional-door projections");
+                }
+                failures.addSuppressed(failure);
+            }
         }
         adapters.clear();
         inFlight = List.of();
         admitted = List.of();
-        budget.close();
+        try {
+            budget.close();
+        } catch (Throwable failure) {
+            if (failures == null) {
+                failures = new IllegalStateException("Could not close dimensional-door projections");
+            }
+            failures.addSuppressed(failure);
+        }
+        if (failures != null) {
+            throw failures;
+        }
     }
 
     private void releaseInFlight() {

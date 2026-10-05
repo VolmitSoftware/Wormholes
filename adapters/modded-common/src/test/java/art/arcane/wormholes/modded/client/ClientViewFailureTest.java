@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.network.client.ClientViewCapability;
 import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.wormholes.network.client.ClientViewMessage;
@@ -8,10 +9,7 @@ import art.arcane.wormholes.network.client.ClientViewProtocolException;
 import art.arcane.wormholes.network.client.PlateSectionBox;
 import art.arcane.wormholes.render.client.ClientViewSweep;
 import art.arcane.wormholes.render.plate.PlateBox;
-import net.minecraft.SharedConstants;
-import net.minecraft.server.Bootstrap;
 import org.junit.After;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.List;
@@ -21,16 +19,10 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertTrue;
 
-public class ClientViewFailureTest {
+public class ClientViewFailureTest extends MinecraftTestBase {
     private static final double EYE_X = ClientViewHarness.EYE_X;
     private static final double EYE_Y = ClientViewHarness.EYE_Y;
     private static final double EYE_Z = ClientViewHarness.EYE_Z;
-
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
 
     @After
     public void deactivate() {

@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.network.client.ClientViewProtocol;
@@ -7,16 +8,13 @@ import art.arcane.wormholes.network.client.ClientViewProtocolException;
 import art.arcane.wormholes.network.view.EntityVisual;
 import art.arcane.wormholes.render.client.ClientPortalGeometry;
 import com.mojang.authlib.GameProfile;
-import net.minecraft.SharedConstants;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 import org.junit.After;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -35,13 +33,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-public class ClientEntitySelfTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class ClientEntitySelfTest extends MinecraftTestBase {
     @After
     public void deactivate() {
         ProjectionOverlay overlay = ProjectionOverlay.active();

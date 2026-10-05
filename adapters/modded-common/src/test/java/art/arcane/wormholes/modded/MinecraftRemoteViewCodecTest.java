@@ -1,12 +1,9 @@
 package art.arcane.wormholes.modded;
 
-import net.minecraft.SharedConstants;
 import net.minecraft.core.RegistryAccess;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -15,13 +12,7 @@ import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
-public class MinecraftRemoteViewCodecTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class MinecraftRemoteViewCodecTest extends MinecraftTestBase {
     @Test
     public void preservesBlockPropertiesAndSeparatesOcclusionFromStone() {
         MinecraftRemoteViewCodec codec = new MinecraftRemoteViewCodec(RegistryAccess.EMPTY);

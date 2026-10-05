@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.wormholes.network.client.ClientViewCapability;
 import art.arcane.wormholes.network.client.ClientViewEnvironment;
@@ -7,10 +8,7 @@ import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.network.client.ClientViewProtocol;
 import art.arcane.wormholes.network.client.ClientViewProtocolException;
-import net.minecraft.SharedConstants;
-import net.minecraft.server.Bootstrap;
 import org.junit.After;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -23,13 +21,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-public class ClientPreparedTravelRoutingTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class ClientPreparedTravelRoutingTest extends MinecraftTestBase {
     @After
     public void deactivate() {
         ProjectionOverlay overlay = ProjectionOverlay.active();

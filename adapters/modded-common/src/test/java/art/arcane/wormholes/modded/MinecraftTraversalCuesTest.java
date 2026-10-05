@@ -10,12 +10,9 @@ import java.util.UUID;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.rules.RuleDocument;
 import art.arcane.wormholes.rules.TraversalProfile;
-import net.minecraft.SharedConstants;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -25,13 +22,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class MinecraftTraversalCuesTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class MinecraftTraversalCuesTest extends MinecraftTestBase {
     @Test
     public void thresholdScalesSoundByPortalProfileAndGlobalVolume() {
         WormholesModRuntime runtime = mock(WormholesModRuntime.class);

@@ -1,13 +1,10 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.config.WormholesSettings;
-import net.minecraft.SharedConstants;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.players.PlayerList;
 import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.level.storage.WorldData;
-import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
 import org.junit.Test;
@@ -31,15 +28,9 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class WormholesModRuntimeTest {
+public class WormholesModRuntimeTest extends MinecraftTestBase {
     @Rule
     public TemporaryFolder directory = new TemporaryFolder();
-
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
 
     @Test
     public void executesInDueOrderOnServerTicks() {

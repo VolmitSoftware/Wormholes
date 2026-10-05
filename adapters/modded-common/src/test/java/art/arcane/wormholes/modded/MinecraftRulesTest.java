@@ -27,10 +27,7 @@ import art.arcane.wormholes.rules.TraversalProfile;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import java.util.concurrent.atomic.AtomicInteger;
-import net.minecraft.SharedConstants;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.server.level.ServerPlayer;
-import org.junit.BeforeClass;
 import art.arcane.wormholes.util.Direction;
 import org.junit.Test;
 
@@ -48,13 +45,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.ArgumentMatchers.any;
 import org.mockito.ArgumentCaptor;
 
-public class MinecraftRulesTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class MinecraftRulesTest extends MinecraftTestBase {
     @Test
     public void everyRefusalRendersOnlyItsDeclaredArguments() {
         LocalizationSnapshot snapshot = LocalizationSnapshot.create(LocalizationCandidate.english(WormholesMessages.catalog(), PluralSelector.oneOther()));

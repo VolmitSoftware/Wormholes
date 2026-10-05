@@ -13,8 +13,15 @@ import art.arcane.wormholes.network.replication.RemoteChunkStore;
 import art.arcane.wormholes.network.view.RemoteViewCache;
 
 import org.junit.jupiter.api.Test;
+import art.arcane.wormholes.network.NetworkManager;
+import art.arcane.wormholes.network.PortalSyncService;
+import art.arcane.wormholes.portal.ILocalPortal;
+import java.lang.reflect.Method;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class WormholesNetworkRuntimeTest {
     @Test
@@ -53,5 +60,35 @@ class WormholesNetworkRuntimeTest {
         RemoteChunkStore future = cache.chunkStore("survival");
         assertEquals(11, future.diffWindowSize());
         assertEquals(17_000L, future.resyncTimeoutMillis());
+    }
+    @Test
+    @SuppressWarnings("unchecked")
+    void delayedSyncTaskCannotCrossNetworkGenerationsOrRunAfterSyncShutdown() throws ReflectiveOperationException {
+        NetworkManager previousNetwork = Wormholes.networkManager;
+        PortalSyncService<ILocalPortal> previousSync = Wormholes.portalSyncService;
+        try {
+            Wormholes plugin = mock(Wormholes.class);
+            when(plugin.isEnabled()).thenReturn(true);
+            WormholesNetworkRuntime runtime = new WormholesNetworkRuntime(plugin);
+            NetworkManager original = mock(NetworkManager.class);
+            PortalSyncService<ILocalPortal> sync = mock(PortalSyncService.class);
+            Wormholes.networkManager = original;
+            Wormholes.portalSyncService = sync;
+            AtomicInteger executions = new AtomicInteger();
+            Method execute = WormholesNetworkRuntime.class.getDeclaredMethod("runCurrentPortalSyncTask", NetworkManager.class, Runnable.class);
+            execute.setAccessible(true);
+            execute.invoke(runtime, original, (Runnable) executions::incrementAndGet);
+            assertEquals(1, executions.get());
+            Wormholes.networkManager = mock(NetworkManager.class);
+            execute.invoke(runtime, original, (Runnable) executions::incrementAndGet);
+            assertEquals(1, executions.get());
+            Wormholes.networkManager = original;
+            when(sync.isClosed()).thenReturn(true);
+            execute.invoke(runtime, original, (Runnable) executions::incrementAndGet);
+            assertEquals(1, executions.get());
+        } finally {
+            Wormholes.networkManager = previousNetwork;
+            Wormholes.portalSyncService = previousSync;
+        }
     }
 }

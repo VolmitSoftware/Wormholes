@@ -7,12 +7,33 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
+import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
 public class PortalFeatureRendererTest {
+    @Test
+    public void entitiesAndBlockEntitiesReuseTheSameUnchangedRotation() {
+        ClientViewEnvironment.Transform transform = new ClientViewEnvironment.Transform(Direction.U, Direction.W, Direction.S,
+            new GeometryVector(100, 50, -20));
+        Matrix4f rotation = PortalProjection.rotation(transform);
+        Matrix4f original = new Matrix4f(rotation);
+        EntityRenderState entity = new EntityRenderState();
+        entity.x = 12;
+        entity.y = 30;
+        entity.z = 40;
+        PoseStack entityPose = new PoseStack();
+        PoseStack blockPose = new PoseStack();
+        Vec3 eye = new Vec3(3, 4, 5);
+        PortalFeatureRenderer.entityPose(entityPose, entity, eye, transform, rotation);
+        PortalFeatureRenderer.blockPose(blockPose, new BlockPos(12, 30, 40), eye, transform, rotation);
+        assertEquals(original, rotation);
+        assertEquals(entityPose.last().pose(), blockPose.last().pose());
+        assertEquals(entityPose.last().normal(), blockPose.last().normal());
+    }
+
     @Test
     public void nativeEntitiesAndSelfReflectionsRotateTheirBodyUpExactlyOnce() {
         EntityRenderState state = new EntityRenderState();
@@ -24,7 +45,7 @@ public class PortalFeatureRendererTest {
             ClientViewEnvironment.Transform transform = new ClientViewEnvironment.Transform(axes[0], axes[1], axes[2],
                 new GeometryVector(100.5D, -20.25D, 50));
             PoseStack pose = new PoseStack();
-            PortalFeatureRenderer.entityPose(pose, state, new Vec3(1, 2, 3), transform);
+            PortalFeatureRenderer.entityPose(pose, state, new Vec3(1, 2, 3), transform, PortalProjection.rotation(transform));
             Vector3f feet = pose.last().pose().transformPosition(new Vector3f());
             Vector3f head = pose.last().pose().transformPosition(new Vector3f(0, 1.8F, 0));
             assertEquals(axes[1].x() * 1.8F, head.x - feet.x, 0.00001F);
@@ -37,22 +58,19 @@ public class PortalFeatureRendererTest {
     }
 
     @Test
-    public void nativeBlockEntityCoordinatesAndLocalModelVerticesShareOneWorldTransform() {
-        PoseStack pose = new PoseStack();
-        ClientViewEnvironment.Transform transform = new ClientViewEnvironment.Transform(Direction.U, Direction.W, Direction.S,
-            new GeometryVector(100, 50, -20));
-        PortalFeatureRenderer.blockPose(pose, new BlockPos(12, 30, 40), new Vec3(3, 4, 5), transform);
-        assertEquals(new Vector3f(67, 58, 15), pose.last().pose().transformPosition(new Vector3f()));
-        assertEquals(new Vector3f(66.5F, 59, 15.25F), pose.last().pose().transformPosition(new Vector3f(1, 0.5F, 0.25F)));
+    public void blockEntityPositionsAndLocalModelVerticesUseDestinationRotationAndReflection() {
+        for (BlockPose example : new BlockPose[] {
+            new BlockPose(Direction.U, Direction.W, new Vector3f(67, 58, 15), new Vector3f(66.5F, 59, 15.25F)),
+            new BlockPose(Direction.W, Direction.U, new Vector3f(85, 76, 15), new Vector3f(84, 76.5F, 15.25F))
+        }) {
+            PoseStack pose = new PoseStack();
+            ClientViewEnvironment.Transform transform = new ClientViewEnvironment.Transform(example.xAxis(), example.yAxis(), Direction.S,
+                new GeometryVector(100, 50, -20));
+            PortalFeatureRenderer.blockPose(pose, new BlockPos(12, 30, 40), new Vec3(3, 4, 5), transform, PortalProjection.rotation(transform));
+            assertEquals(example.origin(), pose.last().pose().transformPosition(new Vector3f()));
+            assertEquals(example.vertex(), pose.last().pose().transformPosition(new Vector3f(1, 0.5F, 0.25F)));
+        }
     }
 
-    @Test
-    public void mirroredBlockEntitiesReflectAroundTheirDestinationWorldPosition() {
-        PoseStack pose = new PoseStack();
-        ClientViewEnvironment.Transform transform = new ClientViewEnvironment.Transform(Direction.W, Direction.U, Direction.S,
-            new GeometryVector(100, 50, -20));
-        PortalFeatureRenderer.blockPose(pose, new BlockPos(12, 30, 40), new Vec3(3, 4, 5), transform);
-        assertEquals(new Vector3f(85, 76, 15), pose.last().pose().transformPosition(new Vector3f()));
-        assertEquals(new Vector3f(84, 76.5F, 15.25F), pose.last().pose().transformPosition(new Vector3f(1, 0.5F, 0.25F)));
-    }
+    private record BlockPose(Direction xAxis, Direction yAxis, Vector3f origin, Vector3f vertex) { }
 }

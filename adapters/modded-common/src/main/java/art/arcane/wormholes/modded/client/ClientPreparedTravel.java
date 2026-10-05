@@ -944,26 +944,8 @@ public final class ClientPreparedTravel {
         deferredScreen = null;
         previousCamera = null;
         pendingPreparation = null;
-        begin = next.begin;
         staged = next.level;
-        chunks = next.chunks;
-        deadline = next.deadline;
-        sourceCapture = 0;
-        scene = next.scene;
-        drawnRevision = next.drawnRevision;
-        retainedDestination = next.retainedWorld == null ? null : next.retainedWorld.withPayloads(payloads);
-        payloads.putAll(next.payloads);
-        decoded.putAll(next.decoded);
-        changed.addAll(next.changed);
-        for (Column column : next.columns.values()) {
-            if (!decoded.containsKey(new ClientViewMessage.TravelCoordinate(column.x(), column.z()))
-                || decoded.get(new ClientViewMessage.TravelCoordinate(column.x(), column.z())) < column.revision()) {
-                decoding.add(column);
-            }
-        }
-        if (scene != null) {
-            ClientPortalRenderer.instance().prepareTravel(scene, arrivalCamera(begin.arrival()));
-        }
+        adoptPreparation(next);
     }
 
     private void advanceArrival() {
@@ -1026,31 +1008,16 @@ public final class ClientPreparedTravel {
         }
         try {
             if (next.level == null) {
-                begin(next.begin);
+                Minecraft minecraft = Minecraft.getInstance();
+                if (minecraft.getConnection() == null || minecraft.level == null
+                    || !minecraft.level.dimension().identifier().toString().equals(next.begin.sourceWorld())) {
+                    return;
+                }
+                staged = createLevel(next.begin);
             } else {
-                begin = next.begin;
                 staged = next.level;
-                sourceCapture = 0;
             }
-            if (begin != null) {
-                chunks = next.chunks;
-                deadline = next.deadline;
-                scene = next.scene;
-                retainedDestination = next.retainedWorld == null ? null : next.retainedWorld.withPayloads(payloads);
-                payloads.putAll(next.payloads);
-                decoded.putAll(next.decoded);
-                changed.addAll(next.changed);
-                drawnRevision = next.drawnRevision;
-                for (Column column : next.columns.values()) {
-                    if (!decoded.containsKey(new ClientViewMessage.TravelCoordinate(column.x(), column.z()))
-                        || decoded.get(new ClientViewMessage.TravelCoordinate(column.x(), column.z())) < column.revision()) {
-                        decoding.add(column);
-                    }
-                }
-                if (scene != null) {
-                    ClientPortalRenderer.instance().prepareTravel(scene, arrivalCamera(begin.arrival()));
-                }
-            }
+            adoptPreparation(next);
         } catch (RuntimeException failure) {
             LOGGER.warn("Unable to begin retained authoritative portal travel", failure);
             clear(true);
@@ -1088,22 +1055,29 @@ public final class ClientPreparedTravel {
         PendingPreparation next = preparation(value);
         clear(false);
         staged = next.level == null ? createLevel(value) : next.level;
-        begin = value;
         cache.bind(connection, connection.registryAccess());
+        adoptPreparation(next);
+    }
+
+    private void adoptPreparation(PendingPreparation next) {
+        begin = next.begin;
         sourceCapture = 0;
         chunks = next.chunks;
         deadline = next.deadline;
         scene = next.scene;
+        drawnRevision = next.drawnRevision;
         retainedDestination = next.retainedWorld == null ? null : next.retainedWorld.withPayloads(payloads);
         payloads.putAll(next.payloads);
         decoded.putAll(next.decoded);
+        changed.addAll(next.changed);
         for (Column column : next.columns.values()) {
-            if (!decoded.containsKey(new ClientViewMessage.TravelCoordinate(column.x(), column.z()))) {
+            ClientViewMessage.TravelCoordinate coordinate = new ClientViewMessage.TravelCoordinate(column.x(), column.z());
+            if (!decoded.containsKey(coordinate) || decoded.get(coordinate) < column.revision()) {
                 decoding.add(column);
             }
         }
         if (scene != null) {
-            ClientPortalRenderer.instance().prepareTravel(scene, arrivalCamera(value.arrival()));
+            ClientPortalRenderer.instance().prepareTravel(scene, arrivalCamera(begin.arrival()));
         }
     }
 

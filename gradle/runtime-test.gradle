@@ -5,6 +5,10 @@ sourceSets {
     }
 }
 
+tasks.named('check').configure {
+    dependsOn(tasks.named('runtimeTestClasses'))
+}
+
 tasks.register('itemExchangeJar', Jar) {
     group = 'verification'
     dependsOn(tasks.named('runtimeTestClasses'))

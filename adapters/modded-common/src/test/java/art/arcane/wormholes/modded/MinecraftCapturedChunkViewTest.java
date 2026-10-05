@@ -7,12 +7,9 @@ import art.arcane.wormholes.render.plate.PlateCaptureJob;
 import art.arcane.wormholes.render.plate.ViewPlateBuilder;
 import art.arcane.wormholes.render.view.ProjectionContentView;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
-import net.minecraft.SharedConstants;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.PalettedContainer;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.Map;
@@ -24,13 +21,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
-public class MinecraftCapturedChunkViewTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class MinecraftCapturedChunkViewTest extends MinecraftTestBase {
     @Test
     @SuppressWarnings("unchecked")
     public void samplesCapturedSectionsAndAirForEmptyOnes() {

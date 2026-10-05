@@ -1,20 +1,18 @@
 package art.arcane.wormholes.modded.client.render;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.network.client.ClientViewEnvironment;
 import it.unimi.dsi.fastutil.longs.LongIterator;
-import net.minecraft.SharedConstants;
 import net.minecraft.client.multiplayer.ClientChunkCache;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.chunk.RenderRegionCache;
 import net.minecraft.client.renderer.chunk.RenderSectionRegion;
 import net.minecraft.core.SectionPos;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 import org.junit.Test;
-import org.junit.BeforeClass;
 import org.mockito.MockedConstruction;
 
 import java.util.ArrayList;
@@ -37,13 +35,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockConstruction;
 import static org.mockito.Mockito.when;
 
-public class ClientTravelSceneTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class ClientTravelSceneTest extends MinecraftTestBase {
     @Test
     public void freshReturnMetadataPreservesSnapshotsWhileChangedHaloRetiresOnlyAffectedSections() {
         ClientLevel level = level();

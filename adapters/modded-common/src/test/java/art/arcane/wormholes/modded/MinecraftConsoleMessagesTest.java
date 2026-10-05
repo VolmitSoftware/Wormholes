@@ -5,12 +5,9 @@ import art.arcane.volmlib.util.localization.LocalizationSnapshot;
 import art.arcane.volmlib.util.localization.PluralSelector;
 import art.arcane.wormholes.localization.WormholesMessages;
 import com.mojang.brigadier.CommandDispatcher;
-import net.minecraft.SharedConstants;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.server.permissions.PermissionSet;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -29,13 +26,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class MinecraftConsoleMessagesTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class MinecraftConsoleMessagesTest extends MinecraftTestBase {
     @Test
     public void consoleRulesAndAccessFailuresUseDefaultSnapshotWithoutExtraArguments() throws Exception {
         WormholesModRuntime runtime = mock(WormholesModRuntime.class);

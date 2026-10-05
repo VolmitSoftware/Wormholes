@@ -1,10 +1,9 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.network.view.EntityVisual;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import net.minecraft.SharedConstants;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.LivingEntity;
@@ -15,7 +14,6 @@ import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.UUID;
@@ -40,13 +38,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-public class ClientEntityMotionTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class ClientEntityMotionTest extends MinecraftTestBase {
     @Test
     public void nativeDisplaysAdvanceWithoutLoadedDestinationChunks() {
         ClientLevel level = mock(ClientLevel.class);

@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
-import net.minecraft.SharedConstants;
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientChunkCache;
 import net.minecraft.network.FriendlyByteBuf;
@@ -14,8 +14,6 @@ import net.minecraft.world.level.lighting.LayerLightEventListener;
 import net.minecraft.world.level.lighting.LevelLightEngine;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.server.Bootstrap;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.Map;
@@ -29,13 +27,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-public class ClientTravelSectionStateTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class ClientTravelSectionStateTest extends MinecraftTestBase {
     @Test
     public void captureKeepsImmutableOldGeometryLightAndEntityInputsAcrossNativeReplacement() {
         ClientLevel level = mock(ClientLevel.class);

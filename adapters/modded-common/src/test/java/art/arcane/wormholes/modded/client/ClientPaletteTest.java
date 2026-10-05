@@ -1,18 +1,16 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.network.client.ClientViewProtocol;
 import art.arcane.wormholes.network.client.ClientViewProtocolException;
-import net.minecraft.SharedConstants;
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.Half;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.List;
@@ -24,13 +22,7 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-public class ClientPaletteTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class ClientPaletteTest extends MinecraftTestBase {
     @Test
     public void resolvesCanonicalStringsToRealBlockStates() throws ClientViewProtocolException {
         ClientPalette palette = new ClientPalette(BuiltInRegistries.BLOCK);

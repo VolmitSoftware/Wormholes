@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.config.VisualQualityProfile;
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.network.client.ClientViewMessage;
@@ -12,10 +13,7 @@ import art.arcane.wormholes.render.ProjectionCellKey;
 import art.arcane.wormholes.render.acoustics.AcousticsBridge;
 import art.arcane.wormholes.render.acoustics.AcousticsProfile;
 import art.arcane.wormholes.render.client.session.ClientViewEmitters;
-import net.minecraft.SharedConstants;
-import net.minecraft.server.Bootstrap;
 import org.junit.After;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.List;
@@ -25,13 +23,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-public class ClientViewSceneTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class ClientViewSceneTest extends MinecraftTestBase {
     @After
     public void deactivate() {
         ProjectionOverlay overlay = ProjectionOverlay.active();

@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client.render;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.mixin.client.IrisPortalHandAccess;
 import art.arcane.wormholes.modded.mixin.client.IrisPortalHandBuffersAccess;
 import art.arcane.wormholes.modded.mixin.client.IrisPortalHandFrameAccess;
@@ -8,19 +9,16 @@ import art.arcane.wormholes.modded.mixin.client.IrisPortalRenderSystemAccess;
 import com.mojang.blaze3d.ProjectionType;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
-import net.minecraft.SharedConstants;
 import net.minecraft.client.renderer.Projection;
 import net.minecraft.client.renderer.ProjectionMatrixBuffer;
 import net.minecraft.client.renderer.RenderBuffers;
 import net.minecraft.client.renderer.SubmitNodeStorage;
 import net.minecraft.client.renderer.feature.FeatureFrameContext;
 import net.minecraft.client.renderer.feature.FeatureRenderDispatcher;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.util.profiling.InactiveProfiler;
 import net.minecraft.util.profiling.Profiler;
 import net.minecraft.util.profiling.ProfilerFiller;
 import org.joml.Matrix4fStack;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.MockedStatic;
 
@@ -40,13 +38,7 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 import static org.mockito.ArgumentMatchers.same;
 
-public class PortalIrisHandTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class PortalIrisHandTest extends MinecraftTestBase {
     @Test
     public void throwingDrawRestoresSourceResourcesStacksAndConcurrentProfilerOwnership() throws Exception {
         Fixture fixture = new Fixture();

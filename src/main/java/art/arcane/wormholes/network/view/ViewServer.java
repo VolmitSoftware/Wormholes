@@ -276,10 +276,6 @@ public final class ViewServer implements Listener {
         bulkPipeline.onChunkResyncRequest(peerName, request);
     }
 
-    public void requestChunkResync(String peerName, ReplicationStreamKey stream, long expectedSequence) {
-        bulkPipeline.onChunkResyncRequest(peerName, new ChunkResyncRequest(stream, expectedSequence));
-    }
-
     public void refreshPortal(ILocalPortal portal) {
         subscriptions.refreshPortal(portal);
     }

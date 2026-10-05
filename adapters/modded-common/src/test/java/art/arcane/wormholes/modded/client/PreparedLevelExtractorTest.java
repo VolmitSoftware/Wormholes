@@ -1,14 +1,12 @@
 package art.arcane.wormholes.modded.client;
 
-import net.minecraft.SharedConstants;
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.debug.DebugScreenEntryList;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.extract.LevelExtractor;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.Bootstrap;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.MockedStatic;
 
@@ -18,13 +16,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verifyNoInteractions;
 
-public class PreparedLevelExtractorTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class PreparedLevelExtractorTest extends MinecraftTestBase {
     @Test
     public void stagedLifecycleAndDirtyCallbacksNeverReachTheMainRenderer() throws ReflectiveOperationException {
         Minecraft minecraft = mock(Minecraft.class);

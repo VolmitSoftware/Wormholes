@@ -26,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class PortalSettingsApplyQueueTest {
+class PortalSyncServiceTest {
     @Test
     void inboundBurstsWaitForThePortalRegionAndCoalesceBeforeRefreshingMenus() {
         UUID senderPortalId = UUID.randomUUID();
@@ -277,5 +277,28 @@ class PortalSettingsApplyQueueTest {
         public void refreshOpenMenus() {
             menuRefreshes.incrementAndGet();
         }
+    }
+    @Test
+    void shutdownRetiresQueuedDirectoryWorkAndRejectsFurtherAdmission() {
+        Queue<Runnable> tasks = new ArrayDeque<Runnable>();
+        AtomicInteger reads = new AtomicInteger();
+        PortalSettingsApplyQueue<ILocalPortal> settings = new PortalSettingsApplyQueue<>(BukkitPortalSyncAccess.INSTANCE,
+            new PortalSettingsApplyQueue.Dispatch<>((portal, task, retired) -> true, (task, delay) -> { },
+                (reason, portal, failure) -> { }));
+        PortalSyncService<ILocalPortal> sync = new PortalSyncService<>(null, new PortalSyncService.Options<>(() -> {
+            reads.incrementAndGet();
+            return List.of();
+        }, tasks::offer, () -> null, BukkitPortalSyncAccess.INSTANCE, settings));
+        sync.onPeerStateChanged("peer", true);
+        assertEquals(1, tasks.size());
+        sync.shutdown();
+        sync.shutdown();
+        tasks.remove().run();
+        sync.sendDirectory("peer");
+        sync.onPeerStateChanged("peer", true);
+        sync.applySettingsUpdate("peer", null);
+        assertTrue(sync.isClosed());
+        assertEquals(0, reads.get());
+        assertTrue(tasks.isEmpty());
     }
 }

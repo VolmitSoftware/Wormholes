@@ -1,27 +1,19 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.network.client.ClientViewCapability;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.network.client.ClientViewProtocol;
 import net.minecraft.ChatFormatting;
-import net.minecraft.SharedConstants;
 import net.minecraft.client.gui.components.debug.DebugScreenDisplayer;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.server.Bootstrap;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-public class ClientViewConnectionStatusTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class ClientViewConnectionStatusTest extends MinecraftTestBase {
     @Test
     public void pendingAndUnansweredNegotiationAreDisconnectedUntilAccepted() {
         ClientViewSession session = session(new WormholesClientConfig());

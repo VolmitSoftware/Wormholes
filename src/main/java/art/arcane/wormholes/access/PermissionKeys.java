@@ -1,12 +1,8 @@
 package art.arcane.wormholes.access;
 
-import art.arcane.wormholes.Wormholes;
-import art.arcane.wormholes.PortalManager;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.LocalPortal;
 
-import java.util.List;
-import java.util.Locale;
 import java.util.UUID;
 
 /**
@@ -14,28 +10,7 @@ import java.util.UUID;
  * seeded from the portal name once and then never follows a rename.
  */
 public final class PermissionKeys {
-    public static final String NODE_PREFIX = "wormholes.portal.";
-    public static final int MAX_LENGTH = 64;
-
-    private static final String FALLBACK = "unnamed";
-
     private PermissionKeys() {
-    }
-
-    /**
-     * Same rules as the legacy name-derived node: lowercase, keep a-z, 0-9, dot, dash and
-     * underscore, collapse every other run into one underscore, trim the edges.
-     */
-    public static String sanitize(String name) {
-        return PortalPermissionKey.sanitize(name);
-    }
-
-    public static boolean isValid(String key) {
-        return PortalPermissionKey.isValid(key);
-    }
-
-    public static String node(String key) {
-        return PortalPermissionKey.node(key);
     }
 
     /** True when a portal other than {@code portalId} already answers to {@code key}. */
@@ -53,16 +28,6 @@ public final class PermissionKeys {
             }
         }
         return false;
-    }
-
-    /** Uniqueness against the loaded portals; free while the portal manager does not exist yet. */
-    public static boolean isTaken(String key, UUID portalId) {
-        PortalManager manager = Wormholes.portalManager;
-        if (manager == null) {
-            return false;
-        }
-        List<ILocalPortal> portals = manager.getLocalPortals();
-        return isTaken(key, portalId, portals);
     }
 
 }

@@ -4,7 +4,6 @@ import art.arcane.wormholes.network.view.ProjectedMapData;
 import art.arcane.wormholes.network.view.RemoteViewCache.RemoteProfile;
 import art.arcane.wormholes.render.EntityRenderSpoofedEntity;
 import art.arcane.wormholes.render.ProjectedPlayerNames;
-import net.minecraft.SharedConstants;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.network.protocol.game.ClientboundMapItemDataPacket;
 import net.minecraft.network.protocol.game.ClientboundAnimatePacket;
@@ -16,10 +15,8 @@ import net.minecraft.network.protocol.game.ClientboundTeleportEntityPacket;
 import net.minecraft.network.protocol.game.VecDelta;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.Vec3;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.List;
@@ -29,13 +26,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-public class MinecraftEntityPacketsTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class MinecraftEntityPacketsTest extends MinecraftTestBase {
     @Test
     public void projectedSwingUsesTheNativeAnimationActionAndFakeId() {
         ClientboundSwingAnimationPacket packet = (ClientboundSwingAnimationPacket) MinecraftEntityPackets.animation(1_900_000_001,

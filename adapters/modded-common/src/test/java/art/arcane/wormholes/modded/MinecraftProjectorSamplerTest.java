@@ -6,14 +6,11 @@ import art.arcane.wormholes.render.ProjectorRecursivePortals;
 import art.arcane.wormholes.render.ProjectorSample;
 import art.arcane.wormholes.render.ProjectorSampleMemo;
 import art.arcane.wormholes.render.ProjectorSampler;
-import net.minecraft.SharedConstants;
 import net.minecraft.core.Direction;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.List;
@@ -26,13 +23,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class MinecraftProjectorSamplerTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class MinecraftProjectorSamplerTest extends MinecraftTestBase {
     @Test
     public void nativeSamplingPreservesAirMissingBackingAndBuriedClassification() {
         Fixture fixture = fixture();

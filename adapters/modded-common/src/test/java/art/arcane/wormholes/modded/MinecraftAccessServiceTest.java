@@ -2,15 +2,12 @@ package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.config.toml.AccessConfig;
-import net.minecraft.SharedConstants;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.resources.Identifier;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.permissions.Permission;
 import net.minecraft.server.permissions.PermissionSet;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.Collection;
@@ -23,16 +20,10 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class MinecraftAccessServiceTest {
+public class MinecraftAccessServiceTest extends MinecraftTestBase {
     private MinecraftAccessService access;
     private ServerPlayer player;
     private CommandSourceStack source;
-
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
 
     @Before
     public void setUp() {

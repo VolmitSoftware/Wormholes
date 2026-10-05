@@ -460,6 +460,17 @@ public class PortalManager implements Listener
 
 		for(ILocalPortal portal : snapshot)
 		{
+			if(portal instanceof LocalPortal localPortal)
+			{
+				try
+				{
+					localPortal.retireForBulkDeletion();
+				}
+				catch(Throwable failure)
+				{
+					Wormholes.instance.getLogger().log(Level.WARNING, "Could not retire portal " + portal.getId(), failure);
+				}
+			}
 			BukkitRtpRuntime runtime = Wormholes.rtpRuntime;
 			if(runtime != null)
 			{

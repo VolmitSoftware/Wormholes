@@ -1,10 +1,8 @@
 package art.arcane.wormholes.modded.client.render;
 
-import net.minecraft.SharedConstants;
-import net.minecraft.server.Bootstrap;
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.HashMap;
@@ -16,13 +14,7 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 
-public class PortalTerrainMaterialsTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class PortalTerrainMaterialsTest extends MinecraftTestBase {
     @Test
     public void independentEquivalentSnapshotsReuseValueKeysAndRejectEveryChangedMaterialInput() {
         BlockState stone = Blocks.STONE.defaultBlockState();

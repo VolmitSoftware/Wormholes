@@ -90,10 +90,57 @@ final class PortalExtensionsTest
 		assertNull(subsequent.extension(CounterExtension.class));
 	}
 
+	@Test
+	void bulkRetirementNotifiesExtensionsOnceAndMarksThePortalDestroyed()
+	{
+		WormholesHooks.install(new WormholesRegistrar().portalExtension(CounterExtension.class, portal -> new CounterExtension()));
+		LocalPortal portal = LocalPortalTestSupport.portal(LocalPortalTestSupport.world("bulk-retirement"), PortalType.PORTAL);
+		CounterExtension extension = portal.extension(CounterExtension.class);
+		portal.retireForBulkDeletion();
+		portal.retireForBulkDeletion();
+		portal.destroy();
+		assertTrue(portal.isDestroyed());
+		assertEquals(1, extension.destructions);
+	}
+
+	@Test
+	void failingDestructionHookDoesNotPreventLaterExtensionsFromRetiring()
+	{
+		WormholesHooks.install(new WormholesRegistrar()
+			.portalExtension(FailingExtension.class, portal -> new FailingExtension())
+			.portalExtension(CounterExtension.class, portal -> new CounterExtension()));
+		LocalPortal portal = LocalPortalTestSupport.portal(LocalPortalTestSupport.world("failed-retirement"), PortalType.PORTAL);
+		portal.retireForBulkDeletion();
+		assertTrue(portal.isDestroyed());
+		assertEquals(1, portal.extension(CounterExtension.class).destructions);
+	}
+
+	private static final class FailingExtension implements PortalExtension
+	{
+		@Override
+		public String key()
+		{
+			return "failing";
+		}
+
+		@Override
+		public void onPortalDestroyed()
+		{
+			throw new IllegalStateException("extension release failed");
+		}
+	}
+
 	private static final class CounterExtension implements PortalExtension
 	{
 		int value;
+		int destructions;
 		Map<String, String> lastApplied = Map.of();
+
+		@Override
+		public void onPortalDestroyed()
+		{
+			destructions++;
+		}
 
 		@Override
 		public String key()

@@ -2,15 +2,8 @@ package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.chunk.ChunkLease;
 import art.arcane.wormholes.chunk.ChunkLeaseRegistry;
-import art.arcane.wormholes.config.WormholesSettings;
-import art.arcane.wormholes.config.toml.MainConfig;
-import art.arcane.wormholes.config.toml.NetworkConfig;
-import art.arcane.wormholes.config.toml.ProjectionConfig;
-import art.arcane.wormholes.config.toml.RenderConfig;
 import art.arcane.wormholes.render.view.SectionCache;
-import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerChunkCache;
 import net.minecraft.server.level.ServerLevel;
@@ -19,7 +12,6 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.concurrent.CompletableFuture;
@@ -41,15 +33,9 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class MinecraftProjectionWorldViewTest {
+public class MinecraftProjectionWorldViewTest extends MinecraftTestBase {
     private static final int MIN_SECTION_Y = -4;
     private static final int MAX_SECTION_Y = 19;
-
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
 
     @Test
     public void samplesOnlyAlreadyLoadedChunksAndRespectsHeight() {
@@ -253,7 +239,7 @@ public class MinecraftProjectionWorldViewTest {
         when(runtime.leases()).thenReturn(leases);
         when(runtime.projections()).thenReturn(projections);
         when(runtime.configuration()).thenReturn(configuration);
-        when(configuration.settings()).thenReturn(new WormholesSettings(new MainConfig(), new ProjectionConfig(), new RenderConfig(), new NetworkConfig()));
+        when(configuration.settings()).thenReturn(MinecraftTestSettings.defaults());
         when(level.getChunkSource()).thenReturn(chunks);
         when(level.dimension()).thenReturn(Level.OVERWORLD);
         when(level.getMinY()).thenReturn(-64);

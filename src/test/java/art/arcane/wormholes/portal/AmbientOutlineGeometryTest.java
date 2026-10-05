@@ -97,4 +97,57 @@ public final class AmbientOutlineGeometryTest
 		assertFalse(revised.isEmpty());
 	}
 
+    @Test
+    public void replacingGeometryWithTheSameRevisionRebuildsTheOutline() {
+        AmbientOutlineGeometry cache = new AmbientOutlineGeometry();
+        PortalGeometry first = new PortalGeometry();
+        PortalGeometry second = new PortalGeometry();
+        first.setBlocks(List.of(new GeometryVector(-4, -5, -6)));
+        second.setBlocks(List.of(new GeometryVector(20, 30, 40)));
+        assertEquals(first.getRevision(), second.getRevision());
+        List<double[]> original = cache.points(first.getRevision(), Axis.Z, first);
+        List<double[]> replacement = cache.points(second.getRevision(), Axis.Z, second);
+        assertNotSame(original, replacement);
+        assertSame(replacement, cache.points(second.getRevision(), Axis.Z, second));
+        for (double[] point : replacement) {
+            assertEquals(40.5D, point[2], EPSILON);
+        }
+    }
+
+    @Test
+    public void negativeRingsPreserveOuterAndInnerEdgesOnEveryAxis() {
+        for (Axis axis : Axis.values()) {
+            List<GeometryVector> cells = new ArrayList<GeometryVector>();
+            for (int right = -3; right < 0; right++) {
+                for (int up = -3; up < 0; up++) {
+                    if (right == -2 && up == -2) {
+                        continue;
+                    }
+                    cells.add(switch (axis) {
+                        case X -> new GeometryVector(-7, right, up);
+                        case Y -> new GeometryVector(right, -7, up);
+                        case Z -> new GeometryVector(right, up, -7);
+                    });
+                }
+            }
+            List<double[]> points = AmbientOutlineGeometry.build(cells, axis);
+            assertEquals(16 * AmbientOutlineGeometry.SAMPLES_PER_EDGE, points.size());
+            int inner = 0;
+            for (double[] point : points) {
+                double normal = point[axis.ordinal()];
+                double right = point[axis == Axis.X ? 1 : 0];
+                double up = point[axis == Axis.Z ? 1 : 2];
+                assertEquals(-6.5D, normal, EPSILON);
+                boolean outer = right == -3.0D || right == 0.0D || up == -3.0D || up == 0.0D;
+                boolean hole = ((right == -2.0D || right == -1.0D) && up > -2.0D && up < -1.0D)
+                    || ((up == -2.0D || up == -1.0D) && right > -2.0D && right < -1.0D);
+                assertTrue(outer || hole);
+                if (hole) {
+                    inner++;
+                }
+            }
+            assertEquals(4 * AmbientOutlineGeometry.SAMPLES_PER_EDGE, inner);
+        }
+    }
+
 }

@@ -1,11 +1,10 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.network.view.EntityVisual;
-import net.minecraft.SharedConstants;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.InterpolationHandler;
 import net.minecraft.world.level.entity.EntityTickList;
@@ -17,7 +16,6 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraft.core.Direction;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.MockedStatic;
 
@@ -46,13 +44,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
-public class ClientMeshInteractionTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class ClientMeshInteractionTest extends MinecraftTestBase {
     @Test
     public void loadedNativeCopiesNeverReachWorldTickHandlersWhileRealEntitiesTickNormally() {
         Entity nativeCopy = entity(-100, new AABB(0, 0, 0, 1, 2, 1));

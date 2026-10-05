@@ -171,6 +171,10 @@ tasks.named('processResources').configure {
 
 ext.shadowJarType = ShadowJar
 apply from: '../game-test.gradle'
+apply from: '../../gradle/modded-artifact.gradle'
+tasks.named('verifyModdedArtifact').configure {
+    metadata.set('fabric.mod.json')
+}
 
 sourceSets {
     clientGameTest {
@@ -191,11 +195,26 @@ project.extensions.getByName('fabricApi').configureTests {
 }
 
 loom {
+    mods {
+        wormholes {
+            sourceSet(sourceSets.main)
+            sourceSet(sourceSets.gameTest)
+            modFiles.from(provider { project(':core').sourceSets.main.output })
+        }
+        wormholes_clientgametest {
+            sourceSet(sourceSets.clientGameTest)
+        }
+    }
     runs {
         clientGameTest {
             source(sourceSets.clientGameTest)
+            systemProperties.put('fabric.client.gametest.testModResourcesPath', file('src/clientGameTest/resources').absolutePath)
         }
     }
+}
+
+tasks.named('runClientGameTest').configure {
+    dependsOn(tasks.named('gameTestClasses'), tasks.named('clientGameTestClasses'))
 }
 
 tasks.named('processClientGameTestResources').configure {
@@ -204,4 +223,8 @@ tasks.named('processClientGameTestResources').configure {
     filesMatching('fabric.mod.json') {
         expand('version': project.version, 'minecraftVersion': minecraftVersion)
     }
+}
+
+tasks.named('check').configure {
+    dependsOn(tasks.named('clientGameTestClasses'))
 }

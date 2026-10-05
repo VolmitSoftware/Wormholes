@@ -272,25 +272,7 @@ public final class ViewPlateBuilder {
         }
 
         private PlateBox remoteBox(PlateBox source, int margin) {
-            if (source.cells() == 0) {
-                return PlateBox.EMPTY;
-            }
-            double[] remote = new double[3];
-            double[] min = {Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY};
-            double[] max = {Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY};
-            for (int corner = 0; corner < 8; corner++) {
-                double x = ((corner & 1) == 0 ? source.minX() : source.minX() + source.sizeX() - 1) + 0.5D;
-                double y = ((corner & 2) == 0 ? source.minY() : source.minY() + source.sizeY() - 1) + 0.5D;
-                double z = ((corner & 4) == 0 ? source.minZ() : source.minZ() + source.sizeZ() - 1) + 0.5D;
-                transform.apply(x, y, z, remote);
-                for (int axis = 0; axis < 3; axis++) {
-                    min[axis] = Math.min(min[axis], remote[axis]);
-                    max[axis] = Math.max(max[axis], remote[axis]);
-                }
-            }
-            return PlateBox.spanning(
-                ((int) Math.floor(min[0])) - margin, ((int) Math.floor(min[1])) - margin, ((int) Math.floor(min[2])) - margin,
-                ((int) Math.floor(max[0])) + margin, ((int) Math.floor(max[1])) + margin, ((int) Math.floor(max[2])) + margin);
+            return transform.transformBox(source, margin);
         }
 
         private void lateralBounds(AxisAlignedBB area, int axis, double pad) {

@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
 import art.arcane.wormholes.modded.client.render.PortalIrisMainPipelines;
 import art.arcane.wormholes.modded.mixin.client.PreparedTravelPacketMixin;
@@ -10,7 +11,6 @@ import art.arcane.wormholes.render.client.ClientPortalGeometry;
 import net.minecraft.client.renderer.extract.LevelExtractor;
 import org.mockito.ArgumentCaptor;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
-import net.minecraft.SharedConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientChunkCache;
@@ -24,8 +24,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.phys.Vec3;
-import net.minecraft.server.Bootstrap;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.MockedStatic;
 import org.mockito.MockedConstruction;
@@ -36,6 +34,7 @@ import java.util.Map;
 import java.lang.reflect.Method;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static art.arcane.wormholes.modded.client.ClientTravelTestFixtures.set;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertEquals;
@@ -52,13 +51,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
-public class ClientPreparedTravelRespawnTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class ClientPreparedTravelRespawnTest extends MinecraftTestBase {
     @Test
     public void authoritativeRespawnUsesTerrainAndShaderScopesWithoutPlayerKeepFlags() throws ReflectiveOperationException {
         Minecraft minecraft = mock(Minecraft.class);
@@ -172,7 +165,7 @@ public class ClientPreparedTravelRespawnTest {
         BlockPos position = BlockPos.containing(eye);
         when(cache.getChunk(3, 7, FULL, false)).thenReturn(mock(LevelChunk.class));
         LevelRenderer renderer = mock(LevelRenderer.class);
-        field(minecraft, "levelRenderer", renderer);
+        set(minecraft, "levelRenderer", renderer);
         when(renderer.isSectionCompiledAndVisible(position, 0)).thenReturn(true);
         LevelLoadTracker tracker = mock(LevelLoadTracker.class);
         when(((PreparedPacketAccess) connection).wormholes$loadTracker()).thenReturn(tracker);
@@ -216,8 +209,8 @@ public class ClientPreparedTravelRespawnTest {
             minecraft.player = player;
             when(player.getEyePosition()).thenReturn(new Vec3(0.5, 65.62, 0.5));
             LevelRenderer renderer = mock(LevelRenderer.class);
-            field(minecraft, "levelRenderer", renderer);
-            field(minecraft, "gui", mock(Gui.class));
+            set(minecraft, "levelRenderer", renderer);
+            set(minecraft, "gui", mock(Gui.class));
             LevelLoadingScreen screen = mock(LevelLoadingScreen.class);
             ClientPreparedTravel travel = fallback(level, connection);
             try (MockedStatic<Minecraft> access = mockStatic(Minecraft.class)) {
@@ -265,7 +258,7 @@ public class ClientPreparedTravelRespawnTest {
         Constructor<?> arrival = arrivalType.getDeclaredConstructor(retainedType);
         arrival.setAccessible(true);
         ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
-        field(travel, "authoritativeArrival", arrival.newInstance(provenance));
+        set(travel, "authoritativeArrival", arrival.newInstance(provenance));
         return travel;
     }
 
@@ -273,12 +266,6 @@ public class ClientPreparedTravelRespawnTest {
         Method method = ClientPreparedTravel.class.getDeclaredMethod("advanceAuthoritativeArrival");
         method.setAccessible(true);
         method.invoke(travel);
-    }
-
-    private static void field(Object target, String name, Object value) throws ReflectiveOperationException {
-        Field field = target.getClass().getDeclaredField(name);
-        field.setAccessible(true);
-        field.set(target, value);
     }
 
     private static ClientPreparedTravel adopted(ClientLevel level) throws ReflectiveOperationException {

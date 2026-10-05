@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.clientview;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.network.client.ClientViewCapability;
 import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.wormholes.network.client.ClientViewMessage;
@@ -8,16 +9,13 @@ import art.arcane.wormholes.network.client.ClientViewProtocolException;
 import art.arcane.wormholes.network.client.SessionPalette;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import io.netty.channel.embedded.EmbeddedChannel;
-import net.minecraft.SharedConstants;
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -30,13 +28,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
-public class MinecraftClientViewWireTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class MinecraftClientViewWireTest extends MinecraftTestBase {
     @Test
     public void everyBlockStateRoundTripsThroughTheSessionPalette() throws CommandSyntaxException {
         SessionPalette palette = new SessionPalette();

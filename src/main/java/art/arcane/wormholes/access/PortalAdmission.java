@@ -53,7 +53,7 @@ public final class PortalAdmission {
         }
         AccessPortalExtension access = portal.extension(AccessPortalExtension.class);
         boolean alias = legacyNameNodeAlias();
-        String nameNode = PermissionKeys.node(PermissionKeys.sanitize(portal.getName()));
+        String nameNode = PortalPermissionKey.node(PortalPermissionKey.sanitize(portal.getName()));
         if (access == null) {
             return !alias || portal.getPermissionMode().allows(player::hasPermission, nameNode);
         }

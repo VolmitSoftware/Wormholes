@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
 import art.arcane.wormholes.modded.client.render.ClientTravelScene;
@@ -7,14 +8,11 @@ import art.arcane.wormholes.modded.mixin.client.LocalMeshChunkMixin;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
-import net.minecraft.SharedConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.extract.LevelExtractor;
 import net.minecraft.core.SectionPos;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.world.level.Level;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.MockedStatic;
 
@@ -30,13 +28,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class NativeLightNotificationTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class NativeLightNotificationTest extends MinecraftTestBase {
     @Test
     @SuppressWarnings("unchecked")
     public void activeVanillaAndInactiveNotificationsStayInTheirExactWorldWithoutOptionalTerrain() throws Exception {

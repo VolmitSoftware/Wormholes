@@ -1,16 +1,14 @@
 package art.arcane.wormholes.modded.client;
 
-import net.minecraft.SharedConstants;
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.player.RemotePlayer;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.InterpolationHandler;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.MockedStatic;
 
@@ -30,13 +28,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
-public class ClientProjectedPlayerPhysicsTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class ClientProjectedPlayerPhysicsTest extends MinecraftTestBase {
     @Test
     public void specializedClientPushQueryCannotLetTwoPlayerCopiesPushTheRealPlayer() throws ReflectiveOperationException {
         ClientLevel level = mock(ClientLevel.class);

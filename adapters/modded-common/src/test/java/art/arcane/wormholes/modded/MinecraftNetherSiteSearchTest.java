@@ -1,14 +1,11 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.portal.vanilla.NetherSiteSearch;
-import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.border.WorldBorder;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.lang.reflect.Method;
@@ -20,13 +17,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class MinecraftNetherSiteSearchTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class MinecraftNetherSiteSearchTest extends MinecraftTestBase {
     @Test
     public void nativeHazardsCannotBeFloorOrClearance() throws Exception {
         ServerLevel level = mock(ServerLevel.class);

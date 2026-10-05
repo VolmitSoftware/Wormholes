@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.network.client.Brick;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.network.client.ClientViewProtocol;
@@ -8,9 +9,7 @@ import art.arcane.wormholes.render.ProjectionCellKey;
 import art.arcane.wormholes.render.blockentity.BlockEntitySample;
 import art.arcane.wormholes.render.client.ClientCellRules;
 import art.arcane.wormholes.render.plate.PlateBox;
-import net.minecraft.SharedConstants;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -43,8 +42,7 @@ public class ClientViewApplyTest {
 
     @BeforeClass
     public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
+        MinecraftTestBase.bootstrap();
         STONE = ClientViewHarness.STONE;
         DIRT = ClientViewHarness.DIRT;
         AIR = ClientViewHarness.AIR;

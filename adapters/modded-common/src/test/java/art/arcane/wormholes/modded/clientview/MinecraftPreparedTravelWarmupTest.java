@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.clientview;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.chunk.ChunkLease;
 import art.arcane.wormholes.chunk.ChunkLeaseRegistry;
 import art.arcane.wormholes.geometry.GeometryVector;
@@ -20,13 +21,11 @@ import art.arcane.wormholes.render.client.ClientViewEntityTransform;
 import art.arcane.wormholes.render.client.session.ClientPreparedTravelServer;
 import art.arcane.wormholes.render.client.session.ClientViewServerSession;
 import art.arcane.wormholes.util.Direction;
-import net.minecraft.SharedConstants;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerChunkCache;
 import net.minecraft.server.level.ServerLevel;
@@ -36,7 +35,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.dimension.DimensionType;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
@@ -64,13 +62,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class MinecraftPreparedTravelWarmupTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class MinecraftPreparedTravelWarmupTest extends MinecraftTestBase {
     @Test
     public void coldLandingStartsOneAsyncLeaseAndWaitsForReadinessBeforeMetadataCapture() {
         Fixture fixture = new Fixture();

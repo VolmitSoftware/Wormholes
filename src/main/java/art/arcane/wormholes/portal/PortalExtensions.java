@@ -75,7 +75,11 @@ public final class PortalExtensions {
 
     void onPortalDestroyed() {
         for (PortalExtension extension : byType.values()) {
-            extension.onPortalDestroyed();
+            try {
+                extension.onPortalDestroyed();
+            } catch (Throwable failure) {
+                LOG.log(Level.WARNING, "Could not release portal extension " + extension.getClass().getSimpleName(), failure);
+            }
         }
     }
 }

@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.network.client.Brick;
 import art.arcane.wormholes.network.client.BrickCodec;
 import art.arcane.wormholes.network.client.ClientViewEnvironment;
@@ -10,14 +11,12 @@ import art.arcane.wormholes.network.client.SectionBiomes;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.network.view.EntityVisual;
 import art.arcane.wormholes.render.plate.PlateBox;
-import net.minecraft.SharedConstants;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.block.Blocks;
@@ -28,7 +27,6 @@ import net.minecraft.world.level.block.entity.ChestBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.ChestType;
 import net.minecraft.world.level.block.entity.SkullBlockEntity;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.MockedStatic;
 
@@ -61,13 +59,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
-public class ClientMeshEntitiesTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class ClientMeshEntitiesTest extends MinecraftTestBase {
     @Test
     public void localEntitiesUseIndependentRenderStatesWithoutTickingOrMutatingSourceEntities() {
         ClientLevel level = mock(ClientLevel.class);

@@ -625,12 +625,24 @@ final class DoorRuntimeIndex implements AutoCloseable
 	@Override
 	public void close()
 	{
-		sweep.close();
+		closeStep("door entity sweep", sweep::close);
 		autoClose.clear();
         preparedArrivalBodies.clear();
-		visuals.close();
+		closeStep("door visuals", visuals::close);
 		spatialIndex.clear();
 		runtimes.clear();
+	}
+
+	private void closeStep(String resource, Runnable cleanup)
+	{
+		try
+		{
+			cleanup.run();
+		}
+		catch(Throwable failure)
+		{
+			plugin.getLogger().log(Level.WARNING, "Could not close " + resource, failure);
+		}
 	}
 
 	private void confirmPlacement(PlacedDoorEndpoint endpoint)

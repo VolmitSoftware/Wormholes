@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client.render;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import com.mojang.blaze3d.vertex.MeshData;
-import net.minecraft.SharedConstants;
 import net.minecraft.client.color.block.BlockColors;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.client.renderer.block.BlockStateModelSet;
@@ -14,7 +14,6 @@ import net.minecraft.client.resources.model.sprite.Material;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.CardinalLighting;
 import net.minecraft.world.level.block.Blocks;
@@ -35,8 +34,7 @@ import static org.mockito.Mockito.when;
 public class PortalSectionMeshTest {
     @BeforeClass
     public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
+        MinecraftTestBase.bootstrap();
         Blocks.STONE.defaultBlockState().initCache();
         Blocks.AIR.defaultBlockState().initCache();
     }

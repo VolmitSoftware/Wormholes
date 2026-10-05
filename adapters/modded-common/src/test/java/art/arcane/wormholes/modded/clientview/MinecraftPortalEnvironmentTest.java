@@ -1,10 +1,9 @@
 package art.arcane.wormholes.modded.clientview;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.network.client.ClientViewEnvironment;
 import art.arcane.wormholes.util.Direction;
-import net.minecraft.SharedConstants;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
@@ -23,7 +22,6 @@ import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.tags.FluidTags;
 import org.joml.Vector3f;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.Optional;
@@ -38,13 +36,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class MinecraftPortalEnvironmentTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class MinecraftPortalEnvironmentTest extends MinecraftTestBase {
     @Test
     @SuppressWarnings("unchecked")
     public void samplesDestinationAttributesAndDimensionInsteadOfClientWorld() {

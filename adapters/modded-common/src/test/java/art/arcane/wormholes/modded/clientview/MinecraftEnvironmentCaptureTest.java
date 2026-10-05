@@ -1,19 +1,17 @@
 package art.arcane.wormholes.modded.clientview;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.chunk.ChunkLease;
 import art.arcane.wormholes.chunk.ChunkLeaseRegistry;
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.network.client.ClientViewEnvironment;
 import art.arcane.wormholes.util.Direction;
-import net.minecraft.SharedConstants;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerChunkCache;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.LevelChunk;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.MockedStatic;
 
@@ -37,13 +35,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class MinecraftEnvironmentCaptureTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class MinecraftEnvironmentCaptureTest extends MinecraftTestBase {
     @Test
     public void waitsForSavedEyeChunkOutsideMeshAndSamplesOnlyOnServerThread() {
         Fixture fixture = fixture();

@@ -2074,25 +2074,37 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		{
 			return;
 		}
-		HandlerList.unregisterAll(this);
-		HandlerList.unregisterAll(protection);
-		HandlerList.unregisterAll(rulesListener);
+		closeStep("manager listeners", () -> HandlerList.unregisterAll(this));
+		closeStep("protection listeners", () -> HandlerList.unregisterAll(protection));
+		closeStep("rule listeners", () -> HandlerList.unregisterAll(rulesListener));
 		Listener entityMoveListener = livingEntityMoveListener;
+		livingEntityMoveListener = null;
 		if(entityMoveListener != null)
 		{
-			HandlerList.unregisterAll(entityMoveListener);
-			livingEntityMoveListener = null;
+			closeStep("entity movement listener", () -> HandlerList.unregisterAll(entityMoveListener));
 		}
 		DoorItemService activeItems = items;
 		if(activeItems != null)
 		{
-			activeItems.unregisterRecipes();
+			closeStep("door recipes", activeItems::unregisterRecipes);
 		}
-		projectionRegistry.close();
-		runtimes.close();
-		ledger.clear();
+		closeStep("door projections", projectionRegistry::close);
+		closeStep("door runtimes", runtimes::close);
+		closeStep("transit ledger", ledger::clear);
 		deferredCrossings.clear();
 		pockets.clear();
 		accessFeedback.clear();
+	}
+
+	private void closeStep(String resource, Runnable cleanup)
+	{
+		try
+		{
+			cleanup.run();
+		}
+		catch(Throwable failure)
+		{
+			plugin.getLogger().log(Level.WARNING, "Could not close " + resource, failure);
+		}
 	}
 }

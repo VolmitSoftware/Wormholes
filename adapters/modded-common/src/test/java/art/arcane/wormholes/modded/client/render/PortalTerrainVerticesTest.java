@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client.render;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.network.client.ClientViewEnvironment;
 import art.arcane.wormholes.util.Direction;
@@ -9,12 +10,9 @@ import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
-import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.nio.ByteBuffer;
@@ -25,13 +23,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
-public class PortalTerrainVerticesTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class PortalTerrainVerticesTest extends MinecraftTestBase {
     @Test
     public void materialSnapshotsAreImmutableAndVanillaKeepsItsNativeFormat() {
         Map<BlockState, Integer> source = new HashMap<>();

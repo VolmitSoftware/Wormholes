@@ -17,9 +17,7 @@ import art.arcane.wormholes.door.DoorwayPlane;
 import art.arcane.wormholes.door.PairEndpoint;
 import art.arcane.wormholes.door.PlacedDoorEndpoint;
 import art.arcane.wormholes.util.Direction;
-import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.DoorBlock;
@@ -33,7 +31,6 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.AABB;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.lang.reflect.Constructor;
@@ -56,13 +53,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 
-public class MinecraftPreparedDoorCloseTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class MinecraftPreparedDoorCloseTest extends MinecraftTestBase {
     @Test
     public void closedMateOpensBeforeExactCollisionValidationAndFailedArrivalRestoresIt() throws Exception {
         MinecraftDoorService service = new MinecraftDoorService(mock(WormholesModRuntime.class));

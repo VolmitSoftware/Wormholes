@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.MinecraftChunkPacketEncoding;
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
@@ -14,7 +15,6 @@ import art.arcane.wormholes.render.client.ClientPortalGeometry;
 import art.arcane.wormholes.util.Direction;
 import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
-import net.minecraft.SharedConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientChunkCache;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -31,19 +31,16 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.protocol.game.ClientboundLevelChunkPacketData;
 import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
 import net.minecraft.network.protocol.game.ClientboundLightUpdatePacketData;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.chunk.LevelChunk;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.MockedStatic;
 import org.mockito.MockedConstruction;
 
 import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.BitSet;
 import java.util.ArrayDeque;
@@ -53,6 +50,8 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static art.arcane.wormholes.modded.client.ClientTravelTestFixtures.field;
+import static art.arcane.wormholes.modded.client.ClientTravelTestFixtures.set;
 import static net.minecraft.world.level.chunk.status.ChunkStatus.FULL;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -70,13 +69,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.mockConstruction;
 import static org.mockito.Mockito.withSettings;
 
-public class ClientPreparedTravelRetentionTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
     @Test
     public void shiftedReturnKeepsNativeCacheHaloButOnlyTrustsNewManifestProof() throws ReflectiveOperationException {
         ClientViewMessage.TravelBegin original = begin();
@@ -570,17 +563,5 @@ public class ClientPreparedTravelRetentionTest {
     @SuppressWarnings("unchecked")
     private static Map<ClientViewMessage.TravelCoordinate, Object> map(Object target, String name) throws ReflectiveOperationException {
         return (Map<ClientViewMessage.TravelCoordinate, Object>) field(target, name);
-    }
-
-    private static Object field(Object target, String name) throws ReflectiveOperationException {
-        Field field = target.getClass().getDeclaredField(name);
-        field.setAccessible(true);
-        return field.get(target);
-    }
-
-    private static void set(Object target, String name, Object value) throws ReflectiveOperationException {
-        Field field = target.getClass().getDeclaredField(name);
-        field.setAccessible(true);
-        field.set(target, value);
     }
 }

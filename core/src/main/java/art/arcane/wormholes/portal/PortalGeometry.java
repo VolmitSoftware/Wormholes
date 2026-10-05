@@ -1,6 +1,7 @@
 package art.arcane.wormholes.portal;
 
 import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.wormholes.render.ProjectionCellKey;
 import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Direction;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -117,7 +118,7 @@ public final class PortalGeometry implements PortalCellAperture {
     }
 
     private void addBlockCell(int x, int y, int z) {
-        if (blockKeys.add(packBlockKey(x, y, z))) {
+        if (blockKeys.add(ProjectionCellKey.pack(x, y, z))) {
             blockPositions.add(new GeometryVector(x, y, z));
         }
     }
@@ -156,7 +157,7 @@ public final class PortalGeometry implements PortalCellAperture {
 			return getArea() != null && getArea().containsPrimitive(x + 0.5D, y + 0.5D, z + 0.5D);
 		}
 
-		return blockKeys.contains(packBlockKey(x, y, z));
+		return blockKeys.contains(ProjectionCellKey.pack(x, y, z));
 	}
 
 	public boolean containsOrAdjoinsBlock(int x, int y, int z)
@@ -225,26 +226,4 @@ public final class PortalGeometry implements PortalCellAperture {
 		return new AxisAlignedBB(x, x + 0.999D, y, y + 0.999D, z, z + 0.999D);
 	}
 
-	public static long packBlockKey(int x, int y, int z)
-	{
-		return (((long) x & 0x3FFFFFFL) << 38) | ((((long) y) & 0xFFFL) << 26) | (((long) z) & 0x3FFFFFFL);
-	}
-
-	public static int unpackBlockX(long key)
-	{
-		long raw = (key >> 38) & 0x3FFFFFFL;
-		return (int) ((raw << 38) >> 38);
-	}
-
-	public static int unpackBlockY(long key)
-	{
-		long raw = (key >> 26) & 0xFFFL;
-		return (int) ((raw << 52) >> 52);
-	}
-
-	public static int unpackBlockZ(long key)
-	{
-		long raw = key & 0x3FFFFFFL;
-		return (int) ((raw << 38) >> 38);
-	}
 }

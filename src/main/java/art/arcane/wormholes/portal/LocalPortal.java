@@ -535,6 +535,15 @@ public class LocalPortal extends Portal implements ILocalPortal, Listener, Porta
 		}
 	}
 
+	public void retireForBulkDeletion()
+	{
+		if(!linking.retireForBulkDeletion())
+		{
+			return;
+		}
+		extensions.onPortalDestroyed();
+	}
+
 	@Override
 	public boolean isDestroyed()
 	{

@@ -8,9 +8,7 @@ import art.arcane.wormholes.portal.PortalGeometry;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.ProjectionMode;
 import art.arcane.wormholes.util.Direction;
-import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
@@ -19,7 +17,6 @@ import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.feature.EndPodiumFeature;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.lang.reflect.Method;
@@ -39,13 +36,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class MinecraftEndPortalTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class MinecraftEndPortalTest extends MinecraftTestBase {
     @Test
     public void vanillaFountainAperturePreservesTheBedrockPillarAndDeactivatesOnRespawn() throws Exception {
         Map<BlockPos, BlockState> blocks = new HashMap<>();

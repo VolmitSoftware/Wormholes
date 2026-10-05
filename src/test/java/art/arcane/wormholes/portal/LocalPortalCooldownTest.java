@@ -1,7 +1,6 @@
 package art.arcane.wormholes.portal;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.UUID;
@@ -29,10 +28,4 @@ public final class LocalPortalCooldownTest {
         assertFalse(LocalPortal.isTeleportCoolingDown(entityId, 2002L));
     }
 
-    @Test
-    public void portalPermissionNamesAreStableNodes() {
-        assertEquals("alpha_gate", LocalPortalSettings.sanitizePermissionName("Alpha Gate"));
-        assertEquals("portal-01.main", LocalPortalSettings.sanitizePermissionName(" Portal-01.Main "));
-        assertEquals("unnamed", LocalPortalSettings.sanitizePermissionName("   "));
-    }
 }

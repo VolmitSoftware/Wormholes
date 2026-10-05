@@ -7,12 +7,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 public final class PortalSyncService<P extends IPortal> {
     private static final ThreadLocal<Boolean> APPLYING_REMOTE = ThreadLocal.withInitial(() -> Boolean.FALSE);
 
+    private final AtomicBoolean closed = new AtomicBoolean();
     private final NetworkManager network;
     private final Supplier<List<P>> portalSource;
     private final Consumer<Runnable> globalDispatcher;
@@ -30,17 +32,26 @@ public final class PortalSyncService<P extends IPortal> {
     }
 
     public void onPeerStateChanged(String peerName, boolean ready) {
-        if (!ready) {
+        if (closed.get() || !ready) {
             return;
         }
         globalDispatcher.accept(() -> sendDirectory(peerName));
     }
 
     public void shutdown() {
-        localSettingsQueue.shutdown();
+        if (closed.compareAndSet(false, true)) {
+            localSettingsQueue.shutdown();
+        }
+    }
+
+    public boolean isClosed() {
+        return closed.get();
     }
 
     public void sendDirectory(String peerName) {
+        if (closed.get()) {
+            return;
+        }
         List<PortalInfo> shared = new ArrayList<>();
         List<P> settingsSources = new ArrayList<>();
         for (P portal : portalSource.get()) {
@@ -58,7 +69,7 @@ public final class PortalSyncService<P extends IPortal> {
     }
 
     public void broadcastPortal(P portal) {
-        if (!network.isRunning()) {
+        if (closed.get() || !network.isRunning()) {
             return;
         }
         if (access.shareable(portal)) {
@@ -73,7 +84,7 @@ public final class PortalSyncService<P extends IPortal> {
     }
 
     public void broadcastRemove(UUID portalId) {
-        if (!network.isRunning()) {
+        if (closed.get() || !network.isRunning()) {
             return;
         }
         network.sendToPeers(peerNames(), new WireMessage.PortalRemove(portalId));
@@ -94,7 +105,7 @@ public final class PortalSyncService<P extends IPortal> {
     }
 
     public void broadcastSettings(P portal) {
-        if (portal == null || APPLYING_REMOTE.get().booleanValue()) {
+        if (closed.get() || portal == null || APPLYING_REMOTE.get().booleanValue()) {
             return;
         }
         if (!access.supportsSettings(portal) || !access.settingsSyncEnabled(portal)) {
@@ -108,7 +119,7 @@ public final class PortalSyncService<P extends IPortal> {
     }
 
     public void syncLinkedLocals(P portal) {
-        if (portal == null || APPLYING_REMOTE.get().booleanValue()) {
+        if (closed.get() || portal == null || APPLYING_REMOTE.get().booleanValue()) {
             return;
         }
         if (!access.supportsSettings(portal) || !access.settingsSyncEnabled(portal)) {
@@ -172,7 +183,7 @@ public final class PortalSyncService<P extends IPortal> {
     }
 
     public void broadcastSettingsToggle(P portal) {
-        if (portal == null || !network.isRunning() || APPLYING_REMOTE.get().booleanValue()) {
+        if (closed.get() || portal == null || !network.isRunning() || APPLYING_REMOTE.get().booleanValue()) {
             return;
         }
         if (!access.supportsSettings(portal)) {
@@ -182,7 +193,7 @@ public final class PortalSyncService<P extends IPortal> {
     }
 
     public void broadcastRemoteCache(P portal) {
-        if (portal == null || network == null || !network.isRunning() || APPLYING_REMOTE.get().booleanValue()) {
+        if (closed.get() || portal == null || network == null || !network.isRunning() || APPLYING_REMOTE.get().booleanValue()) {
             return;
         }
         if (!access.supportsSettings(portal) || !access.gateway(portal)) {
@@ -211,7 +222,7 @@ public final class PortalSyncService<P extends IPortal> {
     }
 
     public void applySettingsUpdate(String peerName, WireMessage.PortalSettingsUpdate update) {
-        if (update == null) {
+        if (closed.get() || update == null) {
             return;
         }
         UUID portalId = update.portalId();

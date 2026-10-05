@@ -65,7 +65,7 @@ final class BlockOpsRuneIndex
 			return false;
 		}
 
-		Wormholes.v("Destroying " + tracked.size() + " portal blocks in chunk " + c.getX() + ", " + c.getZ());
+		Wormholes.v("Destroying " + tracked.size() + " portal blocks in chunk " + c.x() + ", " + c.z());
 
 		for(PortalBlock i : tracked)
 		{

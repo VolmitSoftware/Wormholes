@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.wormholes.modded.client.render.PortalScene;
@@ -15,17 +16,14 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import art.arcane.wormholes.modded.client.render.PortalTerrainMaterials;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
-import net.minecraft.SharedConstants;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.lang.reflect.Constructor;
@@ -50,14 +48,8 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.ArgumentMatchers.any;
 
-public class ClientProjectedMeshReuseTest {
+public class ClientProjectedMeshReuseTest extends MinecraftTestBase {
     private static final PlateBox BOUNDS = new PlateBox(-32, -32, -32, 96, 96, 96);
-
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
 
     @Test
     public void droppedPortalReopensWithHistorySectionsAndTransfersExactGpuOwnershipToNewKey() throws Exception {

@@ -1,13 +1,10 @@
 package art.arcane.wormholes.modded;
 
-import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.MockedStatic;
 
@@ -26,13 +23,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class MinecraftPortalSkinInteractionTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class MinecraftPortalSkinInteractionTest extends MinecraftTestBase {
     @Test
     public void adminSkinRemovalConsumesTheFrameGestureBeforeOpeningMenus() {
         WormholesModRuntime runtime = mock(WormholesModRuntime.class, RETURNS_DEEP_STUBS);

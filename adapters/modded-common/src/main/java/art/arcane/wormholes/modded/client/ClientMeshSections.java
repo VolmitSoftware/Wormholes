@@ -109,9 +109,6 @@ public final class ClientMeshSections {
         if (currentRevision != 0 && revision <= currentRevision) {
             return revision == currentRevision ? Result.DUPLICATE : Result.STALE;
         }
-        if (previous == null && view.sections.size() >= view.maxSections) {
-            return Result.REFUSED;
-        }
         Section next = new Section(message, palette, ++this.revision, epoch);
         if (previous != null && previous.hash == next.hash && epochKnown) {
             view.wireRevisions.put(key, revision);
@@ -120,6 +117,9 @@ public final class ClientMeshSections {
         }
         long delta = next.bytes - (previous == null ? 0 : previous.bytes);
         if (delta > budget - bytes - historyBytes - otherMemory.getAsLong()) {
+            return Result.REFUSED;
+        }
+        if (!admitAuthoritative(view, key)) {
             return Result.REFUSED;
         }
         view.sections.put(key, next);
@@ -214,6 +214,42 @@ public final class ClientMeshSections {
         view.bytes += delta;
         bytes += delta;
         remember(view, key, section);
+        return true;
+    }
+
+    private boolean admitAuthoritative(View view, long key) {
+        if (view.keys.contains(key) || view.keys.size() < view.maxSections) {
+            return true;
+        }
+        int required = view.keys.size() - view.maxSections + 1;
+        long[] candidates = new long[required];
+        int count = 0;
+        for (int pass = 0; pass < 2 && count < required; pass++) {
+            for (long existing : view.keys) {
+                if (view.wireRevisions.get(existing) != 0
+                    || view.localSections.containsKey(existing) != (pass == 1)) {
+                    continue;
+                }
+                candidates[count++] = existing;
+                if (count == required) {
+                    break;
+                }
+            }
+        }
+        if (count != required) {
+            return false;
+        }
+        for (long candidate : candidates) {
+            Section wire = view.sections.remove(candidate);
+            Section local = view.localSections.remove(candidate);
+            long removedBytes = (wire == null ? 0L : wire.bytes) + (local == null ? 0L : local.bytes);
+            view.claimed.remove(candidate);
+            view.keys.remove(candidate);
+            view.changed.add(candidate);
+            view.contentRevision++;
+            view.bytes -= removedBytes;
+            bytes -= removedBytes;
+        }
         return true;
     }
 
@@ -316,7 +352,7 @@ public final class ClientMeshSections {
             for (HistoryEntry entry : context.sections.values()) {
                 long key = entry.key;
                 if (!view.intersects(SectionPos.x(key), SectionPos.y(key), SectionPos.z(key))
-                    || view.sections.containsKey(key) || view.sections.size() >= view.maxSections) {
+                    || view.sections.containsKey(key) || !view.keys.contains(key) && view.keys.size() >= view.maxSections) {
                     continue;
                 }
                 Section section = entry.section;
@@ -389,7 +425,7 @@ public final class ClientMeshSections {
     private static boolean canPreview(View view, long key) {
         return view != null && view.identity != null && !view.sections.containsKey(key)
             && view.intersects(SectionPos.x(key), SectionPos.y(key), SectionPos.z(key))
-            && view.sections.size() < view.maxSections;
+            && (view.keys.contains(key) || view.keys.size() < view.maxSections);
     }
 
     private void remember(View view, long key, Section section) {

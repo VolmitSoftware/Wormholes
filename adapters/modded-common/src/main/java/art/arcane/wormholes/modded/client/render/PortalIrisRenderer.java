@@ -25,12 +25,12 @@ import java.util.function.Supplier;
 
 final class PortalIrisRenderer implements PortalShaderRenderer {
     private static final long MAX_BYTES = 1536L * 1024L * 1024L;
+    private static final Comparator<Entry> REUSE_ORDER = Comparator.comparing(Entry::ready)
+        .thenComparingLong(entry -> (long) entry.target.width * entry.target.height)
+        .thenComparingLong(entry -> entry.bytes).reversed();
 
     private final Supplier<ShaderPack> packs;
     private final List<Entry> idle = new ArrayList<>();
-    private long constructed;
-    private long leased;
-    private long recycled;
     private final LinkedHashMap<Integer, Entry> entries = new LinkedHashMap<>(16, 0.75f, true);
     private final Map<NamespacedId, Shared> shared = new HashMap<>();
     private final Map<NamespacedId, Long> materialRevisions = new HashMap<>();
@@ -100,13 +100,13 @@ final class PortalIrisRenderer implements PortalShaderRenderer {
             bytes += entry.bytes;
         }
         for (Map.Entry<NamespacedId, Integer> requested : uses.entrySet()) {
+            if (requested.getValue() == 0) {
+                continue;
+            }
             List<Entry> reusable = reusableEntries(requested.getKey());
             int count = Math.min(requested.getValue(), reusable.size());
             for (int index = 0; index < count; index++) {
-                Entry entry = reusable.get(index);
-                if (idle.contains(entry)) {
-                    bytes -= entry.bytes;
-                }
+                bytes -= reusable.get(index).bytes;
             }
         }
         for (Map.Entry<NamespacedId, Shared> entry : shared.entrySet()) {
@@ -130,7 +130,6 @@ final class PortalIrisRenderer implements PortalShaderRenderer {
         Entry reusable = reusable(dimension);
         if (reusable != null) {
             entries.put(key, reusable);
-            leased++;
             resize(reusable, entryBytes(reusable, environment, width, height), width, height);
             return reusable;
         }
@@ -140,13 +139,16 @@ final class PortalIrisRenderer implements PortalShaderRenderer {
     }
 
     private Entry reusable(NamespacedId dimension) {
-        List<Entry> candidates = reusableEntries(dimension);
-        if (candidates.isEmpty()) {
-            return null;
+        Entry selected = null;
+        for (Entry entry : idle) {
+            if (entry.dimension.equals(dimension) && (selected == null || REUSE_ORDER.compare(entry, selected) < 0)) {
+                selected = entry;
+            }
         }
-        Entry entry = candidates.getFirst();
-        idle.remove(entry);
-        return entry;
+        if (selected != null) {
+            idle.remove(selected);
+        }
+        return selected;
     }
 
     private List<Entry> reusableEntries(NamespacedId dimension) {
@@ -156,9 +158,7 @@ final class PortalIrisRenderer implements PortalShaderRenderer {
                 candidates.add(entry);
             }
         }
-        candidates.sort(Comparator.comparing(Entry::ready)
-            .thenComparingLong(entry -> (long) entry.target.width * entry.target.height)
-            .thenComparingLong(entry -> entry.bytes).reversed());
+        candidates.sort(REUSE_ORDER);
         return candidates;
     }
 
@@ -182,7 +182,6 @@ final class PortalIrisRenderer implements PortalShaderRenderer {
             long materialRevision = materialRevisions.computeIfAbsent(dimension, ignored -> ++revision);
             Entry entry = new Entry(new EntryRequest(key, dimension, width, height, materialRevision,
                 bytes + (share ? 0 : shadowBytes), share ? 0 : shadowBytes, shadow, materials, warmups));
-            constructed++;
             reserved += entry.bytes;
             return entry;
         } catch (RuntimeException | Error failure) {
@@ -247,7 +246,6 @@ final class PortalIrisRenderer implements PortalShaderRenderer {
                 entry.pipeline.released();
             }
             idle.addFirst(entry);
-            recycled++;
             reserve();
         } else {
             destroy(entry);

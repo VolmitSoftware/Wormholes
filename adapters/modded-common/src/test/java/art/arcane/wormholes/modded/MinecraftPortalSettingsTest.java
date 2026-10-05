@@ -15,9 +15,6 @@ import art.arcane.wormholes.transit.OrientationPolicy;
 import art.arcane.wormholes.transit.TransitionProfile;
 import art.arcane.wormholes.util.Direction;
 import org.junit.Test;
-import org.junit.BeforeClass;
-import net.minecraft.SharedConstants;
-import net.minecraft.server.Bootstrap;
 
 import java.util.List;
 import java.util.Map;
@@ -30,13 +27,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class MinecraftPortalSettingsTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class MinecraftPortalSettingsTest extends MinecraftTestBase {
     @Test
     public void settingsSyncKeepsBounceLocalAndClearsFidelityOverrides() {
         WormholesModRuntime runtime = mock(WormholesModRuntime.class);

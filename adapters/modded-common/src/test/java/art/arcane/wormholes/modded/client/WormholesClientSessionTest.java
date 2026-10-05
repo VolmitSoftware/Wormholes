@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.network.client.ClientViewCapability;
 import art.arcane.wormholes.network.client.ClientViewEnvironment;
 import art.arcane.wormholes.geometry.GeometryVector;
@@ -11,10 +12,7 @@ import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.network.client.ClientViewProtocol;
 import art.arcane.wormholes.render.client.session.ClientViewEmitters;
-import net.minecraft.SharedConstants;
 import net.minecraft.client.Minecraft;
-import net.minecraft.server.Bootstrap;
-import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -31,15 +29,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
-public class WormholesClientSessionTest {
+public class WormholesClientSessionTest extends MinecraftTestBase {
     @Rule
     public final TemporaryFolder folder = new TemporaryFolder();
-
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
 
     @Test
     public void queuedCacheClaimsSurviveEqualIdentityAndRetireForEachProofComponentChange() throws Exception {

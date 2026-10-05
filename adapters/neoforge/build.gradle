@@ -229,3 +229,7 @@ tasks.named('processResources').configure {
 
 ext.shadowJarType = ShadowJar
 apply from: '../game-test.gradle'
+apply from: '../../gradle/modded-artifact.gradle'
+tasks.named('verifyModdedArtifact').configure {
+    metadata.set('META-INF/neoforge.mods.toml')
+}

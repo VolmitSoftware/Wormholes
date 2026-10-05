@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client.render;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.network.client.ClientViewEnvironment;
 import art.arcane.wormholes.network.client.Brick;
@@ -9,11 +10,9 @@ import art.arcane.wormholes.modded.client.ClientMeshWorld;
 import art.arcane.wormholes.modded.client.ClientPalette;
 import art.arcane.wormholes.render.client.ClientPortalGeometry;
 import art.arcane.wormholes.render.plate.PlateBox;
-import net.minecraft.SharedConstants;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.server.Bootstrap;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
@@ -23,7 +22,6 @@ import com.mojang.renderpearl.api.buffers.GpuBuffer;
 import com.mojang.renderpearl.api.device.GpuDevice;
 import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
 import org.mockito.MockedStatic;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.lang.reflect.Constructor;
@@ -62,13 +60,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 
-public class ClientTravelMeshReuseTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class ClientTravelMeshReuseTest extends MinecraftTestBase {
     @Test
     public void bulkAdoptionRestoresExactProjectedGpuObjectsBeforeDrawingWithoutCompilerSlots() throws Exception {
         try (BulkFixture fixture = new BulkFixture()) {

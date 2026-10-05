@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.clientview;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.volmlib.util.localization.LocalizationCandidate;
 import art.arcane.volmlib.util.localization.LocalizationSnapshot;
 import art.arcane.volmlib.util.localization.PluralSelector;
@@ -18,18 +19,15 @@ import art.arcane.wormholes.render.client.session.ClientViewSessionStats;
 import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import net.minecraft.SharedConstants;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.Connection;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.PacketFlow;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.players.PlayerList;
 import net.minecraft.world.level.block.state.BlockState;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -47,7 +45,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class MinecraftClientViewCommandsTest {
+public class MinecraftClientViewCommandsTest extends MinecraftTestBase {
     private static final UUID ALEX = UUID.fromString("00000000-0000-0000-0000-00000000a1e7");
 
     private MinecraftClientViewService clientViews;
@@ -56,12 +54,6 @@ public class MinecraftClientViewCommandsTest {
     private CommandSourceStack admin;
     private CommandSourceStack projectionAdmin;
     private CommandDispatcher<CommandSourceStack> dispatcher;
-
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
 
     @Before
     @SuppressWarnings("unchecked")

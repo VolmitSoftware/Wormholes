@@ -1,6 +1,9 @@
 package art.arcane.wormholes.door;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -58,13 +61,16 @@ final class PocketRulesTest {
         assertEquals(PocketRules.defaults(), PocketRules.defaults().withMobs(false), "a no-op keeps the instance");
     }
 
-    @Test
-    void aFixedTimeIsEitherFollowTheWorldOrATickInsideOneDay() {
-        assertFalse(PocketRules.defaults().withFixedTime(PocketRules.FOLLOW_WORLD_TIME).hasFixedTime());
-        assertTrue(PocketRules.defaults().withFixedTime(0L).hasFixedTime());
-        assertTrue(PocketRules.defaults().withFixedTime(23_999L).hasFixedTime());
-        assertThrows(IllegalArgumentException.class, () -> PocketRules.defaults().withFixedTime(24_000L));
-        assertThrows(IllegalArgumentException.class, () -> PocketRules.defaults().withFixedTime(-2L));
+    @ParameterizedTest
+    @CsvSource({"-1,false", "0,true", "23999,true"})
+    void aFixedTimeIsEitherFollowTheWorldOrATickInsideOneDay(long time, boolean fixed) {
+        assertEquals(fixed, PocketRules.defaults().withFixedTime(time).hasFixedTime());
+    }
+
+    @ParameterizedTest
+    @ValueSource(longs = {24_000L, -2L})
+    void fixedTimeOutsideTheDayIsRejected(long time) {
+        assertThrows(IllegalArgumentException.class, () -> PocketRules.defaults().withFixedTime(time));
     }
 
     @Test

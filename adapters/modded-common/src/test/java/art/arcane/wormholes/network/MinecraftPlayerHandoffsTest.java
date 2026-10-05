@@ -1,5 +1,6 @@
 package art.arcane.wormholes.network;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.config.toml.MainConfig;
 import art.arcane.wormholes.config.toml.NetworkConfig;
@@ -9,21 +10,18 @@ import art.arcane.wormholes.modded.MinecraftNetworkService;
 import art.arcane.wormholes.network.mesh.DrainMode;
 import art.arcane.wormholes.modded.mixin.ServerConnectionAccess;
 import com.mojang.authlib.GameProfile;
-import net.minecraft.SharedConstants;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.common.ClientboundTransferPacket;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.server.permissions.PermissionSet;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.players.NameAndId;
 import net.minecraft.server.players.PlayerList;
 import net.minecraft.server.players.UserBanList;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -46,7 +44,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-public class MinecraftPlayerHandoffsTest {
+public class MinecraftPlayerHandoffsTest extends MinecraftTestBase {
     private MinecraftServer server;
     private WormholesModRuntime runtime;
     private NetworkManager network;
@@ -56,12 +54,6 @@ public class MinecraftPlayerHandoffsTest {
     private UserBanList bans;
     private NameAndId identity;
     private WireMessage.HandoffRequest request;
-
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
 
     @Before
     public void setUp() {

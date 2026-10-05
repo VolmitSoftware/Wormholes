@@ -1,10 +1,5 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.config.WormholesSettings;
-import art.arcane.wormholes.config.toml.MainConfig;
-import art.arcane.wormholes.config.toml.NetworkConfig;
-import art.arcane.wormholes.config.toml.ProjectionConfig;
-import art.arcane.wormholes.config.toml.RenderConfig;
 import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.portal.PortalGeometry;
 import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
@@ -20,8 +15,6 @@ import art.arcane.wormholes.render.plate.ViewPlateKey;
 import art.arcane.wormholes.render.view.ProjectionContentView;
 import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Direction;
-import net.minecraft.SharedConstants;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerChunkCache;
 import net.minecraft.server.level.ServerLevel;
@@ -31,7 +24,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.PalettedContainer;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.List;
@@ -54,13 +46,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class MinecraftViewPlateTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class MinecraftViewPlateTest extends MinecraftTestBase {
     @Test
     public void meshSectionsKeepDestinationModelStatesWhilePacketPlatesRotateStates() {
         BlockState source = Blocks.OAK_STAIRS.defaultBlockState();
@@ -95,7 +81,7 @@ public class MinecraftViewPlateTest {
         when(server.getPlayerList()).thenReturn(players);
         when(players.getPlayers()).thenReturn(List.of());
         when(runtime.configuration()).thenReturn(configuration);
-        when(configuration.settings()).thenReturn(new WormholesSettings(new MainConfig(), new ProjectionConfig(), new RenderConfig(), new NetworkConfig()));
+        when(configuration.settings()).thenReturn(MinecraftTestSettings.defaults());
         BlockState stone = Blocks.STONE.defaultBlockState();
         ServerLevel level = mock(ServerLevel.class);
         ServerChunkCache chunks = mock(ServerChunkCache.class);

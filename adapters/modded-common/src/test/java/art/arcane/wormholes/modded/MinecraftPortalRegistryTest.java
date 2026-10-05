@@ -4,19 +4,12 @@ import art.arcane.wormholes.rules.RuleDocument;
 import art.arcane.wormholes.nexus.NetworkMember;
 import art.arcane.wormholes.chunk.ChunkLease;
 import art.arcane.wormholes.chunk.ChunkLeaseRegistry;
-import art.arcane.wormholes.config.WormholesSettings;
-import art.arcane.wormholes.config.toml.MainConfig;
-import art.arcane.wormholes.config.toml.NetworkConfig;
-import art.arcane.wormholes.config.toml.ProjectionConfig;
-import art.arcane.wormholes.config.toml.RenderConfig;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.rtp.MinecraftRtpRuntime;
 import art.arcane.wormholes.network.MinecraftPlayerHandoffs;
 import art.arcane.wormholes.network.MinecraftEntityTransfers;
 import art.arcane.wormholes.modded.clientview.MinecraftClientViewService;
-import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -26,7 +19,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -56,15 +48,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class MinecraftPortalRegistryTest {
+public class MinecraftPortalRegistryTest extends MinecraftTestBase {
     @Rule
     public TemporaryFolder directory = new TemporaryFolder();
-
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
 
     @Test
     public void reloadPreservesLinksSparseCellsAndStablePermissionIdentity() throws Exception {
@@ -385,7 +371,7 @@ public class MinecraftPortalRegistryTest {
         List<Runnable> tasks = new ArrayList<>();
         when(runtime.server()).thenReturn(server);
         when(runtime.configuration()).thenReturn(configuration);
-        when(configuration.settings()).thenReturn(new WormholesSettings(new MainConfig(), new ProjectionConfig(), new RenderConfig(), new NetworkConfig()));
+        when(configuration.settings()).thenReturn(MinecraftTestSettings.defaults());
         when(server.getAllLevels()).thenReturn(List.of(level));
         when(server.getPlayerList()).thenReturn(players);
         when(players.getPlayers()).thenReturn(List.of());

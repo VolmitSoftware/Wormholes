@@ -1,6 +1,7 @@
 package art.arcane.wormholes.door;
 
 import art.arcane.wormholes.util.BukkitJsonDocuments;
+import art.arcane.wormholes.config.toml.PocketsConfig;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -16,6 +17,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 class DoorStateServiceTest {
     @TempDir
@@ -516,11 +521,38 @@ class DoorStateServiceTest {
         PocketShell large = new PocketShell(48, "STONE_BRICKS", "BIRCH_DOOR");
         PocketBinding binding = PocketBinding.publicDoor(id(82));
 
-        PocketSpace created = service.getOrAllocatePocket(binding, large);
-        PocketSpace repeated = service.getOrAllocatePocket(binding, PocketShell.defaults());
+        PocketSpace created = service.getOrAllocatePocket(binding, new PocketCreationDefaults(large, PocketRules.defaults()));
+        PocketSpace repeated = service.getOrAllocatePocket(binding, PocketCreationDefaults.defaults());
 
         assertEquals(large, created.shell());
         assertEquals(created, repeated);
+    }
+
+    @Test
+    void previewCreationPersistsConfiguredRulesOnceAndEntryKeepsThemAfterReload() throws Exception {
+        DimensionalDoorRepository repository = spy(repository());
+        DoorStateService service = DoorStateService.load(repository);
+        PocketsConfig config = new PocketsConfig();
+        config.rulesDefaultMobs = true;
+        config.rulesDefaultPvp = true;
+        config.rulesDefaultKeepInventory = false;
+        config.rulesDefaultFixedTime = 6000L;
+        config.rulesDefaultBuild = "owner";
+        PocketShell shell = new PocketShell(48, "STONE_BRICKS", "BIRCH_DOOR");
+        PocketCreationDefaults previewDefaults = PocketCreationDefaults.from(shell, config);
+        PocketBinding binding = PocketBinding.publicDoor(id(83));
+
+        PocketSpace preview = service.getOrAllocatePocket(binding, previewDefaults);
+
+        assertEquals(shell, preview.shell());
+        assertEquals(new PocketRules(true, true, false, 6000L, PocketRules.BuildPolicy.OWNER), preview.rules());
+        verify(repository, times(1)).saveState(any(DoorStoreSnapshot.class));
+        DoorStateService restarted = DoorStateService.load(new DimensionalDoorRepository(repository.stateFile(), BukkitJsonDocuments.INSTANCE));
+        PocketSpace entered = restarted.getOrAllocatePocket(binding, PocketCreationDefaults.defaults());
+        assertEquals(preview, entered);
+        assertSame(preview, service.getOrAllocatePocket(binding, PocketCreationDefaults.defaults()));
+        verify(repository, times(1)).saveState(any(DoorStoreSnapshot.class));
+        assertEquals(preview.rules(), restarted.findPocket(binding).orElseThrow().rules());
     }
 
     private DimensionalDoorRepository repository() {

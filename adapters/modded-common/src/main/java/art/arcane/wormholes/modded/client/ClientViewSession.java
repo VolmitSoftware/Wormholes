@@ -35,7 +35,6 @@ public final class ClientViewSession {
     private final Int2ObjectOpenHashMap<ClientViewEnvironment> environments = new Int2ObjectOpenHashMap<>();
     private final IntOpenHashSet dirtyPortals;
     private final Int2ObjectOpenHashMap<List<ClientViewMessage.MeshClaim>> pendingClaims = new Int2ObjectOpenHashMap<>();
-    private final Int2ObjectOpenHashMap<ClientMeshSections.Identity> cacheBindings = new Int2ObjectOpenHashMap<>();
     private final Int2IntOpenHashMap cacheSequences = new Int2IntOpenHashMap();
     private final IntArrayList patchedBricks;
     private final int dataVersion;
@@ -221,7 +220,8 @@ public final class ClientViewSession {
                         if (has(ClientViewCapability.MESH_REUSE)) {
                             long target = portals.get(environment.portalKey()).geometry().targetIdentity();
                             ClientMeshSections.Identity binding = new ClientMeshSections.Identity(environment.environment(), accept.hashSalt(), target);
-                            ClientMeshSections.Identity previous = cacheBindings.put(environment.portalKey(), binding);
+                            ClientMeshSections.View view = meshes.view(environment.portalKey());
+                            ClientMeshSections.Identity previous = view == null ? null : view.identity();
                             if (previous != null && !previous.equals(binding)) {
                                 pendingClaims.remove(environment.portalKey());
                             }
@@ -316,7 +316,6 @@ public final class ClientViewSession {
         meshFailures.clear();
         cacheSequences.clear();
         pendingClaims.clear();
-        cacheBindings.clear();
         meshGeometry.clear();
         environments.clear();
         portals.clear();
@@ -487,7 +486,6 @@ public final class ClientViewSession {
     private void drop(int portalKey, Sink sink) {
         cacheSequences.remove(portalKey);
         pendingClaims.remove(portalKey);
-        cacheBindings.remove(portalKey);
         meshFailures.remove(portalKey);
         meshGeometry.remove(portalKey);
         environments.remove(portalKey);
@@ -515,7 +513,6 @@ public final class ClientViewSession {
         if (begun) {
             cacheSequences.remove(message.portalKey());
             pendingClaims.remove(message.portalKey());
-            cacheBindings.remove(message.portalKey());
             meshGeometry.put(message.portalKey(), portal.geometry());
             meshFailures.remove(message.portalKey());
             if (!retain) {

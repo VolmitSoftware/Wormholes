@@ -10,6 +10,10 @@ sourceSets {
     }
 }
 
+tasks.named('check').configure {
+    dependsOn(tasks.named('gameTestClasses'))
+}
+
 tasks.named('processGameTestResources').configure {
     inputs.property('version', project.version)
     inputs.property('minecraftVersion', gameTestProperties.getProperty('minecraftVersion'))

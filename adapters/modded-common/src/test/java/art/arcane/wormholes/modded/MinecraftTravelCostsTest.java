@@ -8,13 +8,11 @@ import art.arcane.wormholes.api.traversal.TraversalReservation;
 import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.config.toml.MainConfig;
 import art.arcane.wormholes.rules.RuleCostReservation;
-import net.minecraft.SharedConstants;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -44,8 +42,7 @@ import static org.mockito.Mockito.when;
 public class MinecraftTravelCostsTest {
     @BeforeClass
     public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
+        MinecraftTestBase.bootstrap();
         Items.DIAMOND.builtInRegistryHolder().bindComponents(DataComponents.COMMON_ITEM_COMPONENTS);
     }
 

@@ -1,0 +1,111 @@
+import org.gradle.api.DefaultTask
+import org.gradle.api.GradleException
+import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.InputFile
+import org.gradle.api.tasks.PathSensitive
+import org.gradle.api.tasks.PathSensitivity
+import org.gradle.api.tasks.TaskAction
+
+abstract class VerifyModdedArtifact extends DefaultTask {
+    private static final List<String> renderHooks = ['net/minecraft/client/renderer/chunk/', 'SectionRenderDispatcher', 'SectionCompiler',
+                                'net/minecraft/client/renderer/LevelRenderer', 'RenderRegionCache']
+    private static final Set<String> portalRenderMixins = ['client.PortalLevelRendererMixin', 'client.PortalProjectionMixin', 'client.PortalLightmapMixin',
+                                     'client.MeshLevelExtractorMixin', 'client.MeshEntityRendererMixin', 'client.MeshFeatureWindingMixin',
+                                     'client.EndPortalSurfaceMixin', 'client.MeshBlockModelLighterMixin', 'client.MeshFluidLightingMixin',
+                                     'client.PortalShaderGameRendererMixin', 'client.IrisPortalMainMinecraftMixin',
+                                     'client.PreparedSectionFadeMixin', 'client.PreparedLevelAccess',
+                                     'client.PreparedLevelMetadataMixin', 'client.PreparedTravelPacketMixin',
+                                     'client.PreparedTravelCameraMixin', 'client.SodiumPreparedRendererMixin',
+                                     'client.SodiumPreparedExtractorMixin', 'client.IrisPortalHandAccess',
+                                     'client.IrisPortalHandBuffersAccess', 'client.IrisPortalHandFrameAccess',
+                                     'client.LocalMeshChunkMixin'] as Set
+
+    @InputFile
+    @PathSensitive(PathSensitivity.NONE)
+    abstract RegularFileProperty getArtifact()
+
+    @Input
+    abstract Property<String> getMetadata()
+
+    @TaskAction
+    void verify() {
+        File artifact = getArtifact().get().asFile
+        new java.util.jar.JarFile(artifact).withCloseable { java.util.jar.JarFile archive ->
+            String metadata = getMetadata().get()
+            for (String required : [metadata, 'art/arcane/wormholes/modded/WormholesModRuntime.class',
+                                    'art/arcane/wormholes/network/WireCodec.class',
+                                    'art/arcane/wormholes/portal/PortalFrame.class']) {
+                if (archive.getEntry(required) == null) {
+                    throw new GradleException("${artifact.name} is missing ${required}")
+                }
+            }
+            archive.entries().each { java.util.jar.JarEntry entry ->
+                if (entry.name.startsWith('art/arcane/wormholes/')
+                    && (entry.name.contains('/gametest/') || entry.name.contains('GameTest')
+                        || entry.name.endsWith('/NativeHandoffProbe.class'))) {
+                    throw new GradleException("${artifact.name} contains test fixture ${entry.name}")
+                }
+                if (entry.name == 'plugin.yml' || entry.name == 'paper-plugin.yml'
+                    || entry.name.startsWith('org/bukkit/') || entry.name.startsWith('io/papermc/')) {
+                    throw new GradleException("${artifact.name} contains Bukkit runtime entry ${entry.name}")
+                }
+                if (entry.name.startsWith('art/arcane/volmlib/') || entry.name.startsWith('net/kyori/')) {
+                    throw new GradleException("${artifact.name} bundles unrelocated shared library entry ${entry.name}")
+                }
+                if (entry.name.startsWith('art/arcane/wormholes/') && entry.name.endsWith('.class')) {
+                    String constants = archive.getInputStream(entry).withCloseable { InputStream stream ->
+                        new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.ISO_8859_1)
+                    }
+                    if (constants.contains('org/bukkit/') || constants.contains('io/papermc/')) {
+                        throw new GradleException("${artifact.name} references a Bukkit API in ${entry.name}")
+                    }
+                    if (constants.contains('art/arcane/volmlib/') || constants.contains('net/kyori/')) {
+                        throw new GradleException("${artifact.name} references an unrelocated shared library in ${entry.name}")
+                    }
+                    for (String renderHook : renderHooks) {
+                        if (constants.contains(renderHook)
+                            && !entry.name.startsWith('art/arcane/wormholes/modded/client/render/')
+                            && entry.name != 'art/arcane/wormholes/modded/client/PreparedLevelExtractor.class'
+                            && !(entry.name == 'art/arcane/wormholes/modded/client/ClientPreparedTravel.class'
+                                && renderHook == 'net/minecraft/client/renderer/LevelRenderer')
+                            && !portalRenderMixins.any { String name -> entry.name == "art/arcane/wormholes/modded/mixin/${name.replace('.', '/')}.class" }) {
+                            throw new GradleException("${artifact.name} references the render pipeline (${renderHook}) in ${entry.name}")
+                        }
+                    }
+                }
+            }
+            java.util.jar.JarEntry mixinConfig = archive.getJarEntry('wormholes.mixins.json')
+            if (mixinConfig == null) {
+                throw new GradleException("${artifact.name} is missing wormholes.mixins.json")
+            }
+            Map<String, Object> mixins = (Map<String, Object>) new groovy.json.JsonSlurper().parse(archive.getInputStream(mixinConfig))
+            String mixinPackage = ((String) mixins['package']).replace('.', '/')
+            for (String clientMixin : (List<String>) (mixins['client'] ?: [])) {
+                String mixinPath = "${mixinPackage}/${clientMixin.replace('.', '/')}.class"
+                java.util.jar.JarEntry mixinEntry = archive.getJarEntry(mixinPath)
+                if (mixinEntry == null) {
+                    throw new GradleException("${artifact.name} is missing client mixin ${mixinPath}")
+                }
+                String mixinConstants = archive.getInputStream(mixinEntry).withCloseable { InputStream stream ->
+                    new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.ISO_8859_1)
+                }
+                if (mixinConstants.contains('Lnet/minecraft/client/renderer/') && !portalRenderMixins.contains(clientMixin)) {
+                    throw new GradleException("${artifact.name} client mixin ${clientMixin} references net.minecraft.client.renderer")
+                }
+            }
+        }
+    }
+}
+
+tasks.register('verifyModdedArtifact', VerifyModdedArtifact) {
+    group = 'verification'
+    description = 'Verifies loader metadata, shading, fixtures, and rendering boundaries in the runtime jar.'
+    dependsOn(tasks.named('shadowJar'))
+    artifact.set(tasks.named('shadowJar').flatMap { task -> task.archiveFile })
+}
+
+tasks.named('check').configure {
+    dependsOn(tasks.named('verifyModdedArtifact'))
+}

@@ -1,13 +1,10 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.modded.clientview.MinecraftClientViewService;
-import net.minecraft.SharedConstants;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.lang.reflect.Field;
@@ -21,13 +18,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class MinecraftAuthoritativeTeleportTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class MinecraftAuthoritativeTeleportTest extends MinecraftTestBase {
     @Test
     public void externalSameWorldTeleportCancelsOldDepartureAndReseedsBothHistories() throws Exception {
         Fixture fixture = fixture();

@@ -1,11 +1,10 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.network.client.ClientViewEnvironment;
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.util.Direction;
-import net.minecraft.SharedConstants;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
@@ -32,8 +31,7 @@ import static org.mockito.ArgumentMatchers.any;
 public class ClientPreparedTravelCameraTest {
     @BeforeClass
     public static void bootstrapMinecraft() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
+        MinecraftTestBase.bootstrap();
     }
 
     @Test

@@ -1,11 +1,9 @@
 package art.arcane.wormholes.clientgametest;
 
-import art.arcane.wormholes.fabric.WormholesFabric;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.modded.client.WormholesClient;
 import art.arcane.wormholes.portal.PortalType;
-import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestDedicatedServerConnection;
@@ -13,7 +11,6 @@ import net.fabricmc.fabric.api.client.gametest.v1.context.TestDedicatedServerCon
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerConnection;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -24,11 +21,13 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.phys.Vec3;
 
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+
+import static art.arcane.wormholes.clientgametest.NativeClientViewAssertions.cells;
+import static art.arcane.wormholes.clientgametest.NativeClientViewAssertions.runtime;
 
 public final class ClientViewLightClientGameTest implements FabricClientGameTest {
     private static final int NEGOTIATION_TIMEOUT_TICKS = 400;
@@ -57,17 +56,16 @@ public final class ClientViewLightClientGameTest implements FabricClientGameTest
     public void runTest(ClientGameTestContext context) {
         ClientViewTestConfig.enable(true);
         try (TestSingleplayerContext singleplayer = context.worldBuilder().create()) {
-            runScenario(context, singleplayer.getConnection(), singleplayer.getServer(), "singleplayer destination light", true);
+            runScenario(context, singleplayer.getConnection(), singleplayer.getServer(), "singleplayer native light");
         }
         ClientViewTestConfig.enable(false);
-        try (TestDedicatedServerContext server = context.worldBuilder().createServer();
+        try (TestDedicatedServerContext server = context.worldBuilder().createServer(ClientViewTestConfig.serverProperties());
              TestDedicatedServerConnection connection = server.connect()) {
-            runScenario(context, connection, server, "dedicated local light", false);
+            runScenario(context, connection, server, "dedicated native light with plate fidelity disabled");
         }
     }
 
-    private void runScenario(ClientGameTestContext context, TestServerConnection connection, TestServerContext server, String label,
-                             boolean destinationLight) {
+    private void runScenario(ClientGameTestContext context, TestServerConnection connection, TestServerContext server, String label) {
         connection.waitForChunksDownload();
         connection.waitForChunksRender();
         context.waitFor(client -> WormholesClient.instance() != null && WormholesClient.instance().session().active(), NEGOTIATION_TIMEOUT_TICKS);
@@ -75,8 +73,8 @@ public final class ClientViewLightClientGameTest implements FabricClientGameTest
         Scene scene = server.computeOnServer(minecraftServer -> build(minecraftServer, player));
         teleport(server, player, STAND_X, STAND_Y, STAND_Z, 180.0F);
         connection.waitForChunksRender();
-        context.waitFor(client -> attendedCells() > 0, STREAM_TIMEOUT_TICKS);
-        DestinationLight destination = destinationLight ? destinationLight(context, server, connection, label) : null;
+        context.waitFor(client -> NativeClientViewAssertions.ready(NativeClientViewAssertions.portalKey(SOURCE_MIN)), STREAM_TIMEOUT_TICKS);
+        DestinationLight destination = destinationLight(context, server, connection, label);
         assertPhase(context, server, connection, label + " after the first arrival", destination);
         context.takeScreenshot("clientview-light-" + label.replace(' ', '-') + "-arrival");
 
@@ -91,7 +89,7 @@ public final class ClientViewLightClientGameTest implements FabricClientGameTest
         waitForRoomChunk(context, true);
         connection.waitForChunksDownload();
         connection.waitForChunksRender();
-        context.waitFor(client -> attendedCells() > 0, STREAM_TIMEOUT_TICKS);
+        context.waitFor(client -> NativeClientViewAssertions.ready(NativeClientViewAssertions.portalKey(SOURCE_MIN)), STREAM_TIMEOUT_TICKS);
         context.waitTicks(LIGHT_SETTLE_TICKS);
         assertPhase(context, server, connection, label + " after a chunk reload", destination);
 
@@ -101,7 +99,7 @@ public final class ClientViewLightClientGameTest implements FabricClientGameTest
             runtime.portals().remove(player, scene.source());
             runtime.portals().remove(player, scene.destination());
         });
-        context.waitFor(client -> attendedCells() == 0, STREAM_TIMEOUT_TICKS);
+        context.waitFor(client -> NativeClientViewAssertions.portalKey(SOURCE_MIN) == 0, STREAM_TIMEOUT_TICKS);
         assertLightParity(context, server, connection, ROOM, label + ": real room cells after the portal drop");
         assertLightParity(context, server, connection, CONE, label + ": cone cells after the portal drop");
         context.takeScreenshot("clientview-light-" + label.replace(' ', '-') + "-dropped");
@@ -109,11 +107,9 @@ public final class ClientViewLightClientGameTest implements FabricClientGameTest
 
     private static void assertPhase(ClientGameTestContext context, TestServerContext server, TestServerConnection connection, String label,
                                     DestinationLight destination) {
-        if (destination != null) {
-            assertProjectedLight(context, label, destination);
-        } else {
-            assertLightParity(context, server, connection, CONE, label + ": projected cells without destination light");
-        }
+        assertProjectedLight(context, label, destination);
+        context.computeOnClient(client -> { NativeClientViewAssertions.assertIsolated(); return true; });
+        assertLightParity(context, server, connection, CONE, label + ": physical cells behind the aperture");
         assertLightParity(context, server, connection, ROOM, label + ": real room cells");
     }
 
@@ -129,14 +125,11 @@ public final class ClientViewLightClientGameTest implements FabricClientGameTest
     }
 
     private static void assertProjectedLight(ClientGameTestContext context, String label, DestinationLight destination) {
-        BlockPos lit = LIT_CELL.offset(0, 0, OFFSET_Z);
-        BlockPos dark = DARK_CELL.offset(0, 0, OFFSET_Z);
-        context.waitFor(client -> client.level.getBrightness(LightLayer.BLOCK, lit) == destination.block()
-            && client.level.getBrightness(LightLayer.SKY, dark) == destination.sky(), STREAM_TIMEOUT_TICKS);
-        int shownBlock = context.computeOnClient(client -> client.level.getBrightness(LightLayer.BLOCK, lit));
-        int shownSky = context.computeOnClient(client -> client.level.getBrightness(LightLayer.SKY, dark));
-        assertTrue(shownBlock == destination.block(), label + ": projected block light " + shownBlock + " differs from the destination " + destination.block());
-        assertTrue(shownSky == destination.sky(), label + ": projected sky light " + shownSky + " differs from the destination " + destination.sky());
+        context.waitFor(client -> {
+            int key = NativeClientViewAssertions.portalKey(SOURCE_MIN);
+            return NativeClientViewAssertions.light(key, LIT_CELL, false) == destination.block()
+                && NativeClientViewAssertions.light(key, DARK_CELL, true) == destination.sky();
+        }, STREAM_TIMEOUT_TICKS);
     }
 
     private static void assertLightParity(ClientGameTestContext context, TestServerContext server, TestServerConnection connection, Box box,
@@ -226,24 +219,6 @@ public final class ClientViewLightClientGameTest implements FabricClientGameTest
         return new Scene(source.getId(), destination.getId());
     }
 
-    private static int attendedCells() {
-        WormholesClient wormholes = WormholesClient.instance();
-        if (wormholes == null || wormholes.tickState().overlay() == null) {
-            return 0;
-        }
-        return wormholes.tickState().overlay().size();
-    }
-
-    private static List<BlockPos> cells(BlockPos min) {
-        List<BlockPos> cells = new ArrayList<>(9);
-        for (int x = 0; x < 3; x++) {
-            for (int y = 0; y < 3; y++) {
-                cells.add(min.offset(x, y, 0));
-            }
-        }
-        return cells;
-    }
-
     private static void fill(ServerLevel level, Box box, BlockState state) {
         for (int x = 0; x < box.sizeX(); x++) {
             for (int y = 0; y < box.sizeY(); y++) {
@@ -256,21 +231,6 @@ public final class ClientViewLightClientGameTest implements FabricClientGameTest
 
     private static void teleport(TestServerContext server, ServerPlayer player, double x, double y, double z, float yaw) {
         server.runOnServer(minecraftServer -> player.teleportTo(player.level(), x, y, z, Set.of(), yaw, 0.0F, false));
-    }
-
-    private static WormholesModRuntime runtime() {
-        for (ModInitializer initializer : FabricLoader.getInstance().getEntrypoints("main", ModInitializer.class)) {
-            if (initializer instanceof WormholesFabric fabric) {
-                try {
-                    Field field = WormholesFabric.class.getDeclaredField("runtime");
-                    field.setAccessible(true);
-                    return (WormholesModRuntime) field.get(fabric);
-                } catch (ReflectiveOperationException failure) {
-                    throw new IllegalStateException("Wormholes runtime is not reachable", failure);
-                }
-            }
-        }
-        throw new IllegalStateException("Wormholes main entrypoint is not loaded");
     }
 
     private static void assertTrue(boolean condition, String message) {

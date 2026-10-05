@@ -1,30 +1,15 @@
 package art.arcane.wormholes.clientgametest;
 
-import art.arcane.wormholes.fabric.WormholesFabric;
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.wormholes.util.Direction;
+import art.arcane.wormholes.modded.client.ClientMeshSections;
+import art.arcane.wormholes.modded.client.ClientMeshEntities;
 import art.arcane.wormholes.modded.MinecraftPortal;
-import art.arcane.wormholes.modded.MinecraftProjectedBlockStates;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.modded.client.ClientEntityIds;
-import art.arcane.wormholes.modded.client.ClientMirrorBuilder;
-import art.arcane.wormholes.modded.client.ClientNestedViews;
-import art.arcane.wormholes.modded.client.ClientPlate;
 import art.arcane.wormholes.modded.client.ClientPortal;
-import art.arcane.wormholes.modded.client.ClientViewSession;
-import art.arcane.wormholes.modded.client.ClientViewTick;
-import art.arcane.wormholes.modded.client.ProjectionOverlay;
 import art.arcane.wormholes.modded.client.WormholesClient;
 import art.arcane.wormholes.network.client.ClientViewCapability;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
 import art.arcane.wormholes.portal.PortalType;
-import art.arcane.wormholes.render.DirectionMapping;
-import art.arcane.wormholes.render.PortalCoordMap;
-import art.arcane.wormholes.render.ProjectionCellKey;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
-import art.arcane.wormholes.render.client.ClientSpace;
-import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.longs.LongArrayList;
-import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestDedicatedServerConnection;
@@ -32,7 +17,6 @@ import net.fabricmc.fabric.api.client.gametest.v1.context.TestDedicatedServerCon
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerConnection;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
@@ -42,14 +26,15 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.decoration.Mannequin;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+
+import static art.arcane.wormholes.clientgametest.NativeClientViewAssertions.cells;
+import static art.arcane.wormholes.clientgametest.NativeClientViewAssertions.runtime;
 
 public final class ClientViewMirrorClientGameTest implements FabricClientGameTest {
     private static final int NEGOTIATION_TIMEOUT_TICKS = 400;
@@ -58,7 +43,6 @@ public final class ClientViewMirrorClientGameTest implements FabricClientGameTes
     private static final int FOLLOW_SWING_TICKS = 5;
     private static final double POSITION_EPSILON = 1.0E-6D;
     private static final double BOX_EPSILON = 1.0E-4D;
-    private static final String UPSIDE_DOWN_NAME = "Dinnerbone";
     private static final BlockPos MIRROR_MIN = new BlockPos(40, 70, 20);
     private static final BlockPos GOLD_MARKER = new BlockPos(41, 71, 23);
     private static final BlockPos CHILD_MIN = new BlockPos(40, 70, 24);
@@ -72,7 +56,7 @@ public final class ClientViewMirrorClientGameTest implements FabricClientGameTes
         try (TestSingleplayerContext singleplayer = context.worldBuilder().create()) {
             runScenario(context, singleplayer.getConnection(), singleplayer.getServer(), "singleplayer");
         }
-        try (TestDedicatedServerContext server = context.worldBuilder().createServer();
+        try (TestDedicatedServerContext server = context.worldBuilder().createServer(ClientViewTestConfig.serverProperties());
              TestDedicatedServerConnection connection = server.connect()) {
             runScenario(context, connection, server, "dedicated");
         }
@@ -88,13 +72,12 @@ public final class ClientViewMirrorClientGameTest implements FabricClientGameTes
         UUID mirrorId = server.computeOnServer(minecraftServer -> buildMirror(minecraftServer, player));
         teleport(server, player, MIRROR_MIN.getX() + 1.5D, MIRROR_MIN.getY(), MIRROR_MIN.getZ() + 8.5D, 180.0F, 0.0F);
         connection.waitForChunksRender();
-        context.waitFor(client -> mirrorKey() != 0 && mirrorCells() > 0, STREAM_TIMEOUT_TICKS);
+        context.waitFor(client -> NativeClientViewAssertions.ready(mirrorKey()), STREAM_TIMEOUT_TICKS);
         assertMirrorWithoutPlate(context);
         assertMirrorParity(context);
         context.takeScreenshot("clientview-mirror-" + label);
         assertSelfReflectionFollows(context);
         UUID[] child = server.computeOnServer(minecraftServer -> buildChild(minecraftServer, player));
-        context.waitFor(client -> nestedCells() > 0, STREAM_TIMEOUT_TICKS);
         assertNestedContent(context, connection);
         context.takeScreenshot("clientview-mirror-nested-" + label);
         server.runOnServer(minecraftServer -> {
@@ -103,7 +86,7 @@ public final class ClientViewMirrorClientGameTest implements FabricClientGameTes
             runtime.portals().remove(player, child[1]);
             runtime.portals().remove(player, mirrorId);
         });
-        context.waitFor(client -> WormholesClient.instance().tickState().overlay().size() == 0, STREAM_TIMEOUT_TICKS);
+        context.waitFor(client -> WormholesClient.instance().reflections().size() == 0 && mirrorKey() == 0, STREAM_TIMEOUT_TICKS);
         int reflections = context.computeOnClient(client -> WormholesClient.instance().reflections().size());
         assertTrue(reflections == 0, "the self reflection outlived its mirror");
         runCeilingScenario(context, connection, server, player, label);
@@ -123,13 +106,14 @@ public final class ClientViewMirrorClientGameTest implements FabricClientGameTes
         assertTrue(failure == null, "ceiling mirror: " + failure);
         boolean flipped = context.computeOnClient(client -> {
             Entity entity = WormholesClient.instance().reflections().entity(mirrorKey());
-            return entity.getCustomName() != null && UPSIDE_DOWN_NAME.equals(entity.getCustomName().getString());
+            return WormholesClient.instance().session().environment(mirrorKey()).transform().yAxis() == Direction.D
+                && WormholesClient.instance().reflections().meshEntity(entity.getId());
         });
         assertTrue(flipped, "the ceiling reflection is not drawn upside down");
         connection.waitForChunksRender();
         context.takeScreenshot("clientview-mirror-ceiling-" + label);
         server.runOnServer(minecraftServer -> runtime().portals().remove(player, ceilingId));
-        context.waitFor(client -> WormholesClient.instance().tickState().overlay().size() == 0, STREAM_TIMEOUT_TICKS);
+        context.waitFor(client -> WormholesClient.instance().reflections().size() == 0 && mirrorKey() == 0, STREAM_TIMEOUT_TICKS);
         int reflections = context.computeOnClient(client -> WormholesClient.instance().reflections().size());
         assertTrue(reflections == 0, "the ceiling reflection outlived its mirror");
     }
@@ -151,42 +135,13 @@ public final class ClientViewMirrorClientGameTest implements FabricClientGameTes
     }
 
     private static void assertMirrorParity(ClientGameTestContext context) {
-        List<String> mismatches = context.computeOnClient(client -> {
-            List<String> failures = new ArrayList<>();
-            WormholesClient wormholes = WormholesClient.instance();
-            ClientViewTick tick = wormholes.tickState();
-            int key = mirrorKey();
-            ClientPortal portal = wormholes.session().portal(key);
-            ClientPortalGeometry geometry = portal.geometry();
-            DirectionMapping mapping = DirectionMapping.mirror(geometry.frame(), geometry.mirrorQuarterTurns(), new double[3]);
-            GeometryVector origin = geometry.apertureArea().center();
-            ProjectionOverlay overlay = tick.overlay();
-            LongArrayList applied = new LongArrayList();
-            portal.sweep().appliedKeys(applied);
-            double[] source = new double[3];
-            for (int index = 0; index < applied.size(); index++) {
-                long cell = applied.getLong(index);
-                ProjectionOverlay.Entry entry = overlay.get(cell);
-                if (entry != null && entry.portalKey() != key) {
-                    continue;
-                }
-                int x = ProjectionCellKey.unpackX(cell);
-                int y = ProjectionCellKey.unpackY(cell);
-                int z = ProjectionCellKey.unpackZ(cell);
-                PortalCoordMap.mirrorDisplayToSourcePointInto(x + 0.5D, y + 0.5D, z + 0.5D, origin.getX(), origin.getY(), origin.getZ(),
-                    geometry.frame(), geometry.mirrorQuarterTurns(), source);
-                BlockPos sourcePos = new BlockPos((int) Math.floor(source[0]), (int) Math.floor(source[1]), (int) Math.floor(source[2]));
-                ProjectionOverlay.Entry sourceEntry = overlay.get(ProjectionCellKey.pack(sourcePos.getX(), sourcePos.getY(), sourcePos.getZ()));
-                BlockState shadow = sourceEntry != null && !sourceEntry.pending() ? sourceEntry.shadow() : client.level.getBlockState(sourcePos);
-                BlockState expected = MinecraftProjectedBlockStates.transform(shadow, mapping);
-                BlockState shown = client.level.getBlockState(new BlockPos(x, y, z));
-                if (expected.isAir() ? !shown.isAir() && entry != null : shown != expected) {
-                    failures.add(x + "," + y + "," + z + " shows " + shown + " for the reflection " + expected);
-                }
-            }
-            return failures;
+        context.waitFor(client -> NativeClientViewAssertions.state(mirrorKey(), GOLD_MARKER) == Blocks.GOLD_BLOCK.defaultBlockState(), STREAM_TIMEOUT_TICKS);
+        boolean reflected = context.computeOnClient(client -> {
+            NativeClientViewAssertions.assertIsolated();
+            return WormholesClient.instance().session().environment(mirrorKey()).transform().reflected()
+                && client.level.getBlockState(GOLD_MARKER).is(Blocks.GOLD_BLOCK);
         });
-        assertTrue(mismatches.isEmpty(), "mirror parity failed: " + mismatches);
+        assertTrue(reflected, "native mirror lost its reflection transform or changed the physical gold marker");
     }
 
     private static void assertSelfReflectionFollows(ClientGameTestContext context) {
@@ -208,153 +163,55 @@ public final class ClientViewMirrorClientGameTest implements FabricClientGameTes
         if (!ClientEntityIds.isReflection(entity.getId())) {
             return "the reflection uses entity id " + entity.getId();
         }
-        ClientMirrorBuilder mirror = wormholes.tickState().mirror(key);
-        ClientSpace space = mirror.space();
-        double height = client.player.getBbHeight();
-        double[] feet = new double[3];
-        double[] head = new double[3];
-        space.toDisplay(client.player.getX(), client.player.getY(), client.player.getZ(), feet);
-        space.toDisplay(client.player.getX(), client.player.getY() + height, client.player.getZ(), head);
-        AABB box = entity.getBoundingBox();
-        double bottom = Math.min(feet[1], head[1]);
-        double top = Math.max(feet[1], head[1]);
-        if (Math.abs(box.minY - bottom) > BOX_EPSILON || Math.abs(box.maxY - top) > BOX_EPSILON) {
-            return "the reflection spans y " + box.minY + ".." + box.maxY + " instead of the mirrored body " + bottom + ".." + top;
+        if (!wormholes.reflections().meshEntity(entity.getId()) || !ClientMeshEntities.hiddenFromWorld(entity)) {
+            return "reflection is not isolated to its native scene";
         }
-        double[] expected = new double[3];
-        space.entityToDisplay(client.player.getX(), client.player.getY(), client.player.getZ(), height, expected);
-        if (Math.abs(entity.getX() - expected[0]) > POSITION_EPSILON || Math.abs(entity.getY() - expected[1]) > POSITION_EPSILON
-            || Math.abs(entity.getZ() - expected[2]) > POSITION_EPSILON) {
-            return "the reflection stands at " + entity.position() + " instead of " + expected[0] + "," + expected[1] + "," + expected[2];
+        if (entity.position().distanceTo(client.player.position()) > POSITION_EPSILON
+            || Math.abs(entity.getBbHeight() - client.player.getBbHeight()) > BOX_EPSILON) {
+            return "native reflection pose differs from the physical player";
         }
-        space.entityToDisplay(client.player.xOld, client.player.yOld, client.player.zOld, height, expected);
-        if (Math.abs(entity.xOld - expected[0]) > POSITION_EPSILON || Math.abs(entity.yOld - expected[1]) > POSITION_EPSILON
-            || Math.abs(entity.zOld - expected[2]) > POSITION_EPSILON) {
-            return "the reflection interpolates from " + entity.xOld + "," + entity.yOld + "," + entity.zOld + " instead of " + expected[0] + ","
-                + expected[1] + "," + expected[2];
+        if (Math.abs(entity.xOld - client.player.xOld) > POSITION_EPSILON
+            || Math.abs(entity.yOld - client.player.yOld) > POSITION_EPSILON
+            || Math.abs(entity.zOld - client.player.zOld) > POSITION_EPSILON) {
+            return "native reflection interpolation differs from the physical player";
         }
         return null;
     }
 
     private static void assertNestedContent(ClientGameTestContext context, TestServerConnection connection) {
-        List<String> mismatches = context.computeOnClient(client -> {
-            List<String> failures = new ArrayList<>();
-            WormholesClient wormholes = WormholesClient.instance();
-            ProjectionOverlay overlay = wormholes.tickState().overlay();
-            LongArrayList keys = overlay.keys();
-            int nested = 0;
-            int gold = 0;
-            for (int index = 0; index < keys.size(); index++) {
-                long key = keys.getLong(index);
-                ProjectionOverlay.Entry entry = overlay.get(key);
-                ClientPortal owner = wormholes.session().portal(entry.portalKey());
-                if (owner == null || !owner.nested()) {
+        context.waitFor(client -> {
+            for (ClientPortal portal : WormholesClient.instance().session().portals().values()) {
+                if (!portal.nested() || portal.geometry().parentPortalKey() != mirrorKey()) {
                     continue;
                 }
-                nested++;
-                BlockPos position = new BlockPos(ProjectionCellKey.unpackX(key), ProjectionCellKey.unpackY(key), ProjectionCellKey.unpackZ(key));
-                BlockState shown = client.level.getBlockState(position);
-                if (shown.getBlock() == Blocks.GOLD_BLOCK) {
-                    gold++;
-                } else if (!shown.isAir()) {
-                    failures.add(position + " shows " + shown + " inside the nested portal");
-                }
-            }
-            if (nested == 0 || gold == 0) {
-                failures.add(nested + " overlay cells and " + gold + " gold cells belong to a nested portal; " + nestedDiagnostics(client));
-            }
-            return failures;
-        });
-        assertTrue(mismatches.isEmpty(), "nested content failed: " + mismatches);
-    }
-
-    private static String nestedDiagnostics(Minecraft client) {
-        WormholesClient wormholes = WormholesClient.instance();
-        ClientViewTick tick = wormholes.tickState();
-        ClientNestedViews nested = tick.nestedViews();
-        ProjectionOverlay overlay = tick.overlay();
-        StringBuilder out = new StringBuilder("views=" + nested.size());
-        int[] content = new int[3];
-        for (ClientPortal portal : wormholes.session().portals().values()) {
-            ClientPlate plate = portal.plate();
-            out.append(" [key=").append(portal.portalKey()).append(" nested=").append(portal.nested()).append(" parent=")
-                .append(portal.geometry().parentPortalKey()).append(" front=").append(portal.geometry().frontSide())
-                .append(" plate=").append(plate == null ? "none" : plate.cells()).append(" viewCells=").append(nested.cells(portal.portalKey()))
-                .append(" overlayOwned=").append(overlay.keysOf(portal.portalKey()).size())
-                .append(" swept=").append(portal.sweep() == null ? 0 : portal.sweep().appliedCount());
-            if (!portal.nested() || plate == null) {
-                out.append(']');
-                continue;
-            }
-            ClientPortal parent = wormholes.session().portal(portal.geometry().parentPortalKey());
-            LongArrayList applied = new LongArrayList();
-            if (parent != null && parent.sweep() != null) {
-                parent.sweep().appliedKeys(applied);
-            }
-            int air = 0;
-            int standIn = 0;
-            int solid = 0;
-            int outside = 0;
-            int shadowAir = 0;
-            int sampled = 0;
-            for (int index = 0; index < applied.size(); index++) {
-                long key = applied.getLong(index);
-                int x = ProjectionCellKey.unpackX(key);
-                int y = ProjectionCellKey.unpackY(key);
-                int z = ProjectionCellKey.unpackZ(key);
-                if (!nested.displays(portal.portalKey(), x, y, z)) {
+                ClientMeshSections.View view = WormholesClient.instance().session().meshes().view(portal.portalKey());
+                if (view == null) {
                     continue;
                 }
-                nested.contentCell(portal.portalKey(), x, y, z, content);
-                boolean inside = plate.contains(content[0], content[1], content[2]);
-                int id = plate.paletteIdAt(content[0], content[1], content[2]);
-                BlockState shown = client.level.getBlockState(new BlockPos(x, y, z));
-                if (!inside) {
-                    outside++;
-                } else if (id == ClientViewProtocol.PALETTE_AIR) {
-                    air++;
-                } else if (id < ClientViewProtocol.RESERVED_PALETTE_IDS) {
-                    standIn++;
-                } else {
-                    solid++;
-                }
-                if (shown.isAir()) {
-                    shadowAir++;
-                }
-                if (sampled < 4) {
-                    sampled++;
-                    ProjectionOverlay.Entry entry = overlay.get(key);
-                    out.append(" sample{display=").append(x).append(',').append(y).append(',').append(z).append(" content=").append(content[0])
-                        .append(',').append(content[1]).append(',').append(content[2]).append(" inside=").append(inside).append(" id=").append(id)
-                        .append(" shown=").append(shown).append(" entry=").append(entry == null ? "none" : entry.portalKey() + (entry.pending() ? "p" : ""))
-                        .append('}');
+                for (long key : view.sectionKeys()) {
+                    ClientMeshSections.Section section = view.section(key);
+                    for (int cell = 0; cell < 4096; cell++) {
+                        if (section.state(cell).is(Blocks.GOLD_BLOCK)) {
+                            NativeClientViewAssertions.assertIsolated();
+                            return true;
+                        }
+                    }
                 }
             }
-            out.append(" displayed{air=").append(air).append(" standIn=").append(standIn).append(" solid=").append(solid).append(" outside=")
-                .append(outside).append(" shownAir=").append(shadowAir).append("}]");
-        }
-        return out.toString();
+            return false;
+        }, STREAM_TIMEOUT_TICKS);
     }
 
     private static int mirrorKey() {
-        WormholesClient wormholes = WormholesClient.instance();
-        if (wormholes == null) {
-            return 0;
+        WormholesClient client = WormholesClient.instance();
+        if (client != null) {
+            for (ClientPortal portal : client.session().portals().values()) {
+                if (portal.geometry().mirror() && !portal.nested()) {
+                    return portal.portalKey();
+                }
+            }
         }
-        IntArrayList keys = wormholes.tickState().mirrorKeys(new IntArrayList());
-        return keys.isEmpty() ? 0 : keys.getInt(0);
-    }
-
-    private static int mirrorCells() {
-        WormholesClient wormholes = WormholesClient.instance();
-        ClientViewSession session = wormholes.session();
-        ClientPortal portal = session.portal(mirrorKey());
-        return portal == null || portal.sweep() == null ? 0 : portal.sweep().appliedCount();
-    }
-
-    private static int nestedCells() {
-        WormholesClient wormholes = WormholesClient.instance();
-        return wormholes == null ? 0 : wormholes.tickState().nestedViews().size();
+        return 0;
     }
 
     private static UUID buildMirror(MinecraftServer server, ServerPlayer actor) {
@@ -400,16 +257,6 @@ public final class ClientViewMirrorClientGameTest implements FabricClientGameTes
         return new UUID[] {child.getId(), destination.getId()};
     }
 
-    private static List<BlockPos> cells(BlockPos min) {
-        List<BlockPos> cells = new ArrayList<>(9);
-        for (int x = 0; x < 3; x++) {
-            for (int y = 0; y < 3; y++) {
-                cells.add(min.offset(x, y, 0));
-            }
-        }
-        return cells;
-    }
-
     private static void fill(ServerLevel level, BlockPos min, int sizeX, int sizeY, int sizeZ, BlockState state) {
         for (int x = 0; x < sizeX; x++) {
             for (int y = 0; y < sizeY; y++) {
@@ -422,21 +269,6 @@ public final class ClientViewMirrorClientGameTest implements FabricClientGameTes
 
     private static void teleport(TestServerContext server, ServerPlayer player, double x, double y, double z, float yaw, float pitch) {
         server.runOnServer(minecraftServer -> player.teleportTo(player.level(), x, y, z, Set.of(), yaw, pitch, false));
-    }
-
-    private static WormholesModRuntime runtime() {
-        for (ModInitializer initializer : FabricLoader.getInstance().getEntrypoints("main", ModInitializer.class)) {
-            if (initializer instanceof WormholesFabric fabric) {
-                try {
-                    Field field = WormholesFabric.class.getDeclaredField("runtime");
-                    field.setAccessible(true);
-                    return (WormholesModRuntime) field.get(fabric);
-                } catch (ReflectiveOperationException failure) {
-                    throw new IllegalStateException("Wormholes runtime is not reachable", failure);
-                }
-            }
-        }
-        throw new IllegalStateException("Wormholes main entrypoint is not loaded");
     }
 
     private static void assertTrue(boolean condition, String message) {

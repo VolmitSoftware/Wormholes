@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.network.client.ClientTravelHash;
 import art.arcane.wormholes.network.client.ClientTravelWindow;
 import art.arcane.wormholes.network.client.ClientViewMessage;
@@ -38,8 +39,6 @@ import org.mockito.MockedConstruction;
 import art.arcane.wormholes.modded.MinecraftChunkPacketEncoding;
 import org.junit.Test;
 import org.junit.BeforeClass;
-import net.minecraft.SharedConstants;
-import net.minecraft.server.Bootstrap;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -52,6 +51,7 @@ import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.ArrayDeque;
 
+import static art.arcane.wormholes.modded.client.ClientTravelTestFixtures.set;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertSame;
@@ -74,8 +74,7 @@ import static net.minecraft.world.level.chunk.status.ChunkStatus.FULL;
 public class ClientPreparedTravelCachedTest {
     @BeforeClass
     public static void bootstrapMinecraft() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
+        MinecraftTestBase.bootstrap();
     }
 
     @Test
@@ -819,11 +818,5 @@ public class ClientPreparedTravelCachedTest {
         Field field = object.getClass().getDeclaredField(name);
         field.setAccessible(true);
         return field.get(object);
-    }
-
-    private static void set(Object object, String name, Object value) throws ReflectiveOperationException {
-        Field field = object.getClass().getDeclaredField(name);
-        field.setAccessible(true);
-        field.set(object, value);
     }
 }

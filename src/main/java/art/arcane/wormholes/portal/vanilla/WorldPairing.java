@@ -12,20 +12,6 @@ public final class WorldPairing
 	{
 	}
 
-	public static World pairedNether(World overworld)
-	{
-		if(overworld == null)
-		{
-			return null;
-		}
-		if(overworld.getEnvironment() == World.Environment.NETHER)
-		{
-			return overworld;
-		}
-		NetherPortalTarget target = resolveNetherTarget(overworld);
-		return target == null ? null : target.world();
-	}
-
 	static NetherPortalTarget pairedNetherPortalTarget(World source)
 	{
 		if(source == null)

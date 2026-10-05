@@ -22,23 +22,6 @@ public enum Direction
 	private final int y;
 	private final int z;
 
-	public float toYaw()
-	{
-		switch(this)
-		{
-			case S:
-				return 0f;
-			case W:
-				return 90f;
-			case N:
-				return 180f;
-			case E:
-				return -90f;
-			default:
-				return 0f;
-		}
-	}
-
 	@Override
 	public String toString()
 	{
@@ -88,46 +71,6 @@ public enum Direction
 		}
 
 		return z >= 0.0D ? S : N;
-	}
-
-	public static Direction closest(GeometryVector v, Direction... d)
-	{
-		double m = Double.MAX_VALUE;
-		Direction s = null;
-
-		for(Direction i : d)
-		{
-			GeometryVector x = i.toVector();
-			double g = x.distance(v);
-
-			if(g < m)
-			{
-				m = g;
-				s = i;
-			}
-		}
-
-		return s;
-	}
-
-	public static Direction closest(GeometryVector v, List<Direction> d)
-	{
-		double m = Double.MAX_VALUE;
-		Direction s = null;
-
-		for(Direction i : d)
-		{
-			GeometryVector x = i.toVector();
-			double g = x.distance(v);
-
-			if(g < m)
-			{
-				m = g;
-				s = i;
-			}
-		}
-
-		return s;
 	}
 
 	public GeometryVector toVector()

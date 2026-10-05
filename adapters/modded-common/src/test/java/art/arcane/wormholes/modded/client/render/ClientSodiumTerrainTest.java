@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client.render;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.mixin.client.SodiumPreparedSectionStateMixin;
 import art.arcane.wormholes.modded.mixin.client.SodiumPreparedSectionsMixin;
 import net.caffeinemc.mods.sodium.client.render.chunk.async.CullTask;
@@ -38,8 +39,6 @@ import net.caffeinemc.mods.sodium.client.render.chunk.compile.ChunkSortOutput;
 import net.caffeinemc.mods.sodium.client.render.chunk.compile.executor.ChunkJob;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientChunkCache;
-import net.minecraft.SharedConstants;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
 import net.minecraft.client.Camera;
@@ -75,7 +74,6 @@ import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.MockedStatic;
 import org.mockito.InOrder;
@@ -114,13 +112,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.any;
 
-public class ClientSodiumTerrainTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class ClientSodiumTerrainTest extends MinecraftTestBase {
     @Test
     public void preparedNativeDrawsAdvanceOncePerFrameAndPipelineReplacementRevokesReadiness() throws Exception {
         Minecraft minecraft = mock(Minecraft.class);

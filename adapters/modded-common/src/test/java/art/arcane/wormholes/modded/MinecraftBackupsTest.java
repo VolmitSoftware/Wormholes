@@ -4,11 +4,8 @@ import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.door.DimensionalDoorRepository;
 import art.arcane.wormholes.door.DoorStateService;
 import art.arcane.wormholes.door.DoorStoreSnapshot;
-import net.minecraft.SharedConstants;
 import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.server.MinecraftServer;
-import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -29,15 +26,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class MinecraftBackupsTest {
+public class MinecraftBackupsTest extends MinecraftTestBase {
     @Rule
     public TemporaryFolder temporary = new TemporaryFolder();
-
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
 
     @Test
     public void importerOptionsDefaultToDryAndRequireExactFlags() {

@@ -7,13 +7,10 @@ import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import art.arcane.wormholes.network.view.EntityVisual;
 import art.arcane.wormholes.network.view.ViewEntityState;
-import net.minecraft.SharedConstants;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.phys.Vec3;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.UUID;
@@ -30,13 +27,7 @@ import static org.mockito.Mockito.withSettings;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.when;
 
-public class MinecraftEntityVisualCaptureTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class MinecraftEntityVisualCaptureTest extends MinecraftTestBase {
     @Test
     public void stationaryAnimalHeadTurnHasIndependentLookDelta() {
         LivingEntity animal = mock(LivingEntity.class);

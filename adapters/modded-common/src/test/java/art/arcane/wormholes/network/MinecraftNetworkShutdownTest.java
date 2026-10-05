@@ -1,5 +1,6 @@
 package art.arcane.wormholes.network;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.config.toml.MainConfig;
 import art.arcane.wormholes.config.toml.NetworkConfig;
@@ -16,14 +17,12 @@ import net.minecraft.SharedConstants;
 import net.minecraft.commands.Commands;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.network.Connection;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.server.permissions.PermissionSet;
 import net.minecraft.server.players.PlayerList;
 import net.minecraft.world.phys.Vec3;
-import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -40,14 +39,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
-public class MinecraftNetworkShutdownTest {
+public class MinecraftNetworkShutdownTest extends MinecraftTestBase {
     @Rule public TemporaryFolder directory = new TemporaryFolder();
-
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
 
     @Test
     public void pendingPlayerHandoffClosesBeforeEntityServiceAndStopsNetwork() {

@@ -68,6 +68,17 @@ final class DoorTransitCoordinatorCostIntegrationTest {
     }
 
     @Test
+    void playerArrivalWithoutCapturedMomentumProvidesAZeroPreparedTravelVector() throws ReflectiveOperationException {
+        DoorTransit transit = new DoorTransit(new DoorwayPlane(0, 200, 0, Direction.N),
+            DoorwayCrossing.Direction.FRONT_TO_BACK, 0.0F, 0.0F);
+        Object context = transitContext(UUID.randomUUID(), transit);
+        Method arrival = DoorTransitCoordinator.class.getDeclaredMethod("arrivalVelocity", transitContextType(), Location.class);
+        arrival.setAccessible(true);
+        DoorVec3 velocity = (DoorVec3) arrival.invoke(null, context, new Location(null, 24.5D, 200.0D, 0.5D));
+        assertEquals(new DoorVec3(0.0D, 0.0D, 0.0D), velocity);
+    }
+
+    @Test
     void playerAdmissionCarriesDoorKindSourceAndDestination() throws Exception {
         AtomicLong clock = new AtomicLong(1_000L);
         RecordingCost cost = RecordingCost.payable();

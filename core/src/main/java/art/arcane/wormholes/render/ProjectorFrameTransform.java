@@ -1,6 +1,7 @@
 package art.arcane.wormholes.render;
 
 import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.wormholes.render.plate.PlateBox;
 import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Direction;
 
@@ -75,6 +76,31 @@ public final class ProjectorFrameTransform {
         out3[0] = snapNearInteger(toOriginX + scaleX * coordinate(sourceX, offsetX, offsetY, offsetZ), coordinateSnapTolerance);
         out3[1] = snapNearInteger(toOriginY + scaleY * coordinate(sourceY, offsetX, offsetY, offsetZ), coordinateSnapTolerance);
         out3[2] = snapNearInteger(toOriginZ + scaleZ * coordinate(sourceZ, offsetX, offsetY, offsetZ), coordinateSnapTolerance);
+    }
+
+    public PlateBox transformBox(PlateBox box, int margin) {
+        if (box.cells() == 0L) {
+            return PlateBox.EMPTY;
+        }
+        double minX = box.minX() + 0.5D - fromOriginX;
+        double minY = box.minY() + 0.5D - fromOriginY;
+        double minZ = box.minZ() + 0.5D - fromOriginZ;
+        double maxX = (box.minX() + box.sizeX() - 1) + 0.5D - fromOriginX;
+        double maxY = (box.minY() + box.sizeY() - 1) + 0.5D - fromOriginY;
+        double maxZ = (box.minZ() + box.sizeZ() - 1) + 0.5D - fromOriginZ;
+        double firstX = snapNearInteger(toOriginX + scaleX * coordinate(sourceX, minX, minY, minZ), coordinateSnapTolerance);
+        double firstY = snapNearInteger(toOriginY + scaleY * coordinate(sourceY, minX, minY, minZ), coordinateSnapTolerance);
+        double firstZ = snapNearInteger(toOriginZ + scaleZ * coordinate(sourceZ, minX, minY, minZ), coordinateSnapTolerance);
+        double lastX = snapNearInteger(toOriginX + scaleX * coordinate(sourceX, maxX, maxY, maxZ), coordinateSnapTolerance);
+        double lastY = snapNearInteger(toOriginY + scaleY * coordinate(sourceY, maxX, maxY, maxZ), coordinateSnapTolerance);
+        double lastZ = snapNearInteger(toOriginZ + scaleZ * coordinate(sourceZ, maxX, maxY, maxZ), coordinateSnapTolerance);
+        return PlateBox.spanning(
+            (int) Math.floor(Math.min(firstX, lastX)) - margin,
+            (int) Math.floor(Math.min(firstY, lastY)) - margin,
+            (int) Math.floor(Math.min(firstZ, lastZ)) - margin,
+            (int) Math.floor(Math.max(firstX, lastX)) + margin,
+            (int) Math.floor(Math.max(firstY, lastY)) + margin,
+            (int) Math.floor(Math.max(firstZ, lastZ)) + margin);
     }
 
     private void mapAxis(Direction from, Direction to) {

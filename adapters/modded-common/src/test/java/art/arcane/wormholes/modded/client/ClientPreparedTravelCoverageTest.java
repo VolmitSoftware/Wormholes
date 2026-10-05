@@ -1,23 +1,21 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.wormholes.network.client.ClientViewEnvironment;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import net.minecraft.SharedConstants;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientChunkCache;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
-import net.minecraft.server.Bootstrap;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import static art.arcane.wormholes.modded.client.ClientTravelTestFixtures.set;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -25,13 +23,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class ClientPreparedTravelCoverageTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class ClientPreparedTravelCoverageTest extends MinecraftTestBase {
     @Test
     public void realNativeNeighborLossAndArrivalBubbleEscapeRequireNormalWaiting() throws ReflectiveOperationException {
         ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
@@ -67,11 +59,5 @@ public class ClientPreparedTravelCoverageTest {
         Method method = ClientPreparedTravel.class.getDeclaredMethod("covers", ClientViewMessage.TravelPose.class);
         method.setAccessible(true);
         return (boolean) method.invoke(travel, pose);
-    }
-
-    private static void set(Object object, String name, Object value) throws ReflectiveOperationException {
-        Field field = object.getClass().getDeclaredField(name);
-        field.setAccessible(true);
-        field.set(object, value);
     }
 }

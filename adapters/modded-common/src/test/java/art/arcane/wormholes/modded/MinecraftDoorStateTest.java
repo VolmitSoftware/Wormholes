@@ -15,11 +15,9 @@ import art.arcane.wormholes.door.PairEndpoint;
 import art.arcane.wormholes.door.PlacedDoorEndpoint;
 import art.arcane.wormholes.door.ReturnTicket;
 import com.mojang.brigadier.CommandDispatcher;
-import net.minecraft.SharedConstants;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -54,8 +52,7 @@ public class MinecraftDoorStateTest {
 
     @BeforeClass
     public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
+        MinecraftTestBase.bootstrap();
         for (Item item : List.of(Items.BUNDLE, Items.OAK_DOOR, Items.OAK_TRAPDOOR, Items.DARK_OAK_DOOR, Items.PALE_OAK_DOOR)) {
             item.builtInRegistryHolder().bindComponents(DataComponents.COMMON_ITEM_COMPONENTS);
         }

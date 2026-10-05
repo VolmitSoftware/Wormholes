@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.client.render.PortalScene;
@@ -13,7 +14,6 @@ import art.arcane.wormholes.util.Direction;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongLinkedOpenHashSet;
-import net.minecraft.SharedConstants;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -25,8 +25,6 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.SectionPos;
-import net.minecraft.server.Bootstrap;
-import org.junit.BeforeClass;
 import org.junit.Before;
 import org.junit.After;
 import org.junit.Test;
@@ -59,15 +57,9 @@ import static org.mockito.ArgumentMatchers.anyFloat;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 
-public class ClientMeshViewsTest {
+public class ClientMeshViewsTest extends MinecraftTestBase {
     private MockedStatic<Minecraft> minecraftAccess;
     private OptionInstance<Integer> blendRadius;
-
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
 
     @Before
     @SuppressWarnings("unchecked")

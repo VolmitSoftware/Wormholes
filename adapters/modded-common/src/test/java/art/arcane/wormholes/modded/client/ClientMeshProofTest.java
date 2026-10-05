@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.wormholes.modded.client.render.PortalScene;
@@ -9,14 +10,11 @@ import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.network.client.SectionBiomes;
 import art.arcane.wormholes.render.plate.PlateBox;
 import art.arcane.wormholes.util.Direction;
-import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.world.level.block.Blocks;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.List;
@@ -28,16 +26,10 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
-public class ClientMeshProofTest {
+public class ClientMeshProofTest extends MinecraftTestBase {
     private static final PlateBox BOUNDS = new PlateBox(-32, -32, -32, 64, 64, 64);
     private static final ClientViewEnvironment ENVIRONMENT = PortalEnvironmentTest.environment(ClientViewEnvironment.Transform.IDENTITY);
     private static final Options OPTIONS = new Options(ENVIRONMENT, 71, 11);
-
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
 
     @Test
     public void exactSnapshotProofAcceptsEquivalentInputsButCheapContextCannotAuthorizeReuse() throws Exception {

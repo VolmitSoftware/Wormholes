@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.wormholes.network.client.ClientViewEnvironment;
@@ -7,23 +8,14 @@ import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.render.DirectionMapping;
 import art.arcane.wormholes.util.Direction;
-import net.minecraft.SharedConstants;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.HugeMushroomBlock;
 import net.minecraft.world.level.block.state.BlockState;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import static org.junit.Assert.assertSame;
 
-public class ClientLocalMeshOrientationTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class ClientLocalMeshOrientationTest extends MinecraftTestBase {
     @Test
     public void nativeMirrorSectionsRetainSourceFacesForSingleVertexReflection() throws Exception {
         BlockState original = Blocks.RED_MUSHROOM_BLOCK.defaultBlockState()

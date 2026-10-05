@@ -1,18 +1,17 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.network.client.ClientViewCapability;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.network.client.ClientViewProtocol;
 import art.arcane.wormholes.render.client.ClientPortalGeometry;
 import art.arcane.wormholes.util.Direction;
 import art.arcane.wormholes.modded.mixin.client.VanillaPortalEffectMixin;
-import net.minecraft.SharedConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.InsideBlockEffectApplier;
 import net.minecraft.world.entity.PortalProcessor;
@@ -20,7 +19,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.Portal;
 import net.minecraft.world.level.block.state.BlockState;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.MockedStatic;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -38,13 +36,7 @@ import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 
-public class ClientVanillaPortalEffectTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class ClientVanillaPortalEffectTest extends MinecraftTestBase {
     @Test
     public void onlyActiveManagedRootCellsSuppressVanillaEffects() {
         ClientViewSession session = new ClientViewSession(new WormholesClientConfig(),

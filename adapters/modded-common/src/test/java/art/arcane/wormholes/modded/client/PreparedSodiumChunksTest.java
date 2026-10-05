@@ -1,13 +1,11 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import net.caffeinemc.mods.sodium.client.render.chunk.map.ChunkStatus;
 import net.caffeinemc.mods.sodium.client.render.chunk.map.ChunkTracker;
 import net.caffeinemc.mods.sodium.client.render.chunk.map.ChunkTrackerHolder;
-import net.minecraft.SharedConstants;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.world.level.ChunkPos;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import static org.junit.Assert.assertFalse;
@@ -16,13 +14,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.withSettings;
 import static org.mockito.Mockito.when;
 
-public class PreparedSodiumChunksTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class PreparedSodiumChunksTest extends MinecraftTestBase {
     @Test
     public void decodedNativeLightMakesTheStagedNeighborhoodAvailableToNormalSodiumRendering() {
         ChunkTracker tracker = new ChunkTracker();

@@ -93,7 +93,7 @@ public final class PortalAccessDiagnostics {
     }
 
     static String describe(IPortal portal, Player player) {
-        String nameNode = PermissionKeys.node(PermissionKeys.sanitize(portal.getName()));
+        String nameNode = PortalPermissionKey.node(PortalPermissionKey.sanitize(portal.getName()));
         String identity = "player=" + quoted(player.getName()) + " playerId=" + player.getUniqueId()
             + " op=" + player.isOp() + " accessBypass=" + PortalAdmission.bypassesAccess(player) + " portal=" + portal.getId() + " name=" + quoted(portal.getName());
         if (portal instanceof ILocalPortal local) {

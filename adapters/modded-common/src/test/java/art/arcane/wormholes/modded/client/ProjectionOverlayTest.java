@@ -1,13 +1,12 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.render.ProjectionCellKey;
 import art.arcane.wormholes.render.blockentity.BlockEntitySample;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
-import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import org.junit.After;
@@ -22,8 +21,7 @@ import static org.junit.Assert.assertTrue;
 
 public class ProjectionOverlayTest {
     static {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
+        MinecraftTestBase.bootstrap();
     }
 
     private static final BlockState STONE = Blocks.STONE.defaultBlockState();

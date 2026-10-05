@@ -1,10 +1,5 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.config.WormholesSettings;
-import art.arcane.wormholes.config.toml.MainConfig;
-import art.arcane.wormholes.config.toml.NetworkConfig;
-import art.arcane.wormholes.config.toml.ProjectionConfig;
-import art.arcane.wormholes.config.toml.RenderConfig;
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.portal.PortalGeometry;
@@ -14,12 +9,9 @@ import art.arcane.wormholes.portal.rtp.MinecraftRtpRuntime;
 import art.arcane.wormholes.render.ProjectorRecursivePortals;
 import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Direction;
-import net.minecraft.SharedConstants;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.List;
@@ -37,7 +29,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class MinecraftProjectorPortalAccessRecursionTest {
+public class MinecraftProjectorPortalAccessRecursionTest extends MinecraftTestBase {
     private static final double EYE_X = 1.0D;
     private static final double EYE_Y = 65.0D;
     private static final double EYE_Z = -5.0D;
@@ -49,12 +41,6 @@ public class MinecraftProjectorPortalAccessRecursionTest {
     private MinecraftPortal random;
     private MinecraftPortal route;
     private MinecraftProjectorPortalAccess access;
-
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
 
     @Before
     public void fixture() {
@@ -76,7 +62,7 @@ public class MinecraftProjectorPortalAccessRecursionTest {
         when(back.getTunnelType()).thenReturn("LOCAL");
         when(back.getDestinationId()).thenReturn(frontId);
         when(runtime.configuration()).thenReturn(configuration);
-        when(configuration.settings()).thenReturn(new WormholesSettings(new MainConfig(), new ProjectionConfig(), new RenderConfig(), new NetworkConfig()));
+        when(configuration.settings()).thenReturn(MinecraftTestSettings.defaults());
         when(runtime.portals()).thenReturn(registry);
         when(runtime.rtp()).thenReturn(rtp);
         when(registry.snapshot()).thenReturn(List.of(front, back, random));

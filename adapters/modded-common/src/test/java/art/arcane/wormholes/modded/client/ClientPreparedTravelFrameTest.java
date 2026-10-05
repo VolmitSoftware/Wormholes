@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.mixin.client.PreparedTravelCameraMixin;
 import art.arcane.wormholes.modded.mixin.client.PreparedLevelAccess;
 import art.arcane.wormholes.modded.mixin.client.PreparedLevelDataAccess;
@@ -22,7 +23,6 @@ import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.render.client.ClientPortalGeometry;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.renderpearl.api.textures.GpuTexture;
-import net.minecraft.SharedConstants;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
@@ -34,9 +34,7 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.RegistryAccess;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.world.phys.Vec3;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.MockedStatic;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
@@ -64,13 +62,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
-public class ClientPreparedTravelFrameTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class ClientPreparedTravelFrameTest extends MinecraftTestBase {
     @Test
     public void retainedFrameWaitsOnlyForServerPositionWithoutChangingPlayerOrLoadedState() throws ReflectiveOperationException {
         Minecraft minecraft = minecraft();

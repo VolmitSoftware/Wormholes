@@ -3,10 +3,6 @@ package art.arcane.wormholes.modded;
 import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.chunk.ChunkLease;
 import art.arcane.wormholes.chunk.ChunkLeaseRegistry;
-import art.arcane.wormholes.config.toml.MainConfig;
-import art.arcane.wormholes.config.toml.NetworkConfig;
-import art.arcane.wormholes.config.toml.ProjectionConfig;
-import art.arcane.wormholes.config.toml.RenderConfig;
 import art.arcane.wormholes.door.DoorAccessState;
 import art.arcane.wormholes.door.DoorItemIdentity;
 import art.arcane.wormholes.door.DoorPosition;
@@ -15,16 +11,15 @@ import art.arcane.wormholes.door.PlacedDoorEndpoint;
 import art.arcane.wormholes.door.PocketBinding;
 import art.arcane.wormholes.door.PocketLayout;
 import art.arcane.wormholes.door.PocketSpace;
-import art.arcane.wormholes.door.PocketShell;
+import art.arcane.wormholes.door.PocketCreationDefaults;
+import art.arcane.wormholes.door.PocketRules;
 import art.arcane.wormholes.door.DoorVec3;
 import art.arcane.wormholes.door.ReturnTicket;
 import art.arcane.wormholes.util.Direction;
-import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -34,7 +29,6 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
-import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -64,15 +58,9 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class MinecraftPocketPreviewTest {
+public class MinecraftPocketPreviewTest extends MinecraftTestBase {
     @Rule
     public TemporaryFolder temporary = new TemporaryFolder();
-
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
 
     @Test
     public void firstPersonalAndPublicPreviewsPrepareWithoutTicketsOrTraversal() throws Exception {
@@ -100,10 +88,35 @@ public class MinecraftPocketPreviewTest {
     }
 
     @Test
+    public void previewCreatesConfiguredRulesAndLaterEntryKeepsThem() throws Exception {
+        try (Fixture fixture = new Fixture(temporary.newFolder().toPath())) {
+            fixture.settings.getPockets().rulesDefaultMobs = true;
+            fixture.settings.getPockets().rulesDefaultPvp = true;
+            fixture.settings.getPockets().rulesDefaultKeepInventory = false;
+            fixture.settings.getPockets().rulesDefaultFixedTime = 6000L;
+            fixture.settings.getPockets().rulesDefaultBuild = "owner";
+            MinecraftDoorService.DoorView source = fixture.source(false);
+            UUID observer = fixture.observer();
+            fixture.await(() -> fixture.doors.projectionDestination(source, observer).isPresent());
+            PocketBinding binding = PocketBinding.publicDoor(source.endpoint().identity().itemId());
+            PocketSpace preview = fixture.doors.state().findPocket(binding).orElseThrow();
+            assertEquals(new PocketRules(true, true, false, 6000L, PocketRules.BuildPolicy.OWNER), preview.rules());
+            fixture.settings.getPockets().rulesDefaultMobs = false;
+            fixture.settings.getPockets().rulesDefaultPvp = false;
+            fixture.settings.getPockets().rulesDefaultKeepInventory = true;
+            fixture.settings.getPockets().rulesDefaultFixedTime = -1L;
+            fixture.settings.getPockets().rulesDefaultBuild = "builders";
+            PocketSpace entry = fixture.doors.state().getOrAllocatePocket(binding,
+                PocketCreationDefaults.from(preview.shell(), fixture.settings.getPockets()));
+            assertEquals(preview, entry);
+        }
+    }
+
+    @Test
     public void instancedPublicPreviewUsesObserverBindingWithoutMarkingItOccupied() throws Exception {
         try (Fixture fixture = new Fixture(temporary.newFolder().toPath())) {
             MinecraftDoorService.DoorView source = fixture.source(false);
-            PocketSpace shared = fixture.doors.state().getOrAllocatePocket(PocketBinding.publicDoor(source.endpoint().identity().itemId()), PocketShell.defaults());
+            PocketSpace shared = fixture.doors.state().getOrAllocatePocket(PocketBinding.publicDoor(source.endpoint().identity().itemId()), PocketCreationDefaults.defaults());
             fixture.doors.state().replacePocket(shared.withTemplateName("test-room"));
             fixture.doors.state().attachInstances(name -> name.equals("test-room"));
             UUID observer = fixture.observer();
@@ -242,12 +255,13 @@ public class MinecraftPocketPreviewTest {
         private final MinecraftPocketRooms rooms = mock(MinecraftPocketRooms.class);
         private final MinecraftPocketService operations = mock(MinecraftPocketService.class);
         private final List<MinecraftPocketRooms.Prepared> prepared = new ArrayList<>();
+        private final WormholesSettings settings = MinecraftTestSettings.defaults();
         private final MinecraftDoorService doors;
 
         private Fixture(Path directory) throws Exception {
             WormholesModRuntime runtime = mock(WormholesModRuntime.class);
             WormholesModConfiguration configuration = mock(WormholesModConfiguration.class);
-            when(configuration.settings()).thenReturn(new WormholesSettings(new MainConfig(), new ProjectionConfig(), new RenderConfig(), new NetworkConfig()));
+            when(configuration.settings()).thenReturn(settings);
             when(runtime.configuration()).thenReturn(configuration);
             when(runtime.server()).thenReturn(server);
             when(runtime.leases()).thenReturn(leases);

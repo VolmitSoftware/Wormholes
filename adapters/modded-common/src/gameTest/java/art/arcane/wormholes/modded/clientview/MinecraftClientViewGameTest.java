@@ -16,6 +16,7 @@ import art.arcane.wormholes.network.client.ClientViewMessageType;
 import art.arcane.wormholes.network.client.ClientViewProtocolException;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.PortalType;
+import art.arcane.wormholes.render.client.ClientPortalGeometry;
 import art.arcane.wormholes.render.client.session.ClientViewInbound;
 import art.arcane.wormholes.render.client.session.ClientViewOptions;
 import art.arcane.wormholes.render.client.session.ClientViewPlatform;
@@ -157,6 +158,7 @@ public final class MinecraftClientViewGameTest {
         clear(new BlockPos(0, 2, 0), new BlockPos(8, 7, 12));
         clear(new BlockPos(36, 2, 0), new BlockPos(46, 7, 12));
         MinecraftPortal source = portal(2, 6);
+        source.setBlackoutBackground(true);
         MinecraftPortal destination = portal(40, 6);
         helper.assertTrue(runtime.portals().link(player.player(), source.getId(), destination.getId()), "ClientView fixture did not link portals");
         BlockState marker = Blocks.GOLD_BLOCK.defaultBlockState();
@@ -346,6 +348,7 @@ public final class MinecraftClientViewGameTest {
             GeometryVector origin = source.getOrigin();
             helper.assertTrue(announced.geometry().valid(), "PORTAL geometry is invalid");
             helper.assertTrue(Math.abs(announced.geometry().originZ() - Math.floor(origin.z())) < 1.0D, "PORTAL origin is not the local aperture");
+            helper.assertTrue(announced.geometry().blackoutPolicy() == ClientPortalGeometry.BLACKOUT_SHELL, "Plate stream did not announce its configured blackout shell");
             helper.assertTrue(palette.containsKey(announced.geometry().blackoutState()), "Blackout state was not in the palette before PORTAL");
             ClientViewMessage.PlateBricks plate = (ClientViewMessage.PlateBricks) received.get(bricks);
             boolean sawMarker = false;

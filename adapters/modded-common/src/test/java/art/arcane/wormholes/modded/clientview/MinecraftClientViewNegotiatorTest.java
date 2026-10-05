@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.clientview;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.network.client.BrickLightSource;
 import art.arcane.wormholes.network.client.ClientViewCapability;
 import art.arcane.wormholes.network.client.ClientViewCodec;
@@ -18,15 +19,12 @@ import art.arcane.wormholes.render.client.session.ClientViewSessionRegistry;
 import art.arcane.wormholes.render.client.session.ClientViewSessionState;
 import art.arcane.wormholes.render.plate.ViewPlate;
 import io.netty.channel.embedded.EmbeddedChannel;
-import net.minecraft.SharedConstants;
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.PacketFlow;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.server.network.ConfigurationTask;
 import net.minecraft.world.level.block.state.BlockState;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -41,7 +39,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
-public class MinecraftClientViewNegotiatorTest {
+public class MinecraftClientViewNegotiatorTest extends MinecraftTestBase {
     private static final int DATA_VERSION = 4711;
     private static final long GRACE_NANOS = 100_000_000L;
 
@@ -50,12 +48,6 @@ public class MinecraftClientViewNegotiatorTest {
     private Recording transport;
     private ClientViewSessionRegistry<MinecraftClientViewPeer, BlockState> registry;
     private MinecraftClientViewNegotiator negotiator;
-
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
 
     @Before
     public void setUp() {

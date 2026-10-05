@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client.render;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.network.client.ClientViewEnvironment;
@@ -20,8 +21,6 @@ import com.mojang.renderpearl.api.commands.RenderPass;
 import com.mojang.renderpearl.api.device.GpuDevice;
 import com.mojang.renderpearl.api.textures.GpuSampler;
 import net.minecraft.client.Minecraft;
-import net.minecraft.SharedConstants;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.client.Options;
 import net.minecraft.client.Camera;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -44,7 +43,6 @@ import org.joml.Matrix4fStack;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 import org.junit.Test;
-import org.junit.BeforeClass;
 import org.mockito.MockedStatic;
 import org.mockito.MockedConstruction;
 
@@ -83,13 +81,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 
-public class ClientPortalRendererTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class ClientPortalRendererTest extends MinecraftTestBase {
     @Test
     @SuppressWarnings("unchecked")
     public void sectionOrderingPreservesDistanceTiesAndUpdatesAfterMovement() throws ReflectiveOperationException {

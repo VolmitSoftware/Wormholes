@@ -237,13 +237,13 @@ public final class DoorStateService {
 
     /** Resolves PERSONAL/PUBLIC identity and creates its permanent pocket if needed. */
     public synchronized PocketSpace getOrAllocatePocket(DoorItemIdentity identity, UUID travelerId) throws IOException {
-        return getOrAllocatePocket(identity, travelerId, PocketShell.defaults());
+        return getOrAllocatePocket(identity, travelerId, PocketCreationDefaults.defaults());
     }
 
     public synchronized PocketSpace getOrAllocatePocket(
         DoorItemIdentity identity,
         UUID travelerId,
-        PocketShell shell
+        PocketCreationDefaults defaults
     ) throws IOException {
         DoorDestination destination = resolveDestination(
             Objects.requireNonNull(identity, "identity"),
@@ -252,24 +252,25 @@ public final class DoorStateService {
         if (!(destination instanceof PocketDoorDestination pocket)) {
             throw new IllegalArgumentException(identity.kind() + " does not resolve to a pocket");
         }
-        return getOrAllocatePocket(pocket.binding(), shell);
+        return getOrAllocatePocket(pocket.binding(), defaults);
     }
 
     public synchronized PocketSpace getOrAllocatePocket(PocketBinding binding) throws IOException {
-        return getOrAllocatePocket(binding, PocketShell.defaults());
+        return getOrAllocatePocket(binding, PocketCreationDefaults.defaults());
     }
 
-    /** {@code shell} shapes the pocket only when this call is the one that creates it. */
-    public synchronized PocketSpace getOrAllocatePocket(PocketBinding binding, PocketShell shell) throws IOException {
+    /** Creation defaults apply only when this call creates the pocket. */
+    public synchronized PocketSpace getOrAllocatePocket(PocketBinding binding, PocketCreationDefaults defaults) throws IOException {
         Objects.requireNonNull(binding, "binding");
-        Objects.requireNonNull(shell, "shell");
+        Objects.requireNonNull(defaults, "defaults");
         Optional<PocketSpace> existing = allocator.find(binding);
         if (existing.isPresent()) {
             return existing.get();
         }
 
         PocketAllocator candidateAllocator = copyAllocator();
-        PocketSpace allocated = candidateAllocator.getOrAllocate(binding, shell);
+        PocketSpace allocated = candidateAllocator.getOrAllocate(binding, defaults.shell()).withRules(defaults.rules());
+        candidateAllocator.replace(allocated);
         persistAndPublish(registry, candidateAllocator, pairsById, ticketsByPlayer, accessByItem);
         return allocated;
     }

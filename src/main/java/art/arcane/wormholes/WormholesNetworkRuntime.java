@@ -9,6 +9,7 @@ import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
 import org.bukkit.block.data.BlockData;
 
 import art.arcane.wormholes.network.BukkitPortalSyncAccess;
+import art.arcane.wormholes.portal.ILocalPortal;
 
 import com.github.retrooper.packetevents.protocol.player.ClientVersion;
 import art.arcane.wormholes.util.BukkitJsonDocuments;
@@ -79,7 +80,9 @@ final class WormholesNetworkRuntime {
         Wormholes.networkManager = new NetworkManager(plugin.getLogger(), new NetworkManager.Options( activeSettings.getNetwork(), WormholesPlatform.minecraftVersion(), WormholesPlatform.pluginVersion(plugin), Bukkit.getPort(), plugin.getDataFolder().toPath(), BukkitJsonDocuments.INSTANCE, ClientVersion.getLatest().getProtocolVersion()));
         Wormholes.networkManager.setGameBindHost(Bukkit.getIp());
         Wormholes.importExportService = new ImportExportService(Wormholes.networkManager);
-        Wormholes.portalSyncService = BukkitPortalSyncAccess.create(Wormholes.networkManager, () -> Wormholes.portalManager.getLocalPortals(), this::runPortalSyncTask);
+        NetworkManager syncNetwork = Wormholes.networkManager;
+        PortalManager syncPortals = Wormholes.portalManager;
+        Wormholes.portalSyncService = BukkitPortalSyncAccess.create(syncNetwork, syncPortals::getLocalPortals, task -> runPortalSyncTask(syncNetwork, task));
         Wormholes.traversalService = new TraversalService(Wormholes.networkManager);
         Wormholes.remoteViewCache = createRemoteViewCache(activeSettings.getNetwork());
         Wormholes.viewSubscriptions = new ViewSubscriptionManager<>(Wormholes.networkManager, Wormholes.remoteViewCache, System::currentTimeMillis);
@@ -209,27 +212,39 @@ final class WormholesNetworkRuntime {
         }
     }
 
-    private void runPortalSyncTask(Runnable runnable) {
-        if (!plugin.isEnabled()) {
+    private void runPortalSyncTask(NetworkManager expected, Runnable runnable) {
+        if (!portalSyncActive(expected)) {
             return;
         }
-        if (FoliaScheduler.runGlobal(plugin, runnable)) {
+        if (FoliaScheduler.runGlobal(plugin, () -> runCurrentPortalSyncTask(expected, runnable))) {
             return;
         }
         plugin.getLogger().warning("Portal sync work was rejected by the global scheduler; retrying in one second.");
         WormholesTelemetry.countFailure("PORTAL_SYNC_GLOBAL_SCHEDULE_REJECTED");
-        queuePortalSyncRetry(runnable);
+        queuePortalSyncRetry(expected, runnable);
     }
 
-    private void queuePortalSyncRetry(Runnable runnable) {
+    private void queuePortalSyncRetry(NetworkManager expected, Runnable runnable) {
         CompletableFuture.delayedExecutor(1L, TimeUnit.SECONDS).execute(() -> {
-            if (!plugin.isEnabled()) {
+            if (!portalSyncActive(expected)) {
                 return;
             }
-            if (!FoliaScheduler.runGlobal(plugin, runnable)) {
-                queuePortalSyncRetry(runnable);
+            if (!FoliaScheduler.runGlobal(plugin, () -> runCurrentPortalSyncTask(expected, runnable))) {
+                queuePortalSyncRetry(expected, runnable);
             }
         });
+    }
+
+    private boolean portalSyncActive(NetworkManager expected) {
+        PortalSyncService<ILocalPortal> sync = Wormholes.portalSyncService;
+        return plugin.isEnabled() && expected != null && Wormholes.networkManager == expected
+            && sync != null && !sync.isClosed();
+    }
+
+    private void runCurrentPortalSyncTask(NetworkManager expected, Runnable runnable) {
+        if (portalSyncActive(expected)) {
+            runnable.run();
+        }
     }
 
     static RemoteViewCache<BlockData, EntityData<?>, Equipment> createRemoteViewCache(NetworkConfig networkConfig) {

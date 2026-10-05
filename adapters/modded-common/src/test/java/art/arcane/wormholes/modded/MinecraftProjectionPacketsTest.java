@@ -2,11 +2,9 @@ package art.arcane.wormholes.modded;
 
 import it.unimi.dsi.fastutil.shorts.Short2ObjectMap;
 import it.unimi.dsi.fastutil.shorts.Short2ObjectOpenHashMap;
-import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -22,8 +20,7 @@ import static org.junit.Assert.assertSame;
 public class MinecraftProjectionPacketsTest {
     @BeforeClass
     public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
+        MinecraftTestBase.bootstrap();
         for (Block block : BuiltInRegistries.BLOCK) {
             for (BlockState state : block.getStateDefinition().getPossibleStates()) {
                 if (Block.BLOCK_STATE_REGISTRY.getId(state) < 0) {

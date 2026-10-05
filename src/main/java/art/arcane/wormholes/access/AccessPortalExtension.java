@@ -53,19 +53,19 @@ public final class AccessPortalExtension implements PortalExtension {
         }
         synchronized (this) {
             if (permissionKey == null) {
-                permissionKey = PermissionKeys.sanitize(portal.getName());
+                permissionKey = PortalPermissionKey.sanitize(portal.getName());
             }
             return permissionKey;
         }
     }
 
     public String permissionNode() {
-        return PermissionKeys.node(permissionKey());
+        return PortalPermissionKey.node(permissionKey());
     }
 
     /** True while the key still matches the sanitized portal name, so the legacy node is the same node. */
     public boolean matchesNameDerivedNode() {
-        return permissionKey().equals(PermissionKeys.sanitize(portal.getName()));
+        return permissionKey().equals(PortalPermissionKey.sanitize(portal.getName()));
     }
 
     public KeyResult setPermissionKey(String candidate) {
@@ -74,7 +74,7 @@ public final class AccessPortalExtension implements PortalExtension {
 
     KeyResult setPermissionKey(String candidate, Iterable<? extends ILocalPortal> knownPortals) {
         String requested = candidate == null ? null : candidate.trim();
-        if (!PermissionKeys.isValid(requested)) {
+        if (!PortalPermissionKey.isValid(requested)) {
             return KeyResult.INVALID;
         }
         if (requested.equals(permissionKey())) {
@@ -225,7 +225,7 @@ public final class AccessPortalExtension implements PortalExtension {
     @Override
     public void load(JSONObject portalJson) {
         String storedKey = portalJson.optString(JSON_PERMISSION_KEY, "");
-        permissionKey = PermissionKeys.isValid(storedKey) ? storedKey : null;
+        permissionKey = PortalPermissionKey.isValid(storedKey) ? storedKey : null;
         listed = portalJson.optBoolean(JSON_LISTED, true);
         transferredFrom = parseUuid(portalJson.optString(JSON_TRANSFERRED_FROM, ""));
         JSONObject encodedRoles = portalJson.optJSONObject(JSON_ROLES);
@@ -264,7 +264,7 @@ public final class AccessPortalExtension implements PortalExtension {
     @Override
     public void applySync(Map<String, String> settings) {
         String mirroredKey = settings.get(JSON_PERMISSION_KEY);
-        if (PermissionKeys.isValid(mirroredKey)) {
+        if (PortalPermissionKey.isValid(mirroredKey)) {
             permissionKey = mirroredKey;
         }
         String mirroredListed = settings.get(JSON_LISTED);

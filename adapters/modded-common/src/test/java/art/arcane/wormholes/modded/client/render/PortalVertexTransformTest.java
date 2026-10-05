@@ -177,7 +177,7 @@ public class PortalVertexTransformTest {
         BlockPos source = new BlockPos(-17, -33, -49);
         Vec3 sectionOrigin = new Vec3(64, -16, 144);
         PoseStack pose = new PoseStack();
-        PortalFeatureRenderer.blockPose(pose, source, sectionOrigin, mapping);
+        PortalFeatureRenderer.blockPose(pose, source, sectionOrigin, mapping, PortalProjection.rotation(mapping));
         Vector3f[] model = {new Vector3f(0, 0, 0), new Vector3f(0.125F, 0.25F, 0.5F),
             new Vector3f(1, 0.25F, 1), new Vector3f(1, 0, 0)};
         PortalVertexTransform transform = new PortalVertexTransform(mapping);

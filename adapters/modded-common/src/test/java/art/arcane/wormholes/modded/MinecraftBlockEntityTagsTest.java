@@ -3,12 +3,10 @@ package art.arcane.wormholes.modded;
 import art.arcane.wormholes.render.blockentity.BlockEntitySample;
 import art.arcane.wormholes.render.blockentity.BlockEntitySanitizer;
 import art.arcane.wormholes.render.ProjectionCellKey;
-import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.resources.Identifier;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -57,8 +55,7 @@ public class MinecraftBlockEntityTagsTest {
 
     @Test
     public void nativePacketUsesProjectedCoordinatesAndSanitizedTag() throws Exception {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
+        MinecraftTestBase.bootstrap();
         CompoundTag source = new CompoundTag();
         source.putString("id", "minecraft:chest");
         source.putInt("x", 400);

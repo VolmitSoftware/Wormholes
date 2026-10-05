@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.wormholes.network.client.Brick;
 import art.arcane.wormholes.network.client.ClientViewEnvironment;
@@ -9,10 +10,7 @@ import art.arcane.wormholes.network.client.ClientViewProtocolException;
 import art.arcane.wormholes.network.client.SectionBiomes;
 import art.arcane.wormholes.render.blockentity.BlockEntitySample;
 import art.arcane.wormholes.render.plate.PlateBox;
-import net.minecraft.SharedConstants;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.server.Bootstrap;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.List;
@@ -23,15 +21,9 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
-public class ClientMeshLocalContentTest {
+public class ClientMeshLocalContentTest extends MinecraftTestBase {
     private static final PlateBox BOUNDS = new PlateBox(-32, -32, -32, 64, 64, 64);
     private static final ClientViewEnvironment ENVIRONMENT = PortalEnvironmentTest.environment(ClientViewEnvironment.Transform.IDENTITY);
-
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
 
     @Test
     public void unchangedHaloCapturePreservesTheGpuRevisionWithoutPublishingNeighborInvalidation() throws Exception {

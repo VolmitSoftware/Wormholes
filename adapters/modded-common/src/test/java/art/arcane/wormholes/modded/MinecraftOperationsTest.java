@@ -1,10 +1,7 @@
 package art.arcane.wormholes.modded;
 
 import com.mojang.brigadier.CommandDispatcher;
-import net.minecraft.SharedConstants;
 import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.server.Bootstrap;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.List;
@@ -20,13 +17,7 @@ import static org.junit.Assert.assertEquals;
 import java.util.UUID;
 import net.minecraft.network.chat.Component;
 
-public class MinecraftOperationsTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class MinecraftOperationsTest extends MinecraftTestBase {
     @Test
     public void registersPublicAndAdministrativeCommands() {
         CommandDispatcher<CommandSourceStack> dispatcher = new CommandDispatcher<>();

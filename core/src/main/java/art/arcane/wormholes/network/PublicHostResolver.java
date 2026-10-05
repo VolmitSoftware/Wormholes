@@ -77,10 +77,6 @@ public final class PublicHostResolver {
         }
     }
 
-    public String resolveBlocking() {
-        return resolveOnce();
-    }
-
     public void shutdown() {
         ExecutorService active;
         synchronized (lock) {

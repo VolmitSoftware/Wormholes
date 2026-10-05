@@ -1,12 +1,10 @@
 package art.arcane.wormholes.modded.client;
 
-import net.minecraft.SharedConstants;
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.decoration.Mannequin;
 import net.minecraft.world.phys.Vec3;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -14,13 +12,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class ClientReflectionEntityTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class ClientReflectionEntityTest extends MinecraftTestBase {
     @Test
     public void nativeSelfModelKeepsSourceFeetBodyHeadAndHandBeforeRenderReflection() {
         LocalPlayer player = mock(LocalPlayer.class);

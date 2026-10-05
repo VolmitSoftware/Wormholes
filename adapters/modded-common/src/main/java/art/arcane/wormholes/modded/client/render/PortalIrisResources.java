@@ -22,6 +22,7 @@ import net.irisshaders.iris.targets.RenderTargets;
 
 final class PortalIrisResources {
     private static final Map<ProgramSet, Set<Integer>> allocations = new WeakHashMap<>();
+    private static final Map<ProgramSet, Long> fixedTargetBytes = new WeakHashMap<>();
     private static long revision;
 
     private PortalIrisResources() {
@@ -30,7 +31,7 @@ final class PortalIrisResources {
     static long targets(ProgramSet programs, int width, int height) {
         PackDirectives directives = programs.getPackDirectives();
         Set<Integer> allocated = allocations.get(programs);
-        long bytes = (long) width * height * 16;
+        long bytes = Math.addExact((long) width * height * 16, fixedTargetBytes.computeIfAbsent(programs, PortalIrisResources::fixedTargets));
         for (Map.Entry<Integer, PackRenderTargetDirectives.RenderTargetSettings> entry
             : directives.getRenderTargetDirectives().getRenderTargetSettings().entrySet()) {
             if (allocated != null && !allocated.contains(entry.getKey())) {
@@ -40,27 +41,17 @@ final class PortalIrisResources {
             bytes = Math.addExact(bytes, texture(size.x, size.y, 1, entry.getValue().getInternalFormat()) * 2);
         }
         for (ImageInformation image : programs.getPack().getIrisCustomImages()) {
-            int imageWidth = image.isRelative() ? (int) (width * image.relativeWidth()) : image.width();
-            int imageHeight = image.isRelative() ? (int) (height * image.relativeHeight()) : image.height();
-            bytes = Math.addExact(bytes, texture(imageWidth, imageHeight, Math.max(1, image.depth()), image.internalTextureFormat()));
-        }
-        for (BuiltShaderStorageInfo buffer : programs.getPack().getBufferObjects().values()) {
-            long size = buffer.relative() ? Math.multiplyExact(buffer.size(),
-                Math.multiplyExact((long) (width * buffer.scaleX()), (long) (height * buffer.scaleY()))) : buffer.size();
-            bytes = Math.addExact(bytes, size);
-        }
-        ShaderPack pack = programs.getPack();
-        for (Map<String, CustomTextureData> textures : pack.getCustomTextureDataMap().values()) {
-            for (CustomTextureData data : textures.values()) {
-                bytes = Math.addExact(bytes, customTexture(data));
+            if (image.isRelative()) {
+                bytes = Math.addExact(bytes, texture((int) (width * image.relativeWidth()), (int) (height * image.relativeHeight()),
+                    Math.max(1, image.depth()), image.internalTextureFormat()));
             }
         }
-        for (CustomTextureData data : pack.getIrisCustomTextureDataMap().values()) {
-            bytes = Math.addExact(bytes, customTexture(data));
+        for (BuiltShaderStorageInfo buffer : programs.getPack().getBufferObjects().values()) {
+            if (buffer.relative()) {
+                bytes = Math.addExact(bytes, Math.multiplyExact(buffer.size(),
+                    Math.multiplyExact((long) (width * buffer.scaleX()), (long) (height * buffer.scaleY()))));
+            }
         }
-        bytes = Math.addExact(bytes, pack.getCustomNoiseTexture() == null
-            ? (long) directives.getNoiseTextureResolution() * directives.getNoiseTextureResolution() * 4
-            : customTexture(pack.getCustomNoiseTexture()));
         return bytes;
     }
 
@@ -125,6 +116,32 @@ final class PortalIrisResources {
                 yield (components == 3 ? 4 : components) * bits / 8;
             }
         };
+    }
+
+    private static long fixedTargets(ProgramSet programs) {
+        ShaderPack pack = programs.getPack();
+        long bytes = 0;
+        for (ImageInformation image : pack.getIrisCustomImages()) {
+            if (!image.isRelative()) {
+                bytes = Math.addExact(bytes, texture(image.width(), image.height(), Math.max(1, image.depth()), image.internalTextureFormat()));
+            }
+        }
+        for (BuiltShaderStorageInfo buffer : pack.getBufferObjects().values()) {
+            if (!buffer.relative()) {
+                bytes = Math.addExact(bytes, buffer.size());
+            }
+        }
+        for (Map<String, CustomTextureData> textures : pack.getCustomTextureDataMap().values()) {
+            for (CustomTextureData data : textures.values()) {
+                bytes = Math.addExact(bytes, customTexture(data));
+            }
+        }
+        for (CustomTextureData data : pack.getIrisCustomTextureDataMap().values()) {
+            bytes = Math.addExact(bytes, customTexture(data));
+        }
+        return Math.addExact(bytes, pack.getCustomNoiseTexture() == null
+            ? (long) programs.getPackDirectives().getNoiseTextureResolution() * programs.getPackDirectives().getNoiseTextureResolution() * 4
+            : customTexture(pack.getCustomNoiseTexture()));
     }
 
     private static long customTexture(CustomTextureData data) {

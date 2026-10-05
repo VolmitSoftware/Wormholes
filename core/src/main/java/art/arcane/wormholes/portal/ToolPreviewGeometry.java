@@ -2,6 +2,7 @@ package art.arcane.wormholes.portal;
 
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.util.Axis;
+import art.arcane.wormholes.render.ProjectionCellKey;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 
 import java.util.ArrayList;
@@ -37,7 +38,7 @@ public final class ToolPreviewGeometry {
             int x = position.getBlockX();
             int y = position.getBlockY();
             int z = position.getBlockZ();
-            if (!occupied.add(packCell(x, y, z))) {
+            if (!occupied.add(ProjectionCellKey.pack(x, y, z))) {
                 continue;
             }
             cells.add(new Cell(x, y, z));
@@ -53,7 +54,7 @@ public final class ToolPreviewGeometry {
         }
         ArrayList<PreviewPoint> outline = new ArrayList<>(Math.max(16, cells.size() * 8));
         for (Cell cell : cells) {
-            addCellBoundary(outline, occupied, cell, normalAxis);
+            PortalBoundarySamples.append(outline, occupied, cell.x(), cell.y(), cell.z(), normalAxis, OUTLINE_SAMPLES_PER_EDGE, PreviewPoint::new);
         }
         return new Geometry(normalAxis, List.copyOf(outline), List.copyOf(cells),
             minX, minY, minZ, maxX + 1.0D, maxY + 1.0D, maxZ + 1.0D);
@@ -85,67 +86,6 @@ public final class ToolPreviewGeometry {
             case Z -> z;
         };
         return viewerCoordinate >= planeCoordinate ? SURFACE_OFFSET : -SURFACE_OFFSET;
-    }
-
-    private static void addCellBoundary(List<PreviewPoint> outline, LongOpenHashSet occupied, Cell cell, Axis normalAxis) {
-        int x = cell.x();
-        int y = cell.y();
-        int z = cell.z();
-        switch (normalAxis) {
-            case X -> {
-                if (!occupied.contains(packCell(x, y - 1, z))) {
-                    addLine(outline, x + 0.5D, y, z, x + 0.5D, y, z + 1.0D);
-                }
-                if (!occupied.contains(packCell(x, y + 1, z))) {
-                    addLine(outline, x + 0.5D, y + 1.0D, z, x + 0.5D, y + 1.0D, z + 1.0D);
-                }
-                if (!occupied.contains(packCell(x, y, z - 1))) {
-                    addLine(outline, x + 0.5D, y, z, x + 0.5D, y + 1.0D, z);
-                }
-                if (!occupied.contains(packCell(x, y, z + 1))) {
-                    addLine(outline, x + 0.5D, y, z + 1.0D, x + 0.5D, y + 1.0D, z + 1.0D);
-                }
-            }
-            case Y -> {
-                if (!occupied.contains(packCell(x - 1, y, z))) {
-                    addLine(outline, x, y + 0.5D, z, x, y + 0.5D, z + 1.0D);
-                }
-                if (!occupied.contains(packCell(x + 1, y, z))) {
-                    addLine(outline, x + 1.0D, y + 0.5D, z, x + 1.0D, y + 0.5D, z + 1.0D);
-                }
-                if (!occupied.contains(packCell(x, y, z - 1))) {
-                    addLine(outline, x, y + 0.5D, z, x + 1.0D, y + 0.5D, z);
-                }
-                if (!occupied.contains(packCell(x, y, z + 1))) {
-                    addLine(outline, x, y + 0.5D, z + 1.0D, x + 1.0D, y + 0.5D, z + 1.0D);
-                }
-            }
-            case Z -> {
-                if (!occupied.contains(packCell(x - 1, y, z))) {
-                    addLine(outline, x, y, z + 0.5D, x, y + 1.0D, z + 0.5D);
-                }
-                if (!occupied.contains(packCell(x + 1, y, z))) {
-                    addLine(outline, x + 1.0D, y, z + 0.5D, x + 1.0D, y + 1.0D, z + 0.5D);
-                }
-                if (!occupied.contains(packCell(x, y - 1, z))) {
-                    addLine(outline, x, y, z + 0.5D, x + 1.0D, y, z + 0.5D);
-                }
-                if (!occupied.contains(packCell(x, y + 1, z))) {
-                    addLine(outline, x, y + 1.0D, z + 0.5D, x + 1.0D, y + 1.0D, z + 0.5D);
-                }
-            }
-        }
-    }
-
-    private static void addLine(List<PreviewPoint> points, double x0, double y0, double z0, double x1, double y1, double z1) {
-        for (int sample = 0; sample < OUTLINE_SAMPLES_PER_EDGE; sample++) {
-            double t = (sample + 0.5D) / OUTLINE_SAMPLES_PER_EDGE;
-            points.add(new PreviewPoint(x0 + ((x1 - x0) * t), y0 + ((y1 - y0) * t), z0 + ((z1 - z0) * t)));
-        }
-    }
-
-    private static long packCell(int x, int y, int z) {
-        return (((long) x & 0x3FFFFFFL) << 38) | ((((long) y) & 0xFFFL) << 26) | (((long) z) & 0x3FFFFFFL);
     }
 
     public record PreviewPoint(double x, double y, double z) {

@@ -14,6 +14,7 @@ import art.arcane.wormholes.door.PocketLayout;
 import art.arcane.wormholes.door.PocketRoom;
 import art.arcane.wormholes.door.PocketRooms;
 import art.arcane.wormholes.door.PocketSpace;
+import art.arcane.wormholes.door.PocketCreationDefaults;
 import art.arcane.wormholes.door.DoorItemIdentity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -150,14 +151,14 @@ public final class MinecraftPocketExpansionGameTest {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 Files.writeString(service.templates().file("runtime-template").resolveSibling("runtime-template.toml"), "instanced = true\n");
-                state.replacePocket(state.getOrAllocatePocket(PocketBinding.publicDoor(publicDoor.itemId()), options.pocket().shell()).withTemplateName("runtime-template"));
+                state.replacePocket(state.getOrAllocatePocket(PocketBinding.publicDoor(publicDoor.itemId()), new PocketCreationDefaults(options.pocket().shell(), options.pocket().rules())).withTemplateName("runtime-template"));
                 PocketDoorDestination one = service.destination(publicDoor, first);
                 PocketDoorDestination two = service.destination(publicDoor, second);
                 options.helper().assertTrue(one.isInstanced() && two.isInstanced() && !one.binding().equals(two.binding()), "Public template did not isolate travelers");
                 options.helper().assertTrue(one.binding().equals(service.destination(publicDoor, first).binding()), "Instance binding changed on repeat entry");
                 PocketInstanceInfo info = PocketInstances.newInstance("runtime-template", first, PocketInstances.RESET_ON_EMPTY,
                     System.currentTimeMillis() - 60_000L).withLastOccupied(System.currentTimeMillis() - 30_000L);
-                return state.replacePocket(state.getOrAllocatePocket(one.binding(), options.pocket().shell()).withTemplateName("runtime-template").withInstance(info));
+                return state.replacePocket(state.getOrAllocatePocket(one.binding(), new PocketCreationDefaults(options.pocket().shell(), options.pocket().rules())).withTemplateName("runtime-template").withInstance(info));
             } catch (IOException exception) {
                 throw new CompletionException(exception);
             }

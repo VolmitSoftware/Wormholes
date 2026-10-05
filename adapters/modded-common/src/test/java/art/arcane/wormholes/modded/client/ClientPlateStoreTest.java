@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.network.client.Brick;
 import art.arcane.wormholes.network.client.BrickCodec;
 import art.arcane.wormholes.network.client.ClientViewCapability;
@@ -10,10 +11,7 @@ import art.arcane.wormholes.network.client.ClientViewProtocolException;
 import art.arcane.wormholes.network.client.PlateSectionBox;
 import art.arcane.wormholes.render.plate.PlateBox;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
-import net.minecraft.SharedConstants;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.server.Bootstrap;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -30,15 +28,9 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-public class ClientPlateStoreTest {
+public class ClientPlateStoreTest extends MinecraftTestBase {
     private static final Path GOLDENS = goldens();
     private static final long GENEROUS_BUDGET = 64L * 1024L * 1024L;
-
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
 
     @Test
     public void beginBricksEndCommitsAPlate() throws ClientViewProtocolException {

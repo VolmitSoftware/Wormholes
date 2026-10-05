@@ -5,9 +5,6 @@ import art.arcane.wormholes.modded.clientview.MinecraftClientViewService;
 import art.arcane.wormholes.portal.PortalGeometry;
 import art.arcane.wormholes.render.ProjectionGazeScheduler;
 import art.arcane.wormholes.util.AxisAlignedBB;
-import net.minecraft.SharedConstants;
-import net.minecraft.server.Bootstrap;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.List;
@@ -20,14 +17,8 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class MinecraftProjectionServiceGazeTest {
+public class MinecraftProjectionServiceGazeTest extends MinecraftTestBase {
     private static final double EPSILON = 1.0E-9D;
-
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
 
     @Test
     public void nativeDoorOwnershipHidesTheVeilOnlyWhileThatObserverOwnsTheView() {

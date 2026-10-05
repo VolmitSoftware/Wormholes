@@ -3,13 +3,10 @@ package art.arcane.wormholes.modded;
 import art.arcane.wormholes.ops.importers.ImportedPortal;
 import art.arcane.wormholes.ops.importers.PortalFactoryBridge;
 import art.arcane.wormholes.util.Direction;
-import net.minecraft.SharedConstants;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.border.WorldBorder;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.List;
@@ -25,13 +22,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class MinecraftPortalImporterTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class MinecraftPortalImporterTest extends MinecraftTestBase {
     @Test
     public void importedPortalUsesNativeRegistryAndOnlyLinksCreatedNames() {
         WormholesModRuntime runtime = mock(WormholesModRuntime.class);

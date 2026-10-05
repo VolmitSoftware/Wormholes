@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.wormholes.network.client.Brick;
@@ -9,12 +10,9 @@ import art.arcane.wormholes.network.client.ClientViewProtocolException;
 import art.arcane.wormholes.network.client.SectionBiomes;
 import art.arcane.wormholes.render.plate.PlateBox;
 import art.arcane.wormholes.util.Direction;
-import net.minecraft.SharedConstants;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.world.level.block.Blocks;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.lang.reflect.Field;
@@ -32,15 +30,9 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
-public class ClientMeshSectionsReuseTest {
+public class ClientMeshSectionsReuseTest extends MinecraftTestBase {
     private static final PlateBox BOUNDS = new PlateBox(-32, -32, -32, 64, 64, 64);
     private static final ClientViewEnvironment ENVIRONMENT = PortalEnvironmentTest.environment(ClientViewEnvironment.Transform.IDENTITY);
-
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
 
     @Test
     public void immutableIdentityUsesValueEqualityWithoutTreatingCachedHashCollisionsAsProof() {
@@ -80,6 +72,25 @@ public class ClientMeshSectionsReuseTest {
         assertTrue(store.canPreview(7, nearby));
         assertNotNull(store.preview(7, nearby, section));
         assertFalse(store.canPreview(7, nearby));
+    }
+
+    @Test
+    public void incomingWireSectionsEvictUnconfirmedPreviewsBeforeLocalResidents() throws Exception {
+        ClientMeshSections store = store();
+        store.begin(7, 1, BOUNDS, 2);
+        store.bind(7, new ClientMeshSections.Identity(ENVIRONMENT, 71, 11));
+        ClientMeshSections.Section local = store.localSection(section(7, 1, 1, 3));
+        assertTrue(store.local(7, 0L, local));
+        long previewKey = SectionPos.asLong(1, 0, 0);
+        ClientMeshSections.Section preview = store.localSection(new ClientViewMessage.MeshSection(7, 1, 1, 0, 0,
+            1, 3, Brick.single(0, 3), SectionBiomes.NONE));
+        assertNotNull(store.preview(7, previewKey, preview));
+        assertFalse(store.canPreview(7, SectionPos.asLong(-1, 0, 0)));
+        assertEquals(ClientMeshSections.Result.APPLIED, store.put(new ClientViewMessage.MeshSection(7, 1, -1, 0, 0,
+            1, 3, Brick.single(0, 3), SectionBiomes.NONE)));
+        assertSame(local, store.view(7).section(0L));
+        assertNull(store.view(7).section(previewKey));
+        assertEquals(2, store.view(7).sectionKeys().size());
     }
 
     @Test

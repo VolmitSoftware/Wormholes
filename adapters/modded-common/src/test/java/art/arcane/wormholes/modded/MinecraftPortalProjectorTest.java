@@ -29,8 +29,6 @@ import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
 import art.arcane.wormholes.render.ProjectorRecursivePortals;
 import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Direction;
-import net.minecraft.SharedConstants;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.players.PlayerList;
 import net.minecraft.server.level.ServerLevel;
@@ -38,7 +36,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.invocation.Invocation;
 
@@ -61,15 +58,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.ArgumentMatchers.any;
 
-public class MinecraftPortalProjectorTest {
+public class MinecraftPortalProjectorTest extends MinecraftTestBase {
     private static final UUID LOCAL_WORLD = UUID.nameUUIDFromBytes("projector-local".getBytes(StandardCharsets.UTF_8));
     private static final UUID DESTINATION_WORLD = UUID.nameUUIDFromBytes("projector-destination".getBytes(StandardCharsets.UTF_8));
-
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
 
     @Test
     public void nativeObserverRunsSharedCellScanAndCommitsClaims() {

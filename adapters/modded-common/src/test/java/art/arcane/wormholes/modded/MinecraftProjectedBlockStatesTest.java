@@ -3,8 +3,6 @@ package art.arcane.wormholes.modded;
 import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.render.DirectionMapping;
 import art.arcane.wormholes.util.Direction;
-import net.minecraft.SharedConstants;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.HugeMushroomBlock;
@@ -13,7 +11,6 @@ import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DoorHingeSide;
 import net.minecraft.world.level.block.state.properties.RailShape;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -22,13 +19,7 @@ import static net.minecraft.core.Direction.NORTH;
 import static net.minecraft.core.Direction.UP;
 import static net.minecraft.core.Direction.WEST;
 
-public class MinecraftProjectedBlockStatesTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class MinecraftProjectedBlockStatesTest extends MinecraftTestBase {
     @Test
     public void reflectedDoorsSwapFacingAndHingeWithoutChangingServerState() {
         BlockState original = Blocks.OAK_DOOR.defaultBlockState()

@@ -1,10 +1,8 @@
 package art.arcane.wormholes.modded;
 
-import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
@@ -26,8 +24,7 @@ import static org.mockito.Mockito.when;
 public class MinecraftPortalToolsTest {
     @BeforeClass
     public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
+        MinecraftTestBase.bootstrap();
         for (Item item : List.of(Items.BLAZE_ROD, Items.STICK, Items.STONE, Items.DIAMOND, Items.EMERALD)) {
             item.builtInRegistryHolder().bindComponents(DataComponents.COMMON_ITEM_COMPONENTS);
         }

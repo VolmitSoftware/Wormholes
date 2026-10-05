@@ -16,6 +16,8 @@ import org.bukkit.block.BlockFace;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Proxy;
+import java.lang.reflect.Field;
+import java.util.Map;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -27,10 +29,36 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
 
 final class DoorProjectionRegistryTest {
     private static final UUID WORLD_ID = new UUID(0, 500);
     private static final World WORLD = world();
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void failedAdapterDoesNotPreventOtherAdaptersOrTheBudgetFromClosing() throws ReflectiveOperationException {
+        DoorProjectionRegistry registry = new DoorProjectionRegistry(8, 1, everyoneNearby());
+        DoorProjectionAdapter failed = mock(DoorProjectionAdapter.class);
+        DoorProjectionAdapter healthy = mock(DoorProjectionAdapter.class);
+        IllegalStateException failure = new IllegalStateException("adapter release failed");
+        doThrow(failure).when(failed).destroy();
+        Field field = DoorProjectionRegistry.class.getDeclaredField("adapters");
+        field.setAccessible(true);
+        Map<UUID, DoorProjectionAdapter> adapters = (Map<UUID, DoorProjectionAdapter>) field.get(registry);
+        adapters.put(new UUID(1, 1), failed);
+        adapters.put(new UUID(2, 2), healthy);
+        IllegalStateException result = assertThrows(IllegalStateException.class, registry::close);
+        assertEquals(1, result.getSuppressed().length);
+        assertSame(failure, result.getSuppressed()[0]);
+        verify(healthy).destroy();
+        assertEquals(0, registry.size());
+        assertEquals(List.of(), registry.advance());
+        registry.close();
+    }
 
     @Test
     void installedAperturesAreHandedOutAndDropWhenTheDoorIsRemoved() {

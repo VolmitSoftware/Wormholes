@@ -14,8 +14,6 @@ import net.minecraft.network.protocol.status.ClientboundStatusResponsePacket;
 import net.minecraft.network.protocol.status.ServerStatus;
 import net.minecraft.network.protocol.status.StatusProtocols;
 import net.minecraft.core.RegistryAccess;
-import net.minecraft.server.Bootstrap;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -25,13 +23,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class MinecraftStatusConnectionTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class MinecraftStatusConnectionTest extends MinecraftTestBase {
     @Test
     public void preservesNormalStatusWithTheNativePacketEncoder() {
         MinecraftStatusBridge bridge = mock(MinecraftStatusBridge.class);

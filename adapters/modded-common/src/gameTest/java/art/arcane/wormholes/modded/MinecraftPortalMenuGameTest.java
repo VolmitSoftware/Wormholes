@@ -341,6 +341,8 @@ public final class MinecraftPortalMenuGameTest {
             named(12, Items.GLASS, WormholesMessages.PORTAL_MENU_SURFACE_SKIN_GLASS);
             named(14, Items.BARRIER, WormholesMessages.PORTAL_MENU_SURFACE_SKIN_CLEAR);
             named(22, Items.ARROW, WormholesMessages.PORTAL_MENU_BACK_SETTINGS);
+            permissions = runtime.access().register((player, node) -> player == owner.player() && node.equals("wormholes.admin")
+                ? MinecraftAccessService.Decision.ALLOW : MinecraftAccessService.Decision.UNSET);
             click(12);
         });
         step(() -> {
@@ -351,6 +353,7 @@ public final class MinecraftPortalMenuGameTest {
         step(() -> {
             helper.assertTrue(source.getSurfaceSkin().isEmpty(), "Skin picker did not clear glass");
             MinecraftPortalSurfaceGameTest.run(new MinecraftPortalSurfaceGameTest.Options(helper, runtime, owner.player(), owner.channel()));
+            closePermissions();
             click(22);
         });
         step(() -> window(5, Items.STAINED_GLASS_PANE.gray(), homeTitle, "settings after skins"));

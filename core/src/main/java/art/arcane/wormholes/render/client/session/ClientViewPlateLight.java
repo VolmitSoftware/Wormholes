@@ -60,19 +60,7 @@ public final class ClientViewPlateLight<B> implements BrickLightSource {
     }
 
     public static PlateBox remoteBox(PlateBox box, ClientViewEntityTransform.Frame frame) {
-        if (box.cells() == 0L) {
-            return PlateBox.EMPTY;
-        }
-        ProjectorFrameTransform transform = configure(frame);
-        double[] out = new double[3];
-        int[] bounds = {Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE};
-        for (int corner = 0; corner < 8; corner++) {
-            double x = ((corner & 1) == 0 ? box.minX() : box.minX() + box.sizeX() - 1) + 0.5D;
-            double y = ((corner & 2) == 0 ? box.minY() : box.minY() + box.sizeY() - 1) + 0.5D;
-            double z = ((corner & 4) == 0 ? box.minZ() : box.minZ() + box.sizeZ() - 1) + 0.5D;
-            include(transform, x, y, z, out, bounds);
-        }
-        return PlateBox.spanning(bounds[0], bounds[1], bounds[2], bounds[3], bounds[4], bounds[5]);
+        return configure(frame).transformBox(box, 0);
     }
 
     public synchronized long reusedSections() {

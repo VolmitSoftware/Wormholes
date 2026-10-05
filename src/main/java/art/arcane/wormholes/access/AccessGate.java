@@ -127,7 +127,7 @@ public final class AccessGate implements TraversalGate {
         }
         if (reportedLegacyNodes.add(portal.getId())) {
             Wormholes.i("access: portal " + portal.getId() + " permission key " + access.permissionKey()
-                + " (legacy node " + PermissionKeys.sanitize(portal.getName()) + " no longer read)");
+                + " (legacy node " + PortalPermissionKey.sanitize(portal.getName()) + " no longer read)");
         }
     }
 }

@@ -5,10 +5,7 @@ import art.arcane.wormholes.network.NetworkManager;
 import art.arcane.wormholes.network.mesh.DestinationPolicy;
 import art.arcane.wormholes.network.mesh.SelectionStrategy;
 import com.mojang.brigadier.CommandDispatcher;
-import net.minecraft.SharedConstants;
 import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.server.Bootstrap;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -26,13 +23,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class MinecraftNetworkToolsTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class MinecraftNetworkToolsTest extends MinecraftTestBase {
     @Test
     public void policyParserPreservesStrategyThresholdsAndRejectsInvalidCandidates() {
         UUID destination = UUID.randomUUID();

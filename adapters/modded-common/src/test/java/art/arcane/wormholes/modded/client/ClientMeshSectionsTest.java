@@ -1,17 +1,15 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.network.client.Brick;
 import art.arcane.wormholes.network.client.SectionBiomes;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.network.client.ClientViewProtocol;
 import art.arcane.wormholes.network.client.ClientViewProtocolException;
 import art.arcane.wormholes.render.plate.PlateBox;
-import net.minecraft.SharedConstants;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.world.level.block.Blocks;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.List;
@@ -24,14 +22,8 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
-public class ClientMeshSectionsTest {
+public class ClientMeshSectionsTest extends MinecraftTestBase {
     private static final PlateBox BOUNDS = new PlateBox(-512, -64, -512, 1024, 384, 1024);
-
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
 
     @Test
     public void largeViewBoundsAllocateOnlyReceivedSections() throws Exception {
@@ -112,6 +104,44 @@ public class ClientMeshSectionsTest {
         assertEquals(bytes, store.bytes());
         assertEquals(1, store.view(7).sectionKeys().size());
         assertSame(Blocks.STONE.defaultBlockState(), store.view(7).section(0L).state(0));
+    }
+
+    @Test
+    public void incomingWireSectionsReplaceLocalOnlyResidentsAtTheUnionLimit() throws Exception {
+        ClientMeshSections store = store(1024 * 1024);
+        store.begin(7, 1, BOUNDS, 1);
+        ClientMeshSections.Section local = store.localSection(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 3,
+            Brick.single(0, 3), SectionBiomes.NONE));
+        assertTrue(store.local(7, 0L, local));
+        long revision = store.view(7).contentRevision();
+        assertEquals(ClientMeshSections.Result.APPLIED, store.put(new ClientViewMessage.MeshSection(7, 1, 1, 0, 0, 1, 3,
+            Brick.single(0, 3), SectionBiomes.NONE)));
+        assertEquals(1, store.view(7).sectionKeys().size());
+        assertNull(store.view(7).section(0L));
+        assertTrue(store.view(7).contentRevision() > revision);
+        assertTrue(store.view(7).changed().contains(0L));
+        assertFalse(store.local(7, 0L, local));
+        assertEquals(ClientMeshSections.Result.APPLIED, store.put(new ClientViewMessage.MeshSection(7, 1, 1, 0, 0, 2, 3,
+            Brick.empty(0), SectionBiomes.NONE)));
+        assertEquals(1, store.view(7).sectionKeys().size());
+    }
+
+    @Test
+    public void wireReplacementPreservesItsLocalOverrideAtTheUnionLimit() throws Exception {
+        ClientMeshSections store = store(1024 * 1024);
+        store.begin(7, 1, BOUNDS, 1);
+        ClientMeshSections.Section local = store.localSection(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 3,
+            Brick.single(0, 3), SectionBiomes.NONE));
+        assertTrue(store.local(7, 0L, local));
+        assertEquals(ClientMeshSections.Result.APPLIED, store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 3,
+            Brick.empty(0), SectionBiomes.NONE)));
+        assertSame(local, store.view(7).section(0L));
+        long bytes = store.bytes();
+        assertEquals(ClientMeshSections.Result.REFUSED, store.put(new ClientViewMessage.MeshSection(7, 1, 1, 0, 0, 1, 3,
+            Brick.empty(0), SectionBiomes.NONE)));
+        assertEquals(bytes, store.bytes());
+        assertSame(local, store.view(7).section(0L));
+        assertEquals(1, store.view(7).sectionKeys().size());
     }
 
     @Test

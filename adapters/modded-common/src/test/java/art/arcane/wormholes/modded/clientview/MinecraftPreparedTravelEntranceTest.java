@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.clientview;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.modded.MinecraftDoorService;
 import art.arcane.wormholes.modded.MinecraftPortal;
@@ -13,10 +14,7 @@ import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.render.client.ClientPortalGeometry;
 import art.arcane.wormholes.util.Direction;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.SharedConstants;
-import net.minecraft.server.Bootstrap;
 import org.junit.Test;
-import org.junit.BeforeClass;
 
 import java.util.Map;
 import java.util.UUID;
@@ -29,13 +27,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class MinecraftPreparedTravelEntranceTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class MinecraftPreparedTravelEntranceTest extends MinecraftTestBase {
     @Test
     public void syntheticDoorAdmissionAndCrossingUseDoorAccessAndItsOwnReceiver() {
         Fixture fixture = fixture();

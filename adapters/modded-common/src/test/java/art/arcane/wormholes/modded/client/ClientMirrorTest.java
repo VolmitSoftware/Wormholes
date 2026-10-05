@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.modded.MinecraftProjectedBlockStates;
 import art.arcane.wormholes.network.client.Brick;
@@ -22,9 +23,7 @@ import art.arcane.wormholes.render.plate.PlateBox;
 import art.arcane.wormholes.util.Direction;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
-import net.minecraft.SharedConstants;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.state.BlockState;
@@ -62,8 +61,7 @@ public class ClientMirrorTest {
 
     @BeforeClass
     public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
+        MinecraftTestBase.bootstrap();
         STONE = Blocks.STONE.defaultBlockState();
         AIR = Blocks.AIR.defaultBlockState();
         GOLD = Blocks.GOLD_BLOCK.defaultBlockState();

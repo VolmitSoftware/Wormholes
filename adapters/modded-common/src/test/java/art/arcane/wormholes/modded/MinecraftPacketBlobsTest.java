@@ -1,13 +1,10 @@
 package art.arcane.wormholes.modded;
 
-import net.minecraft.SharedConstants;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.ItemStack;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.List;
@@ -17,13 +14,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
-public class MinecraftPacketBlobsTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class MinecraftPacketBlobsTest extends MinecraftTestBase {
     @Test
     public void metadataUsesVanillaSerializerIdsAndTerminator() {
         MinecraftPacketBlobs codec = new MinecraftPacketBlobs(RegistryAccess.EMPTY);

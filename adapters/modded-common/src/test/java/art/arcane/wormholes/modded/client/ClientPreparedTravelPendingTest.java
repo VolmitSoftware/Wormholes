@@ -5,12 +5,15 @@ import art.arcane.wormholes.network.client.ClientViewEnvironment;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import org.junit.Test;
 
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.HashMap;
+import java.util.Collection;
 import java.util.Map;
 import java.util.UUID;
 
+import static art.arcane.wormholes.modded.client.ClientTravelTestFixtures.field;
+import static art.arcane.wormholes.modded.client.ClientTravelTestFixtures.set;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -90,6 +93,34 @@ public class ClientPreparedTravelPendingTest {
         assertEquals(37, travel.readyRevision());
     }
 
+    @Test
+    public void adoptingPendingPreparationQueuesOnlyColumnsNewerThanInstalledRevisions() throws ReflectiveOperationException {
+        for (int installed : new int[] {1, 2, 3}) {
+            ClientPreparedTravel travel = arrival();
+            ClientViewMessage.TravelBegin begin = begin(4);
+            assertTrue(defer(travel, begin));
+            assertTrue(defer(travel, column(begin, 2)));
+            Object pending = field(travel, "pendingPreparation");
+            set(pending, "decoded", new HashMap<>(Map.of(COLUMN, installed)));
+            set(pending, "drawnRevision", 19L);
+            ClientTravelChunks chunks = (ClientTravelChunks) field(pending, "chunks");
+            long deadline = (long) field(pending, "deadline");
+            Method adopt = ClientPreparedTravel.class.getDeclaredMethod("adoptPreparation", pending.getClass());
+            adopt.setAccessible(true);
+            adopt.invoke(travel, pending);
+            assertSame(begin, field(travel, "begin"));
+            assertSame(chunks, field(travel, "chunks"));
+            assertEquals(deadline, field(travel, "deadline"));
+            assertEquals(19L, field(travel, "drawnRevision"));
+            assertEquals(installed, ((Map<?, ?>) field(travel, "decoded")).get(COLUMN));
+            Collection<?> queued = (Collection<?>) field(travel, "decoding");
+            assertEquals(installed < 2 ? 1 : 0, queued.size());
+            if (!queued.isEmpty()) {
+                assertEquals(2, field(queued.iterator().next(), "revision"));
+            }
+        }
+    }
+
     private static ClientPreparedTravel arrival() throws ReflectiveOperationException {
         ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
         ClientViewMessage.TravelBegin active = mock(ClientViewMessage.TravelBegin.class);
@@ -128,17 +159,5 @@ public class ClientPreparedTravelPendingTest {
         Method method = ClientPreparedTravel.class.getDeclaredMethod("nextPreparation");
         method.setAccessible(true);
         return method.invoke(travel);
-    }
-
-    private static Object field(Object object, String name) throws ReflectiveOperationException {
-        Field field = object.getClass().getDeclaredField(name);
-        field.setAccessible(true);
-        return field.get(object);
-    }
-
-    private static void set(Object object, String name, Object value) throws ReflectiveOperationException {
-        Field field = object.getClass().getDeclaredField(name);
-        field.setAccessible(true);
-        field.set(object, value);
     }
 }

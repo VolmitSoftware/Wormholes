@@ -224,7 +224,7 @@ final class LocalPortalLinking
 
 	void destroy()
 	{
-		if(!destructionStarted.compareAndSet(false, true))
+		if(!beginDestruction())
 		{
 			return;
 		}
@@ -233,7 +233,6 @@ final class LocalPortalLinking
 		boolean explicitDimensionalCounterpart = dimensionalCounterpartId != null;
 		ILocalPortal dimensionalCounterpart = destructionCounterpartId == null || Wormholes.portalManager == null
 				? null : Wormholes.portalManager.getLocalPortal(destructionCounterpartId);
-		portal.effects().incrementSequence();
 		tunnel = null;
 
 		AxisAlignedBB deletionArea = portal.getStructure().getArea();
@@ -260,6 +259,26 @@ final class LocalPortalLinking
 		{
 			Wormholes.portalManager.deletePersistedPairedPortal(destructionCounterpartId, portal.getId());
 		}
+	}
+
+	private boolean beginDestruction()
+	{
+		if(!destructionStarted.compareAndSet(false, true))
+		{
+			return false;
+		}
+		portal.effects().incrementSequence();
+		return true;
+	}
+
+	boolean retireForBulkDeletion()
+	{
+		if(!beginDestruction())
+		{
+			return false;
+		}
+		tunnel = null;
+		return true;
 	}
 
 	boolean isDestroyed()

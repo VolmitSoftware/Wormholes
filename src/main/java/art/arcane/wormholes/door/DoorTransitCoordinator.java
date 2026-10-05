@@ -3,7 +3,6 @@ package art.arcane.wormholes.door;
 import art.arcane.volmlib.util.bukkit.WorldIdentity;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.volmlib.util.localization.TextKey;
-import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.portal.LocalPortal;
 import art.arcane.wormholes.network.client.ClientViewMessage;
@@ -175,7 +174,7 @@ final class DoorTransitCoordinator
 			}
 			PocketSpace space = guard.mutate(() ->
 			{
-				PocketSpace allocated = guard.state().getOrAllocatePocket(binding, Settings.POCKET_SHELL);
+				PocketSpace allocated = guard.state().getOrAllocatePocket(binding, PocketSettings.creationDefaults());
 				if(destination.isInstanced() && allocated.instance() == null)
 				{
 					return guard.state().replacePocket(allocated.withTemplateName(destination.instancedTemplate())
@@ -396,7 +395,7 @@ final class DoorTransitCoordinator
 		{
 			space = guard.mutate(() ->
 			{
-				PocketSpace allocated = guard.state().getOrAllocatePocket(destination.binding(), Settings.POCKET_SHELL);
+				PocketSpace allocated = guard.state().getOrAllocatePocket(destination.binding(), PocketSettings.creationDefaults());
 				if(destination.isInstanced() && allocated.instance() == null)
 				{
 					return guard.state().replacePocket(allocated
@@ -1433,7 +1432,7 @@ final class DoorTransitCoordinator
 		DoorTransit transit = context.transit();
 		if(transit.velocity() == null)
 		{
-			return null;
+			return new DoorVec3(0.0D, 0.0D, 0.0D);
 		}
 		DoorwayPlane destination = context.destinationPlane();
 		if(destination != null)

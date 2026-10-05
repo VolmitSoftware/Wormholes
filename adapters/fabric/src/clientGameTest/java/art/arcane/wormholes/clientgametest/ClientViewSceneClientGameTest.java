@@ -1,21 +1,13 @@
 package art.arcane.wormholes.clientgametest;
 
-import art.arcane.wormholes.fabric.WormholesFabric;
+import art.arcane.wormholes.modded.client.ClientMeshEntities;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.WormholesModRuntime;
-import art.arcane.wormholes.modded.client.ClientPlate;
-import art.arcane.wormholes.modded.client.ClientPortal;
 import art.arcane.wormholes.modded.client.ClientProjectedEntities;
-import art.arcane.wormholes.modded.client.ClientViewTick;
-import art.arcane.wormholes.modded.client.ProjectionOverlay;
 import art.arcane.wormholes.modded.client.WormholesClient;
-import art.arcane.wormholes.network.client.BrickLightSource;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
 import art.arcane.wormholes.portal.PortalType;
-import art.arcane.wormholes.render.ProjectionCellKey;
 import art.arcane.wormholes.portal.rtp.RtpRotationMode;
 import art.arcane.wormholes.portal.rtp.RtpSettings;
-import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestDedicatedServerConnection;
@@ -23,7 +15,6 @@ import net.fabricmc.fabric.api.client.gametest.v1.context.TestDedicatedServerCon
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerConnection;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -37,11 +28,13 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+
+import static art.arcane.wormholes.clientgametest.NativeClientViewAssertions.cells;
+import static art.arcane.wormholes.clientgametest.NativeClientViewAssertions.runtime;
 
 public final class ClientViewSceneClientGameTest implements FabricClientGameTest {
     private static final int NEGOTIATION_TIMEOUT_TICKS = 400;
@@ -62,7 +55,7 @@ public final class ClientViewSceneClientGameTest implements FabricClientGameTest
         try (TestSingleplayerContext singleplayer = context.worldBuilder().create()) {
             runScenario(context, singleplayer.getConnection(), singleplayer.getServer(), "singleplayer");
         }
-        try (TestDedicatedServerContext server = context.worldBuilder().createServer();
+        try (TestDedicatedServerContext server = context.worldBuilder().createServer(ClientViewTestConfig.serverProperties());
              TestDedicatedServerConnection connection = server.connect()) {
             runScenario(context, connection, server, "dedicated");
         }
@@ -118,7 +111,11 @@ public final class ClientViewSceneClientGameTest implements FabricClientGameTest
                 problems.add("no projected armour stand in the client level");
                 return problems;
             }
-            Vec3 expected = new Vec3(STAND.getX() + 0.5D, STAND.getY(), STAND.getZ() + 0.5D + OFFSET_Z);
+            if (!WormholesClient.instance().tickState().entities().meshEntity(found.getId())
+                || !ClientMeshEntities.hiddenFromWorld(found)) {
+                problems.add("projected stand is not isolated to its native mesh scene");
+            }
+            Vec3 expected = new Vec3(STAND.getX() + 0.5D, STAND.getY(), STAND.getZ() + 0.5D);
             if (found.position().distanceTo(expected) > POSITION_TOLERANCE) {
                 problems.add("projected stand at " + found.position() + " instead of " + expected);
             }
@@ -129,45 +126,10 @@ public final class ClientViewSceneClientGameTest implements FabricClientGameTest
 
     private static void assertDestinationLight(ClientGameTestContext context, TestServerContext server, TestServerConnection connection) {
         int destination = server.computeOnServer(minecraftServer -> connection.getServerLevel().getBrightness(LightLayer.BLOCK, LIT_CELL));
-        BlockPos local = LIT_CELL.offset(0, 0, OFFSET_Z);
         assertTrue(destination > 0, "the destination glowstone produced no light");
-        int shown = -1;
-        for (int waited = 0; waited < STREAM_TIMEOUT_TICKS; waited += LIGHT_POLL_TICKS) {
-            shown = context.computeOnClient(client -> client.level.getBrightness(LightLayer.BLOCK, local));
-            if (shown == destination) {
-                return;
-            }
-            context.waitTicks(LIGHT_POLL_TICKS);
-        }
-        String state = context.computeOnClient(client -> describeLight(local));
-        assertTrue(false, "projected block light " + shown + " differs from the destination " + destination + ": " + state);
-    }
-
-    private static String describeLight(BlockPos local) {
-        WormholesClient wormholes = WormholesClient.instance();
-        ClientViewTick tick = wormholes.tickState();
-        ProjectionOverlay overlay = tick.overlay();
-        long key = ProjectionCellKey.pack(local.getX(), local.getY(), local.getZ());
-        ProjectionOverlay.Entry entry = overlay.get(key);
-        StringBuilder out = new StringBuilder(256);
-        out.append("overlay=").append(overlay.size()).append(" entry=").append(entry == null ? "none" : entry.portalKey() + "/" + entry.projected());
-        out.append(" masked=").append(tick.light().maskedCells(local.getX() >> 4, local.getY() >> 4, local.getZ() >> 4));
-        out.append(" lightSections=").append(tick.light().size()).append(" refreshes=").append(tick.light().refreshes());
-        for (ClientPortal portal : wormholes.session().portals().values()) {
-            ClientPlate plate = portal.plate();
-            out.append(" portal ").append(portal.portalKey()).append(" ready=").append(portal.ready())
-                .append(" applied=").append(portal.sweep() != null && portal.sweep().applied(local.getX(), local.getY(), local.getZ()));
-            if (plate != null) {
-                int brick = plate.brickIndexOf(local.getX(), local.getY(), local.getZ());
-                out.append(" brick=").append(brick).append(" hasLight=").append(brick >= 0 && plate.hasLight(brick));
-                if (brick >= 0 && plate.hasLight(brick)) {
-                    int cell = ClientViewProtocol.brickCellIndex(local.getX(), local.getY(), local.getZ());
-                    out.append(" block=").append(BrickLightSource.nibble(plate.blockLight(brick), cell))
-                        .append(" sky=").append(BrickLightSource.nibble(plate.skyLight(brick), cell));
-                }
-            }
-        }
-        return out.toString();
+        context.waitFor(client -> NativeClientViewAssertions.light(NativeClientViewAssertions.portalKey(SOURCE_MIN), LIT_CELL, false) == destination,
+            STREAM_TIMEOUT_TICKS);
+        context.computeOnClient(client -> { NativeClientViewAssertions.assertIsolated(); return true; });
     }
 
     private static Scene build(MinecraftServer server, ServerPlayer actor) {
@@ -209,16 +171,6 @@ public final class ClientViewSceneClientGameTest implements FabricClientGameTest
         return wormholes == null || wormholes.tickState().fx() == null ? 0 : wormholes.tickState().fx().emitters();
     }
 
-    private static List<BlockPos> cells(BlockPos min) {
-        List<BlockPos> cells = new ArrayList<>(9);
-        for (int x = 0; x < 3; x++) {
-            for (int y = 0; y < 3; y++) {
-                cells.add(min.offset(x, y, 0));
-            }
-        }
-        return cells;
-    }
-
     private static void fill(ServerLevel level, BlockPos min, int sizeX, int sizeY, int sizeZ, BlockState state) {
         for (int x = 0; x < sizeX; x++) {
             for (int y = 0; y < sizeY; y++) {
@@ -227,21 +179,6 @@ public final class ClientViewSceneClientGameTest implements FabricClientGameTest
                 }
             }
         }
-    }
-
-    private static WormholesModRuntime runtime() {
-        for (ModInitializer initializer : FabricLoader.getInstance().getEntrypoints("main", ModInitializer.class)) {
-            if (initializer instanceof WormholesFabric fabric) {
-                try {
-                    Field field = WormholesFabric.class.getDeclaredField("runtime");
-                    field.setAccessible(true);
-                    return (WormholesModRuntime) field.get(fabric);
-                } catch (ReflectiveOperationException failure) {
-                    throw new IllegalStateException("Wormholes runtime is not reachable", failure);
-                }
-            }
-        }
-        throw new IllegalStateException("Wormholes main entrypoint is not loaded");
     }
 
     private static void assertTrue(boolean condition, String message) {

@@ -5,9 +5,7 @@ import art.arcane.wormholes.modded.mixin.ServerPlayerRespawnInvoker;
 import art.arcane.wormholes.modded.mixin.EndRespawnPositionAccessor;
 import org.mockito.invocation.InvocationOnMock;
 import java.lang.reflect.Method;
-import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.PlayerSpawnFinder;
@@ -18,7 +16,6 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.RespawnAnchorBlock;
 import net.minecraft.world.level.storage.LevelData;
 import net.minecraft.world.phys.Vec3;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.MockedStatic;
 
@@ -40,13 +37,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class MinecraftEndReturnPreviewTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class MinecraftEndReturnPreviewTest extends MinecraftTestBase {
     @Test
     public void observerPreviewUsesItsValidatedRespawnWithoutConsumingAnAnchorAndKeepsTheRouteStable() {
         WormholesModRuntime runtime = mock(WormholesModRuntime.class);

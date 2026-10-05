@@ -26,10 +26,6 @@ public final class TcpPeerTransport implements PeerTransport {
         return new TcpPeerTransport(socket, address);
     }
 
-    public static TcpPeerTransport outboundOnly() {
-        return new TcpPeerTransport(null, null);
-    }
-
     @Override
     public String name() {
         return "tcp";
@@ -37,14 +33,11 @@ public final class TcpPeerTransport implements PeerTransport {
 
     @Override
     public boolean isListening() {
-        return serverSocket != null && !serverSocket.isClosed();
+        return !serverSocket.isClosed();
     }
 
     @Override
     public boolean isLoopback() {
-        if (boundAddress == null) {
-            return false;
-        }
         InetAddress address = boundAddress.getAddress();
         return address != null && address.isLoopbackAddress();
     }
@@ -56,9 +49,6 @@ public final class TcpPeerTransport implements PeerTransport {
 
     @Override
     public PeerChannel accept() throws IOException {
-        if (serverSocket == null) {
-            throw new IOException("tcp transport is outbound-only");
-        }
         Socket client = serverSocket.accept();
         return new TcpPeerChannel(client);
     }
@@ -72,9 +62,7 @@ public final class TcpPeerTransport implements PeerTransport {
 
     @Override
     public void close() throws IOException {
-        if (serverSocket != null) {
-            serverSocket.close();
-        }
+        serverSocket.close();
     }
 
     public static PeerChannel adopt(Socket socket) {

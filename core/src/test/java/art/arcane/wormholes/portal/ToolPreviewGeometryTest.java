@@ -3,6 +3,8 @@ package art.arcane.wormholes.portal;
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.util.Axis;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -80,32 +82,26 @@ public final class ToolPreviewGeometryTest
 		assertTrue(geometry.outlinePoints().contains(new ToolPreviewGeometry.PreviewPoint(1.125D, 1.0D, 0.5D)));
 	}
 
-	@Test
-	public void everyNormalAxisKeepsTheOutlineOnThePortalPlane()
-	{
-		for(Axis axis : Axis.values())
-		{
-			ToolPreviewGeometry.Geometry geometry = ToolPreviewGeometry.build(List.of(new GeometryVector(4, 5, 6)), axis);
-			assertEquals(1, geometry.cells().size());
-			assertEquals(16, geometry.outlinePoints().size());
-			for(ToolPreviewGeometry.PreviewPoint point : geometry.outlinePoints())
-			{
-				double normalCoordinate = switch(axis)
-				{
-					case X -> point.x();
-					case Y -> point.y();
-					case Z -> point.z();
-				};
-				double expected = switch(axis)
-				{
-					case X -> 4.5D;
-					case Y -> 5.5D;
-					case Z -> 6.5D;
-				};
-				assertEquals(expected, normalCoordinate, EPSILON);
-			}
-		}
-	}
+    @ParameterizedTest
+    @EnumSource(Axis.class)
+    public void everyNormalAxisKeepsTheOutlineOnThePortalPlane(Axis axis) {
+        ToolPreviewGeometry.Geometry geometry = ToolPreviewGeometry.build(List.of(new GeometryVector(4, 5, 6)), axis);
+        assertEquals(1, geometry.cells().size());
+        assertEquals(16, geometry.outlinePoints().size());
+        double expected = switch (axis) {
+            case X -> 4.5D;
+            case Y -> 5.5D;
+            case Z -> 6.5D;
+        };
+        for (ToolPreviewGeometry.PreviewPoint point : geometry.outlinePoints()) {
+            double normalCoordinate = switch (axis) {
+                case X -> point.x();
+                case Y -> point.y();
+                case Z -> point.z();
+            };
+            assertEquals(expected, normalCoordinate, EPSILON);
+        }
+    }
 
 	@Test
 	public void rangeUsesTheExactPortalBounds()
@@ -129,13 +125,12 @@ public final class ToolPreviewGeometryTest
         assertTrue(ToolPreviewGeometry.build(List.of(), Axis.Y).isEmpty());
     }
 
-    @Test
-    public void outlineOffsetFacesTheViewerOnEveryAxis() {
-        for (Axis axis : Axis.values()) {
-            assertEquals(0.04D, ToolPreviewGeometry.viewerSideOffset(1, 1, 1, axis, 0, 0, 0), EPSILON);
-            assertEquals(-0.04D, ToolPreviewGeometry.viewerSideOffset(-1, -1, -1, axis, 0, 0, 0), EPSILON);
-            assertEquals(0.04D, ToolPreviewGeometry.viewerSideOffset(0, 0, 0, axis, 0, 0, 0), EPSILON);
-        }
+    @ParameterizedTest
+    @EnumSource(Axis.class)
+    public void outlineOffsetFacesTheViewerOnEveryAxis(Axis axis) {
+        assertEquals(0.04D, ToolPreviewGeometry.viewerSideOffset(1, 1, 1, axis, 0, 0, 0), EPSILON);
+        assertEquals(-0.04D, ToolPreviewGeometry.viewerSideOffset(-1, -1, -1, axis, 0, 0, 0), EPSILON);
+        assertEquals(0.04D, ToolPreviewGeometry.viewerSideOffset(0, 0, 0, axis, 0, 0, 0), EPSILON);
     }
 
     @Test

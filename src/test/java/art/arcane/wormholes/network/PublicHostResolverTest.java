@@ -8,9 +8,11 @@ import org.junit.jupiter.api.Timeout;
 
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
@@ -62,17 +64,29 @@ class PublicHostResolverTest {
     }
 
     @Test
-    void resolverReturnsFirstValidResponse() {
-        PublicHostResolver resolver = new PublicHostResolver(LOGGER, List.of(url(bad, "/fail"), url(good, "/ip")), java.net.http.HttpClient.newHttpClient());
-        String result = resolver.resolveBlocking();
-        assertEquals("203.0.113.42", result);
+    void resolverReturnsFirstValidResponse() throws Exception {
+        PublicHostResolver resolver = new PublicHostResolver(LOGGER, List.of(url(bad, "/fail"), url(good, "/ip")), HttpClient.newHttpClient());
+        try {
+            CompletableFuture<String> result = new CompletableFuture<>();
+            resolver.refreshAsync(result::complete);
+            assertEquals("203.0.113.42", result.get(5L, TimeUnit.SECONDS));
+            assertEquals("203.0.113.42", resolver.cached());
+        } finally {
+            resolver.shutdown();
+        }
     }
 
     @Test
-    void resolverReturnsNullWhenAllEndpointsFail() {
-        PublicHostResolver resolver = new PublicHostResolver(LOGGER, List.of(url(bad, "/fail"), url(bad, "/fail")), java.net.http.HttpClient.newHttpClient());
-        String result = resolver.resolveBlocking();
-        assertNull(result);
+    void resolverReturnsNullWhenAllEndpointsFail() throws Exception {
+        PublicHostResolver resolver = new PublicHostResolver(LOGGER, List.of(url(bad, "/fail"), url(bad, "/fail")), HttpClient.newHttpClient());
+        try {
+            CompletableFuture<String> result = new CompletableFuture<>();
+            resolver.refreshAsync(result::complete);
+            assertNull(result.get(5L, TimeUnit.SECONDS));
+            assertNull(resolver.cached());
+        } finally {
+            resolver.shutdown();
+        }
     }
 
     @Test

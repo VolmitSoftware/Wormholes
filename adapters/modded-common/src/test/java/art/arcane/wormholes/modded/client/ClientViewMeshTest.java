@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.network.client.SectionBiomes;
 import art.arcane.wormholes.network.client.ClientViewCapability;
 import art.arcane.wormholes.network.client.ClientViewProtocol;
@@ -7,10 +8,7 @@ import art.arcane.wormholes.render.client.ClientPortalGeometry;
 import art.arcane.wormholes.network.client.Brick;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.render.plate.PlateBox;
-import net.minecraft.SharedConstants;
 import net.minecraft.core.SectionPos;
-import net.minecraft.server.Bootstrap;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.List;
@@ -20,13 +18,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-public class ClientViewMeshTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class ClientViewMeshTest extends MinecraftTestBase {
     @Test
     public void streamedSectionsAreAcknowledgedWithoutChangingWorldBlocks() throws Exception {
         ClientViewHarness harness = new ClientViewHarness(ClientViewCapability.ALL);

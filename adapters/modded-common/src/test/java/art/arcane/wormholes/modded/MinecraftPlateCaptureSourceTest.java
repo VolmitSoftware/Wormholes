@@ -8,7 +8,6 @@ import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
 import art.arcane.wormholes.render.plate.PlateCaptureJob;
 import art.arcane.wormholes.render.plate.ViewPlateBuilder;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
-import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.Holder;
@@ -22,7 +21,6 @@ import net.minecraft.world.level.lighting.LayerLightEventListener;
 import art.arcane.wormholes.render.view.ProjectionContentView;
 import java.util.Optional;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.server.level.ServerChunkCache;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
@@ -34,7 +32,6 @@ import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.PalettedContainer;
 import net.minecraft.world.level.chunk.Strategy;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.LinkedHashMap;
@@ -62,13 +59,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
-public class MinecraftPlateCaptureSourceTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class MinecraftPlateCaptureSourceTest extends MinecraftTestBase {
     @Test
     public void metadataOnlyChangeRecapturesCurrentBlockEntityWithinTheRetentionWindow() {
         List<String> types = FidelitySettings.blockEntityTypes;

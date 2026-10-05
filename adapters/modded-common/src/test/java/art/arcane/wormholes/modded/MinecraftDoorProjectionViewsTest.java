@@ -1,10 +1,6 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.config.WormholesSettings;
-import art.arcane.wormholes.config.toml.MainConfig;
-import art.arcane.wormholes.config.toml.NetworkConfig;
-import art.arcane.wormholes.config.toml.ProjectionConfig;
-import art.arcane.wormholes.config.toml.RenderConfig;
 import art.arcane.wormholes.door.DoorItemIdentity;
 import art.arcane.wormholes.door.DoorHalf;
 import art.arcane.wormholes.door.DoorOpenState;
@@ -21,9 +17,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import org.junit.Test;
-import org.junit.BeforeClass;
-import net.minecraft.SharedConstants;
-import net.minecraft.server.Bootstrap;
 
 import java.util.List;
 import java.util.Optional;
@@ -38,13 +31,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class MinecraftDoorProjectionViewsTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class MinecraftDoorProjectionViewsTest extends MinecraftTestBase {
     @Test
     public void observerRoutesKeepStableDescriptorsAndInvalidateOnlyWhenDestinationMoves() {
         Fixture fixture = new Fixture();
@@ -171,7 +158,7 @@ public class MinecraftDoorProjectionViewsTest {
         private final ServerPlayer player = mock(ServerPlayer.class);
         private final UUID observerId = UUID.randomUUID();
         private final UUID destinationId = UUID.randomUUID();
-        private final WormholesSettings settings = new WormholesSettings(new MainConfig(), new ProjectionConfig(), new RenderConfig(), new NetworkConfig());
+        private final WormholesSettings settings = MinecraftTestSettings.defaults();
         private final MinecraftDoorService.DoorView door;
 
         private Fixture() {

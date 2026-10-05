@@ -7,6 +7,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.inventory.ItemStack;
 
+import art.arcane.wormholes.access.PortalPermissionKey;
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.network.PortalSyncService;
@@ -308,7 +309,7 @@ final class LocalPortalSettings
 
 	String getPermissionNode()
 	{
-		return "wormholes.portal." + sanitizePermissionName(portal.getName());
+		return PortalPermissionKey.node(PortalPermissionKey.sanitize(portal.getName()));
 	}
 
 	boolean isOutgoingTraversalsEnabled()
@@ -817,44 +818,4 @@ final class LocalPortalSettings
 		}
 	}
 
-	static String sanitizePermissionName(String name)
-	{
-		String source = name == null || name.isBlank() ? "unnamed" : name.toLowerCase(Locale.ROOT);
-		StringBuilder builder = new StringBuilder(source.length());
-		boolean previousSeparator = false;
-		for(int i = 0; i < source.length(); i++)
-		{
-			char c = source.charAt(i);
-			boolean allowed = (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '.' || c == '-' || c == '_';
-			if(allowed)
-			{
-				builder.append(c);
-				previousSeparator = false;
-				continue;
-			}
-			if(!previousSeparator)
-			{
-				builder.append('_');
-				previousSeparator = true;
-			}
-		}
-
-		String sanitized = trimPermissionSeparators(builder.toString());
-		return sanitized.isEmpty() ? "unnamed" : sanitized;
-	}
-
-	private static String trimPermissionSeparators(String value)
-	{
-		int start = 0;
-		int end = value.length();
-		while(start < end && value.charAt(start) == '_')
-		{
-			start++;
-		}
-		while(end > start && value.charAt(end - 1) == '_')
-		{
-			end--;
-		}
-		return value.substring(start, end);
-	}
 }

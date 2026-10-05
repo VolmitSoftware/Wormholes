@@ -5,7 +5,6 @@ import art.arcane.wormholes.door.DoorStateService;
 import art.arcane.wormholes.door.PocketLayout;
 import art.arcane.wormholes.door.PocketShell;
 import art.arcane.wormholes.door.PocketSpace;
-import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderOwner;
@@ -13,7 +12,6 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.network.protocol.game.ClientboundSetTimePacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -25,7 +23,6 @@ import net.minecraft.world.clock.WorldClocks;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.dimension.DimensionType;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.List;
@@ -44,13 +41,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class MinecraftPocketRulesTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class MinecraftPocketRulesTest extends MinecraftTestBase {
     @Test
     public void fixedTimeOverridesOnlyPocketClockAndRestoresWorldPacketOnExit() {
         Fixture fixture = new Fixture();

@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.wormholes.network.client.Brick;
@@ -11,7 +12,6 @@ import art.arcane.wormholes.network.client.SectionBiomes;
 import art.arcane.wormholes.render.plate.PlateBox;
 import art.arcane.wormholes.util.Direction;
 import com.mojang.blaze3d.vertex.QuadInstance;
-import net.minecraft.SharedConstants;
 import net.minecraft.client.color.block.BlockColors;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.core.BlockPos;
@@ -21,7 +21,6 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.level.CardinalLighting;
 import net.minecraft.world.level.ColorResolver;
@@ -31,7 +30,6 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.DoublePlantBlock;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -43,13 +41,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.ArgumentMatchers.anyDouble;
 
-public class ClientMeshWorldTest {
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
+public class ClientMeshWorldTest extends MinecraftTestBase {
     @Test
     public void destinationNeighborsFluidsAndLightRoundTripAcrossRotatedSectionEdges() throws Exception {
         ClientPalette palette = new ClientPalette(BuiltInRegistries.BLOCK);

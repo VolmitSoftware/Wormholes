@@ -23,34 +23,6 @@ final class PermissionKeysTest {
     }
 
     @Test
-    void sanitizeMatchesTheLegacyNameDerivedNodeRules() {
-        assertEquals("front_gate", PermissionKeys.sanitize("Front Gate"));
-        assertEquals("front_gate", PermissionKeys.sanitize("Front   Gate"));
-        assertEquals("mine-1.a_b", PermissionKeys.sanitize("Mine-1.A_B"));
-        assertEquals("unnamed", PermissionKeys.sanitize(null));
-        assertEquals("unnamed", PermissionKeys.sanitize("   "));
-        assertEquals("unnamed", PermissionKeys.sanitize("!!!"));
-        assertEquals("hub", PermissionKeys.sanitize("  hub  "));
-    }
-
-    @Test
-    void validKeysAreLowercaseAndAtMostSixtyFourCharacters() {
-        assertTrue(PermissionKeys.isValid("hub"));
-        assertTrue(PermissionKeys.isValid("mine-1.a_b"));
-        assertTrue(PermissionKeys.isValid("a".repeat(64)));
-        assertFalse(PermissionKeys.isValid("a".repeat(65)));
-        assertFalse(PermissionKeys.isValid("Hub"));
-        assertFalse(PermissionKeys.isValid("front gate"));
-        assertFalse(PermissionKeys.isValid(""));
-        assertFalse(PermissionKeys.isValid(null));
-    }
-
-    @Test
-    void nodeIsThePortalPermissionPrefixPlusTheKey() {
-        assertEquals("wormholes.portal.hub", PermissionKeys.node("hub"));
-    }
-
-    @Test
     void aKeyIsTakenOnlyWhenAnotherPortalAlreadyUsesIt() {
         WormholesHooks.install(new WormholesRegistrar().portalExtension(AccessPortalExtension.class, AccessPortalExtension::new));
         World world = AccessTestPortals.world("permission-keys");

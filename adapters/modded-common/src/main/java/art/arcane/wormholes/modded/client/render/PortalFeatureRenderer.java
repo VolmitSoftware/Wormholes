@@ -19,6 +19,7 @@ import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Matrix4f;
 import org.joml.Matrix4fStack;
 
 import java.nio.ByteBuffer;
@@ -85,12 +86,12 @@ public final class PortalFeatureRenderer implements AutoCloseable {
         }
     }
 
-    static void blockPose(PoseStack pose, BlockPos position, Vec3 eye, ClientViewEnvironment.Transform transform) {
-        positionPose(pose, position.getX(), position.getY(), position.getZ(), eye, transform);
+    static void blockPose(PoseStack pose, BlockPos position, Vec3 eye, ClientViewEnvironment.Transform transform, Matrix4f rotation) {
+        positionPose(pose, position.getX(), position.getY(), position.getZ(), eye, transform, rotation);
     }
 
-    static void entityPose(PoseStack pose, EntityRenderState state, Vec3 eye, ClientViewEnvironment.Transform transform) {
-        positionPose(pose, state.x, state.y, state.z, eye, transform);
+    static void entityPose(PoseStack pose, EntityRenderState state, Vec3 eye, ClientViewEnvironment.Transform transform, Matrix4f rotation) {
+        positionPose(pose, state.x, state.y, state.z, eye, transform, rotation);
     }
 
     public void executeSolid(RenderPass pass) {
@@ -122,10 +123,6 @@ public final class PortalFeatureRenderer implements AutoCloseable {
         }
     }
 
-    public void resourceReload() {
-        close();
-    }
-
     @Override
     public void close() {
         closeFrame();
@@ -152,6 +149,8 @@ public final class PortalFeatureRenderer implements AutoCloseable {
         PoseStack pose = new PoseStack();
         Vec3 eye = camera.pos;
         ClientViewEnvironment environment = scene.environment();
+        ClientViewEnvironment.Transform transform = environment == null ? null : environment.transform();
+        Matrix4f rotation = transform == null ? null : PortalProjection.rotation(transform);
         CameraRenderState featureCamera = environment == null ? camera : ClientPortalRenderer.transformedCamera(camera,
             PortalProjection.destinationToSource(environment.transform()), camera.projectionMatrix);
         EntityRenderDispatcher entities = minecraft.getEntityRenderDispatcher();
@@ -164,7 +163,7 @@ public final class PortalFeatureRenderer implements AutoCloseable {
                 entities.submit(state, camera, state.x - eye.x, state.y - eye.y, state.z - eye.z, pose, submits);
             } else {
                 pose.pushPose();
-                entityPose(pose, state, eye, environment.transform());
+                entityPose(pose, state, eye, transform, rotation);
                 entities.submit(state, featureCamera, 0, 0, 0, pose, submits);
                 pose.popPose();
             }
@@ -173,8 +172,8 @@ public final class PortalFeatureRenderer implements AutoCloseable {
         for (BlockEntityRenderState state : includeBlockEntities ? scene.blockEntities() : List.<BlockEntityRenderState>of()) {
             BlockPos position = state.blockPos;
             pose.pushPose();
-            if (scene.environment() != null) {
-                blockPose(pose, position, eye, scene.environment().transform());
+            if (transform != null) {
+                blockPose(pose, position, eye, transform, rotation);
             } else {
                 pose.translate(position.getX() - eye.x, position.getY() - eye.y, position.getZ() - eye.z);
             }
@@ -183,11 +182,11 @@ public final class PortalFeatureRenderer implements AutoCloseable {
         }
     }
 
-    private static void positionPose(PoseStack pose, double x, double y, double z, Vec3 eye, ClientViewEnvironment.Transform transform) {
+    private static void positionPose(PoseStack pose, double x, double y, double z, Vec3 eye, ClientViewEnvironment.Transform transform, Matrix4f rotation) {
         pose.translate(x * transform.xAxis().x() + y * transform.yAxis().x() + z * transform.zAxis().x() + transform.translation().x() - eye.x,
             x * transform.xAxis().y() + y * transform.yAxis().y() + z * transform.zAxis().y() + transform.translation().y() - eye.y,
             x * transform.xAxis().z() + y * transform.yAxis().z() + z * transform.zAxis().z() + transform.translation().z() - eye.z);
-        pose.mulPose(PortalProjection.rotation(transform));
+        pose.mulPose(rotation);
     }
 
     static final class WindingScope implements AutoCloseable {

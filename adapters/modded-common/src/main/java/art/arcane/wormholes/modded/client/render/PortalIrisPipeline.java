@@ -32,24 +32,20 @@ public final class PortalIrisPipeline implements AutoCloseable {
     private final ProjectionMatrixBuffer shadowProjection = new ProjectionMatrixBuffer("Wormholes destination shadow");
     private final PortalSharedShadows sharedShadows;
     private final List<GlFramebuffer> sharedFramebuffers = new ArrayList<>();
-    private final ShaderPack pack;
-    private final NamespacedId dimension;
     private final IrisRenderingPipeline pipeline;
     private final Supplier<WorldRenderingPhase> phaseGetter;
     private final Consumer<WorldRenderingPhase> phaseSetter;
     private final PortalIrisSettings settings;
     private final PortalTerrainMaterials materials;
     private final PortalIrisShaderLoading loading;
-    private final long constructionNanos;
     private PortalShaderContext.View lastView;
     private final PortalIrisHistory history = new PortalIrisHistory();
     private boolean initialized;
 
     PortalIrisPipeline(Request request) {
-        long started = System.nanoTime();
         sharedShadows = request.shadows();
-        pack = Iris.getCurrentPack().orElseThrow();
-        dimension = request.dimension();
+        ShaderPack pack = Iris.getCurrentPack().orElseThrow();
+        NamespacedId dimension = request.dimension();
         programs = pack.getProgramSet(dimension);
         IrisRenderingPipeline created = null;
         try (PortalIrisFrame frame = PortalIrisFrame.building(request.target());
@@ -101,7 +97,6 @@ public final class PortalIrisPipeline implements AutoCloseable {
             }
             throw failure;
         }
-        constructionNanos = System.nanoTime() - started;
     }
 
     public static NamespacedId dimension(ShaderPack pack, ClientViewEnvironment environment) {
@@ -147,10 +142,6 @@ public final class PortalIrisPipeline implements AutoCloseable {
 
     void released() {
         initialized = false;
-    }
-
-    boolean matches(ClientViewEnvironment environment) {
-        return Iris.getCurrentPack().orElse(null) == pack && dimension.equals(dimension(pack, environment));
     }
 
     PortalIrisFrame begin(PortalShaderContext.View view) {
@@ -236,10 +227,6 @@ public final class PortalIrisPipeline implements AutoCloseable {
         if (ready()) {
             PortalIrisResources.allocated(programs, ((IrisPortalRenderingAccess) pipeline).wormholes$renderTargets());
         }
-    }
-
-    IrisRenderingPipeline pipeline() {
-        return pipeline;
     }
 
     @Override

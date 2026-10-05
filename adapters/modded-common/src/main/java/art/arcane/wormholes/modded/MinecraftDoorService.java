@@ -3,7 +3,7 @@ package art.arcane.wormholes.modded;
 import art.arcane.wormholes.chunk.ChunkLease;
 import art.arcane.wormholes.config.toml.MainConfig;
 import art.arcane.wormholes.config.toml.PocketsConfig;
-import art.arcane.wormholes.door.PocketRules;
+import art.arcane.wormholes.door.PocketCreationDefaults;
 import art.arcane.wormholes.door.DoorAccessState;
 import art.arcane.wormholes.api.traversal.TraversalKind;
 import art.arcane.wormholes.api.traversal.TraversalRefundReason;
@@ -885,8 +885,7 @@ public final class MinecraftDoorService implements AutoCloseable {
         MainConfig config = runtime.configuration().settings().getMain();
         PocketShell shell = new PocketShell(config.pocketRoomSize, config.pocketShellMaterial, config.pocketReturnDoorMaterial);
         PocketsConfig pocketConfig = runtime.configuration().settings().getPockets();
-        PocketRules defaults = new PocketRules(pocketConfig.rulesDefaultMobs, pocketConfig.rulesDefaultPvp,
-            pocketConfig.rulesDefaultKeepInventory, pocketConfig.rulesDefaultFixedTime, PocketRules.BuildPolicy.parse(pocketConfig.rulesDefaultBuild));
+        PocketCreationDefaults defaults = PocketCreationDefaults.from(shell, pocketConfig);
         UUID traveler = entity.getUUID();
         PocketSpace standingIn = spaceAt(snapshot.level(), snapshot.block());
         boolean insidePocketWorld = isPocketLevel(snapshot.level());
@@ -897,7 +896,7 @@ public final class MinecraftDoorService implements AutoCloseable {
                 return null;
             }
             PocketSpace space = existing == null
-                ? activeState.replacePocket(activeState.getOrAllocatePocket(destination.binding(), shell).withRules(defaults)) : existing;
+                ? activeState.getOrAllocatePocket(destination.binding(), defaults) : existing;
             if (destination.isInstanced() && space.instance() == null) {
                 return activeState.replacePocket(space.withTemplateName(destination.instancedTemplate()).withInstance(
                     PocketInstances.newInstance(destination.instancedTemplate(), traveler, pocketConfig.instanceReset, System.currentTimeMillis())));
@@ -1564,9 +1563,8 @@ public final class MinecraftDoorService implements AutoCloseable {
         PocketsConfig config = configuration.settings().getPockets();
         DoorPosition position = source.endpoint().position();
         PreviewAllocation allocation = new PreviewAllocation(observerId,
-            new PocketShell(main.pocketRoomSize, main.pocketShellMaterial, main.pocketReturnDoorMaterial),
-            new PocketRules(config.rulesDefaultMobs, config.rulesDefaultPvp, config.rulesDefaultKeepInventory,
-                config.rulesDefaultFixedTime, PocketRules.BuildPolicy.parse(config.rulesDefaultBuild)), config.instanceReset,
+            PocketCreationDefaults.from(new PocketShell(main.pocketRoomSize, main.pocketShellMaterial, main.pocketReturnDoorMaterial), config),
+            config.instanceReset,
             isPocketLevel(source.level()), spaceAt(source.level(), new BlockPos(position.x(), position.y(), position.z())));
         long startedGeneration = generation;
         DoorStateService persistentState = state;
@@ -1609,7 +1607,7 @@ public final class MinecraftDoorService implements AutoCloseable {
             return null;
         }
         PocketSpace space = existing == null
-            ? store.replacePocket(store.getOrAllocatePocket(route.binding(), allocation.shell()).withRules(allocation.rules())) : existing;
+            ? store.getOrAllocatePocket(route.binding(), allocation.defaults()) : existing;
         if (route.isInstanced() && space.instance() == null) {
             space = store.replacePocket(space.withTemplateName(route.instancedTemplate()).withInstance(
                 PocketInstances.newInstance(route.instancedTemplate(), allocation.observerId(), allocation.instanceReset(), System.currentTimeMillis())
@@ -1618,7 +1616,7 @@ public final class MinecraftDoorService implements AutoCloseable {
         return space;
     }
 
-    private record PreviewAllocation(UUID observerId, PocketShell shell, PocketRules rules, String instanceReset,
+    private record PreviewAllocation(UUID observerId, PocketCreationDefaults defaults, String instanceReset,
                                      boolean insidePocketWorld, PocketSpace standingIn) {
     }
 

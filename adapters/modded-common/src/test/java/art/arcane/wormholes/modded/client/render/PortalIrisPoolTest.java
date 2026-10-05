@@ -38,6 +38,26 @@ public class PortalIrisPoolTest {
     private static final long MIB = 1024L * 1024L;
 
     @Test
+    public void idleReusePreservesReadinessAreaBytesAndStableTieOrder() throws ReflectiveOperationException {
+        PortalIrisRenderer pool = new PortalIrisRenderer(() -> mock(ShaderPack.class));
+        NamespacedId dimension = new NamespacedId("minecraft:overworld");
+        Object unready = rankedEntry(200, 2048, 2048, false);
+        Object smaller = rankedEntry(100, 512, 512, true);
+        Object fewerBytes = rankedEntry(100, 1024, 1024, true);
+        Object firstTie = rankedEntry(200, 1024, 1024, true);
+        Object secondTie = rankedEntry(200, 1024, 1024, true);
+        Object otherDimension = rankedEntry(300, 4096, 4096, true);
+        field(otherDimension.getClass(), "dimension").set(otherDimension, new NamespacedId("minecraft:the_end"));
+        idle(pool).addAll(List.of(unready, smaller, fewerBytes, firstTie, secondTie, otherDimension));
+        Method reusable = PortalIrisRenderer.class.getDeclaredMethod("reusable", NamespacedId.class);
+        reusable.setAccessible(true);
+        for (Object expected : List.of(firstTie, secondTie, fewerBytes, smaller, unready)) {
+            assertSame(expected, reusable.invoke(pool, dimension));
+        }
+        assertEquals(List.of(otherDimension), idle(pool));
+    }
+
+    @Test
     public void sourceReuseRequiresTheExactCapturedPackIdentity() throws ReflectiveOperationException {
         ShaderPack pack = mock(ShaderPack.class);
         PortalIrisRenderer pool = new PortalIrisRenderer(() -> pack);
@@ -547,6 +567,16 @@ public class PortalIrisPoolTest {
     @SuppressWarnings("unchecked")
     private static Map<Integer, Object> entries(PortalIrisRenderer pool) throws ReflectiveOperationException {
         return (Map<Integer, Object>) field(PortalIrisRenderer.class, "entries").get(pool);
+    }
+
+    private static Object rankedEntry(long bytes, int width, int height, boolean ready) throws ReflectiveOperationException {
+        Object value = entry(bytes, 0);
+        TextureTarget target = mock(TextureTarget.class);
+        target.width = width;
+        target.height = height;
+        field(value.getClass(), "target").set(value, target);
+        when(((PortalShaderRenderer.Session) value).ready()).thenReturn(ready);
+        return value;
     }
 
     private static Object entry(long bytes, int active) throws ReflectiveOperationException {

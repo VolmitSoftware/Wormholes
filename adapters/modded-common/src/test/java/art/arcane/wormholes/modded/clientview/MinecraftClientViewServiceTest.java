@@ -1,10 +1,8 @@
 package art.arcane.wormholes.modded.clientview;
 
-import art.arcane.wormholes.config.WormholesSettings;
-import art.arcane.wormholes.config.toml.MainConfig;
-import art.arcane.wormholes.config.toml.NetworkConfig;
-import art.arcane.wormholes.config.toml.ProjectionConfig;
-import art.arcane.wormholes.config.toml.RenderConfig;
+import art.arcane.wormholes.modded.MinecraftTestSettings;
+
+import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.MinecraftProjectionService;
 import art.arcane.wormholes.modded.WormholesModConfiguration;
 import art.arcane.wormholes.modded.WormholesModRuntime;
@@ -19,17 +17,14 @@ import art.arcane.wormholes.render.client.session.ClientViewInbound;
 import art.arcane.wormholes.render.client.session.ClientViewOptions;
 import com.mojang.authlib.GameProfile;
 import io.netty.channel.embedded.EmbeddedChannel;
-import net.minecraft.SharedConstants;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -43,7 +38,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
-public class MinecraftClientViewServiceTest {
+public class MinecraftClientViewServiceTest extends MinecraftTestBase {
     private static final UUID ALEX = UUID.fromString("00000000-0000-0000-0000-00000000a1e7");
     private static final long HELLO_CAPS = ClientViewCapability.of(ClientViewCapability.PLATES, ClientViewCapability.BRICK_CACHE);
 
@@ -56,12 +51,6 @@ public class MinecraftClientViewServiceTest {
     private MinecraftClientViewService service;
     private long tick;
 
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
-
     @Before
     public void setUp() {
         WormholesModRuntime runtime = mock(WormholesModRuntime.class);
@@ -70,7 +59,7 @@ public class MinecraftClientViewServiceTest {
         Executor lanes = Runnable::run;
         options = options(true);
         when(runtime.configuration()).thenReturn(configuration);
-        when(configuration.settings()).thenReturn(new WormholesSettings(new MainConfig(), new ProjectionConfig(), new RenderConfig(), new NetworkConfig()));
+        when(configuration.settings()).thenReturn(MinecraftTestSettings.defaults());
         when(configuration.clientViewOptions()).thenAnswer(ignored -> options);
         when(runtime.projections()).thenReturn(projections);
         when(projections.lanes()).thenReturn(lanes);
