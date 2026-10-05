@@ -1,7 +1,6 @@
 package art.arcane.wormholes.modded.client.render;
 
 import art.arcane.wormholes.network.client.ClientViewEnvironment;
-import art.arcane.wormholes.util.Direction;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -17,13 +16,14 @@ import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.renderer.feature.FeatureRenderDispatcher;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
+import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
-import org.joml.Matrix4d;
 import org.joml.Matrix4fStack;
 
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.function.Predicate;
 
 public final class PortalFeatureRenderer implements AutoCloseable {
     private static final ThreadLocal<StagedVertexBuffer> REFLECTED_BUFFER = new ThreadLocal<>();
@@ -33,11 +33,15 @@ public final class PortalFeatureRenderer implements AutoCloseable {
     private FeatureRenderDispatcher dispatcher;
     private FeatureRenderDispatcher.PreparedFrame frame;
 
-    public void prepare(PortalScene scene, CameraRenderState camera) {
-        prepare(scene, camera, true, true);
+    public void prepare(PortalScene scene, CameraRenderState camera, Frustum frustum) {
+        prepare(scene, camera, true, true, frustum);
     }
 
     public void prepare(PortalScene scene, CameraRenderState camera, boolean entities, boolean blockEntities) {
+        prepare(scene, camera, entities, blockEntities, camera.cullFrustum);
+    }
+
+    private void prepare(PortalScene scene, CameraRenderState camera, boolean entities, boolean blockEntities, Frustum frustum) {
         closeFrame();
         if (scene.entities().isEmpty() && scene.blockEntities().isEmpty()) {
             return;
@@ -52,7 +56,7 @@ public final class PortalFeatureRenderer implements AutoCloseable {
         modelView.pushMatrix();
         modelView.set(camera.viewRotationMatrix);
         try {
-            submit(scene, camera, minecraft, entities, blockEntities);
+            submit(scene, camera, minecraft, entities, blockEntities, frustum);
             try (WindingScope scope = new WindingScope(buffers.stagedVertexBuffer(), scene.environment() == null ? null : scene.environment().transform())) {
                 frame = dispatcher.prepareFrame(submits);
             }
@@ -144,15 +148,18 @@ public final class PortalFeatureRenderer implements AutoCloseable {
         }
     }
 
-    private void submit(PortalScene scene, CameraRenderState camera, Minecraft minecraft, boolean includeEntities, boolean includeBlockEntities) {
+    private void submit(PortalScene scene, CameraRenderState camera, Minecraft minecraft, boolean includeEntities, boolean includeBlockEntities, Frustum frustum) {
         PoseStack pose = new PoseStack();
         Vec3 eye = camera.pos;
         ClientViewEnvironment environment = scene.environment();
         CameraRenderState featureCamera = environment == null ? camera : ClientPortalRenderer.transformedCamera(camera,
-            new Matrix4d(PortalEnvironment.rotation(environment.transform())).setTranslation(environment.transform().translation().x(),
-                environment.transform().translation().y(), environment.transform().translation().z()), camera.projectionMatrix);
+            PortalProjection.destinationToSource(environment.transform()), camera.projectionMatrix);
         EntityRenderDispatcher entities = minecraft.getEntityRenderDispatcher();
+        Predicate<EntityRenderState> visible = scene.entityVisibility(camera, frustum);
         for (EntityRenderState state : includeEntities ? scene.entities() : List.<EntityRenderState>of()) {
+            if (!visible.test(state)) {
+                continue;
+            }
             if (environment == null) {
                 entities.submit(state, camera, state.x - eye.x, state.y - eye.y, state.z - eye.z, pose, submits);
             } else {
@@ -180,7 +187,7 @@ public final class PortalFeatureRenderer implements AutoCloseable {
         pose.translate(x * transform.xAxis().x() + y * transform.yAxis().x() + z * transform.zAxis().x() + transform.translation().x() - eye.x,
             x * transform.xAxis().y() + y * transform.yAxis().y() + z * transform.zAxis().y() + transform.translation().y() - eye.y,
             x * transform.xAxis().z() + y * transform.yAxis().z() + z * transform.zAxis().z() + transform.translation().z() - eye.z);
-        pose.mulPose(PortalEnvironment.rotation(transform));
+        pose.mulPose(PortalProjection.rotation(transform));
     }
 
     static final class WindingScope implements AutoCloseable {
@@ -188,7 +195,7 @@ public final class PortalFeatureRenderer implements AutoCloseable {
 
         WindingScope(StagedVertexBuffer buffer, ClientViewEnvironment.Transform transform) {
             previous = REFLECTED_BUFFER.get();
-            if (transform != null && reflected(transform)) {
+            if (transform != null && transform.reflected()) {
                 REFLECTED_BUFFER.set(buffer);
             } else {
                 REFLECTED_BUFFER.remove();
@@ -203,15 +210,5 @@ public final class PortalFeatureRenderer implements AutoCloseable {
                 REFLECTED_BUFFER.set(previous);
             }
         }
-
-        private static boolean reflected(ClientViewEnvironment.Transform transform) {
-            Direction x = transform.xAxis();
-            Direction y = transform.yAxis();
-            Direction z = transform.zAxis();
-            return x.x() * (y.y() * z.z() - y.z() * z.y())
-                - y.x() * (x.y() * z.z() - x.z() * z.y())
-                + z.x() * (x.y() * y.z() - x.z() * y.y()) < 0;
-        }
     }
-
 }

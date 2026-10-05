@@ -3,6 +3,7 @@ package art.arcane.wormholes.modded.client;
 import art.arcane.wormholes.modded.MinecraftChunkPacketEncoding;
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.client.render.ClientTravelScene;
+import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
 import art.arcane.wormholes.modded.client.render.PortalIrisMainPipelines;
 import art.arcane.wormholes.modded.clientview.MinecraftPortalEnvironment;
 import art.arcane.wormholes.modded.mixin.client.PreparedLevelAccess;
@@ -11,6 +12,7 @@ import art.arcane.wormholes.modded.mixin.client.PreparedPacketAccess;
 import art.arcane.wormholes.modded.mixin.client.PreparedEntityAccess;
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.wormholes.network.client.ClientTravelWindow;
 import art.arcane.wormholes.network.client.ClientViewCapability;
 import art.arcane.wormholes.network.client.ClientViewProtocol;
 import art.arcane.wormholes.network.client.ClientViewEnvironment;
@@ -53,9 +55,11 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.chunk.DataLayer;
+import net.minecraft.world.level.chunk.LightChunkGetter;
 import net.minecraft.world.level.chunk.LevelChunk;
 
 import net.minecraft.world.level.chunk.LevelChunkSection;
@@ -76,7 +80,12 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.function.Consumer;
+import java.util.function.LongConsumer;
+import java.util.function.Supplier;
 
 import static net.minecraft.world.level.chunk.status.ChunkStatus.FULL;
 
@@ -88,15 +97,22 @@ public final class ClientPreparedTravel {
     private static final int PENDING_PACKET_OVERHEAD_BYTES = 1024;
     private static final int MAX_PENDING_BYTES = 8 << 20;
     private static final long CROSS_TIMEOUT_MILLIS = 2_000;
+    private static final int MAX_RETAINED_WORLDS = 2;
     private static final boolean SODIUM = ClientPreparedTravel.class.getClassLoader()
         .getResource("net/caffeinemc/mods/sodium/client/render/chunk/map/ChunkTrackerHolder.class") != null;
     private static final boolean IRIS = ClientPreparedTravel.class.getClassLoader()
         .getResource("net/irisshaders/iris/Iris.class") != null;
+    private static final ThreadLocal<AppliedColumn> APPLIED_COLUMN = new ThreadLocal<>();
     private final Consumer<ClientViewMessage> sender;
     private final ClientTravelCache cache = new ClientTravelCache();
     private int sourceCapture;
     private boolean nativeCacheFailureReported;
+    private boolean nativeDifferenceFailureReported;
     private SourcePreparation sourcePreparation;
+    private RetainedWorld retainedDestination;
+    private ClientLevel authoritativeDestination;
+    private AuthoritativeArrival authoritativeArrival;
+    private final LinkedHashMap<ClientLevel, RetainedWorld> retainedWorlds = new LinkedHashMap<>(4, 0.75F, true);
     private final Map<ClientViewMessage.TravelCoordinate, byte[]> payloads = new HashMap<>();
     private final ArrayDeque<Column> decoding = new ArrayDeque<>();
     private final Map<ClientViewMessage.TravelCoordinate, Integer> decoded = new HashMap<>();
@@ -119,6 +135,7 @@ public final class ClientPreparedTravel {
     private boolean seamlessRespawn;
     private ClientTravelMotion beforePosition;
     private Arrival arrival;
+    private ResidentColumns resident;
 
     public ClientPreparedTravel(Consumer<ClientViewMessage> sender) {
         this.sender = sender;
@@ -146,7 +163,8 @@ public final class ClientPreparedTravel {
 
     public void discardSourcePreparation() {
         retireSourcePreparation();
-        sourceCapture = begin != null && !adopted && prediction == null ? 0 : 49;
+        discardRetainedWorlds();
+        sourceCapture = begin != null && !adopted && prediction == null ? 0 : Integer.MAX_VALUE;
     }
 
     public boolean pendingCrossing() {
@@ -174,9 +192,10 @@ public final class ClientPreparedTravel {
             || !crossed(begin.sourceGeometry(), previous, eye)) {
             return false;
         }
+        boolean nativeReady = staged != null && ClientSodiumTerrain.ready(staged);
         if (acknowledgedRevision == 0 || staged == null || System.currentTimeMillis() >= deadline
-            || !ClientPortalRenderer.instance().travelDrawable() || (IRIS && !IrisMain.ready(staged))
-            || !ClientPortalRenderer.instance().travelReady()) {
+            || !nativeReady && (!ClientPortalRenderer.instance().travelDrawable() || !ClientPortalRenderer.instance().travelReady())
+            || (IRIS && (!IrisMain.ready(staged) || !ClientPortalRenderer.instance().travelSourceShaderReady()))) {
             declinePreparation();
             return false;
         }
@@ -199,7 +218,6 @@ public final class ClientPreparedTravel {
                 prepareSameWorld(sourceLevel, source, destination);
                 destination.apply(player);
             } else {
-                ((PreparedLevelAccess) sourceLevel).wormholes$extractor(new PreparedLevelExtractor(minecraft));
                 attachPlayer(staged, destination);
             }
             ClientPortalRenderer.instance().transitionTravel(true);
@@ -208,7 +226,7 @@ public final class ClientPreparedTravel {
             return true;
         } catch (RuntimeException failure) {
             LOGGER.warn("Unable to predict prepared portal crossing", failure);
-            clear();
+            clear(true);
             return false;
         }
     }
@@ -234,7 +252,7 @@ public final class ClientPreparedTravel {
             prediction.protocol.codec().encode(buffer, packet);
             int retainedBytes = buffer.readableBytes() + PENDING_PACKET_OVERHEAD_BYTES;
             if (retainedBytes > MAX_PENDING_BYTES - prediction.retainedPacketBytes) {
-                clear();
+                clear(true);
                 return false;
             }
             prediction.retainedPacketBytes += retainedBytes;
@@ -242,7 +260,7 @@ public final class ClientPreparedTravel {
             return true;
         } catch (RuntimeException failure) {
             LOGGER.warn("Unable to retain source-world packet during prepared crossing", failure);
-            clear();
+            clear(true);
             return false;
         } finally {
             buffer.release();
@@ -253,13 +271,14 @@ public final class ClientPreparedTravel {
         seamlessRespawn = keepPlayer && prediction != null && commit != null && pendingCrossing()
             && dimension.identifier().toString().equals(commit.destinationWorld());
         if (prediction != null && !seamlessRespawn) {
-            clear();
+            clear(true);
         }
         return seamlessRespawn;
     }
 
     public void endRespawn() {
         seamlessRespawn = false;
+        authoritativeDestination = null;
     }
 
     public boolean seamlessRespawn() {
@@ -276,7 +295,7 @@ public final class ClientPreparedTravel {
             return;
         }
         if (commit == null || !adopted) {
-            clear();
+            clear(true);
             return;
         }
         beforePosition = ClientTravelMotion.capture(Minecraft.getInstance().player);
@@ -311,15 +330,20 @@ public final class ClientPreparedTravel {
             }
         } catch (RuntimeException failure) {
             LOGGER.warn("Unable to prepare authoritative portal travel", failure);
-            clear();
+            clear(true);
         }
     }
 
     public void tick() {
+        pruneRetainedWorlds();
+        advanceAuthoritativeArrival();
         advanceArrival();
+        if (resident != null && !resident.valid(Minecraft.getInstance().getConnection())) {
+            resident = null;
+        }
         if (sourcePreparation != null && System.currentTimeMillis() >= sourcePreparation.deadline) {
             retireSourcePreparation();
-            sourceCapture = 49;
+            sourceCapture = Integer.MAX_VALUE;
         }
         if (begin == null) {
             return;
@@ -332,30 +356,32 @@ public final class ClientPreparedTravel {
             return;
         }
         if (pendingCrossing() && (System.currentTimeMillis() >= prediction.deadline || minecraft.player == null
-            || minecraft.player.isDeadOrDying() || !ClientPortalRenderer.instance().travelDrawable()
+            || minecraft.player.isDeadOrDying() || !predictedTerrainAvailable()
             || !covers(pose(ClientTravelMotion.capture(minecraft.player))))) {
-            clear();
+            clear(true);
             return;
         }
         if (!adopted && prediction == null && (minecraft.level == null || !begin.sourceWorld().equals(minecraft.level.dimension().identifier().toString()))) {
-            clear();
+            clear(true);
             return;
         }
         if (adopted) {
             if (minecraft.level != staged) {
-                clear();
+                clear(true);
                 return;
             }
             if (minecraft.player == null || !covers(positionConfirmed
                 ? new ClientViewMessage.TravelPose(minecraft.player.getX(), minecraft.player.getY(), minecraft.player.getZ(),
                     minecraft.player.getYRot(), minecraft.player.getXRot()) : commit.arrival())) {
-                clear();
+                clear(true);
                 return;
             }
-            scene.advance();
+            if (!ClientSodiumTerrain.usesPreparedTerrain(staged)) {
+                scene.advance();
+            }
             advancePreparation();
             if (positionConfirmed) {
-                mainCompiled = ClientPortalRenderer.instance().travelMainReady();
+                mainCompiled = ClientSodiumTerrain.ready(staged) || ClientPortalRenderer.instance().travelMainReady();
             }
             completeLoad(connection);
             if (mainCompiled) {
@@ -366,12 +392,12 @@ public final class ClientPreparedTravel {
             return;
         }
         captureSource();
-        advanceSourcePreparation();
         if (!decodePending()) {
             return;
         }
         long revision = chunks.completeRevision();
         if (!decoding.isEmpty() || decoded.size() != begin.chunks().size()) {
+            prepareTerrain(staged, begin, false);
             return;
         }
         if (scene == null || drawnRevision != revision || !changed.isEmpty()) {
@@ -390,8 +416,14 @@ public final class ClientPreparedTravel {
             drawnRevision = revision;
             changed.clear();
         }
-        scene.advance();
-        if (ClientPortalRenderer.instance().travelReady() && (!IRIS || IrisMain.prepare(staged)) && revision != 0) {
+        ClientSodiumTerrain.Preparation terrain = prepareTerrain(staged, begin, true);
+        if (!ClientSodiumTerrain.usesPreparedTerrain(staged)) {
+            scene.advance();
+        }
+        advanceSourcePreparation();
+        if (terrain != ClientSodiumTerrain.Preparation.PENDING
+            && (terrain == ClientSodiumTerrain.Preparation.READY || ClientPortalRenderer.instance().travelReady()) && revision != 0
+            && (!IRIS || ClientPortalRenderer.instance().travelSourceShaderReady())) {
             if (acknowledgedRevision != revision) {
                 acknowledgedRevision = revision;
                 sender.accept(new ClientViewMessage.TravelReady(begin.token(), begin.generation(), revision));
@@ -402,10 +434,15 @@ public final class ClientPreparedTravel {
     public ClientLevel adopt(Construction construction) {
         if (System.currentTimeMillis() >= deadline || commit == null || staged == null || adopted
             || (prediction == null ? acknowledgedRevision != commit.contentRevision() : prediction.revision != commit.contentRevision())
-            || !(prediction == null ? ClientPortalRenderer.instance().travelReady() : ClientPortalRenderer.instance().travelDrawable())
+            || (prediction == null ? !ClientSodiumTerrain.ready(staged) && !ClientPortalRenderer.instance().travelReady()
+                : !predictedTerrainAvailable() || !covers(commit.arrival()))
             || !matches(construction)) {
+            RetainedWorld retained = retainedWorld(construction);
+            if (retained != null) {
+                return restoreAuthoritativeLevel(retained, construction);
+            }
             if (prediction != null) {
-                clear();
+                clear(true);
             }
             return null;
         }
@@ -416,27 +453,81 @@ public final class ClientPreparedTravel {
             ((PreparedPacketAccess) Minecraft.getInstance().getConnection()).wormholes$data(construction.data());
         }
         adopted = true;
+        RetainedWorld retained = new RetainedWorld(staged, Minecraft.getInstance().getConnection(), staged.registryAccess(), begin.world(), deadline,
+            payloads, null);
+        rememberRetainedWorld(retained);
+        if (prediction == null) {
+            authoritativeArrival = new AuthoritativeArrival(retained);
+        }
+        retainResidentColumns();
         ClientPortalRenderer.instance().transitionTravel(true);
         return staged;
     }
 
+    public boolean attachRespawnLevel(ClientLevel destination) {
+        if (authoritativeDestination != null && destination == authoritativeDestination) {
+            if (Minecraft.getInstance().level != destination) {
+                attachLevel(destination, true);
+            }
+            return true;
+        }
+        if (!adopted || destination != staged) {
+            return false;
+        }
+        if (Minecraft.getInstance().level != destination) {
+            attachLevel(destination, false);
+        }
+        return true;
+    }
+
     public boolean deferLoadingScreen(Screen screen) {
-        if (!adopted || commit == null || !(screen instanceof LevelLoadingScreen)) {
+        if (!(screen instanceof LevelLoadingScreen)) {
+            return false;
+        }
+        Minecraft minecraft = Minecraft.getInstance();
+        if (authoritativeArrival != null && authoritativeArrival.valid(minecraft)) {
+            authoritativeArrival.screen = screen;
+            if (adopted) {
+                deferredScreen = screen;
+            }
+            return true;
+        }
+        if (!adopted || commit == null) {
             return false;
         }
         deferredScreen = screen;
         return true;
     }
 
+    public boolean holdAuthoritativeFrame() {
+        AuthoritativeArrival active = authoritativeArrival;
+        if (prediction != null || active == null || active.positionConfirmed || System.currentTimeMillis() >= active.deadline) {
+            return false;
+        }
+        Minecraft minecraft = Minecraft.getInstance();
+        if (adopted && (positionConfirmed || commit == null || staged != minecraft.level || System.currentTimeMillis() >= deadline)) {
+            return false;
+        }
+        return active.valid(minecraft) && minecraft.player != null && minecraft.gui.screen() == null && minecraft.gui.overlay() == null;
+    }
+
     public void serverPosition() {
         Minecraft minecraft = Minecraft.getInstance();
+        if (authoritativeArrival != null && authoritativeArrival.valid(minecraft) && minecraft.player != null) {
+            if (adopted) {
+                authoritativeArrival = null;
+            } else {
+                authoritativeArrival.positionConfirmed = true;
+                advanceAuthoritativeArrival();
+            }
+        }
         if (!adopted || minecraft.level != staged || minecraft.player == null || commit == null) {
             return;
         }
         ClientViewMessage.TravelPose arrival = commit.arrival();
         Vec3 position = minecraft.player.position();
         if (position.distanceToSqr(new Vec3(arrival.x(), arrival.y(), arrival.z())) > 0.000001) {
-            clear();
+            clear(true);
             return;
         }
         positionConfirmed = true;
@@ -454,41 +545,149 @@ public final class ClientPreparedTravel {
         }
     }
 
-    public Runnable compiledCallback(Runnable original) {
-        if (!adopted) {
-            return original;
+    public boolean managesVanillaPortal(ClientLevel level, BlockPos position) {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (level == null || level != minecraft.level) {
+            return false;
         }
-        return () -> {
-            if (original != null) {
-                original.run();
-            }
-        };
+        RetainedWorld retained = retainedWorlds.get(level);
+        if (retained == null || !retained.valid(minecraft.getConnection())) {
+            return false;
+        }
+        ClientPortalGeometry aperture = retained.aperture();
+        return aperture != null && aperture.parentPortalKey() == 0 && aperture.kind() == ClientPortalGeometry.KIND_VANILLA_REPLACEMENT
+            && aperture.containsCell(position.getX(), position.getY(), position.getZ());
+    }
+
+    public void discardManagedVanillaPortal(ClientLevel level, ClientPortalGeometry geometry) {
+        RetainedWorld retained = retainedWorlds.get(level);
+        if (retained != null && geometry.sameContentSurface(retained.aperture())) {
+            retainedWorlds.put(level, retained.withAperture(null));
+        }
+        if (retainedDestination != null && retainedDestination.level() == level && geometry.sameContentSurface(retainedDestination.aperture())) {
+            retainedDestination = retainedDestination.withAperture(null);
+        }
+        if (pendingPreparation != null && pendingPreparation.retainedWorld != null && pendingPreparation.retainedWorld.level() == level
+            && geometry.sameContentSurface(pendingPreparation.retainedWorld.aperture())) {
+            pendingPreparation.retainedWorld = pendingPreparation.retainedWorld.withAperture(null);
+        }
+        if (sourcePreparation != null && sourcePreparation.level == level && geometry.sameContentSurface(sourcePreparation.aperture)) {
+            sourcePreparation.aperture = null;
+        }
     }
 
     public void blockChanged(Object world, BlockPos position) {
-        if (arrival != null && world == arrival.level) {
-            for (long key : arrival.scene.changedSection(SectionPos.asLong(position))) {
+        if (world instanceof ClientLevel level) {
+            sectionChanged(level, position.getX() >> 4, position.getY() >> 4, position.getZ() >> 4);
+        }
+    }
+
+    public void chunkChanged(ClientLevel level, int x, int z) {
+        if (applyingColumn(level, x, z)) {
+            return;
+        }
+        invalidateColumn(level, x, z);
+        for (int y = level.getMinSectionY(); y <= level.getMaxSectionY(); y++) {
+            sectionChanged(level, x, y, z);
+        }
+    }
+
+    public void sectionChanged(ClientLevel level, int x, int y, int z) {
+        if (applyingColumn(level, x, z)) {
+            return;
+        }
+        invalidateColumn(level, x, z);
+        long section = SectionPos.asLong(x, y, z);
+        ClientSodiumTerrain.dirty(level, section);
+        invalidateSceneSection(level, section);
+    }
+
+    public void lightChanged(ClientLevel level, SectionPos position) {
+        if (applyingColumn(level, position.x(), position.z())) {
+            return;
+        }
+        invalidateColumn(level, position.x(), position.z());
+        invalidateSceneSection(level, position.asLong());
+    }
+
+    private void invalidateSceneSection(ClientLevel level, long section) {
+        SourcePreparation source = sourcePreparation;
+        if (source != null && source.level == level && source.scene != null) {
+            for (long key : source.scene.changedSection(section)) {
+                ClientPortalRenderer.instance().invalidate(-3, key, true);
+            }
+        }
+        if (arrival != null && level == arrival.level) {
+            for (long key : arrival.scene.changedSection(section)) {
                 ClientPortalRenderer.instance().invalidateArrival(key);
             }
         }
-        if (!adopted || world != staged || scene == null) {
-            return;
+        if (level == staged && scene != null) {
+            for (long key : scene.changedSection(section)) {
+                ClientPortalRenderer.instance().invalidateTravel(key);
+            }
         }
-        for (long key : scene.changedSection(SectionPos.asLong(position))) {
-            ClientPortalRenderer.instance().invalidateTravel(key);
+    }
+
+    private void invalidateColumn(ClientLevel level, int x, int z) {
+        ClientViewMessage.TravelCoordinate coordinate = new ClientViewMessage.TravelCoordinate(x, z);
+        cache.invalidate(level.dimension().identifier().toString(), x, z);
+        SourcePreparation source = sourcePreparation;
+        if (source != null && source.level == level) {
+            if (source.scene != null) {
+                source.scene.invalidateColumn(x, z);
+            }
+            byte[] previous = source.payloads.remove(coordinate);
+            if (previous != null) {
+                source.bytes -= previous.length;
+            }
+            source.decoded.remove(coordinate);
+            int index = source.begin.chunks().indexOf(coordinate);
+            if (index >= 0 && source.captured.get(index)) {
+                source.captured.clear(index);
+                if (sourceCapture != Integer.MAX_VALUE) {
+                    sourceCapture--;
+                }
+            }
+        }
+        if (level == staged) {
+            payloads.remove(coordinate);
+            if (scene != null) {
+                scene.invalidateColumn(x, z);
+            }
+        }
+        if (arrival != null && arrival.level == level) {
+            arrival.scene.invalidateColumn(x, z);
+        }
+        if (resident != null && resident.level() == level) {
+            resident.payloads().remove(coordinate);
+        }
+        RetainedWorld visited = retainedWorlds.get(level);
+        if (visited != null) {
+            visited.payloads().remove(coordinate);
+        }
+        if (retainedDestination != null && retainedDestination.level() == level) {
+            retainedDestination.payloads().remove(coordinate);
+        }
+        if (pendingPreparation != null && pendingPreparation.retainedWorld != null
+            && pendingPreparation.retainedWorld.level() == level) {
+            pendingPreparation.retainedWorld.payloads().remove(coordinate);
         }
     }
 
     public void clear() {
         clear(true);
+        discardRetainedWorlds();
     }
 
     private void clear(boolean clearArrival) {
+        retainActualWorlds();
         Minecraft minecraft = Minecraft.getInstance();
         ClientPacketListener connection = minecraft.getConnection();
         cache.bind(connection, connection == null ? null : connection.registryAccess());
         if (connection == null) {
             nativeCacheFailureReported = false;
+            nativeDifferenceFailureReported = false;
         }
         rollback();
         if (clearArrival && arrival != null) {
@@ -512,8 +711,22 @@ public final class ClientPreparedTravel {
             }
         }
         ClientPortalRenderer.instance().cancelTravel();
+        if (staged != null && staged != minecraft.level && !hasRetainedWorld(staged)) {
+            ClientSodiumTerrain.forget(staged);
+        }
+        discardPendingPreparation();
+        if (clearArrival || resident != null && resident.level() != minecraft.level) {
+            resident = null;
+        }
         retireSourcePreparation();
+        for (Map.Entry<ClientLevel, RetainedWorld> entry : retainedWorlds.entrySet()) {
+            if (entry.getValue().payloads() == payloads) {
+                entry.setValue(entry.getValue().withPayloads(new HashMap<>(payloads)));
+            }
+        }
         decoding.clear();
+        retainedDestination = null;
+        authoritativeDestination = null;
         payloads.clear();
         decoded.clear();
         changed.clear();
@@ -540,6 +753,7 @@ public final class ClientPreparedTravel {
         if (message instanceof ClientViewMessage.TravelBegin next && adopted && !mainCompiled) {
             if (begin.world().dimension().equals(next.sourceWorld())
                 && (pendingPreparation == null || !pendingPreparation.chunks.matches(next.token(), next.generation()))) {
+                discardPendingPreparation();
                 pendingPreparation = preparation(next);
             }
             return true;
@@ -554,7 +768,7 @@ public final class ClientPreparedTravel {
                         yield false;
                     }
                     if (System.currentTimeMillis() >= pendingPreparation.deadline) {
-                        pendingPreparation = null;
+                        discardPendingPreparation();
                         yield true;
                     }
                     byte[] data = pendingPreparation.chunks.accept(value);
@@ -590,7 +804,7 @@ public final class ClientPreparedTravel {
                     if (!pendingPreparation.chunks.matches(value.token(), value.generation())) {
                         yield false;
                     }
-                    pendingPreparation = null;
+                    discardPendingPreparation();
                     yield true;
                 }
                 case ClientViewMessage.TravelCommit value -> pendingPreparation.chunks.matches(value.token(), value.generation());
@@ -598,7 +812,7 @@ public final class ClientPreparedTravel {
             };
         } catch (RuntimeException failure) {
             LOGGER.warn("Unable to retain upcoming authoritative portal travel", failure);
-            pendingPreparation = null;
+            discardPendingPreparation();
             return true;
         }
     }
@@ -606,16 +820,28 @@ public final class ClientPreparedTravel {
     private PendingPreparation preparation(ClientViewMessage.TravelBegin value) {
         PendingPreparation next = new PendingPreparation(value);
         SourcePreparation source = sourcePreparation;
-        if (source != null) {
-            if (source.matches(value)) {
+        RetainedWorld retained = retainedWorld(value.world());
+        if (retained != null) {
+            cleanRetainedLevel(retained.level(), value.arrival());
+            retained.level().getChunkSource().updateViewCenter((int) Math.floor(value.arrival().x()) >> 4,
+                (int) Math.floor(value.arrival().z()) >> 4);
+            next.level = retained.level();
+            if (source != null && source.level == retained.level() && source.scene != null
+                && new HashSet<>(source.begin.chunks()).equals(new HashSet<>(value.chunks()))) {
                 source.scene.rebind(value);
-                next.level = source.level;
                 next.scene = source.scene;
-                next.payloads.putAll(source.payloads);
-                for (ClientViewMessage.TravelCoordinate coordinate : source.decoded.keySet()) {
-                    next.decoded.put(coordinate, 0);
+            }
+            Set<ClientViewMessage.TravelCoordinate> manifest = new HashSet<>(value.chunks());
+            for (Map.Entry<ClientViewMessage.TravelCoordinate, byte[]> entry : retained.payloads().entrySet()) {
+                if (manifest.contains(entry.getKey())) {
+                    next.payloads.put(entry.getKey(), entry.getValue());
+                    next.decoded.put(entry.getKey(), 0);
                 }
             }
+            next.retainedWorld = retained.withPayloads(next.payloads);
+            rememberRetainedWorld(next.retainedWorld);
+        }
+        if (source != null) {
             retireSourcePreparation();
         }
         for (Column column : cachedColumns(value)) {
@@ -630,7 +856,7 @@ public final class ClientPreparedTravel {
             return;
         }
         if (System.currentTimeMillis() >= next.deadline) {
-            pendingPreparation = null;
+            discardPendingPreparation();
             return;
         }
         try {
@@ -656,6 +882,7 @@ public final class ClientPreparedTravel {
             }
             long revision = next.chunks.completeRevision();
             if (next.decoded.size() != next.begin.chunks().size()) {
+                prepareTerrain(next.level, next.begin, false);
                 return;
             }
             if (next.scene == null) {
@@ -670,17 +897,35 @@ public final class ClientPreparedTravel {
                 next.changed.clear();
                 next.drawnRevision = revision;
             }
-            next.scene.advance();
+            prepareTerrain(next.level, next.begin, true);
+            if (!ClientSodiumTerrain.usesPreparedTerrain(next.level)) {
+                next.scene.advance();
+            }
         } catch (RuntimeException failure) {
             LOGGER.warn("Unable to prepare upcoming authoritative portal travel", failure);
-            pendingPreparation = null;
+            discardPendingPreparation();
         }
+    }
+
+    private ClientSodiumTerrain.Preparation prepareTerrain(ClientLevel level, ClientViewMessage.TravelBegin value, boolean complete) {
+        if (!complete) {
+            Minecraft minecraft = Minecraft.getInstance();
+            RetainedWorld retained = retainedWorlds.get(level);
+            if (level == null || level == minecraft.level || retained == null || retained.level() != level
+                || !retained.valid(minecraft.getConnection()) || !retained.world().equals(value.world())
+                || !covers(value, level, value.arrival())) {
+                return ClientSodiumTerrain.Preparation.PENDING;
+            }
+        }
+        return !IRIS || IrisMain.prepare(level)
+            ? ClientSodiumTerrain.prepare(level, value.environment(), travelCamera(value))
+            : ClientSodiumTerrain.Preparation.PENDING;
     }
 
     private void retainArrivalPreparation() {
         PendingPreparation next = pendingPreparation;
         if (next == null || System.currentTimeMillis() >= next.deadline) {
-            pendingPreparation = null;
+            discardPendingPreparation();
             return;
         }
         arrival = new Arrival(staged, scene, begin, deadline);
@@ -706,6 +951,7 @@ public final class ClientPreparedTravel {
         sourceCapture = 0;
         scene = next.scene;
         drawnRevision = next.drawnRevision;
+        retainedDestination = next.retainedWorld == null ? null : next.retainedWorld.withPayloads(payloads);
         payloads.putAll(next.payloads);
         decoded.putAll(next.decoded);
         changed.addAll(next.changed);
@@ -732,7 +978,7 @@ public final class ClientPreparedTravel {
         }
         if (System.currentTimeMillis() >= arrival.deadline || minecraft.player == null || !covers(arrival.begin, arrival.level, new ClientViewMessage.TravelPose(
             minecraft.player.getX(), minecraft.player.getY(), minecraft.player.getZ(), minecraft.player.getYRot(), minecraft.player.getXRot()))
-            || !ClientPortalRenderer.instance().arrivalDrawable()) {
+            || !ClientSodiumTerrain.ready(arrival.level) && !ClientPortalRenderer.instance().arrivalDrawable()) {
             PreparedPacketAccess access = (PreparedPacketAccess) minecraft.getConnection();
             LevelLoadTracker tracker = access.wormholes$loadTracker();
             if (tracker == null && minecraft.player != null) {
@@ -748,8 +994,10 @@ public final class ClientPreparedTravel {
             arrival = null;
             return;
         }
-        arrival.scene.advance();
-        if (ClientPortalRenderer.instance().arrivalMainReady()) {
+        if (!ClientSodiumTerrain.usesPreparedTerrain(arrival.level)) {
+            arrival.scene.advance();
+        }
+        if (ClientSodiumTerrain.ready(arrival.level) || ClientPortalRenderer.instance().arrivalMainReady()) {
             ClientPortalRenderer.instance().retireArrival();
             arrival = null;
         }
@@ -766,7 +1014,13 @@ public final class ClientPreparedTravel {
 
     private void finishArrival() {
         PendingPreparation next = nextPreparation();
-        clear();
+        SourcePreparation retained = sourcePreparation;
+        ResidentColumns retainedColumns = resident;
+        sourcePreparation = null;
+        clear(true);
+        sourcePreparation = retained;
+        resident = retainedColumns;
+        sourceCapture = Integer.MAX_VALUE;
         if (next == null) {
             return;
         }
@@ -782,6 +1036,7 @@ public final class ClientPreparedTravel {
                 chunks = next.chunks;
                 deadline = next.deadline;
                 scene = next.scene;
+                retainedDestination = next.retainedWorld == null ? null : next.retainedWorld.withPayloads(payloads);
                 payloads.putAll(next.payloads);
                 decoded.putAll(next.decoded);
                 changed.addAll(next.changed);
@@ -798,7 +1053,7 @@ public final class ClientPreparedTravel {
             }
         } catch (RuntimeException failure) {
             LOGGER.warn("Unable to begin retained authoritative portal travel", failure);
-            clear();
+            clear(true);
         }
     }
 
@@ -815,7 +1070,7 @@ public final class ClientPreparedTravel {
                 decodeChanged(staged, scene, decoded, changed, payloads, column);
             } catch (RuntimeException failure) {
                 LOGGER.warn("Unable to decode authoritative prepared destination chunk", failure);
-                clear();
+                clear(true);
                 return false;
             }
             bytes += column.data().length;
@@ -839,6 +1094,7 @@ public final class ClientPreparedTravel {
         chunks = next.chunks;
         deadline = next.deadline;
         scene = next.scene;
+        retainedDestination = next.retainedWorld == null ? null : next.retainedWorld.withPayloads(payloads);
         payloads.putAll(next.payloads);
         decoded.putAll(next.decoded);
         for (Column column : next.columns.values()) {
@@ -913,34 +1169,180 @@ public final class ClientPreparedTravel {
         decoding.add(column);
     }
 
-    public void rememberNativeChunk(ClientLevel level, ClientboundLevelChunkWithLightPacket packet) {
+    public boolean receiveNativeChunk(ClientLevel level, ClientboundLevelChunkWithLightPacket packet) {
         WormholesClient client = WormholesClient.instance();
-        if (level == null || begin == null || client == null || !client.session().active()
+        if (level == null || client == null || !client.session().active()
             || !client.session().has(ClientViewCapability.PREPARED_TRAVEL_CACHE)) {
-            return;
+            return false;
         }
-        String world = level.dimension().identifier().toString();
-        boolean source = world.equals(begin.sourceWorld())
-            && Math.abs((long) packet.x() - (begin.sourceGeometry().originX() >> 4)) <= 3
-            && Math.abs((long) packet.z() - (begin.sourceGeometry().originZ() >> 4)) <= 3;
-        boolean destination = world.equals(begin.world().dimension())
-            && begin.chunks().contains(new ClientViewMessage.TravelCoordinate(packet.x(), packet.z()));
-        if (!source && !destination) {
-            return;
-        }
+        ClientViewMessage.TravelCoordinate coordinate = new ClientViewMessage.TravelCoordinate(packet.x(), packet.z());
+        SourcePreparation source = sourcePreparation;
+        boolean sourceColumn = source != null && source.level == level && source.begin.chunks().contains(coordinate);
+        boolean destination = begin != null && begin.world().dimension().equals(level.dimension().identifier().toString())
+            && begin.chunks().contains(coordinate);
+        boolean residentColumn = resident != null && resident.level() == level;
         ClientPacketListener connection = Minecraft.getInstance().getConnection();
         if (connection == null) {
-            return;
+            return false;
+        }
+        if (!sourceColumn && begin != null && begin.sourceWorld().equals(level.dimension().identifier().toString())) {
+            int radius = ClientTravelWindow.radius(((PreparedPacketAccess) connection).wormholes$chunkRadius());
+            sourceColumn = Math.abs((long) packet.x() - (begin.sourceGeometry().originX() >> 4)) <= radius
+                && Math.abs((long) packet.z() - (begin.sourceGeometry().originZ() >> 4)) <= radius;
+        }
+        if (!sourceColumn && !destination && !residentColumn) {
+            return false;
         }
         cache.bind(connection, connection.registryAccess());
         try {
-            cache.put(world, packet.x(), packet.z(), encodeNativeChunk(level, packet));
+            byte[] data = encodeNativeChunk(level, packet);
+            byte[] installed = residentColumn && resident.valid(connection) ? resident.payloads().get(coordinate) : null;
+            LevelChunk physical = level.getChunkSource().getChunk(packet.x(), packet.z(), FULL, false);
+            if (installed == null && physical != null && residentColumn && resident.valid(connection)) {
+                installed = encodeNativeChunk(level, new ClientboundLevelChunkWithLightPacket(physical, level.getLightEngine(), null, null));
+                resident.remember(coordinate, installed);
+            }
+            boolean unchanged = Arrays.equals(installed, data) && physical != null;
+            cache.put(level.dimension().identifier().toString(), packet.x(), packet.z(), data);
+            return unchanged;
         } catch (RuntimeException failure) {
             if (!nativeCacheFailureReported) {
                 nativeCacheFailureReported = true;
                 LOGGER.warn("Unable to retain native portal return chunk packets", failure);
             }
+            return false;
         }
+    }
+
+    public LevelChunk replaceNativeColumn(ClientLevel level, int x, int z, Supplier<LevelChunk> replacement) {
+        return applyNativeColumn(new AppliedColumn(level, x, z), replacement);
+    }
+
+    public Runnable nativeLightUpdate(ClientLevel level, int x, int z, Runnable update) {
+        return () -> {
+            if (!nativeResidentColumn(level, x, z)) {
+                update.run();
+                return;
+            }
+            AppliedColumn column = new AppliedColumn(level, x, z);
+            column.lightChanges = new LongOpenHashSet();
+            invalidateColumn(level, x, z);
+            try {
+                applyColumn(column, () -> {
+                    update.run();
+                    return null;
+                });
+            } catch (RuntimeException | Error failure) {
+                dirtyNativeColumn(column);
+                throw failure;
+            }
+            try {
+                LongIterator sections = column.lightChanges.iterator();
+                while (sections.hasNext()) {
+                    dirtyNativeSection(column, sections.nextLong());
+                }
+            } catch (RuntimeException failure) {
+                reportNativeDifferenceFailure(failure);
+                dirtyNativeColumn(column);
+            }
+        };
+    }
+
+    private <T> T applyNativeColumn(AppliedColumn column, Supplier<T> update) {
+        ClientLevel level = column.level();
+        if (!nativeResidentColumn(level, column.x(), column.z())) {
+            return update.get();
+        }
+        ClientTravelSectionState[] before;
+        try {
+            before = captureColumn(column, ColumnPhase.BLOCKS);
+        } catch (RuntimeException failure) {
+            reportNativeDifferenceFailure(failure);
+            return update.get();
+        }
+        invalidateColumn(level, column.x(), column.z());
+        T result;
+        try {
+            result = applyColumn(column, update);
+        } catch (RuntimeException failure) {
+            dirtyNativeColumn(column);
+            throw failure;
+        }
+        try {
+            compareColumn(column, ColumnPhase.BLOCKS, before, section -> dirtyNativeSection(column, section));
+        } catch (RuntimeException failure) {
+            reportNativeDifferenceFailure(failure);
+            dirtyNativeColumn(column);
+        }
+        return result;
+    }
+
+    private static void dirtyNativeSection(AppliedColumn column, long section) {
+        int y = SectionPos.y(section);
+        if (!ClientSodiumTerrain.handlesMainUpdates(column.level())) {
+            column.level().setSectionDirtyWithNeighbors(column.x(), y, column.z());
+        }
+        WormholesClient.localSectionChanged(column.level(), column.x(), y, column.z());
+    }
+
+    private boolean nativeResidentColumn(ClientLevel level, int x, int z) {
+        Minecraft minecraft = Minecraft.getInstance();
+        return level == minecraft.level && resident != null && resident.level() == level && resident.valid(minecraft.getConnection())
+            && level.registryAccess() == resident.registry() && level.getChunkSource().getChunk(x, z, FULL, false) != null;
+    }
+
+    private static void dirtyNativeColumn(AppliedColumn column) {
+        ClientLevel level = column.level();
+        level.setSectionRangeDirty(column.x() - 1, level.getMinSectionY(), column.z() - 1,
+            column.x() + 1, level.getMaxSectionY(), column.z() + 1);
+        WormholesClient.localChunkChanged(level, column.x(), column.z());
+    }
+
+    private void reportNativeDifferenceFailure(RuntimeException failure) {
+        if (!nativeDifferenceFailureReported) {
+            nativeDifferenceFailureReported = true;
+            LOGGER.warn("Unable to compare retained native portal column updates", failure);
+        }
+    }
+
+    private static ClientTravelSectionState[] captureColumn(AppliedColumn column, ColumnPhase phase) {
+        ClientLevel level = column.level();
+        int minY = level.getMinSectionY() - 1;
+        ClientTravelSectionState[] states = new ClientTravelSectionState[level.getSectionsCount() + 2];
+        for (int index = 0; index < states.length; index++) {
+            states[index] = phase.capture(column, minY + index);
+        }
+        return states;
+    }
+
+    private static void compareColumn(AppliedColumn column, ColumnPhase phase, ClientTravelSectionState[] before, LongConsumer changed) {
+        int minY = column.level().getMinSectionY() - 1;
+        for (int index = 0; index < before.length; index++) {
+            if (before[index] == null) {
+                continue;
+            }
+            int y = minY + index;
+            ClientTravelSectionState after = phase.capture(column, y);
+            if (!before[index].same(after)) {
+                changed.accept(SectionPos.asLong(column.x(), y, column.z()));
+            }
+        }
+    }
+
+    private void retainResidentColumns() {
+        if (!begin.sourceWorld().equals(begin.world().dimension())) {
+            ClientPacketListener connection = Minecraft.getInstance().getConnection();
+            resident = new ResidentColumns(staged, connection, connection.registryAccess(), deadline, new HashMap<>(payloads));
+        }
+    }
+
+    private void discardPendingPreparation() {
+        if (pendingPreparation != null && pendingPreparation.level != null
+            && pendingPreparation.level != Minecraft.getInstance().level && pendingPreparation.level != staged
+            && !hasRetainedWorld(pendingPreparation.level)) {
+            ClientSodiumTerrain.forget(pendingPreparation.level);
+        }
+        pendingPreparation = null;
     }
 
     private static byte[] encodeNativeChunk(ClientLevel level, ClientboundLevelChunkWithLightPacket packet) {
@@ -949,40 +1351,47 @@ public final class ClientPreparedTravel {
 
     private void captureSource() {
         Minecraft minecraft = Minecraft.getInstance();
-        if (prediction != null || minecraft.level == null || minecraft.player == null || sourceCapture >= 49) {
+        if (prediction != null || minecraft.level == null || minecraft.player == null || sourceCapture == Integer.MAX_VALUE) {
             return;
         }
         try {
             ClientLevel level = minecraft.level;
             if (sourcePreparation == null) {
                 sourcePreparation = new SourcePreparation(sourceBegin(level, minecraft.player));
+                sourcePreparation.level = level;
+                sourcePreparation.connection = minecraft.getConnection();
+                sourcePreparation.registry = level.registryAccess();
+                sourceCapture = 0;
+                seedSourcePreparation(sourcePreparation);
+                ClientPortalRenderer.instance().prepareTravelSourceEnvironment(sourcePreparation.begin.environment());
+                rememberRetainedWorld(new RetainedWorld(level, sourcePreparation.connection, sourcePreparation.registry,
+                    sourcePreparation.begin.world(), sourcePreparation.deadline, sourcePreparation.payloads, sourcePreparation.aperture));
+                ClientSodiumTerrain.prepare(level, sourcePreparation.begin.environment(), arrivalCamera(sourcePreparation.begin.arrival()));
             }
-            int centerX = begin.sourceGeometry().originX() >> 4;
-            int centerZ = begin.sourceGeometry().originZ() >> 4;
+            SourcePreparation source = sourcePreparation;
+            if (source.level != level || sourceCapture >= source.begin.chunks().size()) {
+                return;
+            }
             long deadline = System.nanoTime() + DECODE_NANOS;
             int bytes = 0;
             int captured = 0;
-            for (int inspected = 0; inspected < 49 && captured < MAX_DECODE_COLUMNS; inspected++) {
+            for (int inspected = 0; inspected < source.begin.chunks().size() && captured < MAX_DECODE_COLUMNS; inspected++) {
                 if (inspected > 0 && (System.nanoTime() >= deadline || bytes >= MAX_DECODE_BYTES)) {
                     break;
                 }
-                int index = sourcePreparation.nextCapture();
+                int index = source.nextCapture();
                 if (index < 0) {
                     break;
                 }
-                int x = centerX + index % 7 - 3;
-                int z = centerZ + index / 7 - 3;
-                LevelChunk chunk = level.getChunkSource().getChunk(x, z, FULL, false);
+                ClientViewMessage.TravelCoordinate coordinate = source.begin.chunks().get(index);
+                LevelChunk chunk = level.getChunkSource().getChunk(coordinate.x(), coordinate.z(), FULL, false);
                 if (chunk == null) {
                     continue;
                 }
                 String world = level.dimension().identifier().toString();
-                byte[] data = cache.peek(world, x, z);
-                if (data == null) {
-                    data = encodeNativeChunk(level, new ClientboundLevelChunkWithLightPacket(chunk, level.getLightEngine(), null, null));
-                    cache.seed(world, x, z, data);
-                }
-                sourcePreparation.capture(index, new Column(x, z, 0, data));
+                byte[] data = encodeNativeChunk(level, new ClientboundLevelChunkWithLightPacket(chunk, level.getLightEngine(), null, null));
+                cache.put(world, coordinate.x(), coordinate.z(), data);
+                source.capture(index, new Column(coordinate.x(), coordinate.z(), 0, data));
                 sourceCapture++;
                 captured++;
                 bytes += data.length;
@@ -990,7 +1399,22 @@ public final class ClientPreparedTravel {
         } catch (RuntimeException failure) {
             LOGGER.warn("Unable to capture native portal return snapshots", failure);
             retireSourcePreparation();
-            sourceCapture = 49;
+            sourceCapture = Integer.MAX_VALUE;
+        }
+    }
+
+    private void seedSourcePreparation(SourcePreparation source) {
+        RetainedWorld retained = retainedWorlds.get(source.level);
+        if (retained == null || !retained.valid(source.connection) || !retained.world().equals(source.begin.world())) {
+            return;
+        }
+        for (int index = 0; index < source.begin.chunks().size(); index++) {
+            ClientViewMessage.TravelCoordinate coordinate = source.begin.chunks().get(index);
+            byte[] installed = retained.payloads().get(coordinate);
+            if (installed != null && source.level.getChunkSource().getChunk(coordinate.x(), coordinate.z(), FULL, false) != null) {
+                source.capture(index, new Column(coordinate.x(), coordinate.z(), 0, installed));
+                sourceCapture++;
+            }
         }
     }
 
@@ -998,12 +1422,8 @@ public final class ClientPreparedTravel {
         ClientViewMessage.TravelWorld world = ((ClientTravelWorld) level).wormholes$travelWorld();
         int centerX = begin.sourceGeometry().originX() >> 4;
         int centerZ = begin.sourceGeometry().originZ() >> 4;
-        List<ClientViewMessage.TravelCoordinate> manifest = new ArrayList<>(49);
-        for (int z = centerZ - 3; z <= centerZ + 3; z++) {
-            for (int x = centerX - 3; x <= centerX + 3; x++) {
-                manifest.add(new ClientViewMessage.TravelCoordinate(x, z));
-            }
-        }
+        int radius = ClientTravelWindow.radius(((PreparedPacketAccess) Minecraft.getInstance().getConnection()).wormholes$chunkRadius());
+        List<ClientViewMessage.TravelCoordinate> manifest = ClientTravelWindow.coordinates(centerX, centerZ, radius);
         Vec3 eye = player.getEyePosition();
         return new ClientViewMessage.TravelBegin(begin.token(), begin.generation(), begin.sourcePortal(), begin.sourceWorld(),
             begin.sourceGeometry(), ClientViewEnvironment.Transform.IDENTITY, world,
@@ -1013,43 +1433,64 @@ public final class ClientPreparedTravel {
 
     private void advanceSourcePreparation() {
         SourcePreparation source = sourcePreparation;
-        if (source == null) {
+        if (source == null || source.level == null || source.decoded.size() != source.begin.chunks().size()) {
             return;
         }
         try {
-            if (source.level == null) {
-                source.level = createLevel(source.begin);
-            }
-            long deadline = System.nanoTime() + DECODE_NANOS;
-            int bytes = 0;
-            for (int count = 0; count < MAX_DECODE_COLUMNS && !source.columns.isEmpty(); count++) {
-                Column column = source.columns.peek();
-                if (count > 0 && (System.nanoTime() >= deadline || bytes + column.data().length > MAX_DECODE_BYTES)) {
-                    break;
-                }
-                source.columns.remove();
-                decodeChanged(source.level, source.scene, source.decoded, source.changed, source.payloads, column);
-                bytes += column.data().length;
-            }
-            if (source.decoded.size() != source.begin.chunks().size()) {
-                return;
-            }
             if (source.scene == null) {
                 source.scene = new ClientTravelScene(source.level, source.begin);
                 source.scene.nativeColumns(source.payloads);
                 ClientPortalRenderer.instance().prepareTravelSource(source.scene);
             }
-            source.scene.advance();
+            if (source.changed) {
+                source.scene.nativeColumns(source.payloads);
+                source.changed = false;
+            }
+            if (!ClientSodiumTerrain.usesPreparedTerrain(staged)
+                && (pendingPreparation == null || !ClientSodiumTerrain.usesPreparedTerrain(pendingPreparation.level))) {
+                source.scene.advance();
+            }
         } catch (RuntimeException failure) {
             LOGGER.warn("Unable to prepare native portal return snapshots", failure);
             retireSourcePreparation();
-            sourceCapture = 49;
+            sourceCapture = Integer.MAX_VALUE;
         }
     }
 
     private void retireSourcePreparation() {
         ClientPortalRenderer.instance().retireTravelSource();
+        if (sourcePreparation != null && sourcePreparation.level != Minecraft.getInstance().level
+            && !hasRetainedWorld(sourcePreparation.level)) {
+            ClientSodiumTerrain.forget(sourcePreparation.level);
+        }
         sourcePreparation = null;
+    }
+
+    private static void cleanRetainedLevel(ClientLevel level, ClientViewMessage.TravelPose arrival) {
+        PreparedChunkColumns storage = (PreparedChunkColumns) level.getChunkSource();
+        int centerX = (int) Math.floor(arrival.x()) >> 4;
+        int centerZ = (int) Math.floor(arrival.z()) >> 4;
+        int radius = storage.wormholes$radius();
+        AtomicReferenceArray<LevelChunk> columns = storage.wormholes$columns();
+        for (int index = 0; index < columns.length(); index++) {
+            LevelChunk column = columns.get(index);
+            if (column != null && (Math.abs((long) column.getPos().x() - centerX) > radius
+                || Math.abs((long) column.getPos().z() - centerZ) > radius)) {
+                level.getChunkSource().drop(column.getPos());
+            }
+        }
+        discardRetainedUpdates(level);
+    }
+
+    private static void discardRetainedUpdates(ClientLevel level) {
+        ((PreparedLevelAccess) level).wormholes$lightUpdates().clear();
+        List<Entity> entities = new ArrayList<>();
+        for (Entity entity : level.entitiesForRendering()) {
+            entities.add(entity);
+        }
+        for (Entity entity : entities) {
+            level.removeEntity(entity.getId(), Entity.RemovalReason.DISCARDED);
+        }
     }
 
     private static void decodeChanged(ClientLevel level, ClientTravelScene scene,
@@ -1072,24 +1513,22 @@ public final class ClientPreparedTravel {
             if (buffer.isReadable() || packet.x() != column.x() || packet.z() != column.z()) {
                 throw new IllegalArgumentException("Prepared travel native chunk does not match its envelope");
             }
-            int minY = staged.getMinSectionY() - 1;
-            int sectionCount = staged.getSectionsCount() + 2;
-            ClientTravelSectionState[] before = scene == null ? null : new ClientTravelSectionState[sectionCount];
-            if (before != null) {
-                for (int index = 0; index < sectionCount; index++) {
-                    before[index] = ClientTravelSectionState.capture(staged, packet.x(), minY + index, packet.z());
-                }
-            }
-            applyChunk(staged, packet);
+            AppliedColumn applied = new AppliedColumn(staged, packet.x(), packet.z());
+            ClientTravelSectionState[] before = scene == null
+                && staged.getChunkSource().getChunk(packet.x(), packet.z(), FULL, false) == null
+                ? null : captureColumn(applied, ColumnPhase.FULL);
+            applyPreparedChunk(staged, packet);
             ClientViewMessage.TravelCoordinate coordinate = new ClientViewMessage.TravelCoordinate(column.x(), column.z());
             decoded.put(coordinate, column.revision());
-            if (before != null) {
-                for (int index = 0; index < sectionCount; index++) {
-                    int y = minY + index;
-                    if (!before[index].same(ClientTravelSectionState.capture(staged, packet.x(), y, packet.z()))) {
-                        changed.add(SectionPos.asLong(packet.x(), y, packet.z()));
-                    }
+            if (before == null) {
+                for (int y = staged.getMinSectionY(); y <= staged.getMaxSectionY(); y++) {
+                    ClientSodiumTerrain.dirty(staged, SectionPos.asLong(packet.x(), y, packet.z()));
                 }
+            } else {
+                compareColumn(applied, ColumnPhase.FULL, before, section -> {
+                    changed.add(section);
+                    ClientSodiumTerrain.dirty(staged, section);
+                });
             }
         } finally {
             buffer.release();
@@ -1164,11 +1603,56 @@ public final class ClientPreparedTravel {
         for (int index = 0; index < sections.length; index++) {
             lighting.updateSectionStatus(SectionPos.of(loaded.getPos(), level.getSectionYFromSectionIndex(index)), sections[index].hasOnlyAir());
         }
-        level.setSectionRangeDirty(packet.x() - 1, level.getMinSectionY(), packet.z() - 1,
-            packet.x() + 1, level.getMaxSectionY(), packet.z() + 1);
+        if (!applyingColumn(level, packet.x(), packet.z())) {
+            level.setSectionRangeDirty(packet.x() - 1, level.getMinSectionY(), packet.z() - 1,
+                packet.x() + 1, level.getMaxSectionY(), packet.z() + 1);
+        }
         lighting.runLightUpdates();
         if (SODIUM) {
             SodiumChunks.lightReady(level, packet.x(), packet.z());
+        }
+    }
+
+    private static void applyPreparedChunk(ClientLevel level, ClientboundLevelChunkWithLightPacket packet) {
+        applyColumn(new AppliedColumn(level, packet.x(), packet.z()), () -> {
+            applyChunk(level, packet);
+            return null;
+        });
+    }
+
+    private static <T> T applyColumn(AppliedColumn column, Supplier<T> update) {
+        AppliedColumn previous = APPLIED_COLUMN.get();
+        APPLIED_COLUMN.set(column);
+        try {
+            return update.get();
+        } finally {
+            if (previous == null) {
+                APPLIED_COLUMN.remove();
+            } else {
+                APPLIED_COLUMN.set(previous);
+            }
+        }
+    }
+
+    public static boolean applyingColumn(ClientLevel level, int x, int z) {
+        AppliedColumn column = APPLIED_COLUMN.get();
+        return column != null && column.level() == level && column.x() == x && column.z() == z;
+    }
+
+    public static boolean applyingNativeLight(ClientLevel level, int x, int z) {
+        AppliedColumn column = APPLIED_COLUMN.get();
+        return column != null && column.lightChanges != null && column.level() == level && column.x() == x && column.z() == z;
+    }
+
+    public static boolean applyingNativeLight(LightChunkGetter source, long section) {
+        AppliedColumn column = APPLIED_COLUMN.get();
+        return column != null && column.lightChanges != null && column.level().getChunkSource() == source
+            && column.x() == SectionPos.x(section) && column.z() == SectionPos.z(section);
+    }
+
+    public static void nativeLightSectionChanged(LightChunkGetter source, long section) {
+        if (applyingNativeLight(source, section)) {
+            APPLIED_COLUMN.get().lightChanges.add(section);
         }
     }
 
@@ -1180,6 +1664,13 @@ public final class ClientPreparedTravel {
         } finally {
             clear(false);
         }
+    }
+
+    private boolean predictedTerrainAvailable() {
+        Minecraft minecraft = Minecraft.getInstance();
+        return prediction != null && prediction.connection == minecraft.getConnection() && staged != null && minecraft.level == staged
+            && (ClientSodiumTerrain.handlesMainUpdates(staged) && ClientSodiumTerrain.usesPreparedTerrain(staged)
+                || ClientPortalRenderer.instance().travelDrawable());
     }
 
     private void commit(ClientViewMessage.TravelCommit value) {
@@ -1213,13 +1704,24 @@ public final class ClientPreparedTravel {
         access.wormholes$restore();
         motion.apply(player);
         ((PreparedLevelAccess) destination).wormholes$extractor(minecraft.levelExtractor);
-        if (IRIS) {
-            IrisMain.attach(minecraft, destination);
-        } else {
-            minecraft.setLevel(destination);
-        }
+        attachLevel(destination, false);
         destination.addEntity(player);
         minecraft.setCameraEntity(player);
+    }
+
+    private static void attachLevel(ClientLevel destination, boolean authoritative) {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.level != null && minecraft.level != destination) {
+            ((PreparedLevelAccess) minecraft.level).wormholes$extractor(new PreparedLevelExtractor(minecraft));
+        }
+        try (ClientSodiumTerrain.Handoff ignored = authoritative
+            ? ClientSodiumTerrain.authoritativeHandoff(destination) : ClientSodiumTerrain.handoff(destination)) {
+            if (IRIS) {
+                IrisMain.attach(minecraft, destination, authoritative);
+            } else {
+                minecraft.setLevel(destination);
+            }
+        }
     }
 
     private void rollback() {
@@ -1301,11 +1803,156 @@ public final class ClientPreparedTravel {
     }
 
     private boolean matches(Construction construction) {
-        ClientViewMessage.TravelWorld world = begin.world();
+        return matchesWorld(begin.world(), construction);
+    }
+
+    private static boolean matchesWorld(ClientViewMessage.TravelWorld world, Construction construction) {
         return world.dimension().equals(construction.dimension().identifier().toString())
             && world.dimensionType().equals(construction.type().unwrapKey().orElseThrow().identifier().toString())
             && world.seed() == construction.seed() && world.debug() == construction.debug()
-            && world.flat() == ((PreparedLevelDataAccess) construction.data()).wormholes$flat() && world.seaLevel() == construction.seaLevel();
+            && world.flat() == ((PreparedLevelDataAccess) construction.data()).wormholes$flat() && world.seaLevel() == construction.seaLevel()
+            && world.minY() == construction.type().value().minY() && world.height() == construction.type().value().height();
+    }
+
+    private void retainActualWorlds() {
+        if (sourcePreparation != null && sourcePreparation.level != null) {
+            SourcePreparation source = sourcePreparation;
+            rememberRetainedWorld(new RetainedWorld(source.level, source.connection, source.registry, source.begin.world(), source.deadline,
+                source.payloads, source.aperture));
+        }
+        if (retainedDestination != null) {
+            rememberRetainedWorld(retainedDestination.withPayloads(payloads));
+        }
+        if (pendingPreparation != null && pendingPreparation.retainedWorld != null) {
+            rememberRetainedWorld(pendingPreparation.retainedWorld);
+        }
+    }
+
+    private void rememberRetainedWorld(RetainedWorld retained) {
+        if (!retained.valid(Minecraft.getInstance().getConnection())) {
+            return;
+        }
+        RetainedWorld previous = retainedWorlds.get(retained.level());
+        if (retained.aperture() == null && previous != null && previous.valid(Minecraft.getInstance().getConnection())
+            && previous.world().equals(retained.world())) {
+            retained = new RetainedWorld(retained.level(), retained.connection(), retained.registry(), retained.world(), retained.deadline(),
+                retained.payloads(), previous.aperture());
+        }
+        retainedWorlds.put(retained.level(), retained);
+        pruneRetainedWorlds();
+    }
+
+    private boolean hasRetainedWorld(ClientLevel level) {
+        RetainedWorld retained = retainedWorlds.get(level);
+        return retained != null && retained.valid(Minecraft.getInstance().getConnection());
+    }
+
+    private void pruneRetainedWorlds() {
+        if (retainedWorlds.isEmpty()) {
+            return;
+        }
+        Minecraft minecraft = Minecraft.getInstance();
+        ClientPacketListener connection = minecraft.getConnection();
+        for (Iterator<RetainedWorld> worlds = retainedWorlds.values().iterator(); worlds.hasNext();) {
+            RetainedWorld retained = worlds.next();
+            if (!retained.valid(connection)) {
+                worlds.remove();
+                if (retained.level() != minecraft.level) {
+                    ClientSodiumTerrain.forget(retained.level());
+                }
+            }
+        }
+        for (Iterator<RetainedWorld> worlds = retainedWorlds.values().iterator();
+             retainedWorlds.size() > MAX_RETAINED_WORLDS && worlds.hasNext();) {
+            RetainedWorld retained = worlds.next();
+            if (retained.level() != minecraft.level && retained.level() != staged && retained.level() != authoritativeDestination) {
+                worlds.remove();
+                ClientSodiumTerrain.forget(retained.level());
+            }
+        }
+    }
+
+    private void discardRetainedWorlds() {
+        authoritativeArrival = null;
+        for (RetainedWorld retained : retainedWorlds.values()) {
+            ClientSodiumTerrain.forget(retained.level());
+        }
+        retainedWorlds.clear();
+    }
+
+    private RetainedWorld retainedWorld(ClientViewMessage.TravelWorld world) {
+        if (sourcePreparation == null && retainedWorlds.isEmpty()) {
+            return null;
+        }
+        Minecraft minecraft = Minecraft.getInstance();
+        ClientPacketListener connection = minecraft.getConnection();
+        SourcePreparation source = sourcePreparation;
+        if (source != null && source.level != null && source.level != minecraft.level) {
+            RetainedWorld retained = new RetainedWorld(source.level, source.connection, source.registry, source.begin.world(), source.deadline,
+                source.payloads, source.aperture);
+            if (retained.valid(connection) && retained.world().equals(world)) {
+                return retained;
+            }
+        }
+        for (RetainedWorld retained : retainedWorlds.values()) {
+            if (retained.level() != minecraft.level && retained.valid(connection) && retained.world().equals(world)) {
+                return retained;
+            }
+        }
+        return null;
+    }
+
+    private RetainedWorld retainedWorld(Construction construction) {
+        ClientPacketListener connection = Minecraft.getInstance().getConnection();
+        if (retainedDestination != null && retainedDestination.matches(connection, construction)) {
+            return retainedDestination;
+        }
+        if (pendingPreparation != null && pendingPreparation.retainedWorld != null
+            && pendingPreparation.retainedWorld.matches(connection, construction)) {
+            return pendingPreparation.retainedWorld;
+        }
+        for (RetainedWorld retained : retainedWorlds.values()) {
+            if (retained.matches(connection, construction)) {
+                return retained;
+            }
+        }
+        SourcePreparation source = sourcePreparation;
+        if (source == null || source.level == null) {
+            return null;
+        }
+        RetainedWorld retained = new RetainedWorld(source.level, source.connection, source.registry, source.begin.world(), source.deadline,
+            source.payloads, source.aperture);
+        return retained.matches(connection, construction) ? retained : null;
+    }
+
+    private ClientLevel restoreAuthoritativeLevel(RetainedWorld retained, Construction construction) {
+        ClientLevel level = retained.level();
+        Map<ClientViewMessage.TravelCoordinate, byte[]> installed = new HashMap<>(retained.payloads());
+        rememberRetainedWorld(retained.withPayloads(installed));
+        SourcePreparation previousSource = sourcePreparation != null && sourcePreparation.level == Minecraft.getInstance().level
+            && sourcePreparation.level != level ? sourcePreparation : null;
+        prediction = null;
+        if (staged == level) {
+            staged = null;
+        }
+        if (pendingPreparation != null && pendingPreparation.level == level) {
+            pendingPreparation.level = null;
+        }
+        if (sourcePreparation != null && (sourcePreparation.level == level || sourcePreparation == previousSource)) {
+            sourcePreparation = null;
+        }
+        clear(true);
+        sourcePreparation = previousSource;
+        discardRetainedUpdates(level);
+        ((PreparedLevelAccess) level).wormholes$extractor(construction.extractor());
+        ((PreparedLevelAccess) level).wormholes$data(construction.data());
+        level.getChunkSource().updateViewRadius(construction.distance());
+        level.setServerSimulationDistance(construction.simulation());
+        resident = new ResidentColumns(level, retained.connection(), retained.registry(), retained.deadline(), installed);
+        authoritativeDestination = level;
+        authoritativeArrival = new AuthoritativeArrival(retained);
+        sourceCapture = Integer.MAX_VALUE;
+        return level;
     }
 
     private boolean covers(ClientViewMessage.TravelPose arrival) {
@@ -1330,8 +1977,52 @@ public final class ClientPreparedTravel {
         return true;
     }
 
+    private void advanceAuthoritativeArrival() {
+        AuthoritativeArrival active = authoritativeArrival;
+        if (active == null) {
+            return;
+        }
+        Minecraft minecraft = Minecraft.getInstance();
+        if (!active.valid(minecraft)) {
+            authoritativeArrival = null;
+            return;
+        }
+        if (System.currentTimeMillis() >= active.deadline) {
+            showAuthoritativeLoadingScreen(active);
+            return;
+        }
+        if (!active.positionConfirmed || minecraft.player == null) {
+            return;
+        }
+        BlockPos position = BlockPos.containing(minecraft.player.getEyePosition());
+        if (minecraft.level.getChunkSource().getChunk(position.getX() >> 4, position.getZ() >> 4, FULL, false) == null
+            || !minecraft.levelRenderer.isSectionCompiledAndVisible(position, 0)) {
+            showAuthoritativeLoadingScreen(active);
+            return;
+        }
+        ClientPacketListener connection = minecraft.getConnection();
+        LevelLoadTracker tracker = ((PreparedPacketAccess) connection).wormholes$loadTracker();
+        if (tracker != null) {
+            Runnable compiled = tracker.getPlayerCompiledSectionCallback();
+            if (compiled != null) {
+                compiled.run();
+            }
+        }
+        if (connection.hasClientLoaded()) {
+            authoritativeArrival = null;
+        }
+    }
+
+    private void showAuthoritativeLoadingScreen(AuthoritativeArrival active) {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (active.screen != null && minecraft.gui.screen() == null) {
+            minecraft.setScreenAndShow(active.screen);
+        }
+        authoritativeArrival = null;
+    }
+
     private void completeLoad(ClientPacketListener connection) {
-        if (connection == null || !mainCompiled && !ClientPortalRenderer.instance().travelDrawable()) {
+        if (connection == null || !mainCompiled && !ClientSodiumTerrain.ready(staged) && !ClientPortalRenderer.instance().travelDrawable()) {
             showDeferred();
             return;
         }
@@ -1364,9 +2055,26 @@ public final class ClientPreparedTravel {
         }
     }
 
+    private static CameraRenderState travelCamera(ClientViewMessage.TravelBegin value) {
+        Minecraft minecraft = Minecraft.getInstance();
+        LocalPlayer player = minecraft.player;
+        if (player != null && minecraft.level != null
+            && value.sourceWorld().equals(minecraft.level.dimension().identifier().toString())) {
+            GeometryVector feet = value.destinationToSource().destinationPoint(player.getX(), player.getY(), player.getZ());
+            ClientTravelMotion.Rotation look = new ClientTravelMotion.Rotation(player.getYRot(), player.getXRot())
+                .transform(value.destinationToSource());
+            return arrivalCamera(new ClientViewMessage.TravelPose(feet.x(), feet.y(), feet.z(), look.yaw(), look.pitch()), eyeHeight(player));
+        }
+        return arrivalCamera(value.arrival(), eyeHeight(player));
+    }
+
     private static CameraRenderState arrivalCamera(ClientViewMessage.TravelPose arrival) {
+        return arrivalCamera(arrival, eyeHeight(Minecraft.getInstance().player));
+    }
+
+    static CameraRenderState arrivalCamera(ClientViewMessage.TravelPose arrival, float eyeHeight) {
         CameraRenderState camera = new CameraRenderState();
-        camera.pos = new Vec3(arrival.x(), arrival.y() + 1.62, arrival.z());
+        camera.pos = new Vec3(arrival.x(), arrival.y() + eyeHeight, arrival.z());
         camera.blockPos = BlockPos.containing(camera.pos);
         camera.xRot = arrival.pitch();
         camera.yRot = arrival.yaw();
@@ -1378,6 +2086,10 @@ public final class ClientPreparedTravel {
         camera.cullFrustum.prepare(camera.pos.x, camera.pos.y, camera.pos.z);
         camera.initialized = true;
         return camera;
+    }
+
+    private static float eyeHeight(LocalPlayer player) {
+        return player == null ? EntityTypes.PLAYER.getDimensions().eyeHeight() : player.getEyeHeight();
     }
 
     private static void light(LevelLightEngine engine, LightLayer layer, int x, int z, BitSet present, BitSet empty, Iterator<byte[]> data) {
@@ -1407,8 +2119,9 @@ public final class ClientPreparedTravel {
             return PortalIrisMainPipelines.ready(level);
         }
 
-        private static void attach(Minecraft minecraft, ClientLevel level) {
-            try (PortalIrisMainPipelines.Handoff ignored = PortalIrisMainPipelines.handoff(level)) {
+        private static void attach(Minecraft minecraft, ClientLevel level, boolean authoritative) {
+            try (PortalIrisMainPipelines.Handoff ignored = authoritative
+                ? PortalIrisMainPipelines.authoritativeHandoff(level) : PortalIrisMainPipelines.handoff(level)) {
                 minecraft.setLevel(level);
             }
         }
@@ -1418,37 +2131,127 @@ public final class ClientPreparedTravel {
         }
     }
 
+    private static final class AuthoritativeArrival {
+        private final RetainedWorld retained;
+        private final long deadline = System.currentTimeMillis() + CROSS_TIMEOUT_MILLIS;
+        private Screen screen;
+        private boolean positionConfirmed;
+
+        private AuthoritativeArrival(RetainedWorld retained) {
+            this.retained = retained;
+        }
+
+        private boolean valid(Minecraft minecraft) {
+            return minecraft.level == retained.level() && retained.valid(minecraft.getConnection());
+        }
+    }
+
     private record Arrival(ClientLevel level, ClientTravelScene scene, ClientViewMessage.TravelBegin begin, long deadline) { }
+
+    private enum ColumnPhase {
+        FULL, BLOCKS;
+
+        private ClientTravelSectionState capture(AppliedColumn column, int y) {
+            return switch (this) {
+                case FULL -> ClientTravelSectionState.capture(column.level(), column.x(), y, column.z());
+                case BLOCKS -> ClientTravelSectionState.captureBlocks(column.level(), column.x(), y, column.z());
+            };
+        }
+    }
+
+    private static final class AppliedColumn {
+        private final ClientLevel level;
+        private final int x;
+        private final int z;
+        private LongOpenHashSet lightChanges;
+
+        private AppliedColumn(ClientLevel level, int x, int z) {
+            this.level = level;
+            this.x = x;
+            this.z = z;
+        }
+
+        private ClientLevel level() {
+            return level;
+        }
+
+        private int x() {
+            return x;
+        }
+
+        private int z() {
+            return z;
+        }
+    }
+
+    private record RetainedWorld(ClientLevel level, ClientPacketListener connection, Object registry,
+                                 ClientViewMessage.TravelWorld world, long deadline,
+                                 Map<ClientViewMessage.TravelCoordinate, byte[]> payloads, ClientPortalGeometry aperture) {
+        private boolean valid(ClientPacketListener current) {
+            return current != null && current == connection && current.registryAccess() == registry
+                && level.registryAccess() == registry && System.currentTimeMillis() < deadline;
+        }
+
+        private boolean matches(ClientPacketListener current, Construction construction) {
+            return valid(current) && matchesWorld(world, construction);
+        }
+
+        private RetainedWorld withAperture(ClientPortalGeometry geometry) {
+            return new RetainedWorld(level, connection, registry, world, deadline, payloads, geometry);
+        }
+
+        private RetainedWorld withPayloads(Map<ClientViewMessage.TravelCoordinate, byte[]> installed) {
+            return new RetainedWorld(level, connection, registry, world, deadline, installed, aperture);
+        }
+    }
+
+    private record ResidentColumns(ClientLevel level, ClientPacketListener connection, Object registry, long deadline,
+                                   Map<ClientViewMessage.TravelCoordinate, byte[]> payloads) {
+        private boolean valid(ClientPacketListener current) {
+            return current != null && current == connection && current.registryAccess() == registry
+                && System.currentTimeMillis() < deadline;
+        }
+
+        private void remember(ClientViewMessage.TravelCoordinate coordinate, byte[] data) {
+            if (payloads.size() >= ClientViewProtocol.MAX_TRAVEL_CHUNKS || data.length > ClientViewProtocol.MAX_TRAVEL_CHUNK_BYTES) {
+                return;
+            }
+            long bytes = data.length;
+            for (byte[] installed : payloads.values()) {
+                bytes += installed.length;
+            }
+            if (bytes <= ClientViewProtocol.MAX_TRAVEL_BYTES) {
+                payloads.put(coordinate, data);
+            }
+        }
+    }
 
     private static final class SourcePreparation {
         private final ClientViewMessage.TravelBegin begin;
         private final long deadline;
-        private final ArrayDeque<Column> columns = new ArrayDeque<>();
         private final Map<ClientViewMessage.TravelCoordinate, Integer> decoded = new HashMap<>();
         private final Map<ClientViewMessage.TravelCoordinate, byte[]> payloads = new HashMap<>();
-        private final LongOpenHashSet changed = new LongOpenHashSet();
         private ClientLevel level;
         private ClientTravelScene scene;
+        private ClientPortalGeometry aperture;
+        private boolean changed;
         private int cursor;
         private int bytes;
-        private long captured;
+        private final BitSet captured = new BitSet();
+        private ClientPacketListener connection;
+        private Object registry;
 
         private SourcePreparation(ClientViewMessage.TravelBegin begin) {
             this.begin = begin;
+            aperture = begin.sourceGeometry();
             deadline = System.currentTimeMillis() + begin.expiresMillis();
         }
 
-        private boolean matches(ClientViewMessage.TravelBegin next) {
-            return System.currentTimeMillis() < deadline && level != null && scene != null
-                && decoded.size() == begin.chunks().size() && begin.world().equals(next.world())
-                && new HashSet<>(begin.chunks()).equals(new HashSet<>(next.chunks()));
-        }
-
         private int nextCapture() {
-            for (int inspected = 0; inspected < 49; inspected++) {
+            for (int inspected = 0; inspected < begin.chunks().size(); inspected++) {
                 int index = cursor;
-                cursor = (cursor + 1) % 49;
-                if ((captured & (1L << index)) == 0) {
+                cursor = (cursor + 1) % begin.chunks().size();
+                if (!captured.get(index)) {
                     return index;
                 }
             }
@@ -1457,12 +2260,17 @@ public final class ClientPreparedTravel {
 
         private void capture(int index, Column column) {
             int length = column.data().length;
-            if (length > ClientViewProtocol.MAX_TRAVEL_CHUNK_BYTES || length > ClientViewProtocol.MAX_TRAVEL_BYTES - bytes) {
+            ClientViewMessage.TravelCoordinate coordinate = new ClientViewMessage.TravelCoordinate(column.x(), column.z());
+            byte[] previous = payloads.get(coordinate);
+            int remaining = bytes - (previous == null ? 0 : previous.length);
+            if (length > ClientViewProtocol.MAX_TRAVEL_CHUNK_BYTES || length > ClientViewProtocol.MAX_TRAVEL_BYTES - remaining) {
                 throw new IllegalArgumentException("Native portal return snapshots exceed preparation bounds");
             }
-            columns.add(column);
-            bytes += length;
-            captured |= 1L << index;
+            payloads.put(coordinate, column.data());
+            decoded.put(coordinate, column.revision());
+            bytes = remaining + length;
+            captured.set(index);
+            changed = true;
         }
     }
 
@@ -1473,6 +2281,7 @@ public final class ClientPreparedTravel {
         private final long deadline;
         private ClientLevel level;
         private ClientTravelScene scene;
+        private RetainedWorld retainedWorld;
         private final Map<ClientViewMessage.TravelCoordinate, byte[]> payloads = new HashMap<>();
         private final Map<ClientViewMessage.TravelCoordinate, Integer> decoded = new HashMap<>();
         private final LongOpenHashSet changed = new LongOpenHashSet();
@@ -1492,6 +2301,7 @@ public final class ClientPreparedTravel {
         private final Vec3 expectedArrival;
         private final long revision;
         private final LevelExtractor extractor;
+        private final ClientPacketListener connection;
         private final ProtocolInfo<ClientGamePacketListener> protocol;
         private long deadline = Long.MAX_VALUE;
         private final ArrayDeque<Runnable> packets = new ArrayDeque<>();
@@ -1506,6 +2316,7 @@ public final class ClientPreparedTravel {
             expectedArrival = state.expectedArrival();
             revision = state.revision();
             extractor = state.extractor();
+            connection = state.connection();
             protocol = GameProtocols.CLIENTBOUND_TEMPLATE.bind(RegistryFriendlyByteBuf.decorator(state.connection().registryAccess()));
         }
     }
@@ -1518,6 +2329,6 @@ public final class ClientPreparedTravel {
     }
 
     public record Construction(ClientLevel.ClientLevelData data, ResourceKey<Level> dimension, Holder<DimensionType> type,
-                               LevelExtractor extractor, boolean debug, long seed, int seaLevel) {
+                               LevelExtractor extractor, boolean debug, long seed, int seaLevel, int distance, int simulation) {
     }
 }

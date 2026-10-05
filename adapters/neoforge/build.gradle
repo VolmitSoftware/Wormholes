@@ -28,13 +28,27 @@ java {
 }
 
 List<String> sharedClientTestClasses = [
+    'art.arcane.wormholes.modded.client.NativeLightNotificationTest',
     'art.arcane.wormholes.modded.client.render.PortalIrisProgramLoadingTest',
     'art.arcane.wormholes.modded.client.render.PortalIrisShaderLoadingTest',
     'art.arcane.wormholes.modded.client.render.PortalIrisTerrainTest',
     'art.arcane.wormholes.modded.client.render.PortalIrisMainPipelinesTest',
+    'art.arcane.wormholes.modded.client.render.PortalIrisHandTest',
+    'art.arcane.wormholes.modded.client.render.PortalIrisDepthTargetTest',
+    'art.arcane.wormholes.modded.client.render.ClientSodiumTerrainTest',
+    'art.arcane.wormholes.modded.client.ClientPreparedTravelCachedTest',
+    'art.arcane.wormholes.modded.client.ClientPreparedTravelCameraTest',
+    'art.arcane.wormholes.modded.client.ClientPreparedTravelFrameTest',
+    'art.arcane.wormholes.modded.client.ClientPreparedTravelDecodeTest',
+    'art.arcane.wormholes.modded.client.ClientPreparedTravelLightTest',
+    'art.arcane.wormholes.modded.client.ClientPreparedTravelRetentionTest',
+    'art.arcane.wormholes.modded.client.ClientPreparedTravelRespawnTest',
     'art.arcane.wormholes.modded.client.ClientPreparedTravelRollbackTest',
     'art.arcane.wormholes.modded.client.ClientPreparedTravelPacketBudgetTest',
-    'art.arcane.wormholes.modded.client.PreparedTravelChunkCacheTest'
+    'art.arcane.wormholes.modded.client.PreparedTravelChunkCacheTest',
+    'art.arcane.wormholes.modded.client.PreparedChunkCacheTest',
+    'art.arcane.wormholes.modded.client.ResourceArgumentGrammarTest',
+    'art.arcane.wormholes.modded.client.ClientVanillaPortalEffectTest'
 ]
 
 sourceSets {

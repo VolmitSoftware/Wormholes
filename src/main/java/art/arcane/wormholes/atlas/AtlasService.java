@@ -1,5 +1,6 @@
 package art.arcane.wormholes.atlas;
 
+import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.config.toml.AtlasConfig;
 import art.arcane.wormholes.hook.TraversalAttempt;
@@ -17,28 +18,45 @@ import art.arcane.wormholes.service.WormholesHud;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.AsyncPlayerPreLoginEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerLoginEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CompletableFuture;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.function.Supplier;
+import java.util.function.Consumer;
 
 /**
  * The runtime behind {@code /atlas}: it discovers portals a player stands at, remembers the ones they
  * travel through, and draws the guide bearing. Discovery probes a chunk-bucketed index, never a scan.
  */
 public final class AtlasService implements Listener, TraversalObserver {
+    private static final Logger LOG = Logger.getLogger("Wormholes");
     private static final int INDEX_REBUILD_INTERVAL = 5;
+    private static final long LOGIN_CACHE_TIMEOUT_NANOS = TimeUnit.MINUTES.toNanos(1L);
 
     private final AtlasPlayerStore store;
     private final NetworkRegistry registry;
     private final Supplier<AtlasConfig> config;
     private final Supplier<List<ILocalPortal>> portals;
     private final AtlasProximityIndex<UUID> index = new AtlasProximityIndex<>();
+    private final Object playersLock = new Object();
+    private final Set<UUID> online = ConcurrentHashMap.newKeySet();
+    private final Map<UUID, Long> pendingLogins = new ConcurrentHashMap<>();
     private int ticksSinceRebuild = INDEX_REBUILD_INTERVAL;
 
     public AtlasService(AtlasPlayerStore store, NetworkRegistry registry, Supplier<AtlasConfig> config,
@@ -54,17 +72,54 @@ public final class AtlasService implements Listener, TraversalObserver {
     }
 
     public AtlasPlayerState state(Player player) {
-        return store.load(player.getUniqueId());
+        return Objects.requireNonNull(store.cached(player.getUniqueId()), "Atlas state is not loaded");
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void on(AsyncPlayerPreLoginEvent event) {
+        if (event.getLoginResult() == AsyncPlayerPreLoginEvent.Result.ALLOWED) {
+            CompletableFuture<AtlasPlayerState> pending;
+            synchronized (playersLock) {
+                pendingLogins.put(event.getUniqueId(), System.nanoTime() + LOGIN_CACHE_TIMEOUT_NANOS);
+                pending = store.loadAsync(event.getUniqueId());
+            }
+            pending.join();
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void on(PlayerLoginEvent event) {
+        if (event.getResult() != PlayerLoginEvent.Result.ALLOWED) {
+            UUID playerId = event.getPlayer().getUniqueId();
+            synchronized (playersLock) {
+                pendingLogins.remove(playerId);
+                if (!online.contains(playerId)) {
+                    store.unloadAsync(playerId);
+                }
+            }
+        }
     }
 
     @EventHandler
     public void on(PlayerJoinEvent event) {
-        store.load(event.getPlayer().getUniqueId());
+        loadOnline(event.getPlayer().getUniqueId());
     }
 
     @EventHandler
     public void on(PlayerQuitEvent event) {
-        store.unload(event.getPlayer().getUniqueId());
+        UUID playerId = event.getPlayer().getUniqueId();
+        synchronized (playersLock) {
+            online.remove(playerId);
+            store.unloadAsync(playerId);
+        }
+    }
+
+    public void loadOnline(UUID playerId) {
+        synchronized (playersLock) {
+            online.add(playerId);
+            pendingLogins.remove(playerId);
+            store.loadAsync(playerId);
+        }
     }
 
     @Override
@@ -72,28 +127,61 @@ public final class AtlasService implements Listener, TraversalObserver {
         if (!(attempt.traveler() instanceof Player player)) {
             return;
         }
-        AtlasPlayerState state = store.cached(player.getUniqueId());
-        if (state == null || attempt.portal().getDimensionalPortalKind().isManagedPortal()) {
+        if (attempt.portal().getDimensionalPortalKind().isManagedPortal()) {
             return;
         }
-        state.discover(attempt.portal().getId());
-        state.recordRecent(attempt.portal().getId(), config.get().recentLimit);
+        UUID playerId = player.getUniqueId();
+        UUID portalId = attempt.portal().getId();
+        int recentLimit = config.get().recentLimit;
+        AtlasPlayerState state = store.cached(playerId);
+        if (state != null) {
+            recordDeparture(state, portalId, recentLimit);
+            return;
+        }
+        store.loadAsync(playerId).thenAccept(loaded -> recordDeparture(loaded, portalId, recentLimit))
+            .exceptionally(failure -> {
+                LOG.log(Level.WARNING, "Atlas departure could not be recorded for " + playerId, failure);
+                return null;
+            });
     }
 
     /** One discovery and guide pass over the online players. Runs on the one-second nexus task. */
-    public void tick(List<? extends Player> online) {
+    public void tick(Collection<? extends Player> onlinePlayers) {
+        expirePendingLogins();
         AtlasConfig settings = config.get();
         if (!settings.enabled) {
             return;
         }
-        if (++ticksSinceRebuild >= INDEX_REBUILD_INTERVAL) {
+        if (settings.discoveryRequired && ++ticksSinceRebuild >= INDEX_REBUILD_INTERVAL) {
             ticksSinceRebuild = 0;
             index.rebuild(indexAnchors(portals.get()));
         }
-        for (Player player : online) {
-            discoverNearby(player, settings);
-            publishGuide(player, settings);
+        if (!settings.discoveryRequired && !settings.guideEnabled) {
+            return;
         }
+        for (Player player : onlinePlayers) {
+            AtlasPlayerState state = store.cached(player.getUniqueId());
+            if (state != null && (settings.discoveryRequired || state.guideTarget() != null)) {
+                FoliaScheduler.runEntity(Wormholes.instance, player, () -> tickPlayer(player, settings));
+            }
+        }
+    }
+
+    public void withState(Player player, Consumer<AtlasPlayerState> action) {
+        AtlasPlayerState state = store.cached(player.getUniqueId());
+        if (state != null) {
+            action.accept(state);
+            return;
+        }
+        store.loadAsync(player.getUniqueId()).thenAccept(loaded ->
+            FoliaScheduler.runEntity(Wormholes.instance, player, () -> {
+                if (player.isOnline() && store.cached(player.getUniqueId()) == loaded) {
+                    action.accept(loaded);
+                }
+            })).exceptionally(failure -> {
+                LOG.log(Level.WARNING, "Atlas action failed for " + player.getUniqueId(), failure);
+                return null;
+            });
     }
 
     public AtlasPlayerState.FavoriteResult toggleFavorite(Player player, UUID portalId) {
@@ -174,16 +262,40 @@ public final class AtlasService implements Listener, TraversalObserver {
         return anchors;
     }
 
-    private void discoverNearby(Player player, AtlasConfig settings) {
-        if (!settings.discoveryRequired) {
+    private static void recordDeparture(AtlasPlayerState state, UUID portalId, int recentLimit) {
+        state.discover(portalId);
+        state.recordRecent(portalId, recentLimit);
+    }
+
+    private void expirePendingLogins() {
+        if (pendingLogins.isEmpty()) {
             return;
         }
+        long now = System.nanoTime();
+        for (Map.Entry<UUID, Long> login : pendingLogins.entrySet()) {
+            UUID playerId = login.getKey();
+            if (now - login.getValue() >= 0L) {
+                synchronized (playersLock) {
+                    if (pendingLogins.remove(playerId, login.getValue()) && !online.contains(playerId)) {
+                        store.unloadAsync(playerId);
+                    }
+                }
+            }
+        }
+    }
+
+    private void tickPlayer(Player player, AtlasConfig settings) {
         AtlasPlayerState state = store.cached(player.getUniqueId());
-        if (state == null) {
+        if (state == null || !player.isOnline()) {
             return;
         }
         Location at = player.getLocation();
-        if (at.getWorld() == null) {
+        discoverNearby(state, at, settings);
+        publishGuide(player, state, at, settings);
+    }
+
+    private void discoverNearby(AtlasPlayerState state, Location at, AtlasConfig settings) {
+        if (!settings.discoveryRequired || at.getWorld() == null) {
             return;
         }
         List<UUID> near = index.near(at.getWorld().getUID(), at.getX(), at.getY(), at.getZ(), settings.discoveryRadius);
@@ -192,15 +304,13 @@ public final class AtlasService implements Listener, TraversalObserver {
         }
     }
 
-    private void publishGuide(Player player, AtlasConfig settings) {
-        AtlasPlayerState state = store.cached(player.getUniqueId());
-        UUID target = state == null ? null : state.guideTarget();
+    private void publishGuide(Player player, AtlasPlayerState state, Location at, AtlasConfig settings) {
+        UUID target = state.guideTarget();
         if (!settings.guideEnabled || target == null) {
             return;
         }
         ILocalPortal portal = Wormholes.portalManager == null ? null : Wormholes.portalManager.getLocalPortal(target);
         Location center = portal == null || portal.getStructure() == null ? null : portal.getStructure().getCenter();
-        Location at = player.getLocation();
         if (center == null || center.getWorld() == null || !center.getWorld().equals(at.getWorld())) {
             return;
         }

@@ -19,6 +19,13 @@ import java.util.Map;
 
 record ClientTravelSectionState(byte[] blocks, byte[] sky, byte[] light, Map<BlockPos, CompoundTag> entities) {
     static ClientTravelSectionState capture(ClientLevel level, int x, int y, int z) {
+        ClientTravelSectionState geometry = captureBlocks(level, x, y, z);
+        SectionPos position = SectionPos.of(x, y, z);
+        return new ClientTravelSectionState(geometry.blocks(), layer(level, LightLayer.SKY, position),
+            layer(level, LightLayer.BLOCK, position), geometry.entities());
+    }
+
+    static ClientTravelSectionState captureBlocks(ClientLevel level, int x, int y, int z) {
         LevelChunk chunk = level.getChunkSource().getChunk(x, z, ChunkStatus.FULL, false);
         byte[] blocks = null;
         Map<BlockPos, CompoundTag> entities = new HashMap<>();
@@ -38,9 +45,7 @@ record ClientTravelSectionState(byte[] blocks, byte[] sky, byte[] light, Map<Blo
                 }
             }
         }
-        SectionPos position = SectionPos.of(x, y, z);
-        return new ClientTravelSectionState(blocks, layer(level, LightLayer.SKY, position),
-            layer(level, LightLayer.BLOCK, position), entities);
+        return new ClientTravelSectionState(blocks, null, null, entities);
     }
 
     boolean same(ClientTravelSectionState other) {

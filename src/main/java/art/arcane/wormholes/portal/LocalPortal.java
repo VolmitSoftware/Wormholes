@@ -936,16 +936,6 @@ public class LocalPortal extends Portal implements ILocalPortal, Listener, Porta
 		this.owner = owner;
 	}
 
-	public boolean isSelfOwned()
-	{
-		return getOwner().equals(getId());
-	}
-
-	public void setSelfOwned()
-	{
-		setOwner(getId());
-	}
-
 	@Override
 	public boolean isRemote()
 	{

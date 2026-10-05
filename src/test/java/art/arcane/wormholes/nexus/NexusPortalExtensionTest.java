@@ -28,7 +28,7 @@ class NexusPortalExtensionTest {
 
     @BeforeEach
     void installExtension() {
-        WormholesHooks.install(new WormholesRegistrar().portalExtension(new NexusExtensionFactory(null)));
+        WormholesHooks.install(new WormholesRegistrar().portalExtension(NexusPortalExtension.class, extensionPortal -> new NexusPortalExtension(extensionPortal, null)));
         world = NexusTestSupport.world("extension");
     }
 
@@ -119,7 +119,7 @@ class NexusPortalExtensionTest {
     @Test
     void destroyingAPortalNotifiesTheLaneListenerOnce() {
         RecordingListener listener = new RecordingListener();
-        WormholesHooks.install(new WormholesRegistrar().portalExtension(new NexusExtensionFactory(listener)));
+        WormholesHooks.install(new WormholesRegistrar().portalExtension(NexusPortalExtension.class, extensionPortal -> new NexusPortalExtension(extensionPortal, listener)));
         LocalPortal portal = NexusTestSupport.portal(world, "doomed");
         NexusPortalExtension state = portal.extension(NexusPortalExtension.class);
         state.setNetworkId(UUID.randomUUID());

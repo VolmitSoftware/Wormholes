@@ -1,15 +1,56 @@
 package art.arcane.wormholes.door;
 
+import art.arcane.wormholes.config.toml.RecipesConfig;
 import org.junit.jupiter.api.Test;
 
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DoorRecipeSpecTest {
+    @Test
+    void configuredProductsAndSkinTogglesResolveTogether() {
+        RecipesConfig configured = new RecipesConfig();
+        configured.pairKit.enabled = false;
+        configured.personalDoor.shape = "A";
+        configured.personalDoor.ingredients = "A=STONE";
+        configured.trapdoorSkin.enabled = false;
+        EnumMap<DoorCraftProduct, RuntimeException> failures = new EnumMap<>(DoorCraftProduct.class);
+
+        DoorRecipeSettings recipes = DoorRecipeSettings.from(configured, failures::put);
+
+        assertFalse(recipes.isCraftable(DoorCraftProduct.PAIR_KIT));
+        assertEquals(DoorRecipeSpec.parse("A", "A=STONE"), recipes.spec(DoorCraftProduct.PERSONAL_DOOR).orElseThrow());
+        assertTrue(recipes.doorSkinEnabled());
+        assertFalse(recipes.trapdoorSkinEnabled());
+        assertTrue(failures.isEmpty());
+    }
+
+    @Test
+    void unusableRecipesReportTheCauseAndRetainCraftableDefaults() {
+        RecipesConfig configured = new RecipesConfig();
+        configured.pairKit.shape = "A";
+        configured.pairKit.ingredients = "B=STONE";
+        configured.personalDoor.shape = null;
+        configured.publicDoor.enabled = false;
+        configured.publicDoor.shape = null;
+        EnumMap<DoorCraftProduct, RuntimeException> failures = new EnumMap<>(DoorCraftProduct.class);
+
+        DoorRecipeSettings recipes = DoorRecipeSettings.from(configured, failures::put);
+
+        assertEquals(DoorCraftProduct.PAIR_KIT.defaultSpec(), recipes.spec(DoorCraftProduct.PAIR_KIT).orElseThrow());
+        assertEquals(DoorCraftProduct.PERSONAL_DOOR.defaultSpec(), recipes.spec(DoorCraftProduct.PERSONAL_DOOR).orElseThrow());
+        assertTrue(failures.get(DoorCraftProduct.PAIR_KIT) instanceof IllegalArgumentException);
+        assertTrue(failures.get(DoorCraftProduct.PERSONAL_DOOR) instanceof NullPointerException);
+        assertEquals(2, failures.size());
+        assertFalse(recipes.isCraftable(DoorCraftProduct.PUBLIC_DOOR));
+    }
+
     @Test
     void everyShippedProductRecipeParsesBackIntoItself() {
         for (DoorCraftProduct product : DoorCraftProduct.values()) {

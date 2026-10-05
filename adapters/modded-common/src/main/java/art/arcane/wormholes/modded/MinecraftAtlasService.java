@@ -26,8 +26,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 
 public final class MinecraftAtlasService implements AutoCloseable {
@@ -38,7 +36,6 @@ public final class MinecraftAtlasService implements AutoCloseable {
     private final AtlasProximityIndex<String> index = new AtlasProximityIndex<>();
     private final Map<UUID, CompletableFuture<AtlasPlayerState>> loading = new HashMap<>();
     private AtlasPlayerStore store;
-    private ExecutorService storage;
     private int ticks;
     private boolean running;
 
@@ -51,7 +48,6 @@ public final class MinecraftAtlasService implements AutoCloseable {
         runtime.requireServerThread();
         store = new AtlasPlayerStore(runtime.server().getServerDirectory().resolve("config/wormholes/atlas/players"),
             MinecraftJsonDocuments.INSTANCE);
-        storage = Executors.newSingleThreadExecutor(Thread.ofVirtual().name("wormholes-atlas-storage").factory());
         ticks = 99;
         running = true;
     }
@@ -81,7 +77,7 @@ public final class MinecraftAtlasService implements AutoCloseable {
             publishGuide(player, state);
         }
         if (ticks % 200 == 0) {
-            storage.execute(store::flushDirty);
+            store.flushDirtyAsync();
         }
     }
 
@@ -111,9 +107,7 @@ public final class MinecraftAtlasService implements AutoCloseable {
         runtime.requireServerThread();
         loading.remove(player.getUUID());
         if (running) {
-            UUID id = player.getUUID();
-            AtlasPlayerStore activeStore = store;
-            storage.execute(() -> activeStore.unload(id));
+            store.unloadAsync(player.getUUID());
         }
     }
 
@@ -126,8 +120,7 @@ public final class MinecraftAtlasService implements AutoCloseable {
         running = false;
         loading.clear();
         index.clear();
-        storage.execute(store::flushAll);
-        storage.close();
+        store.close();
     }
 
     boolean enabled() {
@@ -226,7 +219,7 @@ public final class MinecraftAtlasService implements AutoCloseable {
         }
         AtlasPlayerStore activeStore = store;
         MinecraftServer server = runtime.server();
-        CompletableFuture<AtlasPlayerState> future = CompletableFuture.supplyAsync(() -> activeStore.load(id), storage);
+        CompletableFuture<AtlasPlayerState> future = activeStore.loadAsync(id);
         loading.put(id, future);
         future.whenComplete((loaded, error) -> server.execute(() -> {
             if (running && store == activeStore && loading.remove(id, future) && error != null) {

@@ -40,7 +40,6 @@ public class ClientPreparedTravelPendingTest {
         assertEquals(37, travel.readyRevision());
         assertNull(next(travel));
         assertSame(pending, field(travel, "pendingPreparation"));
-        travel.compiledCallback(null).run();
         assertFalse((boolean) field(travel, "mainCompiled"));
         assertNull(next(travel));
         set(travel, "mainCompiled", true);
@@ -70,7 +69,6 @@ public class ClientPreparedTravelPendingTest {
         defer(travel, first);
         pending = field(travel, "pendingPreparation");
         set(pending, "deadline", 1L);
-        travel.compiledCallback(null).run();
         set(travel, "mainCompiled", true);
         assertNull(next(travel));
         assertSame(original, field(travel, "begin"));

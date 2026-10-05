@@ -45,10 +45,10 @@ public final class AtlasRuntime {
         plugin.registerListener(service);
         AtlasCommandInstaller.install(plugin, command);
         for (Player player : plugin.getServer().getOnlinePlayers()) {
-            store.load(player.getUniqueId());
+            service.loadOnline(player.getUniqueId());
         }
-        tickTask = J.sr(() -> service.tick(List.copyOf(plugin.getServer().getOnlinePlayers())), TICK_INTERVAL_TICKS);
-        flushTask = J.ar(store::flushDirty, FLUSH_INTERVAL_TICKS);
+        tickTask = J.sr(() -> service.tick(plugin.getServer().getOnlinePlayers()), TICK_INTERVAL_TICKS);
+        flushTask = J.ar(store::flushDirtyAsync, FLUSH_INTERVAL_TICKS);
     }
 
     public void stop() {
@@ -63,7 +63,7 @@ public final class AtlasRuntime {
         if (Wormholes.instance != null) {
             Wormholes.instance.unregisterListener(service);
         }
-        store.flushAll();
+        store.close();
     }
 
     private static AtlasConfig config() {

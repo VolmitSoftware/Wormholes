@@ -19,8 +19,8 @@ public final class PortalExtensions {
     private final Map<Class<? extends PortalExtension>, PortalExtension> byType = new LinkedHashMap<>();
 
     PortalExtensions(LocalPortal portal) {
-        List<PortalExtensionFactory> factories = WormholesHooks.portalExtensionFactories();
-        for (PortalExtensionFactory factory : factories) {
+        List<PortalExtensionFactory<?>> factories = WormholesHooks.portalExtensionFactories();
+        for (PortalExtensionFactory<?> factory : factories) {
             try {
                 PortalExtension extension = factory.create(portal);
                 if (extension != null) {

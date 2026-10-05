@@ -52,7 +52,7 @@ final class PortalIrisShadowFrame implements PortalShaderRenderer.ShadowFrame {
             : ShadowMatrices.createPerspectiveMatrix(directives.getFov());
         camera = copy(request.display(), shadowProjection);
         camera.viewRotationMatrix = new Matrix4f(shadowView)
-            .mul(PortalEnvironment.rotation(PortalShaderContext.current().environment().transform()).invert());
+            .mul(PortalProjection.rotation(PortalShaderContext.current().environment().transform()).invert());
         camera.cullFrustum = new Frustum(camera.viewRotationMatrix, shadowProjection);
         camera.cullFrustum.prepare(camera.pos.x, camera.pos.y, camera.pos.z);
         boolean pushed = false;

@@ -26,7 +26,7 @@ final class RouteCardModelTest {
 
     @BeforeEach
     void install() {
-        WormholesHooks.install(new WormholesRegistrar().portalExtension(new RulesExtensionFactory()));
+        WormholesHooks.install(new WormholesRegistrar().portalExtension(RulesPortalExtension.class, RulesPortalExtension::new));
         world = RulesTestSupport.world("routecard");
         portal = RulesTestSupport.portal(world, PortalType.PORTAL);
         viewer = RulesTestSupport.FakeTraveler.player("viewer", new Location(world, 0.0D, 64.0D, 1.0D), Set.of());

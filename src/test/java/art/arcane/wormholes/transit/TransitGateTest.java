@@ -56,7 +56,7 @@ final class TransitGateTest {
         assertNull(bare.extension(TransitPortalExtension.class));
         assertSame(TraversalVerdict.ALLOW, gate.evaluate(depart(bare, entity(), true)));
 
-        WormholesHooks.install(new WormholesRegistrar().portalExtension(new TransitExtensionFactory()));
+        WormholesHooks.install(new WormholesRegistrar().portalExtension(TransitPortalExtension.class, extensionPortal -> new TransitPortalExtension()));
         LocalPortal portal = TransitTestSupport.portal(TransitTestSupport.world("defaults"));
         assertSame(TraversalVerdict.ALLOW, gate.evaluate(depart(portal, entity(), true)));
         assertSame(TraversalVerdict.ALLOW, gate.evaluate(depart(portal, entity(), false)));
@@ -64,7 +64,7 @@ final class TransitGateTest {
 
     @Test
     void membraneDeniesBackSideEntryWithABounceAndAllowsTheFront() {
-        WormholesHooks.install(new WormholesRegistrar().portalExtension(new TransitExtensionFactory()));
+        WormholesHooks.install(new WormholesRegistrar().portalExtension(TransitPortalExtension.class, extensionPortal -> new TransitPortalExtension()));
         LocalPortal portal = TransitTestSupport.portal(TransitTestSupport.world("membrane"));
         portal.setName("Gate of Dawn");
         portal.extension(TransitPortalExtension.class).setMembrane(true);
@@ -79,7 +79,7 @@ final class TransitGateTest {
 
     @Test
     void bounceDeniesEverySideAndArrivalsAreNeverGated() {
-        WormholesHooks.install(new WormholesRegistrar().portalExtension(new TransitExtensionFactory()));
+        WormholesHooks.install(new WormholesRegistrar().portalExtension(TransitPortalExtension.class, extensionPortal -> new TransitPortalExtension()));
         LocalPortal portal = TransitTestSupport.portal(TransitTestSupport.world("bounce"));
         portal.extension(TransitPortalExtension.class).setBounce(true);
         portal.extension(TransitPortalExtension.class).setMembrane(true);
@@ -95,7 +95,7 @@ final class TransitGateTest {
 
     @Test
     void observerReflectsTheEntryVelocityAcrossTheFrameOnABounce() {
-        WormholesHooks.install(new WormholesRegistrar().portalExtension(new TransitExtensionFactory()));
+        WormholesHooks.install(new WormholesRegistrar().portalExtension(TransitPortalExtension.class, extensionPortal -> new TransitPortalExtension()));
         LocalPortal portal = TransitTestSupport.portal(TransitTestSupport.world("reflect"));
         portal.extension(TransitPortalExtension.class).setBounce(true);
         AtomicReference<Vector> velocity = new AtomicReference<Vector>();
@@ -115,7 +115,7 @@ final class TransitGateTest {
 
     @Test
     void observerLeavesOtherDenialsAlone() {
-        WormholesHooks.install(new WormholesRegistrar().portalExtension(new TransitExtensionFactory()));
+        WormholesHooks.install(new WormholesRegistrar().portalExtension(TransitPortalExtension.class, extensionPortal -> new TransitPortalExtension()));
         LocalPortal portal = TransitTestSupport.portal(TransitTestSupport.world("membrane-observer"));
         portal.extension(TransitPortalExtension.class).setMembrane(true);
         AtomicReference<Vector> velocity = new AtomicReference<Vector>();
@@ -130,7 +130,7 @@ final class TransitGateTest {
 
     @Test
     void rigMembersDeferUntilTheRootCrossesAndTheRootCommitsTheRig() {
-        WormholesHooks.install(new WormholesRegistrar().portalExtension(new TransitExtensionFactory()));
+        WormholesHooks.install(new WormholesRegistrar().portalExtension(TransitPortalExtension.class, extensionPortal -> new TransitPortalExtension()));
         World world = TransitTestSupport.world("convoy-gate");
         LocalPortal portal = TransitTestSupport.portal(world);
         portal.setFrame(PortalFrame.canonical(Direction.W));
@@ -167,7 +167,7 @@ final class TransitGateTest {
             Rig horse = Rig.mob("horse", new Location(world, 1.0D, 65.0D, 2.0D), 1.4D, 1.6D).leashTo(driver);
             List<Entity> nearby = List.of(boat.entity(), driver.entity(), horse.entity());
 
-            WormholesHooks.install(new WormholesRegistrar().portalExtension(new TransitExtensionFactory()));
+            WormholesHooks.install(new WormholesRegistrar().portalExtension(TransitPortalExtension.class, extensionPortal -> new TransitPortalExtension()));
             LocalPortal portal = TransitTestSupport.portal(world);
             portal.setFrame(PortalFrame.canonical(Direction.W));
             TraversalVerdict.Deny tooLarge = assertInstanceOf(TraversalVerdict.Deny.class,
@@ -195,7 +195,7 @@ final class TransitGateTest {
                         ? TraversalVerdict.Deny.of(TransitMessages.DENIED_MEMBRANE) : TraversalVerdict.ALLOW;
                 }
             };
-            WormholesHooks.install(new WormholesRegistrar().portalExtension(new TransitExtensionFactory()).traversalGate(refuseHorse));
+            WormholesHooks.install(new WormholesRegistrar().portalExtension(TransitPortalExtension.class, extensionPortal -> new TransitPortalExtension()).traversalGate(refuseHorse));
             LocalPortal guarded = TransitTestSupport.portal(world);
             guarded.setFrame(PortalFrame.canonical(Direction.W));
             TraversalVerdict.Deny refused = assertInstanceOf(TraversalVerdict.Deny.class,
@@ -209,7 +209,7 @@ final class TransitGateTest {
 
     @Test
     void rigsIgnoreRandomTeleportPortalsAndCrossServerRigsNeedOnePlayerAnEnabledSwitchAndAResolvedPeer() {
-        WormholesHooks.install(new WormholesRegistrar().portalExtension(new TransitExtensionFactory()));
+        WormholesHooks.install(new WormholesRegistrar().portalExtension(TransitPortalExtension.class, extensionPortal -> new TransitPortalExtension()));
         World world = TransitTestSupport.world("convoy-kinds");
         LocalPortal portal = TransitTestSupport.portal(world);
         portal.setFrame(PortalFrame.canonical(Direction.W));

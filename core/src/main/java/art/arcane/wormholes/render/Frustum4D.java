@@ -174,14 +174,18 @@ public final class Frustum4D {
             || minZ < regionZa || maxZ > regionZb) {
             return false;
         }
-        return containsPrimitive(minX, minY, minZ)
-            && containsPrimitive(minX, minY, maxZ)
-            && containsPrimitive(minX, maxY, minZ)
-            && containsPrimitive(minX, maxY, maxZ)
-            && containsPrimitive(maxX, minY, minZ)
-            && containsPrimitive(maxX, minY, maxZ)
-            && containsPrimitive(maxX, maxY, minZ)
-            && containsPrimitive(maxX, maxY, maxZ);
+        if (!(Double.isFinite(minX) && Double.isFinite(minY) && Double.isFinite(minZ)
+            && Double.isFinite(maxX) && Double.isFinite(maxY) && Double.isFinite(maxZ))
+            || minX > maxX || minY > maxY || minZ > maxZ) {
+            return false;
+        }
+        for (Frustum frustum : frustums) {
+            if (frustum.containsBox(minX, minY, minZ, maxX, maxY, maxZ)) {
+                return true;
+            }
+        }
+        return frustums.length > 1
+            && Frustum.containsBoxUnion(frustums, minX, minY, minZ, maxX, maxY, maxZ);
     }
 
     boolean containsRow(int axis, double x, double y, double z, double end) {

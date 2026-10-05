@@ -14,6 +14,7 @@ import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.ChatFormatting;
 
 import java.util.Objects;
 import java.util.UUID;
@@ -34,7 +35,7 @@ public final class ClientViewSession {
     private final Int2ObjectOpenHashMap<ClientViewEnvironment> environments = new Int2ObjectOpenHashMap<>();
     private final IntOpenHashSet dirtyPortals;
     private final Int2ObjectOpenHashMap<List<ClientViewMessage.MeshClaim>> pendingClaims = new Int2ObjectOpenHashMap<>();
-    private final Int2ObjectOpenHashMap<CacheBinding> cacheBindings = new Int2ObjectOpenHashMap<>();
+    private final Int2ObjectOpenHashMap<ClientMeshSections.Identity> cacheBindings = new Int2ObjectOpenHashMap<>();
     private final Int2IntOpenHashMap cacheSequences = new Int2IntOpenHashMap();
     private final IntArrayList patchedBricks;
     private final int dataVersion;
@@ -94,6 +95,7 @@ public final class ClientViewSession {
             return null;
         }
         offer = received;
+        declineReason = null;
         state = State.OFFERED;
         return ClientViewHandshake.clientHello(received, dataVersion, clientCapabilities(), config.maxFrameBytes(),
             config.plateMemoryMbForHello(), LocalPlateHandles.nonce(), brandTag);
@@ -107,6 +109,7 @@ public final class ClientViewSession {
             return;
         }
         accept = received;
+        declineReason = null;
         caps = ClientViewCapability.intersection(received.caps(), clientCapabilities());
         if (!ClientViewCapability.ENTITY_SELF.in(caps)) {
             selfEntityId = null;
@@ -217,12 +220,12 @@ public final class ClientViewSession {
                         environments.put(environment.portalKey(), environment.environment());
                         if (has(ClientViewCapability.MESH_REUSE)) {
                             long target = portals.get(environment.portalKey()).geometry().targetIdentity();
-                            CacheBinding binding = new CacheBinding(environment.environment().world().dimensionKey(), environment.environment().transform(), accept.hashSalt(), target);
-                            CacheBinding previous = cacheBindings.put(environment.portalKey(), binding);
+                            ClientMeshSections.Identity binding = new ClientMeshSections.Identity(environment.environment(), accept.hashSalt(), target);
+                            ClientMeshSections.Identity previous = cacheBindings.put(environment.portalKey(), binding);
                             if (previous != null && !previous.equals(binding)) {
                                 pendingClaims.remove(environment.portalKey());
                             }
-                            List<ClientViewMessage.MeshClaim> claims = meshes.bind(environment.portalKey(), environment.environment(), accept.hashSalt(), target);
+                            List<ClientViewMessage.MeshClaim> claims = meshes.bind(environment.portalKey(), binding);
                             cacheClaims(environment.portalKey(), claims);
                         }
                     } else {
@@ -330,16 +333,39 @@ public final class ClientViewSession {
         return state == State.CLIENT_VIEW;
     }
 
+    public boolean managesVanillaPortal(int x, int y, int z) {
+        if (!active()) {
+            return false;
+        }
+        for (ClientPortal portal : portals.values()) {
+            ClientPortalGeometry geometry = portal.geometry();
+            if (!portal.nested() && geometry.kind() == ClientPortalGeometry.KIND_VANILLA_REPLACEMENT
+                && geometry.containsCell(x, y, z)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public ConnectionStatus connectionStatus() {
+        if (active()) {
+            return ConnectionStatus.CONNECTED;
+        }
+        ClientViewMessage.Offer current = offer;
+        if (declineReason == ClientViewMessage.DeclineReason.WIRE_MISMATCH
+            || declineReason == ClientViewMessage.DeclineReason.DATA_VERSION_MISMATCH
+            || current != null && (current.wire() != ClientViewProtocol.WIRE_VERSION || current.mcDataVersion() != dataVersion)) {
+            return ConnectionStatus.MISMATCH;
+        }
+        return ConnectionStatus.DISCONNECTED;
+    }
+
     public long caps() {
         return caps;
     }
 
     public boolean has(ClientViewCapability capability) {
         return capability.in(caps);
-    }
-
-    public ClientViewMessage.Offer offerMessage() {
-        return offer;
     }
 
     public ClientViewMessage.Accept acceptMessage() {
@@ -572,9 +598,6 @@ public final class ClientViewSession {
         }
     }
 
-    private record CacheBinding(String world, ClientViewEnvironment.Transform transform, long epoch, long target) {
-    }
-
     public enum MeshFailure {
         MEMORY
     }
@@ -588,11 +611,26 @@ public final class ClientViewSession {
         DECLINED
     }
 
+    public enum ConnectionStatus {
+        CONNECTED("Connected", ChatFormatting.GREEN),
+        MISMATCH("Mismatch", ChatFormatting.YELLOW),
+        DISCONNECTED("Disconnected", ChatFormatting.RED);
+
+        private final String debugLine;
+
+        ConnectionStatus(String label, ChatFormatting color) {
+            debugLine = ChatFormatting.GOLD + "Wormholes: " + color + label + ChatFormatting.RESET;
+        }
+
+        public String debugLine() {
+            return debugLine;
+        }
+    }
+
     public interface Sink {
         void meshStarted(ClientPortal portal);
 
         void meshAck(ClientViewMessage.MeshAck ack);
-
 
         void brickMiss(ClientViewMessage.BrickMiss.Plate plate);
 

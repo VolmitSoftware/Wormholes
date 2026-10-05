@@ -15,13 +15,19 @@ import art.arcane.wormholes.util.Direction;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.renderpearl.api.buffers.GpuBuffer;
+import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
 import com.mojang.renderpearl.api.commands.RenderPass;
 import com.mojang.renderpearl.api.device.GpuDevice;
+import com.mojang.renderpearl.api.textures.GpuSampler;
 import net.minecraft.client.Minecraft;
+import net.minecraft.SharedConstants;
+import net.minecraft.server.Bootstrap;
 import net.minecraft.client.Options;
 import net.minecraft.client.Camera;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.DynamicGpuData;
 import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.ProjectionMatrixBuffer;
 import net.minecraft.client.renderer.SkyRenderer;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
@@ -38,6 +44,7 @@ import org.joml.Matrix4fStack;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 import org.junit.Test;
+import org.junit.BeforeClass;
 import org.mockito.MockedStatic;
 import org.mockito.MockedConstruction;
 
@@ -60,6 +67,8 @@ import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.clearInvocations;
@@ -75,6 +84,548 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 
 public class ClientPortalRendererTest {
+    @BeforeClass
+    public static void bootstrap() {
+        SharedConstants.tryDetectVersion();
+        Bootstrap.bootStrap();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void sectionOrderingPreservesDistanceTiesAndUpdatesAfterMovement() throws ReflectiveOperationException {
+        ClientPortalRenderer renderer = ClientPortalRenderer.instance();
+        renderer.clear();
+        renderer.replaceScene(1, scene());
+        Object portal = ((Map<?, ?>) get(renderer, "portals")).get(1);
+        Long2ObjectOpenHashMap<Object> sections = (Long2ObjectOpenHashMap<Object>) get(portal, "sections");
+        Object negativeFar = orderingSection(SectionPos.asLong(-2, 0, 0));
+        Object negativeNear = orderingSection(SectionPos.asLong(-1, 0, 0));
+        Object positiveNear = orderingSection(SectionPos.asLong(0, 0, 0));
+        Object positiveFar = orderingSection(SectionPos.asLong(1, 0, 0));
+        for (Object section : List.of(negativeFar, negativeNear, positiveNear, positiveFar)) {
+            sections.put((long) get(section, "key"), section);
+        }
+        List<Object> expected = new ArrayList<>();
+        for (Object section : sections.values()) {
+            if (section == negativeFar || section == positiveFar) {
+                expected.add(section);
+            }
+        }
+        for (Object section : sections.values()) {
+            if (section == negativeNear || section == positiveNear) {
+                expected.add(section);
+            }
+        }
+        CameraRenderState camera = new CameraRenderState();
+        camera.pos = new Vec3(0, 8, 8);
+        set(renderer, "camera", camera);
+        Method ordered = ClientPortalRenderer.class.getDeclaredMethod("orderedSections", portal.getClass());
+        ordered.setAccessible(true);
+        try {
+            List<Object> sorted = (List<Object>) ordered.invoke(renderer, portal);
+            assertEquals(expected, sorted);
+            assertEquals(576.0, (double) get(negativeFar, "sortDistance"), 0.0);
+            assertEquals(64.0, (double) get(negativeNear, "sortDistance"), 0.0);
+            camera.pos = new Vec3(40, 8, 8);
+            assertSame(sorted, ordered.invoke(renderer, portal));
+            assertEquals(List.of(negativeFar, negativeNear, positiveNear, positiveFar), sorted);
+            assertEquals(4096.0, (double) get(negativeFar, "sortDistance"), 0.0);
+            assertEquals(256.0, (double) get(positiveFar, "sortDistance"), 0.0);
+        } finally {
+            renderer.clear();
+        }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void sectionOrderingReusesUnchangedListAndRefreshesInvalidatedMembership() throws ReflectiveOperationException {
+        ClientPortalRenderer renderer = ClientPortalRenderer.instance();
+        renderer.clear();
+        renderer.replaceScene(1, scene());
+        Object portal = ((Map<?, ?>) get(renderer, "portals")).get(1);
+        Long2ObjectOpenHashMap<Object> sections = (Long2ObjectOpenHashMap<Object>) get(portal, "sections");
+        long nearKey = SectionPos.asLong(-1874999, -128, 1874999);
+        long farKey = SectionPos.asLong(-1874998, -128, 1874999);
+        Object near = orderingSection(nearKey);
+        Object far = orderingSection(farKey);
+        sections.put(nearKey, near);
+        sections.put(farKey, far);
+        CameraRenderState camera = new CameraRenderState();
+        camera.pos = new Vec3(-29999976, -2040, 29999992);
+        set(renderer, "camera", camera);
+        Method ordered = ClientPortalRenderer.class.getDeclaredMethod("orderedSections", portal.getClass());
+        ordered.setAccessible(true);
+        try {
+            List<Object> sorted = (List<Object>) ordered.invoke(renderer, portal);
+            assertEquals(List.of(far, near), sorted);
+            assertEquals(256.0, (double) get(far, "sortDistance"), 0.0);
+            assertEquals(0.0, (double) get(near, "sortDistance"), 0.0);
+            sections.remove(farKey);
+            assertSame(sorted, ordered.invoke(renderer, portal));
+            assertEquals(List.of(far, near), sorted);
+            set(portal, "orderDirty", true);
+            assertSame(sorted, ordered.invoke(renderer, portal));
+            assertEquals(List.of(near), sorted);
+            sections.put(farKey, far);
+            ((EnumMap<ChunkSectionLayer, PortalGpuMesh>) get(near, "layers")).clear();
+            set(portal, "orderDirty", true);
+            ordered.invoke(renderer, portal);
+            assertEquals(List.of(far), sorted);
+        } finally {
+            renderer.clear();
+        }
+    }
+
+    private static Object orderingSection(long key) throws ReflectiveOperationException {
+        Class<?> type = Class.forName(ClientPortalRenderer.class.getName() + "$Section");
+        Constructor<?> constructor = type.getDeclaredConstructor(long.class, long.class);
+        constructor.setAccessible(true);
+        Object section = constructor.newInstance(key, 1L);
+        @SuppressWarnings("unchecked")
+        EnumMap<ChunkSectionLayer, PortalGpuMesh> layers = (EnumMap<ChunkSectionLayer, PortalGpuMesh>) get(section, "layers");
+        layers.put(ChunkSectionLayer.SOLID, mock(PortalGpuMesh.class));
+        return section;
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void shadowlessPortalKeepsPreparedNormalListWithoutRecheckingItsFrustum() throws ReflectiveOperationException {
+        ClientPortalRenderer renderer = ClientPortalRenderer.instance();
+        renderer.clear();
+        renderer.replaceScene(1, scene());
+        Object portal = ((Map<?, ?>) get(renderer, "portals")).get(1);
+        PortalShaderRenderer.Session shaders = mock(PortalShaderRenderer.Session.class);
+        set(portal, "shader", shaders);
+        Frustum frustum = mock(Frustum.class);
+        set(portal, "cullFrustum", frustum);
+        CameraRenderState camera = new CameraRenderState();
+        set(portal, "camera", camera);
+        set(renderer, "camera", camera);
+        Object selected = new Object();
+        List<Object> normal = (List<Object>) get(portal, "drawSections");
+        normal.add(selected);
+        PortalFeatureRenderer features = mock(PortalFeatureRenderer.class);
+        Method shadows = ClientPortalRenderer.class.getDeclaredMethod("renderDestinationShadows", portal.getClass(), PortalFeatureRenderer.class);
+        shadows.setAccessible(true);
+        try {
+            shadows.invoke(renderer, portal, features);
+            assertSame(normal, get(portal, "drawSections"));
+            assertEquals(List.of(selected), normal);
+            assertSame(camera, get(renderer, "camera"));
+            verifyNoInteractions(frustum);
+            verify(features).closeFrame();
+        } finally {
+            normal.clear();
+            renderer.clear();
+        }
+    }
+
+    @Test
+    public void actualShadowPassRestoresIndependentlySelectedNormalTerrain() throws ReflectiveOperationException {
+        verifyShadowRestoration(false, false);
+    }
+
+    @Test
+    public void failedShadowPassRestoresNormalTerrainAndClosesItsFrame() throws ReflectiveOperationException {
+        verifyShadowRestoration(true, false);
+    }
+
+    @Test
+    public void failedShadowFeatureCleanupClearsBorrowedTransformsAndRestoresNormalTerrain() throws ReflectiveOperationException {
+        verifyShadowRestoration(false, true);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void verifyShadowRestoration(boolean fail, boolean failCleanup) throws ReflectiveOperationException {
+        ClientPortalRenderer renderer = ClientPortalRenderer.instance();
+        renderer.clear();
+        renderer.replaceScene(1, scene());
+        Object portal = ((Map<?, ?>) get(renderer, "portals")).get(1);
+        Class<?> sectionType = Class.forName(ClientPortalRenderer.class.getName() + "$Section");
+        Constructor<?> constructor = sectionType.getDeclaredConstructor(long.class, long.class);
+        constructor.setAccessible(true);
+        long near = SectionPos.asLong(0, 0, 0);
+        long far = SectionPos.asLong(2, 0, 0);
+        Object mainSection = constructor.newInstance(near, 1L);
+        Object shadowSection = constructor.newInstance(far, 1L);
+        for (Object section : List.of(mainSection, shadowSection)) {
+            for (ChunkSectionLayer layer : ChunkSectionLayer.values()) {
+                ((EnumMap<ChunkSectionLayer, PortalGpuMesh>) get(section, "layers")).put(layer, mock(PortalGpuMesh.class));
+            }
+        }
+        Long2ObjectOpenHashMap<Object> sections = (Long2ObjectOpenHashMap<Object>) get(portal, "sections");
+        sections.put(near, mainSection);
+        sections.put(far, shadowSection);
+        List<Object> drawing = (List<Object>) get(portal, "drawSections");
+        drawing.add(mainSection);
+        CameraRenderState main = new CameraRenderState();
+        main.pos = Vec3.ZERO;
+        CameraRenderState shadow = new CameraRenderState();
+        shadow.pos = new Vec3(10, 20, 30);
+        Frustum mainFrustum = mock(Frustum.class);
+        when(mainFrustum.isVisible(any(AABB.class))).thenAnswer(call -> ((AABB) call.getArgument(0)).minX < 16);
+        shadow.cullFrustum = mock(Frustum.class);
+        when(shadow.cullFrustum.isVisible(any(AABB.class))).thenAnswer(call -> ((AABB) call.getArgument(0)).minX > 16);
+        set(portal, "cullFrustum", mainFrustum);
+        set(portal, "camera", main);
+        set(renderer, "camera", main);
+        set(portal, "viewport", new PortalViewport(0, 0, 1, 1));
+        set(portal, "target", mock(TextureTarget.class));
+        PortalShaderRenderer.Session shader = mock(PortalShaderRenderer.Session.class);
+        PortalShaderRenderer.ShadowFrame shadowFrame = mock(PortalShaderRenderer.ShadowFrame.class);
+        PortalShaderRenderer.Frame phase = mock(PortalShaderRenderer.Frame.class);
+        when(shader.shadows(main)).thenReturn(shadowFrame);
+        when(shadowFrame.camera()).thenReturn(shadow);
+        when(shadowFrame.features()).thenReturn(phase);
+        when(shadowFrame.terrain()).thenReturn(true);
+        when(shadowFrame.translucent()).thenReturn(true);
+        set(portal, "shader", shader);
+        set(portal, "environment", mock(PortalEnvironmentRenderer.class));
+        PortalFeatureRenderer features = mock(PortalFeatureRenderer.class);
+        doAnswer(call -> {
+            assertEquals(List.of(shadowSection), drawing);
+            if (fail) {
+                throw new IllegalStateException("shadow extraction failed");
+            }
+            return null;
+        }).when(features).prepare(any(PortalScene.class), eq(shadow), anyBoolean(), anyBoolean());
+        doAnswer(call -> {
+            assertSame(null, get(shadowSection, "transform"));
+            if (failCleanup) {
+                throw new IllegalStateException("Shadow cleanup failed");
+            }
+            return null;
+        }).when(features).closeFrame();
+        Method draw = ClientPortalRenderer.class.getDeclaredMethod("renderDestinationShadows", portal.getClass(), PortalFeatureRenderer.class);
+        draw.setAccessible(true);
+        GpuDevice device = mock(GpuDevice.class, RETURNS_DEEP_STUBS);
+        DynamicGpuData uniforms = mock(DynamicGpuData.class);
+        GpuBufferSlice shadowSlice = mock(GpuBufferSlice.class);
+        GpuBufferSlice mainSlice = mock(GpuBufferSlice.class);
+        when(uniforms.writeTransform(any(DynamicGpuData.Transform.class))).thenReturn(shadowSlice, mainSlice);
+        Minecraft minecraft = mock(Minecraft.class, RETURNS_DEEP_STUBS);
+        try (MockedStatic<RenderSystem> systems = mockStatic(RenderSystem.class, RETURNS_DEEP_STUBS);
+             MockedStatic<Minecraft> game = mockStatic(Minecraft.class);
+             MockedStatic<PortalIrisTerrain> terrain = mockStatic(PortalIrisTerrain.class)) {
+            systems.when(RenderSystem::getDevice).thenReturn(device);
+            systems.when(RenderSystem::getDynamicUniforms).thenReturn(uniforms);
+            game.when(Minecraft::getInstance).thenReturn(minecraft);
+            if (fail || failCleanup) {
+                InvocationTargetException failure = assertThrows(InvocationTargetException.class, () -> draw.invoke(renderer, portal, features));
+                assertTrue(failure.getCause() instanceof IllegalStateException);
+            } else {
+                draw.invoke(renderer, portal, features);
+            }
+            assertSame(main, get(renderer, "camera"));
+            assertSame(drawing, get(portal, "drawSections"));
+            assertEquals(List.of(mainSection), drawing);
+            assertSame(null, get(shadowSection, "transform"));
+            assertSame(null, get(mainSection, "transform"));
+            verify(shadowFrame).close();
+            verify(features).closeFrame();
+            if (fail) {
+                verifyNoInteractions(uniforms);
+            } else {
+                verify(uniforms).writeTransform(any(DynamicGpuData.Transform.class));
+                Method normal = ClientPortalRenderer.class.getDeclaredMethod("drawTerrain", portal.getClass(), ChunkSectionLayer.class, RenderPass.class);
+                normal.setAccessible(true);
+                RenderPass pass = mock(RenderPass.class);
+                for (ChunkSectionLayer layer : ChunkSectionLayer.values()) {
+                    normal.invoke(renderer, portal, layer, pass);
+                }
+                verify(uniforms, times(2)).writeTransform(any(DynamicGpuData.Transform.class));
+                verify(pass, times(3)).setUniform("DynamicTransforms", mainSlice);
+                assertSame(mainSlice, get(mainSection, "transform"));
+                verifyNoInteractions(shadowSlice, mainSlice);
+            }
+        } finally {
+            renderer.clear();
+        }
+    }
+
+    @Test
+    public void promotingIdenticalSourceEnvironmentPreservesItsReadyShaderLeaseAndRetiresOldScene() throws ReflectiveOperationException {
+        ClientPortalRenderer renderer = ClientPortalRenderer.instance();
+        renderer.clear();
+        PortalShaderRenderer shaders = mock(PortalShaderRenderer.class);
+        PortalShaderRenderer.Session lease = mock(PortalShaderRenderer.Session.class);
+        when(lease.ready()).thenReturn(true);
+        ClientViewEnvironment environment = PortalEnvironmentTest.environment(ClientViewEnvironment.Transform.IDENTITY);
+        ClientTravelScene initial = mock(ClientTravelScene.class);
+        ClientTravelScene replacement = mock(ClientTravelScene.class);
+        ClientPortalGeometry geometry = scene().geometry();
+        when(initial.geometry()).thenReturn(geometry);
+        when(replacement.geometry()).thenReturn(geometry);
+        when(initial.environment()).thenReturn(environment);
+        ClientViewEnvironment sameEnvironment = new ClientViewEnvironment(environment.gameTime(), environment.sky(), environment.fog(),
+            environment.lighting(), environment.clouds(), environment.transform(), environment.dimension(), environment.world());
+        when(replacement.environment()).thenReturn(sameEnvironment);
+        set(renderer, "shaderRenderer", shaders);
+        try {
+            renderer.prepareTravelSourceEnvironment(environment);
+            set(renderer, "travelSourceShaders", lease);
+            clearInvocations(shaders);
+            renderer.prepareTravelSource(initial);
+            Object previous = get(renderer, "travelSource");
+            renderer.prepareTravelSource(replacement);
+            assertSame(lease, get(renderer, "travelSourceShaders"));
+            assertSame(environment, get(renderer, "travelSourceEnvironment"));
+            assertFalse((boolean) get(previous, "active"));
+            assertSame(replacement, get(get(renderer, "travelSource"), "scene"));
+            verify(shaders, never()).remove(-3);
+            renderer.retireTravelSource();
+            verify(shaders).remove(-3);
+            assertEquals(null, get(renderer, "travelSourceShaders"));
+        } finally {
+            renderer.clear();
+        }
+    }
+
+    @Test
+    public void changedSourceEnvironmentRetiresShaderLeaseBeforeInstallingFullScene() throws ReflectiveOperationException {
+        ClientPortalRenderer renderer = ClientPortalRenderer.instance();
+        renderer.clear();
+        PortalShaderRenderer shaders = mock(PortalShaderRenderer.class);
+        PortalShaderRenderer.Session lease = mock(PortalShaderRenderer.Session.class);
+        ClientViewEnvironment environment = PortalEnvironmentTest.environment(ClientViewEnvironment.Transform.IDENTITY);
+        ClientViewEnvironment changed = environment.withTransform(new ClientViewEnvironment.Transform(Direction.E, Direction.U, Direction.S,
+            new GeometryVector(16, 0, 0)));
+        ClientTravelScene replacement = mock(ClientTravelScene.class);
+        ClientPortalGeometry geometry = scene().geometry();
+        when(replacement.geometry()).thenReturn(geometry);
+        when(replacement.environment()).thenReturn(changed);
+        set(renderer, "shaderRenderer", shaders);
+        try {
+            renderer.prepareTravelSourceEnvironment(environment);
+            set(renderer, "travelSourceShaders", lease);
+            clearInvocations(shaders);
+            renderer.prepareTravelSource(replacement);
+            verify(shaders, times(2)).remove(-3);
+            assertEquals(null, get(renderer, "travelSourceShaders"));
+            assertSame(changed, get(renderer, "travelSourceEnvironment"));
+            assertSame(replacement, get(get(renderer, "travelSource"), "scene"));
+        } finally {
+            renderer.clear();
+        }
+    }
+
+    @Test
+    public void returnShadersWarmWithoutSourceSnapshotsAndReleaseForDimensionReuse() throws ReflectiveOperationException {
+        ClientPortalRenderer renderer = ClientPortalRenderer.instance();
+        renderer.clear();
+        ClientViewEnvironment environment = PortalEnvironmentTest.environment(ClientViewEnvironment.Transform.IDENTITY);
+        PortalShaderRenderer shaders = mock(PortalShaderRenderer.class);
+        PortalShaderRenderer.Session session = mock(PortalShaderRenderer.Session.class);
+        TextureTarget target = mock(TextureTarget.class);
+        when(session.target()).thenReturn(target);
+        when(shaders.acquire(-3, environment, 1920, 1080)).thenReturn(session);
+        set(renderer, "shaderRenderer", shaders);
+        CameraRenderState camera = new CameraRenderState();
+        camera.pos = Vec3.ZERO;
+        set(renderer, "rootCamera", camera);
+        CameraRenderState previous = new CameraRenderState();
+        set(renderer, "camera", previous);
+        Class<?> dimensions = Class.forName(ClientPortalRenderer.class.getName() + "$RenderDimensions");
+        Constructor<?> constructor = dimensions.getDeclaredConstructor(int.class, int.class, int.class);
+        constructor.setAccessible(true);
+        Method warm = ClientPortalRenderer.class.getDeclaredMethod("warmTravelSource", dimensions);
+        warm.setAccessible(true);
+        Minecraft minecraft = mock(Minecraft.class);
+        try (MockedStatic<Minecraft> clients = mockStatic(Minecraft.class);
+             MockedStatic<PortalShaderScope> bindings = mockStatic(PortalShaderScope.class)) {
+            clients.when(Minecraft::getInstance).thenReturn(minecraft);
+            bindings.when(PortalShaderScope::shaders).thenReturn(true);
+            renderer.prepareTravelSourceEnvironment(environment);
+            assertFalse(renderer.travelSourceShaderReady());
+            assertEquals(null, get(renderer, "travelSource"));
+            warm.invoke(renderer, constructor.newInstance(1920, 1080, 0));
+            verify(session).warm(argThat(view -> view.environment() == environment));
+            assertSame(previous, get(renderer, "camera"));
+            when(session.ready()).thenReturn(true);
+            assertTrue(renderer.travelSourceShaderReady());
+            warm.invoke(renderer, constructor.newInstance(1920, 1080, 0));
+            verify(session, times(1)).warm(any());
+            clearInvocations(shaders);
+            renderer.retireTravelSource();
+            verify(shaders).remove(-3);
+            assertFalse(renderer.travelSourceShaderReady());
+            assertEquals(null, get(renderer, "travelSourceEnvironment"));
+            bindings.when(PortalShaderScope::shaders).thenReturn(false);
+            assertTrue(renderer.travelSourceShaderReady());
+        } finally {
+            renderer.clear();
+        }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void nativePreparationSkipsFullCoverBuildsAndUploadsWithoutSkippingProjectedPortals() throws ReflectiveOperationException {
+        ClientPortalRenderer renderer = ClientPortalRenderer.instance();
+        renderer.clear();
+        ClientLevel destination = mock(ClientLevel.class);
+        ClientPortalGeometry geometry = scene().geometry();
+        ClientTravelScene travel = mock(ClientTravelScene.class);
+        when(travel.geometry()).thenReturn(geometry);
+        when(travel.sectionKeys()).thenReturn(new LongArrayList());
+        when(travel.level()).thenReturn(destination);
+        when(travel.revision(1L)).thenReturn(1L);
+        ClientTravelScene source = mock(ClientTravelScene.class);
+        when(source.geometry()).thenReturn(geometry);
+        when(source.sectionKeys()).thenReturn(new LongArrayList());
+        renderer.prepareTravel(travel, new CameraRenderState());
+        renderer.prepareTravelSource(source);
+        renderer.replaceScene(10, scene());
+        Object cover = get(renderer, "travel");
+        Object sourceCover = get(renderer, "travelSource");
+        Map<Integer, Object> portals = (Map<Integer, Object>) get(renderer, "portals");
+        Object projected = portals.get(10);
+        List<Object> demand = (List<Object>) get(renderer, "buildDemand");
+        demand.add(sourceCover);
+        demand.add(cover);
+        demand.add(projected);
+        for (Object portal : demand) {
+            set(portal, "hasInitialBuild", true);
+        }
+        Method maintain = ClientPortalRenderer.class.getDeclaredMethod("maintain", cover.getClass());
+        maintain.setAccessible(true);
+        Method next = ClientPortalRenderer.class.getDeclaredMethod("nextBuildPortal", boolean.class, boolean.class, long.class);
+        next.setAccessible(true);
+        Method finish = ClientPortalRenderer.class.getDeclaredMethod("finish", cover.getClass(), long.class, long.class,
+            int.class, PortalScene.MeshIdentity.class, PortalSectionMesh.class, Throwable.class);
+        finish.setAccessible(true);
+        Method nativeCover = ClientPortalRenderer.class.getDeclaredMethod("nativeTravelTerrain", cover.getClass());
+        nativeCover.setAccessible(true);
+        PortalSectionMesh completed = mock(PortalSectionMesh.class);
+        try (MockedStatic<ClientSodiumTerrain> terrain = mockStatic(ClientSodiumTerrain.class)) {
+            terrain.when(() -> ClientSodiumTerrain.usesPreparedTerrain(destination)).thenReturn(true);
+            clearInvocations(travel, source);
+            maintain.invoke(renderer, cover);
+            maintain.invoke(renderer, sourceCover);
+            verify(travel, never()).sectionKeys();
+            verify(source, never()).sectionKeys();
+            assertSame(projected, next.invoke(renderer, false, true, Long.MAX_VALUE));
+            set(renderer, "pendingBuilds", 1);
+            finish.invoke(renderer, cover, 1L, 1L, 0, null, completed, null);
+            verify(completed).close();
+            verify(completed, never()).meshes();
+            assertEquals(0, get(renderer, "pendingBuilds"));
+            assertTrue((boolean) nativeCover.invoke(renderer, sourceCover));
+            terrain.when(() -> ClientSodiumTerrain.usesPreparedTerrain(destination)).thenReturn(false);
+            assertFalse((boolean) nativeCover.invoke(renderer, cover));
+            assertFalse((boolean) nativeCover.invoke(renderer, sourceCover));
+        } finally {
+            renderer.clear();
+        }
+    }
+
+    @Test
+    public void offscreenRootDoesNotAllocateOrClearTheCompositeLayer() throws ReflectiveOperationException {
+        ClientPortalRenderer renderer = ClientPortalRenderer.instance();
+        renderer.clear();
+        PortalScene scene = scene();
+        when(scene.environment()).thenReturn(PortalEnvironmentTest.environment(ClientViewEnvironment.Transform.IDENTITY));
+        renderer.replaceScene(1, scene);
+        CameraRenderState camera = new CameraRenderState();
+        camera.pos = new Vec3(1, 1, 3);
+        camera.cullFrustum = mock(Frustum.class);
+        set(renderer, "rootCamera", camera);
+        set(renderer, "camera", camera);
+        Minecraft minecraft = mock(Minecraft.class, RETURNS_DEEP_STUBS);
+        Options options = mock(Options.class, RETURNS_DEEP_STUBS);
+        when(options.ambientOcclusion().get()).thenReturn(false);
+        set(minecraft, "options", options);
+        set(minecraft, "gameRenderer", mock(GameRenderer.class));
+        TextureTarget main = mock(TextureTarget.class);
+        main.width = 1920;
+        main.height = 1080;
+        when(minecraft.gameRenderer.mainRenderTarget()).thenReturn(main);
+        set(renderer, "models", minecraft.getModelManager().getBlockStateModelSet());
+        set(renderer, "ambientOcclusion", false);
+        set(renderer, "pipelines", mock(PortalPipelines.class));
+        set(renderer, "terrainSampler", mock(GpuSampler.class));
+        set(renderer, "anisotropy", 1);
+        set(renderer, "layerMesh", mock(PortalGpuMesh.class));
+        set(renderer, "portalLayer", mock(TextureTarget.class));
+        GpuDevice device = mock(GpuDevice.class);
+        Method prepare = ClientPortalRenderer.class.getDeclaredMethod("prepareFrame", GpuBufferSlice.class);
+        prepare.setAccessible(true);
+        try (MockedStatic<RenderSystem> system = mockStatic(RenderSystem.class);
+             MockedStatic<Minecraft> game = mockStatic(Minecraft.class);
+             MockedStatic<PortalShaderScope> shaders = mockStatic(PortalShaderScope.class);
+             MockedConstruction<TextureTarget> attachments = mockConstruction(TextureTarget.class)) {
+            system.when(RenderSystem::getDevice).thenReturn(device);
+            game.when(Minecraft::getInstance).thenReturn(minecraft);
+            prepare.invoke(renderer, new Object[]{null});
+            assertSame(null, get(renderer, "portalLayer"));
+            assertTrue(attachments.constructed().isEmpty());
+            verifyNoInteractions(device);
+            verify(camera.cullFrustum).isVisible(any(AABB.class));
+            assertTrue(((List<?>) get(renderer, "visible")).isEmpty());
+        } finally {
+            renderer.clear();
+        }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void shaderCompositingSkipsEmptyFramesButPreservesTravelAndArrivalCovers() throws ReflectiveOperationException {
+        ClientPortalRenderer renderer = ClientPortalRenderer.instance();
+        renderer.clear();
+        PortalGpuMesh mesh = mock(PortalGpuMesh.class);
+        set(renderer, "layerMesh", mesh);
+        set(renderer, "pipelines", mock(PortalPipelines.class));
+        set(renderer, "travelMainReady", true);
+        GpuDevice device = mock(GpuDevice.class, RETURNS_DEEP_STUBS);
+        Minecraft minecraft = mock(Minecraft.class, RETURNS_DEEP_STUBS);
+        Options options = mock(Options.class, RETURNS_DEEP_STUBS);
+        when(options.chunkSectionFadeInTime().get()).thenReturn(0.0);
+        set(minecraft, "options", options);
+        set(minecraft, "gameRenderer", mock(GameRenderer.class));
+        TextureTarget main = mock(TextureTarget.class, RETURNS_DEEP_STUBS);
+        when(minecraft.gameRenderer.mainRenderTarget()).thenReturn(main);
+        try (MockedStatic<RenderSystem> system = mockStatic(RenderSystem.class, RETURNS_DEEP_STUBS);
+             MockedStatic<Minecraft> game = mockStatic(Minecraft.class);
+             MockedStatic<PortalShaderScope> shaders = mockStatic(PortalShaderScope.class);
+             MockedStatic<PortalFramebufferScope> framebuffer = mockStatic(PortalFramebufferScope.class)) {
+            system.when(RenderSystem::getDevice).thenReturn(device);
+            game.when(Minecraft::getInstance).thenReturn(minecraft);
+            shaders.when(PortalShaderScope::shaders).thenReturn(true);
+            renderer.compositeAfterShaders();
+            assertEquals(false, get(renderer, "travelMainReady"));
+            verifyNoInteractions(device);
+            game.verifyNoInteractions();
+            framebuffer.verifyNoInteractions();
+            renderer.prepareTravel(scene(), new CameraRenderState());
+            Object travel = get(renderer, "travel");
+            set(travel, "rendered", true);
+            set(travel, "target", mock(TextureTarget.class, RETURNS_DEEP_STUBS));
+            set(travel, "cullFrustum", mock(Frustum.class));
+            renderer.compositeAfterShaders();
+            verifyNoInteractions(device);
+            renderer.transitionTravel(true);
+            renderer.compositeAfterShaders();
+            verify(device).createCommandEncoder();
+            verify(mesh).draw(any(RenderPass.class));
+            assertEquals(true, get(renderer, "travelMainReady"));
+            renderer.retainArrival();
+            renderer.compositeAfterShaders();
+            verify(device, times(2)).createCommandEncoder();
+            verify(mesh, times(2)).draw(any(RenderPass.class));
+            renderer.retireArrival();
+            renderer.compositeAfterShaders();
+            assertEquals(false, get(renderer, "travelMainReady"));
+            verify(device, times(2)).createCommandEncoder();
+            renderer.replaceScene(1, scene());
+            ((List<Object>) get(renderer, "visible")).add(((Map<?, ?>) get(renderer, "portals")).get(1));
+            set(renderer, "portalLayer", mock(TextureTarget.class, RETURNS_DEEP_STUBS));
+            renderer.compositeAfterShaders();
+            verify(device, times(3)).createCommandEncoder();
+            verify(mesh, times(3)).draw(any(RenderPass.class));
+        } finally {
+            renderer.clear();
+        }
+    }
+
     @Test
     public void nextPreparationHasIndependentLifetimeWhileArrivalCoverIsStillNeeded() throws ReflectiveOperationException {
         ClientPortalRenderer renderer = ClientPortalRenderer.instance();
@@ -327,10 +878,10 @@ public class ClientPortalRendererTest {
         PortalSectionMesh mesh = mock(PortalSectionMesh.class);
         when(mesh.meshes()).thenReturn(Map.of());
         Method finish = ClientPortalRenderer.class.getDeclaredMethod("finish", portal.getClass(), long.class,
-            long.class, int.class, PortalSectionMesh.class, Throwable.class);
+            long.class, int.class, PortalScene.MeshIdentity.class, PortalSectionMesh.class, Throwable.class);
         finish.setAccessible(true);
         try {
-            finish.invoke(renderer, portal, key, 1L, get(portal, "generation"), mesh, null);
+            finish.invoke(renderer, portal, key, 1L, get(portal, "generation"), null, mesh, null);
             assertFalse(renderer.travelReady());
             set(renderer, "travelDrawEpoch", get(renderer, "travelMeshEpoch"));
             assertTrue(((LongOpenHashSet) get(renderer, "travelDrawSections")).isEmpty());
@@ -400,11 +951,11 @@ public class ClientPortalRendererTest {
         PortalSectionMesh mesh = mock(PortalSectionMesh.class);
         when(mesh.meshes()).thenReturn(Map.of());
         Method finish = ClientPortalRenderer.class.getDeclaredMethod("finish", portal.getClass(), long.class,
-            long.class, int.class, PortalSectionMesh.class, Throwable.class);
+            long.class, int.class, PortalScene.MeshIdentity.class, PortalSectionMesh.class, Throwable.class);
         finish.setAccessible(true);
         try {
             assertFalse(renderer.travelReady());
-            finish.invoke(renderer, portal, key, 1L, get(portal, "generation"), mesh, null);
+            finish.invoke(renderer, portal, key, 1L, get(portal, "generation"), null, mesh, null);
             assertEquals(0, get(renderer, "pendingBuilds"));
             assertFalse(renderer.travelReady());
             assertTrue(renderer.travelDrawable());
@@ -575,6 +1126,151 @@ public class ClientPortalRendererTest {
         } finally {
             renderer.clear();
             assertFalse(renderer.travelDrawable());
+        }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void shaderTerrainSharesTransformsAcrossLayersWithoutSharingNestedPortalCameras() throws ReflectiveOperationException {
+        ClientPortalRenderer renderer = ClientPortalRenderer.instance();
+        renderer.clear();
+        renderer.replaceScene(1, scene());
+        renderer.replaceScene(2, scene());
+        Map<?, ?> portals = (Map<?, ?>) get(renderer, "portals");
+        Object parent = portals.get(1);
+        Object child = portals.get(2);
+        Object parentSection = orderingSection(SectionPos.asLong(0, 0, 0));
+        Object childSection = orderingSection(SectionPos.asLong(0, 0, 0));
+        for (Object section : List.of(parentSection, childSection)) {
+            EnumMap<ChunkSectionLayer, PortalGpuMesh> layers = (EnumMap<ChunkSectionLayer, PortalGpuMesh>) get(section, "layers");
+            layers.put(ChunkSectionLayer.CUTOUT, mock(PortalGpuMesh.class));
+            layers.put(ChunkSectionLayer.TRANSLUCENT, mock(PortalGpuMesh.class));
+        }
+        for (Object portal : List.of(parent, child)) {
+            set(portal, "shader", mock(PortalShaderRenderer.Session.class));
+            set(portal, "environment", mock(PortalEnvironmentRenderer.class));
+        }
+        ((List<Object>) get(parent, "drawSections")).add(parentSection);
+        ((List<Object>) get(child, "drawSections")).add(childSection);
+        CameraRenderState main = new CameraRenderState();
+        main.pos = new Vec3(1, 2, 3);
+        CameraRenderState nested = new CameraRenderState();
+        nested.pos = new Vec3(20, 30, 40);
+        DynamicGpuData uniforms = mock(DynamicGpuData.class);
+        GpuBufferSlice parentSlice = mock(GpuBufferSlice.class);
+        GpuBufferSlice childSlice = mock(GpuBufferSlice.class);
+        when(uniforms.writeTransform(any(DynamicGpuData.Transform.class))).thenReturn(parentSlice, childSlice);
+        RenderPass parentPass = mock(RenderPass.class);
+        RenderPass childPass = mock(RenderPass.class);
+        Method draw = ClientPortalRenderer.class.getDeclaredMethod("drawTerrain", parent.getClass(), ChunkSectionLayer.class, RenderPass.class);
+        draw.setAccessible(true);
+        Method clear = ClientPortalRenderer.class.getDeclaredMethod("clearTerrainTransforms", parent.getClass());
+        clear.setAccessible(true);
+        Minecraft minecraft = mock(Minecraft.class, RETURNS_DEEP_STUBS);
+        try (MockedStatic<RenderSystem> system = mockStatic(RenderSystem.class, RETURNS_DEEP_STUBS);
+             MockedStatic<Minecraft> game = mockStatic(Minecraft.class);
+             MockedStatic<PortalIrisTerrain> terrain = mockStatic(PortalIrisTerrain.class)) {
+            game.when(Minecraft::getInstance).thenReturn(minecraft);
+            system.when(RenderSystem::getDynamicUniforms).thenReturn(uniforms);
+            set(renderer, "camera", main);
+            draw.invoke(renderer, parent, ChunkSectionLayer.SOLID, parentPass);
+            set(renderer, "camera", nested);
+            for (ChunkSectionLayer layer : ChunkSectionLayer.values()) {
+                draw.invoke(renderer, child, layer, childPass);
+            }
+            clear.invoke(null, child);
+            set(renderer, "camera", main);
+            draw.invoke(renderer, parent, ChunkSectionLayer.CUTOUT, parentPass);
+            draw.invoke(renderer, parent, ChunkSectionLayer.TRANSLUCENT, parentPass);
+            verify(uniforms, times(2)).writeTransform(any(DynamicGpuData.Transform.class));
+            verify(uniforms).writeTransform(argThat((DynamicGpuData.Transform transform) -> transform.modelView().m30() == -1.0f && transform.modelView().m31() == -2.0f));
+            verify(uniforms).writeTransform(argThat((DynamicGpuData.Transform transform) -> transform.modelView().m30() == -20.0f && transform.modelView().m31() == -30.0f));
+            verify(parentPass, times(3)).setUniform("DynamicTransforms", parentSlice);
+            verify(childPass, times(3)).setUniform("DynamicTransforms", childSlice);
+            assertSame(parentSlice, get(parentSection, "transform"));
+            assertSame(null, get(childSection, "transform"));
+            clear.invoke(null, parent);
+            assertSame(null, get(parentSection, "transform"));
+            verifyNoInteractions(parentSlice, childSlice);
+        } finally {
+            renderer.clear();
+        }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void shaderDestinationClearsBorrowedTransformsAfterFrameFailureAndBeforeFeatureCleanup() throws ReflectiveOperationException {
+        ClientPortalRenderer renderer = ClientPortalRenderer.instance();
+        renderer.clear();
+        PortalScene scene = scene();
+        when(scene.environment()).thenReturn(PortalEnvironmentTest.environment(ClientViewEnvironment.Transform.IDENTITY));
+        renderer.replaceScene(1, scene);
+        Object portal = ((Map<?, ?>) get(renderer, "portals")).get(1);
+        long key = SectionPos.asLong(0, 0, 0);
+        Object section = orderingSection(key);
+        EnumMap<ChunkSectionLayer, PortalGpuMesh> layers = (EnumMap<ChunkSectionLayer, PortalGpuMesh>) get(section, "layers");
+        layers.put(ChunkSectionLayer.CUTOUT, mock(PortalGpuMesh.class));
+        layers.put(ChunkSectionLayer.TRANSLUCENT, mock(PortalGpuMesh.class));
+        ((Long2ObjectOpenHashMap<Object>) get(portal, "sections")).put(key, section);
+        ((List<Object>) get(portal, "drawSections")).add(section);
+        CameraRenderState camera = new CameraRenderState();
+        camera.pos = new Vec3(1, 2, 3);
+        camera.blockPos = BlockPos.containing(camera.pos);
+        set(renderer, "camera", camera);
+        set(portal, "camera", camera);
+        set(portal, "viewport", new PortalViewport(0, 0, 1920, 1080));
+        set(portal, "target", mock(TextureTarget.class));
+        PortalShaderRenderer.Session shader = mock(PortalShaderRenderer.Session.class);
+        PortalShaderRenderer.Frame successful = mock(PortalShaderRenderer.Frame.class);
+        PortalShaderRenderer.Frame failing = mock(PortalShaderRenderer.Frame.class);
+        IllegalStateException failure = new IllegalStateException("Shader frame cleanup failed");
+        doAnswer(call -> { throw failure; }).when(failing).close();
+        when(shader.begin(any())).thenReturn(successful, failing, successful);
+        set(portal, "shader", shader);
+        PortalEnvironmentRenderer environment = mock(PortalEnvironmentRenderer.class);
+        set(portal, "environment", environment);
+        PortalFeatureRenderer features = mock(PortalFeatureRenderer.class);
+        doAnswer(call -> {
+            assertSame(null, get(section, "transform"));
+            return null;
+        }).when(features).closeFrame();
+        ((PortalFeatureRenderer[]) get(get(renderer, "targets"), "features"))[0] = features;
+        ((ProjectionMatrixBuffer[]) get(get(renderer, "targets"), "projections"))[0] = mock(ProjectionMatrixBuffer.class);
+        DynamicGpuData uniforms = mock(DynamicGpuData.class);
+        GpuBufferSlice first = mock(GpuBufferSlice.class);
+        GpuBufferSlice second = mock(GpuBufferSlice.class);
+        GpuBufferSlice third = mock(GpuBufferSlice.class);
+        when(uniforms.writeTransform(any(DynamicGpuData.Transform.class))).thenReturn(first, second, third);
+        Class<?> dimensions = Class.forName(ClientPortalRenderer.class.getName() + "$RenderDimensions");
+        Constructor<?> constructor = dimensions.getDeclaredConstructor(int.class, int.class, int.class);
+        constructor.setAccessible(true);
+        Object size = constructor.newInstance(1920, 1080, 0);
+        Method render = ClientPortalRenderer.class.getDeclaredMethod("renderShaderPortal", portal.getClass(), dimensions);
+        render.setAccessible(true);
+        Minecraft minecraft = mock(Minecraft.class, RETURNS_DEEP_STUBS);
+        try (MockedStatic<RenderSystem> system = mockStatic(RenderSystem.class, RETURNS_DEEP_STUBS);
+             MockedStatic<Minecraft> game = mockStatic(Minecraft.class);
+             MockedStatic<PortalClipScope> clipping = mockStatic(PortalClipScope.class);
+             MockedStatic<PortalShaderScope> scopes = mockStatic(PortalShaderScope.class);
+             MockedStatic<PortalIrisTerrain> terrain = mockStatic(PortalIrisTerrain.class);
+             MockedConstruction<PortalShaderCamera> shaderCameras = mockConstruction(PortalShaderCamera.class,
+                 (shaderCamera, context) -> when(shaderCamera.getViewRotationMatrix(any())).thenAnswer(call -> call.getArgument(0)))) {
+            game.when(Minecraft::getInstance).thenReturn(minecraft);
+            system.when(RenderSystem::getDynamicUniforms).thenReturn(uniforms);
+            system.when(RenderSystem::getModelViewStack).thenReturn(new Matrix4fStack(8));
+            render.invoke(renderer, portal, size);
+            assertSame(null, get(section, "transform"));
+            camera.pos = new Vec3(4, 5, 6);
+            InvocationTargetException thrown = assertThrows(InvocationTargetException.class, () -> render.invoke(renderer, portal, size));
+            assertSame(failure, thrown.getCause());
+            assertSame(null, get(section, "transform"));
+            render.invoke(renderer, portal, size);
+            verify(uniforms, times(3)).writeTransform(any(DynamicGpuData.Transform.class));
+            verify(environment, times(3)).endFrame();
+            verify(features, times(6)).closeFrame();
+            verifyNoInteractions(first, second, third);
+        } finally {
+            renderer.clear();
         }
     }
 
@@ -1010,13 +1706,22 @@ public class ClientPortalRendererTest {
         int generation = (int) get(portal, "generation");
         try {
             PortalScene rebound = scene();
-            renderer.refreshScene(1, rebound);
+            renderer.refreshScene(1, rebound, false);
             assertSame(portal, ((Map<?, ?>) get(renderer, "portals")).get(1));
             assertSame(rebound, get(portal, "scene"));
             assertSame(section, ((Long2ObjectOpenHashMap<Object>) get(portal, "sections")).get(key));
             verifyNoInteractions(shaders);
+            PortalScene reboundLevel = scene();
+            renderer.refreshScene(1, reboundLevel, true);
+            assertSame(reboundLevel, get(portal, "scene"));
+            assertSame(section, ((Long2ObjectOpenHashMap<Object>) get(portal, "sections")).get(key));
+            assertSame(sectionClip, get(section, "clip"));
+            assertSame(parentClip, get(portal, "parentClip"));
+            assertSame(aperture, get(portal, "apertureMesh"));
+            verify(shaders).resetHistory(1);
+            verify(mesh, never()).close();
             PortalScene back = scene(0, false);
-            renderer.refreshScene(1, back);
+            renderer.refreshScene(1, back, false);
             assertSame(back, get(portal, "scene"));
             assertSame(back.geometry(), get(portal, "geometry"));
             assertEquals(generation, get(portal, "generation"));
@@ -1027,7 +1732,7 @@ public class ClientPortalRendererTest {
             verify(parentClip).close();
             verify(aperture).close();
             verify(mesh, never()).close();
-            verify(shaders).resetHistory(1);
+            verify(shaders, times(2)).resetHistory(1);
             verify(shaders, never()).remove(1);
             renderer.invalidate(1, key, true);
             assertTrue(((LongSet) get(portal, "dirty")).contains(key));
@@ -1160,14 +1865,13 @@ public class ClientPortalRendererTest {
         dispatch.setAccessible(true);
         try {
             maintain.invoke(renderer, portal);
+            dispatch.invoke(renderer, 0L);
+            assertTrue(((Map<?, ?>) get(portal, "sections")).isEmpty());
             dispatch.invoke(renderer, Long.MAX_VALUE);
-            assertEquals(64, ((Map<?, ?>) get(portal, "sections")).size());
+            assertEquals(200, ((Map<?, ?>) get(portal, "sections")).size());
             assertEquals(0, get(renderer, "pendingBuilds"));
             assertTrue(((LongSet) get(portal, "building")).isEmpty());
-            assertFalse(((LongSet) get(portal, "dirty")).isEmpty());
-            dispatch.invoke(renderer, 0L);
-            assertEquals(65, ((Map<?, ?>) get(portal, "sections")).size());
-            assertEquals(0, get(renderer, "pendingBuilds"));
+            assertTrue(((LongSet) get(portal, "dirty")).isEmpty());
         } finally {
             renderer.clear();
         }
@@ -1276,9 +1980,9 @@ public class ClientPortalRendererTest {
             when(mesh.meshes()).thenReturn(Map.of());
             set(renderer, "pendingBuilds", 1);
             Method finish = ClientPortalRenderer.class.getDeclaredMethod("finish", portal.getClass(), long.class, long.class,
-                int.class, PortalSectionMesh.class, Throwable.class);
+                int.class, PortalScene.MeshIdentity.class, PortalSectionMesh.class, Throwable.class);
             finish.setAccessible(true);
-            finish.invoke(renderer, portal, changed, 2L, get(portal, "generation"), mesh, null);
+            finish.invoke(renderer, portal, changed, 2L, get(portal, "generation"), null, mesh, null);
             assertEquals(0, get(renderer, "pendingBuilds"));
             assertFalse(building.contains(changed));
             assertTrue(dirty.contains(changed));

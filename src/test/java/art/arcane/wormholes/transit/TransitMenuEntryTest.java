@@ -31,7 +31,7 @@ final class TransitMenuEntryTest {
         LocalPortal bare = TransitTestSupport.portal(TransitTestSupport.world("menu-bare"));
         assertFalse(entry.visible(bare, null), "no extension, no tile");
 
-        WormholesHooks.install(new WormholesRegistrar().portalExtension(new TransitExtensionFactory()));
+        WormholesHooks.install(new WormholesRegistrar().portalExtension(TransitPortalExtension.class, extensionPortal -> new TransitPortalExtension()));
         LocalPortal portal = TransitTestSupport.portal(TransitTestSupport.world("menu"));
         assertTrue(entry.visible(portal, null));
         assertFalse(entry.enchanted(portal, null));

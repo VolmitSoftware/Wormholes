@@ -8,6 +8,39 @@ import static org.junit.Assert.assertTrue;
 
 public class MinecraftPreparedTravelBudgetTest {
     @Test
+    public void unloadedArrivalHorizonCannotQueueMoreThanSixteenLeasesWithoutCapturing() {
+        for (boolean reusable : new boolean[]{false, true}) {
+            MinecraftPreparedTravel.CaptureBudget budget = new MinecraftPreparedTravel.CaptureBudget(reusable, 1_000L);
+            int admitted = 0;
+            for (int column = 0; column < 529; column++) {
+                assertTrue(budget.allows(2_000L));
+                if (budget.requestLease()) {
+                    admitted++;
+                }
+            }
+            assertEquals(16, admitted);
+            assertFalse(budget.requestLease());
+        }
+    }
+
+    @Test
+    public void leaseAdmissionDoesNotConsumeReadyColumnCaptureBudgetAndRenewsNextTick() {
+        MinecraftPreparedTravel.CaptureBudget budget = new MinecraftPreparedTravel.CaptureBudget(true, 1_000L);
+        for (int request = 0; request < 16; request++) {
+            assertTrue(budget.requestLease());
+        }
+        assertFalse(budget.requestLease());
+        for (int column = 0; column < 16; column++) {
+            assertTrue(budget.allows(2_000L));
+            budget.captured(64 * 1024);
+        }
+        assertFalse(budget.allows(2_000L));
+        MinecraftPreparedTravel.CaptureBudget next = new MinecraftPreparedTravel.CaptureBudget(true, 1_000L);
+        assertTrue(next.requestLease());
+        assertTrue(next.allows(2_000L));
+    }
+
+    @Test
     public void cacheProofCaptureUsesWorkBoundsInsteadOfPayloadBandwidth() {
         MinecraftPreparedTravel.CaptureBudget budget = new MinecraftPreparedTravel.CaptureBudget(true, 1_000L);
         int bytes = 0;

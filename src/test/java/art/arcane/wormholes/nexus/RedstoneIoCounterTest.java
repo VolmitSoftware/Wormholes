@@ -32,7 +32,7 @@ final class RedstoneIoCounterTest {
 
     @BeforeEach
     void install() {
-        WormholesHooks.install(new WormholesRegistrar().portalExtension(new NexusExtensionFactory(null)));
+        WormholesHooks.install(new WormholesRegistrar().portalExtension(NexusPortalExtension.class, extensionPortal -> new NexusPortalExtension(extensionPortal, null)));
         world = NexusTestSupport.world("redstone-counter");
         NetworkRegistry registry = new NetworkRegistry(java.nio.file.Path.of("build", "tmp", "redstone-counter"), BukkitJsonDocuments.INSTANCE);
         Dialer dialer = new Dialer(registry, (portal, member) -> true, NexusConfig::new);

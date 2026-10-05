@@ -5,6 +5,9 @@ import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Direction;
 import org.junit.jupiter.api.Test;
 
+import java.util.Random;
+
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -75,6 +78,72 @@ final class ProjectorPlaneWindowTest {
         assertTrue(window(1, 2, 1.0E-8D).intersectsBlockSilhouette(0, 0, 1.0E-8D,
             100, 0, -1, -1));
         assertTrue(window(1, 2, 2).intersectsBlockSilhouette(0, 0, 2, 100, 0, 2, 2));
+    }
+
+    @Test
+    void slabBoundsMatchCornerProjectionAcrossEveryOrientation() {
+        Random random = new Random(73L);
+        double[] actual = new double[4];
+        for (Direction normal : Direction.values()) {
+            PortalFrame frame = PortalFrame.canonical(normal);
+            for (int rotation = 0; rotation < 4; rotation++, frame = frame.rotateClockwise()) {
+                for (int sample = 0; sample < 64; sample++) {
+                    double xa = random.nextDouble(-1000.0D, 1000.0D);
+                    double ya = random.nextDouble(-1000.0D, 1000.0D);
+                    double za = random.nextDouble(-1000.0D, 1000.0D);
+                    AxisAlignedBB area = new AxisAlignedBB(xa, xa + random.nextDouble(0.001D, 20.0D),
+                        ya, ya + random.nextDouble(0.001D, 20.0D), za, za + random.nextDouble(0.001D, 20.0D));
+                    double originX = random.nextDouble(-1000.0D, 1000.0D);
+                    double originY = random.nextDouble(-1000.0D, 1000.0D);
+                    double originZ = random.nextDouble(-1000.0D, 1000.0D);
+                    double eyeX = random.nextDouble(-1000.0D, 1000.0D);
+                    double eyeY = random.nextDouble(-1000.0D, 1000.0D);
+                    double eyeZ = random.nextDouble(-1000.0D, 1000.0D);
+                    double padding = random.nextDouble(0.0D, 2.0D);
+                    double eyeDistance = (eyeX - originX) * normal.x() + (eyeY - originY) * normal.y()
+                        + (eyeZ - originZ) * normal.z();
+                    double cellDistance = -eyeDistance * random.nextDouble(0.1D, 20.0D);
+                    ProjectorPlaneWindow window = ProjectorPlaneWindow.create(null, area, frame,
+                        originX, originY, originZ, padding, eyeDistance);
+                    assertTrue(window.slabWindow(eyeX, eyeY, eyeZ, cellDistance, actual));
+                    double[] expected = cornerSlabBounds(area, frame, originX, originY, originZ,
+                        eyeX, eyeY, eyeZ, padding, eyeDistance, cellDistance);
+                    assertArrayEquals(expected, actual, 0.0D);
+                }
+            }
+        }
+    }
+
+    private static double[] cornerSlabBounds(AxisAlignedBB area, PortalFrame frame,
+                                             double originX, double originY, double originZ,
+                                             double eyeX, double eyeY, double eyeZ,
+                                             double padding, double eyeDistance, double cellDistance) {
+        double rightMin = Double.POSITIVE_INFINITY;
+        double rightMax = Double.NEGATIVE_INFINITY;
+        double upMin = Double.POSITIVE_INFINITY;
+        double upMax = Double.NEGATIVE_INFINITY;
+        Direction right = frame.getRight();
+        Direction up = frame.getUp();
+        for (int corner = 0; corner < 8; corner++) {
+            double x = ((corner & 1) == 0 ? area.getXa() : area.getXb()) - originX;
+            double y = ((corner & 2) == 0 ? area.getYa() : area.getYb()) - originY;
+            double z = ((corner & 4) == 0 ? area.getZa() : area.getZb()) - originZ;
+            double lateral = x * right.x() + y * right.y() + z * right.z();
+            double vertical = x * up.x() + y * up.y() + z * up.z();
+            rightMin = Math.min(rightMin, lateral);
+            rightMax = Math.max(rightMax, lateral);
+            upMin = Math.min(upMin, vertical);
+            upMax = Math.max(upMax, vertical);
+        }
+        double eyeRight = (eyeX - originX) * right.x() + (eyeY - originY) * right.y() + (eyeZ - originZ) * right.z();
+        double eyeUp = (eyeX - originX) * up.x() + (eyeY - originY) * up.y() + (eyeZ - originZ) * up.z();
+        double t = -eyeDistance / (cellDistance - eyeDistance);
+        return new double[] {
+            eyeRight + (((rightMin - padding - 1.0E-7D) - eyeRight) / t),
+            eyeRight + (((rightMax + padding + 1.0E-7D) - eyeRight) / t),
+            eyeUp + (((upMin - padding - 1.0E-7D) - eyeUp) / t),
+            eyeUp + (((upMax + padding + 1.0E-7D) - eyeUp) / t)
+        };
     }
 
     private static ProjectorPlaneWindow window(double width, double height, double eyeDistance) {

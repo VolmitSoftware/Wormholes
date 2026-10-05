@@ -22,20 +22,19 @@ public final class ClientMeshHash {
     }
 
     public static long resolved(ClientViewMessage.MeshSection section, long epoch, IntFunction<String> states) throws ClientViewProtocolException {
-        Map<Integer, String> names = new HashMap<>();
         TreeMap<String, Integer> dictionary = new TreeMap<>();
         String backing = SessionPalette.AIR;
         dictionary.put(backing, 0);
         Brick original = section.brick();
-        int[] cells = new int[ClientViewProtocol.BRICK_CELLS];
-        for (int cell = 0; cell < cells.length; cell++) {
-            int id = original.paletteIdAt(cell);
-            String name = names.get(id);
-            if (name == null) {
-                name = state(id, section.backingState(), states);
-                names.put(id, name);
-                dictionary.put(name, 0);
-            }
+        ResolvedPalette palette = original.encoding() == Brick.Encoding.PALETTED
+            ? palette(original, section.backingState(), states, dictionary) : null;
+        String single = switch (original.encoding()) {
+            case EMPTY -> backing;
+            case SINGLE -> state(original.singlePaletteId(), section.backingState(), states);
+            case PALETTED -> null;
+        };
+        if (single != null) {
+            dictionary.put(single, 0);
         }
         int next = 0;
         ClientViewWriter output = new ClientViewWriter(1024);
@@ -44,16 +43,72 @@ public final class ClientMeshHash {
             entry.setValue(next++);
             output.string(entry.getKey());
         }
-        for (int cell = 0; cell < cells.length; cell++) {
-            cells[cell] = dictionary.get(names.get(original.paletteIdAt(cell)));
-        }
         Brick.BlockEntityCell[] entities = original.blockEntities().clone();
         Arrays.sort(entities, Comparator.comparingInt(Brick.BlockEntityCell::cellIndex));
-        Brick brick = BrickCodec.pack(0, cells).withLight(original.blockLight(), original.skyLight()).withBlockEntities(entities);
+        Brick brick = (palette == null ? Brick.single(0, dictionary.get(single)) : pack(original, palette, dictionary))
+            .withLight(original.blockLight(), original.skyLight()).withBlockEntities(entities);
         ClientViewMessage.MeshSection canonical = new ClientViewMessage.MeshSection(0, 1, section.sectionX(), section.sectionY(),
             section.sectionZ(), 1, dictionary.get(backing), brick, biomes(section.biomes()));
         output.bytes(ClientViewCodec.encodeBody(canonical));
         return XxHash64.hash(output.rawBuffer(), 0, output.size(), epoch);
+    }
+
+    private static ResolvedPalette palette(Brick original, int backing, IntFunction<String> states,
+                                           TreeMap<String, Integer> dictionary) throws ClientViewProtocolException {
+        int[] ids = original.localPalette();
+        String[] names = new String[ids.length];
+        Map<Integer, String> resolved = new HashMap<>();
+        int used = 0;
+        boolean ordered = true;
+        boolean air = false;
+        for (int cell = 0; cell < ClientViewProtocol.BRICK_CELLS; cell++) {
+            int index = original.localIndexAt(cell);
+            if (names[index] != null) {
+                continue;
+            }
+            ordered &= index == used;
+            used++;
+            int id = ids[index];
+            String name = resolved.get(id);
+            if (name == null) {
+                name = state(id, backing, states);
+                resolved.put(id, name);
+                dictionary.put(name, 0);
+            }
+            names[index] = name;
+            air |= SessionPalette.AIR.equals(name);
+        }
+        return new ResolvedPalette(names, ordered && used == names.length
+            && original.bitsPerIndex() == Brick.bitsFor(used) && dictionary.size() == used + (air ? 0 : 1));
+    }
+
+    private static Brick pack(Brick original, ResolvedPalette palette, TreeMap<String, Integer> dictionary) {
+        String[] names = palette.names();
+        int[] remap = new int[names.length];
+        int single = -1;
+        boolean uniform = true;
+        for (int index = 0; index < names.length; index++) {
+            if (names[index] != null) {
+                remap[index] = dictionary.get(names[index]);
+                if (single < 0) {
+                    single = remap[index];
+                } else if (single != remap[index]) {
+                    uniform = false;
+                }
+            }
+        }
+        if (uniform) {
+            return Brick.single(0, single);
+        }
+        if (palette.reuseIndices()) {
+            return new Brick(0, Brick.Encoding.PALETTED, original.bitsPerIndex(), 0, ClientViewProtocol.PALETTE_AIR,
+                remap, original.packedIndices(), null, null, null);
+        }
+        int[] cells = new int[ClientViewProtocol.BRICK_CELLS];
+        for (int cell = 0; cell < cells.length; cell++) {
+            cells[cell] = remap[original.localIndexAt(cell)];
+        }
+        return BrickCodec.pack(0, cells);
     }
 
     private static String state(int id, int backing, IntFunction<String> states) throws ClientViewProtocolException {
@@ -68,7 +123,7 @@ public final class ClientMeshHash {
     }
 
     private static SectionBiomes biomes(SectionBiomes original) {
-        if (original.palette().isEmpty()) {
+        if (original.palette().size() <= 1) {
             return original;
         }
         TreeMap<String, Integer> dictionary = new TreeMap<>();
@@ -88,5 +143,8 @@ public final class ClientMeshHash {
             }
         }
         return new SectionBiomes(List.copyOf(dictionary.keySet()), indices);
+    }
+
+    private record ResolvedPalette(String[] names, boolean reuseIndices) {
     }
 }

@@ -69,7 +69,6 @@ public final class StatsSnapshotWriter {
     }
 
     private static final DateTimeFormatter ISO_INSTANT = DateTimeFormatter.ISO_INSTANT.withZone(ZoneOffset.UTC);
-    private static final int COL_WIDTH = 96;
     private static final long RECENT_ERROR_WINDOW_MILLIS = 60_000L;
     private static final int RECENT_ERROR_LIMIT = 10;
 

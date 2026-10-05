@@ -2,7 +2,6 @@ package art.arcane.wormholes.modded.mixin.client;
 
 import art.arcane.wormholes.modded.client.ClientPreparedTravel;
 import art.arcane.wormholes.modded.client.WormholesClient;
-import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
@@ -72,7 +71,8 @@ public abstract class PreparedTravelPacketMixin {
 
     @WrapOperation(method = "handleRespawn", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/Minecraft;setLevel(Lnet/minecraft/client/multiplayer/ClientLevel;)V"))
     private void wormholes$attachedLevel(Minecraft minecraft, ClientLevel level, Operation<Void> original) {
-        if (!seamless() || minecraft.level != level) {
+        WormholesClient client = WormholesClient.instance();
+        if (client == null || !client.preparedTravel().attachRespawnLevel(level)) {
             original.call(minecraft, level);
         }
     }
@@ -110,7 +110,7 @@ public abstract class PreparedTravelPacketMixin {
                                               int seaLevel, Operation<ClientLevel> original) {
         WormholesClient client = WormholesClient.instance();
         ClientLevel prepared = client == null ? null : client.preparedTravel().adopt(
-            new ClientPreparedTravel.Construction(data, dimension, type, extractor, debug, seed, seaLevel));
+            new ClientPreparedTravel.Construction(data, dimension, type, extractor, debug, seed, seaLevel, distance, simulation));
         return prepared == null ? original.call(connection, data, dimension, type, distance, simulation, extractor, debug, seed, seaLevel) : prepared;
     }
 
@@ -139,9 +139,4 @@ public abstract class PreparedTravelPacketMixin {
         }
     }
 
-    @ModifyReturnValue(method = "getPlayerCompiledSectionCallback", at = @At("RETURN"))
-    private Runnable wormholes$normalRendererReady(Runnable original) {
-        WormholesClient client = WormholesClient.instance();
-        return client == null ? original : client.preparedTravel().compiledCallback(original);
-    }
 }

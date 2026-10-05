@@ -86,7 +86,7 @@ public final class NexusSubsystem implements WormholesSubsystem, NexusPortalList
         dialMenu = menu;
         dialGestures = new DialGestures(created, dialer, menu);
         registrar.portalMenuEntry(new NetworkMenuEntry(created, new NetworkMenu(created, menu, io)));
-        registrar.portalExtension(new NexusExtensionFactory(this));
+        registrar.portalExtension(NexusPortalExtension.class, extensionPortal -> new NexusPortalExtension(extensionPortal, this));
         registrar.traversalObserver(returns);
         registrar.traversalObserver(io);
         registrar.destinationResolver(new NexusDestinationResolver(created, returns,

@@ -118,9 +118,9 @@ public class ClientPortalRendererUpdatesTest {
         pending.setAccessible(true);
         pending.setInt(renderer, 1);
         Method finish = ClientPortalRenderer.class.getDeclaredMethod("finish", portal.getClass(), long.class, long.class,
-            int.class, PortalSectionMesh.class, Throwable.class);
+            int.class, PortalScene.MeshIdentity.class, PortalSectionMesh.class, Throwable.class);
         finish.setAccessible(true);
-        finish.invoke(renderer, portal, SECTION, revision, generation, mesh, null);
+        finish.invoke(renderer, portal, SECTION, revision, generation, null, mesh, null);
         assertTrue(((LongOpenHashSet) field(portal, "building")).isEmpty());
     }
 

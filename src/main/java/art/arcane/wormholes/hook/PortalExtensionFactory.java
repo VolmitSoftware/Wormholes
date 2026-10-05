@@ -2,9 +2,17 @@ package art.arcane.wormholes.hook;
 
 import art.arcane.wormholes.portal.LocalPortal;
 
-/** Creates a {@link PortalExtension} for every constructed or loaded {@code LocalPortal}. */
-public interface PortalExtensionFactory {
-    Class<? extends PortalExtension> type();
+import java.util.Objects;
+import java.util.function.Function;
 
-    PortalExtension create(LocalPortal portal);
+/** Creates a {@link PortalExtension} for every constructed or loaded {@code LocalPortal}. */
+public record PortalExtensionFactory<T extends PortalExtension>(Class<T> type, Function<LocalPortal, T> constructor) {
+    public PortalExtensionFactory {
+        Objects.requireNonNull(type, "type");
+        Objects.requireNonNull(constructor, "constructor");
+    }
+
+    public T create(LocalPortal portal) {
+        return constructor.apply(portal);
+    }
 }

@@ -39,14 +39,6 @@ public enum Direction
 		}
 	}
 
-	public float yawDeltaTo(Direction other)
-	{
-		float delta = other.toYaw() - this.toYaw();
-		while (delta > 180f) delta -= 360f;
-		while (delta < -180f) delta += 360f;
-		return delta;
-	}
-
 	@Override
 	public String toString()
 	{
@@ -98,26 +90,6 @@ public enum Direction
 		return z >= 0.0D ? S : N;
 	}
 
-	public static Direction closestSlow(GeometryVector v)
-	{
-		double m = Double.MAX_VALUE;
-		Direction s = null;
-
-		for(Direction i : values())
-		{
-			GeometryVector x = i.toVector();
-			double g = x.distance(v);
-
-			if(g < m)
-			{
-				m = g;
-				s = i;
-			}
-		}
-
-		return s;
-	}
-
 	public static Direction closest(GeometryVector v, Direction... d)
 	{
 		double m = Double.MAX_VALUE;
@@ -161,21 +133,6 @@ public enum Direction
 	public GeometryVector toVector()
 	{
 		return new GeometryVector(x, y, z);
-	}
-
-	public boolean isCrooked(Direction to)
-	{
-		if(equals(to.reverse()))
-		{
-			return false;
-		}
-
-		if(equals(to))
-		{
-			return false;
-		}
-
-		return true;
 	}
 
 	private Direction(int x, int y, int z)
@@ -222,7 +179,6 @@ public enum Direction
 	{
 		return z;
 	}
-
 
 	public static Direction getDirection(GeometryVector v)
 	{
@@ -341,69 +297,4 @@ public enum Direction
 		return null;
 	}
 
-	public void rotateInto(double x, double y, double z, Direction to, double[] out3)
-	{
-		double right = x * rightX() + y * rightY() + z * rightZ();
-		double up = x * upX() + y * upY() + z * upZ();
-		double forward = x * this.x + y * this.y + z * this.z;
-		out3[0] = (right * to.rightX()) + (up * to.upX()) + (forward * to.x);
-		out3[1] = (right * to.rightY()) + (up * to.upY()) + (forward * to.y);
-		out3[2] = (right * to.rightZ()) + (up * to.upZ()) + (forward * to.z);
-	}
-
-	private final int rightX()
-	{
-		switch(this)
-		{
-			case N:
-				return 1;
-			case S:
-			case U:
-			case D:
-				return -1;
-			default:
-				return 0;
-		}
-	}
-
-	private final int rightY()
-	{
-		return 0;
-	}
-
-	private final int rightZ()
-	{
-		switch(this)
-		{
-			case E:
-				return 1;
-			case W:
-				return -1;
-			default:
-				return 0;
-		}
-	}
-
-	private final int upX()
-	{
-		return 0;
-	}
-
-	private final int upY()
-	{
-		return isVertical() ? 0 : 1;
-	}
-
-	private final int upZ()
-	{
-		switch(this)
-		{
-			case U:
-				return -1;
-			case D:
-				return 1;
-			default:
-				return 0;
-		}
-	}
 }

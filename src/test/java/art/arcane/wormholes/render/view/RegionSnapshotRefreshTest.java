@@ -1,6 +1,7 @@
 package art.arcane.wormholes.render.view;
 
 import art.arcane.wormholes.Wormholes;
+import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.network.view.EntityVisual;
 import art.arcane.wormholes.network.view.PacketBlobs;
 import art.arcane.wormholes.platform.WormholesPlatform;
@@ -37,6 +38,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.any;
@@ -46,6 +48,32 @@ import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 
 final class RegionSnapshotRefreshTest {
+    @Test
+    void evictedSignedColumnsBecomeUnavailableWithoutRetiringAnEntityThatMovedToAnotherColumn() throws ReflectiveOperationException {
+        try (Fixture fixture = new Fixture();
+             MockedStatic<FoliaScheduler> scheduler = mockStatic(FoliaScheduler.class)) {
+            for (int column = -128; column <= 128; column++) {
+                fixture.now.incrementAndGet();
+                fixture.entityX.set((column << 4) + 1);
+                fixture.entityZ.set((column << 4) + 8);
+                fixture.capture(column, column);
+                assertEquals(Material.STONE, fixture.view.sampleMaterial(column << 4, 64, column << 4));
+            }
+            assertNull(fixture.view.sampleMaterial(-128 << 4, 64, -128 << 4));
+            assertFalse(fixture.view.isChunkReady(-128 << 4, -128 << 4));
+            ProjectionEntityView entities = (ProjectionEntityView) fixture.view;
+            List<EntityVisual> moved = entities.getEntities((128 << 4) + 1, 64, (128 << 4) + 8, 1);
+            assertEquals(1, moved.size());
+            assertEquals(fixture.entityId, moved.getFirst().id());
+            fixture.tracker.markChanged(fixture.worldId, 128 << 4, 128 << 4);
+            assertNull(fixture.view.sampleMaterial(128 << 4, 64, 128 << 4));
+            assertFalse(fixture.view.isChunkReady(128 << 4, 128 << 4));
+            fixture.capture(128, 128);
+            assertTrue(fixture.view.isChunkReady(128 << 4, 128 << 4));
+            assertEquals(Material.STONE, fixture.view.sampleMaterial(128 << 4, 64, 128 << 4));
+        }
+    }
+
     @Test
     void snapshotsCaptureDefaultVisibilityWithoutReadingEntitiesOnTheViewerThread() throws ReflectiveOperationException {
         try (Fixture fixture = new Fixture();
@@ -204,6 +232,7 @@ final class RegionSnapshotRefreshTest {
         private final UUID entityId = UUID.randomUUID();
         private final AtomicLong now = new AtomicLong(1_000L);
         private final AtomicLong entityX = new AtomicLong(1L);
+        private final AtomicLong entityZ = new AtomicLong(8L);
         private final AtomicInteger snapshotCaptures = new AtomicInteger();
         private final AtomicInteger equipmentCaptures = new AtomicInteger();
         private final AtomicReference<Material> material = new AtomicReference<Material>(Material.STONE);
@@ -260,7 +289,12 @@ final class RegionSnapshotRefreshTest {
         }
 
         private void capture() throws ReflectiveOperationException {
-            capture.invoke(provider, view, Integer.valueOf(0), Integer.valueOf(0), Long.valueOf(0L));
+            capture(0, 0);
+        }
+
+        private void capture(int x, int z) throws ReflectiveOperationException {
+            capture.invoke(provider, view, Integer.valueOf(x), Integer.valueOf(z),
+                Long.valueOf(RegionSnapshotWorldViewProvider.chunkLookupKey(x, z)));
         }
 
         private ChunkSnapshot snapshot() {
@@ -277,8 +311,8 @@ final class RegionSnapshotRefreshTest {
             return switch (method.getName()) {
                 case "getUniqueId" -> entityId;
                 case "isValid", "isOnGround" -> Boolean.TRUE;
-                case "getLocation" -> new Location(null, entityX.get(), 64.0D, 8.0D);
-                case "getEyeLocation" -> new Location(null, entityX.get(), 65.6D, 8.0D);
+                case "getLocation" -> new Location(null, entityX.get(), 64.0D, entityZ.get());
+                case "getEyeLocation" -> new Location(null, entityX.get(), 65.6D, entityZ.get());
                 case "getVelocity" -> new Vector();
                 case "getType" -> EntityType.ZOMBIE;
                 case "getHeight" -> Double.valueOf(1.8D);

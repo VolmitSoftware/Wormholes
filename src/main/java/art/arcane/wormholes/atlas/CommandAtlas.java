@@ -59,6 +59,11 @@ public final class CommandAtlas implements CommandExecutor, TabCompleter {
             return true;
         }
         Player player = (Player) sender;
+        service.withState(player, state -> executeLoaded(player, args));
+        return true;
+    }
+
+    private void executeLoaded(Player player, String[] args) {
         switch (parse(args)) {
             case OPEN -> menu.open(player, AtlasModel.Filter.ALL);
             case FAVORITES -> menu.open(player, AtlasModel.Filter.FAVORITES);
@@ -68,9 +73,8 @@ public final class CommandAtlas implements CommandExecutor, TabCompleter {
                 service.setGuideTarget(player, null);
                 AtlasText.send(player, AtlasMessages.GUIDE_CLEARED);
             }
-            case USAGE -> AtlasText.sendLines(sender, AtlasMessages.USAGE, MessageArgs.empty());
+            case USAGE -> AtlasText.sendLines(player, AtlasMessages.USAGE, MessageArgs.empty());
         }
-        return true;
     }
 
     @Nullable

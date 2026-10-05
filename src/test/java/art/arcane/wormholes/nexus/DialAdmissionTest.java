@@ -1,6 +1,5 @@
 package art.arcane.wormholes.nexus;
 
-import art.arcane.wormholes.access.AccessExtensionFactory;
 import art.arcane.wormholes.access.AccessPortalExtension;
 import art.arcane.wormholes.access.AccessTestPortals;
 import art.arcane.wormholes.access.PortalRole;
@@ -31,8 +30,8 @@ final class DialAdmissionTest {
     @BeforeEach
     void install() {
         WormholesHooks.install(new WormholesRegistrar()
-            .portalExtension(new NexusExtensionFactory(null))
-            .portalExtension(new AccessExtensionFactory()));
+            .portalExtension(NexusPortalExtension.class, extensionPortal -> new NexusPortalExtension(extensionPortal, null))
+            .portalExtension(AccessPortalExtension.class, AccessPortalExtension::new));
         world = NexusTestSupport.world("dial-admission");
         portal = NexusTestSupport.portal(world, "hub");
     }

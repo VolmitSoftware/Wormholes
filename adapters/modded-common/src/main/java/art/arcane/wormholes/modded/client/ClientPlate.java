@@ -216,10 +216,6 @@ public final class ClientPlate implements ClientPortalContent {
         return null;
     }
 
-    public boolean sameContent(ClientPlate other) {
-        return other != null && other.sections.equals(sections) && other.cells.equals(cells) && other.backingState == backingState;
-    }
-
     private int handoffIdAt(int x, int y, int z) {
         PlateCell<BlockState> cell = handoff.plate().cell(ProjectionCellKey.pack(x, y, z));
         if (cell == null) {

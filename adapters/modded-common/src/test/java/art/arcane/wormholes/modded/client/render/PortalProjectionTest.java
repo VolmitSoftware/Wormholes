@@ -5,6 +5,7 @@ import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.network.client.ClientViewEnvironment;
 import org.joml.Matrix4d;
 import org.joml.Vector3d;
+import org.joml.Vector3f;
 import art.arcane.wormholes.util.Direction;
 import java.io.IOException;
 import java.io.InputStream;
@@ -16,6 +17,38 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 public class PortalProjectionTest {
+    @Test
+    public void everySignedAxisBasisKeepsRotationReflectionAndInversePointMappingConsistent() {
+        int rotations = 0;
+        int reflections = 0;
+        for (Direction x : Direction.values()) {
+            for (Direction y : Direction.values()) {
+                for (Direction z : Direction.values()) {
+                    if (x.getAxis() == y.getAxis() || x.getAxis() == z.getAxis() || y.getAxis() == z.getAxis()) {
+                        continue;
+                    }
+                    GeometryVector translation = new GeometryVector(30_000_000.5, -50.5, -30_000_000.5);
+                    ClientViewEnvironment.Transform transform = new ClientViewEnvironment.Transform(x, y, z, translation);
+                    Matrix4d matrix = PortalProjection.destinationToSource(transform);
+                    assertEquals(matrix.determinant3x3() < 0, transform.reflected());
+                    Vector3f direction = PortalProjection.rotation(transform).transformDirection(new Vector3f(2, 3, 4));
+                    Vector3d point = matrix.transformPosition(new Vector3d(2, 3, 4));
+                    assertEquals(direction.x, point.x - translation.x(), 0);
+                    assertEquals(direction.y, point.y - translation.y(), 0);
+                    assertEquals(direction.z, point.z - translation.z(), 0);
+                    assertEquals(new GeometryVector(2, 3, 4), transform.destinationPoint(point.x, point.y, point.z));
+                    if (transform.reflected()) {
+                        reflections++;
+                    } else {
+                        rotations++;
+                    }
+                }
+            }
+        }
+        assertEquals(24, rotations);
+        assertEquals(24, reflections);
+    }
+
     @Test
     public void nestedDestinationsComposeRotationsTranslationsAndReflectionsInBranchOrder() {
         ClientViewEnvironment.Transform root = new ClientViewEnvironment.Transform(Direction.S, Direction.U, Direction.W,

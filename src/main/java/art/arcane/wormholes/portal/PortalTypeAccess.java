@@ -4,9 +4,6 @@ import org.bukkit.entity.Player;
 
 public final class PortalTypeAccess
 {
-	public static final String PORTAL = "wormholes.portals.portal";
-	public static final String WORMHOLE = "wormholes.portals.wormhole";
-	public static final String GATEWAY = "wormholes.gateway";
 	public static final String ADMIN = "wormholes.admin";
 
 	private PortalTypeAccess()
@@ -23,11 +20,6 @@ public final class PortalTypeAccess
 		{
 			return true;
 		}
-		return switch(type)
-		{
-			case PORTAL, RTP -> player.hasPermission(PORTAL);
-			case WORMHOLE -> player.hasPermission(WORMHOLE);
-			case GATEWAY -> player.hasPermission(GATEWAY);
-		};
+		return player.hasPermission(type.permission());
 	}
 }

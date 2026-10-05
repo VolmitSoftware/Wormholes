@@ -70,13 +70,16 @@ final class PortalIrisResources {
 
     static void allocated(ProgramSet programs, RenderTargets targets) {
         Set<Integer> previous = allocations.get(programs);
-        Set<Integer> current = previous == null ? new HashSet<>() : new HashSet<>(previous);
+        Set<Integer> current = previous == null ? new HashSet<>() : null;
         for (int index = 0; index < targets.getRenderTargetCount(); index++) {
-            if (targets.get(index) != null) {
+            if (targets.get(index) != null && (previous == null || !previous.contains(index))) {
+                if (current == null) {
+                    current = new HashSet<>(previous);
+                }
                 current.add(index);
             }
         }
-        if (!current.equals(previous)) {
+        if (current != null) {
             allocations.put(programs, Set.copyOf(current));
             revision++;
         }

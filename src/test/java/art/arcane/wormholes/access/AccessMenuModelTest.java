@@ -25,7 +25,7 @@ final class AccessMenuModelTest {
 
     @BeforeEach
     void registerExtension() {
-        WormholesHooks.install(new WormholesRegistrar().portalExtension(new AccessExtensionFactory()));
+        WormholesHooks.install(new WormholesRegistrar().portalExtension(AccessPortalExtension.class, AccessPortalExtension::new));
         world = AccessTestPortals.world("access-menu");
     }
 

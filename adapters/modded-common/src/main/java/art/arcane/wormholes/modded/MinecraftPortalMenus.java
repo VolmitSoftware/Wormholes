@@ -625,11 +625,7 @@ public final class MinecraftPortalMenus implements AutoCloseable {
         if (runtime.access().administrator(viewer)) {
             return true;
         }
-        return runtime.access().permission(viewer, switch (type) {
-            case PORTAL, RTP -> "wormholes.portals.portal";
-            case WORMHOLE -> "wormholes.portals.wormhole";
-            case GATEWAY -> "wormholes.gateway";
-        });
+        return runtime.access().permission(viewer, type.permission());
     }
 
     private MinecraftElement mirrorModeOption(ServerPlayer viewer, MinecraftWindow window, MinecraftPortal portal) {

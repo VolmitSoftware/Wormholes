@@ -20,11 +20,12 @@ import java.util.List;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 
 public class PreparedChunkCacheTest {
     @Test
     public void onlyTheCurrentlyAttachedWorldPublishesMainRendererLightUpdates() throws IOException {
-        MethodNode method = callback();
+        MethodNode method = method("art/arcane/wormholes/modded/mixin/client/PreparedChunkCacheMixin", "wormholesPreparedLight");
         List<AbstractInsnNode> instructions = new ArrayList<>();
         List<Integer> opcodes = new ArrayList<>();
         for (AbstractInsnNode instruction : method.instructions) {
@@ -59,7 +60,7 @@ public class PreparedChunkCacheTest {
 
     @Test
     public void lightIsolationRunsBeforeTheVanillaRendererCallback() throws IOException {
-        AnnotationNode injection = callback().visibleAnnotations.getFirst();
+        AnnotationNode injection = method("art/arcane/wormholes/modded/mixin/client/PreparedChunkCacheMixin", "wormholesPreparedLight").visibleAnnotations.getFirst();
         assertEquals("Lorg/spongepowered/asm/mixin/injection/Inject;", injection.desc);
         assertEquals(List.of("onLightUpdate"), value(injection, "method"));
         assertEquals(Boolean.TRUE, value(injection, "cancellable"));
@@ -70,19 +71,60 @@ public class PreparedChunkCacheTest {
         assertEquals("HEAD", value(point, "value"));
     }
 
-    private static MethodNode callback() throws IOException {
-        String path = "/art/arcane/wormholes/modded/mixin/client/PreparedChunkCacheMixin.class";
-        try (InputStream bytes = PreparedChunkCacheTest.class.getResourceAsStream(path)) {
+    @Test
+    public void noOpForgetPacketsCannotInvalidateColumnsThatWereNeverRemoved() throws IOException {
+        MethodNode callback = method("art/arcane/wormholes/modded/mixin/client/PreparedChunkStorageMixin", "wormholes$unloaded");
+        AnnotationNode injection = callback.visibleAnnotations.getFirst();
+        assertEquals(List.of("replace", "drop"), value(injection, "method"));
+        AnnotationNode point = (AnnotationNode) ((List<?>) value(injection, "at")).getFirst();
+        assertEquals("INVOKE", value(point, "value"));
+        assertEquals("Lnet/minecraft/client/multiplayer/ClientLevel;unload(Lnet/minecraft/world/level/chunk/LevelChunk;)V",
+            value(point, "target"));
+        for (String name : List.of("replace", "drop")) {
+            MethodNode storage = method("net/minecraft/client/multiplayer/ClientChunkCache$Storage", name);
+            int unloads = 0;
+            for (AbstractInsnNode instruction : storage.instructions) {
+                if (instruction instanceof MethodInsnNode call && call.owner.equals("net/minecraft/client/multiplayer/ClientLevel")
+                    && call.name.equals("unload")) {
+                    unloads++;
+                }
+            }
+            assertEquals(1, unloads);
+        }
+        MethodNode vanilla = method("net/minecraft/client/multiplayer/ClientChunkCache", "drop");
+        int removal = -1;
+        for (AbstractInsnNode instruction : vanilla.instructions) {
+            if (instruction instanceof MethodInsnNode call && call.owner.equals("net/minecraft/client/multiplayer/ClientChunkCache$Storage")
+                && call.name.equals("drop")) {
+                removal = vanilla.instructions.indexOf(instruction);
+            }
+        }
+        assertTrue(removal >= 0);
+        int noOpBranches = 0;
+        for (AbstractInsnNode instruction : vanilla.instructions) {
+            if (instruction.getOpcode() == Opcodes.RETURN && vanilla.instructions.indexOf(instruction) < removal) {
+                noOpBranches++;
+            }
+            if (instruction instanceof JumpInsnNode branch && instruction.getOpcode() == Opcodes.IFEQ
+                && vanilla.instructions.indexOf(instruction) < removal && vanilla.instructions.indexOf(branch.label) > removal) {
+                noOpBranches++;
+            }
+        }
+        assertEquals(2, noOpBranches);
+    }
+
+    private static MethodNode method(String owner, String name) throws IOException {
+        try (InputStream bytes = PreparedChunkCacheTest.class.getResourceAsStream("/" + owner + ".class")) {
             assertNotNull(bytes);
             ClassNode type = new ClassNode();
             new ClassReader(bytes).accept(type, 0);
             for (MethodNode method : type.methods) {
-                if (method.name.equals("wormholesPreparedLight")) {
+                if (method.name.equals(name)) {
                     return method;
                 }
             }
         }
-        throw new AssertionError("Prepared light callback is missing");
+        throw new AssertionError(name);
     }
 
     private static Object value(AnnotationNode annotation, String key) {

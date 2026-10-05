@@ -23,12 +23,6 @@ final class PortalEnvironment {
         return from + (float) Math.atan2(Math.sin(difference), Math.cos(difference)) * blend;
     }
 
-    static Matrix4f rotation(ClientViewEnvironment.Transform transform) {
-        return new Matrix4f().m00(transform.xAxis().x()).m01(transform.xAxis().y()).m02(transform.xAxis().z())
-            .m10(transform.yAxis().x()).m11(transform.yAxis().y()).m12(transform.yAxis().z())
-            .m20(transform.zAxis().x()).m21(transform.zAxis().y()).m22(transform.zAxis().z());
-    }
-
     static SkyRenderState sky(ClientViewEnvironment environment, GeometryVector eye) {
         ClientViewEnvironment.Sky source = environment.sky();
         SkyRenderState state = new SkyRenderState();
@@ -70,7 +64,7 @@ final class PortalEnvironment {
         ClientViewEnvironment.Sky sky = environment.sky();
         Vector3fc color = vector(source.color());
         Vector3f forwards = new Vector3f(0.0f, 0.0f, -1.0f);
-        new Matrix4f(camera.viewRotationMatrix).mul(rotation(environment.transform())).invert().transformDirection(forwards);
+        new Matrix4f(camera.viewRotationMatrix).mul(PortalProjection.rotation(environment.transform())).invert().transformDirection(forwards);
         float sunriseDirection = Math.sin(sky.sunAngle()) > 0.0 ? -1.0f : 1.0f;
         float sunrise = Math.max(0.0f, forwards.x * sunriseDirection) * sky.sunrise().alpha();
         if (distance >= 4 && sunrise > 0.0f) {

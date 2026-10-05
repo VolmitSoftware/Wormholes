@@ -1,6 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
+import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
 
 import art.arcane.wormholes.modded.mixin.client.DebugScreenEntriesAccessor;
 import art.arcane.wormholes.network.client.ClientViewCapability;
@@ -8,7 +9,6 @@ import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.network.client.ClientViewProtocolException;
 import art.arcane.wormholes.render.blockentity.BlockEntitySample;
-import net.minecraft.ChatFormatting;
 import net.minecraft.SharedConstants;
 import net.minecraft.client.Camera;
 import net.minecraft.client.ClientBrandRetriever;
@@ -17,8 +17,8 @@ import net.minecraft.client.gui.components.debug.DebugScreenEntryStatus;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
@@ -34,8 +34,6 @@ import java.util.function.Consumer;
 
 public final class WormholesClient {
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
-    private static final String CONNECTION_MESSAGE_KEY = "wormholes.clientview.connected";
-    private static final String CONNECTION_MESSAGE = "Wormholes Connection Established";
     private static volatile WormholesClient instance;
 
     private final WormholesClientConfig config;
@@ -44,7 +42,6 @@ public final class WormholesClient {
     private final ClientLocalMeshSources localMeshes = new ClientLocalMeshSources(this::send);
     private final ClientMeshViews meshViews = new ClientMeshViews();
     private final ClientReflectionEntity reflections;
-    private final ClientViewAnnouncer announcer;
     private final Consumer<byte[]> sender;
     private final int dataVersion;
     private final String brandTag;
@@ -62,7 +59,6 @@ public final class WormholesClient {
         this.stats = new ClientViewStats();
         this.preparedTravel = new ClientPreparedTravel(this::send);
         this.reflections = new ClientReflectionEntity();
-        this.announcer = new ClientViewAnnouncer();
         this.dataVersion = SharedConstants.getCurrentVersion().dataVersion().version();
         this.brandTag = ClientBrandRetriever.getClientModName();
         freshSession();
@@ -111,13 +107,25 @@ public final class WormholesClient {
     }
 
     public static void localChunkChanged(ClientLevel level, int x, int z) {
+        if (ClientPreparedTravel.applyingColumn(level, x, z)) {
+            return;
+        }
         WormholesClient client = instance;
         if (client != null) {
+            client.preparedTravel.chunkChanged(level, x, z);
             client.localMeshes.chunkChanged(level, x, z);
         }
     }
 
+    public static void localChunkUnloaded(ClientLevel level, int x, int z) {
+        ClientSodiumTerrain.columnUnloaded(level, x, z);
+        localChunkChanged(level, x, z);
+    }
+
     public static void localSectionChanged(ClientLevel level, int x, int y, int z) {
+        if (ClientPreparedTravel.applyingColumn(level, x, z)) {
+            return;
+        }
         Minecraft minecraft = Minecraft.getInstance();
         if (!minecraft.isSameThread()) {
             minecraft.execute(() -> localSectionChanged(level, x, y, z));
@@ -125,12 +133,34 @@ public final class WormholesClient {
         }
         WormholesClient client = instance;
         if (client != null) {
+            client.preparedTravel.sectionChanged(level, x, y, z);
             client.localMeshes.blockChanged(level, new BlockPos(x << 4, y << 4, z << 4));
+        }
+    }
+
+    public static void localLightChanged(ClientLevel level, SectionPos position) {
+        if (ClientPreparedTravel.applyingColumn(level, position.x(), position.z())) {
+            return;
+        }
+        Minecraft minecraft = Minecraft.getInstance();
+        if (!minecraft.isSameThread()) {
+            minecraft.execute(() -> localLightChanged(level, position));
+            return;
+        }
+        WormholesClient client = instance;
+        if (client != null) {
+            client.preparedTravel.lightChanged(level, position);
+            client.localMeshes.blockChanged(level, position.origin());
         }
     }
 
     public ClientPreparedTravel preparedTravel() {
         return preparedTravel;
+    }
+
+    public boolean managesVanillaPortal(ClientLevel level, BlockPos position) {
+        return attachedLevel == level && session.managesVanillaPortal(position.getX(), position.getY(), position.getZ())
+            || preparedTravel.managesVanillaPortal(level, position);
     }
 
     public ClientLocalMeshSources localMeshes() {
@@ -152,6 +182,7 @@ public final class WormholesClient {
 
     public void disconnected() {
         preparedTravel.clear();
+        ClientSodiumTerrain.clear();
         reflections.clear(null, null);
         detach();
         meshViews.clear();
@@ -194,10 +225,6 @@ public final class WormholesClient {
         meshViews.update(session, level);
         reflections.tick(level, player, minecraft.getConnection(), session, tick,
             config.selfReflection && session.active() && session.has(ClientViewCapability.CLIENT_MIRROR));
-        if (announcer.due(config.connectionMessage, session.active(), session.acceptMessage(), player != null)) {
-            player.sendSystemMessage(Component.translatableWithFallback(CONNECTION_MESSAGE_KEY, CONNECTION_MESSAGE)
-                .withStyle(ChatFormatting.LIGHT_PURPLE));
-        }
     }
 
     public String debugLine() {
@@ -298,6 +325,9 @@ public final class WormholesClient {
         }
         debugRegistered = true;
         try {
+            DebugScreenEntriesAccessor.wormholesRegister(ClientViewDebugEntry.STATUS_ID,
+                new ClientViewDebugEntry(() -> session.connectionStatus().debugLine()));
+            minecraft.debugEntries.setStatus(ClientViewDebugEntry.STATUS_ID, DebugScreenEntryStatus.IN_OVERLAY);
             DebugScreenEntriesAccessor.wormholesRegister(ClientViewDebugEntry.ID, new ClientViewDebugEntry(this::debugLine));
             if (config.showDebugOverlay && !debugEnabled) {
                 debugEnabled = true;

@@ -23,7 +23,7 @@ public final class AccessSubsystem implements WormholesSubsystem {
 
     @Override
     public void register(WormholesRegistrar registrar) {
-        registrar.portalExtension(new AccessExtensionFactory());
+        registrar.portalExtension(AccessPortalExtension.class, AccessPortalExtension::new);
         registrar.traversalGate(gate);
         registrar.portalMenuEntry(new AccessMenuEntry());
     }

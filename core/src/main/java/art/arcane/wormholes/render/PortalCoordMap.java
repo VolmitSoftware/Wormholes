@@ -1,33 +1,9 @@
 package art.arcane.wormholes.render;
 
-import art.arcane.wormholes.geometry.GeometryVector;
-
-
-import art.arcane.wormholes.portal.IPortal;
 import art.arcane.wormholes.portal.PortalFrame;
 
 public final class PortalCoordMap {
     private PortalCoordMap() {
-    }
-
-    public static GeometryVector localToRemote(GeometryVector localCellAbsolute, IPortal localPortal, IPortal remotePortal) {
-        GeometryVector localOrigin = localPortal.getOrigin();
-        GeometryVector remoteOrigin = remotePortal.getOrigin();
-        return localPortal.getFrame().transformPoint(localCellAbsolute, localOrigin, remoteOrigin, remotePortal.getFrame());
-    }
-
-    public static void localToRemoteInto(int localX, int localY, int localZ,
-                                         double localOriginX, double localOriginY, double localOriginZ,
-                                         double remoteOriginX, double remoteOriginY, double remoteOriginZ,
-                                         PortalFrame localFrame, PortalFrame remoteFrame,
-                                         double[] scratch3, int[] outRemote3) {
-        localFrame.transformPointInto(localX, localY, localZ,
-            localOriginX, localOriginY, localOriginZ,
-            remoteOriginX, remoteOriginY, remoteOriginZ,
-            remoteFrame, scratch3);
-        outRemote3[0] = (int) Math.floor(scratch3[0]);
-        outRemote3[1] = (int) Math.floor(scratch3[1]);
-        outRemote3[2] = (int) Math.floor(scratch3[2]);
     }
 
     public static void transformPointInto(double x, double y, double z,
@@ -39,25 +15,6 @@ public final class PortalCoordMap {
             fromOriginX, fromOriginY, fromOriginZ,
             toOriginX, toOriginY, toOriginZ,
             toFrame, out3);
-    }
-
-    public static void reflectPointAcrossPlaneInto(double x, double y, double z,
-                                                   double originX, double originY, double originZ,
-                                                   PortalFrame frame,
-                                                   double[] out3) {
-        double offsetX = x - originX;
-        double offsetY = y - originY;
-        double offsetZ = z - originZ;
-        mirrorSourceToDisplayVectorInto(offsetX, offsetY, offsetZ, frame, 0, out3);
-        out3[0] += originX;
-        out3[1] += originY;
-        out3[2] += originZ;
-    }
-
-    public static void reflectVectorAcrossPlaneInto(double x, double y, double z,
-                                                    PortalFrame frame,
-                                                    double[] out3) {
-        mirrorSourceToDisplayVectorInto(x, y, z, frame, 0, out3);
     }
 
     public static void mirrorSourceToDisplayPointInto(double x, double y, double z,

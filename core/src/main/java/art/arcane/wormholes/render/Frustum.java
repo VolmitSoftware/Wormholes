@@ -31,6 +31,9 @@ public final class Frustum {
     private final double faceYb;
     private final double faceZa;
     private final double faceZb;
+    private final double xRange;
+    private final double yRange;
+    private final double zRange;
     private final boolean finiteGeometry;
 
     public Frustum(GeometryVector apex,
@@ -44,9 +47,9 @@ public final class Frustum {
         this.normalAxis = cubeFace.getAxis();
         Axis depthAxis = portalNormalAxis == null ? normalAxis : portalNormalAxis;
         double faceNormalRange = normalAxis == depthAxis ? axialRange : lateralRange;
-        double xRange = depthAxis == Axis.X ? axialRange : lateralRange;
-        double yRange = depthAxis == Axis.Y ? axialRange : lateralRange;
-        double zRange = depthAxis == Axis.Z ? axialRange : lateralRange;
+        this.xRange = depthAxis == Axis.X ? axialRange : lateralRange;
+        this.yRange = depthAxis == Axis.Y ? axialRange : lateralRange;
+        this.zRange = depthAxis == Axis.Z ? axialRange : lateralRange;
         GeometryVector faceCenter = face.center();
         this.planeCoordinate = axisValue(faceCenter.x(), faceCenter.y(), faceCenter.z(), normalAxis);
         this.faceXa = face.getXa();
@@ -181,6 +184,37 @@ public final class Frustum {
             && containsPrimitive(axis == 0 ? end : x, axis == 1 ? end : y, axis == 2 ? end : z);
     }
 
+    boolean containsBox(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
+        return finiteGeometry && coversRegion(minX, minY, minZ, maxX, maxY, maxZ)
+            && boxStaysOnOneSide(minX, minY, minZ, maxX, maxY, maxZ)
+            && containsPrimitive(minX, minY, minZ)
+            && containsPrimitive(minX, minY, maxZ)
+            && containsPrimitive(minX, maxY, minZ)
+            && containsPrimitive(minX, maxY, maxZ)
+            && containsPrimitive(maxX, minY, minZ)
+            && containsPrimitive(maxX, minY, maxZ)
+            && containsPrimitive(maxX, maxY, minZ)
+            && containsPrimitive(maxX, maxY, maxZ);
+    }
+
+    static boolean containsBoxUnion(Frustum[] faces, double minX, double minY, double minZ,
+                                    double maxX, double maxY, double maxZ) {
+        for (int index = 0; index < faces.length; index++) {
+            Frustum plane = faces[index];
+            boolean visited = false;
+            for (int previous = 0; previous < index; previous++) {
+                if (plane.samePlane(faces[previous])) {
+                    visited = true;
+                    break;
+                }
+            }
+            if (!visited && plane.coversProjectedBox(faces, minX, minY, minZ, maxX, maxY, maxZ)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     boolean appendRow(ProjectorFrustumRow row, int axis, double x, double y, double z, int minimum, int maximum) {
         if (!finiteGeometry) {
             return false;
@@ -255,6 +289,131 @@ public final class Frustum {
         return x >= faceXa - EPSILON && x <= faceXb + EPSILON
             && y >= faceYa - EPSILON && y <= faceYb + EPSILON
             && z >= faceZa - EPSILON && z <= faceZb + EPSILON;
+    }
+
+    private boolean coversRegion(double minX, double minY, double minZ,
+                                  double maxX, double maxY, double maxZ) {
+        return minX >= regionXa && maxX <= regionXb
+            && minY >= regionYa && maxY <= regionYb
+            && minZ >= regionZa && maxZ <= regionZb;
+    }
+
+    private boolean boxStaysOnOneSide(double minX, double minY, double minZ,
+                                      double maxX, double maxY, double maxZ) {
+        double minimum = axisValue(minX, minY, minZ, normalAxis)
+            - axisValue(originX, originY, originZ, normalAxis);
+        double maximum = axisValue(maxX, maxY, maxZ, normalAxis)
+            - axisValue(originX, originY, originZ, normalAxis);
+        return minimum > EPSILON || maximum < -EPSILON;
+    }
+
+    private boolean samePlane(Frustum other) {
+        return normalAxis == other.normalAxis && planeDelta == other.planeDelta
+            && originX == other.originX && originY == other.originY && originZ == other.originZ;
+    }
+
+    private boolean coversProjectedBox(Frustum[] faces, double minX, double minY, double minZ,
+                                        double maxX, double maxY, double maxZ) {
+        if (!finiteGeometry || !boxStaysOnOneSide(minX, minY, minZ, maxX, maxY, maxZ)) {
+            return false;
+        }
+        double originNormal = axisValue(originX, originY, originZ, normalAxis);
+        double nearScale = planeDelta / (axisValue(minX, minY, minZ, normalAxis) - originNormal);
+        double farScale = planeDelta / (axisValue(maxX, maxY, maxZ, normalAxis) - originNormal);
+        if (nearScale < -EPSILON || nearScale > 1.0D + EPSILON
+            || farScale < -EPSILON || farScale > 1.0D + EPSILON) {
+            return false;
+        }
+        double firstOrigin = normalAxis == Axis.X ? originY : originX;
+        double secondOrigin = normalAxis == Axis.Z ? originY : originZ;
+        double firstMinimum = normalAxis == Axis.X ? minY : minX;
+        double firstMaximum = normalAxis == Axis.X ? maxY : maxX;
+        double secondMinimum = normalAxis == Axis.Z ? minY : minZ;
+        double secondMaximum = normalAxis == Axis.Z ? maxY : maxZ;
+        double firstLow = projectedMinimum(firstOrigin, firstMinimum, firstMaximum, nearScale, farScale);
+        double firstHigh = projectedMaximum(firstOrigin, firstMinimum, firstMaximum, nearScale, farScale);
+        double secondLow = projectedMinimum(secondOrigin, secondMinimum, secondMaximum, nearScale, farScale);
+        double secondHigh = projectedMaximum(secondOrigin, secondMinimum, secondMaximum, nearScale, farScale);
+        double first = firstLow;
+        do {
+            double next = firstHigh;
+            for (Frustum face : faces) {
+                double low = face.firstMinimum();
+                double high = face.firstMaximum();
+                if (!((low > first && low < next) || (high > first && high < next))
+                    || face.secondMinimum() > secondHigh || face.secondMaximum() < secondLow
+                    || !eligibleFace(face, minX, minY, minZ, maxX, maxY, maxZ)) {
+                    continue;
+                }
+                if (low > first && low < next) {
+                    next = low;
+                }
+                if (high > first && high < next) {
+                    next = high;
+                }
+            }
+            double second = secondLow;
+            while (true) {
+                double covered = Double.NEGATIVE_INFINITY;
+                for (Frustum face : faces) {
+                    if (face.firstMinimum() <= first && face.firstMaximum() >= next
+                        && face.secondMinimum() <= second && face.secondMaximum() >= second
+                        && eligibleFace(face, minX, minY, minZ, maxX, maxY, maxZ)) {
+                        covered = Math.max(covered, face.secondMaximum());
+                    }
+                }
+                if (covered >= secondHigh) {
+                    break;
+                }
+                if (covered <= second) {
+                    return false;
+                }
+                second = covered;
+            }
+            if (next >= firstHigh) {
+                return true;
+            }
+            first = next;
+        } while (true);
+    }
+
+    private boolean eligibleFace(Frustum face, double minX, double minY, double minZ,
+                                  double maxX, double maxY, double maxZ) {
+        return samePlane(face) && face.finiteGeometry
+            && minX >= (normalAxis == Axis.X ? face.regionXa : face.faceXa - face.xRange)
+            && maxX <= (normalAxis == Axis.X ? face.regionXb : face.faceXb + face.xRange)
+            && minY >= (normalAxis == Axis.Y ? face.regionYa : face.faceYa - face.yRange)
+            && maxY <= (normalAxis == Axis.Y ? face.regionYb : face.faceYb + face.yRange)
+            && minZ >= (normalAxis == Axis.Z ? face.regionZa : face.faceZa - face.zRange)
+            && maxZ <= (normalAxis == Axis.Z ? face.regionZb : face.faceZb + face.zRange);
+    }
+
+    private double firstMinimum() {
+        return normalAxis == Axis.X ? faceYa : faceXa;
+    }
+
+    private double firstMaximum() {
+        return normalAxis == Axis.X ? faceYb : faceXb;
+    }
+
+    private double secondMinimum() {
+        return normalAxis == Axis.Z ? faceYa : faceZa;
+    }
+
+    private double secondMaximum() {
+        return normalAxis == Axis.Z ? faceYb : faceZb;
+    }
+
+    private static double projectedMinimum(double origin, double minimum, double maximum,
+                                            double nearScale, double farScale) {
+        return Math.min(Math.min(origin + (minimum - origin) * nearScale, origin + (maximum - origin) * nearScale),
+            Math.min(origin + (minimum - origin) * farScale, origin + (maximum - origin) * farScale));
+    }
+
+    private static double projectedMaximum(double origin, double minimum, double maximum,
+                                            double nearScale, double farScale) {
+        return Math.max(Math.max(origin + (minimum - origin) * nearScale, origin + (maximum - origin) * nearScale),
+            Math.max(origin + (minimum - origin) * farScale, origin + (maximum - origin) * farScale));
     }
 
     private boolean containsRowCell(int axis, double x, double y, double z, int coordinate) {

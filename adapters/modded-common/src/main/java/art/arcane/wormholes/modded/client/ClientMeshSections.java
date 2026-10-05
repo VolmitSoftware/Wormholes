@@ -11,19 +11,22 @@ import art.arcane.wormholes.render.blockentity.BlockEntitySample;
 import art.arcane.wormholes.render.plate.PlateBox;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSets;
 import net.minecraft.core.SectionPos;
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
+import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.io.IOException;
 import java.util.Objects;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.function.LongSupplier;
 
@@ -34,7 +37,8 @@ public final class ClientMeshSections {
     private LongSupplier otherMemory = () -> 0L;
     private long bytes;
     private int revision;
-    private final LinkedHashMap<CachedKey, Section> history = new LinkedHashMap<>(128, 0.75F, true);
+    private final ObjectLinkedOpenHashSet<HistoryEntry> history = new ObjectLinkedOpenHashSet<>(128);
+    private final Map<Identity, History> historyByIdentity = new HashMap<>();
     private long historyBytes;
     private long epoch;
     private boolean epochKnown;
@@ -263,6 +267,7 @@ public final class ClientMeshSections {
     public void epoch(long value) {
         if (epochKnown && epoch != value) {
             history.clear();
+            historyByIdentity.clear();
             historyBytes = 0;
             clear();
         }
@@ -270,17 +275,17 @@ public final class ClientMeshSections {
         epochKnown = true;
     }
 
-    public List<ClientViewMessage.MeshClaim> bind(int portalKey, ClientViewEnvironment environment, long epoch, long targetIdentity) {
-        epoch(epoch);
+    List<ClientViewMessage.MeshClaim> bind(int portalKey, Identity identity) {
+        epoch(identity.epoch);
         View view = views.get(portalKey);
         if (view == null) {
             return List.of();
         }
-        Identity identity = new Identity(environment.world().dimensionKey(), environment.transform(), epoch, targetIdentity);
-        if (identity.equals(view.identity) && !view.needsClaims) {
+        boolean sameIdentity = identity.equals(view.identity);
+        if (sameIdentity && !view.needsClaims) {
             return List.of();
         }
-        if (view.identity != null && !identity.equals(view.identity)) {
+        if (view.identity != null && !sameIdentity) {
             for (long key : view.sections.keySet()) {
                 Section removed = view.sections.get(key);
                 view.bytes -= removed.bytes;
@@ -303,29 +308,32 @@ public final class ClientMeshSections {
             view.claimed.clear();
             view.contentRevision++;
         }
-        view.identity = identity;
+        History context = historyByIdentity.get(sameIdentity ? view.identity : identity);
+        view.identity = context == null ? identity : context.identity;
         view.needsClaims = false;
         List<ClientViewMessage.MeshClaim> claims = new ArrayList<>();
-        for (Map.Entry<CachedKey, Section> entry : history.entrySet()) {
-            CachedKey key = entry.getKey();
-            if (!identity.equals(key.identity) || !view.intersects(SectionPos.x(key.section), SectionPos.y(key.section), SectionPos.z(key.section))
-                || view.sections.containsKey(key.section) || view.sections.size() >= view.maxSections) {
-                continue;
+        if (context != null) {
+            for (HistoryEntry entry : context.sections.values()) {
+                long key = entry.key;
+                if (!view.intersects(SectionPos.x(key), SectionPos.y(key), SectionPos.z(key))
+                    || view.sections.containsKey(key) || view.sections.size() >= view.maxSections) {
+                    continue;
+                }
+                Section section = entry.section;
+                if (section.bytes > budget - bytes - historyBytes - otherMemory.getAsLong()) {
+                    break;
+                }
+                view.sections.put(key, section);
+                view.keys.add(key);
+                if (!view.localSections.containsKey(key)) {
+                    view.changed.add(key);
+                    view.contentRevision++;
+                }
+                view.bytes += section.bytes;
+                bytes += section.bytes;
+                view.claimed.put(key, Long.valueOf(section.hash));
+                claims.add(new ClientViewMessage.MeshClaim(SectionPos.x(key), SectionPos.y(key), SectionPos.z(key), section.hash));
             }
-            Section section = entry.getValue();
-            if (section.bytes > budget - bytes - historyBytes - otherMemory.getAsLong()) {
-                break;
-            }
-            view.sections.put(key.section, section);
-            view.keys.add(key.section);
-            if (!view.localSections.containsKey(key.section)) {
-                view.changed.add(key.section);
-                view.contentRevision++;
-            }
-            view.bytes += section.bytes;
-            bytes += section.bytes;
-            view.claimed.put(key.section, Long.valueOf(section.hash));
-            claims.add(new ClientViewMessage.MeshClaim(SectionPos.x(key.section), SectionPos.y(key.section), SectionPos.z(key.section), section.hash));
         }
         for (long key : view.sections.keySet()) {
             Section section = view.sections.get(key);
@@ -339,10 +347,13 @@ public final class ClientMeshSections {
         return claims;
     }
 
+    public boolean canPreview(int portalKey, long key) {
+        return canPreview(views.get(portalKey), key);
+    }
+
     public ClientViewMessage.MeshClaim preview(int portalKey, long key, Section section) {
         View view = views.get(portalKey);
-        if (view == null || view.identity == null || view.sections.containsKey(key)
-            || !view.intersects(SectionPos.x(key), SectionPos.y(key), SectionPos.z(key)) || view.sections.size() >= view.maxSections
+        if (!canPreview(view, key)
             || section.bytes > budget - bytes - historyBytes - otherMemory.getAsLong()) {
             return null;
         }
@@ -375,24 +386,97 @@ public final class ClientMeshSections {
         return Result.DUPLICATE;
     }
 
+    private static boolean canPreview(View view, long key) {
+        return view != null && view.identity != null && !view.sections.containsKey(key)
+            && view.intersects(SectionPos.x(key), SectionPos.y(key), SectionPos.z(key))
+            && view.sections.size() < view.maxSections;
+    }
+
     private void remember(View view, long key, Section section) {
         if (view.identity == null || !epochKnown) {
             return;
         }
-        CachedKey identity = new CachedKey(view.identity, key);
-        Section previous = history.put(identity, section);
-        historyBytes += section.bytes - (previous == null ? 0 : previous.bytes);
+        History context = historyByIdentity.get(view.identity);
+        if (context == null) {
+            context = new History(view.identity);
+            historyByIdentity.put(context.identity, context);
+        }
+        view.identity = context.identity;
+        HistoryEntry entry = context.sections.get(key);
+        if (entry == null) {
+            entry = new HistoryEntry(context, key, section);
+            historyBytes += section.bytes;
+        } else {
+            historyBytes += section.bytes - entry.section.bytes;
+            entry.section = section;
+        }
+        context.sections.putAndMoveToLast(key, entry);
+        history.addAndMoveToLast(entry);
         long limit = Math.min(Math.min(128 * 1024 * 1024L, budget / 3), Math.max(0, budget - bytes - otherMemory.getAsLong()));
         while (historyBytes > limit && !history.isEmpty()) {
-            Section removed = history.remove(history.keySet().iterator().next());
-            historyBytes -= removed.bytes;
+            HistoryEntry removed = history.removeFirst();
+            historyBytes -= removed.section.bytes;
+            History owner = removed.context;
+            owner.sections.remove(removed.key);
+            if (owner.sections.isEmpty()) {
+                historyByIdentity.remove(owner.identity);
+            }
         }
     }
 
-    private record Identity(String world, ClientViewEnvironment.Transform transform, long epoch, long targetIdentity) {
+    static final class Identity {
+        private final String world;
+        private final ClientViewEnvironment.Transform transform;
+        private final long epoch;
+        private final long targetIdentity;
+        private final int hash;
+
+        Identity(ClientViewEnvironment environment, long epoch, long targetIdentity) {
+            world = environment.world().dimensionKey();
+            transform = environment.transform();
+            this.epoch = epoch;
+            this.targetIdentity = targetIdentity;
+            int value = world.hashCode();
+            value = 31 * value + transform.hashCode();
+            value = 31 * value + Long.hashCode(epoch);
+            hash = 31 * value + Long.hashCode(targetIdentity);
+        }
+
+        boolean matchesEnvironment(ClientViewEnvironment environment) {
+            return environment != null && world.equals(environment.world().dimensionKey()) && transform.equals(environment.transform());
+        }
+
+        @Override
+        public int hashCode() {
+            return hash;
+        }
+
+        @Override
+        public boolean equals(Object value) {
+            return this == value || value instanceof Identity other && hash == other.hash && epoch == other.epoch
+                && targetIdentity == other.targetIdentity && world.equals(other.world) && transform.equals(other.transform);
+        }
     }
 
-    private record CachedKey(Identity identity, long section) {
+    private static final class History {
+        private final Identity identity;
+        private final Long2ObjectLinkedOpenHashMap<HistoryEntry> sections = new Long2ObjectLinkedOpenHashMap<>();
+
+        private History(Identity identity) {
+            this.identity = identity;
+        }
+    }
+
+    private static final class HistoryEntry {
+        private final History context;
+        private final long key;
+        private Section section;
+
+        private HistoryEntry(History context, long key, Section section) {
+            this.context = context;
+            this.key = key;
+            this.section = section;
+        }
     }
 
     private static long sectionKey(int x, int y, int z) throws ClientViewProtocolException {
@@ -430,6 +514,10 @@ public final class ClientMeshSections {
 
         public LongSet changed() {
             return changed;
+        }
+
+        Identity identity() {
+            return identity;
         }
 
         public long contentRevision() {
@@ -526,6 +614,10 @@ public final class ClientMeshSections {
             this.bytes = size;
         }
 
+        public long bytes() {
+            return bytes;
+        }
+
         public SectionBiomes biomes() {
             return biomes;
         }
@@ -536,6 +628,15 @@ public final class ClientMeshSections {
 
         public BlockState state(int cell) {
             return states[bitsPerIndex == 0 ? 0 : localIndex(cell)];
+        }
+
+        public boolean hasEntityBlocks() {
+            for (BlockState state : states) {
+                if (state.getBlock() instanceof EntityBlock) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         public boolean hasLight() {

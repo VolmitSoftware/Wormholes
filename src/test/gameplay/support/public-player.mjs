@@ -116,6 +116,8 @@ export function publicPlayer(context, { controller = context } = {}) {
     context.expect(/^isolated=true\s*$/m.test(source), 'Player construction scenarios require isolated=true')
     if (bot.game.gameMode !== 'creative') await context.command('/gamemode creative @s', /creative/i)
     await stage(0.5, 202, 0.5)
+    await wait(() => [-8, 40].every(x => [-8, 12].every(z => bot.blockAt(point(x, 199, z)))),
+      'arena chunks loaded', 30000)
     await context.command('/fill -8 199 -8 40 199 12 minecraft:stone', /filled|changed|blocks/i)
     await context.command('/fill -8 200 -8 40 207 12 minecraft:air', /filled|changed|blocks/i)
     await stage(0.5, 200, 2.5)

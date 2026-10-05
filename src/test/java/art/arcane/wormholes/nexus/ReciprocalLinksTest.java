@@ -26,7 +26,7 @@ class ReciprocalLinksTest {
 
     @BeforeEach
     void setUp() {
-        WormholesHooks.install(new WormholesRegistrar().portalExtension(new NexusExtensionFactory(null)));
+        WormholesHooks.install(new WormholesRegistrar().portalExtension(NexusPortalExtension.class, extensionPortal -> new NexusPortalExtension(extensionPortal, null)));
         world = NexusTestSupport.world("reciprocal");
         linker = new RecordingLinker();
         links = new ReciprocalLinks(linker);

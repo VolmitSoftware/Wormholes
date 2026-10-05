@@ -15,10 +15,10 @@ final class ClientViewRateLimiterTest {
         ClientViewRateLimiter limiter = new ClientViewRateLimiter();
         int cap = ClientViewProtocol.MAX_C2S_MESSAGES_PER_SECOND;
         for (int i = 0; i < cap; i++) {
-            assertEquals(ClientViewRateLimiter.Verdict.ACCEPT, limiter.admit(1000L, 16), "message " + i);
+            assertEquals(ClientViewRateLimiter.Verdict.ACCEPT, limiter.admit(1000L, 16, -1), "message " + i);
         }
-        assertEquals(ClientViewRateLimiter.Verdict.DROP, limiter.admit(1600L, 16));
-        assertEquals(ClientViewRateLimiter.Verdict.ACCEPT, limiter.admit(2001L, 16));
+        assertEquals(ClientViewRateLimiter.Verdict.DROP, limiter.admit(1600L, 16, -1));
+        assertEquals(ClientViewRateLimiter.Verdict.ACCEPT, limiter.admit(2001L, 16, -1));
         assertEquals(1L, limiter.dropped());
         assertEquals(cap + 1L, limiter.admitted());
     }
@@ -31,7 +31,7 @@ final class ClientViewRateLimiterTest {
             boolean burst = tick >= CLIENT_TICKS_PER_SECOND && tick < CLIENT_TICKS_PER_SECOND + CATCH_UP_TICKS;
             now = burst ? now : now + 50L;
             for (int message = 0; message < MESSAGES_PER_CLIENT_TICK; message++) {
-                assertEquals(ClientViewRateLimiter.Verdict.ACCEPT, limiter.admit(now, 16), "tick " + tick);
+                assertEquals(ClientViewRateLimiter.Verdict.ACCEPT, limiter.admit(now, 16, -1), "tick " + tick);
             }
         }
         assertTrue(ClientViewProtocol.MAX_C2S_MESSAGES_PER_SECOND >= (CLIENT_TICKS_PER_SECOND + CATCH_UP_TICKS) * MESSAGES_PER_CLIENT_TICK);
@@ -44,7 +44,7 @@ final class ClientViewRateLimiterTest {
         for (int tick = 0; tick < 40; tick++) {
             int messages = 16 + (tick == 19 ? 64 : 0);
             for (int message = 0; message < messages; message++) {
-                assertEquals(ClientViewRateLimiter.Verdict.ACCEPT, limiter.admit(tick * 50L, 32));
+                assertEquals(ClientViewRateLimiter.Verdict.ACCEPT, limiter.admit(tick * 50L, 32, -1));
             }
         }
         assertEquals(0, limiter.dropped());
@@ -53,19 +53,42 @@ final class ClientViewRateLimiterTest {
     @Test
     void oversizePayloadsAreViolationsAndThreeInTenSecondsReset() {
         ClientViewRateLimiter limiter = new ClientViewRateLimiter();
-        assertEquals(ClientViewRateLimiter.Verdict.DROP, limiter.admit(0L, ClientViewProtocol.MAX_C2S_BYTES + 1));
-        assertEquals(ClientViewRateLimiter.Verdict.DROP, limiter.admit(4000L, ClientViewProtocol.MAX_C2S_BYTES + 1));
-        assertEquals(ClientViewRateLimiter.Verdict.RESET, limiter.admit(9999L, ClientViewProtocol.MAX_C2S_BYTES + 1));
-        assertEquals(ClientViewRateLimiter.Verdict.ACCEPT, limiter.admit(10000L, 1));
+        assertEquals(ClientViewRateLimiter.Verdict.DROP, limiter.admit(0L, ClientViewProtocol.MAX_C2S_BYTES + 1, -1));
+        assertEquals(ClientViewRateLimiter.Verdict.DROP, limiter.admit(4000L, ClientViewProtocol.MAX_C2S_BYTES + 1, -1));
+        assertEquals(ClientViewRateLimiter.Verdict.RESET, limiter.admit(9999L, ClientViewProtocol.MAX_C2S_BYTES + 1, -1));
+        assertEquals(ClientViewRateLimiter.Verdict.ACCEPT, limiter.admit(10000L, 1, -1));
     }
 
     @Test
     void violationsOutsideTheWindowDoNotAccumulate() {
         ClientViewRateLimiter limiter = new ClientViewRateLimiter(20, 100, 3, 10_000L);
-        assertEquals(ClientViewRateLimiter.Verdict.DROP, limiter.violation(0L));
-        assertEquals(ClientViewRateLimiter.Verdict.DROP, limiter.violation(5000L));
-        assertEquals(ClientViewRateLimiter.Verdict.DROP, limiter.violation(10_001L));
-        assertEquals(ClientViewRateLimiter.Verdict.DROP, limiter.violation(15_002L));
-        assertEquals(ClientViewRateLimiter.Verdict.RESET, limiter.violation(15_003L));
+        assertEquals(ClientViewRateLimiter.Verdict.DROP, limiter.violation(0L, -1, 0));
+        assertEquals(ClientViewRateLimiter.Verdict.DROP, limiter.violation(5000L, -1, 0));
+        assertEquals(ClientViewRateLimiter.Verdict.DROP, limiter.violation(10_001L, -1, 0));
+        assertEquals(ClientViewRateLimiter.Verdict.DROP, limiter.violation(15_002L, -1, 0));
+        assertEquals(ClientViewRateLimiter.Verdict.RESET, limiter.violation(15_003L, -1, 0));
+    }
+
+    @Test
+    void rateResetPreservesExactAcceptedPacketMixBeforeClearingItsWindow() {
+        ClientViewRateLimiter limiter = new ClientViewRateLimiter(3, 100, 3, 10_000L);
+        assertEquals(ClientViewRateLimiter.Verdict.ACCEPT, limiter.admit(1000L, 16, ClientViewMessageType.ACK.id()));
+        assertEquals(ClientViewRateLimiter.Verdict.ACCEPT, limiter.admit(1000L, 70, ClientViewMessageType.TRAVEL_CACHED.id()));
+        assertEquals(ClientViewRateLimiter.Verdict.ACCEPT, limiter.admit(1000L, 70, ClientViewMessageType.TRAVEL_CACHED.id()));
+        assertEquals(ClientViewRateLimiter.Verdict.DROP, limiter.admit(1000L, 16, ClientViewMessageType.MESH_ACK.id()));
+        assertEquals(ClientViewRateLimiter.Verdict.DROP, limiter.admit(1000L, 16, ClientViewMessageType.MESH_ACK.id()));
+        assertEquals(ClientViewRateLimiter.Verdict.RESET, limiter.admit(1000L, 16, ClientViewMessageType.MESH_ACK.id()));
+        assertEquals("MESSAGE_RATE, packet MESH_ACK, bytes 16, accepted in last second 3, by type ACK=1 TRAVEL_CACHED=2",
+            limiter.lastViolation());
+        assertEquals(ClientViewRateLimiter.Verdict.ACCEPT, limiter.admit(1000L, 16, ClientViewMessageType.ACK.id()));
+    }
+
+    @Test
+    void sizeResetIdentifiesThePacketWithoutCountingItAsAcceptedTraffic() {
+        ClientViewRateLimiter limiter = new ClientViewRateLimiter(3, 100, 3, 10_000L);
+        assertEquals(ClientViewRateLimiter.Verdict.DROP, limiter.admit(1000L, 101, ClientViewMessageType.TRAVEL_CACHED.id()));
+        assertEquals(ClientViewRateLimiter.Verdict.DROP, limiter.admit(1000L, 101, ClientViewMessageType.TRAVEL_CACHED.id()));
+        assertEquals(ClientViewRateLimiter.Verdict.RESET, limiter.admit(1000L, 101, ClientViewMessageType.TRAVEL_CACHED.id()));
+        assertEquals("PAYLOAD_SIZE, packet TRAVEL_CACHED, bytes 101, accepted in last second 0, by type", limiter.lastViolation());
     }
 }

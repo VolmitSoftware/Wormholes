@@ -1,8 +1,6 @@
 package art.arcane.wormholes.modded.clientview;
 
-import art.arcane.wormholes.chunk.presend.ChunkCoordinate;
 import art.arcane.wormholes.chunk.ChunkLease;
-import art.arcane.wormholes.chunk.presend.ChunkPreSendPlanner;
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.portal.PortalCrossing;
 import art.arcane.wormholes.modded.MinecraftPortal;
@@ -12,6 +10,7 @@ import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.network.client.ClientViewEnvironment;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.network.client.ClientViewProtocol;
+import art.arcane.wormholes.network.client.ClientTravelWindow;
 import art.arcane.wormholes.render.client.ClientPortalGeometry;
 import art.arcane.wormholes.render.client.session.ClientPreparedTravelServer;
 import art.arcane.wormholes.render.client.ClientViewEnvironmentTransform;
@@ -32,15 +31,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletionException;
 
 final class MinecraftPreparedTravel {
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
     private static final long CAPTURE_NANOS = 2_000_000L;
     private static final int MAX_CAPTURE_COLUMNS = 16;
+    private static final int MAX_LEASE_REQUESTS = 16;
     private static final int SEND_BYTES_PER_TICK = 128 * 1024;
     private final WormholesModRuntime runtime;
     private final MinecraftClientViewPortalAccess portals;
     private final Map<UUID, Preparation> preparations = new HashMap<>();
+    private final Map<UUID, LandingWarmup> landings = new HashMap<>();
     private final Map<UUID, Long> retryAfter = new HashMap<>();
     private final List<UUID> interested = new ArrayList<>();
     private long generation;
@@ -77,16 +79,30 @@ final class MinecraftPreparedTravel {
         }
         Preparation preparation = preparations.get(player.getUUID());
         GeometryVector feet = mappedCrossing(player, source, destination);
-        if (world.getChunkSource().getChunkNow(feet.getBlockX() >> 4, feet.getBlockZ() >> 4) == null) {
-            discard(session);
+        long route = session.player().portals().routeIdentity(source);
+        LandingRoute landing = new LandingRoute(source, destination, world, route, feet.getBlockX() >> 4, feet.getBlockZ() >> 4);
+        if (!landingReady(session, player, landing)) {
             return;
         }
-        long route = session.player().portals().routeIdentity(source);
+        int radius = ClientTravelWindow.radius(Math.min(player.requestedViewDistance(), runtime.server().getPlayerList().getViewDistance()));
         if (preparation == null || preparation.source != source || preparation.destination != destination
             || preparation.world != world || preparation.route != route || !preparation.contains(feet)
+            || preparation.coordinates.size() != ClientTravelWindow.count(radius)
             || session.travel().preparing().isEmpty()) {
+            LandingWarmup warmed = landings.remove(player.getUUID());
             discard(session);
-            preparation = create(session, player, source, destination, world, feet, route);
+            boolean transferred = false;
+            try {
+                preparation = create(session, player, source, destination, world, feet, route, radius);
+                if (preparation != null && warmed != null) {
+                    preparation.leases.put(new ClientViewMessage.TravelCoordinate(landing.chunkX(), landing.chunkZ()), warmed.lease());
+                    transferred = true;
+                }
+            } finally {
+                if (warmed != null && !transferred) {
+                    warmed.lease().close();
+                }
+            }
             if (preparation == null) {
                 return;
             }
@@ -105,9 +121,14 @@ final class MinecraftPreparedTravel {
             if (coordinate == null) {
                 break;
             }
+            if (!preparation.leases.containsKey(coordinate)) {
+                if (!captureBudget.requestLease()) {
+                    continue;
+                }
+                preparation.leases.put(coordinate, runtime.leases().retain(world,
+                    MinecraftProjectionWorldView.worldId(world), coordinate.x(), coordinate.z()));
+            }
             LevelChunk chunk = world.getChunkSource().getChunkNow(coordinate.x(), coordinate.z());
-            preparation.leases.computeIfAbsent(coordinate, position -> runtime.leases().retain(world,
-                MinecraftProjectionWorldView.worldId(world), position.x(), position.z()));
             if (chunk != null) {
                 byte[] payload;
                 try {
@@ -120,6 +141,9 @@ final class MinecraftPreparedTravel {
                     return;
                 }
                 if (!session.travel().column(coordinate, session.travel().nextRevision(coordinate), payload)) {
+                    LOGGER.warn("Could not retain portal {} prepared arrival chunk {}, {} in {} for {}; delaying another preparation",
+                        source.getId(), coordinate.x(), coordinate.z(), world.dimension().identifier(), player.getUUID());
+                    retryAfter.put(player.getUUID(), System.currentTimeMillis() + 30_000L);
                     discard(session);
                     return;
                 }
@@ -184,6 +208,10 @@ final class MinecraftPreparedTravel {
             preparation.close();
         }
         preparations.clear();
+        for (LandingWarmup landing : landings.values()) {
+            landing.lease().close();
+        }
+        landings.clear();
         retryAfter.clear();
     }
 
@@ -205,6 +233,10 @@ final class MinecraftPreparedTravel {
     }
 
     void complete(UUID player) {
+        LandingWarmup landing = landings.remove(player);
+        if (landing != null) {
+            landing.lease().close();
+        }
         Preparation preparation = preparations.remove(player);
         if (preparation != null) {
             preparation.close();
@@ -256,18 +288,14 @@ final class MinecraftPreparedTravel {
 
     private Preparation create(ClientViewServerSession<MinecraftClientViewPeer, BlockState> session, ServerPlayer player,
                                MinecraftPortal source, MinecraftPortal destination, ServerLevel world,
-                               GeometryVector feet, long route) {
+                               GeometryVector feet, long route, int radius) {
         ClientPortalGeometry geometry = session.travelGeometry(source.getId());
         MinecraftClientViewScene.Destination mapped = geometry == null ? null
             : portals.scene().destination(session.player(), source.getId(), geometry.frontSide());
         if (mapped == null || geometry.mirror()) {
             return null;
         }
-        int radius = 3;
-        List<ClientViewMessage.TravelCoordinate> coordinates = new ArrayList<>((radius * 2 + 1) * (radius * 2 + 1));
-        for (ChunkCoordinate coordinate : ChunkPreSendPlanner.ring(feet.getBlockX() >> 4, feet.getBlockZ() >> 4, radius)) {
-            coordinates.add(new ClientViewMessage.TravelCoordinate(coordinate.x(), coordinate.z()));
-        }
+        List<ClientViewMessage.TravelCoordinate> coordinates = ClientTravelWindow.coordinates(feet.getBlockX() >> 4, feet.getBlockZ() >> 4, radius);
         ClientViewMessage.TravelWorld metadata = new ClientViewMessage.TravelWorld(world.dimension().identifier().toString(),
             world.dimensionTypeRegistration().unwrapKey().orElseThrow().identifier().toString(),
             BiomeManager.obfuscateSeed(world.getSeed()), world.isDebug(), world.isFlat(), world.getSeaLevel(), world.getMinY(), world.getHeight());
@@ -303,6 +331,48 @@ final class MinecraftPreparedTravel {
         session.cancelTravel();
     }
 
+    private boolean landingReady(ClientViewServerSession<MinecraftClientViewPeer, BlockState> session,
+                                 ServerPlayer player, LandingRoute route) {
+        UUID playerId = player.getUUID();
+        LandingWarmup landing = landings.get(playerId);
+        if (landing != null && !landing.route().equals(route)) {
+            discard(session);
+            landing = null;
+        }
+        if (landing == null && route.world().getChunkSource().getChunkNow(route.chunkX(), route.chunkZ()) != null) {
+            return true;
+        }
+        if (landing == null) {
+            discard(session);
+            ChunkLease lease = runtime.leases().retain(route.world(), MinecraftProjectionWorldView.worldId(route.world()),
+                route.chunkX(), route.chunkZ());
+            landing = new LandingWarmup(route, lease, System.currentTimeMillis() + ClientViewProtocol.MAX_TRAVEL_EXPIRY_MILLIS);
+            landings.put(playerId, landing);
+        }
+        if (!landing.lease().isValid() || System.currentTimeMillis() >= landing.deadline()) {
+            LOGGER.warn("Could not warm portal {} arrival chunk {}, {} in {} for {}", route.source().getId(),
+                route.chunkX(), route.chunkZ(), route.world().dimension().identifier(), playerId);
+            retryAfter.put(playerId, System.currentTimeMillis() + 30_000L);
+            discard(session);
+            return false;
+        }
+        if (!landing.lease().ready().isDone()) {
+            return false;
+        }
+        try {
+            if (Boolean.TRUE.equals(landing.lease().ready().getNow(false))
+                && route.world().getChunkSource().getChunkNow(route.chunkX(), route.chunkZ()) != null) {
+                return true;
+            }
+        } catch (CompletionException failure) {
+            LOGGER.error("Could not warm portal {} arrival chunk {}, {} in {} for {}", route.source().getId(),
+                route.chunkX(), route.chunkZ(), route.world().dimension().identifier(), playerId, failure);
+        }
+        retryAfter.put(playerId, System.currentTimeMillis() + 30_000L);
+        discard(session);
+        return false;
+    }
+
     private static GeometryVector mappedCrossing(ServerPlayer player, MinecraftPortal source, MinecraftPortal destination) {
         return source.getFrame().transformCrossingPoint(new GeometryVector(player.getX(), player.getY(), player.getZ()), source.getOrigin(),
             destination.getOrigin(), destination.getFrame());
@@ -319,6 +389,7 @@ final class MinecraftPreparedTravel {
         private int columns;
         private int bytes;
         private int examined;
+        private int leaseRequests;
 
         CaptureBudget(boolean reusable, long started) {
             this.reusable = reusable;
@@ -334,9 +405,24 @@ final class MinecraftPreparedTravel {
             columns++;
             bytes += length;
         }
+
+        boolean requestLease() {
+            if (leaseRequests >= MAX_LEASE_REQUESTS) {
+                return false;
+            }
+            leaseRequests++;
+            return true;
+        }
     }
 
     private record Captured(LevelChunk chunk, long stamp) {
+    }
+
+    private record LandingRoute(MinecraftPortal source, MinecraftPortal destination, ServerLevel world,
+                                long identity, int chunkX, int chunkZ) {
+    }
+
+    private record LandingWarmup(LandingRoute route, ChunkLease lease, long deadline) {
     }
 
     private record PreparationOptions(MinecraftPortal source, MinecraftPortal destination, ServerLevel world,

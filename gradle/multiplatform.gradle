@@ -23,7 +23,8 @@ Set<String> portalRenderMixins = ['client.PortalLevelRendererMixin', 'client.Por
                                  'client.PortalShaderGameRendererMixin', 'client.IrisPortalMainMinecraftMixin',
                                  'client.PreparedSectionFadeMixin', 'client.PreparedLevelAccess',
                                  'client.PreparedLevelMetadataMixin', 'client.PreparedTravelPacketMixin',
-                                 'client.PreparedTravelCameraMixin'] as Set
+                                 'client.PreparedTravelCameraMixin', 'client.SodiumPreparedRendererMixin',
+                                 'client.SodiumPreparedExtractorMixin'] as Set
 
 tasks.register('buildBukkit', Copy) {
     group = 'distribution'

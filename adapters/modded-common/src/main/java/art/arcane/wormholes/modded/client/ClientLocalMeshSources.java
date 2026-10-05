@@ -21,6 +21,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongLinkedOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.level.block.Blocks;
@@ -80,10 +81,14 @@ public final class ClientLocalMeshSources {
     }
 
     public void blockChanged(Object world, BlockPos position) {
-        if (level != world || ClientMeshEntities.active() != null) {
+        if (!(world instanceof ClientLevel current) || ClientMeshEntities.active() != null) {
             return;
         }
+        String name = world(current);
         for (Route route : routes.values()) {
+            if (!route.world.equals(name)) {
+                continue;
+            }
             long display = SectionPos.asLong(route.cells.displayX(position.getX(), position.getY(), position.getZ()) >> 4,
                 route.cells.displayY(position.getX(), position.getY(), position.getZ()) >> 4,
                 route.cells.displayZ(position.getX(), position.getY(), position.getZ()) >> 4);
@@ -92,7 +97,7 @@ public final class ClientLocalMeshSources {
                 route.dirty.addAndMoveToFirst(display);
             }
         }
-        dirty(SectionPos.asLong(position.getX() >> 4, position.getY() >> 4, position.getZ() >> 4));
+        dirty(current, SectionPos.asLong(position.getX() >> 4, position.getY() >> 4, position.getZ() >> 4));
     }
 
     public void chunkChanged(Object world, int x, int z) {
@@ -184,7 +189,9 @@ public final class ClientLocalMeshSources {
             if (route == null || route.generation != view.generation() || !route.transform.equals(environment.transform()) || route.local != local) {
                 Route replacement = new Route(portal, view, environment.transform(), eye, tick, environment.world().dimensionKey(), local);
                 if (route != null && route.view == view && route.transform.equals(environment.transform()) && route.local == local) {
-                    replacement.derived.putAll(route.derived);
+                    for (Long2ObjectMap.Entry<Derived> entry : route.derived.long2ObjectEntrySet()) {
+                        replacement.put(entry.getLongKey(), entry.getValue());
+                    }
                     for (long key : route.derived.keySet()) {
                         if (replacement.inBounds(key)) {
                             if (local) {
@@ -212,6 +219,7 @@ public final class ClientLocalMeshSources {
                             route.removed.add(coordinate(entry.getLongKey()));
                         }
                         route.added.remove(coordinate(entry.getKey()));
+                        route.unindex(entry.getLongKey(), entry.getValue());
                         iterator.remove();
                     }
                 }
@@ -246,6 +254,9 @@ public final class ClientLocalMeshSources {
             if (!route.inBounds(section) || !route.selected.contains(section.longValue())) {
                 continue;
             }
+            if (!route.local && !session.meshes().canPreview(route.key, section.longValue())) {
+                continue;
+            }
             Derived previous = route.derived.get(section.longValue());
             if (previous != null && !route.refreshing.remove(section.longValue())) {
                 continue;
@@ -256,16 +267,16 @@ public final class ClientLocalMeshSources {
                     if (route.local) {
                         session.meshes().local(route.key, section, null);
                     }
-                    route.derived.remove(section.longValue());
+                    route.remove(section.longValue());
                     if (route.local) {
-                    route.removed.add(coordinate(section));
-                }
+                        route.removed.add(coordinate(section));
+                    }
                 }
                 continue;
             }
             ClientViewMessage.MeshClaim claim = route.local ? null : session.meshes().preview(route.key, section, next.section);
             if (route.local ? session.meshes().local(route.key, section, next.section) : claim != null) {
-                route.derived.put(section.longValue(), new Derived(session.meshes().view(route.key).section(section.longValue()), next.dependencies));
+                route.put(section.longValue(), new Derived(session.meshes().view(route.key).section(section.longValue()), next.dependencies));
                 if (previous == null && route.local) {
                     route.added.add(coordinate(section));
                 }
@@ -318,16 +329,25 @@ public final class ClientLocalMeshSources {
         return eye;
     }
 
-    private void dirty(long source) {
-        Snapshot removed = snapshots.remove(new SnapshotKey(world(level), source));
-        enqueueSnapshot(level, source);
+    private void dirty(ClientLevel current, long source) {
+        String name = world(current);
+        SnapshotKey key = new SnapshotKey(name, source);
+        Snapshot removed = snapshots.remove(key);
+        if (current == level) {
+            enqueueSnapshot(current, source);
+        } else {
+            pendingSnapshots.remove(key);
+        }
         if (removed != null) {
             snapshotBytes -= removed.bytes;
         }
         for (Route route : routes.values()) {
-            for (Map.Entry<Long, Derived> entry : route.derived.long2ObjectEntrySet()) {
-                if (route.world.equals(world(level)) && entry.getValue().dependencies.contains(source)) {
-                    route.enqueue(entry.getKey());
+            if (route.world.equals(name)) {
+                LongSet dependents = route.dependents.get(source);
+                if (dependents != null) {
+                    for (long display : dependents) {
+                        route.enqueue(display);
+                    }
                 }
             }
         }
@@ -360,7 +380,7 @@ public final class ClientLocalMeshSources {
         int x = SectionPos.x(display) << 4;
         int y = SectionPos.y(display) << 4;
         int z = SectionPos.z(display) << 4;
-        Set<Long> dependencies = new HashSet<>(27);
+        LongSet dependencies = new LongOpenHashSet(27);
         Long2ObjectOpenHashMap<Snapshot> sourceSamples = new Long2ObjectOpenHashMap<>(27);
         if (route.local) {
             for (int dx : new int[] {-8, 23}) {
@@ -430,7 +450,7 @@ public final class ClientLocalMeshSources {
         return new Derived(session.meshes().localSection(message), dependencies);
     }
 
-    private Snapshot snapshot(Route route, BlockPos position, Set<Long> dependencies, Long2ObjectOpenHashMap<Snapshot> sourceSamples) {
+    private Snapshot snapshot(Route route, BlockPos position, LongSet dependencies, Long2ObjectOpenHashMap<Snapshot> sourceSamples) {
         long key = SectionPos.asLong(position.getX() >> 4, position.getY() >> 4, position.getZ() >> 4);
         Snapshot captured = sourceSamples.get(key);
         if (captured != null) {
@@ -513,6 +533,7 @@ public final class ClientLocalMeshSources {
         private final LongLinkedOpenHashSet dirty = new LongLinkedOpenHashSet();
         private final LongOpenHashSet refreshing = new LongOpenHashSet();
         private final Long2ObjectOpenHashMap<Derived> derived = new Long2ObjectOpenHashMap<>();
+        private final Long2ObjectOpenHashMap<LongOpenHashSet> dependents = new Long2ObjectOpenHashMap<>();
         private final Set<UUID> entities = new HashSet<>();
         private final List<ClientViewMessage.MeshCoordinate> added = new ArrayList<>();
         private final List<ClientViewMessage.MeshCoordinate> removed = new ArrayList<>();
@@ -537,6 +558,36 @@ public final class ClientLocalMeshSources {
         private void enqueue(long key) {
             refreshing.add(key);
             dirty.add(key);
+        }
+
+        private void put(long display, Derived value) {
+            Derived previous = derived.put(display, value);
+            if (previous != null && previous.dependencies.equals(value.dependencies)) {
+                return;
+            }
+            if (previous != null) {
+                unindex(display, previous);
+            }
+            for (long source : value.dependencies) {
+                dependents.computeIfAbsent(source, key -> new LongOpenHashSet()).add(display);
+            }
+        }
+
+        private void remove(long display) {
+            Derived removed = derived.remove(display);
+            if (removed != null) {
+                unindex(display, removed);
+            }
+        }
+
+        private void unindex(long display, Derived value) {
+            for (long source : value.dependencies) {
+                LongOpenHashSet displays = dependents.get(source);
+                displays.remove(display);
+                if (displays.isEmpty()) {
+                    dependents.remove(source);
+                }
+            }
         }
 
         private Route(ClientPortal portal, ClientMeshSections.View view, ClientViewEnvironment.Transform transform, GeometryVector eye, long tick, String world, boolean local) {
@@ -616,7 +667,7 @@ public final class ClientLocalMeshSources {
     private record SnapshotKey(String world, long section) {
     }
 
-    private record Derived(ClientMeshSections.Section section, Set<Long> dependencies) {
+    private record Derived(ClientMeshSections.Section section, LongSet dependencies) {
         private boolean usesChunk(int x, int z) {
             for (long dependency : dependencies) {
                 if (SectionPos.x(dependency) == x && SectionPos.z(dependency) == z) {

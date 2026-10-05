@@ -12,6 +12,7 @@ import java.util.function.Supplier;
 
 public final class ClientViewDebugEntry implements DebugScreenEntry {
     public static final Identifier ID = Identifier.fromNamespaceAndPath("wormholes", "client_view");
+    public static final Identifier STATUS_ID = Identifier.fromNamespaceAndPath("wormholes", "connection_status");
 
     private final Supplier<String> line;
 

@@ -19,6 +19,7 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ObjectIterator;
 import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.client.multiplayer.ClientLevel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -339,6 +340,10 @@ public final class ClientViewTick implements ClientViewSession.Sink {
 
     @Override
     public void dropped(ClientPortal portal) {
+        WormholesClient client = WormholesClient.instance();
+        if (client != null && overlay != null && overlay.level() instanceof ClientLevel level) {
+            client.preparedTravel().discardManagedVanillaPortal(level, portal.geometry());
+        }
         if (applier == null) {
             return;
         }

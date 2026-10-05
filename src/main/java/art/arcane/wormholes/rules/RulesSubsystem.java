@@ -41,7 +41,7 @@ public final class RulesSubsystem implements WormholesSubsystem {
 
     @Override
     public void register(WormholesRegistrar registrar) {
-        registrar.portalExtension(new RulesExtensionFactory());
+        registrar.portalExtension(RulesPortalExtension.class, RulesPortalExtension::new);
         registrar.traversalGate(new RulesGate(environment, warmups, ledger));
         registrar.traversalObserver(new RulesObserver(ledger));
         registrar.portalMenuEntry(new RulesMenuEntry());

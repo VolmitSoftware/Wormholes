@@ -68,13 +68,14 @@ final class PortalGpuMesh implements AutoCloseable {
         return vertices.size() + indices.size();
     }
 
-    void sort(float x, float y, float z) {
+    void sort(ByteBufferBuilder builder, float x, float y, float z) {
         if (sorting == null || (x == sortX && y == sortY && z == sortZ)) {
             return;
         }
-        try (ByteBufferBuilder builder = new ByteBufferBuilder(indexCount * 4);
-             ByteBufferBuilder.Result sorted = sorting.buildSortedIndexBuffer(builder, VertexSorting.byDistance(x, y, z))) {
+        try (ByteBufferBuilder.Result sorted = sorting.buildSortedIndexBuffer(builder, VertexSorting.byDistance(x, y, z))) {
             RenderSystem.getDevice().createCommandEncoder().writeToBuffer(indices.slice(), sorted.byteBuffer());
+        } finally {
+            builder.clear();
         }
         sortX = x;
         sortY = y;

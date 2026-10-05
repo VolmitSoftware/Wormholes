@@ -76,31 +76,12 @@ public final class PortalSettingsCodec {
     }
 
     private static void applyProjectionState(RemotePortal remote, Map<String, String> settings) {
-        String legacyValue = settings.get(KEY_PROJECTION_MODE);
-        ProjectionMode projection = null;
-        Boolean mirror = null;
-        if ("MIRROR".equals(legacyValue)) {
-            projection = ProjectionMode.ON;
-            mirror = Boolean.TRUE;
-        } else if (legacyValue != null) {
-            projection = parseProjectionMode(legacyValue);
-            if (projection != null && !settings.containsKey(KEY_MIRROR_MODE)) {
-                mirror = Boolean.FALSE;
-            }
+        ProjectionState state = projectionState(settings);
+        if (state.projection() != null) {
+            remote.setMirroredProjectionMode(state.projection());
         }
-        Boolean projectionEnabled = parseBoolean(settings.get(KEY_PROJECTION_ENABLED));
-        if (projectionEnabled != null) {
-            projection = projectionEnabled.booleanValue() ? ProjectionMode.ON : ProjectionMode.OFF;
-        }
-        Boolean explicitMirror = parseBoolean(settings.get(KEY_MIRROR_MODE));
-        if (explicitMirror != null) {
-            mirror = explicitMirror;
-        }
-        if (projection != null) {
-            remote.setMirroredProjectionMode(projection);
-        }
-        if (mirror != null) {
-            remote.setMirroredMirrorMode(mirror.booleanValue());
+        if (state.mirror() != null) {
+            remote.setMirroredMirrorMode(state.mirror().booleanValue());
         }
     }
 
@@ -216,6 +197,16 @@ public final class PortalSettingsCodec {
     }
 
     private static void applyProjectionState(PortalSettingsTarget portal, Map<String, String> settings) {
+        ProjectionState state = projectionState(settings);
+        if (state.projection() != null) {
+            portal.setProjectionMode(state.projection());
+        }
+        if (state.mirror() != null) {
+            portal.setMirrorMode(state.mirror().booleanValue());
+        }
+    }
+
+    private static ProjectionState projectionState(Map<String, String> settings) {
         String legacyValue = settings.get(KEY_PROJECTION_MODE);
         ProjectionMode projection = null;
         Boolean mirror = null;
@@ -236,11 +227,9 @@ public final class PortalSettingsCodec {
         if (explicitMirror != null) {
             mirror = explicitMirror;
         }
-        if (projection != null) {
-            portal.setProjectionMode(projection);
-        }
-        if (mirror != null) {
-            portal.setMirrorMode(mirror.booleanValue());
-        }
+        return new ProjectionState(projection, mirror);
+    }
+
+    private record ProjectionState(ProjectionMode projection, Boolean mirror) {
     }
 }

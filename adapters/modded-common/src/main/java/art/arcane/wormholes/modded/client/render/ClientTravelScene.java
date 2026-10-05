@@ -22,6 +22,8 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.Map;
 import java.util.Arrays;
+import java.util.function.ObjLongConsumer;
+import java.util.HashMap;
 
 public final class ClientTravelScene implements PortalScene {
     private static final long SNAPSHOT_NANOS = 2_000_000L;
@@ -73,10 +75,22 @@ public final class ClientTravelScene implements PortalScene {
     }
 
     public void nativeColumns(Map<ClientViewMessage.TravelCoordinate, byte[]> columns) {
-        nativeColumns = Map.copyOf(columns);
+        nativeColumns = new HashMap<>(columns);
     }
 
-    MeshIdentity meshIdentity(long key) {
+    public void invalidateColumn(int x, int z) {
+        if (!nativeColumns.isEmpty()) {
+            nativeColumns.remove(new ClientViewMessage.TravelCoordinate(x, z));
+        }
+    }
+
+    @Override
+    public MeshIdentity meshContext() {
+        return meshIdentities.isEmpty() ? null : meshIdentities.values().iterator().next();
+    }
+
+    @Override
+    public MeshIdentity meshIdentity(long key) {
         return meshIdentities.get(key);
     }
 
@@ -101,6 +115,10 @@ public final class ClientTravelScene implements PortalScene {
         return level == value;
     }
 
+    ClientLevel level() {
+        return level;
+    }
+
     public void adoptLevel(ClientLevel level) {
         this.level = level;
         nativeColumns = Map.of();
@@ -119,12 +137,15 @@ public final class ClientTravelScene implements PortalScene {
             return;
         }
         RenderRegionCache cache = new RenderRegionCache();
-        for (int count = 0; count < MAX_SNAPSHOTS && !pendingSections.isEmpty(); count++) {
+        int limit = Math.min(MAX_SNAPSHOTS, pendingSections.size());
+        for (int count = 0; count < limit; count++) {
             if (count > 0 && System.nanoTime() >= deadline) {
                 break;
             }
             long key = pendingSections.removeFirstLong();
-            snapshot(cache, SectionPos.x(key), SectionPos.y(key), SectionPos.z(key));
+            if (!snapshot(cache, SectionPos.x(key), SectionPos.y(key), SectionPos.z(key))) {
+                pendingSections.add(key);
+            }
         }
     }
 
@@ -145,6 +166,7 @@ public final class ClientTravelScene implements PortalScene {
                     }
                     long key = SectionPos.asLong(x + dx, sectionY, z + dz);
                     pendingSections.add(key);
+                    meshIdentities.remove(key);
                     changed.add(key);
                 }
             }
@@ -163,12 +185,20 @@ public final class ClientTravelScene implements PortalScene {
         return true;
     }
 
-    private void snapshot(RenderRegionCache cache, int x, int y, int z) {
-        LevelChunk chunk = level.getChunkSource().getChunk(x, z, ChunkStatus.FULL, false);
-        if (chunk == null) {
-            throw new IllegalStateException("Prepared travel chunk is missing");
-        }
+    private boolean snapshot(RenderRegionCache cache, int x, int y, int z) {
         long key = SectionPos.asLong(x, y, z);
+        for (int dz = -1; dz <= 1; dz++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                if (level.getChunkSource().getChunk(x + dx, z + dz, ChunkStatus.FULL, false) == null) {
+                    regions.remove(key);
+                    empty.remove(key);
+                    revisions.remove(key);
+                    meshIdentities.remove(key);
+                    return false;
+                }
+            }
+        }
+        LevelChunk chunk = level.getChunkSource().getChunk(x, z, ChunkStatus.FULL, false);
         sections.add(key);
         revisions.put(key, ++revision);
         MeshIdentity identity = meshIdentity(x, z);
@@ -184,6 +214,7 @@ public final class ClientTravelScene implements PortalScene {
             empty.remove(key);
             regions.put(key, cache.createRegion(level, key));
         }
+        return true;
     }
 
     @Override
@@ -221,9 +252,20 @@ public final class ClientTravelScene implements PortalScene {
         return sections.contains(sectionKey) && !pendingSections.contains(sectionKey)
             ? revisions.get(sectionKey) : -1;
     }
-    record MeshIdentity(ClientViewMessage.TravelWorld world, byte[][] columns) {
-        boolean same(MeshIdentity other) {
-            if (other == null || !world.equals(other.world)) {
+    record MeshIdentity(ClientViewMessage.TravelWorld world, byte[][] columns) implements PortalScene.MeshIdentity {
+        @Override
+        public int contextHash() {
+            return world.hashCode();
+        }
+
+        @Override
+        public boolean sameContext(PortalScene.MeshIdentity other) {
+            return other instanceof MeshIdentity identity && world.equals(identity.world);
+        }
+
+        @Override
+        public boolean same(PortalScene.MeshIdentity value) {
+            if (!(value instanceof MeshIdentity other) || !sameContext(other) || columns.length != other.columns.length) {
                 return false;
             }
             for (int index = 0; index < columns.length; index++) {
@@ -232,6 +274,14 @@ public final class ClientTravelScene implements PortalScene {
                 }
             }
             return true;
+        }
+
+        @Override
+        public void references(ObjLongConsumer<Object> consumer) {
+            consumer.accept(this, 48L + 16 + columns.length * 8L);
+            for (byte[] column : columns) {
+                consumer.accept(column, (long) column.length);
+            }
         }
     }
 

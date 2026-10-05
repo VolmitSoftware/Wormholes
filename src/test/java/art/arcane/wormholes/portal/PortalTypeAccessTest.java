@@ -14,8 +14,8 @@ public final class PortalTypeAccessTest
 	@Test
 	public void portalAndRtpRequireTheResolvedPortalLeaf()
 	{
-		assertTrue(PortalTypeAccess.allows(player(false, Set.of(PortalTypeAccess.PORTAL)), PortalType.PORTAL));
-		assertTrue(PortalTypeAccess.allows(player(false, Set.of(PortalTypeAccess.PORTAL)), PortalType.RTP));
+		assertTrue(PortalTypeAccess.allows(player(false, Set.of(PortalType.PORTAL.permission())), PortalType.PORTAL));
+		assertTrue(PortalTypeAccess.allows(player(false, Set.of(PortalType.PORTAL.permission())), PortalType.RTP));
 		assertFalse(PortalTypeAccess.allows(player(false, Set.of()), PortalType.PORTAL));
 		assertFalse(PortalTypeAccess.allows(player(false, Set.of("wormholes.portals")), PortalType.PORTAL));
 	}
@@ -23,9 +23,9 @@ public final class PortalTypeAccessTest
 	@Test
 	public void wormholeAndGatewayUseTheirOwnManagementNodes()
 	{
-		assertTrue(PortalTypeAccess.allows(player(false, Set.of(PortalTypeAccess.WORMHOLE)), PortalType.WORMHOLE));
-		assertTrue(PortalTypeAccess.allows(player(false, Set.of(PortalTypeAccess.GATEWAY)), PortalType.GATEWAY));
-		assertFalse(PortalTypeAccess.allows(player(false, Set.of(PortalTypeAccess.PORTAL)), PortalType.WORMHOLE));
+		assertTrue(PortalTypeAccess.allows(player(false, Set.of(PortalType.WORMHOLE.permission())), PortalType.WORMHOLE));
+		assertTrue(PortalTypeAccess.allows(player(false, Set.of(PortalType.GATEWAY.permission())), PortalType.GATEWAY));
+		assertFalse(PortalTypeAccess.allows(player(false, Set.of(PortalType.PORTAL.permission())), PortalType.WORMHOLE));
 		assertFalse(PortalTypeAccess.allows(player(false, Set.of("wormholes.portals")), PortalType.GATEWAY));
 	}
 

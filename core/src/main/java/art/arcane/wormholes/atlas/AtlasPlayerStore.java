@@ -14,6 +14,10 @@ import java.util.Map;
 import java.util.LinkedHashMap;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -21,12 +25,15 @@ import java.util.logging.Logger;
  * Per-player atlas files under {@code atlas/players/}. State loads on join, is written back on quit
  * and on the debounced flush, and never touches disk while nothing changed.
  */
-public final class AtlasPlayerStore {
+public final class AtlasPlayerStore implements AutoCloseable {
     private static final Logger LOG = Logger.getLogger("Wormholes");
 
     private final Path directory;
     private final JsonDocuments json;
-    private final ConcurrentHashMap<UUID, AtlasPlayerState> loaded = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<UUID, CompletableFuture<AtlasPlayerState>> loaded = new ConcurrentHashMap<>();
+    private final ExecutorService storage = Executors.newSingleThreadExecutor(
+        Thread.ofVirtual().name("wormholes-atlas-storage").factory());
+    private CompletableFuture<Void> closing;
 
     public AtlasPlayerStore(Path directory, JsonDocuments json) {
         this.directory = Objects.requireNonNull(directory, "directory");
@@ -37,45 +44,68 @@ public final class AtlasPlayerStore {
         return directory;
     }
 
-    public AtlasPlayerState load(UUID playerId) {
-        return loaded.computeIfAbsent(playerId, this::read);
+    public synchronized CompletableFuture<AtlasPlayerState> loadAsync(UUID playerId) {
+        Objects.requireNonNull(playerId, "playerId");
+        if (closing != null) {
+            return CompletableFuture.failedFuture(new IllegalStateException("Atlas store is closed"));
+        }
+        return loaded.computeIfAbsent(playerId,
+            id -> CompletableFuture.supplyAsync(() -> read(id), storage));
     }
 
     /** The cached state, or null when this player is not loaded. */
     public AtlasPlayerState cached(UUID playerId) {
-        return playerId == null ? null : loaded.get(playerId);
+        CompletableFuture<AtlasPlayerState> pending = playerId == null ? null : loaded.get(playerId);
+        return pending != null && pending.state() == Future.State.SUCCESS ? pending.resultNow() : null;
     }
 
-    public void save(UUID playerId) {
-        write(loaded.get(playerId));
+    public synchronized CompletableFuture<Void> unloadAsync(UUID playerId) {
+        CompletableFuture<AtlasPlayerState> pending = loaded.remove(playerId);
+        if (pending == null || closing != null) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return CompletableFuture.runAsync(() -> write(pending.join()), storage);
     }
 
-    public void unload(UUID playerId) {
-        AtlasPlayerState state = loaded.remove(playerId);
-        write(state);
+    public synchronized CompletableFuture<Void> flushDirtyAsync() {
+        if (closing != null) {
+            return CompletableFuture.completedFuture(null);
+        }
+        List<CompletableFuture<AtlasPlayerState>> states = List.copyOf(loaded.values());
+        return CompletableFuture.runAsync(() -> flush(states), storage);
     }
 
-    public void flushDirty() {
-        for (AtlasPlayerState state : loaded.values()) {
-            if (state.isDirty()) {
-                write(state);
+    @Override
+    public void close() {
+        CompletableFuture<Void> pending;
+        synchronized (this) {
+            if (closing == null) {
+                List<CompletableFuture<AtlasPlayerState>> states = List.copyOf(loaded.values());
+                loaded.clear();
+                closing = CompletableFuture.runAsync(() -> flush(states), storage);
+                storage.shutdown();
             }
+            pending = closing;
+        }
+        try {
+            pending.join();
+        } finally {
+            storage.close();
         }
     }
 
-    public void flushAll() {
-        for (AtlasPlayerState state : loaded.values()) {
-            write(state);
+    private void flush(List<CompletableFuture<AtlasPlayerState>> states) {
+        for (CompletableFuture<AtlasPlayerState> pending : states) {
+            write(pending.join());
         }
-        loaded.clear();
     }
 
     private AtlasPlayerState read(UUID playerId) {
         Path file = directory.resolve(playerId + ".json");
-        if (!Files.isRegularFile(file)) {
-            return new AtlasPlayerState(playerId);
-        }
         try {
+            if (!Files.isRegularFile(file)) {
+                return new AtlasPlayerState(playerId);
+            }
             return decode(playerId, json.decode(Files.readString(file, StandardCharsets.UTF_8)));
         } catch (IOException | RuntimeException failure) {
             LOG.log(Level.WARNING, "atlas state unreadable for " + playerId, failure);
@@ -84,7 +114,7 @@ public final class AtlasPlayerStore {
     }
 
     private void write(AtlasPlayerState state) {
-        if (state == null) {
+        if (state == null || !state.isDirty()) {
             return;
         }
         AtlasPlayerState.Snapshot snapshot = state.snapshot();
@@ -92,7 +122,7 @@ public final class AtlasPlayerStore {
             Files.createDirectories(directory);
             VIO.writeAll(directory.resolve(state.playerId() + ".json").toFile(), json.encode(encode(snapshot)));
             state.markClean(snapshot);
-        } catch (IOException failure) {
+        } catch (IOException | RuntimeException failure) {
             LOG.log(Level.WARNING, "atlas state could not be saved for " + state.playerId(), failure);
         }
     }

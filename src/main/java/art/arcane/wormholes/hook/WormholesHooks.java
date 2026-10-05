@@ -13,7 +13,7 @@ public final class WormholesHooks {
     private static volatile List<TraversalGate> traversalGates = List.of();
     private static volatile List<DestinationResolver> destinationResolvers = List.of();
     private static volatile List<TraversalObserver> traversalObservers = List.of();
-    private static volatile List<PortalExtensionFactory> portalExtensionFactories = List.of();
+    private static volatile List<PortalExtensionFactory<?>> portalExtensionFactories = List.of();
     private static volatile List<ProjectionSource> projectionSources = List.of();
     private static volatile List<PortalMenuEntry> portalMenuEntries = List.of();
 
@@ -52,7 +52,7 @@ public final class WormholesHooks {
         return traversalObservers;
     }
 
-    public static List<PortalExtensionFactory> portalExtensionFactories() {
+    public static List<PortalExtensionFactory<?>> portalExtensionFactories() {
         return portalExtensionFactories;
     }
 

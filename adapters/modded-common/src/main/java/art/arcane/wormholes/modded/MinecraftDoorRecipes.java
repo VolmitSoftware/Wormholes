@@ -1,10 +1,10 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.config.toml.RecipeConfig;
 import art.arcane.wormholes.config.toml.RecipesConfig;
 import art.arcane.wormholes.door.DoorCraftProduct;
 import art.arcane.wormholes.door.DoorForm;
 import art.arcane.wormholes.door.DoorItemIdentity;
+import art.arcane.wormholes.door.DoorRecipeSettings;
 import art.arcane.wormholes.door.DoorRecipeSpec;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -75,17 +75,19 @@ public final class MinecraftDoorRecipes {
     }
 
     static List<RecipeHolder<?>> build(RecipesConfig configured, MinecraftPortalItems items) {
+        DoorRecipeSettings recipes = DoorRecipeSettings.from(configured, (product, rejected) ->
+            LOGGER.warn("Invalid dimensional-door recipe {}; using its shipped recipe", product.recipeName(), rejected));
         List<RecipeHolder<?>> holders = new ArrayList<>(DoorCraftProduct.values().length + DoorForm.values().length);
         for (DoorCraftProduct product : DoorCraftProduct.values()) {
-            RecipeConfig recipe = configured.forProduct(product);
-            if (recipe == null || recipe.enabled) {
+            DoorRecipeSpec recipe = recipes.products().get(product);
+            if (recipe != null) {
                 holders.add(new RecipeHolder<>(key(product), product(product, recipe, items)));
             }
         }
-        if (configured.doorSkin.enabled) {
+        if (recipes.doorSkinEnabled()) {
             holders.add(new RecipeHolder<>(skinKey(DoorForm.DOOR), new SkinRecipe(DoorForm.DOOR)));
         }
-        if (configured.trapdoorSkin.enabled) {
+        if (recipes.trapdoorSkinEnabled()) {
             holders.add(new RecipeHolder<>(skinKey(DoorForm.TRAPDOOR), new SkinRecipe(DoorForm.TRAPDOOR)));
         }
         return List.copyOf(holders);
@@ -163,13 +165,11 @@ public final class MinecraftDoorRecipes {
         return ResourceKey.create(Registries.RECIPE, Identifier.fromNamespaceAndPath("wormholes", name));
     }
 
-    private static ProductRecipe product(DoorCraftProduct product, RecipeConfig recipe, MinecraftPortalItems items) {
-        if (recipe != null) {
-            try {
-                return new ProductRecipe(product, resolve(DoorRecipeSpec.parse(recipe.shape, recipe.ingredients), items));
-            } catch (IllegalArgumentException exception) {
-                LOGGER.warn("Invalid dimensional-door recipe {}; using its shipped recipe", product.recipeName(), exception);
-            }
+    private static ProductRecipe product(DoorCraftProduct product, DoorRecipeSpec recipe, MinecraftPortalItems items) {
+        try {
+            return new ProductRecipe(product, resolve(recipe, items));
+        } catch (IllegalArgumentException exception) {
+            LOGGER.warn("Invalid dimensional-door recipe {}; using its shipped recipe", product.recipeName(), exception);
         }
         return new ProductRecipe(product, resolve(product.defaultSpec(), items));
     }

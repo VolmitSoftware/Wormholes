@@ -3,10 +3,12 @@ package art.arcane.wormholes.portal;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.bukkit.World;
 import org.junit.jupiter.api.AfterEach;
@@ -14,7 +16,6 @@ import org.junit.jupiter.api.Test;
 
 import art.arcane.volmlib.util.json.JSONObject;
 import art.arcane.wormholes.hook.PortalExtension;
-import art.arcane.wormholes.hook.PortalExtensionFactory;
 import art.arcane.wormholes.hook.WormholesHooks;
 import art.arcane.wormholes.hook.WormholesRegistrar;
 
@@ -29,7 +30,7 @@ final class PortalExtensionsTest
 	@Test
 	void registeredExtensionPersistsInsidePortalJsonAndSyncsOnlyItsOwnPrefix()
 	{
-		WormholesHooks.install(new WormholesRegistrar().portalExtension(new CounterFactory()));
+		WormholesHooks.install(new WormholesRegistrar().portalExtension(CounterExtension.class, extensionPortal -> new CounterExtension()));
 		World world = LocalPortalTestSupport.world("extensions");
 		LocalPortal source = LocalPortalTestSupport.portal(world, PortalType.PORTAL);
 		CounterExtension counter = source.extension(CounterExtension.class);
@@ -65,19 +66,28 @@ final class PortalExtensionsTest
 		assertTrue(!encoded.has("counter.value"));
 	}
 
-	private static final class CounterFactory implements PortalExtensionFactory
+	@Test
+	void failedAndAbsentExtensionsAllowLaterRegistrationOnTheSamePortal()
 	{
-		@Override
-		public Class<? extends PortalExtension> type()
-		{
-			return CounterExtension.class;
-		}
+		AtomicReference<LocalPortal> received = new AtomicReference<>();
+		WormholesRegistrar registrar = new WormholesRegistrar()
+			.portalExtension(CounterExtension.class, extensionPortal -> {
+				throw new IllegalArgumentException("unusable extension");
+			})
+			.portalExtension(CounterExtension.class, extensionPortal -> null)
+			.portalExtension(CounterExtension.class, extensionPortal -> {
+				received.set(extensionPortal);
+				return new CounterExtension();
+			});
+		WormholesHooks.install(registrar);
+		World world = LocalPortalTestSupport.world("registration");
+		LocalPortal portal = LocalPortalTestSupport.portal(world, PortalType.PORTAL);
 
-		@Override
-		public PortalExtension create(LocalPortal portal)
-		{
-			return new CounterExtension();
-		}
+		assertSame(portal, received.get());
+		assertNotNull(portal.extension(CounterExtension.class));
+		WormholesHooks.clear();
+		LocalPortal subsequent = LocalPortalTestSupport.portal(world, PortalType.PORTAL);
+		assertNull(subsequent.extension(CounterExtension.class));
 	}
 
 	private static final class CounterExtension implements PortalExtension

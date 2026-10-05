@@ -47,7 +47,6 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
     private ProjectedEntityOcclusion<B, V> projectedEntityOcclusion;
     private final ProjectorBlackoutBoundary blackoutBoundary;
     private final ProjectorFrameTransform cellTransform;
-    private final double[] scratchRot;
     private final double[] scratchRemotePoint;
     private final double[] scratchRemoteEye;
     private final double[] scratchRemoteBounds;
@@ -164,7 +163,6 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
         this.projectedEntityOcclusion = new ProjectedEntityOcclusion<B, V>(new ProjectorViewOcclusion<B>(context.occlusion(), ProjectedEntityOcclusion.MAX_VOXEL_STEPS_PER_BATCH));
         this.blackoutBoundary = new ProjectorBlackoutBoundary();
         this.cellTransform = new ProjectorFrameTransform();
-        this.scratchRot = new double[3];
         this.scratchRemotePoint = new double[3];
         this.scratchRemoteEye = new double[3];
         this.scratchRemoteBounds = new double[6];
@@ -1367,7 +1365,7 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
                 PortalCoordMap.mirrorDisplayToSourcePointInto(eyeX, eyeY, eyeZ,
                     localOriginX, localOriginY, localOriginZ, localFrame, mirrorRotationQuarterTurns, scratchRemoteEye);
                 cellTransform.configureMirror(localFrame, mirrorRotationQuarterTurns,
-                    localOriginX, localOriginY, localOriginZ, scratchRot);
+                    localOriginX, localOriginY, localOriginZ);
             } else {
                 projectionLocalFrame.transformPointInto(eyeX, eyeY, eyeZ,
                     localOriginX, localOriginY, localOriginZ,
@@ -1685,7 +1683,8 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
                         }
 
                         boolean masked = false;
-                        if (maskRow && u >= maskLow && u <= maskHigh) {
+                        boolean remotePointMapped = maskRow && u >= maskLow && u <= maskHigh;
+                        if (remotePointMapped) {
                             applyRemotePoint(cx, cy, cz);
                             masked = masksRemotePoint(u);
                         }
@@ -1735,7 +1734,9 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
                             }
                             continue;
                         }
-                        applyRemotePoint(cx, cy, cz);
+                        if (!remotePointMapped) {
+                            applyRemotePoint(cx, cy, cz);
+                        }
 
                         int rx = (int) Math.floor(scratchRemotePoint[0]);
                         int ry = (int) Math.floor(scratchRemotePoint[1]);

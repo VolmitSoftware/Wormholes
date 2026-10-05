@@ -11,6 +11,7 @@ import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
@@ -22,14 +23,18 @@ public final class ClientPreparedTravelServer implements ProjectionWorldChangeTr
     private static final int MAX_RETAINED_COLUMNS = 256;
     private static final int MAX_RETAINED_BYTES = ClientViewProtocol.MAX_TRAVEL_BYTES;
     private static final int MAX_SENT_BARRIERS = 16;
-    private static final int MAX_FRESH_HASHES = 16;
-    private static final long HASH_BUDGET_NANOS = 2_000_000L;
+    private static final long PROBE_BUDGET_NANOS = 2_000_000L;
+    private static final long PROBE_INTERVAL_MILLIS = 1_000L / ClientViewProtocol.DEFAULT_TICK_RATE;
+    private static final long PROBE_TIMEOUT_MILLIS = 1_000L;
     private static final long CROSSING_TIMEOUT_MILLIS = 2_000L;
     private final HashMap<ClientViewMessage.TravelCoordinate, Column> columns = new HashMap<>();
     private final LinkedHashMap<SnapshotKey, Payload> retained = new LinkedHashMap<>(16, 0.75F, true);
     private int retainedBytes;
     private final ArrayDeque<Long> emittedBarriers = new ArrayDeque<>(MAX_SENT_BARRIERS);
     private final ArrayDeque<Long> acknowledgedBarriers = new ArrayDeque<>(MAX_SENT_BARRIERS);
+    private final ArrayDeque<Probe> pendingProbes = new ArrayDeque<>(ClientViewProtocol.MAX_TRAVEL_REUSE_PROBES_PER_TICK);
+    private long probeWindowMillis = Long.MIN_VALUE;
+    private int probesInWindow;
     private ClientViewMessage.TravelCross pendingCross;
     private long crossDeadline;
     private boolean crossClaimed;
@@ -60,6 +65,7 @@ public final class ClientPreparedTravelServer implements ProjectionWorldChangeTr
     }
 
     public synchronized boolean cached(ClientViewMessage.TravelCached value) {
+        releaseProbe(value);
         if (!reuseSelected || begin == null || worldInvalidated || !begin.token().equals(value.token())
             || begin.generation() != value.generation()) {
             return false;
@@ -108,6 +114,7 @@ public final class ClientPreparedTravelServer implements ProjectionWorldChangeTr
         clear();
         retained.clear();
         retainedBytes = 0;
+        pendingProbes.clear();
     }
 
     @Override
@@ -217,8 +224,12 @@ public final class ClientPreparedTravelServer implements ProjectionWorldChangeTr
             announced = true;
         }
         int remaining = Math.max(0, byteBudget);
-        long hashStarted = System.nanoTime();
-        int hashedColumns = 0;
+        long probeStarted = System.nanoTime();
+        int probedColumns = 0;
+        if (probeWindowMillis == Long.MIN_VALUE || nowMillis - probeWindowMillis >= PROBE_INTERVAL_MILLIS) {
+            probeWindowMillis = nowMillis;
+            probesInWindow = 0;
+        }
         int checks = begin.chunks().size();
         while (checks-- > 0 && remaining >= ClientViewProtocol.TRAVEL_REUSE_BYTES) {
             if (cursor >= begin.chunks().size()) {
@@ -231,25 +242,38 @@ public final class ClientPreparedTravelServer implements ProjectionWorldChangeTr
             }
             if (reuseSelected && !column.cacheAnswered) {
                 if (!column.probed) {
-                    if (column.snapshot.hash == null) {
-                        if (hashedColumns >= MAX_FRESH_HASHES
-                            || hashedColumns > 0 && System.nanoTime() - hashStarted >= HASH_BUDGET_NANOS) {
+                    if (pendingProbes.size() >= ClientViewProtocol.MAX_TRAVEL_REUSE_PROBES_PER_TICK) {
+                        if (nowMillis - pendingProbes.getFirst().sentMillis() < PROBE_TIMEOUT_MILLIS) {
                             continue;
                         }
-                        hashedColumns++;
+                        column.cacheAnswered = true;
+                    } else {
+                        if (probedColumns >= ClientViewProtocol.MAX_TRAVEL_REUSE_PROBES_PER_TICK
+                            || probesInWindow >= ClientViewProtocol.MAX_TRAVEL_REUSE_PROBES_PER_TICK
+                            || probedColumns > 0 && System.nanoTime() - probeStarted >= PROBE_BUDGET_NANOS) {
+                            continue;
+                        }
+                        probedColumns++;
+                        column.probed = true;
+                        column.probedAt = nowMillis;
+                        Probe probe = new Probe(new ClientViewMessage.TravelReuse(begin.token(), begin.generation(), position.x(),
+                            position.z(), column.revision, column.hash()), nowMillis);
+                        pendingProbes.addLast(probe);
+                        if (!sender.test(probe.offer())) {
+                            pendingProbes.remove(probe);
+                            column.probed = false;
+                            return;
+                        }
+                        probesInWindow++;
+                        remaining -= ClientViewProtocol.TRAVEL_REUSE_BYTES;
+                        continue;
                     }
-                    column.probed = true;
-                    column.probedAt = nowMillis;
-                    if (!sender.test(new ClientViewMessage.TravelReuse(begin.token(), begin.generation(), position.x(),
-                        position.z(), column.revision, column.hash()))) {
-                        column.probed = false;
-                        return;
-                    }
-                    remaining -= ClientViewProtocol.TRAVEL_REUSE_BYTES;
-                } else if (nowMillis - column.probedAt >= 1_000L) {
+                } else if (nowMillis - column.probedAt >= PROBE_TIMEOUT_MILLIS) {
                     column.cacheAnswered = true;
                 }
-                continue;
+                if (!column.cacheAnswered) {
+                    continue;
+                }
             }
             if (remaining < ClientViewProtocol.TRAVEL_FRAGMENT_BYTES) {
                 continue;
@@ -411,6 +435,19 @@ public final class ClientPreparedTravelServer implements ProjectionWorldChangeTr
             && (acknowledgedBarriers.contains(value.contentRevision()) || pendingCross != null && pendingCross.equals(value));
     }
 
+    private void releaseProbe(ClientViewMessage.TravelCached value) {
+        byte[] hash = value.hash();
+        for (Iterator<Probe> iterator = pendingProbes.iterator(); iterator.hasNext();) {
+            ClientViewMessage.TravelReuse offer = iterator.next().offer();
+            if (offer.token().equals(value.token()) && offer.generation() == value.generation()
+                && offer.chunkX() == value.chunkX() && offer.chunkZ() == value.chunkZ() && offer.revision() == value.revision()
+                && Arrays.equals(offer.hash(), hash)) {
+                iterator.remove();
+                return;
+            }
+        }
+    }
+
     private static boolean sameSurface(ClientPortalGeometry first, ClientPortalGeometry second) {
         return second != null && !second.mirror() && first.originX() == second.originX() && first.originY() == second.originY()
             && first.originZ() == second.originZ() && first.facing() == second.facing() && first.quarterTurns() == second.quarterTurns()
@@ -498,6 +535,9 @@ public final class ClientPreparedTravelServer implements ProjectionWorldChangeTr
     }
 
     private record SnapshotKey(UUID world, ClientViewMessage.TravelWorld metadata, ClientViewMessage.TravelCoordinate coordinate) {
+    }
+
+    private record Probe(ClientViewMessage.TravelReuse offer, long sentMillis) {
     }
 
     private static final class Payload {

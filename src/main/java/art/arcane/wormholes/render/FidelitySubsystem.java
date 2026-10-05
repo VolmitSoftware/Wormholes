@@ -34,7 +34,7 @@ public final class FidelitySubsystem implements WormholesSubsystem {
 
     @Override
     public void register(WormholesRegistrar registrar) {
-        registrar.portalExtension(new FidelityExtensionFactory());
+        registrar.portalExtension(FidelityPortalExtension.class, extensionPortal -> new FidelityPortalExtension());
         registrar.portalMenuEntry(new FidelityMenuEntry());
         registrar.wireHandler(WireMessageType.VIEW_WEATHER, (peerName, message) -> {
             if (!(message instanceof WireMessage.ViewWeather weather)) {

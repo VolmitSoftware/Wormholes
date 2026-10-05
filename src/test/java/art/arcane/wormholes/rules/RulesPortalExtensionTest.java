@@ -26,7 +26,7 @@ final class RulesPortalExtensionTest {
 
     @Test
     void documentAndChargesSurviveTheSaveLoadRoundTrip() {
-        WormholesHooks.install(new WormholesRegistrar().portalExtension(new RulesExtensionFactory()));
+        WormholesHooks.install(new WormholesRegistrar().portalExtension(RulesPortalExtension.class, RulesPortalExtension::new));
         World world = RulesTestSupport.world("extension");
         LocalPortal source = RulesTestSupport.portal(world, PortalType.PORTAL);
         RulesPortalExtension extension = source.extension(RulesPortalExtension.class);
@@ -48,7 +48,7 @@ final class RulesPortalExtensionTest {
 
     @Test
     void settingDocumentBumpsTheRevision() {
-        WormholesHooks.install(new WormholesRegistrar().portalExtension(new RulesExtensionFactory()));
+        WormholesHooks.install(new WormholesRegistrar().portalExtension(RulesPortalExtension.class, RulesPortalExtension::new));
         LocalPortal portal = RulesTestSupport.portal(RulesTestSupport.world("revision"), PortalType.PORTAL);
         RulesPortalExtension extension = portal.extension(RulesPortalExtension.class);
 
@@ -61,7 +61,7 @@ final class RulesPortalExtensionTest {
 
     @Test
     void onlyTheProfileAndCooldownGroupReplicate() {
-        WormholesHooks.install(new WormholesRegistrar().portalExtension(new RulesExtensionFactory()));
+        WormholesHooks.install(new WormholesRegistrar().portalExtension(RulesPortalExtension.class, RulesPortalExtension::new));
         World world = RulesTestSupport.world("sync");
         LocalPortal source = RulesTestSupport.portal(world, PortalType.PORTAL);
         source.extension(RulesPortalExtension.class).setDocument(RuleDocument.EMPTY
@@ -82,7 +82,7 @@ final class RulesPortalExtensionTest {
 
     @Test
     void invalidStoredDocumentFallsBackToEmptyRatherThanFailingTheLoad() {
-        WormholesHooks.install(new WormholesRegistrar().portalExtension(new RulesExtensionFactory()));
+        WormholesHooks.install(new WormholesRegistrar().portalExtension(RulesPortalExtension.class, RulesPortalExtension::new));
         LocalPortal portal = RulesTestSupport.portal(RulesTestSupport.world("broken"), PortalType.PORTAL);
         JSONObject broken = new JSONObject().put("rules.document",
             new JSONObject().put("profile", new JSONObject().put("warmupMillis", -5L)));

@@ -1,15 +1,19 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
+import art.arcane.wormholes.modded.client.render.PortalScene;
 import art.arcane.wormholes.render.client.ClientViewBlockTransform;
+import art.arcane.wormholes.render.plate.PlateBox;
+import art.arcane.wormholes.network.client.ClientViewEnvironment;
 import art.arcane.wormholes.network.client.SectionBiomes;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.Registry;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.core.SectionPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
@@ -26,6 +30,7 @@ import net.minecraft.world.level.material.FluidState;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.ObjLongConsumer;
 
 public final class ClientMeshWorld implements BlockAndTintGetter {
     private final Long2ObjectOpenHashMap<ClientMeshSections.Section> sections = new Long2ObjectOpenHashMap<>(27);
@@ -41,6 +46,7 @@ public final class ClientMeshWorld implements BlockAndTintGetter {
     private final int minY;
     private final int height;
     private final ClientViewEnvironment.Dimension dimension;
+    private final PortalScene.MeshIdentity meshIdentity;
     private final DestinationWorld destination = new DestinationWorld();
 
     public ClientMeshWorld(Snapshot snapshot) {
@@ -61,26 +67,83 @@ public final class ClientMeshWorld implements BlockAndTintGetter {
             ? CardinalLighting.NETHER : CardinalLighting.DEFAULT;
         lighting = new CardinalLighting(shade(source, Direction.DOWN), shade(source, Direction.UP), shade(source, Direction.NORTH),
             shade(source, Direction.SOUTH), shade(source, Direction.WEST), shade(source, Direction.EAST));
+        ClientMeshSections.Section[] inputs = inputs(snapshot.view(), snapshot.center());
+        meshIdentity = identity(snapshot, inputs);
+        int input = 0;
         for (int dy = -1; dy <= 1; dy++) {
             for (int dz = -1; dz <= 1; dz++) {
                 for (int dx = -1; dx <= 1; dx++) {
-                    long key = SectionPos.asLong(sectionX + dx, sectionY + dy, sectionZ + dz);
-                    ClientMeshSections.Section section = snapshot.view().section(key);
-                    if (section == null) {
-                        continue;
+                    ClientMeshSections.Section section = inputs[input++];
+                    if (section != null) {
+                        sections.put(SectionPos.asLong(sectionX + dx, sectionY + dy, sectionZ + dz), section);
                     }
-                    sections.put(key, section);
                 }
             }
         }
         ClientMeshSections.Section center = Objects.requireNonNull(sections.get(snapshot.center()), "Missing mesh section");
         SectionBiomes sourceBiomes = center.biomes();
         Biome[] palette = new Biome[sourceBiomes.palette().size()];
+        Registry<Biome> registry = snapshot.registry().lookupOrThrow(Registries.BIOME);
         for (int index = 0; index < palette.length; index++) {
             Identifier id = Identifier.parse(sourceBiomes.palette().get(index));
-            palette[index] = snapshot.biomes().getOptional(id).orElseThrow(() -> new IllegalArgumentException("Unknown destination biome " + id));
+            palette[index] = registry.getOptional(id).orElseThrow(() -> new IllegalArgumentException("Unknown destination biome " + id));
         }
         biomes = new Biomes(palette, sourceBiomes.indices());
+    }
+
+    public static PortalScene.MeshIdentity meshContext(Snapshot snapshot) {
+        return identity(snapshot, null);
+    }
+
+    public static PortalScene.MeshIdentity meshIdentity(Snapshot snapshot) {
+        return identity(snapshot, inputs(snapshot.view(), snapshot.center()));
+    }
+
+    public PortalScene.MeshIdentity meshIdentity() {
+        return meshIdentity;
+    }
+
+    static boolean matchesMeshIdentity(ClientMeshSections.View view, long center, RegistryAccess registry,
+                                       PortalScene.MeshIdentity context, PortalScene.MeshIdentity retained) {
+        if (!(retained instanceof MeshIdentity proof) || proof.inputs == null || proof.registry != registry
+            || !proof.sameContext(context)) {
+            return false;
+        }
+        int centerX = SectionPos.x(center);
+        int centerY = SectionPos.y(center);
+        int centerZ = SectionPos.z(center);
+        int input = 0;
+        for (int y = -1; y <= 1; y++) {
+            for (int z = -1; z <= 1; z++) {
+                for (int x = -1; x <= 1; x++) {
+                    if (proof.inputs[input++] != view.section(SectionPos.asLong(centerX + x, centerY + y, centerZ + z))) {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+    private static PortalScene.MeshIdentity identity(Snapshot snapshot, ClientMeshSections.Section[] inputs) {
+        ClientMeshSections.Identity identity = snapshot.view().identity();
+        return identity == null || !identity.matchesEnvironment(snapshot.environment()) ? null : new MeshIdentity(snapshot, inputs);
+    }
+
+    private static ClientMeshSections.Section[] inputs(ClientMeshSections.View view, long center) {
+        ClientMeshSections.Section[] inputs = new ClientMeshSections.Section[27];
+        int centerX = SectionPos.x(center);
+        int centerY = SectionPos.y(center);
+        int centerZ = SectionPos.z(center);
+        int index = 0;
+        for (int y = -1; y <= 1; y++) {
+            for (int z = -1; z <= 1; z++) {
+                for (int x = -1; x <= 1; x++) {
+                    inputs[index++] = view.section(SectionPos.asLong(centerX + x, centerY + y, centerZ + z));
+                }
+            }
+        }
+        return inputs;
     }
 
     public ClientViewEnvironment.Transform transform() {
@@ -271,10 +334,72 @@ public final class ClientMeshWorld implements BlockAndTintGetter {
         }
     }
 
-    public record Snapshot(ClientMeshSections.View view, long center, Registry<Biome> biomes, ClientViewEnvironment environment, int blendRadius) {
+    public record Snapshot(ClientMeshSections.View view, long center, RegistryAccess registry, ClientViewEnvironment environment, int blendRadius) {
         public Snapshot {
             if (blendRadius < 0 || blendRadius > 7) {
                 throw new IllegalArgumentException("Invalid biome blend radius");
+            }
+        }
+    }
+
+    private static final class MeshIdentity implements PortalScene.MeshIdentity {
+        private final ClientMeshSections.Identity identity;
+        private final RegistryAccess registry;
+        private final ClientViewEnvironment.Dimension dimension;
+        private final PlateBox bounds;
+        private final int blendRadius;
+        private final ClientMeshSections.Section[] inputs;
+        private final int contextHash;
+
+        private MeshIdentity(Snapshot snapshot, ClientMeshSections.Section[] inputs) {
+            identity = snapshot.view().identity();
+            registry = snapshot.registry();
+            dimension = snapshot.environment().dimension();
+            bounds = snapshot.view().bounds();
+            blendRadius = snapshot.blendRadius();
+            this.inputs = inputs;
+            int hash = identity.hashCode();
+            hash = 31 * hash + System.identityHashCode(registry);
+            hash = 31 * hash + dimension.hashCode();
+            hash = 31 * hash + bounds.hashCode();
+            contextHash = 31 * hash + blendRadius;
+        }
+
+        @Override
+        public int contextHash() {
+            return contextHash;
+        }
+
+        @Override
+        public boolean sameContext(PortalScene.MeshIdentity value) {
+            return value instanceof MeshIdentity other && contextHash == other.contextHash && registry == other.registry
+                && blendRadius == other.blendRadius && identity.equals(other.identity) && dimension.equals(other.dimension)
+                && bounds.equals(other.bounds);
+        }
+
+        @Override
+        public boolean same(PortalScene.MeshIdentity value) {
+            if (!(value instanceof MeshIdentity other) || inputs == null || other.inputs == null || !sameContext(other)) {
+                return false;
+            }
+            for (int index = 0; index < inputs.length; index++) {
+                if (inputs[index] != other.inputs[index]) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        @Override
+        public void references(ObjLongConsumer<Object> consumer) {
+            if (inputs == null) {
+                throw new IllegalStateException("Projection mesh context has no retained inputs");
+            }
+            consumer.accept(this, 112L + 16 + inputs.length * 8L);
+            for (ClientMeshSections.Section input : inputs) {
+                if (input != null) {
+                    consumer.accept(input, input.bytes());
+                }
             }
         }
     }

@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.lang.reflect.Method;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -208,6 +209,123 @@ public class ClientTravelSceneTest {
             assertFalse(scene.complete());
             advance(scene, Long.MAX_VALUE);
             assertEquals(65, capturedSections(scene));
+        }
+    }
+
+    @Test
+    public void nativeColumnDeltaCannotReuseOldMeshProofUntilFreshBytesAreInstalled() {
+        ClientLevel level = level();
+        LevelChunk chunk = level.getChunkSource().getChunk(0, 0, ChunkStatus.FULL, false);
+        when(chunk.getSection(0).hasOnlyAir()).thenReturn(false);
+        ClientViewMessage.TravelBegin begin = begin();
+        when(begin.world()).thenReturn(new ClientViewMessage.TravelWorld("minecraft:overworld", "minecraft:overworld",
+            9, false, false, 63, 0, 256));
+        RenderSectionRegion region = mock(RenderSectionRegion.class);
+        try (MockedConstruction<RenderRegionCache> ignored = mockConstruction(RenderRegionCache.class,
+            (cache, context) -> when(cache.createRegion(eq(level), anyLong())).thenReturn(region))) {
+            ClientTravelScene scene = new ClientTravelScene(level, begin);
+            Map<ClientViewMessage.TravelCoordinate, byte[]> columns = new HashMap<>();
+            for (ClientViewMessage.TravelCoordinate coordinate : begin.chunks()) {
+                columns.put(coordinate, new byte[]{1});
+            }
+            scene.nativeColumns(columns);
+            for (int batch = 0; batch < 7; batch++) {
+                advance(scene, Long.MAX_VALUE);
+            }
+            long affected = SectionPos.asLong(0, 5, 0);
+            long stable = SectionPos.asLong(-2, 12, -2);
+            ClientTravelScene.MeshIdentity old = scene.meshIdentity(affected);
+            ClientTravelScene.MeshIdentity unchanged = scene.meshIdentity(stable);
+            long revision = scene.revision(affected);
+            scene.invalidateColumn(0, 0);
+            scene.changedSection(affected);
+            assertNull(scene.meshIdentity(affected));
+            advance(scene, Long.MAX_VALUE);
+            assertTrue(scene.complete());
+            assertTrue(scene.revision(affected) > revision);
+            assertSame(region, scene.world(affected));
+            assertNull(scene.meshIdentity(affected));
+            assertSame(unchanged, scene.meshIdentity(stable));
+            columns.put(new ClientViewMessage.TravelCoordinate(0, 0), new byte[]{2});
+            scene.nativeColumns(columns);
+            scene.changedSection(affected);
+            advance(scene, Long.MAX_VALUE);
+            assertTrue(scene.complete());
+            assertTrue(scene.meshIdentity(affected) != null);
+            assertFalse(old.same(scene.meshIdentity(affected)));
+        }
+    }
+
+    @Test
+    public void missingColumnKeepsItsHaloPendingWhileOtherSnapshotsAdvanceThenRecovers() {
+        ClientLevel level = level();
+        LevelChunk loaded = level.getChunkSource().getChunk(0, 0, ChunkStatus.FULL, false);
+        AtomicBoolean resident = new AtomicBoolean(false);
+        when(level.getChunkSource().getChunk(0, 0, ChunkStatus.FULL, false))
+            .thenAnswer(call -> resident.get() ? loaded : null);
+        try (MockedConstruction<RenderRegionCache> ignored = mockConstruction(RenderRegionCache.class)) {
+            ClientTravelScene scene = new ClientTravelScene(level, begin());
+            for (int batch = 0; batch < 10; batch++) {
+                advance(scene, Long.MAX_VALUE);
+            }
+            assertFalse(scene.complete());
+            assertEquals(16 * 16, capturedSections(scene));
+            long missing = SectionPos.asLong(0, 5, 0);
+            assertEquals(-1, scene.revision(missing));
+            assertFalse(scene.empty(missing));
+            assertNull(scene.world(missing));
+            resident.set(true);
+            for (int batch = 0; batch < 3; batch++) {
+                advance(scene, Long.MAX_VALUE);
+            }
+            assertTrue(scene.complete());
+            assertTrue(scene.empty(missing));
+            assertTrue(scene.revision(missing) > 0);
+        }
+    }
+
+    @Test
+    public void unloadedNeighborRetiresGeometryAndIdentityUntilNativeHaloReturns() {
+        ClientLevel level = level();
+        LevelChunk loaded = level.getChunkSource().getChunk(0, 0, ChunkStatus.FULL, false);
+        when(loaded.getSection(0).hasOnlyAir()).thenReturn(false);
+        RenderSectionRegion region = mock(RenderSectionRegion.class);
+        AtomicBoolean halo = new AtomicBoolean(true);
+        when(level.getChunkSource().getChunk(1, 0, ChunkStatus.FULL, false))
+            .thenAnswer(call -> halo.get() ? loaded : null);
+        ClientViewMessage.TravelBegin begin = begin();
+        try (MockedConstruction<RenderRegionCache> ignored = mockConstruction(RenderRegionCache.class,
+            (cache, context) -> when(cache.createRegion(eq(level), anyLong())).thenReturn(region))) {
+            ClientTravelScene scene = new ClientTravelScene(level, begin);
+            Map<ClientViewMessage.TravelCoordinate, byte[]> columns = new HashMap<>();
+            for (ClientViewMessage.TravelCoordinate coordinate : begin.chunks()) {
+                columns.put(coordinate, new byte[]{1});
+            }
+            scene.nativeColumns(columns);
+            for (int batch = 0; batch < 7; batch++) {
+                advance(scene, Long.MAX_VALUE);
+            }
+            long affected = SectionPos.asLong(0, 5, 0);
+            long stable = SectionPos.asLong(-2, 12, -2);
+            long previous = scene.revision(affected);
+            long unchanged = scene.revision(stable);
+            assertSame(region, scene.world(affected));
+            assertTrue(scene.meshIdentity(affected) != null);
+            halo.set(false);
+            scene.changedSection(SectionPos.asLong(1, 5, 0));
+            advance(scene, Long.MAX_VALUE);
+            assertEquals(-1, scene.revision(affected));
+            assertFalse(scene.complete());
+            assertFalse(scene.empty(affected));
+            assertNull(scene.world(affected));
+            assertNull(scene.meshIdentity(affected));
+            assertEquals(unchanged, scene.revision(stable));
+            halo.set(true);
+            advance(scene, Long.MAX_VALUE);
+            assertTrue(scene.complete());
+            assertTrue(scene.revision(affected) > previous);
+            assertSame(region, scene.world(affected));
+            assertEquals(unchanged, scene.revision(stable));
         }
     }
 

@@ -21,6 +21,7 @@ import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
 import com.github.retrooper.packetevents.protocol.player.Equipment;
 import com.github.retrooper.packetevents.protocol.player.TextureProperty;
 import io.github.retrooper.packetevents.util.SpigotReflectionUtil;
+import it.unimi.dsi.fastutil.HashCommon;
 
 import org.bukkit.Chunk;
 import org.bukkit.ChunkSnapshot;
@@ -357,7 +358,7 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
 
         @Override
         public boolean isChunkReady(int x, int z) {
-            long key = chunkKey(x >> 4, z >> 4);
+            long key = chunkLookupKey(x >> 4, z >> 4);
             CapturedChunk chunk = chunks.get(key);
             if (chunk != null && isDirty(chunk)) {
                 requestCapture(x >> 4, z >> 4, key);
@@ -371,7 +372,7 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
         public void requestChunk(int x, int z) {
             int chunkX = x >> 4;
             int chunkZ = z >> 4;
-            long key = chunkKey(chunkX, chunkZ);
+            long key = chunkLookupKey(chunkX, chunkZ);
             requestIfStale(chunkX, chunkZ, key, chunks.get(key));
         }
 
@@ -385,7 +386,7 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
             Set<UUID> seen = new HashSet<UUID>();
             for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
                 for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
-                    long key = chunkKey(chunkX, chunkZ);
+                    long key = chunkLookupKey(chunkX, chunkZ);
                     CapturedChunk chunk = chunks.get(key);
                     requestIfStale(chunkX, chunkZ, key, chunk);
                     if (chunk == null) {
@@ -449,7 +450,7 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
         private CapturedChunk capturedChunk(int x, int z) {
             int chunkX = x >> 4;
             int chunkZ = z >> 4;
-            long key = chunkKey(chunkX, chunkZ);
+            long key = chunkLookupKey(chunkX, chunkZ);
             CapturedChunk chunk = chunks.get(key);
             if (chunk != null && isDirty(chunk)) {
                 requestCapture(chunkX, chunkZ, key);
@@ -555,8 +556,8 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
         }
     }
 
-    private static long chunkKey(int chunkX, int chunkZ) {
-        return (((long) chunkX) << 32) | (((long) chunkZ) & 0xFFFFFFFFL);
+    static long chunkLookupKey(int chunkX, int chunkZ) {
+        return HashCommon.mix(ProjectionWorldChangeTracker.chunkKey(chunkX, chunkZ));
     }
 
     static boolean sameEntityState(EntityVisual previousVisual,

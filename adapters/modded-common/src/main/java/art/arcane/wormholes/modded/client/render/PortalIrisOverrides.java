@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded.client.render;
 
-import art.arcane.wormholes.modded.mixin.client.IrisPortalOverrideAccess;
+import art.arcane.wormholes.modded.mixin.client.IrisPortalRenderSystemAccess;
 import com.mojang.renderpearl.api.pipeline.CompiledRenderPipeline;
 import com.mojang.renderpearl.api.vertex.VertexFormat;
 import com.mojang.renderpearl.backend.opengl.GlProgram;
@@ -29,7 +29,7 @@ final class PortalIrisOverrides {
                 programs.add(program);
             }
         }
-        release(IrisPortalOverrideAccess.wormholes$overrides(), programs);
+        release(IrisPortalRenderSystemAccess.wormholes$overrides(), programs);
     }
 
     static void release(Map<CompiledRenderPipeline, Map<GlProgram, Map<List<VertexFormat>, FrontendRenderPipeline>>> overrides,

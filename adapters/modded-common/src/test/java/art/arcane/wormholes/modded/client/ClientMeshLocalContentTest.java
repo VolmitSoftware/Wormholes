@@ -79,7 +79,7 @@ public class ClientMeshLocalContentTest {
         view.changed().clear();
         long revision = view.contentRevision();
         assertTrue(store.retainLocal(7, 2, BOUNDS, 8));
-        store.bind(7, ENVIRONMENT, 71, 11);
+        store.bind(7, new ClientMeshSections.Identity(ENVIRONMENT, 71, 11));
         store.local(7, 0L, null);
         store.local(7, 0L, capture(store, Brick.single(0, 3), SectionBiomes.NONE));
         assertSame(view, store.view(7));
@@ -111,10 +111,10 @@ public class ClientMeshLocalContentTest {
     public void differentTargetIdentityCannotRetainLocalContentAsItsPreview() throws Exception {
         ClientMeshSections store = store();
         store.local(7, 0L, capture(store, Brick.single(0, 3), SectionBiomes.NONE));
-        assertTrue(store.bind(7, ENVIRONMENT, 71, 12).isEmpty());
+        assertTrue(store.bind(7, new ClientMeshSections.Identity(ENVIRONMENT, 71, 12)).isEmpty());
         assertNull(store.view(7).section(0L));
         assertTrue(store.view(7).changed().contains(0L));
-        assertEquals(1, store.bind(7, ENVIRONMENT, 71, 11).size());
+        assertEquals(1, store.bind(7, new ClientMeshSections.Identity(ENVIRONMENT, 71, 11)).size());
     }
 
     private static void assertChanges(Brick originalBrick, Brick changedBrick, SectionBiomes changedBiomes) throws Exception {
@@ -144,7 +144,7 @@ public class ClientMeshLocalContentTest {
         ClientMeshSections store = new ClientMeshSections(palette, 1024 * 1024);
         store.epoch(71);
         store.begin(7, 1, BOUNDS, 8);
-        store.bind(7, ENVIRONMENT, 71, 11);
+        store.bind(7, new ClientMeshSections.Identity(ENVIRONMENT, 71, 11));
         return store;
     }
 }

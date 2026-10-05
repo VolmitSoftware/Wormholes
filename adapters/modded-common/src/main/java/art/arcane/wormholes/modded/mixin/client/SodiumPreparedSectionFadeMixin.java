@@ -1,6 +1,7 @@
 package art.arcane.wormholes.modded.mixin.client;
 
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
+import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.caffeinemc.mods.sodium.client.render.chunk.RenderSection;
@@ -15,7 +16,7 @@ public abstract class SodiumPreparedSectionFadeMixin {
         at = @At(value = "INVOKE", target = "Lnet/caffeinemc/mods/sodium/client/render/chunk/RenderSection;consumeFade()Z"))
     private boolean wormholesPreparedSectionFade(RenderSection section, Operation<Boolean> original) {
         boolean fade = original.call(section);
-        return fade && !ClientPortalRenderer.instance().coversMainSection(
+        return fade && !ClientSodiumTerrain.prewarming() && !ClientPortalRenderer.instance().coversMainSection(
             SectionPos.asLong(section.getChunkX(), section.getChunkY(), section.getChunkZ()));
     }
 }

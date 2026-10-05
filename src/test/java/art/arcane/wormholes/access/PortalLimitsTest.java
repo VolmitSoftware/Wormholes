@@ -63,7 +63,7 @@ final class PortalLimitsTest {
 
     @Test
     void ownedCountsOnlyThePlayersOwnPortals() {
-        WormholesHooks.install(new WormholesRegistrar().portalExtension(new AccessExtensionFactory()));
+        WormholesHooks.install(new WormholesRegistrar().portalExtension(AccessPortalExtension.class, AccessPortalExtension::new));
         World world = AccessTestPortals.world("limits");
         UUID ownerId = UUID.randomUUID();
         LocalPortal mine = AccessTestPortals.portal(world);

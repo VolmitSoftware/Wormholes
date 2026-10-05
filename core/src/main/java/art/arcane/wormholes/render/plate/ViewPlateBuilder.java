@@ -208,7 +208,7 @@ public final class ViewPlateBuilder {
             this.projectionRemoteFrame = request.remoteFrame().view(frontSide);
             if (request.mirrorMode()) {
                 transform.configureMirror(localFrame, request.mirrorRotationQuarterTurns(),
-                    request.localOriginX(), request.localOriginY(), request.localOriginZ(), new double[3]);
+                    request.localOriginX(), request.localOriginY(), request.localOriginZ());
             } else {
                 transform.configure(projectionLocalFrame, projectionRemoteFrame,
                     request.localOriginX(), request.localOriginY(), request.localOriginZ(),

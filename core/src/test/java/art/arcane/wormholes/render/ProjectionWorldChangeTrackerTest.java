@@ -17,6 +17,30 @@ public final class ProjectionWorldChangeTrackerTest {
     private static final UUID OTHER_WORLD = UUID.fromString("00000000-0000-0000-0000-00000000000b");
 
     @Test
+    public void signedWorldBorderColumnsRetainDirtyVersionsAndPackedCollectionKeys() {
+        ProjectionWorldChangeTracker tracker = new ProjectionWorldChangeTracker();
+        int[] coordinates = {-1_875_000, -1, 0, 1, 1_875_000};
+        for (int x : coordinates) {
+            for (int z : coordinates) {
+                long before = tracker.currentVersion();
+                tracker.markChanged(WORLD, x << 4, z << 4);
+                assertTrue(tracker.dirtySince(WORLD, x, z, x, z, before));
+                assertFalse(tracker.dirtySince(WORLD, x, z, x, z, tracker.currentVersion()));
+                assertFalse(tracker.dirtySince(OTHER_WORLD, x, z, x, z, before));
+                LongArrayList dirty = new LongArrayList();
+                assertTrue(tracker.collectDirtySince(WORLD, x, z, x, z, before, dirty));
+                assertEquals(List.of(Long.valueOf(ProjectionWorldChangeTracker.chunkKey(x, z))), dirty);
+            }
+        }
+        tracker.clearWorld(WORLD);
+        for (int x : coordinates) {
+            for (int z : coordinates) {
+                assertFalse(tracker.dirtySince(WORLD, x, z, x, z, 0));
+            }
+        }
+    }
+
+    @Test
     public void markChangedInsideWindowReportsDirty() {
         ProjectionWorldChangeTracker tracker = new ProjectionWorldChangeTracker();
         tracker.markChanged(WORLD, 35, -18);

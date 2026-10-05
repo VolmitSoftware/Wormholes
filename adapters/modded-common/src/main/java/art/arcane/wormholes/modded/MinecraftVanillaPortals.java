@@ -82,7 +82,7 @@ public final class MinecraftVanillaPortals implements AutoCloseable {
 
     public CompletableFuture<Boolean> replace(ServerPlayer player, ServerLevel source, BlockPos anchor) {
         runtime.requireServerThread();
-        if (!enabled() || !runtime.access().permission(player, "wormholes.portals.portal")) {
+        if (!enabled() || !runtime.access().permission(player, PortalType.PORTAL.permission())) {
             return CompletableFuture.completedFuture(false);
         }
         Shape shape = shape(source, anchor);

@@ -67,7 +67,7 @@ public class PortalEnvironmentTest {
     public void skyDirectionUsesTheSameSignedAxesAsDestinationGeometry() {
         ClientViewEnvironment.Transform transform = new ClientViewEnvironment.Transform(Direction.U, Direction.E, Direction.S,
             new GeometryVector(100, 200, 300));
-        Vector3f mapped = PortalEnvironment.rotation(transform).transformDirection(new Vector3f(2, 3, 4));
+        Vector3f mapped = PortalProjection.rotation(transform).transformDirection(new Vector3f(2, 3, 4));
         assertEquals(new Vector3f(3, 2, 4), mapped);
         assertEquals(new GeometryVector(2, 3, 4), transform.destinationPoint(103, 202, 304));
     }

@@ -15,6 +15,7 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.world.level.LightLayer;
@@ -50,6 +51,7 @@ import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
@@ -309,6 +311,39 @@ public class ClientMeshEntitiesTest {
         store.drop(7, 1, -1, -1, -1);
         scene.synchronize(PortalEnvironmentTest.identity());
         assertNull(scene.blockEntity(position));
+        verifyNoInteractions(level);
+    }
+
+    @Test
+    public void palettesWithoutEntityBlocksSkipCellDiscoveryAndMissingNbtStillCreatesEntities() throws Exception {
+        ClientPalette palette = new ClientPalette(BuiltInRegistries.BLOCK);
+        palette.apply(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(3, "minecraft:chest"),
+            new ClientViewMessage.PaletteEntry(4, "minecraft:stone"))));
+        ClientMeshSections store = new ClientMeshSections(palette, 1_048_576);
+        store.begin(7, 1, new PlateBox(0, 0, 0, 32, 16, 16), 2);
+        store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 0, oneBlock(4), SectionBiomes.NONE));
+        store.put(new ClientViewMessage.MeshSection(7, 1, 1, 0, 0, 1, 0, oneBlock(3), SectionBiomes.NONE));
+        long chestKey = SectionPos.asLong(1, 0, 0);
+        ClientMeshSections.Section stone = mock(ClientMeshSections.Section.class, delegatesTo(store.view(7).section(0L)));
+        ClientMeshSections.Section chest = store.view(7).section(chestKey);
+        assertFalse(stone.hasEntityBlocks());
+        assertTrue(chest.hasEntityBlocks());
+        assertNull(chest.blockEntity(0));
+        ClientMeshSections.View view = mock(ClientMeshSections.View.class, delegatesTo(store.view(7)));
+        when(view.section(0L)).thenReturn(stone);
+        ClientLevel level = mock(ClientLevel.class);
+        ClientMeshEntities scene = new ClientMeshEntities(view, level);
+        scene.synchronize(PortalEnvironmentTest.identity());
+        BlockPos position = new BlockPos(16, 0, 0);
+        assertTrue(scene.blockEntity(position) instanceof ChestBlockEntity);
+        verify(stone, never()).state(anyInt());
+        store.put(new ClientViewMessage.MeshSection(7, 1, 1, 0, 0, 2, 0, oneBlock(4), SectionBiomes.NONE));
+        ClientMeshSections.Section replaced = mock(ClientMeshSections.Section.class, delegatesTo(store.view(7).section(chestKey)));
+        when(view.section(chestKey)).thenReturn(replaced);
+        scene.synchronize(PortalEnvironmentTest.identity());
+        assertNull(scene.blockEntity(position));
+        verify(replaced, never()).state(anyInt());
+        verify(stone, never()).state(anyInt());
         verifyNoInteractions(level);
     }
 

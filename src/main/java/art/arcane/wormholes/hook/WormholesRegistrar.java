@@ -2,6 +2,7 @@ package art.arcane.wormholes.hook;
 
 import art.arcane.wormholes.network.WireMessageHandler;
 import art.arcane.wormholes.network.WireMessageType;
+import art.arcane.wormholes.portal.LocalPortal;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -9,6 +10,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
 
 /**
  * Collects hook registrations from every subsystem during the register phase. {@link WormholesHooks#install}
@@ -18,7 +20,7 @@ public final class WormholesRegistrar {
     private final List<TraversalGate> traversalGates = new ArrayList<>();
     private final List<DestinationResolver> destinationResolvers = new ArrayList<>();
     private final List<TraversalObserver> traversalObservers = new ArrayList<>();
-    private final List<PortalExtensionFactory> portalExtensionFactories = new ArrayList<>();
+    private final List<PortalExtensionFactory<?>> portalExtensionFactories = new ArrayList<>();
     private final List<ProjectionSource> projectionSources = new ArrayList<>();
     private final List<PortalMenuEntry> portalMenuEntries = new ArrayList<>();
     private final Map<WireMessageType, List<WireMessageHandler>> wireHandlers = new EnumMap<>(WireMessageType.class);
@@ -38,8 +40,8 @@ public final class WormholesRegistrar {
         return this;
     }
 
-    public WormholesRegistrar portalExtension(PortalExtensionFactory factory) {
-        portalExtensionFactories.add(Objects.requireNonNull(factory, "factory"));
+    public <T extends PortalExtension> WormholesRegistrar portalExtension(Class<T> type, Function<LocalPortal, T> constructor) {
+        portalExtensionFactories.add(new PortalExtensionFactory<>(type, constructor));
         return this;
     }
 
@@ -75,7 +77,7 @@ public final class WormholesRegistrar {
         return Collections.unmodifiableList(new ArrayList<>(traversalObservers));
     }
 
-    List<PortalExtensionFactory> portalExtensionFactories() {
+    List<PortalExtensionFactory<?>> portalExtensionFactories() {
         return Collections.unmodifiableList(new ArrayList<>(portalExtensionFactories));
     }
 

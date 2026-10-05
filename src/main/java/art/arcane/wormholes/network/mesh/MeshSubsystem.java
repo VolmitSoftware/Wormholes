@@ -40,7 +40,7 @@ public final class MeshSubsystem implements WormholesSubsystem {
 
     @Override
     public void register(WormholesRegistrar registrar) {
-        registrar.portalExtension(new MeshExtensionFactory());
+        registrar.portalExtension(MeshPortalExtension.class, MeshPortalExtension::new);
     }
 
     @Override

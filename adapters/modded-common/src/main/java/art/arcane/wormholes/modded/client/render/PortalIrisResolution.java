@@ -31,7 +31,8 @@ final class PortalIrisResolution {
             return selected == null ? sizes(updated, Collections.nCopies(PortalRenderTargets.DEPTHS, updated.width())) : selected;
         }
         boolean resized = demand == null || demand.width() != updated.width() || demand.height() != updated.height();
-        if (!updated.equals(demand)) {
+        boolean changed = !updated.equals(demand);
+        if (changed) {
             desired = fit(updated);
             demand = updated;
             stableFrames = 0;
@@ -40,7 +41,7 @@ final class PortalIrisResolution {
             selected = desired;
         } else if (++stableFrames >= GROWTH_FRAMES) {
             selected = desired;
-        } else {
+        } else if (changed) {
             List<PortalShaderRenderer.Resolution> reduced = new ArrayList<>(selected.size());
             for (int depth = 0; depth < selected.size(); depth++) {
                 reduced.add(dimensions(updated, Math.min(selected.get(depth).width(), desired.get(depth).width())));

@@ -1,7 +1,10 @@
 package art.arcane.wormholes.modded.client;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.handler.codec.EncoderException;
 import art.arcane.wormholes.modded.MinecraftChunkPacketEncoding;
+import art.arcane.wormholes.network.client.ClientViewProtocol;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -14,6 +17,7 @@ import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.levelgen.Heightmap;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.mockito.MockedStatic;
 
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
@@ -24,12 +28,22 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class ClientPreparedTravelSerializationTest {
@@ -100,6 +114,67 @@ public class ClientPreparedTravelSerializationTest {
         assertEquals(64, decoded.x());
         assertEquals(-3, decoded.z());
         assertEquals(new BitSet(), decoded.lightData().skyYMask());
+    }
+
+    @Test
+    public void substantialChunkAndLightPayloadEncodesWithoutGrowingItsTemporaryBuffer() throws ReflectiveOperationException {
+        byte[] blocks = new byte[64 * 1024];
+        Arrays.fill(blocks, (byte) 37);
+        List<byte[]> updates = new ArrayList<>();
+        BitSet mask = new BitSet();
+        for (int index = 0; index < 24; index++) {
+            byte[] light = new byte[2048];
+            Arrays.fill(light, (byte) index);
+            updates.add(light);
+            mask.set(index);
+        }
+        ClientboundLightUpdatePacketData light = new ClientboundLightUpdatePacketData(mask, mask,
+            new BitSet(), new BitSet(), updates, updates);
+        ClientboundLevelChunkWithLightPacket packet = new ClientboundLevelChunkWithLightPacket(64, -3,
+            chunkData(blocks), light);
+        byte[] expected = encode(packet);
+        AtomicReference<ByteBuf> allocated = new AtomicReference<>();
+        AtomicInteger initialCapacity = new AtomicInteger();
+        try (MockedStatic<Unpooled> buffers = mockStatic(Unpooled.class, CALLS_REAL_METHODS)) {
+            buffers.when(() -> Unpooled.buffer(anyInt(), eq(ClientViewProtocol.MAX_TRAVEL_CHUNK_BYTES)))
+                .thenAnswer(call -> {
+                    ByteBuf buffer = spy((ByteBuf) call.callRealMethod());
+                    allocated.set(buffer);
+                    initialCapacity.set(buffer.capacity());
+                    return buffer;
+                });
+            assertArrayEquals(expected, MinecraftChunkPacketEncoding.encode(RegistryAccess.EMPTY, packet));
+        }
+        ByteBuf buffer = allocated.get();
+        assertTrue(initialCapacity.get() >= expected.length);
+        assertEquals(ClientViewProtocol.MAX_TRAVEL_CHUNK_BYTES, buffer.maxCapacity());
+        assertEquals(0, buffer.refCnt());
+        verify(buffer, never()).capacity(anyInt());
+        assertArrayEquals(expected, encode(packet));
+        assertEquals(37, blocks[0]);
+        assertEquals(23, updates.get(23)[0]);
+    }
+
+    @Test
+    public void oversizedEncodedPacketStillFailsAtTheTravelChunkLimit() throws ReflectiveOperationException {
+        ClientboundLevelChunkWithLightPacket packet = packet(chunkData(new byte[ClientViewProtocol.MAX_TRAVEL_CHUNK_BYTES]));
+        assertThrows(IndexOutOfBoundsException.class, () -> MinecraftChunkPacketEncoding.encode(RegistryAccess.EMPTY, packet));
+    }
+
+    @Test
+    public void oversizedLightLayerStillUsesVanillaCodecValidation() throws ReflectiveOperationException {
+        ClientboundLightUpdatePacketData light = new ClientboundLightUpdatePacketData(new BitSet(), new BitSet(),
+            new BitSet(), new BitSet(), List.of(new byte[2049]), List.of());
+        ClientboundLevelChunkWithLightPacket packet = new ClientboundLevelChunkWithLightPacket(64, -3,
+            chunkData(new byte[0]), light);
+        assertThrows(EncoderException.class, () -> MinecraftChunkPacketEncoding.encode(RegistryAccess.EMPTY, packet));
+    }
+
+    private static ClientboundLevelChunkPacketData chunkData(byte[] blocks) throws ReflectiveOperationException {
+        Constructor<ClientboundLevelChunkPacketData> constructor = ClientboundLevelChunkPacketData.class
+            .getDeclaredConstructor(Map.class, byte[].class, List.class);
+        constructor.setAccessible(true);
+        return constructor.newInstance(new EnumMap<>(Heightmap.Types.class), blocks, List.of());
     }
 
     private static ClientboundLevelChunkWithLightPacket packet(ClientboundLevelChunkPacketData data) {

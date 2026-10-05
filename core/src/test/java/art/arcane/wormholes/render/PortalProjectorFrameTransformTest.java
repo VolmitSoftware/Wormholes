@@ -1,7 +1,9 @@
 package art.arcane.wormholes.render;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
@@ -82,19 +84,15 @@ public final class PortalProjectorFrameTransformTest {
         double[] expected = new double[3];
         double[] actual = new double[3];
         ProjectorFrameTransform transform = new ProjectorFrameTransform();
-        for (Direction fromNormal : NORMALS) {
-            PortalFrame from = PortalFrame.canonical(fromNormal);
-            for (Direction toNormal : NORMALS) {
-                PortalFrame to = PortalFrame.canonical(toNormal);
+        for (PortalFrame from : frames()) {
+            for (PortalFrame to : frames()) {
                 transform.configure(from, to, 12.5D, 64.5D, -3.5D, -220.5D, 71.5D, 811.5D);
-                assertTrue(transform.signedPermutation,
-                    "cardinal frames must take the signed permutation path: " + fromNormal + " -> " + toNormal);
                 for (double x : SAMPLE_COORDS) {
                     for (double y : SAMPLE_COORDS) {
                         for (double z : SAMPLE_COORDS) {
                             referenceApply(from, to, 12.5D, 64.5D, -3.5D, -220.5D, 71.5D, 811.5D, x, y, z, expected);
                             transform.apply(x, y, z, actual);
-                            assertSameBlock(expected, actual, fromNormal + "->" + toNormal + " at " + x + "," + y + "," + z);
+                            assertSameBlock(expected, actual, from + "->" + to + " at " + x + "," + y + "," + z);
                         }
                     }
                 }
@@ -106,20 +104,16 @@ public final class PortalProjectorFrameTransformTest {
     public void hoistedMirrorTransformMatchesTheMirrorProjectionForEveryRotation() {
         double[] expected = new double[3];
         double[] actual = new double[3];
-        double[] scratch = new double[3];
         ProjectorFrameTransform transform = new ProjectorFrameTransform();
-        for (Direction normal : NORMALS) {
-            PortalFrame frame = PortalFrame.canonical(normal);
-            for (int quarterTurns = 0; quarterTurns < 4; quarterTurns++) {
-                transform.configureMirror(frame, quarterTurns, 12.5D, 64.5D, -3.5D, scratch);
-                assertTrue(transform.signedPermutation,
-                    "mirror transforms must take the signed permutation path: " + normal + " turns=" + quarterTurns);
+        for (PortalFrame frame : frames()) {
+            for (int quarterTurns = -4; quarterTurns < 8; quarterTurns++) {
+                transform.configureMirror(frame, quarterTurns, 12.5D, 64.5D, -3.5D);
                 for (double x : SAMPLE_COORDS) {
                     for (double y : SAMPLE_COORDS) {
                         for (double z : SAMPLE_COORDS) {
                             referenceMirrorApply(frame, quarterTurns, 12.5D, 64.5D, -3.5D, x, y, z, expected);
                             transform.apply(x, y, z, actual);
-                            assertSameBlock(expected, actual, normal + " turns=" + quarterTurns + " at " + x + "," + y + "," + z);
+                            assertSameBlock(expected, actual, frame + " turns=" + quarterTurns + " at " + x + "," + y + "," + z);
                         }
                     }
                 }
@@ -131,12 +125,11 @@ public final class PortalProjectorFrameTransformTest {
     public void reconfiguringSwitchesBetweenMirrorAndFrameTransformsCleanly() {
         double[] expected = new double[3];
         double[] actual = new double[3];
-        double[] scratch = new double[3];
         PortalFrame from = PortalFrame.canonical(Direction.N);
         PortalFrame to = PortalFrame.canonical(Direction.E);
         ProjectorFrameTransform transform = new ProjectorFrameTransform();
 
-        transform.configureMirror(from, 1, 4.5D, 70.5D, 9.5D, scratch);
+        transform.configureMirror(from, 1, 4.5D, 70.5D, 9.5D);
         referenceMirrorApply(from, 1, 4.5D, 70.5D, 9.5D, 11.5D, 74.5D, 2.5D, expected);
         transform.apply(11.5D, 74.5D, 2.5D, actual);
         assertSameBlock(expected, actual, "mirror pass");
@@ -177,4 +170,31 @@ public final class PortalProjectorFrameTransformTest {
         assertEquals(-16_777_197.0D, actual[0], 0.0D);
         assertEquals(-16_777_197, (int) Math.floor(actual[0]));
     }
+
+    @Test
+    public void snappingPreservesCoordinatesOutsideTheBoundaryTolerance() {
+        double tolerance = ProjectorFrameTransform.coordinateSnapTolerance(0.0D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D);
+        for (double boundary : new double[] {-12.0D, 0.0D, 12.0D}) {
+            assertEquals(boundary, ProjectorFrameTransform.snapNearInteger(boundary - tolerance * 0.5D, tolerance), 0.0D);
+            assertEquals(boundary, ProjectorFrameTransform.snapNearInteger(boundary + tolerance * 0.5D, tolerance), 0.0D);
+            double below = boundary - tolerance * 2.0D;
+            double above = boundary + tolerance * 2.0D;
+            assertEquals(below, ProjectorFrameTransform.snapNearInteger(below, tolerance), 0.0D);
+            assertEquals(above, ProjectorFrameTransform.snapNearInteger(above, tolerance), 0.0D);
+        }
+    }
+
+    private static List<PortalFrame> frames() {
+        List<PortalFrame> frames = new ArrayList<PortalFrame>(24);
+        for (Direction normal : NORMALS) {
+            for (Direction up : NORMALS) {
+                if (normal.getAxis() != up.getAxis()) {
+                    frames.add(PortalFrame.fromNormalUp(normal, up));
+                }
+            }
+        }
+        assertEquals(24, frames.size());
+        return frames;
+    }
+
 }

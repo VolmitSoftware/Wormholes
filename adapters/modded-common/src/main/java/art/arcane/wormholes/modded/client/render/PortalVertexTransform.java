@@ -27,9 +27,7 @@ final class PortalVertexTransform implements VertexConsumer {
         xAxis = transform.xAxis();
         yAxis = transform.yAxis();
         zAxis = transform.zAxis();
-        reflected = xAxis.x() * (yAxis.y() * zAxis.z() - yAxis.z() * zAxis.y())
-            - yAxis.x() * (xAxis.y() * zAxis.z() - xAxis.z() * zAxis.y())
-            + zAxis.x() * (xAxis.y() * yAxis.z() - xAxis.z() * yAxis.y()) < 0;
+        reflected = transform.reflected();
     }
 
     void destinationBlock(BlockPos position, int sectionX, int sectionY, int sectionZ) {

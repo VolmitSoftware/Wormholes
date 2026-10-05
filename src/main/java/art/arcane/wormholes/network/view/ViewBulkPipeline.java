@@ -1,6 +1,7 @@
 package art.arcane.wormholes.network.view;
 
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
+import art.arcane.volmlib.util.scheduling.SlidingWindowRateLimiter;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.network.WireCapability;
 import art.arcane.wormholes.network.WireMessage;
@@ -18,12 +19,13 @@ import org.bukkit.ChunkSnapshot;
 import org.bukkit.block.Biome;
 import org.bukkit.block.data.BlockData;
 
-import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 final class ViewBulkPipeline {
     private record BulkCompleteKey(UUID subscriptionId, String peerName) {
@@ -36,6 +38,7 @@ final class ViewBulkPipeline {
     private final BulkRetryCoordinator<ViewServer.BulkRetryKey> bulkRetryCoordinator =
         new BulkRetryCoordinator<>(ViewServer.MAX_BULK_RETRY_DELAY_TICKS);
     private final Set<BulkCompleteKey> bulkCompleteRetries = ConcurrentHashMap.newKeySet();
+    private final SlidingWindowRateLimiter bulkFailureLogs = new SlidingWindowRateLimiter(30_000L);
 
     ViewBulkPipeline(ViewSessionRegistry registry, ViewTimeDelivery timeDelivery) {
         this.registry = registry;
@@ -154,57 +157,80 @@ final class ViewBulkPipeline {
             done.complete(false);
             return done;
         }
-        WormholesPlatform.loadChunk(Wormholes.instance, session.world, chunkX, chunkZ).whenComplete((chunk, error) -> {
-            if (error != null || chunk == null || !registry.isSessionChunkActive(session, peerName, chunkKey)) {
-                done.complete(false);
-                return;
-            }
-            boolean snapshotScheduled = FoliaScheduler.runRegion(Wormholes.instance, session.world, chunkX, chunkZ, () -> {
-                if (!registry.isSessionChunkActive(session, peerName, chunkKey)) {
+        try {
+            WormholesPlatform.loadChunk(Wormholes.instance, session.world, chunkX, chunkZ).whenComplete((chunk, error) -> {
+                if (error != null) {
+                    done.complete(false);
+                    reportBulkFailure(session, peerName, chunkX, chunkZ, error);
+                    return;
+                }
+                if (chunk == null || !registry.isSessionChunkActive(session, peerName, chunkKey)) {
                     done.complete(false);
                     return;
                 }
-                ChunkSnapshot snapshot = WormholesPlatform.chunkSnapshot(chunk, false, true, false, true);
-                Map<Long, BlockEntitySample> blockEntities = BlockEntityCapturer.captureChunk(chunk, BlockEntityCapturer.Limits.column(PlateCaptureJob.MAX_BLOCK_ENTITIES_PER_CHUNK));
-                boolean encodeScheduled = FoliaScheduler.runAsync(Wormholes.instance, () -> {
-                    try {
-                        if (!registry.isSessionChunkActive(session, peerName, chunkKey)) {
-                            done.complete(false);
-                            return;
-                        }
-                        ViewSlice slice = chunkBulkBuilder.buildSlice(session.box, chunkX, chunkZ, snapshot, session.renderMode, blockEntities);
-                        if (slice == null) {
-                            done.complete(registry.isSessionChunkActive(session, peerName, chunkKey));
-                            return;
-                        }
-                        byte[] payload;
-                        try {
-                            payload = ChunkBulkBuilder.encodeSliceBytes(slice,
-                                registry.network().peerSupports(peerName, WireCapability.VIEW_BLOCK_ENTITIES));
-                        } catch (IOException e) {
-                            Wormholes.v("net: failed to encode chunk bulk for " + peerName + " (" + chunkX + "," + chunkZ + "): " + e.getMessage());
-                            done.complete(false);
-                            return;
-                        }
-                        if (!registry.isSessionChunkActive(session, peerName, chunkKey)) {
-                            done.complete(false);
-                            return;
-                        }
-                        boolean accepted = replication.sendBulk(peerName, session.subscriptionId, stream, payload, slice.contentHash(), bulkGeneration);
-                        done.complete(accepted);
-                    } catch (Throwable errorDuringBulk) {
+                boolean snapshotScheduled = FoliaScheduler.runRegion(Wormholes.instance, session.world, chunkX, chunkZ, () -> {
+                    if (!registry.isSessionChunkActive(session, peerName, chunkKey)) {
                         done.complete(false);
+                        return;
+                    }
+                    try {
+                        ChunkSnapshot snapshot = WormholesPlatform.chunkSnapshot(chunk, false, true, false, true);
+                        Map<Long, BlockEntitySample> blockEntities = BlockEntityCapturer.captureChunk(chunk, BlockEntityCapturer.Limits.column(PlateCaptureJob.MAX_BLOCK_ENTITIES_PER_CHUNK));
+                        boolean encodeScheduled = FoliaScheduler.runAsync(Wormholes.instance, () -> {
+                            try {
+                                if (!registry.isSessionChunkActive(session, peerName, chunkKey)) {
+                                    done.complete(false);
+                                    return;
+                                }
+                                ViewSlice slice = chunkBulkBuilder.buildSlice(session.box, chunkX, chunkZ, snapshot, session.renderMode, blockEntities);
+                                if (slice == null) {
+                                    done.complete(registry.isSessionChunkActive(session, peerName, chunkKey));
+                                    return;
+                                }
+                                byte[] payload = ChunkBulkBuilder.encodeSliceBytes(slice,
+                                    registry.network().peerSupports(peerName, WireCapability.VIEW_BLOCK_ENTITIES));
+                                if (!registry.isSessionChunkActive(session, peerName, chunkKey)) {
+                                    done.complete(false);
+                                    return;
+                                }
+                                boolean accepted = replication.sendBulk(peerName, session.subscriptionId, stream, payload, slice.contentHash(), bulkGeneration);
+                                done.complete(accepted);
+                            } catch (Throwable errorDuringBulk) {
+                                done.complete(false);
+                                reportBulkFailure(session, peerName, chunkX, chunkZ, errorDuringBulk);
+                            }
+                        });
+                        if (!encodeScheduled) {
+                            done.complete(false);
+                        }
+                    } catch (Throwable captureFailure) {
+                        done.complete(false);
+                        reportBulkFailure(session, peerName, chunkX, chunkZ, captureFailure);
                     }
                 });
-                if (!encodeScheduled) {
+                if (!snapshotScheduled) {
                     done.complete(false);
                 }
-            });
-            if (!snapshotScheduled) {
+            }).exceptionally(schedulingFailure -> {
                 done.complete(false);
-            }
-        });
+                reportBulkFailure(session, peerName, chunkX, chunkZ, schedulingFailure);
+                return null;
+            });
+        } catch (Throwable loadFailure) {
+            done.complete(false);
+            reportBulkFailure(session, peerName, chunkX, chunkZ, loadFailure);
+        }
         return done;
+    }
+
+    private void reportBulkFailure(ViewSession session, String peerName, int chunkX, int chunkZ, Throwable failure) {
+        if (bulkFailureLogs.tryAcquire(1)) {
+            Wormholes activePlugin = Wormholes.instance;
+            Logger logger = activePlugin == null ? Logger.getLogger("Wormholes") : activePlugin.getLogger();
+            logger.log(Level.WARNING, "Remote view bulk failed for portal " + session.portalId
+                + " to " + peerName + " at chunk " + chunkX + "," + chunkZ
+                + "; further bulk failure logs are limited to one every 30 seconds", failure);
+        }
     }
 
     private void attemptBulkComplete(ViewSession session, String peerName, BulkCompleteKey key) {

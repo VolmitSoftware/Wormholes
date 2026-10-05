@@ -37,6 +37,7 @@ final class ClientPortalGeometryTest {
                 assertSame(frame.getUp(), geometry.frame().getUp());
                 assertEquals(15, geometry.openCellCount());
                 assertAperturesMatch(aperture, geometry.aperture());
+                assertCellMembership(aperture, geometry);
                 frame = frame.rotateClockwise();
             }
         }
@@ -61,6 +62,7 @@ final class ClientPortalGeometryTest {
         PortalGeometry rebuilt = geometry.aperture();
         assertFalse(rebuilt.isFullCuboid());
         assertAperturesMatch(aperture, rebuilt);
+        assertCellMembership(aperture, geometry);
         assertEquals(10, geometry.originX());
         assertEquals(64, geometry.originY());
         assertEquals(-2, geometry.originZ());
@@ -159,6 +161,17 @@ final class ClientPortalGeometryTest {
         assertSame(ClientViewMode.OFF, ClientViewMode.fromName(" off ", ClientViewMode.AUTO));
         assertSame(ClientViewMode.AUTO, ClientViewMode.fromName("unknown", ClientViewMode.AUTO));
         assertSame(ClientViewMode.OFF, ClientViewMode.fromName(null, ClientViewMode.OFF));
+    }
+
+    private static void assertCellMembership(PortalCellAperture expected, ClientPortalGeometry actual) {
+        AxisAlignedBB area = expected.getArea();
+        for (int x = (int) Math.floor(area.getXa()) - 1; x <= (int) Math.floor(area.getXb()) + 1; x++) {
+            for (int y = (int) Math.floor(area.getYa()) - 1; y <= (int) Math.floor(area.getYb()) + 1; y++) {
+                for (int z = (int) Math.floor(area.getZa()) - 1; z <= (int) Math.floor(area.getZb()) + 1; z++) {
+                    assertEquals(expected.containsBlock(x, y, z), actual.containsCell(x, y, z), x + "," + y + "," + z);
+                }
+            }
+        }
     }
 
     private static void assertAperturesMatch(PortalCellAperture expected, PortalGeometry actual) {

@@ -36,7 +36,7 @@ public final class AtlasMenu {
     }
 
     public void open(Player viewer, AtlasModel.Filter filter) {
-        new Session(viewer, filter).open();
+        service.withState(viewer, state -> new Session(viewer, filter).open());
     }
 
     private final class Session {

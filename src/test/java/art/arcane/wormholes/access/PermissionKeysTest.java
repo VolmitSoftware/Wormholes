@@ -52,7 +52,7 @@ final class PermissionKeysTest {
 
     @Test
     void aKeyIsTakenOnlyWhenAnotherPortalAlreadyUsesIt() {
-        WormholesHooks.install(new WormholesRegistrar().portalExtension(new AccessExtensionFactory()));
+        WormholesHooks.install(new WormholesRegistrar().portalExtension(AccessPortalExtension.class, AccessPortalExtension::new));
         World world = AccessTestPortals.world("permission-keys");
         LocalPortal owner = AccessTestPortals.portal(world);
         LocalPortal other = AccessTestPortals.portal(world);

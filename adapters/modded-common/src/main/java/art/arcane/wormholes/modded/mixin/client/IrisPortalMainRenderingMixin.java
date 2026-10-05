@@ -15,4 +15,8 @@ public abstract class IrisPortalMainRenderingMixin {
     private void wormholes$initializePrepared(CallbackInfo callback) {
         PortalIrisMainPipelines.begin((IrisRenderingPipeline) (Object) this);
     }
+    @Inject(method = "finalizeLevelRendering", at = @At("RETURN"))
+    private void wormholes$preparedDrawComplete(CallbackInfo callback) {
+        PortalIrisMainPipelines.drawn((IrisRenderingPipeline) (Object) this);
+    }
 }

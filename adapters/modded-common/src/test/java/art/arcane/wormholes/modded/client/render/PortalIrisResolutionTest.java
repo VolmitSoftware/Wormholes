@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.ArrayList;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
@@ -80,6 +81,27 @@ public class PortalIrisResolutionTest {
             }
             assertEquals(new PortalShaderRenderer.Resolution(1920, 1080), planner.select(one).getFirst());
             assertEquals(reduced, planner.select(six));
+        }
+    }
+
+    @Test
+    public void stableDemandReusesSizesWhileWaitingForGrowth() {
+        ProgramSet programs = mock(ProgramSet.class);
+        try (MockedStatic<PortalIrisResources> resources = resources(programs, true, 2 * MIB)) {
+            PortalIrisResolution planner = new PortalIrisResolution(40 * MIB);
+            PortalIrisResolution.Demand six = demand(programs, 6);
+            PortalIrisResolution.Demand one = demand(programs, 1);
+            List<PortalShaderRenderer.Resolution> initial = planner.select(six);
+            assertSame(initial, planner.select(six));
+            List<PortalShaderRenderer.Resolution> waiting = planner.select(one);
+            assertEquals(initial, waiting);
+            for (int frame = 1; frame < 119; frame++) {
+                assertSame(waiting, planner.select(one));
+            }
+            List<PortalShaderRenderer.Resolution> grown = planner.select(one);
+            assertEquals(new PortalShaderRenderer.Resolution(1920, 1080), grown.getLast());
+            assertSame(grown, planner.select(one));
+            assertEquals(initial, planner.select(six));
         }
     }
 

@@ -5,6 +5,7 @@ import art.arcane.wormholes.render.blockentity.BlockEntitySample;
 public final class ClientViewProtocol {
     public static final int TRAVEL_HASH_BYTES = 32;
     public static final int TRAVEL_REUSE_BYTES = 74;
+    public static final int MAX_TRAVEL_REUSE_PROBES_PER_TICK = 8;
     public static final int MAX_TRAVEL_CHUNKS = 1089;
     public static final int MAX_TRAVEL_CHUNK_BYTES = 2 * 1024 * 1024;
     public static final int MAX_TRAVEL_BYTES = 64 * 1024 * 1024;

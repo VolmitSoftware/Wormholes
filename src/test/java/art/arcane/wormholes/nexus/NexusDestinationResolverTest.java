@@ -44,7 +44,7 @@ class NexusDestinationResolverTest {
 
     @BeforeEach
     void setUp() {
-        WormholesHooks.install(new WormholesRegistrar().portalExtension(new NexusExtensionFactory(null)));
+        WormholesHooks.install(new WormholesRegistrar().portalExtension(NexusPortalExtension.class, extensionPortal -> new NexusPortalExtension(extensionPortal, null)));
         world = NexusTestSupport.world("resolver");
         registry = new NetworkRegistry(tempDir, BukkitJsonDocuments.INSTANCE);
         registry.load();

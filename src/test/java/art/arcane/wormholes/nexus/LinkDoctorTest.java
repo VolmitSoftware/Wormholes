@@ -39,7 +39,7 @@ class LinkDoctorTest {
 
     @BeforeEach
     void setUp() {
-        WormholesHooks.install(new WormholesRegistrar().portalExtension(new NexusExtensionFactory(null)));
+        WormholesHooks.install(new WormholesRegistrar().portalExtension(NexusPortalExtension.class, extensionPortal -> new NexusPortalExtension(extensionPortal, null)));
         overworld = NexusTestSupport.world("doctor");
         unloaded = NexusTestSupport.world("doctor_attic");
         loadedWorlds.add(overworld);

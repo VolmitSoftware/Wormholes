@@ -30,7 +30,7 @@ public class WormholesClientConfig {
     public double hysteresisBlocks = ClientViewSweep.DEFAULT_HYSTERESIS_BLOCKS;
     @ConfigDescription("Maximum chunk sections changed per tick for plate-based ClientView. 0 applies all changes; dedicated rendering streams sections progressively.")
     public int sectionsPerTick = 0;
-    @ConfigDescription("Show a ClientView status line on the F3 debug screen.")
+    @ConfigDescription("Show detailed ClientView metrics on the F3 debug screen alongside the connection status.")
     public boolean showDebugOverlay = false;
     @ConfigDescription("Distance in blocks from a portal plane within which that portal's destination time and weather take over the sky. 0 keeps the local sky.")
     public double atmosphereDominanceBlocks = 2.5D;
@@ -40,8 +40,6 @@ public class WormholesClientConfig {
     public boolean clientRecursion = true;
     @ConfigDescription("Show your own reflection in mirrors drawn by this client.")
     public boolean selfReflection = true;
-    @ConfigDescription("Show a chat line on this client when a server confirms ClientView. Only this client sees it.")
-    public boolean connectionMessage = true;
 
     public static WormholesClientConfig load(Path configDirectory) {
         WormholesClientConfig loaded = TomlCodec.loadOrCreate(configDirectory.resolve(FILE_NAME).toFile(), WormholesClientConfig.class);

@@ -90,7 +90,7 @@ public final class TransferFixture extends JavaPlugin {
                     + " projection=" + (portal == null ? "missing" : portal.getProjectionMode())
                     + " destination=" + (portal == null || portal.getTunnel() == null ? "missing" : portal.getTunnel().getDestinationId())
                     + " center=" + (portal == null ? "missing" : portal.getStructure().getCenter())
-                    + " frame=" + (portal == null || portal.getFrame() == null ? "missing" : portal.getFrame().toJSON())
+                    + " frame=" + (portal == null || portal.getFrame() == null ? "missing" : portal.getFrame().getNormal() + "/" + portal.getFrame().getRight() + "/" + portal.getFrame().getUp())
                     + " capture=" + (portal == null || portal.getStructure().getCaptureZone() == null ? "missing" : portal.getStructure().getCaptureZone().min() + "/" + portal.getStructure().getCaptureZone().max())
                     + " player=" + player.getLocation().toVector());
             }

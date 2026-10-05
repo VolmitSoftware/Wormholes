@@ -12,6 +12,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.volmlib.util.json.JSONObject;
+import art.arcane.wormholes.hook.PortalExtensionFactory;
 import art.arcane.wormholes.render.acoustics.AcousticsProfile;
 import art.arcane.wormholes.render.atmosphere.AtmosphereMode;
 import art.arcane.wormholes.render.lod.LodProfile;
@@ -90,7 +91,8 @@ final class FidelityPortalExtensionTest {
 
     @Test
     void factoryCreatesTheExtensionType() {
-        FidelityExtensionFactory factory = new FidelityExtensionFactory();
+        PortalExtensionFactory<FidelityPortalExtension> factory = new PortalExtensionFactory<>(
+            FidelityPortalExtension.class, extensionPortal -> new FidelityPortalExtension());
         assertSame(FidelityPortalExtension.class, factory.type());
         assertTrue(factory.create(null) instanceof FidelityPortalExtension);
     }

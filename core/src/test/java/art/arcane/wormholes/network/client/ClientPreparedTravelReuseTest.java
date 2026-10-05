@@ -21,6 +21,147 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class ClientPreparedTravelReuseTest {
     @Test
+    void clientPauseAndRouteReplacementKeepReplyDebtBoundedWhileNativeArrivalCompletes() {
+        ClientPreparedTravelServer server = new ClientPreparedTravelServer();
+        List<ClientViewMessage.TravelCoordinate> coordinates = ClientTravelWindow.coordinates(0, 0, 16);
+        ClientViewMessage.TravelBegin initial = withCoordinates(begin(1), coordinates);
+        server.begin(initial, 0L);
+        server.reuseSelected(true);
+        for (ClientViewMessage.TravelCoordinate coordinate : coordinates) {
+            assertTrue(server.column(coordinate, 1, new byte[]{1}));
+        }
+        List<ClientViewMessage> sent = new ArrayList<>();
+        for (int tick = 1; tick <= 30; tick++) {
+            server.tick(tick * 50L, 128 * 1024, sent::add);
+        }
+        List<ClientViewMessage.TravelReuse> delayed = offers(sent);
+        assertEquals(ClientViewProtocol.MAX_TRAVEL_REUSE_PROBES_PER_TICK, delayed.size());
+        ClientViewMessage.TravelEnd firstEnd = assertInstanceOf(ClientViewMessage.TravelEnd.class, sent.getLast());
+        assertEquals(coordinates.size(), sent.stream().filter(ClientViewMessage.TravelChunk.class::isInstance).count());
+        assertTrue(server.ready(new ClientViewMessage.TravelReady(initial.token(), initial.generation(), firstEnd.contentRevision())));
+        server.cancel();
+        ClientViewMessage.TravelBegin returning = withCoordinates(begin(2), coordinates);
+        server.begin(returning, 1_500L);
+        server.reuseSelected(true);
+        for (ClientViewMessage.TravelCoordinate coordinate : coordinates) {
+            assertTrue(server.column(coordinate, 1, new byte[]{1}));
+        }
+        sent.clear();
+        server.tick(1_550L, 128 * 1024, sent::add);
+        assertTrue(offers(sent).isEmpty());
+        ClientViewMessage.TravelEnd returnEnd = assertInstanceOf(ClientViewMessage.TravelEnd.class, sent.getLast());
+        assertTrue(server.ready(new ClientViewMessage.TravelReady(returning.token(), returning.generation(), returnEnd.contentRevision())));
+        for (ClientViewMessage.TravelReuse probe : delayed) {
+            assertFalse(server.cached(ack(probe, true)));
+        }
+        server.close();
+    }
+
+    @Test
+    void cancelledProofSlotsRequireExactLateAcknowledgmentsBeforeAnotherRouteCanProbe() {
+        ClientPreparedTravelServer server = new ClientPreparedTravelServer();
+        List<ClientViewMessage.TravelCoordinate> coordinates = ClientTravelWindow.coordinates(0, 0, 3);
+        ClientViewMessage.TravelBegin initial = withCoordinates(begin(1), coordinates);
+        server.begin(initial, 0L);
+        server.reuseSelected(true);
+        for (ClientViewMessage.TravelCoordinate coordinate : coordinates) {
+            assertTrue(server.column(coordinate, 1, new byte[]{1}));
+        }
+        List<ClientViewMessage> sent = new ArrayList<>();
+        for (int tick = 1; tick <= 5; tick++) {
+            server.tick(tick * 50L, 128 * 1024, sent::add);
+        }
+        List<ClientViewMessage.TravelReuse> delayed = offers(sent);
+        assertEquals(ClientViewProtocol.MAX_TRAVEL_REUSE_PROBES_PER_TICK, delayed.size());
+        server.cancel();
+        server.begin(withCoordinates(begin(2), coordinates), 250L);
+        server.reuseSelected(true);
+        for (ClientViewMessage.TravelCoordinate coordinate : coordinates) {
+            assertTrue(server.column(coordinate, 1, new byte[]{1}));
+        }
+        for (ClientViewMessage.TravelReuse probe : delayed) {
+            byte[] wrongHash = probe.hash();
+            wrongHash[0] ^= 1;
+            List<ClientViewMessage.TravelCached> invalid = List.of(
+                new ClientViewMessage.TravelCached(UUID.randomUUID(), probe.generation(), probe.chunkX(), probe.chunkZ(), probe.revision(), probe.hash(), true),
+                new ClientViewMessage.TravelCached(probe.token(), probe.generation() + 1, probe.chunkX(), probe.chunkZ(), probe.revision(), probe.hash(), true),
+                new ClientViewMessage.TravelCached(probe.token(), probe.generation(), probe.chunkX() + 100, probe.chunkZ(), probe.revision(), probe.hash(), true),
+                new ClientViewMessage.TravelCached(probe.token(), probe.generation(), probe.chunkX(), probe.chunkZ() + 100, probe.revision(), probe.hash(), true),
+                new ClientViewMessage.TravelCached(probe.token(), probe.generation(), probe.chunkX(), probe.chunkZ(), probe.revision() + 1, probe.hash(), true),
+                new ClientViewMessage.TravelCached(probe.token(), probe.generation(), probe.chunkX(), probe.chunkZ(), probe.revision(), wrongHash, true));
+            for (ClientViewMessage.TravelCached reply : invalid) {
+                assertFalse(server.cached(reply));
+            }
+        }
+        sent.clear();
+        server.tick(300L, 128 * 1024, sent::add);
+        assertTrue(offers(sent).isEmpty());
+        for (ClientViewMessage.TravelReuse probe : delayed) {
+            assertFalse(server.cached(ack(probe, true)));
+        }
+        server.tick(350L, 128 * 1024, sent::add);
+        assertTrue(offers(sent).size() > 0);
+        assertTrue(offers(sent).size() <= ClientViewProtocol.MAX_TRAVEL_REUSE_PROBES_PER_TICK);
+        server.close();
+    }
+
+    @Test
+    void rejectedTransportOffersDoNotReserveReplySlotsOrConsumeTheSuccessfulProbeWindow() {
+        ClientPreparedTravelServer server = new ClientPreparedTravelServer();
+        List<ClientViewMessage.TravelCoordinate> coordinates = ClientTravelWindow.coordinates(0, 0, 3);
+        server.begin(withCoordinates(begin(1), coordinates), 0L);
+        server.reuseSelected(true);
+        for (ClientViewMessage.TravelCoordinate coordinate : coordinates) {
+            assertTrue(server.column(coordinate, 1, new byte[]{1}));
+        }
+        for (int attempt = 0; attempt < ClientViewProtocol.MAX_TRAVEL_REUSE_PROBES_PER_TICK; attempt++) {
+            server.tick(50L, 128 * 1024, message -> !(message instanceof ClientViewMessage.TravelReuse));
+        }
+        List<ClientViewMessage> sent = new ArrayList<>();
+        for (int attempt = 0; attempt < 5; attempt++) {
+            server.tick(50L, 128 * 1024, sent::add);
+        }
+        assertEquals(ClientViewProtocol.MAX_TRAVEL_REUSE_PROBES_PER_TICK, offers(sent).size());
+        server.close();
+    }
+
+    @Test
+    void immediateAcknowledgmentsAndCatchUpTicksCannotRestartTheWallTimeProbeWindow() {
+        ClientPreparedTravelServer server = new ClientPreparedTravelServer();
+        List<ClientViewMessage.TravelCoordinate> coordinates = ClientTravelWindow.coordinates(0, 0, 16);
+        server.begin(withCoordinates(begin(1), coordinates), 0L);
+        server.reuseSelected(true);
+        for (ClientViewMessage.TravelCoordinate coordinate : coordinates) {
+            assertTrue(server.column(coordinate, 1, new byte[]{1}));
+        }
+        List<ClientViewMessage.TravelReuse> sent = new ArrayList<>();
+        for (int tick = 0; tick < 100; tick++) {
+            server.tick(50L, 128 * 1024, message -> {
+                if (message instanceof ClientViewMessage.TravelReuse probe) {
+                    sent.add(probe);
+                    assertTrue(server.cached(ack(probe, true)));
+                }
+                return true;
+            });
+        }
+        assertEquals(ClientViewProtocol.MAX_TRAVEL_REUSE_PROBES_PER_TICK, sent.size());
+        server.tick(99L, 128 * 1024, message -> {
+            assertFalse(message instanceof ClientViewMessage.TravelReuse);
+            return true;
+        });
+        server.tick(100L, 128 * 1024, message -> {
+            if (message instanceof ClientViewMessage.TravelReuse probe) {
+                sent.add(probe);
+                assertTrue(server.cached(ack(probe, true)));
+            }
+            return true;
+        });
+        assertTrue(sent.size() > ClientViewProtocol.MAX_TRAVEL_REUSE_PROBES_PER_TICK);
+        assertTrue(sent.size() <= ClientViewProtocol.MAX_TRAVEL_REUSE_PROBES_PER_TICK * 2);
+        server.close();
+    }
+
+    @Test
     void hotPrefixCannotStarveUncapturedManifestTailAcrossBoundedBatches() {
         ClientPreparedTravelServer server = new ClientPreparedTravelServer();
         List<ClientViewMessage.TravelCoordinate> coordinates = new ArrayList<>();
@@ -51,7 +192,7 @@ final class ClientPreparedTravelReuseTest {
             assertTrue(server.column(coordinate, server.nextRevision(coordinate), new byte[]{1, 2, 3}));
         }
         for (int tick = 1; tick <= 49; tick++) {
-            server.tick(tick, 128 * 1024, sent::add);
+            server.tick(tick * 50L, 128 * 1024, sent::add);
             for (ClientViewMessage.TravelReuse offer : offers(sent)) {
                 assertTrue(server.cached(ack(offer, true)));
             }
@@ -97,10 +238,10 @@ final class ClientPreparedTravelReuseTest {
         }
         List<ClientViewMessage> sent = new ArrayList<>();
         for (int tick = 1; tick <= 9; tick++) {
-            server.tick(tick, 128 * 1024, sent::add);
+            server.tick(tick * 50L, 128 * 1024, sent::add);
         }
         List<ClientViewMessage.TravelReuse> proofs = offers(sent);
-        assertEquals(9, proofs.size());
+        assertEquals(ClientViewProtocol.MAX_TRAVEL_REUSE_PROBES_PER_TICK, proofs.size());
         int proofBytes = 0;
         for (ClientViewMessage.TravelReuse proof : proofs) {
             proofBytes += ClientViewCodec.encodeS2C(proof, 1, 0).length;
@@ -111,7 +252,7 @@ final class ClientPreparedTravelReuseTest {
             assertTrue(server.cached(ack(proof, false)));
         }
         sent.clear();
-        server.tick(10, 128 * 1024, sent::add);
+        server.tick(500L, 128 * 1024, sent::add);
         int wireBytes = 0;
         for (ClientViewMessage message : sent) {
             wireBytes += ClientViewCodec.encodeS2C(message, 1, 0).length;
@@ -133,19 +274,22 @@ final class ClientPreparedTravelReuseTest {
         }
         List<ClientViewMessage> sent = new ArrayList<>();
         for (int tick = 1; tick <= 9; tick++) {
-            server.tick(tick, 128 * 1024, sent::add);
+            server.tick(tick * 50L, 128 * 1024, sent::add);
         }
         List<ClientViewMessage.TravelReuse> offers = offers(sent);
-        assertEquals(9, offers.size());
+        assertEquals(ClientViewProtocol.MAX_TRAVEL_REUSE_PROBES_PER_TICK, offers.size());
         assertFalse(sent.stream().anyMatch(ClientViewMessage.TravelChunk.class::isInstance));
         assertFalse(sent.stream().anyMatch(ClientViewMessage.TravelEnd.class::isInstance));
         for (int index = 0; index < offers.size() - 1; index++) {
             assertTrue(server.cached(ack(offers.get(index), true)));
         }
-        server.tick(10, 128 * 1024, sent::add);
-        assertFalse(sent.stream().anyMatch(ClientViewMessage.TravelEnd.class::isInstance));
         assertTrue(server.cached(ack(offers.getLast(), true)));
-        server.tick(11, 128 * 1024, sent::add);
+        server.tick(500L, 128 * 1024, sent::add);
+        assertFalse(sent.stream().anyMatch(ClientViewMessage.TravelEnd.class::isInstance));
+        ClientViewMessage.TravelReuse last = offers(sent).getLast();
+        assertEquals(9, offers(sent).size());
+        assertTrue(server.cached(ack(last, true)));
+        server.tick(550L, 128 * 1024, sent::add);
         ClientViewMessage.TravelEnd end = assertInstanceOf(ClientViewMessage.TravelEnd.class, sent.getLast());
         assertTrue(server.commit(commit(begin, 12)).isEmpty());
         assertTrue(server.ready(new ClientViewMessage.TravelReady(begin.token(), begin.generation(), end.contentRevision())));
@@ -165,19 +309,19 @@ final class ClientPreparedTravelReuseTest {
             server.column(coordinate, 1, payload);
         }
         List<ClientViewMessage> sent = new ArrayList<>();
-        server.tick(1, 128 * 1024, sent::add);
+        server.tick(50L, 128 * 1024, sent::add);
         for (int tick = 2; tick <= 9; tick++) {
-            server.tick(tick, 128 * 1024, sent::add);
+            server.tick(tick * 50L, 128 * 1024, sent::add);
         }
         List<ClientViewMessage.TravelReuse> offers = offers(sent);
-        assertEquals(9, offers.size());
+        assertEquals(ClientViewProtocol.MAX_TRAVEL_REUSE_PROBES_PER_TICK, offers.size());
         assertFalse(sent.stream().anyMatch(ClientViewMessage.TravelChunk.class::isInstance));
         assertFalse(sent.stream().anyMatch(ClientViewMessage.TravelEnd.class::isInstance));
         for (int index = 0; index < offers.size() - 1; index++) {
             assertTrue(server.cached(ack(offers.get(index), false)));
         }
-        for (int tick = 0; tick < 12; tick++) {
-            server.tick(1010 + tick, 128 * 1024, sent::add);
+        for (int tick = 0; tick < 32; tick++) {
+            server.tick(1_500L + tick * 50L, 128 * 1024, sent::add);
         }
         assertInstanceOf(ClientViewMessage.TravelEnd.class, sent.getLast());
         assertEquals(18, sent.stream().filter(ClientViewMessage.TravelChunk.class::isInstance).count());
@@ -188,7 +332,7 @@ final class ClientPreparedTravelReuseTest {
     }
 
     @Test
-    void currentFreshHashesAreBoundedWhileValidatedWarmPayloadsOfferEntireManifest() {
+    void freshAndValidatedWarmPayloadsBothUseBoundedProbeBatches() {
         ClientPreparedTravelServer server = new ClientPreparedTravelServer();
         ProjectionWorldChangeTracker changes = new ProjectionWorldChangeTracker();
         UUID world = UUID.randomUUID();
@@ -208,24 +352,103 @@ final class ClientPreparedTravelReuseTest {
             assertTrue(server.column(coordinate, 1, bytes));
         }
         List<ClientViewMessage> sent = new ArrayList<>();
-        server.tick(1, 128 * 1024, sent::add);
+        server.tick(50L, 128 * 1024, sent::add);
         assertTrue(offers(sent).size() > 0);
-        assertTrue(offers(sent).size() <= 16);
+        assertTrue(offers(sent).size() <= ClientViewProtocol.MAX_TRAVEL_REUSE_PROBES_PER_TICK);
+        for (ClientViewMessage.TravelReuse offer : offers(sent)) {
+            assertTrue(server.cached(ack(offer, true)));
+        }
         for (int tick = 2; tick <= 49; tick++) {
-            server.tick(tick, 128 * 1024, sent::add);
+            server.tick(tick * 50L, 128 * 1024, sent::add);
+            for (ClientViewMessage.TravelReuse offer : offers(sent)) {
+                assertTrue(server.cached(ack(offer, true)));
+            }
         }
         assertEquals(49, offers(sent).size());
         server.cancel();
-        server.begin(withCoordinates(begin(2), coordinates), 50);
+        server.begin(withCoordinates(begin(2), coordinates), 2_500);
         server.watchWorld(changes, world);
         server.reuseSelected(true);
         for (ClientViewMessage.TravelCoordinate coordinate : coordinates) {
             assertTrue(server.column(coordinate, 1, bytes.clone()));
         }
         sent.clear();
-        server.tick(51, 128 * 1024, sent::add);
+        server.tick(2550L, 128 * 1024, sent::add);
+        assertTrue(offers(sent).size() > 0);
+        assertTrue(offers(sent).size() <= ClientViewProtocol.MAX_TRAVEL_REUSE_PROBES_PER_TICK);
+        for (ClientViewMessage.TravelReuse offer : offers(sent)) {
+            assertTrue(server.cached(ack(offer, true)));
+        }
+        for (int tick = 52; tick <= 100; tick++) {
+            server.tick(tick * 50L, 128 * 1024, sent::add);
+            for (ClientViewMessage.TravelReuse offer : offers(sent)) {
+                assertTrue(server.cached(ack(offer, true)));
+            }
+        }
         assertEquals(49, offers(sent).size());
         assertFalse(sent.stream().anyMatch(ClientViewMessage.TravelChunk.class::isInstance));
+    }
+
+    @Test
+    void maximumArrivalHorizonPacesWarmRepliesAndStillCompletesCurrentProofBarrier() {
+        ClientPreparedTravelServer server = new ClientPreparedTravelServer();
+        ProjectionWorldChangeTracker changes = new ProjectionWorldChangeTracker();
+        UUID world = UUID.randomUUID();
+        List<ClientViewMessage.TravelCoordinate> coordinates = ClientTravelWindow.coordinates(0, 0, 16);
+        byte[] payload = new byte[]{1, 2, 3};
+        ClientViewMessage.TravelBegin initial = withCoordinates(begin(1), coordinates);
+        server.begin(initial, 0);
+        server.watchWorld(changes, world);
+        server.reuseSelected(true);
+        for (ClientViewMessage.TravelCoordinate coordinate : coordinates) {
+            assertTrue(server.column(coordinate, 1, payload));
+        }
+        List<ClientViewMessage> sent = new ArrayList<>();
+        int offered = 0;
+        for (int tick = 1; tick <= coordinates.size() && offered < coordinates.size(); tick++) {
+            sent.clear();
+            server.tick(tick * 50L, 128 * 1024, sent::add);
+            List<ClientViewMessage.TravelReuse> probes = offers(sent);
+            assertTrue(probes.size() <= ClientViewProtocol.MAX_TRAVEL_REUSE_PROBES_PER_TICK);
+            offered += probes.size();
+            for (ClientViewMessage.TravelReuse probe : probes) {
+                assertTrue(server.cached(ack(probe, true)));
+            }
+        }
+        assertEquals(ClientViewProtocol.MAX_TRAVEL_CHUNKS, offered);
+        server.cancel();
+        ClientViewMessage.TravelBegin returning = withCoordinates(begin(2), coordinates);
+        server.begin(returning, 20_000);
+        server.watchWorld(changes, world);
+        server.reuseSelected(true);
+        for (int index = coordinates.size() - 256; index < coordinates.size(); index++) {
+            assertTrue(server.column(coordinates.get(index), 1, payload));
+        }
+        for (int index = 0; index < coordinates.size() - 256; index++) {
+            assertTrue(server.column(coordinates.get(index), 1, payload));
+        }
+        offered = 0;
+        ClientViewMessage.TravelEnd end = null;
+        for (int tick = 1; tick <= coordinates.size() + 1 && end == null; tick++) {
+            sent.clear();
+            server.tick(20_000L + tick * 50L, 128 * 1024, sent::add);
+            List<ClientViewMessage.TravelReuse> probes = offers(sent);
+            assertTrue(probes.size() <= ClientViewProtocol.MAX_TRAVEL_REUSE_PROBES_PER_TICK);
+            offered += probes.size();
+            for (ClientViewMessage.TravelReuse probe : probes) {
+                assertTrue(server.cached(ack(probe, true)));
+            }
+            for (ClientViewMessage message : sent) {
+                if (message instanceof ClientViewMessage.TravelEnd barrier) {
+                    end = barrier;
+                }
+            }
+        }
+        assertEquals(ClientViewProtocol.MAX_TRAVEL_CHUNKS, offered);
+        assertTrue(end != null);
+        assertEquals(ClientViewProtocol.MAX_TRAVEL_CHUNKS, end.chunks().size());
+        assertTrue(server.ready(new ClientViewMessage.TravelReady(returning.token(), returning.generation(), end.contentRevision())));
+        server.close();
     }
 
     @Test
@@ -237,13 +460,13 @@ final class ClientPreparedTravelReuseTest {
         ClientViewMessage.TravelCoordinate coordinate = begin.chunks().getFirst();
         server.column(coordinate, 1, new byte[]{1, 2, 3});
         List<ClientViewMessage> sent = new ArrayList<>();
-        server.tick(1, 128 * 1024, sent::add);
+        server.tick(50L, 128 * 1024, sent::add);
         ClientViewMessage.TravelReuse old = offers(sent).getFirst();
         server.invalidate(coordinate);
         assertFalse(server.cached(ack(old, true)));
         server.column(coordinate, 2, new byte[]{1, 2, 4});
         sent.clear();
-        server.tick(2, 128 * 1024, sent::add);
+        server.tick(100L, 128 * 1024, sent::add);
         ClientViewMessage.TravelReuse current = offers(sent).getFirst();
         assertFalse(Arrays.equals(old.hash(), current.hash()));
         assertFalse(server.cached(ack(old, true)));
@@ -263,7 +486,7 @@ final class ClientPreparedTravelReuseTest {
         ClientViewMessage.TravelCoordinate coordinate = begin.chunks().getFirst();
         server.column(coordinate, 1, new byte[]{1});
         List<ClientViewMessage> sent = new ArrayList<>();
-        server.tick(1, 128 * 1024, sent::add);
+        server.tick(50L, 128 * 1024, sent::add);
         ClientViewMessage.TravelReuse old = offers(sent).getFirst();
         assertFalse(server.cached(new ClientViewMessage.TravelCached(UUID.randomUUID(), old.generation(), old.chunkX(), old.chunkZ(), 1, old.hash(), true)));
         assertFalse(server.cached(new ClientViewMessage.TravelCached(old.token(), old.generation() + 1, old.chunkX(), old.chunkZ(), 1, old.hash(), true)));
@@ -272,7 +495,7 @@ final class ClientPreparedTravelReuseTest {
         server.column(coordinate, 1, new byte[]{1});
         assertFalse(server.cached(ack(old, true)));
         sent.clear();
-        server.tick(3, 128 * 1024, sent::add);
+        server.tick(150L, 128 * 1024, sent::add);
         assertFalse(sent.stream().anyMatch(ClientViewMessage.TravelReuse.class::isInstance));
         assertTrue(sent.stream().anyMatch(ClientViewMessage.TravelChunk.class::isInstance));
     }
@@ -289,18 +512,19 @@ final class ClientPreparedTravelReuseTest {
         List<ClientViewMessage> sent = new ArrayList<>();
         for (int tick = 1; tick <= 9; tick++) {
             int before = offers(sent).size();
-            server.tick(tick, ClientViewProtocol.TRAVEL_REUSE_BYTES, sent::add);
+            server.tick(tick * 50L, ClientViewProtocol.TRAVEL_REUSE_BYTES, sent::add);
             assertEquals(before + 1, offers(sent).size());
+            assertTrue(server.cached(ack(offers(sent).getLast(), true)));
         }
         for (ClientViewMessage.TravelReuse offer : offers(sent)) {
             assertTrue(server.cached(ack(offer, true)));
         }
-        server.tick(10, ClientViewProtocol.TRAVEL_REUSE_BYTES, sent::add);
+        server.tick(500L, ClientViewProtocol.TRAVEL_REUSE_BYTES, sent::add);
         assertEquals(1, sent.stream().filter(ClientViewMessage.TravelEnd.class::isInstance).count());
         for (ClientViewMessage.TravelReuse offer : offers(sent)) {
             assertTrue(server.cached(ack(offer, true)));
         }
-        server.tick(11, ClientViewProtocol.TRAVEL_REUSE_BYTES, sent::add);
+        server.tick(550L, ClientViewProtocol.TRAVEL_REUSE_BYTES, sent::add);
         assertEquals(1, sent.stream().filter(ClientViewMessage.TravelEnd.class::isInstance).count());
     }
 

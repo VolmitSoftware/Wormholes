@@ -35,7 +35,7 @@ class PortalAccessDiagnosticsTest {
 
     @BeforeEach
     void prepareAccess() {
-        WormholesHooks.install(new WormholesRegistrar().portalExtension(new AccessExtensionFactory()));
+        WormholesHooks.install(new WormholesRegistrar().portalExtension(AccessPortalExtension.class, AccessPortalExtension::new));
         previousSettings = Wormholes.settings;
         Wormholes.settings = new WormholesSettings(new MainConfig(), new ProjectionConfig(), new RenderConfig(), new NetworkConfig());
     }

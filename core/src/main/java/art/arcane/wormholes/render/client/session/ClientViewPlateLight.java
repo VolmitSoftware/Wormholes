@@ -224,8 +224,7 @@ public final class ClientViewPlateLight<B> implements BrickLightSource {
     private static ProjectorFrameTransform configure(ClientViewEntityTransform.Frame frame) {
         ProjectorFrameTransform transform = new ProjectorFrameTransform();
         if (frame.mirror()) {
-            transform.configureMirror(frame.localFrame(), frame.quarterTurns(), frame.localOriginX(), frame.localOriginY(), frame.localOriginZ(),
-                new double[3]);
+            transform.configureMirror(frame.localFrame(), frame.quarterTurns(), frame.localOriginX(), frame.localOriginY(), frame.localOriginZ());
         } else {
             transform.configure(frame.localViewFrame(), frame.remoteViewFrame(), frame.localOriginX(), frame.localOriginY(), frame.localOriginZ(),
                 frame.remoteOriginX(), frame.remoteOriginY(), frame.remoteOriginZ());

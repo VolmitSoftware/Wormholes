@@ -203,8 +203,8 @@ public final class MinecraftPortalTools implements AutoCloseable {
     }
 
     private boolean canBuild(CommandSourceStack source) {
-        return runtime.access().permission(source, "wormholes.portals.portal")
-            || runtime.access().permission(source, "wormholes.portals.wormhole") || runtime.access().permission(source, "wormholes.gateway");
+        return runtime.access().permission(source, PortalType.PORTAL.permission())
+            || runtime.access().permission(source, PortalType.WORMHOLE.permission()) || runtime.access().permission(source, PortalType.GATEWAY.permission());
     }
 
     private boolean canUse(ServerPlayer player) {
@@ -262,12 +262,7 @@ public final class MinecraftPortalTools implements AutoCloseable {
 
     private int build(ServerPlayer player, PortalType type) {
         runtime.requireServerThread();
-        String permission = switch (type) {
-            case GATEWAY -> "wormholes.gateway";
-            case WORMHOLE -> "wormholes.portals.wormhole";
-            case PORTAL, RTP -> "wormholes.portals.portal";
-        };
-        if (!runtime.access().permission(player, permission)) {
+        if (!runtime.access().permission(player, type.permission())) {
             player.sendSystemMessage(MinecraftMenuText.text(player, WormholesMessages.COMMAND_NO_PERMISSION, Map.of()));
             return 0;
         }

@@ -35,7 +35,7 @@ final class RulesObserverTest {
 
     @BeforeEach
     void install() {
-        WormholesHooks.install(new WormholesRegistrar().portalExtension(new RulesExtensionFactory()));
+        WormholesHooks.install(new WormholesRegistrar().portalExtension(RulesPortalExtension.class, RulesPortalExtension::new));
         PortalCooldowns.clear();
         ledger = new RuleTraversalLedger();
         gate = new RulesGate(new FakeRulesEnvironment(), new WarmupTracker(new SilentPinner()), ledger);

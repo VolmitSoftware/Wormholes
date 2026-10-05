@@ -25,20 +25,23 @@ public class MinecraftAtlasPersistenceTest {
         UUID first = UUID.randomUUID();
         UUID second = UUID.randomUUID();
         AtlasPlayerStore store = new AtlasPlayerStore(directory, MinecraftJsonDocuments.INSTANCE);
-        AtlasPlayerState state = store.load(player);
+        AtlasPlayerState state = store.loadAsync(player).join();
         state.discover(first);
         state.discover(second);
         state.toggleFavorite(second, 27);
         state.recordRecent(first, 10);
         state.recordRecent(second, 10);
         state.setGuideTarget(first);
-        store.flushDirty();
+        store.flushDirtyAsync().join();
         assertFalse(state.isDirty());
-        AtlasPlayerState loaded = new AtlasPlayerStore(directory, MinecraftJsonDocuments.INSTANCE).load(player);
+        store.close();
+        AtlasPlayerStore reopened = new AtlasPlayerStore(directory, MinecraftJsonDocuments.INSTANCE);
+        AtlasPlayerState loaded = reopened.loadAsync(player).join();
         assertTrue(loaded.isDiscovered(first));
         assertTrue(loaded.isDiscovered(second));
         assertEquals(List.of(second), loaded.favorites());
         assertEquals(List.of(second, first), loaded.recents());
         assertEquals(first, loaded.guideTarget());
+        reopened.close();
     }
 }

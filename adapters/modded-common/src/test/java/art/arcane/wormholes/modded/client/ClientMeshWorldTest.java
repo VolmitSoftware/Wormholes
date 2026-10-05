@@ -16,6 +16,8 @@ import net.minecraft.client.color.block.BlockColors;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Registry;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
@@ -238,7 +240,9 @@ public class ClientMeshWorldTest {
         when(desert.getGrassColor(anyDouble(), anyDouble())).thenReturn(0x445566);
         when(registry.getOptional(Identifier.parse("minecraft:plains"))).thenReturn(Optional.of(plains));
         when(registry.getOptional(Identifier.parse("minecraft:desert"))).thenReturn(Optional.of(desert));
-        return new ClientMeshWorld(new ClientMeshWorld.Snapshot(store.view(7), center, registry,
+        RegistryAccess access = mock(RegistryAccess.class);
+        when(access.lookupOrThrow(Registries.BIOME)).thenReturn(registry);
+        return new ClientMeshWorld(new ClientMeshWorld.Snapshot(store.view(7), center, access,
             PortalEnvironmentTest.environment(transform), blend));
     }
 

@@ -164,7 +164,7 @@ public final class ProjectedItemFrameTransformTest {
         for (PortalFrame frame : frames) {
             for (int quarterTurns = 0; quarterTurns < 4; quarterTurns++) {
                 cellTransform.configureMirror(frame, quarterTurns,
-                    0.4995D, -2.5005D, 7.4995D, scratch);
+                    0.4995D, -2.5005D, 7.4995D);
                 for (double x : anchors) {
                     for (double y : anchors) {
                         for (double z : anchors) {

@@ -42,7 +42,7 @@ final class AccessGateTest {
 
     @BeforeEach
     void registerExtension() {
-        WormholesHooks.install(new WormholesRegistrar().portalExtension(new AccessExtensionFactory()));
+        WormholesHooks.install(new WormholesRegistrar().portalExtension(AccessPortalExtension.class, AccessPortalExtension::new));
         previousSettings = Wormholes.settings;
         Wormholes.settings = settings(true);
         world = AccessTestPortals.world("access-gate");

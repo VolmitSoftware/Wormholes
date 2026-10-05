@@ -6,6 +6,7 @@ import art.arcane.wormholes.network.client.ClientViewEnvironment;
 import art.arcane.wormholes.network.client.ClientViewProtocol;
 import art.arcane.wormholes.render.client.ClientViewBlockTransform;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.AABB;
 import com.mojang.logging.LogUtils;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongIterator;
@@ -18,6 +19,8 @@ import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
+import net.minecraft.client.renderer.culling.Frustum;
+import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -45,6 +48,7 @@ import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -58,6 +62,7 @@ public final class ClientMeshEntities {
     private final ClientLevel level;
     private final Long2ObjectOpenHashMap<SectionEntities> sections = new Long2ObjectOpenHashMap<>();
     private final ArrayList<BlockEntity> activeBlockEntities = new ArrayList<>();
+    private final IdentityHashMap<EntityRenderState, EntitySource> entitySources = new IdentityHashMap<>();
     private SceneCamera sceneCamera;
     private ClientViewEnvironment.Transform transform;
     private ClientViewBlockTransform cells;
@@ -131,6 +136,7 @@ public final class ClientMeshEntities {
     }
 
     public void extract(int portalKey, Camera camera, float partialTick, ClientViewEnvironment.Transform transform) {
+        entitySources.clear();
         synchronize(transform);
         ArrayList<BlockEntityRenderState> blocks = new ArrayList<>(activeBlockEntities.size());
         ArrayList<EntityRenderState> entities = new ArrayList<>();
@@ -170,6 +176,17 @@ public final class ClientMeshEntities {
 
     public List<EntityRenderState> entities() {
         return entityStates;
+    }
+
+    public Predicate<EntityRenderState> entityVisibility(CameraRenderState camera, Frustum frustum,
+                                                       ClientViewEnvironment.Transform transform) {
+        if (frustum == null || transform == null) {
+            return state -> true;
+        }
+        DestinationFrustum destinationFrustum = new DestinationFrustum(frustum, transform);
+        GeometryVector eye = transform.destinationPoint(camera.pos.x, camera.pos.y, camera.pos.z);
+        EntityRenderDispatcher renderer = Minecraft.getInstance().getEntityRenderDispatcher();
+        return state -> entityVisible(state, renderer, destinationFrustum, eye);
     }
 
     public BlockState blockState(BlockPos position) {
@@ -220,25 +237,27 @@ public final class ClientMeshEntities {
                 continue;
             }
             Long2ObjectOpenHashMap<BlockEntity> entities = new Long2ObjectOpenHashMap<>();
-            for (int cell = 0; cell < 4096; cell++) {
-                BlockState state = snapshot.state(cell);
-                if (!(state.getBlock() instanceof EntityBlock block)) {
-                    continue;
+            if (snapshot.hasEntityBlocks()) {
+                for (int cell = 0; cell < 4096; cell++) {
+                    BlockState state = snapshot.state(cell);
+                    if (!(state.getBlock() instanceof EntityBlock block)) {
+                        continue;
+                    }
+                    BlockPos position = new BlockPos((SectionPos.x(key) << 4) + (cell & 15),
+                        (SectionPos.y(key) << 4) + (cell >> 8), (SectionPos.z(key) << 4) + ((cell >> 4) & 15));
+                    BlockPos nativePosition = new BlockPos(cells.destinationX(position.getX(), position.getY(), position.getZ()),
+                        cells.destinationY(position.getX(), position.getY(), position.getZ()), cells.destinationZ(position.getX(), position.getY(), position.getZ()));
+                    BlockEntity entity = block.newBlockEntity(nativePosition, state);
+                    if (entity == null) {
+                        continue;
+                    }
+                    entity.setLevel(level);
+                    BlockEntitySample sample = snapshot.blockEntity(cell);
+                    if (sample != null) {
+                        load(entity, sample);
+                    }
+                    entities.put(position.asLong(), entity);
                 }
-                BlockPos position = new BlockPos((SectionPos.x(key) << 4) + (cell & 15),
-                    (SectionPos.y(key) << 4) + (cell >> 8), (SectionPos.z(key) << 4) + ((cell >> 4) & 15));
-                BlockPos nativePosition = new BlockPos(cells.destinationX(position.getX(), position.getY(), position.getZ()),
-                    cells.destinationY(position.getX(), position.getY(), position.getZ()), cells.destinationZ(position.getX(), position.getY(), position.getZ()));
-                BlockEntity entity = block.newBlockEntity(nativePosition, state);
-                if (entity == null) {
-                    continue;
-                }
-                entity.setLevel(level);
-                BlockEntitySample sample = snapshot.blockEntity(cell);
-                if (sample != null) {
-                    load(entity, sample);
-                }
-                entities.put(position.asLong(), entity);
             }
             sections.put(key, new SectionEntities(snapshot, entities));
         }
@@ -295,6 +314,35 @@ public final class ClientMeshEntities {
         destinationQueries = true;
         try {
             extraction.run();
+        } finally {
+            destinationQueries = previousQueries;
+            if (previous == null) {
+                ACTIVE.remove();
+            } else {
+                ACTIVE.set(previous);
+            }
+        }
+    }
+
+    private boolean entityVisible(EntityRenderState state, EntityRenderDispatcher renderer, DestinationFrustum frustum,
+                                  GeometryVector eye) {
+        EntitySource source = entitySources.get(state);
+        if (source == null || state.nameTag != null || state.scoreText != null || state.appearsGlowing()) {
+            return true;
+        }
+        ClientMeshEntities previous = ACTIVE.get();
+        boolean previousQueries = destinationQueries;
+        if (source.destinationQueries()) {
+            ACTIVE.set(this);
+            destinationQueries = true;
+        } else {
+            ACTIVE.remove();
+        }
+        try {
+            frustum.tested = false;
+            frustum.visible = false;
+            boolean rendered = renderer.shouldRender(source.entity(), frustum, eye.x(), eye.y(), eye.z(), source.partialTick());
+            return rendered || !frustum.tested || frustum.visible;
         } finally {
             destinationQueries = previousQueries;
             if (previous == null) {
@@ -415,9 +463,11 @@ public final class ClientMeshEntities {
         }
     }
 
-    private static void extractEntity(Entity entity, EntityRenderDispatcher renderer, float partialTick, List<EntityRenderState> states) {
+    private void extractEntity(Entity entity, EntityRenderDispatcher renderer, float partialTick, List<EntityRenderState> states) {
         if (entity != null && !entity.isRemoved()) {
-            states.add(renderer.extractEntity(entity, partialTick));
+            EntityRenderState state = renderer.extractEntity(entity, partialTick);
+            states.add(state);
+            entitySources.put(state, new EntitySource(entity, partialTick, ACTIVE.get() == this && destinationQueries));
         }
     }
 
@@ -451,6 +501,47 @@ public final class ClientMeshEntities {
 
     private static int cell(BlockPos position) {
         return ((position.getY() & 15) << 8) | ((position.getZ() & 15) << 4) | (position.getX() & 15);
+    }
+
+    private record EntitySource(Entity entity, float partialTick, boolean destinationQueries) {
+    }
+
+    static final class DestinationFrustum extends Frustum {
+        private final Frustum display;
+        private final ClientViewEnvironment.Transform transform;
+        private boolean tested;
+        private boolean visible;
+
+        DestinationFrustum(Frustum display, ClientViewEnvironment.Transform transform) {
+            super(display);
+            this.display = display;
+            this.transform = transform;
+        }
+
+        @Override
+        public boolean isVisible(AABB bounds) {
+            tested = true;
+            if (!Double.isFinite(bounds.getSize())) {
+                visible = true;
+                return true;
+            }
+            double minX = bounds.minX * transform.xAxis().x() + bounds.minY * transform.yAxis().x()
+                + bounds.minZ * transform.zAxis().x() + transform.translation().x();
+            double minY = bounds.minX * transform.xAxis().y() + bounds.minY * transform.yAxis().y()
+                + bounds.minZ * transform.zAxis().y() + transform.translation().y();
+            double minZ = bounds.minX * transform.xAxis().z() + bounds.minY * transform.yAxis().z()
+                + bounds.minZ * transform.zAxis().z() + transform.translation().z();
+            double maxX = bounds.maxX * transform.xAxis().x() + bounds.maxY * transform.yAxis().x()
+                + bounds.maxZ * transform.zAxis().x() + transform.translation().x();
+            double maxY = bounds.maxX * transform.xAxis().y() + bounds.maxY * transform.yAxis().y()
+                + bounds.maxZ * transform.zAxis().y() + transform.translation().y();
+            double maxZ = bounds.maxX * transform.xAxis().z() + bounds.maxY * transform.yAxis().z()
+                + bounds.maxZ * transform.zAxis().z() + transform.translation().z();
+            boolean result = display.isVisible(new AABB(Math.min(minX, maxX), Math.min(minY, maxY), Math.min(minZ, maxZ),
+                Math.max(minX, maxX), Math.max(minY, maxY), Math.max(minZ, maxZ)));
+            visible |= result;
+            return result;
+        }
     }
 
     private static final class SceneCamera extends Camera {

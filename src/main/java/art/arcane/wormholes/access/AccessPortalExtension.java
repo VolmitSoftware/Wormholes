@@ -36,7 +36,7 @@ public final class AccessPortalExtension implements PortalExtension {
     private volatile boolean listed = true;
     private volatile UUID transferredFrom;
 
-    AccessPortalExtension(LocalPortal portal) {
+    public AccessPortalExtension(LocalPortal portal) {
         this.portal = Objects.requireNonNull(portal, "portal");
     }
 

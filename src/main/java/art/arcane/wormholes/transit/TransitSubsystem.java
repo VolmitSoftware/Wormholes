@@ -54,7 +54,7 @@ public final class TransitSubsystem implements WormholesSubsystem {
 
     @Override
     public void register(WormholesRegistrar registrar) {
-        registrar.portalExtension(new TransitExtensionFactory());
+        registrar.portalExtension(TransitPortalExtension.class, extensionPortal -> new TransitPortalExtension());
         registrar.traversalGate(new TransitGate());
         registrar.traversalObserver(new TransitObserver());
         registrar.portalMenuEntry(new TransitMenuEntry());

@@ -167,6 +167,17 @@ public record ClientPortalGeometry(int originX,
         return word < apertureMask.length && (apertureMask[word] & (1L << (bit & 63))) != 0L;
     }
 
+    public boolean containsCell(int x, int y, int z) {
+        Direction normal = facingDirection();
+        if (normal.x() != 0) {
+            return x == originX && apertureOpen(z - originZ, y - originY);
+        }
+        if (normal.y() != 0) {
+            return y == originY && apertureOpen(x - originX, z - originZ);
+        }
+        return z == originZ && apertureOpen(x - originX, y - originY);
+    }
+
     public int openCellCount() {
         int count = 0;
         int cells = apertureWidth * apertureHeight;

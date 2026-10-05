@@ -1,6 +1,5 @@
 package art.arcane.wormholes.rules;
 
-import art.arcane.wormholes.access.AccessExtensionFactory;
 import art.arcane.wormholes.access.AccessPortalExtension;
 import art.arcane.wormholes.hook.WormholesHooks;
 import art.arcane.wormholes.hook.WormholesRegistrar;
@@ -24,8 +23,8 @@ final class RouteCardListingTest {
     @BeforeEach
     void install() {
         WormholesHooks.install(new WormholesRegistrar()
-            .portalExtension(new RulesExtensionFactory())
-            .portalExtension(new AccessExtensionFactory()));
+            .portalExtension(RulesPortalExtension.class, RulesPortalExtension::new)
+            .portalExtension(AccessPortalExtension.class, AccessPortalExtension::new));
         world = RulesTestSupport.world("route-card-listing");
     }
 

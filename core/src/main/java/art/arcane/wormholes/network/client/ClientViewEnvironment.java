@@ -95,6 +95,12 @@ public record ClientViewEnvironment(long gameTime, Sky sky, Fog fog, Lighting li
             }
         }
 
+        public boolean reflected() {
+            return xAxis.x() * (yAxis.y() * zAxis.z() - yAxis.z() * zAxis.y())
+                - yAxis.x() * (xAxis.y() * zAxis.z() - xAxis.z() * zAxis.y())
+                + zAxis.x() * (xAxis.y() * yAxis.z() - xAxis.z() * yAxis.y()) < 0;
+        }
+
         public GeometryVector destinationPoint(double x, double y, double z) {
             double dx = x - translation.x();
             double dy = y - translation.y();

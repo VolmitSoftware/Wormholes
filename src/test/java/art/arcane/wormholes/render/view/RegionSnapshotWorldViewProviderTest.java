@@ -7,11 +7,49 @@ import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
 import org.junit.jupiter.api.Test;
 
 import java.util.UUID;
+import java.util.HashSet;
+import java.util.Set;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RegionSnapshotWorldViewProviderTest {
+    @Test
+    void spatialCaptureGridDistributesLookupsAcrossConcurrentMapBins() {
+        int[] bins = new int[512];
+        for (int x = -8; x < 8; x++) {
+            for (int z = -8; z < 8; z++) {
+                int hash = Long.hashCode(RegionSnapshotWorldViewProvider.chunkLookupKey(x, z));
+                bins[(hash ^ (hash >>> 16)) & (bins.length - 1)]++;
+            }
+        }
+        int occupied = 0;
+        int maximum = 0;
+        for (int count : bins) {
+            if (count > 0) {
+                occupied++;
+            }
+            maximum = Math.max(maximum, count);
+        }
+        assertTrue(occupied > 128);
+        assertTrue(maximum <= 4);
+    }
+
+    @Test
+    void lookupIdentitySeparatesSignedCoordinatesAndWorldBorderColumns() {
+        int[] coordinates = {-1_875_000, -1, 0, 1, 1_875_000};
+        Set<Long> identities = new HashSet<Long>();
+        for (int x : coordinates) {
+            for (int z : coordinates) {
+                long identity = RegionSnapshotWorldViewProvider.chunkLookupKey(x, z);
+                assertEquals(identity, RegionSnapshotWorldViewProvider.chunkLookupKey(x, z));
+                assertTrue(identities.add(Long.valueOf(identity)));
+            }
+        }
+        assertEquals(25, identities.size());
+    }
+
     @Test
     void keepsEntityStateStableWhenOnlyMotionChanges() {
         UUID id = UUID.randomUUID();

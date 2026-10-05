@@ -6,6 +6,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
 
 import it.unimi.dsi.fastutil.longs.LongCollection;
+import it.unimi.dsi.fastutil.HashCommon;
 
 public final class ProjectionWorldChangeTracker {
     public static final long AFFECTED = Long.MIN_VALUE;
@@ -70,7 +71,7 @@ public final class ProjectionWorldChangeTracker {
         }
         for (int cx = minChunkX; cx <= maxChunkX; cx++) {
             for (int cz = minChunkZ; cz <= maxChunkZ; cz++) {
-                Long stamp = chunks.get(Long.valueOf(chunkKey(cx, cz)));
+                Long stamp = chunks.get(Long.valueOf(HashCommon.mix(chunkKey(cx, cz))));
                 if (stamp != null && stamp.longValue() > sinceVersion) {
                     return true;
                 }
@@ -99,7 +100,7 @@ public final class ProjectionWorldChangeTracker {
         for (int cx = minChunkX; cx <= maxChunkX; cx++) {
             for (int cz = minChunkZ; cz <= maxChunkZ; cz++) {
                 long key = chunkKey(cx, cz);
-                Long stamp = chunks.get(Long.valueOf(key));
+                Long stamp = chunks.get(Long.valueOf(HashCommon.mix(key)));
                 if (stamp != null && stamp.longValue() > sinceVersion) {
                     out.add(key);
                 }
@@ -153,7 +154,7 @@ public final class ProjectionWorldChangeTracker {
                 log.append(stamp, entryKey, column);
                 Long boxed = Long.valueOf(stamp);
                 worldMaxStamp.computeIfAbsent(worldId, ignored -> new AtomicLong()).accumulateAndGet(stamp, Math::max);
-                chunks.put(Long.valueOf(chunkKey(blockX >> 4, blockZ >> 4)), boxed);
+                chunks.put(Long.valueOf(HashCommon.mix(chunkKey(blockX >> 4, blockZ >> 4))), boxed);
                 if (chunks.size() > MAX_TRACKED_CHUNKS_PER_WORLD) {
                     chunks.clear();
                     clearFloor.put(worldId, boxed);

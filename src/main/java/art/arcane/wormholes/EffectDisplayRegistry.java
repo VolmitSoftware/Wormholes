@@ -11,6 +11,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
+import org.bukkit.Server;
 import org.bukkit.World;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
@@ -114,7 +115,13 @@ final class EffectDisplayRegistry
 
 	void drain(Set<UUID> displays)
 	{
-		boolean folia = FoliaScheduler.isFoliaThreading(Bukkit.getServer());
+		Server server = Bukkit.getServer();
+		if(FoliaScheduler.isStopping(server))
+		{
+			temporaryDisplays.removeAll(displays);
+			return;
+		}
+		boolean folia = FoliaScheduler.isFoliaThreading(server);
 		CountDownLatch removals = new CountDownLatch(displays.size());
 		AtomicInteger abandoned = new AtomicInteger();
 		for(UUID displayId : displays)

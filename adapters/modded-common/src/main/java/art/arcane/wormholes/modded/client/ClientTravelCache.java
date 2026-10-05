@@ -5,6 +5,7 @@ import art.arcane.wormholes.network.client.ClientViewProtocol;
 
 import java.security.MessageDigest;
 import java.lang.ref.WeakReference;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -29,6 +30,10 @@ final class ClientTravelCache {
             return;
         }
         Key key = new Key(world, x, z);
+        Entry existing = columns.get(key);
+        if (existing != null && Arrays.equals(existing.data, data)) {
+            return;
+        }
         Entry previous = columns.remove(key);
         if (previous != null) {
             bytes -= previous.data.length;
@@ -39,8 +44,15 @@ final class ClientTravelCache {
             iterator.remove();
         }
         byte[] retained = data.clone();
-        columns.put(key, new Entry(retained, ClientTravelHash.of(retained)));
+        columns.put(key, new Entry(retained));
         bytes += retained.length;
+    }
+
+    void invalidate(String world, int x, int z) {
+        Entry previous = columns.remove(new Key(world, x, z));
+        if (previous != null) {
+            bytes -= previous.data.length;
+        }
     }
 
     void seed(String world, int x, int z, byte[] data) {
@@ -56,9 +68,23 @@ final class ClientTravelCache {
 
     byte[] get(String world, int x, int z, byte[] hash) {
         Entry entry = columns.get(new Key(world, x, z));
-        return entry != null && MessageDigest.isEqual(entry.hash, hash) ? entry.data : null;
+        return entry != null && MessageDigest.isEqual(entry.hash(), hash) ? entry.data : null;
     }
 
     private record Key(String world, int x, int z) { }
-    private record Entry(byte[] data, byte[] hash) { }
+    private static final class Entry {
+        private final byte[] data;
+        private byte[] hash;
+
+        private Entry(byte[] data) {
+            this.data = data;
+        }
+
+        private byte[] hash() {
+            if (hash == null) {
+                hash = ClientTravelHash.of(data);
+            }
+            return hash;
+        }
+    }
 }

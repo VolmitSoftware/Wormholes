@@ -430,15 +430,16 @@ public final class ClientViewServerSession<P, B> {
             return ClientViewInbound.IGNORED;
         }
         long now = millis();
-        ClientViewRateLimiter.Verdict verdict = limiter.admit(now, length);
+        int messageType = payload != null && offset >= 0 && offset < payload.length && length > 0 ? payload[offset] & 0xFF : -1;
+        ClientViewRateLimiter.Verdict verdict = limiter.admit(now, length, messageType);
         if (verdict != ClientViewRateLimiter.Verdict.ACCEPT) {
-            return rejectInbound(verdict);
+            return rejectInbound(verdict, null);
         }
         ClientViewMessage message;
         try {
             message = ClientViewCodec.decodeC2S(payload, offset, length);
         } catch (ClientViewProtocolException malformed) {
-            return rejectInbound(limiter.violation(now));
+            return rejectInbound(limiter.violation(now, messageType, length), malformed);
         }
         return switch (message) {
             case ClientViewMessage.Hello hello -> onHello(hello, now);
@@ -461,7 +462,7 @@ public final class ClientViewServerSession<P, B> {
                 : ClientViewInbound.IGNORED;
             case ClientViewMessage.ViewStats stats -> onViewStats(stats, now);
             case ClientViewMessage.PlateRefused refused -> onRefused(refused);
-            default -> rejectInbound(limiter.violation(now));
+            default -> rejectInbound(limiter.violation(now, messageType, length), null);
         };
     }
 
@@ -657,9 +658,10 @@ public final class ClientViewServerSession<P, B> {
         return ClientViewInbound.IGNORED;
     }
 
-    private ClientViewInbound rejectInbound(ClientViewRateLimiter.Verdict verdict) {
+    private ClientViewInbound rejectInbound(ClientViewRateLimiter.Verdict verdict, Throwable cause) {
         c2sDropped.incrementAndGet();
         if (verdict == ClientViewRateLimiter.Verdict.RESET) {
+            platform.warnings().accept("ClientView protocol reset for player " + playerId + ": " + limiter.lastViolation(), cause);
             end(ClientViewMessage.ResetReason.PROTOCOL);
             return ClientViewInbound.RESET;
         }

@@ -21,8 +21,6 @@ public final class ClientViewStats {
     private long acksSent;
     private long brickMissesSent;
     private long statsSent;
-    private long decodeFailures;
-    private long appliedCellsThisTick;
     private long appliedCellsTotal;
     private long payloadBytesSinceMark;
 
@@ -58,10 +56,6 @@ public final class ClientViewStats {
         payloadBytesSinceMark += bytes;
     }
 
-    public void decodeFailure() {
-        decodeFailures++;
-    }
-
     public void ack() {
         acksSent++;
     }
@@ -71,14 +65,7 @@ public final class ClientViewStats {
     }
 
     public void appliedCells(long cells) {
-        appliedCellsThisTick += cells;
         appliedCellsTotal += cells;
-    }
-
-    public long takeAppliedCellsThisTick() {
-        long value = appliedCellsThisTick;
-        appliedCellsThisTick = 0L;
-        return value;
     }
 
     public long markPayloadBytes() {
@@ -122,10 +109,6 @@ public final class ClientViewStats {
         return statsSent;
     }
 
-    public long decodeFailures() {
-        return decodeFailures;
-    }
-
     public long appliedCellsTotal() {
         return appliedCellsTotal;
     }
@@ -137,7 +120,6 @@ public final class ClientViewStats {
         sweepCount = 0;
         applyCursor = 0;
         applyCount = 0;
-        appliedCellsThisTick = 0L;
         payloadBytesSinceMark = 0L;
     }
 

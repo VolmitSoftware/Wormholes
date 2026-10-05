@@ -1,6 +1,7 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.wormholes.portal.ToolPreviewGeometry;
 import art.arcane.wormholes.portal.Portal;
 import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.portal.PortalGeometry;
@@ -106,9 +107,9 @@ public class MinecraftPortalLookLabelsTest {
 
     @Test
     public void toolPreviewOutlinesOnlyTheExactApertureBoundary() {
-        MinecraftPortalToolPreview.Geometry rectangle = MinecraftPortalToolPreview.buildGeometry(
+        ToolPreviewGeometry.Geometry rectangle = ToolPreviewGeometry.build(
             plane(0, 1, 64, 65, 4).getBlockPositions(), Axis.Z);
-        MinecraftPortalToolPreview.Geometry lShape = MinecraftPortalToolPreview.buildGeometry(List.of(
+        ToolPreviewGeometry.Geometry lShape = ToolPreviewGeometry.build(List.of(
             new GeometryVector(0, 64, 4), new GeometryVector(1, 64, 4), new GeometryVector(0, 65, 4)), Axis.Z);
 
         assertEquals(4, rectangle.cells().size());

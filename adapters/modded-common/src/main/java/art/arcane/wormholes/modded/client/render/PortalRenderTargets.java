@@ -12,78 +12,53 @@ import java.util.Map;
 final class PortalRenderTargets implements AutoCloseable {
     static final int DEPTHS = ClientViewProtocol.MAX_GEOMETRY_DEPTH;
 
-    private final TextureTarget[] scratch = new TextureTarget[DEPTHS];
+    private final Target[] scratch = new Target[DEPTHS];
     private final PortalFeatureRenderer[] features = new PortalFeatureRenderer[DEPTHS];
     private final ProjectionMatrixBuffer[] projections = new ProjectionMatrixBuffer[DEPTHS];
-    private final SkyRenderer[] skies = new SkyRenderer[DEPTHS];
-    private TextureTarget layer;
-    private final Map<Integer, TextureTarget> travel = new HashMap<>();
-    private final Map<Integer, SkyRenderer> travelSkies = new HashMap<>();
+    private final Target layer = new Target();
+    private final Map<Integer, Target> travel = new HashMap<>();
+
+    PortalRenderTargets() {
+        for (int depth = 0; depth < DEPTHS; depth++) {
+            scratch[depth] = new Target();
+        }
+    }
 
     boolean available(int depth) {
-        TextureTarget target = scratch[depth];
+        TextureTarget target = scratch[depth].texture;
         return target != null && target.getColorTexture() != null && target.getDepthTexture() != null;
     }
 
     TextureTarget travel(int key) {
-        return travel.get(key);
+        Target target = travel.get(key);
+        return target == null ? null : target.texture;
     }
 
     TextureTarget travel(int key, int width, int height) {
-        TextureTarget previous = travel.get(key);
-        TextureTarget target = resize(previous, width, height);
-        travel.put(key, target);
-        if (previous != target) {
-            SkyRenderer sky = travelSkies.remove(key);
-            if (sky != null) {
-                sky.close();
-            }
-        }
-        return target;
+        return travel.computeIfAbsent(key, ignored -> new Target()).resize(width, height);
     }
 
     SkyRenderer travelSky(int key) {
-        SkyRenderer sky = travelSkies.get(key);
-        if (sky == null) {
-            Minecraft minecraft = Minecraft.getInstance();
-            sky = new SkyRenderer(minecraft.getTextureManager(), minecraft.getAtlasManager(), travel.get(key));
-            travelSkies.put(key, sky);
-        }
-        return sky;
+        return travel.get(key).sky();
     }
 
     void releaseTravel(int key) {
-        SkyRenderer sky = travelSkies.remove(key);
-        if (sky != null) {
-            sky.close();
-        }
-        TextureTarget target = travel.remove(key);
+        Target target = travel.remove(key);
         if (target != null) {
-            target.destroyBuffers();
+            target.close();
         }
     }
 
     TextureTarget layer(int width, int height) {
-        layer = resize(layer, width, height);
-        return layer;
+        return layer.resize(width, height);
     }
 
     TextureTarget scratch(int depth, int width, int height) {
-        TextureTarget previous = scratch[depth];
-        scratch[depth] = resize(previous, width, height);
-        if (previous != scratch[depth] && skies[depth] != null) {
-            skies[depth].close();
-            skies[depth] = null;
-        }
-        return scratch[depth];
+        return scratch[depth].resize(width, height);
     }
 
     SkyRenderer sky(int depth) {
-        if (skies[depth] == null) {
-            Minecraft minecraft = Minecraft.getInstance();
-            skies[depth] = new SkyRenderer(minecraft.getTextureManager(), minecraft.getAtlasManager(), scratch[depth]);
-        }
-        return skies[depth];
+        return scratch[depth].sky();
     }
 
     PortalFeatureRenderer features(int depth) {
@@ -101,14 +76,12 @@ final class PortalRenderTargets implements AutoCloseable {
     }
 
     long bytes() {
-        long bytes = layer == null ? 0 : (long) layer.width * layer.height * 8;
-        for (TextureTarget target : travel.values()) {
-            bytes += (long) target.width * target.height * 8;
+        long bytes = layer.bytes();
+        for (Target target : travel.values()) {
+            bytes += target.bytes();
         }
-        for (TextureTarget target : scratch) {
-            if (target != null) {
-                bytes += (long) target.width * target.height * 8;
-            }
+        for (Target target : scratch) {
+            bytes += target.bytes();
         }
         return bytes;
     }
@@ -123,27 +96,13 @@ final class PortalRenderTargets implements AutoCloseable {
 
     @Override
     public void close() {
-        for (SkyRenderer sky : travelSkies.values()) {
-            sky.close();
-        }
-        travelSkies.clear();
-        for (TextureTarget target : travel.values()) {
-            target.destroyBuffers();
+        for (Target target : travel.values()) {
+            target.close();
         }
         travel.clear();
-        if (layer != null) {
-            layer.destroyBuffers();
-            layer = null;
-        }
+        layer.close();
         for (int depth = 0; depth < DEPTHS; depth++) {
-            if (skies[depth] != null) {
-                skies[depth].close();
-                skies[depth] = null;
-            }
-            if (scratch[depth] != null) {
-                scratch[depth].destroyBuffers();
-                scratch[depth] = null;
-            }
+            scratch[depth].close();
             if (features[depth] != null) {
                 features[depth].close();
                 features[depth] = null;
@@ -155,13 +114,46 @@ final class PortalRenderTargets implements AutoCloseable {
         }
     }
 
-    private static TextureTarget resize(TextureTarget target, int width, int height) {
-        if (target == null || target.width != width || target.height != height) {
-            if (target != null) {
-                target.destroyBuffers();
+    private static final class Target implements AutoCloseable {
+        private TextureTarget texture;
+        private SkyRenderer sky;
+
+        private TextureTarget resize(int width, int height) {
+            if (texture == null || texture.width != width || texture.height != height) {
+                if (texture != null) {
+                    texture.destroyBuffers();
+                }
+                texture = new TextureTarget("Wormholes portal layer", width, height, GpuFormat.RGBA8_UNORM, GpuFormat.D32_FLOAT);
+                if (sky != null) {
+                    sky.close();
+                    sky = null;
+                }
             }
-            return new TextureTarget("Wormholes portal layer", width, height, GpuFormat.RGBA8_UNORM, GpuFormat.D32_FLOAT);
+            return texture;
         }
-        return target;
+
+        private SkyRenderer sky() {
+            if (sky == null) {
+                Minecraft minecraft = Minecraft.getInstance();
+                sky = new SkyRenderer(minecraft.getTextureManager(), minecraft.getAtlasManager(), texture);
+            }
+            return sky;
+        }
+
+        private long bytes() {
+            return texture == null ? 0 : (long) texture.width * texture.height * 8;
+        }
+
+        @Override
+        public void close() {
+            if (sky != null) {
+                sky.close();
+                sky = null;
+            }
+            if (texture != null) {
+                texture.destroyBuffers();
+                texture = null;
+            }
+        }
     }
 }

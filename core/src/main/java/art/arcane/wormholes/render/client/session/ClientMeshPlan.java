@@ -2,7 +2,6 @@ package art.arcane.wormholes.render.client.session;
 
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
 
 import art.arcane.wormholes.geometry.GeometryVector;
@@ -59,9 +58,8 @@ public final class ClientMeshPlan {
         double plane = geometry.planeCoordinate();
         double denominator = plane - eyeAt[axis];
         ArrayList<Section> selected = new ArrayList<Section>();
-        HashSet<Coordinate> coordinates = new HashSet<Coordinate>();
+        int[][] rows = new int[max[axis] - min[axis] + 1][];
         for (int n = min[axis]; n <= max[axis]; n++) {
-
             int[] rowMin = min.clone();
             int[] rowMax = max.clone();
             if (Math.abs(denominator) > 0.05) {
@@ -81,6 +79,7 @@ public final class ClientMeshPlan {
                     rowMax[lateral] = Math.min(max[lateral], ((int) Math.floor(high) >> 4) + 1);
                 }
             }
+            rows[n - min[axis]] = new int[] {rowMin[right], rowMax[right], rowMin[up], rowMax[up]};
             int[] coordinate = new int[3];
             coordinate[axis] = n;
             for (int r = rowMin[right]; r <= rowMax[right]; r++) {
@@ -92,7 +91,6 @@ public final class ClientMeshPlan {
                     double dz = (coordinate[2] << 4) + 8 - eye.z();
                     double distance = dx * dx + dy * dy + dz * dz;
                     selected.add(new Section(coordinate[0], coordinate[1], coordinate[2], distance));
-                    coordinates.add(new Coordinate(coordinate[0], coordinate[1], coordinate[2]));
                 }
             }
         }
@@ -102,10 +100,16 @@ public final class ClientMeshPlan {
             nearbyMin[i] = Math.max(min[i], ((int) Math.floor(apertureMin[i]) - 32) >> 4);
             nearbyMax[i] = Math.min(max[i], ((int) Math.floor(apertureMax[i]) + 32) >> 4);
         }
+        int[] coordinate = new int[3];
         for (int x = nearbyMin[0]; x <= nearbyMax[0]; x++) {
+            coordinate[0] = x;
             for (int y = nearbyMin[1]; y <= nearbyMax[1]; y++) {
+                coordinate[1] = y;
                 for (int z = nearbyMin[2]; z <= nearbyMax[2]; z++) {
-                    if (coordinates.add(new Coordinate(x, y, z))) {
+                    coordinate[2] = z;
+                    int[] row = rows[coordinate[axis] - min[axis]];
+                    if (coordinate[right] < row[0] || coordinate[right] > row[1]
+                        || coordinate[up] < row[2] || coordinate[up] > row[3]) {
                         double dx = (x << 4) + 8 - eye.x();
                         double dy = (y << 4) + 8 - eye.y();
                         double dz = (z << 4) + 8 - eye.z();

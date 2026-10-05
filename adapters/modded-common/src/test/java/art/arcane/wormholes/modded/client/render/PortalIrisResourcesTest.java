@@ -27,6 +27,30 @@ import static org.mockito.Mockito.when;
 
 public class PortalIrisResourcesTest {
     @Test
+    public void initiallyEmptyAllocationsRefineOnceAndRetainNewTargetsAfterTheyDisappear() {
+        ProgramSet programs = mock(ProgramSet.class);
+        RenderTargets targets = mock(RenderTargets.class);
+        when(targets.getRenderTargetCount()).thenReturn(3);
+        long before = PortalIrisResources.revision();
+        PortalIrisResources.allocated(programs, targets);
+        assertEquals(before + 1, PortalIrisResources.revision());
+        PortalIrisResources.allocated(programs, targets);
+        assertEquals(before + 1, PortalIrisResources.revision());
+        when(targets.get(0)).thenReturn(mock(RenderTarget.class));
+        when(targets.get(2)).thenReturn(mock(RenderTarget.class));
+        PortalIrisResources.allocated(programs, targets);
+        assertEquals(before + 2, PortalIrisResources.revision());
+        when(targets.get(0)).thenReturn(null);
+        when(targets.get(2)).thenReturn(null);
+        PortalIrisResources.allocated(programs, targets);
+        assertEquals(before + 2, PortalIrisResources.revision());
+        when(targets.get(0)).thenReturn(mock(RenderTarget.class));
+        when(targets.get(2)).thenReturn(mock(RenderTarget.class));
+        PortalIrisResources.allocated(programs, targets);
+        assertEquals(before + 2, PortalIrisResources.revision());
+    }
+
+    @Test
     public void reservesPingPongAndMipChainsWithConservativeRgbPadding() {
         assertEquals(4, PortalIrisResources.pixelBytes(InternalTextureFormat.R11F_G11F_B10F));
         assertEquals(4, PortalIrisResources.pixelBytes(InternalTextureFormat.RGB8_SNORM));

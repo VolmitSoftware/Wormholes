@@ -1,6 +1,8 @@
 package art.arcane.wormholes.render.client.session;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
@@ -72,5 +74,20 @@ final class ClientViewSessionInboundTest {
         assertEquals(1L, stats.c2sStale());
         assertEquals(0L, stats.c2sDropped());
         assertEquals(ClientViewSessionState.CLIENT_VIEW, stats.state());
+    }
+
+    @Test
+    void malformedResetLogsItsReasonAndDecoderFailureExactlyOnce() throws ClientViewProtocolException {
+        SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
+        harness.handshake(SessionHarness.CLIENT_CAPS);
+        byte[] invalid = new byte[]{99, 1, 2};
+        assertEquals(ClientViewInbound.DROPPED, harness.c2s(invalid));
+        assertEquals(ClientViewInbound.DROPPED, harness.c2s(invalid));
+        assertTrue(harness.warnings.isEmpty());
+        assertEquals(ClientViewInbound.RESET, harness.c2s(invalid));
+        assertEquals(1, harness.warnings.size());
+        assertTrue(harness.warnings.getFirst().getMessage().contains("PROTOCOL, packet UNKNOWN(99), bytes 3"));
+        assertInstanceOf(ClientViewProtocolException.class, harness.warnings.getFirst().getCause());
+        assertEquals(ClientViewSessionState.VANILLA, harness.session.state());
     }
 }

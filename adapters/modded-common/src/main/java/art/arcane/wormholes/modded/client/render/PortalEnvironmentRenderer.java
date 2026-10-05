@@ -63,7 +63,7 @@ final class PortalEnvironmentRenderer implements AutoCloseable {
         sky.starAngle = PortalEnvironment.angle(previousStar, sky.starAngle, blend);
         fogData = PortalEnvironment.fog(environment, camera, minecraft.options.getEffectiveRenderDistance(), minecraft.options.cloudRange().get());
         fog.updateBuffer(fogData);
-        view.set(camera.viewRotationMatrix).mul(PortalEnvironment.rotation(environment.transform()));
+        view.set(camera.viewRotationMatrix).mul(PortalProjection.rotation(environment.transform()));
         cloudStatus = minecraft.options.cloudStatus().get();
         if (cloudStatus != CloudStatus.OFF && environment.clouds().color().alpha() > 0.0f) {
             if (clouds == null) {

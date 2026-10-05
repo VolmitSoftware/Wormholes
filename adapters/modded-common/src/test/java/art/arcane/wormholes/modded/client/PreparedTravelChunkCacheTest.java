@@ -21,7 +21,7 @@ import static org.junit.Assert.assertTrue;
 public class PreparedTravelChunkCacheTest {
     @Test
     public void retentionRunsAfterMainThreadAdmissionInsideTheDeferredVanillaBody() throws IOException {
-        MethodNode callback = method("art/arcane/wormholes/modded/mixin/client/PreparedTravelChunkCacheMixin", "wormholes$rememberChunk");
+        MethodNode callback = method("art/arcane/wormholes/modded/mixin/client/PreparedTravelChunkCacheMixin", "wormholes$receiveChunk");
         AnnotationNode injection = callback.visibleAnnotations.getFirst();
         assertEquals("Lorg/spongepowered/asm/mixin/injection/Inject;", injection.desc);
         assertEquals(List.of("handleLevelChunkWithLight"), value(injection, "method"));
@@ -40,14 +40,14 @@ public class PreparedTravelChunkCacheTest {
 
     @Test
     public void physicalListenerLevelAndOriginalPacketArePassedWithoutReadingPredictedMinecraftLevel() throws IOException {
-        MethodNode callback = method("art/arcane/wormholes/modded/mixin/client/PreparedTravelChunkCacheMixin", "wormholes$rememberChunk");
+        MethodNode callback = method("art/arcane/wormholes/modded/mixin/client/PreparedTravelChunkCacheMixin", "wormholes$receiveChunk");
         List<MethodInsnNode> calls = calls(callback);
         MethodInsnNode level = calls.get(index(calls, "getLevel"));
         assertEquals("net/minecraft/client/multiplayer/ClientPacketListener", level.owner);
         assertEquals("()Lnet/minecraft/client/multiplayer/ClientLevel;", level.desc);
-        MethodInsnNode retain = calls.get(index(calls, "rememberNativeChunk"));
-        assertEquals("(Lnet/minecraft/client/multiplayer/ClientLevel;Lnet/minecraft/network/protocol/game/ClientboundLevelChunkWithLightPacket;)V", retain.desc);
-        assertTrue(index(calls, "getLevel") < index(calls, "rememberNativeChunk"));
+        MethodInsnNode retain = calls.get(index(calls, "receiveNativeChunk"));
+        assertEquals("(Lnet/minecraft/client/multiplayer/ClientLevel;Lnet/minecraft/network/protocol/game/ClientboundLevelChunkWithLightPacket;)Z", retain.desc);
+        assertTrue(index(calls, "getLevel") < index(calls, "receiveNativeChunk"));
         for (AbstractInsnNode instruction : callback.instructions) {
             if (instruction instanceof FieldInsnNode field) {
                 assertTrue(!field.owner.equals("net/minecraft/client/Minecraft") || !field.name.equals("level"));
@@ -61,6 +61,33 @@ public class PreparedTravelChunkCacheTest {
         List<MethodInsnNode> calls = calls(vanilla);
         assertTrue(index(calls, "ensureRunningOnSameThread") < index(calls, "replaceWithPacketData"));
         assertTrue(index(calls, "ensureRunningOnSameThread") < index(calls, "lightData"));
+    }
+
+    @Test
+    public void nativeLightObservationMatchesActualStorageAndStandalonePacketBoundaries() throws IOException {
+        MethodNode observer = method("art/arcane/wormholes/modded/mixin/client/PreparedLightSectionStorageMixin", "wormholes$nativeLightDelta");
+        AnnotationNode injection = observer.visibleAnnotations.getFirst();
+        assertEquals("Lorg/spongepowered/asm/mixin/injection/Inject;", injection.desc);
+        assertEquals(List.of("queueSectionData"), value(injection, "method"));
+        AnnotationNode point = (AnnotationNode) ((List<?>) value(injection, "at")).getFirst();
+        assertEquals("HEAD", value(point, "value"));
+        assertTrue(!injection.values.contains("cancellable"));
+        MethodNode queue = method("net/minecraft/world/level/lighting/LayerLightSectionStorage", "queueSectionData");
+        assertEquals("(JLnet/minecraft/world/level/chunk/DataLayer;)V", queue.desc);
+        assertTrue(index(calls(queue), "put") >= 0);
+        MethodNode wrapper = method("art/arcane/wormholes/modded/mixin/client/PreparedTravelChunkCacheMixin", "wormholes$queueSectionLight");
+        AnnotationNode wrap = wrapper.visibleAnnotations.getFirst();
+        assertEquals(List.of("handleLightUpdatePacket"), value(wrap, "method"));
+        AnnotationNode boundary = (AnnotationNode) ((List<?>) value(wrap, "at")).getFirst();
+        MethodNode packet = method("net/minecraft/client/multiplayer/ClientPacketListener", "handleLightUpdatePacket");
+        MethodInsnNode callback = calls(packet).get(index(calls(packet), "queueLightUpdate"));
+        assertEquals("L" + callback.owner + ";" + callback.name + callback.desc, value(boundary, "target"));
+        MethodNode dirtyWrapper = method("art/arcane/wormholes/modded/mixin/client/PreparedTravelChunkCacheMixin", "wormholes$sectionLightGeometry");
+        AnnotationNode dirtyWrap = dirtyWrapper.visibleAnnotations.getFirst();
+        assertEquals(List.of("readSectionList"), value(dirtyWrap, "method"));
+        MethodNode list = method("net/minecraft/client/multiplayer/ClientPacketListener", "readSectionList");
+        MethodInsnNode dirty = calls(list).get(index(calls(list), "setSectionDirtyWithNeighbors"));
+        assertEquals("L" + dirty.owner + ";" + dirty.name + dirty.desc, value((AnnotationNode) ((List<?>) value(dirtyWrap, "at")).getFirst(), "target"));
     }
 
     private static List<MethodInsnNode> calls(MethodNode method) {

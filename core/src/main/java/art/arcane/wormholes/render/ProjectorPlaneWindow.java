@@ -77,29 +77,10 @@ public final class ProjectorPlaneWindow {
                                        double originZ,
                                        double padding,
                                        double eyeSignedDistance) {
-        double rightMin = Double.POSITIVE_INFINITY;
-        double rightMax = Double.NEGATIVE_INFINITY;
-        double upMin = Double.POSITIVE_INFINITY;
-        double upMax = Double.NEGATIVE_INFINITY;
-
-        for (int xi = 0; xi < 2; xi++) {
-            double x = xi == 0 ? area.getXa() : area.getXb();
-            for (int yi = 0; yi < 2; yi++) {
-                double y = yi == 0 ? area.getYa() : area.getYb();
-                for (int zi = 0; zi < 2; zi++) {
-                    double z = zi == 0 ? area.getZa() : area.getZb();
-                    double relX = x - originX;
-                    double relY = y - originY;
-                    double relZ = z - originZ;
-                    double right = dot(relX, relY, relZ, frame.getRight());
-                    double up = dot(relX, relY, relZ, frame.getUp());
-                    rightMin = Math.min(rightMin, right);
-                    rightMax = Math.max(rightMax, right);
-                    upMin = Math.min(upMin, up);
-                    upMax = Math.max(upMax, up);
-                }
-            }
-        }
+        double rightMin = axisBound(area, frame.getRight(), originX, originY, originZ, false);
+        double rightMax = axisBound(area, frame.getRight(), originX, originY, originZ, true);
+        double upMin = axisBound(area, frame.getUp(), originX, originY, originZ, false);
+        double upMax = axisBound(area, frame.getUp(), originX, originY, originZ, true);
 
         Direction normal = frame.getNormal();
         int normalAxis = normal.x() != 0 ? 0 : (normal.y() != 0 ? 1 : 2);
@@ -419,16 +400,23 @@ public final class ProjectorPlaneWindow {
                 (highOffset * reachSlope) - (eyeSignedDistance * pointSlope), range);
     }
 
+    private static double axisBound(AxisAlignedBB area, Direction direction,
+                                    double originX, double originY, double originZ, boolean maximum) {
+        int sign = direction.x() + direction.y() + direction.z();
+        boolean upper = maximum == (sign > 0);
+        return switch (direction.getAxis()) {
+            case X -> ((upper ? area.getXb() : area.getXa()) - originX) * sign;
+            case Y -> ((upper ? area.getYb() : area.getYa()) - originY) * sign;
+            case Z -> ((upper ? area.getZb() : area.getZa()) - originZ) * sign;
+        };
+    }
+
     private static int lateralLowOffset(double coordinate, double tolerance) {
         return coordinate - Math.floor(coordinate) < tolerance ? -1 : 0;
     }
 
     private static int lateralHighOffset(double coordinate, double tolerance) {
         return coordinate - Math.floor(coordinate) > 1.0D - tolerance ? 1 : 0;
-    }
-
-    private static double dot(double x, double y, double z, Direction direction) {
-        return (x * direction.x()) + (y * direction.y()) + (z * direction.z());
     }
 
     private static final class RowWindow {

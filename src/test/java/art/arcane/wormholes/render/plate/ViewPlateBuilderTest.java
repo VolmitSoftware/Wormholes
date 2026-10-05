@@ -196,7 +196,7 @@ final class ViewPlateBuilderTest {
                 mirror, quarterTurns, depth, lateral, 0.75D, buried, air, LodPolicy.NONE, false, 1L, 2L, 0L, blocks);
             ProjectorFrameTransform transform = new ProjectorFrameTransform();
             if (mirror) {
-                transform.configureMirror(frame, quarterTurns, originX, originY, originZ, new double[3]);
+                transform.configureMirror(frame, quarterTurns, originX, originY, originZ);
             } else {
                 transform.configure(frame.view(frontSide), frame.view(frontSide), originX, originY, originZ, originX, originY, originZ);
             }

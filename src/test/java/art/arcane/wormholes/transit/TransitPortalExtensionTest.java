@@ -32,7 +32,7 @@ final class TransitPortalExtensionTest {
 
     @Test
     void extensionRoundTripsThroughPortalJsonAndSyncsExactlyFourKeys() {
-        WormholesHooks.install(new WormholesRegistrar().portalExtension(new TransitExtensionFactory()));
+        WormholesHooks.install(new WormholesRegistrar().portalExtension(TransitPortalExtension.class, extensionPortal -> new TransitPortalExtension()));
         World world = TransitTestSupport.world("extension");
         LocalPortal source = TransitTestSupport.portal(world);
         TransitPortalExtension transit = source.extension(TransitPortalExtension.class);
@@ -89,7 +89,7 @@ final class TransitPortalExtensionTest {
 
     @Test
     void portalsWithoutTransitStateSaveNoTransitKeys() {
-        WormholesHooks.install(new WormholesRegistrar().portalExtension(new TransitExtensionFactory()));
+        WormholesHooks.install(new WormholesRegistrar().portalExtension(TransitPortalExtension.class, extensionPortal -> new TransitPortalExtension()));
         LocalPortal portal = TransitTestSupport.portal(TransitTestSupport.world("untouched"));
         JSONObject encoded = portal.toJSON();
         for (String key : encoded.keySet()) {

@@ -17,6 +17,44 @@ import org.junit.jupiter.api.Test;
 
 final class ClientMeshPlanTest {
     @Test
+    void apertureNeighborhoodDoesNotDuplicateProjectedRows() {
+        for (Direction direction : Direction.values()) {
+            for (boolean front : new boolean[] {false, true}) {
+                ClientPortalGeometry geometry = new ClientPortalGeometry(-17, 63, -33, direction.ordinal(), front,
+                    0, false, 9, 5, new long[] {(1L << 45) - 1}, 0, 0.75F, 1, 160,
+                    0, 0, 0, 0, 0, 0, 0, 0, 1, List.of());
+                AxisAlignedBB area = geometry.apertureArea();
+                GeometryVector center = new GeometryVector((area.getXa() + area.getXb()) / 2,
+                    (area.getYa() + area.getYb()) / 2, (area.getZa() + area.getZb()) / 2);
+                GeometryVector planeEye = new GeometryVector(direction.x() != 0 ? geometry.planeCoordinate() : center.x(),
+                    direction.y() != 0 ? geometry.planeCoordinate() : center.y(),
+                    direction.z() != 0 ? geometry.planeCoordinate() : center.z());
+                for (GeometryVector eye : List.of(planeEye, center.add(new GeometryVector(100, -80, 140)))) {
+                    List<ClientMeshPlan.Section> sections = ClientMeshPlan.visible(geometry, eye);
+                    Set<ClientMeshPlan.Coordinate> unique = new HashSet<>();
+                    double previous = -1;
+                    for (ClientMeshPlan.Section section : sections) {
+                        assertTrue(unique.add(section.coordinate()), direction + " " + section);
+                        assertTrue(section.distance() >= previous);
+                        previous = section.distance();
+                    }
+                    PlateBox bounds = ClientMeshPlan.bounds(geometry);
+                    for (int x = Math.max(bounds.minX() >> 4, ((int) Math.floor(area.getXa()) - 32) >> 4);
+                         x <= Math.min((bounds.minX() + bounds.sizeX() - 1) >> 4, ((int) Math.floor(area.getXb()) + 32) >> 4); x++) {
+                        for (int y = Math.max(bounds.minY() >> 4, ((int) Math.floor(area.getYa()) - 32) >> 4);
+                             y <= Math.min((bounds.minY() + bounds.sizeY() - 1) >> 4, ((int) Math.floor(area.getYb()) + 32) >> 4); y++) {
+                            for (int z = Math.max(bounds.minZ() >> 4, ((int) Math.floor(area.getZa()) - 32) >> 4);
+                                 z <= Math.min((bounds.minZ() + bounds.sizeZ() - 1) >> 4, ((int) Math.floor(area.getZb()) + 32) >> 4); z++) {
+                                assertTrue(unique.contains(new ClientMeshPlan.Coordinate(x, y, z)));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
     void planeBlocksRemainScheduledAtEverySectionEdgeAndFacing() {
         for (Direction direction : Direction.values()) {
             for (boolean front : new boolean[] {false, true}) {
