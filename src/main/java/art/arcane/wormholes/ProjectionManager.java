@@ -47,6 +47,7 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEn
 
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.config.WormholesSettings;
+import art.arcane.wormholes.platform.BukkitOpticsScheduler;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.DimensionalPortalKind;
 import art.arcane.wormholes.portal.vanilla.BukkitEndReturnPreview;
@@ -67,13 +68,8 @@ import art.arcane.wormholes.render.bedrock.ClientProfileService;
 import art.arcane.wormholes.render.client.session.ClientViewOptions;
 import art.arcane.wormholes.render.clientview.BukkitClientView;
 import art.arcane.wormholes.render.clientview.ClientViewRouting;
-import art.arcane.optics.plate.PlateCaptureJob;
-import art.arcane.optics.plate.PlateCaptureQueue;
-import art.arcane.optics.plate.PlateWorkers;
-import art.arcane.optics.plate.ViewPlate;
-import art.arcane.optics.plate.ViewPlateBuilder;
+import art.arcane.optics.plate.PlatePipeline;
 import art.arcane.optics.plate.ViewPlateCache;
-import art.arcane.optics.plate.ViewPlateKey;
 import art.arcane.wormholes.render.view.ProjectionWorldViewProvider;
 import art.arcane.wormholes.render.view.RegionSnapshotWorldViewProvider;
 import art.arcane.wormholes.render.BukkitEntityRegistryHost;
@@ -109,9 +105,9 @@ public class ProjectionManager implements Listener {
     private final ProjectionTickHeadroom tickHeadroom = new ProjectionTickHeadroom();
     private final ProjectionInterestFrame observerFrame;
     private final ProjectedEntityUpdateBatcher projectedEntityUpdates;
+    private final BukkitOpticsScheduler scheduler;
+    private final PlatePipeline<BlockData, World> platePipeline;
     private final ViewPlateCache<BlockData, World> plateCache;
-    private final PlateWorkers<BlockData, World> plateWorkers;
-    private final PlateCaptureQueue<BlockData, World> plateCaptures;
     private final Set<UUID> observerTasksInFlight;
     private final BukkitClientView clientView;
     private final BukkitEndReturnPreview endReturnPreview;
@@ -124,7 +120,8 @@ public class ProjectionManager implements Listener {
     private volatile RtpProjectionProvider rtpProjectionProvider;
     private int taskId;
 
-    public ProjectionManager(ProjectionClientChunkTracker clientChunkTracker) {
+    public ProjectionManager(ProjectionClientChunkTracker clientChunkTracker, BukkitOpticsScheduler scheduler) {
+        this.scheduler = Objects.requireNonNull(scheduler, "scheduler");
         this.endReturnPreview = BukkitEndReturnPreview.create(Wormholes.instance);
         this.viewProvider = FoliaScheduler.isFoliaThreading(Bukkit.getServer())
             ? new RegionSnapshotWorldViewProvider(Wormholes.instance)
@@ -136,55 +133,14 @@ public class ProjectionManager implements Listener {
         this.skinRenderer = new PortalSkinRenderer(claimArbiter);
         BooleanSupplier alive = () -> !closed;
         this.closeQueue = new ProjectionInterestCloseQueue(alive);
-        this.plateCache = new ViewPlateCache<BlockData, World>(FidelitySettings.plateMaxBytes, this::schedulePlateBuild);
-        this.plateWorkers = new PlateWorkers<>("Wormholes-Plate-", FidelitySettings.plateWorkers, new PlateWorkers.Host<>() {
-            @Override
-            public void publish(ViewPlateBuilder.Job<BlockData, World> job, ViewPlate<BlockData> plate) {
-                if (!closed) {
-                    plateCache.publish(job, plate);
-                }
-            }
-
-            @Override
-            public void failed(ViewPlateBuilder.Job<BlockData, World> job) {
-                plateCache.buildFailed(job);
-            }
-
-            @Override
-            public void warning(ViewPlateKey key, RuntimeException failure) {
-                Wormholes.instance.getLogger().log(Level.WARNING, "[plate] build failed for portal " + key.portalId(), failure);
-            }
-        });
-        this.plateCaptures = new PlateCaptureQueue<BlockData, World>(new PlateCaptureQueue.Host<>() {
-            @Override
-            public void build(ViewPlateBuilder.Job<BlockData, World> job) {
-                if (closed) {
-                    plateCache.buildFailed(job);
-                    return;
-                }
-                plateWorkers.submitAsync(job);
-            }
-
-            @Override
-            public void failed(ViewPlateBuilder.Job<BlockData, World> job) {
-                plateCache.buildFailed(job);
-            }
-
-            @Override
-            public void warning(ViewPlateKey key, RuntimeException failure) {
-                Wormholes.instance.getLogger().log(Level.WARNING, "[plate] capture failed for portal " + key.portalId(), failure);
-            }
-
-            @Override
-            public boolean wanted(ViewPlateBuilder.Job<BlockData, World> job) {
-                return !closed && plateCache.isBuilding(job);
-            }
-        });
+        this.platePipeline = new PlatePipeline<BlockData, World>(FidelitySettings.plateMaxBytes, scheduler,
+            (message, failure) -> Wormholes.instance.getLogger().log(Level.WARNING, "[plate] " + message, failure));
+        this.plateCache = platePipeline.cache();
         this.interestSet = new ProjectionInterestSet(claimArbiter, localEntityOcclusion, viewProvider, closeQueue, alive,
             plateCache);
         this.budgetLedger = new ProjectionBudgetLedger();
         this.clientView = new BukkitClientView(new BukkitClientView.Options(viewProvider, plateCache, ProjectionManager::localPortal,
-            (observerId, portalId) -> interestSet.retire(portalId, observerId), plateWorkers::execute,
+            (observerId, portalId) -> interestSet.retire(portalId, observerId), scheduler.compute(),
             Bukkit.getUnsafe().getDataVersion(), clientViewOptions(), observer -> PacketEvents.getAPI().getPlayerManager().getUser(observer),
             (observer, task, delayTicks) -> FoliaScheduler.runEntity(Wormholes.instance, observer, task, delayTicks),
             Wormholes.instance.getLogger(), Wormholes::v, FoliaScheduler.isFoliaThreading(Bukkit.getServer())));
@@ -230,18 +186,6 @@ public class ProjectionManager implements Listener {
 
     public void registerClientView(Plugin plugin) {
         clientView.start(plugin);
-    }
-
-    private void schedulePlateBuild(ViewPlateBuilder.Job<BlockData, World> job) {
-        if (closed) {
-            plateCache.buildFailed(job);
-            return;
-        }
-        if (job instanceof PlateCaptureJob<BlockData, World, ?> capture) {
-            plateCaptures.submit(capture);
-            return;
-        }
-        plateWorkers.submitAsync(job);
     }
 
     @EventHandler
@@ -307,12 +251,13 @@ public class ProjectionManager implements Listener {
             return;
         }
         tickCount++;
+        scheduler.advanceTick();
         viewProvider.tick();
         closeQueue.retryPending();
         if (tickCount % PLATE_INVALIDATION_INTERVAL_TICKS == 0L) {
             plateCache.refreshDirt(Wormholes.projectionChangeTracker);
         }
-        plateCaptures.tick(FidelitySettings.plateCaptureChunksPerTick, FidelitySettings.plateUrgentCaptureChunksPerTick);
+        platePipeline.tickCaptures(FidelitySettings.plateCaptureChunksPerTick, FidelitySettings.plateUrgentCaptureChunksPerTick);
         if (tickCount % ACOUSTICS_AMBIENT_INTERVAL_TICKS == 0L) {
             AcousticsBridge<Player> acoustics = FidelitySubsystem.acoustics();
             if (acoustics != null) {
@@ -400,7 +345,7 @@ public class ProjectionManager implements Listener {
         Wormholes.v("[ProjectionManager] caches sectionBytes=" + viewProvider.cachedBytes()
             + " sections=" + viewProvider.cachedSections() + " plates=" + plateCache.size()
             + " plateBytes=" + plateCache.bytes() + " plateBuilds=" + plateCache.buildsCompleted()
-            + " plateCapturesQueued=" + plateCaptures.size());
+            + " plateCapturesQueued=" + platePipeline.queuedCaptures());
     }
 
     static boolean dispatchObserverFrame(Set<UUID> inFlight,
@@ -722,9 +667,7 @@ public class ProjectionManager implements Listener {
         endReturnPreview.close();
         clientView.stop();
         projectedEntityUpdates.close();
-        plateCaptures.clear();
-        plateWorkers.shutdown();
-        plateCache.clear();
+        platePipeline.clear();
         if (taskId >= 0) {
             J.csr(taskId);
             taskId = -1;
@@ -817,10 +760,9 @@ public class ProjectionManager implements Listener {
     /** Runs after the lane snapshot refreshed, which is later in the reload than {@link #onSettingsReloaded()}. */
     public void onFidelitySettingsReloaded() {
         plateCache.recap(FidelitySettings.plateMaxBytes);
-        plateWorkers.resize(FidelitySettings.plateWorkers);
+        scheduler.compute().resize(FidelitySettings.plateWorkers);
         if (!FidelitySettings.sharedPlate) {
-            plateCaptures.clear();
-            plateCache.clear();
+            platePipeline.clear();
         }
         interestSet.invalidateProjectionReuse();
     }

@@ -10,8 +10,11 @@ import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.CompletionStage;
 
+import art.arcane.optics.spi.OpticsScheduler;
+
 public final class ChunkLeaseRegistry<W> {
     private final ChunkLeasePlatform<W> platform;
+    private final OpticsScheduler<?, W> scheduler;
     private final Options options;
     private final SerializedOwner owner;
     private final Map<ChunkKey, LeaseRecord> records;
@@ -19,8 +22,9 @@ public final class ChunkLeaseRegistry<W> {
     private final Map<UUID, Long> worldEpochs;
     private boolean accepting;
 
-    public ChunkLeaseRegistry(ChunkLeasePlatform<W> platform, Options options) {
+    public ChunkLeaseRegistry(ChunkLeasePlatform<W> platform, OpticsScheduler<?, W> scheduler, Options options) {
         this.platform = Objects.requireNonNull(platform);
+        this.scheduler = Objects.requireNonNull(scheduler);
         this.options = Objects.requireNonNull(options);
         this.owner = new SerializedOwner();
         this.records = new HashMap<>();
@@ -150,7 +154,7 @@ public final class ChunkLeaseRegistry<W> {
     private void scheduleAddRetry(LeaseRecord record, int nextAttempt) {
         record.phase = Phase.RETRY_ADD;
         long revision = ++record.revision;
-        boolean scheduled = platform.schedule(
+        boolean scheduled = scheduler.schedule(
             () -> owner.execute(() -> retryAdd(record, revision, nextAttempt)),
             options.retryDelayMillis()
         );
@@ -177,7 +181,7 @@ public final class ChunkLeaseRegistry<W> {
             record.revision++;
         }
         long idleRevision = ++record.idleRevision;
-        boolean scheduled = platform.schedule(
+        boolean scheduled = scheduler.schedule(
             () -> owner.execute(() -> beginRemoval(record, idleRevision, idlePhase)),
             options.idleDelayMillis()
         );
@@ -234,7 +238,7 @@ public final class ChunkLeaseRegistry<W> {
     private void scheduleRemoveRetry(LeaseRecord record, int nextAttempt) {
         record.phase = Phase.RETRY_REMOVE;
         long revision = ++record.revision;
-        boolean scheduled = platform.schedule(
+        boolean scheduled = scheduler.schedule(
             () -> owner.execute(() -> retryRemove(record, revision, nextAttempt)),
             options.retryDelayMillis()
         );
@@ -310,7 +314,7 @@ public final class ChunkLeaseRegistry<W> {
         if (attempt >= options.maxAttempts()) {
             return;
         }
-        boolean scheduled = platform.schedule(
+        boolean scheduled = scheduler.schedule(
             () -> owner.execute(() -> removeDetached(record, attempt + 1)),
             options.retryDelayMillis()
         );

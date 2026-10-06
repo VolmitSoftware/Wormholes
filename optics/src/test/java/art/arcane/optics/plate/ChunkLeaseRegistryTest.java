@@ -8,10 +8,13 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+
+import art.arcane.optics.spi.OpticsScheduler;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -479,13 +482,13 @@ class ChunkLeaseRegistryTest {
     }
 
     private static ChunkLeaseRegistry<TestWorld> registry(ManualPlatform platform) {
-        return new ChunkLeaseRegistry<>(platform, new ChunkLeaseRegistry.Options(20L, 1L, 3));
+        return new ChunkLeaseRegistry<>(platform, platform, new ChunkLeaseRegistry.Options(20L, 1L, 3));
     }
 
     private record TestWorld(UUID id, String incarnation) {
     }
 
-    private static final class ManualPlatform implements ChunkLeasePlatform<TestWorld> {
+    private static final class ManualPlatform implements ChunkLeasePlatform<TestWorld>, OpticsScheduler<Object, TestWorld> {
         private final Queue<CompletableFuture<Boolean>> addResults = new ArrayDeque<>();
         private final Queue<CompletableFuture<Boolean>> removeResults = new ArrayDeque<>();
         private final Queue<Runnable> scheduled = new ArrayDeque<>();
@@ -526,6 +529,26 @@ class ChunkLeaseRegistryTest {
         @Override
         public void reportFailure(Throwable error) {
             reportedFailures++;
+        }
+
+        @Override
+        public boolean runForObserver(Object observer, Runnable task) {
+            throw new AssertionError("chunk leases never run observer tasks");
+        }
+
+        @Override
+        public boolean runForRegion(TestWorld world, int chunkX, int chunkZ, Runnable task) {
+            throw new AssertionError("chunk leases never run region tasks");
+        }
+
+        @Override
+        public Executor compute() {
+            throw new AssertionError("chunk leases never use the compute executor");
+        }
+
+        @Override
+        public long tick() {
+            return 0L;
         }
 
         private boolean hasScheduled() {

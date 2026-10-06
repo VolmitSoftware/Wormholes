@@ -13,8 +13,6 @@ import java.util.logging.Level;
 import art.arcane.optics.plate.ChunkLeasePlatform;
 
 public final class BukkitChunkLeasePlatform implements ChunkLeasePlatform<World> {
-    private static final long MILLIS_PER_TICK = 50L;
-
     private final Plugin plugin;
     private final Operations operations;
 
@@ -83,16 +81,6 @@ public final class BukkitChunkLeasePlatform implements ChunkLeasePlatform<World>
     }
 
     @Override
-    public boolean schedule(Runnable command, long delayMillis) {
-        try {
-            return operations.runAsync(plugin, Objects.requireNonNull(command), delayTicks(delayMillis));
-        } catch (RuntimeException error) {
-            reportFailure(error);
-            return false;
-        }
-    }
-
-    @Override
     public void reportFailure(Throwable error) {
         plugin.getLogger().log(Level.SEVERE, "Chunk lease operation failed", Objects.requireNonNull(error));
     }
@@ -117,18 +105,10 @@ public final class BukkitChunkLeasePlatform implements ChunkLeasePlatform<World>
         }
     }
 
-    private long delayTicks(long delayMillis) {
-        long normalized = Math.max(0L, delayMillis);
-        long ticks = normalized / MILLIS_PER_TICK;
-        return normalized % MILLIS_PER_TICK == 0L ? ticks : ticks + 1L;
-    }
-
     interface Operations {
         CompletionStage<Chunk> loadChunk(Plugin plugin, World world, int chunkX, int chunkZ);
 
         boolean runRegion(Plugin plugin, World world, int chunkX, int chunkZ, Runnable command);
-
-        boolean runAsync(Plugin plugin, Runnable command, long delayTicks);
     }
 
     private static final class BukkitOperations implements Operations {
@@ -140,11 +120,6 @@ public final class BukkitChunkLeasePlatform implements ChunkLeasePlatform<World>
         @Override
         public boolean runRegion(Plugin plugin, World world, int chunkX, int chunkZ, Runnable command) {
             return FoliaScheduler.runRegion(plugin, world, chunkX, chunkZ, command);
-        }
-
-        @Override
-        public boolean runAsync(Plugin plugin, Runnable command, long delayTicks) {
-            return FoliaScheduler.runAsync(plugin, command, delayTicks);
         }
     }
 }

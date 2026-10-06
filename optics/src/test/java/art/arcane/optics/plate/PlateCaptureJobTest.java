@@ -15,8 +15,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.jupiter.api.Test;
+
+import art.arcane.optics.spi.FakeOpticsScheduler;
 
 final class PlateCaptureJobTest {
     private static final String WORLD = "destination";
@@ -26,19 +29,18 @@ final class PlateCaptureJobTest {
         FakeSource source = new FakeSource();
         source.reuse = true;
         source.loadAll(0, 0, 2, 0);
-        RecordingHost host = new RecordingHost();
-        PlateCaptureQueue<String, String> queue = new PlateCaptureQueue<String, String>(host);
+        Harness harness = new Harness();
         List<PlateCaptureJob<String, String, String>> jobs = new ArrayList<>();
         for (int index = 0; index < 100; index++) {
             PlateCaptureJob<String, String, String> job = job(source, new ViewPlateBuilder.Footprint(0, 0, 2, 0, 64L),
                 new ArrayList<PlateCaptureJob.Captured<String>>());
-            queue.submit(job);
+            harness.submit(job);
             jobs.add(job);
         }
-        queue.tick(3, 3);
+        harness.tick(3, 3);
         assertEquals(3, source.captures.size());
-        assertEquals(jobs, host.built);
-        assertEquals(0, queue.size());
+        assertEquals(keys(jobs), harness.built);
+        assertEquals(0, harness.pipeline.queuedCaptures());
     }
 
     @Test
@@ -63,28 +65,27 @@ final class PlateCaptureJobTest {
     void loadedChunksAreSnapshottedWithinTheTickBudgetAndHandedToTheBuildOnce() {
         FakeSource source = new FakeSource();
         source.loadAll(0, 0, 2, 0);
-        RecordingHost host = new RecordingHost();
-        PlateCaptureQueue<String, String> queue = new PlateCaptureQueue<String, String>(host);
+        Harness harness = new Harness();
         List<PlateCaptureJob.Captured<String>> handedOff = new ArrayList<PlateCaptureJob.Captured<String>>();
         PlateCaptureJob<String, String, String> job = job(source, new ViewPlateBuilder.Footprint(0, 0, 2, 0, 64L), handedOff);
-        queue.submit(job);
+        harness.submit(job);
 
-        queue.tick(2, 2);
+        harness.tick(2, 2);
         assertEquals(2, source.captures.size());
         assertEquals(PlateCaptureJob.Phase.CAPTURING, job.phase());
-        assertTrue(host.built.isEmpty());
+        assertTrue(harness.built.isEmpty());
 
-        queue.tick(2, 2);
+        harness.tick(2, 2);
         assertEquals(3, source.captures.size());
         assertEquals(PlateCaptureJob.Phase.CAPTURED, job.phase());
-        assertEquals(List.of(job), host.built);
+        assertEquals(List.of(job.key()), harness.built);
         assertEquals(1, handedOff.size());
         assertEquals("snapshot:1,0", handedOff.get(0).chunk(1, 0));
-        assertEquals(0, queue.size());
+        assertEquals(0, harness.pipeline.queuedCaptures());
 
-        queue.tick(2, 2);
+        harness.tick(2, 2);
         assertEquals(3, source.captures.size(), "a finished capture is never snapshotted again");
-        assertEquals(1, host.built.size());
+        assertEquals(1, harness.built.size());
         assertTrue(job.step(Integer.MAX_VALUE));
         assertNotNull(job.result());
         assertEquals(64L, job.predictedBytes());
@@ -94,16 +95,15 @@ final class PlateCaptureJobTest {
     void unloadedChunksWaitForTheirLeaseAndAreNeverSnapshottedWhileUnloaded() {
         FakeSource source = new FakeSource();
         source.loadAll(0, 0, 0, 0);
-        RecordingHost host = new RecordingHost();
-        PlateCaptureQueue<String, String> queue = new PlateCaptureQueue<String, String>(host);
+        Harness harness = new Harness();
         PlateCaptureJob<String, String, String> job = job(source, new ViewPlateBuilder.Footprint(0, 0, 1, 0, 64L), new ArrayList<PlateCaptureJob.Captured<String>>());
-        queue.submit(job);
+        harness.submit(job);
 
-        queue.tick(8, 8);
+        harness.tick(8, 8);
         assertEquals(List.of("0,0"), source.captures);
         assertEquals(1, source.holds.size(), "the unloaded chunk is leased");
         assertEquals(1, job.heldChunks());
-        queue.tick(8, 8);
+        harness.tick(8, 8);
         assertEquals(1, source.holds.size(), "a pending lease is not requested twice");
         assertEquals(PlateCaptureJob.Phase.CAPTURING, job.phase());
 
@@ -111,36 +111,35 @@ final class PlateCaptureJobTest {
         hold.settled = true;
         hold.ready = true;
         source.loaded.add("1,0");
-        queue.tick(8, 8);
+        harness.tick(8, 8);
 
         assertEquals(List.of("0,0", "1,0"), source.captures);
         assertTrue(hold.released, "the lease is released as soon as the snapshot is taken");
         assertEquals(PlateCaptureJob.Phase.CAPTURED, job.phase());
-        assertEquals(List.of(job), host.built);
+        assertEquals(List.of(job.key()), harness.built);
     }
 
     @Test
     void aFailedLeaseAbortsTheCaptureAndReleasesEveryHold() {
         FakeSource source = new FakeSource();
-        RecordingHost host = new RecordingHost();
-        PlateCaptureQueue<String, String> queue = new PlateCaptureQueue<String, String>(host);
+        Harness harness = new Harness();
         PlateCaptureJob<String, String, String> job = job(source, new ViewPlateBuilder.Footprint(0, 0, 1, 0, 64L), new ArrayList<PlateCaptureJob.Captured<String>>());
-        queue.submit(job);
-        queue.tick(8, 8);
+        harness.submit(job);
+        harness.tick(8, 8);
         assertEquals(2, source.holds.size());
 
         FakeHold failed = source.holds.get("0,0");
         failed.settled = true;
         failed.ready = false;
-        queue.tick(8, 8);
+        harness.tick(8, 8);
 
         assertEquals(PlateCaptureJob.Phase.FAILED, job.phase());
-        assertEquals(List.of(job.key()), host.failed);
-        assertTrue(host.built.isEmpty());
+        assertTrue(harness.backedOff(job));
+        assertTrue(harness.built.isEmpty());
         for (FakeHold hold : source.holds.values()) {
             assertTrue(hold.released);
         }
-        assertEquals(0, queue.size());
+        assertEquals(0, harness.pipeline.queuedCaptures());
         assertThrows(IllegalStateException.class, () -> job.step(1));
         assertNull(job.result());
     }
@@ -149,71 +148,68 @@ final class PlateCaptureJobTest {
     void theTickBudgetIsSharedAcrossCapturesInSubmissionOrder() {
         FakeSource source = new FakeSource();
         source.loadAll(0, 0, 3, 0);
-        RecordingHost host = new RecordingHost();
-        PlateCaptureQueue<String, String> queue = new PlateCaptureQueue<String, String>(host);
+        Harness harness = new Harness();
         PlateCaptureJob<String, String, String> first = job(source, new ViewPlateBuilder.Footprint(0, 0, 1, 0, 64L), new ArrayList<PlateCaptureJob.Captured<String>>());
         PlateCaptureJob<String, String, String> second = job(source, new ViewPlateBuilder.Footprint(2, 0, 3, 0, 64L), new ArrayList<PlateCaptureJob.Captured<String>>());
-        queue.submit(first);
-        queue.submit(second);
+        harness.submit(first);
+        harness.submit(second);
 
-        queue.tick(2, 2);
+        harness.tick(2, 2);
         assertEquals(PlateCaptureJob.Phase.CAPTURED, first.phase());
         assertEquals(PlateCaptureJob.Phase.CAPTURING, second.phase());
         assertEquals(2, source.captures.size());
 
-        queue.tick(2, 2);
+        harness.tick(2, 2);
         assertEquals(PlateCaptureJob.Phase.CAPTURED, second.phase());
-        assertEquals(List.of(first, second), host.built);
+        assertEquals(List.of(first.key(), second.key()), harness.built);
     }
 
     @Test
     void urgentCapturesDrawFromTheirOwnBoundedBudgetWithoutSpendingTheSharedOne() {
         FakeSource source = new FakeSource();
         source.loadAll(0, 0, 13, 0);
-        RecordingHost host = new RecordingHost();
-        PlateCaptureQueue<String, String> queue = new PlateCaptureQueue<String, String>(host);
+        Harness harness = new Harness();
         PlateCaptureJob<String, String, String> first = job(source, new ViewPlateBuilder.Footprint(0, 0, 3, 0, 64L), new ArrayList<PlateCaptureJob.Captured<String>>());
         PlateCaptureJob<String, String, String> urgent = job(source, new ViewPlateBuilder.Footprint(4, 0, 9, 0, 64L), new ArrayList<PlateCaptureJob.Captured<String>>());
         PlateCaptureJob<String, String, String> promoted = job(source, new ViewPlateBuilder.Footprint(10, 0, 13, 0, 64L), new ArrayList<PlateCaptureJob.Captured<String>>());
         urgent.markUrgent();
-        queue.submit(first);
-        queue.submit(urgent);
-        queue.submit(promoted);
+        harness.submit(first);
+        harness.submit(urgent);
+        harness.submit(promoted);
 
-        queue.tick(2, 4);
+        harness.tick(2, 4);
 
         assertEquals(2, urgent.pendingChunks(), "an urgent capture takes at most the urgent budget in one tick");
         assertEquals(2, first.pendingChunks(), "the shared budget is untouched by the urgent capture");
         assertEquals(4, promoted.pendingChunks(), "the shared budget was spent by the capture ahead of it");
         assertEquals(6, source.captures.size());
-        assertTrue(host.built.isEmpty());
+        assertTrue(harness.built.isEmpty());
 
         promoted.markUrgent();
-        queue.tick(2, 4);
+        harness.tick(2, 4);
 
-        assertEquals(List.of(first, urgent), host.built);
+        assertEquals(List.of(first.key(), urgent.key()), harness.built);
         assertEquals(2, promoted.pendingChunks(), "a promoted capture shares what is left of the urgent budget");
 
-        queue.tick(2, 4);
-        assertEquals(List.of(first, urgent, promoted), host.built);
-        assertTrue(host.failed.isEmpty());
+        harness.tick(2, 4);
+        assertEquals(List.of(first.key(), urgent.key(), promoted.key()), harness.built);
+        assertTrue(harness.warnings.isEmpty());
     }
 
     @Test
     void clearingTheQueueAbortsInFlightCapturesAndReleasesTheirLeases() {
         FakeSource source = new FakeSource();
-        RecordingHost host = new RecordingHost();
-        PlateCaptureQueue<String, String> queue = new PlateCaptureQueue<String, String>(host);
+        Harness harness = new Harness();
         PlateCaptureJob<String, String, String> job = job(source, new ViewPlateBuilder.Footprint(0, 0, 0, 0, 64L), new ArrayList<PlateCaptureJob.Captured<String>>());
-        queue.submit(job);
-        queue.tick(8, 8);
+        harness.submit(job);
+        harness.tick(8, 8);
 
-        queue.clear();
+        harness.pipeline.clear();
 
         assertEquals(PlateCaptureJob.Phase.FAILED, job.phase());
         assertTrue(source.holds.get("0,0").released);
-        assertEquals(List.of(job.key()), host.failed);
-        assertEquals(0, queue.size());
+        assertFalse(harness.pipeline.cache().isBuilding(job));
+        assertEquals(0, harness.pipeline.queuedCaptures());
     }
 
     @Test
@@ -221,41 +217,39 @@ final class PlateCaptureJobTest {
         FakeSource source = new FakeSource();
         source.loadAll(0, 0, 0, 0);
         source.explode = true;
-        RecordingHost host = new RecordingHost();
-        PlateCaptureQueue<String, String> queue = new PlateCaptureQueue<String, String>(host);
+        Harness harness = new Harness();
         PlateCaptureJob<String, String, String> job = job(source, new ViewPlateBuilder.Footprint(0, 0, 0, 0, 64L), new ArrayList<PlateCaptureJob.Captured<String>>());
-        queue.submit(job);
+        harness.submit(job);
 
-        queue.tick(8, 8);
+        harness.tick(8, 8);
 
         assertEquals(PlateCaptureJob.Phase.FAILED, job.phase());
-        assertEquals(List.of(job.key()), host.failed);
-        assertEquals(1, host.warnings);
-        assertFalse(host.built.contains(job));
+        assertTrue(harness.backedOff(job));
+        assertEquals(List.of("capture failed for portal " + job.key().portalId()), harness.warnings);
+        assertFalse(harness.built.contains(job.key()));
     }
 
     @Test
     void aCaptureTheCacheNoLongerWantsIsAbortedAndReleasesItsLeases() {
         FakeSource source = new FakeSource();
-        RecordingHost host = new RecordingHost();
-        PlateCaptureQueue<String, String> queue = new PlateCaptureQueue<String, String>(host);
+        Harness harness = new Harness();
         PlateCaptureJob<String, String, String> job = job(source, new ViewPlateBuilder.Footprint(0, 0, 1, 0, 64L), new ArrayList<PlateCaptureJob.Captured<String>>());
-        queue.submit(job);
-        queue.tick(8, 8);
+        harness.submit(job);
+        harness.tick(8, 8);
         assertEquals(2, source.holds.size());
 
-        host.unwanted.add(job.key());
+        harness.pipeline.cache().invalidatePortal(job.key().portalId());
         source.loadAll(0, 0, 1, 0);
-        queue.tick(8, 8);
+        harness.tick(8, 8);
 
         assertEquals(PlateCaptureJob.Phase.FAILED, job.phase());
         assertTrue(source.captures.isEmpty(), "a retired capture takes no more snapshots");
         for (FakeHold hold : source.holds.values()) {
             assertTrue(hold.released);
         }
-        assertTrue(host.built.isEmpty());
-        assertTrue(host.failed.isEmpty(), "a cancelled capture is not reported as a failure");
-        assertEquals(0, queue.size());
+        assertTrue(harness.built.isEmpty());
+        assertFalse(harness.backedOff(job), "a cancelled capture is not reported as a failure");
+        assertEquals(0, harness.pipeline.queuedCaptures());
     }
 
     @Test
@@ -287,26 +281,25 @@ final class PlateCaptureJobTest {
         int hogChunks = (PlateCaptureJob.MAX_CAPTURE_TICKS / 2) + 100;
         int starvedTicks = hogChunks * 2;
         source.loadAll(0, 0, starvedTicks, 0);
-        RecordingHost host = new RecordingHost();
-        PlateCaptureQueue<String, String> queue = new PlateCaptureQueue<String, String>(host);
+        Harness harness = new Harness();
         PlateCaptureJob<String, String, String> first = job(source, new ViewPlateBuilder.Footprint(0, 0, hogChunks - 1, 0, 64L), new ArrayList<PlateCaptureJob.Captured<String>>());
         PlateCaptureJob<String, String, String> second = job(source, new ViewPlateBuilder.Footprint(hogChunks, 0, starvedTicks - 1, 0, 64L), new ArrayList<PlateCaptureJob.Captured<String>>());
         PlateCaptureJob<String, String, String> starved = job(source, new ViewPlateBuilder.Footprint(starvedTicks, 0, starvedTicks, 0, 64L), new ArrayList<PlateCaptureJob.Captured<String>>());
-        queue.submit(first);
-        queue.submit(second);
-        queue.submit(starved);
+        harness.submit(first);
+        harness.submit(second);
+        harness.submit(starved);
 
         for (int tick = 0; tick < starvedTicks; tick++) {
-            queue.tick(1, 1);
+            harness.tick(1, 1);
         }
         assertTrue(starvedTicks > PlateCaptureJob.MAX_CAPTURE_TICKS);
-        assertEquals(List.of(first, second), host.built, "each capture only counts the ticks it had budget for");
+        assertEquals(List.of(first.key(), second.key()), harness.built, "each capture only counts the ticks it had budget for");
         assertEquals(PlateCaptureJob.Phase.CAPTURING, starved.phase(), "ticks without budget do not count toward the timeout");
 
-        queue.tick(1, 1);
+        harness.tick(1, 1);
 
         assertEquals(PlateCaptureJob.Phase.CAPTURED, starved.phase());
-        assertTrue(host.failed.isEmpty());
+        assertTrue(harness.warnings.isEmpty());
     }
 
     private static PlateCaptureJob<String, String, String> job(FakeSource source, ViewPlateBuilder.Footprint footprint,
@@ -403,31 +396,44 @@ final class PlateCaptureJobTest {
         }
     }
 
-    private static final class RecordingHost implements PlateCaptureQueue.Host<String, String> {
-        private final List<ViewPlateBuilder.Job<String, String>> built = new ArrayList<ViewPlateBuilder.Job<String, String>>();
-        private final List<ViewPlateKey> failed = new ArrayList<ViewPlateKey>();
-        private int warnings;
+    private static List<ViewPlateKey> keys(List<PlateCaptureJob<String, String, String>> jobs) {
+        List<ViewPlateKey> keys = new ArrayList<ViewPlateKey>(jobs.size());
+        for (PlateCaptureJob<String, String, String> job : jobs) {
+            keys.add(job.key());
+        }
+        return keys;
+    }
 
-        @Override
-        public void build(ViewPlateBuilder.Job<String, String> job) {
-            built.add(job);
+    private static final class Harness {
+        private final FakeOpticsScheduler<Object, String> scheduler = new FakeOpticsScheduler<Object, String>();
+        private final List<String> warnings = new ArrayList<String>();
+        private final List<ViewPlateKey> built = new ArrayList<ViewPlateKey>();
+        private final List<PlateCaptureJob<String, String, String>> submitted = new ArrayList<PlateCaptureJob<String, String, String>>();
+        private final PlatePipeline<String, String> pipeline = new PlatePipeline<String, String>(1L << 30, scheduler,
+            (message, failure) -> warnings.add(message));
+
+        private void submit(PlateCaptureJob<String, String, String> job) {
+            submitted.add(job);
+            pipeline.cache().current(job.key(), 0L, 0L, null, job.urgent(), ignored -> job);
         }
 
-        private final Set<ViewPlateKey> unwanted = new HashSet<ViewPlateKey>();
-
-        @Override
-        public void failed(ViewPlateBuilder.Job<String, String> job) {
-            failed.add(job.key());
+        private void tick(int chunkBudget, int urgentChunkBudget) {
+            pipeline.tickCaptures(chunkBudget, urgentChunkBudget);
+            scheduler.runCompute();
+            for (PlateCaptureJob<String, String, String> job : submitted) {
+                if (!built.contains(job.key()) && pipeline.cache().peek(job.key()) != null) {
+                    built.add(job.key());
+                }
+            }
         }
 
-        @Override
-        public boolean wanted(ViewPlateBuilder.Job<String, String> job) {
-            return !unwanted.contains(job.key());
-        }
-
-        @Override
-        public void warning(ViewPlateKey key, RuntimeException failure) {
-            warnings++;
+        private boolean backedOff(PlateCaptureJob<String, String, String> job) {
+            AtomicBoolean offered = new AtomicBoolean();
+            pipeline.cache().current(job.key(), 0L, 0L, null, false, ignored -> {
+                offered.set(true);
+                return null;
+            });
+            return !pipeline.cache().isBuilding(job) && !offered.get();
         }
     }
 }

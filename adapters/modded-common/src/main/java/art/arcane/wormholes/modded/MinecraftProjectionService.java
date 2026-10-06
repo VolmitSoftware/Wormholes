@@ -22,13 +22,8 @@ import net.minecraft.network.protocol.game.ClientboundDamageEventPacket;
 import net.minecraft.world.entity.Entity;
 import java.util.concurrent.ConcurrentHashMap;
 import art.arcane.optics.view.WorldChangeTracker;
-import art.arcane.optics.plate.PlateCaptureJob;
-import art.arcane.optics.plate.PlateCaptureQueue;
-import art.arcane.optics.plate.PlateWorkers;
-import art.arcane.optics.plate.ViewPlate;
-import art.arcane.optics.plate.ViewPlateBuilder;
+import art.arcane.optics.plate.PlatePipeline;
 import art.arcane.optics.plate.ViewPlateCache;
-import art.arcane.optics.plate.ViewPlateKey;
 import art.arcane.optics.view.ContentView;
 import art.arcane.optics.view.SectionCache;
 import art.arcane.optics.light.ProjectorLighting;
@@ -66,7 +61,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Executor;
-import java.util.concurrent.RejectedExecutionException;
 import java.util.function.Predicate;
 
 public final class MinecraftProjectionService implements AutoCloseable {
@@ -84,13 +78,12 @@ public final class MinecraftProjectionService implements AutoCloseable {
     private final MinecraftPlateSnapshotCache plateSnapshots = new MinecraftPlateSnapshotCache(changes, MinecraftPlateSnapshotCache.VIEW_LIMITS);
     private final Map<ServerLevel, MinecraftProjectionWorldView> views = new HashMap<>();
     private final Map<UUID, Observer> observers = new HashMap<>();
-    private final ViewPlateCache<BlockState, ServerLevel> plates = new ViewPlateCache<>(FidelitySettings.plateMaxBytes, this::schedulePlate);
-    private final PlateCaptureQueue<BlockState, ServerLevel> plateCaptures = new PlateCaptureQueue<>(new CaptureHost());
     private final SectionCache<BlockState, BlockState> sections = new SectionCache<>(MinecraftProjectorBlocks.INSTANCE, SectionCache.Limits.from(true, 64, 16, 200));
     private final SectionEviction eviction = new SectionEviction();
     private SectionCache.Limits limits = SectionCache.Limits.from(true, 64, 16, 200);
-    private volatile PlateWorkers<BlockState, ServerLevel> plateWorkers;
-    private long generation;
+    private final MinecraftOpticsScheduler scheduler;
+    private final PlatePipeline<BlockState, ServerLevel> platePipeline;
+    private final ViewPlateCache<BlockState, ServerLevel> plates;
     private long frozenUntil;
     private long tick;
     private int observerCursor;
@@ -102,6 +95,10 @@ public final class MinecraftProjectionService implements AutoCloseable {
         this.portals = new MinecraftProjectorPortalAccess(runtime);
         this.packets = new MinecraftProjectionPackets(runtime);
         this.entityVisibility = new LocalOcclusionArbiter<>(MinecraftEntityVisualHost.FEED, new MinecraftEntityPackets(runtime));
+        this.scheduler = new MinecraftOpticsScheduler(runtime, () -> tick);
+        this.platePipeline = new PlatePipeline<>(FidelitySettings.plateMaxBytes, scheduler,
+            (message, failure) -> LOGGER.error("Wormholes plate " + message, failure));
+        this.plates = platePipeline.cache();
     }
 
     public Collection<Entity> localEntities(ServerLevel world, MinecraftPortal portal, double range) {
@@ -197,27 +194,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
         limits = limits(config());
         sections.configure(limits);
         changes.addListener(eviction);
-        long startedGeneration = ++generation;
-        plateWorkers = new PlateWorkers<>("Wormholes-Plate-", FidelitySettings.plateWorkers, new PlateWorkers.Host<>() {
-            @Override
-            public void publish(ViewPlateBuilder.Job<BlockState, ServerLevel> job, ViewPlate<BlockState> plate) {
-                if (!closed && generation == startedGeneration) {
-                    plates.publish(job, plate);
-                }
-            }
-
-            @Override
-            public void failed(ViewPlateBuilder.Job<BlockState, ServerLevel> job) {
-                if (generation == startedGeneration) {
-                    plates.buildFailed(job);
-                }
-            }
-
-            @Override
-            public void warning(ViewPlateKey key, RuntimeException failure) {
-                LOGGER.error("Wormholes plate build failed for portal {}", key.portalId(), failure);
-            }
-        });
+        scheduler.start(FidelitySettings.plateWorkers);
     }
 
     public void tick() {
@@ -238,8 +215,8 @@ public final class MinecraftProjectionService implements AutoCloseable {
             sections.configure(configured);
         }
         sections.tick((int) tick);
-        plateCaptures.tick(FidelitySettings.plateCaptureChunksPerTick, FidelitySettings.plateUrgentCaptureChunksPerTick);
-        plateWorkers.resize(FidelitySettings.plateWorkers);
+        platePipeline.tickCaptures(FidelitySettings.plateCaptureChunksPerTick, FidelitySettings.plateUrgentCaptureChunksPerTick);
+        scheduler.resize(FidelitySettings.plateWorkers);
         List<ServerPlayer> players = runtime.server().getPlayerList().getPlayers();
         Set<UUID> online = new HashSet<>(players.size());
         for (ServerPlayer player : players) {
@@ -310,9 +287,8 @@ public final class MinecraftProjectionService implements AutoCloseable {
         localEntityCandidates.clear();
         MinecraftClientProfiles.clear();
         entityVisibility.clear();
-        plateCaptures.clear();
+        platePipeline.clear();
         plateSnapshots.clear();
-        plates.clear();
         sections.clear();
         return count;
     }
@@ -339,17 +315,15 @@ public final class MinecraftProjectionService implements AutoCloseable {
     }
 
     public Executor lanes() {
-        return task -> {
-            PlateWorkers<BlockState, ServerLevel> workers = plateWorkers;
-            if (workers == null) {
-                throw new RejectedExecutionException("Wormholes plate workers are not running");
-            }
-            workers.execute(task);
-        };
+        return scheduler.compute();
+    }
+
+    public MinecraftOpticsScheduler scheduler() {
+        return scheduler;
     }
 
     public int plateCaptureQueueSize() {
-        return plateCaptures.size();
+        return platePipeline.queuedCaptures();
     }
 
     public long sectionCacheBytes() {
@@ -430,14 +404,9 @@ public final class MinecraftProjectionService implements AutoCloseable {
     public void close() {
         runtime.requireServerThread();
         closed = true;
-        generation++;
-        if (plateWorkers != null) {
-            plateWorkers.shutdown();
-            plateWorkers = null;
-        }
-        plateCaptures.clear();
+        scheduler.shutdown();
+        platePipeline.clear();
         plateSnapshots.clear();
-        plates.clear();
         changes.removeListener(eviction);
         for (Observer observer : observers.values()) {
             observer.close();
@@ -455,18 +424,6 @@ public final class MinecraftProjectionService implements AutoCloseable {
         MinecraftClientProfiles.clear();
         entityVisibility.clear();
         ACTIVE.remove(runtime.server(), this);
-    }
-
-    private void schedulePlate(ViewPlateBuilder.Job<BlockState, ServerLevel> job) {
-        if (closed || plateWorkers == null) {
-            plates.buildFailed(job);
-            return;
-        }
-        if (job instanceof PlateCaptureJob<BlockState, ServerLevel, ?> capture) {
-            plateCaptures.submit(capture);
-            return;
-        }
-        plateWorkers.submitAsync(job);
     }
 
     public MinecraftProjectionWorldView view(ServerLevel world) {
@@ -858,32 +815,6 @@ public final class MinecraftProjectionService implements AutoCloseable {
             if (view != null) {
                 view.sections().clear();
             }
-        }
-    }
-
-    private final class CaptureHost implements PlateCaptureQueue.Host<BlockState, ServerLevel> {
-        @Override
-        public void build(ViewPlateBuilder.Job<BlockState, ServerLevel> job) {
-            if (closed || plateWorkers == null) {
-                plates.buildFailed(job);
-                return;
-            }
-            plateWorkers.submitAsync(job);
-        }
-
-        @Override
-        public void failed(ViewPlateBuilder.Job<BlockState, ServerLevel> job) {
-            plates.buildFailed(job);
-        }
-
-        @Override
-        public void warning(ViewPlateKey key, RuntimeException failure) {
-            LOGGER.error("Wormholes plate capture failed for portal {}", key.portalId(), failure);
-        }
-
-        @Override
-        public boolean wanted(ViewPlateBuilder.Job<BlockState, ServerLevel> job) {
-            return !closed && plates.isBuilding(job);
         }
     }
 

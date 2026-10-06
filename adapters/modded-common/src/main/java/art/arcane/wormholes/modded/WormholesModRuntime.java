@@ -84,7 +84,7 @@ public final class WormholesModRuntime {
             FidelitySettings.refresh(configuration.settings());
             tick = 0;
             sequence = 0;
-            leases = new ChunkLeaseRegistry<>(new MinecraftChunkLeasePlatform(this),
+            leases = new ChunkLeaseRegistry<>(new MinecraftChunkLeasePlatform(this), projections.scheduler(),
                 new ChunkLeaseRegistry.Options(1000L, 50L, 3));
             preSend = new ChunkPreSendService<>(new MinecraftChunkPreSendPlatform(this), configuration::preSendOptions);
             portals = new MinecraftPortalRegistry(this, new MinecraftPortalRegistry.Options(

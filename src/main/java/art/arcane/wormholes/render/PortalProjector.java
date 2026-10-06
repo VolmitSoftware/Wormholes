@@ -9,9 +9,7 @@ import art.arcane.wormholes.render.BukkitProjectorBlocks;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import org.bukkit.Particle;
 import java.util.Objects;
-import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
@@ -28,6 +26,7 @@ import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.service.WormholesTelemetry;
+import art.arcane.wormholes.platform.BukkitOpticsScheduler;
 import art.arcane.wormholes.portal.DimensionalPortalKind;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.IPortal;
@@ -41,7 +40,6 @@ import art.arcane.wormholes.portal.rtp.RtpProjectionGeometry;
 import art.arcane.wormholes.portal.rtp.RtpProjectionView;
 import art.arcane.optics.fidelity.AtmosphereChannel;
 import art.arcane.optics.fidelity.AtmosphereMode;
-import art.arcane.optics.fidelity.WeatherRelay;
 import art.arcane.optics.fidelity.AcousticsBridge;
 import art.arcane.optics.fidelity.AcousticsProfile;
 import art.arcane.wormholes.render.bedrock.ClientProfileService;
@@ -102,8 +100,7 @@ public final class PortalProjector {
     private final RecursiveEndpoints<World, ILocalPortal> entityRecursivePortals = BukkitProjectorPortalAccess.create();
     private final ViewPlateCache<BlockData, World> plateCache;
     private final AtmosphereChannel<BlockData, ProjectionWorldView> atmosphere = new AtmosphereChannel<>();
-    private final WeatherRelay weather = new WeatherRelay();
-    private final Random weatherRandom = new Random();
+    private final ProjectorWeather weather = new ProjectorWeather();
     private final ProjectedBlockEntityLayer<Player> blockEntityLayer = new ProjectedBlockEntityLayer<Player>(new BlockEntityPacketSink());
     private final DissolveSchedule dissolve = new DissolveSchedule();
     private final ProjectorCommitLatency commitLatency = new ProjectorCommitLatency();
@@ -832,12 +829,6 @@ public final class PortalProjector {
         }
     }
 
-    private void spawnWeather(WeatherRelay.Precipitation precipitation, long cell) {
-        observer.spawnParticle(precipitation == WeatherRelay.Precipitation.SNOWFLAKE ? Particle.SNOWFLAKE : Particle.RAIN,
-            CellKeys.unpackX(cell) + 0.5D, CellKeys.unpackY(cell) + 0.5D, CellKeys.unpackZ(cell) + 0.5D,
-            1, 0.4D, 0.5D, 0.4D, 0.0D);
-    }
-
     private void driveAtmosphere(World submitWorld, AtmosphereMode mode, boolean claimsChanged) {
         if (portal.getId() == null) {
             return;
@@ -852,7 +843,8 @@ public final class PortalProjector {
         } else if (atmosphere.disable()) {
             claimArbiter.submitBiomes(observer, portal.getId(), submitWorld, new Long2IntOpenHashMap());
         }
-        if (!FidelitySettings.weather || !mode.relaysWeather()) {
+        BukkitOpticsScheduler scheduler = BukkitOpticsScheduler.active();
+        if (!FidelitySettings.weather || !mode.relaysWeather() || scheduler == null) {
             return;
         }
         boolean storm;
@@ -869,11 +861,7 @@ public final class PortalProjector {
         }
         String biome = destination.destView.sampleBiome((int) Math.floor(destination.originX),
             (int) Math.floor(destination.originY), (int) Math.floor(destination.originZ));
-        WeatherRelay.Burst burst = weather.plan(storm, thunder, biome, System.nanoTime() / 50_000_000L);
-        if (burst != null) {
-            weather.spawn(new WeatherRelay.Emission<>(cellScan.claims(), burst, weatherRandom,
-                block -> ProjectionWorldView.isAir(block.getMaterial())), this::spawnWeather);
-        }
+        weather.relay(scheduler, observer, new ProjectorWeather.Conditions(storm, thunder, biome), cellScan.claims());
     }
 
     /**

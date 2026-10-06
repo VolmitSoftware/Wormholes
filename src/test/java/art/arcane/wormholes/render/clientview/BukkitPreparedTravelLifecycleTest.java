@@ -6,7 +6,9 @@ import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.render.client.session.ClientPreparedTravelServer;
 import art.arcane.optics.plate.ChunkLease;
 import org.mockito.MockedStatic;
+import art.arcane.optics.spi.OpticsScheduler;
 import art.arcane.optics.aperture.ApertureDescriptor;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import art.arcane.optics.plate.ChunkLeasePlatform;
 import art.arcane.optics.plate.ChunkLeaseRegistry;
@@ -28,6 +30,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -50,7 +53,7 @@ class BukkitPreparedTravelLifecycleTest {
     @Test
     void closingDuringRetainReleasesTheNewLeaseAndCannotRetainAfterClosure() throws Exception {
         CountingChunks chunks = new CountingChunks();
-        ChunkLeaseRegistry<World> registry = new ChunkLeaseRegistry<>(chunks, new ChunkLeaseRegistry.Options(0L, 1L, 1));
+        ChunkLeaseRegistry<World> registry = new ChunkLeaseRegistry<>(chunks, chunks, new ChunkLeaseRegistry.Options(0L, 1L, 1));
         BukkitChunkLeaseProvider.install(registry);
         ExecutorService workers = Executors.newFixedThreadPool(2);
         try {
@@ -197,7 +200,7 @@ class BukkitPreparedTravelLifecycleTest {
         }
     }
 
-    private static final class CountingChunks implements ChunkLeasePlatform<World> {
+    private static final class CountingChunks implements ChunkLeasePlatform<World>, OpticsScheduler<Player, World> {
         private final CountDownLatch addStarted = new CountDownLatch(1);
         private final CountDownLatch allowAdd = new CountDownLatch(1);
         private final AtomicInteger added = new AtomicInteger();
@@ -233,6 +236,26 @@ class BukkitPreparedTravelLifecycleTest {
         @Override
         public void reportFailure(Throwable failure) {
             throw new AssertionError(failure);
+        }
+
+        @Override
+        public boolean runForObserver(Player observer, Runnable task) {
+            throw new AssertionError("chunk leases never run observer tasks");
+        }
+
+        @Override
+        public boolean runForRegion(World world, int chunkX, int chunkZ, Runnable task) {
+            throw new AssertionError("chunk leases never run region tasks");
+        }
+
+        @Override
+        public Executor compute() {
+            throw new AssertionError("chunk leases never use the compute executor");
+        }
+
+        @Override
+        public long tick() {
+            return 0L;
         }
     }
 }

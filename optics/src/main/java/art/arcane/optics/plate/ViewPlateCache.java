@@ -4,13 +4,14 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 import art.arcane.optics.view.WorldChangeTracker;
 
 /**
  * Shared, byte-capped store of view plates. {@link #current} hands back a plate whose revisions match
- * and otherwise schedules exactly one rebuild per key through the {@link JobScheduler<B, W>}; a plate
+ * and otherwise schedules exactly one rebuild per key through its job sink; a plate
  * with dirty chunks keeps serving its clean cells while a patch replaces it, a build predicted to exceed
  * the byte cap is refused once per transform revision instead of being built and evicted, a failed
  * build backs its key off before it is retried, and eviction is least-recently-used against the byte cap.
@@ -23,21 +24,16 @@ public final class ViewPlateCache<B, W> {
     private static final long MAX_FAILURE_BACKOFF_NANOS = 60_000_000_000L;
     private static final int MAX_BACKOFF_DOUBLINGS = 5;
 
-    @FunctionalInterface
-    public interface JobScheduler<B, W> {
-        void schedule(ViewPlateBuilder.Job<B, W> job);
-    }
-
     private final Map<ViewPlateKey, ViewPlate<B>> plates;
     private final Map<ViewPlateKey, ViewPlateBuilder.Job<B, W>> building;
     private final Map<ViewPlateKey, Long> refused;
     private final Map<ViewPlateKey, Backoff> failures;
     private final AtomicLong bytes;
     private final AtomicLong builds;
-    private final JobScheduler<B, W> scheduler;
+    private final Consumer<ViewPlateBuilder.Job<B, W>> scheduler;
     private volatile long maxBytes;
 
-    public ViewPlateCache(long maxBytes, JobScheduler<B, W> scheduler) {
+    public ViewPlateCache(long maxBytes, Consumer<ViewPlateBuilder.Job<B, W>> scheduler) {
         this.plates = new ConcurrentHashMap<ViewPlateKey, ViewPlate<B>>();
         this.building = new ConcurrentHashMap<ViewPlateKey, ViewPlateBuilder.Job<B, W>>();
         this.refused = new ConcurrentHashMap<ViewPlateKey, Long>();
@@ -224,7 +220,7 @@ public final class ViewPlateCache<B, W> {
             job.markUrgent();
         }
         if (building.putIfAbsent(key, job) == null) {
-            scheduler.schedule(job);
+            scheduler.accept(job);
         }
     }
 

@@ -1,9 +1,12 @@
 package art.arcane.wormholes.portal;
 
+import art.arcane.optics.plate.PlateWorkers;
 import art.arcane.wormholes.ProjectionManager;
 import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.platform.BukkitOpticsScheduler;
 
 import org.bukkit.World;
+import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,6 +18,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import static org.mockito.Mockito.mock;
 
 final class LocalPortalLinkingProjectionTest {
     private ProjectionManager previousManager;
@@ -90,7 +95,7 @@ final class LocalPortalLinkingProjectionTest {
         private ILocalPortal lastPortal;
 
         private RecordingProjectionManager() {
-            super(null);
+            super(null, new BukkitOpticsScheduler(mock(Plugin.class), new PlateWorkers("Linking-Test-", 1)));
         }
 
         @Override

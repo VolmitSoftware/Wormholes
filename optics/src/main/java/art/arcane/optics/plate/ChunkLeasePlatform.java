@@ -7,7 +7,5 @@ public interface ChunkLeasePlatform<W> {
 
     CompletionStage<Boolean> remove(W world, int chunkX, int chunkZ);
 
-    boolean schedule(Runnable command, long delayMillis);
-
     void reportFailure(Throwable error);
 }

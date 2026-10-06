@@ -16,11 +16,9 @@ public final class MinecraftChunkLeasePlatform implements ChunkLeasePlatform<Ser
     private static final TicketType PORTAL_VIEW = new TicketType(TicketType.NO_TIMEOUT,
         TicketType.FLAG_LOADING | TicketType.FLAG_KEEP_DIMENSION_ACTIVE);
 
-    private final WormholesModRuntime runtime;
     private final MinecraftServer server;
 
     public MinecraftChunkLeasePlatform(WormholesModRuntime runtime) {
-        this.runtime = runtime;
         this.server = runtime.server();
     }
 
@@ -43,11 +41,6 @@ public final class MinecraftChunkLeasePlatform implements ChunkLeasePlatform<Ser
             world.getChunkSource().removeTicketWithRadius(PORTAL_VIEW, new ChunkPos(chunkX, chunkZ), 0);
             return true;
         }, server);
-    }
-
-    @Override
-    public boolean schedule(Runnable command, long delayMillis) {
-        return runtime.schedule(command, Math.max(1L, Math.ceilDiv(delayMillis, 50L)));
     }
 
     @Override

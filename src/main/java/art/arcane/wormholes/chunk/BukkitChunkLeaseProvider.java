@@ -1,16 +1,22 @@
 package art.arcane.wormholes.chunk;
 
 import org.bukkit.World;
+import org.bukkit.plugin.Plugin;
 
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import art.arcane.optics.plate.ChunkLeaseRegistry;
+import art.arcane.optics.spi.OpticsScheduler;
 
 public final class BukkitChunkLeaseProvider {
     private static final AtomicReference<ChunkLeaseRegistry<World>> REGISTRY = new AtomicReference<>();
 
     private BukkitChunkLeaseProvider() {
+    }
+
+    public static void install(Plugin plugin, OpticsScheduler<?, World> scheduler) {
+        install(new ChunkLeaseRegistry<World>(new BukkitChunkLeasePlatform(plugin), scheduler, new ChunkLeaseRegistry.Options(0L, 250L, 3)));
     }
 
     public static void install(ChunkLeaseRegistry<World> registry) {

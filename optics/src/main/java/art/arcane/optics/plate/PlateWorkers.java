@@ -1,6 +1,7 @@
 package art.arcane.optics.plate;
 
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -11,42 +12,19 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Runs plate builds on a bounded pool of host-named threads. Every view a build reads is safe
  * off-thread: region snapshots, remote views and chunk snapshots captured for the plate.
  */
-public final class PlateWorkers<B, W> {
-    public interface Host<B, W> {
-        void publish(ViewPlateBuilder.Job<B, W> job, ViewPlate<B> plate);
-
-        void failed(ViewPlateBuilder.Job<B, W> job);
-
-        void warning(ViewPlateKey key, RuntimeException failure);
-    }
-
-    static final int ASYNC_CELLS_PER_STEP = 8192;
+public final class PlateWorkers implements Executor {
     private static final int QUEUE_CAPACITY = 256;
 
     private final String threadPrefix;
     private final AtomicInteger threadSequence = new AtomicInteger();
-    private final Host<B, W> host;
     private volatile ThreadPoolExecutor executor;
 
-    public PlateWorkers(String threadPrefix, int threads, Host<B, W> host) {
+    public PlateWorkers(String threadPrefix, int threads) {
         this.threadPrefix = threadPrefix;
-        this.host = host;
         this.executor = createExecutor(threads);
     }
 
-    public void submitAsync(ViewPlateBuilder.Job<B, W> job) {
-        ThreadPoolExecutor active = executor;
-        if (active == null) {
-            host.failed(job);
-            return;
-        }
-        try {
-            active.execute(() -> runToCompletion(job));
-        } catch (RejectedExecutionException rejected) {
-            host.failed(job);
-        }
-    }
-
+    @Override
     public void execute(Runnable task) {
         ThreadPoolExecutor active = executor;
         if (active == null) {
@@ -80,21 +58,6 @@ public final class PlateWorkers<B, W> {
         executor = null;
         if (active != null) {
             active.shutdownNow();
-        }
-    }
-
-    private void runToCompletion(ViewPlateBuilder.Job<B, W> job) {
-        try {
-            while (!job.step(ASYNC_CELLS_PER_STEP)) {
-                if (Thread.currentThread().isInterrupted()) {
-                    host.failed(job);
-                    return;
-                }
-            }
-            host.publish(job, job.result());
-        } catch (RuntimeException failure) {
-            host.failed(job);
-            host.warning(job.key(), failure);
         }
     }
 

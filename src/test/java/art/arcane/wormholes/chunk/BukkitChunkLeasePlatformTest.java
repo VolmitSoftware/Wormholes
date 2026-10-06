@@ -9,13 +9,11 @@ import java.lang.reflect.Proxy;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Handler;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -80,39 +78,6 @@ class BukkitChunkLeasePlatformTest {
 
         assertTrue(platform.remove(WORLD, 4, -7).toCompletableFuture().join());
         assertEquals(0, operations.regionRuns);
-    }
-
-    @Test
-    void delayedScheduleRoundsMillisecondsUpToTicksAndPreservesRejection() {
-        ManualOperations operations = new ManualOperations();
-        operations.asyncAccepted = false;
-        AtomicInteger runs = new AtomicInteger();
-        BukkitChunkLeasePlatform platform = new BukkitChunkLeasePlatform(PLUGIN, operations);
-
-        boolean accepted = platform.schedule(runs::incrementAndGet, 51L);
-
-        assertFalse(accepted);
-        assertEquals(0, runs.get());
-        assertEquals(2L, operations.lastDelayTicks);
-    }
-
-    @Test
-    void schedulerFailureIsReportedAndReturnedAsRejection() {
-        RecordingHandler handler = new RecordingHandler();
-        Logger logger = Logger.getLogger("BukkitChunkLeasePlatformScheduleTest");
-        logger.setUseParentHandlers(false);
-        logger.addHandler(handler);
-        ManualOperations operations = new ManualOperations();
-        IllegalStateException failure = new IllegalStateException("scheduler unavailable");
-        operations.asyncFailure = failure;
-        BukkitChunkLeasePlatform platform = new BukkitChunkLeasePlatform(plugin(logger, true), operations);
-
-        boolean accepted = platform.schedule(() -> {
-        }, 1L);
-
-        assertFalse(accepted);
-        assertSame(failure, handler.lastThrown);
-        logger.removeHandler(handler);
     }
 
     @Test
@@ -214,10 +179,7 @@ class BukkitChunkLeasePlatformTest {
 
     private static final class ManualOperations implements BukkitChunkLeasePlatform.Operations {
         private boolean regionAccepted = true;
-        private boolean asyncAccepted = true;
-        private RuntimeException asyncFailure;
         private int regionRuns;
-        private long lastDelayTicks;
 
         @Override
         public CompletionStage<Chunk> loadChunk(Plugin plugin, World world, int chunkX, int chunkZ) {
@@ -231,18 +193,6 @@ class BukkitChunkLeasePlatformTest {
                 command.run();
             }
             return regionAccepted;
-        }
-
-        @Override
-        public boolean runAsync(Plugin plugin, Runnable command, long delayTicks) {
-            lastDelayTicks = delayTicks;
-            if (asyncFailure != null) {
-                throw asyncFailure;
-            }
-            if (asyncAccepted) {
-                command.run();
-            }
-            return asyncAccepted;
         }
     }
 }

@@ -27,9 +27,7 @@ import art.arcane.wormholes.access.adapters.ReflectiveEnvironment;
 import art.arcane.wormholes.access.adapters.WorldGuardFlags;
 import art.arcane.wormholes.api.traversal.internal.TraversalCostGateway;
 import art.arcane.wormholes.api.traversal.internal.TraversalCostPolicy;
-import art.arcane.wormholes.chunk.BukkitChunkLeasePlatform;
 import art.arcane.wormholes.chunk.BukkitChunkLeaseProvider;
-import art.arcane.optics.plate.ChunkLeaseRegistry;
 import art.arcane.wormholes.chunk.ChunkSendRateTuner;
 import art.arcane.wormholes.chunk.presend.BukkitChunkPreSendProvider;
 import art.arcane.wormholes.config.WormholesSettings;
@@ -45,6 +43,7 @@ import art.arcane.wormholes.network.view.RemoteViewCache;
 import art.arcane.wormholes.network.view.ViewServer;
 import art.arcane.wormholes.network.view.ViewSubscriptionManager;
 import art.arcane.wormholes.papi.WormholesPlaceholders;
+import art.arcane.wormholes.platform.BukkitOpticsScheduler;
 import art.arcane.wormholes.platform.BukkitRegionTaskProvider;
 import art.arcane.wormholes.portal.ArrivalWarmer;
 import art.arcane.wormholes.portal.VanillaTravelCostCapture;
@@ -64,7 +63,6 @@ import art.arcane.wormholes.survival.doors.dimension.PocketWorldService;
 import art.arcane.wormholes.util.J;
 import art.arcane.wormholes.util.common.SplashScreen;
 import io.github.slimjar.app.builder.SpigotApplicationBuilder;
-import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -184,7 +182,8 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
             ));
             this.schedulerRuntime = installSchedulerBridge();
             BukkitRegionTaskProvider.install(this);
-            installChunkLeaseRegistry();
+            BukkitOpticsScheduler opticsScheduler = BukkitOpticsScheduler.install(this);
+            BukkitChunkLeaseProvider.install(this, opticsScheduler);
             BukkitChunkPreSendProvider.install(this);
             ChunkSendRateTuner.install(this);
 
@@ -202,7 +201,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
             portalManager = new PortalManager();
             traversableManager = new TraversableManager();
             projectionChangeTracker = new art.arcane.optics.view.WorldChangeTracker();
-            projectionManager = new ProjectionManager(packetEvents().projectionChunkTracker());
+            projectionManager = new ProjectionManager(packetEvents().projectionChunkTracker(), opticsScheduler);
             arrivalWarmer = new ArrivalWarmer();
             rtpRuntime = new BukkitRtpEnvironment(this, portalManager).createRuntime();
             projectionManager.setRtpProjectionProvider(rtpRuntime);
@@ -347,6 +346,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
             traversalCostGateway = null;
         }
         BukkitRegionTaskProvider.shutdown();
+        BukkitOpticsScheduler.shutdown();
         shutdownProjectionBeforeSchedulers();
         shutdownViewServerBeforeSchedulers();
         shutdownArrivalWarmerBeforeSchedulers();
@@ -730,12 +730,6 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
                 event.setCancelled(true);
             }
         }
-    }
-
-    private void installChunkLeaseRegistry() {
-        ChunkLeaseRegistry.Options options = new ChunkLeaseRegistry.Options(0L, 250L, 3);
-        ChunkLeaseRegistry<World> registry = new ChunkLeaseRegistry<World>(new BukkitChunkLeasePlatform(this), options);
-        BukkitChunkLeaseProvider.install(registry);
     }
 
     private SchedulerRuntime installSchedulerBridge() {
