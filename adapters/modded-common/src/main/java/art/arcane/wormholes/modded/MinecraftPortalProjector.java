@@ -452,9 +452,8 @@ public final class MinecraftPortalProjector implements AutoCloseable {
     private ResampleSchedule.Cadence cadence() {
         ProjectionConfig projection = config();
         RenderConfig render = runtime.configuration().settings().getRender();
-        return new ResampleSchedule.Cadence(Math.clamp(projection.refreshIntervalTicks, 1, 20),
-            Math.clamp(projection.stableCellResampleIntervalTicks, 1, 200), Math.clamp(render.lightingRefreshIntervalTicks, 1, 40),
-            Math.clamp(render.entityUpdateIntervalTicks, 1, 20));
+        return new ResampleSchedule.Cadence(projection.refreshIntervalTicks, projection.stableCellResampleIntervalTicks,
+            render.lightingRefreshIntervalTicks, render.entityUpdateIntervalTicks);
     }
 
     private double projectionDepth() {
@@ -471,7 +470,7 @@ public final class MinecraftPortalProjector implements AutoCloseable {
     private CellScan.ScanSettings scanSettings() {
         ProjectionConfig settings = config();
         return new CellScan.ScanSettings(settings.recursivePortalDepth, settings.occlusionRevealMarginDegrees,
-            settings.aperturePaddingBlocks, false, settings.holdInvisibleClaims, Math.max(0, settings.maxHeldCellsPerPortal),
+            settings.aperturePaddingBlocks, false, settings.holdInvisibleClaims, settings.maxHeldCellsPerPortal,
             settings.finishInSlot);
     }
 

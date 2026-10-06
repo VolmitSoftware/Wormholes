@@ -221,5 +221,11 @@ public final class ResampleSchedule {
 
     public record Cadence(int refreshIntervalTicks, int stableCellResampleIntervalTicks, int lightingRefreshIntervalTicks,
                           int entityUpdateIntervalTicks) {
+        public Cadence {
+            refreshIntervalTicks = Math.clamp(refreshIntervalTicks, 1, 20);
+            stableCellResampleIntervalTicks = Math.clamp(stableCellResampleIntervalTicks, 1, 200);
+            lightingRefreshIntervalTicks = Math.clamp(lightingRefreshIntervalTicks, 1, 40);
+            entityUpdateIntervalTicks = Math.clamp(entityUpdateIntervalTicks, 1, 20);
+        }
     }
 }

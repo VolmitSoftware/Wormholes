@@ -9,7 +9,6 @@ import art.arcane.wormholes.network.WireMessage;
 import java.util.Collection;
 
 import art.arcane.optics.aperture.ObserverGeometry;
-import art.arcane.wormholes.config.ProjectionGazeOptions;
 import art.arcane.wormholes.modded.clientview.MinecraftClientViewService;
 import art.arcane.wormholes.config.toml.ProjectionConfig;
 import art.arcane.optics.claim.ProjectedBlockClaim;
@@ -521,6 +520,10 @@ public final class MinecraftProjectionService implements AutoCloseable {
             origin.x() + 0.5D, origin.y() + 0.5D, origin.z() + 0.5D, pendingScan, false);
     }
 
+    private static GazeScheduler.Options gazeOptions(ProjectionConfig config) {
+        return new GazeScheduler.Options(config.gazeFovDegrees, config.gazeLookaheadTicks, config.gazeMaxStarveTicks);
+    }
+
     private static SectionCache.Limits limits(ProjectionConfig config) {
         return SectionCache.Limits.from(config.sectionCache, config.sectionCacheMaxMb, config.sectionCacheChunksPerTick, config.sectionCacheTtlTicks);
     }
@@ -625,7 +628,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
             Vec3 eye = player.getEyePosition();
             List<MinecraftPortal> selected = gaze.select(player.getUUID(),
                 new GazeScheduler.Eye(eye.x, eye.y, eye.z, player.getYRot(), player.getXRot()),
-                gazeCandidates, budget, tick, ProjectionGazeOptions.from(config()));
+                gazeCandidates, budget, tick, gazeOptions(config()));
             gaze.retain(player.getUUID(), activeIds);
             ProjectionBlockSlices slices = new ProjectionBlockSlices(selected.size());
             int processed = 0;

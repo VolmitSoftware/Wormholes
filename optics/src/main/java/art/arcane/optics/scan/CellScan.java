@@ -2048,6 +2048,12 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
 
     public record ScanSettings(int recursiveDepth, double revealMarginDegrees, double aperturePadding, boolean debug,
                                boolean holdInvisibleClaims, int maxHeldClaims, boolean finishInSlot) {
+        public ScanSettings {
+            recursiveDepth = Math.clamp(recursiveDepth, 3, 64);
+            revealMarginDegrees = Math.clamp(revealMarginDegrees, 0.0D, 15.0D);
+            aperturePadding = Math.clamp(aperturePadding, 0.0D, 8.0D);
+            maxHeldClaims = Math.clamp(maxHeldClaims, 0, 50_000_000);
+        }
     }
 
     public record Context<B, M, W, P extends Endpoint, V extends ContentView<B, M>>(

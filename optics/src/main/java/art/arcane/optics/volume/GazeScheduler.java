@@ -134,6 +134,11 @@ public final class GazeScheduler {
     }
 
     public record Options(double fovDegrees, int lookaheadTicks, int maxStarveTicks) {
+        public Options {
+            fovDegrees = Double.isFinite(fovDegrees) ? Math.clamp(fovDegrees, 30.0D, 170.0D) : 110.0D;
+            lookaheadTicks = Math.clamp(lookaheadTicks, 0, 20);
+            maxStarveTicks = Math.clamp(maxStarveTicks, 1, 200);
+        }
     }
 
     private record Scored<T>(Candidate<T> candidate, double score, int order) {

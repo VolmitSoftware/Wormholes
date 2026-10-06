@@ -404,6 +404,12 @@ public final class FrustumFit {
     }
 
     public record Options(int cellBudget, double nearPlanePadding, double cullingRatio, double aperturePadding) {
+        public Options {
+            cellBudget = Math.clamp(cellBudget, 0, 50_000_000);
+            nearPlanePadding = Math.clamp(nearPlanePadding, 0.0D, 16.0D);
+            cullingRatio = Math.clamp(cullingRatio, 0.0D, 1.0D);
+            aperturePadding = Math.clamp(aperturePadding, 0.0D, 8.0D);
+        }
     }
 
     private record FitSolution(ViewVolume frustum, double axial, double lateral, long candidateWork, boolean coarse) {
