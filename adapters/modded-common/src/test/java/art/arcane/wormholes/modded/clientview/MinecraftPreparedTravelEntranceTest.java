@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.clientview;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftDoorService;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.MinecraftPortalRegistry;
@@ -84,14 +84,14 @@ public class MinecraftPreparedTravelEntranceTest extends MinecraftTestBase {
 
     private MinecraftPortal descriptor() {
         UUID id = UUID.randomUUID();
-        return new MinecraftPortal(new MinecraftPortal.Definition(new Portal.State(id, new Vec3(0.5D, 65, 0.5D),
+        return new MinecraftPortal(new MinecraftPortal.Definition(new Portal.State(id, new Vec3d(0.5D, 65, 0.5D),
             id.toString(), Frame.canonical(Face.N), true), new ApertureCells(), "minecraft:overworld",
             Map.of("type", PortalType.PORTAL.name())));
     }
 
     private PlaneCrossing crossing(MinecraftPortal portal) {
         return new PlaneCrossing(portal.getFrame(), portal.getOrigin(), portal.getOrigin(),
-            new Vec3(0, 0, -0.4D), new Vec3(0, 0, -1), true);
+            new Vec3d(0, 0, -0.4D), new Vec3d(0, 0, -1), true);
     }
 
     private Fixture fixture() {

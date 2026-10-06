@@ -1,6 +1,6 @@
 package art.arcane.optics.entity;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -16,7 +16,7 @@ public final class EntityRenderSpoofRegistryTest {
     @Test
     public void animationTargetsExcludeUnspawnedAndNonLivingEntities() {
         Recorder host = new Recorder();
-        SpoofRegistry<Object, Vec3> registry = new SpoofRegistry<>(host);
+        SpoofRegistry<Object, Vec3d> registry = new SpoofRegistry<>(host);
         UUID source = UUID.randomUUID();
         assertEquals(-1, registry.livingId(source));
         registry.track(source, SpoofedEntity.create(false, false, false));
@@ -31,7 +31,7 @@ public final class EntityRenderSpoofRegistryTest {
     @Test
     public void declaredPassengersWinAndRemovedRelationshipsAreSentOnce() {
         Recorder host = new Recorder();
-        SpoofRegistry<Object, Vec3> registry = new SpoofRegistry<>(host);
+        SpoofRegistry<Object, Vec3d> registry = new SpoofRegistry<>(host);
         UUID vehicle = UUID.randomUUID();
         UUID declared = UUID.randomUUID();
         UUID inferred = UUID.randomUUID();
@@ -62,7 +62,7 @@ public final class EntityRenderSpoofRegistryTest {
     @Test
     public void teardownRetainsUncommittedIdsAndDestroysPlayerLabel() {
         Recorder host = new Recorder();
-        SpoofRegistry<Object, Vec3> registry = new SpoofRegistry<>(host);
+        SpoofRegistry<Object, Vec3d> registry = new SpoofRegistry<>(host);
         UUID source = UUID.randomUUID();
         SpoofedEntity state = SpoofedEntity.create(true, false, true);
         registry.track(source, state);
@@ -82,18 +82,18 @@ public final class EntityRenderSpoofRegistryTest {
     @Test
     public void motionSelectsRelativeRotationTeleportAndRotationOnly() {
         Recorder host = new Recorder();
-        SpoofRegistry<Object, Vec3> registry = new SpoofRegistry<>(host);
+        SpoofRegistry<Object, Vec3d> registry = new SpoofRegistry<>(host);
         SpoofedEntity state = SpoofedEntity.create(false, false, true);
         state.rememberPosition(0.0D, 0.0D, 0.0D);
-        registry.syncMotion(host, state, state.updatePosition(1.0D, 0.0D, 0.0D), true, new Vec3(1, 0, 0), 20, 0, false);
-        registry.syncMotion(host, state, state.updatePosition(20.0D, 0.0D, 0.0D), false, new Vec3(20, 0, 0), 20, 0, false);
-        registry.syncMotion(host, state, state.updatePosition(20.0D, 0.0D, 0.0D), true, new Vec3(20, 0, 0), 30, 0, false);
-        registry.syncMotion(host, state, state.updatePosition(20.0D, 0.0D, 0.0D), false, new Vec3(20, 0, 0), 30, 0, false);
+        registry.syncMotion(host, state, state.updatePosition(1.0D, 0.0D, 0.0D), true, new Vec3d(1, 0, 0), 20, 0, false);
+        registry.syncMotion(host, state, state.updatePosition(20.0D, 0.0D, 0.0D), false, new Vec3d(20, 0, 0), 20, 0, false);
+        registry.syncMotion(host, state, state.updatePosition(20.0D, 0.0D, 0.0D), true, new Vec3d(20, 0, 0), 30, 0, false);
+        registry.syncMotion(host, state, state.updatePosition(20.0D, 0.0D, 0.0D), false, new Vec3d(20, 0, 0), 30, 0, false);
         assertEquals(List.of(SpoofRegistry.MotionKind.RELATIVE_ROTATION,
             SpoofRegistry.MotionKind.TELEPORT, SpoofRegistry.MotionKind.ROTATION), host.motion);
     }
 
-    private static final class Recorder implements SpoofRegistry.Host<Object, Vec3> {
+    private static final class Recorder implements SpoofRegistry.Host<Object, Vec3d> {
         private final List<int[]> passengers = new ArrayList<>();
         private final List<int[]> leashes = new ArrayList<>();
         private final List<int[]> destroyed = new ArrayList<>();
@@ -101,7 +101,7 @@ public final class EntityRenderSpoofRegistryTest {
         private final List<SpoofRegistry.MotionKind> motion = new ArrayList<>();
 
         @Override
-        public void motion(Object observer, SpoofRegistry.Motion<Vec3> value) { motion.add(value.kind()); }
+        public void motion(Object observer, SpoofRegistry.Motion<Vec3d> value) { motion.add(value.kind()); }
         @Override
         public void headLook(Object observer, int entityId, float yaw) { }
         @Override

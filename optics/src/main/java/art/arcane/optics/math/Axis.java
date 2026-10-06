@@ -18,13 +18,13 @@ public enum Axis
 		this.z = z;
 	}
 	
-	public Vec3 positive()
+	public Vec3d positive()
 	{
-		return new Vec3(x, y, z);
+		return new Vec3d(x, y, z);
 	}
 	
-	public Vec3 negative()
+	public Vec3d negative()
 	{
-		return new Vec3(-x, -y, -z);
+		return new Vec3d(-x, -y, -z);
 	}
 }

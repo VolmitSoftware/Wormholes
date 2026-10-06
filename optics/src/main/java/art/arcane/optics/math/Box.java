@@ -52,7 +52,7 @@ public class Box
 		this(region.min(), region.max());
 	}
 
-	public Box(Vec3 min, Vec3 max)
+	public Box(Vec3d min, Vec3d max)
 	{
 		this(new AlignedPoint(min), new AlignedPoint(max));
 	}
@@ -78,9 +78,9 @@ public class Box
 		if (zMax > zb) zb = zMax;
 	}
 
-	public void encapsulate(List<Vec3> b)
+	public void encapsulate(List<Vec3d> b)
 	{
-		for(Vec3 i : b)
+		for(Vec3d i : b)
 		{
 			xa = i.getX() < xa ? i.getX() : xa;
 			ya = i.getY() < ya ? i.getY() : ya;
@@ -98,32 +98,32 @@ public class Box
 	public double getZa() { return za; }
 	public double getZb() { return zb; }
 
-	public Vec3 getCornerVector(Face x, Face y, Face z)
+	public Vec3d getCornerVector(Face x, Face y, Face z)
 	{
 		assert x.getAxis().equals(Axis.X) : " X direction must be on the X axis.";
 		assert y.getAxis().equals(Axis.Y) : " Y direction must be on the Y axis.";
 		assert z.getAxis().equals(Axis.Z) : " Z direction must be on the Z axis.";
-		return new Vec3(x.x() == 1 ? xb : xa, y.y() == 1 ? yb : ya, z.z() == 1 ? zb : za);
+		return new Vec3d(x.x() == 1 ? xb : xa, y.y() == 1 ? yb : ya, z.z() == 1 ? zb : za);
 	}
 
-	public Vec3 random()
+	public Vec3d random()
 	{
-		return new Vec3(M.rand(xa, xb), M.rand(ya, yb), M.rand(za, zb));
+		return new Vec3d(M.rand(xa, xb), M.rand(ya, yb), M.rand(za, zb));
 	}
 
-	public Vec3 center()
+	public Vec3d center()
 	{
-		return new Vec3(xa + (xb - xa) * 0.5D, ya + (yb - ya) * 0.5D, za + (zb - za) * 0.5D);
+		return new Vec3d(xa + (xb - xa) * 0.5D, ya + (yb - ya) * 0.5D, za + (zb - za) * 0.5D);
 	}
 
-	public Vec3 max()
+	public Vec3d max()
 	{
-		return new Vec3(xb, yb, zb);
+		return new Vec3d(xb, yb, zb);
 	}
 
-	public Vec3 min()
+	public Vec3d min()
 	{
-		return new Vec3(xa, ya, za);
+		return new Vec3d(xa, ya, za);
 	}
 
 	public Box getFace(Face d)
@@ -146,7 +146,7 @@ public class Box
 		return this;
 	}
 
-	public boolean contains(Vec3 p)
+	public boolean contains(Vec3d p)
 	{
 		return p.getX() >= xa && p.getX() <= xb && p.getY() >= ya && p.getY() <= yb && p.getZ() >= za && p.getZ() <= zb;
 	}

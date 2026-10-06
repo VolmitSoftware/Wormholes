@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded.client.render;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -22,7 +22,7 @@ final class PortalShaderCamera extends Camera {
 
     PortalShaderCamera(ProjectionEnvironment environment, CameraRenderState display) {
         setEntity(Minecraft.getInstance().getCameraEntity());
-        Vec3 eye = environment.transform().destinationPoint(display.pos.x, display.pos.y, display.pos.z);
+        Vec3d eye = environment.transform().destinationPoint(display.pos.x, display.pos.y, display.pos.z);
         setPosition(eye.x(), eye.y(), eye.z());
         viewRotation = new Matrix4f(display.viewRotationMatrix).mul(PortalProjection.rotation(environment.transform()));
         medium = FogType.valueOf(environment.world().eyeMedium().name());

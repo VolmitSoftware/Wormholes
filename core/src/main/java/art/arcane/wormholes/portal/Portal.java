@@ -1,6 +1,6 @@
 package art.arcane.wormholes.portal;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.math.Face;
 
 import java.util.Objects;
@@ -12,10 +12,10 @@ public abstract class Portal implements IPortal {
     private Frame frame;
     private boolean explicitFrame;
     private UUID id;
-    private Vec3 origin;
+    private Vec3d origin;
     private String name;
 
-    public Portal(UUID id, Vec3 origin) {
+    public Portal(UUID id, Vec3d origin) {
         this.id = Objects.requireNonNull(id, "id");
         this.origin = Objects.requireNonNull(origin, "origin");
         frame = Frame.canonical(Face.N);
@@ -24,7 +24,7 @@ public abstract class Portal implements IPortal {
     }
 
     @Override
-    public Vec3 getOrigin() {
+    public Vec3d getOrigin() {
         return origin;
     }
 
@@ -71,7 +71,7 @@ public abstract class Portal implements IPortal {
         direction = frame.getNormal();
     }
 
-    public record State(UUID id, Vec3 origin, String name, Frame frame, boolean explicitFrame) {
+    public record State(UUID id, Vec3d origin, String name, Frame frame, boolean explicitFrame) {
         public State {
             Objects.requireNonNull(id, "id");
             Objects.requireNonNull(origin, "origin");

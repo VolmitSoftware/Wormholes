@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client.render;
 
 import org.joml.Matrix4f;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import org.joml.Matrix4d;
 import org.joml.Vector3d;
@@ -27,7 +27,7 @@ public class PortalProjectionTest {
                     if (x.getAxis() == y.getAxis() || x.getAxis() == z.getAxis() || y.getAxis() == z.getAxis()) {
                         continue;
                     }
-                    Vec3 translation = new Vec3(30_000_000.5, -50.5, -30_000_000.5);
+                    Vec3d translation = new Vec3d(30_000_000.5, -50.5, -30_000_000.5);
                     ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(x, y, z, translation);
                     Matrix4d matrix = PortalProjection.destinationToSource(transform);
                     assertEquals(matrix.determinant3x3() < 0, transform.reflected());
@@ -36,7 +36,7 @@ public class PortalProjectionTest {
                     assertEquals(direction.x, point.x - translation.x(), 0);
                     assertEquals(direction.y, point.y - translation.y(), 0);
                     assertEquals(direction.z, point.z - translation.z(), 0);
-                    assertEquals(new Vec3(2, 3, 4), transform.destinationPoint(point.x, point.y, point.z));
+                    assertEquals(new Vec3d(2, 3, 4), transform.destinationPoint(point.x, point.y, point.z));
                     if (transform.reflected()) {
                         reflections++;
                     } else {
@@ -52,9 +52,9 @@ public class PortalProjectionTest {
     @Test
     public void nestedDestinationsComposeRotationsTranslationsAndReflectionsInBranchOrder() {
         ProjectionEnvironment.Transform root = new ProjectionEnvironment.Transform(Face.S, Face.U, Face.W,
-            new Vec3(100, 20, -50));
+            new Vec3d(100, 20, -50));
         ProjectionEnvironment.Transform child = new ProjectionEnvironment.Transform(Face.W, Face.U, Face.S,
-            new Vec3(6, 0, 0));
+            new Vec3d(6, 0, 0));
         Matrix4d rootMatrix = PortalProjection.destinationToSource(root);
         Matrix4d composed = new Matrix4d(rootMatrix).mul(PortalProjection.destinationToSource(child));
         Vector3d displayed = composed.transformPosition(new Vector3d(2, 3, 4));
@@ -62,9 +62,9 @@ public class PortalProjectionTest {
         assertEquals(23, displayed.y, 0.000000001);
         assertEquals(-46, displayed.z, 0.000000001);
         assertEquals(-1, composed.determinant3x3(), 0.000000001);
-        Vec3 rootDestination = root.destinationPoint(displayed.x, displayed.y, displayed.z);
-        Vec3 original = child.destinationPoint(rootDestination.x(), rootDestination.y(), rootDestination.z());
-        assertEquals(new Vec3(2, 3, 4), original);
+        Vec3d rootDestination = root.destinationPoint(displayed.x, displayed.y, displayed.z);
+        Vec3d original = child.destinationPoint(rootDestination.x(), rootDestination.y(), rootDestination.z());
+        assertEquals(new Vec3d(2, 3, 4), original);
         assertEquals(1, rootMatrix.determinant3x3(), 0.000000001);
         assertEquals(100, rootMatrix.m30(), 0.000000001);
     }
@@ -126,9 +126,9 @@ public class PortalProjectionTest {
     @Test
     public void nestedMirrorsComposeAtExactHalfBlockPlanes() {
         Matrix4d wall = PortalProjection.destinationToSource(new ProjectionEnvironment.Transform(Face.E, Face.U, Face.N,
-            new Vec3(0, 0, 41)));
+            new Vec3d(0, 0, 41)));
         Matrix4d floor = PortalProjection.destinationToSource(new ProjectionEnvironment.Transform(Face.E, Face.D, Face.S,
-            new Vec3(0, 17, 0)));
+            new Vec3d(0, 17, 0)));
         Vector3d once = wall.transformPosition(new Vector3d(1, 11, 23));
         assertEquals(18.0, once.z, 0.000000001);
         assertEquals(-1.0, wall.determinant3x3(), 0.000000001);

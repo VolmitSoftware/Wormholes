@@ -1,6 +1,6 @@
 package art.arcane.optics.volume;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.aperture.CellAperture;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.math.Box;
@@ -70,7 +70,7 @@ public final class FrustumFit {
 
     public ViewVolume fit(CellAperture structure,
                   Frame frame,
-                  Vec3 eye,
+                  Vec3d eye,
                   double portalDepth,
                   double lateralPadBlocks) {
         double axial = portalDepth;
@@ -164,7 +164,7 @@ public final class FrustumFit {
         return fitRecalculationCount;
     }
 
-    public ViewVolume frustumFor(Vec3 eye, CellAperture structure, double axial, double lateral) {
+    public ViewVolume frustumFor(Vec3d eye, CellAperture structure, double axial, double lateral) {
         long structureRevision = structure.getRevision();
         double nearPlanePadding = options.nearPlanePadding();
         double cullingRatio = options.cullingRatio();
@@ -201,7 +201,7 @@ public final class FrustumFit {
 
     private FitSolution fitWithinCandidateBudget(CellAperture structure,
                                                  Frame frame,
-                                                 Vec3 eye,
+                                                 Vec3d eye,
                                                  double axial,
                                                  double lateralCeiling,
                                                  int budget) {
@@ -227,7 +227,7 @@ public final class FrustumFit {
 
     private FitSolution fitLateralWithinBudget(CellAperture structure,
                                                Frame frame,
-                                               Vec3 eye,
+                                               Vec3d eye,
                                                double axial,
                                                double lateralCeiling,
                                                int budget,
@@ -254,7 +254,7 @@ public final class FrustumFit {
 
     private FitSolution fitAxialWithinBudget(CellAperture structure,
                                              Frame frame,
-                                             Vec3 eye,
+                                             Vec3d eye,
                                              double axialCeiling,
                                              int budget) {
         double low = 0.0D;
@@ -284,7 +284,7 @@ public final class FrustumFit {
 
     public long estimateCandidateWork(CellAperture structure,
                                Frame frame,
-                               Vec3 eye,
+                               Vec3d eye,
                                ViewVolume frustum,
                                double depthBlocks,
                                long limit) {
@@ -298,7 +298,7 @@ public final class FrustumFit {
         axisMax[1] = ProjectorFrameTransform.maxBlockForCenter(region.getYb());
         axisMax[2] = ProjectorFrameTransform.maxBlockForCenter(region.getZb());
 
-        Vec3 center = structure.getArea().center();
+        Vec3d center = structure.getArea().center();
         double originX = center.getX();
         double originY = center.getY();
         double originZ = center.getZ();

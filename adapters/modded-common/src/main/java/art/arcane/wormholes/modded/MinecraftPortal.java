@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.network.PortalSettingsTarget;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.ExactItemPayment;
 import art.arcane.wormholes.config.toml.RulesConfig;

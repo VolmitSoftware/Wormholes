@@ -1,6 +1,6 @@
 package art.arcane.wormholes.door.view;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 
 import art.arcane.volmlib.util.inventorygui.Window;
 import art.arcane.volmlib.util.json.JSONObject;
@@ -60,7 +60,7 @@ public abstract class AbstractApertureFacade implements ILocalPortal {
     public abstract Frame getFrame();
 
     @Override
-    public abstract Vec3 getOrigin();
+    public abstract Vec3d getOrigin();
 
     @Override
     public abstract org.bukkit.World getWorld();
@@ -79,8 +79,8 @@ public abstract class AbstractApertureFacade implements ILocalPortal {
         double range = getEffectiveActivationRange();
         Box area = getStructure().getArea();
         return new Box(
-            area.min().add(new Vec3(-range, -range, -range)),
-            area.max().add(new Vec3(range, range, range)));
+            area.min().add(new Vec3d(-range, -range, -range)),
+            area.max().add(new Vec3d(range, range, range)));
     }
 
     @Override
@@ -90,7 +90,7 @@ public abstract class AbstractApertureFacade implements ILocalPortal {
 
     @Override
     public Location getCenter() {
-        Vec3 origin = getOrigin();
+        Vec3d origin = getOrigin();
         return new Location(getWorld(), origin.getX(), origin.getY(), origin.getZ());
     }
 

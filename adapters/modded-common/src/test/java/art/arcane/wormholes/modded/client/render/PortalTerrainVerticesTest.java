@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client.render;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.math.Face;
 import com.mojang.blaze3d.vertex.BufferBuilder;
@@ -45,7 +45,7 @@ public class PortalTerrainVerticesTest extends MinecraftTestBase {
         for (Face[] axes : new Face[][] {{Face.E, Face.U, Face.S}, {Face.W, Face.U, Face.S},
             {Face.U, Face.W, Face.S}}) {
             ProjectionEnvironment.Transform mapping = new ProjectionEnvironment.Transform(axes[0], axes[1], axes[2],
-                new Vec3(100.25, -31.5, 203.75));
+                new Vec3d(100.25, -31.5, 203.75));
             PortalVertexTransform transform = new PortalVertexTransform(mapping);
             try (ByteBufferBuilder base = new ByteBufferBuilder(512); ByteBufferBuilder extended = new ByteBufferBuilder(512)) {
                 BufferBuilder builder = new BufferBuilder(base, PrimitiveTopology.QUADS, DefaultVertexFormat.BLOCK);
@@ -140,7 +140,7 @@ public class PortalTerrainVerticesTest extends MinecraftTestBase {
         for (Face[] axes : new Face[][] {{Face.E, Face.U, Face.S}, {Face.W, Face.U, Face.S},
             {Face.S, Face.U, Face.W}}) {
             ProjectionEnvironment.Transform mapping = new ProjectionEnvironment.Transform(axes[0], axes[1], axes[2],
-                new Vec3(0, 0, 0));
+                new Vec3d(0, 0, 0));
             PortalVertexTransform transform = new PortalVertexTransform(mapping);
             try (ByteBufferBuilder base = new ByteBufferBuilder(512); ByteBufferBuilder extended = new ByteBufferBuilder(512)) {
                 BufferBuilder builder = new BufferBuilder(base, PrimitiveTopology.QUADS, DefaultVertexFormat.BLOCK);

@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.optics.aperture.Aperture;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 
@@ -22,7 +22,7 @@ public final class Frustum4DCullingTest {
         double previousRatio = cullingRatio;
         cullingRatio = 0.2D;
         try {
-            ViewVolume frustum = new ViewVolume(new Vec3( 1.5D, 1.5D, 0.0D), new TestStructure(), new ViewVolume.Options(16.0D, 16.0D, nearPadding, cullingRatio, aperturePadding));
+            ViewVolume frustum = new ViewVolume(new Vec3d( 1.5D, 1.5D, 0.0D), new TestStructure(), new ViewVolume.Options(16.0D, 16.0D, nearPadding, cullingRatio, aperturePadding));
 
             assertEquals(1, frustum.getFaceCount());
         } finally {
@@ -35,7 +35,7 @@ public final class Frustum4DCullingTest {
         double previousRatio = cullingRatio;
         cullingRatio = 0.2D;
         try {
-            ViewVolume frustum = new ViewVolume(new Vec3( 8.0D, 1.5D, 0.0D), new TestStructure(), new ViewVolume.Options(16.0D, 16.0D, nearPadding, cullingRatio, aperturePadding));
+            ViewVolume frustum = new ViewVolume(new Vec3d( 8.0D, 1.5D, 0.0D), new TestStructure(), new ViewVolume.Options(16.0D, 16.0D, nearPadding, cullingRatio, aperturePadding));
 
             assertEquals(2, frustum.getFaceCount());
         } finally {
@@ -50,8 +50,8 @@ public final class Frustum4DCullingTest {
         }
 
         @Override
-        public Vec3 getApertureCenter() {
-            return new Vec3( 1.5D, 1.5D, 5.0D);
+        public Vec3d getApertureCenter() {
+            return new Vec3d( 1.5D, 1.5D, 5.0D);
         }
 
         @Override

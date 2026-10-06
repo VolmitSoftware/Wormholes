@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.nexus.DestinationEntry;
 import art.arcane.wormholes.nexus.DestinationMode;
 import art.arcane.wormholes.nexus.DestinationPolicy;
@@ -120,7 +121,7 @@ public final class MinecraftNexusGameTest {
                 runtime.nexus().policy(actor.player(), destination, new DestinationPolicy(DestinationMode.RETURN,
                     List.of(new DestinationEntry(DestinationEntry.TargetKind.LOCAL, source.getId().toString(), 1, 0, 0, "")), SelectionRule.ROUND_ROBIN));
                 PlaneCrossing crossing = new PlaneCrossing(destination.getFrame(), destination.getOrigin(), destination.getOrigin(),
-                    new art.arcane.optics.math.Vec3(0, 0, 0), new art.arcane.optics.math.Vec3(0, 0, 1), true);
+                    new Vec3d(0, 0, 0), new Vec3d(0, 0, 1), true);
                 NetworkMember returned = runtime.nexus().destination(destination, traveler, crossing);
                 assertThat(returned != null && returned.portalId().equals(source.getId()), "Return address did not retain actual source");
                 runtime.nexus().wire(actor.player(), source, new FrameIo(0, -2, 0, FrameIo.RedstoneAction.LOCK, FrameIo.ComparatorOutput.NONE));

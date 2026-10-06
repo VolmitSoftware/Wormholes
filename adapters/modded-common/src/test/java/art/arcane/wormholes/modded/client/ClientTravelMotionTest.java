@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.math.Face;
 import net.minecraft.world.phys.Vec3;
@@ -12,7 +13,7 @@ public class ClientTravelMotionTest {
     @Test
     public void continuousPositionsHistoryAndVelocityUseTheSameInverseTransform() {
         ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(Face.S, Face.U, Face.W,
-            new art.arcane.optics.math.Vec3(100, 20, 200));
+            new Vec3d(100, 20, 200));
         ClientTravelMotion source = motion(30, 28);
         ClientTravelMotion destination = source.transform(transform);
         assertEquals(new Vec3(6, 3, -2), destination.position());
@@ -31,7 +32,7 @@ public class ClientTravelMotionTest {
         assertEquals(181, identity.rotation().yaw(), 0.00001);
         assertEquals(179, identity.previousRotation().yaw(), 0.00001);
         ClientTravelMotion rotated = source.transform(new ProjectionEnvironment.Transform(Face.S, Face.U, Face.W,
-            new art.arcane.optics.math.Vec3(0, 0, 0)));
+            new Vec3d(0, 0, 0)));
         assertEquals(2, rotated.rotation().yaw() - rotated.previousRotation().yaw(), 0.0001);
         assertEquals(2, rotated.bodyYaw() - rotated.previousBodyYaw(), 0.0001);
         assertEquals(2, rotated.headYaw() - rotated.previousHeadYaw(), 0.0001);

@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.network.NetworkManager;
 import art.arcane.wormholes.network.RemotePortalRegistry;
 import art.arcane.wormholes.portal.Portal;
@@ -79,7 +79,7 @@ public class MinecraftWormholesApiTest {
 
     private static MinecraftPortal portal(String name) {
         ApertureCells geometry = new ApertureCells();
-        geometry.setBlocks(List.of(new Vec3(0, 64, 0), new Vec3(0, 65, 0)));
+        geometry.setBlocks(List.of(new Vec3d(0, 64, 0), new Vec3d(0, 65, 0)));
         return new MinecraftPortal(new MinecraftPortal.Definition(new Portal.State(UUID.randomUUID(), geometry.getApertureCenter(), name,
             Frame.canonical(Face.N), true), geometry, "minecraft:overworld", Map.of("type", "PORTAL", "owner", UUID.randomUUID().toString())));
     }

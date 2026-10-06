@@ -55,7 +55,7 @@ import art.arcane.wormholes.render.view.ProjectionWorldViewProvider;
 import art.arcane.wormholes.render.view.RemoteWorldView;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 
 import art.arcane.wormholes.portal.ProjectorViewSettings;
 import art.arcane.optics.claim.ProjectedBlockClaim;
@@ -1191,7 +1191,7 @@ public final class PortalProjector {
             return;
         }
         endSurfaceClaims.clear();
-        for (Vec3 cell : portal.getStructure().geometry().getBlockPositions()) {
+        for (Vec3d cell : portal.getStructure().geometry().getBlockPositions()) {
             int x = cell.getBlockX();
             int y = cell.getBlockY();
             int z = cell.getBlockZ();

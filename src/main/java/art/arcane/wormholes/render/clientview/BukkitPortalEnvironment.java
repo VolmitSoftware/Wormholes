@@ -3,7 +3,7 @@ package art.arcane.wormholes.render.clientview;
 import art.arcane.volmlib.nativelib.NativeAdapters;
 import art.arcane.volmlib.nativelib.environment.WorldEnvironment;
 import art.arcane.volmlib.nativelib.environment.WorldEnvironmentAccess;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import org.bukkit.World;
 import org.bukkit.block.Block;
@@ -14,7 +14,7 @@ public final class BukkitPortalEnvironment {
     private BukkitPortalEnvironment() {
     }
 
-    public static ProjectionEnvironment capture(World world, Vec3 eye, ProjectionEnvironment.Transform transform) {
+    public static ProjectionEnvironment capture(World world, Vec3d eye, ProjectionEnvironment.Transform transform) {
         WorldEnvironmentAccess current = access;
         if (current == null) {
             current = NativeAdapters.require(WorldEnvironmentAccess.class);

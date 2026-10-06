@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.plate.ChunkLease;
 import art.arcane.wormholes.config.toml.MainConfig;
 import art.arcane.wormholes.config.toml.PocketsConfig;
@@ -1172,7 +1173,7 @@ public final class MinecraftDoorService implements AutoCloseable {
             if (entity instanceof ServerPlayer player && arrival.context().isPresent()) {
                 preparedCommit = runtime.clientViews().commitTravel(player, arrival.context().get().portalId(), arrival.level(),
                     new ClientViewMessage.TravelPose(arrival.point().x(), arrival.point().y(), arrival.point().z(), arrival.yaw(), arrival.pitch()),
-                    new art.arcane.optics.math.Vec3(arrival.velocity().x(), arrival.velocity().y(), arrival.velocity().z()));
+                    new Vec3d(arrival.velocity().x(), arrival.velocity().y(), arrival.velocity().z()));
                 if (prepared != null && preparedCommit == null) {
                     runtime.clientViews().cancelPreparation(player, prepared);
                     return false;
@@ -1423,7 +1424,7 @@ public final class MinecraftDoorService implements AutoCloseable {
                 }
                 DoorVec3 center = mate.plane().center();
                 return Optional.of(new ProjectionDestination(endpoint.identity().itemId(), mate.level(),
-                    new art.arcane.optics.math.Vec3(center.x(), center.y(), center.z()), DoorApertureFrames.destinationFrame(source.plane(), mate.plane())));
+                    new Vec3d(center.x(), center.y(), center.z()), DoorApertureFrames.destinationFrame(source.plane(), mate.plane())));
             });
             case PERSONAL, PUBLIC -> pocketView(source, observerId);
             case RETURN -> state.getReturnTicket(observerId).flatMap(ticket -> {
@@ -1450,7 +1451,7 @@ public final class MinecraftDoorService implements AutoCloseable {
                 double yaw = Math.toRadians(ticket.yaw());
                 Face direction = Face.closest(-Math.sin(yaw), 0, Math.cos(yaw)).reverse();
                 return Optional.of(new ProjectionDestination(ticket.sourceEndpointId(), destination,
-                    new art.arcane.optics.math.Vec3(ticket.x(), ticket.y() + 1.0D, ticket.z()), Frame.fromNormalUp(direction, Face.U)));
+                    new Vec3d(ticket.x(), ticket.y() + 1.0D, ticket.z()), Frame.fromNormalUp(direction, Face.U)));
             });
         };
     }
@@ -1520,7 +1521,7 @@ public final class MinecraftDoorService implements AutoCloseable {
         }
         DoorVec3 center = target.plane().center();
         return Optional.of(new ProjectionDestination(endpoint.identity().itemId(), target.level(),
-            new art.arcane.optics.math.Vec3(center.x(), center.y(), center.z()), DoorApertureFrames.destinationFrame(source.plane(), target.plane())));
+            new Vec3d(center.x(), center.y(), center.z()), DoorApertureFrames.destinationFrame(source.plane(), target.plane())));
     }
 
     private Optional<ProjectionDestination> pocketView(DoorView source, UUID observerId) {
@@ -1622,7 +1623,7 @@ public final class MinecraftDoorService implements AutoCloseable {
     public record DoorView(PlacedDoorEndpoint endpoint, ServerLevel level, DoorwayPlane plane, boolean active) {
     }
 
-    public record ProjectionDestination(UUID id, ServerLevel level, art.arcane.optics.math.Vec3 origin, Frame frame) {
+    public record ProjectionDestination(UUID id, ServerLevel level, Vec3d origin, Frame frame) {
     }
 
     public PocketSpace spaceAt(ServerLevel level, BlockPos block) {

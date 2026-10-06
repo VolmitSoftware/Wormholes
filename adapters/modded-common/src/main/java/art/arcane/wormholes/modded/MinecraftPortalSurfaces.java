@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.portal.AmbientOutlineGeometry;
 import art.arcane.wormholes.portal.AmbientSparkCadence;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
@@ -78,13 +79,13 @@ final class MinecraftPortalSurfaces implements AutoCloseable {
         Vec3 eye = player.getEyePosition();
         Vec3 look = player.getLookAngle();
         for (MinecraftPortal portal : runtime.portals().snapshot()) {
-            art.arcane.optics.math.Vec3 center = portal.getGeometry().getApertureCenter();
+            Vec3d center = portal.getGeometry().getApertureCenter();
             if (clearing && portal.getSurfaceSkin().isEmpty() || runtime.portals().resolveLevel(portal) != player.level()
                 || player.position().distanceToSqr(center.x(), center.y(), center.z()) >= 64) {
                 continue;
             }
             for (double distance = 0; distance < 16; distance += 0.25) {
-                if (portal.getGeometry().contains(new art.arcane.optics.math.Vec3(eye.x + look.x * distance, eye.y + look.y * distance, eye.z + look.z * distance))) {
+                if (portal.getGeometry().contains(new Vec3d(eye.x + look.x * distance, eye.y + look.y * distance, eye.z + look.z * distance))) {
                     return runtime.menus().cosmetics().applySurfaceSkinFromInteraction(player, portal, skin);
                 }
             }
@@ -121,7 +122,7 @@ final class MinecraftPortalSurfaces implements AutoCloseable {
             }
             if (!surface.fluid.isEmpty()) {
                 Face normal = portal.getDirection();
-                art.arcane.optics.math.Vec3 origin = portal.getOrigin();
+                Vec3d origin = portal.getOrigin();
                 Vec3 eye = player.getEyePosition();
                 double distance = Math.abs((eye.x - origin.x()) * normal.x() + (eye.y - origin.y()) * normal.y() + (eye.z - origin.z()) * normal.z());
                 context.claims().stagePortalClaims(surface.owner, surface.owner.toString(), distance, surface.fluid, context.staged());
@@ -146,7 +147,7 @@ final class MinecraftPortalSurfaces implements AutoCloseable {
             throw new IllegalArgumentException("Invalid skin on portal " + portal.getId(), failure);
         }
         if (PortalSurfaceSkins.isFluid(portal.getSurfaceSkin()) || surface.withholdsDisplays) {
-            for (art.arcane.optics.math.Vec3 cell : portal.getGeometry().getBlockPositions()) {
+            for (Vec3d cell : portal.getGeometry().getBlockPositions()) {
                 surface.fluid.put(CellKeys.pack(cell.getBlockX(), cell.getBlockY(), cell.getBlockZ()),
                     new ProjectedBlockClaim<>(block, null, ProjectedBlockClaim.NO_REMOTE_KEY, false));
             }
@@ -213,7 +214,7 @@ final class MinecraftPortalSurfaces implements AutoCloseable {
         if (count == 0) {
             return;
         }
-        art.arcane.optics.math.Vec3 cell = portal.getGeometry().randomCellCentre();
+        Vec3d cell = portal.getGeometry().randomCellCentre();
         if (cell == null) {
             return;
         }

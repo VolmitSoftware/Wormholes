@@ -1,7 +1,7 @@
 package art.arcane.wormholes.render;
 
 import org.bukkit.block.data.BlockData;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -582,10 +582,10 @@ public final class ProjectedEntityRenderer {
         }
 
         boolean mirror = remotePortal == localPortal;
-        Vec3 localOrigin = localPortal.getOrigin();
-        Vec3 remoteOrigin = remotePortal.getOrigin();
+        Vec3d localOrigin = localPortal.getOrigin();
+        Vec3d remoteOrigin = remotePortal.getOrigin();
         Frame mirrorPlaneFrame = mirror ? localPortal.getFrame() : null;
-        Vec3 mirrorPlaneOrigin = mirror ? localOrigin : null;
+        Vec3d mirrorPlaneOrigin = mirror ? localOrigin : null;
 
         WormholesPlatform.entityPosition(entity, scratchEntityPosition);
         double entityX = scratchEntityPosition[0];

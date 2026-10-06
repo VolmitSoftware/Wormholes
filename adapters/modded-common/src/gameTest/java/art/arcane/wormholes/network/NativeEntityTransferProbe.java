@@ -1,5 +1,6 @@
 package art.arcane.wormholes.network;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.nexus.NetworkMember;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import art.arcane.wormholes.modded.MinecraftGameTestPlayer;
@@ -66,7 +67,7 @@ public final class NativeEntityTransferProbe {
             exit = portal(12);
             source.linkRemote("destination", exit.getId());
             crossing = new PlaneCrossing(source.getFrame(), source.getOrigin(), source.getOrigin(),
-                new art.arcane.optics.math.Vec3(0, 0, 0.1D), new art.arcane.optics.math.Vec3(0, 0, -1), true);
+                new Vec3d(0, 0, 0.1D), new Vec3d(0, 0, -1), true);
             network = new ProbeNetwork(directory);
             transfers = new MinecraftEntityTransfers(runtime, network);
             pig = pig("EntityTransferSource");
@@ -111,7 +112,7 @@ public final class NativeEntityTransferProbe {
                 List<Entity> arrivals = named("EntityTransferArrival");
                 assertThat(arrivals.size() == 1, "Destination did not spawn exactly one native entity");
                 created.addAll(arrivals);
-                art.arcane.optics.math.Vec3 target = crossing.outPoint(exit.getFrame(), exit.getOrigin());
+                Vec3d target = crossing.outPoint(exit.getFrame(), exit.getOrigin());
                 assertThat(arrivals.getFirst().position().distanceToSqr(target.x(), target.y(), target.z()) < 4,
                     "Destination entity was not placed at its exit");
                 transfers.receive("source", entityOffer);

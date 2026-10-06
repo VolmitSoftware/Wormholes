@@ -2,7 +2,7 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.wormholes.network.client.ClientViewMessage;
@@ -314,13 +314,13 @@ public class ClientLocalMeshSourcesTest extends MinecraftTestBase {
         fixture.session.handle(new ClientViewMessage.Portal(1, 2, geometry), fixture.sink);
         fixture.session.handle(new ClientViewMessage.MeshBegin(1, 2, MeshPlan.bounds(geometry), MeshPlan.capacity(geometry)), fixture.sink);
         fixture.session.handle(new ClientViewMessage.Environment(1, PortalEnvironmentTest.environment(PortalEnvironmentTest.identity())), fixture.sink);
-        Vec3 firstEye = new Vec3(0.5, 0.5, 5);
+        Vec3d firstEye = new Vec3d(0.5, 0.5, 5);
         fixture.sources.update(fixture.session, fixture.level, firstEye.x(), firstEye.y(), firstEye.z());
         List<Long> first = selection(fixture);
         assertEquals(selected(geometry, firstEye), first);
         assertTrue(first.size() < MeshPlan.capacity(geometry));
 
-        Vec3 moved = new Vec3(48, 20, 16);
+        Vec3d moved = new Vec3d(48, 20, 16);
         for (int tick = 0; tick < 8; tick++) {
             fixture.sources.update(fixture.session, fixture.level, moved.x(), moved.y(), moved.z());
         }
@@ -329,7 +329,7 @@ public class ClientLocalMeshSourcesTest extends MinecraftTestBase {
         assertNotEquals(first, next);
     }
 
-    private static List<Long> selected(ApertureDescriptor geometry, Vec3 eye) {
+    private static List<Long> selected(ApertureDescriptor geometry, Vec3d eye) {
         List<Long> result = new ArrayList<>();
         for (MeshPlan.Section section : MeshPlan.visible(geometry, eye)) {
             result.add(SectionPos.asLong(section.x(), section.y(), section.z()));
@@ -379,7 +379,7 @@ public class ClientLocalMeshSourcesTest extends MinecraftTestBase {
         Fixture fixture = new Fixture();
         fixture.marker.set(Blocks.DIRT.defaultBlockState());
         ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(Face.S, Face.U, Face.E,
-            new Vec3(4, 0, 6));
+            new Vec3d(4, 0, 6));
         fixture.session.handle(new ClientViewMessage.Environment(1, PortalEnvironmentTest.environment(transform)), fixture.sink);
         fixture.awaitSection();
         ClientMeshSections.Section original = fixture.session.meshes().view(1).section(0L);

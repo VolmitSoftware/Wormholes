@@ -11,7 +11,7 @@ import art.arcane.optics.aperture.ApertureDescriptor;
 import org.bukkit.plugin.Plugin;
 import art.arcane.optics.plate.ChunkLeasePlatform;
 import art.arcane.optics.plate.ChunkLeaseRegistry;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import org.bukkit.World;
 import org.junit.jupiter.api.Test;
@@ -104,14 +104,14 @@ class BukkitPreparedTravelLifecycleTest {
         AtomicBoolean live = (AtomicBoolean) liveField.get(successor);
         ClientViewMessage.TravelPose pose = new ClientViewMessage.TravelPose(0, 64, 0, 0, 0);
         manager.complete(player, new ClientViewMessage.TravelCommit(UUID.randomUUID(), 6L, 1L,
-            "minecraft:overworld", "minecraft:the_nether", pose, new Vec3(0, 0, 0)));
+            "minecraft:overworld", "minecraft:the_nether", pose, new Vec3d(0, 0, 0)));
         manager.complete(player, new ClientViewMessage.TravelCommit(token, 6L, 1L,
-            "minecraft:overworld", "minecraft:the_nether", pose, new Vec3(0, 0, 0)));
+            "minecraft:overworld", "minecraft:the_nether", pose, new Vec3d(0, 0, 0)));
         manager.complete(player, null);
         assertSame(successor, preparations.get(player));
         assertTrue(live.get());
         manager.complete(player, new ClientViewMessage.TravelCommit(token, 7L, 1L,
-            "minecraft:overworld", "minecraft:the_nether", pose, new Vec3(0, 0, 0)));
+            "minecraft:overworld", "minecraft:the_nether", pose, new Vec3d(0, 0, 0)));
         assertTrue(preparations.isEmpty());
         assertFalse(live.get());
         manager.close();
@@ -166,12 +166,12 @@ class BukkitPreparedTravelLifecycleTest {
 
     private static AutoCloseable preparation(World world) throws ReflectiveOperationException {
         Class<?> optionsType = Class.forName(BukkitPreparedTravel.class.getName() + "$PreparationOptions");
-        Constructor<?> optionsConstructor = optionsType.getDeclaredConstructor(ApertureDescriptor.class, ProjectionEnvironment.Transform.class, UUID.class, UUID.class, World.class, Vec3.class,
+        Constructor<?> optionsConstructor = optionsType.getDeclaredConstructor(ApertureDescriptor.class, ProjectionEnvironment.Transform.class, UUID.class, UUID.class, World.class, Vec3d.class,
             ClientViewMessage.TravelPose.class, double.class, String.class, long.class);
         optionsConstructor.setAccessible(true);
         ApertureDescriptor geometry = new ApertureDescriptor(0, 64, 0, 0, true, 0, false, 1, 1, new long[]{1},
             0, 0, 1, 64, 0, 0, 0, 0, 0, 0, ApertureDescriptor.KIND_FRAME, 0.0D, 0, 1, List.of());
-        Object options = optionsConstructor.newInstance(geometry, ProjectionEnvironment.Transform.IDENTITY, UUID.randomUUID(), UUID.randomUUID(), world, new Vec3(0, 64, 0),
+        Object options = optionsConstructor.newInstance(geometry, ProjectionEnvironment.Transform.IDENTITY, UUID.randomUUID(), UUID.randomUUID(), world, new Vec3d(0, 64, 0),
             new ClientViewMessage.TravelPose(0, 64, 0, 0, 0), 1.62D, "minecraft:overworld", 1L);
         Class<?> preparationType = Class.forName(BukkitPreparedTravel.class.getName() + "$Preparation");
         Constructor<?> constructor = preparationType.getDeclaredConstructor(optionsType);

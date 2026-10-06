@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.config.toml.MainConfig;
 import art.arcane.wormholes.config.toml.NetworkConfig;
@@ -135,7 +136,7 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
         UUID targetId = UUID.randomUUID();
         when(target.getId()).thenReturn(targetId);
         when(target.getFrame()).thenReturn(Frame.canonical(Face.S));
-        when(target.getOrigin()).thenReturn(new art.arcane.optics.math.Vec3(11.0D, 65.0D, 0.0D));
+        when(target.getOrigin()).thenReturn(new Vec3d(11.0D, 65.0D, 0.0D));
         when(target.frame()).thenCallRealMethod();
         when(target.origin()).thenCallRealMethod();
         when(target.id()).thenCallRealMethod();
@@ -520,7 +521,7 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
         when(portal.getId()).thenReturn(UUID.randomUUID());
         when(portal.getGeometry()).thenReturn(geometry);
         when(portal.getFrame()).thenReturn(Frame.canonical(Face.S));
-        when(portal.getOrigin()).thenReturn(new art.arcane.optics.math.Vec3(x + 1.0D, 65.0D, 0.0D));
+        when(portal.getOrigin()).thenReturn(new Vec3d(x + 1.0D, 65.0D, 0.0D));
         when(portal.frame()).thenCallRealMethod();
         when(portal.origin()).thenCallRealMethod();
         when(portal.id()).thenCallRealMethod();

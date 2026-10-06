@@ -1,6 +1,6 @@
 package art.arcane.optics.volume;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -36,7 +36,7 @@ public final class Frustum {
     private final double zRange;
     private final boolean finiteGeometry;
 
-    public Frustum(Vec3 apex,
+    public Frustum(Vec3d apex,
                    Box apertureFace,
                    Face cubeFace,
                    Axis portalNormalAxis,
@@ -50,7 +50,7 @@ public final class Frustum {
         this.xRange = depthAxis == Axis.X ? axialRange : lateralRange;
         this.yRange = depthAxis == Axis.Y ? axialRange : lateralRange;
         this.zRange = depthAxis == Axis.Z ? axialRange : lateralRange;
-        Vec3 faceCenter = face.center();
+        Vec3d faceCenter = face.center();
         this.planeCoordinate = axisValue(faceCenter.x(), faceCenter.y(), faceCenter.z(), normalAxis);
         this.faceXa = face.getXa();
         this.faceXb = face.getXb();
@@ -149,7 +149,7 @@ public final class Frustum {
             && Double.isFinite(faceZa) && Double.isFinite(faceZb);
     }
 
-    public boolean contains(Vec3 v) {
+    public boolean contains(Vec3d v) {
         return containsPrimitive(v.getX(), v.getY(), v.getZ());
     }
 

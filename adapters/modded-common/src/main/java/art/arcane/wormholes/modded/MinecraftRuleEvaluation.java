@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.rules.Condition;
 import art.arcane.wormholes.rules.ItemMatcher;
 import art.arcane.wormholes.rules.RuleEvaluation;
@@ -92,7 +92,7 @@ public final class MinecraftRuleEvaluation implements RuleEvaluation {
 
     @Override
     public boolean redstonePowered(int dx, int dy, int dz) {
-        Vec3 center = options.portal().getGeometry().getArea().center();
+        Vec3d center = options.portal().getGeometry().getArea().center();
         BlockPos position = BlockPos.containing(center.x() + dx, center.y() + dy, center.z() + dz);
         return options.level().hasNeighborSignal(position);
     }

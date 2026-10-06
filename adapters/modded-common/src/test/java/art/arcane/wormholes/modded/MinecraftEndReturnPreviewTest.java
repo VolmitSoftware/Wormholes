@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.mixin.ServerPlayerRespawnInvoker;
 import art.arcane.wormholes.modded.mixin.EndRespawnPositionAccessor;
 import org.mockito.invocation.InvocationOnMock;
@@ -65,7 +66,7 @@ public class MinecraftEndReturnPreviewTest extends MinecraftTestBase {
             MinecraftEndReturnPreview previews = new MinecraftEndReturnPreview(runtime);
             MinecraftPortal destination = previews.destination(observer, exit);
             assertEquals("minecraft:the_nether", destination.getWorldKey());
-            assertEquals(new art.arcane.optics.math.Vec3(65.5, 70, 64.5), destination.getOrigin());
+            assertEquals(new Vec3d(65.5, 70, 64.5), destination.getOrigin());
             when(server.getTickCount()).thenReturn(20);
             assertSame(destination, previews.destination(observer, exit));
             anchors.verify(() -> RespawnAnchorBlock.findStandUpPosition(EntityTypes.PLAYER, target, first.respawnData().pos()), times(1));
@@ -80,7 +81,7 @@ public class MinecraftEndReturnPreviewTest extends MinecraftTestBase {
             MinecraftPortal replacement = previews.destination(observer, exit);
             assertNotSame(destination, replacement);
             assertEquals(destination.getId(), replacement.getId());
-            assertEquals(new art.arcane.optics.math.Vec3(80.5, 70, 80.5), replacement.getOrigin());
+            assertEquals(new Vec3d(80.5, 70, 80.5), replacement.getOrigin());
             anchors.verify(() -> RespawnAnchorBlock.findStandUpPosition(EntityTypes.PLAYER, target, changed.respawnData().pos()));
             verify(target, never()).setBlockAndUpdate(any(), any());
         }
@@ -129,7 +130,7 @@ public class MinecraftEndReturnPreviewTest extends MinecraftTestBase {
             assertNull(previews.destination(observer, exit));
             when(server.getTickCount()).thenReturn(20);
             MinecraftPortal destination = previews.destination(observer, exit);
-            assertEquals(new art.arcane.optics.math.Vec3(0.5, 64, 0.5), destination.getOrigin());
+            assertEquals(new Vec3d(0.5, 64, 0.5), destination.getOrigin());
             when(fallback.hasChunk(anyInt(), anyInt())).thenReturn(false);
             when(server.getTickCount()).thenReturn(40);
             assertSame(destination, previews.destination(observer, exit));

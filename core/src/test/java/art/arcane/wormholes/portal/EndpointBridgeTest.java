@@ -1,7 +1,7 @@
 package art.arcane.wormholes.portal;
 
 import art.arcane.optics.aperture.Endpoint;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.math.Face;
 import org.junit.jupiter.api.Test;
 
@@ -63,8 +63,8 @@ final class EndpointBridgeTest {
         }
 
         @Override
-        public Vec3 getOrigin() {
-            return new Vec3(0, 64, 0);
+        public Vec3d getOrigin() {
+            return new Vec3d(0, 64, 0);
         }
     }
 }

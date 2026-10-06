@@ -1,5 +1,6 @@
 package art.arcane.wormholes.portal.rtp;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.api.traversal.TraversalKind;
 import art.arcane.wormholes.api.traversal.TraversalRefundReason;
 import art.arcane.wormholes.chunk.presend.ChunkPreSendTicket;
@@ -323,11 +324,11 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
     private MinecraftPortal descriptor(MinecraftPortal source, RtpProjectionView.ReadyData ready) {
         Frame frame = RtpProjectionGeometry.targetFrameFor(source.getFrame());
         RtpProjectionView.Point3 point = ready.target().safeFeet();
-        art.arcane.optics.math.Vec3 origin = new art.arcane.optics.math.Vec3(point.x(), point.y(), point.z());
+        Vec3d origin = new Vec3d(point.x(), point.y(), point.z());
         ApertureCells geometry = new ApertureCells();
-        List<art.arcane.optics.math.Vec3> cells = new ArrayList<>();
-        for (art.arcane.optics.math.Vec3 block : source.getGeometry().getBlockPositions()) {
-            cells.add(source.getFrame().transformPoint(block.add(new art.arcane.optics.math.Vec3(0.5, 0.5, 0.5)), source.getOrigin(), origin, frame));
+        List<Vec3d> cells = new ArrayList<>();
+        for (Vec3d block : source.getGeometry().getBlockPositions()) {
+            cells.add(source.getFrame().transformPoint(block.add(new Vec3d(0.5, 0.5, 0.5)), source.getOrigin(), origin, frame));
         }
         geometry.setBlocks(cells);
         return new MinecraftPortal(new MinecraftPortal.Definition(new Portal.State(ready.routeId(), origin, source.getName(), frame, true),
@@ -434,7 +435,7 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
             }
             OrientationPolicy orientation = OrientationPolicy.parse((String) active.portal.setting("transit.orientation"),
                 OrientationPolicy.parse(config.orientationDefault, OrientationPolicy.FRAME));
-            art.arcane.optics.math.Vec3 velocity = MomentumTransform.apply(active.crossing.outVelocity(frame), momentum, config.momentumMaxSpeed);
+            Vec3d velocity = MomentumTransform.apply(active.crossing.outVelocity(frame), momentum, config.momentumMaxSpeed);
             OrientationTransform.Look look = OrientationTransform.apply(active.crossing, frame, orientation, config.gravityFlipEnabled);
             for (Entity member : active.entity.getSelfAndPassengers().toList()) {
                 if (member instanceof ServerPlayer player) {
@@ -553,11 +554,11 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
             box.minY - position.y, box.maxY - position.y, box.minZ - position.z, box.maxZ - position.z);
     }
 
-    private static art.arcane.optics.math.Vec3 geometry(Vec3 vector) {
-        return new art.arcane.optics.math.Vec3(vector.x, vector.y, vector.z);
+    private static Vec3d geometry(Vec3 vector) {
+        return new Vec3d(vector.x, vector.y, vector.z);
     }
 
-    private static Vec3 vector(art.arcane.optics.math.Vec3 vector) {
+    private static Vec3 vector(Vec3d vector) {
         return new Vec3(vector.x(), vector.y(), vector.z());
     }
 

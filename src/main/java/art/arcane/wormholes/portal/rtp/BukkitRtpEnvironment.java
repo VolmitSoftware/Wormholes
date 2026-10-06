@@ -1,6 +1,6 @@
 package art.arcane.wormholes.portal.rtp;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -272,12 +272,12 @@ public final class BukkitRtpEnvironment implements BukkitRtpRuntime.Environment
         PortalStructure structure = portal.getStructure();
         Location center = structure.getCenter();
         return RtpProjectionGeometry.create(new RtpProjectionGeometry.Source(portalId, WorldIdentity.serialize(structure.getWorld()),
-            new Vec3(center.getX(), center.getY(), center.getZ()), portal.getFrame(), structure.getArea(), structure.getRevision()),
+            new Vec3d(center.getX(), center.getY(), center.getZ()), portal.getFrame(), structure.getArea(), structure.getRevision()),
             destination, routeRevision);
     }
 
     static double previewAnchorLift(Location center, Box area) {
-        return RtpProjectionGeometry.previewAnchorLift(center == null ? null : new Vec3(center.getX(), center.getY(), center.getZ()), area);
+        return RtpProjectionGeometry.previewAnchorLift(center == null ? null : new Vec3d(center.getX(), center.getY(), center.getZ()), area);
     }
 
 	private long delayTicks(long delayMillis)

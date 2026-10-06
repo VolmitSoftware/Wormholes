@@ -1,5 +1,6 @@
 package art.arcane.wormholes.network;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import art.arcane.wormholes.modded.MinecraftJsonDocuments;
 import art.arcane.wormholes.modded.MinecraftGameTestPlayer;
@@ -67,8 +68,8 @@ public final class NativeHandoffProbe {
             List.of(anchor, anchor.above(), anchor.east(), anchor.east().above()), PortalType.GATEWAY, new Vec3(0, 0, -1));
         portal.setTransitionProfile(TransitionProfile.NONE.withMaskOverrideTicks(100));
         PlaneCrossing crossing = new PlaneCrossing(portal.getFrame(), portal.getOrigin(),
-            portal.getOrigin().add(new art.arcane.optics.math.Vec3(0, 0, 0.2D)), new art.arcane.optics.math.Vec3(0, 0, 0.1D),
-            new art.arcane.optics.math.Vec3(0, 0, -1), true);
+            portal.getOrigin().add(new Vec3d(0, 0, 0.2D)), new Vec3d(0, 0, 0.1D),
+            new Vec3d(0, 0, -1), true);
         NetworkManager target = runtime.network().manager();
         NetworkConfig previous = target.activeConfig();
         String peer = "handoff-probe-" + UUID.randomUUID();
@@ -160,7 +161,7 @@ public final class NativeHandoffProbe {
                     && receipt.transferId().equals(transfer) && receipt.arrived()),
                 () -> poll(source, route, outgoing), "native joined player arrival receipt");
             onServer(server, () -> {
-                art.arcane.optics.math.Vec3 expected = crossing.outPoint(portal.getFrame(), portal.getOrigin());
+                Vec3d expected = crossing.outPoint(portal.getFrame(), portal.getOrigin());
                 if (joined[0].player().position().distanceToSqr(expected.x(), expected.y(), expected.z()) > 0.04D) {
                     throw new IllegalStateException("Native joined traveler was not placed at the portal crossing");
                 }

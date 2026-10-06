@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.portal.NetworkViewQuality;
 import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.wormholes.portal.Portal;
@@ -118,24 +118,24 @@ public class MinecraftPortalSettingsTest extends MinecraftTestBase {
     @Test
     public void restoredOriginsUseExactCellGeometryForForwardAndReverseFloorTravel() {
         ApertureCells sourceGeometry = new ApertureCells();
-        sourceGeometry.setBlocks(List.of(new Vec3(1001, 200, 0), new Vec3(1001, 205, 0)));
+        sourceGeometry.setBlocks(List.of(new Vec3d(1001, 200, 0), new Vec3d(1001, 205, 0)));
         ApertureCells targetGeometry = new ApertureCells();
-        targetGeometry.setBlocks(List.of(new Vec3(1103, 80, 0), new Vec3(1103, 85, 0)));
+        targetGeometry.setBlocks(List.of(new Vec3d(1103, 80, 0), new Vec3d(1103, 85, 0)));
         UUID id = UUID.randomUUID();
         Map<String, Object> values = Map.of("owner", id.toString(), "type", "PORTAL");
         Frame frame = Frame.canonical(Face.N);
         MinecraftPortal source = new MinecraftPortal(new MinecraftPortal.Definition(new Portal.State(id,
-            new Vec3(1001.4995D, 202.9995D, 0.4995D), "Source", frame, true),
+            new Vec3d(1001.4995D, 202.9995D, 0.4995D), "Source", frame, true),
             sourceGeometry, "minecraft:overworld", values));
         MinecraftPortal target = new MinecraftPortal(new MinecraftPortal.Definition(new Portal.State(UUID.randomUUID(),
-            new Vec3(1103.4995D, 82.9995D, 0.4995D), "Target", frame, true),
+            new Vec3d(1103.4995D, 82.9995D, 0.4995D), "Target", frame, true),
             targetGeometry, "minecraft:the_nether", values));
         source = MinecraftPortal.read(source.write());
         target = MinecraftPortal.read(target.write());
-        assertEquals(new Vec3(1001.5D, 203.0D, 0.5D), source.getOrigin());
-        assertEquals(new Vec3(1103.5D, 83.0D, 0.5D), target.getOrigin());
-        Vec3 feet = new Vec3(1001.5D, 200.0D, 0.4785775140992615D);
-        Vec3 mapped = frame.transformPoint(feet, source.getOrigin(), target.getOrigin(), frame);
+        assertEquals(new Vec3d(1001.5D, 203.0D, 0.5D), source.getOrigin());
+        assertEquals(new Vec3d(1103.5D, 83.0D, 0.5D), target.getOrigin());
+        Vec3d feet = new Vec3d(1001.5D, 200.0D, 0.4785775140992615D);
+        Vec3d mapped = frame.transformPoint(feet, source.getOrigin(), target.getOrigin(), frame);
         assertEquals(80.0D, mapped.y(), 0.0D);
         assertEquals(feet, frame.transformPoint(mapped, target.getOrigin(), source.getOrigin(), frame));
         assertEquals(205.999D, source.getGeometry().getArea().getYb(), 0.0D);
@@ -143,7 +143,7 @@ public class MinecraftPortalSettingsTest extends MinecraftTestBase {
 
     private static MinecraftPortal portal() {
         ApertureCells geometry = new ApertureCells();
-        geometry.setBlocks(List.of(new Vec3(0, 64, 0), new Vec3(0, 65, 0)));
+        geometry.setBlocks(List.of(new Vec3d(0, 64, 0), new Vec3d(0, 65, 0)));
         UUID id = UUID.randomUUID();
         return new MinecraftPortal(new MinecraftPortal.Definition(new Portal.State(id, geometry.getApertureCenter(), "Settings",
             Frame.canonical(Face.N), true), geometry, "minecraft:overworld", Map.of("owner", id.toString(), "type", "PORTAL")));

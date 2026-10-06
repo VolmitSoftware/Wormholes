@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.wormholes.portal.PortalType;
@@ -136,7 +136,7 @@ public class MinecraftProjectorPortalAccessRecursionTest extends MinecraftTestBa
         when(portal.getType()).thenReturn(type);
         when(portal.getGeometry()).thenReturn(geometry);
         when(portal.getFrame()).thenReturn(frame);
-        when(portal.getOrigin()).thenReturn(new Vec3(1.0D, 65.0D, planeZ + 0.5D));
+        when(portal.getOrigin()).thenReturn(new Vec3d(1.0D, 65.0D, planeZ + 0.5D));
         when(portal.isOpen()).thenReturn(true);
         when(portal.getProjectionMode()).thenReturn(ProjectionMode.ON);
         when(portal.getTunnelType()).thenReturn("");

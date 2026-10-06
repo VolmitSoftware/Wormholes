@@ -1,6 +1,6 @@
 package art.arcane.optics.entity;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -50,10 +50,10 @@ public final class CandidateCache<W, E> {
     }
 
     public interface Source<W, E> {
-        Collection<E> entities(W world, Vec3 center, int range);
+        Collection<E> entities(W world, Vec3d center, int range);
     }
 
-    public record Query<W>(UUID portalId, W world, Vec3 center, double range, int cacheTicks) {
+    public record Query<W>(UUID portalId, W world, Vec3d center, double range, int cacheTicks) {
     }
 
     private record Key(UUID portalId, int range) {

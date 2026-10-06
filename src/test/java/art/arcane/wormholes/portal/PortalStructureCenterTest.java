@@ -14,7 +14,7 @@ import org.bukkit.util.Vector;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.Settings;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.util.Cuboid;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
@@ -37,9 +37,9 @@ public final class PortalStructureCenterTest {
     @Test
     public void restoredLocalOriginUsesGeometryRatherThanSavedInsetCenter() {
         LocalPortal portal = LocalPortalTestSupport.portal(LocalPortalTestSupport.world("center"), PortalType.PORTAL);
-        portal.restore(new Portal.State(portal.getId(), new Vec3(0.4995D, 65.4995D, 1.4995D),
+        portal.restore(new Portal.State(portal.getId(), new Vec3d(0.4995D, 65.4995D, 1.4995D),
             portal.getName(), portal.getFrame(), true));
-        assertEquals(new Vec3(0.5D, 65.5D, 1.5D), portal.getOrigin());
+        assertEquals(new Vec3d(0.5D, 65.5D, 1.5D), portal.getOrigin());
         assertEquals(portal.getStructure().getApertureCenter(), portal.getOrigin());
         assertEquals(0.999D, portal.getStructure().getArea().getXb(), 0.0D);
     }

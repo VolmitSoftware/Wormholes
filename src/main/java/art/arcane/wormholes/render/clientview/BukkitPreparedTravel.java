@@ -11,7 +11,7 @@ import art.arcane.optics.plate.ChunkLease;
 import art.arcane.wormholes.chunk.BukkitChunkLeaseProvider;
 import art.arcane.wormholes.chunk.presend.ChunkCoordinate;
 import art.arcane.wormholes.chunk.presend.ChunkPreSendPlanner;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
@@ -85,9 +85,9 @@ final class BukkitPreparedTravel implements AutoCloseable {
             return;
         }
         Location location = player.getLocation();
-        Vec3 feet = frame.localFrame().transformCrossingPoint(new Vec3(location.getX(), location.getY(), location.getZ()),
-            new Vec3(frame.localOriginX(), frame.localOriginY(), frame.localOriginZ()),
-            new Vec3(frame.remoteOriginX(), frame.remoteOriginY(), frame.remoteOriginZ()), frame.remoteFrame());
+        Vec3d feet = frame.localFrame().transformCrossingPoint(new Vec3d(location.getX(), location.getY(), location.getZ()),
+            new Vec3d(frame.localOriginX(), frame.localOriginY(), frame.localOriginZ()),
+            new Vec3d(frame.remoteOriginX(), frame.remoteOriginY(), frame.remoteOriginZ()), frame.remoteFrame());
         Preparation preparation = preparations.get(player.getUniqueId());
         if (preparation != null && preparation.failed) {
             retryAfter.put(player.getUniqueId(), System.currentTimeMillis() + 30_000L);
@@ -134,7 +134,7 @@ final class BukkitPreparedTravel implements AutoCloseable {
     }
 
     ClientViewMessage.TravelCommit commit(ClientViewServerSession<ClientViewObserver, BlockData> session,
-                                         Player player, UUID source, Location target, Vec3 velocity) {
+                                         Player player, UUID source, Location target, Vec3d velocity) {
         Preparation preparation = preparations.get(player.getUniqueId());
         if (preparation == null || preparation.begin == null || preparation.world != target.getWorld() || !session.travel().crossing()) {
             return null;
@@ -177,8 +177,8 @@ final class BukkitPreparedTravel implements AutoCloseable {
         ApertureDescriptor geometry = source == null ? null : session.travelGeometry(source.getId());
         Optional<ChunkWorldContext> context = packets.context(player.getWorld());
         Location location = player.getLocation();
-        Vec3 feet = BukkitGeometry.vector(location);
-        Vec3 velocity = BukkitGeometry.vector(Wormholes.traversableManager.getVelocity(player));
+        Vec3d feet = BukkitGeometry.vector(location);
+        Vec3d velocity = BukkitGeometry.vector(Wormholes.traversableManager.getVelocity(player));
         boolean allowed = preparation != null && source != null && geometry != null && context.isPresent()
             && !preparation.committed && preparation.live.get() && source.isOpen() && !source.isMirrorMode()
             && source.getStructure().getWorld() == player.getWorld() && source.canDepart(player)
@@ -196,7 +196,7 @@ final class BukkitPreparedTravel implements AutoCloseable {
         }
         if (allowed) {
             boolean front = geometry.signedDistance(request.previousEye().x(), request.previousEye().y(), request.previousEye().z()) > 0.0D;
-            Vec3 admittedFeet = new Vec3(request.sourcePose().x(), request.sourcePose().y(), request.sourcePose().z());
+            Vec3d admittedFeet = new Vec3d(request.sourcePose().x(), request.sourcePose().y(), request.sourcePose().z());
             Location admitted = new Location(player.getWorld(), admittedFeet.x(), admittedFeet.y(), admittedFeet.z(),
                 request.sourcePose().yaw(), request.sourcePose().pitch());
             PlaneCrossing actual = new PlaneCrossing(source.getFrame().view(front), source.getOrigin(), admittedFeet, velocity,
@@ -301,7 +301,7 @@ final class BukkitPreparedTravel implements AutoCloseable {
                 return;
             }
             ChunkWorldContext metadata = context.get();
-            Vec3 eye = preparation.feet.add(new Vec3(0, preparation.eyeHeight, 0));
+            Vec3d eye = preparation.feet.add(new Vec3d(0, preparation.eyeHeight, 0));
             ProjectionEnvironment environment = authoritativeEnvironment(BukkitPortalEnvironment.capture(preparation.world, eye,
                 ProjectionEnvironment.Transform.IDENTITY), metadata);
             preparation.begin = new ClientViewMessage.TravelBegin(UUID.randomUUID(), preparation.generation, preparation.source,
@@ -379,7 +379,7 @@ final class BukkitPreparedTravel implements AutoCloseable {
     private static ILocalPortal nearest(ClientViewServerSession<ClientViewObserver, BlockData> session,
                                        Player player, List<ILocalPortal> interested) {
         Location point = player.getLocation();
-        Vec3 feet = new Vec3(point.getX(), point.getY(), point.getZ());
+        Vec3d feet = new Vec3d(point.getX(), point.getY(), point.getZ());
         ILocalPortal nearest = null;
         double distance = Double.POSITIVE_INFINITY;
         for (ILocalPortal portal : interested) {
@@ -411,7 +411,7 @@ final class BukkitPreparedTravel implements AutoCloseable {
     private record Snapshot(ClientViewMessage.TravelCoordinate coordinate, int revision, ChunkPacketSnapshot packet, long stamp) {
     }
 
-    private record PreparationOptions(ApertureDescriptor sourceGeometry, ProjectionEnvironment.Transform destinationToSource, UUID source, UUID destination, World world, Vec3 feet,
+    private record PreparationOptions(ApertureDescriptor sourceGeometry, ProjectionEnvironment.Transform destinationToSource, UUID source, UUID destination, World world, Vec3d feet,
                                       ClientViewMessage.TravelPose arrival, double eyeHeight, String sourceWorld, long generation) {
     }
 
@@ -421,7 +421,7 @@ final class BukkitPreparedTravel implements AutoCloseable {
         private final UUID source;
         private final UUID destination;
         private final World world;
-        private final Vec3 feet;
+        private final Vec3d feet;
         private final ClientViewMessage.TravelPose arrival;
         private final double eyeHeight;
         private final String sourceWorld;
@@ -453,7 +453,7 @@ final class BukkitPreparedTravel implements AutoCloseable {
             }
         }
 
-        private boolean contains(Vec3 point) {
+        private boolean contains(Vec3d point) {
             int x = point.getBlockX() >> 4;
             int z = point.getBlockZ() >> 4;
             return coordinates.contains(new ClientViewMessage.TravelCoordinate(x - 1, z - 1))

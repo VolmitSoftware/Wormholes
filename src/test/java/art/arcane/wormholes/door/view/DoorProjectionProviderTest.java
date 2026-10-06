@@ -20,7 +20,7 @@ import org.bukkit.World;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.Bisected;
 import org.bukkit.entity.Player;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Proxy;
@@ -77,7 +77,7 @@ final class DoorProjectionProviderTest {
             AtomicBoolean nativeView = new AtomicBoolean();
             AtomicBoolean globalEnabled = new AtomicBoolean();
             AtomicReference<DoorProjectionDestination> route = new AtomicReference<>(new DoorProjectionDestination(
-                UUID.randomUUID(), "minecraft:overworld", new Vec3(40.5, 65, 40.5), Frame.canonical(Face.S)));
+                UUID.randomUUID(), "minecraft:overworld", new Vec3d(40.5, 65, 40.5), Frame.canonical(Face.S)));
             DoorProjectionProvider provider = new DoorProjectionProvider(new DoorProjectionProvider.Options(
                 (source, observerId, bypass) -> Optional.ofNullable(route.get()), observer -> nativeView.get(), globalEnabled::get));
 
@@ -91,7 +91,7 @@ final class DoorProjectionProviderTest {
             runtime.cycle().observe(true);
             route.set(null);
             assertFalse(provider.touch(disabled, observer()).projectionEnabled());
-            route.set(new DoorProjectionDestination(UUID.randomUUID(), "minecraft:overworld", new Vec3(40.5, 65, 40.5),
+            route.set(new DoorProjectionDestination(UUID.randomUUID(), "minecraft:overworld", new Vec3d(40.5, 65, 40.5),
                 Frame.canonical(Face.S)));
             nativeView.set(false);
             globalEnabled.set(true);
@@ -107,7 +107,7 @@ final class DoorProjectionProviderTest {
         UUID routeId = new UUID(0, 702);
         DoorProjectionProvider provider = provider((requested, observerId, bypass) ->
             Optional.of(new DoorProjectionDestination(
-                routeId, "minecraft:the_nether", new Vec3(40.5D, 65.0D, 40.92D), destinationFrame)));
+                routeId, "minecraft:the_nether", new Vec3d(40.5D, 65.0D, 40.92D), destinationFrame)));
 
         assertTrue(provider.supports(adapter));
         ProjectionManager.RtpProjectionResult result = provider.touch(adapter, observer());
@@ -128,7 +128,7 @@ final class DoorProjectionProviderTest {
     @Test
     void theRouteRevisionOnlyMovesWhenTheDestinationDoes() {
         DoorProjectionAdapter adapter = adapter(new DoorwayPlane(10, 64, 10, Face.N), DoorForm.DOOR);
-        AtomicReference<Vec3> origin = new AtomicReference<>(new Vec3(40.5D, 65.0D, 40.92D));
+        AtomicReference<Vec3d> origin = new AtomicReference<>(new Vec3d(40.5D, 65.0D, 40.92D));
         DoorProjectionProvider provider = provider((requested, observerId, bypass) ->
             Optional.of(new DoorProjectionDestination(
                 new UUID(0, 703), "minecraft:overworld", origin.get(),
@@ -137,7 +137,7 @@ final class DoorProjectionProviderTest {
         long first = revision(provider, adapter);
         assertEquals(first, revision(provider, adapter));
 
-        origin.set(new Vec3(41.5D, 65.0D, 40.92D));
+        origin.set(new Vec3d(41.5D, 65.0D, 40.92D));
         assertNotEquals(first, revision(provider, adapter));
     }
 

@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.portal.ToolPreviewGeometry;
 import art.arcane.wormholes.portal.Portal;
 import art.arcane.optics.frame.Frame;
@@ -49,7 +50,7 @@ public class MinecraftPortalLookLabelsTest extends MinecraftTestBase {
     @Test
     public void lookingAtMissesHolesInsideTheApertureBounds() {
         ApertureCells geometry = new ApertureCells();
-        geometry.setBlocks(List.of(new art.arcane.optics.math.Vec3(0, 64, 4), new art.arcane.optics.math.Vec3(2, 64, 4)));
+        geometry.setBlocks(List.of(new Vec3d(0, 64, 4), new Vec3d(2, 64, 4)));
 
         assertTrue(MinecraftPortalLookLabels.isLookingAt(geometry, new Vec3(0.5D, 64.0D, 0.0D),
             new Vec3(0.5D, 64.5D, 0.0D), new Vec3(0.0D, 0.0D, 1.0D)));
@@ -83,7 +84,7 @@ public class MinecraftPortalLookLabelsTest extends MinecraftTestBase {
         MinecraftPortal close = portal(plane(0, 1, 64, 65, 4), false);
         MinecraftPortal distant = portal(plane(1000, 1001, 64, 65, 4), false);
         MinecraftPortal nether = new MinecraftPortal(new MinecraftPortal.Definition(new Portal.State(UUID.randomUUID(),
-            new art.arcane.optics.math.Vec3(0, 64, 4), "Nether", Frame.canonical(Face.N), true), plane(0, 1, 64, 65, 4),
+            new Vec3d(0, 64, 4), "Nether", Frame.canonical(Face.N), true), plane(0, 1, 64, 65, 4),
             "minecraft:the_nether", Map.of("type", "PORTAL")));
         MinecraftPortalCandidates candidates = MinecraftPortalCandidates.capture(List.of(close, distant, nether), 32.0D);
 
@@ -100,7 +101,7 @@ public class MinecraftPortalLookLabelsTest extends MinecraftTestBase {
         ToolPreviewGeometry.Geometry rectangle = ToolPreviewGeometry.build(
             plane(0, 1, 64, 65, 4).getBlockPositions(), Axis.Z);
         ToolPreviewGeometry.Geometry lShape = ToolPreviewGeometry.build(List.of(
-            new art.arcane.optics.math.Vec3(0, 64, 4), new art.arcane.optics.math.Vec3(1, 64, 4), new art.arcane.optics.math.Vec3(0, 65, 4)), Axis.Z);
+            new Vec3d(0, 64, 4), new Vec3d(1, 64, 4), new Vec3d(0, 65, 4)), Axis.Z);
 
         assertEquals(4, rectangle.cells().size());
         assertEquals(8 * 4, rectangle.outlinePoints().size());
@@ -161,10 +162,10 @@ public class MinecraftPortalLookLabelsTest extends MinecraftTestBase {
     }
 
     private static ApertureCells plane(int minX, int maxX, int minY, int maxY, int z) {
-        List<art.arcane.optics.math.Vec3> cells = new ArrayList<>();
+        List<Vec3d> cells = new ArrayList<>();
         for (int x = minX; x <= maxX; x++) {
             for (int y = minY; y <= maxY; y++) {
-                cells.add(new art.arcane.optics.math.Vec3(x, y, z));
+                cells.add(new Vec3d(x, y, z));
             }
         }
         ApertureCells geometry = new ApertureCells();

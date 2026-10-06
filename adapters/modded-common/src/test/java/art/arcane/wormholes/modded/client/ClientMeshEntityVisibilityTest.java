@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.math.Face;
@@ -46,7 +47,7 @@ public class ClientMeshEntityVisibilityTest extends MinecraftTestBase {
     public void destinationBoundsFollowSidewaysAndMirroredPortalTransforms() {
         Frustum display = new Frustum(new Matrix4f(), new Matrix4f());
         ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(Face.U, Face.W, Face.S,
-            new art.arcane.optics.math.Vec3(10, -20, 30));
+            new Vec3d(10, -20, 30));
         Frustum destination = new ClientMeshEntities.DestinationFrustum(display, transform);
         assertTrue(destination.isVisible(new AABB(19.75, 9.75, -30.25, 20.25, 10.25, -29.75)));
         assertFalse(destination.isVisible(new AABB(19.75, 3.75, -30.25, 20.25, 4.25, -29.75)));

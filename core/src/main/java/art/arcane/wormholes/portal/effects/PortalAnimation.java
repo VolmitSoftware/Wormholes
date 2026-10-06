@@ -1,7 +1,7 @@
 package art.arcane.wormholes.portal.effects;
 
 import art.arcane.wormholes.config.VisualQualityProfile;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.portal.PortalAnimationPlan;
 
 import java.util.ArrayList;
@@ -11,7 +11,7 @@ import java.util.function.BooleanSupplier;
 import java.util.random.RandomGenerator;
 
 public final class PortalAnimation<D> {
-    private static final Vec3 ZERO = new Vec3(0, 0, 0);
+    private static final Vec3d ZERO = new Vec3d(0, 0, 0);
     private static final double MIN_PLANE_EXTENT = 1.0E-3;
     private final Options options;
     private final Host<D> host;
@@ -130,8 +130,8 @@ public final class PortalAnimation<D> {
         for (int index = 0; index < count; index++) {
             double theta = angle[index] + fraction * reach[index] * Math.PI * 2;
             double radius = PortalAnimationPlan.ellipseRadius(halfA, halfB, theta) * Math.pow(1 - fraction, bend[index]);
-            Vec3 point = point(radius * Math.cos(theta), radius * Math.sin(theta));
-            particle(index % 2 == 0 ? Particle.PORTAL : Particle.REVERSE_PORTAL, point, 1, new Vec3(.03, .03, .03), .02);
+            Vec3d point = point(radius * Math.cos(theta), radius * Math.sin(theta));
+            particle(index % 2 == 0 ? Particle.PORTAL : Particle.REVERSE_PORTAL, point, 1, new Vec3d(.03, .03, .03), .02);
             if (tick % 2 == 0) {
                 particle(Particle.STREAM_DUST, point, 1, ZERO, 0);
             }
@@ -147,8 +147,8 @@ public final class PortalAnimation<D> {
         PortalAnimationPlan.KawooshPlan plan = PortalAnimationPlan.kawooshPlan(options.quality());
         if (tick == 0) {
             particle(Particle.PURPLE_FLASH, options.center(), 1, ZERO, 0);
-            particle(Particle.REVERSE_PORTAL, options.center(), plan.impactReverse(), new Vec3(.25, .45, .25), .75);
-            particle(Particle.END_ROD, options.center(), plan.impactEndRod(), new Vec3(.15, .15, .15), .3);
+            particle(Particle.REVERSE_PORTAL, options.center(), plan.impactReverse(), new Vec3d(.25, .45, .25), .75);
+            particle(Particle.END_ROD, options.center(), plan.impactEndRod(), new Vec3d(.15, .15, .15), .3);
             return true;
         }
         int frame = tick - 1;
@@ -174,8 +174,8 @@ public final class PortalAnimation<D> {
             }
         } else {
             double spread = Math.max(.15, .9 * (1 - fraction));
-            particle(Particle.REVERSE_PORTAL, options.center(), 6, new Vec3(spread, spread, spread), .2);
-            particle(Particle.ENCHANT, options.center(), 3, new Vec3(spread, spread, spread), .05);
+            particle(Particle.REVERSE_PORTAL, options.center(), 6, new Vec3d(spread, spread, spread), .2);
+            particle(Particle.ENCHANT, options.center(), 3, new Vec3d(spread, spread, spread), .05);
         }
         return true;
     }
@@ -219,8 +219,8 @@ public final class PortalAnimation<D> {
                 double[] velocity = PortalAnimationPlan.outwardShardVelocity(normal, planeA, planeB, Math.cos(theta), Math.sin(theta), index % 2 == 0 ? 1 : -1);
                 particle(Particle.GLASS_SHARD, point(radius * Math.cos(theta), radius * Math.sin(theta)), 0, vector(velocity), .35);
             }
-            particle(Particle.REVERSE_PORTAL, options.center(), plan.shards(), new Vec3(.2, .3, .2), .65);
-            particle(Particle.SCULK_SOUL, options.center(), 6, new Vec3(.25, .35, .25), .03);
+            particle(Particle.REVERSE_PORTAL, options.center(), plan.shards(), new Vec3d(.2, .3, .2), .65);
+            particle(Particle.SCULK_SOUL, options.center(), 6, new Vec3d(.25, .35, .25), .03);
             particle(Particle.PALE_FLASH, options.center(), 1, ZERO, 0);
             sound("block.glass.break", .54f, .8f);
             sound("block.glass.break", .33f, 1.05f);
@@ -267,13 +267,13 @@ public final class PortalAnimation<D> {
                 return false;
             }
             sound("block.end_portal.spawn", .2f, .35f);
-            particle(Particle.PORTAL, options.center(), 12, new Vec3(.65, .8, .65), .35);
+            particle(Particle.PORTAL, options.center(), 12, new Vec3d(.65, .8, .65), .35);
             int cap = PortalAnimationPlan.formationDisplayCap(options.quality());
             List<Block> selected = selectedBlocks(options.blocks(), cap);
             for (Block block : selected) {
-                Vec3 relative = block.center().subtract(options.center());
+                Vec3d relative = block.center().subtract(options.center());
                 double[] position = { relative.x(), relative.y(), relative.z() };
-                D display = host.spawn(new DisplaySpec(block.state(), block.center(), new Vec3(1, 1, 1), 0, normal));
+                D display = host.spawn(new DisplaySpec(block.state(), block.center(), new Vec3d(1, 1, 1), 0, normal));
                 displays.add(new MovingDisplay<>(display, Math.atan2(position[planeB], position[planeA]), Math.hypot(position[planeA], position[planeB]), position[normal], 1.2 + random.nextDouble(), 1.2 + random.nextDouble() * .5, .8 + random.nextDouble() * .5, random.nextDouble() * Math.PI * 2, .2 + random.nextDouble() * .25));
             }
             return true;
@@ -294,13 +294,13 @@ public final class PortalAnimation<D> {
             double theta = display.angle() + spin;
             double contraction = Math.pow(1 - fraction, display.radialExponent());
             double radius = display.radius() * contraction;
-            Vec3 target = point(radius * Math.cos(theta), radius * Math.sin(theta));
+            Vec3d target = point(radius * Math.cos(theta), radius * Math.sin(theta));
             double[] position = { target.x(), target.y(), target.z() };
             position[normal] += display.normalOffset() * contraction;
             double scale = Math.max(.04, Math.pow(1 - fraction, display.shrinkExponent()));
-            host.transform(display.id(), new DisplaySpec("", vector(position), new Vec3(scale, scale, scale), (float) (display.wobbleAmplitude() * Math.sin(spin * 2 + display.wobblePhase())), normal));
+            host.transform(display.id(), new DisplaySpec("", vector(position), new Vec3d(scale, scale, scale), (float) (display.wobbleAmplitude() * Math.sin(spin * 2 + display.wobblePhase())), normal));
             if (tick % 2 == 1) {
-                particle(index % 2 == 0 ? Particle.PORTAL : Particle.REVERSE_PORTAL, vector(position), 1, new Vec3(.04, .04, .04), .02);
+                particle(index % 2 == 0 ? Particle.PORTAL : Particle.REVERSE_PORTAL, vector(position), 1, new Vec3d(.04, .04, .04), .02);
             }
         }
         return true;
@@ -309,9 +309,9 @@ public final class PortalAnimation<D> {
     private boolean glitch() {
         if (options.particles()) {
             particle(Particle.WHITE_FLASH, options.center(), 1, ZERO, 0);
-            particle(Particle.REVERSE_PORTAL, options.center(), 40, new Vec3(.35, .7, .35), .25);
-            particle(Particle.PORTAL, options.center(), 24, new Vec3(.3, .6, .3), .5);
-            particle(Particle.ELECTRIC_SPARK, options.center(), 18, new Vec3(.4, .8, .4), .15);
+            particle(Particle.REVERSE_PORTAL, options.center(), 40, new Vec3d(.35, .7, .35), .25);
+            particle(Particle.PORTAL, options.center(), 24, new Vec3d(.3, .6, .3), .5);
+            particle(Particle.ELECTRIC_SPARK, options.center(), 18, new Vec3d(.4, .8, .4), .15);
         }
         return false;
     }
@@ -324,7 +324,7 @@ public final class PortalAnimation<D> {
         double[] radii = new double[cap];
         Arrays.fill(radii, -1);
         for (Block block : blocks) {
-            Vec3 offset = block.center().subtract(options.center());
+            Vec3d offset = block.center().subtract(options.center());
             double[] coordinates = { offset.x(), offset.y(), offset.z() };
             double a = coordinates[planeA];
             double b = coordinates[planeB];
@@ -352,7 +352,7 @@ public final class PortalAnimation<D> {
         return result;
     }
 
-    public static int normalAxis(Vec3 size) {
+    public static int normalAxis(Vec3d size) {
         double x = size.x();
         double y = size.y();
         double z = size.z();
@@ -367,25 +367,25 @@ public final class PortalAnimation<D> {
         return normal == 2 ? 1 : 2;
     }
 
-    public static Vec3 planeSize(int normal, double extentA, double extentB) {
+    public static Vec3d planeSize(int normal, double extentA, double extentB) {
         double[] size = new double[3];
         size[planeA(normal)] = Math.max(MIN_PLANE_EXTENT, extentA);
         size[planeB(normal)] = Math.max(MIN_PLANE_EXTENT, extentB);
         return vector(size);
     }
 
-    private Vec3 point(double a, double b) {
+    private Vec3d point(double a, double b) {
         double[] position = { options.center().x(), options.center().y(), options.center().z() };
         position[planeA] += a;
         position[planeB] += b;
         return vector(position);
     }
 
-    private static Vec3 vector(double[] value) {
-        return new Vec3(value[0], value[1], value[2]);
+    private static Vec3d vector(double[] value) {
+        return new Vec3d(value[0], value[1], value[2]);
     }
 
-    private void particle(Particle type, Vec3 point, int count, Vec3 spread, double speed) {
+    private void particle(Particle type, Vec3d point, int count, Vec3d spread, double speed) {
         host.particle(new ParticleEmission(type, point, count, spread, speed));
     }
 
@@ -397,12 +397,12 @@ public final class PortalAnimation<D> {
 
     public enum Mode { OPEN, PRELUDE, IMPACT, SOUNDS, CLOSE, FORMATION, GLITCH }
     public enum Particle { PORTAL, REVERSE_PORTAL, STREAM_DUST, ARM_DUST, END_ROD, ENCHANT, GLASS_SHARD, SCULK_SOUL, PALE_FLASH, PURPLE_FLASH, CRACK_DUST, BRANCHLET_DUST, WHITE_FLASH, ELECTRIC_SPARK }
-    public record Block(Vec3 center, String state) { }
-    public record Options(Mode mode, Vec3 center, Vec3 size, VisualQualityProfile quality,
+    public record Block(Vec3d center, String state) { }
+    public record Options(Mode mode, Vec3d center, Vec3d size, VisualQualityProfile quality,
                           boolean particles, double volume, BooleanSupplier active, BooleanSupplier audible, List<Block> blocks) { }
-    public record ParticleEmission(Particle type, Vec3 position, int count, Vec3 spread, double speed) { }
-    public record SoundEmission(String id, Vec3 position, float volume, float pitch) { }
-    public record DisplaySpec(String blockState, Vec3 center, Vec3 scale, float rotation, int normal) { }
+    public record ParticleEmission(Particle type, Vec3d position, int count, Vec3d spread, double speed) { }
+    public record SoundEmission(String id, Vec3d position, float volume, float pitch) { }
+    public record DisplaySpec(String blockState, Vec3d center, Vec3d scale, float rotation, int normal) { }
     private record MovingDisplay<D>(D id, double angle, double radius, double normalOffset, double turns, double radialExponent, double shrinkExponent, double wobblePhase, double wobbleAmplitude) { }
     public interface Host<D> {
         void particle(ParticleEmission particle);

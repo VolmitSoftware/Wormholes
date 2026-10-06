@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.stream.ViewStreamLimits;
@@ -183,7 +184,7 @@ public final class ClientMeshEntities {
             return state -> true;
         }
         DestinationFrustum destinationFrustum = new DestinationFrustum(frustum, transform);
-        art.arcane.optics.math.Vec3 eye = transform.destinationPoint(camera.pos.x, camera.pos.y, camera.pos.z);
+        Vec3d eye = transform.destinationPoint(camera.pos.x, camera.pos.y, camera.pos.z);
         EntityRenderDispatcher renderer = Minecraft.getInstance().getEntityRenderDispatcher();
         return state -> entityVisible(state, renderer, destinationFrustum, eye);
     }
@@ -324,7 +325,7 @@ public final class ClientMeshEntities {
     }
 
     private boolean entityVisible(EntityRenderState state, EntityRenderDispatcher renderer, DestinationFrustum frustum,
-                                  art.arcane.optics.math.Vec3 eye) {
+                                  Vec3d eye) {
         EntitySource source = entitySources.get(state);
         if (source == null || state.nameTag != null || state.scoreText != null || state.appearsGlowing()) {
             return true;
@@ -490,8 +491,8 @@ public final class ClientMeshEntities {
         return ancestors;
     }
 
-    static art.arcane.optics.math.Vec3 contentPoint(List<ProjectionEnvironment.Transform> ancestors, double x, double y, double z) {
-        art.arcane.optics.math.Vec3 point = new art.arcane.optics.math.Vec3(x, y, z);
+    static Vec3d contentPoint(List<ProjectionEnvironment.Transform> ancestors, double x, double y, double z) {
+        Vec3d point = new Vec3d(x, y, z);
         for (ProjectionEnvironment.Transform transform : ancestors) {
             point = transform.destinationPoint(point.x(), point.y(), point.z());
         }
@@ -552,8 +553,8 @@ public final class ClientMeshEntities {
         void update(Camera source, List<ProjectionEnvironment.Transform> space, ProjectionEnvironment.Transform destination) {
             this.source = source;
             Vec3 eye = source.position();
-            art.arcane.optics.math.Vec3 point = contentPoint(space, eye.x, eye.y, eye.z);
-            art.arcane.optics.math.Vec3 nativeEye = destination.destinationPoint(point.x(), point.y(), point.z());
+            Vec3d point = contentPoint(space, eye.x, eye.y, eye.z);
+            Vec3d nativeEye = destination.destinationPoint(point.x(), point.y(), point.z());
             setPosition(nativeEye.x(), nativeEye.y(), nativeEye.z());
             transform(space, destination, eye, source.forwardVector(), forward);
             transform(space, destination, eye, source.upVector(), up);
@@ -591,8 +592,8 @@ public final class ClientMeshEntities {
         }
 
         private void transform(List<ProjectionEnvironment.Transform> space, ProjectionEnvironment.Transform destination, Vec3 eye, Vector3fc direction, Vector3f result) {
-            art.arcane.optics.math.Vec3 point = contentPoint(space, eye.x + direction.x(), eye.y + direction.y(), eye.z + direction.z());
-            art.arcane.optics.math.Vec3 nativePoint = destination.destinationPoint(point.x(), point.y(), point.z());
+            Vec3d point = contentPoint(space, eye.x + direction.x(), eye.y + direction.y(), eye.z + direction.z());
+            Vec3d nativePoint = destination.destinationPoint(point.x(), point.y(), point.z());
             result.set((float) (nativePoint.x() - position().x), (float) (nativePoint.y() - position().y), (float) (nativePoint.z() - position().z)).normalize();
         }
     }

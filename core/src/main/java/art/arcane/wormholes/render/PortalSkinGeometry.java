@@ -1,6 +1,6 @@
 package art.arcane.wormholes.render;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.math.Axis;
@@ -13,15 +13,15 @@ public final class PortalSkinGeometry {
     // Skin panes are a thin face centered on the portal plane, as deep as a glass pane.
     private static final double SURFACE_THICKNESS_BLOCKS = 0.125D;
     private PortalSkinGeometry() { }
-    public static List<SkinTransform> panes(ApertureCells structure, Frame frame, Vec3 origin) {
+    public static List<SkinTransform> panes(ApertureCells structure, Frame frame, Vec3d origin) {
         Axis normalAxis = frame.getNormal().getAxis();
         double planeCoordinate = axisComponent(origin, normalAxis);
-        List<Vec3> cells = structure.getBlockPositions();
+        List<Vec3d> cells = structure.getBlockPositions();
         if (structure.isFullCuboid() || cells.isEmpty() || cells.size() > MAX_PER_CELL_PANES) {
             return List.of(skinTransforms(structure.getArea(), normalAxis, planeCoordinate, SURFACE_THICKNESS_BLOCKS));
         }
         List<SkinTransform> panes = new ArrayList<SkinTransform>(cells.size());
-        for (Vec3 cell : cells) {
+        for (Vec3d cell : cells) {
             int x = cell.getBlockX();
             int y = cell.getBlockY();
             int z = cell.getBlockZ();
@@ -31,7 +31,7 @@ public final class PortalSkinGeometry {
         return panes;
     }
 
-    private static double axisComponent(Vec3 vector, Axis axis) {
+    private static double axisComponent(Vec3d vector, Axis axis) {
         return switch (axis) { case X -> vector.x(); case Y -> vector.y(); case Z -> vector.z(); };
     }
     public static SkinTransform skinTransforms(Box area, Axis normalAxis, double planeCoordinate, double thickness) {

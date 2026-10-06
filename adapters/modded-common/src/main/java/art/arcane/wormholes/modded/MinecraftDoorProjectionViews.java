@@ -7,7 +7,7 @@ import art.arcane.wormholes.door.DoorwayPlane;
 import art.arcane.wormholes.door.view.DoorApertureFrames;
 import art.arcane.wormholes.door.view.DoorProjectionDestination;
 import art.arcane.wormholes.door.view.DoorProjectionProfile;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.Portal;
 import art.arcane.optics.frame.Frame;
@@ -100,10 +100,10 @@ public final class MinecraftDoorProjectionViews {
         DoorwayPlane plane = door.plane();
         DoorVec3 center = plane.center();
         ApertureCells geometry = new ApertureCells();
-        Vec3 lower = new Vec3(plane.blockX(), plane.blockY(), plane.blockZ());
-        geometry.setBlocks(plane.form() == DoorForm.TRAPDOOR ? List.of(lower) : List.of(lower, lower.add(new Vec3(0, 1, 0))));
+        Vec3d lower = new Vec3d(plane.blockX(), plane.blockY(), plane.blockZ());
+        geometry.setBlocks(plane.form() == DoorForm.TRAPDOOR ? List.of(lower) : List.of(lower, lower.add(new Vec3d(0, 1, 0))));
         MinecraftPortal source = descriptor(door.endpoint().identity().itemId(),
-            new Vec3(center.x(), center.y(), center.z()), DoorApertureFrames.of(plane), geometry,
+            new Vec3d(center.x(), center.y(), center.z()), DoorApertureFrames.of(plane), geometry,
             door.level().dimension().identifier().toString());
         source.setActivationRange(settings.projectionRange);
         source.setNetworkViewDepth(settings.projectionDepthBlocks);
@@ -121,7 +121,7 @@ public final class MinecraftDoorProjectionViews {
         return new Aperture(plane, destination, source, anchor, identity == 0L ? 1L : identity);
     }
 
-    private static MinecraftPortal descriptor(UUID id, Vec3 origin, Frame frame, ApertureCells geometry, String worldKey) {
+    private static MinecraftPortal descriptor(UUID id, Vec3d origin, Frame frame, ApertureCells geometry, String worldKey) {
         return new MinecraftPortal(new MinecraftPortal.Definition(new Portal.State(id, origin, id.toString(), frame, true), geometry, worldKey,
             Map.of("type", PortalType.PORTAL.name())));
     }

@@ -1,6 +1,6 @@
 package art.arcane.wormholes.portal;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.math.Axis;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -22,12 +22,12 @@ public final class ToolPreviewGeometryTest
 	@Test
 	public void rectangleProducesOnlyItsExactOuterBoundary()
 	{
-		ArrayList<Vec3> blocks = new ArrayList<Vec3>();
+		ArrayList<Vec3d> blocks = new ArrayList<Vec3d>();
 		for(int x = 0; x < 2; x++)
 		{
 			for(int y = 64; y < 67; y++)
 			{
-				blocks.add(new Vec3(x, y, 8));
+				blocks.add(new Vec3d(x, y, 8));
 			}
 		}
 
@@ -48,9 +48,9 @@ public final class ToolPreviewGeometryTest
 	public void lShapePreservesItsMissingCellAndInnerEdges()
 	{
 		ToolPreviewGeometry.Geometry geometry = ToolPreviewGeometry.build(List.of(
-			new Vec3(0, 64, 8),
-			new Vec3(1, 64, 8),
-			new Vec3(0, 65, 8)), Axis.Z);
+			new Vec3d(0, 64, 8),
+			new Vec3d(1, 64, 8),
+			new Vec3d(0, 65, 8)), Axis.Z);
 
 		assertEquals(3, geometry.cells().size());
 		assertFalse(geometry.cells().contains(new ToolPreviewGeometry.Cell(1, 65, 8)));
@@ -62,14 +62,14 @@ public final class ToolPreviewGeometryTest
 	@Test
 	public void ringPreservesItsCenterHoleAndInnerOutline()
 	{
-		ArrayList<Vec3> blocks = new ArrayList<Vec3>();
+		ArrayList<Vec3d> blocks = new ArrayList<Vec3d>();
 		for(int x = 0; x < 3; x++)
 		{
 			for(int y = 0; y < 3; y++)
 			{
 				if(x != 1 || y != 1)
 				{
-					blocks.add(new Vec3(x, y, 0));
+					blocks.add(new Vec3d(x, y, 0));
 				}
 			}
 		}
@@ -85,7 +85,7 @@ public final class ToolPreviewGeometryTest
     @ParameterizedTest
     @EnumSource(Axis.class)
     public void everyNormalAxisKeepsTheOutlineOnThePortalPlane(Axis axis) {
-        ToolPreviewGeometry.Geometry geometry = ToolPreviewGeometry.build(List.of(new Vec3(4, 5, 6)), axis);
+        ToolPreviewGeometry.Geometry geometry = ToolPreviewGeometry.build(List.of(new Vec3d(4, 5, 6)), axis);
         assertEquals(1, geometry.cells().size());
         assertEquals(16, geometry.outlinePoints().size());
         double expected = switch (axis) {
@@ -107,8 +107,8 @@ public final class ToolPreviewGeometryTest
 	public void rangeUsesTheExactPortalBounds()
 	{
 		ToolPreviewGeometry.Geometry geometry = ToolPreviewGeometry.build(List.of(
-			new Vec3(-2, 64, 8),
-			new Vec3(-1, 64, 8)), Axis.Z);
+			new Vec3d(-2, 64, 8),
+			new Vec3d(-1, 64, 8)), Axis.Z);
 
 		assertEquals(0.0D, geometry.distanceSquared(-1.0D, 64.5D, 8.5D), EPSILON);
 		assertEquals(1024.0D, geometry.distanceSquared(32.0D, 64.5D, 8.5D), EPSILON);
@@ -117,7 +117,7 @@ public final class ToolPreviewGeometryTest
     @Test
     public void duplicateAndNullCellsDoNotChangeNegativeCoordinateOutlines() {
         ToolPreviewGeometry.Geometry geometry = ToolPreviewGeometry.build(Arrays.asList(
-            new Vec3(-1.2D, -0.1D, -2.5D), null, new Vec3(-1.2D, -0.1D, -2.5D)), Axis.Z);
+            new Vec3d(-1.2D, -0.1D, -2.5D), null, new Vec3d(-1.2D, -0.1D, -2.5D)), Axis.Z);
 
         assertEquals(List.of(new ToolPreviewGeometry.Cell(-2, -1, -3)), geometry.cells());
         assertEquals(16, geometry.outlinePoints().size());

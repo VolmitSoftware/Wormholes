@@ -1,6 +1,6 @@
 package art.arcane.wormholes.render.client.session;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.network.client.SessionPalette;
 import art.arcane.optics.entity.EntitySnapshot;
@@ -206,7 +206,7 @@ final class ClientMeshLocalTest {
         private final FakePortalAccess access = new FakePortalAccess(new ArrayList<>());
         private final ClientMeshStream<String> stream = new ClientMeshStream<>();
         private final ClientViewPortalSlot<String> slot;
-        private final Vec3 eye = new Vec3(11, 67, 15);
+        private final Vec3d eye = new Vec3d(11, 67, 15);
         private final ClientViewMessage.MeshBegin begin;
 
         private Fixture(boolean mirror, boolean local) {

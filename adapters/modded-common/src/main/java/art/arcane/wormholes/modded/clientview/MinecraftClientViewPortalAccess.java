@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.clientview;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.config.toml.ProjectionConfig;
 import art.arcane.wormholes.config.toml.RenderConfig;
@@ -140,13 +141,13 @@ public final class MinecraftClientViewPortalAccess implements ClientViewPortalAc
     }
 
     @Override
-    public art.arcane.optics.math.Vec3 meshEye(MinecraftClientViewPeer peer) {
+    public Vec3d meshEye(MinecraftClientViewPeer peer) {
         ServerPlayer player = peer.player();
         if (player == null) {
             return null;
         }
         Vec3 eye = player.getEyePosition();
-        return new art.arcane.optics.math.Vec3(eye.x, eye.y, eye.z);
+        return new Vec3d(eye.x, eye.y, eye.z);
     }
 
     @Override
@@ -200,7 +201,7 @@ public final class MinecraftClientViewPortalAccess implements ClientViewPortalAc
     @Override
     public void prepareNested(MinecraftClientViewPeer peer, UUID context, UUID parentContext, UUID portalId) {
         MinecraftClientViewPeer.NestedContext parent = parentContext == null ? null : peer.nestedContext(parentContext);
-        art.arcane.optics.math.Vec3 eye = parentContext == null ? meshEye(peer) : parent == null ? null : parent.destinationEye();
+        Vec3d eye = parentContext == null ? meshEye(peer) : parent == null ? null : parent.destinationEye();
         MinecraftPortal portal = portal(peer, portalId);
         if (eye == null || portal == null || parent != null && peer.portals().world(portal) != parent.destinationWorld()) {
             peer.nestedContext(context, null);
@@ -222,7 +223,7 @@ public final class MinecraftClientViewPortalAccess implements ClientViewPortalAc
     }
 
     @Override
-    public art.arcane.optics.math.Vec3 nestedEye(MinecraftClientViewPeer peer, UUID context) {
+    public Vec3d nestedEye(MinecraftClientViewPeer peer, UUID context) {
         MinecraftClientViewPeer.NestedContext branch = peer.nestedContext(context);
         return branch == null ? null : branch.destinationEye();
     }
@@ -478,7 +479,7 @@ public final class MinecraftClientViewPortalAccess implements ClientViewPortalAc
             return null;
         }
         MinecraftProjectionWorldView destinationView = runtime.projections().view(destinationWorld);
-        art.arcane.optics.math.Vec3 origin = destination.getOrigin();
+        Vec3d origin = destination.getOrigin();
         Frame localFrame = portal.getFrame();
         Frame remoteFrame = portal.isMirrorMode() ? localFrame.flipNormal() : destination.getFrame();
         return new MinecraftViewPlates.Target(player, portal, destinationView, () -> destinationView, remoteFrame, origin.x(), origin.y(),
@@ -526,7 +527,7 @@ public final class MinecraftClientViewPortalAccess implements ClientViewPortalAc
     boolean reflectedFront(MinecraftClientViewPeer peer, ServerPlayer player, UUID parent, MinecraftPortal portal) {
         MinecraftClientViewPeer.NestedContext context = peer.nestedContext(parent);
         if (peer.meshDepth() > 0 && context != null) {
-            art.arcane.optics.math.Vec3 eye = context.destinationEye();
+            Vec3d eye = context.destinationEye();
             return front(eye.x(), eye.y(), eye.z(), portal);
         }
         MinecraftPortal mirror = portal(peer, parent);
@@ -535,7 +536,7 @@ public final class MinecraftClientViewPortalAccess implements ClientViewPortalAc
         if (mirror == null || portals == null) {
             return front(eye.x, eye.y, eye.z, portal);
         }
-        art.arcane.optics.math.Vec3 origin = mirror.getOrigin();
+        Vec3d origin = mirror.getOrigin();
         double[] reflected = new double[3];
         PortalCoordMap.mirrorDisplayToSourcePointInto(eye.x, eye.y, eye.z, origin.x(), origin.y(), origin.z(), mirror.getFrame(),
             mirrorQuarterTurns(peer, mirror), reflected);
@@ -561,7 +562,7 @@ public final class MinecraftClientViewPortalAccess implements ClientViewPortalAc
     }
 
     static boolean front(double eyeX, double eyeY, double eyeZ, MinecraftPortal portal) {
-        art.arcane.optics.math.Vec3 origin = portal.getOrigin();
+        Vec3d origin = portal.getOrigin();
         Face normal = portal.getFrame().getNormal();
         return (eyeX - origin.x()) * normal.x() + (eyeY - origin.y()) * normal.y() + (eyeZ - origin.z()) * normal.z() >= 0.0D;
     }

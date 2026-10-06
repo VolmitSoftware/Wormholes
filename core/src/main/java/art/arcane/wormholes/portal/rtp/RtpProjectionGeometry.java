@@ -1,6 +1,6 @@
 package art.arcane.wormholes.portal.rtp;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.scan.ProjectorPassRevision;
 import art.arcane.optics.math.Box;
@@ -37,7 +37,7 @@ public final class RtpProjectionGeometry {
         return identity == 0L ? 1L : identity;
     }
 
-    public static double previewAnchorLift(Vec3 center, Box area) {
+    public static double previewAnchorLift(Vec3d center, Box area) {
         return center == null || area == null ? 1D : Math.max(1D, center.y() - area.getYa());
     }
 
@@ -70,6 +70,6 @@ public final class RtpProjectionGeometry {
             + Math.abs(direction.y()) * area.sizeY() + Math.abs(direction.z()) * area.sizeZ());
     }
 
-    public record Source(UUID id, String worldKey, Vec3 center, Frame frame, Box area, long revision) {
+    public record Source(UUID id, String worldKey, Vec3d center, Frame frame, Box area, long revision) {
     }
 }

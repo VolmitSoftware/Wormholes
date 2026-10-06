@@ -1,6 +1,6 @@
 package art.arcane.optics.client;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.frame.PortalCoordMap;
 import art.arcane.optics.math.Face;
@@ -21,7 +21,7 @@ public final class ClientViewEnvironmentTransform {
             PortalCoordMap.transformPointInto(0, 0, 0, frame.remoteOriginX(), frame.remoteOriginY(), frame.remoteOriginZ(),
                 frame.localOriginX(), frame.localOriginY(), frame.localOriginZ(), frame.remoteViewFrame(), frame.localViewFrame(), vector);
         }
-        return new ProjectionEnvironment.Transform(x, y, z, new Vec3(vector[0], vector[1], vector[2]));
+        return new ProjectionEnvironment.Transform(x, y, z, new Vec3d(vector[0], vector[1], vector[2]));
     }
 
     private static Face axis(ClientViewEntityTransform.EntityFrame frame, double x, double y, double z, double[] vector) {

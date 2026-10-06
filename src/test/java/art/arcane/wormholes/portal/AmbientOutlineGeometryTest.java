@@ -9,7 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.ArrayList;
 import java.util.List;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.optics.math.Axis;
@@ -22,12 +22,12 @@ public final class AmbientOutlineGeometryTest
 	@Test
 	public void rectangleOutlineStaysOnThePlaneAndFollowsTheBoundary()
 	{
-		List<Vec3> blocks = new ArrayList<Vec3>();
+		List<Vec3d> blocks = new ArrayList<Vec3d>();
 		for(int x = 0; x < 2; x++)
 		{
 			for(int y = 64; y < 67; y++)
 			{
-				blocks.add(new Vec3(x, y, 8));
+				blocks.add(new Vec3d(x, y, 8));
 			}
 		}
 
@@ -48,7 +48,7 @@ public final class AmbientOutlineGeometryTest
 	{
 		for(Axis axis : Axis.values())
 		{
-			List<double[]> outline = AmbientOutlineGeometry.build(List.of(new Vec3(4, 5, 6)), axis);
+			List<double[]> outline = AmbientOutlineGeometry.build(List.of(new Vec3d(4, 5, 6)), axis);
 			assertEquals(4 * AmbientOutlineGeometry.SAMPLES_PER_EDGE, outline.size());
 			for(double[] point : outline)
 			{
@@ -80,7 +80,7 @@ public final class AmbientOutlineGeometryTest
 	{
 		AmbientOutlineGeometry geometry = new AmbientOutlineGeometry();
 		ApertureCells structure = new ApertureCells();
-        structure.setBlocks(List.of(new Vec3(0, 0, 0), new Vec3(1, 0, 0)));
+        structure.setBlocks(List.of(new Vec3d(0, 0, 0), new Vec3d(1, 0, 0)));
 
 		List<double[]> first = geometry.points(7L, Axis.Z, structure);
 		List<double[]> repeated = geometry.points(7L, Axis.Z, structure);
@@ -103,8 +103,8 @@ public final class AmbientOutlineGeometryTest
         AmbientOutlineGeometry cache = new AmbientOutlineGeometry();
         ApertureCells first = new ApertureCells();
         ApertureCells second = new ApertureCells();
-        first.setBlocks(List.of(new Vec3(-4, -5, -6)));
-        second.setBlocks(List.of(new Vec3(20, 30, 40)));
+        first.setBlocks(List.of(new Vec3d(-4, -5, -6)));
+        second.setBlocks(List.of(new Vec3d(20, 30, 40)));
         assertEquals(first.getRevision(), second.getRevision());
         List<double[]> original = cache.points(first.getRevision(), Axis.Z, first);
         List<double[]> replacement = cache.points(second.getRevision(), Axis.Z, second);
@@ -118,16 +118,16 @@ public final class AmbientOutlineGeometryTest
     @Test
     public void negativeRingsPreserveOuterAndInnerEdgesOnEveryAxis() {
         for (Axis axis : Axis.values()) {
-            List<Vec3> cells = new ArrayList<Vec3>();
+            List<Vec3d> cells = new ArrayList<Vec3d>();
             for (int right = -3; right < 0; right++) {
                 for (int up = -3; up < 0; up++) {
                     if (right == -2 && up == -2) {
                         continue;
                     }
                     cells.add(switch (axis) {
-                        case X -> new Vec3(-7, right, up);
-                        case Y -> new Vec3(right, -7, up);
-                        case Z -> new Vec3(right, up, -7);
+                        case X -> new Vec3d(-7, right, up);
+                        case Y -> new Vec3d(right, -7, up);
+                        case Z -> new Vec3d(right, up, -7);
                     });
                 }
             }

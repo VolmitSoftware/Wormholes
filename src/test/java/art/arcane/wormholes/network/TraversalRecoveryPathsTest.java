@@ -1,6 +1,6 @@
 package art.arcane.wormholes.network;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 
 import art.arcane.wormholes.Settings;
 import com.github.retrooper.packetevents.protocol.player.ClientVersion;
@@ -370,7 +370,7 @@ class TraversalRecoveryPathsTest {
     }
 
     private static TraversalEntityTransit.TransitState transitState() {
-        return new TraversalEntityTransit.TransitState(false, false, true, new Vec3(0.0D, 0.0D, 0.0D));
+        return new TraversalEntityTransit.TransitState(false, false, true, new Vec3d(0.0D, 0.0D, 0.0D));
     }
 
     private static Traversive traversive() {

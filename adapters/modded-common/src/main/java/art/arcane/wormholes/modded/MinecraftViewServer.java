@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.optics.stream.ProjectionEnvironment;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.clientview.MinecraftPortalEnvironment;
 import art.arcane.optics.plate.ChunkLease;
 import art.arcane.optics.entity.ProjectedEntityEvent;
@@ -540,7 +540,7 @@ public final class MinecraftViewServer implements AutoCloseable {
         if (session.meshDistance > 0 && ticks >= state.nextEnvironmentTick) {
             ViewEntityState.Center center = session.entities.center();
             ProjectionEnvironment environment = MinecraftPortalEnvironment.capture(session.level,
-                new Vec3(center.x(), center.y(), center.z()), ProjectionEnvironment.Transform.IDENTITY, session.level.isFlat());
+                new Vec3d(center.x(), center.y(), center.z()), ProjectionEnvironment.Transform.IDENTITY, session.level.isFlat());
             if (network.send(peer, new WireMessage.ViewEnvironment(session.portalId, environment))) {
                 state.nextEnvironmentTick = ticks + 20;
             }

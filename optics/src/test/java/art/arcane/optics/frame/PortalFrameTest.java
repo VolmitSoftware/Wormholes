@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import java.util.HashSet;
 import java.util.Set;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.optics.math.Box;
@@ -37,21 +37,21 @@ public final class PortalFrameTest {
 
 	@Test
 	public void canonicalDirectionPairsAreInvertible() {
-		Vec3 fromOrigin = new Vec3(7.25D, -3.5D, 4.75D);
-		Vec3 toOrigin = new Vec3(-11.25D, 9.5D, 22.75D);
-		Vec3 point = new Vec3(8.25D, -1.5D, 10.75D);
-		Vec3 vector = new Vec3(2.0D, -3.0D, 5.0D);
+		Vec3d fromOrigin = new Vec3d(7.25D, -3.5D, 4.75D);
+		Vec3d toOrigin = new Vec3d(-11.25D, 9.5D, 22.75D);
+		Vec3d point = new Vec3d(8.25D, -1.5D, 10.75D);
+		Vec3d vector = new Vec3d(2.0D, -3.0D, 5.0D);
 
 		for (Face fromNormal : Face.values()) {
 			Frame fromFrame = Frame.canonical(fromNormal);
 			for (Face toNormal : Face.values()) {
 				Frame toFrame = Frame.canonical(toNormal);
-				Vec3 projectedPoint = fromFrame.transformPoint(point, fromOrigin, toOrigin, toFrame);
-				Vec3 restoredPoint = toFrame.transformPoint(projectedPoint, toOrigin, fromOrigin, fromFrame);
+				Vec3d projectedPoint = fromFrame.transformPoint(point, fromOrigin, toOrigin, toFrame);
+				Vec3d restoredPoint = toFrame.transformPoint(projectedPoint, toOrigin, fromOrigin, fromFrame);
 				assertVector(point, restoredPoint);
 
-				Vec3 projectedVector = fromFrame.transformVector(vector, toFrame);
-				Vec3 restoredVector = toFrame.transformVector(projectedVector, fromFrame);
+				Vec3d projectedVector = fromFrame.transformVector(vector, toFrame);
+				Vec3d restoredVector = toFrame.transformVector(projectedVector, fromFrame);
 				assertVector(vector, restoredVector);
 			}
 		}
@@ -72,30 +72,30 @@ public final class PortalFrameTest {
 
 	@Test
 	public void downToUprightReverseTransformRestoresOriginalPointAndVector() {
-		Frame downFrame = Frame.fromDirectionAndLook(Face.D, new Vec3(0.0D, -1.0D, -1.0D));
+		Frame downFrame = Frame.fromDirectionAndLook(Face.D, new Vec3d(0.0D, -1.0D, -1.0D));
 		Frame uprightFrame = Frame.canonical(Face.N);
-		Vec3 downOrigin = new Vec3(20.0D, 64.0D, -10.0D);
-		Vec3 uprightOrigin = new Vec3(-5.0D, 80.0D, 40.0D);
-		Vec3 point = new Vec3(23.0D, 61.0D, -14.0D);
-		Vec3 vector = new Vec3(1.0D, -2.0D, -3.0D);
+		Vec3d downOrigin = new Vec3d(20.0D, 64.0D, -10.0D);
+		Vec3d uprightOrigin = new Vec3d(-5.0D, 80.0D, 40.0D);
+		Vec3d point = new Vec3d(23.0D, 61.0D, -14.0D);
+		Vec3d vector = new Vec3d(1.0D, -2.0D, -3.0D);
 
-		Vec3 throughPortal = downFrame.transformPoint(point, downOrigin, uprightOrigin, uprightFrame);
-		Vec3 backThroughPortal = uprightFrame.transformPoint(throughPortal, uprightOrigin, downOrigin, downFrame);
+		Vec3d throughPortal = downFrame.transformPoint(point, downOrigin, uprightOrigin, uprightFrame);
+		Vec3d backThroughPortal = uprightFrame.transformPoint(throughPortal, uprightOrigin, downOrigin, downFrame);
 		assertVector(point, backThroughPortal);
 
-		Vec3 throughVector = downFrame.transformVector(vector, uprightFrame);
-		Vec3 backVector = uprightFrame.transformVector(throughVector, downFrame);
+		Vec3d throughVector = downFrame.transformVector(vector, uprightFrame);
+		Vec3d backVector = uprightFrame.transformVector(throughVector, downFrame);
 		assertVector(vector, backVector);
 	}
 
 	@Test
 	public void verticalFrameUsesLookYawForScreenUp() {
-		Frame downNorth = Frame.fromDirectionAndLook(Face.D, new Vec3(0.0D, -1.0D, -1.0D));
+		Frame downNorth = Frame.fromDirectionAndLook(Face.D, new Vec3d(0.0D, -1.0D, -1.0D));
 		assertEquals(Face.D, downNorth.getNormal());
 		assertEquals(Face.N, downNorth.getUp());
 		assertEquals(Face.E, downNorth.getRight());
 
-		Frame upSouth = Frame.fromDirectionAndLook(Face.U, new Vec3(0.0D, 1.0D, 1.0D));
+		Frame upSouth = Frame.fromDirectionAndLook(Face.U, new Vec3d(0.0D, 1.0D, 1.0D));
 		assertEquals(Face.U, upSouth.getNormal());
 		assertEquals(Face.S, upSouth.getUp());
 		assertEquals(Face.E, upSouth.getRight());
@@ -112,7 +112,7 @@ public final class PortalFrameTest {
 
 	@Test
 	public void basisDirectionsRotateLikeProjectedBlockFacesAndAxes() {
-		Frame remoteDown = Frame.fromDirectionAndLook(Face.D, new Vec3(0.0D, -1.0D, -1.0D));
+		Frame remoteDown = Frame.fromDirectionAndLook(Face.D, new Vec3d(0.0D, -1.0D, -1.0D));
 		Frame localNorth = Frame.canonical(Face.N);
 		double[] scratch = new double[3];
 
@@ -159,7 +159,7 @@ public final class PortalFrameTest {
 		assertEquals(Face.E, upFacing.getUp());
 	}
 
-	private static void assertVector(Vec3 expected, Vec3 actual) {
+	private static void assertVector(Vec3d expected, Vec3d actual) {
 		assertEquals(expected.getX(), actual.getX(), EPSILON);
 		assertEquals(expected.getY(), actual.getY(), EPSILON);
 		assertEquals(expected.getZ(), actual.getZ(), EPSILON);

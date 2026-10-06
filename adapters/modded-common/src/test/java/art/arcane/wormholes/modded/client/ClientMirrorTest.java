@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftProjectedBlockStates;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.BrickCodec;
@@ -223,7 +223,7 @@ public class ClientMirrorTest {
         ApertureDescriptor geometry = mirror(0, List.of());
         Frame frame = geometry.frame();
         double[] out = new double[3];
-        Vec3 origin = geometry.apertureArea().center();
+        Vec3d origin = geometry.apertureArea().center();
         PortalCoordMap.mirrorDisplayToSourcePointInto(x + 0.5D, y + 0.5D, z + 0.5D, origin.getX(), origin.getY(), origin.getZ(), frame,
             geometry.mirrorQuarterTurns(), out);
         return new int[] {(int) Math.floor(out[0]), (int) Math.floor(out[1]), (int) Math.floor(out[2])};

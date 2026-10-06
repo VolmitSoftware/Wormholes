@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.access.PortalRole;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.portal.Portal;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.aperture.ApertureCells;
@@ -89,7 +89,7 @@ public class MinecraftSubsystemMenusTest {
 
     private static MinecraftPortal portal() {
         ApertureCells geometry = new ApertureCells();
-        geometry.setBlocks(List.of(new Vec3(0, 64, 0), new Vec3(0, 65, 0)));
+        geometry.setBlocks(List.of(new Vec3d(0, 64, 0), new Vec3d(0, 65, 0)));
         UUID id = UUID.randomUUID();
         return new MinecraftPortal(new MinecraftPortal.Definition(new Portal.State(id, geometry.getApertureCenter(), "Access",
             Frame.canonical(Face.N), true), geometry, "minecraft:overworld", Map.of("owner", UUID.randomUUID().toString(), "type", "PORTAL")));

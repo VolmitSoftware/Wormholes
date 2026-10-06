@@ -10,7 +10,7 @@ import java.util.Random;
 
 import org.junit.jupiter.api.Test;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.aperture.Aperture;
 import art.arcane.optics.math.Axis;
 import art.arcane.optics.math.Box;
@@ -95,7 +95,7 @@ final class FrustumBoxCoverageTest {
 
     @Test
     void boxProofCannotCrossTheApexPlane() {
-        Frustum face = new Frustum(new Vec3(1.5D, 1.5D, 5.0D),
+        Frustum face = new Frustum(new Vec3d(1.5D, 1.5D, 5.0D),
             new Box(0.0D, 3.0D, 0.0D, 3.0D, 5.0D, 5.0D),
             Face.S, Axis.Z, 3.0D, 3.0D, 0.0D);
         assertTrue(face.containsPrimitive(1.5D, 1.5D, 4.0D));
@@ -160,19 +160,19 @@ final class FrustumBoxCoverageTest {
     }
 
     private record BoxAperture(Face direction, double offset, List<Rectangle> rectangles) implements Aperture {
-        private Vec3 point(double first, double second, double normal) {
+        private Vec3d point(double first, double second, double normal) {
             double depth = offset + normal * (direction.x() + direction.y() + direction.z());
             return switch (direction.getAxis()) {
-                case X -> new Vec3(depth, offset + first, offset + second);
-                case Y -> new Vec3(offset + first, depth, offset + second);
-                case Z -> new Vec3(offset + first, offset + second, depth);
+                case X -> new Vec3d(depth, offset + first, offset + second);
+                case Y -> new Vec3d(offset + first, depth, offset + second);
+                case Z -> new Vec3d(offset + first, offset + second, depth);
             };
         }
 
         private Box box(double firstMin, double firstMax, double secondMin, double secondMax,
                                   double normalMin, double normalMax) {
-            Vec3 first = point(firstMin, secondMin, normalMin);
-            Vec3 second = point(firstMax, secondMax, normalMax);
+            Vec3d first = point(firstMin, secondMin, normalMin);
+            Vec3d second = point(firstMax, secondMax, normalMax);
             return new Box(Math.min(first.x(), second.x()), Math.max(first.x(), second.x()),
                 Math.min(first.y(), second.y()), Math.max(first.y(), second.y()),
                 Math.min(first.z(), second.z()), Math.max(first.z(), second.z()));
@@ -184,7 +184,7 @@ final class FrustumBoxCoverageTest {
         }
 
         @Override
-        public Vec3 getApertureCenter() {
+        public Vec3d getApertureCenter() {
             return point(1.5D, 1.5D, 5.0D);
         }
 

@@ -1,5 +1,6 @@
 package art.arcane.wormholes.network;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import art.arcane.wormholes.modded.MinecraftGameTestPlayer;
 import art.arcane.wormholes.modded.MinecraftJsonDocuments;
@@ -68,7 +69,7 @@ public final class NativeGatewayPolicyProbe {
             actor.player().setPos(source.getOrigin().x(), source.getOrigin().y(), source.getOrigin().z());
             runtime.portals().recordArrival(actor.player(), source);
             crossing = new PlaneCrossing(source.getFrame(), source.getOrigin(), source.getOrigin(),
-                new art.arcane.optics.math.Vec3(0, 0, 0.1D), new art.arcane.optics.math.Vec3(0, 0, -1), true);
+                new Vec3d(0, 0, 0.1D), new Vec3d(0, 0, -1), true);
             runtime.network().remotePortals().applyDirectory(peer, List.of(new PortalInfo(destination, "queue-exit", "minecraft:overworld",
                 "GATEWAY", true, "N", "E", "U", 0, 64, 0, 0, 64, 0, 2, 67, 1)));
             network = new ProbeNetwork(directory, peer);

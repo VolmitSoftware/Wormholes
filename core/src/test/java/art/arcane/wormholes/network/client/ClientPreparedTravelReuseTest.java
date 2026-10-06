@@ -1,6 +1,6 @@
 package art.arcane.wormholes.network.client;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.view.WorldChangeTracker;
 import art.arcane.wormholes.render.client.session.ClientPreparedTravelServer;
 import java.lang.reflect.Field;
@@ -606,7 +606,7 @@ final class ClientPreparedTravelReuseTest {
 
     private static ClientPreparedTravelServer.Commit commit(ClientViewMessage.TravelBegin begin, long time) {
         return new ClientPreparedTravelServer.Commit(begin.sourcePortal(), begin.sourceWorld(), begin.world().dimension(),
-            begin.arrival(), new Vec3(0, 0, 0), time);
+            begin.arrival(), new Vec3d(0, 0, 0), time);
     }
 
     private static ClientViewMessage.TravelBegin withCoordinates(ClientViewMessage.TravelBegin begin,

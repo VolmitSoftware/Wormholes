@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client.render;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
@@ -54,7 +55,7 @@ final class PortalEnvironmentRenderer implements AutoCloseable {
         if (changed || local.needsUpdate) {
             lightmap.render(PortalEnvironment.light(environment, local));
         }
-        art.arcane.optics.math.Vec3 eye = environment.transform().destinationPoint(camera.pos.x, camera.pos.y, camera.pos.z);
+        Vec3d eye = environment.transform().destinationPoint(camera.pos.x, camera.pos.y, camera.pos.z);
         sky = PortalEnvironment.sky(environment, eye);
         float blend = blendTicks == 0 ? 1 : Math.clamp((now - receivedTime + camera.cameraEntityPartialTicks) / blendTicks, 0.0f, 1.0f);
         sky.sunAngle = PortalEnvironment.angle(previousSun, sky.sunAngle, blend);

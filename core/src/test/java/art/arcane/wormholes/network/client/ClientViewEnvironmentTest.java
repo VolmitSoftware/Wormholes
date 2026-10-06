@@ -8,7 +8,7 @@ import art.arcane.wormholes.render.view.RemoteProjectionView;
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import static org.mockito.Mockito.mock;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.render.client.session.ClientViewSceneFx;
 import art.arcane.optics.math.Face;
 import org.junit.jupiter.api.Test;
@@ -86,7 +86,7 @@ class ClientViewEnvironmentTest {
         assertThrows(IllegalArgumentException.class, () -> new ProjectionEnvironment.World("missing_namespace", 0, "minecraft:plains", 63, 7, 15, 256, true, 0.1F, ProjectionEnvironment.EyeMedium.NONE, false));
         assertThrows(IllegalArgumentException.class, () -> new ProjectionEnvironment.World("test:../ world", 0, "minecraft:plains", 63, 7, 15, 256, true, 0.1F, ProjectionEnvironment.EyeMedium.NONE, false));
         assertThrows(IllegalArgumentException.class, () -> new ProjectionEnvironment.Transform(Face.N, Face.S, Face.U,
-            new Vec3(0, 0, 0)));
+            new Vec3d(0, 0, 0)));
     }
 
     @Test

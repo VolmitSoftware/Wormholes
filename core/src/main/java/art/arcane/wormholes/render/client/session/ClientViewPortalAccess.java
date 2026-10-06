@@ -3,7 +3,7 @@ package art.arcane.wormholes.render.client.session;
 import java.util.List;
 import java.util.UUID;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.view.WorldChangeTracker;
 import art.arcane.optics.plate.PlateBox;
 import art.arcane.optics.stream.BrickLightSource;
@@ -25,7 +25,7 @@ public interface ClientViewPortalAccess<P, B> {
         return 0;
     }
 
-    default Vec3 meshEye(P observer) {
+    default Vec3d meshEye(P observer) {
         return null;
     }
 
@@ -35,7 +35,7 @@ public interface ClientViewPortalAccess<P, B> {
     default void releaseNested(P observer, UUID context) {
     }
 
-    default Vec3 nestedEye(P observer, UUID context) {
+    default Vec3d nestedEye(P observer, UUID context) {
         return null;
     }
 

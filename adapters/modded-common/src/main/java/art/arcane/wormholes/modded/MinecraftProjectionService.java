@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.entity.ProjectedEntityEvent;
 import art.arcane.optics.entity.CandidateCache;
 import art.arcane.optics.fidelity.AcousticsBridge;
@@ -111,7 +112,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
             System.currentTimeMillis());
     }
 
-    private static Collection<Entity> queryLocalEntities(ServerLevel world, art.arcane.optics.math.Vec3 center, int range) {
+    private static Collection<Entity> queryLocalEntities(ServerLevel world, Vec3d center, int range) {
         return world.getEntities((Entity) null, new AABB(center.x() - range, center.y() - range, center.z() - range,
             center.x() + range, center.y() + range, center.z() + range));
     }
@@ -134,7 +135,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
     }
 
     public void noteClientViewAcoustics(ServerPlayer player, UUID portalId, ServerLevel destination, double destinationX, double destinationY,
-                                        double destinationZ, art.arcane.optics.math.Vec3 aperture, AcousticsProfile profile) {
+                                        double destinationZ, Vec3d aperture, AcousticsProfile profile) {
         Observer observer = observers.get(player.getUUID());
         if (observer == null || destination == null) {
             return;
@@ -521,7 +522,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
             return new GazeScheduler.Candidate<>(portal, portal.getId(), area.getXa(), area.getYa(), area.getZa(),
                 area.getXb(), area.getYb(), area.getZb(), pendingScan, false);
         }
-        art.arcane.optics.math.Vec3 origin = portal.getOrigin();
+        Vec3d origin = portal.getOrigin();
         return new GazeScheduler.Candidate<>(portal, portal.getId(), origin.x() - 0.5D, origin.y() - 0.5D, origin.z() - 0.5D,
             origin.x() + 0.5D, origin.y() + 0.5D, origin.z() + 0.5D, pendingScan, false);
     }
@@ -550,8 +551,8 @@ public final class MinecraftProjectionService implements AutoCloseable {
         }
         Vec3 eye = player.getEyePosition();
         Vec3 look = player.getLookAngle();
-        art.arcane.optics.math.Vec3 origin = portal.getOrigin();
-        art.arcane.optics.math.Vec3 center = portal.getGeometry().getApertureCenter();
+        Vec3d origin = portal.getOrigin();
+        Vec3d center = portal.getGeometry().getApertureCenter();
         Face normal = portal.getFrame().getNormal();
         return ObserverGeometry.hasStablePortalSide(eye.x, eye.y, eye.z, origin.x(), origin.y(), origin.z(),
             normal.x(), normal.y(), normal.z(), config().sideGraceDot)

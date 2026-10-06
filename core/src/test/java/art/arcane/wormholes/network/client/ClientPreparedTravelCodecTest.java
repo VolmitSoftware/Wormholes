@@ -1,6 +1,6 @@
 package art.arcane.wormholes.network.client;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.aperture.ApertureDescriptor;
 
 import java.nio.ByteBuffer;
@@ -184,11 +184,11 @@ final class ClientPreparedTravelCodecTest {
     void crossingRejectsNonfiniteVectorsAndCommitRejectsNonfiniteVelocity() {
         ClientViewMessage.TravelPose pose = ClientViewFixtures.travelBegin().arrival();
         for (double coordinate : new double[]{Double.NaN, Double.POSITIVE_INFINITY, 30_000_001}) {
-            Vec3 invalid = new Vec3(coordinate, 0, 0);
+            Vec3d invalid = new Vec3d(coordinate, 0, 0);
             assertThrows(IllegalArgumentException.class, () -> new ClientViewMessage.TravelCross(TOKEN, 3, 9, pose,
-                invalid, new Vec3(0, 0, 0)));
+                invalid, new Vec3d(0, 0, 0)));
             assertThrows(IllegalArgumentException.class, () -> new ClientViewMessage.TravelCross(TOKEN, 3, 9, pose,
-                new Vec3(0, 0, 0), invalid));
+                new Vec3d(0, 0, 0), invalid));
             if (!Double.isFinite(coordinate)) {
                 assertThrows(IllegalArgumentException.class, () -> new ClientViewMessage.TravelCommit(TOKEN, 3, 9,
                     "minecraft:overworld", "minecraft:overworld", pose, invalid));

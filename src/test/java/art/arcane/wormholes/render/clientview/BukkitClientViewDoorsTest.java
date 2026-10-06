@@ -3,7 +3,7 @@ package art.arcane.wormholes.render.clientview;
 import art.arcane.wormholes.Settings;
 
 import art.arcane.wormholes.door.view.DoorProjectionAdapter;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.network.client.SessionPalette;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.ITunnel;
@@ -269,7 +269,7 @@ final class BukkitClientViewDoorsTest {
         DoorProjectionAdapter door = mock(DoorProjectionAdapter.class);
         ILocalPortal source = fixture.portal;
         UUID id = source.getId();
-        Vec3 origin = source.getOrigin();
+        Vec3d origin = source.getOrigin();
         Frame frame = source.getFrame();
         PortalStructure structure = source.getStructure();
         when(door.getId()).thenReturn(id);
@@ -307,7 +307,7 @@ final class BukkitClientViewDoorsTest {
             when(aperture.getMirrorRotation()).thenReturn(QuarterTurn.DEGREES_0);
         } else if (kind == ApertureKind.LINKED) {
             ILocalPortal destination = mock(ILocalPortal.class);
-            Vec3 destinationOrigin = fixture.portal.getOrigin();
+            Vec3d destinationOrigin = fixture.portal.getOrigin();
             when(destination.getWorld()).thenReturn(destinationWorld);
             when(destination.getFrame()).thenReturn(Frame.canonical(Face.S));
             when(destination.getOrigin()).thenReturn(destinationOrigin);

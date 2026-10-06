@@ -1,6 +1,6 @@
 package art.arcane.optics.entity;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.aperture.Endpoint;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.math.Face;
@@ -27,7 +27,7 @@ public final class EntityVisualProjection<W, P extends Endpoint, R> {
                            Frame localViewFrame, Frame remoteViewFrame, ViewVolume frustum,
                            EntitySnapshot visual, boolean mirror, int mirrorRotationQuarterTurns,
                            EntityPath<W, P> projectionPath, boolean itemFrame, boolean hanging) {
-        Vec3 localOrigin = localPortal.origin();
+        Vec3d localOrigin = localPortal.origin();
         double visibleY = hanging ? visual.y() : visual.y() + (visual.height() * 0.5D);
         if (projectionPath != null) {
             if (!projectionPath.visible(visual, visibleY, scratchVisiblePoint)) {

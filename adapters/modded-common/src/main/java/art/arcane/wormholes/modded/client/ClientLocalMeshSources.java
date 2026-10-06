@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftBlockEntityTags;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.wormholes.modded.clientview.MinecraftLightSnapshot;
 import art.arcane.optics.stream.Brick;
@@ -177,7 +177,7 @@ public final class ClientLocalMeshSources {
                 }
                 continue;
             }
-            Vec3 eye = sourceEye(session, portal, new Vec3(eyeX, eyeY, eyeZ));
+            Vec3d eye = sourceEye(session, portal, new Vec3d(eyeX, eyeY, eyeZ));
             if (eye == null) {
                 Route removed = routes.remove(portal.portalKey());
                 if (removed != null) {
@@ -306,7 +306,7 @@ public final class ClientLocalMeshSources {
         return portal.geometry().mirror() && environment.world().dimensionKey().equals(level.dimension().identifier().toString());
     }
 
-    static Vec3 sourceEye(ClientViewSession session, ClientPortal portal, Vec3 eye) {
+    static Vec3d sourceEye(ClientViewSession session, ClientPortal portal, Vec3d eye) {
         List<ProjectionEnvironment.Transform> ancestors = new ArrayList<>();
         int parent = portal.geometry().parentPortalKey();
         Set<Integer> visited = new HashSet<>();
@@ -541,7 +541,7 @@ public final class ClientLocalMeshSources {
         private final List<UUID> removedEntities = new ArrayList<>();
         private int cursor;
         private int sequence;
-        private Vec3 eye;
+        private Vec3d eye;
         private long plannedTick;
         private boolean replanned;
 
@@ -590,7 +590,7 @@ public final class ClientLocalMeshSources {
             }
         }
 
-        private Route(ClientPortal portal, ClientMeshSections.View view, ProjectionEnvironment.Transform transform, Vec3 eye, long tick, String world, boolean local) {
+        private Route(ClientPortal portal, ClientMeshSections.View view, ProjectionEnvironment.Transform transform, Vec3d eye, long tick, String world, boolean local) {
             this.world = world;
             this.local = local;
             this.key = portal.portalKey();
@@ -601,7 +601,7 @@ public final class ClientLocalMeshSources {
             plan(portal.geometry(), eye, tick);
         }
 
-        private void plan(ApertureDescriptor geometry, Vec3 eye, long tick) {
+        private void plan(ApertureDescriptor geometry, Vec3d eye, long tick) {
             this.eye = eye;
             plannedTick = tick;
             selection.clear();

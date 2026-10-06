@@ -1,5 +1,6 @@
 package art.arcane.wormholes.network;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.nexus.NetworkMember;
 import art.arcane.optics.plate.ChunkLease;
 import art.arcane.wormholes.config.toml.TransitConfig;
@@ -280,7 +281,7 @@ final class MinecraftConvoys implements AutoCloseable {
         if (entity.isRemoved()) {
             return;
         }
-        art.arcane.optics.math.Vec3 point = crossing.rejectionPoint();
+        Vec3d point = crossing.rejectionPoint();
         entity.teleportTo(point.x(), point.y(), point.z());
         entity.setDeltaMovement(Vec3.ZERO);
         runtime.portals().recordArrival(entity, source);
@@ -305,8 +306,8 @@ final class MinecraftConvoys implements AutoCloseable {
         entity.setComponent(DataComponents.CUSTOM_DATA, CustomData.of(data));
     }
 
-    private static art.arcane.optics.math.Vec3 geometry(Vec3 vector) {
-        return new art.arcane.optics.math.Vec3(vector.x, vector.y, vector.z);
+    private static Vec3d geometry(Vec3 vector) {
+        return new Vec3d(vector.x, vector.y, vector.z);
     }
 
     private final class Transport implements ConvoyTransferService.Transport {
@@ -451,7 +452,7 @@ final class MinecraftConvoys implements AutoCloseable {
         public boolean schedule(Runnable task, long delayTicks) { return runtime.schedule(task, delayTicks); }
     }
 
-    private record Destination(MinecraftPortal portal, art.arcane.optics.math.Vec3 point) {
+    private record Destination(MinecraftPortal portal, Vec3d point) {
     }
 
     private record Hold(Entity entity, Vec3 position, TraversalEntityTransit.TransitState state, boolean invisible) {

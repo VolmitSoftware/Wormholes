@@ -19,7 +19,7 @@ import org.bukkit.Particle;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.optics.frame.Frame;
@@ -120,7 +120,7 @@ public final class PortalToolPreviewRenderer
 			{
 				return current.geometry();
 			}
-			List<Vec3> positions = structure.geometry().getBlockPositions();
+			List<Vec3d> positions = structure.geometry().getBlockPositions();
 			if(structure.getRevision() != revision)
 			{
 				continue;

@@ -1,6 +1,6 @@
 package art.arcane.optics.frame;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
@@ -40,7 +40,7 @@ public final class Frame {
 		return canonical(normal);
 	}
 
-	public static Frame fromDirectionAndLook(Face normal, Vec3 look) {
+	public static Frame fromDirectionAndLook(Face normal, Vec3d look) {
 		if (!normal.isVertical()) {
 			return canonical(normal);
 		}
@@ -103,17 +103,17 @@ public final class Frame {
 		return canonical(nextNormal);
 	}
 
-	public Vec3 transformPoint(Vec3 point, Vec3 fromOrigin, Vec3 toOrigin, Frame to) {
+	public Vec3d transformPoint(Vec3d point, Vec3d fromOrigin, Vec3d toOrigin, Frame to) {
 		double[] out = new double[3];
 		transformPointInto(point.getX(), point.getY(), point.getZ(),
 			fromOrigin.getX(), fromOrigin.getY(), fromOrigin.getZ(),
 			toOrigin.getX(), toOrigin.getY(), toOrigin.getZ(), to, out);
-		return new Vec3(out[0], out[1], out[2]);
+		return new Vec3d(out[0], out[1], out[2]);
 	}
 
-	public Vec3 transformCrossingPoint(Vec3 point, Vec3 fromOrigin, Vec3 toOrigin, Frame to) {
+	public Vec3d transformCrossingPoint(Vec3d point, Vec3d fromOrigin, Vec3d toOrigin, Frame to) {
 		double distance = dot(point.x() - fromOrigin.x(), point.y() - fromOrigin.y(), point.z() - fromOrigin.z(), normal);
-		Vec3 crossing = new Vec3(point.x() - distance * normal.x(), point.y() - distance * normal.y(),
+		Vec3d crossing = new Vec3d(point.x() - distance * normal.x(), point.y() - distance * normal.y(),
 			point.z() - distance * normal.z());
 		return view(distance >= 0.0D).transformPoint(crossing, fromOrigin, toOrigin, to);
 	}
@@ -131,10 +131,10 @@ public final class Frame {
 		out3[2] = toOriginZ + out3[2];
 	}
 
-	public Vec3 transformVector(Vec3 vector, Frame to) {
+	public Vec3d transformVector(Vec3d vector, Frame to) {
 		double[] out = new double[3];
 		transformVectorInto(vector.getX(), vector.getY(), vector.getZ(), to, out);
-		return new Vec3(out[0], out[1], out[2]);
+		return new Vec3d(out[0], out[1], out[2]);
 	}
 
 	public void transformVectorInto(double x, double y, double z, Frame to, double[] out3) {

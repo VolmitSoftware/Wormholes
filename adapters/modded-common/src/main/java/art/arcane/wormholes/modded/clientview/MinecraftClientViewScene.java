@@ -2,7 +2,7 @@ package art.arcane.wormholes.modded.clientview;
 
 import art.arcane.optics.entity.EntityProfile;
 import art.arcane.wormholes.config.toml.RenderConfig;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftEntityMetadata;
 import art.arcane.wormholes.modded.MinecraftLocalEntityView;
 import art.arcane.wormholes.modded.MinecraftPacketBlobs;
@@ -244,7 +244,7 @@ public final class MinecraftClientViewScene implements ClientViewEntityFrames.Sc
             return null;
         }
         MinecraftClientViewPeer.NestedContext context = peer.nestedContext(parent);
-        Vec3 eye = context == null
+        Vec3d eye = context == null
             ? ClientViewEnvironmentTransform.of(mirror.frame()).destinationPoint(player.getX(), player.getEyeY(), player.getZ())
             : context.destinationEye();
         ProjectionEnvironment.Transform affine = ClientViewEnvironmentTransform.of(destination.frame());
@@ -288,7 +288,7 @@ public final class MinecraftClientViewScene implements ClientViewEntityFrames.Sc
             return null;
         }
         MinecraftClientViewPeer.NestedContext context = peer.nestedContext(portalId);
-        Vec3 eye = context == null ? null : context.sourceEye();
+        Vec3d eye = context == null ? null : context.sourceEye();
         boolean front = eye == null ? MinecraftClientViewPortalAccess.front(player, portal)
             : MinecraftClientViewPortalAccess.front(eye.x(), eye.y(), eye.z(), portal);
         return destination(peer, portalId, front);
@@ -307,7 +307,7 @@ public final class MinecraftClientViewScene implements ClientViewEntityFrames.Sc
         if (anchor == null) {
             return null;
         }
-        Vec3 origin = portal.getOrigin();
+        Vec3d origin = portal.getOrigin();
         ClientViewEntityTransform.EntityFrame frame = new ClientViewEntityTransform.EntityFrame(origin.x(), origin.y(), origin.z(), portal.getFrame(),
             target.originX(), target.originY(), target.originZ(), target.remoteFrame(), target.mirrorMode(), target.mirrorQuarterTurns(),
             target.front(), peer.meshDepth() > 0 ? peer.meshDepth() : portal.getNetworkViewDepth());

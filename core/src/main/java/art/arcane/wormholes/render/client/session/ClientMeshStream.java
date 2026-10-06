@@ -11,7 +11,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.IntPredicate;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.view.WorldChangeTracker;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.entity.EntitySnapshot;
@@ -52,7 +52,7 @@ final class ClientMeshStream<B> {
     }
 
     synchronized <P> boolean refresh(ClientViewPortalSlot<B> slot, ClientViewPortalAccess<P, B> portals, P player,
-                                     long tick, long now, boolean destinationLight, Vec3 eye) {
+                                     long tick, long now, boolean destinationLight, Vec3d eye) {
         if (eye == null) {
             return false;
         }
@@ -402,7 +402,7 @@ final class ClientMeshStream<B> {
         inFlight = 0;
     }
 
-    private void replan(State<B> state, Vec3 eye, long tick) {
+    private void replan(State<B> state, Vec3d eye, long tick) {
         state.eye = eye;
         state.plannedTick = tick;
         state.order = MeshPlan.visible(state.geometry, eye);
@@ -511,7 +511,7 @@ final class ClientMeshStream<B> {
         private int cacheSequence;
         private boolean localAllowed;
         private List<MeshPlan.Section> order = new ArrayList<MeshPlan.Section>();
-        private Vec3 eye;
+        private Vec3d eye;
         private long plannedTick;
         private int cursor;
         private int dirtyCursor;

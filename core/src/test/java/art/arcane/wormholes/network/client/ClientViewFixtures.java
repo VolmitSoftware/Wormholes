@@ -1,6 +1,6 @@
 package art.arcane.wormholes.network.client;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.math.Face;
 
 import java.util.ArrayList;
@@ -86,13 +86,13 @@ final class ClientViewFixtures {
         out.add(new Vector("travel_ready", new ClientViewMessage.TravelReady(new UUID(12, 34), 3L, 9L),
             ViewStreamCapability.NONE, 0, 0));
         out.add(new Vector("travel_commit", new ClientViewMessage.TravelCommit(new UUID(12, 34), 3L, 9L,
-            "minecraft:the_nether", "minecraft:overworld", travelBegin().arrival(), new Vec3(0.25D, -0.5D, 1.0D)), ViewStreamCapability.ALL, 21,
+            "minecraft:the_nether", "minecraft:overworld", travelBegin().arrival(), new Vec3d(0.25D, -0.5D, 1.0D)), ViewStreamCapability.ALL, 21,
             ViewStreamLimits.FLAG_LAST));
         out.add(new Vector("travel_cancel", new ClientViewMessage.TravelCancel(new UUID(12, 34), 3L),
             ViewStreamCapability.ALL, 22, ViewStreamLimits.FLAG_LAST));
         out.add(new Vector("travel_cross", new ClientViewMessage.TravelCross(new UUID(12, 34), 3L, 9L,
             new ClientViewMessage.TravelPose(635.5D, 65.0D, -4681.4D, 90.0F, -12.0F),
-            new Vec3(635.5D, 66.62D, -4681.6D), new Vec3(635.5D, 66.62D, -4681.4D)),
+            new Vec3d(635.5D, 66.62D, -4681.6D), new Vec3d(635.5D, 66.62D, -4681.4D)),
             ViewStreamCapability.NONE, 0, 0));
         byte[] travelHash = new byte[32];
         for (int index = 0; index < travelHash.length; index++) {
@@ -116,7 +116,7 @@ final class ClientViewFixtures {
                 world.blockLight(), world.skyLight(), world.logicalHeight(), world.hasCeiling(), world.ambientLight(),
                 world.eyeMedium(), world.hasFixedTime()));
         return new ClientViewMessage.TravelBegin(new UUID(12, 34), 3L, new UUID(56, 78), "minecraft:the_nether",
-            geometry(List.of()), new ProjectionEnvironment.Transform(Face.S, Face.U, Face.E, new Vec3(4, 0, 6)),
+            geometry(List.of()), new ProjectionEnvironment.Transform(Face.S, Face.U, Face.E, new Vec3d(4, 0, 6)),
             new ClientViewMessage.TravelWorld("minecraft:overworld", "minecraft:overworld", 123456789L, false, true, 63, -64, 384),
             new ClientViewMessage.TravelPose(-511.5D, 81.0D, -159.5D, 90.0F, -12.0F),
             List.of(new ClientViewMessage.TravelCoordinate(-32, -10)), environment, 30_000);
@@ -140,7 +140,7 @@ final class ClientViewFixtures {
             new ProjectionEnvironment.Sky(ProjectionEnvironment.Skybox.OVERWORLD, 1.5F, 2.5F, 3.5F, 0.8F, alpha, color, 5, 0.25F, 0.5F),
             new ProjectionEnvironment.Fog(color, -8.0F, 96.0F, 512.0F, 256.0F, color, 0.0F, 32.0F),
             new ProjectionEnvironment.Lighting(color, 0.75F, color, color), new ProjectionEnvironment.Clouds(alpha, 192.0F),
-            new ProjectionEnvironment.Transform(Face.N, Face.U, Face.E, new Vec3(-128.5D, 96.0D, 33.25D)),
+            new ProjectionEnvironment.Transform(Face.N, Face.U, Face.E, new Vec3d(-128.5D, 96.0D, 33.25D)),
             new ProjectionEnvironment.Dimension(-64, 384, true, ProjectionEnvironment.CardinalLighting.DEFAULT, 63.0D, false),
             new ProjectionEnvironment.World("test:destination", 72000L, "minecraft:plains", 63, 7, 15, 256, true, 0.1F, ProjectionEnvironment.EyeMedium.WATER, true));
     }

@@ -2,7 +2,7 @@ package art.arcane.wormholes.render;
 
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.render.PortalSkinGeometry.SkinTransform;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -630,7 +630,7 @@ public final class PortalSkinRenderer {
 
     private static double priorityDistance(Player observer, ILocalPortal portal) {
         Location eye = observer.getEyeLocation();
-        Vec3 origin = portal.getOrigin();
+        Vec3d origin = portal.getOrigin();
         Face normal = portal.getFrame().getNormal();
         double dot = ((eye.getX() - origin.getX()) * normal.x())
             + ((eye.getY() - origin.getY()) * normal.y())

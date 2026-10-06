@@ -7,7 +7,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.network.client.SessionPalette;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.plate.PlateBox;
@@ -25,12 +25,12 @@ final class ClientMeshPlanTest {
                     0, false, 9, 5, new long[] {(1L << 45) - 1}, 0, 0.75F, 1, 160,
                     0, 0, 0, 0, 0, 0, 0, 0.0D, 0, 1, List.of());
                 Box area = geometry.apertureArea();
-                Vec3 center = new Vec3((area.getXa() + area.getXb()) / 2,
+                Vec3d center = new Vec3d((area.getXa() + area.getXb()) / 2,
                     (area.getYa() + area.getYb()) / 2, (area.getZa() + area.getZb()) / 2);
-                Vec3 planeEye = new Vec3(direction.x() != 0 ? geometry.planeCoordinate() : center.x(),
+                Vec3d planeEye = new Vec3d(direction.x() != 0 ? geometry.planeCoordinate() : center.x(),
                     direction.y() != 0 ? geometry.planeCoordinate() : center.y(),
                     direction.z() != 0 ? geometry.planeCoordinate() : center.z());
-                for (Vec3 eye : List.of(planeEye, center.add(new Vec3(100, -80, 140)))) {
+                for (Vec3d eye : List.of(planeEye, center.add(new Vec3d(100, -80, 140)))) {
                     List<MeshPlan.Section> sections = MeshPlan.visible(geometry, eye);
                     Set<MeshPlan.Coordinate> unique = new HashSet<>();
                     double previous = -1;
@@ -68,7 +68,7 @@ final class ClientMeshPlanTest {
                     int eyeSide = front ? 1 : -1;
                     assertEquals(-1, bounds.index(origin + direction.x() * eyeSide,
                         origin + direction.y() * eyeSide, origin + direction.z() * eyeSide), context);
-                    Vec3 eye = new Vec3(origin + 0.5 + direction.x() * eyeSide * 5,
+                    Vec3d eye = new Vec3d(origin + 0.5 + direction.x() * eyeSide * 5,
                         origin + 0.5 + direction.y() * eyeSide * 5, origin + 0.5 + direction.z() * eyeSide * 5);
                     assertTrue(MeshPlan.visible(geometry, eye).stream()
                         .anyMatch(section -> section.clip().index(origin, origin, origin) >= 0), context);
@@ -86,19 +86,19 @@ final class ClientMeshPlanTest {
                 ApertureDescriptor geometry = new ApertureDescriptor(-85, -67, -20, direction.ordinal(), front, 0, false, 3, 3,
                     original.apertureMask(), 0, 0.75F, 1, 64, 0, 0, 0, 0, 0, 0, 0, 0.0D, 0, 1, List.of());
                 Box area = geometry.apertureArea();
-                Vec3 center = new Vec3((area.getXa() + area.getXb()) / 2,
+                Vec3d center = new Vec3d((area.getXa() + area.getXb()) / 2,
                     (area.getYa() + area.getYb()) / 2, (area.getZa() + area.getZb()) / 2);
                 int side = front ? 1 : -1;
-                Vec3 eye = center.add(new Vec3(direction.x(), direction.y(), direction.z()).multiply(side * 5));
+                Vec3d eye = center.add(new Vec3d(direction.x(), direction.y(), direction.z()).multiply(side * 5));
                 Set<MeshPlan.Coordinate> visible = new HashSet<MeshPlan.Coordinate>();
                 for (MeshPlan.Section section : MeshPlan.visible(geometry, eye)) {
                     visible.add(section.coordinate());
                 }
                 for (int corner = 0; corner < 8; corner++) {
-                    Vec3 point = new Vec3((corner & 1) == 0 ? area.getXa() : area.getXb(),
+                    Vec3d point = new Vec3d((corner & 1) == 0 ? area.getXa() : area.getXb(),
                         (corner & 2) == 0 ? area.getYa() : area.getYb(), (corner & 4) == 0 ? area.getZa() : area.getZb());
                     for (int depth : new int[] {4, 20, 60}) {
-                        Vec3 projected = eye.add(point.subtract(eye).multiply(1 + depth / 5.0));
+                        Vec3d projected = eye.add(point.subtract(eye).multiply(1 + depth / 5.0));
                         MeshPlan.Coordinate expected = new MeshPlan.Coordinate(projected.getBlockX() >> 4,
                             projected.getBlockY() >> 4, projected.getBlockZ() >> 4);
                         assertTrue(visible.contains(expected), direction + " front=" + front + " depth=" + depth + " " + expected);
@@ -111,7 +111,7 @@ final class ClientMeshPlanTest {
     @Test
     void nearestSectionsArriveFirstWithoutLosingFarCoverage() {
         ApertureDescriptor geometry = new SessionPortal("depth", 0).geometry(new SessionPalette()).withDepth(512);
-        Vec3 eye = new Vec3(15, 67, 10);
+        Vec3d eye = new Vec3d(15, 67, 10);
         List<MeshPlan.Section> sections = MeshPlan.visible(geometry, eye);
         double previous = -1;
         for (MeshPlan.Section section : sections) {
@@ -125,8 +125,8 @@ final class ClientMeshPlanTest {
     @Test
     void neighborhoodAroundApertureStaysScheduledFromObliqueViews() {
         ApertureDescriptor geometry = new SessionPortal("nearby", 0).geometry(new SessionPalette()).withDepth(208);
-        Vec3 firstEye = new Vec3(-150, 67, 15);
-        Vec3 secondEye = new Vec3(150, 67, 15);
+        Vec3d firstEye = new Vec3d(-150, 67, 15);
+        Vec3d secondEye = new Vec3d(150, 67, 15);
         Set<MeshPlan.Coordinate> first = new HashSet<MeshPlan.Coordinate>();
         Set<MeshPlan.Coordinate> second = new HashSet<MeshPlan.Coordinate>();
         MeshPlan.visible(geometry, firstEye).forEach(section -> first.add(section.coordinate()));
@@ -145,7 +145,7 @@ final class ClientMeshPlanTest {
     @Test
     void fullDistanceKeepsFarSectionsBeyondFormerMemoryEstimate() {
         ApertureDescriptor geometry = new SessionPortal("capacity", 0).geometry(new SessionPalette()).withDepth(512);
-        List<MeshPlan.Section> sections = MeshPlan.visible(geometry, new Vec3(11, 67, 15));
+        List<MeshPlan.Section> sections = MeshPlan.visible(geometry, new Vec3d(11, 67, 15));
         assertTrue(sections.size() > 4096, "full coverage must not stop at the former count budget");
         assertTrue(sections.stream().anyMatch(section -> Math.abs((section.z() << 4) - 15) >= 496));
         for (MeshPlan.Section section : sections) {

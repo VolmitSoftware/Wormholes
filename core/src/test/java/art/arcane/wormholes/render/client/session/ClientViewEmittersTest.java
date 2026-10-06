@@ -11,7 +11,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.config.VisualQualityProfile;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
@@ -78,12 +78,12 @@ class ClientViewEmittersTest {
 
     @Test
     void animationsRoundTripTheirModeCenterPlaneAndQuality() {
-        Vec3[] sizes = {new Vec3(3.0D, 4.0D, 0.0D), new Vec3(0.0D, 4.0D, 2.0D), new Vec3(5.0D, 0.0D, 5.0D),
-            new Vec3(0.0D, 1.0D, 0.0D), new Vec3(1.0D, 1.0D, 1.0D), new Vec3(2.0D, 0.0D, 0.0D)};
+        Vec3d[] sizes = {new Vec3d(3.0D, 4.0D, 0.0D), new Vec3d(0.0D, 4.0D, 2.0D), new Vec3d(5.0D, 0.0D, 5.0D),
+            new Vec3d(0.0D, 1.0D, 0.0D), new Vec3d(1.0D, 1.0D, 1.0D), new Vec3d(2.0D, 0.0D, 0.0D)};
         for (PortalAnimation.Mode mode : PortalAnimation.Mode.values()) {
             for (VisualQualityProfile quality : VisualQualityProfile.values()) {
-                for (Vec3 size : sizes) {
-                    Vec3 center = new Vec3(10.5D, 66.25D, -20.5D);
+                for (Vec3d size : sizes) {
+                    Vec3d center = new Vec3d(10.5D, 66.25D, -20.5D);
                     ClientViewMessage.FxEmitter emitter = ClientViewEmitters.animation(mode, center, size, quality);
                     assertEquals(ClientViewMessage.FxKind.ANIMATION, emitter.kind());
                     assertTrue(ClientViewEmitters.oneShot(emitter));

@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.plate.ChunkLease;
 import art.arcane.wormholes.door.DoorTransit;
 import art.arcane.wormholes.door.DoorwayCrossing;
@@ -92,10 +93,10 @@ public class MinecraftPreparedDoorCloseTest extends MinecraftTestBase {
         DoorVec3 center = source.center();
         PlaneCrossing crossing = new PlaneCrossing(
             DoorApertureFrames.of(source),
-            new art.arcane.optics.math.Vec3(center.x(), center.y(), center.z()),
-            new art.arcane.optics.math.Vec3(center.x() + 0.1D, 80, center.z()),
-            new art.arcane.optics.math.Vec3(0.2D, 0, 0),
-            new art.arcane.optics.math.Vec3(1, 0, 0), true);
+            new Vec3d(center.x(), center.y(), center.z()),
+            new Vec3d(center.x() + 0.1D, 80, center.z()),
+            new Vec3d(0.2D, 0, 0),
+            new Vec3d(1, 0, 0), true);
         DoorTransit transit = new DoorTransit(source, new DoorwayCrossing(center, 1, 0, 0, DoorwayCrossing.Direction.FRONT_TO_BACK),
             -90, 0, 0.3D, 1.8D, DoorTravelerClass.LIVING, null, crossing);
         Class<?> activeType = Class.forName(MinecraftDoorService.class.getName() + "$ActiveDoor");

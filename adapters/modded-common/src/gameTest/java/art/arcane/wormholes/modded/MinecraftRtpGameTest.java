@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.wormholes.portal.rtp.RtpAllocationMode;
@@ -153,9 +154,9 @@ public final class MinecraftRtpGameTest {
             helper.assertTrue(runtime.rtp().snapshot(portal.getId()).orElseThrow().runtime().reservedPlayers() == 2,
                 "Private allocation did not reserve one destination for each player");
         }).thenExecute(() -> {
-            art.arcane.optics.math.Vec3 point = portal.getOrigin();
+            Vec3d point = portal.getOrigin();
             PlaneCrossing crossing = new PlaneCrossing(portal.getFrame(), point, point,
-                new art.arcane.optics.math.Vec3(0, 0, 0), new art.arcane.optics.math.Vec3(0, 0, 1), true);
+                new Vec3d(0, 0, 0), new Vec3d(0, 0, 1), true);
             helper.assertTrue(runtime.rtp().begin(connection.player(), portal, crossing), "Cancellation fixture could not begin traversal");
             runtime.rtp().disconnected(connection.player());
             helper.assertTrue(!runtime.rtp().locked(connection.player().getUUID()), "Disconnected player retained a random traversal lock");
@@ -164,9 +165,9 @@ public final class MinecraftRtpGameTest {
                 "Cancelled traversal retained a private claim");
             helper.assertTrue(connection.player().position().distanceToSqr(portal.getOrigin().x(), portal.getOrigin().y(), portal.getOrigin().z()) < 16,
                 "Cancelled traversal still teleported the player");
-            art.arcane.optics.math.Vec3 point = portal.getOrigin();
+            Vec3d point = portal.getOrigin();
             PlaneCrossing crossing = new PlaneCrossing(portal.getFrame(), point, point,
-                new art.arcane.optics.math.Vec3(0, 0, 0), new art.arcane.optics.math.Vec3(0, 0, 1), true);
+                new Vec3d(0, 0, 0), new Vec3d(0, 0, 1), true);
             helper.assertTrue(runtime.rtp().begin(second.player(), portal, crossing), "World-change fixture could not begin traversal");
             ServerLevel destination = runtime.server().getLevel(Level.NETHER);
             helper.assertTrue(destination != null, "World-change fixture has no Nether dimension");

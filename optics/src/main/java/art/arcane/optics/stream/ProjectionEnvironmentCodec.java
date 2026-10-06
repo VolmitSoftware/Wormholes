@@ -1,6 +1,6 @@
 package art.arcane.optics.stream;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.math.Face;
 
 public final class ProjectionEnvironmentCodec {
@@ -74,7 +74,7 @@ public final class ProjectionEnvironmentCodec {
             ProjectionEnvironment.Clouds clouds = new ProjectionEnvironment.Clouds(rgba(in), in.f32());
             ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(enumValue(Face.values(), in.u8()),
                 enumValue(Face.values(), in.u8()), enumValue(Face.values(), in.u8()),
-                new Vec3(in.f64(), in.f64(), in.f64()));
+                new Vec3d(in.f64(), in.f64(), in.f64()));
             ProjectionEnvironment.Dimension dimension = new ProjectionEnvironment.Dimension(in.i32(), in.i32(), bool(in),
                 enumValue(ProjectionEnvironment.CardinalLighting.values(), in.u8()), in.f64(), bool(in));
             ProjectionEnvironment.World world = new ProjectionEnvironment.World(in.string(), in.i64(), in.string(), in.i32(), in.u8(), in.u8(), in.i32(), bool(in), in.f32(),

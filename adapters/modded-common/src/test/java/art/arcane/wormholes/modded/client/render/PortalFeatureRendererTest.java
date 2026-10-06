@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client.render;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.math.Face;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -16,7 +17,7 @@ public class PortalFeatureRendererTest {
     @Test
     public void entitiesAndBlockEntitiesReuseTheSameUnchangedRotation() {
         ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(Face.U, Face.W, Face.S,
-            new art.arcane.optics.math.Vec3(100, 50, -20));
+            new Vec3d(100, 50, -20));
         Matrix4f rotation = PortalProjection.rotation(transform);
         Matrix4f original = new Matrix4f(rotation);
         EntityRenderState entity = new EntityRenderState();
@@ -42,7 +43,7 @@ public class PortalFeatureRendererTest {
         for (Face[] axes : new Face[][] {{Face.U, Face.W, Face.S}, {Face.D, Face.E, Face.S},
             {Face.D, Face.W, Face.N}, {Face.U, Face.E, Face.N}}) {
             ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(axes[0], axes[1], axes[2],
-                new art.arcane.optics.math.Vec3(100.5D, -20.25D, 50));
+                new Vec3d(100.5D, -20.25D, 50));
             PoseStack pose = new PoseStack();
             PortalFeatureRenderer.entityPose(pose, state, new Vec3(1, 2, 3), transform, PortalProjection.rotation(transform));
             Vector3f feet = pose.last().pose().transformPosition(new Vector3f());
@@ -64,7 +65,7 @@ public class PortalFeatureRendererTest {
         }) {
             PoseStack pose = new PoseStack();
             ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(example.xAxis(), example.yAxis(), Face.S,
-                new art.arcane.optics.math.Vec3(100, 50, -20));
+                new Vec3d(100, 50, -20));
             PortalFeatureRenderer.blockPose(pose, new BlockPos(12, 30, 40), new Vec3(3, 4, 5), transform, PortalProjection.rotation(transform));
             assertEquals(example.origin(), pose.last().pose().transformPosition(new Vector3f()));
             assertEquals(example.vertex(), pose.last().pose().transformPosition(new Vector3f(1, 0.5F, 0.25F)));

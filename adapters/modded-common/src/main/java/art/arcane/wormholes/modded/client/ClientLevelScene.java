@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftAcoustics;
 import art.arcane.wormholes.modded.MinecraftEntityPackets;
 import art.arcane.optics.entity.ProjectedEntityEvent;
@@ -246,8 +247,8 @@ public final class ClientLevelScene implements ClientSceneWorld {
 
     @Override
     public void emission(PortalAnimation.ParticleEmission emission) {
-        art.arcane.optics.math.Vec3 position = emission.position();
-        art.arcane.optics.math.Vec3 spread = emission.spread();
+        Vec3d position = emission.position();
+        Vec3d spread = emission.spread();
         spawn(MinecraftAnimationParticles.options(emission.type()), position.x(), position.y(), position.z(), emission.count(), spread.x(),
             spread.y(), spread.z(), emission.speed());
     }

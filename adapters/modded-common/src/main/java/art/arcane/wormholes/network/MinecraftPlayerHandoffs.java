@@ -1,5 +1,6 @@
 package art.arcane.wormholes.network;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.api.traversal.TraversalKind;
 import art.arcane.wormholes.api.traversal.TraversalRefundReason;
 import art.arcane.optics.plate.ChunkLease;
@@ -306,7 +307,7 @@ public final class MinecraftPlayerHandoffs implements AutoCloseable {
     private void prepare(PlayerHandoffAdmission.Reservation reservation, MinecraftPortal exit) {
         PlayerHandoffAdmission.Request admission = reservation.request();
         ServerLevel level = runtime.portals().resolveLevel(exit);
-        art.arcane.optics.math.Vec3 target = admission.traversive().crossing().outPoint(exit.getFrame(), exit.getOrigin());
+        Vec3d target = admission.traversive().crossing().outPoint(exit.getFrame(), exit.getOrigin());
         if (!finite(target) || target.y() < level.getMinY() || target.y() >= level.getMaxY()
             || Math.abs(target.x()) > 29_999_984 || Math.abs(target.z()) > 29_999_984) {
             throw new IllegalArgumentException("Arrival position is outside destination bounds");
@@ -478,13 +479,13 @@ public final class MinecraftPlayerHandoffs implements AutoCloseable {
         ChunkPreSendTicket<ServerLevel, ServerPlayer> ticket = null;
         try {
             PlaneCrossing crossing = request.traversive().crossing();
-            art.arcane.optics.math.Vec3 target = crossing.outPoint(exit.getFrame(), exit.getOrigin());
+            Vec3d target = crossing.outPoint(exit.getFrame(), exit.getOrigin());
             TransitConfig config = runtime.configuration().settings().getTransit();
             MomentumPolicy momentum = MomentumPolicy.decode((String) exit.setting("transit.momentum"));
             if (momentum == null) {
                 momentum = MomentumPolicy.of(MomentumPolicy.Mode.parse(config.momentumDefault, MomentumPolicy.Mode.PRESERVE));
             }
-            art.arcane.optics.math.Vec3 velocity = MomentumTransform.apply(crossing.outVelocity(exit.getFrame()), momentum, config.momentumMaxSpeed);
+            Vec3d velocity = MomentumTransform.apply(crossing.outVelocity(exit.getFrame()), momentum, config.momentumMaxSpeed);
             OrientationTransform.Look look = OrientationTransform.apply(crossing, exit.getFrame(),
                 OrientationPolicy.parse((String) exit.setting("transit.orientation"), OrientationPolicy.parse(config.orientationDefault, OrientationPolicy.FRAME)),
                 config.gravityFlipEnabled);
@@ -576,7 +577,7 @@ public final class MinecraftPlayerHandoffs implements AutoCloseable {
                 && player.position().distanceToSqr(departure.position()) <= DepartureHoldPolicy.FAR_DRIFT_SQUARED
                 && (departure.crossing().sourceSideDistance(geometry(player.position())) <= DepartureHoldPolicy.RETREAT_FREE_DISTANCE
                     || player.position().distanceToSqr(departure.position()) <= DepartureHoldPolicy.RETREAT_CANCEL_DRIFT_SQUARED)) {
-                art.arcane.optics.math.Vec3 target = departure.crossing().rejectionPoint();
+                Vec3d target = departure.crossing().rejectionPoint();
                 player.connection.teleport(target.x(), target.y(), target.z(), player.getYRot(), player.getXRot());
                 double strength = 3.0D * runtime.configuration().settings().getMain().portalPushbackMultiplier;
                 player.setDeltaMovement(new Vec3(departure.crossing().frame().getNormal().x() * strength,
@@ -612,15 +613,15 @@ public final class MinecraftPlayerHandoffs implements AutoCloseable {
         }
     }
 
-    private static art.arcane.optics.math.Vec3 geometry(Vec3 point) {
-        return new art.arcane.optics.math.Vec3(point.x, point.y, point.z);
+    private static Vec3d geometry(Vec3 point) {
+        return new Vec3d(point.x, point.y, point.z);
     }
 
-    private static Vec3 vector(art.arcane.optics.math.Vec3 point) {
+    private static Vec3 vector(Vec3d point) {
         return new Vec3(point.x(), point.y(), point.z());
     }
 
-    private static boolean finite(art.arcane.optics.math.Vec3 point) {
+    private static boolean finite(Vec3d point) {
         return Double.isFinite(point.x()) && Double.isFinite(point.y()) && Double.isFinite(point.z());
     }
 

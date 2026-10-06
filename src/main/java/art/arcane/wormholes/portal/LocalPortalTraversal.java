@@ -1,7 +1,7 @@
 package art.arcane.wormholes.portal;
 
 import art.arcane.wormholes.access.PortalAdmission;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.util.BukkitGeometry;
 
 import java.util.Objects;
@@ -296,7 +296,7 @@ final class LocalPortalTraversal
         if(traversive == null && deferred != null
             && deferred.continuous(Wormholes.traversableManager.movement(entityId), portal, activeTunnel, now))
         {
-            Vec3 current = BukkitGeometry.vector(i.getLocation());
+            Vec3d current = BukkitGeometry.vector(i.getLocation());
             double side = (current.x() - portal.getOrigin().x()) * portal.getFrame().getNormal().x()
                 + (current.y() - portal.getOrigin().y()) * portal.getFrame().getNormal().y()
                 + (current.z() - portal.getOrigin().z()) * portal.getFrame().getNormal().z();
@@ -789,7 +789,7 @@ final class LocalPortalTraversal
 		Location start = sweepStart == null ? end.clone().subtract(velocity) : sweepStart;
 		start.setYaw(end.getYaw());
 		start.setPitch(end.getPitch());
-        Vec3 intersection = PlaneCrossing.intersection(portal.getFrame(), portal.getOrigin(),
+        Vec3d intersection = PlaneCrossing.intersection(portal.getFrame(), portal.getOrigin(),
             BukkitGeometry.vector(start), BukkitGeometry.vector(end));
         if(intersection == null || !portal.getStructure().contains(BukkitGeometry.location(intersection, start.getWorld()))) {
             return null;

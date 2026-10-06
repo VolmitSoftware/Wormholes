@@ -3,7 +3,7 @@ package art.arcane.optics.client;
 import java.util.Arrays;
 import java.util.Objects;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.optics.volume.ViewVolume;
@@ -92,7 +92,7 @@ public final class ClientSweep {
         this.aperture = geometry.aperture();
         this.area = aperture.getArea();
         this.frame = geometry.frame();
-        Vec3 center = area.center();
+        Vec3d center = area.center();
         this.originX = center.getX();
         this.originY = center.getY();
         this.originZ = center.getZ();
@@ -319,7 +319,7 @@ public final class ClientSweep {
 
     private boolean bound(double padding, double eyeX, double eyeY, double eyeZ) {
         double depth = geometry.depthBlocks();
-        ViewVolume frustum = new ViewVolume(new Vec3(eyeX, eyeY, eyeZ), aperture,
+        ViewVolume frustum = new ViewVolume(new Vec3d(eyeX, eyeY, eyeZ), aperture,
             new ViewVolume.Options(depth, depth, geometry.nearPlanePadding(), geometry.frustumCullingRatio(), padding));
         Box region = frustum.getRegion();
         axisMin[0] = ProjectorFrameTransform.minBlockForCenter(region.getXa());

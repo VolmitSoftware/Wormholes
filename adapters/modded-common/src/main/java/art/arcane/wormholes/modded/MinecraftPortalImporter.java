@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.ops.importers.ImportedPortal;
 import art.arcane.wormholes.ops.importers.PortalFactoryBridge;
 import art.arcane.wormholes.portal.PortalType;
@@ -77,7 +78,7 @@ final class MinecraftPortalImporter implements PortalFactoryBridge {
                 cells.add(cell);
             }
         }
-        art.arcane.optics.math.Vec3 normal = portal.facing().toVector();
+        Vec3d normal = portal.facing().toVector();
         try {
             MinecraftPortal created = options.runtime().portals().create(options.owner(), level, cells,
                 PortalType.PORTAL, new Vec3(normal.x(), normal.y(), normal.z()));

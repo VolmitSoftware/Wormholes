@@ -1,5 +1,6 @@
 package art.arcane.wormholes.network;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import art.arcane.wormholes.localization.MeshMessages;
 import art.arcane.wormholes.modded.MinecraftMenuText;
@@ -130,7 +131,7 @@ public final class MinecraftGatewayPolicies implements AutoCloseable {
             && runtime.portals().get(hold.portal().getId()) == hold.portal() && hold.portal().isOpen()
             && runtime.portals().canDepart(player, hold.portal()) && hold.policy().equals(policy(hold.portal()))
             && DepartureHoldPolicy.decide(true, player.level() == hold.level(),
-                hold.crossing().sourceSideDistance(new art.arcane.optics.math.Vec3(player.getX(), player.getY(), player.getZ())),
+                hold.crossing().sourceSideDistance(new Vec3d(player.getX(), player.getY(), player.getZ())),
                 player.position().distanceToSqr(hold.position()), 1L) == DepartureHoldPolicy.Decision.HOLD_PIN;
     }
 
@@ -140,7 +141,7 @@ public final class MinecraftGatewayPolicies implements AutoCloseable {
             return;
         }
         if (player.level() == runtime.portals().resolveLevel(portal)) {
-            art.arcane.optics.math.Vec3 point = crossing.rejectionPoint();
+            Vec3d point = crossing.rejectionPoint();
             player.connection.teleport(point.x(), point.y(), point.z(), player.getYRot(), player.getXRot());
             runtime.portals().recordArrival(player, portal);
         }

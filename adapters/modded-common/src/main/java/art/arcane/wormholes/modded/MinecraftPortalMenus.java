@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.volmlib.util.localization.LinesKey;
 import art.arcane.volmlib.util.localization.MessageArgs;
 import art.arcane.volmlib.util.localization.TextKey;
@@ -721,7 +722,7 @@ public final class MinecraftPortalMenus implements AutoCloseable {
             }
             Vec3 look = player.getLookAngle();
             Frame frame = Frame.fromDirectionAndLook(Face.closest(look.x, look.y, look.z),
-                new art.arcane.optics.math.Vec3(look.x, look.y, look.z));
+                new Vec3d(look.x, look.y, look.z));
             if (!update(player, portal, target -> target.setFrame(frame))) {
                 return;
             }

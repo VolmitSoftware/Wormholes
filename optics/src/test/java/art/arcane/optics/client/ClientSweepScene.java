@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.aperture.Endpoint;
 import art.arcane.optics.aperture.CellAperture;
 import art.arcane.optics.frame.Frame;
@@ -54,8 +54,8 @@ public final class ClientSweepScene {
     final ApertureCells aperture;
     final Frame localFrame;
     final Frame remoteFrame;
-    final Vec3 localOrigin;
-    final Vec3 remoteOrigin;
+    final Vec3d localOrigin;
+    final Vec3d remoteOrigin;
     final int depth;
     final int lateral;
     private final SceneView localView;
@@ -63,7 +63,7 @@ public final class ClientSweepScene {
     private final ScanPortal localPortal;
     private final ScanPortal remotePortal;
 
-    ClientSweepScene(ApertureCells aperture, Frame localFrame, Frame remoteFrame, Vec3 remoteOrigin,
+    ClientSweepScene(ApertureCells aperture, Frame localFrame, Frame remoteFrame, Vec3d remoteOrigin,
                      int depth, int lateral) {
         this.aperture = aperture;
         this.localFrame = localFrame;
@@ -81,39 +81,39 @@ public final class ClientSweepScene {
     static ClientSweepScene rtpWall(int depth, int lateral) {
         return new ClientSweepScene(cuboid(new Box(0.0D, 0.999D, 64.0D, 66.999D, -1.0D, 1.999D)),
             Frame.canonical(Face.E), Frame.canonical(Face.N),
-            new Vec3(1000.4995D, 70.4995D, 500.4995D), depth, lateral);
+            new Vec3d(1000.4995D, 70.4995D, 500.4995D), depth, lateral);
     }
 
     static ClientSweepScene floorHatch(int depth, int lateral) {
         return new ClientSweepScene(cuboid(new Box(-2.0D, 2.999D, 67.0D, 67.999D, -2.0D, 2.999D)),
             Frame.canonical(Face.U), Frame.canonical(Face.S),
-            new Vec3(-300.4995D, 71.4995D, 90.4995D), depth, lateral);
+            new Vec3d(-300.4995D, 71.4995D, 90.4995D), depth, lateral);
     }
 
     static ClientSweepScene archedDoor(int depth, int lateral) {
-        List<Vec3> cells = new ArrayList<Vec3>();
+        List<Vec3d> cells = new ArrayList<Vec3d>();
         for (int y = 64; y <= 68; y++) {
             for (int x = -2; x <= 2; x++) {
                 boolean corner = y == 68 && Math.abs(x) == 2;
                 boolean mullion = y == 66 && x == 0;
                 if (!corner && !mullion) {
-                    cells.add(new Vec3(x, y, 4));
+                    cells.add(new Vec3d(x, y, 4));
                 }
             }
         }
         ApertureCells aperture = new ApertureCells();
         aperture.setBlocks(cells);
         return new ClientSweepScene(aperture, Frame.canonical(Face.S), Frame.canonical(Face.W),
-            new Vec3(-700.4995D, 69.4995D, 30.4995D), depth, lateral);
+            new Vec3d(-700.4995D, 69.4995D, 30.4995D), depth, lateral);
     }
 
-    boolean eyeFrontSide(Vec3 eye) {
+    boolean eyeFrontSide(Vec3d eye) {
         Face normal = localFrame.getNormal();
         return ((eye.getX() - localOrigin.getX()) * normal.x()) + ((eye.getY() - localOrigin.getY()) * normal.y())
             + ((eye.getZ() - localOrigin.getZ()) * normal.z()) >= 0.0D;
     }
 
-    Long2ObjectOpenHashMap<ProjectedBlockClaim<String, SceneView>> serverClaims(Vec3 eye, ScanMode mode,
+    Long2ObjectOpenHashMap<ProjectedBlockClaim<String, SceneView>> serverClaims(Vec3d eye, ScanMode mode,
                                                                                boolean blackout) {
         StringBlocks blocks = new StringBlocks();
         ProjectorSampleMemo<String, String, SceneView> memo = new ProjectorSampleMemo<String, String, SceneView>(blocks, () -> null);
@@ -167,7 +167,7 @@ public final class ClientSweepScene {
         return OCCLUDING.contains(state);
     }
 
-    public static PlateBox plateBox(Box area, Frame localFrame, Vec3 origin, boolean frontSide,
+    public static PlateBox plateBox(Box area, Frame localFrame, Vec3d origin, boolean frontSide,
                              double depthBlocks, double lateralBlocks, double aperturePadding) {
         int[] axisMin = new int[3];
         int[] axisMax = new int[3];
@@ -394,10 +394,10 @@ public final class ClientSweepScene {
 
     static final class ScanPortal implements Endpoint {
         private final UUID id;
-        private final Vec3 origin;
+        private final Vec3d origin;
         private final Frame frame;
 
-        private ScanPortal(UUID id, Vec3 origin, Frame frame) {
+        private ScanPortal(UUID id, Vec3d origin, Frame frame) {
             this.id = id;
             this.origin = origin;
             this.frame = frame;
@@ -414,7 +414,7 @@ public final class ClientSweepScene {
         }
 
         @Override
-        public Vec3 origin() {
+        public Vec3d origin() {
             return origin;
         }
     }

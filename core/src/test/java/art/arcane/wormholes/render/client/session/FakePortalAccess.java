@@ -9,7 +9,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.view.WorldChangeTracker;
 import art.arcane.optics.plate.PlateBox;
 import art.arcane.wormholes.render.plate.PlateTestFixtures;
@@ -38,7 +38,7 @@ final class FakePortalAccess implements ClientViewPortalAccess<String, String> {
     boolean meshQueued;
     boolean localWorld;
     final Set<PlateBox> unavailableMesh = new HashSet<PlateBox>();
-    Vec3 eye = new Vec3(11, 67, 15);
+    Vec3d eye = new Vec3d(11, 67, 15);
     final Map<PlateBox, ViewPlate<String>> meshPlates = new HashMap<PlateBox, ViewPlate<String>>();
     int standbyCalls;
     int geometryCalls;
@@ -89,7 +89,7 @@ final class FakePortalAccess implements ClientViewPortalAccess<String, String> {
     }
 
     @Override
-    public Vec3 meshEye(String observer) {
+    public Vec3d meshEye(String observer) {
         return eye;
     }
 
@@ -156,7 +156,7 @@ final class FakePortalAccess implements ClientViewPortalAccess<String, String> {
     }
 
     @Override
-    public Vec3 nestedEye(String observer, UUID context) {
+    public Vec3d nestedEye(String observer, UUID context) {
         return eye;
     }
 

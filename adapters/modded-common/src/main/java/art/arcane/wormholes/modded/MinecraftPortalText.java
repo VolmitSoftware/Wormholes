@@ -4,7 +4,7 @@ import art.arcane.volmlib.util.localization.LinesKey;
 import art.arcane.volmlib.util.localization.MessageArgs;
 import art.arcane.volmlib.util.localization.MessageArgument;
 import art.arcane.volmlib.util.localization.TextKey;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.portal.NetworkViewQuality;
 import art.arcane.wormholes.portal.PortalPermissionMode;
@@ -119,7 +119,7 @@ public final class MinecraftPortalText {
         if (level == null) {
             return;
         }
-        Vec3 center = portal.getGeometry().getApertureCenter();
+        Vec3d center = portal.getGeometry().getApertureCenter();
         for (ServerPlayer player : level.players()) {
             if (player.distanceToSqr(center.x(), center.y(), center.z()) > NOTIFICATION_RADIUS_SQUARED) {
                 continue;

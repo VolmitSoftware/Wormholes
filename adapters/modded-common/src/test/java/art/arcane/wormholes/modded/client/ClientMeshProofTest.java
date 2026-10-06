@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.wormholes.modded.client.render.PortalScene;
 import art.arcane.optics.stream.Brick;
@@ -129,7 +129,7 @@ public class ClientMeshProofTest extends MinecraftTestBase {
                 world.blockLight(), world.skyLight(), world.logicalHeight(), world.hasCeiling(), world.ambientLight(),
                 world.eyeMedium(), world.hasFixedTime()));
         ProjectionEnvironment translated = ENVIRONMENT.withTransform(new ProjectionEnvironment.Transform(Face.E,
-            Face.U, Face.S, new Vec3(16, 0, 0)));
+            Face.U, Face.S, new Vec3d(16, 0, 0)));
         for (Options options : List.of(new Options(otherWorld, 71, 11), new Options(translated, 71, 11),
             new Options(ENVIRONMENT, 72, 11), new Options(ENVIRONMENT, 71, 12),
             new Options(ENVIRONMENT, 71L << 32, 11), new Options(ENVIRONMENT, 71, 11L << 32))) {

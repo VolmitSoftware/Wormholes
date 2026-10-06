@@ -1,6 +1,6 @@
 package art.arcane.wormholes.portal;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 
@@ -51,7 +51,7 @@ public final class PortalStateCodec {
         result.put("area", Map.of("xa", area.getXa(), "xb", area.getXb(), "ya", area.getYa(),
             "yb", area.getYb(), "za", area.getZa(), "zb", area.getZb()));
         List<Map<String, Object>> cells = new ArrayList<>();
-        for (Vec3 cell : geometry.getBlockPositions()) {
+        for (Vec3d cell : geometry.getBlockPositions()) {
             cells.add(Map.of("x", cell.getBlockX(), "y", cell.getBlockY(), "z", cell.getBlockZ()));
         }
         result.put("blocks", cells);
@@ -69,7 +69,7 @@ public final class PortalStateCodec {
         if (!(source.get("blocks") instanceof List<?> blocks)) {
             throw new IllegalArgumentException("Portal blocks must be an array");
         }
-        List<Vec3> cells = new ArrayList<>(blocks.size());
+        List<Vec3d> cells = new ArrayList<>(blocks.size());
         for (Object block : blocks) {
             cells.add(readVector(asObject(block)));
         }
@@ -87,12 +87,12 @@ public final class PortalStateCodec {
         return value;
     }
 
-    private static Map<String, Object> vector(Vec3 vector) {
+    private static Map<String, Object> vector(Vec3d vector) {
         return Map.of("x", vector.x(), "y", vector.y(), "z", vector.z());
     }
 
-    private static Vec3 readVector(Map<String, Object> source) {
-        return new Vec3(number(source, "x"), number(source, "y"), number(source, "z"));
+    private static Vec3d readVector(Map<String, Object> source) {
+        return new Vec3d(number(source, "x"), number(source, "y"), number(source, "z"));
     }
 
     private static double number(Map<String, Object> source, String key) {

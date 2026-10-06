@@ -15,7 +15,7 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 
 import art.arcane.wormholes.Settings;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.client.ClientViewEnvironmentTransform;
 import art.arcane.optics.stream.BrickLightSource;
@@ -182,7 +182,7 @@ final class BukkitClientViewScene implements ClientViewEntityFrames.Scenes<Clien
         if (source.destinationWorld() == null) {
             return null;
         }
-        Vec3 destinationEye = transform.destinationPoint(eye.getX(), eye.getY(), eye.getZ());
+        Vec3d destinationEye = transform.destinationPoint(eye.getX(), eye.getY(), eye.getZ());
         return environments.capture(new BukkitEnvironmentCapture.Request(observer.id(), parent, portalId, source.destinationWorld(),
             destinationEye, transform, tick));
     }

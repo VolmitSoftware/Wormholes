@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.wormholes.network.client.ClientViewMessage;
@@ -31,7 +31,7 @@ public class ClientLocalMeshOrientationTest extends MinecraftTestBase {
                 Face x = mapping.map(Face.E);
                 Face y = mapping.map(Face.U);
                 Face z = mapping.map(Face.S);
-                Vec3 translation = new Vec3(
+                Vec3d translation = new Vec3d(
                     x.x() < 0 || y.x() < 0 || z.x() < 0 ? 16 : 0,
                     x.y() < 0 || y.y() < 0 || z.y() < 0 ? 16 : 0,
                     x.z() < 0 || y.z() < 0 || z.z() < 0 ? 16 : 0);

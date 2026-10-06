@@ -8,7 +8,7 @@ import art.arcane.wormholes.atlas.AtlasPlayerState;
 import art.arcane.wormholes.atlas.AtlasPlayerStore;
 import art.arcane.wormholes.atlas.AtlasProximityIndex;
 import art.arcane.wormholes.config.toml.AtlasConfig;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.localization.AtlasMessages;
 import art.arcane.wormholes.nexus.PortalNetwork;
 import art.arcane.wormholes.nexus.Visibility;
@@ -179,7 +179,7 @@ public final class MinecraftAtlasService implements AutoCloseable {
     }
 
     private AtlasModel.Row row(ServerPlayer player, MinecraftPortal portal) {
-        Vec3 center = portal.getGeometry().getApertureCenter();
+        Vec3d center = portal.getGeometry().getApertureCenter();
         double distance = world(player).equals(portal.getWorldKey())
             ? player.distanceToSqr(center.getX(), center.getY(), center.getZ()) : Double.MAX_VALUE;
         String address = "";
@@ -233,7 +233,7 @@ public final class MinecraftAtlasService implements AutoCloseable {
         List<AtlasProximityIndex.Anchor<String>> anchors = new ArrayList<>();
         for (MinecraftPortal portal : runtime.portals().snapshot()) {
             if (!portal.isManaged()) {
-                Vec3 center = portal.getGeometry().getApertureCenter();
+                Vec3d center = portal.getGeometry().getApertureCenter();
                 anchors.add(new AtlasProximityIndex.Anchor<>(portal.getId(), portal.getWorldKey(), center.getX(), center.getY(), center.getZ()));
             }
         }
@@ -248,7 +248,7 @@ public final class MinecraftAtlasService implements AutoCloseable {
         if (portal == null || !world(player).equals(portal.getWorldKey())) {
             return;
         }
-        Vec3 center = portal.getGeometry().getApertureCenter();
+        Vec3d center = portal.getGeometry().getApertureCenter();
         String bearing = AtlasGuide.bearing(player.getYRot(), center.getX() - player.getX(), center.getZ() - player.getZ());
         MinecraftMenuText.notice(player, MinecraftMenuText.text(player, AtlasMessages.GUIDE_BEARING,
             MinecraftPortalText.arguments("portal", portal.getName(), "value", bearing)));

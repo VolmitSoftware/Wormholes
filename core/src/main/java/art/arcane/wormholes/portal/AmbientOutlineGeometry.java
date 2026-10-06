@@ -3,7 +3,7 @@ package art.arcane.wormholes.portal;
 import java.util.ArrayList;
 import java.util.List;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.math.CellKeys;
 
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -37,7 +37,7 @@ public final class AmbientOutlineGeometry
 		return built;
 	}
 
-	public static List<double[]> build(List<Vec3> blockPositions, Axis normalAxis)
+	public static List<double[]> build(List<Vec3d> blockPositions, Axis normalAxis)
 	{
 		if(blockPositions == null || blockPositions.isEmpty() || normalAxis == null)
 		{
@@ -46,7 +46,7 @@ public final class AmbientOutlineGeometry
 
 		LongOpenHashSet occupied = new LongOpenHashSet(Math.max(16, blockPositions.size() * 2));
 		List<int[]> cells = new ArrayList<int[]>(blockPositions.size());
-		for(Vec3 position : blockPositions)
+		for(Vec3d position : blockPositions)
 		{
 			if(position == null)
 			{

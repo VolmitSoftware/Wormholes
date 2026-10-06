@@ -1,7 +1,7 @@
 package art.arcane.wormholes.door;
 
 import art.arcane.wormholes.door.view.DoorApertureFrames;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.math.Face;
@@ -38,9 +38,9 @@ public final class DoorPreparedArrivalTest {
                         new DoorVec3(0.2D, -0.3D, 0.4D), new DoorVec3(0, 0, 1));
                     Frame target = DoorApertureFrames.destinationFrame(source, destination);
                     DoorVec3 targetCenter = destination.center();
-                    Vec3 expected = transit.preparedCrossing().outPoint(target, vector(targetCenter));
+                    Vec3d expected = transit.preparedCrossing().outPoint(target, vector(targetCenter));
                     assertEquals(vector(DoorArrivals.destinationPoint(destination, transit, 1)), expected);
-                    Vec3 expectedVelocity = transit.preparedCrossing().outVelocity(target);
+                    Vec3d expectedVelocity = transit.preparedCrossing().outVelocity(target);
                     assertEquals(vector(DoorArrivals.destinationVelocity(destination, transit, 1)), expectedVelocity);
                 }
             }
@@ -90,11 +90,11 @@ public final class DoorPreparedArrivalTest {
         return new DoorTransit(source, gate, -90, 0, 0.3D, 1.8D, DoorTravelerClass.LIVING, velocity, crossing);
     }
 
-    private static Vec3 vector(DoorVec3 point) {
-        return new Vec3(point.x(), point.y(), point.z());
+    private static Vec3d vector(DoorVec3 point) {
+        return new Vec3d(point.x(), point.y(), point.z());
     }
 
-    private static DoorVec3 vectorToDoor(Vec3 point) {
+    private static DoorVec3 vectorToDoor(Vec3d point) {
         return new DoorVec3(point.x(), point.y(), point.z());
     }
 }

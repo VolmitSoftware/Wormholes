@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.optics.entity.EntityProfile;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.wormholes.network.view.ViewEntityState;
 import art.arcane.optics.view.EntityData;
@@ -31,7 +31,7 @@ public final class MinecraftLocalEntityView implements EntityData<SynchedEntityD
     private List<EntitySnapshot> visuals = List.of();
     private long candidateTick = Long.MIN_VALUE;
     private long captureTick = Long.MIN_VALUE;
-    private Vec3 origin;
+    private Vec3d origin;
     private int range;
 
     public MinecraftLocalEntityView(ServerLevel level, UUID portalId) {
@@ -41,7 +41,7 @@ public final class MinecraftLocalEntityView implements EntityData<SynchedEntityD
         this.state = new ViewEntityState<>(portalId, new ViewEntityState.Center(0, 0, 0));
     }
 
-    public void update(Vec3 center, Options options) {
+    public void update(Vec3d center, Options options) {
         if (!level.getServer().isSameThread()) {
             throw new IllegalStateException("Entity projection capture requires the server thread");
         }

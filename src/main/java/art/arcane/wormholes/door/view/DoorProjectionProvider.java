@@ -1,6 +1,6 @@
 package art.arcane.wormholes.door.view;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.door.DoorAccessPolicy;
 import art.arcane.volmlib.util.bukkit.WorldIdentity;
 import art.arcane.wormholes.ProjectionManager;
@@ -108,7 +108,7 @@ public final class DoorProjectionProvider implements ProjectionManager.RtpProjec
     }
 
     private static RtpProjectionView.SourceFrame sourceFrame(DoorProjectionAdapter adapter, long revision) {
-        Vec3 origin = adapter.getOrigin();
+        Vec3d origin = adapter.getOrigin();
         Frame frame = adapter.getFrame();
         return new RtpProjectionView.SourceFrame(
             WorldIdentity.serialize(adapter.getWorld()),
@@ -122,7 +122,7 @@ public final class DoorProjectionProvider implements ProjectionManager.RtpProjec
     }
 
     private static RtpProjectionView.Target target(DoorProjectionDestination destination) {
-        Vec3 origin = destination.origin();
+        Vec3d origin = destination.origin();
         Frame frame = destination.frame();
         return new RtpProjectionView.Target(
             destination.worldKey(),

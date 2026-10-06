@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.render.FidelitySettings;
@@ -88,7 +89,7 @@ final class MinecraftFidelityGameTest {
         destination.setAmbientStyle(AmbientParticleStyle.OFF);
         source.setNetworkViewDepth(8);
         source.setNetworkViewLateralPad(8);
-        art.arcane.optics.math.Vec3 origin = source.getOrigin();
+        Vec3d origin = source.getOrigin();
         player.setPos(origin.x(), origin.y() - player.getEyeHeight(), origin.z() - 3);
         player.setYRot(0);
         player.setXRot(0);
@@ -109,7 +110,7 @@ final class MinecraftFidelityGameTest {
             }
             helper.assertTrue(rainPacket, "Destination weather did not reach native observer: packets=" + packets.size() + ", projectors=" + runtime.projections().projectorCount() + ", rain=" + helper.getLevel().isRaining());
             packets.clear();
-            art.arcane.optics.math.Vec3 target = destination.getOrigin();
+            Vec3d target = destination.getOrigin();
             helper.getLevel().playSound(null, target.x(), target.y(), target.z(), SoundEvents.NOTE_BLOCK_HARP, SoundSource.BLOCKS, 1.0f, 1.0f);
             helper.runAfterDelay(1, this::verifySound);
         } catch (Throwable failure) {
@@ -120,7 +121,7 @@ final class MinecraftFidelityGameTest {
     private void verifySound() {
         try {
             connection.channel().runPendingTasks();
-            art.arcane.optics.math.Vec3 aperture = source.getGeometry().getApertureCenter();
+            Vec3d aperture = source.getGeometry().getApertureCenter();
             boolean relayed = packets.stream().anyMatch(packet -> packet instanceof ClientboundSoundPacket sound
                 && sound.getSound().value().location().toString().equals("minecraft:block.note_block.harp")
                 && Math.abs(sound.getX() - aperture.x()) < 0.13 && Math.abs(sound.getZ() - aperture.z()) < 0.13

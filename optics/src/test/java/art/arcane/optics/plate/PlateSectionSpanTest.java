@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.Locale;
 import java.util.UUID;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.optics.fidelity.BlockEntitySample;
@@ -33,7 +33,7 @@ final class PlateSectionSpanTest {
                     ApertureCells aperture = new ApertureCells();
                     aperture.setArea(area);
                     Frame frame = Frame.canonical(facing);
-                    Vec3 origin = area.center();
+                    Vec3d origin = area.center();
                     ViewPlateKey key = new ViewPlateKey(UUID.fromString("00000000-0000-0000-0000-0000000000c2"), view, frontSide, 0, 0L);
                     ViewPlateBuilder.Request<String, String, ClientSweepScene.SceneView> request =
                         new ViewPlateBuilder.Request<String, String, ClientSweepScene.SceneView>(key, aperture, view, frame,
@@ -56,7 +56,7 @@ final class PlateSectionSpanTest {
         for (int offsetX = 0; offsetX < 16; offsetX++) {
             for (int offsetY = 0; offsetY < 16; offsetY++) {
                 Box area = area(Face.E, 1, offsetX, 64 + offsetY, offsetY);
-                Vec3 origin = area.center();
+                Vec3d origin = area.center();
                 PlateBox box = ClientSweepScene.plateBox(area, Frame.canonical(Face.E), origin, true, DEPTH, LATERAL_CLAMP,
                     APERTURE_PADDING);
                 int sectionsX = sections(box.minX(), box.sizeX());

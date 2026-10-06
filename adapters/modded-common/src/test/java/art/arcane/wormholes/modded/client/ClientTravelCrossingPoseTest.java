@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.wormholes.network.client.ClientViewMessage;
@@ -29,7 +30,7 @@ public class ClientTravelCrossingPoseTest extends MinecraftTestBase {
     public void standingReverseCrossingPreservesExactFeetAboveDestinationFloor() throws ReflectiveOperationException {
         ClientViewMessage.TravelPose pose = pose(new Vec3(1001.5, 200, 0.4), 0.75f);
         ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(Face.E, Face.U, Face.S,
-            new art.arcane.optics.math.Vec3(-102, 120, 0));
+            new Vec3d(-102, 120, 0));
         Vec3 destination = ClientTravelMotion.point(transform, new Vec3(pose.x(), pose.y(), pose.z()));
         assertEquals(200, pose.y(), 0);
         assertEquals(80, destination.y, 0);

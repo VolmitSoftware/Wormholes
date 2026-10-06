@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded.client.render;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.math.Face;
 import com.mojang.blaze3d.vertex.BufferBuilder;
@@ -38,7 +38,7 @@ public class PortalFeatureWindingTest {
         try (PortalFeatureRenderer.WindingScope scope = new PortalFeatureRenderer.WindingScope(portal, reflection())) {
             assertOrdering(ordinary, PrimitiveTopology.QUADS, new int[] {0, 1, 2, 3});
             ProjectionEnvironment.Transform rotation = new ProjectionEnvironment.Transform(Face.U, Face.W, Face.S,
-                new Vec3(0, 0, 0));
+                new Vec3d(0, 0, 0));
             try (PortalFeatureRenderer.WindingScope rotated = new PortalFeatureRenderer.WindingScope(portal, rotation)) {
                 assertOrdering(portal, PrimitiveTopology.QUADS, new int[] {0, 1, 2, 3});
             }
@@ -65,7 +65,7 @@ public class PortalFeatureWindingTest {
     }
 
     private static ProjectionEnvironment.Transform reflection() {
-        return new ProjectionEnvironment.Transform(Face.E, Face.U, Face.N, new Vec3(0, 0, 0));
+        return new ProjectionEnvironment.Transform(Face.E, Face.U, Face.N, new Vec3d(0, 0, 0));
     }
 
     private static void assertOrdering(StagedVertexBuffer buffer, PrimitiveTopology topology, int[] order) {

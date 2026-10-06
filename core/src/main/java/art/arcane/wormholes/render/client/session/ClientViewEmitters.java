@@ -3,7 +3,7 @@ package art.arcane.wormholes.render.client.session;
 import java.util.List;
 
 import art.arcane.wormholes.config.VisualQualityProfile;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
@@ -88,7 +88,7 @@ public final class ClientViewEmitters {
         return kind == ClientViewMessage.FxKind.ANIMATION || kind == ClientViewMessage.FxKind.BURST || emitter.ticks() == 0;
     }
 
-    public static ClientViewMessage.FxEmitter animation(PortalAnimation.Mode mode, Vec3 center, Vec3 size,
+    public static ClientViewMessage.FxEmitter animation(PortalAnimation.Mode mode, Vec3d center, Vec3d size,
                                                         VisualQualityProfile quality) {
         int normal = PortalAnimation.normalAxis(size);
         double[] extent = {size.x(), size.y(), size.z()};
@@ -110,7 +110,7 @@ public final class ClientViewEmitters {
         if (mode >= modes.length || normal > 2 || quality >= qualities.length || !Float.isFinite(emitter.paramA()) || !Float.isFinite(emitter.paramB())) {
             return null;
         }
-        return new Animation(modes[mode], new Vec3(emitter.x(), emitter.y(), emitter.z()),
+        return new Animation(modes[mode], new Vec3d(emitter.x(), emitter.y(), emitter.z()),
             PortalAnimation.planeSize(normal, emitter.paramA(), emitter.paramB()), qualities[quality]);
     }
 
@@ -153,7 +153,7 @@ public final class ClientViewEmitters {
         return (Math.max(0, Math.min(255, channel)) >> COLOR_LEVELS_SHIFT) * COLOR_LEVEL_SCALE;
     }
 
-    public record Animation(PortalAnimation.Mode mode, Vec3 center, Vec3 size, VisualQualityProfile quality) {
+    public record Animation(PortalAnimation.Mode mode, Vec3d center, Vec3d size, VisualQualityProfile quality) {
     }
 
     public record Ambient(AmbientParticleStyle style, int rgb, boolean open, int intervalTicks, int cadenceTicks, Box area,

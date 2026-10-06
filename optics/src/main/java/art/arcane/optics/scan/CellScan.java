@@ -4,7 +4,7 @@ package art.arcane.optics.scan;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.function.Supplier;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.aperture.Endpoint;
 import art.arcane.optics.aperture.CellAperture;
 import art.arcane.optics.view.ContentView;
@@ -540,7 +540,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
         scanCommitted = true;
     }
 
-    public boolean canResumeOcclusion(ScanDestination<P, V> destination, Vec3 eye, ViewVolume frustum) {
+    public boolean canResumeOcclusion(ScanDestination<P, V> destination, Vec3d eye, ViewVolume frustum) {
         return scanCommitted && completeGeometry && hasUnresolvedOcclusion()
             && !dropHoldsRequested && !holdsExposed
             && frustum == scannedFrustum
@@ -601,7 +601,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
 
     public void run(ScanDestination<P, V> destination,
              Frame rtpTarget,
-             Vec3 eye,
+             Vec3d eye,
              ViewVolume frustum,
              double depthBlocks,
              boolean forceStableCellResample,
@@ -619,7 +619,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
 
     public void begin(ScanDestination<P, V> destination,
              Frame rtpTarget,
-             Vec3 eye,
+             Vec3d eye,
              ViewVolume frustum,
              double depthBlocks,
              boolean forceStableCellResample,
@@ -755,7 +755,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
         return ready;
     }
 
-    public void updateEntityOcclusionEye(Vec3 eye,
+    public void updateEntityOcclusionEye(Vec3d eye,
                                   ScanDestination<P, V> destination,
                                   Frame localViewFrame,
                                   Frame remoteViewFrame) {
@@ -1154,7 +1154,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
 
     private record ScanRequest<B, P extends Endpoint, V>(ScanDestination<P, V> destination,
                                Frame rtpTarget,
-                               Vec3 eye,
+                               Vec3d eye,
                                ViewVolume frustum,
                                double depthBlocks,
                                boolean forceStableCellResample,
@@ -1263,7 +1263,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
         private ScanPass(ScanRequest<B, P, V> request) {
             ScanDestination<P, V> destination = request.destination();
             Frame rtpTarget = request.rtpTarget();
-            Vec3 eye = request.eye();
+            Vec3d eye = request.eye();
             frustum = request.frustum();
             double depthBlocks = request.depthBlocks();
             forceStableCellResample = request.forceStableCellResample();

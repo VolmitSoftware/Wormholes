@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.render.FidelitySettings;
@@ -45,7 +45,7 @@ public final class MinecraftViewPlates {
             return null;
         }
         Frame localFrame = portal.getFrame();
-        Vec3 origin = portal.getOrigin();
+        Vec3d origin = portal.getOrigin();
         LodPolicy lod = FidelitySettings.lodPolicy(LodProfile.parse(stringSetting(portal, "fidelity.lod"), LodProfile.BALANCED));
         int depth = portal.getNetworkViewDepth();
         int lateral = Math.min(portal.getNetworkViewLateralPad(), FidelitySettings.plateLateralClampBlocks);
@@ -69,7 +69,7 @@ public final class MinecraftViewPlates {
                                                 Resolved resolved, boolean urgent) {
         WorldChangeTracker tracker = runtime.projections().changes();
         MinecraftPortal portal = target.portal();
-        Vec3 origin = portal.getOrigin();
+        Vec3d origin = portal.getOrigin();
         return plates.current(resolved.key(), resolved.destinationRevision(), resolved.transformRevision(), tracker, urgent, previous -> {
             ViewPlateBuilder.Request<BlockState, BlockState, ContentView<BlockState, BlockState>> request = new ViewPlateBuilder.Request<>(
                 resolved.key(), portal.getGeometry(), target.plateView().get(), portal.getFrame(), target.remoteFrame(), origin.x(), origin.y(),
@@ -91,7 +91,7 @@ public final class MinecraftViewPlates {
         long transform = ProjectorPassRevision.mix(resolved.transformRevision(), boundedDistance);
         WorldChangeTracker tracker = runtime.projections().changes();
         MinecraftPortal portal = target.portal();
-        Vec3 origin = portal.getOrigin();
+        Vec3d origin = portal.getOrigin();
         return plates.current(key, resolved.destinationRevision(), transform, tracker, false, previous -> {
             ViewPlateBuilder.Request<BlockState, BlockState, ContentView<BlockState, BlockState>> request = new ViewPlateBuilder.Request<>(
                 key, portal.getGeometry(), target.plateView().get(), portal.getFrame(), target.remoteFrame(), origin.x(), origin.y(),

@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded.clientview;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.modded.mixin.ServerConnectionAccess;
@@ -147,7 +147,7 @@ public final class MinecraftClientViewService implements AutoCloseable {
     }
 
     public ClientViewMessage.TravelCommit commitTravel(ServerPlayer player, UUID source, ServerLevel destination,
-                                                       ClientViewMessage.TravelPose arrival, Vec3 velocity) {
+                                                       ClientViewMessage.TravelPose arrival, Vec3d velocity) {
         runtime.requireServerThread();
         ClientViewSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
         ClientViewServerSession<MinecraftClientViewPeer, BlockState> session = active == null ? null : active.session(player.getUUID());

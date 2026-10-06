@@ -1,7 +1,7 @@
 package art.arcane.wormholes.door;
 
 import art.arcane.wormholes.door.view.DoorApertureFrames;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -66,8 +66,8 @@ public final class DoorArrivals
             return arrivalPoint(destination, transit, sideSign);
         }
         DoorVec3 center = destination.center();
-        Vec3 point = transit.preparedCrossing().outPoint(DoorApertureFrames.destinationFrame(transit.sourcePlane(), destination),
-            new Vec3(center.x(), center.y(), center.z()));
+        Vec3d point = transit.preparedCrossing().outPoint(DoorApertureFrames.destinationFrame(transit.sourcePlane(), destination),
+            new Vec3d(center.x(), center.y(), center.z()));
         return new DoorVec3(point.x(), point.y(), point.z());
     }
 
@@ -75,7 +75,7 @@ public final class DoorArrivals
         if (transit.preparedCrossing() == null) {
             return arrivalFacing(destination, transit, sideSign);
         }
-        Vec3 look = transit.preparedCrossing().outLook(DoorApertureFrames.destinationFrame(transit.sourcePlane(), destination));
+        Vec3d look = transit.preparedCrossing().outLook(DoorApertureFrames.destinationFrame(transit.sourcePlane(), destination));
         double horizontal = Math.hypot(look.x(), look.z());
         float yaw = (float) Math.toDegrees(Math.atan2(-look.x(), look.z()));
         if (yaw >= 180.0F) {
@@ -88,7 +88,7 @@ public final class DoorArrivals
         if (transit.preparedCrossing() == null) {
             return DoorVelocityTransform.mapToSide(destination, transit, transit.velocity(), sideSign);
         }
-        Vec3 velocity = transit.preparedCrossing().outVelocity(DoorApertureFrames.destinationFrame(transit.sourcePlane(), destination));
+        Vec3d velocity = transit.preparedCrossing().outVelocity(DoorApertureFrames.destinationFrame(transit.sourcePlane(), destination));
         return new DoorVec3(velocity.x(), velocity.y(), velocity.z());
     }
 

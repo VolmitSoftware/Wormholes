@@ -3,7 +3,7 @@ package art.arcane.wormholes.modded.clientview;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.optics.plate.ChunkLease;
 import art.arcane.optics.plate.ChunkLeaseRegistry;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.math.Face;
@@ -39,7 +39,7 @@ public class MinecraftEnvironmentCaptureTest extends MinecraftTestBase {
     @Test
     public void waitsForSavedEyeChunkOutsideMeshAndSamplesOnlyOnServerThread() {
         Fixture fixture = fixture();
-        MinecraftEnvironmentCapture.Request request = request(fixture, new Vec3(-32.5D, 92, 128));
+        MinecraftEnvironmentCapture.Request request = request(fixture, new Vec3d(-32.5D, 92, 128));
         ProjectionEnvironment environment = mock(ProjectionEnvironment.class);
         try (MockedStatic<MinecraftPortalEnvironment> sampler = mockStatic(MinecraftPortalEnvironment.class)) {
             sampler.when(() -> MinecraftPortalEnvironment.capture(fixture.world(), request.eye(), request.transform(), fixture.world().isFlat())).thenReturn(environment);
@@ -61,7 +61,7 @@ public class MinecraftEnvironmentCaptureTest extends MinecraftTestBase {
     @Test
     public void unavailableLeaseRefusesOnlyItsViewWithoutSamplingGeneratorBiomes() {
         Fixture fixture = fixture();
-        MinecraftEnvironmentCapture.Request request = request(fixture, new Vec3(0, 80, 0));
+        MinecraftEnvironmentCapture.Request request = request(fixture, new Vec3d(0, 80, 0));
         try (MockedStatic<MinecraftPortalEnvironment> sampler = mockStatic(MinecraftPortalEnvironment.class)) {
             assertNull(fixture.capture().capture(request));
             fixture.ready().complete(false);
@@ -77,7 +77,7 @@ public class MinecraftEnvironmentCaptureTest extends MinecraftTestBase {
     @Test
     public void missingChunkAfterReadinessReleasesLeaseWithoutGeneratorSampling() {
         Fixture fixture = fixture();
-        MinecraftEnvironmentCapture.Request request = request(fixture, new Vec3(0, 80, 0));
+        MinecraftEnvironmentCapture.Request request = request(fixture, new Vec3d(0, 80, 0));
         when(fixture.world().getChunkSource().getChunkNow(0, 0)).thenReturn(null);
         try (MockedStatic<MinecraftPortalEnvironment> sampler = mockStatic(MinecraftPortalEnvironment.class)) {
             fixture.capture().capture(request);
@@ -92,7 +92,7 @@ public class MinecraftEnvironmentCaptureTest extends MinecraftTestBase {
     @Test
     public void observerRemovalReleasesLeaseAndDiscardsQueuedCapture() {
         Fixture fixture = fixture();
-        MinecraftEnvironmentCapture.Request request = request(fixture, new Vec3(0, 80, 0));
+        MinecraftEnvironmentCapture.Request request = request(fixture, new Vec3d(0, 80, 0));
         try (MockedStatic<MinecraftPortalEnvironment> sampler = mockStatic(MinecraftPortalEnvironment.class)) {
             fixture.capture().capture(request);
             fixture.ready().complete(true);
@@ -107,7 +107,7 @@ public class MinecraftEnvironmentCaptureTest extends MinecraftTestBase {
     @Test
     public void shutdownReleasesPendingLeaseAndIgnoresLateReadiness() {
         Fixture fixture = fixture();
-        MinecraftEnvironmentCapture.Request request = request(fixture, new Vec3(0, 80, 0));
+        MinecraftEnvironmentCapture.Request request = request(fixture, new Vec3d(0, 80, 0));
         try (MockedStatic<MinecraftPortalEnvironment> sampler = mockStatic(MinecraftPortalEnvironment.class)) {
             fixture.capture().capture(request);
             fixture.capture().close();
@@ -123,9 +123,9 @@ public class MinecraftEnvironmentCaptureTest extends MinecraftTestBase {
     @Test
     public void movingToAnotherChunkCancelsOldSampleAndWaitsForNewLease() {
         Fixture fixture = fixture();
-        MinecraftEnvironmentCapture.Request first = request(fixture, new Vec3(0, 80, 0));
+        MinecraftEnvironmentCapture.Request first = request(fixture, new Vec3d(0, 80, 0));
         MinecraftEnvironmentCapture.Request second = new MinecraftEnvironmentCapture.Request(first.observer(), null, first.portal(),
-            first.world(), new Vec3(32, 80, 0), first.transform(), 2L);
+            first.world(), new Vec3d(32, 80, 0), first.transform(), 2L);
         ChunkLease secondLease = mock(ChunkLease.class);
         CompletableFuture<Boolean> secondReady = new CompletableFuture<>();
         when(secondLease.ready()).thenReturn(secondReady);
@@ -149,7 +149,7 @@ public class MinecraftEnvironmentCaptureTest extends MinecraftTestBase {
     @Test(timeout = 8000L)
     public void deadlineReleasesLeaseEvenWhenOwnerDispatchNeverRuns() throws InterruptedException {
         Fixture fixture = fixture();
-        MinecraftEnvironmentCapture.Request request = request(fixture, new Vec3(0, 80, 0));
+        MinecraftEnvironmentCapture.Request request = request(fixture, new Vec3d(0, 80, 0));
         try (MockedStatic<MinecraftPortalEnvironment> sampler = mockStatic(MinecraftPortalEnvironment.class)) {
             fixture.capture().capture(request);
             fixture.ready().complete(true);
@@ -164,9 +164,9 @@ public class MinecraftEnvironmentCaptureTest extends MinecraftTestBase {
         }
     }
 
-    private static MinecraftEnvironmentCapture.Request request(Fixture fixture, Vec3 eye) {
+    private static MinecraftEnvironmentCapture.Request request(Fixture fixture, Vec3d eye) {
         return new MinecraftEnvironmentCapture.Request(UUID.randomUUID(), null, UUID.randomUUID(), fixture.world(), eye,
-            new ProjectionEnvironment.Transform(Face.E, Face.U, Face.S, new Vec3(-128, 0, 0)), 1L);
+            new ProjectionEnvironment.Transform(Face.E, Face.U, Face.S, new Vec3d(-128, 0, 0)), 1L);
     }
 
     @SuppressWarnings("unchecked")

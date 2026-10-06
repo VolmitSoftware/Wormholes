@@ -1,7 +1,7 @@
 package art.arcane.wormholes.network;
 
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.math.Face;
@@ -38,9 +38,9 @@ public record WireTraversive(
 
     public PlaneCrossing crossing() {
         return new PlaneCrossing(new Frame(Face.valueOf(frameNormal), Face.valueOf(frameRight),
-            Face.valueOf(frameUp)), new Vec3(originX, originY, originZ),
-            new Vec3(pointX, pointY, pointZ), new Vec3(velocityX, velocityY, velocityZ),
-            new Vec3(lookX, lookY, lookZ), frontSide);
+            Face.valueOf(frameUp)), new Vec3d(originX, originY, originZ),
+            new Vec3d(pointX, pointY, pointZ), new Vec3d(velocityX, velocityY, velocityZ),
+            new Vec3d(lookX, lookY, lookZ), frontSide);
     }
 
     public void write(DataOutputStream out) throws IOException {

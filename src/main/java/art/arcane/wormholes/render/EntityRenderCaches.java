@@ -13,7 +13,7 @@ import org.bukkit.entity.Entity;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
 import com.github.retrooper.packetevents.protocol.player.Equipment;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import org.bukkit.World;
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.portal.ILocalPortal;
@@ -43,10 +43,10 @@ final class EntityRenderCaches {
             return List.of();
         }
         return cache.nearby(new CandidateCache.Query<>(portal.getId(), center.getWorld(),
-            new Vec3(center.getX(), center.getY(), center.getZ()), range, Settings.ENTITY_CANDIDATE_CACHE_TICKS), System.currentTimeMillis());
+            new Vec3d(center.getX(), center.getY(), center.getZ()), range, Settings.ENTITY_CANDIDATE_CACHE_TICKS), System.currentTimeMillis());
     }
 
-    private static Collection<Entity> queryEntities(World world, Vec3 center, int range) {
+    private static Collection<Entity> queryEntities(World world, Vec3d center, int range) {
         return world.getNearbyEntities(new Location(world, center.x(), center.y(), center.z()), range, range, range);
     }
 

@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.claim.ProjectedBlockClaim;
 import art.arcane.optics.math.CellKeys;
@@ -78,7 +78,7 @@ final class ClientCellRulesTest {
             int compared = 0;
             List<String> failures = new ArrayList<String>();
             for (int sample = 0; sample < 60; sample++) {
-                Vec3 eye = frontEye(scene, random);
+                Vec3d eye = frontEye(scene, random);
                 boolean frontSide = scene.eyeFrontSide(eye);
                 for (boolean blackout : new boolean[] {false, true}) {
                     ApertureDescriptor geometry = scene.geometry(frontSide,
@@ -124,14 +124,14 @@ final class ClientCellRulesTest {
         }
     }
 
-    private static Vec3 frontEye(ClientSweepScene scene, Random random) {
+    private static Vec3d frontEye(ClientSweepScene scene, Random random) {
         Face normal = scene.localFrame.getNormal();
         Frame frame = scene.localFrame;
         double side = random.nextBoolean() ? 1.0D : -1.0D;
         double along = side * (8.0D + (random.nextDouble() * 8.0D));
         double right = (random.nextDouble() - 0.5D) * 2.0D;
         double up = (random.nextDouble() - 0.5D) * 2.0D;
-        Vec3 origin = scene.localOrigin;
+        Vec3d origin = scene.localOrigin;
         return ClientViewSweepParityTest.quantized(
             origin.getX() + (normal.x() * along) + (frame.getRight().x() * right) + (frame.getUp().x() * up),
             origin.getY() + (normal.y() * along) + (frame.getRight().y() * right) + (frame.getUp().y() * up),

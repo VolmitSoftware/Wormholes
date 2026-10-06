@@ -1,6 +1,6 @@
 package art.arcane.wormholes.util;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
@@ -14,15 +14,15 @@ public final class BukkitGeometry {
     private BukkitGeometry() {
     }
 
-    public static Vec3 vector(Vector vector) {
-        return vector == null ? null : new Vec3(vector.getX(), vector.getY(), vector.getZ());
+    public static Vec3d vector(Vector vector) {
+        return vector == null ? null : new Vec3d(vector.getX(), vector.getY(), vector.getZ());
     }
 
-    public static Vec3 vector(Location location) {
-        return new Vec3(location.getX(), location.getY(), location.getZ());
+    public static Vec3d vector(Location location) {
+        return new Vec3d(location.getX(), location.getY(), location.getZ());
     }
 
-    public static Vector bukkit(Vec3 vector) {
+    public static Vector bukkit(Vec3d vector) {
         return new Vector(vector.x(), vector.y(), vector.z());
     }
 
@@ -30,7 +30,7 @@ public final class BukkitGeometry {
         return new Vector(direction.x(), direction.y(), direction.z());
     }
 
-    public static Location location(Vec3 vector, World world) {
+    public static Location location(Vec3d vector, World world) {
         return new Location(world, vector.x(), vector.y(), vector.z());
     }
 

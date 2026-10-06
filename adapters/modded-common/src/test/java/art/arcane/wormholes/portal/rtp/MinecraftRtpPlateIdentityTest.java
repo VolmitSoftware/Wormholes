@@ -1,6 +1,6 @@
 package art.arcane.wormholes.portal.rtp;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.math.Box;
@@ -43,7 +43,7 @@ public class MinecraftRtpPlateIdentityTest {
 
     private static RtpProjectionView.ReadyData ready(RtpDestination destination, long routeRevision) {
         return RtpProjectionGeometry.create(new RtpProjectionGeometry.Source(PORTAL, "minecraft:overworld",
-            new Vec3(1.5D, 65.0D, 0.5D), Frame.canonical(Face.S), new Box(0, 3, 64, 67, 0, 1), 1L),
+            new Vec3d(1.5D, 65.0D, 0.5D), Frame.canonical(Face.S), new Box(0, 3, 64, 67, 0, 1), 1L),
             destination, routeRevision);
     }
 }

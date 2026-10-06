@@ -1,6 +1,6 @@
 package art.arcane.wormholes.door.view;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.door.BukkitDoorGeometry;
 
 import art.arcane.wormholes.door.DoorProjectionState;
@@ -29,7 +29,7 @@ public final class DoorProjectionAdapter extends AbstractApertureFacade {
 
     private volatile DoorwayPlane plane;
     private volatile Frame frame;
-    private volatile Vec3 origin;
+    private volatile Vec3d origin;
 
     public DoorProjectionAdapter(RuntimeDoor door, DoorwayPlane plane, World world) {
         this.door = Objects.requireNonNull(door, "door");
@@ -45,7 +45,7 @@ public final class DoorProjectionAdapter extends AbstractApertureFacade {
         plane = required;
         frame = DoorApertureFrames.of(required);
         DoorVec3 center = required.center();
-        origin = new Vec3(center.x(), center.y(), center.z());
+        origin = new Vec3d(center.x(), center.y(), center.z());
         structure.setArea(BukkitDoorGeometry.cells(world, required));
     }
 
@@ -72,7 +72,7 @@ public final class DoorProjectionAdapter extends AbstractApertureFacade {
     }
 
     @Override
-    public Vec3 getOrigin() {
+    public Vec3d getOrigin() {
         return origin;
     }
 

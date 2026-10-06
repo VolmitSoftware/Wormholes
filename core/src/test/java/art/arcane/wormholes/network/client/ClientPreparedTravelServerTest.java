@@ -1,6 +1,6 @@
 package art.arcane.wormholes.network.client;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 
 import art.arcane.wormholes.render.client.session.ClientPreparedTravelServer;
 import art.arcane.optics.view.WorldChangeTracker;
@@ -86,9 +86,9 @@ class ClientPreparedTravelServerTest {
         ClientViewMessage.TravelEnd end = assertInstanceOf(ClientViewMessage.TravelEnd.class, sent.getLast());
         tracker.ready(new ClientViewMessage.TravelReady(begin.token(), begin.generation(), end.contentRevision()));
         assertTrue(tracker.commit(new ClientPreparedTravelServer.Commit(UUID.randomUUID(), begin.sourceWorld(),
-            begin.world().dimension(), begin.arrival(), new Vec3(0, 0, 0), 2)).isEmpty());
+            begin.world().dimension(), begin.arrival(), new Vec3d(0, 0, 0), 2)).isEmpty());
         assertTrue(tracker.commit(new ClientPreparedTravelServer.Commit(begin.sourcePortal(), begin.world().dimension(),
-            begin.sourceWorld(), begin.arrival(), new Vec3(0, 0, 0), 2)).isEmpty());
+            begin.sourceWorld(), begin.arrival(), new Vec3d(0, 0, 0), 2)).isEmpty());
         assertTrue(tracker.commit(commit(begin, new ClientViewMessage.TravelPose(17, 64, 0, 0, 0))).isEmpty());
         assertTrue(tracker.commit(commit(begin, begin.arrival())).isPresent());
     }
@@ -170,7 +170,7 @@ class ClientPreparedTravelServerTest {
     }
 
     private static ClientPreparedTravelServer.Commit commit(ClientViewMessage.TravelBegin begin, ClientViewMessage.TravelPose arrival) {
-        return new ClientPreparedTravelServer.Commit(begin.sourcePortal(), begin.sourceWorld(), begin.world().dimension(), arrival, new Vec3(0, 0, 0), 2);
+        return new ClientPreparedTravelServer.Commit(begin.sourcePortal(), begin.sourceWorld(), begin.world().dimension(), arrival, new Vec3d(0, 0, 0), 2);
     }
 
     private static ClientViewMessage.TravelBegin begin() {

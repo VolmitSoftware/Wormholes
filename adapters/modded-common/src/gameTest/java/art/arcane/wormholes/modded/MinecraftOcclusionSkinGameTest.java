@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.mixin.DoorDisplayDataAccess;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
@@ -49,8 +50,8 @@ public final class MinecraftOcclusionSkinGameTest {
         destination = runtime.portals().create(player.getUUID(), helper.getLevel(), cells(14), PortalType.PORTAL, new Vec3(0, 0, -1));
         helper.assertTrue(runtime.portals().link(player, source.getId(), destination.getId()), "Occlusion portals did not link");
         source.setRenderMode(ProjectionRenderMode.VENTICULAR);
-        art.arcane.optics.math.Vec3 origin = source.getOrigin();
-        art.arcane.optics.math.Vec3 eye = origin.add(source.getFrame().getNormal().toVector().multiply(3.0D));
+        Vec3d origin = source.getOrigin();
+        Vec3d eye = origin.add(source.getFrame().getNormal().toVector().multiply(3.0D));
         player.setPos(eye.x(), eye.y() - player.getEyeHeight(), eye.z());
     }
 
@@ -163,8 +164,8 @@ public final class MinecraftOcclusionSkinGameTest {
     }
 
     private BlockPos remote(BlockPos local) {
-        art.arcane.optics.math.Vec3 from = source.getOrigin();
-        art.arcane.optics.math.Vec3 to = destination.getOrigin();
+        Vec3d from = source.getOrigin();
+        Vec3d to = destination.getOrigin();
         double[] transformed = new double[3];
         PortalCoordMap.transformPointInto(local.getX() + 0.5D, local.getY() + 0.5D, local.getZ() + 0.5D, from.x(), from.y(), from.z(),
             to.x(), to.y(), to.z(), source.getFrame(), destination.getFrame(), transformed);

@@ -1,6 +1,6 @@
 package art.arcane.optics.stream;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.math.Face;
 
 import java.util.Objects;
@@ -82,8 +82,8 @@ public record ProjectionEnvironment(long gameTime, Sky sky, Fog fog, Lighting li
         }
     }
 
-    public record Transform(Face xAxis, Face yAxis, Face zAxis, Vec3 translation) {
-        public static final Transform IDENTITY = new Transform(Face.E, Face.U, Face.S, new Vec3(0, 0, 0));
+    public record Transform(Face xAxis, Face yAxis, Face zAxis, Vec3d translation) {
+        public static final Transform IDENTITY = new Transform(Face.E, Face.U, Face.S, new Vec3d(0, 0, 0));
         public Transform {
             Objects.requireNonNull(xAxis, "xAxis");
             Objects.requireNonNull(yAxis, "yAxis");
@@ -101,11 +101,11 @@ public record ProjectionEnvironment(long gameTime, Sky sky, Fog fog, Lighting li
                 + zAxis.x() * (xAxis.y() * yAxis.z() - xAxis.z() * yAxis.y()) < 0;
         }
 
-        public Vec3 destinationPoint(double x, double y, double z) {
+        public Vec3d destinationPoint(double x, double y, double z) {
             double dx = x - translation.x();
             double dy = y - translation.y();
             double dz = z - translation.z();
-            return new Vec3(dx * xAxis.x() + dy * xAxis.y() + dz * xAxis.z(),
+            return new Vec3d(dx * xAxis.x() + dy * xAxis.y() + dz * xAxis.z(),
                 dx * yAxis.x() + dy * yAxis.y() + dz * yAxis.z(), dx * zAxis.x() + dy * zAxis.y() + dz * zAxis.z());
         }
     }

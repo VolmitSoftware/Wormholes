@@ -1,6 +1,6 @@
 package art.arcane.wormholes.network.client;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.Face;
 
@@ -216,14 +216,14 @@ final class ClientViewTravelCodec {
         return new ProjectionEnvironment.Transform(directions[x], directions[y], directions[z], vector(in));
     }
 
-    private static void vector(ClientViewWriter out, Vec3 vector) {
+    private static void vector(ClientViewWriter out, Vec3d vector) {
         out.f64(vector.x());
         out.f64(vector.y());
         out.f64(vector.z());
     }
 
-    private static Vec3 vector(ClientViewReader in) throws ClientViewProtocolException {
-        return new Vec3(in.f64(), in.f64(), in.f64());
+    private static Vec3d vector(ClientViewReader in) throws ClientViewProtocolException {
+        return new Vec3d(in.f64(), in.f64(), in.f64());
     }
 
     private static void pose(ClientViewWriter out, ClientViewMessage.TravelPose pose) {

@@ -28,7 +28,7 @@ import art.arcane.wormholes.network.client.FrameSplitter;
 import art.arcane.wormholes.network.client.PlatePatchEncoder;
 import art.arcane.wormholes.network.client.SessionPalette;
 import art.arcane.optics.aperture.ApertureDescriptor;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.plate.ViewPlate;
 import art.arcane.optics.client.MeshPlan;
 import art.arcane.optics.stream.ClientViewAckWindow;
@@ -1140,7 +1140,7 @@ public final class ClientViewServerSession<P, B> {
                 flags |= NESTED_PLATE;
             }
             child.needFullScene = false;
-            Vec3 eye = portals.nestedEye(player, slot.contextId);
+            Vec3d eye = portals.nestedEye(player, slot.contextId);
             if (eye != null) {
                 try {
                     if (mesh.refresh(child, portals, player, serverTick, platform.nanoClock().getAsLong(), true, eye)) {

@@ -1,6 +1,6 @@
 package art.arcane.optics.client;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.PortalCoordMap;
@@ -42,7 +42,7 @@ class ClientViewEnvironmentTransformTest {
                 frame.localOriginX(), frame.localOriginY(), frame.localOriginZ(), frame.remoteViewFrame(), frame.localViewFrame(), display);
         }
         ProjectionEnvironment.Transform transform = ClientViewEnvironmentTransform.of(frame);
-        Vec3 result = transform.destinationPoint(display[0], display[1], display[2]);
+        Vec3d result = transform.destinationPoint(display[0], display[1], display[2]);
         assertEquals(138.125D, result.x(), 0.00001D);
         assertEquals(92.25D, result.y(), 0.00001D);
         assertEquals(-134.5D, result.z(), 0.00001D);

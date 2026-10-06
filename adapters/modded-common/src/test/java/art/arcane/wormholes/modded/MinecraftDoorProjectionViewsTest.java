@@ -9,7 +9,7 @@ import art.arcane.wormholes.door.DoorProjectionState;
 import art.arcane.wormholes.door.DoorwayPlane;
 import art.arcane.wormholes.door.PlacedDoorEndpoint;
 import art.arcane.wormholes.door.view.DoorApertureFrames;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.optics.math.Face;
@@ -47,11 +47,11 @@ public class MinecraftDoorProjectionViewsTest extends MinecraftTestBase {
         assertTrue(source.getGeometry().containsBlock(2, 64, 3));
         assertTrue(source.getGeometry().containsBlock(2, 65, 3));
         assertEquals(4, source.getNetworkViewLateralPad());
-        fixture.route(new Vec3(20.5D, 65.0D, 30.5D));
+        fixture.route(new Vec3d(20.5D, 65.0D, 30.5D));
         assertSame(source, views.update(fixture.player, List.of(fixture.door), false).getFirst());
         assertSame(destination, views.destination(source));
         assertEquals(identity, views.routeIdentity(source));
-        fixture.route(new Vec3(30.5D, 65.0D, 30.5D));
+        fixture.route(new Vec3d(30.5D, 65.0D, 30.5D));
         MinecraftPortal moved = views.update(fixture.player, List.of(fixture.door), false).getFirst();
         assertNotSame(source, moved);
         assertFalse(views.current(source));
@@ -68,7 +68,7 @@ public class MinecraftDoorProjectionViewsTest extends MinecraftTestBase {
         MinecraftPortal source = first.update(fixture.player, List.of(fixture.door), false).getFirst();
         MinecraftPortal matching = second.update(fixture.player, List.of(fixture.door), false).getFirst();
         assertEquals(first.routeIdentity(source), second.routeIdentity(matching));
-        fixture.route(new Vec3(120.5D, 65.0D, 30.5D));
+        fixture.route(new Vec3d(120.5D, 65.0D, 30.5D));
         MinecraftPortal moved = second.update(fixture.player, List.of(fixture.door), false).getFirst();
         assertNotEquals(first.routeIdentity(source), second.routeIdentity(moved));
     }
@@ -173,10 +173,10 @@ public class MinecraftDoorProjectionViewsTest extends MinecraftTestBase {
             when(player.level()).thenReturn(level);
             when(player.getUUID()).thenReturn(observerId);
             when(level.dimension()).thenReturn(Level.OVERWORLD);
-            route(new Vec3(20.5D, 65.0D, 30.5D));
+            route(new Vec3d(20.5D, 65.0D, 30.5D));
         }
 
-        private void route(Vec3 origin) {
+        private void route(Vec3d origin) {
             when(doors.projectionDestination(door, observerId)).thenReturn(Optional.of(new MinecraftDoorService.ProjectionDestination(
                 destinationId, level, origin, Frame.fromNormalUp(Face.S, Face.U))));
         }

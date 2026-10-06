@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.entity.ProjectedEntityEvent;
 import art.arcane.optics.entity.ProjectionRecovery;
 import org.slf4j.Logger;
@@ -161,7 +162,7 @@ public final class MinecraftProjectedEntities implements AutoCloseable {
     }
 
     private void hideLocal(View view) {
-        art.arcane.optics.math.Vec3 origin = source.getOrigin();
+        Vec3d origin = source.getOrigin();
         Frame frame = source.getFrame();
         double eyeDot = LocalEntityEnvelope.dot(view.eye().x() - origin.x(), view.eye().y() - origin.y(), view.eye().z() - origin.z(), frame);
         double clearance = ProjectorFrameTransform.portalPlaneClearance(source.getGeometry().getArea(), frame);
@@ -215,7 +216,7 @@ public final class MinecraftProjectedEntities implements AutoCloseable {
 
     public record View(MinecraftPortal destination, IPortal anchor, ServerLevel world,
                        EntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment> entities,
-                       Frame localFrame, Frame remoteFrame, ViewVolume frustum, art.arcane.optics.math.Vec3 eye,
+                       Frame localFrame, Frame remoteFrame, ViewVolume frustum, Vec3d eye,
                        boolean mirror, int quarterTurns, ProjectedEntityOcclusion<BlockState, ContentView<BlockState, BlockState>> occlusion,
                        double depth) {
     }

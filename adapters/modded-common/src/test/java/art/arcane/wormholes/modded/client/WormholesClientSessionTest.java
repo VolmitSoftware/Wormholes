@@ -3,7 +3,7 @@ package art.arcane.wormholes.modded.client;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.ProjectionEnvironment;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.plate.PlateBox;
@@ -46,7 +46,7 @@ public class WormholesClientSessionTest extends MinecraftTestBase {
             session.handle(new ClientViewMessage.Environment(1, environment), sink);
             session.cacheClaims(1, List.of(new ClientViewMessage.MeshClaim(0, 0, 0, 77)));
             ProjectionEnvironment next = environment.withTransform(new ProjectionEnvironment.Transform(Face.E,
-                Face.U, Face.S, new Vec3(0, 0, 0)));
+                Face.U, Face.S, new Vec3d(0, 0, 0)));
             if (change == 1) {
                 ProjectionEnvironment.World world = environment.world();
                 next = new ProjectionEnvironment(environment.gameTime(), environment.sky(), environment.fog(),
@@ -56,7 +56,7 @@ public class WormholesClientSessionTest extends MinecraftTestBase {
                         world.ambientLight(), world.eyeMedium(), world.hasFixedTime()));
             } else if (change == 2) {
                 next = environment.withTransform(new ProjectionEnvironment.Transform(Face.E, Face.U,
-                    Face.S, new Vec3(16, 0, 0)));
+                    Face.S, new Vec3d(16, 0, 0)));
             } else if (change == 3) {
                 ApertureDescriptor changed = new ApertureDescriptor(geometry.originX(), geometry.originY(), geometry.originZ(),
                     geometry.facing(), geometry.frontSide(), geometry.quarterTurns(), geometry.mirror(), geometry.apertureWidth(),

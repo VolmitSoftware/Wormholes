@@ -24,7 +24,7 @@ import java.util.Set;
 import java.util.HashSet;
 import java.util.ArrayList;
 import java.util.ArrayDeque;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.wormholes.network.client.SessionPalette;
 import art.arcane.optics.view.WorldChangeTracker;
@@ -51,7 +51,7 @@ final class ClientMeshStreamTest {
             slots.add(slot);
         }
         ClientMeshStream<String> stream = new ClientMeshStream<String>();
-        Vec3 eye = new Vec3(11, 67, 15);
+        Vec3d eye = new Vec3d(11, 67, 15);
         int[] received = new int[3];
         for (int tick = 1; tick <= 11; tick++) {
             int calls = access.meshCalls;
@@ -88,7 +88,7 @@ final class ClientMeshStreamTest {
         root.sentGeometry = root.geometry;
         root.laneAttached = true;
         root.announced = true;
-        Vec3 eye = new Vec3(11, 67, 15);
+        Vec3d eye = new Vec3d(11, 67, 15);
         ClientMeshStream<String> stream = new ClientMeshStream<String>();
         stream.beginTick();
         stream.refresh(blocked, access, "observer", 1, SessionHarness.TICK_NANOS, false, eye);
@@ -178,7 +178,7 @@ final class ClientMeshStreamTest {
         slot.sentGeometry = slot.geometry;
         slot.announced = true;
         slot.laneAttached = true;
-        Vec3 eye = new Vec3(11, 67, 15);
+        Vec3d eye = new Vec3d(11, 67, 15);
         List<MeshPlan.Section> visible = MeshPlan.visible(slot.geometry, eye);
         MeshPlan.Section target = visible.get(targetIndex);
         PlateBox clip = target.clip();
@@ -275,7 +275,7 @@ final class ClientMeshStreamTest {
         slot.announced = true;
         slot.laneAttached = true;
         ClientMeshStream<String> stream = new ClientMeshStream<String>();
-        Vec3 eye = new Vec3(11, 67, 15);
+        Vec3d eye = new Vec3d(11, 67, 15);
         int sectionCount = MeshPlan.visible(slot.geometry, eye).size();
         assertTrue(sectionCount > ClientMeshStream.MAX_PENDING_CAPTURES);
 
@@ -302,8 +302,8 @@ final class ClientMeshStreamTest {
         slot.announced = true;
         slot.laneAttached = true;
         ClientMeshStream<String> stream = new ClientMeshStream<String>();
-        Vec3 eye = new Vec3(11, 67, 15);
-        Vec3 moved = new Vec3(12, 67, 15);
+        Vec3d eye = new Vec3d(11, 67, 15);
+        Vec3d moved = new Vec3d(12, 67, 15);
         ArrayList<MeshPlan.Coordinate> residents = new ArrayList<MeshPlan.Coordinate>();
         Set<MeshPlan.Coordinate> movedVisible = new HashSet<MeshPlan.Coordinate>();
         for (MeshPlan.Section section : MeshPlan.visible(slot.geometry, moved)) {
@@ -353,7 +353,7 @@ final class ClientMeshStreamTest {
         ClientMeshStream<String> stream = new ClientMeshStream<String>();
         Set<MeshPlan.Coordinate> received = new HashSet<MeshPlan.Coordinate>();
         for (int tick = 1; tick <= 100; tick++) {
-            Vec3 eye = new Vec3(11 + (tick / 8 % 2), 67, 15);
+            Vec3d eye = new Vec3d(11 + (tick / 8 % 2), 67, 15);
             stream.beginTick();
             stream.refresh(slot, access, "observer", tick, tick * SessionHarness.TICK_NANOS, false, eye);
             ClientViewMessage control;
@@ -468,7 +468,7 @@ final class ClientMeshStreamTest {
         slot.announced = true;
         slot.laneAttached = true;
         ClientMeshStream<String> stream = new ClientMeshStream<String>();
-        Vec3 eye = new Vec3(11, 67, 15);
+        Vec3d eye = new Vec3d(11, 67, 15);
         ClientMeshStream.Ready<String> first = capture(stream, slot, access, eye, 1);
         acknowledge(stream, first);
         ClientMeshStream.Ready<String> next;
@@ -560,7 +560,7 @@ final class ClientMeshStreamTest {
             slot.sentGeometry = slot.geometry;
             stream.beginTick();
             stream.refresh(slot, access, "observer", 1000 + index, (1000 + index) * SessionHarness.TICK_NANOS,
-                false, new Vec3(11, 67, 15));
+                false, new Vec3d(11, 67, 15));
             assertTrue(stream.current(retained));
             ClientViewMessage control;
             while ((control = stream.pollControl(key -> true)) != null) {
@@ -572,7 +572,7 @@ final class ClientMeshStreamTest {
         slot.sentGeometry = slot.geometry;
         stream.beginTick();
         stream.refresh(slot, access, "observer", 1004, 1004 * SessionHarness.TICK_NANOS,
-            false, new Vec3(11, 67, 15));
+            false, new Vec3d(11, 67, 15));
         assertFalse(stream.current(retained));
         assertTrue(stream.pollControl(key -> true) instanceof ClientViewMessage.MeshBegin begin
             && begin.generation() > retained.generation());
@@ -592,7 +592,7 @@ final class ClientMeshStreamTest {
         assertTrue(stream.current(retained));
         stream.beginTick();
         stream.refresh(slot, access, "observer", 1000, 1000 * SessionHarness.TICK_NANOS,
-            false, new Vec3(150, 67, 15));
+            false, new Vec3d(150, 67, 15));
         ClientViewMessage control;
         while ((control = stream.pollControl(key -> true)) != null) {
             assertFalse(control instanceof ClientViewMessage.MeshDrop);
@@ -641,7 +641,7 @@ final class ClientMeshStreamTest {
         slot.sentGeometry = slot.geometry;
         slot.announced = true;
         slot.laneAttached = true;
-        Vec3 eye = new Vec3(11, 67, 15);
+        Vec3d eye = new Vec3d(11, 67, 15);
         ClientMeshStream<String> stream = new ClientMeshStream<String>();
         stream.beginTick();
         stream.refresh(slot, access, "observer", 1, 0, false, eye);
@@ -734,11 +734,11 @@ final class ClientMeshStreamTest {
     private static ClientMeshStream.Ready<String> removableCapture(ClientMeshStream<String> stream,
         ClientViewPortalSlot<String> slot, FakePortalAccess access) {
         Set<MeshPlan.Coordinate> moved = new HashSet<MeshPlan.Coordinate>();
-        for (MeshPlan.Section section : MeshPlan.visible(slot.geometry, new Vec3(150, 67, 15))) {
+        for (MeshPlan.Section section : MeshPlan.visible(slot.geometry, new Vec3d(150, 67, 15))) {
             moved.add(section.coordinate());
         }
         for (int tick = 1; tick < 1000; tick++) {
-            ClientMeshStream.Ready<String> next = capture(stream, slot, access, new Vec3(11, 67, 15), tick);
+            ClientMeshStream.Ready<String> next = capture(stream, slot, access, new Vec3d(11, 67, 15), tick);
             ClientMeshStream.Ready<String> selected = null;
             while (next != null) {
                 if (selected == null && !moved.contains(next.coordinate())) {
@@ -761,7 +761,7 @@ final class ClientMeshStreamTest {
     }
 
     private static ClientMeshStream.Ready<String> capture(ClientMeshStream<String> stream, ClientViewPortalSlot<String> slot,
-                                                          FakePortalAccess access, Vec3 eye, int tick) {
+                                                          FakePortalAccess access, Vec3d eye, int tick) {
         stream.beginTick();
         stream.refresh(slot, access, "observer", tick, tick * SessionHarness.TICK_NANOS, false, eye);
         while (stream.pollControl(key -> true) != null) {

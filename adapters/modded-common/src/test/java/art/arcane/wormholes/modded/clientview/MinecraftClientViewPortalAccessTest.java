@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.clientview;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.config.toml.MainConfig;
@@ -168,7 +169,7 @@ public class MinecraftClientViewPortalAccessTest extends MinecraftTestBase {
         UUID destination = UUID.randomUUID();
         ServerLevel destinationWorld = fixture.player().level();
         when(doors.projectionDestination(door, fixture.player().getUUID())).thenReturn(Optional.of(
-            new MinecraftDoorService.ProjectionDestination(destination, destinationWorld, new art.arcane.optics.math.Vec3(20.5, 65, 30.5),
+            new MinecraftDoorService.ProjectionDestination(destination, destinationWorld, new Vec3d(20.5, 65, 30.5),
                 Frame.canonical(Face.S))));
         when(fixture.runtime().projections().attendable(eq(fixture.player()), any(), eq(access))).thenAnswer(call -> {
             MinecraftPortal source = call.getArgument(1);
@@ -195,7 +196,7 @@ public class MinecraftClientViewPortalAccessTest extends MinecraftTestBase {
         assertNotEquals(0L, routeIdentity);
 
         when(doors.projectionDestination(door, fixture.player().getUUID())).thenReturn(Optional.of(
-            new MinecraftDoorService.ProjectionDestination(destination, destinationWorld, new art.arcane.optics.math.Vec3(120.5, 65, 30.5),
+            new MinecraftDoorService.ProjectionDestination(destination, destinationWorld, new Vec3d(120.5, 65, 30.5),
                 Frame.canonical(Face.S))));
         portals.interested(fixture.peer(), new ArrayList<UUID>());
         assertNotEquals(revision, portals.geometryRevision(fixture.peer(), identity.itemId()));
@@ -231,7 +232,7 @@ public class MinecraftClientViewPortalAccessTest extends MinecraftTestBase {
         when(fixture.player().requestedViewDistance()).thenReturn(64);
         assertEquals(512, portals.meshDistanceBlocks(fixture.peer()));
         when(fixture.player().getEyePosition()).thenReturn(new Vec3(-35.5D, 75.25D, -0.25D));
-        assertEquals(new art.arcane.optics.math.Vec3(-35.5D, 75.25D, -0.25D), portals.meshEye(fixture.peer()));
+        assertEquals(new Vec3d(-35.5D, 75.25D, -0.25D), portals.meshEye(fixture.peer()));
     }
 
     @Test
@@ -417,7 +418,7 @@ public class MinecraftClientViewPortalAccessTest extends MinecraftTestBase {
         when(fixture.runtime().projections().view(remoteWorld)).thenReturn(remoteView);
         MinecraftPortal mirror = portal(12);
         mirror.getGeometry().setArea(new Box(12, 14.999D, 64, 66.999D, -4, -3.001D));
-        when(mirror.getOrigin()).thenReturn(new art.arcane.optics.math.Vec3(13.5D, 65.5D, -3.5D));
+        when(mirror.getOrigin()).thenReturn(new Vec3d(13.5D, 65.5D, -3.5D));
         when(mirror.isMirrorMode()).thenReturn(true);
         when(fixture.runtime().portals().get(mirror.getId())).thenReturn(mirror);
         when(fixture.access().world(mirror)).thenReturn(remoteWorld);
@@ -432,13 +433,13 @@ public class MinecraftClientViewPortalAccessTest extends MinecraftTestBase {
         ArrayList<UUID> discovered = new ArrayList<>();
         portals.nested(fixture.peer(), root, rootGeometry, discovered);
         assertEquals(List.of(mirror.getId()), discovered);
-        art.arcane.optics.math.Vec3 parentEye = portals.nestedEye(fixture.peer(), root);
+        Vec3d parentEye = portals.nestedEye(fixture.peer(), root);
         assertNotEquals(portals.meshEye(fixture.peer()), parentEye);
         portals.prepareNested(fixture.peer(), branch, root, mirror.getId());
         assertEquals(parentEye, fixture.peer().nestedContext(branch).sourceEye());
         assertEquals(mirror, portals.portal(fixture.peer(), branch));
         assertNotNull(portals.nestedGeometry(fixture.peer(), root, mirror.getId(), new SessionPalette()));
-        art.arcane.optics.math.Vec3 firstEye = portals.nestedEye(fixture.peer(), branch);
+        Vec3d firstEye = portals.nestedEye(fixture.peer(), branch);
         portals.prepareNested(fixture.peer(), secondBranch, branch, mirror.getId());
         assertEquals(firstEye, fixture.peer().nestedContext(secondBranch).sourceEye());
         assertNotEquals(firstEye, portals.nestedEye(fixture.peer(), secondBranch));
@@ -504,7 +505,7 @@ public class MinecraftClientViewPortalAccessTest extends MinecraftTestBase {
         MinecraftDoorService.DoorView rootDoor = new MinecraftDoorService.DoorView(endpoint, pocket,
             new DoorwayPlane(2, 64, 3, Face.N), true);
         when(doors.projectionDestination(rootDoor, fixture.player().getUUID())).thenReturn(Optional.of(
-            new MinecraftDoorService.ProjectionDestination(UUID.randomUUID(), overworld, new art.arcane.optics.math.Vec3(20.5D, 65.0D, 30.5D),
+            new MinecraftDoorService.ProjectionDestination(UUID.randomUUID(), overworld, new Vec3d(20.5D, 65.0D, 30.5D),
                 Frame.canonical(Face.S))));
         when(fixture.runtime().projections().projectableDoors()).thenReturn(List.of(rootDoor));
         fixture.runtime().configuration().settings().getDoors().projectionEnabled = false;
@@ -521,7 +522,7 @@ public class MinecraftClientViewPortalAccessTest extends MinecraftTestBase {
         ApertureDescriptor rootGeometry = portals.geometry(fixture.peer(), root, new SessionPalette()).withDepth(128);
         assertEquals(ApertureDescriptor.KIND_DOOR, rootGeometry.kind());
         assertEquals(fixture.runtime().configuration().settings().getProjection().recursivePortalDepth, rootGeometry.recursionDepth());
-        art.arcane.optics.math.Vec3 childOrigin = fixture.peer().nestedContext(root).transform().destinationPoint(2.5D, 65.0D, -4.5D);
+        Vec3d childOrigin = fixture.peer().nestedContext(root).transform().destinationPoint(2.5D, 65.0D, -4.5D);
         MinecraftPortal mirror = portal(childOrigin.x() - 1.5D);
         MinecraftPortal frame = portal(childOrigin.x() + 2.5D);
         MinecraftPortal linked = portal(childOrigin.x() + 12.5D);
@@ -530,7 +531,7 @@ public class MinecraftClientViewPortalAccessTest extends MinecraftTestBase {
             double y = Math.floor(childOrigin.y()) - 1.0D;
             double z = Math.floor(childOrigin.z());
             child.getGeometry().setArea(new Box(x - 1.5D, x + 1.499D, y, y + 2.999D, z, z + 0.999D));
-            when(child.getOrigin()).thenReturn(new art.arcane.optics.math.Vec3(x, y + 1.5D, z + 0.5D));
+            when(child.getOrigin()).thenReturn(new Vec3d(x, y + 1.5D, z + 0.5D));
             when(child.getWorldKey()).thenReturn("minecraft:overworld");
             when(child.getProjectionMode()).thenReturn(ProjectionMode.ON);
             when(fixture.runtime().portals().get(child.getId())).thenReturn(child);
@@ -549,7 +550,7 @@ public class MinecraftClientViewPortalAccessTest extends MinecraftTestBase {
         MinecraftDoorService.DoorView childDoor = new MinecraftDoorService.DoorView(childEndpoint, overworld,
             new DoorwayPlane(childX, childY, childZ, Face.N), true);
         when(doors.projectionDestination(childDoor, fixture.player().getUUID())).thenReturn(Optional.of(
-            new MinecraftDoorService.ProjectionDestination(UUID.randomUUID(), pocket, new art.arcane.optics.math.Vec3(40.5D, 65.0D, 40.5D),
+            new MinecraftDoorService.ProjectionDestination(UUID.randomUUID(), pocket, new Vec3d(40.5D, 65.0D, 40.5D),
                 Frame.canonical(Face.S))));
         when(fixture.runtime().projections().projectableDoors()).thenReturn(List.of(rootDoor, childDoor));
         portals.frame(List.of(mirror, frame));
@@ -652,7 +653,7 @@ public class MinecraftClientViewPortalAccessTest extends MinecraftTestBase {
         when(portal.getId()).thenReturn(UUID.randomUUID());
         when(portal.getGeometry()).thenReturn(geometry);
         when(portal.getFrame()).thenReturn(Frame.canonical(Face.S));
-        when(portal.getOrigin()).thenReturn(new art.arcane.optics.math.Vec3(x + 1.5D, 65.5D, 0.5D));
+        when(portal.getOrigin()).thenReturn(new Vec3d(x + 1.5D, 65.5D, 0.5D));
         when(portal.frame()).thenCallRealMethod();
         when(portal.origin()).thenCallRealMethod();
         when(portal.id()).thenCallRealMethod();

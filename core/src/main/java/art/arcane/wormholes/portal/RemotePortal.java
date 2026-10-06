@@ -6,7 +6,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.UUID;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 
 import art.arcane.wormholes.network.PortalInfo;
 import art.arcane.optics.math.Box;
@@ -41,7 +41,7 @@ public class RemotePortal extends Portal implements IRemotePortal {
     private volatile int mirroredAmbientColor;
     private volatile String mirroredSurfaceSkin;
 
-    public RemotePortal(UUID id, RemoteWorld server, Vec3 origin, PortalType type, boolean open, Box area) {
+    public RemotePortal(UUID id, RemoteWorld server, Vec3d origin, PortalType type, boolean open, Box area) {
         super(id, origin);
         this.server = server;
         this.type = type;
@@ -72,7 +72,7 @@ public class RemotePortal extends Portal implements IRemotePortal {
         RemotePortal portal = new RemotePortal(
             info.id(),
             new RemoteWorld(serverName, info.worldKey()),
-            new Vec3(info.originX(), info.originY(), info.originZ()),
+            new Vec3d(info.originX(), info.originY(), info.originZ()),
             PortalType.valueOf(info.typeName()),
             info.open(),
             new Box(info.minX(), info.maxX(), info.minY(), info.maxY(), info.minZ(), info.maxZ())

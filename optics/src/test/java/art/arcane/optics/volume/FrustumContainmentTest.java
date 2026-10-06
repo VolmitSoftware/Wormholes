@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Random;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.optics.frame.Frame;
@@ -18,7 +18,7 @@ public final class FrustumContainmentTest {
     private static final double RANGE = 8.0D;
 
     private static Frustum frustumAt(double eyeX, double eyeY, double eyeZ) {
-        return new Frustum(new Vec3( eyeX, eyeY, eyeZ), APERTURE, Face.S, null, RANGE, RANGE, 0.0D);
+        return new Frustum(new Vec3d( eyeX, eyeY, eyeZ), APERTURE, Face.S, null, RANGE, RANGE, 0.0D);
     }
 
     @Test
@@ -103,7 +103,7 @@ public final class FrustumContainmentTest {
                     origin[1] - (normalAxis == 1 ? 0.0D : 2.0D), origin[1] + (normalAxis == 1 ? 0.0D : 2.0D),
                     origin[2] - (normalAxis == 2 ? 0.0D : 2.0D), origin[2] + (normalAxis == 2 ? 0.0D : 2.0D));
                 for (double distance : new double[] {0.0D, 1.0E-8D, 0.01D, 0.25D, 1.5D, 8.0D}) {
-                    Vec3 eye = new Vec3( origin[0] + normal.x() * distance,
+                    Vec3d eye = new Vec3d( origin[0] + normal.x() * distance,
                         origin[1] + normal.y() * distance, origin[2] + normal.z() * distance);
                     for (double padding : new double[] {0.0D, 0.35D, 1.0D}) {
                         Frustum frustum = new Frustum(eye, aperture, normal, normal.getAxis(), 64.0D, 48.0D, padding);

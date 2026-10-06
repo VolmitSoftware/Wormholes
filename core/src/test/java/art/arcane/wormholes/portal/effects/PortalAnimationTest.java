@@ -1,7 +1,7 @@
 package art.arcane.wormholes.portal.effects;
 
 import art.arcane.wormholes.config.VisualQualityProfile;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -58,7 +58,7 @@ class PortalAnimationTest {
     @Test
     void planeSizeKeepsTheNormalOfEverySize() {
         for (int normal = 0; normal < 3; normal++) {
-            Vec3 size = PortalAnimation.planeSize(normal, 0.0D, 0.0D);
+            Vec3d size = PortalAnimation.planeSize(normal, 0.0D, 0.0D);
             assertEquals(normal, PortalAnimation.normalAxis(size));
             assertEquals(normal, PortalAnimation.normalAxis(PortalAnimation.planeSize(normal, 3.0D, 1.0D)));
         }
@@ -137,7 +137,7 @@ class PortalAnimationTest {
         PortalAnimation.Options configuration = options(PortalAnimation.Mode.FORMATION, true, () -> true);
         configuration = new PortalAnimation.Options(configuration.mode(), configuration.center(), configuration.size(), configuration.quality(),
             configuration.particles(), configuration.volume(), configuration.active(), configuration.audible(),
-            List.of(new PortalAnimation.Block(new Vec3(2, 3, 0), "minecraft:glass")));
+            List.of(new PortalAnimation.Block(new Vec3d(2, 3, 0), "minecraft:glass")));
         PortalAnimation<Integer> animation = new PortalAnimation<>(configuration, host);
         for (int tick = 0; tick <= 20; tick++) {
             animation.tick();
@@ -151,7 +151,7 @@ class PortalAnimationTest {
     }
 
     private PortalAnimation.Options options(PortalAnimation.Mode mode, boolean particles, BooleanSupplier active) {
-        return new PortalAnimation.Options(mode, new Vec3(0, 0, 0), new Vec3(3, 4, 1), VisualQualityProfile.BALANCED,
+        return new PortalAnimation.Options(mode, new Vec3d(0, 0, 0), new Vec3d(3, 4, 1), VisualQualityProfile.BALANCED,
             particles, 1, active, () -> true, List.of());
     }
 

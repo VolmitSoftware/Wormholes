@@ -1,6 +1,6 @@
 package art.arcane.wormholes.render.clientview;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 
 import java.lang.reflect.Constructor;
 import java.security.SecureRandom;
@@ -183,7 +183,7 @@ public final class BukkitClientView implements ClientViewRouting {
         return FoliaScheduler.runEntity(owner, player, () -> session.reset(ClientViewMessage.ResetReason.TELEPORT));
     }
 
-    public ClientViewMessage.TravelCommit commitTravel(Player player, UUID source, Location destination, Vec3 velocity) {
+    public ClientViewMessage.TravelCommit commitTravel(Player player, UUID source, Location destination, Vec3d velocity) {
         ClientViewServerSession<ClientViewObserver, BlockData> session = registry.session(player.getUniqueId());
         BukkitPreparedTravel current = prepared;
         ClientViewMessage.TravelCommit commit = session == null || current == null || !session.preparedTravelSelected()

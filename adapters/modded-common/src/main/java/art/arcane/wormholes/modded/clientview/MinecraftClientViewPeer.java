@@ -5,7 +5,7 @@ import art.arcane.wormholes.modded.MinecraftDoorProjectionViews;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import net.minecraft.network.Connection;
 import net.minecraft.server.level.ServerLevel;
@@ -126,7 +126,7 @@ public final class MinecraftClientViewPeer {
         access.observer(next);
     }
 
-    record NestedContext(UUID portal, Vec3 sourceEye, Vec3 destinationEye, ServerLevel destinationWorld,
+    record NestedContext(UUID portal, Vec3d sourceEye, Vec3d destinationEye, ServerLevel destinationWorld,
                          ProjectionEnvironment.Transform transform) {
     }
 

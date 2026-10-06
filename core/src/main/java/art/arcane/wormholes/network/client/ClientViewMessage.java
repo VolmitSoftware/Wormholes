@@ -6,7 +6,7 @@ import java.util.HashSet;
 import java.util.Objects;
 import java.util.UUID;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.plate.PlateBox;
@@ -229,7 +229,7 @@ public sealed interface ClientViewMessage {
     }
 
     record TravelCommit(UUID token, long generation, long contentRevision, String sourceWorld, String destinationWorld,
-                        TravelPose arrival, Vec3 velocity) implements ClientViewMessage {
+                        TravelPose arrival, Vec3d velocity) implements ClientViewMessage {
         public TravelCommit {
             travelIdentity(token, generation);
             travelVector(velocity);
@@ -249,7 +249,7 @@ public sealed interface ClientViewMessage {
     }
 
     record TravelCross(UUID token, long generation, long contentRevision, TravelPose sourcePose,
-                       Vec3 previousEye, Vec3 currentEye) implements ClientViewMessage {
+                       Vec3d previousEye, Vec3d currentEye) implements ClientViewMessage {
         public TravelCross {
             travelIdentity(token, generation);
             Objects.requireNonNull(sourcePose, "sourcePose");
@@ -279,7 +279,7 @@ public sealed interface ClientViewMessage {
         }
     }
 
-    private static void travelVector(Vec3 vector) {
+    private static void travelVector(Vec3d vector) {
         Objects.requireNonNull(vector, "vector");
         if (!Double.isFinite(vector.x()) || !Double.isFinite(vector.y()) || !Double.isFinite(vector.z())) {
             throw new IllegalArgumentException("Travel vector");

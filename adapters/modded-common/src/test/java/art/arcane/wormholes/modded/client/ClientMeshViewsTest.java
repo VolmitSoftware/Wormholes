@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.client.render.PortalScene;
 import art.arcane.optics.stream.ProjectionEnvironment;
@@ -107,7 +107,7 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
         when(session.portals()).thenReturn(portals);
         when(session.environment(7)).thenReturn(environment);
         when(environment.transform()).thenReturn(new ProjectionEnvironment.Transform(Face.E, Face.U, Face.S,
-            new Vec3(0, 0, 0)));
+            new Vec3d(0, 0, 0)));
         when(renderer.available(7)).thenReturn(true);
         IllegalStateException failure = new IllegalStateException("Feature renderer unavailable");
         try (MockedStatic<ClientPortalRenderer> renderers = mockStatic(ClientPortalRenderer.class);
@@ -200,7 +200,7 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
         when(session.portals()).thenReturn(portals);
         when(session.environment(7)).thenReturn(environment);
         when(environment.transform()).thenReturn(new ProjectionEnvironment.Transform(Face.E, Face.U, Face.S,
-            new Vec3(0, 0, 0)));
+            new Vec3d(0, 0, 0)));
         try (MockedStatic<ClientPortalRenderer> renderers = mockStatic(ClientPortalRenderer.class)) {
             renderers.when(ClientPortalRenderer::instance).thenReturn(renderer);
             ClientMeshViews views = new ClientMeshViews();
@@ -208,7 +208,7 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
             views.update(session, level);
             verify(renderer, times(1)).replaceScene(eq(7), any(PortalScene.class));
             when(environment.transform()).thenReturn(new ProjectionEnvironment.Transform(Face.U, Face.W, Face.S,
-                new Vec3(0, 0, 0)));
+                new Vec3d(0, 0, 0)));
             views.update(session, level);
             views.update(session, level);
             verify(renderer, times(2)).replaceScene(eq(7), any(PortalScene.class));
@@ -386,7 +386,7 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
             PortalScene fourth = captured.getValue();
             assertNotNull(fourth.meshContext());
             when(fixture.environment.transform()).thenReturn(new ProjectionEnvironment.Transform(Face.E, Face.U, Face.S,
-                new Vec3(16, 0, 0)));
+                new Vec3d(16, 0, 0)));
             assertNull(fourth.meshContext());
             assertFalse(fourth.matchesMeshIdentity(0L, firstProof));
             fixture.views.update(fixture.session, fixture.level);

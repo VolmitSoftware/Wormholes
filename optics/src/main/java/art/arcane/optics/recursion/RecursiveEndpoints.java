@@ -9,7 +9,7 @@ import java.util.UUID;
 import java.util.function.Supplier;
 
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.aperture.Endpoint;
 import art.arcane.optics.aperture.CellAperture;
@@ -104,7 +104,7 @@ public final class RecursiveEndpoints<W, P extends Endpoint> {
         UUID id = portal.id();
         long mixed = ProjectorPassRevision.mix(hash, id == null ? 0L : id.getMostSignificantBits());
         mixed = ProjectorPassRevision.mix(mixed, id == null ? 0L : id.getLeastSignificantBits());
-        Vec3 origin = portal.origin();
+        Vec3d origin = portal.origin();
         if (origin != null) {
             mixed = ProjectorPassRevision.mix(mixed, Double.doubleToLongBits(origin.getX()));
             mixed = ProjectorPassRevision.mix(mixed, Double.doubleToLongBits(origin.getY()));

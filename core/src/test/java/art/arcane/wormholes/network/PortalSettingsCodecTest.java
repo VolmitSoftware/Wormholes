@@ -1,6 +1,6 @@
 package art.arcane.wormholes.network;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.ProjectionMode;
 import art.arcane.wormholes.portal.RemotePortal;
@@ -35,7 +35,7 @@ public final class PortalSettingsCodecTest {
         for (ProjectionCase test : cases) {
             LocalTarget local = new LocalTarget();
             RemotePortal remote = new RemotePortal(UUID.randomUUID(), new RemoteWorld("alpha", "minecraft:overworld"),
-                new Vec3(0, 64, 0), PortalType.PORTAL, true, new Box(0, 1, 64, 66, 0, 1));
+                new Vec3d(0, 64, 0), PortalType.PORTAL, true, new Box(0, 1, 64, 66, 0, 1));
             remote.setMirroredProjectionMode(ProjectionMode.OFF);
             remote.setMirroredMirrorMode(true);
 

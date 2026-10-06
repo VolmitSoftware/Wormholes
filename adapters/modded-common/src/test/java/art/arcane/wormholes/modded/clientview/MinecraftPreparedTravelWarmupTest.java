@@ -3,7 +3,7 @@ package art.arcane.wormholes.modded.clientview;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.optics.plate.ChunkLease;
 import art.arcane.optics.plate.ChunkLeaseRegistry;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftChunkPacketEncoding;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.MinecraftPortalRegistry;
@@ -179,7 +179,7 @@ public class MinecraftPreparedTravelWarmupTest extends MinecraftTestBase {
     private static MinecraftPortal portal() {
         MinecraftPortal portal = mock(MinecraftPortal.class);
         when(portal.getId()).thenReturn(UUID.randomUUID());
-        when(portal.getOrigin()).thenReturn(new Vec3(0, 64, 0));
+        when(portal.getOrigin()).thenReturn(new Vec3d(0, 64, 0));
         when(portal.getFrame()).thenReturn(Frame.canonical(Face.N));
         when(portal.isOpen()).thenReturn(true);
         return portal;

@@ -48,7 +48,7 @@ public enum Face
 		return equals(D) || equals(U);
 	}
 
-	public static Face closest(Vec3 v)
+	public static Face closest(Vec3d v)
 	{
 		return closest(v.getX(), v.getY(), v.getZ());
 	}
@@ -72,9 +72,9 @@ public enum Face
 		return z >= 0.0D ? S : N;
 	}
 
-	public Vec3 toVector()
+	public Vec3d toVector()
 	{
-		return new Vec3(x, y, z);
+		return new Vec3d(x, y, z);
 	}
 
 	private Face(int x, int y, int z)
@@ -122,10 +122,10 @@ public enum Face
 		return z;
 	}
 
-	public static Face getDirection(Vec3 v)
+	public static Face getDirection(Vec3d v)
 	{
-		Vec3 normalized = v.normalize();
-		Vec3 k = new Vec3(Math.signum(normalized.getX()), Math.signum(normalized.getY()), Math.signum(normalized.getZ()));
+		Vec3d normalized = v.normalize();
+		Vec3d k = new Vec3d(Math.signum(normalized.getX()), Math.signum(normalized.getY()), Math.signum(normalized.getZ()));
 
 		for(Face i : udnews())
 		{

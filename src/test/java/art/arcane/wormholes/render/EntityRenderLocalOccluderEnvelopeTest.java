@@ -1,7 +1,7 @@
 package art.arcane.wormholes.render;
 
 import art.arcane.wormholes.util.BukkitGeometry;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -29,7 +29,7 @@ public final class EntityRenderLocalOccluderEnvelopeTest {
             assertTrue(LocalEntityEnvelope.envelopeFullyProjected(
                 1.0D, 0.75D, 6.5D,
                 2.0D, 2.5D, 7.5D,
-                new Vec3(1.5D, 1.5D, 5.0D), Frame.canonical(Face.N), frustum,
+                new Vec3d(1.5D, 1.5D, 5.0D), Frame.canonical(Face.N), frustum,
                 true, 0.01D, 16.0D));
         } finally {
             settings.restore();
@@ -44,7 +44,7 @@ public final class EntityRenderLocalOccluderEnvelopeTest {
             assertFalse(LocalEntityEnvelope.envelopeFullyProjected(
                 2.5D, 0.75D, 6.5D,
                 4.0D, 2.5D, 7.5D,
-                new Vec3(1.5D, 1.5D, 5.0D), Frame.canonical(Face.N), frustum,
+                new Vec3d(1.5D, 1.5D, 5.0D), Frame.canonical(Face.N), frustum,
                 true, 0.01D, 16.0D));
         } finally {
             settings.restore();

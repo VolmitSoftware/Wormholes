@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.claim.ProjectedBlockClaim;
 import art.arcane.optics.math.Box;
@@ -254,7 +254,7 @@ public record ApertureDescriptor(int originX,
         Frame canonical = Frame.canonical(facingDirection());
         int columnAxis = axisOf(canonical.getRight());
         int rowAxis = axisOf(canonical.getUp());
-        List<Vec3> cells = new ArrayList<Vec3>(openCellCount());
+        List<Vec3d> cells = new ArrayList<Vec3d>(openCellCount());
         int[] origin = {originX, originY, originZ};
         int[] cell = {originX, originY, originZ};
         for (int row = 0; row < apertureHeight; row++) {
@@ -264,7 +264,7 @@ public record ApertureDescriptor(int originX,
                     continue;
                 }
                 cell[columnAxis] = origin[columnAxis] + column;
-                cells.add(new Vec3(cell[0], cell[1], cell[2]));
+                cells.add(new Vec3d(cell[0], cell[1], cell[2]));
             }
         }
         ApertureCells geometry = new ApertureCells();

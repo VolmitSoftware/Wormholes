@@ -3,7 +3,7 @@ package art.arcane.optics.recursion;
 import java.util.ArrayList;
 import java.util.List;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.aperture.ApertureCells;
@@ -41,7 +41,7 @@ public final class ClientRecursionPlanner {
         if (destinationArea == null || transform == null) {
             return false;
         }
-        Vec3 center = destinationArea.center();
+        Vec3d center = destinationArea.center();
         double ex = (destinationArea.getXb() - destinationArea.getXa()) * 0.5D;
         double ey = (destinationArea.getYb() - destinationArea.getYa()) * 0.5D;
         double ez = (destinationArea.getZb() - destinationArea.getZa()) * 0.5D;
@@ -107,7 +107,7 @@ public final class ClientRecursionPlanner {
 
     private static boolean anyCornerVisible(List<Window> chain, Window window, double[] scratch) {
         Box area = window.area;
-        Vec3 center = area.center();
+        Vec3d center = area.center();
         window.space.toDisplay(center.getX(), center.getY(), center.getZ(), scratch);
         if (visible(chain, scratch[0], scratch[1], scratch[2])) {
             return true;
@@ -212,7 +212,7 @@ public final class ClientRecursionPlanner {
             ApertureCells aperture = geometry.aperture();
             this.area = aperture.getArea();
             Frame frame = geometry.frame();
-            Vec3 center = area.center();
+            Vec3d center = area.center();
             this.originX = frame.getNormal().x() != 0 ? geometry.planeCoordinate() : center.getX();
             this.originY = frame.getNormal().y() != 0 ? geometry.planeCoordinate() : center.getY();
             this.originZ = frame.getNormal().z() != 0 ? geometry.planeCoordinate() : center.getZ();

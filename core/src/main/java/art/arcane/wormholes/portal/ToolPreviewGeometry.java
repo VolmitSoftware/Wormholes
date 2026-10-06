@@ -1,6 +1,6 @@
 package art.arcane.wormholes.portal;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.math.Axis;
 import art.arcane.optics.math.CellKeys;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -21,7 +21,7 @@ public final class ToolPreviewGeometry {
     private ToolPreviewGeometry() {
     }
 
-    public static Geometry build(List<Vec3> blockPositions, Axis normalAxis) {
+    public static Geometry build(List<Vec3d> blockPositions, Axis normalAxis) {
         Objects.requireNonNull(blockPositions, "blockPositions");
         Objects.requireNonNull(normalAxis, "normalAxis");
         LongOpenHashSet occupied = new LongOpenHashSet(Math.max(16, blockPositions.size() * 2));
@@ -32,7 +32,7 @@ public final class ToolPreviewGeometry {
         int maxX = Integer.MIN_VALUE;
         int maxY = Integer.MIN_VALUE;
         int maxZ = Integer.MIN_VALUE;
-        for (Vec3 position : blockPositions) {
+        for (Vec3d position : blockPositions) {
             if (position == null) {
                 continue;
             }

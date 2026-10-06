@@ -1,7 +1,7 @@
 package art.arcane.wormholes;
 
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.portal.effects.PortalAnimation;
 import art.arcane.wormholes.render.client.session.ClientViewEmitters;
 import art.arcane.wormholes.render.clientview.BukkitClientView;
@@ -31,31 +31,31 @@ final class EffectPortalAnimator {
 
     void playClose(World world, Location corner, double sx, double sy, double sz, BooleanSupplier active, BooleanSupplier audible) {
         start(world, corner.clone().add(sx / 2, sy / 2, sz / 2), new PortalAnimation.Options(PortalAnimation.Mode.CLOSE,
-            new Vec3(corner.getX() + sx / 2, corner.getY() + sy / 2, corner.getZ() + sz / 2), new Vec3(sx, sy, sz),
+            new Vec3d(corner.getX() + sx / 2, corner.getY() + sy / 2, corner.getZ() + sz / 2), new Vec3d(sx, sy, sz),
             Settings.VISUAL_QUALITY_PROFILE, Settings.ENABLE_PARTICLES, Settings.PORTAL_SOUND_VOLUME_MULTIPLIER,
             () -> !displays.isClosing() && active.getAsBoolean(), audible, List.of()));
     }
 
     void playOpenPrelude(World world, Location center, double sx, double sy, double sz, BooleanSupplier active, BooleanSupplier audible) {
-        start(world, center, options(PortalAnimation.Mode.PRELUDE, center, new Vec3(sx, sy, sz), active, audible));
+        start(world, center, options(PortalAnimation.Mode.PRELUDE, center, new Vec3d(sx, sy, sz), active, audible));
     }
 
     void playKawoosh(World world, Location center, double sx, double sy, double sz, BooleanSupplier active, BooleanSupplier audible) {
-        start(world, center, options(PortalAnimation.Mode.IMPACT, center, new Vec3(sx, sy, sz), active, audible));
+        start(world, center, options(PortalAnimation.Mode.IMPACT, center, new Vec3d(sx, sy, sz), active, audible));
     }
 
     void playKawooshSounds(World world, Location center, BooleanSupplier active, BooleanSupplier audible) {
-        start(world, center, options(PortalAnimation.Mode.SOUNDS, center, new Vec3(1, 1, 1), active, audible));
+        start(world, center, options(PortalAnimation.Mode.SOUNDS, center, new Vec3d(1, 1, 1), active, audible));
     }
 
     void playGlitch(World world, Location center) {
-        start(world, center, new PortalAnimation.Options(PortalAnimation.Mode.GLITCH, new Vec3(center.getX(), center.getY(), center.getZ()),
-            new Vec3(1, 1, 1), Settings.VISUAL_QUALITY_PROFILE, Settings.ENABLE_PARTICLES, Settings.PORTAL_SOUND_VOLUME_MULTIPLIER,
+        start(world, center, new PortalAnimation.Options(PortalAnimation.Mode.GLITCH, new Vec3d(center.getX(), center.getY(), center.getZ()),
+            new Vec3d(1, 1, 1), Settings.VISUAL_QUALITY_PROFILE, Settings.ENABLE_PARTICLES, Settings.PORTAL_SOUND_VOLUME_MULTIPLIER,
             () -> true, () -> false, List.of()));
     }
 
-    private PortalAnimation.Options options(PortalAnimation.Mode mode, Location center, Vec3 size, BooleanSupplier active, BooleanSupplier audible) {
-        return new PortalAnimation.Options(mode, new Vec3(center.getX(), center.getY(), center.getZ()), size,
+    private PortalAnimation.Options options(PortalAnimation.Mode mode, Location center, Vec3d size, BooleanSupplier active, BooleanSupplier audible) {
+        return new PortalAnimation.Options(mode, new Vec3d(center.getX(), center.getY(), center.getZ()), size,
             Settings.VISUAL_QUALITY_PROFILE, Settings.ENABLE_PARTICLES, Settings.PORTAL_SOUND_VOLUME_MULTIPLIER,
             () -> !displays.isClosing() && active.getAsBoolean(), audible, List.of());
     }
@@ -117,8 +117,8 @@ final class EffectPortalAnimator {
                 case CRACK_DUST -> new Particle.DustOptions(Color.fromRGB(235, 245, 255), .75f);
                 default -> null;
             };
-            Vec3 position = emission.position();
-            Vec3 spread = emission.spread();
+            Vec3d position = emission.position();
+            Vec3d spread = emission.spread();
             ClientViewEffects.spawn(world, position.x(), position.y(), position.z(),
                 target -> target.spawnParticle(particle, position.x(), position.y(), position.z(), emission.count(), spread.x(), spread.y(), spread.z(),
                     emission.speed(), data),

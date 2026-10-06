@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.optics.volume.ViewVolume;
 import art.arcane.optics.entity.ProjectedEntityEvent;
@@ -86,10 +87,10 @@ public final class MinecraftEntityProjectionGameTest {
         source = runtime.portals().create(player.getUUID(), level, cells(2), PortalType.PORTAL, new Vec3(0, 0, -1));
         destination = runtime.portals().create(player.getUUID(), level, cells(18), PortalType.PORTAL, new Vec3(0, 0, -1));
         helper.assertTrue(runtime.portals().link(player, source.getId(), destination.getId()), "Entity projection portal link failed");
-        art.arcane.optics.math.Vec3 origin = source.getOrigin();
-        art.arcane.optics.math.Vec3 target = destination.getOrigin();
-        art.arcane.optics.math.Vec3 normal = source.getFrame().getNormal().toVector();
-        art.arcane.optics.math.Vec3 eye = origin.add(normal.multiply(3.0D));
+        Vec3d origin = source.getOrigin();
+        Vec3d target = destination.getOrigin();
+        Vec3d normal = source.getFrame().getNormal().toVector();
+        Vec3d eye = origin.add(normal.multiply(3.0D));
         player.setPos(eye.x(), eye.y() - player.getEyeHeight(), eye.z());
         Vec3 display = new Vec3(origin.x() - normal.x() * 3.0D, origin.y() - 0.5D, origin.z() - normal.z() * 3.0D);
         double[] transformed = new double[3];

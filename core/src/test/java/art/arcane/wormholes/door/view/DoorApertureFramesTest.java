@@ -6,7 +6,7 @@ import art.arcane.wormholes.door.DoorPlanePairing;
 import art.arcane.wormholes.door.DoorVec3;
 import art.arcane.wormholes.door.DoorwayCrossing;
 import art.arcane.wormholes.door.DoorwayPlane;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.aperture.ApertureCells;
@@ -46,7 +46,7 @@ class DoorApertureFramesTest {
     @Test
     void clientGeometryRetainsEveryHorizontalFrameAndExactPlaneAcrossRenderProfiles() {
         ApertureCells cells = new ApertureCells();
-        cells.restore(new Box(-4, -3.001, 63, 63.999, 12, 12.999), List.of(new Vec3(-4, 63, 12)));
+        cells.restore(new Box(-4, -3.001, 63, 63.999, 12, 12.999), List.of(new Vec3d(-4, 63, 12)));
         for (Face facing : FACINGS) {
             for (DoorHalf half : DoorHalf.values()) {
                 DoorwayPlane plane = DoorwayPlane.trapdoor(-4, 63, 12, facing, half, DoorOpenState.OPEN);
@@ -88,10 +88,10 @@ class DoorApertureFramesTest {
         ProjectionEnvironment.Transform transform = ClientViewEnvironmentTransform.of(new ClientViewEntityTransform.EntityFrame(
             a.x(), a.y(), a.z(), local, b.x(), b.y(), b.z(), remote, false, 0, front, 128));
         assertEquals(Face.U, transform.yAxis());
-        Vec3 center = transform.destinationPoint(a.x(), a.y(), a.z());
+        Vec3d center = transform.destinationPoint(a.x(), a.y(), a.z());
         assertPoint(b, center);
         for (double vertical : new double[]{-2, 2}) {
-            Vec3 eye = transform.destinationPoint(a.x() + source.facing().x() * 0.25,
+            Vec3d eye = transform.destinationPoint(a.x() + source.facing().x() * 0.25,
                 a.y() + vertical, a.z() + source.facing().z() * 0.25);
             assertPoint(new DoorVec3(b.x() + target.facing().x() * 0.25, b.y() + vertical,
                 b.z() + target.facing().z() * 0.25), eye);
@@ -104,7 +104,7 @@ class DoorApertureFramesTest {
             transform.destinationPoint(crossingPoint.x(), crossingPoint.y(), crossingPoint.z()));
     }
 
-    private static void assertPoint(DoorVec3 expected, Vec3 actual) {
+    private static void assertPoint(DoorVec3 expected, Vec3d actual) {
         assertEquals(expected.x(), actual.x(), 1.0E-10);
         assertEquals(expected.y(), actual.y(), 1.0E-10);
         assertEquals(expected.z(), actual.z(), 1.0E-10);

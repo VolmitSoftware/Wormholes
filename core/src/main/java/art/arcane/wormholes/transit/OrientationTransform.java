@@ -1,7 +1,7 @@
 package art.arcane.wormholes.transit;
 
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.crossing.PlaneCrossing;
@@ -15,14 +15,14 @@ import art.arcane.optics.math.Face;
  */
 public final class OrientationTransform {
     private static final double TWO_PI = 2.0D * Math.PI;
-    private static final Vec3 WORLD_UP = new Vec3(0.0D, 1.0D, 0.0D);
+    private static final Vec3d WORLD_UP = new Vec3d(0.0D, 1.0D, 0.0D);
 
     private OrientationTransform() {
     }
 
     /** Bukkit yaw (0 = south, 90 = west) and pitch (-90 = up) for an exit direction. */
     public record Look(float yaw, float pitch) {
-        public static Look of(Vec3 direction) {
+        public static Look of(Vec3d direction) {
             double x = direction.getX();
             double y = direction.getY();
             double z = direction.getZ();
@@ -40,10 +40,10 @@ public final class OrientationTransform {
         return Look.of(direction(traversive, outFrame, policy, gravityFlip));
     }
 
-    public static Vec3 direction(PlaneCrossing traversive, Frame outFrame, OrientationPolicy policy, boolean gravityFlip) {
+    public static Vec3d direction(PlaneCrossing traversive, Frame outFrame, OrientationPolicy policy, boolean gravityFlip) {
         OrientationPolicy active = policy == null ? OrientationPolicy.FRAME : policy;
         Frame outView = outFrame.view(traversive.frontSide());
-        Vec3 look = switch (active) {
+        Vec3d look = switch (active) {
             case FRAME -> traversive.outLook(outFrame);
             case LOOK -> traversive.look();
             case SNAP -> vector(outView.getNormal()).multiply(-1.0D);
@@ -55,8 +55,8 @@ public final class OrientationTransform {
         return look;
     }
 
-    private static Vec3 reflectAcrossPlane(Vec3 look, Face normal) {
-        Vec3 unit = vector(normal);
+    private static Vec3d reflectAcrossPlane(Vec3d look, Face normal) {
+        Vec3d unit = vector(normal);
         double along = dot(look, unit);
         return look.subtract(unit.multiply(2.0D * along));
     }
@@ -66,10 +66,10 @@ public final class OrientationTransform {
      * With exit travel direction e = -normal (vertical) and s = e dot worldUp, the rotation sends up to
      * worldUp and e to -s * up.
      */
-    private static Vec3 flipUpright(Vec3 look, Frame outView) {
-        Vec3 right = vector(outView.getRight());
-        Vec3 up = vector(outView.getUp());
-        Vec3 exitDirection = vector(outView.getNormal()).multiply(-1.0D);
+    private static Vec3d flipUpright(Vec3d look, Frame outView) {
+        Vec3d right = vector(outView.getRight());
+        Vec3d up = vector(outView.getUp());
+        Vec3d exitDirection = vector(outView.getNormal()).multiply(-1.0D);
         double sign = dot(exitDirection, WORLD_UP);
         double alongRight = dot(look, right);
         double alongUp = dot(look, up);
@@ -78,11 +78,11 @@ public final class OrientationTransform {
             .add(WORLD_UP.multiply(alongUp))
             .add(up.multiply(-sign * alongExit));
     }
-    private static Vec3 vector(Face direction) {
-        return new Vec3(direction.x(), direction.y(), direction.z());
+    private static Vec3d vector(Face direction) {
+        return new Vec3d(direction.x(), direction.y(), direction.z());
     }
 
-    private static double dot(Vec3 a, Vec3 b) {
+    private static double dot(Vec3d a, Vec3d b) {
         return a.x() * b.x() + a.y() * b.y() + a.z() * b.z();
     }
 }

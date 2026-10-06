@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.config.toml.RulesConfig;
 import art.arcane.wormholes.config.toml.MainConfig;
@@ -191,7 +192,7 @@ public class MinecraftRulesTest extends MinecraftTestBase {
 
     private static MinecraftPortal portal(Map<String, Object> rules) {
         ApertureCells geometry = new ApertureCells();
-        geometry.setBlocks(List.of(new art.arcane.optics.math.Vec3(0, 64, 0), new art.arcane.optics.math.Vec3(0, 65, 0)));
+        geometry.setBlocks(List.of(new Vec3d(0, 64, 0), new Vec3d(0, 65, 0)));
         UUID id = UUID.randomUUID();
         Map<String, Object> values = new HashMap<>(rules);
         values.put("owner", id.toString());

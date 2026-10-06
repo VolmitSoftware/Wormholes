@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.chunk.presend.ChunkPreSendTicket;
 import art.arcane.wormholes.config.toml.MainConfig;
 import art.arcane.wormholes.config.toml.TransitConfig;
@@ -27,8 +28,8 @@ public final class MinecraftTransit {
         if (!bounce && !membrane) {
             return true;
         }
-        art.arcane.optics.math.Vec3 normal = new art.arcane.optics.math.Vec3(crossing.frame().getNormal().x(), crossing.frame().getNormal().y(), crossing.frame().getNormal().z());
-        art.arcane.optics.math.Vec3 rejected = bounce
+        Vec3d normal = new Vec3d(crossing.frame().getNormal().x(), crossing.frame().getNormal().y(), crossing.frame().getNormal().z());
+        Vec3d rejected = bounce
             ? MomentumTransform.reflect(crossing.velocity(), normal, runtime.configuration().settings().getMain().portalPushbackMultiplier)
             : normal.multiply(3.0D * runtime.configuration().settings().getMain().portalPushbackMultiplier
                 * runtime.rules().document(portal).profile().pushbackScale());

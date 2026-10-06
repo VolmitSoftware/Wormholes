@@ -31,7 +31,7 @@ import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.ClientViewProtocolException;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.network.client.ClientViewChannel;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.ITunnel;
@@ -194,7 +194,7 @@ final class ClientViewFixture implements AutoCloseable {
         when(destination.getId()).thenReturn(UUID.randomUUID());
         when(destination.getWorld()).thenReturn(world);
         when(destination.getFrame()).thenReturn(Frame.canonical(Face.S));
-        when(destination.getOrigin()).thenReturn(new Vec3(101.4995D, 65.4995D, 100.4995D));
+        when(destination.getOrigin()).thenReturn(new Vec3d(101.4995D, 65.4995D, 100.4995D));
         when(destination.frame()).thenCallRealMethod();
         when(destination.origin()).thenCallRealMethod();
         when(destination.id()).thenCallRealMethod();

@@ -1,6 +1,6 @@
 package art.arcane.wormholes.render;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -51,7 +51,7 @@ final class EntityRenderLocalOccluder {
             return;
         }
         Frame frame = localPortal.getFrame();
-        Vec3 origin = localPortal.getOrigin();
+        Vec3d origin = localPortal.getOrigin();
         WormholesPlatform.entityPosition(observer, scratchEntityPosition);
         double eyeX = scratchEntityPosition[0];
         double eyeY = scratchEntityPosition[1] + observer.getEyeHeight();
@@ -111,7 +111,7 @@ final class EntityRenderLocalOccluder {
 
     private boolean shouldHideLocalEntity(UUID observerId,
                                           Entity entity,
-                                          Vec3 origin,
+                                          Vec3d origin,
                                           Frame frame,
                                           ViewVolume frustum,
                                           boolean eyeFrontSide,

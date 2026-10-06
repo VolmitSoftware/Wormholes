@@ -1,7 +1,7 @@
 package art.arcane.wormholes.render.clientview;
 
 import art.arcane.volmlib.nativelib.environment.WorldEnvironment;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.math.Face;
 import org.junit.jupiter.api.Test;
@@ -20,7 +20,7 @@ public class BukkitPortalEnvironmentTest {
             new WorldEnvironment.Lighting(color, 0.8f, color, color), new WorldEnvironment.Clouds(alpha, 192),
             new WorldEnvironment.Dimension(-64, 384, true, WorldEnvironment.CardinalLighting.NETHER, 63, true, true, 256, true, 0.1F), WorldEnvironment.EyeMedium.WATER);
         ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(Face.U, Face.E, Face.S,
-            new Vec3(100, 200, 300));
+            new Vec3d(100, 200, 300));
 
         ProjectionEnvironment.World world = new ProjectionEnvironment.World("test:destination", 72000L, "minecraft:plains", 63, 7, 15, 256, true, 0.1F, ProjectionEnvironment.EyeMedium.WATER, true);
         ProjectionEnvironment result = BukkitPortalEnvironment.convert(source, transform, world);

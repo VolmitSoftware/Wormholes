@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client.render;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.stream.ProjectionEnvironment;
@@ -380,7 +381,7 @@ public class ClientPortalRendererTest extends MinecraftTestBase {
         PortalShaderRenderer.Session lease = mock(PortalShaderRenderer.Session.class);
         ProjectionEnvironment environment = PortalEnvironmentTest.environment(ProjectionEnvironment.Transform.IDENTITY);
         ProjectionEnvironment changed = environment.withTransform(new ProjectionEnvironment.Transform(Face.E, Face.U, Face.S,
-            new art.arcane.optics.math.Vec3(16, 0, 0)));
+            new Vec3d(16, 0, 0)));
         ClientTravelScene replacement = mock(ClientTravelScene.class);
         ApertureDescriptor geometry = scene().geometry();
         when(replacement.geometry()).thenReturn(geometry);
@@ -909,7 +910,7 @@ public class ClientPortalRendererTest extends MinecraftTestBase {
         when(source.getViewRotationMatrix(any())).thenAnswer(call -> ((Matrix4f) call.getArgument(0)).identity());
         when(source.getViewRotationProjectionMatrix(any())).thenAnswer(call -> ((Matrix4f) call.getArgument(0)).set(projection));
         try {
-            renderer.updateTravelCamera(source, new ProjectionEnvironment.Transform(Face.S, Face.U, Face.W, new art.arcane.optics.math.Vec3(100, 0, 0)));
+            renderer.updateTravelCamera(source, new ProjectionEnvironment.Transform(Face.S, Face.U, Face.W, new Vec3d(100, 0, 0)));
             CameraRenderState destination = (CameraRenderState) get(renderer, "travelCamera");
             assertEquals(new Vec3(0, 88, 0), destination.pos);
             assertEquals(projection, destination.projectionMatrix);

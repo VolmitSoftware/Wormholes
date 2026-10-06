@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.UUID;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.optics.math.CellKeys;
@@ -36,7 +36,7 @@ final class PlaneSectionCaptureTest {
                         coordinate, coordinate + 0.999D);
                     ApertureCells aperture = new ApertureCells();
                     aperture.setArea(area);
-                    Vec3 origin = area.center();
+                    Vec3d origin = area.center();
                     Frame frame = Frame.canonical(facing);
                     ViewPlateKey key = new ViewPlateKey(UUID.randomUUID(), view, front, 0, 0L);
                     ViewPlateBuilder.Request<String, String, ClientSweepScene.SceneView> request = new ViewPlateBuilder.Request<>(

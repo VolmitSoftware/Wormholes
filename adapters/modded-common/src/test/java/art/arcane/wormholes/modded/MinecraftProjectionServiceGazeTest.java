@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.clientview.MinecraftClientViewService;
 import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.optics.volume.GazeScheduler;
@@ -40,7 +40,7 @@ public class MinecraftProjectionServiceGazeTest extends MinecraftTestBase {
     public void candidateSpansTheApertureArea() {
         ApertureCells geometry = new ApertureCells();
         geometry.setArea(new Box(10.0D, 12.999D, 64.0D, 66.999D, -3.0D, -3.0D));
-        MinecraftPortal portal = portal(geometry, new Vec3(11.5D, 65.5D, -2.5D));
+        MinecraftPortal portal = portal(geometry, new Vec3d(11.5D, 65.5D, -2.5D));
 
         GazeScheduler.Candidate<MinecraftPortal> candidate = MinecraftProjectionService.gazeCandidate(portal, true);
 
@@ -58,7 +58,7 @@ public class MinecraftProjectionServiceGazeTest extends MinecraftTestBase {
 
     @Test
     public void candidateWithoutAreaIsAUnitBoxAtTheOrigin() {
-        MinecraftPortal portal = portal(new ApertureCells(), new Vec3(4.0D, 70.0D, -8.0D));
+        MinecraftPortal portal = portal(new ApertureCells(), new Vec3d(4.0D, 70.0D, -8.0D));
 
         GazeScheduler.Candidate<MinecraftPortal> candidate = MinecraftProjectionService.gazeCandidate(portal, false);
 
@@ -77,8 +77,8 @@ public class MinecraftProjectionServiceGazeTest extends MinecraftTestBase {
         ahead.setArea(new Box(-1.0D, 1.999D, 64.0D, 66.999D, 6.0D, 6.0D));
         ApertureCells behind = new ApertureCells();
         behind.setArea(new Box(-1.0D, 1.999D, 64.0D, 66.999D, -6.0D, -6.0D));
-        MinecraftPortal inView = portal(ahead, new Vec3(0.5D, 65.5D, 6.5D));
-        MinecraftPortal outOfView = portal(behind, new Vec3(0.5D, 65.5D, -5.5D));
+        MinecraftPortal inView = portal(ahead, new Vec3d(0.5D, 65.5D, 6.5D));
+        MinecraftPortal outOfView = portal(behind, new Vec3d(0.5D, 65.5D, -5.5D));
         GazeScheduler scheduler = new GazeScheduler();
         UUID observer = UUID.randomUUID();
         List<GazeScheduler.Candidate<MinecraftPortal>> candidates = List.of(
@@ -94,7 +94,7 @@ public class MinecraftProjectionServiceGazeTest extends MinecraftTestBase {
     public void offCadenceTicksOnlyScheduleProjectorsWithPendingScans() {
         ApertureCells ahead = new ApertureCells();
         ahead.setArea(new Box(-1.0D, 1.999D, 64.0D, 66.999D, 6.0D, 6.0D));
-        MinecraftPortal inView = portal(ahead, new Vec3(0.5D, 65.5D, 6.5D));
+        MinecraftPortal inView = portal(ahead, new Vec3d(0.5D, 65.5D, 6.5D));
         List<MinecraftPortal> active = List.of(inView);
 
         assertTrue(MinecraftProjectionService.blockCandidates(active, ignored -> false, false).isEmpty());
@@ -108,7 +108,7 @@ public class MinecraftProjectionServiceGazeTest extends MinecraftTestBase {
     public void portalThatMissedItsPassStaysUnsettledUntilTheNextPassTick() {
         ApertureCells ahead = new ApertureCells();
         ahead.setArea(new Box(-1.0D, 1.999D, 64.0D, 66.999D, 6.0D, 6.0D));
-        MinecraftPortal inView = portal(ahead, new Vec3(0.5D, 65.5D, 6.5D));
+        MinecraftPortal inView = portal(ahead, new Vec3d(0.5D, 65.5D, 6.5D));
         List<MinecraftPortal> active = List.of(inView);
         GazeScheduler scheduler = new GazeScheduler();
         UUID observer = UUID.randomUUID();
@@ -132,7 +132,7 @@ public class MinecraftProjectionServiceGazeTest extends MinecraftTestBase {
         return new GazeScheduler.Eye((tick & 1L) * 0.3D, 65.6D, 0.5D, 0.0F, 0.0F);
     }
 
-    private static MinecraftPortal portal(ApertureCells geometry, Vec3 origin) {
+    private static MinecraftPortal portal(ApertureCells geometry, Vec3d origin) {
         MinecraftPortal portal = mock(MinecraftPortal.class);
         when(portal.getId()).thenReturn(UUID.randomUUID());
         when(portal.getGeometry()).thenReturn(geometry);

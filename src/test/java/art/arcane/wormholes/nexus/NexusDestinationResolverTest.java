@@ -2,7 +2,7 @@ package art.arcane.wormholes.nexus;
 
 import art.arcane.wormholes.util.BukkitJsonDocuments;
 import art.arcane.wormholes.util.BukkitGeometry;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.hook.TraversalAttempt;
 import art.arcane.wormholes.hook.TraversalPhase;
 import art.arcane.wormholes.hook.WormholesHooks;
@@ -151,7 +151,7 @@ class NexusDestinationResolverTest {
     @Test
     void entrySideIsDecidedFromTheEntityPositionRelativeToTheFramePlane() {
         LocalPortal portal = NexusTestSupport.portal(world, "sided");
-        Vec3 origin = portal.getOrigin();
+        Vec3d origin = portal.getOrigin();
         Vector normal = new Vector(portal.getFrame().getNormal().x(), portal.getFrame().getNormal().y(),
                 portal.getFrame().getNormal().z());
 

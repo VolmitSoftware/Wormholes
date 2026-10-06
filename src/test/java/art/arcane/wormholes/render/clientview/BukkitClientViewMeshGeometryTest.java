@@ -19,7 +19,7 @@ import java.util.UUID;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Map;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.client.ClientViewEnvironmentTransform;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -59,9 +59,9 @@ class BukkitClientViewMeshGeometryTest {
             access.nested(observer, child, childGeometry, secondChildren);
             assertEquals(List.of(root), secondChildren);
             access.prepareNested(observer, repeatedRoot, child, root);
-            Vec3 rootEye = access.nestedEye(observer, root);
-            Vec3 childEye = access.nestedEye(observer, child);
-            Vec3 repeatedEye = access.nestedEye(observer, repeatedRoot);
+            Vec3d rootEye = access.nestedEye(observer, root);
+            Vec3d childEye = access.nestedEye(observer, child);
+            Vec3d repeatedEye = access.nestedEye(observer, repeatedRoot);
             assertSame(observer.nestedContext(repeatedRoot).source(), access.source(observer, repeatedRoot));
             assertTrue(rootEye.z() < 0);
             assertTrue(childEye.z() > 5);
@@ -88,7 +88,7 @@ class BukkitClientViewMeshGeometryTest {
             BukkitClientViewPortalAccess access = new BukkitClientViewPortalAccess(fixture.views, fixture.plates, ignored -> null,
                 (player, portal) -> {}, () -> 1L);
             access.prepareNested(observer, linked.getId(), null, linked.getId());
-            Vec3 expected = ClientViewEnvironmentTransform.of(observer.source(linked.getId()).transformFrame())
+            Vec3d expected = ClientViewEnvironmentTransform.of(observer.source(linked.getId()).transformFrame())
                 .destinationPoint(fixture.eye.getX(), fixture.eye.getY(), fixture.eye.getZ());
             assertEquals(expected, access.nestedEye(observer, linked.getId()));
             UUID childContext = UUID.randomUUID();

@@ -15,7 +15,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.config.VisualQualityProfile;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamMessageType;
@@ -38,8 +38,8 @@ final class ClientViewEffectSlotTest {
         drain(queued, harness);
         assertTrue(harness.session.effectsReceiver());
         assertTrue(harness.registry.effectsReceiver(harness.playerId));
-        ClientViewMessage.FxEmitter animation = ClientViewEmitters.animation(PortalAnimation.Mode.OPEN, new Vec3(5.5D, 66.0D, 20.5D),
-            new Vec3(3.0D, 4.0D, 0.0D), VisualQualityProfile.BALANCED);
+        ClientViewMessage.FxEmitter animation = ClientViewEmitters.animation(PortalAnimation.Mode.OPEN, new Vec3d(5.5D, 66.0D, 20.5D),
+            new Vec3d(3.0D, 4.0D, 0.0D), VisualQualityProfile.BALANCED);
 
         assertTrue(harness.session.oneShot(burst));
         assertTrue(harness.registry.oneShot(harness.playerId, animation));

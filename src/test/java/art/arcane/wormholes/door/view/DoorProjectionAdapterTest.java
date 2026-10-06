@@ -2,7 +2,7 @@ package art.arcane.wormholes.door.view;
 
 import art.arcane.wormholes.door.DoorHalf;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 
 import art.arcane.wormholes.door.DoorItemIdentity;
 import art.arcane.wormholes.door.DoorOpenState;
@@ -42,7 +42,7 @@ final class DoorProjectionAdapterTest {
         assertEquals(Face.N, adapter.getFrame().getNormal());
         assertEquals(Face.U, adapter.getFrame().getUp());
 
-        Vec3 origin = adapter.getOrigin();
+        Vec3d origin = adapter.getOrigin();
         assertEquals(10.5D, origin.getX(), TOLERANCE);
         assertEquals(65.0D, origin.getY(), TOLERANCE);
         assertEquals(10.92D, origin.getZ(), TOLERANCE);

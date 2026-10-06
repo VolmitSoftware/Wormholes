@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.entity.ProjectedEntityEvent;
 import art.arcane.optics.fidelity.WeatherRelay;
 import art.arcane.optics.fidelity.AcousticsBridge;
@@ -67,7 +68,7 @@ public final class MinecraftPortalProjector implements AutoCloseable {
     private final ViewPlateCache<BlockState, ServerLevel> plates;
     private final Blackout blackout = new Blackout();
     private Destination pendingDestination;
-    private art.arcane.optics.math.Vec3 pendingEye;
+    private Vec3d pendingEye;
     private long pendingGeometryRevision;
     private long pendingTargetGeometryRevision;
     private long pendingPresentationRevision;
@@ -111,7 +112,7 @@ public final class MinecraftPortalProjector implements AutoCloseable {
         if (destination == null) {
             return Result.CLOSED;
         }
-        art.arcane.optics.math.Vec3 eye = eye();
+        Vec3d eye = eye();
         if (scan.hasPending() && !samePendingDestination(destination, eye)) {
             scan.cancelPending();
             schedule.invalidateDestination();
@@ -136,12 +137,12 @@ public final class MinecraftPortalProjector implements AutoCloseable {
         if (closed || pendingDestination == null || !scan.hasProjection()) {
             return;
         }
-        art.arcane.optics.math.Vec3 eye = eye();
+        Vec3d eye = eye();
         ViewVolume frustum = fit.fit(portal.getGeometry(), portal.getFrame(), eye,
             projectionDepth(), portal.getNetworkViewLateralPad());
         Destination destination = pendingDestination;
         Frame localFrame = portal.getFrame();
-        art.arcane.optics.math.Vec3 origin = portal.getOrigin();
+        Vec3d origin = portal.getOrigin();
         Face normal = localFrame.getNormal();
         boolean front = (eye.x() - origin.x()) * normal.x() + (eye.y() - origin.y()) * normal.y()
             + (eye.z() - origin.z()) * normal.z() >= 0.0D;
@@ -168,7 +169,7 @@ public final class MinecraftPortalProjector implements AutoCloseable {
             return;
         }
         Destination destination = pendingDestination;
-        art.arcane.optics.math.Vec3 center = portal.getGeometry().getApertureCenter();
+        Vec3d center = portal.getGeometry().getApertureCenter();
         AcousticsProfile profile = AcousticsProfile.parse(stringSetting("fidelity.acoustics"), FidelitySettings.acousticsProfileDefault);
         long now = System.currentTimeMillis();
         if (destination.dest() != null) {
@@ -251,7 +252,7 @@ public final class MinecraftPortalProjector implements AutoCloseable {
         sampler.clearRecursivePortals();
     }
 
-    private void prepare(Destination destination, art.arcane.optics.math.Vec3 eye, long tick) {
+    private void prepare(Destination destination, Vec3d eye, long tick) {
         schedule.beginBlockPass();
         ProjectionRenderMode mode = portal.getRenderMode();
         boolean culling = mode.scanMode().buriedCellCulling();
@@ -320,13 +321,13 @@ public final class MinecraftPortalProjector implements AutoCloseable {
             fullSendPasses > 0, cameraMoved, mode.scanMode(), acquirePlate(destination, eye, culling, blockEntities), blockEntities, lod);
     }
 
-    private ViewPlate<BlockState> acquirePlate(Destination destination, art.arcane.optics.math.Vec3 eye, boolean culling, boolean blockEntities) {
+    private ViewPlate<BlockState> acquirePlate(Destination destination, Vec3d eye, boolean culling, boolean blockEntities) {
         if (plates == null) {
             return null;
         }
         Frame localFrame = portal.getFrame();
         Frame remoteFrame = destination.mirrorMode() ? localFrame.flipNormal() : destination.destAnchor().getFrame();
-        art.arcane.optics.math.Vec3 origin = portal.getOrigin();
+        Vec3d origin = portal.getOrigin();
         Face normal = localFrame.getNormal();
         boolean front = (eye.x() - origin.x()) * normal.x() + (eye.y() - origin.y()) * normal.y()
             + (eye.z() - origin.z()) * normal.z() >= 0.0D;
@@ -343,7 +344,7 @@ public final class MinecraftPortalProjector implements AutoCloseable {
         return new RemoteProjectionView<>(remoteSource, new RemoteProjectionView.Options<>(parseFallback(remoteFallbackState), state -> state));
     }
 
-    private boolean samePendingDestination(Destination destination, art.arcane.optics.math.Vec3 eye) {
+    private boolean samePendingDestination(Destination destination, Vec3d eye) {
         return pendingDestination.dest() == destination.dest()
             && pendingDestination.localView() == destination.localView()
             && pendingDestination.destView() == destination.destView()
@@ -355,9 +356,9 @@ public final class MinecraftPortalProjector implements AutoCloseable {
             && pendingPresentationRevision == presentationRevision(destination, eye);
     }
 
-    private long presentationRevision(Destination destination, art.arcane.optics.math.Vec3 eye) {
+    private long presentationRevision(Destination destination, Vec3d eye) {
         Frame frame = portal.getFrame();
-        art.arcane.optics.math.Vec3 origin = portal.getOrigin();
+        Vec3d origin = portal.getOrigin();
         Face normal = frame.getNormal();
         boolean front = (eye.x() - origin.x()) * normal.x() + (eye.y() - origin.y()) * normal.y()
             + (eye.z() - origin.z()) * normal.z() >= 0.0D;
@@ -405,7 +406,7 @@ public final class MinecraftPortalProjector implements AutoCloseable {
                 remoteView = new RemoteProjectionView<>(source,
                     new RemoteProjectionView.Options<>(parseFallback(fallback), state -> state));
             }
-            art.arcane.optics.math.Vec3 origin = target.getOrigin();
+            Vec3d origin = target.getOrigin();
             return new Destination(views.apply(sourceWorld), remoteView, null, target,
                 origin.x(), origin.y(), origin.z(), false, 0);
         }
@@ -417,7 +418,7 @@ public final class MinecraftPortalProjector implements AutoCloseable {
         if (targetWorld == null) {
             return null;
         }
-        art.arcane.optics.math.Vec3 origin = target.getOrigin();
+        Vec3d origin = target.getOrigin();
         return new Destination(views.apply(sourceWorld), views.apply(targetWorld), target, target,
             origin.x(), origin.y(), origin.z(), portal.isMirrorMode(), portals.mirrorQuarterTurns(portal));
     }
@@ -430,9 +431,9 @@ public final class MinecraftPortalProjector implements AutoCloseable {
         }
     }
 
-    private art.arcane.optics.math.Vec3 eye() {
+    private Vec3d eye() {
         Vec3 eye = observer.getEyePosition();
-        return new art.arcane.optics.math.Vec3(eye.x, eye.y, eye.z);
+        return new Vec3d(eye.x, eye.y, eye.z);
     }
 
     private String stringSetting(String name) {

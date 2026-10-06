@@ -2,7 +2,7 @@ package art.arcane.wormholes.render;
 
 import art.arcane.optics.entity.EntityProfile;
 import org.bukkit.World;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import java.util.Locale;
 import java.util.UUID;
 import java.util.List;

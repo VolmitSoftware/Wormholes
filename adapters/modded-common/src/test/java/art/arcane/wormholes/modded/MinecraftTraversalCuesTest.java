@@ -3,7 +3,7 @@ package art.arcane.wormholes.modded;
 import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.config.toml.MainConfig;
 import art.arcane.wormholes.config.toml.TransitConfig;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.clientview.MinecraftClientViewService;
 import net.minecraft.server.level.ServerPlayer;
 import java.util.UUID;
@@ -44,7 +44,7 @@ public class MinecraftTraversalCuesTest extends MinecraftTestBase {
         when(runtime.rules()).thenReturn(rules);
         when(rules.document(portal)).thenReturn(RuleDocument.EMPTY.withProfile(new TraversalProfile(0, "", 0, 1, 0.25D, 0, 0)));
         when(portal.getType()).thenReturn(PortalType.PORTAL);
-        MinecraftTraversalCues.threshold(runtime, portal, new Vec3(1, 64, 2), null);
+        MinecraftTraversalCues.threshold(runtime, portal, new Vec3d(1, 64, 2), null);
         verify(level).playSound(isNull(), eq(1.0D), eq(64.0D), eq(2.0D), any(SoundEvent.class),
             eq(SoundSource.BLOCKS), eq(0.3F), eq(1.3F));
     }
@@ -76,11 +76,11 @@ public class MinecraftTraversalCuesTest extends MinecraftTestBase {
         when(portal.getId()).thenReturn(route);
         when(player.getUUID()).thenReturn(observer);
         when(views.seamlessTravel(observer, route)).thenReturn(true);
-        MinecraftTraversalCues.threshold(runtime, portal, new Vec3(1, 64, 2), player);
+        MinecraftTraversalCues.threshold(runtime, portal, new Vec3d(1, 64, 2), player);
         verify(level).playSound(eq(player), eq(1.0D), eq(64.0D), eq(2.0D), any(SoundEvent.class),
             eq(SoundSource.BLOCKS), eq(0.6F), eq(1.3F));
         when(views.seamlessTravel(observer, route)).thenReturn(false);
-        MinecraftTraversalCues.threshold(runtime, portal, new Vec3(1, 64, 2), player);
+        MinecraftTraversalCues.threshold(runtime, portal, new Vec3d(1, 64, 2), player);
         verify(level).playSound(isNull(), eq(1.0D), eq(64.0D), eq(2.0D), any(SoundEvent.class),
             eq(SoundSource.BLOCKS), eq(0.6F), eq(1.3F));
     }

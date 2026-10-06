@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.phys.Vec3;
@@ -55,7 +56,7 @@ record ClientTravelMotion(Vec3 position, Vec3 previous, Vec3 oldPosition, Vec3 v
     }
 
     static Vec3 point(ProjectionEnvironment.Transform transform, Vec3 position) {
-        art.arcane.optics.math.Vec3 point = transform.destinationPoint(position.x, position.y, position.z);
+        Vec3d point = transform.destinationPoint(position.x, position.y, position.z);
         return new Vec3(point.x(), point.y(), point.z());
     }
 

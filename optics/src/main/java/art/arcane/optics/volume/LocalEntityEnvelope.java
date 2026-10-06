@@ -1,6 +1,6 @@
 package art.arcane.optics.volume;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.frame.Frame;
 
 public final class LocalEntityEnvelope {
@@ -13,7 +13,7 @@ public final class LocalEntityEnvelope {
                                           double maxX,
                                           double maxY,
                                           double maxZ,
-                                          Vec3 origin,
+                                          Vec3d origin,
                                           Frame frame,
                                           ViewVolume frustum,
                                           boolean eyeFrontSide,

@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.ProjectionEnvironment;
@@ -38,7 +38,7 @@ public class ClientMeshSectionsReuseTest extends MinecraftTestBase {
     public void immutableIdentityUsesValueEqualityWithoutTreatingCachedHashCollisionsAsProof() {
         ClientMeshSections.Identity original = new ClientMeshSections.Identity(ENVIRONMENT, 71, 1);
         ProjectionEnvironment same = ENVIRONMENT.withTransform(new ProjectionEnvironment.Transform(Face.E,
-            Face.U, Face.S, new Vec3(0, 0, 0)));
+            Face.U, Face.S, new Vec3d(0, 0, 0)));
         ClientMeshSections.Identity equivalent = new ClientMeshSections.Identity(same, 71, 1);
         assertEquals(original, equivalent);
         assertEquals(original.hashCode(), equivalent.hashCode());
@@ -145,7 +145,7 @@ public class ClientMeshSectionsReuseTest extends MinecraftTestBase {
         assertTrue(store.bind(7, new ClientMeshSections.Identity(ENVIRONMENT, 71, 12)).isEmpty());
         assertTrue(store.view(7).sectionKeys().isEmpty());
         ProjectionEnvironment translated = ENVIRONMENT.withTransform(new ProjectionEnvironment.Transform(Face.E,
-            Face.U, Face.S, new Vec3(16, 0, 0)));
+            Face.U, Face.S, new Vec3d(16, 0, 0)));
         assertTrue(store.bind(7, new ClientMeshSections.Identity(translated, 71, 11)).isEmpty());
         ProjectionEnvironment.World previous = ENVIRONMENT.world();
         ProjectionEnvironment.World nether = new ProjectionEnvironment.World("minecraft:the_nether", previous.clockTime(),

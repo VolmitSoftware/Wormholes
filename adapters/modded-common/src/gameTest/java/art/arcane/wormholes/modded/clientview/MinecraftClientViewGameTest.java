@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.clientview;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftClientProfiles;
 import art.arcane.wormholes.modded.MinecraftGameTestPlayer;
 import art.arcane.wormholes.modded.MinecraftPortal;
@@ -163,7 +164,7 @@ public final class MinecraftClientViewGameTest {
         BlockState marker = Blocks.GOLD_BLOCK.defaultBlockState();
         mark(new BlockPos(41, 3, 3), marker);
         mark(new BlockPos(41, 3, 9), marker);
-        art.arcane.optics.math.Vec3 origin = source.getOrigin();
+        Vec3d origin = source.getOrigin();
         player.player().setPos(new Vec3(origin.x(), origin.y() - player.player().getEyeHeight(), origin.z() - 3.0D));
         player.player().setYRot(0.0F);
         player.player().setXRot(0.0F);
@@ -344,7 +345,7 @@ public final class MinecraftClientViewGameTest {
             helper.assertTrue(firstPalette >= 0 && firstPalette < portal, "PALETTE did not precede PORTAL: " + summary());
             helper.assertTrue(portal < begin && begin < bricks && bricks < end, "Plate frames arrived out of order: " + summary());
             ClientViewMessage.Portal announced = (ClientViewMessage.Portal) received.get(portal);
-            art.arcane.optics.math.Vec3 origin = source.getOrigin();
+            Vec3d origin = source.getOrigin();
             helper.assertTrue(announced.geometry().valid(), "PORTAL geometry is invalid");
             helper.assertTrue(Math.abs(announced.geometry().originZ() - Math.floor(origin.z())) < 1.0D, "PORTAL origin is not the local aperture");
             helper.assertTrue(announced.geometry().blackoutPolicy() == ApertureDescriptor.BLACKOUT_SHELL, "Plate stream did not announce its configured blackout shell");

@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.plate.ChunkLease;
 import art.arcane.wormholes.portal.Portal;
 import art.arcane.optics.frame.Frame;
@@ -58,7 +59,7 @@ final class MinecraftEndReturnPreview {
         MinecraftPortal previous = destinations.get(exit.getId());
         String world = transition.newLevel().dimension().identifier().toString();
         if (previous != null && previous.getWorldKey().equals(world)
-            && previous.getOrigin().equals(new art.arcane.optics.math.Vec3(point.x, point.y, point.z))) {
+            && previous.getOrigin().equals(new Vec3d(point.x, point.y, point.z))) {
             return previous;
         }
         ApertureCells geometry = new ApertureCells();
@@ -66,7 +67,7 @@ final class MinecraftEndReturnPreview {
             point.z - 2, point.z + 2));
         UUID id = UUID.nameUUIDFromBytes((exit.getId() + ":" + observer.getUUID()).getBytes(StandardCharsets.UTF_8));
         MinecraftPortal destination = new MinecraftPortal(new MinecraftPortal.Definition(
-            new Portal.State(id, new art.arcane.optics.math.Vec3(point.x, point.y, point.z), "End return", Frame.canonical(Face.U), true),
+            new Portal.State(id, new Vec3d(point.x, point.y, point.z), "End return", Frame.canonical(Face.U), true),
             geometry, world, Map.of("owner", id.toString(), "type", PortalType.PORTAL.name(), "projectionMode", "OFF",
                 "outgoingTraversalsEnabled", false, "incomingTraversalsEnabled", true)));
         destinations.put(exit.getId(), destination);

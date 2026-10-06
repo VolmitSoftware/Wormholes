@@ -1,7 +1,7 @@
 package art.arcane.wormholes.network;
 
 import art.arcane.wormholes.access.PortalAdmission;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -96,7 +96,7 @@ public final class MirrorInboundGateTest {
         return new RemotePortal(
             UUID.randomUUID(),
             new RemoteWorld("beta", "world"),
-            new Vec3(0.0D, 64.0D, 0.0D),
+            new Vec3d(0.0D, 64.0D, 0.0D),
             PortalType.GATEWAY,
             open,
             new Box(0.0D, 1.0D, 64.0D, 67.0D, 0.0D, 1.0D)

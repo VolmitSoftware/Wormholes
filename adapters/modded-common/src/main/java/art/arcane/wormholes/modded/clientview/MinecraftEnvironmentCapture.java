@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.clientview;
 
 import art.arcane.optics.plate.ChunkLease;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftProjectionWorldView;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.optics.stream.ProjectionEnvironment;
@@ -158,7 +158,7 @@ final class MinecraftEnvironmentCapture implements AutoCloseable {
         }
     }
 
-    record Request(UUID observer, UUID parent, UUID portal, ServerLevel world, Vec3 eye,
+    record Request(UUID observer, UUID parent, UUID portal, ServerLevel world, Vec3d eye,
                    ProjectionEnvironment.Transform transform, long tick) {
     }
 

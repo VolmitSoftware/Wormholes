@@ -4,7 +4,7 @@ import art.arcane.optics.fidelity.FidelityOptions;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.List;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.view.BlockView;
 import art.arcane.optics.aperture.Endpoint;
 import art.arcane.optics.frame.Frame;
@@ -114,7 +114,7 @@ public final class SnapshotProjector<O, W, P extends Endpoint, R, T, V> {
     }
 
     public <B, BV extends BlockView<B>> void apply(O observer, Pass<W, P, V, B, BV> pass) {
-        Vec3 origin = pass.remote().origin();
+        Vec3d origin = pass.remote().origin();
         EntityPath<W, P> path = pass.path();
         boolean upsideDown = pass.mirror()
             ? PortalCoordMap.mirrorTransformFlipsWorldUp(pass.local().frame(), pass.quarterTurns())

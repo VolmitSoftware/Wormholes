@@ -5,7 +5,7 @@ import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.ClientViewProtocolException;
 import org.junit.After;
@@ -73,7 +73,7 @@ public class ClientPreparedTravelRoutingTest extends MinecraftTestBase {
         receive(harness, new ClientViewMessage.TravelEnd(token, 8, 12, revisions));
         assertEquals(49, columns.get());
         assertEquals(12, chunks.get().completeRevision());
-        receive(harness, new ClientViewMessage.TravelCommit(token, 8, 12, begin.sourceWorld(), begin.world().dimension(), begin.arrival(), new Vec3(0, 0, 0)));
+        receive(harness, new ClientViewMessage.TravelCommit(token, 8, 12, begin.sourceWorld(), begin.world().dimension(), begin.arrival(), new Vec3d(0, 0, 0)));
         receive(harness, new ClientViewMessage.TravelCancel(token, 8));
         assertEquals(53, deliveries.get());
         assertEquals(53, harness.stats.framesReceived());

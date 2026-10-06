@@ -2,7 +2,7 @@ package art.arcane.wormholes.portal;
 
 import art.arcane.wormholes.util.BukkitJsonDocuments;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 
 import art.arcane.wormholes.util.GeometryPersistence;
 
@@ -92,7 +92,7 @@ public class PortalStructure implements IWritable, CellAperture
 		Location cached = centerCache;
 		if(cached == null)
 		{
-			Vec3 center = geometry.getApertureCenter();
+			Vec3d center = geometry.getApertureCenter();
 			cached = new Location(getWorld(), center.x(), center.y(), center.z());
 			centerCache = cached;
 		}
@@ -100,14 +100,14 @@ public class PortalStructure implements IWritable, CellAperture
 	}
 
 	@Override
-	public Vec3 getApertureCenter()
+	public Vec3d getApertureCenter()
 	{
 		return geometry.getApertureCenter();
 	}
 
 	public Location randomCellCentre()
 	{
-		Vec3 centre = geometry.randomCellCentre();
+		Vec3d centre = geometry.randomCellCentre();
 		return centre == null ? null : new Location(getWorld(), centre.x(), centre.y(), centre.z());
 	}
 
@@ -137,7 +137,7 @@ public class PortalStructure implements IWritable, CellAperture
 
 	private Location corner(Face x, Face y, Face z)
 	{
-		Vec3 v = getArea().getCornerVector(x, y, z);
+		Vec3d v = getArea().getCornerVector(x, y, z);
 		return new Location(getWorld(), v.getX(), v.getY(), v.getZ());
 	}
 
@@ -171,12 +171,12 @@ public class PortalStructure implements IWritable, CellAperture
 	public void setBlocks(Set<Block> blocks)
 	{
         if(blocks == null || blocks.isEmpty()) { return; }
-        ArrayList<Vec3> cells = new ArrayList<>(blocks.size());
+        ArrayList<Vec3d> cells = new ArrayList<>(blocks.size());
         World blockWorld = null;
         for(Block block : blocks) {
             if(block == null || block.getWorld() == null) { continue; }
             blockWorld = block.getWorld();
-            cells.add(new Vec3(block.getX(), block.getY(), block.getZ()));
+            cells.add(new Vec3d(block.getX(), block.getY(), block.getZ()));
         }
         if(cells.isEmpty()) { return; }
         setWorld(blockWorld);
@@ -213,7 +213,7 @@ public class PortalStructure implements IWritable, CellAperture
 	public KList<Vector> getBlockPositions()
 	{
 		KList<Vector> copy = new KList<Vector>();
-		for(Vec3 block : geometry.getBlockPositions())
+		for(Vec3d block : geometry.getBlockPositions())
 		{
 			copy.add(BukkitGeometry.bukkit(block));
 		}

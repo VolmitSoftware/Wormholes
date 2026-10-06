@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.network.client.ClientTravelHash;
 import art.arcane.wormholes.network.client.ClientTravelWindow;
@@ -242,7 +243,7 @@ public class ClientPreparedTravelCachedTest {
              MockedConstruction<ClientboundLevelChunkWithLightPacket> packets = mockConstruction(ClientboundLevelChunkWithLightPacket.class)) {
             access.when(Minecraft::getInstance).thenReturn(minecraft);
             renderers.when(ClientPortalRenderer::instance).thenReturn(renderer);
-            environments.when(() -> MinecraftPortalEnvironment.capture(level, new art.arcane.optics.math.Vec3(eye.x, eye.y, eye.z),
+            environments.when(() -> MinecraftPortalEnvironment.capture(level, new Vec3d(eye.x, eye.y, eye.z),
                 ProjectionEnvironment.Transform.IDENTITY, begin.world().flat())).thenReturn(begin.environment());
             encoder.when(() -> MinecraftChunkPacketEncoding.encode(any(), any())).thenReturn(fresh);
             if (mismatch == 1) {
@@ -521,7 +522,7 @@ public class ClientPreparedTravelCachedTest {
         when(player.getY()).thenReturn(85.5);
         when(player.getZ()).thenReturn(-3.4);
         when(player.getEyePosition()).thenReturn(new Vec3(12.25, 87.12, -3.4));
-        art.arcane.optics.math.Vec3 eye = new art.arcane.optics.math.Vec3(12.25, 87.12, -3.4);
+        Vec3d eye = new Vec3d(12.25, 87.12, -3.4);
         ProjectionEnvironment template = PortalEnvironmentTest.environment(ProjectionEnvironment.Transform.IDENTITY);
         ProjectionEnvironment environment = new ProjectionEnvironment(template.gameTime(), template.sky(), template.fog(),
             template.lighting(), template.clouds(), template.transform(),

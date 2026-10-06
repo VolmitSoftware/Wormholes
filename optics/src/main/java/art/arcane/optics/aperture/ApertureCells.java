@@ -1,6 +1,6 @@
 package art.arcane.optics.aperture;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
@@ -14,10 +14,10 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public final class ApertureCells implements CellAperture {
     private final LongOpenHashSet blockKeys = new LongOpenHashSet();
-    private final List<Vec3> blockPositions = new ArrayList<>();
+    private final List<Vec3d> blockPositions = new ArrayList<>();
     private final ConcurrentHashMap<Face, List<Box>> apertureFaceCache = new ConcurrentHashMap<>();
     private Box area;
-    private Vec3 apertureCenter;
+    private Vec3d apertureCenter;
     private long revision;
 
     public void setArea(Box area) {
@@ -35,17 +35,17 @@ public final class ApertureCells implements CellAperture {
         invalidate();
     }
 
-    public void restore(Box area, Collection<Vec3> cells) {
+    public void restore(Box area, Collection<Vec3d> cells) {
         this.area = area;
         blockKeys.clear();
         blockPositions.clear();
-        for (Vec3 cell : cells) {
+        for (Vec3d cell : cells) {
             addBlockCell(cell.getBlockX(), cell.getBlockY(), cell.getBlockZ());
         }
         invalidate();
     }
 
-    public void setBlocks(Collection<Vec3> cells) {
+    public void setBlocks(Collection<Vec3d> cells) {
         if (cells == null || cells.isEmpty()) {
             return;
         }
@@ -57,7 +57,7 @@ public final class ApertureCells implements CellAperture {
         int xb = Integer.MIN_VALUE;
         int yb = Integer.MIN_VALUE;
         int zb = Integer.MIN_VALUE;
-        for (Vec3 cell : cells) {
+        for (Vec3d cell : cells) {
             int x = cell.getBlockX();
             int y = cell.getBlockY();
             int z = cell.getBlockZ();
@@ -79,7 +79,7 @@ public final class ApertureCells implements CellAperture {
     }
 
     @Override
-    public Vec3 getApertureCenter() {
+    public Vec3d getApertureCenter() {
         return apertureCenter;
     }
 
@@ -87,39 +87,39 @@ public final class ApertureCells implements CellAperture {
         return revision;
     }
 
-    public List<Vec3> getBlockPositions() {
+    public List<Vec3d> getBlockPositions() {
         return List.copyOf(blockPositions);
     }
 
-    public Vec3 randomBlockPosition() {
+    public Vec3d randomBlockPosition() {
         int size = blockPositions.size();
         return size == 0 ? null : blockPositions.get(ThreadLocalRandom.current().nextInt(size));
     }
 
-    public Vec3 randomCellCentre() {
-        Vec3 block = randomBlockPosition();
+    public Vec3d randomCellCentre() {
+        Vec3d block = randomBlockPosition();
         if (block == null) {
             if (area == null) {
                 return null;
             }
             block = area.random();
         }
-        return new Vec3(Math.floor(block.x()) + 0.5D, Math.floor(block.y()) + 0.5D, Math.floor(block.z()) + 0.5D);
+        return new Vec3d(Math.floor(block.x()) + 0.5D, Math.floor(block.y()) + 0.5D, Math.floor(block.z()) + 0.5D);
     }
 
-    public boolean contains(Vec3 point) {
+    public boolean contains(Vec3d point) {
         return point != null && area != null && area.containsPrimitive(point.x(), point.y(), point.z())
             && containsBlock(point.getBlockX(), point.getBlockY(), point.getBlockZ());
     }
 
     public Box captureZone(double radius) {
-        Vec3 padding = new Vec3(radius, radius, radius);
+        Vec3d padding = new Vec3d(radius, radius, radius);
         return area == null ? null : new Box(area.min().subtract(padding), area.max().add(padding));
     }
 
     private void addBlockCell(int x, int y, int z) {
         if (blockKeys.add(CellKeys.pack(x, y, z))) {
-            blockPositions.add(new Vec3(x, y, z));
+            blockPositions.add(new Vec3d(x, y, z));
         }
     }
 
@@ -128,7 +128,7 @@ public final class ApertureCells implements CellAperture {
         apertureFaceCache.clear();
         revision++;
     }
-    private Vec3 cellCenter() {
+    private Vec3d cellCenter() {
         if (blockPositions.isEmpty()) {
             return area == null ? null : area.min().add(area.max().subtract(area.min()).multiply(0.5D));
         }
@@ -138,7 +138,7 @@ public final class ApertureCells implements CellAperture {
         int maxX = Integer.MIN_VALUE;
         int maxY = Integer.MIN_VALUE;
         int maxZ = Integer.MIN_VALUE;
-        for (Vec3 cell : blockPositions) {
+        for (Vec3d cell : blockPositions) {
             minX = Math.min(minX, cell.getBlockX());
             minY = Math.min(minY, cell.getBlockY());
             minZ = Math.min(minZ, cell.getBlockZ());
@@ -146,7 +146,7 @@ public final class ApertureCells implements CellAperture {
             maxY = Math.max(maxY, cell.getBlockY());
             maxZ = Math.max(maxZ, cell.getBlockZ());
         }
-        return new Vec3((minX + (double) maxX + 1.0D) * 0.5D,
+        return new Vec3d((minX + (double) maxX + 1.0D) * 0.5D,
             (minY + (double) maxY + 1.0D) * 0.5D, (minZ + (double) maxZ + 1.0D) * 0.5D);
     }
 
@@ -194,7 +194,7 @@ public final class ApertureCells implements CellAperture {
 		}
 		else
 		{
-			for(Vec3 block : blockPositions)
+			for(Vec3d block : blockPositions)
 			{
 				faces.add(getBlockBox(block.getBlockX(), block.getBlockY(), block.getBlockZ()).getFace(face));
 			}

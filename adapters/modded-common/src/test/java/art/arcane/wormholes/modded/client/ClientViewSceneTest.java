@@ -2,7 +2,7 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.config.VisualQualityProfile;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.ClientViewProtocolException;
@@ -257,8 +257,8 @@ public class ClientViewSceneTest extends MinecraftTestBase {
         harness.stream();
         ClientViewMessage.FxEmitter rim = new ClientViewMessage.FxEmitter(ClientViewMessage.FxKind.RIM_DUST, "", 0.0D, 64.0D, 10.0D,
             0x00FF00, 1.0F, 5, 1);
-        ClientViewMessage.FxEmitter open = ClientViewEmitters.animation(PortalAnimation.Mode.OPEN, new Vec3(1.5D, 65.0D, 10.5D),
-            new Vec3(3.0D, 4.0D, 0.0D), VisualQualityProfile.BALANCED);
+        ClientViewMessage.FxEmitter open = ClientViewEmitters.animation(PortalAnimation.Mode.OPEN, new Vec3d(1.5D, 65.0D, 10.5D),
+            new Vec3d(3.0D, 4.0D, 0.0D), VisualQualityProfile.BALANCED);
         ClientViewMessage.FxEmitter chime = ClientViewEmitters.sound(new AcousticsBridge.Playback("minecraft:block.stone.break",
             AcousticsProfile.SoundClass.WORLD, 1.5D, 65.0D, 10.5D, 1.0F, 0.8F), 0);
         harness.receive(new ClientViewMessage.Fx(ClientViewHarness.PORTAL_KEY, List.of(rim)), ViewStreamLimits.FLAG_LAST);
@@ -341,11 +341,11 @@ public class ClientViewSceneTest extends MinecraftTestBase {
         ClientViewMessage.FxEmitter rim = new ClientViewMessage.FxEmitter(ClientViewMessage.FxKind.RIM_DUST, "", 0.0D, 64.0D, 10.0D, 0x00FF00, 1.0F,
             5, 1);
         harness.receive(new ClientViewMessage.Fx(ClientViewHarness.PORTAL_KEY, List.of(rim)), ViewStreamLimits.FLAG_LAST);
-        ClientViewMessage.FxEmitter open = ClientViewEmitters.animation(PortalAnimation.Mode.OPEN, new Vec3(1.5D, 65.0D, 10.5D),
-            new Vec3(3.0D, 4.0D, 0.0D), VisualQualityProfile.BALANCED);
+        ClientViewMessage.FxEmitter open = ClientViewEmitters.animation(PortalAnimation.Mode.OPEN, new Vec3d(1.5D, 65.0D, 10.5D),
+            new Vec3d(3.0D, 4.0D, 0.0D), VisualQualityProfile.BALANCED);
         ClientViewMessage.FxEmitter sync = ClientViewEmitters.burst("minecraft:reverse_portal", 1.5D, 65.0D, 10.5D, 12, 0.4D, 0.6D, 0.4D);
-        ClientViewMessage.FxEmitter glitch = ClientViewEmitters.animation(PortalAnimation.Mode.GLITCH, new Vec3(1.5D, 65.0D, 10.5D),
-            new Vec3(1.0D, 1.0D, 1.0D), VisualQualityProfile.BALANCED);
+        ClientViewMessage.FxEmitter glitch = ClientViewEmitters.animation(PortalAnimation.Mode.GLITCH, new Vec3d(1.5D, 65.0D, 10.5D),
+            new Vec3d(1.0D, 1.0D, 1.0D), VisualQualityProfile.BALANCED);
         ClientViewMessage.FxEmitter chime = ClientViewEmitters.sound(new AcousticsBridge.Playback("minecraft:block.stone.break",
             AcousticsProfile.SoundClass.WORLD, 1.5D, 65.0D, 10.5D, 1.0F, 0.8F), 0);
         harness.receive(new ClientViewMessage.Fx(ViewStreamLimits.WORLD_FX_KEY, List.of(open, sync, glitch, chime)), ViewStreamLimits.FLAG_LAST);

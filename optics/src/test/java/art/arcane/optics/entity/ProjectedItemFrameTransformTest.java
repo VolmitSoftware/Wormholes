@@ -1,6 +1,6 @@
 package art.arcane.optics.entity;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -136,11 +136,11 @@ public final class ProjectedItemFrameTransformTest {
                 for (double x : anchors) {
                     for (double y : anchors) {
                         for (double z : anchors) {
-                            Vec3 projected = ItemFrameTransform.betweenAnchor(
+                            Vec3d projected = ItemFrameTransform.betweenAnchor(
                                 x, y, z,
                                 1.9995D, -4.5005D, 8.9995D,
                                 0.4995D, 22.4995D, -15.5005D,
-                                sourceFrame, targetFrame, scratch, Vec3::new);
+                                sourceFrame, targetFrame, scratch, Vec3d::new);
                             cellTransform.apply(
                                 projected.getX() + 0.5D,
                                 projected.getY() + 0.5D,
@@ -170,10 +170,10 @@ public final class ProjectedItemFrameTransformTest {
                 for (double x : anchors) {
                     for (double y : anchors) {
                         for (double z : anchors) {
-                            Vec3 projected = ItemFrameTransform.mirrorAnchor(
+                            Vec3d projected = ItemFrameTransform.mirrorAnchor(
                                 x, y, z,
                                 0.4995D, -2.5005D, 7.4995D,
-                                frame, quarterTurns, scratch, Vec3::new);
+                                frame, quarterTurns, scratch, Vec3d::new);
                             cellTransform.apply(
                                 projected.getX() + 0.5D,
                                 projected.getY() + 0.5D,
@@ -194,15 +194,15 @@ public final class ProjectedItemFrameTransformTest {
         Frame frame = Frame.canonical(Face.N);
         double[] scratch = new double[3];
 
-        Vec3 linked = ItemFrameTransform.betweenAnchor(
+        Vec3d linked = ItemFrameTransform.betweenAnchor(
             4.03125D, 0.03125D, 0.03125D,
             1.9995D, 0.4995D, 0.4995D,
             0.4995D, 0.4995D, 0.4995D,
-            frame, frame, scratch, Vec3::new);
-        Vec3 mirrored = ItemFrameTransform.mirrorAnchor(
+            frame, frame, scratch, Vec3d::new);
+        Vec3d mirrored = ItemFrameTransform.mirrorAnchor(
             0.03125D, 0.03125D, 2.03125D,
             0.4995D, 0.4995D, 0.5D,
-            frame, 0, scratch, Vec3::new);
+            frame, 0, scratch, Vec3d::new);
 
         assertEquals(2.0D, linked.getX(), 0.0D);
         assertEquals(-2.0D, mirrored.getZ(), 0.0D);

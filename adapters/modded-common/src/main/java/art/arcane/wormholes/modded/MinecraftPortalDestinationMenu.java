@@ -2,7 +2,7 @@ package art.arcane.wormholes.modded;
 
 import art.arcane.volmlib.util.localization.MessageArgs;
 import art.arcane.volmlib.util.localization.TextKey;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.localization.NexusMessages;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.portal.LocalPortalDestinationModel;
@@ -66,8 +66,8 @@ final class MinecraftPortalDestinationMenu {
         if (!portal.getWorldKey().equals(target.getWorldKey())) {
             return Double.MAX_VALUE;
         }
-        Vec3 source = portal.getGeometry().getApertureCenter();
-        Vec3 destination = target.getGeometry().getApertureCenter();
+        Vec3d source = portal.getGeometry().getApertureCenter();
+        Vec3d destination = target.getGeometry().getApertureCenter();
         double x = source.x() - destination.x();
         double y = source.y() - destination.y();
         double z = source.z() - destination.z();
@@ -241,7 +241,7 @@ final class MinecraftPortalDestinationMenu {
         }
 
         private MinecraftElement localElement(MinecraftPortal target, int index) {
-            Vec3 center = target.getGeometry().getApertureCenter();
+            Vec3d center = target.getGeometry().getApertureCenter();
             MinecraftElement element = MinecraftPortalText.localizedElement(viewer, "portal-" + index,
                 WormholesMessages.PORTAL_MENU_LOCAL_DESTINATION, MinecraftPortalText.arguments(
                     "portal", target.getName(),

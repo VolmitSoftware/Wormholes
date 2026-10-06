@@ -2,7 +2,7 @@ package art.arcane.wormholes.render.clientview;
 
 import art.arcane.wormholes.chunk.BukkitChunkLeaseProvider;
 import art.arcane.optics.plate.ChunkLease;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.wormholes.platform.BukkitRegionTaskProvider;
 import art.arcane.wormholes.platform.WormholesPlatform;
@@ -165,7 +165,7 @@ final class BukkitEnvironmentCapture implements AutoCloseable {
         }
     }
 
-    record Request(UUID observer, UUID parent, UUID portal, World world, Vec3 eye,
+    record Request(UUID observer, UUID parent, UUID portal, World world, Vec3d eye,
                    ProjectionEnvironment.Transform transform, long tick) {
     }
 

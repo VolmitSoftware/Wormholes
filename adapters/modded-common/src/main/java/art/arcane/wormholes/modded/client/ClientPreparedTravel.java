@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftChunkPacketEncoding;
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.client.render.ClientTravelScene;
@@ -1761,8 +1762,8 @@ public final class ClientPreparedTravel {
         return switch (axis) { case 0 -> geometry.originX(); case 1 -> geometry.originY(); default -> geometry.originZ(); };
     }
 
-    private static art.arcane.optics.math.Vec3 vector(Vec3 point) {
-        return new art.arcane.optics.math.Vec3(point.x, point.y, point.z);
+    private static Vec3d vector(Vec3 point) {
+        return new Vec3d(point.x, point.y, point.z);
     }
 
     private static ClientViewMessage.TravelPose pose(ClientTravelMotion motion) {
@@ -2033,7 +2034,7 @@ public final class ClientPreparedTravel {
         LocalPlayer player = minecraft.player;
         if (player != null && minecraft.level != null
             && value.sourceWorld().equals(minecraft.level.dimension().identifier().toString())) {
-            art.arcane.optics.math.Vec3 feet = value.destinationToSource().destinationPoint(player.getX(), player.getY(), player.getZ());
+            Vec3d feet = value.destinationToSource().destinationPoint(player.getX(), player.getY(), player.getZ());
             ClientTravelMotion.Rotation look = new ClientTravelMotion.Rotation(player.getYRot(), player.getXRot())
                 .transform(value.destinationToSource());
             return arrivalCamera(new ClientViewMessage.TravelPose(feet.x(), feet.y(), feet.z(), look.yaw(), look.pitch()), eyeHeight(player));

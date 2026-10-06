@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.optics.scan.ScanMode;
@@ -37,7 +37,7 @@ final class ClientViewSweepParityTest {
             Frame frame = Frame.canonical(normal);
             for (int rotation = 0; rotation < 4; rotation++, frame = frame.rotateClockwise()) {
                 ApertureCells aperture = irregularAperture(frame);
-                Vec3 origin = aperture.getArea().center();
+                Vec3d origin = aperture.getArea().center();
                 for (boolean front : new boolean[] {false, true}) {
                     for (double padding : new double[] {0.0D, 0.75D}) {
                         for (double hysteresis : new double[] {0.0D, HYSTERESIS}) {
@@ -51,7 +51,7 @@ final class ClientViewSweepParityTest {
                             for (int step = 0; step < 3; step++) {
                                 double distance = (front ? 1.0D : -1.0D) * (1.0D + step * 3.0D);
                                 double lateral = step * 0.45D - 0.35D;
-                                Vec3 eye = quantized(origin.getX() + normal.x() * distance + frame.getRight().x() * lateral,
+                                Vec3d eye = quantized(origin.getX() + normal.x() * distance + frame.getRight().x() * lateral,
                                     origin.getY() + normal.y() * distance + frame.getRight().y() * lateral,
                                     origin.getZ() + normal.z() * distance + frame.getRight().z() * lateral);
                                 LongOpenHashSet expected = perCellMask(geometry, bounds, eye, padding + hysteresis);
@@ -76,13 +76,13 @@ final class ClientViewSweepParityTest {
     }
 
     private static ApertureCells irregularAperture(Frame frame) {
-        List<Vec3> cells = new ArrayList<Vec3>();
+        List<Vec3d> cells = new ArrayList<Vec3d>();
         for (int right = -2; right <= 2; right++) {
             for (int up = -2; up <= 2; up++) {
                 if ((right == 0 && up == 0) || (up == 2 && Math.abs(right) == 2)) {
                     continue;
                 }
-                cells.add(new Vec3(-19 + frame.getRight().x() * right + frame.getUp().x() * up,
+                cells.add(new Vec3d(-19 + frame.getRight().x() * right + frame.getUp().x() * up,
                     -22 + frame.getRight().y() * right + frame.getUp().y() * up,
                     -17 + frame.getRight().z() * right + frame.getUp().z() * up));
             }
@@ -92,10 +92,10 @@ final class ClientViewSweepParityTest {
         return aperture;
     }
 
-    private static LongOpenHashSet perCellMask(ApertureDescriptor geometry, PlateBox bounds, Vec3 eye, double padding) {
+    private static LongOpenHashSet perCellMask(ApertureDescriptor geometry, PlateBox bounds, Vec3d eye, double padding) {
         ApertureCells aperture = geometry.aperture();
         Box area = aperture.getArea();
-        Vec3 origin = area.center();
+        Vec3d origin = area.center();
         Frame frame = geometry.frame();
         Face localNormal = frame.getNormal();
         Frame projectionFrame = frame.view(geometry.frontSide());
@@ -141,7 +141,7 @@ final class ClientViewSweepParityTest {
             long applied = 0L;
             List<String> failures = new ArrayList<String>();
             for (int sample = 0; sample < EYES; sample++) {
-                Vec3 eye = randomEye(scene, random);
+                Vec3d eye = randomEye(scene, random);
                 boolean frontSide = scene.eyeFrontSide(eye);
                 ClientSweep sweep = new ClientSweep(scene.geometry(frontSide, ApertureDescriptor.BLACKOUT_OFF),
                     scene.bounds(frontSide), HYSTERESIS);
@@ -164,7 +164,7 @@ final class ClientViewSweepParityTest {
     void aWalkingEyeWithHysteresisKeepsEveryServerClaimApplied() {
         ClientSweepScene scene = ClientSweepScene.rtpWall(32, 24);
         Random random = new Random(0xBADC0DEL);
-        Vec3 eye = new Vec3(6.05D, 65.6D, 0.5D);
+        Vec3d eye = new Vec3d(6.05D, 65.6D, 0.5D);
         ClientSweep sweep = new ClientSweep(scene.geometry(true, ApertureDescriptor.BLACKOUT_OFF), scene.bounds(true), HYSTERESIS);
         List<String> failures = new ArrayList<String>();
         long claims = 0L;
@@ -172,10 +172,10 @@ final class ClientViewSweepParityTest {
             double velocityX = (random.nextDouble() - 0.5D) * 0.4D;
             double velocityY = (random.nextDouble() - 0.5D) * 0.1D;
             double velocityZ = (random.nextDouble() - 0.5D) * 0.4D;
-            eye = new Vec3(clamp(eye.getX() + velocityX, 1.5D, 14.0D), clamp(eye.getY() + velocityY, 63.5D, 67.5D),
+            eye = new Vec3d(clamp(eye.getX() + velocityX, 1.5D, 14.0D), clamp(eye.getY() + velocityY, 63.5D, 67.5D),
                 clamp(eye.getZ() + velocityZ, -6.0D, 6.0D));
             sweep.sweep(eye.getX(), eye.getY(), eye.getZ(), velocityX, velocityY, velocityZ);
-            Vec3 lookahead = quantized(eye.getX() + velocityX, eye.getY() + velocityY, eye.getZ() + velocityZ);
+            Vec3d lookahead = quantized(eye.getX() + velocityX, eye.getY() + velocityY, eye.getZ() + velocityZ);
             Long2ObjectOpenHashMap<ProjectedBlockClaim<String, ClientSweepScene.SceneView>> server =
                 scene.serverClaims(lookahead, ClientSweepScene.OPEN_SCAN, false);
             claims += server.size();
@@ -185,25 +185,25 @@ final class ClientViewSweepParityTest {
         assertTrue(failures.isEmpty(), failures.size() + " walk failures, first: " + failures.subList(0, Math.min(8, failures.size())));
     }
 
-    static Vec3 randomEye(ClientSweepScene scene, Random random) {
+    static Vec3d randomEye(ClientSweepScene scene, Random random) {
         Face normal = scene.localFrame.getNormal();
         Frame frame = scene.localFrame;
         double side = random.nextBoolean() ? 1.0D : -1.0D;
         double along = side * (0.3D + (random.nextDouble() * 20.0D));
         double right = (random.nextDouble() - 0.5D) * 24.0D;
         double up = (random.nextDouble() - 0.5D) * 16.0D;
-        Vec3 origin = scene.localOrigin;
+        Vec3d origin = scene.localOrigin;
         return quantized(origin.getX() + (normal.x() * along) + (frame.getRight().x() * right) + (frame.getUp().x() * up),
             origin.getY() + (normal.y() * along) + (frame.getRight().y() * right) + (frame.getUp().y() * up),
             origin.getZ() + (normal.z() * along) + (frame.getRight().z() * right) + (frame.getUp().z() * up));
     }
 
-    static Vec3 quantized(double x, double y, double z) {
-        return new Vec3(Math.round(x * 20.0D) / 20.0D, Math.round(y * 20.0D) / 20.0D, Math.round(z * 20.0D) / 20.0D);
+    static Vec3d quantized(double x, double y, double z) {
+        return new Vec3d(Math.round(x * 20.0D) / 20.0D, Math.round(y * 20.0D) / 20.0D, Math.round(z * 20.0D) / 20.0D);
     }
 
     private static void collectMissing(Long2ObjectOpenHashMap<ProjectedBlockClaim<String, ClientSweepScene.SceneView>> server,
-                                       ClientSweep sweep, Vec3 eye, ScanMode mode, List<String> failures) {
+                                       ClientSweep sweep, Vec3d eye, ScanMode mode, List<String> failures) {
         for (Long2ObjectMap.Entry<ProjectedBlockClaim<String, ClientSweepScene.SceneView>> entry : server.long2ObjectEntrySet()) {
             long key = entry.getLongKey();
             int x = CellKeys.unpackX(key);
@@ -215,7 +215,7 @@ final class ClientViewSweepParityTest {
         }
     }
 
-    private static void collectOutsideBox(ClientSweepScene scene, LongArrayList cells, Vec3 eye, boolean frontSide,
+    private static void collectOutsideBox(ClientSweepScene scene, LongArrayList cells, Vec3d eye, boolean frontSide,
                                           double hysteresis, List<String> failures) {
         double padding = ClientSweepScene.APERTURE_PADDING + hysteresis;
         Box area = scene.aperture.getArea();
@@ -225,7 +225,7 @@ final class ClientViewSweepParityTest {
         Frame projectionFrame = scene.localFrame.view(frontSide);
         Face projectionNormal = projectionFrame.getNormal();
         Face localNormal = scene.localFrame.getNormal();
-        Vec3 origin = scene.localOrigin;
+        Vec3d origin = scene.localOrigin;
         double eyeDot = dot(eye.getX() - origin.getX(), eye.getY() - origin.getY(), eye.getZ() - origin.getZ(), projectionNormal);
         PlaneWindow window = PlaneWindow.create(scene.aperture, area, projectionFrame,
             origin.getX(), origin.getY(), origin.getZ(), padding, eyeDot);

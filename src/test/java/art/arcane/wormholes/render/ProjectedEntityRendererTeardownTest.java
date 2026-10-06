@@ -5,7 +5,7 @@ import com.github.retrooper.packetevents.util.Vector3d;
 
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import org.bukkit.block.data.BlockData;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -263,7 +263,7 @@ public final class ProjectedEntityRendererTeardownTest {
         InvocationHandler handler = (proxy, method, args) -> {
             String name = method.getName();
             if ("getOrigin".equals(name) || "origin".equals(name)) {
-                return new Vec3(x, y, z);
+                return new Vec3d(x, y, z);
             }
             if ("getId".equals(name) || "id".equals(name)) {
                 return id;

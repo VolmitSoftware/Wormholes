@@ -12,7 +12,7 @@ public final class AlignedPoint {
         this.z = z;
     }
 
-    public AlignedPoint(Vec3 vector) {
+    public AlignedPoint(Vec3d vector) {
         this.x = vector.getX();
         this.y = vector.getY();
         this.z = vector.getZ();
@@ -31,7 +31,7 @@ public final class AlignedPoint {
         return z;
     }
 
-    public Vec3 toVector() {
-        return new Vec3(x, y, z);
+    public Vec3d toVector() {
+        return new Vec3d(x, y, z);
     }
 }

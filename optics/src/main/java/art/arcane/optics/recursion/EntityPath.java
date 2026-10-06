@@ -1,7 +1,7 @@
 package art.arcane.optics.recursion;
 
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.aperture.Endpoint;
 import art.arcane.optics.view.BlockView;
 
@@ -30,9 +30,9 @@ public final class EntityPath<W, P extends Endpoint> {
         this.entrance = null;
         this.root = root;
         this.remainingDepth = root.recursiveDepth();
-        Vec3 source = root.remote().origin();
-        Vec3 target = root.local().origin();
-        Vec3 eye = root.eye();
+        Vec3d source = root.remote().origin();
+        Vec3d target = root.local().origin();
+        Vec3d eye = root.eye();
         if (root.mirror()) {
             PortalCoordMap.mirrorDisplayToSourcePointInto(eye.getX(), eye.getY(), eye.getZ(),
                 target.getX(), target.getY(), target.getZ(), root.local().frame(), root.quarterTurns(), scratch);
@@ -181,8 +181,8 @@ public final class EntityPath<W, P extends Endpoint> {
     }
 
     private void rootPoint(double x, double y, double z, double[] out) {
-        Vec3 source = root.remote().origin();
-        Vec3 target = root.local().origin();
+        Vec3d source = root.remote().origin();
+        Vec3d target = root.local().origin();
         if (root.mirror()) {
             PortalCoordMap.mirrorSourceToDisplayPointInto(x, y, z, target.getX(), target.getY(), target.getZ(),
                 root.local().frame(), root.quarterTurns(), out);
@@ -205,6 +205,6 @@ public final class EntityPath<W, P extends Endpoint> {
     }
 
     public record Root<W, P extends Endpoint>(P local, P remote, Frame localFrame, Frame remoteFrame,
-                boolean mirror, int quarterTurns, Vec3 eye, ViewVolume frustum, W world, int recursiveDepth) {
+                boolean mirror, int quarterTurns, Vec3d eye, ViewVolume frustum, W world, int recursiveDepth) {
     }
 }

@@ -2,7 +2,7 @@ package art.arcane.optics.volume;
 
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.aperture.Aperture;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 import org.junit.jupiter.api.Test;
@@ -40,10 +40,10 @@ final class ProjectorFrustumRowTest {
                             aperturePadding = new double[] {0.0D, 1.0E-7D, 0.35D, 1.0D}[sample % 4];
                             nearPadding = new double[] {0.0D, 0.01D, 2.0D}[sample % 3];
                             double distance = new double[] {0.0D, 1.0E-8D, 0.05D, 0.25D, 1.5D, 8.0D}[sample % 6];
-                            Vec3 center = structure.getApertureCenter();
-                            Vec3 eye = center.add(new Vec3(normal.x() * distance, normal.y() * distance, normal.z() * distance));
+                            Vec3d center = structure.getApertureCenter();
+                            Vec3d eye = center.add(new Vec3d(normal.x() * distance, normal.y() * distance, normal.z() * distance));
                             if (sample >= 12) {
-                                eye = eye.add(new Vec3(frame.getUp().x() * 7.0D, frame.getUp().y() * 7.0D, frame.getUp().z() * 7.0D));
+                                eye = eye.add(new Vec3d(frame.getUp().x() * 7.0D, frame.getUp().y() * 7.0D, frame.getUp().z() * 7.0D));
                             }
                             ViewVolume frustum = new ViewVolume(eye, structure, new ViewVolume.Options(64.0D, 48.0D, nearPadding, cullingRatio, aperturePadding));
                             for (int index = 0; index < 8; index++) {
@@ -102,7 +102,7 @@ final class ProjectorFrustumRowTest {
                     cells.add(new Box(x, x + 0.999D, 0.0D, 0.999D, z, z + 0.999D));
                 }
             }
-            ViewVolume frustum = new ViewVolume(new Vec3( 2.5D, 3.0D, 0.5D), new TestStructure(cells), new ViewVolume.Options(64.0D, 48.0D, nearPadding, cullingRatio, aperturePadding));
+            ViewVolume frustum = new ViewVolume(new Vec3d( 2.5D, 3.0D, 0.5D), new TestStructure(cells), new ViewVolume.Options(64.0D, 48.0D, nearPadding, cullingRatio, aperturePadding));
             ProjectorFrustumRow row = new ProjectorFrustumRow();
             assertTrue(row.prepare(frustum, 0, -20.0D, -2.5D, 0.5D, -20, 20));
             int acceptedRuns = 0;
@@ -144,7 +144,7 @@ final class ProjectorFrustumRowTest {
                     origin[1] - (normalAxis == 1 ? 0 : 2), origin[1] + (normalAxis == 1 ? 0 : 2),
                     origin[2] - (normalAxis == 2 ? 0 : 2), origin[2] + (normalAxis == 2 ? 0 : 2));
                 for (double distance : new double[] {-0.01D, -1.0E-7D, -1.0E-8D, 0.0D, 1.0E-8D, 1.0E-7D, 0.01D}) {
-                    Vec3 eye = new Vec3( origin[0] + normal.x() * distance,
+                    Vec3d eye = new Vec3d( origin[0] + normal.x() * distance,
                         origin[1] + normal.y() * distance, origin[2] + normal.z() * distance);
                     Frustum frustum = new Frustum(eye, face, normal, normal.getAxis(), 64.0D, 48.0D, 0.35D);
                     for (int depth = -64; depth <= 64; depth++) {
@@ -200,8 +200,8 @@ final class ProjectorFrustumRowTest {
         }
 
         @Override
-        public Vec3 getApertureCenter() {
-            return new Vec3( (area.getXa() + area.getXb()) * 0.5D,
+        public Vec3d getApertureCenter() {
+            return new Vec3d( (area.getXa() + area.getXb()) * 0.5D,
                 (area.getYa() + area.getYb()) * 0.5D, (area.getZa() + area.getZb()) * 0.5D);
         }
 

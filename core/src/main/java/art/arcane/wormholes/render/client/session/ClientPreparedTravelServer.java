@@ -1,6 +1,6 @@
 package art.arcane.wormholes.render.client.session;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
@@ -369,13 +369,13 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
             || !sameSurface(begin.sourceGeometry(), authority.geometry())) {
             return false;
         }
-        Vec3 feet = new Vec3(value.sourcePose().x(), value.sourcePose().y(), value.sourcePose().z());
-        Vec3 observed = new Vec3(authority.pose().x(), authority.pose().y(), authority.pose().z());
-        double speed = authority.velocity().distance(new Vec3(0, 0, 0));
+        Vec3d feet = new Vec3d(value.sourcePose().x(), value.sourcePose().y(), value.sourcePose().z());
+        Vec3d observed = new Vec3d(authority.pose().x(), authority.pose().y(), authority.pose().z());
+        double speed = authority.velocity().distance(new Vec3d(0, 0, 0));
         double tolerance = Math.clamp(0.75D + speed * 3.0D, 0.75D, 2.0D);
         if (feet.distance(observed) > tolerance || value.previousEye().distance(value.currentEye()) > 4.0D
-            || value.previousEye().distance(observed.add(new Vec3(0, authority.eyeHeight(), 0))) > tolerance + 1.0D
-            || value.currentEye().distance(feet.add(new Vec3(0, authority.eyeHeight(), 0))) > 0.125D) {
+            || value.previousEye().distance(observed.add(new Vec3d(0, authority.eyeHeight(), 0))) > tolerance + 1.0D
+            || value.currentEye().distance(feet.add(new Vec3d(0, authority.eyeHeight(), 0))) > 0.125D) {
             return false;
         }
         ApertureDescriptor geometry = authority.geometry();
@@ -384,7 +384,7 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
         if (previous == current || previous * current > 0.0D) {
             return false;
         }
-        Vec3 intersection = value.previousEye().add(value.currentEye().subtract(value.previousEye())
+        Vec3d intersection = value.previousEye().add(value.currentEye().subtract(value.previousEye())
             .multiply(previous / (previous - current)));
         return geometry.aperture().contains(intersection);
     }
@@ -510,7 +510,7 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
     }
 
     public record Commit(UUID portal, String sourceWorld, String destinationWorld,
-                         ClientViewMessage.TravelPose arrival, Vec3 velocity, long nowMillis) {
+                         ClientViewMessage.TravelPose arrival, Vec3d velocity, long nowMillis) {
         public Commit {
             Objects.requireNonNull(portal);
             Objects.requireNonNull(sourceWorld);
@@ -521,7 +521,7 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
     }
 
     public record Authority(String world, ApertureDescriptor geometry, ClientViewMessage.TravelPose pose,
-                            Vec3 velocity, double eyeHeight) {
+                            Vec3d velocity, double eyeHeight) {
         public Authority {
             Objects.requireNonNull(world);
             Objects.requireNonNull(geometry);

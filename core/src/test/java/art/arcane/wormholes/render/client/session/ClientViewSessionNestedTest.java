@@ -13,7 +13,7 @@ import java.util.UUID;
 import java.util.HashMap;
 import java.util.HashSet;
 import art.arcane.optics.stream.ViewStreamLimits;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 
 import org.junit.jupiter.api.Test;
 
@@ -62,7 +62,7 @@ final class ClientViewSessionNestedTest {
         Map<Integer, ApertureDescriptor> initial = Map.copyOf(harness.client.portals);
         int begins = harness.sent(ViewStreamMessageType.MESH_BEGIN);
         for (int tick = 0; tick < 60; tick++) {
-            harness.access.eye = new Vec3(11 + tick * 0.1, 67, 15);
+            harness.access.eye = new Vec3d(11 + tick * 0.1, 67, 15);
             harness.tick();
             assertEquals(initial, harness.client.portals);
             assertEquals(begins, harness.sent(ViewStreamMessageType.MESH_BEGIN));

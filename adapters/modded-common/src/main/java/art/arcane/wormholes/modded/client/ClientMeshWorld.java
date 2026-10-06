@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.client.render.PortalScene;
 import art.arcane.optics.client.ClientViewBlockTransform;
 import art.arcane.optics.plate.PlateBox;
@@ -227,7 +227,7 @@ public final class ClientMeshWorld implements BlockAndTintGetter {
         if (center == null) {
             throw new IllegalStateException("Destination biome missing at " + position);
         }
-        Vec3 destination = transform.destinationPoint(position.getX() + 0.5D, position.getY() + 0.5D, position.getZ() + 0.5D);
+        Vec3d destination = transform.destinationPoint(position.getX() + 0.5D, position.getY() + 0.5D, position.getZ() + 0.5D);
         int red = 0;
         int green = 0;
         int blue = 0;

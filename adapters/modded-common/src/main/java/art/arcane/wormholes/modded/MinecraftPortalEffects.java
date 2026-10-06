@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.config.VisualQualityProfile;
 import art.arcane.wormholes.modded.clientview.MinecraftClientViewService;
 import art.arcane.wormholes.modded.mixin.DoorDisplayDataAccess;
@@ -58,7 +59,7 @@ public final class MinecraftPortalEffects implements AutoCloseable {
         for (Map.Entry<BlockPos, BlockState> entry : originals.entrySet()) {
             if (!entry.getValue().isAir()) {
                 BlockPos position = entry.getKey();
-                blocks.add(new PortalAnimation.Block(new art.arcane.optics.math.Vec3(position.getX() + .5, position.getY() + .5, position.getZ() + .5), BlockStateParser.serialize(entry.getValue())));
+                blocks.add(new PortalAnimation.Block(new Vec3d(position.getX() + .5, position.getY() + .5, position.getZ() + .5), BlockStateParser.serialize(entry.getValue())));
             }
         }
         states.put(portal.getId(), ready(portal));
@@ -136,8 +137,8 @@ public final class MinecraftPortalEffects implements AutoCloseable {
             return;
         }
         Box bounds = portal.getGeometry().getArea();
-        art.arcane.optics.math.Vec3 center = portal.getGeometry().getApertureCenter();
-        art.arcane.optics.math.Vec3 size = new art.arcane.optics.math.Vec3(Math.abs(bounds.getXb() - bounds.getXa()), Math.abs(bounds.getYb() - bounds.getYa()), Math.abs(bounds.getZb() - bounds.getZa()));
+        Vec3d center = portal.getGeometry().getApertureCenter();
+        Vec3d size = new Vec3d(Math.abs(bounds.getXb() - bounds.getXa()), Math.abs(bounds.getYb() - bounds.getYa()), Math.abs(bounds.getZb() - bounds.getZa()));
         Active active = new Active(mode == PortalAnimation.Mode.FORMATION || !states.containsKey(portal.getId()));
         VisualQualityProfile quality = runtime.configuration().settings().getVisualQualityProfile();
         boolean particles = runtime.configuration().settings().getMain().enableParticles;
@@ -165,10 +166,10 @@ public final class MinecraftPortalEffects implements AutoCloseable {
 
     private static final class Host implements PortalAnimation.Host<DisplayHandle> {
         private final ServerLevel level;
-        private final art.arcane.optics.math.Vec3 anchor;
+        private final Vec3d anchor;
         private final MinecraftClientViewService clientViews;
 
-        private Host(ServerLevel level, art.arcane.optics.math.Vec3 anchor, MinecraftClientViewService clientViews) {
+        private Host(ServerLevel level, Vec3d anchor, MinecraftClientViewService clientViews) {
             this.level = level;
             this.anchor = anchor;
             this.clientViews = clientViews;
@@ -177,8 +178,8 @@ public final class MinecraftPortalEffects implements AutoCloseable {
         @Override
         public void particle(PortalAnimation.ParticleEmission emission) {
             ParticleOptions particle = MinecraftAnimationParticles.options(emission.type());
-            art.arcane.optics.math.Vec3 position = emission.position();
-            art.arcane.optics.math.Vec3 spread = emission.spread();
+            Vec3d position = emission.position();
+            Vec3d spread = emission.spread();
             if (!clientViews.particles(level, particle, position.x(), position.y(), position.z(), emission.count(), spread.x(), spread.y(), spread.z(),
                 emission.speed(), null)) {
                 level.sendParticles(particle, position.x(), position.y(), position.z(), emission.count(), spread.x(), spread.y(), spread.z(),

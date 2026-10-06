@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.plate.PlateBox;
 import art.arcane.optics.math.Box;
@@ -42,7 +42,7 @@ public final class MeshPlan {
         return Math.toIntExact(x * y * z);
     }
 
-    public static List<Section> visible(ApertureDescriptor geometry, Vec3 eye) {
+    public static List<Section> visible(ApertureDescriptor geometry, Vec3d eye) {
         PlateBox bounds = bounds(geometry);
         Box area = geometry.apertureArea();
         double[] eyeAt = {eye.x(), eye.y(), eye.z()};

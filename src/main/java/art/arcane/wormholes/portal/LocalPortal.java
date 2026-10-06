@@ -1,7 +1,7 @@
 package art.arcane.wormholes.portal;
 
 import art.arcane.wormholes.network.PortalSettingsTarget;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import java.util.Map;
 
 import java.io.IOException;
@@ -63,7 +63,7 @@ public class LocalPortal extends Portal implements ILocalPortal, Listener, Porta
 	}
 
     @Override
-    public Vec3 getOrigin() {
+    public Vec3d getOrigin() {
         return structure.getApertureCenter();
     }
 

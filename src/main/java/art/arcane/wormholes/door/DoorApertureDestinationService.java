@@ -9,7 +9,7 @@ import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.survival.doors.dimension.PocketWorldService;
 import art.arcane.optics.math.Face;
 import org.bukkit.World;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -78,7 +78,7 @@ final class DoorApertureDestinationService implements DoorApertureDestinations {
         }
         DoorVec3 center = plane.center();
         return Optional.of(new DoorProjectionDestination(placed.identity().itemId(), WorldIdentity.serialize(world),
-            new Vec3(center.x(), center.y(), center.z()), DoorApertureFrames.destinationFrame(adapter.plane(), plane)));
+            new Vec3d(center.x(), center.y(), center.z()), DoorApertureFrames.destinationFrame(adapter.plane(), plane)));
     }
 
     private Optional<DoorProjectionDestination> pocketEntry(DoorProjectionAdapter adapter, UUID observerId) {
@@ -122,7 +122,7 @@ final class DoorApertureDestinationService implements DoorApertureDestinations {
             return resolved;
         }
         return Optional.of(new DoorProjectionDestination(found.sourceEndpointId(), found.sourceWorldKey(),
-            new Vec3(found.x(), found.y() + DoorApertureFrames.height(adapter.plane()) * 0.5D, found.z()),
+            new Vec3d(found.x(), found.y() + DoorApertureFrames.height(adapter.plane()) * 0.5D, found.z()),
             Frame.fromNormalUp(lookDirection(found.yaw()).reverse(), Face.U)));
     }
 

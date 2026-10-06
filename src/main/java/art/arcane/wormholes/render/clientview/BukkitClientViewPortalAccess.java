@@ -15,7 +15,7 @@ import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.view.WorldChangeTracker;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.ProjectionManager;
@@ -121,9 +121,9 @@ public final class BukkitClientViewPortalAccess implements ClientViewPortalAcces
     }
 
     @Override
-    public Vec3 meshEye(ClientViewObserver observer) {
+    public Vec3d meshEye(ClientViewObserver observer) {
         Location eye = observer.eye();
-        return eye == null ? null : new Vec3(eye.getX(), eye.getY(), eye.getZ());
+        return eye == null ? null : new Vec3d(eye.getX(), eye.getY(), eye.getZ());
     }
 
     @Override
@@ -186,7 +186,7 @@ public final class BukkitClientViewPortalAccess implements ClientViewPortalAcces
         }
         observer.nestedContext(context, source, eye);
         ProjectionEnvironment.Transform transform = ClientViewEnvironmentTransform.of(source.transformFrame());
-        Vec3 destinationEye = transform.destinationPoint(eye.getX(), eye.getY(), eye.getZ());
+        Vec3d destinationEye = transform.destinationPoint(eye.getX(), eye.getY(), eye.getZ());
         observer.reflectedEye(context, new Location(source.destinationWorld(), destinationEye.x(), destinationEye.y(), destinationEye.z()));
     }
 
@@ -196,9 +196,9 @@ public final class BukkitClientViewPortalAccess implements ClientViewPortalAcces
     }
 
     @Override
-    public Vec3 nestedEye(ClientViewObserver observer, UUID context) {
+    public Vec3d nestedEye(ClientViewObserver observer, UUID context) {
         Location eye = observer.reflectedEye(context);
-        return eye == null ? null : new Vec3(eye.getX(), eye.getY(), eye.getZ());
+        return eye == null ? null : new Vec3d(eye.getX(), eye.getY(), eye.getZ());
     }
 
     private void nestedNative(ClientViewObserver observer, UUID parent, ApertureDescriptor geometry, List<UUID> out) {

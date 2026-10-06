@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Random;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.optics.claim.ProjectedBlockClaim;
@@ -246,7 +246,7 @@ final class ClientViewSweepTest {
 
     @Test
     void nineDomePlatesFromOneEyeAreRecorded() {
-        Vec3 eye = new Vec3(637.5D, 64.62D, -4686.5D);
+        Vec3d eye = new Vec3d(637.5D, 64.62D, -4686.5D);
         List<ClientSweep> sweeps = domeSweeps(eye);
         for (int warmup = 0; warmup < 60; warmup++) {
             for (ClientSweep sweep : sweeps) {
@@ -289,7 +289,7 @@ final class ClientViewSweepTest {
         assertTrue(lit >= 8, "the dome eye must see through nearly every plate, saw " + lit);
     }
 
-    private static List<ClientSweep> domeSweeps(Vec3 eye) {
+    private static List<ClientSweep> domeSweeps(Vec3d eye) {
         List<ClientSweep> sweeps = new ArrayList<ClientSweep>(9);
         sweeps.add(domeSweep(new Box(635.0D, 639.999D, 67.0D, 67.999D, -4689.0D, -4684.001D), Face.U, true, eye));
         Face[] facings = {Face.S, Face.E, Face.S, Face.W, Face.N, Face.N, Face.E, Face.W};
@@ -309,11 +309,11 @@ final class ClientViewSweepTest {
         return sweeps;
     }
 
-    private static ClientSweep domeSweep(Box area, Face facing, boolean mirror, Vec3 eye) {
+    private static ClientSweep domeSweep(Box area, Face facing, boolean mirror, Vec3d eye) {
         ApertureCells aperture = new ApertureCells();
         aperture.setArea(area);
         Frame frame = Frame.canonical(facing);
-        Vec3 origin = area.center();
+        Vec3d origin = area.center();
         boolean frontSide = ((eye.getX() - origin.getX()) * facing.x()) + ((eye.getY() - origin.getY()) * facing.y())
             + ((eye.getZ() - origin.getZ()) * facing.z()) >= 0.0D;
         ApertureDescriptor geometry = ApertureDescriptor.fromPortal(new ApertureDescriptor.Source(aperture, frame, frontSide, mirror, 0,

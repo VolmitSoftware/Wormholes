@@ -1,7 +1,7 @@
 package art.arcane.wormholes.door;
 
 import art.arcane.wormholes.door.view.DoorApertureFrames;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.math.Face;
@@ -44,7 +44,7 @@ public final class DoorPreparedCrossingTest {
     public void changedFramePlaneAndOutsideApertureAreRejected() {
         DoorwayPlane plane = new DoorwayPlane(4, 64, 7, Face.N);
         PlaneCrossing valid = crossing(plane, plane.center(), true);
-        PlaneCrossing moved = new PlaneCrossing(valid.frame(), valid.origin().add(new Vec3(0, 0, 1)), valid.point(), valid.velocity(), valid.look(), true);
+        PlaneCrossing moved = new PlaneCrossing(valid.frame(), valid.origin().add(new Vec3d(0, 0, 1)), valid.point(), valid.velocity(), valid.look(), true);
         assertTrue(DoorTransitGate.prepared(plane, moved, 0.3D, 1.8D).isEmpty());
         assertTrue(DoorTransitGate.prepared(new DoorwayPlane(4, 64, 7, Face.E), valid, 0.3D, 1.8D).isEmpty());
         DoorVec3 center = plane.center();
@@ -60,7 +60,7 @@ public final class DoorPreparedCrossingTest {
     private static PlaneCrossing crossing(DoorwayPlane plane, DoorVec3 feet, boolean front) {
         DoorVec3 center = plane.center();
         Frame frame = DoorApertureFrames.of(plane);
-        return new PlaneCrossing(frame.view(front), new Vec3(center.x(), center.y(), center.z()),
-            new Vec3(feet.x(), feet.y(), feet.z()), new Vec3(0, 0, 0), new Vec3(0, 0, 1), front);
+        return new PlaneCrossing(frame.view(front), new Vec3d(center.x(), center.y(), center.z()),
+            new Vec3d(feet.x(), feet.y(), feet.z()), new Vec3d(0, 0, 0), new Vec3d(0, 0, 1), front);
     }
 }

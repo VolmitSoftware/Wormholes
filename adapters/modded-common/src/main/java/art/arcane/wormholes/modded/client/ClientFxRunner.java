@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.wormholes.portal.AmbientSparkCadence;
@@ -194,7 +194,7 @@ public final class ClientFxRunner {
         if (count <= 0) {
             return;
         }
-        Vec3 cell = portal == null ? null : active.cell(portal.geometry());
+        Vec3d cell = portal == null ? null : active.cell(portal.geometry());
         double x = cell == null ? emitter.x() : cell.x();
         double y = cell == null ? emitter.y() : cell.y();
         double z = cell == null ? emitter.z() : cell.z();
@@ -249,7 +249,7 @@ public final class ClientFxRunner {
             this.emitter = emitter;
         }
 
-        private Vec3 cell(ApertureDescriptor geometry) {
+        private Vec3d cell(ApertureDescriptor geometry) {
             if (geometry != apertureOf) {
                 apertureOf = geometry;
                 aperture = geometry.aperture();

@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.portal.DimensionalPortalKind;
 import art.arcane.wormholes.portal.Portal;
 import art.arcane.optics.frame.Frame;
@@ -115,10 +115,10 @@ public class MinecraftEndPortalTest extends MinecraftTestBase {
     }
 
     static MinecraftPortal portal(String world, int x, int y, int z) {
-        List<Vec3> cells = new ArrayList<>(9);
+        List<Vec3d> cells = new ArrayList<>(9);
         for (int dx = -1; dx <= 1; dx++) {
             for (int dz = -1; dz <= 1; dz++) {
-                cells.add(new Vec3(x + dx, y, z + dz));
+                cells.add(new Vec3d(x + dx, y, z + dz));
             }
         }
         ApertureCells geometry = new ApertureCells();

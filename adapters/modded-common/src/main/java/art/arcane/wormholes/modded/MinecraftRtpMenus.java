@@ -2,7 +2,7 @@ package art.arcane.wormholes.modded;
 
 import art.arcane.volmlib.util.localization.MessageArgs;
 import art.arcane.volmlib.util.localization.TextKey;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.rtp.RtpBiomeMatcher;
@@ -183,7 +183,7 @@ public final class MinecraftRtpMenus implements AutoCloseable {
                 : RtpPortalEditorModel.StatusSnapshot.from(state.get().runtime(), new RtpPortalEditorModel.StatusContext(
                     level(state.get().settings().getTargetWorldKey()) != null, state.get().integrationAvailable(),
                     System.currentTimeMillis(), state.get().nextSearchAllowedAtMillis()));
-            Vec3 center = portal.getGeometry().getApertureCenter();
+            Vec3d center = portal.getGeometry().getApertureCenter();
             return new RtpPortalEditorModel.EditorSnapshot(
                 baseRevision,
                 text(WormholesMessages.PORTAL_RTP_EDITOR_TITLE, MinecraftPortalText.arguments("portal", portal.getName())),

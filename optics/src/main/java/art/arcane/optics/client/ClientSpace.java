@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.PortalCoordMap;
 import art.arcane.optics.aperture.ApertureDescriptor;
@@ -36,7 +36,7 @@ public final class ClientSpace {
         Objects.requireNonNull(mirror, "mirror");
         Frame frame = mirror.frame();
         int quarterTurns = mirror.mirrorQuarterTurns();
-        Vec3 origin = mirror.apertureArea().center();
+        Vec3d origin = mirror.apertureArea().center();
         double[] column = new double[3];
         double[] mirrorLinear = new double[9];
         for (int axis = 0; axis < 3; axis++) {

@@ -17,7 +17,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 import org.junit.jupiter.api.Test;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.portal.ToolPreviewGeometry;
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.portal.ILocalPortal;
@@ -182,10 +182,10 @@ public final class PortalToolPreviewRendererTest
 
 		private void replace(List<Vector> replacement)
 		{
-			List<Vec3> cells = new ArrayList<>(replacement.size());
+			List<Vec3d> cells = new ArrayList<>(replacement.size());
 			for(Vector position : replacement)
 			{
-				cells.add(new Vec3(position.getX(), position.getY(), position.getZ()));
+				cells.add(new Vec3d(position.getX(), position.getY(), position.getZ()));
 			}
 			geometry().setBlocks(cells);
 		}

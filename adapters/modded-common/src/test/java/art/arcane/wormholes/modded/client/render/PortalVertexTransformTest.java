@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client.render;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.DirectionMapping;
@@ -172,7 +173,7 @@ public class PortalVertexTransformTest {
     @Test
     public void fractionalTranslationAtNegativeNativeCoordinatesAlignsTerrainFluidsAndBlockEntities() {
         ProjectionEnvironment.Transform mapping = new ProjectionEnvironment.Transform(Face.D, Face.E, Face.S,
-            new art.arcane.optics.math.Vec3(100.5D, -31.25D, 200.75D));
+            new Vec3d(100.5D, -31.25D, 200.75D));
         BlockPos source = new BlockPos(-17, -33, -49);
         Vec3 sectionOrigin = new Vec3(64, -16, 144);
         PoseStack pose = new PoseStack();
@@ -207,7 +208,7 @@ public class PortalVertexTransformTest {
     }
 
     private static PortalVertexTransform transform(Face x, Face y, Face z) {
-        return new PortalVertexTransform(new ProjectionEnvironment.Transform(x, y, z, new art.arcane.optics.math.Vec3(0, 0, 0)));
+        return new PortalVertexTransform(new ProjectionEnvironment.Transform(x, y, z, new Vec3d(0, 0, 0)));
     }
 
     private static BufferBuilder builder(ByteBufferBuilder allocation) {

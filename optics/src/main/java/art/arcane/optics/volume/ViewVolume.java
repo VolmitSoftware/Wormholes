@@ -1,6 +1,6 @@
 package art.arcane.optics.volume;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 
 import java.util.List;
 
@@ -38,11 +38,11 @@ public final class ViewVolume {
         this.regionZb = region.getZb();
     }
 
-    public ViewVolume(Vec3 iris, Aperture structure, Options options) {
+    public ViewVolume(Vec3d iris, Aperture structure, Options options) {
         double axialRange = options.axialRange();
         double lateralRange = options.lateralRange();
         Box aperture = structure.getArea();
-        Vec3 apertureCenter = aperture.center();
+        Vec3d apertureCenter = aperture.center();
         Axis thinAxis = aperture.getThinAxis();
         double portalToEyeRawX = thinAxis == Axis.X || thinAxis == null
             ? iris.getX() - apertureCenter.getX()
@@ -57,7 +57,7 @@ public final class ViewVolume {
             + (portalToEyeRawY * portalToEyeRawY)
             + (portalToEyeRawZ * portalToEyeRawZ));
         if (distanceToPortal <= EPSILON) {
-            Vec3 center = structure.getApertureCenter();
+            Vec3d center = structure.getApertureCenter();
             portalToEyeRawX = iris.getX() - center.getX();
             portalToEyeRawY = iris.getY() - center.getY();
             portalToEyeRawZ = iris.getZ() - center.getZ();
@@ -71,9 +71,9 @@ public final class ViewVolume {
         double portalToEyeZ = portalToEyeRawZ * inverseDistance;
 
         double padding = options.nearPlanePadding();
-        Vec3 apex;
+        Vec3d apex;
         if (padding > 0.0001D && distanceToPortal > 0.0001D) {
-            Vec3 backOffset = new Vec3(portalToEyeX * padding, portalToEyeY * padding, portalToEyeZ * padding);
+            Vec3d backOffset = new Vec3d(portalToEyeX * padding, portalToEyeY * padding, portalToEyeZ * padding);
             apex = iris.add(backOffset);
         } else {
             apex = iris;
@@ -133,7 +133,7 @@ public final class ViewVolume {
         return EMPTY;
     }
 
-    public boolean contains(Vec3 p) {
+    public boolean contains(Vec3d p) {
         return containsPrimitive(p.getX(), p.getY(), p.getZ());
     }
 
@@ -233,7 +233,7 @@ public final class ViewVolume {
     }
 
     private static void addFrustums(List<Frustum> frustums,
-                                    Vec3 apex,
+                                    Vec3d apex,
                                     Aperture structure,
                                     Face face,
                                     Axis portalNormalAxis,

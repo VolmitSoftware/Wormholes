@@ -12,7 +12,7 @@ import java.util.Random;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.optics.aperture.Aperture;
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.math.Axis;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
@@ -36,13 +36,13 @@ final class FrustumFaceIndexTest {
                         aperturePadding = padding;
                         for (double distance : new double[]{0.0D, 1.0E-8D, 0.01D, 2.5D, 8.0D}) {
                             for (double lateral : new double[]{0.0D, 6.5D}) {
-                                Vec3 center = structure.getApertureCenter();
-                                Vec3 eye = center.add(new Vec3(direction.x() * distance,
+                                Vec3d center = structure.getApertureCenter();
+                                Vec3d eye = center.add(new Vec3d(direction.x() * distance,
                                     direction.y() * distance, direction.z() * distance));
                                 if (direction.getAxis() == Axis.X) {
-                                    eye = eye.add(new Vec3(0.0D, lateral, lateral * 0.5D));
+                                    eye = eye.add(new Vec3d(0.0D, lateral, lateral * 0.5D));
                                 } else {
-                                    eye = eye.add(new Vec3(lateral, 0.0D, direction.getAxis() == Axis.Y ? lateral * 0.5D : 0.0D));
+                                    eye = eye.add(new Vec3d(lateral, 0.0D, direction.getAxis() == Axis.Y ? lateral * 0.5D : 0.0D));
                                 }
                                 ViewVolume frustum = new ViewVolume(eye, structure, new ViewVolume.Options(64.0D, 48.0D, nearPadding, cullingRatio, aperturePadding));
                                 Frustum[] faces = (Frustum[]) facesField.get(frustum);
@@ -77,7 +77,7 @@ final class FrustumFaceIndexTest {
     void apertureEdgesAndGridBoundariesMatchOriginalPredicates() {
         for (Face direction : Face.values()) {
             IrregularStructure structure = new IrregularStructure(direction.getAxis(), -7.0D);
-            Vec3 eye = structure.getApertureCenter().add(new Vec3(direction.x() * 4.0D,
+            Vec3d eye = structure.getApertureCenter().add(new Vec3d(direction.x() * 4.0D,
                 direction.y() * 4.0D, direction.z() * 4.0D));
             for (double padding : new double[]{0.0D, 1.0E-7D, 0.35D, 1.0D}) {
                 ArrayList<Frustum> faces = new ArrayList<Frustum>();
@@ -112,7 +112,7 @@ final class FrustumFaceIndexTest {
     void sparseAndOversizedAperturesUseOriginalPredicates() {
         Frustum[] sparse = new Frustum[4];
         Frustum[] oversized = new Frustum[4];
-        Vec3 eye = new Vec3( 0.5D, 5.0D, 0.5D);
+        Vec3d eye = new Vec3d( 0.5D, 5.0D, 0.5D);
         for (int index = 0; index < sparse.length; index++) {
             sparse[index] = new Frustum(eye,
                 new Box(index * 100_000.0D, index * 100_000.0D + 1.0D, 0.0D, 0.0D, 0.0D, 1.0D),
@@ -130,7 +130,7 @@ final class FrustumFaceIndexTest {
     void distinctApexAndPlaneGroupsKeepTheirOwnRayProjection() {
         ArrayList<Frustum> faces = new ArrayList<Frustum>();
         for (int plane = 0; plane < 3; plane++) {
-            Vec3 eye = new Vec3( plane * 3.0D, 5.0D + plane, 0.5D);
+            Vec3d eye = new Vec3d( plane * 3.0D, 5.0D + plane, 0.5D);
             for (int index = 0; index < 4; index++) {
                 faces.add(new Frustum(eye,
                     new Box(index, index + 1.0D, plane, plane, 0.0D, 1.0D),
@@ -153,7 +153,7 @@ final class FrustumFaceIndexTest {
     void fittingDoesNotAllocateTheApertureIndex() throws ReflectiveOperationException {
         Field indexField = ViewVolume.class.getDeclaredField("faceIndex");
         indexField.setAccessible(true);
-        ViewVolume frustum = new ViewVolume(new Vec3( 0.5D, 5.0D, 0.5D), new IrregularStructure(Axis.Y, 0.0D), new ViewVolume.Options(64.0D, 48.0D, nearPadding, cullingRatio, aperturePadding));
+        ViewVolume frustum = new ViewVolume(new Vec3d( 0.5D, 5.0D, 0.5D), new IrregularStructure(Axis.Y, 0.0D), new ViewVolume.Options(64.0D, 48.0D, nearPadding, cullingRatio, aperturePadding));
 
         frustum.getRegion();
         frustum.getFaceCount();
@@ -228,8 +228,8 @@ final class FrustumFaceIndexTest {
         }
 
         @Override
-        public Vec3 getApertureCenter() {
-            return new Vec3( (area.getXa() + area.getXb()) * 0.5D,
+        public Vec3d getApertureCenter() {
+            return new Vec3d( (area.getXa() + area.getXb()) * 0.5D,
                 (area.getYa() + area.getYb()) * 0.5D, (area.getZa() + area.getZb()) * 0.5D);
         }
 

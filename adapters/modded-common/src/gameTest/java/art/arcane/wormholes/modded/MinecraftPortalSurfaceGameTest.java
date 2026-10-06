@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.AmbientSparkCadence;
 import art.arcane.wormholes.portal.PortalType;
@@ -90,7 +91,7 @@ final class MinecraftPortalSurfaceGameTest {
             helper.assertTrue(sparks.size() == 1 && sparks.get(0).particle() == ParticleTypes.MYCELIUM, "Spark burst was not one particle packet");
             helper.assertTrue(sparks.get(0).count() == (portal.isOpen() ? 4 : 1) && sparks.get(0).xDist() == (float) AmbientSparkCadence.CELL_SPREAD,
                 "Spark burst lost its count or cell spread");
-            helper.assertTrue(portal.getGeometry().contains(new art.arcane.optics.math.Vec3(sparks.get(0).x(), sparks.get(0).y(), sparks.get(0).z())),
+            helper.assertTrue(portal.getGeometry().contains(new Vec3d(sparks.get(0).x(), sparks.get(0).y(), sparks.get(0).z())),
                 "Spark burst left the aperture cells");
             surfaces.update(List.of(portal), access, 11);
             helper.assertTrue(particles(channel).isEmpty(), "Sparks were sent between five-tick steps");

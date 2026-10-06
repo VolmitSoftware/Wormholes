@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded.client.render;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import net.minecraft.client.renderer.fog.FogData;
 import net.minecraft.client.renderer.state.LightmapRenderState;
@@ -23,7 +23,7 @@ final class PortalEnvironment {
         return from + (float) Math.atan2(Math.sin(difference), Math.cos(difference)) * blend;
     }
 
-    static SkyRenderState sky(ProjectionEnvironment environment, Vec3 eye) {
+    static SkyRenderState sky(ProjectionEnvironment environment, Vec3d eye) {
         ProjectionEnvironment.Sky source = environment.sky();
         SkyRenderState state = new SkyRenderState();
         state.skybox = switch (source.skybox()) {

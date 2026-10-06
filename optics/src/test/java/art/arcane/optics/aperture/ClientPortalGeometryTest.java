@@ -12,7 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.claim.ProjectedBlockClaim;
 import art.arcane.optics.math.Box;
@@ -43,13 +43,13 @@ final class ClientPortalGeometryTest {
 
     @Test
     void irregularAperturesKeepTheirHoles() {
-        List<Vec3> cells = new ArrayList<Vec3>();
+        List<Vec3d> cells = new ArrayList<Vec3d>();
         for (int y = 64; y <= 67; y++) {
             for (int z = -2; z <= 2; z++) {
                 if ((y == 67 && Math.abs(z) == 2) || (y == 65 && z == 0)) {
                     continue;
                 }
-                cells.add(new Vec3(10, y, z));
+                cells.add(new Vec3d(10, y, z));
             }
         }
         ApertureCells aperture = new ApertureCells();
