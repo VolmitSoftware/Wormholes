@@ -2,7 +2,6 @@ package art.arcane.optics.entity;
 
 import art.arcane.optics.fidelity.FidelityOptions;
 import java.util.Objects;
-import java.util.UUID;
 import java.util.List;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.view.BlockView;
@@ -15,13 +14,16 @@ import art.arcane.optics.volume.ViewVolume;
 import art.arcane.optics.frame.OpticTransform;
 public final class SnapshotProjector<O, W, P extends Endpoint, R, T, V> {
     private final SpoofRegistry<O, R> registry;
-    private final Host<O, R, T, V> host;
+    private final EntityFeed<O, W, V, ?> feed;
+    private final EntityOutput<O, R, T, V, ?> output;
     private final EntityProjection projection;
     private final Supplier<FidelityOptions> fidelity;
 
-    public SnapshotProjector(SpoofRegistry<O, R> registry, Host<O, R, T, V> host, Supplier<FidelityOptions> fidelity) {
+    public SnapshotProjector(SpoofRegistry<O, R> registry, EntityFeed<O, W, V, ?> feed, EntityOutput<O, R, T, V, ?> output,
+                             Supplier<FidelityOptions> fidelity) {
         this.registry = registry;
-        this.host = host;
+        this.feed = feed;
+        this.output = output;
         this.projection = new EntityProjection();
         this.fidelity = fidelity;
     }
@@ -33,67 +35,67 @@ public final class SnapshotProjector<O, W, P extends Endpoint, R, T, V> {
 
     public boolean projectSnapshotVisual(O observer, OpticTransform transform, ViewVolume frustum, V entityView, EntitySnapshot visual,
                                          boolean upsideDown, EntityPath<W, P> projectionPath) {
-        T packetType = host.packetType(visual.typeKey());
+        T packetType = output.type(visual.typeKey());
         if (packetType == null) {
             return false;
         }
 
-        boolean itemFrame = host.isItemFrame(packetType);
-        boolean hanging = host.isHanging(packetType);
+        boolean itemFrame = output.isItemFrame(packetType);
+        boolean hanging = output.isHanging(packetType);
         boolean projected = projectionPath == null ? projection.project(visual, transform, frustum, itemFrame, hanging)
             : projection.project(visual, projectionPath, itemFrame, hanging);
         if (!projected) {
             return false;
         }
-        R position = host.position(projection.x(), projection.y(), projection.z());
-        R velocity = host.position(projection.velocityX(), projection.velocityY(), projection.velocityZ());
+        R position = output.position(projection.x(), projection.y(), projection.z());
+        R velocity = output.position(projection.velocityX(), projection.velocityY(), projection.velocityZ());
         float yaw = projection.yaw();
         float pitch = projection.pitch();
         int metadataTransform = projection.metadataTransform();
 
         SpoofedEntity state = registry.get(visual.id());
         if (state != null && (state.upsideDown != upsideDown
-            || visual.isPlayer() && !Objects.equals(state.playerProfile, host.profile(entityView, visual.id())))) {
+            || visual.isPlayer() && !Objects.equals(state.playerProfile, feed.profile(entityView, visual.id())))) {
             registry.destroySingle(observer, visual.id(), state);
             state = null;
         }
         if (state == null) {
             state = SpoofedEntity.create(visual.isPlayer(), upsideDown,
-                visual.isPlayer() || host.isLiving(packetType));
+                visual.isPlayer() || output.isLiving(packetType));
             registry.track(visual.id(), state);
             if (visual.isPlayer()) {
-                host.playerInfo(observer, state, host.profile(entityView, visual.id()));
+                output.playerInfo(observer, state, feed.profile(entityView, visual.id()));
             }
-            host.spawn(observer, state, new Spawn<>(packetType, position, velocity, yaw, pitch,
+            output.spawn(observer, state, new Spawn<>(packetType, position, velocity, yaw, pitch,
                 ItemFrameTransform.spawnData(metadataTransform)));
-            host.spawnLabel(observer, state, new Label<>(position, visual.height(), null));
+            output.label(observer, state, new Label<>(position, visual.height(), null), true);
             state.updateRotation(yaw, pitch);
             state.updateMetadataTransform(metadataTransform);
-            state.rememberPosition(host.x(position), host.y(position), host.z(position));
+            state.rememberPosition(output.x(position), output.y(position), output.z(position));
             registry.syncHeadLook(observer, state, yaw);
-            state.remoteStateVersion = host.stateVersion(entityView, visual.id());
-            host.entityState(observer, state, new State<>(entityView, visual, metadataTransform, true));
+            state.remoteStateVersion = feed.stateVersion(entityView, visual.id());
+            output.entityState(observer, state, new State<>(entityView, visual, metadataTransform, true));
             state.resetMapCooldown();
             return true;
         }
 
-        SpoofedEntity.Move move = state.updatePosition(host.x(position), host.y(position), host.z(position));
+        SpoofedEntity.Move move = state.updatePosition(output.x(position), output.y(position), output.z(position));
         boolean rotationChanged = state.updateRotation(yaw, pitch);
         boolean metadataTransformChanged = state.updateMetadataTransform(metadataTransform);
         registry.syncMotion(observer, state, move, rotationChanged, position, yaw, pitch, visual.onGround());
-        host.updateLabel(observer, state, new Label<>(position, visual.height(), host.profile(entityView, visual.id())));
+        output.label(observer, state, new Label<>(position, visual.height(), feed.profile(entityView, visual.id())), false);
         if (rotationChanged) {
             registry.syncHeadLook(observer, state, yaw);
         }
-        if (state.updateVelocity(host.x(velocity), host.y(velocity), host.z(velocity),
+        if (state.updateVelocity(output.x(velocity), output.y(velocity), output.z(velocity),
             fidelity.get().entityVelocityEpsilon())) {
-            host.velocity(observer, state.fakeId, velocity);
+            output.velocity(observer, state.fakeId, velocity);
         }
-        int stateVersion = host.stateVersion(entityView, visual.id());
-        boolean mapRefreshDue = itemFrame && host.hasMap(entityView, visual.id()) && state.shouldRefreshMap();
+        int stateVersion = feed.stateVersion(entityView, visual.id());
+        boolean mapRefreshDue = itemFrame && feed.hasMap(entityView, visual.id()) && state.shouldRefreshMap();
         if (stateVersion != state.remoteStateVersion || metadataTransformChanged || mapRefreshDue) {
             state.remoteStateVersion = stateVersion;
-            host.entityState(observer, state, new State<>(entityView, visual, metadataTransform, false));
+            output.entityState(observer, state, new State<>(entityView, visual, metadataTransform, false));
             state.resetMapCooldown();
         }
         return true;
@@ -105,12 +107,12 @@ public final class SnapshotProjector<O, W, P extends Endpoint, R, T, V> {
         boolean upsideDown = path == null ? pass.transform().flipsWorldUp() : path.transform().flipsWorldUp();
         registry.clearVisible();
         int count = 0;
-        List<EntitySnapshot> visuals = host.entities(pass.view(), new EntityRange(origin.getX(), origin.getY(), origin.getZ(), pass.range()));
+        List<EntitySnapshot> visuals = feed.entities(pass.view(), new EntityRange(origin.getX(), origin.getY(), origin.getZ(), pass.range()));
         for (EntitySnapshot visual : visuals) {
             if (count >= pass.limit()) {
                 break;
             }
-            if (!host.visible(observer, pass.view(), visual.id())) {
+            if (!feed.visible(observer, pass.view(), visual.id())) {
                 continue;
             }
             if (fullyHidden(pass.occlusion(), visual, path)) {
@@ -143,28 +145,6 @@ public final class SnapshotProjector<O, W, P extends Endpoint, R, T, V> {
     }
 
     public record EntityRange(double x, double y, double z, double range) {
-    }
-
-    public interface Host<O, R, T, V> {
-        T packetType(String key);
-        List<EntitySnapshot> entities(V view, EntityRange range);
-        boolean visible(O observer, V view, UUID entityId);
-        boolean isItemFrame(T type);
-        boolean isHanging(T type);
-        boolean isLiving(T type);
-        R position(double x, double y, double z);
-        double x(R position);
-        double y(R position);
-        double z(R position);
-        EntityProfile profile(V view, UUID entityId);
-        int stateVersion(V view, UUID entityId);
-        boolean hasMap(V view, UUID entityId);
-        void playerInfo(O observer, SpoofedEntity state, EntityProfile profile);
-        void spawn(O observer, SpoofedEntity state, Spawn<R, T> spawn);
-        void spawnLabel(O observer, SpoofedEntity state, Label<R> label);
-        void updateLabel(O observer, SpoofedEntity state, Label<R> label);
-        void entityState(O observer, SpoofedEntity state, State<V> update);
-        void velocity(O observer, int entityId, R velocity);
     }
 
     public record Spawn<R, T>(T type, R position, R velocity, float yaw, float pitch, int data) {

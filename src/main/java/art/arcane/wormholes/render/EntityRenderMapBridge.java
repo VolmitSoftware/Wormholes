@@ -2,10 +2,8 @@ package art.arcane.wormholes.render;
 
 import art.arcane.wormholes.network.view.BukkitProjectedMapData;
 import java.util.Optional;
-import java.util.UUID;
 import art.arcane.optics.entity.ProjectedMaps;
 import art.arcane.optics.entity.ProjectedMaps.Projection;
-import java.util.logging.Level;
 
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.ItemFrame;
@@ -15,29 +13,19 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.MapMeta;
 import org.bukkit.map.MapView;
 
-import art.arcane.wormholes.Wormholes;
 import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.optics.entity.MapSnapshot;
 import art.arcane.wormholes.render.view.ProjectionEntityView;
 import art.arcane.wormholes.service.WormholesTelemetry;
 import art.arcane.optics.entity.ItemFrameTransform;
 import art.arcane.optics.entity.SpoofedEntity;
+import art.arcane.optics.entity.EntityOutput;
 
 final class EntityRenderMapBridge {
     private final ProjectedMaps<Player> projected;
 
-    EntityRenderMapBridge(EntityRenderPacketChannel channel) {
-        this.projected = new ProjectedMaps<>(new ProjectedMaps.Host<>() {
-            @Override
-            public void send(Player observer, MapSnapshot map, int virtualMapId) {
-                channel.send(observer, BukkitProjectedMapData.toPacket(map, virtualMapId));
-            }
-
-            @Override
-            public void invalid(UUID sourceId, String reason, RuntimeException error) {
-                reportInvalidPayload(sourceId, reason, error);
-            }
-        });
+    EntityRenderMapBridge(EntityOutput<Player, ?, ?, ?, ?> output) {
+        this.projected = new ProjectedMaps<>(output);
     }
 
     Projection projectLocal(Player observer,
@@ -108,20 +96,4 @@ final class EntityRenderMapBridge {
         WormholesTelemetry.countPacket();
         observer.sendMap(mapView);
     }
-
-    private static void reportInvalidPayload(UUID sourceId,
-                                             String reason,
-                                             RuntimeException error) {
-        Wormholes plugin = Wormholes.instance;
-        if (plugin == null) {
-            return;
-        }
-        String message = "[ProjectedEntityRenderer] rejected projected map data for " + sourceId + ": " + reason;
-        if (error == null) {
-            plugin.getLogger().warning(message);
-            return;
-        }
-        plugin.getLogger().log(Level.WARNING, message, error);
-    }
-
 }

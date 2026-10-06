@@ -28,6 +28,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import art.arcane.optics.entity.PlayerNames;
 import art.arcane.optics.entity.SpoofedEntity;
+import art.arcane.optics.entity.EntityOutput;
 
 final class EntityRenderPlayerIdentity {
     private static final long PROFILE_REFRESH_NANOS = 500_000_000L;
@@ -37,9 +38,9 @@ final class EntityRenderPlayerIdentity {
 
     private boolean labelsEnabled = true;
 
-    EntityRenderPlayerIdentity(EntityRenderPacketChannel channel) {
+    EntityRenderPlayerIdentity(EntityRenderPacketChannel channel, EntityOutput<Player, ?, ?, ?, ?> output) {
         this.channel = channel;
-        this.names = new PlayerNames<>(new BukkitPlayerNameTeams(channel));
+        this.names = new PlayerNames<>(output);
     }
 
     void sendPlayerInfo(Player observer, Player player, SpoofedEntity state, boolean upsideDown) {

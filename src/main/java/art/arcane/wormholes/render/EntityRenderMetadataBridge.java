@@ -12,7 +12,11 @@ import org.bukkit.entity.Player;
 
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityDataTypes;
+import com.github.retrooper.packetevents.protocol.entity.data.EntityDataType;
 import com.github.retrooper.packetevents.protocol.player.Equipment;
+import com.github.retrooper.packetevents.protocol.component.ComponentTypes;
+import com.github.retrooper.packetevents.protocol.item.ItemStack;
+import com.github.retrooper.packetevents.protocol.world.BlockFace;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityEquipment;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityMetadata;
 import io.github.retrooper.packetevents.util.SpigotConversionUtil;
@@ -27,18 +31,24 @@ import art.arcane.optics.entity.PlayerNames;
 import art.arcane.optics.entity.ProjectedMaps;
 import art.arcane.optics.entity.ProjectedMetadata;
 import art.arcane.optics.entity.SpoofedEntity;
+import art.arcane.optics.entity.EntityOutput;
+import art.arcane.optics.entity.ItemFrameMetadata;
+import art.arcane.optics.entity.MetadataAccess;
+import art.arcane.optics.math.Face;
 
 final class EntityRenderMetadataBridge {
-    private static final ProjectedMetadata<EntityData<?>> METADATA = new ProjectedMetadata<>(new MetadataAccess());
     static final long METADATA_BRIDGE_RETRY_MILLIS = 60_000L;
+    private static final MetadataAccess<EntityData<?>> ACCESS = new Access();
+    private static final ProjectedMetadata<EntityData<?>> ENTITIES = new ProjectedMetadata<>(ACCESS);
+    static final ItemFrameMetadata<EntityData<?>> FRAMES = new ItemFrameMetadata<>(ACCESS);
 
     private final EntityRenderPacketChannel channel;
     private final EntityRenderMapBridge mapBridge;
     private long metadataBridgeRetryAtMillis;
 
-    EntityRenderMetadataBridge(EntityRenderPacketChannel channel) {
+    EntityRenderMetadataBridge(EntityRenderPacketChannel channel, EntityOutput<Player, ?, ?, ?, ?> output) {
         this.channel = channel;
-        this.mapBridge = new EntityRenderMapBridge(channel);
+        this.mapBridge = new EntityRenderMapBridge(output);
         this.metadataBridgeRetryAtMillis = 0L;
     }
 
@@ -63,10 +73,10 @@ final class EntityRenderMetadataBridge {
                                boolean force) {
         List<EntityData<?>> metadata = remoteView.getMetadata(visual.id());
         if (metadata != null && !metadata.isEmpty()) {
-            Integer sourceMapId = BukkitItemFrameMetadata.TRANSFORM.mapId(metadata);
+            Integer sourceMapId = FRAMES.mapId(metadata);
             ProjectedMaps.Projection mapProjection = mapBridge.projectVisual(
                 observer, remoteView, visual, state, metadataTransform, sourceMapId, force);
-            metadata = BukkitItemFrameMetadata.TRANSFORM.transformMetadata(
+            metadata = FRAMES.transformMetadata(
                 metadata, metadataTransform, mapProjection.mapId(), mapProjection.stripMapId());
             List<EntityData<?>> patched = state.upsideDown ? withUpsideDownMetadataRemote(visual.isPlayer(), metadata) : metadata;
             String signature = metadataSignature(patched);
@@ -138,10 +148,10 @@ final class EntityRenderMetadataBridge {
         if (!bridgeAvailable) {
             return;
         }
-        Integer sourceMapId = BukkitItemFrameMetadata.TRANSFORM.mapId(snapshot.metadata);
+        Integer sourceMapId = FRAMES.mapId(snapshot.metadata);
         ProjectedMaps.Projection mapProjection = mapBridge.projectLocal(
             observer, entity, state, metadataTransform, sourceMapId, force);
-        List<EntityData<?>> metadata = BukkitItemFrameMetadata.TRANSFORM.transformMetadata(
+        List<EntityData<?>> metadata = FRAMES.transformMetadata(
             snapshot.metadata, metadataTransform, mapProjection.mapId(), mapProjection.stripMapId());
         boolean metadataUnchanged = metadataTransform == ItemFrameTransform.NONE
             && mapProjection.mapId() == null
@@ -179,11 +189,11 @@ final class EntityRenderMetadataBridge {
         if (!(entity instanceof LivingEntity)) {
             return metadata;
         }
-        return METADATA.upsideDownEntity(metadata, PlayerNames.isFlipName(entity.getCustomName()));
+        return ENTITIES.upsideDownEntity(metadata, PlayerNames.isFlipName(entity.getCustomName()));
     }
 
     private static List<EntityData<?>> withUpsideDownMetadataRemote(boolean isPlayer, List<EntityData<?>> metadata) {
-        return isPlayer ? withUpsideDownPlayerMetadata(metadata) : METADATA.upsideDownEntity(metadata, false);
+        return isPlayer ? withUpsideDownPlayerMetadata(metadata) : ENTITIES.upsideDownEntity(metadata, false);
     }
 
     static List<EntityData<?>> upsideDown(boolean player, List<EntityData<?>> metadata) {
@@ -191,11 +201,11 @@ final class EntityRenderMetadataBridge {
     }
 
     static List<EntityData<?>> withUpsideDownPlayerMetadata(List<EntityData<?>> metadata) {
-        return METADATA.upsideDownPlayer(metadata);
+        return ENTITIES.upsideDownPlayer(metadata);
     }
 
     private static String metadataSignature(List<EntityData<?>> metadata) {
-        return METADATA.signature(metadata);
+        return ENTITIES.signature(metadata);
     }
 
     private static String equipmentSignature(List<Equipment> equipment) {
@@ -205,11 +215,55 @@ final class EntityRenderMetadataBridge {
         }
         return builder.toString();
     }
-    private static final class MetadataAccess implements ProjectedMetadata.Access<EntityData<?>> {
+    private static BlockFace blockFace(Face direction) {
+        return switch (direction) {
+            case D -> BlockFace.DOWN;
+            case U -> BlockFace.UP;
+            case N -> BlockFace.NORTH;
+            case S -> BlockFace.SOUTH;
+            case W -> BlockFace.WEST;
+            case E -> BlockFace.EAST;
+        };
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> EntityData<T> replaceValue(EntityData<?> source, T value) {
+        EntityDataType<T> type = (EntityDataType<T>) source.getType();
+        return new EntityData<T>(source.getIndex(), type, value);
+    }
+
+    private static final class Access implements MetadataAccess<EntityData<?>> {
+        @Override
         public int index(EntityData<?> value) { return value.getIndex(); }
+        @Override
         public Object value(EntityData<?> value) { return value.getValue(); }
+        @Override
+        public EntityData<?> replace(EntityData<?> value, Object replacement) { return replaceValue(value, replacement); }
+        @Override
         public EntityData<?> skinParts(int index, byte parts) { return new EntityData<>(index, EntityDataTypes.BYTE, parts); }
-        public EntityData<?> customName(int index, String name) { return new EntityData<>(index, EntityDataTypes.OPTIONAL_ADV_COMPONENT, Optional.of(Component.text(name))); }
+        @Override
+        public EntityData<?> customName(int index, String name) {
+            return new EntityData<>(index, EntityDataTypes.OPTIONAL_ADV_COMPONENT, Optional.of(Component.text(name)));
+        }
+        @Override
         public EntityData<?> nameVisible(int index, boolean visible) { return new EntityData<>(index, EntityDataTypes.BOOLEAN, visible); }
+        @Override
+        public boolean isDirection(Object value) { return value instanceof BlockFace; }
+        @Override
+        public boolean isItem(Object value) { return value instanceof ItemStack; }
+        @Override
+        public Object direction(Face direction) { return blockFace(direction); }
+        @Override
+        public Integer mapId(Object item) { return ((ItemStack) item).getComponent(ComponentTypes.MAP_ID).orElse(null); }
+        @Override
+        public Object withMapId(Object item, Integer id) {
+            ItemStack copy = ((ItemStack) item).copy();
+            if (id == null) {
+                copy.unsetComponent(ComponentTypes.MAP_ID);
+            } else {
+                copy.setComponent(ComponentTypes.MAP_ID, id);
+            }
+            return copy;
+        }
     }
 }

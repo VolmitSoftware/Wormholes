@@ -2,6 +2,7 @@ package art.arcane.wormholes.modded;
 
 import art.arcane.optics.entity.ProjectedMetadata;
 import art.arcane.optics.entity.ItemFrameMetadata;
+import art.arcane.optics.entity.MetadataAccess;
 import art.arcane.optics.math.Face;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
@@ -13,8 +14,7 @@ import net.minecraft.world.level.saveddata.maps.MapId;
 
 import java.util.Optional;
 
-public final class MinecraftEntityMetadata implements ItemFrameMetadata.Access<SynchedEntityData.DataValue<?>>,
-    ProjectedMetadata.Access<SynchedEntityData.DataValue<?>> {
+public final class MinecraftEntityMetadata implements MetadataAccess<SynchedEntityData.DataValue<?>> {
     public static final MinecraftEntityMetadata ACCESS = new MinecraftEntityMetadata();
     public static final ItemFrameMetadata<SynchedEntityData.DataValue<?>> FRAMES = new ItemFrameMetadata<>(ACCESS);
     public static final ProjectedMetadata<SynchedEntityData.DataValue<?>> ENTITIES = new ProjectedMetadata<>(ACCESS);

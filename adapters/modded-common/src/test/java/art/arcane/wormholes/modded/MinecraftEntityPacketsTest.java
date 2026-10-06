@@ -74,14 +74,14 @@ public class MinecraftEntityPacketsTest extends MinecraftTestBase {
     public void mapAndPlayerMetadataPreserveSharedProjectionSemantics() {
         byte[] pixels = new byte[MapSnapshot.PIXEL_COUNT];
         pixels[0] = 24;
-        ClientboundMapItemDataPacket packet = MinecraftEntityVisualHost.mapPacket(new MapSnapshot(17, (byte) 2, true, true, pixels), -1_900_000_001);
+        ClientboundMapItemDataPacket packet = MinecraftEntityPackets.mapPacket(new MapSnapshot(17, (byte) 2, true, true, pixels), -1_900_000_001);
         assertEquals(-1_900_000_001, packet.mapId().id());
         assertEquals((byte) 2, packet.scale());
         assertTrue(packet.locked());
         List<SynchedEntityData.DataValue<?>> metadata = MinecraftEntityMetadata.ENTITIES.upsideDownPlayer(
             List.of(new SynchedEntityData.DataValue<>(16, EntityDataSerializers.BYTE, (byte) 0x20)));
         assertEquals((byte) 0x21, metadata.getFirst().value());
-        List<SynchedEntityData.DataValue<?>> label = MinecraftEntityVisualHost.labelMetadata("PortalTester");
+        List<SynchedEntityData.DataValue<?>> label = MinecraftEntityPackets.labelMetadata("PortalTester");
         assertEquals(3, label.getFirst().value());
         assertEquals(10, label.getFirst().id());
     }

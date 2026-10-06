@@ -7,7 +7,6 @@ import art.arcane.optics.fidelity.AcousticsBridge;
 import art.arcane.optics.fidelity.AcousticsProfile;
 import art.arcane.wormholes.network.WireMessage;
 import java.util.Collection;
-import net.minecraft.world.phys.AABB;
 
 import art.arcane.optics.aperture.ObserverGeometry;
 import art.arcane.wormholes.config.ProjectionGazeOptions;
@@ -80,7 +79,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
     private final MinecraftProjectorPortalAccess portals;
     private final MinecraftProjectionPackets packets;
     private final LocalOcclusionArbiter<ServerPlayer, Entity> entityVisibility;
-    private final CandidateCache<ServerLevel, Entity> localEntityCandidates = new CandidateCache<>(MinecraftProjectionService::queryLocalEntities);
+    private final CandidateCache<ServerLevel, Entity> localEntityCandidates = new CandidateCache<>(MinecraftEntityVisualHost.FEED);
     private final Map<SceneKey, Scene> entityScenes = new HashMap<>();
     private final WorldChangeTracker changes = new WorldChangeTracker();
     private final MinecraftPlateSnapshotCache plateSnapshots = new MinecraftPlateSnapshotCache(changes, MinecraftPlateSnapshotCache.VIEW_LIMITS);
@@ -103,18 +102,13 @@ public final class MinecraftProjectionService implements AutoCloseable {
         this.runtime = runtime;
         this.portals = new MinecraftProjectorPortalAccess(runtime);
         this.packets = new MinecraftProjectionPackets(runtime);
-        this.entityVisibility = new LocalOcclusionArbiter<>(new MinecraftEntityVisibility(runtime));
+        this.entityVisibility = new LocalOcclusionArbiter<>(MinecraftEntityVisualHost.FEED, new MinecraftEntityPackets(runtime));
     }
 
     public Collection<Entity> localEntities(ServerLevel world, MinecraftPortal portal, double range) {
         return localEntityCandidates.nearby(new CandidateCache.Query<>(portal.getId(), world,
             portal.getGeometry().getApertureCenter(), range, runtime.configuration().settings().getRender().entityCandidateCacheTicks),
             System.currentTimeMillis());
-    }
-
-    private static Collection<Entity> queryLocalEntities(ServerLevel world, Vec3d center, int range) {
-        return world.getEntities((Entity) null, new AABB(center.x() - range, center.y() - range, center.z() - range,
-            center.x() + range, center.y() + range, center.z() + range));
     }
 
     public void sound(ServerLevel level, Packet<?> packet) {

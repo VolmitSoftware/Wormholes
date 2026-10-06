@@ -32,9 +32,9 @@ final class ProjectedEntityAnimationTest {
         try {
             Player observer = ProjectedEntityPacketRecorder.player(true);
             EntityRenderPacketChannel channel = new EntityRenderPacketChannel();
-            EntityRenderPlayerIdentity identity = new EntityRenderPlayerIdentity(channel);
-            SpoofRegistry<Player, Vector3d> registry = new SpoofRegistry<>(new BukkitEntityRegistryHost(channel, identity));
-            ProjectedEntityRenderer renderer = new ProjectedEntityRenderer(channel, identity, registry);
+            BukkitEntityRegistryHost output = new BukkitEntityRegistryHost(channel, BukkitEntityRegistryHost.PLUGIN_VISIBILITY);
+            SpoofRegistry<Player, Vector3d> registry = new SpoofRegistry<>(output);
+            ProjectedEntityRenderer renderer = new ProjectedEntityRenderer(output, registry);
             for (boolean player : new boolean[] {true, false}) {
                 UUID sourceId = player ? observer.getUniqueId() : UUID.randomUUID();
                 SpoofedEntity entity = SpoofedEntity.create(player, false, true);
@@ -88,9 +88,9 @@ final class ProjectedEntityAnimationTest {
         try {
             Player observer = ProjectedEntityPacketRecorder.player(true);
             EntityRenderPacketChannel channel = new EntityRenderPacketChannel();
-            EntityRenderPlayerIdentity identity = new EntityRenderPlayerIdentity(channel);
-            SpoofRegistry<Player, Vector3d> registry = new SpoofRegistry<>(new BukkitEntityRegistryHost(channel, identity));
-            ProjectedEntityRenderer renderer = new ProjectedEntityRenderer(channel, identity, registry);
+            BukkitEntityRegistryHost output = new BukkitEntityRegistryHost(channel, BukkitEntityRegistryHost.PLUGIN_VISIBILITY);
+            SpoofRegistry<Player, Vector3d> registry = new SpoofRegistry<>(output);
+            ProjectedEntityRenderer renderer = new ProjectedEntityRenderer(output, registry);
             UUID sourceId = UUID.randomUUID();
             registry.track(sourceId, SpoofedEntity.create(false, false, false));
 

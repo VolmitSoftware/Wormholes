@@ -33,7 +33,7 @@ public final class ProjectedItemFrameMetadataTest {
             new EntityData<Integer>(10, null, Integer.valueOf(1)),
             retained);
 
-        List<EntityData<?>> projected = BukkitItemFrameMetadata.TRANSFORM.transformMetadata(source, transform, null, false);
+        List<EntityData<?>> projected = EntityRenderMetadataBridge.FRAMES.transformMetadata(source, transform, null, false);
 
         assertEquals(BlockFace.UP, valueAt(projected, 8));
         assertEquals(Integer.valueOf(5), valueAt(projected, 10));

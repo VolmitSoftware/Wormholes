@@ -1,6 +1,5 @@
 package art.arcane.wormholes;
 
-import art.arcane.wormholes.render.BukkitEntityVisibility;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -14,7 +13,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.portal.ILocalPortal;
-import art.arcane.optics.occlusion.LocalOcclusionArbiter;
+import art.arcane.wormholes.render.BukkitEntityRegistryHost;
 import art.arcane.optics.volume.GazeScheduler;
 
 final class ProjectionInterestSetTest {
@@ -88,7 +87,7 @@ final class ProjectionInterestSetTest {
     }
 
     private static ProjectionInterestSet newSet() {
-        return new ProjectionInterestSet(null, new LocalOcclusionArbiter<>(BukkitEntityVisibility.create()), null, null, () -> true);
+        return new ProjectionInterestSet(null, BukkitEntityRegistryHost.occlusion(BukkitEntityRegistryHost.PLUGIN_VISIBILITY), null, null, () -> true);
     }
 
     private static GazeScheduler.Eye eye(long tick) {

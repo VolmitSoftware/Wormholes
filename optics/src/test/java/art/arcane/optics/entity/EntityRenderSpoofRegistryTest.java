@@ -3,7 +3,6 @@ package art.arcane.optics.entity;
 import art.arcane.optics.math.Vec3d;
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
@@ -15,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 public final class EntityRenderSpoofRegistryTest {
     @Test
     public void animationTargetsExcludeUnspawnedAndNonLivingEntities() {
-        Recorder host = new Recorder();
+        RecordingEntityOutput host = new RecordingEntityOutput();
         SpoofRegistry<Object, Vec3d> registry = new SpoofRegistry<>(host);
         UUID source = UUID.randomUUID();
         assertEquals(-1, registry.livingId(source));
@@ -30,7 +29,7 @@ public final class EntityRenderSpoofRegistryTest {
 
     @Test
     public void declaredPassengersWinAndRemovedRelationshipsAreSentOnce() {
-        Recorder host = new Recorder();
+        RecordingEntityOutput host = new RecordingEntityOutput();
         SpoofRegistry<Object, Vec3d> registry = new SpoofRegistry<>(host);
         UUID vehicle = UUID.randomUUID();
         UUID declared = UUID.randomUUID();
@@ -61,7 +60,7 @@ public final class EntityRenderSpoofRegistryTest {
 
     @Test
     public void teardownRetainsUncommittedIdsAndDestroysPlayerLabel() {
-        Recorder host = new Recorder();
+        RecordingEntityOutput host = new RecordingEntityOutput();
         SpoofRegistry<Object, Vec3d> registry = new SpoofRegistry<>(host);
         UUID source = UUID.randomUUID();
         SpoofedEntity state = SpoofedEntity.create(true, false, true);
@@ -81,7 +80,7 @@ public final class EntityRenderSpoofRegistryTest {
 
     @Test
     public void motionSelectsRelativeRotationTeleportAndRotationOnly() {
-        Recorder host = new Recorder();
+        RecordingEntityOutput host = new RecordingEntityOutput();
         SpoofRegistry<Object, Vec3d> registry = new SpoofRegistry<>(host);
         SpoofedEntity state = SpoofedEntity.create(false, false, true);
         state.rememberPosition(0.0D, 0.0D, 0.0D);
@@ -91,30 +90,5 @@ public final class EntityRenderSpoofRegistryTest {
         registry.syncMotion(host, state, state.updatePosition(20.0D, 0.0D, 0.0D), false, new Vec3d(20, 0, 0), 30, 0, false);
         assertEquals(List.of(SpoofRegistry.MotionKind.RELATIVE_ROTATION,
             SpoofRegistry.MotionKind.TELEPORT, SpoofRegistry.MotionKind.ROTATION), host.motion);
-    }
-
-    private static final class Recorder implements SpoofRegistry.Host<Object, Vec3d> {
-        private final List<int[]> passengers = new ArrayList<>();
-        private final List<int[]> leashes = new ArrayList<>();
-        private final List<int[]> destroyed = new ArrayList<>();
-        private final List<UUID> removedPlayers = new ArrayList<>();
-        private final List<SpoofRegistry.MotionKind> motion = new ArrayList<>();
-
-        @Override
-        public void motion(Object observer, SpoofRegistry.Motion<Vec3d> value) { motion.add(value.kind()); }
-        @Override
-        public void headLook(Object observer, int entityId, float yaw) { }
-        @Override
-        public void passengers(Object observer, int entityId, int[] ids) { passengers.add(ids); }
-        @Override
-        public void leash(Object observer, int entityId, int holderId) { leashes.add(new int[] {entityId, holderId}); }
-        @Override
-        public void destroy(Object observer, int[] ids) { destroyed.add(ids); }
-        @Override
-        public void removePlayerInfo(Object observer, List<UUID> ids) { removedPlayers.addAll(ids); }
-        @Override
-        public void releaseName(Object observer, SpoofedEntity state) { }
-        @Override
-        public void culled(Object observer, UUID sourceId, SpoofedEntity state) { }
     }
 }

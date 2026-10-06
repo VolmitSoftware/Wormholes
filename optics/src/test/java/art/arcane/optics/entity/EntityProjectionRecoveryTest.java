@@ -2,8 +2,6 @@ package art.arcane.optics.entity;
 
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayDeque;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -11,55 +9,51 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public final class EntityProjectionRecoveryTest {
     @Test
     public void failedTeardownRetainsStateReleasesVisibilityAndRetriesWithoutDuplicateJobs() {
-        Recorder host = new Recorder();
-        ProjectionRecovery<Object> recovery = new ProjectionRecovery<>(host);
-        host.failures = 2;
-        recovery.teardown(host);
+        RecordingEntityOutput output = new RecordingEntityOutput();
+        Teardown teardown = new Teardown();
+        ProjectionRecovery<Object> recovery = new ProjectionRecovery<>(output, teardown.callbacks());
+        teardown.failures = 2;
+        recovery.teardown(output);
         assertTrue(recovery.pending());
-        assertTrue(host.state);
-        assertEquals(1, host.releases);
-        recovery.markPending(host);
-        assertEquals(1, host.tasks.size());
-        host.tasks.removeFirst().run();
-        assertTrue(host.state);
-        assertEquals(1, host.tasks.size());
-        assertEquals(1, host.warnings);
-        host.tasks.removeFirst().run();
+        assertTrue(teardown.state);
+        assertEquals(1, teardown.releases);
+        recovery.markPending(output);
+        assertEquals(1, output.tasks.size());
+        output.tasks.removeFirst().run();
+        assertTrue(teardown.state);
+        assertEquals(1, output.tasks.size());
+        assertEquals(1, output.warnings.size());
+        output.tasks.removeFirst().run();
         assertFalse(recovery.pending());
-        assertFalse(host.state);
-        assertEquals(3, host.sends);
+        assertFalse(teardown.state);
+        assertEquals(3, teardown.sends);
     }
 
     @Test
     public void disconnectedObserverDropsUnsentStateWithoutPacketRetry() {
-        Recorder host = new Recorder();
-        ProjectionRecovery<Object> recovery = new ProjectionRecovery<>(host);
-        host.failures = 1;
-        recovery.teardown(host);
-        host.online = false;
-        host.tasks.removeFirst().run();
-        assertFalse(host.state);
+        RecordingEntityOutput output = new RecordingEntityOutput();
+        Teardown teardown = new Teardown();
+        ProjectionRecovery<Object> recovery = new ProjectionRecovery<>(output, teardown.callbacks());
+        teardown.failures = 1;
+        recovery.teardown(output);
+        output.online = false;
+        output.tasks.removeFirst().run();
+        assertFalse(teardown.state);
         assertFalse(recovery.pending());
-        assertEquals(1, host.sends);
+        assertEquals(1, teardown.sends);
     }
 
-    private static final class Recorder implements ProjectionRecovery.Host<Object> {
-        private final ArrayDeque<Runnable> tasks = new ArrayDeque<>();
-        private boolean online = true;
+    private static final class Teardown {
         private boolean state = true;
         private int failures;
         private int sends;
         private int releases;
-        private int warnings;
 
-        public boolean online(Object observer) { return online; }
-        public boolean hasState() { return state; }
-        public void drop(Object observer) { state = false; }
-        public void release(Object observer) { releases++; }
-        public boolean schedule(Object observer, Runnable task) { tasks.add(task); return true; }
-        public void warning(Object observer, RuntimeException error) { warnings++; }
+        private ProjectionRecovery.Teardown<Object> callbacks() {
+            return new ProjectionRecovery.Teardown<>(() -> state, this::send, observer -> state = false, observer -> releases++);
+        }
 
-        public void send(Object observer) {
+        private void send(Object observer) {
             sends++;
             if (failures-- > 0) {
                 throw new IllegalStateException("packet write failed");

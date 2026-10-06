@@ -12,7 +12,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Predicate;
-import java.util.logging.Level;
 
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
@@ -45,7 +44,6 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import art.arcane.wormholes.Settings;
 import art.arcane.optics.fidelity.BedrockProfile;
 import art.arcane.wormholes.Wormholes;
-import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.portal.ILocalPortal;
@@ -81,6 +79,7 @@ public final class ProjectedEntityRenderer {
 
     private final EntityRenderPacketChannel channel;
     private final EntityRenderPlayerIdentity identity;
+    private final BukkitEntityRegistryHost output;
     private BedrockProfile viewerProfile = BedrockProfile.JAVA;
     private final SpoofRegistry<Player, Vector3d> registry;
     private final EntityRenderMetadataBridge metadataBridge;
@@ -100,57 +99,45 @@ public final class ProjectedEntityRenderer {
     private int renderLimit = Integer.MAX_VALUE;
 
     public ProjectedEntityRenderer() {
-        this(new EntityRenderPacketChannel());
-    }
-
-    private ProjectedEntityRenderer(EntityRenderPacketChannel channel) {
-        this(channel, new EntityRenderPlayerIdentity(channel));
-    }
-
-    private ProjectedEntityRenderer(EntityRenderPacketChannel channel, EntityRenderPlayerIdentity identity) {
-        this(channel, identity, new SpoofRegistry<>(new BukkitEntityRegistryHost(channel, identity)));
-    }
-
-    ProjectedEntityRenderer(EntityRenderPacketChannel channel, EntityRenderPlayerIdentity identity, SpoofRegistry<Player, Vector3d> registry) {
-        this(channel, identity, registry, new LocalOcclusionArbiter<>(BukkitEntityVisibility.create()), UUID.randomUUID());
+        this(new BukkitEntityRegistryHost(new EntityRenderPacketChannel(), BukkitEntityRegistryHost.PLUGIN_VISIBILITY));
     }
 
     ProjectedEntityRenderer(LocalOcclusionArbiter<Player, Entity> localOcclusion, UUID localOcclusionOwnerId) {
-        this(new EntityRenderPacketChannel(), localOcclusion, localOcclusionOwnerId);
-    }
-
-    private ProjectedEntityRenderer(EntityRenderPacketChannel channel,
-                                    LocalOcclusionArbiter<Player, Entity> localOcclusion,
-                                    UUID localOcclusionOwnerId) {
-        this(channel, new EntityRenderPlayerIdentity(channel), localOcclusion, localOcclusionOwnerId);
-    }
-
-    private ProjectedEntityRenderer(EntityRenderPacketChannel channel,
-                                    EntityRenderPlayerIdentity identity,
-                                    LocalOcclusionArbiter<Player, Entity> localOcclusion,
-                                    UUID localOcclusionOwnerId) {
-        this(channel, identity, new SpoofRegistry<>(new BukkitEntityRegistryHost(channel, identity)), localOcclusion,
+        this(new BukkitEntityRegistryHost(new EntityRenderPacketChannel(), BukkitEntityRegistryHost.PLUGIN_VISIBILITY), localOcclusion,
             localOcclusionOwnerId);
     }
 
-    private ProjectedEntityRenderer(EntityRenderPacketChannel channel,
-                                    EntityRenderPlayerIdentity identity,
+    ProjectedEntityRenderer(BukkitEntityRegistryHost output, SpoofRegistry<Player, Vector3d> registry) {
+        this(output, registry, new LocalOcclusionArbiter<>(BukkitEntityVisualHost.FEED, output), UUID.randomUUID());
+    }
+
+    private ProjectedEntityRenderer(BukkitEntityRegistryHost output) {
+        this(output, new SpoofRegistry<>(output));
+    }
+
+    private ProjectedEntityRenderer(BukkitEntityRegistryHost output, LocalOcclusionArbiter<Player, Entity> localOcclusion,
+                                    UUID localOcclusionOwnerId) {
+        this(output, new SpoofRegistry<>(output), localOcclusion, localOcclusionOwnerId);
+    }
+
+    private ProjectedEntityRenderer(BukkitEntityRegistryHost output,
                                     SpoofRegistry<Player, Vector3d> registry,
                                     LocalOcclusionArbiter<Player, Entity> localOcclusion,
                                     UUID localOcclusionOwnerId) {
-        this.channel = channel;
-        this.identity = identity;
+        this.channel = output.channel();
+        this.identity = output.identity();
+        this.output = output;
         this.registry = registry;
-        this.metadataBridge = new EntityRenderMetadataBridge(channel);
+        this.metadataBridge = output.metadataBridge();
         this.occluder = new EntityRenderLocalOccluder(localOcclusion, localOcclusionOwnerId);
-        this.visualProjector = new SnapshotProjector<>(registry, new BukkitEntityVisualHost(channel,
-            new BukkitEntityVisualHost.Options(identity, this.metadataBridge)), FidelitySettings::snapshot);
+        this.visualProjector = new SnapshotProjector<>(registry, BukkitEntityVisualHost.FEED, output, FidelitySettings::snapshot);
         this.entityTypeCache = new HashMap<NamespacedKey, EntityType>(32);
         this.projection = new EntityProjection();
         this.scratchLook = new double[3];
         this.scratchEntityPosition = new double[5];
         this.scratchRelationships = new ArrayList<EntityRelationship>(16);
-        this.recovery = new ProjectionRecovery<>(new RecoveryHost());
+        this.recovery = new ProjectionRecovery<>(output, new ProjectionRecovery.Teardown<>(this::hasRenderState, this::sendTeardown,
+            this::dropRenderState, occluder::release));
     }
 
     public void setViewerProfile(BedrockProfile profile) {
@@ -195,7 +182,7 @@ public final class ProjectedEntityRenderer {
                     continue;
                 }
                 ProjectedEntityRenderer renderer = nestedRenderers.computeIfAbsent(candidate.portalId,
-                    ignored -> new ProjectedEntityRenderer(channel));
+                    ignored -> new ProjectedEntityRenderer(new BukkitEntityRegistryHost(channel, BukkitEntityRegistryHost.PLUGIN_VISIBILITY)));
                 visiblePaths.add(candidate.portalId);
                 renderer.setViewerProfile(viewerProfile);
                 renderer.projectionPath = childPath;
@@ -466,6 +453,10 @@ public final class ProjectedEntityRenderer {
         }
     }
 
+    private boolean hasRenderState() {
+        return registry.size() != 0 || identity.hasVanillaNameTeam();
+    }
+
     private void dropRenderState(Player observer) {
         registry.clear();
         identity.forgetVanillaNameTeam();
@@ -546,8 +537,8 @@ public final class ProjectedEntityRenderer {
             return false;
         }
 
-        boolean itemFrame = BukkitItemFrameMetadata.isItemFrame(packetType);
-        boolean hanging = BukkitItemFrameMetadata.isHanging(packetType);
+        boolean itemFrame = output.isItemFrame(packetType);
+        boolean hanging = output.isHanging(packetType);
         EntitySnapshot visual = liveSnapshot(entity, hanging);
         boolean projected = projectionPath == null ? projection.project(visual, transform, frustum, itemFrame, hanging)
             : projection.project(visual, projectionPath, itemFrame, hanging);
@@ -696,25 +687,4 @@ public final class ProjectedEntityRenderer {
                                    int backgroundIndex,
                                    int background) {
     }
-    private final class RecoveryHost implements ProjectionRecovery.Host<Player> {
-        public boolean online(Player observer) { return observer != null && observer.isOnline(); }
-        public boolean hasState() { return registry.size() != 0 || identity.hasVanillaNameTeam(); }
-        public void send(Player observer) { sendTeardown(observer); }
-        public void drop(Player observer) { dropRenderState(observer); }
-        public void release(Player observer) { occluder.release(observer); }
-
-        public boolean schedule(Player observer, Runnable task) {
-            Wormholes plugin = Wormholes.instance;
-            return plugin != null && FoliaScheduler.runEntity(plugin, observer, task, 1L);
-        }
-
-        public void warning(Player observer, RuntimeException error) {
-            Wormholes plugin = Wormholes.instance;
-            if (plugin != null) {
-                plugin.getLogger().log(Level.WARNING, "[spoof] failed to send projected entity teardown to "
-                    + (observer == null ? "unknown" : observer.getName()), error);
-            }
-        }
-    }
-
 }

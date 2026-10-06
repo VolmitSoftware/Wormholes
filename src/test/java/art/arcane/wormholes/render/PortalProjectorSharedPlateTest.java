@@ -39,7 +39,6 @@ import art.arcane.optics.plate.ViewPlateCache;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.util.Cuboid;
 import art.arcane.optics.math.Face;
-import art.arcane.optics.occlusion.LocalOcclusionArbiter;
 
 /**
  * The plate is shared per portal, so its revision may only carry portal-scoped inputs. Two observers
@@ -204,7 +203,7 @@ public final class PortalProjectorSharedPlateTest {
                                                 ViewPlateCache<BlockData, World> cache,
                                                 PortalProjector.RtpProjectionTarget target) throws Exception {
         PortalProjector projector = withBukkitServer(() -> new PortalProjector(portal, viewer(8), null,
-            world -> destinationView, () -> true, new LocalOcclusionArbiter<>(BukkitEntityVisibility.create()), cache));
+            world -> destinationView, () -> true, BukkitEntityRegistryHost.occlusion(BukkitEntityRegistryHost.PLUGIN_VISIBILITY), cache));
         Field field = PortalProjector.class.getDeclaredField("destination");
         field.setAccessible(true);
         ProjectorDestination destination = (ProjectorDestination) field.get(projector);
@@ -268,7 +267,7 @@ public final class PortalProjectorSharedPlateTest {
                                              ProjectionWorldView destinationView, ViewPlateCache<BlockData, World> cache,
                                              int clientViewDistance) throws Exception {
         PortalProjector projector = withBukkitServer(() -> new PortalProjector(portal, viewer(clientViewDistance), null,
-            world -> destinationView, () -> true, new LocalOcclusionArbiter<>(BukkitEntityVisibility.create()), cache));
+            world -> destinationView, () -> true, BukkitEntityRegistryHost.occlusion(BukkitEntityRegistryHost.PLUGIN_VISIBILITY), cache));
         Field field = PortalProjector.class.getDeclaredField("destination");
         field.setAccessible(true);
         ProjectorDestination destination = (ProjectorDestination) field.get(projector);

@@ -12,11 +12,11 @@ public final class PlayerNames<O> {
     private static final AtomicInteger NEXT_NAME_TEAM_ID = new AtomicInteger();
     private final String teamName = "whpn" + Integer.toUnsignedString(NEXT_NAME_TEAM_ID.getAndIncrement(), 36);
     private final Map<String, Integer> members = new HashMap<>(4);
-    private final Host<O> host;
+    private final EntityOutput<O, ?, ?, ?, ?> output;
     private boolean sent;
 
-    public PlayerNames(Host<O> host) {
-        this.host = host;
+    public PlayerNames(EntityOutput<O, ?, ?, ?, ?> output) {
+        this.output = output;
     }
 
     public static String projectedProfileName(String sourceName, UUID fakeUuid, boolean upsideDown) {
@@ -53,13 +53,13 @@ public final class PlayerNames<O> {
             return;
         }
         if (!sent) {
-            host.create(observer, teamName);
+            output.team(observer, EntityOutput.TeamOp.CREATE, teamName, null);
             sent = true;
         }
         int references = members.getOrDefault(name, 0);
         members.put(name, references + 1);
         if (references == 0) {
-            host.add(observer, teamName, name);
+            output.team(observer, EntityOutput.TeamOp.ADD, teamName, name);
         }
     }
 
@@ -77,13 +77,13 @@ public final class PlayerNames<O> {
         }
         members.remove(name);
         if (sent) {
-            host.remove(observer, teamName, name);
+            output.team(observer, EntityOutput.TeamOp.REMOVE, teamName, name);
         }
     }
 
     public void removeTeam(O observer) {
         if (sent) {
-            host.removeTeam(observer, teamName);
+            output.team(observer, EntityOutput.TeamOp.REMOVE_TEAM, teamName, null);
         }
     }
 
@@ -94,12 +94,5 @@ public final class PlayerNames<O> {
 
     public boolean hasTeam() {
         return sent;
-    }
-
-    public interface Host<O> {
-        void create(O observer, String teamName);
-        void add(O observer, String teamName, String name);
-        void remove(O observer, String teamName, String name);
-        void removeTeam(O observer, String teamName);
     }
 }

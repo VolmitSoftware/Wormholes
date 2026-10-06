@@ -24,14 +24,14 @@ public final class SpoofRegistry<O, R> {
     private final Map<UUID, SpoofedEntity> spoofed;
     private final Map<Integer, SpoofedEntity> pendingDestroy;
     private final Set<UUID> visible;
-    private final Host<O, R> host;
+    private final EntityOutput<O, R, ?, ?, ?> output;
     private final Motion<R> motion = new Motion<>();
 
-    public SpoofRegistry(Host<O, R> host) {
+    public SpoofRegistry(EntityOutput<O, R, ?, ?, ?> output) {
         this.spoofed = new HashMap<UUID, SpoofedEntity>(16);
         this.pendingDestroy = new HashMap<Integer, SpoofedEntity>(4);
         this.visible = new HashSet<UUID>(16);
-        this.host = Objects.requireNonNull(host);
+        this.output = Objects.requireNonNull(output);
     }
 
     public int size() {
@@ -99,11 +99,11 @@ public final class SpoofRegistry<O, R> {
         motion.yaw = yaw;
         motion.pitch = pitch;
         motion.onGround = onGround;
-        host.motion(observer, motion);
+        output.motion(observer, motion);
     }
 
     public void syncHeadLook(O observer, SpoofedEntity state, float yaw) {
-        host.headLook(observer, state.fakeId, yaw);
+        output.headLook(observer, state.fakeId, yaw);
     }
 
     public void applyRelationships(O observer, List<EntitySnapshot> visuals) {
@@ -147,7 +147,7 @@ public final class SpoofRegistry<O, R> {
             if (riders == null) {
                 if (vehicleState.lastPassengers != null && vehicleState.lastPassengers.length > 0) {
                     vehicleState.lastPassengers = NO_PASSENGERS;
-                    host.passengers(observer, vehicleState.fakeId, NO_PASSENGERS);
+                    output.passengers(observer, vehicleState.fakeId, NO_PASSENGERS);
                 }
                 continue;
             }
@@ -157,7 +157,7 @@ public final class SpoofRegistry<O, R> {
             }
             if (!Arrays.equals(passengers, vehicleState.lastPassengers)) {
                 vehicleState.lastPassengers = passengers;
-                host.passengers(observer, vehicleState.fakeId, passengers);
+                output.passengers(observer, vehicleState.fakeId, passengers);
             }
         }
         for (EntityRelationship relationship : relationships) {
@@ -181,7 +181,7 @@ public final class SpoofRegistry<O, R> {
             if (previousHolderFakeId == NEVER_LEASHED && holderFakeId == NO_LEASH_HOLDER) {
                 continue;
             }
-            host.leash(observer, mob.fakeId, holderFakeId);
+            output.leash(observer, mob.fakeId, holderFakeId);
         }
     }
 
@@ -244,7 +244,6 @@ public final class SpoofRegistry<O, R> {
                 continue;
             }
             SpoofedEntity state = entry.getValue();
-            host.culled(observer, entry.getKey(), state);
             iterator.remove();
             pendingDestroy.put(Integer.valueOf(state.fakeId), state);
             hiddenStates.add(state);
@@ -290,27 +289,16 @@ public final class SpoofRegistry<O, R> {
             playerInfos.add(state.fakeUuid);
         }
         int[] trimmed = count == ids.length ? ids : Arrays.copyOf(ids, count);
-        host.destroy(observer, trimmed);
+        output.destroy(observer, trimmed);
         if (playerInfos.isEmpty()) {
             return;
         }
-        host.removePlayerInfo(observer, playerInfos);
+        output.removePlayerInfo(observer, playerInfos);
         for (SpoofedEntity state : states) {
             if (state.playerEntry) {
-                host.releaseName(observer, state);
+                output.releaseName(observer, state);
             }
         }
-    }
-
-    public interface Host<O, R> {
-        void motion(O observer, Motion<R> motion);
-        void headLook(O observer, int entityId, float yaw);
-        void passengers(O observer, int entityId, int[] passengers);
-        void leash(O observer, int entityId, int holderId);
-        void destroy(O observer, int[] entityIds);
-        void removePlayerInfo(O observer, List<UUID> playerIds);
-        void releaseName(O observer, SpoofedEntity state);
-        void culled(O observer, UUID sourceId, SpoofedEntity state);
     }
 
     public enum MotionKind {

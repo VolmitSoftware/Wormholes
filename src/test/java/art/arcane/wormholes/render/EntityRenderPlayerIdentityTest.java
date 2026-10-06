@@ -39,7 +39,7 @@ class EntityRenderPlayerIdentityTest {
                 SpoofedEntity state = SpoofedEntity.create(true, false, true);
                 state.playerProfile = new EntityProfile("Observer", "", "");
                 state.playerProfileCheckedAtNanos = 1_000_000_000L;
-                EntityRenderPlayerIdentity identity = new EntityRenderPlayerIdentity(new EntityRenderPacketChannel());
+                EntityRenderPlayerIdentity identity = new BukkitEntityRegistryHost(new EntityRenderPacketChannel(), BukkitEntityRegistryHost.PLUGIN_VISIBILITY).identity();
                 reflection.when(() -> SpigotReflectionUtil.getUserProfile(player)).thenReturn(List.of());
 
                 assertFalse(identity.playerProfileChanged(player, state, 1_499_999_999L));
@@ -80,7 +80,7 @@ class EntityRenderPlayerIdentityTest {
             Player observer = ProjectedEntityPacketRecorder.player(true);
             EntityProfile profile = new EntityProfile("Player", "snapshot-skin", "snapshot-signature");
             SpoofedEntity state = SpoofedEntity.create(true, false, true);
-            EntityRenderPlayerIdentity identity = new EntityRenderPlayerIdentity(new EntityRenderPacketChannel());
+            EntityRenderPlayerIdentity identity = new BukkitEntityRegistryHost(new EntityRenderPacketChannel(), BukkitEntityRegistryHost.PLUGIN_VISIBILITY).identity();
 
             identity.sendRemotePlayerInfo(observer, profile, state, false);
 
@@ -115,7 +115,7 @@ class EntityRenderPlayerIdentityTest {
                 reflection.when(() -> SpigotReflectionUtil.getUserProfile(player))
                     .thenReturn(List.of(new TextureProperty("textures", "current-skin", "current-signature")));
                 SpoofedEntity state = SpoofedEntity.create(true, false, true);
-                EntityRenderPlayerIdentity identity = new EntityRenderPlayerIdentity(new EntityRenderPacketChannel());
+                EntityRenderPlayerIdentity identity = new BukkitEntityRegistryHost(new EntityRenderPacketChannel(), BukkitEntityRegistryHost.PLUGIN_VISIBILITY).identity();
 
                 identity.sendPlayerInfo(player, player, state, false);
 

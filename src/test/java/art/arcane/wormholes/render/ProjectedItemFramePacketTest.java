@@ -53,10 +53,9 @@ public final class ProjectedItemFramePacketTest {
         ProjectedEntityPacketRecorder recorder = ProjectedEntityPacketRecorder.install();
         try {
             EntityRenderPacketChannel channel = new EntityRenderPacketChannel();
-            EntityRenderPlayerIdentity identity = new EntityRenderPlayerIdentity(channel);
-            SpoofRegistry<Player, Vector3d> registry = new SpoofRegistry<>(new BukkitEntityRegistryHost(channel, identity));
-            EntityRenderMetadataBridge metadataBridge = new EntityRenderMetadataBridge(channel);
-            SnapshotProjector<Player, World, ILocalPortal, Vector3d, EntityType, ProjectionEntityView> projector = new SnapshotProjector<>(registry, new BukkitEntityVisualHost(channel, new BukkitEntityVisualHost.Options(identity, metadataBridge)), FidelitySettings::snapshot);
+            BukkitEntityRegistryHost output = new BukkitEntityRegistryHost(channel, BukkitEntityRegistryHost.PLUGIN_VISIBILITY);
+            SpoofRegistry<Player, Vector3d> registry = new SpoofRegistry<>(output);
+            SnapshotProjector<Player, World, ILocalPortal, Vector3d, EntityType, ProjectionEntityView> projector = new SnapshotProjector<>(registry, BukkitEntityVisualHost.FEED, output, FidelitySettings::snapshot);
             Frame localFrame = Frame.canonical(Face.N);
             Frame remoteFrame = Frame.canonical(Face.U);
             ILocalPortal localPortal = localPortal(new Vector(1.5D, 1.5D, 5.0D), localFrame);

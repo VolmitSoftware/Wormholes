@@ -1,15 +1,20 @@
 package art.arcane.optics.entity;
 
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.Objects;
+import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 
 public final class ProjectionRecovery<O> {
-    private final Host<O> host;
+    private final EntityOutput<O, ?, ?, ?, ?> output;
+    private final Teardown<O> steps;
     private final AtomicBoolean retryScheduled = new AtomicBoolean();
     private final AtomicBoolean failureReported = new AtomicBoolean();
     private volatile boolean pending;
 
-    public ProjectionRecovery(Host<O> host) {
-        this.host = host;
+    public ProjectionRecovery(EntityOutput<O, ?, ?, ?, ?> output, Teardown<O> teardown) {
+        this.output = Objects.requireNonNull(output);
+        this.steps = Objects.requireNonNull(teardown);
     }
 
     public boolean pending() {
@@ -26,40 +31,40 @@ public final class ProjectionRecovery<O> {
     }
 
     public void teardown(O observer) {
-        if (!host.online(observer)) {
-            host.drop(observer);
+        if (!output.online(observer)) {
+            steps.drop().accept(observer);
             pending = false;
-            host.release(observer);
+            steps.release().accept(observer);
             return;
         }
-        if (!pending && !host.hasState()) {
-            host.release(observer);
+        if (!pending && !steps.state().getAsBoolean()) {
+            steps.release().accept(observer);
             return;
         }
         try {
-            host.send(observer);
-            host.drop(observer);
+            steps.send().accept(observer);
+            steps.drop().accept(observer);
             recovered();
         } catch (RuntimeException error) {
             pending = true;
             report(observer, error);
             schedule(observer);
         } finally {
-            host.release(observer);
+            steps.release().accept(observer);
         }
     }
 
     public void markPending(O observer) {
         pending = true;
-        host.release(observer);
+        steps.release().accept(observer);
         schedule(observer);
     }
 
     private void schedule(O observer) {
-        if (!host.online(observer) || !pending || !retryScheduled.compareAndSet(false, true)) {
+        if (!output.online(observer) || !pending || !retryScheduled.compareAndSet(false, true)) {
             return;
         }
-        boolean scheduled = host.schedule(observer, () -> retry(observer));
+        boolean scheduled = output.schedule(observer, () -> retry(observer));
         if (!scheduled) {
             retryScheduled.set(false);
         }
@@ -70,14 +75,14 @@ public final class ProjectionRecovery<O> {
         if (!pending) {
             return;
         }
-        if (!host.online(observer)) {
-            host.drop(observer);
+        if (!output.online(observer)) {
+            steps.drop().accept(observer);
             pending = false;
             return;
         }
         try {
-            host.send(observer);
-            host.drop(observer);
+            steps.send().accept(observer);
+            steps.drop().accept(observer);
             recovered();
         } catch (RuntimeException error) {
             report(observer, error);
@@ -87,17 +92,16 @@ public final class ProjectionRecovery<O> {
 
     private void report(O observer, RuntimeException error) {
         if (failureReported.compareAndSet(false, true)) {
-            host.warning(observer, error);
+            output.warning(observer, "failed to send projected entity teardown", error);
         }
     }
 
-    public interface Host<O> {
-        boolean online(O observer);
-        boolean hasState();
-        void send(O observer);
-        void drop(O observer);
-        void release(O observer);
-        boolean schedule(O observer, Runnable task);
-        void warning(O observer, RuntimeException error);
+    public record Teardown<O>(BooleanSupplier state, Consumer<O> send, Consumer<O> drop, Consumer<O> release) {
+        public Teardown {
+            Objects.requireNonNull(state, "state");
+            Objects.requireNonNull(send, "send");
+            Objects.requireNonNull(drop, "drop");
+            Objects.requireNonNull(release, "release");
+        }
     }
 }

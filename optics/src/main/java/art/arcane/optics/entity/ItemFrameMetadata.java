@@ -2,15 +2,14 @@ package art.arcane.optics.entity;
 
 import java.util.ArrayList;
 import java.util.List;
-import art.arcane.optics.math.Face;
 
 public final class ItemFrameMetadata<D> {
     private static final int DIRECTION_INDEX = 8;
     private static final int ITEM_INDEX = 9;
     private static final int ROTATION_INDEX = 10;
-    private final Access<D> access;
+    private final MetadataAccess<D> access;
 
-    public ItemFrameMetadata(Access<D> access) {
+    public ItemFrameMetadata(MetadataAccess<D> access) {
         this.access = access;
     }
 
@@ -60,16 +59,5 @@ public final class ItemFrameMetadata<D> {
             return access.mapId(item);
         }
         return null;
-    }
-
-    public interface Access<D> {
-        int index(D value);
-        Object value(D value);
-        boolean isDirection(Object value);
-        boolean isItem(Object value);
-        Object direction(Face direction);
-        Integer mapId(Object item);
-        Object withMapId(Object item, Integer id);
-        D replace(D value, Object replacement);
     }
 }

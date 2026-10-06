@@ -3,8 +3,6 @@ package art.arcane.wormholes.modded;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.entity.ProjectedEntityEvent;
 import art.arcane.optics.entity.ProjectionRecovery;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import art.arcane.wormholes.config.toml.RenderConfig;
 import art.arcane.wormholes.portal.IPortal;
@@ -41,17 +39,16 @@ import java.util.Set;
 import java.util.UUID;
 
 public final class MinecraftProjectedEntities implements AutoCloseable {
-    private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
     private final WormholesModRuntime runtime;
     private final ServerPlayer observer;
     private final MinecraftPortal source;
-    private final MinecraftEntityPackets packets = new MinecraftEntityPackets();
-    private final SpoofRegistry<ServerPlayer, Vec3> registry = new SpoofRegistry<>(packets);
+    private final MinecraftEntityPackets packets;
+    private final SpoofRegistry<ServerPlayer, Vec3> registry;
     private final SnapshotProjector<ServerPlayer, ServerLevel, MinecraftPortal, Vec3, EntityType<?>,
         EntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment>> projector;
     private final RecursiveEndpoints<ServerLevel, MinecraftPortal> recursive;
     private final Map<UUID, MinecraftProjectedEntities> nested = new HashMap<>();
-    private final ProjectionRecovery<ServerPlayer> recovery = new ProjectionRecovery<>(new RecoveryHost());
+    private final ProjectionRecovery<ServerPlayer> recovery;
     private final UUID visibilityOwner = UUID.randomUUID();
 
     public MinecraftProjectedEntities(WormholesModRuntime runtime, Context context) {
@@ -59,7 +56,11 @@ public final class MinecraftProjectedEntities implements AutoCloseable {
         this.observer = context.observer();
         this.source = context.source();
         this.recursive = context.recursive();
-        this.projector = new SnapshotProjector<>(registry, new MinecraftEntityVisualHost(observer, packets), FidelitySettings::snapshot);
+        this.packets = new MinecraftEntityPackets(runtime);
+        this.registry = new SpoofRegistry<>(packets);
+        this.projector = new SnapshotProjector<>(registry, MinecraftEntityVisualHost.FEED, packets, FidelitySettings::snapshot);
+        this.recovery = new ProjectionRecovery<>(packets, new ProjectionRecovery.Teardown<>(this::hasState, this::sendTeardown,
+            this::dropState, this::releaseVisibility));
     }
 
     public void apply(View view) {
@@ -182,32 +183,26 @@ public final class MinecraftProjectedEntities implements AutoCloseable {
         runtime.projections().entityVisibility().replace(observer, visibilityOwner, desired);
     }
 
-    private final class RecoveryHost implements ProjectionRecovery.Host<ServerPlayer> {
-        public boolean online(ServerPlayer player) { return !player.hasDisconnected(); }
-        public boolean hasState() { return registry.size() != 0 || packets.hasNameTeam(); }
-        public boolean schedule(ServerPlayer player, Runnable task) { return runtime.schedule(task, 1L); }
+    private boolean hasState() {
+        return registry.size() != 0 || packets.hasNameTeam();
+    }
 
-        public void send(ServerPlayer player) {
-            registry.destroyAll(player);
-            packets.close(player);
-            registry.commitDestroyed();
-        }
+    private void sendTeardown(ServerPlayer player) {
+        registry.destroyAll(player);
+        packets.close(player);
+        registry.commitDestroyed();
+    }
 
-        public void drop(ServerPlayer player) {
-            registry.clear();
-            packets.discard();
-        }
+    private void dropState(ServerPlayer player) {
+        registry.clear();
+        packets.discard();
+    }
 
-        public void release(ServerPlayer player) {
-            if (player.hasDisconnected()) {
-                runtime.projections().entityVisibility().discardObserver(player.getUUID());
-            } else {
-                runtime.projections().entityVisibility().release(player, visibilityOwner);
-            }
-        }
-
-        public void warning(ServerPlayer player, RuntimeException error) {
-            LOGGER.error("Wormholes failed to send projected entity teardown to {}", player.getUUID(), error);
+    private void releaseVisibility(ServerPlayer player) {
+        if (player.hasDisconnected()) {
+            runtime.projections().entityVisibility().discardObserver(player.getUUID());
+        } else {
+            runtime.projections().entityVisibility().release(player, visibilityOwner);
         }
     }
 

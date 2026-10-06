@@ -146,7 +146,7 @@ public final class PortalProjector {
 
     public PortalProjector(ILocalPortal portal, Player observer, ProjectionClaimArbiter claimArbiter,
                            ProjectionWorldViewProvider viewProvider, BooleanSupplier activeGuard) {
-        this(portal, observer, claimArbiter, viewProvider, activeGuard, new LocalOcclusionArbiter<>(BukkitEntityVisibility.create()), null);
+        this(portal, observer, claimArbiter, viewProvider, activeGuard, BukkitEntityRegistryHost.occlusion(BukkitEntityRegistryHost.PLUGIN_VISIBILITY), null);
     }
 
     public PortalProjector(ILocalPortal portal,

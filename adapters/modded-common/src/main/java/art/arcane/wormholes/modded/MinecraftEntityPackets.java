@@ -1,55 +1,115 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.optics.entity.EntityProfile;
-import art.arcane.optics.entity.SpoofRegistry;
-import art.arcane.optics.entity.SpoofedEntity;
-import art.arcane.optics.entity.PlayerNames;
-import art.arcane.wormholes.service.WormholesTelemetry;
-import io.netty.buffer.Unpooled;
-import net.minecraft.world.scores.TeamColor;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.mojang.datafixers.util.Pair;
+
+import io.netty.buffer.Unpooled;
+
 import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
 import net.minecraft.network.protocol.game.ClientboundAnimatePacket;
+import net.minecraft.network.protocol.game.ClientboundMapItemDataPacket;
 import net.minecraft.network.protocol.game.ClientboundMoveEntityPacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoRemovePacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket;
 import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
 import net.minecraft.network.protocol.game.ClientboundRotateHeadPacket;
+import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket;
 import net.minecraft.network.protocol.game.ClientboundSetEntityLinkPacket;
+import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
+import net.minecraft.network.protocol.game.ClientboundSetEquipmentPacket;
 import net.minecraft.network.protocol.game.ClientboundSetPassengersPacket;
 import net.minecraft.network.protocol.game.ClientboundSetPlayerTeamPacket;
 import net.minecraft.network.protocol.game.ClientboundSwingAnimationPacket;
 import net.minecraft.network.protocol.game.ClientboundTeleportEntityPacket;
 import net.minecraft.network.protocol.game.VecDelta;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.resources.Identifier;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.PositionMoveRotation;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.SwingAnimation;
+import net.minecraft.world.level.saveddata.maps.MapId;
+import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.scores.PlayerTeam;
 import net.minecraft.world.scores.Scoreboard;
 import net.minecraft.world.scores.Team;
+import net.minecraft.world.scores.TeamColor;
 
-import java.util.EnumSet;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import art.arcane.optics.entity.EntityOutput;
+import art.arcane.optics.entity.EntityProfile;
+import art.arcane.optics.entity.MapSnapshot;
+import art.arcane.optics.entity.PlayerNames;
+import art.arcane.optics.entity.ProjectedMaps;
+import art.arcane.optics.entity.SnapshotProjector;
+import art.arcane.optics.entity.SpoofRegistry;
+import art.arcane.optics.entity.SpoofedEntity;
+import art.arcane.optics.view.EntityData;
+import art.arcane.wormholes.modded.mixin.ProjectionEntityMapAccess;
+import art.arcane.wormholes.service.WormholesTelemetry;
 
-public final class MinecraftEntityPackets implements SpoofRegistry.Host<ServerPlayer, Vec3>, PlayerNames.Host<ServerPlayer> {
+public final class MinecraftEntityPackets implements EntityOutput<ServerPlayer, Vec3, EntityType<?>,
+    EntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment>, Entity> {
     public static final int NO_ANIMATION = -1;
     public static final int ANIMATION_SWING_MAIN_HAND = 0;
     public static final int ANIMATION_WAKE_UP = 2;
     public static final int ANIMATION_SWING_OFF_HAND = 3;
     public static final int ANIMATION_CRITICAL_HIT = 4;
     public static final int ANIMATION_MAGIC_CRITICAL_HIT = 5;
+    private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
+    private static final Map<EntityType<?>, Boolean> LIVING = new HashMap<>();
 
+    private final WormholesModRuntime runtime;
     private final PlayerNames<ServerPlayer> names = new PlayerNames<>(this);
+    private final ProjectedMaps<ServerPlayer> maps = new ProjectedMaps<>(this);
     private final Scoreboard teams = new Scoreboard();
+    private MinecraftPacketBlobs blobs;
+
+    public MinecraftEntityPackets(WormholesModRuntime runtime) {
+        this.runtime = runtime;
+    }
+
+    public static ClientboundMapItemDataPacket mapPacket(MapSnapshot map, int virtualMapId) {
+        return new ClientboundMapItemDataPacket(new MapId(virtualMapId), map.scale(), map.locked(), List.of(),
+            new MapItemSavedData.MapPatch(0, 0, MapSnapshot.WIDTH, MapSnapshot.HEIGHT, map.pixels()));
+    }
+
+    public static List<SynchedEntityData.DataValue<?>> labelMetadata(String label) {
+        return List.of(new SynchedEntityData.DataValue<>(10, EntityDataSerializers.INT, 3),
+            new SynchedEntityData.DataValue<>(15, EntityDataSerializers.BYTE, (byte) 3),
+            new SynchedEntityData.DataValue<>(16, EntityDataSerializers.INT, 0x00F000F0),
+            new SynchedEntityData.DataValue<>(23, EntityDataSerializers.COMPONENT, labelText(label)),
+            new SynchedEntityData.DataValue<>(25, EntityDataSerializers.INT, 0));
+    }
 
     public void playerInfo(ServerPlayer observer, SpoofedEntity state, EntityProfile profile) {
         state.playerProfile = profile;
@@ -228,33 +288,212 @@ public final class MinecraftEntityPackets implements SpoofRegistry.Host<ServerPl
     }
 
     @Override
-    public void culled(ServerPlayer observer, UUID sourceId, SpoofedEntity state) {
+    public void team(ServerPlayer observer, TeamOp op, String team, String member) {
+        switch (op) {
+            case CREATE -> send(observer, ClientboundSetPlayerTeamPacket.createAddOrModifyPacket(hiddenNameTeam(team), true));
+            case ADD -> send(observer, ClientboundSetPlayerTeamPacket.createPlayerPacket(teams.getPlayerTeam(team), member,
+                ClientboundSetPlayerTeamPacket.Action.ADD));
+            case REMOVE -> send(observer, ClientboundSetPlayerTeamPacket.createPlayerPacket(teams.getPlayerTeam(team), member,
+                ClientboundSetPlayerTeamPacket.Action.REMOVE));
+            case REMOVE_TEAM -> removeTeam(observer, teams.getPlayerTeam(team));
+        }
     }
 
     @Override
-    public void create(ServerPlayer observer, String teamName) {
-        PlayerTeam team = teams.addPlayerTeam(teamName);
+    public EntityType<?> type(String key) {
+        Identifier id = key == null ? null : Identifier.tryParse(key);
+        return id == null ? null : BuiltInRegistries.ENTITY_TYPE.getOptional(id).orElse(null);
+    }
+
+    @Override
+    public boolean isItemFrame(EntityType<?> type) {
+        return type == EntityTypes.ITEM_FRAME || type == EntityTypes.GLOW_ITEM_FRAME;
+    }
+
+    @Override
+    public boolean isHanging(EntityType<?> type) {
+        return isItemFrame(type) || type == EntityTypes.PAINTING;
+    }
+
+    @Override
+    public boolean isLiving(EntityType<?> type) {
+        Boolean cached = LIVING.get(type);
+        if (cached != null) {
+            return cached;
+        }
+        Entity entity = type.create(runtime.server().overworld(), EntitySpawnReason.LOAD);
+        boolean living = entity instanceof LivingEntity;
+        LIVING.put(type, living);
+        return living;
+    }
+
+    @Override
+    public Vec3 position(double x, double y, double z) {
+        return new Vec3(x, y, z);
+    }
+
+    @Override
+    public double x(Vec3 position) {
+        return position.x;
+    }
+
+    @Override
+    public double y(Vec3 position) {
+        return position.y;
+    }
+
+    @Override
+    public double z(Vec3 position) {
+        return position.z;
+    }
+
+    @Override
+    public void spawn(ServerPlayer observer, SpoofedEntity state, SnapshotProjector.Spawn<Vec3, EntityType<?>> spawn) {
+        Vec3 position = spawn.position();
+        send(observer, new ClientboundAddEntityPacket(state.fakeId, state.fakeUuid,
+            position.x, position.y, position.z, spawn.pitch(), spawn.yaw(), spawn.type(), spawn.data(), spawn.velocity(), spawn.yaw()));
+    }
+
+    @Override
+    public void entityState(ServerPlayer observer, SpoofedEntity state,
+                            SnapshotProjector.State<EntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment>> update) {
+        List<SynchedEntityData.DataValue<?>> metadata = update.view().getMetadata(update.visual().id());
+        if (metadata != null && !metadata.isEmpty()) {
+            Integer sourceMapId = MinecraftEntityMetadata.FRAMES.mapId(metadata);
+            ProjectedMaps.Projection map = maps.project(observer, update.visual(), state,
+                new ProjectedMaps.Options(sourceMapId, update.metadataTransform(), update.initial()));
+            metadata = MinecraftEntityMetadata.FRAMES.transformMetadata(metadata, update.metadataTransform(), map.mapId(), map.stripMapId());
+            if (state.upsideDown) {
+                metadata = update.visual().isPlayer() ? MinecraftEntityMetadata.ENTITIES.upsideDownPlayer(metadata)
+                    : MinecraftEntityMetadata.ENTITIES.upsideDownEntity(metadata, false);
+            }
+            byte[] payload = blobs(observer).writeMetadata(metadata);
+            if (update.initial() || !Arrays.equals(payload, state.lastMetadataPayload)) {
+                state.lastMetadataPayload = payload;
+                send(observer, new ClientboundSetEntityDataPacket(state.fakeId, metadata));
+            }
+        }
+        List<MinecraftPacketBlobs.Equipment> equipment = update.view().getEquipment(update.visual().id());
+        if (equipment != null && !equipment.isEmpty()) {
+            byte[] payload = blobs(observer).writeEquipment(equipment);
+            if (update.initial() || !Arrays.equals(payload, state.lastEquipmentPayload)) {
+                state.lastEquipmentPayload = payload;
+                List<Pair<EquipmentSlot, ItemStack>> items = new ArrayList<>(equipment.size());
+                for (MinecraftPacketBlobs.Equipment item : equipment) {
+                    items.add(Pair.of(item.slot(), item.item()));
+                }
+                send(observer, new ClientboundSetEquipmentPacket(state.fakeId, items));
+            }
+        }
+    }
+
+    @Override
+    public void velocity(ServerPlayer observer, int entityId, Vec3 velocity) {
+        send(observer, new ClientboundSetEntityMotionPacket(entityId, velocity));
+    }
+
+    @Override
+    public void label(ServerPlayer observer, SpoofedEntity state, SnapshotProjector.Label<Vec3> label, boolean initial) {
+        if (!state.playerEntry) {
+            return;
+        }
+        Vec3 position = labelPosition(label);
+        if (initial) {
+            send(observer, new ClientboundAddEntityPacket(state.labelFakeId, state.labelFakeUuid,
+                position.x, position.y, position.z, 0, 0, EntityTypes.TEXT_DISPLAY, 0, Vec3.ZERO, 0));
+            send(observer, new ClientboundSetEntityDataPacket(state.labelFakeId, labelMetadata(state.playerLabelText)));
+            state.rememberLabelPosition(position.x, position.y, position.z);
+            return;
+        }
+        SpoofedEntity.Move move = state.updateLabelPosition(position.x, position.y, position.z);
+        if (move.moved) {
+            send(observer, move.relative
+                ? new ClientboundMoveEntityPacket.Pos(state.labelFakeId, delta(move.deltaX, move.deltaY, move.deltaZ), false)
+                : teleport(state.labelFakeId, position, 0, 0, false));
+        }
+        String text = PlayerNames.playerLabelText(label.profile() == null ? null : label.profile().name());
+        if (state.updatePlayerLabelText(text)) {
+            send(observer, new ClientboundSetEntityDataPacket(state.labelFakeId,
+                List.of(new SynchedEntityData.DataValue<>(23, EntityDataSerializers.COMPONENT, labelText(text)))));
+        }
+    }
+
+    @Override
+    public void map(ServerPlayer observer, MapSnapshot map, int virtualMapId) {
+        send(observer, mapPacket(map, virtualMapId));
+    }
+
+    @Override
+    public void hideLocal(ServerPlayer observer, Entity entity) {
+        MinecraftEntityTracker tracker = tracker(entity);
+        if (tracker != null) {
+            tracker.wormholesHide(observer);
+        }
+    }
+
+    @Override
+    public void showLocal(ServerPlayer observer, Entity entity) {
+        MinecraftEntityTracker tracker = tracker(entity);
+        if (tracker != null) {
+            tracker.wormholesShow(observer);
+        }
+    }
+
+    @Override
+    public boolean online(ServerPlayer observer) {
+        return !observer.hasDisconnected();
+    }
+
+    @Override
+    public UUID id(ServerPlayer observer) {
+        return observer.getUUID();
+    }
+
+    @Override
+    public boolean schedule(ServerPlayer observer, Runnable task) {
+        return runtime.schedule(task, 1L);
+    }
+
+    @Override
+    public void warning(ServerPlayer observer, String context, RuntimeException error) {
+        LOGGER.warn("Wormholes {} for {}", context, observer == null ? "unknown" : observer.getUUID(), error);
+    }
+
+    private void removeTeam(ServerPlayer observer, PlayerTeam team) {
+        send(observer, ClientboundSetPlayerTeamPacket.createRemovePacket(team));
+        teams.removePlayerTeam(team);
+    }
+
+    private PlayerTeam hiddenNameTeam(String name) {
+        PlayerTeam team = teams.addPlayerTeam(name);
         team.setNameTagVisibility(Team.Visibility.NEVER);
         team.setCollisionRule(Team.CollisionRule.NEVER);
         team.setColor(Optional.of(TeamColor.WHITE));
-        send(observer, ClientboundSetPlayerTeamPacket.createAddOrModifyPacket(team, true));
+        return team;
     }
 
-    @Override
-    public void add(ServerPlayer observer, String teamName, String name) {
-        send(observer, ClientboundSetPlayerTeamPacket.createPlayerPacket(teams.getPlayerTeam(teamName), name, ClientboundSetPlayerTeamPacket.Action.ADD));
+    private MinecraftPacketBlobs blobs(ServerPlayer observer) {
+        if (blobs == null) {
+            blobs = new MinecraftPacketBlobs(observer.level().registryAccess());
+        }
+        return blobs;
     }
 
-    @Override
-    public void remove(ServerPlayer observer, String teamName, String name) {
-        send(observer, ClientboundSetPlayerTeamPacket.createPlayerPacket(teams.getPlayerTeam(teamName), name, ClientboundSetPlayerTeamPacket.Action.REMOVE));
+    private MinecraftEntityTracker tracker(Entity entity) {
+        runtime.requireServerThread();
+        if (!(entity.level() instanceof ServerLevel level)) {
+            return null;
+        }
+        Object tracker = ((ProjectionEntityMapAccess) level.getChunkSource().chunkMap).wormholesEntityMap().get(entity.getId());
+        return tracker instanceof MinecraftEntityTracker projection ? projection : null;
     }
 
-    @Override
-    public void removeTeam(ServerPlayer observer, String teamName) {
-        PlayerTeam team = teams.getPlayerTeam(teamName);
-        send(observer, ClientboundSetPlayerTeamPacket.createRemovePacket(team));
-        teams.removePlayerTeam(team);
+    private static Component labelText(String label) {
+        return Component.literal(PlayerNames.playerLabelText(label)).withColor(0xFFFFFF);
+    }
+
+    private static Vec3 labelPosition(SnapshotProjector.Label<Vec3> label) {
+        return new Vec3(label.position().x, PlayerNames.labelY(label.position().y, label.height()), label.position().z);
     }
 
     private static ClientboundAnimatePacket animatePacket(int entityId, int action) {

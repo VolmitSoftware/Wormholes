@@ -6,7 +6,7 @@ import art.arcane.wormholes.PortalManager;
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.platform.WormholesPlatform;
-import art.arcane.wormholes.render.BukkitEntityVisibility;
+import art.arcane.wormholes.render.BukkitEntityRegistryHost;
 import art.arcane.optics.occlusion.LocalOcclusionArbiter;
 import org.bukkit.Axis;
 import org.bukkit.Chunk;
@@ -78,7 +78,7 @@ final class DoorPortalVisualService implements AutoCloseable
 	DoorPortalVisualService(Plugin plugin, ViewerLookup viewerLookup)
 	{
 		this.plugin = Objects.requireNonNull(plugin, "plugin");
-		nativeVisibility = new LocalOcclusionArbiter<>(BukkitEntityVisibility.create(new BukkitEntityVisibility.Controller()
+		nativeVisibility = BukkitEntityRegistryHost.occlusion(new BukkitEntityRegistryHost.Controller()
 		{
 			@Override
 			public void hide(Player observer, Entity entity)
@@ -91,7 +91,7 @@ final class DoorPortalVisualService implements AutoCloseable
 			{
 				observer.showEntity(plugin, entity);
 			}
-		}));
+		});
 		markerKey = new NamespacedKey(plugin, "dimensional_door_visual");
 		this.viewerLookup = Objects.requireNonNull(viewerLookup, "viewerLookup");
 		visuals = new ConcurrentHashMap<>();

@@ -1,6 +1,5 @@
 package art.arcane.wormholes;
 
-import art.arcane.wormholes.render.BukkitEntityVisibility;
 import org.bukkit.block.data.BlockData;
 import art.arcane.wormholes.hook.ProjectionSource;
 import art.arcane.wormholes.hook.WormholesHooks;
@@ -77,6 +76,7 @@ import art.arcane.optics.plate.ViewPlateCache;
 import art.arcane.optics.plate.ViewPlateKey;
 import art.arcane.wormholes.render.view.ProjectionWorldViewProvider;
 import art.arcane.wormholes.render.view.RegionSnapshotWorldViewProvider;
+import art.arcane.wormholes.render.BukkitEntityRegistryHost;
 import art.arcane.wormholes.service.WormholesTelemetry;
 import art.arcane.optics.math.Face;
 import art.arcane.wormholes.util.J;
@@ -131,7 +131,7 @@ public class ProjectionManager implements Listener {
             : ProjectionWorldViewProvider.sectionCached(Wormholes.instance, Wormholes.projectionChangeTracker);
         this.clientChunkTracker = clientChunkTracker;
         this.claimArbiter = new ProjectionClaimArbiter(viewProvider, clientChunkTracker);
-        this.localEntityOcclusion = new LocalOcclusionArbiter<>(BukkitEntityVisibility.create());
+        this.localEntityOcclusion = BukkitEntityRegistryHost.occlusion(BukkitEntityRegistryHost.PLUGIN_VISIBILITY);
         this.rtpRimRenderer = new RtpRimRenderer();
         this.skinRenderer = new PortalSkinRenderer(claimArbiter);
         BooleanSupplier alive = () -> !closed;

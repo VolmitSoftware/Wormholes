@@ -6,15 +6,17 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-
+import art.arcane.optics.entity.EntityFeed;
+import art.arcane.optics.entity.EntityOutput;
 
 public final class LocalOcclusionArbiter<O, E> {
     private final Map<UUID, ObserverState> observers;
-    private final Host<O, E> visibility;
+    private final EntityFeed<O, ?, ?, E> feed;
+    private final EntityOutput<O, ?, ?, ?, E> visibility;
 
-    public LocalOcclusionArbiter(Host<O, E> visibility) {
+    public LocalOcclusionArbiter(EntityFeed<O, ?, ?, E> feed, EntityOutput<O, ?, ?, ?, E> visibility) {
         this.observers = new ConcurrentHashMap<UUID, ObserverState>();
+        this.feed = feed;
         this.visibility = visibility;
     }
 
@@ -136,7 +138,7 @@ public final class LocalOcclusionArbiter<O, E> {
         for (Map<UUID, E> claims : state.claimsByOwner.values()) {
             for (Map.Entry<UUID, E> claim : claims.entrySet()) {
                 E entity = claim.getValue();
-                if (entity != null && visibility.valid(entity)) {
+                if (entity != null && feed.valid(entity)) {
                     desired.put(claim.getKey(), entity);
                 }
             }
@@ -151,12 +153,12 @@ public final class LocalOcclusionArbiter<O, E> {
             }
             E entity = entry.getValue();
             try {
-                if (entity != null && visibility.valid(entity)) {
-                    visibility.show(observer, entity);
+                if (entity != null && feed.valid(entity)) {
+                    visibility.showLocal(observer, entity);
                 }
                 hidden.remove();
             } catch (IllegalStateException error) {
-                reportOwnershipFailure(state, error);
+                reportOwnershipFailure(observer, state, error);
                 scheduleRetry(observer, state);
             }
         }
@@ -168,10 +170,10 @@ public final class LocalOcclusionArbiter<O, E> {
                 continue;
             }
             try {
-                visibility.hide(observer, entity);
+                visibility.hideLocal(observer, entity);
                 state.appliedHidden.put(entry.getKey(), entity);
             } catch (IllegalStateException error) {
-                reportOwnershipFailure(state, error);
+                reportOwnershipFailure(observer, state, error);
                 scheduleRetry(observer, state);
             }
         }
@@ -206,21 +208,12 @@ public final class LocalOcclusionArbiter<O, E> {
         }
     }
 
-    private void reportOwnershipFailure(ObserverState state, IllegalStateException error) {
+    private void reportOwnershipFailure(O observer, ObserverState state, IllegalStateException error) {
         if (!state.ownershipWarningSent) {
             state.ownershipWarningSent = true;
-            visibility.failure(error);
+            visibility.warning(observer,
+                "local entity occlusion crossed an unowned region; the projection keeps its prior visibility state", error);
         }
-    }
-
-    public interface Host<O, E> {
-        UUID id(O observer);
-        boolean online(O observer);
-        boolean valid(E entity);
-        void hide(O observer, E entity);
-        void show(O observer, E entity);
-        boolean schedule(O observer, Runnable retry);
-        void failure(IllegalStateException error);
     }
 
     private final class ObserverState {

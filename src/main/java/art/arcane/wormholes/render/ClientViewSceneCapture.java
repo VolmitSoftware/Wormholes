@@ -178,7 +178,7 @@ public final class ClientViewSceneCapture {
             return withMetadata(visual, cached.bytes);
         }
         List<EntityData<?>> metadata = PacketBlobs.readMetadata(raw);
-        metadata = BukkitItemFrameMetadata.TRANSFORM.transformMetadata(metadata, metadataTransform, null, map);
+        metadata = EntityRenderMetadataBridge.FRAMES.transformMetadata(metadata, metadataTransform, null, map);
         if (flip) {
             metadata = EntityRenderMetadataBridge.upsideDown(visual.isPlayer(), metadata);
         }

@@ -14,10 +14,10 @@ public final class CandidateCache<W, E> {
     private static final long EVICT_MILLIS = 10_000L;
     private final Map<Key, Snapshot<W, E>> cache = new ConcurrentHashMap<>();
     private final AtomicLong sweepDue = new AtomicLong();
-    private final Source<W, E> source;
+    private final EntityFeed<?, W, ?, E> feed;
 
-    public CandidateCache(Source<W, E> source) {
-        this.source = source;
+    public CandidateCache(EntityFeed<?, W, ?, E> feed) {
+        this.feed = feed;
     }
 
     public Collection<E> nearby(Query<W> query, long now) {
@@ -28,7 +28,7 @@ public final class CandidateCache<W, E> {
         if (snapshot != null && snapshot.matches(query) && now - snapshot.createdAtMillis() <= Math.max(1, query.cacheTicks()) * 50L) {
             return snapshot.entities();
         }
-        List<E> entities = new ArrayList<>(source.entities(query.world(), query.center(), range));
+        List<E> entities = new ArrayList<>(feed.localEntities(query.world(), query.center(), range));
         cache.put(key, new Snapshot<>(query.world(), query.center().getBlockX(), query.center().getBlockY(), query.center().getBlockZ(), now, entities));
         return entities;
     }
@@ -47,10 +47,6 @@ public final class CandidateCache<W, E> {
             return;
         }
         cache.values().removeIf(snapshot -> now - snapshot.createdAtMillis() > EVICT_MILLIS);
-    }
-
-    public interface Source<W, E> {
-        Collection<E> entities(W world, Vec3d center, int range);
     }
 
     public record Query<W>(UUID portalId, W world, Vec3d center, double range, int cacheTicks) {

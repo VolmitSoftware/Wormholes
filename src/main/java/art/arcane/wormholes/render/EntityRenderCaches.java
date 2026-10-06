@@ -22,8 +22,8 @@ import art.arcane.optics.entity.CandidateCache;
 final class EntityRenderCaches {
     private static final long ENTITY_STATE_REFRESH_MILLIS = 500L;
     private static final long STATIC_CACHE_EVICT_MILLIS = 10_000L;
-    private static final CandidateCache<World, Entity> REMOTE_ENTITY_CACHE = new CandidateCache<>(EntityRenderCaches::queryEntities);
-    private static final CandidateCache<World, Entity> LOCAL_ENTITY_CACHE = new CandidateCache<>(EntityRenderCaches::queryEntities);
+    private static final CandidateCache<World, Entity> REMOTE_ENTITY_CACHE = new CandidateCache<>(BukkitEntityVisualHost.FEED);
+    private static final CandidateCache<World, Entity> LOCAL_ENTITY_CACHE = new CandidateCache<>(BukkitEntityVisualHost.FEED);
     private static final Map<UUID, EntityStateSnapshot> ENTITY_STATE_CACHE = new ConcurrentHashMap<UUID, EntityStateSnapshot>();
     private static final AtomicLong STATIC_CACHE_SWEEP_DUE = new AtomicLong(0L);
 
@@ -44,10 +44,6 @@ final class EntityRenderCaches {
         }
         return cache.nearby(new CandidateCache.Query<>(portal.getId(), center.getWorld(),
             new Vec3d(center.getX(), center.getY(), center.getZ()), range, Settings.ENTITY_CANDIDATE_CACHE_TICKS), System.currentTimeMillis());
-    }
-
-    private static Collection<Entity> queryEntities(World world, Vec3d center, int range) {
-        return world.getNearbyEntities(new Location(world, center.x(), center.y(), center.z()), range, range, range);
     }
 
     static EntityStateSnapshot freshEntityState(UUID entityId, long now) {

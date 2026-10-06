@@ -8,9 +8,9 @@ public final class ProjectedMetadata<D> {
     private static final int CUSTOM_NAME_VISIBLE_INDEX = 3;
     private static final int PLAYER_SKIN_PARTS_INDEX = 16;
     private static final byte CAPE_PART_BIT = 0x01;
-    private final Access<D> access;
+    private final MetadataAccess<D> access;
 
-    public ProjectedMetadata(Access<D> access) {
+    public ProjectedMetadata(MetadataAccess<D> access) {
         this.access = access;
     }
 
@@ -48,13 +48,5 @@ public final class ProjectedMetadata<D> {
             builder.append(access.index(data)).append('=').append(String.valueOf(access.value(data))).append(';');
         }
         return builder.toString();
-    }
-
-    public interface Access<D> {
-        int index(D value);
-        Object value(D value);
-        D skinParts(int index, byte parts);
-        D customName(int index, String name);
-        D nameVisible(int index, boolean visible);
     }
 }

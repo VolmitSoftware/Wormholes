@@ -73,9 +73,9 @@ final class ProjectedPaintingAnchorTest {
         ILocalPortal remotePortal = RenderTestSupport.portal(world, new Vector(0.0D, 0.0D, 0.0D), remoteFrame);
         ViewVolume frustum = new ViewVolume(BukkitGeometry.vector(new Location(null, 1.5D, 1.5D, 0.0D)), new RenderTestSupport.ApertureStructure(), new ViewVolume.Options(16.0D, 16.0D, Settings.NEAR_PLANE_PADDING, Settings.FRUSTUM_CULLING_RATIO, Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
         EntityRenderPacketChannel channel = new EntityRenderPacketChannel();
-        EntityRenderPlayerIdentity identity = new EntityRenderPlayerIdentity(channel);
-        SpoofRegistry<Player, Vector3d> registry = new SpoofRegistry<>(new BukkitEntityRegistryHost(channel, identity));
-        ProjectedEntityRenderer renderer = new ProjectedEntityRenderer(channel, identity, registry);
+        BukkitEntityRegistryHost output = new BukkitEntityRegistryHost(channel, BukkitEntityRegistryHost.PLUGIN_VISIBILITY);
+        SpoofRegistry<Player, Vector3d> registry = new SpoofRegistry<>(output);
+        ProjectedEntityRenderer renderer = new ProjectedEntityRenderer(output, registry);
         Player observer = ProjectedEntityPacketRecorder.player(true);
 
         OpticTransform transform = OpticTransform.between(remoteFrame, remotePortal.getOrigin(), localFrame, localPortal.getOrigin());

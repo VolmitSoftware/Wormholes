@@ -1,12 +1,10 @@
 package art.arcane.optics.entity;
 
-import java.util.UUID;
-
 public final class ProjectedMaps<O> {
-    private final Host<O> host;
+    private final EntityOutput<O, ?, ?, ?, ?> output;
 
-    public ProjectedMaps(Host<O> host) {
-        this.host = host;
+    public ProjectedMaps(EntityOutput<O, ?, ?, ?, ?> output) {
+        this.output = output;
     }
 
     public Projection project(O observer, EntitySnapshot visual, SpoofedEntity state, Options options) {
@@ -23,12 +21,12 @@ public final class ProjectedMaps<O> {
         try {
             MapSnapshot mapData = MapSnapshot.decode(encoded);
             if (mapData.sourceMapId() != sourceMapId.intValue()) {
-                reportInvalidPayload(visual, state, "source map id does not match item metadata", null);
+                reportInvalidPayload(observer, visual, state, "source map id does not match item metadata", null);
                 return Projection.strip();
             }
             return send(observer, state, mapData, reversed, force);
         } catch (IllegalArgumentException error) {
-            reportInvalidPayload(visual, state, "payload did not decode", error);
+            reportInvalidPayload(observer, visual, state, "payload did not decode", error);
             return Projection.strip();
         }
     }
@@ -42,7 +40,7 @@ public final class ProjectedMaps<O> {
         boolean mapChanged = state.updateMapData(source, reversed);
         if (force || mapChanged) {
             MapSnapshot projected = reversed ? source.mirrorHorizontally() : source;
-            host.send(observer, projected, virtualMapId);
+            output.map(observer, projected, virtualMapId);
         }
         return Projection.virtual(virtualMapId);
     }
@@ -51,18 +49,13 @@ public final class ProjectedMaps<O> {
         return fakeEntityId > 0 ? -fakeEntityId : Integer.MIN_VALUE + Math.floorMod(fakeEntityId, Integer.MAX_VALUE);
     }
 
-    private void reportInvalidPayload(EntitySnapshot visual, SpoofedEntity state, String reason, RuntimeException error) {
+    private void reportInvalidPayload(O observer, EntitySnapshot visual, SpoofedEntity state, String reason, RuntimeException error) {
         if (state.markMapPayloadFailureReported()) {
-            host.invalid(visual.id(), reason, error);
+            output.warning(observer, "rejected projected map data for " + visual.id() + ": " + reason, error);
         }
     }
 
     public record Options(Integer sourceMapId, int metadataTransform, boolean force) {
-    }
-
-    public interface Host<O> {
-        void send(O observer, MapSnapshot map, int virtualMapId);
-        void invalid(UUID sourceId, String reason, RuntimeException error);
     }
 
     public record Projection(Integer mapId, boolean stripMapId) {
