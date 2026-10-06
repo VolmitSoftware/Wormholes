@@ -7,6 +7,7 @@ import java.util.UUID;
 
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.aperture.Endpoint;
+import art.arcane.optics.aperture.EndpointDirectory;
 import art.arcane.optics.aperture.CellAperture;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.aperture.ApertureCells;
@@ -19,6 +20,7 @@ import art.arcane.optics.claim.ProjectedBlockClaim;
 import art.arcane.optics.claim.ProjectionBlackout;
 import art.arcane.optics.view.BlockStates;
 import art.arcane.optics.scan.CellScan;
+import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.optics.volume.FrustumFit;
 import art.arcane.optics.recursion.RecursiveEndpoints;
 import art.arcane.optics.scan.ProjectorSampleMemo;
@@ -428,9 +430,9 @@ public final class ClientSweepScene {
         }
     }
 
-    private static final class NoPortals implements RecursiveEndpoints.PortalAccess<Object, ScanPortal> {
+    private static final class NoPortals implements EndpointDirectory<Object, ScanPortal> {
         @Override
-        public List<ScanPortal> portals() {
+        public List<ScanPortal> endpoints() {
             return List.of();
         }
 
@@ -440,7 +442,7 @@ public final class ClientSweepScene {
         }
 
         @Override
-        public CellAperture structure(ScanPortal portal) {
+        public CellAperture aperture(ScanPortal portal) {
             return null;
         }
 
@@ -460,8 +462,8 @@ public final class ClientSweepScene {
         }
 
         @Override
-        public int mirrorQuarterTurns(ScanPortal portal) {
-            return 0;
+        public QuarterTurn mirrorTurns(ScanPortal portal) {
+            return QuarterTurn.DEGREES_0;
         }
 
         @Override

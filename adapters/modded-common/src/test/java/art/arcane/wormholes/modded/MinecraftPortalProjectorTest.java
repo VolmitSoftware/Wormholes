@@ -22,6 +22,7 @@ import art.arcane.optics.view.ContentView;
 import art.arcane.wormholes.render.view.RemoteProjectionView;
 import net.minecraft.network.syncher.SynchedEntityData;
 import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
 import art.arcane.optics.math.CellKeys;
@@ -68,6 +69,7 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
         WormholesModConfiguration configuration = mock(WormholesModConfiguration.class);
         MinecraftPortalRegistry registry = mock(MinecraftPortalRegistry.class);
         MinecraftProjectorPortalAccess access = mock(MinecraftProjectorPortalAccess.class);
+        when(access.mirrorTurns(any())).thenReturn(QuarterTurn.DEGREES_0);
         ServerPlayer player = mock(ServerPlayer.class);
         MinecraftServer server = mock(MinecraftServer.class);
         PlayerList players = mock(PlayerList.class);
@@ -93,7 +95,7 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
         when(access.world(source)).thenReturn(world);
         when(access.world(target)).thenReturn(world);
         when(access.projectionDestination(source)).thenReturn(target);
-        when(access.portals()).thenReturn(List.of());
+        when(access.endpoints()).thenReturn(List.of());
         when(access.createRecursiveIndex()).thenReturn(new RecursiveEndpoints<>(access,
             () -> new RecursiveEndpoints.Options(0.75D, 64.0D)));
         when(view.getWorld()).thenReturn(world);
@@ -122,6 +124,7 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
         MinecraftPortalRegistry registry = mock(MinecraftPortalRegistry.class);
         MinecraftNetworkService network = mock(MinecraftNetworkService.class);
         MinecraftProjectorPortalAccess access = mock(MinecraftProjectorPortalAccess.class);
+        when(access.mirrorTurns(any())).thenReturn(QuarterTurn.DEGREES_0);
         ServerPlayer player = mock(ServerPlayer.class);
         MinecraftServer server = mock(MinecraftServer.class);
         PlayerList players = mock(PlayerList.class);
@@ -384,6 +387,7 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
         WormholesModRuntime runtime = mock(WormholesModRuntime.class);
         WormholesModConfiguration configuration = mock(WormholesModConfiguration.class);
         MinecraftProjectorPortalAccess access = mock(MinecraftProjectorPortalAccess.class);
+        when(access.mirrorTurns(any())).thenReturn(QuarterTurn.DEGREES_0);
         ServerPlayer player = mock(ServerPlayer.class);
         MinecraftServer server = mock(MinecraftServer.class);
         PlayerList players = mock(PlayerList.class);
@@ -412,7 +416,7 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
         when(access.world(source)).thenReturn(sourceWorld);
         when(access.world(target)).thenReturn(targetWorld);
         when(access.projectionDestination(source)).thenReturn(target);
-        when(access.portals()).thenReturn(List.of());
+        when(access.endpoints()).thenReturn(List.of());
         when(access.createRecursiveIndex()).thenReturn(new RecursiveEndpoints<>(access,
             () -> new RecursiveEndpoints.Options(0.75D, 64.0D)));
         MinecraftProjectionWorldView local = view(sourceWorld, LOCAL_WORLD, Blocks.AIR.defaultBlockState());
@@ -457,6 +461,7 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
         WormholesModConfiguration configuration = mock(WormholesModConfiguration.class);
         MinecraftPortalRegistry registry = mock(MinecraftPortalRegistry.class);
         MinecraftProjectorPortalAccess access = mock(MinecraftProjectorPortalAccess.class);
+        when(access.mirrorTurns(any())).thenReturn(QuarterTurn.DEGREES_0);
         MinecraftProjectionService projections = mock(MinecraftProjectionService.class);
         MinecraftRtpRuntime rtp = mock(MinecraftRtpRuntime.class);
         MinecraftServer server = mock(MinecraftServer.class);
@@ -484,7 +489,7 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
         when(access.world(source)).thenReturn(world);
         when(access.world(target)).thenReturn(world);
         when(access.projectionDestination(source)).thenReturn(target);
-        when(access.portals()).thenReturn(List.of());
+        when(access.endpoints()).thenReturn(List.of());
         when(access.createRecursiveIndex()).thenAnswer(ignored -> new RecursiveEndpoints<>(access,
             () -> new RecursiveEndpoints.Options(0.75D, 64.0D)));
         when(view.getWorld()).thenReturn(world);

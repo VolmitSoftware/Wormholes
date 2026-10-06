@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.optics.aperture.CellAperture;
 import art.arcane.optics.aperture.Endpoint;
+import art.arcane.optics.aperture.EndpointDirectory;
 import art.arcane.optics.entity.ItemFrameTransform;
 import art.arcane.optics.frame.AxisPermutation;
 import art.arcane.optics.frame.Frame;
@@ -307,7 +308,7 @@ final class RecursiveEndpointsTransformTest {
         void hit(RecursiveEndpoints.Hit<String, ScenePortal> hit, Digest digest);
     }
 
-    static final class Access implements RecursiveEndpoints.PortalAccess<String, ScenePortal> {
+    static final class Access implements EndpointDirectory<String, ScenePortal> {
         private final List<ScenePortal> portals;
 
         Access(List<ScenePortal> portals) {
@@ -315,7 +316,7 @@ final class RecursiveEndpointsTransformTest {
         }
 
         @Override
-        public List<ScenePortal> portals() {
+        public List<ScenePortal> endpoints() {
             return portals;
         }
 
@@ -325,7 +326,7 @@ final class RecursiveEndpointsTransformTest {
         }
 
         @Override
-        public CellAperture structure(ScenePortal portal) {
+        public CellAperture aperture(ScenePortal portal) {
             return portal.structure();
         }
 
@@ -345,8 +346,8 @@ final class RecursiveEndpointsTransformTest {
         }
 
         @Override
-        public int mirrorQuarterTurns(ScenePortal portal) {
-            return portal.turns().coherentFor(portal.frame()).getQuarterTurns();
+        public QuarterTurn mirrorTurns(ScenePortal portal) {
+            return portal.turns().coherentFor(portal.frame());
         }
 
         @Override

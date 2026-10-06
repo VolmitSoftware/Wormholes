@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.aperture.EndpointDirectory;
 import art.arcane.optics.frame.AxisPermutation;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.QuarterTurn;
@@ -88,8 +89,8 @@ public class MinecraftProjectorSamplerTest extends MinecraftTestBase {
         ServerLevel level = mock(ServerLevel.class);
         when(view.getWorld()).thenReturn(level);
         when(view.buriedDepth(anyInt(), anyInt(), anyInt())).thenReturn(-1);
-        RecursiveEndpoints.PortalAccess<ServerLevel, MinecraftPortal> access = mock(RecursiveEndpoints.PortalAccess.class);
-        when(access.portals()).thenReturn(List.of());
+        EndpointDirectory<ServerLevel, MinecraftPortal> access = mock(EndpointDirectory.class);
+        when(access.endpoints()).thenReturn(List.of());
         RecursiveEndpoints<ServerLevel, MinecraftPortal> portals = new RecursiveEndpoints<>(access,
             () -> new RecursiveEndpoints.Options(0.0D, 64.0D));
         ProjectorSampleMemo<BlockState, BlockState, MinecraftProjectionWorldView> memo = new ProjectorSampleMemo<>(

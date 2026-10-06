@@ -139,8 +139,9 @@ public class MinecraftClientViewPortalAccessTest extends MinecraftTestBase {
         MinecraftClientViewPortalAccess portals = new MinecraftClientViewPortalAccess(fixture.runtime());
         for (QuarterTurn rotation : List.of(QuarterTurn.DEGREES_90, QuarterTurn.DEGREES_270)) {
             when(fixture.source().getMirrorRotation()).thenReturn(rotation);
-            int ordinary = rotation.coherentFor(fixture.source().getFrame()).getQuarterTurns();
-            when(fixture.access().mirrorQuarterTurns(fixture.source())).thenReturn(ordinary);
+            QuarterTurn coherent = rotation.coherentFor(fixture.source().getFrame());
+            int ordinary = coherent.getQuarterTurns();
+            when(fixture.access().mirrorTurns(fixture.source())).thenReturn(coherent);
             fixture.peer().meshDepth(208);
             ApertureDescriptor geometry = portals.geometry(fixture.peer(), fixture.source().getId(), new SessionPalette());
             assertEquals(rotation.getQuarterTurns(), geometry.mirrorQuarterTurns());
@@ -468,8 +469,8 @@ public class MinecraftClientViewPortalAccessTest extends MinecraftTestBase {
         }
         MinecraftClientViewPortalAccess portals = new MinecraftClientViewPortalAccess(fixture.runtime());
         portals.frame(List.of(fixture.source(), front, back));
-        for (int turns : new int[] {0, 2}) {
-            when(fixture.access().mirrorQuarterTurns(fixture.source())).thenReturn(turns);
+        for (QuarterTurn turns : List.of(QuarterTurn.DEGREES_0, QuarterTurn.DEGREES_180)) {
+            when(fixture.access().mirrorTurns(fixture.source())).thenReturn(turns);
             for (boolean frontSide : new boolean[] {true, false}) {
                 when(fixture.player().getEyePosition()).thenReturn(new Vec3(1.0D, 65.0D, frontSide ? 4.0D : -4.0D));
                 ApertureDescriptor geometry = portals.geometry(fixture.peer(), fixture.source().getId(), new SessionPalette());
@@ -585,6 +586,7 @@ public class MinecraftClientViewPortalAccessTest extends MinecraftTestBase {
         WormholesModConfiguration configuration = mock(WormholesModConfiguration.class);
         MinecraftPortalRegistry registry = mock(MinecraftPortalRegistry.class);
         MinecraftProjectorPortalAccess access = mock(MinecraftProjectorPortalAccess.class);
+        when(access.mirrorTurns(any())).thenReturn(QuarterTurn.DEGREES_0);
         MinecraftProjectionService projections = mock(MinecraftProjectionService.class);
         MinecraftRtpRuntime rtp = mock(MinecraftRtpRuntime.class);
         MinecraftServer server = mock(MinecraftServer.class);
@@ -620,7 +622,7 @@ public class MinecraftClientViewPortalAccessTest extends MinecraftTestBase {
         when(access.world(source)).thenReturn(world);
         when(access.world(target)).thenReturn(world);
         when(access.projectionDestination(source)).thenReturn(target);
-        when(access.portals()).thenReturn(List.of());
+        when(access.endpoints()).thenReturn(List.of());
         when(access.createRecursiveIndex()).thenAnswer(ignored -> new RecursiveEndpoints<>(access,
             () -> new RecursiveEndpoints.Options(0.75D, 64.0D)));
         when(view.getWorld()).thenReturn(world);

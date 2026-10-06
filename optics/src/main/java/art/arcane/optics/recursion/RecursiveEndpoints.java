@@ -11,8 +11,8 @@ import java.util.function.Supplier;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.OpticTransform;
-import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.optics.aperture.Endpoint;
+import art.arcane.optics.aperture.EndpointDirectory;
 import art.arcane.optics.aperture.CellAperture;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.CellKeys;
@@ -27,7 +27,7 @@ public final class RecursiveEndpoints<W, P extends Endpoint> {
     private static final double CLIP_MARGIN = 1.0E-4D;
     private static final double CLIP_SLOPE_EPSILON = 1.0E-12D;
 
-    private final PortalAccess<W, P> portalAccess;
+    private final EndpointDirectory<W, P> directory;
     private final Supplier<Options> options;
     private final HashMap<W, List<P>> candidatesByWorld;
     private final ArrayList<Index> indexes;
@@ -37,8 +37,8 @@ public final class RecursiveEndpoints<W, P extends Endpoint> {
     private Index lastIndex;
     private long portalSignature;
 
-    public RecursiveEndpoints(PortalAccess<W, P> portalAccess, Supplier<Options> options) {
-        this.portalAccess = portalAccess;
+    public RecursiveEndpoints(EndpointDirectory<W, P> directory, Supplier<Options> options) {
+        this.directory = directory;
         this.options = options;
         this.candidatesByWorld = new HashMap<W, List<P>>(4);
         this.indexes = new ArrayList<Index>(4);
@@ -67,7 +67,7 @@ public final class RecursiveEndpoints<W, P extends Endpoint> {
         Options current = options.get();
         long hash = ProjectorPassRevision.mix(0x9E3779B97F4A7C15L, Double.doubleToLongBits(current.aperturePadding()));
         hash = ProjectorPassRevision.mix(hash, Double.doubleToLongBits(current.depthBlocks()));
-        List<P> portals = portalAccess.portals();
+        List<P> portals = directory.endpoints();
         hash = ProjectorPassRevision.mix(hash, portals.size());
         for (P portal : portals) {
             hash = mixPortal(hash, portal);
@@ -80,23 +80,23 @@ public final class RecursiveEndpoints<W, P extends Endpoint> {
             return ProjectorPassRevision.mix(hash, 0L);
         }
         long mixed = mixIdentity(hash, portal);
-        mixed = ProjectorPassRevision.mix(mixed, portalAccess.eligible(portal) ? 1L : 2L);
-        W world = portalAccess.world(portal);
+        mixed = ProjectorPassRevision.mix(mixed, directory.eligible(portal) ? 1L : 2L);
+        W world = directory.world(portal);
         mixed = ProjectorPassRevision.mix(mixed, world == null ? 0L : System.identityHashCode(world));
-        CellAperture structure = portalAccess.structure(portal);
+        CellAperture structure = directory.aperture(portal);
         if (structure != null) {
             mixed = ProjectorPassRevision.mix(mixed, structure.getRevision());
             mixed = mixBox(mixed, structure.getArea());
         }
-        mixed = mixBox(mixed, portalAccess.view(portal));
-        boolean mirror = portalAccess.mirror(portal);
-        mixed = ProjectorPassRevision.mix(mixed, mirror ? 1L + portalAccess.mirrorQuarterTurns(portal) : 0L);
-        P destination = portalAccess.destination(portal);
+        mixed = mixBox(mixed, directory.view(portal));
+        boolean mirror = directory.mirror(portal);
+        mixed = ProjectorPassRevision.mix(mixed, mirror ? 1L + directory.mirrorTurns(portal).getQuarterTurns() : 0L);
+        P destination = directory.destination(portal);
         if (destination == null) {
             return ProjectorPassRevision.mix(mixed, 0L);
         }
         mixed = mixIdentity(mixed, destination);
-        W destinationWorld = portalAccess.world(destination);
+        W destinationWorld = directory.world(destination);
         return ProjectorPassRevision.mix(mixed, destinationWorld == null ? 0L : System.identityHashCode(destinationWorld));
     }
 
@@ -159,7 +159,7 @@ public final class RecursiveEndpoints<W, P extends Endpoint> {
             if (isExcluded(candidate, excludedPortal)) {
                 continue;
             }
-            if (overlaps(portalAccess.view(candidate), minX, minY, minZ, maxX, maxY, maxZ)) {
+            if (overlaps(directory.view(candidate), minX, minY, minZ, maxX, maxY, maxZ)) {
                 return true;
             }
         }
@@ -173,7 +173,7 @@ public final class RecursiveEndpoints<W, P extends Endpoint> {
         }
 
         List<P> found = new ArrayList<P>();
-        for (P candidate : portalAccess.portals()) {
+        for (P candidate : directory.endpoints()) {
             if (!isCandidate(candidate, world)) {
                 continue;
             }
@@ -187,10 +187,10 @@ public final class RecursiveEndpoints<W, P extends Endpoint> {
         if (candidate == null || world == null) {
             return false;
         }
-        if (!portalAccess.eligible(candidate)) {
+        if (!directory.eligible(candidate)) {
             return false;
         }
-        W candidateWorld = portalAccess.world(candidate);
+        W candidateWorld = directory.world(candidate);
         if (candidateWorld == null || !candidateWorld.equals(world)) {
             return false;
         }
@@ -415,7 +415,7 @@ public final class RecursiveEndpoints<W, P extends Endpoint> {
             this.eyeY = eyeY;
             this.eyeZ = eyeZ;
             this.portalId = candidate == null ? null : candidate.id();
-            if (candidate == null || candidate.origin() == null || candidate.frame() == null || portalAccess.structure(candidate) == null) {
+            if (candidate == null || candidate.origin() == null || candidate.frame() == null || directory.aperture(candidate) == null) {
                 this.view = null;
                 this.nestedWorld = null;
                 this.nestedDestination = null;
@@ -443,7 +443,7 @@ public final class RecursiveEndpoints<W, P extends Endpoint> {
                 return;
             }
 
-            Box candidateView = portalAccess.view(candidate);
+            Box candidateView = directory.view(candidate);
             Frame frame = candidate.frame();
             double candidateOriginX = candidate.origin().getX();
             double candidateOriginY = candidate.origin().getY();
@@ -460,21 +460,21 @@ public final class RecursiveEndpoints<W, P extends Endpoint> {
             double localProjectionNormalY = candidateLocalFrame.getNormal().y();
             double localProjectionNormalZ = candidateLocalFrame.getNormal().z();
             double signedEyeDistance = (eyeRelX * localProjectionNormalX) + (eyeRelY * localProjectionNormalY) + (eyeRelZ * localProjectionNormalZ);
-            double candidateClearance = ProjectionVolume.portalPlaneClearance(portalAccess.structure(candidate).getArea(), frame);
+            double candidateClearance = ProjectionVolume.portalPlaneClearance(directory.aperture(candidate).getArea(), frame);
 
             P destination;
             W destinationWorld;
             OpticTransform stepToward;
-            P linkedDestination = portalAccess.destination(candidate);
-            if (portalAccess.mirror(candidate)) {
+            P linkedDestination = directory.destination(candidate);
+            if (directory.mirror(candidate)) {
                 destination = candidate;
-                destinationWorld = portalAccess.world(candidate);
+                destinationWorld = directory.world(candidate);
                 stepToward = destinationWorld == null ? null
-                    : OpticTransform.mirror(frame, candidate.origin(), QuarterTurn.of(portalAccess.mirrorQuarterTurns(candidate)))
+                    : OpticTransform.mirror(frame, candidate.origin(), directory.mirrorTurns(candidate))
                         .inverse();
             } else if (linkedDestination != null) {
                 destination = linkedDestination;
-                destinationWorld = portalAccess.world(linkedDestination);
+                destinationWorld = directory.world(linkedDestination);
                 stepToward = destinationWorld == null || linkedDestination.frame() == null || linkedDestination.origin() == null ? null
                     : OpticTransform.between(candidateLocalFrame, candidate.origin(), linkedDestination.frame().view(frontSide),
                         linkedDestination.origin());
@@ -497,7 +497,7 @@ public final class RecursiveEndpoints<W, P extends Endpoint> {
             this.view = candidateView;
             this.nestedWorld = destinationWorld;
             this.nestedDestination = destination;
-            this.planeWindow = candidateView == null ? null : PlaneWindow.create(portalAccess.structure(candidate), portalAccess.structure(candidate).getArea(), candidateLocalFrame,
+            this.planeWindow = candidateView == null ? null : PlaneWindow.create(directory.aperture(candidate), directory.aperture(candidate).getArea(), candidateLocalFrame,
                 candidateOriginX, candidateOriginY, candidateOriginZ, options.get().aperturePadding(),
                 signedEyeDistance);
             this.originX = candidateOriginX;
@@ -690,16 +690,5 @@ public final class RecursiveEndpoints<W, P extends Endpoint> {
         NONE,
         MASK,
         RECURSIVE
-    }
-
-    public interface PortalAccess<W, P extends Endpoint> {
-        List<P> portals();
-        W world(P portal);
-        CellAperture structure(P portal);
-        Box view(P portal);
-        boolean eligible(P portal);
-        boolean mirror(P portal);
-        int mirrorQuarterTurns(P portal);
-        P destination(P portal);
     }
 }

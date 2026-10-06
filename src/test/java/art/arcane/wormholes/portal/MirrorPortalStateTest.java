@@ -123,7 +123,7 @@ public final class MirrorPortalStateTest {
         portal.setFrame(wall);
         assertEquals(QuarterTurn.DEGREES_270, portal.getMirrorRotation());
         assertEquals(QuarterTurn.DEGREES_180, portal.getMirrorRotation().coherentFor(wall));
-        assertEquals(2, new BukkitProjectorPortalAccess(List::of).mirrorQuarterTurns(portal));
+        assertEquals(QuarterTurn.DEGREES_180, new BukkitProjectorPortalAccess(List::of).mirrorTurns(portal));
 
         JSONObject stored = new JSONObject();
         stored.put("mirrorRotationDegrees", 270);

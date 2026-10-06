@@ -5,6 +5,8 @@ import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.ITunnel;
 import art.arcane.optics.aperture.CellAperture;
+import art.arcane.optics.aperture.EndpointDirectory;
+import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.optics.math.Box;
 import org.bukkit.World;
 
@@ -12,7 +14,7 @@ import java.util.List;
 import java.util.function.Supplier;
 import art.arcane.optics.recursion.RecursiveEndpoints;
 
-public final class BukkitProjectorPortalAccess implements RecursiveEndpoints.PortalAccess<World, ILocalPortal> {
+public final class BukkitProjectorPortalAccess implements EndpointDirectory<World, ILocalPortal> {
     private final Supplier<List<ILocalPortal>> source;
 
     public BukkitProjectorPortalAccess(Supplier<List<ILocalPortal>> source) {
@@ -29,7 +31,7 @@ public final class BukkitProjectorPortalAccess implements RecursiveEndpoints.Por
     }
 
     @Override
-    public List<ILocalPortal> portals() {
+    public List<ILocalPortal> endpoints() {
         return source.get();
     }
 
@@ -39,7 +41,7 @@ public final class BukkitProjectorPortalAccess implements RecursiveEndpoints.Por
     }
 
     @Override
-    public CellAperture structure(ILocalPortal portal) {
+    public CellAperture aperture(ILocalPortal portal) {
         return portal.getStructure();
     }
 
@@ -59,8 +61,8 @@ public final class BukkitProjectorPortalAccess implements RecursiveEndpoints.Por
     }
 
     @Override
-    public int mirrorQuarterTurns(ILocalPortal portal) {
-        return portal.getMirrorRotation().coherentFor(portal.getFrame()).getQuarterTurns();
+    public QuarterTurn mirrorTurns(ILocalPortal portal) {
+        return portal.getMirrorRotation().coherentFor(portal.getFrame());
     }
 
     @Override

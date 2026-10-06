@@ -552,7 +552,7 @@ public final class MinecraftClientViewPortalAccess implements ClientViewPortalAc
         if (!portal.isMirrorMode()) {
             return 0;
         }
-        return peer.meshDepth() > 0 ? portal.getMirrorRotation().getQuarterTurns() : peer.portals().mirrorQuarterTurns(portal);
+        return peer.meshDepth() > 0 ? portal.getMirrorRotation().getQuarterTurns() : peer.portals().mirrorTurns(portal).getQuarterTurns();
     }
 
     static boolean front(ServerPlayer player, MinecraftPortal portal) {

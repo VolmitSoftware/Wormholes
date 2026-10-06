@@ -425,7 +425,7 @@ public final class MinecraftPortalProjector implements AutoCloseable {
         }
         Vec3d origin = target.getOrigin();
         return new Destination(views.apply(sourceWorld), views.apply(targetWorld), target, target,
-            origin.x(), origin.y(), origin.z(), portal.isMirrorMode(), portals.mirrorQuarterTurns(portal));
+            origin.x(), origin.y(), origin.z(), portal.isMirrorMode(), portals.mirrorTurns(portal).getQuarterTurns());
     }
 
     private static BlockState parseFallback(String state) {

@@ -234,7 +234,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
         if (players.isEmpty() || System.currentTimeMillis() < frozenUntil) {
             return;
         }
-        List<MinecraftPortal> candidates = portals.portals();
+        List<MinecraftPortal> candidates = portals.endpoints();
         doorViews = runtime.doors().projectableViews();
         MinecraftClientViewService clientViews = runtime.clientViews();
         clientViews.tick(tick, players, candidates);

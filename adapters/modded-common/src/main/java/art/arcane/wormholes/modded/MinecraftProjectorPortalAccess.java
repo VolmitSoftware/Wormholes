@@ -7,6 +7,7 @@ import art.arcane.wormholes.portal.PortalType;
 import net.minecraft.server.level.ServerPlayer;
 import art.arcane.wormholes.portal.RemotePortal;
 import art.arcane.optics.aperture.CellAperture;
+import art.arcane.optics.aperture.EndpointDirectory;
 import art.arcane.wormholes.portal.PortalSurfaceSkins;
 import art.arcane.wormholes.portal.ProjectionMode;
 import art.arcane.optics.recursion.RecursiveEndpoints;
@@ -21,7 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-public final class MinecraftProjectorPortalAccess implements RecursiveEndpoints.PortalAccess<ServerLevel, MinecraftPortal> {
+public final class MinecraftProjectorPortalAccess implements EndpointDirectory<ServerLevel, MinecraftPortal> {
     private final WormholesModRuntime runtime;
     private final MinecraftEndReturnPreview endReturns;
     private MinecraftDoorProjectionViews doors;
@@ -61,7 +62,7 @@ public final class MinecraftProjectorPortalAccess implements RecursiveEndpoints.
     }
 
     @Override
-    public List<MinecraftPortal> portals() {
+    public List<MinecraftPortal> endpoints() {
         List<MinecraftPortal> portals = runtime.portals().snapshot();
         if (doors != null) {
             portals = new ArrayList<>(portals);
@@ -77,7 +78,7 @@ public final class MinecraftProjectorPortalAccess implements RecursiveEndpoints.
     }
 
     @Override
-    public CellAperture structure(MinecraftPortal portal) {
+    public CellAperture aperture(MinecraftPortal portal) {
         return portal.getGeometry();
     }
 
@@ -109,9 +110,9 @@ public final class MinecraftProjectorPortalAccess implements RecursiveEndpoints.
     }
 
     @Override
-    public int mirrorQuarterTurns(MinecraftPortal portal) {
+    public QuarterTurn mirrorTurns(MinecraftPortal portal) {
         int degrees = portal.setting("mirrorRotationDegrees") instanceof Number value ? value.intValue() : 0;
-        return QuarterTurn.fromDegrees(degrees).coherentFor(portal.getFrame()).getQuarterTurns();
+        return QuarterTurn.fromDegrees(degrees).coherentFor(portal.getFrame());
     }
 
     @Override
