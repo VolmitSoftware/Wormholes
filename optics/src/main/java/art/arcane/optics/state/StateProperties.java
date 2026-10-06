@@ -1,8 +1,7 @@
 package art.arcane.optics.state;
 
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
@@ -31,8 +30,36 @@ public final class StateProperties {
         return new StateProperties(names, sorted);
     }
 
+    public static StateProperties parse(String text) {
+        int last = text.length() - 1;
+        if (last < 1 || text.charAt(0) != '[' || text.charAt(last) != ']') {
+            throw new IllegalArgumentException("State properties must be bracketed: " + text);
+        }
+        if (last == 1) {
+            return EMPTY;
+        }
+        String[] pairs = text.substring(1, last).split(",");
+        Map<String, String> values = new HashMap<String, String>(pairs.length * 2);
+        for (String pair : pairs) {
+            int equals = pair.indexOf('=');
+            if (equals <= 0) {
+                throw new IllegalArgumentException("State property needs a value: " + pair + " in " + text);
+            }
+            values.put(pair.substring(0, equals), pair.substring(equals + 1));
+        }
+        return of(values);
+    }
+
     public int size() {
         return names.length;
+    }
+
+    public String name(int index) {
+        return names[index];
+    }
+
+    public String value(int index) {
+        return values[index];
     }
 
     public String get(String name) {
@@ -62,14 +89,6 @@ public final class StateProperties {
         System.arraycopy(names, insert, grownNames, insert + 1, names.length - insert);
         System.arraycopy(values, insert, grownValues, insert + 1, values.length - insert);
         return new StateProperties(grownNames, grownValues);
-    }
-
-    public Map<String, String> asMap() {
-        Map<String, String> map = new LinkedHashMap<String, String>(names.length * 2);
-        for (int index = 0; index < names.length; index++) {
-            map.put(names[index], values[index]);
-        }
-        return Collections.unmodifiableMap(map);
     }
 
     @Override

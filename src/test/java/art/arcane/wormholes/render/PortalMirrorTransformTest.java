@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.bukkit.util.Vector;
 import org.junit.jupiter.api.Test;
 
+import art.arcane.optics.frame.AxisPermutation;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.optics.frame.OpticTransform;
@@ -90,15 +91,19 @@ public final class PortalMirrorTransformTest {
     public void mirroredBlockDirectionsFollowImageRotation() {
         Frame wall = Frame.canonical(Face.N);
         Frame floor = Frame.canonical(Face.U);
-        double[] scratch = new double[3];
+        AxisPermutation reflection = AxisPermutation.mirror(wall, QuarterTurn.DEGREES_0);
+        AxisPermutation halfTurn = AxisPermutation.mirror(wall, QuarterTurn.DEGREES_180);
+        AxisPermutation floorQuarterTurn = AxisPermutation.mirror(floor, QuarterTurn.DEGREES_90);
 
-        assertEquals(Face.E, ProjectedBlockDataTransformer.mirrorDirection(Face.E, wall, 0, scratch));
-        assertEquals(Face.S, ProjectedBlockDataTransformer.mirrorDirection(Face.N, wall, 0, scratch));
-        assertEquals(Face.N, ProjectedBlockDataTransformer.mirrorDirection(Face.S, wall, 0, scratch));
-        assertEquals(Face.E, ProjectedBlockDataTransformer.mirrorDirection(Face.E, wall, 1, scratch));
-        assertEquals(Face.D, ProjectedBlockDataTransformer.mirrorDirection(Face.U, floor, 1, scratch));
-        assertEquals(OpticTransform.mirror(floor, ORIGIN, QuarterTurn.DEGREES_90).face(Face.E),
-            ProjectedBlockDataTransformer.mirrorDirection(Face.E, floor, 1, scratch));
+        assertEquals(Face.E, reflection.face(Face.E));
+        assertEquals(Face.S, reflection.face(Face.N));
+        assertEquals(Face.N, reflection.face(Face.S));
+        assertEquals(Face.E, AxisPermutation.mirror(wall, QuarterTurn.DEGREES_90).face(Face.E));
+        assertEquals(Face.W, halfTurn.face(Face.E));
+        assertEquals(Face.D, halfTurn.face(Face.U));
+        assertEquals(Face.S, halfTurn.face(Face.N));
+        assertEquals(Face.D, floorQuarterTurn.face(Face.U));
+        assertEquals(OpticTransform.mirror(floor, ORIGIN, QuarterTurn.DEGREES_90).face(Face.E), floorQuarterTurn.face(Face.E));
     }
 
     @Test

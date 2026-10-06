@@ -3,7 +3,8 @@ package art.arcane.wormholes.render.client.session;
 import java.util.Locale;
 import java.util.UUID;
 
-import art.arcane.optics.frame.DirectionMapping;
+import art.arcane.optics.frame.AxisPermutation;
+import art.arcane.optics.state.StateProperties;
 import art.arcane.optics.view.BlockStates;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.fidelity.BlockEntitySample;
@@ -159,7 +160,17 @@ final class SessionWorld implements ContentView<String, String> {
         }
 
         @Override
-        public String transform(String block, DirectionMapping mapping) {
+        public String transform(String block, AxisPermutation permutation) {
+            return block;
+        }
+
+        @Override
+        public StateProperties properties(String block) {
+            return StateProperties.EMPTY;
+        }
+
+        @Override
+        public String withProperties(String block, StateProperties properties) {
             return block;
         }
     }

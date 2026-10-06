@@ -3,21 +3,19 @@ package art.arcane.optics.state;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
 import art.arcane.optics.frame.AxisPermutation;
-import art.arcane.optics.frame.DirectionMapping;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.optics.math.Face;
 
 final class TrackShapeTest {
     @Test
-    void shapesMirrorTheLegacyRailShapeNamesAndSerializedForms() {
-        assertEquals(DirectionMapping.RailShape.values().length, TrackShape.values().length);
+    void serializedNamesRoundTrip() {
         for (TrackShape shape : TrackShape.values()) {
-            assertEquals(DirectionMapping.RailShape.values()[shape.ordinal()].name(), shape.name());
             assertSame(shape, TrackShape.fromSerializedName(shape.serializedName()));
         }
         assertEquals("ascending_north", TrackShape.ASCENDING_NORTH.serializedName());
@@ -26,15 +24,20 @@ final class TrackShapeTest {
     }
 
     @Test
-    void everyPermutationMapsEveryShapeLikeTheLegacyRailMapping() {
+    void levelPermutationsCarryTrackEndpointsToTheirImages() {
         for (int index = 0; index < 48; index++) {
             AxisPermutation permutation = AxisPermutation.ofIndex(index);
-            DirectionMapping mapping = DirectionMapping.axes(permutation.x(), permutation.y(), permutation.z());
+            if (!permutation.y().isVertical()) {
+                continue;
+            }
             for (TrackShape shape : TrackShape.values()) {
-                DirectionMapping.RailShape expected = mapping.mapRailShape(DirectionMapping.RailShape.valueOf(shape.name()));
-                TrackShape actual = shape.map(permutation);
-                assertEquals(expected == null ? null : expected.name(), actual == null ? null : actual.name(),
-                    permutation + " " + shape);
+                Face[] ends = ends(shape);
+                Face[] mapped = ends(shape.map(permutation));
+                Face first = permutation.face(ends[0]);
+                Face second = permutation.face(ends[1]);
+                boolean ascending = shape.name().startsWith("ASCENDING");
+                boolean matches = (mapped[0] == first && mapped[1] == second) || (!ascending && mapped[0] == second && mapped[1] == first);
+                assertTrue(matches, permutation + " " + shape + " -> " + shape.map(permutation));
             }
         }
     }
@@ -49,5 +52,20 @@ final class TrackShapeTest {
         AxisPermutation tilt = AxisPermutation.between(Frame.canonical(Face.N), Frame.canonical(Face.U));
         assertNull(TrackShape.NORTH_SOUTH.map(tilt));
         assertEquals(TrackShape.ASCENDING_NORTH, TrackShape.ASCENDING_NORTH.map(tilt));
+    }
+
+    private static Face[] ends(TrackShape shape) {
+        return switch (shape) {
+            case NORTH_SOUTH -> new Face[] {Face.N, Face.S};
+            case EAST_WEST -> new Face[] {Face.E, Face.W};
+            case ASCENDING_EAST -> new Face[] {Face.E, Face.W};
+            case ASCENDING_WEST -> new Face[] {Face.W, Face.E};
+            case ASCENDING_NORTH -> new Face[] {Face.N, Face.S};
+            case ASCENDING_SOUTH -> new Face[] {Face.S, Face.N};
+            case SOUTH_EAST -> new Face[] {Face.S, Face.E};
+            case SOUTH_WEST -> new Face[] {Face.S, Face.W};
+            case NORTH_WEST -> new Face[] {Face.N, Face.W};
+            case NORTH_EAST -> new Face[] {Face.N, Face.E};
+        };
     }
 }

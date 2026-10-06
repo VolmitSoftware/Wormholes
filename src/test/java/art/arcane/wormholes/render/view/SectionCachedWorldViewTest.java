@@ -1,6 +1,7 @@
 package art.arcane.wormholes.render.view;
 
-import art.arcane.optics.frame.DirectionMapping;
+import art.arcane.optics.frame.AxisPermutation;
+import art.arcane.optics.state.StateProperties;
 import art.arcane.optics.view.BlockStates;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -234,7 +235,17 @@ class SectionCachedWorldViewTest {
         }
 
         @Override
-        public BlockData transform(BlockData block, DirectionMapping mapping) {
+        public BlockData transform(BlockData block, AxisPermutation permutation) {
+            return block;
+        }
+
+        @Override
+        public StateProperties properties(BlockData block) {
+            return StateProperties.EMPTY;
+        }
+
+        @Override
+        public BlockData withProperties(BlockData block, StateProperties properties) {
             return block;
         }
     }

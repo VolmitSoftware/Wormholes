@@ -1,7 +1,9 @@
 package art.arcane.optics.state;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -113,6 +115,65 @@ final class BlockStateRulesTest {
         assertRule("thickness=tip,vertical_direction=up", FLOOR_MIRROR, "thickness=tip,vertical_direction=down");
         assertRule("type=bottom,waterlogged=false", QUARTER_TURN, "type=bottom,waterlogged=false");
         assertRule("hanging=true", NORTH_MIRROR, "hanging=true");
+    }
+
+    @Test
+    void ascendingRailsClimbTheOtherWayWhenWorldUpFlips() {
+        assertRule("shape=ascending_north", FLOOR_MIRROR, "shape=ascending_south");
+        assertRule("shape=ascending_east,waterlogged=false", FLOOR_MIRROR, "shape=ascending_west,waterlogged=false");
+        assertRule("shape=ascending_north", NORTH_MIRROR_HALF_TURN, "shape=ascending_north");
+        assertRule("shape=ascending_west", NORTH_MIRROR_HALF_TURN, "shape=ascending_west");
+        assertRule("shape=ascending_north", QUARTER_TURN, "shape=ascending_east");
+        assertRule("shape=north_east", FLOOR_MIRROR, "shape=north_east");
+    }
+
+    @Test
+    void orientationsMapTheirFrontAndKeepSideFacingTopsUpright() {
+        Face[][] pairs = {
+            {Face.D, Face.E}, {Face.D, Face.N}, {Face.D, Face.S}, {Face.D, Face.W},
+            {Face.U, Face.E}, {Face.U, Face.N}, {Face.U, Face.S}, {Face.U, Face.W},
+            {Face.W, Face.U}, {Face.E, Face.U}, {Face.N, Face.U}, {Face.S, Face.U}
+        };
+        for (int index = 0; index < 48; index++) {
+            AxisPermutation permutation = AxisPermutation.ofIndex(index);
+            for (Face[] pair : pairs) {
+                StateProperties source = StateProperties.of(Map.of("orientation", name(pair[0]) + "_" + name(pair[1]), "crafting", "false"));
+                StateProperties mapped = BlockStateRules.apply(source, permutation);
+                Face front = permutation.face(pair[0]);
+                Face top = front.isVertical() ? permutation.face(pair[1]) : Face.U;
+                assertEquals(name(front) + "_" + name(top), mapped.get("orientation"), permutation + " " + pair[0] + "_" + pair[1]);
+                assertEquals("false", mapped.get("crafting"));
+            }
+        }
+        assertRule("orientation=north_up,triggered=false", QUARTER_TURN, "orientation=east_up,triggered=false");
+        assertRule("orientation=up_north", FLOOR_MIRROR, "orientation=down_north");
+        assertRule("orientation=north_up", FLOOR_MIRROR, "orientation=north_up");
+        assertRule("orientation=north_up", NORTH_MIRROR_HALF_TURN, "orientation=south_up");
+        assertRule("orientation=up_north", TILT, "orientation=south_up");
+        assertRule("orientation=sideways", QUARTER_TURN, "orientation=sideways");
+    }
+
+    @Test
+    void sideChainsSwapEndsOnlyWhenTheHorizontalPlaneIsReflected() {
+        assertRule("facing=north,powered=false,side_chain=left", NORTH_MIRROR, "facing=south,powered=false,side_chain=right");
+        assertRule("facing=north,side_chain=right", EAST_MIRROR, "facing=north,side_chain=left");
+        assertRule("facing=north,side_chain=center", NORTH_MIRROR, "facing=south,side_chain=center");
+        assertRule("facing=north,side_chain=unconnected", NORTH_MIRROR, "facing=south,side_chain=unconnected");
+        assertRule("facing=north,side_chain=left", QUARTER_TURN, "facing=east,side_chain=left");
+        assertRule("facing=north,side_chain=left", FLOOR_MIRROR, "facing=north,side_chain=left");
+    }
+
+    @Test
+    void onlyStatesCarryingARewrittenPropertyAreAffected() {
+        assertFalse(BlockStateRules.affects(StateProperties.EMPTY));
+        assertFalse(BlockStateRules.affects(parse("snowy=false")));
+        assertFalse(BlockStateRules.affects(parse("distance=3,persistent=true,waterlogged=false")));
+        assertFalse(BlockStateRules.affects(parse("age=4,stage=0")));
+        for (String property : new String[] {"facing=north", "vertical_direction=up", "axis=x", "rotation=4", "shape=north_south",
+            "hinge=left", "type=bottom", "half=upper", "face=floor", "attachment=floor", "hanging=true", "orientation=north_up",
+            "side_chain=left", "north=true", "east=low", "south=side", "west=false", "up=true", "down=false"}) {
+            assertTrue(BlockStateRules.affects(parse(property)), property);
+        }
     }
 
     @Test

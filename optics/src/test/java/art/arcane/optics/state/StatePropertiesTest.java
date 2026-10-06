@@ -24,9 +24,20 @@ final class StatePropertiesTest {
         assertEquals("north", properties.get("facing"));
         assertNull(properties.get("waterlogged"));
         assertEquals(3, properties.size());
-        assertEquals(List.of("facing", "half", "shape"), List.copyOf(properties.asMap().keySet()));
+        assertEquals(List.of("facing", "half", "shape"), List.of(properties.name(0), properties.name(1), properties.name(2)));
+        assertEquals(List.of("north", "bottom", "straight"), List.of(properties.value(0), properties.value(1), properties.value(2)));
         assertEquals("[facing=north,half=bottom,shape=straight]", properties.toString());
-        assertThrows(UnsupportedOperationException.class, () -> properties.asMap().put("facing", "east"));
+    }
+
+    @Test
+    void bracketedTextParsesBackIntoTheSameProperties() {
+        StateProperties properties = StateProperties.of(Map.of("facing", "north", "half", "bottom", "waterlogged", "false"));
+        assertEquals(properties, StateProperties.parse(properties.toString()));
+        assertEquals(properties, StateProperties.parse("[waterlogged=false,half=bottom,facing=north]"));
+        assertSame(StateProperties.EMPTY, StateProperties.parse("[]"));
+        assertEquals("[]", StateProperties.EMPTY.toString());
+        assertThrows(IllegalArgumentException.class, () -> StateProperties.parse("facing=north"));
+        assertThrows(IllegalArgumentException.class, () -> StateProperties.parse("[facing]"));
     }
 
     @Test

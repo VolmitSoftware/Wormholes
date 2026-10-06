@@ -2,7 +2,7 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.optics.math.Vec3d;
-import art.arcane.wormholes.modded.MinecraftProjectedBlockStates;
+import art.arcane.wormholes.modded.MinecraftProjectorBlocks;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.BrickCodec;
 import art.arcane.optics.stream.BrickLightSource;
@@ -13,7 +13,7 @@ import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.ClientViewProtocolException;
 import art.arcane.optics.stream.PlateSectionBox;
 import art.arcane.optics.frame.Frame;
-import art.arcane.optics.frame.DirectionMapping;
+import art.arcane.optics.frame.AxisPermutation;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.optics.math.CellKeys;
@@ -366,7 +366,7 @@ public class ClientMirrorTest {
 
         private int assertReflection(ClientPortal portal) {
             ApertureDescriptor geometry = portal.geometry();
-            DirectionMapping mapping = DirectionMapping.mirror(geometry.frame(), geometry.mirrorQuarterTurns(), new double[3]);
+            AxisPermutation permutation = AxisPermutation.mirror(geometry.frame(), QuarterTurn.of(geometry.mirrorQuarterTurns()));
             LongArrayList applied = new LongArrayList();
             ClientSweep sweep = portal.sweep();
             sweep.appliedKeys(applied);
@@ -380,7 +380,7 @@ public class ClientMirrorTest {
                 int[] source = source(x, y, z);
                 ProjectionOverlay.Entry sourceEntry = tick.overlay().get(CellKeys.pack(source[0], source[1], source[2]));
                 BlockState shadow = sourceEntry != null ? sourceEntry.shadow() : surface.state(source[0], source[1], source[2]);
-                BlockState expected = MinecraftProjectedBlockStates.transform(shadow, mapping);
+                BlockState expected = MinecraftProjectorBlocks.INSTANCE.transform(shadow, permutation);
                 BlockState shown = surface.state(x, y, z);
                 if (expected.isAir()) {
                     assertTrue("reflected air must carve the real " + surface.real(x, y, z) + " at " + x + "," + y + "," + z,

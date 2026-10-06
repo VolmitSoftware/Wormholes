@@ -7,7 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import art.arcane.optics.frame.DirectionMapping;
+import art.arcane.optics.frame.AxisPermutation;
+import art.arcane.optics.state.StateProperties;
 import art.arcane.optics.scan.ProjectorSampleMemo;
 
 import java.util.HashSet;
@@ -573,7 +574,17 @@ public final class SectionCacheTest {
         }
 
         @Override
-        public Block transform(Block block, DirectionMapping mapping) {
+        public Block transform(Block block, AxisPermutation permutation) {
+            return block;
+        }
+
+        @Override
+        public StateProperties properties(Block block) {
+            return StateProperties.EMPTY;
+        }
+
+        @Override
+        public Block withProperties(Block block, StateProperties properties) {
             return block;
         }
     }

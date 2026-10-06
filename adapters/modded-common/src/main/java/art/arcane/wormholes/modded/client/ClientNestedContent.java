@@ -1,6 +1,8 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.MinecraftProjectorBlocks;
 import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.frame.AxisPermutation;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.plate.PlateBox;
 import art.arcane.optics.frame.OpticTransform;
@@ -14,7 +16,8 @@ public final class ClientNestedContent implements ClientPortalContent {
     private final ClientPlate plate;
     private final OpticTransform content;
     private final ClientPalette palette;
-    private final ClientStateReflector reflector;
+    private final boolean reflected;
+    private final AxisPermutation permutation;
     private final Int2IntOpenHashMap reflectedIds;
     private final int[] cell;
 
@@ -22,7 +25,8 @@ public final class ClientNestedContent implements ClientPortalContent {
         this.plate = Objects.requireNonNull(plate, "plate");
         this.content = transform.inverse();
         this.palette = Objects.requireNonNull(palette, "palette");
-        this.reflector = new ClientStateReflector(reflections);
+        this.reflected = !reflections.isEmpty();
+        this.permutation = transform.permutation();
         this.reflectedIds = new Int2IntOpenHashMap(64);
         this.reflectedIds.defaultReturnValue(-1);
         this.cell = new int[3];
@@ -54,7 +58,7 @@ public final class ClientNestedContent implements ClientPortalContent {
 
     @Override
     public BlockEntitySample blockEntityAt(int x, int y, int z) {
-        if (!reflector.identity()) {
+        if (reflected) {
             return null;
         }
         content.cellInto(x, y, z, cell);
@@ -62,15 +66,15 @@ public final class ClientNestedContent implements ClientPortalContent {
     }
 
     private int reflect(int paletteId) {
-        if (reflector.identity() || paletteId < ViewStreamLimits.RESERVED_PALETTE_IDS) {
+        if (!reflected || paletteId < ViewStreamLimits.RESERVED_PALETTE_IDS) {
             return paletteId;
         }
         int known = reflectedIds.get(paletteId);
         if (known >= 0) {
             return known;
         }
-        int reflected = palette.localId(reflector.reflect(palette.state(paletteId)));
-        reflectedIds.put(paletteId, reflected);
-        return reflected;
+        int mapped = palette.localId(MinecraftProjectorBlocks.INSTANCE.transform(palette.state(paletteId), permutation));
+        reflectedIds.put(paletteId, mapped);
+        return mapped;
     }
 }

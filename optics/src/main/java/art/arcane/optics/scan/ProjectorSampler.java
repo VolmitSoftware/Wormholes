@@ -2,22 +2,15 @@ package art.arcane.optics.scan;
 
 import java.util.function.Function;
 
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
-
 import art.arcane.optics.aperture.Endpoint;
 import art.arcane.optics.view.MaterialView;
 
-import art.arcane.optics.frame.Frame;
-import art.arcane.optics.math.Face;
-import art.arcane.optics.frame.DirectionMapping;
 import art.arcane.optics.frame.AxisPermutation;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.recursion.RecursiveEndpoints;
 import art.arcane.optics.view.BlockStates;
 
 public final class ProjectorSampler<B, M, W, P extends Endpoint, V extends MaterialView<B, M>> {
-    private static final int TRANSFORM_CACHE_LIMIT = 4096;
-
     private final ProjectorSampleMemo<B, M, V> memo;
     private final RecursiveEndpoints<W, P> recursivePortals;
     private final Function<W, V> viewLookup;
@@ -26,17 +19,8 @@ public final class ProjectorSampler<B, M, W, P extends Endpoint, V extends Mater
     private final B airBlockData;
     private final B occludedStandIn;
     private final ProjectorSample<B, V> maskAirSample;
-    private final Object2ObjectOpenHashMap<B, B> transformedBlockCache;
     private final RecursiveEndpoints.RecursionPath recursionPath;
-    private final double[] scratchRot;
-    private Face cachedFromNormal;
-    private Face cachedFromRight;
-    private Face cachedFromUp;
-    private Face cachedToNormal;
-    private Face cachedToRight;
-    private Face cachedToUp;
-    private boolean cachedMirrorTransform;
-    private int cachedMirrorRotationQuarterTurns;
+    private AxisPermutation transformPermutation;
     private boolean buriedCellCullingPass;
     private boolean recursiveSamplesCached;
     private int remoteSamples;
@@ -50,17 +34,8 @@ public final class ProjectorSampler<B, M, W, P extends Endpoint, V extends Mater
         this.airBlockData = blocks.air();
         this.occludedStandIn = blocks.occluded();
         this.maskAirSample = ProjectorSample.maskAir(airBlockData);
-        this.transformedBlockCache = new Object2ObjectOpenHashMap<B, B>(128);
         this.recursionPath = new RecursiveEndpoints.RecursionPath();
-        this.scratchRot = new double[3];
-        this.cachedFromNormal = null;
-        this.cachedFromRight = null;
-        this.cachedFromUp = null;
-        this.cachedToNormal = null;
-        this.cachedToRight = null;
-        this.cachedToUp = null;
-        this.cachedMirrorTransform = false;
-        this.cachedMirrorRotationQuarterTurns = 0;
+        this.transformPermutation = AxisPermutation.IDENTITY;
         this.buriedCellCullingPass = false;
         this.recursiveSamplesCached = false;
         this.remoteSamples = 0;
@@ -180,8 +155,7 @@ public final class ProjectorSampler<B, M, W, P extends Endpoint, V extends Mater
             if (nested.kind != ProjectorSample.Kind.BLOCK || !blocks.requiresTransform(nested.data)) {
                 return nested;
             }
-            AxisPermutation permutation = hit.transform.permutation();
-            B transformed = blocks.transform(nested.data, DirectionMapping.axes(permutation.x(), permutation.y(), permutation.z()));
+            B transformed = blocks.transform(nested.data, hit.transform.permutation());
             return nested.withData(transformed);
         }
 
@@ -228,49 +202,12 @@ public final class ProjectorSampler<B, M, W, P extends Endpoint, V extends Mater
         return sample;
     }
 
-    public void prepareTransformCache(Frame fromFrame, Frame toFrame,
-                               boolean mirrorTransform, int mirrorRotationQuarterTurns) {
-        if (cachedFromNormal == fromFrame.getNormal()
-            && cachedFromRight == fromFrame.getRight()
-            && cachedFromUp == fromFrame.getUp()
-            && cachedToNormal == toFrame.getNormal()
-            && cachedToRight == toFrame.getRight()
-            && cachedToUp == toFrame.getUp()
-            && cachedMirrorTransform == mirrorTransform
-            && cachedMirrorRotationQuarterTurns == mirrorRotationQuarterTurns) {
-            return;
-        }
-        cachedFromNormal = fromFrame.getNormal();
-        cachedFromRight = fromFrame.getRight();
-        cachedFromUp = fromFrame.getUp();
-        cachedToNormal = toFrame.getNormal();
-        cachedToRight = toFrame.getRight();
-        cachedToUp = toFrame.getUp();
-        cachedMirrorTransform = mirrorTransform;
-        cachedMirrorRotationQuarterTurns = mirrorRotationQuarterTurns;
-        transformedBlockCache.clear();
+    public void prepareTransform(AxisPermutation sourceToDisplay) {
+        transformPermutation = sourceToDisplay;
     }
 
-    public B transformProjectedBlockData(B source, Frame fromFrame, Frame toFrame,
-                                          boolean mirrorMode, Frame mirrorFrame,
-                                          int mirrorRotationQuarterTurns) {
-        if (!blocks.requiresTransform(source)) {
-            return source;
-        }
-
-        B cached = transformedBlockCache.get(source);
-        if (cached != null) {
-            return cached;
-        }
-
-        B transformed = mirrorMode
-            ? blocks.transform(source, DirectionMapping.mirror(mirrorFrame, mirrorRotationQuarterTurns, scratchRot))
-            : blocks.transform(source, DirectionMapping.between(fromFrame, toFrame, scratchRot));
-        if (transformedBlockCache.size() >= TRANSFORM_CACHE_LIMIT) {
-            transformedBlockCache.clear();
-        }
-        transformedBlockCache.put(source, transformed);
-        return transformed;
+    public B transformProjectedBlockData(B source) {
+        return blocks.requiresTransform(source) ? blocks.transform(source, transformPermutation) : source;
     }
 
     public static boolean shouldMaskRecursivePortalAperture(boolean traversable, boolean cycle, int remainingDepth) {

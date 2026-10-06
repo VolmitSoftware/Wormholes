@@ -1,6 +1,8 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.frame.AxisPermutation;
 import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.QuarterTurn;
 import static art.arcane.optics.math.Face.E;
 import art.arcane.optics.recursion.RecursiveEndpoints;
 import art.arcane.optics.scan.ProjectorSample;
@@ -59,10 +61,10 @@ public class MinecraftProjectorSamplerTest extends MinecraftTestBase {
         Frame frame = Frame.canonical(E);
         BlockState eastFacing = Blocks.FURNACE.defaultBlockState()
             .setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.EAST);
-        fixture.sampler().prepareTransformCache(frame, frame, true, 0);
-        BlockState mirrored = fixture.sampler().transformProjectedBlockData(eastFacing, frame, frame, true, frame, 0);
+        fixture.sampler().prepareTransform(AxisPermutation.mirror(frame, QuarterTurn.DEGREES_0));
+        BlockState mirrored = fixture.sampler().transformProjectedBlockData(eastFacing);
         assertEquals(Direction.WEST, mirrored.getValue(BlockStateProperties.HORIZONTAL_FACING));
-        assertSame(mirrored, fixture.sampler().transformProjectedBlockData(eastFacing, frame, frame, true, frame, 0));
+        assertSame(mirrored, fixture.sampler().transformProjectedBlockData(eastFacing));
     }
 
     @Test

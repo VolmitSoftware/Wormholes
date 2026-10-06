@@ -1368,7 +1368,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
                 : OpticTransform.between(projectionLocalFrame, localOriginX, localOriginY, localOriginZ, projectionRemoteFrame,
                     remoteOriginX, remoteOriginY, remoteOriginZ);
             cellTransform.pointInto(eyeX, eyeY, eyeZ, scratchRemoteEye);
-            sampler.prepareTransformCache(projectionRemoteFrame, projectionLocalFrame, mirrorMode, mirrorRotationQuarterTurns);
+            sampler.prepareTransform(cellTransform.permutation().inverse());
             scannedRemoteEyeX = scratchRemoteEye[0];
             scannedRemoteEyeY = scratchRemoteEye[1];
             scannedRemoteEyeZ = scratchRemoteEye[2];
@@ -1851,8 +1851,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
                         } else if (plateCell != null) {
                             projectedHit = plateCell.data();
                         } else {
-                            projectedHit = sampler.transformProjectedBlockData(sample.data, projectionRemoteFrame, projectionLocalFrame,
-                                mirrorMode, localFrame, mirrorRotationQuarterTurns);
+                            projectedHit = sampler.transformProjectedBlockData(sample.data);
                         }
 
                         ProjectedBlockClaim<B, V> nextCell;

@@ -1,6 +1,8 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.MinecraftProjectorBlocks;
 import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.frame.AxisPermutation;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.math.CellKeys;
@@ -15,7 +17,6 @@ import it.unimi.dsi.fastutil.longs.LongArrayList;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.Arrays;
-import java.util.List;
 import java.util.Objects;
 
 public final class ClientMirrorBuilder implements ClientPortalContent {
@@ -28,7 +29,7 @@ public final class ClientMirrorBuilder implements ClientPortalContent {
     private final PlateBox box;
     private final int[] ids;
     private final ClientPalette palette;
-    private final ClientStateReflector reflector;
+    private final AxisPermutation permutation;
     private final int[] cell;
     private final double[] scratch;
     private final int minChunkX;
@@ -46,7 +47,7 @@ public final class ClientMirrorBuilder implements ClientPortalContent {
         this.box = box;
         this.ids = new int[(int) box.cells()];
         this.palette = palette;
-        this.reflector = new ClientStateReflector(List.of(geometry));
+        this.permutation = transform.permutation();
         this.cell = new int[3];
         this.scratch = new double[3];
         this.shadows = shadows;
@@ -147,7 +148,7 @@ public final class ClientMirrorBuilder implements ClientPortalContent {
             missingCells++;
             return ViewStreamLimits.PALETTE_AIR;
         }
-        int id = palette.localId(reflector.reflect(shadow));
+        int id = palette.localId(MinecraftProjectorBlocks.INSTANCE.transform(shadow, permutation));
         ids[index] = id;
         resolvedCells++;
         return id;

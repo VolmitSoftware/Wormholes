@@ -19,7 +19,8 @@ import art.arcane.optics.math.Box;
 
 import org.junit.jupiter.api.Test;
 import art.arcane.optics.claim.ProjectedBlockClaim;
-import art.arcane.optics.frame.DirectionMapping;
+import art.arcane.optics.frame.AxisPermutation;
+import art.arcane.optics.state.StateProperties;
 import art.arcane.optics.occlusion.ProjectorHoldProof;
 import art.arcane.optics.view.BlockStates;
 import art.arcane.optics.view.WorldChangeTracker;
@@ -573,7 +574,15 @@ public final class ProjectorSampleMemoTest {
             return false;
         }
 
-        public TestBlock transform(TestBlock block, DirectionMapping mapping) {
+        public TestBlock transform(TestBlock block, AxisPermutation permutation) {
+            return block;
+        }
+
+        public StateProperties properties(TestBlock block) {
+            return StateProperties.EMPTY;
+        }
+
+        public TestBlock withProperties(TestBlock block, StateProperties properties) {
             return block;
         }
     }

@@ -4,13 +4,12 @@ import java.util.Objects;
 import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.optics.aperture.CellAperture;
 import art.arcane.optics.view.BlockStates;
-import art.arcane.optics.frame.DirectionMapping;
+import art.arcane.optics.frame.AxisPermutation;
 import art.arcane.optics.view.ContentView;
 import java.util.UUID;
 
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.OpticTransform;
@@ -32,7 +31,6 @@ import art.arcane.optics.occlusion.PlateOcclusionField;
  * so the per-observer scan can substitute plate cells for sampler calls.
  */
 public final class ViewPlateBuilder {
-    private static final int TRANSFORM_CACHE_LIMIT = 4096;
     private static final int BURIED_PROBE_MARGIN = 2;
 
     private ViewPlateBuilder() {
@@ -299,11 +297,10 @@ public final class ViewPlateBuilder {
         private final V view;
         private final Geometry geometry;
         private final PlateOcclusionField<B, M> occlusion;
-        private final Object2ObjectOpenHashMap<B, B> transformed;
+        private final AxisPermutation permutation;
         private final PlateGrid.Writer<B> grid;
         private final PlateBox section;
         private final LongOpenHashSet dirtyChunks;
-        private final double[] scratchRot;
         private final double[] scratchRemote;
         private final int[] cellCoords;
         private int n;
@@ -327,7 +324,7 @@ public final class ViewPlateBuilder {
             this.geometry = new Geometry(request, clip);
             this.occlusion = new PlateOcclusionField<B, M>(view, request.blocks(),
                 request.buriedCellCulling() ? geometry.remoteBox(BURIED_PROBE_MARGIN) : PlateBox.EMPTY);
-            this.transformed = new Object2ObjectOpenHashMap<B, B>(64);
+            this.permutation = geometry.transform.permutation().inverse();
             boolean patching = previous != null && previous.grid().box().equals(geometry.box);
             this.grid = patching ? new PlateGrid.Writer<B>(previous.grid()) : new PlateGrid.Writer<B>(geometry.box);
             this.dirtyChunks = patching ? dirtyChunks : null;
@@ -335,7 +332,6 @@ public final class ViewPlateBuilder {
                 noteChunk(previous.minChunkX(), previous.minChunkZ());
                 noteChunk(previous.maxChunkX(), previous.maxChunkZ());
             }
-            this.scratchRot = new double[3];
             this.scratchRemote = new double[3];
             this.cellCoords = new int[3];
         }
@@ -503,21 +499,7 @@ public final class ViewPlateBuilder {
         }
 
         private B transformBlockData(B source) {
-            if (!request.blocks().requiresTransform(source)) {
-                return source;
-            }
-            B cached = transformed.get(source);
-            if (cached != null) {
-                return cached;
-            }
-            B projected = request.mirrorMode()
-                ? request.blocks().transform(source, DirectionMapping.mirror(request.localFrame(), request.mirrorRotationQuarterTurns(), scratchRot))
-                : request.blocks().transform(source, DirectionMapping.between(geometry.projectionRemoteFrame, geometry.projectionLocalFrame, scratchRot));
-            if (transformed.size() >= TRANSFORM_CACHE_LIMIT) {
-                transformed.clear();
-            }
-            transformed.put(source, projected);
-            return projected;
+            return request.blocks().requiresTransform(source) ? request.blocks().transform(source, permutation) : source;
         }
 
         private void noteChunk(int chunkX, int chunkZ) {

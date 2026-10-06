@@ -11,8 +11,9 @@ import art.arcane.optics.aperture.CellAperture;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.optics.scan.ScanMode;
-import art.arcane.optics.frame.DirectionMapping;
 import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.AxisPermutation;
+import art.arcane.optics.state.StateProperties;
 import art.arcane.optics.volume.ViewVolume;
 import art.arcane.optics.claim.ProjectedBlockClaim;
 import art.arcane.optics.claim.ProjectionBlackout;
@@ -373,7 +374,17 @@ public final class ClientSweepScene {
         }
 
         @Override
-        public String transform(String block, DirectionMapping mapping) {
+        public String transform(String block, AxisPermutation permutation) {
+            return block;
+        }
+
+        @Override
+        public StateProperties properties(String block) {
+            return StateProperties.EMPTY;
+        }
+
+        @Override
+        public String withProperties(String block, StateProperties properties) {
             return block;
         }
     }
