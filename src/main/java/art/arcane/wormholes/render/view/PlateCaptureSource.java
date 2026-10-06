@@ -10,10 +10,11 @@ import art.arcane.wormholes.chunk.BukkitChunkLeaseProvider;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.render.blockentity.BlockEntityCapturer;
 import art.arcane.optics.fidelity.BlockEntitySample;
-import art.arcane.optics.plate.ChunkLeaseHold;
+import art.arcane.optics.plate.ChunkCapture;
+import art.arcane.optics.plate.ChunkLease;
 import art.arcane.optics.plate.PlateCaptureJob;
 
-public final class PlateCaptureSource implements PlateCaptureJob.Source<World, PlateCaptureSource.CapturedChunk> {
+public final class PlateCaptureSource implements ChunkCapture<World, PlateCaptureSource.CapturedChunk> {
     private final boolean blockEntities;
     private final boolean environment;
     private final BlockEntityCapturer.Limits limits;
@@ -39,8 +40,8 @@ public final class PlateCaptureSource implements PlateCaptureJob.Source<World, P
     }
 
     @Override
-    public PlateCaptureJob.Hold hold(World world, int chunkX, int chunkZ) {
-        return new ChunkLeaseHold(BukkitChunkLeaseProvider.registry().retain(world, world.getUID(), chunkX, chunkZ));
+    public ChunkLease hold(World world, int chunkX, int chunkZ) {
+        return BukkitChunkLeaseProvider.registry().retain(world, world.getUID(), chunkX, chunkZ);
     }
 
     @Override

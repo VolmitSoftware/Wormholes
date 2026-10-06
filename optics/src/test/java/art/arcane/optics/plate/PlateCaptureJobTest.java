@@ -107,14 +107,13 @@ final class PlateCaptureJobTest {
         assertEquals(1, source.holds.size(), "a pending lease is not requested twice");
         assertEquals(PlateCaptureJob.Phase.CAPTURING, job.phase());
 
-        FakeHold hold = source.holds.get("1,0");
-        hold.settled = true;
-        hold.ready = true;
+        ChunkLease hold = source.holds.get("1,0");
+        hold.completeReady();
         source.loaded.add("1,0");
         harness.tick(8, 8);
 
         assertEquals(List.of("0,0", "1,0"), source.captures);
-        assertTrue(hold.released, "the lease is released as soon as the snapshot is taken");
+        assertFalse(hold.isValid(), "the lease is released as soon as the snapshot is taken");
         assertEquals(PlateCaptureJob.Phase.CAPTURED, job.phase());
         assertEquals(List.of(job.key()), harness.built);
     }
@@ -128,16 +127,15 @@ final class PlateCaptureJobTest {
         harness.tick(8, 8);
         assertEquals(2, source.holds.size());
 
-        FakeHold failed = source.holds.get("0,0");
-        failed.settled = true;
-        failed.ready = false;
+        ChunkLease failed = source.holds.get("0,0");
+        failed.terminalize();
         harness.tick(8, 8);
 
         assertEquals(PlateCaptureJob.Phase.FAILED, job.phase());
         assertTrue(harness.backedOff(job));
         assertTrue(harness.built.isEmpty());
-        for (FakeHold hold : source.holds.values()) {
-            assertTrue(hold.released);
+        for (ChunkLease hold : source.holds.values()) {
+            assertFalse(hold.isValid());
         }
         assertEquals(0, harness.pipeline.queuedCaptures());
         assertThrows(IllegalStateException.class, () -> job.step(1));
@@ -207,7 +205,7 @@ final class PlateCaptureJobTest {
         harness.pipeline.clear();
 
         assertEquals(PlateCaptureJob.Phase.FAILED, job.phase());
-        assertTrue(source.holds.get("0,0").released);
+        assertFalse(source.holds.get("0,0").isValid());
         assertFalse(harness.pipeline.cache().isBuilding(job));
         assertEquals(0, harness.pipeline.queuedCaptures());
     }
@@ -244,8 +242,8 @@ final class PlateCaptureJobTest {
 
         assertEquals(PlateCaptureJob.Phase.FAILED, job.phase());
         assertTrue(source.captures.isEmpty(), "a retired capture takes no more snapshots");
-        for (FakeHold hold : source.holds.values()) {
-            assertTrue(hold.released);
+        for (ChunkLease hold : source.holds.values()) {
+            assertFalse(hold.isValid());
         }
         assertTrue(harness.built.isEmpty());
         assertFalse(harness.backedOff(job), "a cancelled capture is not reported as a failure");
@@ -258,19 +256,19 @@ final class PlateCaptureJobTest {
         PlateCaptureJob<String, String, String> job = job(source, new ViewPlateBuilder.Footprint(0, 0, 0, 0, 64L),
             new ArrayList<PlateCaptureJob.Captured<String>>());
         job.capture(1);
-        FakeHold hold = source.holds.get("0,0");
+        ChunkLease hold = source.holds.get("0,0");
         assertNotNull(hold);
 
         for (int tick = 1; tick < PlateCaptureJob.MAX_CAPTURE_TICKS; tick++) {
             job.capture(0);
         }
         assertEquals(PlateCaptureJob.Phase.CAPTURING, job.phase());
-        assertFalse(hold.released);
+        assertTrue(hold.isValid());
 
         job.capture(0);
 
         assertEquals(PlateCaptureJob.Phase.FAILED, job.phase());
-        assertTrue(hold.released);
+        assertFalse(hold.isValid());
         assertEquals(0, job.heldChunks());
         assertTrue(source.captures.isEmpty());
     }
@@ -328,30 +326,9 @@ final class PlateCaptureJobTest {
         }
     }
 
-    private static final class FakeHold implements PlateCaptureJob.Hold {
-        private boolean settled;
-        private boolean ready;
-        private boolean released;
-
-        @Override
-        public boolean settled() {
-            return settled;
-        }
-
-        @Override
-        public boolean ready() {
-            return ready;
-        }
-
-        @Override
-        public void release() {
-            released = true;
-        }
-    }
-
-    private static final class FakeSource implements PlateCaptureJob.Source<String, String> {
+    private static final class FakeSource implements ChunkCapture<String, String> {
         private final Set<String> loaded = new HashSet<String>();
-        private final Map<String, FakeHold> holds = new HashMap<String, FakeHold>();
+        private final Map<String, ChunkLease> holds = new HashMap<String, ChunkLease>();
         private final List<String> captures = new ArrayList<String>();
         private final Map<String, String> cached = new HashMap<>();
         private boolean reuse;
@@ -377,8 +354,8 @@ final class PlateCaptureJobTest {
         }
 
         @Override
-        public PlateCaptureJob.Hold hold(String world, int chunkX, int chunkZ) {
-            FakeHold hold = new FakeHold();
+        public ChunkLease hold(String world, int chunkX, int chunkZ) {
+            ChunkLease hold = new ChunkLease(UUID.randomUUID(), released -> { });
             holds.put(chunkX + "," + chunkZ, hold);
             return hold;
         }

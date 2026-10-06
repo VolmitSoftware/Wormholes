@@ -12,30 +12,10 @@ public final class PlateCaptureJob<B, W, S> extends ViewPlateBuilder.Job<B, W> {
     public static final int MAX_BLOCK_ENTITIES_PER_CHUNK = 64;
     static final int MAX_CAPTURE_TICKS = 1200;
 
-    public interface Source<W, S> {
-        boolean loaded(W world, int chunkX, int chunkZ);
-
-        Hold hold(W world, int chunkX, int chunkZ);
-
-        S capture(W world, int chunkX, int chunkZ);
-
-        default S cached(W world, int chunkX, int chunkZ) {
-            return null;
-        }
-    }
-
-    public interface Hold {
-        boolean settled();
-
-        boolean ready();
-
-        void release();
-    }
-
     public record Plan<B, W, S>(ViewPlateKey key,
                                 W world,
                                 ViewPlateBuilder.Footprint footprint,
-                                Source<W, S> source,
+                                ChunkCapture<W, S> source,
                                 Function<Captured<S>, ViewPlateBuilder.Job<B, W>> buildFactory) {
         public Plan {
             Objects.requireNonNull(key, "key");
@@ -60,7 +40,7 @@ public final class PlateCaptureJob<B, W, S> extends ViewPlateBuilder.Job<B, W> {
 
     private final Plan<B, W, S> plan;
     private final Long2ObjectOpenHashMap<S> captured;
-    private final Long2ObjectOpenHashMap<Hold> holds;
+    private final Long2ObjectOpenHashMap<ChunkLease> holds;
     private final LongArrayList pending;
     private ViewPlateBuilder.Job<B, W> build;
     private Phase phase;
@@ -73,7 +53,7 @@ public final class PlateCaptureJob<B, W, S> extends ViewPlateBuilder.Job<B, W> {
         ViewPlateBuilder.Footprint footprint = plan.footprint();
         int chunkCount = footprint.chunkCount();
         this.captured = new Long2ObjectOpenHashMap<S>(Math.max(4, chunkCount));
-        this.holds = new Long2ObjectOpenHashMap<Hold>();
+        this.holds = new Long2ObjectOpenHashMap<ChunkLease>();
         this.pending = new LongArrayList(chunkCount);
         for (int chunkX = footprint.minChunkX(); chunkX <= footprint.maxChunkX(); chunkX++) {
             for (int chunkZ = footprint.minChunkZ(); chunkZ <= footprint.maxChunkZ(); chunkZ++) {
@@ -133,10 +113,10 @@ public final class PlateCaptureJob<B, W, S> extends ViewPlateBuilder.Job<B, W> {
                 taken++;
                 continue;
             }
-            Hold hold = holds.get(chunk);
+            ChunkLease hold = holds.get(chunk);
             if (hold == null) {
                 holds.put(chunk, plan.source().hold(plan.world(), chunkX, chunkZ));
-            } else if (hold.settled() && !hold.ready()) {
+            } else if (hold.ready().isDone() && !Boolean.TRUE.equals(hold.ready().getNow(Boolean.FALSE))) {
                 abort();
                 return taken;
             }
@@ -180,15 +160,15 @@ public final class PlateCaptureJob<B, W, S> extends ViewPlateBuilder.Job<B, W> {
     }
 
     private void releaseHold(long chunk) {
-        Hold hold = holds.remove(chunk);
+        ChunkLease hold = holds.remove(chunk);
         if (hold != null) {
-            hold.release();
+            hold.close();
         }
     }
 
     private void releaseHolds() {
-        for (Hold hold : holds.values()) {
-            hold.release();
+        for (ChunkLease hold : holds.values()) {
+            hold.close();
         }
         holds.clear();
     }

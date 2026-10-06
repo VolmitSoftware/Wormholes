@@ -7,7 +7,8 @@ import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.fidelity.BlockEntityMaterials;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.fidelity.BlockEntitySanitizer;
-import art.arcane.optics.plate.ChunkLeaseHold;
+import art.arcane.optics.plate.ChunkCapture;
+import art.arcane.optics.plate.ChunkLease;
 import art.arcane.optics.plate.PlateCaptureJob;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -23,7 +24,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
-final class MinecraftPlateCaptureSource implements PlateCaptureJob.Source<ServerLevel, MinecraftPlateCaptureSource.CapturedChunk> {
+final class MinecraftPlateCaptureSource implements ChunkCapture<ServerLevel, MinecraftPlateCaptureSource.CapturedChunk> {
     private final WormholesModRuntime runtime;
     private final UUID worldId;
     private final boolean blockEntities;
@@ -58,8 +59,8 @@ final class MinecraftPlateCaptureSource implements PlateCaptureJob.Source<Server
     }
 
     @Override
-    public PlateCaptureJob.Hold hold(ServerLevel world, int chunkX, int chunkZ) {
-        return new ChunkLeaseHold(runtime.leases().retain(world, worldId, chunkX, chunkZ));
+    public ChunkLease hold(ServerLevel world, int chunkX, int chunkZ) {
+        return runtime.leases().retain(world, worldId, chunkX, chunkZ);
     }
 
     @Override

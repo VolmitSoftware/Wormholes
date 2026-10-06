@@ -38,7 +38,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -247,15 +246,9 @@ public class MinecraftPlateCaptureSourceTest extends MinecraftTestBase {
         MinecraftPlateCaptureSource source = new MinecraftPlateCaptureSource(fixture.runtime(), MinecraftPlateCaptureSource.Options.column(fixture.worldId(), false));
         assertTrue(source.loaded(fixture.level(), 0, 0));
         assertFalse(source.loaded(fixture.level(), 7, 7));
-        PlateCaptureJob.Hold hold = source.hold(fixture.level(), 7, 7);
+        ChunkLease hold = source.hold(fixture.level(), 7, 7);
         verify(fixture.leases()).retain(fixture.level(), fixture.worldId(), 7, 7);
-        assertFalse(hold.settled());
-        assertFalse(hold.ready());
-        fixture.ready().complete(true);
-        assertTrue(hold.settled());
-        assertTrue(hold.ready());
-        hold.release();
-        verify(fixture.lease()).close();
+        assertSame(fixture.lease(), hold);
     }
 
     @Test
@@ -294,19 +287,17 @@ public class MinecraftPlateCaptureSourceTest extends MinecraftTestBase {
         LevelChunk chunk = mock(LevelChunk.class);
         ChunkLeaseRegistry<ServerLevel> leases = mock(ChunkLeaseRegistry.class);
         ChunkLease lease = mock(ChunkLease.class);
-        CompletableFuture<Boolean> ready = new CompletableFuture<>();
         UUID worldId = UUID.randomUUID();
         when(runtime.leases()).thenReturn(leases);
         when(level.getChunkSource()).thenReturn(chunks);
         when(chunks.getChunkNow(0, 0)).thenReturn(chunk);
         when(chunk.getBlockEntities()).thenReturn(Map.of());
         when(leases.retain(any(), any(), anyInt(), anyInt())).thenReturn(lease);
-        when(lease.ready()).thenReturn(ready);
-        return new Fixture(runtime, level, chunk, leases, lease, ready, worldId, changes);
+        return new Fixture(runtime, level, chunk, leases, lease, worldId, changes);
     }
 
     private record Fixture(WormholesModRuntime runtime, ServerLevel level, LevelChunk chunk, ChunkLeaseRegistry<ServerLevel> leases,
-                           ChunkLease lease, CompletableFuture<Boolean> ready, UUID worldId, WorldChangeTracker changes) {
+                           ChunkLease lease, UUID worldId, WorldChangeTracker changes) {
     }
 
     private static BlockState air() {
