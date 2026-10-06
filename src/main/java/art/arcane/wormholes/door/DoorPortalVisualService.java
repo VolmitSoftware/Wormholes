@@ -28,6 +28,7 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.util.Transformation;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
+import art.arcane.optics.spi.OpticsScheduler;
 
 import java.util.Map;
 import java.util.HashMap;
@@ -70,12 +71,12 @@ final class DoorPortalVisualService implements AutoCloseable
 	private final AtomicBoolean animationLoopRetryScheduled;
 	private final LocalOcclusionArbiter<Player, Entity> nativeVisibility;
 
-	DoorPortalVisualService(Plugin plugin)
+	DoorPortalVisualService(Plugin plugin, OpticsScheduler<Player, ?> scheduler)
 	{
-		this(plugin, DoorPortalVisualService::hasTrackedViewer);
+		this(plugin, DoorPortalVisualService::hasTrackedViewer, scheduler);
 	}
 
-	DoorPortalVisualService(Plugin plugin, ViewerLookup viewerLookup)
+	DoorPortalVisualService(Plugin plugin, ViewerLookup viewerLookup, OpticsScheduler<Player, ?> scheduler)
 	{
 		this.plugin = Objects.requireNonNull(plugin, "plugin");
 		nativeVisibility = BukkitEntityRegistryHost.occlusion(new BukkitEntityRegistryHost.Controller()
@@ -91,7 +92,7 @@ final class DoorPortalVisualService implements AutoCloseable
 			{
 				observer.showEntity(plugin, entity);
 			}
-		});
+		}, scheduler);
 		markerKey = new NamespacedKey(plugin, "dimensional_door_visual");
 		this.viewerLookup = Objects.requireNonNull(viewerLookup, "viewerLookup");
 		visuals = new ConcurrentHashMap<>();

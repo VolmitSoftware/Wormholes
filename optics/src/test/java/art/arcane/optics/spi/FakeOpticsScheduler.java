@@ -84,6 +84,14 @@ public final class FakeOpticsScheduler<O, W> implements OpticsScheduler<O, W> {
         return drain(observerTasks);
     }
 
+    public int pendingObserver() {
+        return observerTasks.size();
+    }
+
+    public void runNextObserverTask() {
+        observerTasks.removeFirst().run();
+    }
+
     public int runRegionTasks() {
         return drain(regionTasks);
     }

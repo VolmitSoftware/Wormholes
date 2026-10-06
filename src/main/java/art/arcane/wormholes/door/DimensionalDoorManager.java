@@ -70,6 +70,7 @@ import org.bukkit.event.world.WorldLoadEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
+import art.arcane.optics.spi.OpticsScheduler;
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
@@ -137,7 +138,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 	private volatile DoorItemService items;
 	private volatile Listener livingEntityMoveListener;
 
-	public DimensionalDoorManager(Wormholes plugin, PocketWorldService pocketWorldService)
+	public DimensionalDoorManager(Wormholes plugin, PocketWorldService pocketWorldService, OpticsScheduler<Player, ?> scheduler)
 	{
 		this.plugin = Objects.requireNonNull(plugin, "plugin");
 		this.pocketWorldService = Objects.requireNonNull(pocketWorldService, "pocketWorldService");
@@ -147,7 +148,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		instances = new PocketInstances(templates);
 		snapshots = new PocketSnapshots<>(plugin.getDataFolder().toPath(), BukkitStructureIo.INSTANCE);
 		pockets = new PocketSpaceIndex(pocketStructures);
-		runtimes = new DoorRuntimeIndex(plugin, guard, pocketWorldService);
+		runtimes = new DoorRuntimeIndex(plugin, guard, pocketWorldService, scheduler);
 		ledger = new DoorTransitLedger(plugin);
 		regions = new DoorChunkLoader.RegionDispatch()
 		{

@@ -5,15 +5,19 @@ import java.util.Objects;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
+import art.arcane.optics.spi.OpticsScheduler;
+
 public final class ProjectionRecovery<O> {
     private final EntityOutput<O, ?, ?, ?, ?> output;
+    private final OpticsScheduler<O, ?> scheduler;
     private final Teardown<O> steps;
     private final AtomicBoolean retryScheduled = new AtomicBoolean();
     private final AtomicBoolean failureReported = new AtomicBoolean();
     private volatile boolean pending;
 
-    public ProjectionRecovery(EntityOutput<O, ?, ?, ?, ?> output, Teardown<O> teardown) {
+    public ProjectionRecovery(EntityOutput<O, ?, ?, ?, ?> output, OpticsScheduler<O, ?> scheduler, Teardown<O> teardown) {
         this.output = Objects.requireNonNull(output);
+        this.scheduler = Objects.requireNonNull(scheduler);
         this.steps = Objects.requireNonNull(teardown);
     }
 
@@ -64,7 +68,7 @@ public final class ProjectionRecovery<O> {
         if (!output.online(observer) || !pending || !retryScheduled.compareAndSet(false, true)) {
             return;
         }
-        boolean scheduled = output.schedule(observer, () -> retry(observer));
+        boolean scheduled = scheduler.runForObserver(observer, () -> retry(observer));
         if (!scheduled) {
             retryScheduled.set(false);
         }

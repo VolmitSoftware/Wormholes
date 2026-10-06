@@ -26,7 +26,6 @@ import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.service.WormholesTelemetry;
-import art.arcane.wormholes.platform.BukkitOpticsScheduler;
 import art.arcane.wormholes.portal.DimensionalPortalKind;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.IPortal;
@@ -70,6 +69,7 @@ import art.arcane.optics.scan.ProjectorResampleReasons;
 import art.arcane.optics.scan.ProjectorSampleMemo;
 import art.arcane.optics.scan.ProjectorSampler;
 import art.arcane.optics.scan.ResampleSchedule;
+import art.arcane.optics.spi.OpticsScheduler;
 import art.arcane.optics.volume.GazeScheduler;
 import art.arcane.optics.volume.ViewVolume;
 import art.arcane.optics.volume.ProjectionVolume;
@@ -87,6 +87,7 @@ public final class PortalProjector {
     private boolean endSurfaceActive;
     private final ProjectionWorldViewProvider viewProvider;
     private final BooleanSupplier activeGuard;
+    private final OpticsScheduler<Player, World> scheduler;
     private final ProjectorDestination destination;
     private final ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> sampleMemo;
     private final ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler;
@@ -141,8 +142,9 @@ public final class PortalProjector {
     private long lastFinalizeNanos;
 
     public PortalProjector(ILocalPortal portal, Player observer, ProjectionClaimArbiter claimArbiter,
-                           ProjectionWorldViewProvider viewProvider, BooleanSupplier activeGuard) {
-        this(portal, observer, claimArbiter, viewProvider, activeGuard, BukkitEntityRegistryHost.occlusion(BukkitEntityRegistryHost.PLUGIN_VISIBILITY), null);
+                           ProjectionWorldViewProvider viewProvider, BooleanSupplier activeGuard, OpticsScheduler<Player, World> scheduler) {
+        this(portal, observer, claimArbiter, viewProvider, activeGuard,
+            BukkitEntityRegistryHost.occlusion(BukkitEntityRegistryHost.PLUGIN_VISIBILITY, scheduler), null, scheduler);
     }
 
     public PortalProjector(ILocalPortal portal,
@@ -151,7 +153,8 @@ public final class PortalProjector {
                            ProjectionWorldViewProvider viewProvider,
                            BooleanSupplier activeGuard,
                            LocalOcclusionArbiter<Player, Entity> localEntityOcclusion,
-                           ViewPlateCache<BlockData, World> plateCache) {
+                           ViewPlateCache<BlockData, World> plateCache,
+                           OpticsScheduler<Player, World> scheduler) {
         this.plateCache = plateCache;
         this.portal = portal;
         this.observer = observer;
@@ -164,7 +167,8 @@ public final class PortalProjector {
         this.endSurfaceClaims = endExit ? new Long2ObjectOpenHashMap<>(32) : null;
         this.viewProvider = viewProvider;
         this.activeGuard = activeGuard;
-        this.entityRenderer = new ProjectedEntityRenderer(localEntityOcclusion, portal.getId());
+        this.scheduler = Objects.requireNonNull(scheduler, "scheduler");
+        this.entityRenderer = new ProjectedEntityRenderer(localEntityOcclusion, scheduler, portal.getId());
         this.destination = new ProjectorDestination(portal, viewProvider);
         this.sampleMemo = BukkitProjectorBlocks.memo();
         this.sampler = BukkitProjectorBlocks.sampler(sampleMemo, BukkitProjectorPortalAccess.create(), destination::liveView);
@@ -841,8 +845,7 @@ public final class PortalProjector {
         } else if (atmosphere.disable()) {
             claimArbiter.submitBiomes(observer, portal.getId(), submitWorld, new Long2IntOpenHashMap());
         }
-        BukkitOpticsScheduler scheduler = BukkitOpticsScheduler.active();
-        if (!FidelitySettings.weather || !mode.relaysWeather() || scheduler == null) {
+        if (!FidelitySettings.weather || !mode.relaysWeather()) {
             return;
         }
         boolean storm;

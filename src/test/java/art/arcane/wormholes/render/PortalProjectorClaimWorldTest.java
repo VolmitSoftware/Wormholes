@@ -28,6 +28,7 @@ import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.optics.claim.ProjectedBlockClaim;
 import art.arcane.optics.math.CellKeys;
+import art.arcane.wormholes.platform.QueuedOpticsScheduler;
 
 public final class PortalProjectorClaimWorldTest {
     private static final UUID WORLD_A_ID = UUID.fromString("00000000-0000-0000-0000-0000000000a7");
@@ -49,7 +50,7 @@ public final class PortalProjectorClaimWorldTest {
             new BukkitProjectionOutput((player, chunkX, chunkZ) -> true, portalId -> List.of()));
 
         PortalProjector projector = withBukkitServer(() -> new PortalProjector(portal, observer, arbiter,
-            PortalProjectorClaimWorldTest::view, () -> true));
+            PortalProjectorClaimWorldTest::view, () -> true, new QueuedOpticsScheduler()));
 
         portalWorld.set(worldB);
         projector.noteClaimWorld(worldB);
@@ -78,7 +79,7 @@ public final class PortalProjectorClaimWorldTest {
             new BukkitProjectionOutput((player, chunkX, chunkZ) -> true, portalId -> List.of()));
 
         PortalProjector projector = withBukkitServer(() -> new PortalProjector(portal, observer, arbiter,
-            PortalProjectorClaimWorldTest::view, () -> true));
+            PortalProjectorClaimWorldTest::view, () -> true, new QueuedOpticsScheduler()));
 
         projector.noteClaimWorld(worldA);
         arbiter.submit(observer, portal, worldA, claims(), 2.0D, false);

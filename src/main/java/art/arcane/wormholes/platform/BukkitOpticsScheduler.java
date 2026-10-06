@@ -17,6 +17,7 @@ import art.arcane.wormholes.render.FidelitySettings;
 
 public final class BukkitOpticsScheduler implements OpticsScheduler<Player, World> {
     private static final long MILLIS_PER_TICK = 50L;
+    private static final long OWNER_DELAY_TICKS = 1L;
     private static final AtomicReference<BukkitOpticsScheduler> ACTIVE = new AtomicReference<BukkitOpticsScheduler>();
 
     private final Plugin plugin;
@@ -61,12 +62,12 @@ public final class BukkitOpticsScheduler implements OpticsScheduler<Player, Worl
 
     @Override
     public boolean runForObserver(Player observer, Runnable task) {
-        return operations.runEntity(plugin, observer, task);
+        return operations.runEntity(plugin, observer, task, OWNER_DELAY_TICKS);
     }
 
     @Override
     public boolean runForRegion(World world, int chunkX, int chunkZ, Runnable task) {
-        return operations.runRegion(plugin, world, chunkX, chunkZ, task);
+        return operations.runRegion(plugin, world, chunkX, chunkZ, task, OWNER_DELAY_TICKS);
     }
 
     @Override
@@ -96,22 +97,22 @@ public final class BukkitOpticsScheduler implements OpticsScheduler<Player, Worl
     }
 
     interface Operations {
-        boolean runEntity(Plugin plugin, Entity entity, Runnable task);
+        boolean runEntity(Plugin plugin, Entity entity, Runnable task, long delayTicks);
 
-        boolean runRegion(Plugin plugin, World world, int chunkX, int chunkZ, Runnable task);
+        boolean runRegion(Plugin plugin, World world, int chunkX, int chunkZ, Runnable task, long delayTicks);
 
         boolean runAsync(Plugin plugin, Runnable task, long delayTicks);
     }
 
     private static final class FoliaOperations implements Operations {
         @Override
-        public boolean runEntity(Plugin plugin, Entity entity, Runnable task) {
-            return FoliaScheduler.runEntity(plugin, entity, task);
+        public boolean runEntity(Plugin plugin, Entity entity, Runnable task, long delayTicks) {
+            return FoliaScheduler.runEntity(plugin, entity, task, delayTicks);
         }
 
         @Override
-        public boolean runRegion(Plugin plugin, World world, int chunkX, int chunkZ, Runnable task) {
-            return FoliaScheduler.runRegion(plugin, world, chunkX, chunkZ, task);
+        public boolean runRegion(Plugin plugin, World world, int chunkX, int chunkZ, Runnable task, long delayTicks) {
+            return FoliaScheduler.runRegion(plugin, world, chunkX, chunkZ, task, delayTicks);
         }
 
         @Override

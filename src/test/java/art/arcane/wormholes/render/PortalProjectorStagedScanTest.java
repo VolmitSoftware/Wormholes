@@ -44,6 +44,7 @@ import art.arcane.wormholes.service.WormholesTelemetry;
 import art.arcane.wormholes.util.Cuboid;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.view.WorldChangeTracker;
+import art.arcane.wormholes.platform.QueuedOpticsScheduler;
 
 final class PortalProjectorStagedScanTest {
     @Test
@@ -229,7 +230,7 @@ final class PortalProjectorStagedScanTest {
             ProjectionClaimArbiter.ClaimUpdateResult result = mock(ProjectionClaimArbiter.ClaimUpdateResult.class);
             when(arbiter.submitDelta(any(), any(), any(), any(), anyDouble(), anyBoolean(), anyBoolean())).thenReturn(result);
             when(arbiter.release(any(Player.class), any(ILocalPortal.class), any(World.class), anyBoolean())).thenReturn(result);
-            projector = new PortalProjector(portal, player, arbiter, ignored -> view, () -> true);
+            projector = new PortalProjector(portal, player, arbiter, ignored -> view, () -> true, new QueuedOpticsScheduler());
         }
 
         private void finish() {

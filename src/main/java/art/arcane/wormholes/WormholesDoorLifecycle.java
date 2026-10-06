@@ -12,6 +12,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
+import art.arcane.wormholes.platform.BukkitOpticsScheduler;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -150,7 +151,8 @@ final class WormholesDoorLifecycle {
             createdPocketWorldService = true;
         }
 
-        DimensionalDoorManager manager = new DimensionalDoorManager(plugin, activePocketWorld);
+        DimensionalDoorManager manager = new DimensionalDoorManager(plugin, activePocketWorld,
+            Objects.requireNonNull(BukkitOpticsScheduler.active(), "optics scheduler"));
         try {
             manager.start();
             Wormholes.dimensionalDoorManager = manager;

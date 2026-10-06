@@ -22,6 +22,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import art.arcane.wormholes.platform.QueuedOpticsScheduler;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -278,7 +279,7 @@ class DoorPortalVisualServiceTest
 				throw new AssertionError("Closed service accessed plugin method " + method.getName());
 			});
 		UUID worldId = UUID.randomUUID();
-		DoorPortalVisualService service = new DoorPortalVisualService(plugin);
+		DoorPortalVisualService service = new DoorPortalVisualService(plugin, new QueuedOpticsScheduler());
 		PlacedDoorEndpoint endpoint = new PlacedDoorEndpoint(
 			new DoorPosition(worldId, "minecraft:overworld", 1, 2, 3),
 			DoorItemIdentity.personal(UUID.randomUUID()));
@@ -318,7 +319,8 @@ class DoorPortalVisualServiceTest
 				queriedWorld.set(queriedId);
 				query.set(new double[]{x, y, z, rangeSquared});
 				return true;
-			});
+			},
+			new QueuedOpticsScheduler());
 		World world = (World) Proxy.newProxyInstance(
 			World.class.getClassLoader(),
 			new Class<?>[]{World.class},
@@ -357,7 +359,7 @@ class DoorPortalVisualServiceTest
 		when(backing.isValid()).thenReturn(true);
 		when(overlay.isValid()).thenReturn(true);
 		when(world.spawn(any(Location.class), eq(BlockDisplay.class), ArgumentMatchers.<Consumer<BlockDisplay>>any())).thenReturn(backing, overlay);
-		DoorPortalVisualService service = new DoorPortalVisualService(plugin);
+		DoorPortalVisualService service = new DoorPortalVisualService(plugin, new QueuedOpticsScheduler());
 		PlacedDoorEndpoint endpoint = new PlacedDoorEndpoint(new DoorPosition(worldId, "minecraft:overworld", 1, 2, 3),
 			DoorItemIdentity.personal(UUID.randomUUID()), DoorOpenState.OPEN, DoorProjectionState.OFF);
 		VanillaDoorSnapshot snapshot = new VanillaDoorSnapshot(worldId, new DoorwayPlane(1, 2, 3, Face.N),
@@ -404,7 +406,7 @@ class DoorPortalVisualServiceTest
 		BlockDisplay restoredBacking = display(restoredBackingRemoved);
 		BlockDisplay restoredOverlay = display(restoredOverlayRemoved);
 		when(world.spawn(any(Location.class), eq(BlockDisplay.class), ArgumentMatchers.<Consumer<BlockDisplay>>any())).thenReturn(backing, overlay, restoredBacking, restoredOverlay);
-		DoorPortalVisualService service = new DoorPortalVisualService(plugin);
+		DoorPortalVisualService service = new DoorPortalVisualService(plugin, new QueuedOpticsScheduler());
 		PlacedDoorEndpoint endpoint = new PlacedDoorEndpoint(new DoorPosition(worldId, "minecraft:overworld", 1, 2, 3),
 			DoorItemIdentity.personal(UUID.randomUUID()));
 		VanillaDoorSnapshot snapshot = new VanillaDoorSnapshot(worldId, new DoorwayPlane(1, 2, 3, Face.N),
@@ -469,7 +471,7 @@ class DoorPortalVisualServiceTest
 				case "isEnabled" -> false;
 				default -> throw new AssertionError("Unexpected plugin method " + method.getName());
 			});
-		DoorPortalVisualService service = new DoorPortalVisualService(plugin);
+		DoorPortalVisualService service = new DoorPortalVisualService(plugin, new QueuedOpticsScheduler());
 		PlacedDoorEndpoint endpoint = new PlacedDoorEndpoint(
 			new DoorPosition(worldId, "minecraft:overworld", 1, 2, 3),
 			identity);
@@ -531,7 +533,7 @@ class DoorPortalVisualServiceTest
 				case "isEnabled" -> false;
 				default -> throw new AssertionError("Unexpected plugin method " + method.getName());
 			});
-		DoorPortalVisualService service = new DoorPortalVisualService(plugin);
+		DoorPortalVisualService service = new DoorPortalVisualService(plugin, new QueuedOpticsScheduler());
 		PlacedDoorEndpoint endpoint = new PlacedDoorEndpoint(
 			new DoorPosition(worldId, "minecraft:overworld", 1, 2, 3),
 			DoorItemIdentity.personal(UUID.randomUUID()));
@@ -602,7 +604,7 @@ class DoorPortalVisualServiceTest
 				case "isEnabled" -> false;
 				default -> throw new AssertionError("Unexpected plugin method " + method.getName());
 			});
-		DoorPortalVisualService service = new DoorPortalVisualService(plugin);
+		DoorPortalVisualService service = new DoorPortalVisualService(plugin, new QueuedOpticsScheduler());
 		serviceReference.set(service);
 		PlacedDoorEndpoint endpoint = new PlacedDoorEndpoint(
 			new DoorPosition(worldId, "minecraft:overworld", 1, 2, 3),
@@ -679,7 +681,7 @@ class DoorPortalVisualServiceTest
 					}
 					throw new AssertionError("Unexpected plugin method " + method.getName());
 				});
-			DoorPortalVisualService service = new DoorPortalVisualService(plugin);
+			DoorPortalVisualService service = new DoorPortalVisualService(plugin, new QueuedOpticsScheduler());
 			DoorPortalVisualService.Visual visual = new DoorPortalVisualService.Visual(
 				new DoorPosition(UUID.randomUUID(), "minecraft:overworld", 1, 2, 3),
 				backing,
@@ -749,7 +751,7 @@ class DoorPortalVisualServiceTest
 					}
 					throw new AssertionError("Unexpected plugin method " + method.getName());
 				});
-			DoorPortalVisualService service = new DoorPortalVisualService(plugin);
+			DoorPortalVisualService service = new DoorPortalVisualService(plugin, new QueuedOpticsScheduler());
 			DoorPortalVisualService.Visual visual = new DoorPortalVisualService.Visual(
 				new DoorPosition(UUID.randomUUID(), "minecraft:overworld", 1, 2, 3),
 				display(new AtomicBoolean()),
@@ -783,7 +785,7 @@ class DoorPortalVisualServiceTest
 				}
 				throw new AssertionError("Unexpected plugin method " + method.getName());
 			});
-		DoorPortalVisualService service = new DoorPortalVisualService(plugin);
+		DoorPortalVisualService service = new DoorPortalVisualService(plugin, new QueuedOpticsScheduler());
 		DoorPortalVisualService.Visual visual = new DoorPortalVisualService.Visual(
 			new DoorPosition(UUID.randomUUID(), "minecraft:overworld", 1, 2, 3),
 			display(new AtomicBoolean()),

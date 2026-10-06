@@ -68,6 +68,17 @@ final class BukkitOpticsSchedulerTest {
     }
 
     @Test
+    void observerAndRegionTasksAreDeferredToTheNextOwnerTick() {
+        ManualOperations operations = new ManualOperations();
+        BukkitOpticsScheduler scheduler = new BukkitOpticsScheduler(plugin(Logger.getLogger("BukkitOpticsSchedulerDeferred")), workers, operations);
+
+        scheduler.runForObserver(mock(Player.class), () -> { });
+        assertEquals(1L, operations.lastEntityDelayTicks);
+        scheduler.runForRegion(mock(World.class), 0, 0, () -> { });
+        assertEquals(1L, operations.lastRegionDelayTicks);
+    }
+
+    @Test
     void observerAndRegionTasksGoToTheirOwningSchedulers() {
         ManualOperations operations = new ManualOperations();
         BukkitOpticsScheduler scheduler = new BukkitOpticsScheduler(plugin(Logger.getLogger("BukkitOpticsSchedulerOwners")), workers, operations);
@@ -146,21 +157,25 @@ final class BukkitOpticsSchedulerTest {
         private boolean asyncAccepted = true;
         private RuntimeException asyncFailure;
         private long lastDelayTicks = -1L;
+        private long lastEntityDelayTicks = -1L;
+        private long lastRegionDelayTicks = -1L;
         private Entity lastEntity;
         private World lastWorld;
         private int lastChunkX;
         private int lastChunkZ;
 
         @Override
-        public boolean runEntity(Plugin plugin, Entity entity, Runnable task) {
+        public boolean runEntity(Plugin plugin, Entity entity, Runnable task, long delayTicks) {
             lastEntity = entity;
+            lastEntityDelayTicks = delayTicks;
             task.run();
             return true;
         }
 
         @Override
-        public boolean runRegion(Plugin plugin, World world, int chunkX, int chunkZ, Runnable task) {
+        public boolean runRegion(Plugin plugin, World world, int chunkX, int chunkZ, Runnable task, long delayTicks) {
             lastWorld = world;
+            lastRegionDelayTicks = delayTicks;
             lastChunkX = chunkX;
             lastChunkZ = chunkZ;
             task.run();

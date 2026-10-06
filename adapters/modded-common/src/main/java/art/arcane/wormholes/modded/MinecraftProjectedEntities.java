@@ -59,8 +59,8 @@ public final class MinecraftProjectedEntities implements AutoCloseable {
         this.packets = new MinecraftEntityPackets(runtime);
         this.registry = new SpoofRegistry<>(packets);
         this.projector = new SnapshotProjector<>(registry, MinecraftEntityVisualHost.FEED, packets, FidelitySettings::snapshot);
-        this.recovery = new ProjectionRecovery<>(packets, new ProjectionRecovery.Teardown<>(this::hasState, this::sendTeardown,
-            this::dropState, this::releaseVisibility));
+        this.recovery = new ProjectionRecovery<>(packets, runtime.projections().scheduler(),
+            new ProjectionRecovery.Teardown<>(this::hasState, this::sendTeardown, this::dropState, this::releaseVisibility));
     }
 
     public void apply(View view) {

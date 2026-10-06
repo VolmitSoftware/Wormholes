@@ -56,8 +56,6 @@ public interface EntityOutput<O, R, T, V, E> {
 
     UUID id(O observer);
 
-    boolean schedule(O observer, Runnable task);
-
     void warning(O observer, String context, RuntimeException error);
 
     enum TeamOp {

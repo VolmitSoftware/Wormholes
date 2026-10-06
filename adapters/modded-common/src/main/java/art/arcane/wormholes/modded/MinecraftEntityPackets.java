@@ -450,11 +450,6 @@ public final class MinecraftEntityPackets implements EntityOutput<ServerPlayer, 
     }
 
     @Override
-    public boolean schedule(ServerPlayer observer, Runnable task) {
-        return runtime.schedule(task, 1L);
-    }
-
-    @Override
     public void warning(ServerPlayer observer, String context, RuntimeException error) {
         LOGGER.warn("Wormholes {} for {}", context, observer == null ? "unknown" : observer.getUUID(), error);
     }

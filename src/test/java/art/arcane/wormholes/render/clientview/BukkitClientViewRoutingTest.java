@@ -33,6 +33,7 @@ import art.arcane.wormholes.render.PortalProjector;
 import art.arcane.wormholes.render.ProjectionClaimArbiter;
 import art.arcane.optics.stream.ClientViewInbound;
 import art.arcane.optics.stream.ClientViewSessionState;
+import art.arcane.wormholes.platform.QueuedOpticsScheduler;
 
 final class BukkitClientViewRoutingTest {
     @Test
@@ -156,7 +157,7 @@ final class BukkitClientViewRoutingTest {
             ProjectionClaimArbiter arbiter = mock(ProjectionClaimArbiter.class, withSettings().defaultAnswer(Answers.RETURNS_MOCKS));
             LocalOcclusionArbiter<Player, Entity> occlusion = mock(LocalOcclusionArbiter.class);
             PortalProjector projector = new PortalProjector(fixture.portal, fixture.player, arbiter, fixture.views, () -> true, occlusion,
-                fixture.plates);
+                fixture.plates, new QueuedOpticsScheduler());
 
             projector.project(true, false);
 

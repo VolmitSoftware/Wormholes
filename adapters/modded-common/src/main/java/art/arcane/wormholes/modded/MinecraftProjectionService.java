@@ -94,8 +94,8 @@ public final class MinecraftProjectionService implements AutoCloseable {
         this.runtime = runtime;
         this.portals = new MinecraftProjectorPortalAccess(runtime);
         this.packets = new MinecraftProjectionPackets(runtime);
-        this.entityVisibility = new LocalOcclusionArbiter<>(MinecraftEntityVisualHost.FEED, new MinecraftEntityPackets(runtime));
         this.scheduler = new MinecraftOpticsScheduler(runtime, () -> tick);
+        this.entityVisibility = new LocalOcclusionArbiter<>(MinecraftEntityVisualHost.FEED, new MinecraftEntityPackets(runtime), scheduler);
         this.platePipeline = new PlatePipeline<>(FidelitySettings.plateMaxBytes, scheduler,
             (message, failure) -> LOGGER.error("Wormholes plate " + message, failure));
         this.plates = platePipeline.cache();

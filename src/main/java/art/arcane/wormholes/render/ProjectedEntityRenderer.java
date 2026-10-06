@@ -63,6 +63,7 @@ import art.arcane.optics.occlusion.LocalOcclusionArbiter;
 import art.arcane.optics.occlusion.ProjectedEntityOcclusion;
 import art.arcane.optics.recursion.EntityPath;
 import art.arcane.optics.recursion.RecursiveEndpoints;
+import art.arcane.optics.spi.OpticsScheduler;
 import art.arcane.optics.volume.ViewVolume;
 import art.arcane.optics.math.Angles;
 import art.arcane.optics.frame.OpticTransform;
@@ -91,6 +92,7 @@ public final class ProjectedEntityRenderer {
     private final double[] scratchEntityPosition;
     private final List<EntityRelationship> scratchRelationships;
     private final ProjectionRecovery<Player> recovery;
+    private final OpticsScheduler<Player, ?> scheduler;
     private volatile int publishedSpoofedCount;
     private final Map<UUID, ProjectedEntityRenderer> nestedRenderers = new HashMap<UUID, ProjectedEntityRenderer>();
     private RecursiveEndpoints<World, ILocalPortal> recursivePortals;
@@ -98,31 +100,33 @@ public final class ProjectedEntityRenderer {
     private EntityPath<World, ILocalPortal> projectionPath;
     private int renderLimit = Integer.MAX_VALUE;
 
-    public ProjectedEntityRenderer() {
-        this(new BukkitEntityRegistryHost(new EntityRenderPacketChannel(), BukkitEntityRegistryHost.PLUGIN_VISIBILITY));
+    public ProjectedEntityRenderer(OpticsScheduler<Player, ?> scheduler) {
+        this(new BukkitEntityRegistryHost(new EntityRenderPacketChannel(), BukkitEntityRegistryHost.PLUGIN_VISIBILITY), scheduler);
     }
 
-    ProjectedEntityRenderer(LocalOcclusionArbiter<Player, Entity> localOcclusion, UUID localOcclusionOwnerId) {
+    ProjectedEntityRenderer(LocalOcclusionArbiter<Player, Entity> localOcclusion, OpticsScheduler<Player, ?> scheduler,
+                            UUID localOcclusionOwnerId) {
         this(new BukkitEntityRegistryHost(new EntityRenderPacketChannel(), BukkitEntityRegistryHost.PLUGIN_VISIBILITY), localOcclusion,
-            localOcclusionOwnerId);
+            scheduler, localOcclusionOwnerId);
     }
 
-    ProjectedEntityRenderer(BukkitEntityRegistryHost output, SpoofRegistry<Player, Vector3d> registry) {
-        this(output, registry, new LocalOcclusionArbiter<>(BukkitEntityVisualHost.FEED, output), UUID.randomUUID());
+    ProjectedEntityRenderer(BukkitEntityRegistryHost output, SpoofRegistry<Player, Vector3d> registry, OpticsScheduler<Player, ?> scheduler) {
+        this(output, registry, new LocalOcclusionArbiter<>(BukkitEntityVisualHost.FEED, output, scheduler), scheduler, UUID.randomUUID());
     }
 
-    private ProjectedEntityRenderer(BukkitEntityRegistryHost output) {
-        this(output, new SpoofRegistry<>(output));
+    private ProjectedEntityRenderer(BukkitEntityRegistryHost output, OpticsScheduler<Player, ?> scheduler) {
+        this(output, new SpoofRegistry<>(output), scheduler);
     }
 
     private ProjectedEntityRenderer(BukkitEntityRegistryHost output, LocalOcclusionArbiter<Player, Entity> localOcclusion,
-                                    UUID localOcclusionOwnerId) {
-        this(output, new SpoofRegistry<>(output), localOcclusion, localOcclusionOwnerId);
+                                    OpticsScheduler<Player, ?> scheduler, UUID localOcclusionOwnerId) {
+        this(output, new SpoofRegistry<>(output), localOcclusion, scheduler, localOcclusionOwnerId);
     }
 
     private ProjectedEntityRenderer(BukkitEntityRegistryHost output,
                                     SpoofRegistry<Player, Vector3d> registry,
                                     LocalOcclusionArbiter<Player, Entity> localOcclusion,
+                                    OpticsScheduler<Player, ?> scheduler,
                                     UUID localOcclusionOwnerId) {
         this.channel = output.channel();
         this.identity = output.identity();
@@ -136,8 +140,9 @@ public final class ProjectedEntityRenderer {
         this.scratchLook = new double[3];
         this.scratchEntityPosition = new double[5];
         this.scratchRelationships = new ArrayList<EntityRelationship>(16);
-        this.recovery = new ProjectionRecovery<>(output, new ProjectionRecovery.Teardown<>(this::hasRenderState, this::sendTeardown,
-            this::dropRenderState, occluder::release));
+        this.scheduler = scheduler;
+        this.recovery = new ProjectionRecovery<>(output, scheduler, new ProjectionRecovery.Teardown<>(this::hasRenderState,
+            this::sendTeardown, this::dropRenderState, occluder::release));
     }
 
     public void setViewerProfile(BedrockProfile profile) {
@@ -182,7 +187,8 @@ public final class ProjectedEntityRenderer {
                     continue;
                 }
                 ProjectedEntityRenderer renderer = nestedRenderers.computeIfAbsent(candidate.portalId,
-                    ignored -> new ProjectedEntityRenderer(new BukkitEntityRegistryHost(channel, BukkitEntityRegistryHost.PLUGIN_VISIBILITY)));
+                    ignored -> new ProjectedEntityRenderer(new BukkitEntityRegistryHost(channel, BukkitEntityRegistryHost.PLUGIN_VISIBILITY),
+                        scheduler));
                 visiblePaths.add(candidate.portalId);
                 renderer.setViewerProfile(viewerProfile);
                 renderer.projectionPath = childPath;

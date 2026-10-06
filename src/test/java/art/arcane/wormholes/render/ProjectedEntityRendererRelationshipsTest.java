@@ -36,6 +36,7 @@ import art.arcane.optics.math.Face;
 import art.arcane.optics.entity.EntityRelationship;
 import art.arcane.optics.entity.SpoofRegistry;
 import art.arcane.optics.volume.ViewVolume;
+import art.arcane.wormholes.platform.QueuedOpticsScheduler;
 
 final class ProjectedEntityRendererRelationshipsTest {
     @Test
@@ -149,7 +150,7 @@ final class ProjectedEntityRendererRelationshipsTest {
         EntityRenderPacketChannel channel = new EntityRenderPacketChannel();
         BukkitEntityRegistryHost output = new BukkitEntityRegistryHost(channel, BukkitEntityRegistryHost.PLUGIN_VISIBILITY);
         SpoofRegistry<Player, Vector3d> registry = new SpoofRegistry<>(output);
-        ProjectedEntityRenderer renderer = new ProjectedEntityRenderer(output, registry);
+        ProjectedEntityRenderer renderer = new ProjectedEntityRenderer(output, registry, new QueuedOpticsScheduler());
         Player observer = ProjectedEntityPacketRecorder.player(true);
 
         OpticTransform transform = OpticTransform.between(frame, remotePortal.getOrigin(), frame, localPortal.getOrigin());

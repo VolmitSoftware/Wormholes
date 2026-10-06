@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.render.BukkitEntityRegistryHost;
 import art.arcane.optics.volume.GazeScheduler;
+import art.arcane.wormholes.platform.QueuedOpticsScheduler;
 
 final class ProjectionInterestSetTest {
     private static final ILocalPortal NEAREST = portal("nearest");
@@ -87,7 +88,9 @@ final class ProjectionInterestSetTest {
     }
 
     private static ProjectionInterestSet newSet() {
-        return new ProjectionInterestSet(null, BukkitEntityRegistryHost.occlusion(BukkitEntityRegistryHost.PLUGIN_VISIBILITY), null, null, () -> true);
+        QueuedOpticsScheduler scheduler = new QueuedOpticsScheduler();
+        return new ProjectionInterestSet(null, BukkitEntityRegistryHost.occlusion(BukkitEntityRegistryHost.PLUGIN_VISIBILITY, scheduler), null, null,
+            () -> true, scheduler);
     }
 
     private static GazeScheduler.Eye eye(long tick) {

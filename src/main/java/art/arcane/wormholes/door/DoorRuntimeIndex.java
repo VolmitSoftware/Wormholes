@@ -21,6 +21,7 @@ import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.type.Door;
 import org.bukkit.block.data.type.TrapDoor;
 import org.bukkit.plugin.Plugin;
+import art.arcane.optics.spi.OpticsScheduler;
 
 import java.io.IOException;
 import java.util.List;
@@ -49,12 +50,12 @@ final class DoorRuntimeIndex implements AutoCloseable
 	private volatile boolean projectionEnabled;
 	private volatile boolean hideBacking;
 
-	DoorRuntimeIndex(Plugin plugin, DoorStateGuard guard, PocketWorldService pocketWorldService)
+	DoorRuntimeIndex(Plugin plugin, DoorStateGuard guard, PocketWorldService pocketWorldService, OpticsScheduler<Player, ?> scheduler)
 	{
 		this.plugin = Objects.requireNonNull(plugin, "plugin");
 		this.guard = Objects.requireNonNull(guard, "guard");
 		this.pocketWorldService = Objects.requireNonNull(pocketWorldService, "pocketWorldService");
-		visuals = new DoorPortalVisualService(plugin);
+		visuals = new DoorPortalVisualService(plugin, scheduler);
 		sweep = new DoorEntitySweep(plugin, guard::closed);
 		autoClose = new DoorAutoCloseBook();
 		spatialIndex = new DoorSpatialIndex<>();

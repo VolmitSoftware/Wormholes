@@ -44,6 +44,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import art.arcane.wormholes.platform.QueuedOpticsScheduler;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -398,7 +399,7 @@ final class DoorTransitCoordinatorCostIntegrationTest {
             Logger logger = Logger.getLogger(DoorTransitCoordinatorCostIntegrationTest.class.getName());
             logger.setLevel(Level.OFF);
             PocketWorldService pocketWorldService = new PocketWorldService(plugin);
-            DoorRuntimeIndex runtimes = new DoorRuntimeIndex(plugin, guard, pocketWorldService);
+            DoorRuntimeIndex runtimes = new DoorRuntimeIndex(plugin, guard, pocketWorldService, new QueuedOpticsScheduler());
             DoorChunkLoader chunkLoader = new DoorChunkLoader(
                 logger, guard::closed, (chunkWorld, chunkX, chunkZ) -> null, regions);
             PocketStructureService pocketStructures = new PocketStructureService();

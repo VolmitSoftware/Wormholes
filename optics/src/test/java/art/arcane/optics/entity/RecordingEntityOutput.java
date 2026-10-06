@@ -1,6 +1,5 @@
 package art.arcane.optics.entity;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -18,9 +17,9 @@ final class RecordingEntityOutput implements EntityOutput<Object, Vec3d, String,
     final List<String> warnings = new ArrayList<>();
     final List<Object> hidden = new ArrayList<>();
     final List<Object> shown = new ArrayList<>();
-    final ArrayDeque<Runnable> tasks = new ArrayDeque<>();
     final UUID observerId = UUID.randomUUID();
     boolean online = true;
+    int hideFailures;
 
     @Override
     public String type(String key) { return key; }
@@ -67,18 +66,19 @@ final class RecordingEntityOutput implements EntityOutput<Object, Vec3d, String,
     @Override
     public void map(Object observer, MapSnapshot map, int virtualMapId) { maps.add(virtualMapId); }
     @Override
-    public void hideLocal(Object observer, Object entity) { hidden.add(entity); }
+    public void hideLocal(Object observer, Object entity) {
+        if (hideFailures > 0) {
+            hideFailures--;
+            throw new IllegalStateException("entity is owned by another region");
+        }
+        hidden.add(entity);
+    }
     @Override
     public void showLocal(Object observer, Object entity) { shown.add(entity); }
     @Override
     public boolean online(Object observer) { return online; }
     @Override
     public UUID id(Object observer) { return observerId; }
-    @Override
-    public boolean schedule(Object observer, Runnable task) {
-        tasks.add(task);
-        return true;
-    }
     @Override
     public void warning(Object observer, String context, RuntimeException error) { warnings.add(context); }
 }

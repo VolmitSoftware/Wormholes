@@ -44,6 +44,7 @@ import art.arcane.optics.occlusion.ProjectedEntityOcclusion;
 import art.arcane.optics.recursion.EntityPath;
 import art.arcane.optics.recursion.RecursiveEndpoints;
 import art.arcane.optics.volume.ViewVolume;
+import art.arcane.wormholes.platform.QueuedOpticsScheduler;
 
 final class ProjectedEntityRecursionTest {
     @Test
@@ -244,7 +245,7 @@ final class ProjectedEntityRecursionTest {
         private final Location eye = new Location(localWorld, 1.5D, 1.5D, 0.0D);
         private final ViewVolume frustum = new ViewVolume(BukkitGeometry.vector(eye), new RenderTestSupport.ApertureStructure(), new ViewVolume.Options(32.0D, 32.0D, Settings.NEAR_PLANE_PADDING, Settings.FRUSTUM_CULLING_RATIO, Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
         private final ProjectedEntityPacketRecorder recorder = ProjectedEntityPacketRecorder.install();
-        private final ProjectedEntityRenderer renderer = new ProjectedEntityRenderer();
+        private final ProjectedEntityRenderer renderer = new ProjectedEntityRenderer(new QueuedOpticsScheduler());
         private final Player observer = ProjectedEntityPacketRecorder.player(true);
         private final UUID entityId = UUID.randomUUID();
         private final Map<String, Object> entityState = RenderTestSupport.entityState(entityId, finalWorld,

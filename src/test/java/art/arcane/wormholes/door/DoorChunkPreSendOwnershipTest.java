@@ -44,6 +44,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import art.arcane.wormholes.platform.QueuedOpticsScheduler;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -130,7 +131,7 @@ final class DoorChunkPreSendOwnershipTest {
         DoorChunkLoader.RegionDispatch regions = regions(owner);
         DoorStateGuard guard = new DoorStateGuard();
         PocketWorldService pocketWorldService = new PocketWorldService(plugin);
-        DoorRuntimeIndex runtimes = new DoorRuntimeIndex(plugin, guard, pocketWorldService);
+        DoorRuntimeIndex runtimes = new DoorRuntimeIndex(plugin, guard, pocketWorldService, new QueuedOpticsScheduler());
         Logger logger = plugin.getLogger();
         DoorChunkLoader chunkLoader = new DoorChunkLoader(
             logger,

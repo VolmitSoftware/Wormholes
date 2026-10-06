@@ -129,7 +129,7 @@ public class ProjectionManager implements Listener {
             : ProjectionWorldViewProvider.sectionCached(Wormholes.instance, Wormholes.projectionChangeTracker);
         this.clientChunkTracker = clientChunkTracker;
         this.claimArbiter = new ProjectionClaimArbiter(viewProvider, new BukkitProjectionOutput(clientChunkTracker, this::observersOf));
-        this.localEntityOcclusion = BukkitEntityRegistryHost.occlusion(BukkitEntityRegistryHost.PLUGIN_VISIBILITY);
+        this.localEntityOcclusion = BukkitEntityRegistryHost.occlusion(BukkitEntityRegistryHost.PLUGIN_VISIBILITY, scheduler);
         this.rtpRimRenderer = new RtpRimRenderer();
         this.skinRenderer = new PortalSkinRenderer(claimArbiter);
         BooleanSupplier alive = () -> !closed;
@@ -138,7 +138,7 @@ public class ProjectionManager implements Listener {
             (message, failure) -> Wormholes.instance.getLogger().log(Level.WARNING, "[plate] " + message, failure));
         this.plateCache = platePipeline.cache();
         this.interestSet = new ProjectionInterestSet(claimArbiter, localEntityOcclusion, viewProvider, closeQueue, alive,
-            plateCache);
+            plateCache, scheduler);
         this.budgetLedger = new ProjectionBudgetLedger();
         this.clientView = new BukkitClientView(new BukkitClientView.Options(viewProvider, plateCache, ProjectionManager::localPortal,
             (observerId, portalId) -> interestSet.retire(portalId, observerId), scheduler.compute(),

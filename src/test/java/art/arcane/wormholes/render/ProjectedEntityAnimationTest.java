@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import art.arcane.optics.entity.SpoofRegistry;
 import art.arcane.optics.entity.SpoofedEntity;
+import art.arcane.wormholes.platform.QueuedOpticsScheduler;
 
 final class ProjectedEntityAnimationTest {
     @ParameterizedTest
@@ -34,7 +35,7 @@ final class ProjectedEntityAnimationTest {
             EntityRenderPacketChannel channel = new EntityRenderPacketChannel();
             BukkitEntityRegistryHost output = new BukkitEntityRegistryHost(channel, BukkitEntityRegistryHost.PLUGIN_VISIBILITY);
             SpoofRegistry<Player, Vector3d> registry = new SpoofRegistry<>(output);
-            ProjectedEntityRenderer renderer = new ProjectedEntityRenderer(output, registry);
+            ProjectedEntityRenderer renderer = new ProjectedEntityRenderer(output, registry, new QueuedOpticsScheduler());
             for (boolean player : new boolean[] {true, false}) {
                 UUID sourceId = player ? observer.getUniqueId() : UUID.randomUUID();
                 SpoofedEntity entity = SpoofedEntity.create(player, false, true);
@@ -90,7 +91,7 @@ final class ProjectedEntityAnimationTest {
             EntityRenderPacketChannel channel = new EntityRenderPacketChannel();
             BukkitEntityRegistryHost output = new BukkitEntityRegistryHost(channel, BukkitEntityRegistryHost.PLUGIN_VISIBILITY);
             SpoofRegistry<Player, Vector3d> registry = new SpoofRegistry<>(output);
-            ProjectedEntityRenderer renderer = new ProjectedEntityRenderer(output, registry);
+            ProjectedEntityRenderer renderer = new ProjectedEntityRenderer(output, registry, new QueuedOpticsScheduler());
             UUID sourceId = UUID.randomUUID();
             registry.track(sourceId, SpoofedEntity.create(false, false, false));
 

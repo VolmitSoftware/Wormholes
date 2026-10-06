@@ -24,11 +24,12 @@ import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.Wormholes;
 import art.arcane.optics.occlusion.LocalOcclusionArbiter;
+import art.arcane.wormholes.platform.QueuedOpticsScheduler;
 
 public final class EntityRenderLocalOcclusionArbiterTest {
     @Test
     public void releasingDefaultHiddenItemNeverAddsAVisibilityGrant() {
-        LocalOcclusionArbiter<Player, Entity> arbiter = BukkitEntityRegistryHost.occlusion(BukkitEntityRegistryHost.PLUGIN_VISIBILITY);
+        LocalOcclusionArbiter<Player, Entity> arbiter = BukkitEntityRegistryHost.occlusion(BukkitEntityRegistryHost.PLUGIN_VISIBILITY, new QueuedOpticsScheduler());
         Player observer = mockPlayer();
         Item item = item(false);
         UUID portalId = UUID.randomUUID();
@@ -43,7 +44,7 @@ public final class EntityRenderLocalOcclusionArbiterTest {
 
     @Test
     public void releasingDefaultVisibleItemClearsTheOcclusionHide() {
-        LocalOcclusionArbiter<Player, Entity> arbiter = BukkitEntityRegistryHost.occlusion(BukkitEntityRegistryHost.PLUGIN_VISIBILITY);
+        LocalOcclusionArbiter<Player, Entity> arbiter = BukkitEntityRegistryHost.occlusion(BukkitEntityRegistryHost.PLUGIN_VISIBILITY, new QueuedOpticsScheduler());
         Player observer = mockPlayer();
         Item item = item(true);
         UUID portalId = UUID.randomUUID();
@@ -58,7 +59,7 @@ public final class EntityRenderLocalOcclusionArbiterTest {
 
     @Test
     public void releasingItemUsesDefaultVisibilityAtReleaseTime() {
-        LocalOcclusionArbiter<Player, Entity> arbiter = BukkitEntityRegistryHost.occlusion(BukkitEntityRegistryHost.PLUGIN_VISIBILITY);
+        LocalOcclusionArbiter<Player, Entity> arbiter = BukkitEntityRegistryHost.occlusion(BukkitEntityRegistryHost.PLUGIN_VISIBILITY, new QueuedOpticsScheduler());
         Player observer = mockPlayer();
         Item item = item(true);
         UUID portalId = UUID.randomUUID();
@@ -80,7 +81,7 @@ public final class EntityRenderLocalOcclusionArbiterTest {
 
     @Test
     public void releasingDefaultHiddenDisplayPreservesItsExistingRestoreBehavior() {
-        LocalOcclusionArbiter<Player, Entity> arbiter = BukkitEntityRegistryHost.occlusion(BukkitEntityRegistryHost.PLUGIN_VISIBILITY);
+        LocalOcclusionArbiter<Player, Entity> arbiter = BukkitEntityRegistryHost.occlusion(BukkitEntityRegistryHost.PLUGIN_VISIBILITY, new QueuedOpticsScheduler());
         Player observer = mockPlayer();
         BlockDisplay display = mock(BlockDisplay.class);
         when(display.getUniqueId()).thenReturn(UUID.randomUUID());
@@ -98,7 +99,7 @@ public final class EntityRenderLocalOcclusionArbiterTest {
     @Test
     public void entityRemainsHiddenUntilItsLastPortalClaimIsReleased() {
         VisibilityRecorder visibility = new VisibilityRecorder();
-        LocalOcclusionArbiter<Player, Entity> arbiter = BukkitEntityRegistryHost.occlusion(visibility);
+        LocalOcclusionArbiter<Player, Entity> arbiter = BukkitEntityRegistryHost.occlusion(visibility, new QueuedOpticsScheduler());
         Player observer = player(UUID.randomUUID());
         Entity entity = entity(UUID.randomUUID());
         UUID firstPortal = UUID.randomUUID();
@@ -125,7 +126,7 @@ public final class EntityRenderLocalOcclusionArbiterTest {
     @Test
     public void frameHandoffBetweenPortalsDoesNotFlickerVisibility() {
         VisibilityRecorder visibility = new VisibilityRecorder();
-        LocalOcclusionArbiter<Player, Entity> arbiter = BukkitEntityRegistryHost.occlusion(visibility);
+        LocalOcclusionArbiter<Player, Entity> arbiter = BukkitEntityRegistryHost.occlusion(visibility, new QueuedOpticsScheduler());
         Player observer = player(UUID.randomUUID());
         Entity entity = entity(UUID.randomUUID());
         UUID firstPortal = UUID.randomUUID();
@@ -149,7 +150,7 @@ public final class EntityRenderLocalOcclusionArbiterTest {
     @Test
     public void untouchedPortalClaimsPersistAcrossObserverFrames() {
         VisibilityRecorder visibility = new VisibilityRecorder();
-        LocalOcclusionArbiter<Player, Entity> arbiter = BukkitEntityRegistryHost.occlusion(visibility);
+        LocalOcclusionArbiter<Player, Entity> arbiter = BukkitEntityRegistryHost.occlusion(visibility, new QueuedOpticsScheduler());
         Player observer = player(UUID.randomUUID());
         Entity first = entity(UUID.randomUUID());
         Entity second = entity(UUID.randomUUID());

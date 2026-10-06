@@ -40,7 +40,7 @@ import art.arcane.optics.entity.SnapshotProjector;
 import art.arcane.optics.entity.SpoofRegistry;
 import art.arcane.optics.entity.SpoofedEntity;
 import art.arcane.optics.occlusion.LocalOcclusionArbiter;
-import art.arcane.volmlib.util.scheduling.FoliaScheduler;
+import art.arcane.optics.spi.OpticsScheduler;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.network.view.BukkitProjectedMapData;
 import art.arcane.wormholes.render.view.ProjectionEntityView;
@@ -60,9 +60,9 @@ public final class BukkitEntityRegistryHost implements EntityOutput<Player, Vect
         this.metadataBridge = new EntityRenderMetadataBridge(channel, this);
     }
 
-    public static LocalOcclusionArbiter<Player, Entity> occlusion(Controller visibility) {
+    public static LocalOcclusionArbiter<Player, Entity> occlusion(Controller visibility, OpticsScheduler<Player, ?> scheduler) {
         return new LocalOcclusionArbiter<>(BukkitEntityVisualHost.FEED,
-            new BukkitEntityRegistryHost(new EntityRenderPacketChannel(), visibility));
+            new BukkitEntityRegistryHost(new EntityRenderPacketChannel(), visibility), scheduler);
     }
 
     EntityRenderPacketChannel channel() {
@@ -231,12 +231,6 @@ public final class BukkitEntityRegistryHost implements EntityOutput<Player, Vect
     @Override
     public UUID id(Player observer) {
         return observer.getUniqueId();
-    }
-
-    @Override
-    public boolean schedule(Player observer, Runnable task) {
-        Wormholes plugin = Wormholes.instance;
-        return plugin != null && FoliaScheduler.runEntity(plugin, observer, task, 1L);
     }
 
     @Override

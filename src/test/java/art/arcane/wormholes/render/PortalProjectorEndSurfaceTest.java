@@ -40,6 +40,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import art.arcane.optics.math.CellKeys;
+import art.arcane.wormholes.platform.QueuedOpticsScheduler;
 
 class PortalProjectorEndSurfaceTest {
     @Test
@@ -205,7 +206,8 @@ class PortalProjectorEndSurfaceTest {
                 when(remoteView.isChunkReady(anyInt(), anyInt())).thenAnswer(call -> ready.get());
                 arbiter = new ProjectionClaimArbiter(target -> target == world ? localView : remoteView,
                     new BukkitProjectionOutput((player, chunkX, chunkZ) -> true, portalId -> List.of()));
-                projector = new PortalProjector(portal, observer, arbiter, target -> target == world ? localView : remoteView, () -> true);
+                projector = new PortalProjector(portal, observer, arbiter, target -> target == world ? localView : remoteView, () -> true,
+                    new QueuedOpticsScheduler());
                 projector.setRtpProjectionTarget(new PortalProjector.RtpProjectionTarget(remote, 10, 70, 10,
                     Frame.canonical(Face.U), 1));
             } catch (RuntimeException | Error failure) {

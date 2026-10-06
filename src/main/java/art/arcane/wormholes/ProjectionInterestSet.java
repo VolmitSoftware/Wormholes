@@ -23,6 +23,7 @@ import art.arcane.optics.volume.GazeScheduler;
 import art.arcane.optics.plate.ViewPlateCache;
 import art.arcane.wormholes.render.view.ProjectionWorldViewProvider;
 import art.arcane.optics.entity.InterestIndex;
+import art.arcane.optics.spi.OpticsScheduler;
 
 final class ProjectionInterestSet {
     private final ProjectionClaimArbiter claimArbiter;
@@ -31,6 +32,7 @@ final class ProjectionInterestSet {
     private final ProjectionInterestCloseQueue closeQueue;
     private final BooleanSupplier alive;
     private final ViewPlateCache<BlockData, World> plateCache;
+    private final OpticsScheduler<Player, World> scheduler;
     private final Map<UUID, Map<UUID, PortalProjector>> projectors;
     private final Map<UUID, Set<UUID>> retiring;
     private final Map<UUID, Map<UUID, Long>> interestGraceUntil;
@@ -41,8 +43,9 @@ final class ProjectionInterestSet {
                           LocalOcclusionArbiter<Player, Entity> localEntityOcclusion,
                           ProjectionWorldViewProvider viewProvider,
                           ProjectionInterestCloseQueue closeQueue,
-                          BooleanSupplier alive) {
-        this(claimArbiter, localEntityOcclusion, viewProvider, closeQueue, alive, null);
+                          BooleanSupplier alive,
+                          OpticsScheduler<Player, World> scheduler) {
+        this(claimArbiter, localEntityOcclusion, viewProvider, closeQueue, alive, null, scheduler);
     }
 
     ProjectionInterestSet(ProjectionClaimArbiter claimArbiter,
@@ -50,13 +53,15 @@ final class ProjectionInterestSet {
                           ProjectionWorldViewProvider viewProvider,
                           ProjectionInterestCloseQueue closeQueue,
                           BooleanSupplier alive,
-                          ViewPlateCache<BlockData, World> plateCache) {
+                          ViewPlateCache<BlockData, World> plateCache,
+                          OpticsScheduler<Player, World> scheduler) {
         this.claimArbiter = claimArbiter;
         this.localEntityOcclusion = localEntityOcclusion;
         this.viewProvider = viewProvider;
         this.closeQueue = closeQueue;
         this.alive = alive;
         this.plateCache = plateCache;
+        this.scheduler = scheduler;
         this.projectors = new ConcurrentHashMap<UUID, Map<UUID, PortalProjector>>();
         this.retiring = new ConcurrentHashMap<UUID, Set<UUID>>();
         this.interestGraceUntil = new ConcurrentHashMap<UUID, Map<UUID, Long>>();
@@ -102,7 +107,7 @@ final class ProjectionInterestSet {
                 return null;
             }
             projector = new PortalProjector(portal, observer, claimArbiter, viewProvider, alive,
-                localEntityOcclusion, plateCache);
+                localEntityOcclusion, plateCache, scheduler);
             portalProjectors.put(activeObserverId, projector);
             projectedEntityInterests.activate(projector);
             Wormholes.v("[ProjectionManager] new projector portal=" + portal.getName()

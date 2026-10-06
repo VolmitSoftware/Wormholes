@@ -1,6 +1,7 @@
 package art.arcane.optics.occlusion;
 
 import java.util.HashMap;
+import java.util.Objects;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
@@ -8,16 +9,19 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import art.arcane.optics.entity.EntityFeed;
 import art.arcane.optics.entity.EntityOutput;
+import art.arcane.optics.spi.OpticsScheduler;
 
 public final class LocalOcclusionArbiter<O, E> {
     private final Map<UUID, ObserverState> observers;
     private final EntityFeed<O, ?, ?, E> feed;
     private final EntityOutput<O, ?, ?, ?, E> visibility;
+    private final OpticsScheduler<O, ?> scheduler;
 
-    public LocalOcclusionArbiter(EntityFeed<O, ?, ?, E> feed, EntityOutput<O, ?, ?, ?, E> visibility) {
+    public LocalOcclusionArbiter(EntityFeed<O, ?, ?, E> feed, EntityOutput<O, ?, ?, ?, E> visibility, OpticsScheduler<O, ?> scheduler) {
         this.observers = new ConcurrentHashMap<UUID, ObserverState>();
         this.feed = feed;
         this.visibility = visibility;
+        this.scheduler = Objects.requireNonNull(scheduler);
     }
 
     public void beginFrame(O observer) {
@@ -184,7 +188,7 @@ public final class LocalOcclusionArbiter<O, E> {
             || !state.retryScheduled.compareAndSet(false, true)) {
             return;
         }
-        boolean scheduled = visibility.schedule(observer, () -> {
+        boolean scheduled = scheduler.runForObserver(observer, () -> {
             state.retryScheduled.set(false);
             UUID observerId = visibility.id(observer);
             if (observers.get(observerId) != state || !visibility.online(observer)) {
