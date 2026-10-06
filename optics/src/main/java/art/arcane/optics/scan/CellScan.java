@@ -171,9 +171,9 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
         this.sampler = context.sampler();
         this.memo = context.memo();
         this.blackout = context.blackout();
-        this.viewOcclusion = new ProjectorViewOcclusion<B>(context.occlusion());
-        this.entityOcclusion = new ProjectedEntityOcclusion<B, V>(new ProjectorViewOcclusion<B>(context.occlusion(), ProjectedEntityOcclusion.MAX_VOXEL_STEPS_PER_BATCH));
-        this.projectedEntityOcclusion = new ProjectedEntityOcclusion<B, V>(new ProjectorViewOcclusion<B>(context.occlusion(), ProjectedEntityOcclusion.MAX_VOXEL_STEPS_PER_BATCH));
+        this.viewOcclusion = new ProjectorViewOcclusion<B>(memo.blocks());
+        this.entityOcclusion = new ProjectedEntityOcclusion<B, V>(new ProjectorViewOcclusion<B>(memo.blocks(), ProjectedEntityOcclusion.MAX_VOXEL_STEPS_PER_BATCH));
+        this.projectedEntityOcclusion = new ProjectedEntityOcclusion<B, V>(new ProjectorViewOcclusion<B>(memo.blocks(), ProjectedEntityOcclusion.MAX_VOXEL_STEPS_PER_BATCH));
         this.blackoutBoundary = new ProjectorBlackoutBoundary();
         this.cellTransform = OpticTransform.IDENTITY;
         this.scratchRemotePoint = new double[3];
@@ -2058,7 +2058,6 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
 
     public record Context<B, M, W, P extends Endpoint, V extends ContentView<B, M>>(
         P portal, CellAperture aperture, ProjectorSampler<B, M, W, P, V> sampler,
-        ProjectorSampleMemo<B, M, V> memo, ProjectionBlackout<B> blackout,
-        ProjectorViewOcclusion.BlockOcclusion<B> occlusion, Supplier<ScanSettings> settings) {
+        ProjectorSampleMemo<B, M, V> memo, ProjectionBlackout<B> blackout, Supplier<ScanSettings> settings) {
     }
 }

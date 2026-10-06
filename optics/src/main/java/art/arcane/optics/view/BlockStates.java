@@ -12,6 +12,7 @@ public interface BlockStates<B, M> {
     boolean blockEntityCandidate(M material);
     boolean isAir(M material);
     boolean isOccluding(M material);
+    boolean occludes(B block);
     boolean requiresTransform(B block);
     B transform(B block, AxisPermutation permutation);
     StateProperties properties(B block);

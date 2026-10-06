@@ -32,6 +32,17 @@ public class MinecraftProjectorBlocksTest {
     }
 
     @Test
+    public void cellsOccludeExactlyWhenTheirBlockTypeOccludes() {
+        MinecraftProjectorBlocks blocks = MinecraftProjectorBlocks.INSTANCE;
+        assertTrue(blocks.occludes(Blocks.STONE.defaultBlockState()));
+        assertTrue(blocks.occludes(blocks.occluded()));
+        assertFalse(blocks.occludes(Blocks.GLASS.defaultBlockState()));
+        assertFalse(blocks.occludes(Blocks.OAK_STAIRS.defaultBlockState()));
+        assertFalse(blocks.occludes(Blocks.AIR.defaultBlockState()));
+        assertFalse(blocks.occludes(null));
+    }
+
+    @Test
     public void occlusionFollowsTheBlockTypeLikeBukkit() {
         MinecraftProjectorBlocks blocks = MinecraftProjectorBlocks.INSTANCE;
         assertFalse(blocks.isOccluding(Blocks.STONE_SLAB.defaultBlockState().setValue(SlabBlock.TYPE, SlabType.DOUBLE)));

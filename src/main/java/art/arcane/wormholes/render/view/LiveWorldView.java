@@ -1,9 +1,9 @@
 package art.arcane.wormholes.render.view;
 
+import art.arcane.wormholes.render.BukkitProjectorBlocks;
 import art.arcane.optics.view.ContentView;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.render.blockentity.BlockEntityCapturer;
-import art.arcane.optics.fidelity.BlockEntityMaterials;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -67,7 +67,7 @@ public final class LiveWorldView implements ProjectionWorldView {
             return null;
         }
         Block block = world.getBlockAt(x, y, z);
-        if (!BlockEntityMaterials.isCandidate(block.getType().name())) {
+        if (!BukkitProjectorBlocks.defaults().blockEntityCandidate(block.getType())) {
             return null;
         }
         BlockState state;

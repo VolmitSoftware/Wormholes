@@ -1,7 +1,7 @@
 package art.arcane.wormholes.network.view;
 
+import art.arcane.wormholes.render.BukkitProjectorBlocks;
 import art.arcane.wormholes.Wormholes;
-import art.arcane.optics.fidelity.BlockEntityMaterials;
 import art.arcane.wormholes.render.view.OccludedMarker;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
 import com.github.retrooper.packetevents.protocol.player.Equipment;
@@ -42,7 +42,7 @@ public enum BukkitRemoteViewCodec implements RemoteViewCodec<BlockData, EntityDa
     public boolean blockEntityCandidate(String state) {
         int bracket = state.indexOf('[');
         Material material = Material.matchMaterial(bracket < 0 ? state : state.substring(0, bracket));
-        return material != null && BlockEntityMaterials.isCandidate(material.name());
+        return BukkitProjectorBlocks.defaults().blockEntityCandidate(material);
     }
 
     @Override

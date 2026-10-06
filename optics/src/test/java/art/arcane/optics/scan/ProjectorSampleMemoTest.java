@@ -594,6 +594,10 @@ public final class ProjectorSampleMemoTest {
             return occlusion.test(material);
         }
 
+        public boolean occludes(TestBlock block) {
+            return block != null && isOccluding(material(block));
+        }
+
         public boolean requiresTransform(TestBlock block) {
             return false;
         }

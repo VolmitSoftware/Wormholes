@@ -79,6 +79,11 @@ final class SyntheticBlocks implements BlockStates<String, String> {
     }
 
     @Override
+    public boolean occludes(String block) {
+        return block != null && isOccluding(material(block));
+    }
+
+    @Override
     public boolean requiresTransform(String block) {
         return block.contains("facing=") || block.contains("axis=");
     }

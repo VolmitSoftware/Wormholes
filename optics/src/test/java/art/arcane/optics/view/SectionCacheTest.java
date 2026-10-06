@@ -601,6 +601,11 @@ public final class SectionCacheTest {
         }
 
         @Override
+        public boolean occludes(Block block) {
+            return block != null && isOccluding(material(block));
+        }
+
+        @Override
         public boolean requiresTransform(Block block) {
             return false;
         }

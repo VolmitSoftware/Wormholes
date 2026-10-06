@@ -1,5 +1,6 @@
 package art.arcane.wormholes.render.blockentity;
 
+import art.arcane.wormholes.render.BukkitProjectorBlocks;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -92,7 +93,7 @@ public final class BlockEntityCapturer {
                 break;
             }
             if (state == null || state.getY() < limits.minY() || state.getY() > limits.maxY()
-                || !BlockEntityMaterials.isCandidate(state.getType().name())) {
+                || !BukkitProjectorBlocks.defaults().blockEntityCandidate(state.getType())) {
                 continue;
             }
             BlockEntitySample sample = capture(state);

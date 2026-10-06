@@ -26,7 +26,6 @@ import art.arcane.optics.recursion.RecursiveEndpoints;
 import art.arcane.optics.scan.ProjectorSampleMemo;
 import art.arcane.optics.scan.ProjectorSampler;
 import art.arcane.optics.scan.ScanDestination;
-import art.arcane.optics.occlusion.ProjectorViewOcclusion;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.volume.LodPolicy;
 import art.arcane.optics.volume.ProjectionVolume;
@@ -126,11 +125,10 @@ public final class ClientSweepScene {
         ProjectorSampler<String, String, Object, ScanPortal, SceneView> sampler = new ProjectorSampler<String, String, Object, ScanPortal, SceneView>(
             new ProjectorSampler.Options<String, String, Object, ScanPortal, SceneView>(memo, recursive, ignored -> null, ignored -> null));
         ProjectionBlackout<String> seal = new Seal(blackout);
-        ProjectorViewOcclusion.BlockOcclusion<String> occlusion = OCCLUDING::contains;
         CellScan.ScanSettings settings = new CellScan.ScanSettings(0, 1.0D, APERTURE_PADDING, false, false, 0, true);
         CellScan<String, String, Object, ScanPortal, SceneView> scan = new CellScan<String, String, Object, ScanPortal, SceneView>(
             new CellScan.Context<String, String, Object, ScanPortal, SceneView>(localPortal, aperture, sampler, memo, seal,
-                occlusion, () -> settings));
+                () -> settings));
         FrustumFit fit = new FrustumFit(new FrustumFit.Options(0, NEAR_PLANE_PADDING, CULLING_RATIO, APERTURE_PADDING));
         ViewVolume frustum = fit.fit(aperture, localFrame, eye, depth, lateral);
         scan.run(new Destination(), null, eye, frustum, depth, true, false, true, mode, null, false,
@@ -373,6 +371,11 @@ public final class ClientSweepScene {
         @Override
         public boolean isOccluding(String material) {
             return OCCLUDING.contains(material);
+        }
+
+        @Override
+        public boolean occludes(String block) {
+            return block != null && isOccluding(material(block));
         }
 
         @Override

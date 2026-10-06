@@ -160,6 +160,11 @@ final class SessionWorld implements ContentView<String, String> {
         }
 
         @Override
+        public boolean occludes(String block) {
+            return block != null && isOccluding(material(block));
+        }
+
+        @Override
         public boolean requiresTransform(String block) {
             return false;
         }

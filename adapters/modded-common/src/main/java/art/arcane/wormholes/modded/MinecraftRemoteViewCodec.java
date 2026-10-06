@@ -1,7 +1,6 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.network.view.RemoteViewCodec;
-import art.arcane.optics.fidelity.BlockEntityMaterials;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
 import net.minecraft.core.RegistryAccess;
@@ -15,7 +14,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
-import java.util.Locale;
 import java.util.function.Supplier;
 
 public final class MinecraftRemoteViewCodec implements RemoteViewCodec<BlockState, SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment> {
@@ -55,7 +53,7 @@ public final class MinecraftRemoteViewCodec implements RemoteViewCodec<BlockStat
         int bracket = state.indexOf('[');
         Identifier key = Identifier.tryParse(bracket < 0 ? state : state.substring(0, bracket));
         Block block = key == null ? null : BuiltInRegistries.BLOCK.getOptional(key).orElse(null);
-        return block != null && BlockEntityMaterials.isCandidate(key.getPath().toUpperCase(Locale.ROOT));
+        return block != null && MinecraftProjectorBlocks.INSTANCE.blockEntityCandidate(block.defaultBlockState());
     }
 
     @Override

@@ -1,5 +1,6 @@
 package art.arcane.wormholes.network.replication.capture;
 
+import art.arcane.wormholes.render.BukkitProjectorBlocks;
 import art.arcane.optics.math.CellKeys;
 
 import org.bukkit.block.data.BlockData;
@@ -7,7 +8,6 @@ import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.render.blockentity.BlockEntityCapturer;
-import art.arcane.optics.fidelity.BlockEntityMaterials;
 import art.arcane.optics.fidelity.BlockEntitySample;
 
 import org.bukkit.World;
@@ -89,7 +89,7 @@ public final class BlockEntityCapture implements Listener {
         if (!accumulator.settings().blockEntityCaptureEnabled()) {
             return;
         }
-        if (!BlockEntityMaterials.isCandidate(block.getType().name())) {
+        if (!BukkitProjectorBlocks.defaults().blockEntityCandidate(block.getType())) {
             return;
         }
         int worldX = block.getX();

@@ -100,7 +100,7 @@ public final class MinecraftPortalProjector implements AutoCloseable {
             portals.createRecursiveIndex(), views::apply,
                 view -> view instanceof MinecraftProjectionWorldView local ? local.getWorld() : null));
         this.scan = new CellScan<>(new CellScan.Context<>(portal, portal.getGeometry(), sampler, memo,
-            blackout, block -> MinecraftProjectorBlocks.INSTANCE.isOccluding(block), this::scanSettings));
+            blackout, this::scanSettings));
         this.fit = new FrustumFit(fitOptions());
         this.fullSendPasses = Math.max(0, config().initialResendPasses);
     }

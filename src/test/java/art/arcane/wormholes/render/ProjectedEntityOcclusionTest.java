@@ -102,7 +102,7 @@ public final class ProjectedEntityOcclusionTest {
 
     private static ProjectedEntityOcclusion<BlockData, ProjectionWorldView> occlusion() {
         ProjectorViewOcclusion<BlockData> blockOcclusion = new ProjectorViewOcclusion<BlockData>(
-            data -> data != null && data.getMaterial() == Material.STONE);
+            new BukkitProjectorBlocks(material -> material == Material.STONE));
         return new ProjectedEntityOcclusion<BlockData, ProjectionWorldView>(blockOcclusion);
     }
 

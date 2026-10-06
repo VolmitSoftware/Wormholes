@@ -3,7 +3,6 @@ package art.arcane.wormholes.render;
 import art.arcane.wormholes.portal.ILocalPortal;
 import org.bukkit.World;
 import art.arcane.optics.entity.EntitySnapshot;
-import art.arcane.wormholes.render.view.OccludedMarker;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.util.BoundingBox;
@@ -22,7 +21,7 @@ final class BukkitEntityOcclusion {
     }
 
     static ProjectedEntityOcclusion<BlockData, ProjectionWorldView> create() {
-        return new ProjectedEntityOcclusion<>(new ProjectorViewOcclusion<>(OccludedMarker::isOccluding,
+        return new ProjectedEntityOcclusion<>(new ProjectorViewOcclusion<>(BukkitProjectorBlocks.defaults(),
             ProjectedEntityOcclusion.MAX_VOXEL_STEPS_PER_BATCH));
     }
 

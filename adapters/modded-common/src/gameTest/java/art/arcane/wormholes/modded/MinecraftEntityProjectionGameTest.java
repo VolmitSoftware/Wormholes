@@ -108,7 +108,7 @@ public final class MinecraftEntityProjectionGameTest {
         renderer = new MinecraftProjectedEntities(runtime, new MinecraftProjectedEntities.Context(player, source, portals.createRecursiveIndex()));
         ViewVolume frustum = new ViewVolume(eye, source.getGeometry(), new ViewVolume.Options(16, 16, 0.1D, 1.0D, 0.0D));
         ProjectedEntityOcclusion<BlockState, ContentView<BlockState, BlockState>> occlusion = new ProjectedEntityOcclusion<>(
-            new ProjectorViewOcclusion<>(MinecraftProjectorBlocks.INSTANCE::isOccluding, ProjectedEntityOcclusion.MAX_VOXEL_STEPS_PER_BATCH));
+            new ProjectorViewOcclusion<>(MinecraftProjectorBlocks.INSTANCE, ProjectedEntityOcclusion.MAX_VOXEL_STEPS_PER_BATCH));
         view = new MinecraftProjectedEntities.View(destination, destination, level, runtime.projections().scene(level, destination, 16),
             OpticTransform.between(destination.getFrame(), target, source.getFrame(), origin), frustum, eye, occlusion, 16);
         clearPackets();

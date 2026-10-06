@@ -39,7 +39,6 @@ import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.util.Cuboid;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.claim.ProjectedBlockClaim;
-import art.arcane.optics.occlusion.ProjectorViewOcclusion;
 import art.arcane.optics.scan.CellScan;
 import art.arcane.optics.scan.ProjectorSampleMemo;
 import art.arcane.optics.scan.ProjectorSampler;
@@ -175,21 +174,13 @@ public final class PortalProjectorPlateFallbackTest {
         ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo(PortalProjectorPlateFallbackTest::testMaterialOccluding);
         ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
             () -> BukkitProjectorBlocks.sampler(memo, BukkitProjectorPortalAccess.create(), world -> remoteView));
-        CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan = BukkitProjectorBlocks.scan(portal, sampler, memo, new ProjectorBlackoutSeal());
-        Field field = CellScan.class.getDeclaredField("viewOcclusion");
-        field.setAccessible(true);
-        field.set(scan, new ProjectorViewOcclusion<BlockData>(PortalProjectorPlateFallbackTest::testOccluding));
-        return scan;
+        return BukkitProjectorBlocks.scan(portal, sampler, memo, new ProjectorBlackoutSeal());
     }
 
     private static ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> samplerOf(CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan) throws ReflectiveOperationException {
         Field field = CellScan.class.getDeclaredField("sampler");
         field.setAccessible(true);
         return (ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView>) field.get(scan);
-    }
-
-    private static boolean testOccluding(BlockData data) {
-        return data != null && testMaterialOccluding(data.getMaterial());
     }
 
     private static boolean testMaterialOccluding(Material material) {

@@ -9,16 +9,12 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 
 
+import art.arcane.optics.view.BlockStates;
 import art.arcane.optics.view.BlockView;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.math.CellKeys;
 
 public final class ProjectorViewOcclusion<B> {
-    @FunctionalInterface
-    public interface BlockOcclusion<B> {
-        boolean occluding(B data);
-    }
-
     public static final int MAX_OPACITY_CACHE_CELLS = 4_096;
     public static final int MAX_HIDDEN_PROOF_CELLS = 32_768;
     public static final int MAX_VOXEL_STEPS_PER_PASS = 500_000;
@@ -42,7 +38,7 @@ public final class ProjectorViewOcclusion<B> {
     private final Long2ObjectOpenHashMap<long[]> verdictBlockers;
     private int verdictBlockerLongs;
     private final LongArrayList hiddenBlockers;
-    private final BlockOcclusion<B> blockOcclusion;
+    private final BlockStates<B, ?> blocks;
     private final int maxVoxelStepsPerPass;
     private int voxelSteps;
     private int hiddenProofHits;
@@ -83,11 +79,11 @@ public final class ProjectorViewOcclusion<B> {
     private final ProjectionOccupancyOctree eligibleOctree;
     private final double[] scratchRayStart;
 
-    public ProjectorViewOcclusion(BlockOcclusion<B> blockOcclusion) {
-        this(blockOcclusion, MAX_VOXEL_STEPS_PER_PASS);
+    public ProjectorViewOcclusion(BlockStates<B, ?> blocks) {
+        this(blocks, MAX_VOXEL_STEPS_PER_PASS);
     }
 
-    public ProjectorViewOcclusion(BlockOcclusion<B> blockOcclusion, int maxVoxelStepsPerPass) {
+    public ProjectorViewOcclusion(BlockStates<B, ?> blocks, int maxVoxelStepsPerPass) {
         opacity = new Long2ByteOpenHashMap(256);
         opacity.defaultReturnValue((byte) -1);
         hiddenBlockerProofs = new Long2LongOpenHashMap(256);
@@ -97,7 +93,7 @@ public final class ProjectorViewOcclusion<B> {
         verdictBlockers = new Long2ObjectOpenHashMap<long[]>(256);
         verdictBlockerLongs = 0;
         hiddenBlockers = new LongArrayList(8);
-        this.blockOcclusion = blockOcclusion;
+        this.blocks = blocks;
         this.maxVoxelStepsPerPass = Math.max(1, maxVoxelStepsPerPass);
         this.eligibleOctree = new ProjectionOccupancyOctree();
         this.scratchRayStart = new double[3];
@@ -303,7 +299,7 @@ public final class ProjectorViewOcclusion<B> {
     }
 
     public boolean isOccluding(B data) {
-        return blockOcclusion.occluding(data);
+        return blocks.occludes(data);
     }
 
     private void prepareHiddenProofContext(BlockView<B> view, double eyeX, double eyeY, double eyeZ) {
@@ -640,7 +636,7 @@ public final class ProjectorViewOcclusion<B> {
                 view.requestChunk(x, z);
                 result = false;
             } else {
-                result = blockOcclusion.occluding(data);
+                result = blocks.occludes(data);
             }
         }
         if (opacity.size() < MAX_OPACITY_CACHE_CELLS) {

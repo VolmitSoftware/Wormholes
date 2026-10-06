@@ -77,6 +77,11 @@ public enum MinecraftProjectorBlocks implements BlockStates<BlockState, BlockSta
         return block != null && !block.isAir() && occluding(block.getBlock());
     }
 
+    @Override
+    public boolean occludes(BlockState block) {
+        return isOccluding(block);
+    }
+
     static boolean occluding(Block block) {
         Boolean cached = OCCLUDING.get(block);
         if (cached != null) {

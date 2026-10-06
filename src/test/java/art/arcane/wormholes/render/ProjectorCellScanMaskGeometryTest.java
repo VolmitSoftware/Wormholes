@@ -34,7 +34,6 @@ import art.arcane.wormholes.util.BukkitGeometry;
 import art.arcane.wormholes.util.Cuboid;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.claim.ProjectedBlockClaim;
-import art.arcane.optics.occlusion.ProjectorViewOcclusion;
 import art.arcane.optics.recursion.RecursiveEndpoints;
 import art.arcane.optics.scan.CellScan;
 import art.arcane.optics.scan.ProjectorSampleMemo;
@@ -162,12 +161,7 @@ final class ProjectorCellScanMaskGeometryTest {
             RecursiveEndpoints<World, ILocalPortal> recursivePortals = BukkitProjectorPortalAccess.create(() -> candidates);
             ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withServer(
                 () -> BukkitProjectorBlocks.sampler(memo, recursivePortals, ignored -> view));
-            CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan = BukkitProjectorBlocks.scan(
-                mirror, sampler, memo, new ProjectorBlackoutSeal());
-            Field occlusion = CellScan.class.getDeclaredField("viewOcclusion");
-            occlusion.setAccessible(true);
-            occlusion.set(scan, new ProjectorViewOcclusion<BlockData>(ProjectorCellScanMaskGeometryTest::occluding));
-            return new ScanRig(scan);
+            return new ScanRig(BukkitProjectorBlocks.scan(mirror, sampler, memo, new ProjectorBlackoutSeal()));
         }
 
         private ViewVolume frustum(Vector eye) {
@@ -279,10 +273,6 @@ final class ProjectorCellScanMaskGeometryTest {
         state.put("open", Boolean.TRUE);
         state.put("mirrorMode", Boolean.FALSE);
         return state;
-    }
-
-    private static boolean occluding(BlockData data) {
-        return data != null && occludingMaterial(data.getMaterial());
     }
 
     private static boolean occludingMaterial(Material material) {

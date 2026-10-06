@@ -231,6 +231,11 @@ class SectionCachedWorldViewTest {
         }
 
         @Override
+        public boolean occludes(BlockData block) {
+            return block != null && isOccluding(material(block));
+        }
+
+        @Override
         public boolean requiresTransform(BlockData block) {
             return false;
         }

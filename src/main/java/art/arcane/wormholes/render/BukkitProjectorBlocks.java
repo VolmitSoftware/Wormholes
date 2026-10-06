@@ -68,7 +68,7 @@ public final class BukkitProjectorBlocks implements BlockStates<BlockData, Mater
         ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler,
         ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo, ProjectorBlackoutSeal blackout) {
         return new CellScan<>(new CellScan.Context<>(portal, portal.getStructure(), sampler, memo, blackout,
-            OccludedMarker::isOccluding, () -> new CellScan.ScanSettings(Settings.PROJECTION_RECURSIVE_PORTAL_DEPTH,
+            () -> new CellScan.ScanSettings(Settings.PROJECTION_RECURSIVE_PORTAL_DEPTH,
                 Settings.PROJECTION_OCCLUSION_REVEAL_MARGIN_DEGREES, Settings.PROJECTION_APERTURE_PADDING_BLOCKS, Settings.DEBUG,
                 Settings.PROJECTION_HOLD_INVISIBLE_CLAIMS, Settings.PROJECTION_MAX_HELD_CELLS_PER_PORTAL, Settings.PROJECTION_FINISH_IN_SLOT)));
     }
@@ -111,6 +111,11 @@ public final class BukkitProjectorBlocks implements BlockStates<BlockData, Mater
     @Override
     public boolean isOccluding(Material material) {
         return occlusion.test(material);
+    }
+
+    @Override
+    public boolean occludes(BlockData block) {
+        return block != null && occlusion.test(block.getMaterial());
     }
 
     @Override

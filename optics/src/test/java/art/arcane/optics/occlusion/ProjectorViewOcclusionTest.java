@@ -6,24 +6,36 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Predicate;
 
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 
 import org.junit.jupiter.api.Test;
 
+import art.arcane.optics.frame.AxisPermutation;
+import art.arcane.optics.state.StateProperties;
+import art.arcane.optics.view.BlockStates;
 import art.arcane.optics.view.BlockView;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.math.CellKeys;
 
 public final class ProjectorViewOcclusionTest {
     @Test
+    public void rayOcclusionFollowsTheBlockStatesOcclusionRule() {
+        ProjectorViewOcclusion<FakeBlock> occlusion = new ProjectorViewOcclusion<FakeBlock>(new FakeBlocks(data -> data == FakeBlock.GLASS));
+
+        assertTrue(occlusion.isOccluding(FakeBlock.GLASS));
+        assertFalse(occlusion.isOccluding(FakeBlock.STONE));
+    }
+
+    @Test
     public void raysBeforeDistantBlockersStayVisibleWithoutSpendingTheTraceBudget() {
         FakeWorldView view = new FakeWorldView();
         for (Face normal : Face.values()) {
             LongOpenHashSet blockers = new LongOpenHashSet();
             blockers.add(CellKeys.pack(normal.x() * -60, normal.y() * -60, normal.z() * -60));
-            ProjectorViewOcclusion<FakeBlock> occlusion = new ProjectorViewOcclusion<FakeBlock>(data -> true, 1);
+            ProjectorViewOcclusion<FakeBlock> occlusion = new ProjectorViewOcclusion<FakeBlock>(new FakeBlocks(data -> true), 1);
             occlusion.setRevealMarginDegrees(2.0D);
             occlusion.beginPass(0.5D, 0.5D, 0.5D, normal, blockers);
             for (int depth = 1; depth < 60; depth++) {
@@ -42,7 +54,7 @@ public final class ProjectorViewOcclusionTest {
         FakeWorldView view = new FakeWorldView();
         LongOpenHashSet blockers = new LongOpenHashSet();
         blockers.add(CellKeys.pack(2, 0, 0));
-        ProjectorViewOcclusion<FakeBlock> occlusion = new ProjectorViewOcclusion<FakeBlock>(data -> true, 1);
+        ProjectorViewOcclusion<FakeBlock> occlusion = new ProjectorViewOcclusion<FakeBlock>(new FakeBlocks(data -> true), 1);
         occlusion.beginPass(0.5D, 0.5D, 0.5D, Face.W, blockers);
 
         assertEquals(ProjectorViewOcclusion.Visibility.UNRESOLVED,
@@ -779,16 +791,14 @@ public final class ProjectorViewOcclusionTest {
         FakeWorldView view = new FakeWorldView();
         LongOpenHashSet blockers = new LongOpenHashSet();
         blockers.add(CellKeys.pack(2, 0, 0));
-        ProjectorViewOcclusion<FakeBlock> limited = new ProjectorViewOcclusion<FakeBlock>(
-            data -> data != null && data == FakeBlock.STONE, 1);
+        ProjectorViewOcclusion<FakeBlock> limited = new ProjectorViewOcclusion<FakeBlock>(new FakeBlocks(data -> data != null && data == FakeBlock.STONE), 1);
         limited.beginPass(0.5D, 0.5D, 0.5D, Face.W, blockers);
 
         assertEquals(ProjectorViewOcclusion.Visibility.UNRESOLVED,
             limited.visibility(view, 5, 0, 0, 0.5D, 0.5D, 0.5D));
         assertTrue(limited.visible(view, 5, 0, 0, 0.5D, 0.5D, 0.5D));
 
-        ProjectorViewOcclusion<FakeBlock> complete = new ProjectorViewOcclusion<FakeBlock>(
-            data -> data != null && data == FakeBlock.STONE, 8);
+        ProjectorViewOcclusion<FakeBlock> complete = new ProjectorViewOcclusion<FakeBlock>(new FakeBlocks(data -> data != null && data == FakeBlock.STONE), 8);
         complete.beginPass(0.5D, 0.5D, 0.5D, Face.W, blockers);
 
         assertEquals(ProjectorViewOcclusion.Visibility.HIDDEN,
@@ -858,7 +868,7 @@ public final class ProjectorViewOcclusionTest {
         ProjectorViewOcclusion<FakeBlock> exact = occlusion();
         exact.beginPass(0.5D, 0.5D, 0.5D, Face.W, blockers);
         Map<Long, ProjectorViewOcclusion.Visibility> expected = sweep(exact, view, 0.5D);
-        ProjectorViewOcclusion<FakeBlock> limited = new ProjectorViewOcclusion<FakeBlock>(data -> true, 256);
+        ProjectorViewOcclusion<FakeBlock> limited = new ProjectorViewOcclusion<FakeBlock>(new FakeBlocks(data -> true), 256);
         Map<Long, ProjectorViewOcclusion.Visibility> resolved = new HashMap<Long, ProjectorViewOcclusion.Visibility>();
         int passes = 0;
         int previousUnresolved = Integer.MAX_VALUE;
@@ -889,7 +899,7 @@ public final class ProjectorViewOcclusionTest {
         FakeWorldView view = new FakeWorldView();
         LongOpenHashSet blockers = new LongOpenHashSet();
         blockers.add(CellKeys.pack(2, 0, 0));
-        ProjectorViewOcclusion<FakeBlock> occlusion = new ProjectorViewOcclusion<FakeBlock>(data -> true, Integer.MAX_VALUE);
+        ProjectorViewOcclusion<FakeBlock> occlusion = new ProjectorViewOcclusion<FakeBlock>(new FakeBlocks(data -> true), Integer.MAX_VALUE);
         occlusion.beginPass(0.5D, 0.5D, 0.5D, Face.W, blockers);
 
         for (int i = 0; i < ProjectorViewOcclusion.MAX_VERDICT_CELLS + 1_000; i++) {
@@ -932,8 +942,8 @@ public final class ProjectorViewOcclusionTest {
     }
 
     private static ProjectorViewOcclusion<FakeBlock> occlusion() {
-        return new ProjectorViewOcclusion<FakeBlock>(data -> data != null
-            && (data == FakeBlock.STONE || data == FakeBlock.DEEPSLATE));
+        return new ProjectorViewOcclusion<FakeBlock>(new FakeBlocks(data -> data != null
+            && (data == FakeBlock.STONE || data == FakeBlock.DEEPSLATE)));
     }
 
     private static void beginPass(ProjectorViewOcclusion<FakeBlock> occlusion) {
@@ -946,6 +956,73 @@ public final class ProjectorViewOcclusionTest {
 
     private static FakeBlock blockData(FakeBlock material) {
         return material;
+    }
+
+    private record FakeBlocks(Predicate<FakeBlock> occluding) implements BlockStates<FakeBlock, FakeBlock> {
+        @Override
+        public FakeBlock air() {
+            return FakeBlock.AIR;
+        }
+
+        @Override
+        public FakeBlock occluded() {
+            return FakeBlock.STONE;
+        }
+
+        @Override
+        public boolean isOccluded(FakeBlock block) {
+            return false;
+        }
+
+        @Override
+        public FakeBlock material(FakeBlock block) {
+            return block;
+        }
+
+        @Override
+        public String materialName(FakeBlock material) {
+            return material.name();
+        }
+
+        @Override
+        public boolean blockEntityCandidate(FakeBlock material) {
+            return false;
+        }
+
+        @Override
+        public boolean isAir(FakeBlock material) {
+            return material == FakeBlock.AIR;
+        }
+
+        @Override
+        public boolean isOccluding(FakeBlock material) {
+            throw new UnsupportedOperationException("ray occlusion reads occludes");
+        }
+
+        @Override
+        public boolean occludes(FakeBlock block) {
+            return block != null && occluding.test(block);
+        }
+
+        @Override
+        public boolean requiresTransform(FakeBlock block) {
+            return false;
+        }
+
+        @Override
+        public FakeBlock transform(FakeBlock block, AxisPermutation permutation) {
+            return block;
+        }
+
+        @Override
+        public StateProperties properties(FakeBlock block) {
+            return StateProperties.EMPTY;
+        }
+
+        @Override
+        public FakeBlock withProperties(FakeBlock block, StateProperties properties) {
+            return block;
+        }
     }
 
     private static final class CountingLongOpenHashSet extends LongOpenHashSet {
