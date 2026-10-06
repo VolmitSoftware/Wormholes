@@ -36,7 +36,8 @@ abstract class VerifyModdedArtifact extends DefaultTask {
             String metadata = getMetadata().get()
             for (String required : [metadata, 'art/arcane/wormholes/modded/WormholesModRuntime.class',
                                     'art/arcane/wormholes/network/WireCodec.class',
-                                    'art/arcane/wormholes/portal/PortalFrame.class']) {
+                                    'art/arcane/wormholes/portal/PortalFrame.class',
+                                    'art/arcane/optics/spi/OpticsMetrics.class']) {
                 if (archive.getEntry(required) == null) {
                     throw new GradleException("${artifact.name} is missing ${required}")
                 }
@@ -54,7 +55,8 @@ abstract class VerifyModdedArtifact extends DefaultTask {
                 if (entry.name.startsWith('art/arcane/volmlib/') || entry.name.startsWith('net/kyori/')) {
                     throw new GradleException("${artifact.name} bundles unrelocated shared library entry ${entry.name}")
                 }
-                if (entry.name.startsWith('art/arcane/wormholes/') && entry.name.endsWith('.class')) {
+                boolean opticsClass = entry.name.startsWith('art/arcane/optics/')
+                if ((opticsClass || entry.name.startsWith('art/arcane/wormholes/')) && entry.name.endsWith('.class')) {
                     String constants = archive.getInputStream(entry).withCloseable { InputStream stream ->
                         new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.ISO_8859_1)
                     }
@@ -65,12 +67,12 @@ abstract class VerifyModdedArtifact extends DefaultTask {
                         throw new GradleException("${artifact.name} references an unrelocated shared library in ${entry.name}")
                     }
                     for (String renderHook : renderHooks) {
-                        if (constants.contains(renderHook)
-                            && !entry.name.startsWith('art/arcane/wormholes/modded/client/render/')
+                        if (constants.contains(renderHook) && (opticsClass
+                            || !entry.name.startsWith('art/arcane/wormholes/modded/client/render/')
                             && entry.name != 'art/arcane/wormholes/modded/client/PreparedLevelExtractor.class'
                             && !(entry.name == 'art/arcane/wormholes/modded/client/ClientPreparedTravel.class'
                                 && renderHook == 'net/minecraft/client/renderer/LevelRenderer')
-                            && !portalRenderMixins.any { String name -> entry.name == "art/arcane/wormholes/modded/mixin/${name.replace('.', '/')}.class" }) {
+                            && !portalRenderMixins.any { String name -> entry.name == "art/arcane/wormholes/modded/mixin/${name.replace('.', '/')}.class" })) {
                             throw new GradleException("${artifact.name} references the render pipeline (${renderHook}) in ${entry.name}")
                         }
                     }

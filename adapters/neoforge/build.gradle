@@ -17,6 +17,9 @@ String artifactLoaderVersion = loaderVersion.replaceFirst(/-beta$/, '')
 project(':core') {
     layout.buildDirectory.set(rootProject.layout.buildDirectory.dir('core'))
 }
+project(':optics') {
+    layout.buildDirectory.set(rootProject.layout.buildDirectory.dir('optics'))
+}
 
 group = 'art.arcane'
 version = providers.gradleProperty('wormholesVersion').getOrElse(rootProperties.getProperty('wormholesVersion'))
@@ -119,6 +122,8 @@ dependencies {
     testImplementation('maven.modrinth:sodium:VHtnT9Q4') { transitive = false }
     implementation(project(':core'))
     bundle(project(':core'))
+    implementation(project(':optics'))
+    bundle(project(':optics'))
     implementation('com.github.VolmitSoftware.VolmLib:volmlib-web:master-SNAPSHOT')
     bundle('com.github.VolmitSoftware.VolmLib:volmlib-web:master-SNAPSHOT')
     testImplementation('junit:junit:4.13.2')
@@ -128,6 +133,7 @@ dependencies {
 }
 
 evaluationDependsOn(':core')
+evaluationDependsOn(':optics')
 
 neoForge {
     version = loaderVersion
@@ -141,6 +147,7 @@ neoForge {
         wormholes {
             sourceSet(sourceSets.main)
             sourceSet(project(':core').sourceSets.main)
+            sourceSet(project(':optics').sourceSets.main)
         }
     }
     unitTest {

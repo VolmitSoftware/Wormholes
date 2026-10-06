@@ -14,6 +14,8 @@ plugins {
 rootProject.name = 'wormholes-neoforge'
 include(':core')
 project(':core').projectDir = file('../../core')
+include(':optics')
+project(':optics').projectDir = file('../../optics')
 include(':clientTestHost')
 project(':clientTestHost').projectDir = file('../forge')
 

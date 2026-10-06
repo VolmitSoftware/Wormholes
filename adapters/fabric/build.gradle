@@ -16,6 +16,9 @@ String loaderVersion = providers.gradleProperty('fabricLoaderVersion').getOrElse
 project(':core') {
     layout.buildDirectory.set(rootProject.layout.buildDirectory.dir('core'))
 }
+project(':optics') {
+    layout.buildDirectory.set(rootProject.layout.buildDirectory.dir('optics'))
+}
 
 group = 'art.arcane'
 version = providers.gradleProperty('wormholesVersion').getOrElse(rootProperties.getProperty('wormholesVersion'))
@@ -91,6 +94,8 @@ dependencies {
     testImplementation('maven.modrinth:sodium:v4PSXean') { transitive = false }
     implementation(project(':core'))
     bundle(project(':core'))
+    implementation(project(':optics'))
+    bundle(project(':optics'))
     implementation('com.github.VolmitSoftware.VolmLib:volmlib-web:master-SNAPSHOT')
     bundle('com.github.VolmitSoftware.VolmLib:volmlib-web:master-SNAPSHOT')
     testImplementation('junit:junit:4.13.2')
@@ -200,6 +205,7 @@ loom {
             sourceSet(sourceSets.main)
             sourceSet(sourceSets.gameTest)
             modFiles.from(provider { project(':core').sourceSets.main.output })
+            modFiles.from(provider { project(':optics').sourceSets.main.output })
         }
         wormholes_clientgametest {
             sourceSet(sourceSets.clientGameTest)

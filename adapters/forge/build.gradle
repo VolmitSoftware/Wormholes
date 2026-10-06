@@ -16,6 +16,9 @@ String loaderVersion = providers.gradleProperty('forgeVersion').getOrElse(rootPr
 project(':core') {
     layout.buildDirectory.set(rootProject.layout.buildDirectory.dir('core'))
 }
+project(':optics') {
+    layout.buildDirectory.set(rootProject.layout.buildDirectory.dir('optics'))
+}
 
 group = 'art.arcane'
 version = providers.gradleProperty('wormholesVersion').getOrElse(rootProperties.getProperty('wormholesVersion'))
@@ -82,6 +85,8 @@ dependencies {
     testImplementation('maven.modrinth:sodium:v4PSXean') { transitive = false }
     implementation(project(':core'))
     bundle(project(':core'))
+    implementation(project(':optics'))
+    bundle(project(':optics'))
     implementation('com.github.VolmitSoftware.VolmLib:volmlib-web:master-SNAPSHOT')
     bundle('com.github.VolmitSoftware.VolmLib:volmlib-web:master-SNAPSHOT')
     testImplementation('junit:junit:4.13.2')

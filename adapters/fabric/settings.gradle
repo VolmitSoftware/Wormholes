@@ -13,5 +13,7 @@ plugins {
 rootProject.name = 'wormholes-fabric'
 include(':core')
 project(':core').projectDir = file('../../core')
+include(':optics')
+project(':optics').projectDir = file('../../optics')
 
 apply from: file('../../gradle/localization-settings.gradle')

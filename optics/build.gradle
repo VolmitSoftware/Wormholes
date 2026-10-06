@@ -1,0 +1,49 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+}
+
+Properties opticsProperties = new Properties()
+file('../gradle.properties').withInputStream { InputStream stream -> opticsProperties.load(stream) }
+group = 'art.arcane'
+version = opticsProperties.getProperty('opticsVersion')
+
+base {
+    archivesName = 'optics'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    api('it.unimi.dsi:fastutil:8.5.15')
+    testImplementation('org.junit.jupiter:junit-jupiter:5.10.2')
+    testRuntimeOnly('org.junit.platform:junit-platform-launcher:1.10.2')
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+    withSourcesJar()
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release.set(25)
+    options.encoding = 'UTF-8'
+    options.compilerArgs.add('-parameters')
+}
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+    jvmArgs '--enable-native-access=ALL-UNNAMED'
+}
+
+publishing {
+    publications {
+        optics(MavenPublication) {
+            from components.java
+        }
+    }
+}

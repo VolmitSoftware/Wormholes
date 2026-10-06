@@ -1,7 +1,7 @@
 import java.io.File
 
 rootProject.name = 'Wormholes'
-include 'core', 'wormholes-proxy-protocol', 'wormholes-proxy'
+include 'core', 'optics', 'wormholes-proxy-protocol', 'wormholes-proxy'
 
 boolean hasVolmLibSettings(File directory) {
     new File(directory, 'settings.gradle.kts').exists() || new File(directory, 'settings.gradle').exists()

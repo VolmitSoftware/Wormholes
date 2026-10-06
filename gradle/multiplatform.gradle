@@ -48,7 +48,7 @@ loaders.each { String loader, String display ->
         if (localVolmLibCheckout != null) {
             environment('ORG_GRADLE_PROJECT_localVolmLibDirectory', localVolmLibCheckout.absolutePath)
         }
-        inputs.files(fileTree('core/src'), file('core/build.gradle'), fileTree('adapters/modded-common/src'),
+        inputs.files(fileTree('core/src'), file('core/build.gradle'), fileTree('optics/src'), file('optics/build.gradle'), fileTree('adapters/modded-common/src'),
             fileTree("adapters/${loader}/src"), file("adapters/${loader}/build.gradle"),
             file("adapters/${loader}/settings.gradle"), file("adapters/game-test.gradle"), file("adapters/${loader}/gradle.properties"),
             file('gradle.properties'), file('gradle/modded-artifact.gradle'), file('gradle/libs.versions.toml'), file('gradle/localization-settings.gradle'),

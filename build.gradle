@@ -202,7 +202,7 @@ configurations {
 }
 
 tasks.register('compileSpigotCompatibility', JavaCompile) {
-    dependsOn(':core:classes')
+    dependsOn(':core:classes', ':optics:classes')
     source = fileTree('src/main/java') {
         exclude '**/WormholesBootstrap.java'
         exclude '**/PaperCommandRegistrar.java'
@@ -288,6 +288,9 @@ repositories {
 
 dependencies {
     implementation(project(':core')) {
+        transitive = false
+    }
+    implementation(project(':optics')) {
         transitive = false
     }
     implementation('org.yaml:snakeyaml:2.7')
