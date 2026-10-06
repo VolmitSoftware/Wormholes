@@ -37,11 +37,6 @@ public enum OrientationPolicy {
     }
 
     public OrientationRule rule() {
-        return switch (this) {
-            case FRAME -> OrientationRule.FRAME;
-            case LOOK -> OrientationRule.LOOK;
-            case SNAP -> OrientationRule.SNAP;
-            case MIRROR -> OrientationRule.MIRROR;
-        };
+        return OrientationRule.valueOf(name());
     }
 }

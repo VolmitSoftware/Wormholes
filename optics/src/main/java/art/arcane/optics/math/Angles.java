@@ -29,9 +29,10 @@ public final class Angles {
     }
 
     public static Vec3d direction(float yaw, float pitch) {
-        double[] out = new double[3];
-        directionInto(yaw, pitch, out);
-        return new Vec3d(out[0], out[1], out[2]);
+        double yawRadians = Math.toRadians(yaw);
+        double pitchRadians = Math.toRadians(pitch);
+        double horizontal = Math.cos(pitchRadians);
+        return new Vec3d(-horizontal * Math.sin(yawRadians), -Math.sin(pitchRadians), horizontal * Math.cos(yawRadians));
     }
 
     public static float rotateYaw(float yaw, int quarterTurnsClockwise) {

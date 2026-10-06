@@ -14,10 +14,6 @@ public record MomentumRule(Mode mode, double factor, double maxSpeed, Vec3d impu
         impulse = impulse == null ? NO_IMPULSE : impulse;
     }
 
-    public static MomentumRule of(Mode mode) {
-        return new MomentumRule(mode, 1.0D, 0.0D, NO_IMPULSE);
-    }
-
     public enum Mode {
         PRESERVE,
         SCALE,

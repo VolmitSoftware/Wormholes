@@ -15,7 +15,7 @@ final class ArrivalMomentumTest {
 
     @Test
     void preserveReturnsTheFrameVelocityUntouched() {
-        Vec3d out = ArrivalMomentum.apply(new Vec3d(0.4D, 0.1D, 0.0D), MomentumRule.of(MomentumRule.Mode.PRESERVE), CONFIG_MAX);
+        Vec3d out = ArrivalMomentum.apply(new Vec3d(0.4D, 0.1D, 0.0D), rule(MomentumRule.Mode.PRESERVE), CONFIG_MAX);
         assertVector(new Vec3d(0.4D, 0.1D, 0.0D), out);
     }
 
@@ -38,7 +38,7 @@ final class ArrivalMomentumTest {
 
     @Test
     void clampOnlyShortensVectorsAboveTheCeiling() {
-        MomentumRule clamp = MomentumRule.of(MomentumRule.Mode.CLAMP);
+        MomentumRule clamp = rule(MomentumRule.Mode.CLAMP);
         assertVector(new Vec3d(0.0D, 0.0D, 4.0D), ArrivalMomentum.apply(new Vec3d(0.0D, 0.0D, 10.0D), clamp, CONFIG_MAX));
         assertVector(new Vec3d(0.0D, 0.0D, 0.5D), ArrivalMomentum.apply(new Vec3d(0.0D, 0.0D, 0.5D), clamp, CONFIG_MAX));
 
@@ -49,7 +49,7 @@ final class ArrivalMomentumTest {
 
     @Test
     void zeroDropsAllMomentum() {
-        assertVector(new Vec3d(0, 0, 0), ArrivalMomentum.apply(new Vec3d(3.0D, -2.0D, 1.0D), MomentumRule.of(MomentumRule.Mode.ZERO), CONFIG_MAX));
+        assertVector(new Vec3d(0, 0, 0), ArrivalMomentum.apply(new Vec3d(3.0D, -2.0D, 1.0D), rule(MomentumRule.Mode.ZERO), CONFIG_MAX));
     }
 
     @Test
@@ -61,8 +61,8 @@ final class ArrivalMomentumTest {
     @Test
     void inputVectorIsNeverMutated() {
         Vec3d input = new Vec3d(10.0D, 0.0D, 0.0D);
-        ArrivalMomentum.apply(input, MomentumRule.of(MomentumRule.Mode.CLAMP), CONFIG_MAX);
-        ArrivalMomentum.apply(input, MomentumRule.of(MomentumRule.Mode.ZERO), CONFIG_MAX);
+        ArrivalMomentum.apply(input, rule(MomentumRule.Mode.CLAMP), CONFIG_MAX);
+        ArrivalMomentum.apply(input, rule(MomentumRule.Mode.ZERO), CONFIG_MAX);
         assertVector(new Vec3d(10.0D, 0.0D, 0.0D), input);
     }
 
@@ -90,15 +90,19 @@ final class ArrivalMomentumTest {
         Frame exit = Frame.canonical(Face.E);
         Pose before = new Pose(new Vec3d(0.5D, 64.5D, 0.4D), new Vec3d(0.5D, 64.5D, 6.4D), new Vec3d(0.5D, 64.5D, 6.4D),
             new Vec3d(0.0D, 0.0D, -6.0D), 180.0F, 0.0F, 180.0F, 0.0F, 180.0F, 180.0F, 180.0F, 180.0F);
-        Pose crossed = PoseTransform.apply(before, crossing.toward(exit, new Vec3d(100.5D, 70.0D, -3.5D)));
+        Pose crossed = PoseTransform.apply(before, CrossingFixtures.toward(crossing, exit, new Vec3d(100.5D, 70.0D, -3.5D)));
         assertVector(crossing.outVelocity(exit), crossed.velocity());
-        Pose clamped = PoseTransform.arrive(crossed, crossing, exit, OrientationRule.FRAME, false, MomentumRule.of(MomentumRule.Mode.CLAMP), CONFIG_MAX);
+        Pose clamped = PoseTransform.arrive(crossed, crossing, exit, OrientationRule.FRAME, false, rule(MomentumRule.Mode.CLAMP), CONFIG_MAX);
         assertVector(new Vec3d(4.0D, 0.0D, 0.0D), clamped.velocity());
         assertEquals(crossed.position(), clamped.position());
         assertEquals(crossed.previousPosition(), clamped.previousPosition());
         assertEquals(crossed.oldPosition(), clamped.oldPosition());
         Pose preserved = PoseTransform.arrive(crossed, crossing, exit, OrientationRule.FRAME, false, null, CONFIG_MAX);
         assertVector(crossed.velocity(), preserved.velocity());
+    }
+
+    private static MomentumRule rule(MomentumRule.Mode mode) {
+        return new MomentumRule(mode, 1.0D, 0.0D, null);
     }
 
     private static void assertVector(Vec3d expected, Vec3d actual) {

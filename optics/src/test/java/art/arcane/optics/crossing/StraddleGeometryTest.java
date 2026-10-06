@@ -70,7 +70,7 @@ final class StraddleGeometryTest {
             for (boolean front : new boolean[] {true, false}) {
                 PlaneCrossing crossing = new PlaneCrossing(source.view(front), new Vec3d(11.0D, 65.5D, 20.5D),
                     new Vec3d(11.0D, 65.5D, 20.4D), new Vec3d(0, 0, -0.3D), new Vec3d(0, 0, -1), front);
-                OpticTransform toward = crossing.toward(Frame.canonical(exit), new Vec3d(-300.5D, 90.0D, 41.5D));
+                OpticTransform toward = CrossingFixtures.toward(crossing, Frame.canonical(exit), new Vec3d(-300.5D, 90.0D, 41.5D));
                 for (int sample = 0; sample < 200; sample++) {
                     Vec3d move = new Vec3d(random.nextDouble() - 0.5D, random.nextDouble() - 0.5D, random.nextDouble() - 0.5D);
                     Vec3d mapped = StraddleGeometry.mappedMove(move, toward);

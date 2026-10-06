@@ -2,7 +2,6 @@ package art.arcane.optics.crossing;
 
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.frame.Frame;
-import art.arcane.optics.frame.OpticTransform;
 
 public record PlaneCrossing(Frame frame, Vec3d origin, Vec3d point,
                              Vec3d velocity, Vec3d look, boolean frontSide) {
@@ -34,10 +33,6 @@ public record PlaneCrossing(Frame frame, Vec3d origin, Vec3d point,
 
     public double sourceSideDistance(Vec3d current) {
         return distance(frame, point, current);
-    }
-
-    public OpticTransform toward(Frame destination, Vec3d destinationOrigin) {
-        return OpticTransform.between(frame, origin, destination.view(frontSide), destinationOrigin);
     }
 
     public Vec3d outPoint(Frame destination, Vec3d destinationOrigin) {

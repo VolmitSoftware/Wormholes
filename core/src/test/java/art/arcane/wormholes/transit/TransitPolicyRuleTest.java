@@ -28,6 +28,6 @@ final class TransitPolicyRuleTest {
             assertEquals(new Vec3d(0.0D, 0.5D, 1.0D), rule.impulse());
         }
         MomentumRule defaults = MomentumPolicy.of(MomentumPolicy.Mode.CLAMP).rule();
-        assertEquals(MomentumRule.of(MomentumRule.Mode.CLAMP), defaults);
+        assertEquals(new MomentumRule(MomentumRule.Mode.CLAMP, 1.0D, 0.0D, null), defaults);
     }
 }

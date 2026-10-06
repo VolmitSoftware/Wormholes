@@ -42,13 +42,7 @@ public record MomentumPolicy(Mode mode, double factor, double maxSpeed, Vec3d im
         }
 
         public MomentumRule.Mode rule() {
-            return switch (this) {
-                case PRESERVE -> MomentumRule.Mode.PRESERVE;
-                case SCALE -> MomentumRule.Mode.SCALE;
-                case CLAMP -> MomentumRule.Mode.CLAMP;
-                case ZERO -> MomentumRule.Mode.ZERO;
-                case IMPULSE -> MomentumRule.Mode.IMPULSE;
-            };
+            return MomentumRule.Mode.valueOf(name());
         }
     }
 

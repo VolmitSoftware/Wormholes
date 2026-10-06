@@ -11,9 +11,9 @@ import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Vec3d;
 
-final class PlaneCrossingTowardTest {
+final class PlaneCrossingTransformTest {
     @Test
-    void towardReproducesTheOutPointVelocityAndLookBitForBit() {
+    void frameTransformReproducesTheOutPointVelocityAndLookBitForBit() {
         Random random = new Random(0x70A4DL);
         for (Face sourceNormal : Face.values()) {
             for (Face sourceUp : Face.values()) {
@@ -29,7 +29,7 @@ final class PlaneCrossingTowardTest {
                             PlaneCrossing crossing = new PlaneCrossing(source.view(front), origin, origin.add(point(random).multiply(0.0001D)),
                                 point(random).multiply(0.0001D), point(random).normalize(), front);
                             Vec3d exitOrigin = point(random);
-                            OpticTransform toward = crossing.toward(exit, exitOrigin);
+                            OpticTransform toward = CrossingFixtures.toward(crossing, exit, exitOrigin);
                             assertEquals(crossing.outPoint(exit, exitOrigin), toward.point(crossing.point()));
                             assertEquals(crossing.outVelocity(exit), toward.vector(crossing.velocity()));
                             assertEquals(crossing.outLook(exit), toward.vector(crossing.look()));
