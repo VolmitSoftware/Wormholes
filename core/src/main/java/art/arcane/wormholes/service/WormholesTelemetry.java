@@ -3,8 +3,10 @@ package art.arcane.wormholes.service;
 import art.arcane.optics.spi.OpticsMetrics;
 
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.LongAdder;
 
 public final class WormholesTelemetry {
     private static final long RATE_WINDOW_MS = 1000L;
@@ -16,6 +18,7 @@ public final class WormholesTelemetry {
     private static final RollingMinuteCounter TRAVERSALS_LAST_MINUTE = new RollingMinuteCounter();
     private static final RollingMinuteCounter FAILURES_LAST_MINUTE = new RollingMinuteCounter();
     private static final AtomicBoolean RATE_GATE = new AtomicBoolean();
+    private static final ConcurrentHashMap<String, LongAdder> COUNTERS = new ConcurrentHashMap<String, LongAdder>();
     private static volatile int activeProjections;
     private static volatile int projectionObservers;
     private static volatile int spoofedEntities;
@@ -54,6 +57,22 @@ public final class WormholesTelemetry {
         FAILURES.incrementAndGet();
         FAILURES_LAST_MINUTE.add(System.currentTimeMillis(), 1L);
         FailureRegistry.record(reason, detail);
+    }
+
+    public static void count(String key, long delta) {
+        if (key == null || delta == 0L) {
+            return;
+        }
+        LongAdder counter = COUNTERS.get(key);
+        if (counter == null) {
+            counter = COUNTERS.computeIfAbsent(key, ignored -> new LongAdder());
+        }
+        counter.add(delta);
+    }
+
+    public static long counter(String key) {
+        LongAdder counter = key == null ? null : COUNTERS.get(key);
+        return counter == null ? 0L : counter.sum();
     }
 
     public static long failures() {
@@ -128,6 +147,7 @@ public final class WormholesTelemetry {
             TRAVERSALS_LAST_MINUTE.clear();
             FAILURES_LAST_MINUTE.clear();
             FailureRegistry.clear();
+            COUNTERS.clear();
             windowStartMs = 0L;
             windowBlockChanges = 0L;
             windowPackets = 0L;
@@ -199,6 +219,7 @@ public final class WormholesTelemetry {
 
         @Override
         public void count(String key, long delta) {
+            WormholesTelemetry.count(key, delta);
         }
 
         @Override
