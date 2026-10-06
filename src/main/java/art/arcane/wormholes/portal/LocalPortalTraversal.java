@@ -1,6 +1,9 @@
 package art.arcane.wormholes.portal;
 
 import art.arcane.wormholes.access.PortalAdmission;
+import art.arcane.optics.crossing.ArrivalMomentum;
+import art.arcane.optics.crossing.ArrivalOrientation;
+import art.arcane.optics.math.Angles;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.util.BukkitGeometry;
 
@@ -53,10 +56,8 @@ import art.arcane.wormholes.transit.AdaptiveArrivalMask;
 import art.arcane.wormholes.transit.ConvoyGraph;
 import art.arcane.wormholes.transit.ConvoyLocalTraversal;
 import art.arcane.wormholes.transit.MomentumPolicy;
-import art.arcane.wormholes.transit.MomentumTransform;
 import art.arcane.wormholes.transit.ObjectTransit;
 import art.arcane.wormholes.transit.OrientationPolicy;
-import art.arcane.wormholes.transit.OrientationTransform;
 import art.arcane.wormholes.transit.TransitPortalExtension;
 import art.arcane.wormholes.transit.TransitSubsystem;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
@@ -839,10 +840,10 @@ final class LocalPortalTraversal
 		MomentumPolicy momentum = source == null ? TransitPortalExtension.defaultMomentum(transit) : source.effectiveMomentum(transit);
 		OrientationPolicy orientation = source == null ? TransitPortalExtension.defaultOrientation(transit) : source.effectiveOrientation(transit);
 		Vector frameVelocity = t.getOutVelocity(frame);
-		Vector outVelocity = BukkitGeometry.bukkit(MomentumTransform.apply(BukkitGeometry.vector(frameVelocity), momentum, transit.momentumMaxSpeed));
+		Vector outVelocity = BukkitGeometry.bukkit(ArrivalMomentum.apply(BukkitGeometry.vector(frameVelocity), momentum.rule(), transit.momentumMaxSpeed));
 		Location exit = t.getOutPoint(frame, BukkitGeometry.bukkit(portal.getOrigin())).toLocation(portal.getStructure().getWorld());
 		Location target = exit.clone();
-		OrientationTransform.Look look = OrientationTransform.apply(t.crossing(), frame, orientation, transit.gravityFlipEnabled);
+		Angles.Look look = ArrivalOrientation.apply(t.crossing(), frame, orientation.rule(), transit.gravityFlipEnabled);
 		target.setYaw(look.yaw());
 		target.setPitch(look.pitch());
 		return new ExitPlacement(target, exit, outVelocity);

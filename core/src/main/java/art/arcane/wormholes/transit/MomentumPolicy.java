@@ -3,6 +3,7 @@ package art.arcane.wormholes.transit;
 import java.util.Locale;
 import java.util.Objects;
 
+import art.arcane.optics.crossing.MomentumRule;
 import art.arcane.optics.math.Vec3d;
 
 /**
@@ -39,6 +40,16 @@ public record MomentumPolicy(Mode mode, double factor, double maxSpeed, Vec3d im
         public String label() {
             return name().toLowerCase(Locale.ROOT);
         }
+
+        public MomentumRule.Mode rule() {
+            return switch (this) {
+                case PRESERVE -> MomentumRule.Mode.PRESERVE;
+                case SCALE -> MomentumRule.Mode.SCALE;
+                case CLAMP -> MomentumRule.Mode.CLAMP;
+                case ZERO -> MomentumRule.Mode.ZERO;
+                case IMPULSE -> MomentumRule.Mode.IMPULSE;
+            };
+        }
     }
 
     public MomentumPolicy {
@@ -50,6 +61,10 @@ public record MomentumPolicy(Mode mode, double factor, double maxSpeed, Vec3d im
 
     public static MomentumPolicy of(Mode mode) {
         return new MomentumPolicy(mode, 1.0D, 0.0D, new Vec3d(0, 0, 0));
+    }
+
+    public MomentumRule rule() {
+        return new MomentumRule(mode.rule(), factor, maxSpeed, impulse);
     }
 
     public MomentumPolicy withMode(Mode nextMode) {

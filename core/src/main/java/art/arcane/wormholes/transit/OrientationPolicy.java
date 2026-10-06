@@ -2,6 +2,8 @@ package art.arcane.wormholes.transit;
 
 import java.util.Locale;
 
+import art.arcane.optics.crossing.OrientationRule;
+
 /** Which way a traveler faces when they leave a portal. */
 public enum OrientationPolicy {
     /** Rotate the entry look through the portal frames (existing behaviour). */
@@ -32,5 +34,14 @@ public enum OrientationPolicy {
 
     public String label() {
         return name().toLowerCase(Locale.ROOT);
+    }
+
+    public OrientationRule rule() {
+        return switch (this) {
+            case FRAME -> OrientationRule.FRAME;
+            case LOOK -> OrientationRule.LOOK;
+            case SNAP -> OrientationRule.SNAP;
+            case MIRROR -> OrientationRule.MIRROR;
+        };
     }
 }

@@ -1,5 +1,8 @@
 package art.arcane.wormholes.network;
 
+import art.arcane.optics.crossing.ArrivalMomentum;
+import art.arcane.optics.crossing.ArrivalOrientation;
+import art.arcane.optics.math.Angles;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.nexus.NetworkMember;
 import art.arcane.optics.plate.ChunkLease;
@@ -8,9 +11,7 @@ import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.wormholes.transit.MomentumPolicy;
-import art.arcane.wormholes.transit.MomentumTransform;
 import art.arcane.wormholes.transit.OrientationPolicy;
-import art.arcane.wormholes.transit.OrientationTransform;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
@@ -438,9 +439,9 @@ public final class MinecraftEntityTransfers implements AutoCloseable {
             if (momentum == null) {
                 momentum = MomentumPolicy.of(MomentumPolicy.Mode.parse(config.momentumDefault, MomentumPolicy.Mode.PRESERVE));
             }
-            Vec3d velocity = MomentumTransform.apply(crossing.outVelocity(portal.getFrame()), momentum, config.momentumMaxSpeed);
-            OrientationTransform.Look look = OrientationTransform.apply(crossing, portal.getFrame(),
-                OrientationPolicy.parse((String) portal.setting("transit.orientation"), OrientationPolicy.parse(config.orientationDefault, OrientationPolicy.FRAME)),
+            Vec3d velocity = ArrivalMomentum.apply(crossing.outVelocity(portal.getFrame()), momentum.rule(), config.momentumMaxSpeed);
+            Angles.Look look = ArrivalOrientation.apply(crossing, portal.getFrame(),
+                OrientationPolicy.parse((String) portal.setting("transit.orientation"), OrientationPolicy.parse(config.orientationDefault, OrientationPolicy.FRAME)).rule(),
                 config.gravityFlipEnabled);
             entity.setYRot(look.yaw());
             entity.setXRot(look.pitch());

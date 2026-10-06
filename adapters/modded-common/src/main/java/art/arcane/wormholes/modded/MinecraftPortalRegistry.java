@@ -1,5 +1,8 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.crossing.ArrivalMomentum;
+import art.arcane.optics.crossing.ArrivalOrientation;
+import art.arcane.optics.math.Angles;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.api.traversal.TraversalKind;
 import art.arcane.wormholes.api.traversal.TraversalRefundReason;
@@ -20,9 +23,7 @@ import art.arcane.wormholes.portal.PortalStateCodec;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.DimensionalPortalKind;
 import art.arcane.wormholes.transit.MomentumPolicy;
-import art.arcane.wormholes.transit.MomentumTransform;
 import art.arcane.wormholes.transit.OrientationPolicy;
-import art.arcane.wormholes.transit.OrientationTransform;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 import com.google.gson.Gson;
@@ -660,8 +661,8 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
         }
         OrientationPolicy orientation = OrientationPolicy.parse((String) source.setting("transit.orientation"),
             OrientationPolicy.parse(config.orientationDefault, OrientationPolicy.FRAME));
-        Vec3d velocity = MomentumTransform.apply(crossing.outVelocity(destination.getFrame()), momentum, config.momentumMaxSpeed);
-        OrientationTransform.Look look = OrientationTransform.apply(crossing, destination.getFrame(), orientation, config.gravityFlipEnabled);
+        Vec3d velocity = ArrivalMomentum.apply(crossing.outVelocity(destination.getFrame()), momentum.rule(), config.momentumMaxSpeed);
+        Angles.Look look = ArrivalOrientation.apply(crossing, destination.getFrame(), orientation.rule(), config.gravityFlipEnabled);
         List<ChunkPreSendTicket<ServerLevel, ServerPlayer>> preSend = new ArrayList<>();
         List<MinecraftTravelCosts.Admission> payments = new ArrayList<>();
         List<PreparedCommit> preparedCommits = new ArrayList<>();

@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.crossing.ArrivalMomentum;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.chunk.presend.ChunkPreSendTicket;
 import art.arcane.wormholes.config.toml.MainConfig;
@@ -7,7 +8,6 @@ import art.arcane.wormholes.config.toml.TransitConfig;
 import art.arcane.wormholes.localization.TransitMessages;
 import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.wormholes.transit.AdaptiveArrivalMask;
-import art.arcane.wormholes.transit.MomentumTransform;
 import art.arcane.wormholes.transit.TransitionProfile;
 import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import net.minecraft.server.level.ServerLevel;
@@ -30,7 +30,7 @@ public final class MinecraftTransit {
         }
         Vec3d normal = new Vec3d(crossing.frame().getNormal().x(), crossing.frame().getNormal().y(), crossing.frame().getNormal().z());
         Vec3d rejected = bounce
-            ? MomentumTransform.reflect(crossing.velocity(), normal, runtime.configuration().settings().getMain().portalPushbackMultiplier)
+            ? ArrivalMomentum.reflect(crossing.velocity(), normal, runtime.configuration().settings().getMain().portalPushbackMultiplier)
             : normal.multiply(3.0D * runtime.configuration().settings().getMain().portalPushbackMultiplier
                 * runtime.rules().document(portal).profile().pushbackScale());
         Vec3 velocity = new Vec3(rejected.x(), rejected.y(), rejected.z());

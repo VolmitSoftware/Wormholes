@@ -1,5 +1,8 @@
 package art.arcane.wormholes.network;
 
+import art.arcane.optics.crossing.ArrivalMomentum;
+import art.arcane.optics.crossing.ArrivalOrientation;
+import art.arcane.optics.math.Angles;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.api.traversal.TraversalKind;
 import art.arcane.wormholes.api.traversal.TraversalRefundReason;
@@ -21,9 +24,7 @@ import art.arcane.wormholes.modded.mixin.ServerConnectionAccess;
 import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.wormholes.portal.DepartureHoldPolicy;
 import art.arcane.wormholes.transit.MomentumPolicy;
-import art.arcane.wormholes.transit.MomentumTransform;
 import art.arcane.wormholes.transit.OrientationPolicy;
-import art.arcane.wormholes.transit.OrientationTransform;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket;
 import net.minecraft.network.protocol.common.ClientboundTransferPacket;
@@ -485,9 +486,9 @@ public final class MinecraftPlayerHandoffs implements AutoCloseable {
             if (momentum == null) {
                 momentum = MomentumPolicy.of(MomentumPolicy.Mode.parse(config.momentumDefault, MomentumPolicy.Mode.PRESERVE));
             }
-            Vec3d velocity = MomentumTransform.apply(crossing.outVelocity(exit.getFrame()), momentum, config.momentumMaxSpeed);
-            OrientationTransform.Look look = OrientationTransform.apply(crossing, exit.getFrame(),
-                OrientationPolicy.parse((String) exit.setting("transit.orientation"), OrientationPolicy.parse(config.orientationDefault, OrientationPolicy.FRAME)),
+            Vec3d velocity = ArrivalMomentum.apply(crossing.outVelocity(exit.getFrame()), momentum.rule(), config.momentumMaxSpeed);
+            Angles.Look look = ArrivalOrientation.apply(crossing, exit.getFrame(),
+                OrientationPolicy.parse((String) exit.setting("transit.orientation"), OrientationPolicy.parse(config.orientationDefault, OrientationPolicy.FRAME)).rule(),
                 config.gravityFlipEnabled);
             ticket = runtime.preSend().preSend(player, level, target.getBlockX(), target.getBlockZ());
             if (player.teleport(new TeleportTransition(level, vector(target), vector(velocity), look.yaw(), look.pitch(),

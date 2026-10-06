@@ -1,5 +1,8 @@
 package art.arcane.wormholes.portal.rtp;
 
+import art.arcane.optics.crossing.ArrivalMomentum;
+import art.arcane.optics.crossing.ArrivalOrientation;
+import art.arcane.optics.math.Angles;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.api.traversal.TraversalKind;
 import art.arcane.wormholes.api.traversal.TraversalRefundReason;
@@ -23,9 +26,7 @@ import art.arcane.wormholes.portal.PortalStateCodec;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.wormholes.transit.MomentumPolicy;
-import art.arcane.wormholes.transit.MomentumTransform;
 import art.arcane.wormholes.transit.OrientationPolicy;
-import art.arcane.wormholes.transit.OrientationTransform;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -435,8 +436,8 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
             }
             OrientationPolicy orientation = OrientationPolicy.parse((String) active.portal.setting("transit.orientation"),
                 OrientationPolicy.parse(config.orientationDefault, OrientationPolicy.FRAME));
-            Vec3d velocity = MomentumTransform.apply(active.crossing.outVelocity(frame), momentum, config.momentumMaxSpeed);
-            OrientationTransform.Look look = OrientationTransform.apply(active.crossing, frame, orientation, config.gravityFlipEnabled);
+            Vec3d velocity = ArrivalMomentum.apply(active.crossing.outVelocity(frame), momentum.rule(), config.momentumMaxSpeed);
+            Angles.Look look = ArrivalOrientation.apply(active.crossing, frame, orientation.rule(), config.gravityFlipEnabled);
             for (Entity member : active.entity.getSelfAndPassengers().toList()) {
                 if (member instanceof ServerPlayer player) {
                     MinecraftTravelCosts.Admission cost = runtime.costs().open(new MinecraftTraversalContext(UUID.randomUUID(), TraversalKind.RANDOM_TELEPORT,
