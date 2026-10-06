@@ -479,7 +479,7 @@ public final class MinecraftClientViewPortalAccess implements ClientViewPortalAc
         PortalFrame remoteFrame = portal.isMirrorMode() ? localFrame.flipNormal() : destination.getFrame();
         return new MinecraftViewPlates.Target(player, portal, destinationView, () -> destinationView, remoteFrame, origin.x(), origin.y(),
             origin.z(), portal.isMirrorMode(), mirrorQuarterTurns(peer, portal), front,
-            portal.getRenderMode().usesBuriedCellCulling(), MinecraftViewPlates.blockEntities(portal), MinecraftProjectorBlocks.INSTANCE.air(), portals.routeIdentity(portal));
+            portal.getRenderMode().scanMode().buriedCellCulling(), MinecraftViewPlates.blockEntities(portal), MinecraftProjectorBlocks.INSTANCE.air(), portals.routeIdentity(portal));
     }
 
     private ProjectionContentView<BlockState, BlockState> geometryDestination(MinecraftClientViewPeer peer, ServerPlayer player, MinecraftPortal portal) {

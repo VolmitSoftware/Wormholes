@@ -90,7 +90,7 @@ public final class ChunkReplicationManager implements BlockChangeFeed {
             return false;
         }
         for (ChunkReplicationState state : subscribers.values()) {
-            if (state.stream().renderMode().usesBuriedCellCulling()) {
+            if (state.stream().renderMode().scanMode().buriedCellCulling()) {
                 return true;
             }
         }
@@ -295,7 +295,7 @@ public final class ChunkReplicationManager implements BlockChangeFeed {
                 }
                 boolean overflowed = false;
                 if (hasBlocks) {
-                    boolean buriedCellCulling = stream.renderMode().usesBuriedCellCulling();
+                    boolean buriedCellCulling = stream.renderMode().scanMode().buriedCellCulling();
                     for (int i = 0; i < blocks.size(); i++) {
                         if (!state.appendBlock(transformForPeer(blocks.get(i), buriedCellCulling), capacity)) {
                             overflowed = true;

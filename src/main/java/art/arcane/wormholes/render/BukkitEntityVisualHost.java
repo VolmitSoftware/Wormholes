@@ -1,11 +1,11 @@
 package art.arcane.wormholes.render;
 
+import art.arcane.optics.entity.EntityProfile;
 import org.bukkit.World;
 import art.arcane.wormholes.geometry.GeometryVector;
 import java.util.Locale;
 import java.util.UUID;
 import java.util.List;
-import art.arcane.wormholes.network.view.RemoteViewCache.RemoteProfile;
 import java.util.Optional;
 
 import org.bukkit.NamespacedKey;
@@ -74,7 +74,7 @@ final class BukkitEntityVisualHost implements EntityRenderVisualProjector.Host<P
     public double z(Vector3d position) { return position.getZ(); }
 
     @Override
-    public RemoteProfile profile(ProjectionEntityView view, UUID entityId) { return view.getProfile(entityId); }
+    public EntityProfile profile(ProjectionEntityView view, UUID entityId) { return view.getProfile(entityId); }
 
     @Override
     public int stateVersion(ProjectionEntityView view, UUID entityId) { return view.getStateVersion(entityId); }
@@ -83,7 +83,7 @@ final class BukkitEntityVisualHost implements EntityRenderVisualProjector.Host<P
     public boolean hasMap(ProjectionEntityView view, UUID entityId) { return view.getMapView(entityId) != null; }
 
     @Override
-    public void playerInfo(Player observer, EntityRenderSpoofedEntity state, RemoteProfile profile) {
+    public void playerInfo(Player observer, EntityRenderSpoofedEntity state, EntityProfile profile) {
         identity.sendRemotePlayerInfo(observer, profile, state, state.upsideDown);
     }
 

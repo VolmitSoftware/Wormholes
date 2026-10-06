@@ -1,8 +1,8 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.entity.EntityProfile;
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.network.view.EntityVisual;
-import art.arcane.wormholes.network.view.RemoteViewCache.RemoteProfile;
 import art.arcane.wormholes.network.view.ViewEntityState;
 import art.arcane.wormholes.render.view.ProjectionEntityData;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -70,9 +70,9 @@ public final class MinecraftLocalEntityView implements ProjectionEntityData<Sync
             boolean equipmentChanged = previous == null || previous.visual().equipment() != visual.equipment();
             List<SynchedEntityData.DataValue<?>> metadata = metadataChanged ? blobs.readMetadata(visual.metadata()) : previous.metadata();
             List<MinecraftPacketBlobs.Equipment> equipment = equipmentChanged ? blobs.readEquipment(visual.equipment()) : previous.equipment();
-            RemoteProfile profile = previous == null ? null : previous.profile();
+            EntityProfile profile = previous == null ? null : previous.profile();
             if (visual.isPlayer() && (profile == null || !visual.textureValue().isEmpty())) {
-                profile = new RemoteProfile(visual.playerName(), visual.textureValue(), visual.textureSignature());
+                profile = new EntityProfile(visual.playerName(), visual.textureValue(), visual.textureSignature());
             }
             int version = previous == null ? 1 : previous.version();
             if (previous != null && (metadataChanged || equipmentChanged || !Arrays.equals(previous.visual().mapData(), visual.mapData()))) {
@@ -98,7 +98,7 @@ public final class MinecraftLocalEntityView implements ProjectionEntityData<Sync
     @Override
     public List<EntityVisual> getEntities(double centerX, double centerY, double centerZ, double range) { return visuals; }
     @Override
-    public RemoteProfile getProfile(UUID entityId) { Sample sample = samples.get(entityId); return sample == null ? null : sample.profile(); }
+    public EntityProfile getProfile(UUID entityId) { Sample sample = samples.get(entityId); return sample == null ? null : sample.profile(); }
     @Override
     public List<SynchedEntityData.DataValue<?>> getMetadata(UUID entityId) { Sample sample = samples.get(entityId); return sample == null ? List.of() : sample.metadata(); }
     @Override
@@ -114,6 +114,6 @@ public final class MinecraftLocalEntityView implements ProjectionEntityData<Sync
     }
 
     private record Sample(EntityVisual visual, List<SynchedEntityData.DataValue<?>> metadata,
-                          List<MinecraftPacketBlobs.Equipment> equipment, RemoteProfile profile, int version) {
+                          List<MinecraftPacketBlobs.Equipment> equipment, EntityProfile profile, int version) {
     }
 }

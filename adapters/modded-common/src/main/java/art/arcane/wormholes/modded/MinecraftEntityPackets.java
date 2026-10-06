@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.network.view.RemoteViewCache.RemoteProfile;
+import art.arcane.optics.entity.EntityProfile;
 import art.arcane.wormholes.render.EntityRenderSpoofRegistry;
 import art.arcane.wormholes.render.EntityRenderSpoofedEntity;
 import art.arcane.wormholes.render.ProjectedPlayerNames;
@@ -51,7 +51,7 @@ public final class MinecraftEntityPackets implements EntityRenderSpoofRegistry.H
     private final ProjectedPlayerNames<ServerPlayer> names = new ProjectedPlayerNames<>(this);
     private final Scoreboard teams = new Scoreboard();
 
-    public void playerInfo(ServerPlayer observer, EntityRenderSpoofedEntity state, RemoteProfile profile) {
+    public void playerInfo(ServerPlayer observer, EntityRenderSpoofedEntity state, EntityProfile profile) {
         state.playerProfile = profile;
         String sourceName = profile == null ? null : profile.name();
         state.setPlayerIdentity(ProjectedPlayerNames.projectedProfileName(sourceName, state.fakeUuid, state.upsideDown),
@@ -73,7 +73,7 @@ public final class MinecraftEntityPackets implements EntityRenderSpoofRegistry.H
         names.forget();
     }
 
-    public static ClientboundPlayerInfoUpdatePacket playerInfo(RegistryAccess registries, EntityRenderSpoofedEntity state, RemoteProfile profile) {
+    public static ClientboundPlayerInfoUpdatePacket playerInfo(RegistryAccess registries, EntityRenderSpoofedEntity state, EntityProfile profile) {
         RegistryFriendlyByteBuf buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), registries);
         try {
             buffer.writeEnumSet(EnumSet.of(ClientboundPlayerInfoUpdatePacket.Action.ADD_PLAYER,

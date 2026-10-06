@@ -1,5 +1,6 @@
 package art.arcane.wormholes.render;
 
+import art.arcane.optics.entity.EntityProfile;
 import com.github.retrooper.packetevents.util.Vector3d;
 
 import art.arcane.wormholes.Settings;
@@ -34,7 +35,6 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerMa
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.wormholes.network.view.EntityVisual;
 import art.arcane.wormholes.network.view.ProjectedMapData;
-import art.arcane.wormholes.network.view.RemoteViewCache;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.portal.PortalStructure;
@@ -51,7 +51,7 @@ public final class ProjectedItemFramePacketTest {
             EntityRenderPlayerIdentity identity = new EntityRenderPlayerIdentity(channel);
             EntityRenderSpoofRegistry<Player, Vector3d> registry = new EntityRenderSpoofRegistry<>(new BukkitEntityRegistryHost(channel, identity));
             EntityRenderMetadataBridge metadataBridge = new EntityRenderMetadataBridge(channel);
-            EntityRenderVisualProjector<Player, World, ILocalPortal, Vector3d, EntityType, ProjectionEntityView> projector = new EntityRenderVisualProjector<>(registry, new BukkitEntityVisualHost(channel, new BukkitEntityVisualHost.Options(identity, metadataBridge)));
+            EntityRenderVisualProjector<Player, World, ILocalPortal, Vector3d, EntityType, ProjectionEntityView> projector = new EntityRenderVisualProjector<>(registry, new BukkitEntityVisualHost(channel, new BukkitEntityVisualHost.Options(identity, metadataBridge)), FidelitySettings::snapshot);
             PortalFrame localFrame = PortalFrame.canonical(Direction.N);
             PortalFrame remoteFrame = PortalFrame.canonical(Direction.U);
             ILocalPortal localPortal = localPortal(new Vector(1.5D, 1.5D, 5.0D), localFrame);
@@ -163,7 +163,7 @@ public final class ProjectedItemFramePacketTest {
             }
 
             @Override
-            public RemoteViewCache.RemoteProfile getProfile(UUID requestedId) {
+            public EntityProfile getProfile(UUID requestedId) {
                 return null;
             }
 

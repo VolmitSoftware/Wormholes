@@ -125,7 +125,7 @@ public final class ClientViewPortalSource {
         if (outcome != ProjectorDestination.Outcome.READY) {
             return;
         }
-        plateTarget = ProjectorPlates.target(portal, destination, frontSide, portal.getRenderMode().usesBuriedCellCulling(), rtpTarget, fidelity);
+        plateTarget = ProjectorPlates.target(portal, destination, frontSide, portal.getRenderMode().scanMode().buriedCellCulling(), rtpTarget, fidelity);
         if (nativeMesh) {
             geometryRevision = ProjectorPassRevision.mix(geometryRevision, meshTargetRevision());
         }

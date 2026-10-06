@@ -1,5 +1,6 @@
 package art.arcane.wormholes.render;
 
+import art.arcane.optics.fidelity.FidelityOptions;
 import art.arcane.wormholes.render.lod.LodPolicy;
 import art.arcane.wormholes.render.lod.LodProfile;
 import java.util.ArrayList;
@@ -35,7 +36,6 @@ public final class FidelitySettings {
     public static volatile boolean blockEntityContainers = false;
     public static volatile AtmosphereMode atmosphereModeDefault = AtmosphereMode.OFF;
     public static volatile boolean biomeTint = false;
-    public static volatile double biomeDominance = 0.6D;
     public static volatile boolean skyLight = false;
     public static volatile boolean fogPlate = true;
     public static volatile boolean weather = true;
@@ -44,15 +44,9 @@ public final class FidelitySettings {
     public static volatile int lodDetailCutoffBlocks = 48;
     public static volatile int dissolveTicks = 8;
     public static volatile AcousticsProfile acousticsProfileDefault = AcousticsProfile.AMBIENT;
-    public static volatile double acousticsRadius = 24.0D;
-    public static volatile int acousticsRateCapPerObserver = 8;
-    public static volatile boolean bedrockEnabled = true;
-    public static volatile boolean bedrockDisplayEntities = false;
-    public static volatile boolean bedrockLightingFidelity = false;
-    public static volatile int bedrockEntityCap = 8;
-    public static volatile double entityVelocityEpsilon = 0.005D;
     public static volatile int rtpRimIntervalTicks = 5;
     public static volatile int ambientParticleIntervalTicks = 1;
+    private static volatile FidelityOptions snapshot = new FidelityOptions(0.005D, 0.6D, true, false, false, 8, 24.0D, 8);
 
     private FidelitySettings() {
     }
@@ -81,7 +75,6 @@ public final class FidelitySettings {
         blockEntityContainers = render.blockEntityContainers;
         atmosphereModeDefault = AtmosphereMode.parse(atmosphere.modeDefault, AtmosphereMode.OFF);
         biomeTint = atmosphere.biomeTint;
-        biomeDominance = clamp(atmosphere.biomeDominance, 0.0D, 1.0D);
         skyLight = atmosphere.skyLight;
         fogPlate = atmosphere.fogPlate;
         weather = atmosphere.weather;
@@ -90,15 +83,15 @@ public final class FidelitySettings {
         lodDetailCutoffBlocks = clamp(lod.detailCutoffBlocks, 1, 256);
         dissolveTicks = clamp(lod.dissolveTicks, 0, 200);
         acousticsProfileDefault = AcousticsProfile.parse(acoustics.profileDefault, AcousticsProfile.AMBIENT);
-        acousticsRadius = clamp(acoustics.radius, 0.0D, 128.0D);
-        acousticsRateCapPerObserver = clamp(acoustics.rateCapPerObserver, 0, 200);
-        bedrockEnabled = bedrock.enabled;
-        bedrockDisplayEntities = bedrock.displayEntities;
-        bedrockLightingFidelity = bedrock.lightingFidelity;
-        bedrockEntityCap = clamp(bedrock.entityCap, 0, 256);
-        entityVelocityEpsilon = clamp(render.entityVelocityEpsilon, 0.0D, 1.0D);
         rtpRimIntervalTicks = clamp(render.rtpRimIntervalTicks, 1, 100);
         ambientParticleIntervalTicks = clamp(render.ambientParticleIntervalTicks, 1, 40);
+        snapshot = new FidelityOptions(clamp(render.entityVelocityEpsilon, 0.0D, 1.0D), clamp(atmosphere.biomeDominance, 0.0D, 1.0D),
+            bedrock.enabled, bedrock.displayEntities, bedrock.lightingFidelity, clamp(bedrock.entityCap, 0, 256),
+            clamp(acoustics.radius, 0.0D, 128.0D), clamp(acoustics.rateCapPerObserver, 0, 200));
+    }
+
+    public static FidelityOptions snapshot() {
+        return snapshot;
     }
 
     static List<String> normalizeTypes(List<String> configured) {

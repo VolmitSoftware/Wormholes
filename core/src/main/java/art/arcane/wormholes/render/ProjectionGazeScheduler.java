@@ -9,7 +9,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-import art.arcane.wormholes.config.toml.ProjectionConfig;
 
 public final class ProjectionGazeScheduler {
     public static final double REUSE_EYE_EPSILON_SQUARED = 0.0625D;
@@ -135,10 +134,6 @@ public final class ProjectionGazeScheduler {
     }
 
     public record Options(double fovDegrees, int lookaheadTicks, int maxStarveTicks) {
-        public static Options from(ProjectionConfig config) {
-            double fov = Double.isFinite(config.gazeFovDegrees) ? Math.clamp(config.gazeFovDegrees, 30.0D, 170.0D) : 110.0D;
-            return new Options(fov, Math.clamp(config.gazeLookaheadTicks, 0, 20), Math.clamp(config.gazeMaxStarveTicks, 1, 200));
-        }
     }
 
     private record Scored<T>(Candidate<T> candidate, double score, int order) {

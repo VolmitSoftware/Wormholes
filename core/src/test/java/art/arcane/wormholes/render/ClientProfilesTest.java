@@ -1,26 +1,21 @@
 package art.arcane.wormholes.render;
 
+import art.arcane.optics.fidelity.FidelityOptions;
 import art.arcane.wormholes.render.bedrock.BedrockProfile;
 import art.arcane.wormholes.render.bedrock.ClientProfiles;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ClientProfilesTest {
-    @AfterEach
-    void restore() {
-        FidelitySettings.bedrockEnabled = true;
-        FidelitySettings.bedrockDisplayEntities = false;
-        FidelitySettings.bedrockLightingFidelity = false;
-        FidelitySettings.bedrockEntityCap = 8;
-    }
+    private static final FidelityOptions DEFAULTS = new FidelityOptions(0.005D, 0.6D, true, false, false, 8, 24.0D, 8);
 
     @Test
     void classificationUsesProviderThenBrandThenUuidAndCachesUntilForgotten() {
@@ -29,7 +24,7 @@ class ClientProfilesTest {
         ClientProfiles<Viewer> profiles = new ClientProfiles<>(new ClientProfiles.Options<>(viewer -> {
             probes.incrementAndGet();
             return provider.get();
-        }, Viewer::brand, Viewer::id));
+        }, Viewer::brand, Viewer::id, () -> DEFAULTS));
         Viewer java = new Viewer(UUID.randomUUID(), "vanilla");
         assertFalse(profiles.profile(java).bedrock());
         provider.set(true);
@@ -47,21 +42,21 @@ class ClientProfilesTest {
 
     @Test
     void reloadRefreshesViewerCapsAndDisablingDetectionRestoresJavaChannels() {
-        ClientProfiles<Viewer> profiles = new ClientProfiles<>(new ClientProfiles.Options<>(viewer -> true, Viewer::brand, Viewer::id));
+        AtomicReference<FidelityOptions> fidelity = new AtomicReference<FidelityOptions>(DEFAULTS);
+        ClientProfiles<Viewer> profiles = new ClientProfiles<>(new ClientProfiles.Options<>(viewer -> true, Viewer::brand, Viewer::id,
+            fidelity::get));
         Viewer viewer = new Viewer(UUID.randomUUID(), "vanilla");
         BedrockProfile first = profiles.profile(viewer);
         assertTrue(first.withholdsDisplays());
         assertFalse(first.lightingFidelity());
         assertEquals(8, first.entityLimit(48));
         assertEquals(64, first.blockBatchLimit());
-        FidelitySettings.bedrockDisplayEntities = true;
-        FidelitySettings.bedrockLightingFidelity = true;
-        FidelitySettings.bedrockEntityCap = 3;
+        fidelity.set(new FidelityOptions(0.005D, 0.6D, true, true, true, 3, 24.0D, 8));
         profiles.clear();
         assertFalse(profiles.profile(viewer).withholdsDisplays());
         assertTrue(profiles.profile(viewer).lightingFidelity());
         assertEquals(3, profiles.profile(viewer).entityLimit(48));
-        FidelitySettings.bedrockEnabled = false;
+        fidelity.set(new FidelityOptions(0.005D, 0.6D, false, true, true, 3, 24.0D, 8));
         assertEquals(BedrockProfile.JAVA, profiles.profile(viewer));
     }
 

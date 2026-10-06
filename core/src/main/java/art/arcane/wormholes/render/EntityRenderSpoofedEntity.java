@@ -1,12 +1,11 @@
 package art.arcane.wormholes.render;
 
+import art.arcane.optics.entity.EntityProfile;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 
 import art.arcane.wormholes.network.view.ProjectedMapData;
-import art.arcane.wormholes.network.view.RemoteViewCache;
-
 public final class EntityRenderSpoofedEntity {
     private static final AtomicInteger NEXT_FAKE_ID = new AtomicInteger(1_900_000_000);
     private static final int METADATA_REFRESH_PASSES = 10;
@@ -31,7 +30,7 @@ public final class EntityRenderSpoofedEntity {
     public String lastEquipmentSignature;
     public byte[] lastMetadataPayload;
     public byte[] lastEquipmentPayload;
-    public RemoteViewCache.RemoteProfile playerProfile;
+    public EntityProfile playerProfile;
     public long playerProfileCheckedAtNanos;
     public String playerProfileName;
     public String playerLabelText;

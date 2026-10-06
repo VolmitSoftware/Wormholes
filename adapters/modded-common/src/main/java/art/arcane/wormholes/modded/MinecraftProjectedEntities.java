@@ -12,6 +12,7 @@ import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.render.EntityProjectionPath;
 import art.arcane.wormholes.render.EntityRenderSpoofRegistry;
 import art.arcane.wormholes.render.EntityRenderVisualProjector;
+import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.wormholes.render.Frustum4D;
 import art.arcane.wormholes.render.ProjectedEntityOcclusion;
 import art.arcane.wormholes.render.ProjectorFrameTransform;
@@ -57,7 +58,7 @@ public final class MinecraftProjectedEntities implements AutoCloseable {
         this.observer = context.observer();
         this.source = context.source();
         this.recursive = context.recursive();
-        this.projector = new EntityRenderVisualProjector<>(registry, new MinecraftEntityVisualHost(observer, packets));
+        this.projector = new EntityRenderVisualProjector<>(registry, new MinecraftEntityVisualHost(observer, packets), FidelitySettings::snapshot);
     }
 
     public void apply(View view) {

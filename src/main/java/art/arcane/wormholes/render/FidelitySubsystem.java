@@ -69,7 +69,8 @@ public final class FidelitySubsystem implements WormholesSubsystem {
             projection.onFidelitySettingsReloaded();
         }
         ClientProfileService.install(ClientProfileService.detectFloodgateAndBrand(plugin));
-        acoustics = new AcousticsBridge<>(new AcousticsBridge.Options<>(new SoundPacketSink(), FidelitySubsystem::observersOf, Player::getUniqueId));
+        acoustics = new AcousticsBridge<>(new AcousticsBridge.Options<>(new SoundPacketSink(), FidelitySubsystem::observersOf, Player::getUniqueId,
+            FidelitySettings::snapshot));
         soundSource = new SoundEventSource(FidelitySubsystem::acoustics);
         plugin.registerListener(soundSource);
     }

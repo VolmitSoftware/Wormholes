@@ -33,6 +33,7 @@ import art.arcane.wormholes.render.ProjectorFrustumFit;
 import art.arcane.wormholes.render.ProjectorPassRevision;
 import art.arcane.wormholes.render.ProjectorResampleSchedule;
 import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.wormholes.portal.ProjectorViewSettings;
 import art.arcane.wormholes.util.Direction;
 import art.arcane.wormholes.render.ProjectorSampleMemo;
 import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
@@ -91,7 +92,7 @@ public final class MinecraftPortalProjector implements AutoCloseable {
         this.plates = context.plates();
         ProjectionWorldChangeTracker changes = runtime.projections().changes();
         this.memo = new ProjectorSampleMemo<>(MinecraftProjectorBlocks.INSTANCE, () -> changes);
-        this.schedule = new ProjectorResampleSchedule(portal, () -> changes, this::cadence);
+        this.schedule = new ProjectorResampleSchedule(() -> ProjectorViewSettings.viewCadence(portal), () -> changes, this::cadence);
         this.sampler = new ProjectorSampler<>(new ProjectorSampler.Options<>(memo,
             portals.createRecursiveIndex(), views::apply,
                 view -> view instanceof MinecraftProjectionWorldView local ? local.getWorld() : null));
@@ -254,7 +255,7 @@ public final class MinecraftPortalProjector implements AutoCloseable {
     private void prepare(Destination destination, GeometryVector eye, long tick) {
         schedule.beginBlockPass();
         ProjectionRenderMode mode = portal.getRenderMode();
-        boolean culling = mode.usesBuriedCellCulling();
+        boolean culling = mode.scanMode().buriedCellCulling();
         boolean cullingChanged = sampler.setBuriedCellCullingPass(culling);
         LodProfile profile = LodProfile.parse(stringSetting("fidelity.lod"), LodProfile.BALANCED);
         LodPolicy lod = FidelitySettings.lodPolicy(profile);
@@ -317,7 +318,7 @@ public final class MinecraftPortalProjector implements AutoCloseable {
             return;
         }
         scan.begin(destination, null, eye, frustum, fit.fittedDepth(), destinationStale || localStale || presentationChanged,
-            fullSendPasses > 0, cameraMoved, culling, mode, acquirePlate(destination, eye, culling, blockEntities), blockEntities, lod);
+            fullSendPasses > 0, cameraMoved, mode.scanMode(), acquirePlate(destination, eye, culling, blockEntities), blockEntities, lod);
     }
 
     private ViewPlate<BlockState> acquirePlate(Destination destination, GeometryVector eye, boolean culling, boolean blockEntities) {
@@ -369,7 +370,7 @@ public final class MinecraftPortalProjector implements AutoCloseable {
         boolean blockEntities = MinecraftViewPlates.blockEntities(portal);
         long revision = ProjectorPassRevision.transform(frame, remoteFrame, origin.x(), origin.y(), origin.z(),
             destination.originX(), destination.originY(), destination.originZ(), portal.getNetworkViewDepth(),
-            portal.getNetworkViewLateralPad(), config().aperturePaddingBlocks, portal.getRenderMode().usesBuriedCellCulling(), lod, blockEntities);
+            portal.getNetworkViewLateralPad(), config().aperturePaddingBlocks, portal.getRenderMode().scanMode().buriedCellCulling(), lod, blockEntities);
         revision = ProjectorPassRevision.mix(revision, destination.mirrorRotationQuarterTurns());
         revision = ProjectorPassRevision.mix(revision, portal.isBlackoutBackground() ? 1L : 0L);
         revision = ProjectorPassRevision.mix(revision, portal.getBlackoutColor().ordinal());

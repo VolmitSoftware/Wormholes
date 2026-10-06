@@ -1,6 +1,6 @@
 package art.arcane.wormholes.render;
 
-import art.arcane.wormholes.portal.ProjectorViewSettings;
+import art.arcane.optics.scan.ViewCadence;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -14,10 +14,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ProjectorResampleScheduleTest {
     private static final ProjectorResampleSchedule.Cadence CADENCE = new ProjectorResampleSchedule.Cadence(1, 4, 4, 1);
+    private static final ViewCadence STANDARD_VIEW = new ViewCadence(64, 60, 10, true);
 
     @Test
     void unchangedRemoteRevisionDoesNotTriggerPeriodicResamples() {
-        ProjectorResampleSchedule schedule = new ProjectorResampleSchedule(new ViewSettings(64, 60, 10, 30),
+        ProjectorResampleSchedule schedule = new ProjectorResampleSchedule(() -> STANDARD_VIEW,
             () -> null, () -> CADENCE);
         long revision = 7L;
 
@@ -36,7 +37,7 @@ class ProjectorResampleScheduleTest {
         UUID worldId = UUID.nameUUIDFromBytes("resample-churn".getBytes(StandardCharsets.UTF_8));
         ProjectorRemoteFootprint footprint = new ProjectorRemoteFootprint();
         footprint.record(8, 64, 8);
-        ProjectorResampleSchedule schedule = new ProjectorResampleSchedule(new ViewSettings(64, 60, 10, 30),
+        ProjectorResampleSchedule schedule = new ProjectorResampleSchedule(() -> STANDARD_VIEW,
             () -> tracker, () -> CADENCE);
 
         assertTrue(schedule.stableResample(false, 0L, false, worldId, 8.0D, 8.0D, footprint));
@@ -79,7 +80,7 @@ class ProjectorResampleScheduleTest {
         UUID worldId = UUID.nameUUIDFromBytes("resample-cadence".getBytes(StandardCharsets.UTF_8));
         ProjectorRemoteFootprint footprint = new ProjectorRemoteFootprint();
         footprint.record(8, 64, 8);
-        ProjectorResampleSchedule schedule = new ProjectorResampleSchedule(new ViewSettings(64, 60, 10, 30),
+        ProjectorResampleSchedule schedule = new ProjectorResampleSchedule(() -> STANDARD_VIEW,
             () -> tracker, () -> new ProjectorResampleSchedule.Cadence(2, 8, 4, 1));
         schedule.stableResample(false, 0L, false, worldId, 8.0D, 8.0D, footprint);
         schedule.consumeForcedResample(true);
@@ -103,7 +104,7 @@ class ProjectorResampleScheduleTest {
         UUID worldId = UUID.nameUUIDFromBytes("resample-invalidate".getBytes(StandardCharsets.UTF_8));
         ProjectorRemoteFootprint footprint = new ProjectorRemoteFootprint();
         footprint.record(8, 64, 8);
-        ProjectorResampleSchedule schedule = new ProjectorResampleSchedule(new ViewSettings(64, 60, 10, 30),
+        ProjectorResampleSchedule schedule = new ProjectorResampleSchedule(() -> STANDARD_VIEW,
             () -> tracker, () -> CADENCE);
         schedule.stableResample(false, 0L, false, worldId, 8.0D, 8.0D, footprint);
         schedule.consumeForcedResample(true);
@@ -126,7 +127,7 @@ class ProjectorResampleScheduleTest {
         footprint.record(8, 64, 8);
         AtomicInteger reads = new AtomicInteger();
         AtomicReference<ProjectorResampleSchedule.Cadence> configured = new AtomicReference<>(CADENCE);
-        ProjectorResampleSchedule schedule = new ProjectorResampleSchedule(new ViewSettings(64, 60, 10, 30), () -> tracker, () -> {
+        ProjectorResampleSchedule schedule = new ProjectorResampleSchedule(() -> STANDARD_VIEW, () -> tracker, () -> {
             reads.incrementAndGet();
             return configured.get();
         });
@@ -147,9 +148,5 @@ class ProjectorResampleScheduleTest {
         assertFalse(schedule.lightingUpdatePass(true));
         schedule.beginBlockPass();
         assertTrue(schedule.lightingUpdatePass(true));
-    }
-
-    private record ViewSettings(int getNetworkViewDepth, int getNetworkViewHeartbeatTicks, int getNetworkViewEntityIntervalTicks,
-                                int getNetworkViewUnsubscribeGraceSeconds) implements ProjectorViewSettings {
     }
 }

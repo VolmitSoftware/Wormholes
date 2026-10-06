@@ -1,6 +1,6 @@
 package art.arcane.wormholes.render.bedrock;
 
-import art.arcane.wormholes.render.FidelitySettings;
+import art.arcane.optics.fidelity.FidelityOptions;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
@@ -8,6 +8,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
+import java.util.function.Supplier;
 public final class ClientProfiles<P> {
     private final Options<P> options;
     private final Map<UUID, BedrockProfile> profiles = new ConcurrentHashMap<>();
@@ -17,10 +18,11 @@ public final class ClientProfiles<P> {
     }
 
     public BedrockProfile profile(P player) {
-        if (player == null || !FidelitySettings.bedrockEnabled) {
+        FidelityOptions fidelity = options.fidelity().get();
+        if (player == null || !fidelity.bedrockEnabled()) {
             return BedrockProfile.JAVA;
         }
-        return profiles.computeIfAbsent(options.identity().apply(player), ignored -> detect(player));
+        return profiles.computeIfAbsent(options.identity().apply(player), ignored -> detect(player, fidelity));
     }
 
     public void forget(UUID playerId) {
@@ -37,7 +39,7 @@ public final class ClientProfiles<P> {
         return count;
     }
 
-    private BedrockProfile detect(P player) {
+    private BedrockProfile detect(P player, FidelityOptions fidelity) {
         boolean bedrock = options.detector().test(player);
         if (!bedrock) {
             String brand = options.brands().apply(player);
@@ -46,8 +48,9 @@ public final class ClientProfiles<P> {
         if (!bedrock) {
             bedrock = options.identity().apply(player).getMostSignificantBits() == 0L;
         }
-        return bedrock ? BedrockProfile.forBedrock() : BedrockProfile.JAVA;
+        return bedrock ? BedrockProfile.forBedrock(fidelity) : BedrockProfile.JAVA;
     }
 
-    public record Options<P>(Predicate<P> detector, Function<P, String> brands, Function<P, UUID> identity) { }
+    public record Options<P>(Predicate<P> detector, Function<P, String> brands, Function<P, UUID> identity,
+                             Supplier<FidelityOptions> fidelity) { }
 }

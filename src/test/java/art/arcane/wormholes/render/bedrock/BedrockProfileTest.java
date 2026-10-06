@@ -4,13 +4,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import art.arcane.optics.fidelity.FidelityOptions;
 import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
-import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.wormholes.render.ProjectionClaimArbiter;
 
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerMultiBlockChange;
@@ -18,18 +18,12 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerMu
 final class BedrockProfileTest {
     @AfterEach
     void restore() {
-        FidelitySettings.bedrockDisplayEntities = false;
-        FidelitySettings.bedrockLightingFidelity = false;
-        FidelitySettings.bedrockEntityCap = 8;
         ClientProfileService.install(null);
     }
 
     @Test
     void theBedrockProfileMirrorsTheConfigAndCapsTheJavaLimits() {
-        FidelitySettings.bedrockDisplayEntities = false;
-        FidelitySettings.bedrockLightingFidelity = false;
-        FidelitySettings.bedrockEntityCap = 3;
-        BedrockProfile profile = BedrockProfile.forBedrock();
+        BedrockProfile profile = BedrockProfile.forBedrock(new FidelityOptions(0.005D, 0.6D, true, false, false, 3, 24.0D, 8));
 
         assertTrue(profile.bedrock());
         assertTrue(profile.withholdsDisplays());
@@ -42,8 +36,8 @@ final class BedrockProfileTest {
         assertEquals(24, BedrockProfile.JAVA.entityLimit(24));
         assertEquals(Integer.MAX_VALUE, BedrockProfile.JAVA.blockBatchLimit());
 
-        FidelitySettings.bedrockDisplayEntities = true;
-        assertFalse(BedrockProfile.forBedrock().withholdsDisplays(), "operators can opt Bedrock viewers into display entities");
+        assertFalse(BedrockProfile.forBedrock(new FidelityOptions(0.005D, 0.6D, true, true, false, 3, 24.0D, 8)).withholdsDisplays(),
+            "operators can opt Bedrock viewers into display entities");
     }
 
     @Test

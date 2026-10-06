@@ -1,5 +1,6 @@
 package art.arcane.wormholes.render;
 
+import art.arcane.optics.entity.EntityProfile;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -34,7 +35,6 @@ import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.network.client.BrickLightSource;
 import art.arcane.wormholes.network.view.EntityVisual;
 import art.arcane.wormholes.network.view.PacketBlobs;
-import art.arcane.wormholes.network.view.RemoteViewCache.RemoteProfile;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.IPortal;
@@ -262,7 +262,7 @@ public final class ClientViewSceneCapture {
         };
     }
 
-    private static EntityVisual withProfile(EntityVisual visual, RemoteProfile profile) {
+    private static EntityVisual withProfile(EntityVisual visual, EntityProfile profile) {
         if (!visual.isPlayer() || profile == null || profile.textureValue() == null || profile.textureValue().isEmpty()
             || profile.textureValue().equals(visual.textureValue())) {
             return visual;

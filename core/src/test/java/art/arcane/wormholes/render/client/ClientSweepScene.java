@@ -126,7 +126,7 @@ public final class ClientSweepScene {
                 occlusion, () -> settings));
         ProjectorFrustumFit fit = new ProjectorFrustumFit(new ProjectorFrustumFit.Options(0, NEAR_PLANE_PADDING, CULLING_RATIO, APERTURE_PADDING));
         Frustum4D frustum = fit.fit(aperture, localFrame, eye, depth, lateral);
-        scan.run(new Destination(), null, eye, frustum, depth, true, false, true, mode.usesBuriedCellCulling(), mode, null, false,
+        scan.run(new Destination(), null, eye, frustum, depth, true, false, true, mode.scanMode(), null, false,
             LodPolicy.NONE);
         return new Long2ObjectOpenHashMap<ProjectedBlockClaim<String, ContentView>>(scan.claims());
     }

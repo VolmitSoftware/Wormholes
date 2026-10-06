@@ -1,5 +1,6 @@
 package art.arcane.wormholes.render.view;
 
+import art.arcane.optics.entity.EntityProfile;
 import art.arcane.wormholes.network.view.BukkitProjectedMapData;
 import art.arcane.wormholes.render.view.ProjectionContentView;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
@@ -7,7 +8,6 @@ import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.network.view.EntityVisual;
 import art.arcane.wormholes.network.view.PacketBlobs;
 import art.arcane.wormholes.network.view.ProjectedMapData;
-import art.arcane.wormholes.network.view.RemoteViewCache;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.wormholes.render.ProjectionCellKey;
@@ -228,8 +228,8 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
             playerName, textureValue, textureSignature, passengerOf, leashHolder,
             metadataBlob, equipmentBlob, mapData, 0);
         MapView mapView = mapView(entity);
-        RemoteViewCache.RemoteProfile profile = entity instanceof Player
-            ? new RemoteViewCache.RemoteProfile(playerName, textureValue, textureSignature)
+        EntityProfile profile = entity instanceof Player
+            ? new EntityProfile(playerName, textureValue, textureSignature)
             : null;
         return new CapturedEntity(chunkKey, visual, profile, metadata, equipment, mapView,
             entity.isVisibleByDefault(), capturedAtMillis,
@@ -418,7 +418,7 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
         }
 
         @Override
-        public RemoteViewCache.RemoteProfile getProfile(UUID entityId) {
+        public EntityProfile getProfile(UUID entityId) {
             EntityState state = entityStates.get(entityId);
             return state == null ? null : state.entity.profile;
         }
@@ -561,9 +561,9 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
     }
 
     static boolean sameEntityState(EntityVisual previousVisual,
-                                   RemoteViewCache.RemoteProfile previousProfile,
+                                   EntityProfile previousProfile,
                                    EntityVisual currentVisual,
-                                   RemoteViewCache.RemoteProfile currentProfile) {
+                                   EntityProfile currentProfile) {
         if (previousVisual == null || currentVisual == null) {
             return false;
         }
@@ -645,7 +645,7 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
     private static final class CapturedEntity {
         private final long chunkKey;
         private final EntityVisual visual;
-        private final RemoteViewCache.RemoteProfile profile;
+        private final EntityProfile profile;
         private final List<EntityData<?>> metadata;
         private final List<Equipment> equipment;
         private final MapView mapView;
@@ -654,7 +654,7 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
         private final long stateCapturedAtMillis;
         private final long metadataRevision;
 
-        private CapturedEntity(long chunkKey, EntityVisual visual, RemoteViewCache.RemoteProfile profile,
+        private CapturedEntity(long chunkKey, EntityVisual visual, EntityProfile profile,
                                List<EntityData<?>> metadata, List<Equipment> equipment, MapView mapView,
                                boolean visibleByDefault, long capturedAtMillis, long stateCapturedAtMillis, long metadataRevision) {
             this.chunkKey = chunkKey;

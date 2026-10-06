@@ -25,7 +25,7 @@ public final class PortalProjectorFrustumFailureTest {
 
     @Test
     public void aProjectorThatCannotBuildItsFrustumIsGivenUpOnInsteadOfRetriedForever() {
-        ProjectorFrustumFailures failures = new ProjectorFrustumFailures();
+        ProjectorFrustumFailures failures = new ProjectorFrustumFailures(WormholesTelemetry.metrics());
 
         assertFalse(ProjectorFrustumFailures.exhausted(failures.recordFailure()),
             "the first failure must not close a projector that may recover");
@@ -38,7 +38,7 @@ public final class PortalProjectorFrustumFailureTest {
 
     @Test
     public void aRecoveredPassClearsTheConsecutiveFailureRun() {
-        ProjectorFrustumFailures failures = new ProjectorFrustumFailures();
+        ProjectorFrustumFailures failures = new ProjectorFrustumFailures(WormholesTelemetry.metrics());
 
         failures.recordFailure();
         failures.recordFailure();
@@ -52,7 +52,7 @@ public final class PortalProjectorFrustumFailureTest {
 
     @Test
     public void repeatedSuccessesDoNotDisturbTheFailureCounters() {
-        ProjectorFrustumFailures failures = new ProjectorFrustumFailures();
+        ProjectorFrustumFailures failures = new ProjectorFrustumFailures(WormholesTelemetry.metrics());
 
         failures.recordSuccess();
         failures.recordSuccess();
@@ -64,7 +64,7 @@ public final class PortalProjectorFrustumFailureTest {
 
     @Test
     public void everyFrustumBuildFailureReachesTheSharedTerminalFailureCounter() {
-        ProjectorFrustumFailures failures = new ProjectorFrustumFailures();
+        ProjectorFrustumFailures failures = new ProjectorFrustumFailures(WormholesTelemetry.metrics());
 
         failures.recordFailure();
         failures.recordFailure();
@@ -86,7 +86,7 @@ public final class PortalProjectorFrustumFailureTest {
 
     @Test
     public void theClosingFailureIsCountedExactlyOnceAndNotAgainAtTheProjectorLevel() {
-        ProjectorFrustumFailures failures = new ProjectorFrustumFailures();
+        ProjectorFrustumFailures failures = new ProjectorFrustumFailures(WormholesTelemetry.metrics());
 
         int consecutive = 0;
         while (!ProjectorFrustumFailures.exhausted(consecutive)) {

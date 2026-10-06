@@ -1,24 +1,28 @@
 package art.arcane.wormholes.render;
 
+import art.arcane.optics.entity.EntityProfile;
+import art.arcane.optics.fidelity.FidelityOptions;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.List;
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.render.view.ProjectionBlockView;
 import art.arcane.wormholes.network.view.EntityVisual;
-import art.arcane.wormholes.network.view.RemoteViewCache.RemoteProfile;
 import art.arcane.wormholes.portal.IPortal;
 import art.arcane.wormholes.portal.PortalFrame;
 
+import java.util.function.Supplier;
 public final class EntityRenderVisualProjector<O, W, P extends IPortal, R, T, V> {
     private final EntityRenderSpoofRegistry<O, R> registry;
     private final Host<O, R, T, V> host;
     private final EntityVisualProjection<W, P, R> projection;
+    private final Supplier<FidelityOptions> fidelity;
 
-    public EntityRenderVisualProjector(EntityRenderSpoofRegistry<O, R> registry, Host<O, R, T, V> host) {
+    public EntityRenderVisualProjector(EntityRenderSpoofRegistry<O, R> registry, Host<O, R, T, V> host, Supplier<FidelityOptions> fidelity) {
         this.registry = registry;
         this.host = host;
         this.projection = new EntityVisualProjection<>(host::position);
+        this.fidelity = fidelity;
     }
 
     public boolean projectRemoteVisual(O observer, P localPortal,
@@ -94,7 +98,7 @@ public final class EntityRenderVisualProjector<O, W, P extends IPortal, R, T, V>
             registry.syncHeadLook(observer, state, yaw);
         }
         if (state.updateVelocity(host.x(velocity), host.y(velocity), host.z(velocity),
-            FidelitySettings.entityVelocityEpsilon)) {
+            fidelity.get().entityVelocityEpsilon())) {
             host.velocity(observer, state.fakeId, velocity);
         }
         int stateVersion = host.stateVersion(entityView, visual.id());
@@ -172,10 +176,10 @@ public final class EntityRenderVisualProjector<O, W, P extends IPortal, R, T, V>
         double x(R position);
         double y(R position);
         double z(R position);
-        RemoteProfile profile(V view, UUID entityId);
+        EntityProfile profile(V view, UUID entityId);
         int stateVersion(V view, UUID entityId);
         boolean hasMap(V view, UUID entityId);
-        void playerInfo(O observer, EntityRenderSpoofedEntity state, RemoteProfile profile);
+        void playerInfo(O observer, EntityRenderSpoofedEntity state, EntityProfile profile);
         void spawn(O observer, EntityRenderSpoofedEntity state, Spawn<R, T> spawn);
         void spawnLabel(O observer, EntityRenderSpoofedEntity state, Label<R> label);
         void updateLabel(O observer, EntityRenderSpoofedEntity state, Label<R> label);
@@ -186,7 +190,7 @@ public final class EntityRenderVisualProjector<O, W, P extends IPortal, R, T, V>
     public record Spawn<R, T>(T type, R position, R velocity, float yaw, float pitch, int data) {
     }
 
-    public record Label<R>(R position, double height, RemoteProfile profile) {
+    public record Label<R>(R position, double height, EntityProfile profile) {
     }
 
     public record State<V>(V view, EntityVisual visual, int metadataTransform, boolean initial) {

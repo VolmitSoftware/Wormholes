@@ -1,6 +1,7 @@
 package art.arcane.wormholes.render;
 
 
+import art.arcane.optics.scan.ScanMode;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.function.Supplier;
@@ -22,7 +23,6 @@ import it.unimi.dsi.fastutil.objects.ObjectIterator;
 
 
 import art.arcane.wormholes.portal.PortalFrame;
-import art.arcane.wormholes.portal.ProjectionRenderMode;
 import art.arcane.wormholes.render.blockentity.BlockEntitySample;
 import art.arcane.wormholes.render.lod.LodPolicy;
 import art.arcane.wormholes.render.plate.PlateCell;
@@ -594,13 +594,12 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
              boolean forceStableCellResample,
              boolean forceFullSend,
              boolean refreshObserverVisibility,
-             boolean buriedCellCulling,
-             ProjectionRenderMode renderMode,
+             ScanMode mode,
              ViewPlate<B> plate,
              boolean blockEntities,
              LodPolicy lod) {
         begin(destination, rtpTarget, eye, frustum, depthBlocks, forceStableCellResample, forceFullSend,
-            refreshObserverVisibility, buriedCellCulling, renderMode, plate, blockEntities, lod);
+            refreshObserverVisibility, mode, plate, blockEntities, lod);
         while (!advance(Long.MAX_VALUE)) {
         }
     }
@@ -613,8 +612,7 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
              boolean forceStableCellResample,
              boolean forceFullSend,
              boolean refreshObserverVisibility,
-             boolean buriedCellCulling,
-             ProjectionRenderMode renderMode,
+             ScanMode mode,
              ViewPlate<B> plate,
              boolean blockEntities,
              LodPolicy lod) {
@@ -624,8 +622,7 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
         preparedResult = false;
         reuseCommittedEntityOcclusion = false;
         pending = new ScanPass(new ScanRequest<B, P, V>(destination, rtpTarget, eye, frustum, depthBlocks,
-            forceStableCellResample, forceFullSend, refreshObserverVisibility, buriedCellCulling,
-            renderMode, plate, blockEntities, lod));
+            forceStableCellResample, forceFullSend, refreshObserverVisibility, mode, plate, blockEntities, lod));
     }
 
     public boolean advance(long deadlineNanos) {
@@ -1150,8 +1147,7 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
                                boolean forceStableCellResample,
                                boolean forceFullSend,
                                boolean refreshObserverVisibility,
-                               boolean buriedCellCulling,
-                               ProjectionRenderMode renderMode,
+                               ScanMode mode,
                                ViewPlate<B> plate,
                                boolean blockEntities,
                                LodPolicy lod) {
@@ -1260,8 +1256,8 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
             forceStableCellResample = request.forceStableCellResample();
             forceFullSend = request.forceFullSend();
             refreshObserverVisibility = request.refreshObserverVisibility();
-            buriedCellCulling = request.buriedCellCulling();
-            ProjectionRenderMode renderMode = request.renderMode();
+            ScanMode mode = request.mode();
+            buriedCellCulling = mode.buriedCellCulling();
             plate = request.plate();
             blockEntities = request.blockEntities();
             LodPolicy lod = request.lod();
@@ -1459,7 +1455,7 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
             projectionFacingNormal = normalAxis == 0 ? projectionFacingX : (normalAxis == 1 ? projectionFacingY : projectionFacingZ);
             slabWindowBounds = scratchSlabWindowBounds;
             cellCoords = scratchCellCoords;
-            observerOcclusion = renderMode.usesObserverOcclusion();
+            observerOcclusion = mode.observerOcclusion();
             localFacingNormal = normalAxis == 0 ? facingX : normalAxis == 1 ? facingY : facingZ;
             normalStep = projectionFacingNormal > 0.0D ? -1 : 1;
             normalStart = normalStep > 0 ? axisMin[normalAxis] : axisMax[normalAxis];

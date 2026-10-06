@@ -1,7 +1,6 @@
 package art.arcane.wormholes.render;
 
-import art.arcane.wormholes.portal.NetworkViewQuality;
-import art.arcane.wormholes.portal.ProjectorViewSettings;
+import art.arcane.optics.scan.ViewCadence;
 
 import java.util.Objects;
 import java.util.UUID;
@@ -21,10 +20,11 @@ public final class ProjectorResampleSchedule {
         }
     };
 
-    private final ProjectorViewSettings portal;
+    private final Supplier<ViewCadence> view;
     private final Supplier<ProjectionWorldChangeTracker> tracker;
     private final Supplier<Cadence> cadence;
     private Cadence currentCadence;
+    private ViewCadence currentView;
     private long projectCallCount;
     private long entityPassCount;
     private long lastSourceViewRevision;
@@ -34,8 +34,8 @@ public final class ProjectorResampleSchedule {
     private boolean pendingDestinationChange;
     private int remoteResendStage;
 
-    public ProjectorResampleSchedule(ProjectorViewSettings portal, Supplier<ProjectionWorldChangeTracker> tracker, Supplier<Cadence> cadence) {
-        this.portal = Objects.requireNonNull(portal);
+    public ProjectorResampleSchedule(Supplier<ViewCadence> view, Supplier<ProjectionWorldChangeTracker> tracker, Supplier<Cadence> cadence) {
+        this.view = Objects.requireNonNull(view);
         this.tracker = Objects.requireNonNull(tracker);
         this.cadence = Objects.requireNonNull(cadence);
         this.projectCallCount = 0L;
@@ -55,6 +55,7 @@ public final class ProjectorResampleSchedule {
     public void beginBlockPass() {
         projectCallCount++;
         currentCadence = cadence.get();
+        currentView = view.get();
     }
 
     public boolean entityUpdateDue() {
@@ -142,7 +143,7 @@ public final class ProjectorResampleSchedule {
             return changes.unaffectedThrough(destWorldId, footprint.queryMinChunkX(), footprint.queryMinChunkZ(),
                 footprint.queryMaxChunkX(), footprint.queryMaxChunkZ(), sinceVersion, footprint);
         }
-        double depth = portal.getNetworkViewDepth() + 2.0D;
+        double depth = view().depth() + 2.0D;
         return changes.unaffectedThrough(destWorldId, ((int) Math.floor(originX - depth)) >> 4,
             ((int) Math.floor(originZ - depth)) >> 4, ((int) Math.floor(originX + depth)) >> 4,
             ((int) Math.floor(originZ + depth)) >> 4, sinceVersion, ANY_CHANGE);
@@ -178,36 +179,38 @@ public final class ProjectorResampleSchedule {
         return currentCadence;
     }
 
+    private ViewCadence view() {
+        if (currentView == null) {
+            currentView = view.get();
+        }
+        return currentView;
+    }
+
     private boolean entityUpdateDueNow() {
-        if (usesStandardViewQuality()) {
+        ViewCadence current = view();
+        if (current.globalCadence()) {
             return true;
         }
-        int intervalTicks = Math.max(1, portal.getNetworkViewEntityIntervalTicks());
+        int intervalTicks = Math.max(1, current.entityIntervalTicks());
         int globalTicks = Math.max(1, cadence().entityUpdateIntervalTicks());
         int passInterval = Math.max(1, (intervalTicks + globalTicks - 1) / globalTicks);
         return (entityPassCount % passInterval) == 0L;
     }
 
-    private boolean usesStandardViewQuality() {
-        return NetworkViewQuality.from(
-            portal.getNetworkViewDepth(),
-            portal.getNetworkViewHeartbeatTicks(),
-            portal.getNetworkViewEntityIntervalTicks(),
-            portal.getNetworkViewUnsubscribeGraceSeconds()) == NetworkViewQuality.STANDARD;
-    }
-
     private int stableResampleCadenceTicks() {
-        if (usesStandardViewQuality()) {
+        ViewCadence current = view();
+        if (current.globalCadence()) {
             return cadence().stableCellResampleIntervalTicks();
         }
-        return Math.max(1, portal.getNetworkViewHeartbeatTicks());
+        return Math.max(1, current.heartbeatTicks());
     }
 
     private int fullRefreshBackstopTicks() {
-        if (usesStandardViewQuality()) {
+        ViewCadence current = view();
+        if (current.globalCadence()) {
             return STABLE_RESAMPLE_BACKSTOP_TICKS;
         }
-        return Math.max(1, portal.getNetworkViewHeartbeatTicks());
+        return Math.max(1, current.heartbeatTicks());
     }
 
     private static int stablePassInterval(int intervalTicks, int refreshIntervalTicks) {

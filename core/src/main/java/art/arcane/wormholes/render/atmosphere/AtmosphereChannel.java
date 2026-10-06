@@ -1,11 +1,11 @@
 package art.arcane.wormholes.render.atmosphere;
 
 
+import art.arcane.optics.fidelity.FidelityOptions;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 
 
-import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.wormholes.render.ProjectedBlockClaim;
 import art.arcane.wormholes.render.ProjectionCellKey;
 import art.arcane.wormholes.render.view.ProjectionContentView;
@@ -31,7 +31,7 @@ public final class AtmosphereChannel<B, V extends ProjectionContentView<?, ?>> {
         this.passesSinceRefresh = REFRESH_INTERVAL_PASSES;
     }
 
-    public Long2IntOpenHashMap update(Scan<B, V> scan, BiomeIdResolver ids) {
+    public Long2IntOpenHashMap update(Scan<B, V> scan, BiomeIdResolver ids, FidelityOptions fidelity) {
         V destView = scan.destination();
         boolean claimsChanged = scan.claimsChanged();
         if (destView != cachedView || destView.getRevision() != cachedRevision) {
@@ -45,7 +45,7 @@ public final class AtmosphereChannel<B, V extends ProjectionContentView<?, ?>> {
             return null;
         }
         passesSinceRefresh = 0;
-        Long2IntOpenHashMap overrides = AtmosphereDominance.compute(scan.claims(), FidelitySettings.biomeDominance,
+        Long2IntOpenHashMap overrides = AtmosphereDominance.compute(scan.claims(), fidelity.biomeDominance(),
             remoteKey -> resolve(destView, ids, remoteKey));
         if (overrides.isEmpty() && !active) {
             return null;

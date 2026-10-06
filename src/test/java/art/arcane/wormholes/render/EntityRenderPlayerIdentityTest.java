@@ -1,5 +1,6 @@
 package art.arcane.wormholes.render;
 
+import art.arcane.optics.entity.EntityProfile;
 import java.util.List;
 
 import org.bukkit.Bukkit;
@@ -15,8 +16,6 @@ import com.github.retrooper.packetevents.protocol.player.TextureProperty;
 import com.github.retrooper.packetevents.protocol.player.UserProfile;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPlayerInfoUpdate;
 import io.github.retrooper.packetevents.util.SpigotReflectionUtil;
-
-import art.arcane.wormholes.network.view.RemoteViewCache;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -37,7 +36,7 @@ class EntityRenderPlayerIdentityTest {
             try (MockedStatic<SpigotReflectionUtil> reflection = mockStatic(SpigotReflectionUtil.class)) {
                 Player player = ProjectedEntityPacketRecorder.player(true);
                 EntityRenderSpoofedEntity state = EntityRenderSpoofedEntity.create(true, false, true);
-                state.playerProfile = new RemoteViewCache.RemoteProfile("Observer", "", "");
+                state.playerProfile = new EntityProfile("Observer", "", "");
                 state.playerProfileCheckedAtNanos = 1_000_000_000L;
                 EntityRenderPlayerIdentity identity = new EntityRenderPlayerIdentity(new EntityRenderPacketChannel());
                 reflection.when(() -> SpigotReflectionUtil.getUserProfile(player)).thenReturn(List.of());
@@ -54,18 +53,18 @@ class EntityRenderPlayerIdentityTest {
                 reflection.verify(() -> SpigotReflectionUtil.getUserProfile(player), times(1));
                 assertTrue(identity.playerProfileChanged(player, state, 2_000_000_000L));
 
-                state.playerProfile = new RemoteViewCache.RemoteProfile("Observer", "skin", "signature");
+                state.playerProfile = new EntityProfile("Observer", "skin", "signature");
                 assertFalse(identity.playerProfileChanged(player, state, 2_500_000_000L));
                 reflection.when(() -> SpigotReflectionUtil.getUserProfile(player))
                     .thenReturn(List.of(new TextureProperty("textures", "skin", "new-signature")));
                 assertTrue(identity.playerProfileChanged(player, state, 3_000_000_000L));
 
-                state.playerProfile = new RemoteViewCache.RemoteProfile("Observer", "skin", "new-signature");
+                state.playerProfile = new EntityProfile("Observer", "skin", "new-signature");
                 when(player.getName()).thenReturn("Renamed");
                 assertTrue(identity.playerProfileChanged(player, state, 3_500_000_000L));
                 reflection.when(() -> SpigotReflectionUtil.getUserProfile(player))
                     .thenReturn(List.of(new TextureProperty("textures", "new-skin", "new-signature")));
-                state.playerProfile = new RemoteViewCache.RemoteProfile("Renamed", "skin", "new-signature");
+                state.playerProfile = new EntityProfile("Renamed", "skin", "new-signature");
                 assertTrue(identity.playerProfileChanged(player, state, 4_000_000_000L));
             }
         } finally {
@@ -78,7 +77,7 @@ class EntityRenderPlayerIdentityTest {
         ProjectedEntityPacketRecorder recorder = ProjectedEntityPacketRecorder.install();
         try {
             Player observer = ProjectedEntityPacketRecorder.player(true);
-            RemoteViewCache.RemoteProfile profile = new RemoteViewCache.RemoteProfile("Player", "snapshot-skin", "snapshot-signature");
+            EntityProfile profile = new EntityProfile("Player", "snapshot-skin", "snapshot-signature");
             EntityRenderSpoofedEntity state = EntityRenderSpoofedEntity.create(true, false, true);
             EntityRenderPlayerIdentity identity = new EntityRenderPlayerIdentity(new EntityRenderPacketChannel());
 

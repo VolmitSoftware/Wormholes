@@ -57,6 +57,7 @@ import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Direction;
 import art.arcane.wormholes.geometry.GeometryVector;
 
+import art.arcane.wormholes.portal.ProjectorViewSettings;
 public final class PortalProjector {
     private static final long DIAG_LOG_INTERVAL_PASSES = 50L;
 
@@ -155,9 +156,10 @@ public final class PortalProjector {
         this.sampler = BukkitProjectorBlocks.sampler(sampleMemo, BukkitProjectorPortalAccess.create(), destination::liveView);
         this.blackout = new ProjectorBlackoutSeal();
         this.viewFrustum = new ProjectorViewFrustum();
-        this.schedule = new ProjectorResampleSchedule(portal, () -> Wormholes.projectionChangeTracker, PortalProjector::resampleCadence);
+        this.schedule = new ProjectorResampleSchedule(() -> ProjectorViewSettings.viewCadence(portal), () -> Wormholes.projectionChangeTracker,
+            PortalProjector::resampleCadence);
         this.cellScan = BukkitProjectorBlocks.scan(portal, sampler, sampleMemo, blackout);
-        this.frustumFailures = new ProjectorFrustumFailures();
+        this.frustumFailures = new ProjectorFrustumFailures(WormholesTelemetry.metrics());
         this.claimWorld = constructionWorld;
         this.claimWorldId = this.localWorldId;
         this.firstProjectionDone = false;
@@ -458,7 +460,7 @@ public final class PortalProjector {
         } else {
             blackout.disable();
         }
-        boolean buriedCellCulling = renderMode.usesBuriedCellCulling();
+        boolean buriedCellCulling = renderMode.scanMode().buriedCellCulling();
         boolean buriedCellCullingChanged = sampler.setBuriedCellCullingPass(buriedCellCulling);
 
         if (!firstProjectionDone) {
@@ -544,7 +546,7 @@ public final class PortalProjector {
             completeProjection(frame, startNanos, updateEntities);
         } else {
             cellScan.begin(destination, rtpTarget == null ? null : rtpTarget.frame(), BukkitGeometry.vector(eye), next, depthBlocks, forceStableCellResample, forceFullSend,
-                viewCameraMoved, buriedCellCulling, renderMode, plate, blockEntities, observerLod);
+                viewCameraMoved, renderMode.scanMode(), plate, blockEntities, observerLod);
             pendingProjection = frame;
             commitLatency.begin(startNanos);
             advanceProjection(frame, startNanos, eye, updateEntities, deadlineNanos);
@@ -670,7 +672,7 @@ public final class PortalProjector {
         }
         boolean blockEntities = FidelitySettings.blockEntities && (fidelity == null || fidelity.effectiveBlockEntities());
         return frame.presentationRevision() == presentationRevision(eye, rtpTarget,
-            portal.getRenderMode().usesBuriedCellCulling(), lod, blockEntities);
+            portal.getRenderMode().scanMode().buriedCellCulling(), lod, blockEntities);
     }
 
     private long scanContextRevision() {
@@ -829,7 +831,8 @@ public final class PortalProjector {
         }
         if (FidelitySettings.biomeTint && mode.tintsBiomes()) {
             Long2IntOpenHashMap overrides = atmosphere.update(
-                new AtmosphereChannel.Scan<>(cellScan.claims(), destination.destView, claimsChanged), claimArbiter.biomeIds());
+                new AtmosphereChannel.Scan<>(cellScan.claims(), destination.destView, claimsChanged), claimArbiter.biomeIds(),
+                FidelitySettings.snapshot());
             if (overrides != null) {
                 claimArbiter.submitBiomes(observer, portal.getId(), submitWorld, overrides);
             }
@@ -1090,7 +1093,7 @@ public final class PortalProjector {
                                                double lastEyeX,
                                                double lastEyeY,
                                                double lastEyeZ) {
-        if (renderMode == null || !renderMode.usesObserverOcclusion() || !hasCameraSnapshot) {
+        if (renderMode == null || !renderMode.scanMode().observerOcclusion() || !hasCameraSnapshot) {
             return false;
         }
         double dx = eyeX - lastEyeX;

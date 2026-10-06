@@ -172,7 +172,7 @@ final class ProjectorCellScanMaskGeometryTest {
     private record ScanRig(ProjectorCellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan) {
         private void run(Scene scene, Vector eye, Frustum4D frustum, boolean cold, ProjectionRenderMode mode) {
             scan.run(scene.destination, null, BukkitGeometry.vector(eye), frustum, DEPTH, cold, false, true,
-                mode.usesBuriedCellCulling(), mode, null, false, LodPolicy.NONE);
+                mode.scanMode(), null, false, LodPolicy.NONE);
         }
     }
 

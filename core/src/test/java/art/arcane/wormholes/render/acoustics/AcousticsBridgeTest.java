@@ -4,15 +4,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import art.arcane.optics.fidelity.FidelityOptions;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import art.arcane.wormholes.render.FidelitySettings;
 
 final class AcousticsBridgeTest {
     private static final UUID PORTAL = UUID.fromString("00000000-0000-0000-0000-0000000000a1");
@@ -20,21 +17,10 @@ final class AcousticsBridgeTest {
     private static final UUID DEST_WORLD = UUID.fromString("00000000-0000-0000-0000-0000000000d1");
     private static final UUID OTHER_WORLD = UUID.fromString("00000000-0000-0000-0000-0000000000d2");
     private static final UUID OBSERVER = UUID.fromString("00000000-0000-0000-0000-0000000000b1");
+    private static final FidelityOptions FIDELITY = new FidelityOptions(0.005D, 0.6D, true, false, false, 8, 24.0D, 8);
 
     private final List<Played> played = new ArrayList<Played>();
     private final UUID observer = OBSERVER;
-
-    @BeforeEach
-    void settings() {
-        FidelitySettings.acousticsRadius = 24.0D;
-        FidelitySettings.acousticsRateCapPerObserver = 8;
-    }
-
-    @AfterEach
-    void restore() {
-        FidelitySettings.acousticsRadius = 24.0D;
-        FidelitySettings.acousticsRateCapPerObserver = 8;
-    }
 
     @Test
     void profilesGateEventClassesAndTheAmbientBed() {
@@ -138,7 +124,7 @@ final class AcousticsBridgeTest {
             public boolean clientAmbient(UUID viewer) {
                 return true;
             }
-        }, portalId -> List.of(observer), viewer -> viewer));
+        }, portalId -> List.of(observer), viewer -> viewer, () -> FIDELITY));
         assertEquals(null, bridge.ambientBed(PORTAL));
         note(bridge, AcousticsProfile.AMBIENT, AcousticsBridge.Environment.THE_END, 0L);
 
@@ -159,7 +145,7 @@ final class AcousticsBridgeTest {
     private AcousticsBridge<UUID> bridge() {
         return new AcousticsBridge<>(new AcousticsBridge.Options<>((viewer, sound) ->
             played.add(new Played(viewer, sound.soundKey(), sound.soundClass(), sound.x(), sound.y(), sound.z(), sound.volume(), sound.pitch())),
-            portalId -> List.of(observer), viewer -> viewer));
+            portalId -> List.of(observer), viewer -> viewer, () -> FIDELITY));
     }
 
     private static void note(AcousticsBridge<UUID> bridge, AcousticsProfile profile, AcousticsBridge.Environment environment, long now) {

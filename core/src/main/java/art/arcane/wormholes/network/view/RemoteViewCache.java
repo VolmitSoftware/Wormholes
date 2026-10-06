@@ -1,5 +1,6 @@
 package art.arcane.wormholes.network.view;
 
+import art.arcane.optics.entity.EntityProfile;
 import art.arcane.wormholes.network.client.ClientViewEnvironment;
 import art.arcane.wormholes.render.view.ProjectionSkyMath;
 
@@ -23,9 +24,6 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class RemoteViewCache<B, M, E> {
-    public record RemoteProfile(String name, String textureValue, String textureSignature) {
-    }
-
     public static final class DecodedSlice<B> {
         private final int minX;
         private final int minY;
@@ -116,7 +114,7 @@ public final class RemoteViewCache<B, M, E> {
         private final Map<UUID, EntityVisual> lastEntityState = new ConcurrentHashMap<>();
         private final Map<UUID, Integer> stateVersions = new ConcurrentHashMap<>();
         private final Map<Long, DecodedSlice<B>> slices = new ConcurrentHashMap<>();
-        private final Map<UUID, RemoteProfile> profiles = new ConcurrentHashMap<>();
+        private final Map<UUID, EntityProfile> profiles = new ConcurrentHashMap<>();
         private final Map<UUID, List<M>> entityMetadata = new ConcurrentHashMap<>();
         private final Map<UUID, List<E>> entityEquipment = new ConcurrentHashMap<>();
         private final Map<UUID, byte[]> lastMetadataBlobs = new ConcurrentHashMap<>();
@@ -156,7 +154,7 @@ public final class RemoteViewCache<B, M, E> {
             return entities;
         }
 
-        public RemoteProfile getProfile(UUID entityId) {
+        public EntityProfile getProfile(UUID entityId) {
             return profiles.get(entityId);
         }
 
@@ -482,10 +480,10 @@ public final class RemoteViewCache<B, M, E> {
             EntityVisual full = EntityDeltaCodec.applyDelta(incoming, lastKnown);
             view.lastEntityState.put(incoming.id(), full);
             if (full.isPlayer() && full.playerName() != null && !full.playerName().isEmpty()) {
-                RemoteProfile previous = view.profiles.get(full.id());
+                EntityProfile previous = view.profiles.get(full.id());
                 String textureValue = full.hasTextures() ? full.textureValue() : previous == null ? "" : previous.textureValue();
                 String textureSignature = full.hasTextures() ? full.textureSignature() : previous == null ? "" : previous.textureSignature();
-                view.profiles.put(full.id(), new RemoteProfile(full.playerName(), textureValue, textureSignature));
+                view.profiles.put(full.id(), new EntityProfile(full.playerName(), textureValue, textureSignature));
             }
             boolean stateChanged = false;
             int presentMask = incoming.presentMask();

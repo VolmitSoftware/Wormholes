@@ -1,5 +1,6 @@
 package art.arcane.wormholes.render.bedrock;
 
+import art.arcane.wormholes.render.FidelitySettings;
 import java.lang.reflect.Method;
 import java.util.UUID;
 import java.util.logging.Level;
@@ -32,7 +33,7 @@ public final class ClientProfileService {
 
     public ClientProfileService(BedrockDetector detector, BrandSource brands) {
         profiles = new ClientProfiles<>(new ClientProfiles.Options<>(player -> detector != null && detector.isBedrock(player),
-            player -> brands == null ? null : brands.brand(player), Player::getUniqueId));
+            player -> brands == null ? null : brands.brand(player), Player::getUniqueId, FidelitySettings::snapshot));
     }
 
     public static ClientProfileService detectFloodgateAndBrand(Plugin plugin) {

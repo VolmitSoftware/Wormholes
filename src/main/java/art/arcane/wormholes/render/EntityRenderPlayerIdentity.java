@@ -1,5 +1,6 @@
 package art.arcane.wormholes.render;
 
+import art.arcane.optics.entity.EntityProfile;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
@@ -25,8 +26,6 @@ import io.github.retrooper.packetevents.util.SpigotConversionUtil;
 import io.github.retrooper.packetevents.util.SpigotReflectionUtil;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-
-import art.arcane.wormholes.network.view.RemoteViewCache;
 
 final class EntityRenderPlayerIdentity {
     private static final long PROFILE_REFRESH_NANOS = 500_000_000L;
@@ -74,7 +73,7 @@ final class EntityRenderPlayerIdentity {
         return !Objects.equals(state.playerProfile, playerProfile(player));
     }
 
-    void sendRemotePlayerInfo(Player observer, RemoteViewCache.RemoteProfile profile, EntityRenderSpoofedEntity state, boolean upsideDown) {
+    void sendRemotePlayerInfo(Player observer, EntityProfile profile, EntityRenderSpoofedEntity state, boolean upsideDown) {
         state.playerProfile = profile;
         String sourceName = profile == null ? null : profile.name();
         String label = ProjectedPlayerNames.playerLabelText(sourceName);
@@ -130,7 +129,7 @@ final class EntityRenderPlayerIdentity {
         channel.send(observer, new WrapperPlayServerEntityTeleport(state.labelFakeId, labelPosition, 0.0F, 0.0F, false));
     }
 
-    void updatePlayerLabelText(Player observer, EntityRenderSpoofedEntity state, RemoteViewCache.RemoteProfile profile) {
+    void updatePlayerLabelText(Player observer, EntityRenderSpoofedEntity state, EntityProfile profile) {
         if (!state.playerEntry) {
             return;
         }
@@ -158,14 +157,14 @@ final class EntityRenderPlayerIdentity {
         return names.hasTeam();
     }
 
-    private static RemoteViewCache.RemoteProfile playerProfile(Player player) {
+    private static EntityProfile playerProfile(Player player) {
         for (TextureProperty property : SpigotReflectionUtil.getUserProfile(player)) {
             if ("textures".equals(property.getName())) {
-                return new RemoteViewCache.RemoteProfile(player.getName(), property.getValue(),
+                return new EntityProfile(player.getName(), property.getValue(),
                     property.getSignature() == null ? "" : property.getSignature());
             }
         }
-        return new RemoteViewCache.RemoteProfile(player.getName(), "", "");
+        return new EntityProfile(player.getName(), "", "");
     }
 
 }

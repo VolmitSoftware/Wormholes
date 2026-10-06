@@ -1,21 +1,25 @@
 package art.arcane.wormholes.portal;
 
+import art.arcane.optics.scan.ScanMode;
+
 import java.util.Locale;
 
 public enum ProjectionRenderMode
 {
-	PANOPTIC("PanOptic", "SPYGLASS"),
-	VENTICULAR("Venticular", "TINTED_GLASS");
+	PANOPTIC("PanOptic", "SPYGLASS", new ScanMode(false, false)),
+	VENTICULAR("Venticular", "TINTED_GLASS", new ScanMode(true, true));
 
 	private static final ProjectionRenderMode[] VALUES = values();
 
 	private final String displayName;
 	private final String iconMaterialName;
+	private final ScanMode scanMode;
 
-	ProjectionRenderMode(String displayName, String iconMaterialName)
+	ProjectionRenderMode(String displayName, String iconMaterialName, ScanMode scanMode)
 	{
 		this.displayName = displayName;
 		this.iconMaterialName = iconMaterialName;
+		this.scanMode = scanMode;
 	}
 
 	public String displayName()
@@ -28,14 +32,9 @@ public enum ProjectionRenderMode
 		return iconMaterialName;
 	}
 
-	public boolean usesBuriedCellCulling()
+	public ScanMode scanMode()
 	{
-		return this == VENTICULAR;
-	}
-
-	public boolean usesObserverOcclusion()
-	{
-		return this == VENTICULAR;
+		return scanMode;
 	}
 
 	public ProjectionRenderMode next()

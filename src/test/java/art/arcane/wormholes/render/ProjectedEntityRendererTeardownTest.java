@@ -1,5 +1,6 @@
 package art.arcane.wormholes.render;
 
+import art.arcane.optics.entity.EntityProfile;
 import com.github.retrooper.packetevents.util.Vector3d;
 
 import art.arcane.wormholes.render.view.ProjectionWorldView;
@@ -30,7 +31,6 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerTe
 
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.network.view.EntityVisual;
-import art.arcane.wormholes.network.view.RemoteViewCache;
 import art.arcane.wormholes.portal.IPortal;
 import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.render.view.ProjectionEntityView;
@@ -235,7 +235,7 @@ public final class ProjectedEntityRendererTeardownTest {
             }
 
             @Override
-            public RemoteViewCache.RemoteProfile getProfile(UUID entityId) {
+            public EntityProfile getProfile(UUID entityId) {
                 return null;
             }
 

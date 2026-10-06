@@ -9,6 +9,7 @@ import java.util.Collection;
 import net.minecraft.world.phys.AABB;
 
 import art.arcane.wormholes.ProjectionObserverGeometry;
+import art.arcane.wormholes.config.ProjectionGazeOptions;
 import art.arcane.wormholes.modded.clientview.MinecraftClientViewService;
 import art.arcane.wormholes.config.toml.ProjectionConfig;
 import art.arcane.wormholes.geometry.GeometryVector;
@@ -41,6 +42,7 @@ import art.arcane.wormholes.render.ProjectionCellKey;
 import art.arcane.wormholes.render.ProjectionBlockSlices;
 import art.arcane.wormholes.render.ProjectionClaimSet;
 import art.arcane.wormholes.render.ProjectionGazeScheduler;
+import art.arcane.wormholes.service.WormholesTelemetry;
 import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Direction;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
@@ -575,7 +577,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
         private final ProjectedBlockEntityLayer<ServerPlayer> blockEntities =
             new ProjectedBlockEntityLayer<>(new MinecraftBlockEntityPackets(runtime));
         private final ProjectorLighting<ServerPlayer, BlockState, ProjectionContentView<BlockState, BlockState>> lighting =
-            new ProjectorLighting<>(new MinecraftProjectorLighting(runtime));
+            new ProjectorLighting<>(new MinecraftProjectorLighting(runtime), WormholesTelemetry.metrics());
         private final LongOpenHashSet dirtyLight = new LongOpenHashSet();
         private final MinecraftAtmosphere atmosphere;
         private final MinecraftPortalSurfaces surfaces;
@@ -586,7 +588,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
             this.player = player;
             this.world = player.level();
             this.acoustics = new AcousticsBridge<>(new AcousticsBridge.Options<>(new MinecraftAcoustics.Sink(runtime.clientViews()),
-                ignored -> List.of(player), ServerPlayer::getUUID));
+                ignored -> List.of(player), ServerPlayer::getUUID, FidelitySettings::snapshot));
             this.portals.setDoorViews(doorwayViews);
             this.portals.observer(player);
             this.atmosphere = new MinecraftAtmosphere(runtime, new MinecraftAtmosphere.Context(player, view(world)));
@@ -629,7 +631,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
             Vec3 eye = player.getEyePosition();
             List<MinecraftPortal> selected = gaze.select(player.getUUID(),
                 new ProjectionGazeScheduler.Eye(eye.x, eye.y, eye.z, player.getYRot(), player.getXRot()),
-                gazeCandidates, budget, tick, ProjectionGazeScheduler.Options.from(config()));
+                gazeCandidates, budget, tick, ProjectionGazeOptions.from(config()));
             gaze.retain(player.getUUID(), activeIds);
             ProjectionBlockSlices slices = new ProjectionBlockSlices(selected.size());
             int processed = 0;

@@ -1,5 +1,6 @@
 package art.arcane.wormholes.render;
 
+import art.arcane.optics.spi.OpticsMetrics;
 import art.arcane.wormholes.render.view.ProjectionContentView;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -259,7 +260,7 @@ public final class ProjectorLightingIncrementalTest {
             public ProjectionWorldChangeTracker tracker() {
                 return null;
             }
-        });
+        }, OpticsMetrics.none());
     }
 
     private static void receive(Map<Long, SectionLight> client, MutableLightView local,

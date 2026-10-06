@@ -132,7 +132,8 @@ public final class ProjectedEntityRenderer {
         this.registry = registry;
         this.metadataBridge = new EntityRenderMetadataBridge(channel);
         this.occluder = new EntityRenderLocalOccluder(localOcclusion, localOcclusionOwnerId);
-        this.visualProjector = new EntityRenderVisualProjector<>(registry, new BukkitEntityVisualHost(channel, new BukkitEntityVisualHost.Options(identity, this.metadataBridge)));
+        this.visualProjector = new EntityRenderVisualProjector<>(registry, new BukkitEntityVisualHost(channel,
+            new BukkitEntityVisualHost.Options(identity, this.metadataBridge)), FidelitySettings::snapshot);
         this.entityTypeCache = new HashMap<NamespacedKey, EntityType>(32);
         this.scratchVisiblePoint = new double[3];
         this.scratchDirection = new double[3];
@@ -682,7 +683,7 @@ public final class ProjectedEntityRenderer {
             registry.syncHeadLook(observer, state, yaw);
         }
         if (state.updateVelocity(velocity.getX(), velocity.getY(), velocity.getZ(),
-            FidelitySettings.entityVelocityEpsilon)) {
+            FidelitySettings.snapshot().entityVelocityEpsilon())) {
             channel.send(observer, new WrapperPlayServerEntityVelocity(state.fakeId, velocity));
         }
         boolean metadataRefreshDue = state.shouldRefreshMetadata();

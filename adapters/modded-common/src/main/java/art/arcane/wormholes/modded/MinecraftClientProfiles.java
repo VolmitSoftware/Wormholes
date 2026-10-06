@@ -2,6 +2,7 @@ package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.modded.mixin.ConnectionChannelAccess;
 import art.arcane.wormholes.modded.mixin.ServerConnectionAccess;
+import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.wormholes.render.bedrock.BedrockProfile;
 import art.arcane.wormholes.render.bedrock.ClientProfiles;
 import io.netty.channel.Channel;
@@ -21,7 +22,7 @@ public final class MinecraftClientProfiles {
     private static final AttributeKey<String> BRAND = AttributeKey.valueOf("wormholes:client-brand");
     private static final Predicate<ServerPlayer> FLOODGATE = floodgate();
     private static final ClientProfiles<ServerPlayer> PROFILES = new ClientProfiles<>(new ClientProfiles.Options<>(
-        FLOODGATE, MinecraftClientProfiles::brand, ServerPlayer::getUUID));
+        FLOODGATE, MinecraftClientProfiles::brand, ServerPlayer::getUUID, FidelitySettings::snapshot));
 
     private MinecraftClientProfiles() { }
 

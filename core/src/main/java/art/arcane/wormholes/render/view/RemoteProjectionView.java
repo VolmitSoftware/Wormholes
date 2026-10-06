@@ -1,5 +1,6 @@
 package art.arcane.wormholes.render.view;
 
+import art.arcane.optics.entity.EntityProfile;
 import art.arcane.wormholes.network.client.ClientViewEnvironment;
 import art.arcane.wormholes.network.view.EntityVisual;
 import art.arcane.wormholes.network.view.RemoteViewCache;
@@ -125,7 +126,7 @@ public class RemoteProjectionView<B, T, M, E> implements ProjectionContentView<B
         return view.getEntities();
     }
 
-    public RemoteViewCache.RemoteProfile getProfile(UUID entityId) {
+    public EntityProfile getProfile(UUID entityId) {
         return view.getProfile(entityId);
     }
 

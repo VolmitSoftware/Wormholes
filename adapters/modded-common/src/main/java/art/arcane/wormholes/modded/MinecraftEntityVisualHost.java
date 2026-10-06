@@ -1,8 +1,8 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.entity.EntityProfile;
 import art.arcane.wormholes.network.view.ProjectedMapData;
 import art.arcane.wormholes.network.view.EntityVisual;
-import art.arcane.wormholes.network.view.RemoteViewCache.RemoteProfile;
 import art.arcane.wormholes.render.EntityRenderSpoofedEntity;
 import art.arcane.wormholes.render.EntityRenderVisualProjector;
 import art.arcane.wormholes.render.ProjectedEntityMaps;
@@ -102,7 +102,7 @@ public final class MinecraftEntityVisualHost implements EntityRenderVisualProjec
     @Override
     public double z(Vec3 position) { return position.z; }
     @Override
-    public RemoteProfile profile(ProjectionEntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment> view, UUID entityId) { return view.getProfile(entityId); }
+    public EntityProfile profile(ProjectionEntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment> view, UUID entityId) { return view.getProfile(entityId); }
     @Override
     public int stateVersion(ProjectionEntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment> view, UUID entityId) { return view.getStateVersion(entityId); }
     @Override
@@ -111,7 +111,7 @@ public final class MinecraftEntityVisualHost implements EntityRenderVisualProjec
     }
 
     @Override
-    public void playerInfo(ServerPlayer observer, EntityRenderSpoofedEntity state, RemoteProfile profile) {
+    public void playerInfo(ServerPlayer observer, EntityRenderSpoofedEntity state, EntityProfile profile) {
         packets.playerInfo(observer, state, profile);
     }
 

@@ -1,7 +1,7 @@
 package art.arcane.wormholes.render.view;
 
+import art.arcane.optics.entity.EntityProfile;
 import art.arcane.wormholes.network.view.EntityVisual;
-import art.arcane.wormholes.network.view.RemoteViewCache;
 import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
 
 import org.junit.jupiter.api.Test;
@@ -55,7 +55,7 @@ class RegionSnapshotWorldViewProviderTest {
         UUID id = UUID.randomUUID();
         EntityVisual first = visual(id, 1.0D, new byte[] {1, 2}, new byte[] {3});
         EntityVisual moved = visual(id, 9.0D, new byte[] {1, 2}, new byte[] {3});
-        RemoteViewCache.RemoteProfile profile = new RemoteViewCache.RemoteProfile("Player", "texture", "signature");
+        EntityProfile profile = new EntityProfile("Player", "texture", "signature");
 
         assertTrue(RegionSnapshotWorldViewProvider.sameEntityState(first, profile, moved, profile));
     }
@@ -64,7 +64,7 @@ class RegionSnapshotWorldViewProviderTest {
     void changesEntityStateForMetadataEquipmentMapOrProfileChanges() {
         UUID id = UUID.randomUUID();
         EntityVisual base = visual(id, 1.0D, new byte[] {1}, new byte[] {2});
-        RemoteViewCache.RemoteProfile profile = new RemoteViewCache.RemoteProfile("Player", "texture", "signature");
+        EntityProfile profile = new EntityProfile("Player", "texture", "signature");
 
         assertFalse(RegionSnapshotWorldViewProvider.sameEntityState(base, profile,
             visual(id, 1.0D, new byte[] {9}, new byte[] {2}), profile));
@@ -73,7 +73,7 @@ class RegionSnapshotWorldViewProviderTest {
         assertFalse(RegionSnapshotWorldViewProvider.sameEntityState(base, profile,
             visual(id, 1.0D, new byte[] {1}, new byte[] {2}, new byte[] {9}), profile));
         assertFalse(RegionSnapshotWorldViewProvider.sameEntityState(base, profile, base,
-            new RemoteViewCache.RemoteProfile("Other", "texture", "signature")));
+            new EntityProfile("Other", "texture", "signature")));
     }
 
     @Test

@@ -53,7 +53,7 @@ public final class ChunkBulkBuilder<S, B, T> {
         HashMap<String, Integer> biomePaletteLookup = new HashMap<>(16);
         short[] indices = new short[cells];
         byte[] light = new byte[cells];
-        boolean buriedCellCulling = mode.usesBuriedCellCulling();
+        boolean buriedCellCulling = mode.scanMode().buriedCellCulling();
         boolean[] occluding = buriedCellCulling ? new boolean[cells] : null;
 
         int cell = 0;

@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.entity.EntityProfile;
 import art.arcane.wormholes.network.view.ProjectedMapData;
-import art.arcane.wormholes.network.view.RemoteViewCache.RemoteProfile;
 import art.arcane.wormholes.render.EntityRenderSpoofedEntity;
 import art.arcane.wormholes.render.ProjectedPlayerNames;
 import net.minecraft.core.RegistryAccess;
@@ -45,7 +45,7 @@ public class MinecraftEntityPacketsTest extends MinecraftTestBase {
         EntityRenderSpoofedEntity state = EntityRenderSpoofedEntity.create(true, false, true);
         state.setPlayerIdentity(ProjectedPlayerNames.syntheticProfileName(state.fakeUuid), "PortalTester");
         ClientboundPlayerInfoUpdatePacket packet = MinecraftEntityPackets.playerInfo(RegistryAccess.EMPTY, state,
-            new RemoteProfile("PortalTester", "texture-value", "texture-signature"));
+            new EntityProfile("PortalTester", "texture-value", "texture-signature"));
         ClientboundPlayerInfoUpdatePacket.Entry entry = packet.entries().getFirst();
         assertEquals(state.fakeUuid, entry.profileId());
         assertEquals(state.playerProfileName, entry.profile().name());

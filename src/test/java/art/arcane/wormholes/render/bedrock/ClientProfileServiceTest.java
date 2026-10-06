@@ -5,6 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import art.arcane.wormholes.config.WormholesSettings;
+import art.arcane.wormholes.config.toml.MainConfig;
+import art.arcane.wormholes.config.toml.NetworkConfig;
+import art.arcane.wormholes.config.toml.ProjectionConfig;
+import art.arcane.wormholes.config.toml.RenderConfig;
 import java.lang.reflect.Proxy;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -21,7 +26,7 @@ final class ClientProfileServiceTest {
 
     @AfterEach
     void restore() {
-        FidelitySettings.bedrockEnabled = true;
+        FidelitySettings.refresh(settings(true));
         ClientProfileService.install(null);
     }
 
@@ -80,7 +85,7 @@ final class ClientProfileServiceTest {
         assertTrue(shaped.profile(player(FLOODGATE_SHAPED_ID)).bedrock(), "Floodgate players carry a zero-high-bits UUID");
         assertFalse(shaped.profile(player(JAVA_ID)).bedrock());
 
-        FidelitySettings.bedrockEnabled = false;
+        FidelitySettings.refresh(settings(false));
         ClientProfileService disabled = new ClientProfileService(player -> true, player -> "Geyser");
         assertSame(BedrockProfile.JAVA, disabled.profile(player(FLOODGATE_SHAPED_ID)));
     }
@@ -92,6 +97,12 @@ final class ClientProfileServiceTest {
         ClientProfileService.install(new ClientProfileService(player -> true, player -> null));
         assertTrue(ClientProfileService.profileFor(player(JAVA_ID)).bedrock());
         assertEquals(1, ClientProfileService.bedrockViewerCount());
+    }
+
+    private static WormholesSettings settings(boolean bedrockEnabled) {
+        WormholesSettings settings = new WormholesSettings(new MainConfig(), new ProjectionConfig(), new RenderConfig(), new NetworkConfig());
+        settings.getBedrock().enabled = bedrockEnabled;
+        return settings;
     }
 
     static Player player(UUID id) {

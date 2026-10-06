@@ -106,7 +106,7 @@ public final class MinecraftViewServer implements AutoCloseable {
         if (closed) {
             return;
         }
-        double radius = FidelitySettings.acousticsRadius;
+        double radius = FidelitySettings.snapshot().acousticsRadius();
         for (Session session : sessions.values()) {
             if (session.level != level || session.peers.isEmpty()) {
                 continue;

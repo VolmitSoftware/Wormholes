@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.clientview;
 
+import art.arcane.optics.entity.EntityProfile;
 import art.arcane.wormholes.config.toml.RenderConfig;
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.modded.MinecraftEntityMetadata;
@@ -14,7 +15,6 @@ import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.network.client.ClientViewEnvironment;
 import art.arcane.wormholes.network.client.ClientViewProtocol;
 import art.arcane.wormholes.network.view.EntityVisual;
-import art.arcane.wormholes.network.view.RemoteViewCache.RemoteProfile;
 import art.arcane.wormholes.portal.AmbientOutlineGeometry;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.rtp.RtpRimRenderer;
@@ -364,7 +364,7 @@ public final class MinecraftClientViewScene implements ClientViewEntityFrames.Sc
         return dx * dx + dy * dy + dz * dz;
     }
 
-    private static EntityVisual withProfile(EntityVisual visual, RemoteProfile profile) {
+    private static EntityVisual withProfile(EntityVisual visual, EntityProfile profile) {
         if (!visual.isPlayer() || profile == null || profile.textureValue() == null || profile.textureValue().isEmpty()
             || profile.textureValue().equals(visual.textureValue())) {
             return visual;

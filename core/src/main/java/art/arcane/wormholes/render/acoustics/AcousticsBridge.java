@@ -1,5 +1,6 @@
 package art.arcane.wormholes.render.acoustics;
 
+import art.arcane.optics.fidelity.FidelityOptions;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -7,8 +8,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import java.util.function.Function;
 
-import art.arcane.wormholes.render.FidelitySettings;
-
+import java.util.function.Supplier;
 /**
  * Routes destination-side sound events to the observers of every portal that looks at that place,
  * positioned at the local aperture centre and attenuated by the event's distance from the far side.
@@ -43,7 +43,8 @@ public final class AcousticsBridge<O> {
     public record Playback(String soundKey, AcousticsProfile.SoundClass soundClass, double x, double y, double z, float volume, float pitch) {
     }
 
-    public record Options<O>(SoundSink<O> sink, ObserverLookup<O> observers, Function<O, UUID> observerId) {
+    public record Options<O>(SoundSink<O> sink, ObserverLookup<O> observers, Function<O, UUID> observerId,
+                             Supplier<FidelityOptions> fidelity) {
     }
 
     public enum Environment {
@@ -99,6 +100,7 @@ public final class AcousticsBridge<O> {
     private final SoundSink<O> sink;
     private final ObserverLookup<O> observers;
     private final Function<O, UUID> observerId;
+    private final Supplier<FidelityOptions> fidelity;
     private final Map<UUID, Aperture> apertures;
     private final Map<UUID, RateState> rates;
 
@@ -106,6 +108,7 @@ public final class AcousticsBridge<O> {
         this.sink = options.sink();
         this.observers = options.observers();
         this.observerId = options.observerId();
+        this.fidelity = options.fidelity();
         this.apertures = new ConcurrentHashMap<UUID, Aperture>();
         this.rates = new ConcurrentHashMap<UUID, RateState>();
     }
@@ -240,7 +243,7 @@ public final class AcousticsBridge<O> {
         if (!aperture.profile.admits(soundClass)) {
             return 0;
         }
-        double radius = FidelitySettings.acousticsRadius;
+        double radius = fidelity.get().acousticsRadius();
         double dx = x - aperture.destinationX;
         double dy = y - aperture.destinationY;
         double dz = z - aperture.destinationZ;
@@ -263,7 +266,7 @@ public final class AcousticsBridge<O> {
     }
 
     private boolean admit(O observer, long nowMillis) {
-        int cap = FidelitySettings.acousticsRateCapPerObserver;
+        int cap = fidelity.get().acousticsRateCapPerObserver();
         if (cap <= 0) {
             return false;
         }

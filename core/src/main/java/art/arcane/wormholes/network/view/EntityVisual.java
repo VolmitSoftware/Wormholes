@@ -1,7 +1,5 @@
 package art.arcane.wormholes.network.view;
 
-import art.arcane.wormholes.network.WireCodec;
-
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -229,13 +227,13 @@ public record EntityVisual(
             }
         }
         if ((presentMask & FIELD_METADATA) != 0) {
-            WireCodec.writeByteArray(out, metadata == null ? EntityVisual.EMPTY : metadata, MAX_BLOB_BYTES);
+            writeBlob(out, metadata == null ? EntityVisual.EMPTY : metadata);
         }
         if ((presentMask & FIELD_EQUIPMENT) != 0) {
-            WireCodec.writeByteArray(out, equipment == null ? EntityVisual.EMPTY : equipment, MAX_BLOB_BYTES);
+            writeBlob(out, equipment == null ? EntityVisual.EMPTY : equipment);
         }
         if ((presentMask & FIELD_MAP_DATA) != 0) {
-            WireCodec.writeByteArray(out, mapData == null ? EntityVisual.EMPTY : mapData, MAX_BLOB_BYTES);
+            writeBlob(out, mapData == null ? EntityVisual.EMPTY : mapData);
         }
     }
 
@@ -308,15 +306,15 @@ public record EntityVisual(
         }
         byte[] metadata = EntityVisual.EMPTY;
         if ((presentMask & FIELD_METADATA) != 0) {
-            metadata = WireCodec.readByteArray(in, MAX_BLOB_BYTES);
+            metadata = readBlob(in);
         }
         byte[] equipment = EntityVisual.EMPTY;
         if ((presentMask & FIELD_EQUIPMENT) != 0) {
-            equipment = WireCodec.readByteArray(in, MAX_BLOB_BYTES);
+            equipment = readBlob(in);
         }
         byte[] mapData = EntityVisual.EMPTY;
         if ((presentMask & FIELD_MAP_DATA) != 0) {
-            mapData = WireCodec.readByteArray(in, MAX_BLOB_BYTES);
+            mapData = readBlob(in);
         }
         return new EntityVisual(
             mode,
@@ -448,5 +446,23 @@ public record EntityVisual(
         result = 31 * result + Arrays.hashCode(equipment);
         result = 31 * result + Arrays.hashCode(mapData);
         return result;
+    }
+
+    private static void writeBlob(DataOutputStream out, byte[] bytes) throws IOException {
+        if (bytes.length > MAX_BLOB_BYTES) {
+            throw new IOException("Byte array too large: " + bytes.length + " > " + MAX_BLOB_BYTES);
+        }
+        out.writeInt(bytes.length);
+        out.write(bytes);
+    }
+
+    private static byte[] readBlob(DataInputStream in) throws IOException {
+        int length = in.readInt();
+        if (length < 0 || length > MAX_BLOB_BYTES) {
+            throw new IOException("Invalid byte array length: " + length + " (max " + MAX_BLOB_BYTES + ")");
+        }
+        byte[] bytes = new byte[length];
+        in.readFully(bytes);
+        return bytes;
     }
 }

@@ -1,7 +1,6 @@
 package art.arcane.wormholes.render.bedrock;
 
-import art.arcane.wormholes.render.FidelitySettings;
-
+import art.arcane.optics.fidelity.FidelityOptions;
 /**
  * Rendering caps applied to one viewer. Java viewers get every channel; Bedrock viewers (through
  * Geyser) keep block changes, block entities and sounds, and lose display entities, light overlays
@@ -11,9 +10,9 @@ public record BedrockProfile(boolean bedrock, boolean displayEntities, boolean l
     public static final int BLOCK_BATCH_LIMIT = 64;
     public static final BedrockProfile JAVA = new BedrockProfile(false, true, true, Integer.MAX_VALUE, Integer.MAX_VALUE);
 
-    public static BedrockProfile forBedrock() {
-        return new BedrockProfile(true, FidelitySettings.bedrockDisplayEntities, FidelitySettings.bedrockLightingFidelity,
-            FidelitySettings.bedrockEntityCap, BLOCK_BATCH_LIMIT);
+    public static BedrockProfile forBedrock(FidelityOptions fidelity) {
+        return new BedrockProfile(true, fidelity.bedrockDisplayEntities(), fidelity.bedrockLightingFidelity(),
+            fidelity.bedrockEntityCap(), BLOCK_BATCH_LIMIT);
     }
 
     public boolean withholdsDisplays() {

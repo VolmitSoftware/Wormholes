@@ -4,6 +4,7 @@ import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
+import art.arcane.wormholes.service.WormholesTelemetry;
 import com.github.retrooper.packetevents.PacketEvents;
 import com.github.retrooper.packetevents.protocol.world.chunk.LightData;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerUpdateLight;
@@ -28,7 +29,7 @@ public final class BukkitProjectorLighting implements ProjectorLighting.Host<Pla
     }
 
     public static ProjectorLighting<Player, BlockData, ProjectionWorldView> create(ProjectionChunkVisibility visibility, LightPacketSender sender) {
-        return new ProjectorLighting<>(new BukkitProjectorLighting(visibility, sender));
+        return new ProjectorLighting<>(new BukkitProjectorLighting(visibility, sender), WormholesTelemetry.metrics());
     }
 
     @Override

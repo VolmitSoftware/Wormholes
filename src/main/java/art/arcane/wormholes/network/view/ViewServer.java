@@ -345,7 +345,7 @@ public final class ViewServer implements Listener {
         if (world == null || registry.isEmpty()) {
             return;
         }
-        double radius = FidelitySettings.acousticsRadius;
+        double radius = FidelitySettings.snapshot().acousticsRadius();
         NetworkManager network = registry.network();
         for (ViewSession session : registry.sessions()) {
             if (!session.world.equals(world) || session.peers.isEmpty()) {

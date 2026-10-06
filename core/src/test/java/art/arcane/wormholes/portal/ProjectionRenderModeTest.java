@@ -43,13 +43,4 @@ public final class ProjectionRenderModeTest
 		assertEquals("SPYGLASS", ProjectionRenderMode.PANOPTIC.iconMaterialName());
 		assertEquals("TINTED_GLASS", ProjectionRenderMode.VENTICULAR.iconMaterialName());
 	}
-
-	@Test
-	public void optimizedModesUseBuriedCellCulling()
-	{
-		assertEquals(false, ProjectionRenderMode.PANOPTIC.usesBuriedCellCulling());
-		assertEquals(true, ProjectionRenderMode.VENTICULAR.usesBuriedCellCulling());
-		assertEquals(false, ProjectionRenderMode.PANOPTIC.usesObserverOcclusion());
-		assertEquals(true, ProjectionRenderMode.VENTICULAR.usesObserverOcclusion());
-	}
 }

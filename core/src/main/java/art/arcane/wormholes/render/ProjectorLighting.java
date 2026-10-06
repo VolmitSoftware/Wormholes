@@ -13,10 +13,8 @@ import it.unimi.dsi.fastutil.objects.ObjectIterator;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Iterator;
+import art.arcane.optics.spi.OpticsMetrics;
 import art.arcane.wormholes.render.view.ProjectionContentView;
-
-
-import art.arcane.wormholes.service.WormholesTelemetry;
 
 public final class ProjectorLighting<P, B, V extends ProjectionContentView<?, ?>> {
     private static final int SECTION_NIBBLE_BYTES = 2048;
@@ -29,13 +27,15 @@ public final class ProjectorLighting<P, B, V extends ProjectionContentView<?, ?>
     private final Long2ObjectOpenHashMap<SectionClaims> sectionClaims = new Long2ObjectOpenHashMap<SectionClaims>(16);
     private final Long2ObjectOpenHashMap<IntOpenHashSet> currentChunkSections = new Long2ObjectOpenHashMap<IntOpenHashSet>(8);
     private final Host<P> host;
+    private final OpticsMetrics metrics;
     private V indexedLocalView;
     private int indexedMinHeight;
     private int indexedMaxHeight;
     private boolean indexedSourceLighting;
 
-    public ProjectorLighting(Host<P> host) {
+    public ProjectorLighting(Host<P> host, OpticsMetrics metrics) {
         this.host = host;
+        this.metrics = metrics;
     }
 
     public void apply(P observer,
@@ -420,7 +420,7 @@ public final class ProjectorLighting<P, B, V extends ProjectionContentView<?, ?>
 
         host.send(observer, new ChunkLight(chunkX, chunkZ, blockMask, skyMask,
             emptyBlockMask, emptySkyMask, skyArrays, blockArrays));
-        WormholesTelemetry.countPacket();
+        metrics.packet();
         return true;
     }
 
@@ -586,7 +586,7 @@ public final class ProjectorLighting<P, B, V extends ProjectionContentView<?, ?>
 
         host.send(observer, new ChunkLight(chunkX, chunkZ, blockMask, skyMask,
             emptyBlockMask, emptySkyMask, skyArrays, blockArrays));
-        WormholesTelemetry.countPacket();
+        metrics.packet();
         return true;
     }
 

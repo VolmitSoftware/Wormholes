@@ -1,11 +1,14 @@
 package art.arcane.wormholes.service;
 
+import art.arcane.optics.spi.OpticsMetrics;
+
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 public final class WormholesTelemetry {
     private static final long RATE_WINDOW_MS = 1000L;
+    private static final OpticsMetrics METRICS = new TelemetryMetrics();
     private static final AtomicLong BLOCK_CHANGES = new AtomicLong();
     private static final AtomicLong PACKETS = new AtomicLong();
     private static final AtomicLong RENDER_NANOS = new AtomicLong();
@@ -25,6 +28,10 @@ public final class WormholesTelemetry {
     private static volatile double renderMsPerSecond;
 
     private WormholesTelemetry() {
+    }
+
+    public static OpticsMetrics metrics() {
+        return METRICS;
     }
 
     public static void countBlockChange() {
@@ -176,6 +183,27 @@ public final class WormholesTelemetry {
             windowRenderNanos = renderNanos;
         } finally {
             RATE_GATE.set(false);
+        }
+    }
+
+    private static final class TelemetryMetrics implements OpticsMetrics {
+        @Override
+        public void failure(String reason) {
+            countFailure(reason);
+        }
+
+        @Override
+        public void packet() {
+            countPacket();
+        }
+
+        @Override
+        public void count(String key, long delta) {
+        }
+
+        @Override
+        public long nanoTime() {
+            return System.nanoTime();
         }
     }
 }

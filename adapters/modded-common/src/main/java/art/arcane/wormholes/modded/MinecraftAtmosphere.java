@@ -55,7 +55,7 @@ public final class MinecraftAtmosphere implements AutoCloseable {
             return;
         }
         Long2IntOpenHashMap overrides = channel.update(new AtmosphereChannel.Scan<>(projector.scan().claims(),
-            projector.destinationView(), changed), ids);
+            projector.destinationView(), changed), ids, FidelitySettings.snapshot());
         if (overrides != null) {
             enqueue(claims.apply(id, overrides));
         }
