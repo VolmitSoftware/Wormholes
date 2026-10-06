@@ -96,7 +96,7 @@ public class MinecraftPortalSettingsTest extends MinecraftTestBase {
             MinecraftPortal destination = portal();
             sync.applySettings(destination, sync.collectSettings(loaded));
             assertEquals(rotation, destination.getMirrorRotation());
-            assertEquals(rotation.coherentFor(destination.getFrame()), packets.mirrorTurns(destination));
+            assertEquals(rotation, packets.mirrorTurns(destination));
         }
     }
 

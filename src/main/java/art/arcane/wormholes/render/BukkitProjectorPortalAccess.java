@@ -62,7 +62,7 @@ public final class BukkitProjectorPortalAccess implements EndpointDirectory<Worl
 
     @Override
     public QuarterTurn mirrorTurns(ILocalPortal portal) {
-        return portal.getMirrorRotation().coherentFor(portal.getFrame());
+        return portal.getMirrorRotation();
     }
 
     @Override

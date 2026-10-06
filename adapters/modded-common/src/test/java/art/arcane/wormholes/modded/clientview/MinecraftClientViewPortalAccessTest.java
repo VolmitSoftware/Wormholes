@@ -133,22 +133,18 @@ public class MinecraftClientViewPortalAccessTest extends MinecraftTestBase {
     }
 
     @Test
-    public void wallMirrorRotationUsesRawMeshGeometryAndClampedPacketGeometry() {
+    public void wallMirrorRotationReachesMeshAndPacketGeometryUnclamped() {
         Fixture fixture = fixture(PortalType.PORTAL);
         when(fixture.source().isMirrorMode()).thenReturn(true);
         MinecraftClientViewPortalAccess portals = new MinecraftClientViewPortalAccess(fixture.runtime());
         for (QuarterTurn rotation : List.of(QuarterTurn.DEGREES_90, QuarterTurn.DEGREES_270)) {
-            when(fixture.source().getMirrorRotation()).thenReturn(rotation);
-            QuarterTurn coherent = rotation.coherentFor(fixture.source().getFrame());
-            int ordinary = coherent.getQuarterTurns();
-            when(fixture.access().mirrorTurns(fixture.source())).thenReturn(coherent);
-            fixture.peer().meshDepth(208);
-            ApertureDescriptor geometry = portals.geometry(fixture.peer(), fixture.source().getId(), new SessionPalette());
-            assertEquals(rotation.getQuarterTurns(), geometry.mirrorQuarterTurns());
-            assertEquals(rotation.getQuarterTurns(), portals.target(fixture.peer(), fixture.source(), true).mirrorQuarterTurns());
-            fixture.peer().meshDepth(0);
-            assertEquals(ordinary, portals.geometry(fixture.peer(), fixture.source().getId(), new SessionPalette()).mirrorQuarterTurns());
-            assertEquals(ordinary, portals.target(fixture.peer(), fixture.source(), true).mirrorQuarterTurns());
+            when(fixture.access().mirrorTurns(fixture.source())).thenReturn(rotation);
+            for (int meshDepth : new int[] {208, 0}) {
+                fixture.peer().meshDepth(meshDepth);
+                ApertureDescriptor geometry = portals.geometry(fixture.peer(), fixture.source().getId(), new SessionPalette());
+                assertEquals(rotation.getQuarterTurns(), geometry.mirrorQuarterTurns());
+                assertEquals(rotation.getQuarterTurns(), portals.target(fixture.peer(), fixture.source(), true).mirrorQuarterTurns());
+            }
         }
     }
 

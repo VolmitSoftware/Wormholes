@@ -347,7 +347,7 @@ final class RecursiveEndpointsTransformTest {
 
         @Override
         public QuarterTurn mirrorTurns(ScenePortal portal) {
-            return portal.turns().coherentFor(portal.frame());
+            return portal.turns();
         }
 
         @Override

@@ -111,8 +111,7 @@ public final class MinecraftProjectorPortalAccess implements EndpointDirectory<S
 
     @Override
     public QuarterTurn mirrorTurns(MinecraftPortal portal) {
-        int degrees = portal.setting("mirrorRotationDegrees") instanceof Number value ? value.intValue() : 0;
-        return QuarterTurn.fromDegrees(degrees).coherentFor(portal.getFrame());
+        return portal.getMirrorRotation();
     }
 
     @Override
