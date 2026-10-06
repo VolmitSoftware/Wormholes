@@ -11,10 +11,7 @@ public final class ClientViewProtocol {
     public static final int MAX_TRAVEL_BYTES = 64 * 1024 * 1024;
     public static final int TRAVEL_FRAGMENT_BYTES = 48 * 1024;
     public static final int MAX_TRAVEL_EXPIRY_MILLIS = 300_000;
-    public static final String CHANNEL_NAMESPACE = "wormholes";
-    public static final String CHANNEL_PATH = "v5";
-    public static final String CHANNEL = CHANNEL_NAMESPACE + ":" + CHANNEL_PATH;
-    public static final int WIRE_VERSION = 5;
+    public static final int WIRE_VERSION = 6;
 
     public static final int S2C_HEADER_BYTES = 6;
     public static final int C2S_HEADER_BYTES = 1;

@@ -287,7 +287,7 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
             ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
             ClientViewMessage.TravelBegin original = begin();
             ClientPortalGeometry aperture = new ClientPortalGeometry(0, 0, 0, Direction.N.ordinal(), true, 0, false, 2, 3,
-                new long[]{1}, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, kind, 0, 11, List.of());
+                new long[]{1}, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, kind, 0.0D, 0, 11, List.of());
             ClientViewMessage.TravelBegin begin = new ClientViewMessage.TravelBegin(original.token(), original.generation(),
                 original.sourcePortal(), original.sourceWorld(), aperture, original.destinationToSource(), original.world(),
                 original.arrival(), original.chunks(), original.environment(), original.expiresMillis());
@@ -321,7 +321,7 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
                 travel.discardManagedVanillaPortal(level, ClientTravelTestFixtures.geometry());
                 assertEquals(managed, travel.managesVanillaPortal(level, open));
                 ClientPortalGeometry reverseSide = new ClientPortalGeometry(0, 0, 0, Direction.N.ordinal(), false, 0, false, 2, 3,
-                    new long[]{1}, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, kind, 0, 11, List.of());
+                    new long[]{1}, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, kind, 0.0D, 0, 11, List.of());
                 travel.discardManagedVanillaPortal(level, reverseSide);
                 invoke(travel, "retainActualWorlds", new Class<?>[0]);
                 assertFalse(travel.managesVanillaPortal(level, open));

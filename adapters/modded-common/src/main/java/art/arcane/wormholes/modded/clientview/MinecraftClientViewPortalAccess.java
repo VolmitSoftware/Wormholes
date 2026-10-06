@@ -3,6 +3,7 @@ package art.arcane.wormholes.modded.clientview;
 import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.config.toml.ProjectionConfig;
 import art.arcane.wormholes.config.toml.RenderConfig;
+import art.arcane.wormholes.door.view.DoorApertureFrames;
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
 import art.arcane.wormholes.modded.MinecraftPortal;
@@ -358,11 +359,13 @@ public final class MinecraftClientViewPortalAccess implements ClientViewPortalAc
         }
         ProjectedBlockClaim.LightingPolicy lighting = peer.meshDepth() > 0 || render.lightingFidelity
             ? ProjectedBlockClaim.LightingPolicy.SOURCE : ProjectedBlockClaim.LightingPolicy.LOCAL;
+        int kind = kind(peer, portal);
         ClientPortalGeometry.Source source = new ClientPortalGeometry.Source(portal.getGeometry(), portal.getFrame(), front,
             portal.isMirrorMode(), portal.isMirrorMode() ? mirrorQuarterTurns(peer, portal) : 0, projection.nearPlanePadding,
             projection.aperturePaddingBlocks, projection.frustumCullingRatio, portal.getNetworkViewDepth(), Math.max(0, projection.recursivePortalDepth),
             blackout ? ClientPortalGeometry.BLACKOUT_SHELL : ClientPortalGeometry.BLACKOUT_OFF,
-            blackoutState, ClientPortalGeometry.MASK_AIR_PROJECT, lighting, fidelity(portal, render), kind(peer, portal), 0,
+            blackoutState, ClientPortalGeometry.MASK_AIR_PROJECT, lighting, fidelity(portal, render), kind,
+            DoorApertureFrames.geometryPlaneOffset(kind, portal.getFrame()), 0,
             targetIdentity, List.of());
         return ClientPortalGeometry.fromPortal(source).orElse(null);
     }
@@ -416,10 +419,12 @@ public final class MinecraftClientViewPortalAccess implements ClientViewPortalAc
             return null;
         }
         ProjectionConfig projection = runtime.configuration().settings().getProjection();
+        int kind = kind(peer, portal);
         ClientPortalGeometry.Source source = new ClientPortalGeometry.Source(portal.getGeometry(), portal.getFrame(), front(player, portal), false, 0,
             projection.nearPlanePadding, projection.aperturePaddingBlocks, projection.frustumCullingRatio, portal.getNetworkViewDepth(), 0,
             ClientPortalGeometry.BLACKOUT_OFF, ClientViewProtocol.PALETTE_AIR, ClientPortalGeometry.MASK_AIR_PROJECT,
-            ProjectedBlockClaim.LightingPolicy.LOCAL, 0, kind(peer, portal), 0, 0L, List.of());
+            ProjectedBlockClaim.LightingPolicy.LOCAL, 0, kind, DoorApertureFrames.geometryPlaneOffset(kind, portal.getFrame()), 0, 0L,
+            List.of());
         return ClientPortalGeometry.fromPortal(source).orElse(null);
     }
 

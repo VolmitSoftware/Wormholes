@@ -2,6 +2,7 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.network.client.ClientViewCapability;
+import art.arcane.wormholes.network.client.ClientViewChannel;
 import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.network.client.ClientViewProtocol;
@@ -78,7 +79,7 @@ public class ClientViewFailureTest extends MinecraftTestBase {
     public void aSenderThatThrowsKeepsNativeSelectionUnavailableForRecovery() throws ClientViewProtocolException {
         ClientViewHarness harness = new ClientViewHarness(ClientViewCapability.ALL);
         harness.tick.sender(message -> {
-            throw new UnsupportedOperationException("Payload " + ClientViewProtocol.CHANNEL + " may not be sent to the server!");
+            throw new UnsupportedOperationException("Payload " + ClientViewChannel.CHANNEL + " may not be sent to the server!");
         });
         harness.stream();
         harness.tick(EYE_X, EYE_Y, EYE_Z);
@@ -126,7 +127,7 @@ public class ClientViewFailureTest extends MinecraftTestBase {
         byte[] offer = ClientViewCodec.encodeS2C(offer(), 1, ClientViewProtocol.FLAG_LAST);
 
         harness.receiver.receive(offer, bytes -> {
-            throw new UnsupportedOperationException("Payload " + ClientViewProtocol.CHANNEL + " may not be sent to the server!");
+            throw new UnsupportedOperationException("Payload " + ClientViewChannel.CHANNEL + " may not be sent to the server!");
         });
 
         assertEquals(ClientViewSession.State.NATIVE_RECOVERING, harness.session.state());

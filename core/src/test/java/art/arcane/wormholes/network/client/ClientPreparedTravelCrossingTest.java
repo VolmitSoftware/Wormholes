@@ -165,7 +165,7 @@ class ClientPreparedTravelCrossingTest {
     @Test
     void horizontalCameraCrossingCanFollowAnEarlierFeetCrossingInTheSameWorld() {
         ClientPortalGeometry geometry = new ClientPortalGeometry(0, 64, 0, Direction.U.ordinal(), true, 0, false, 1, 3,
-            new long[]{7}, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, ClientPortalGeometry.KIND_FRAME, 0, 1, List.of());
+            new long[]{7}, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, ClientPortalGeometry.KIND_FRAME, 0.0D, 0, 1, List.of());
         Fixture fixture = ready(geometry, ClientViewFixtures.travelBegin().world().dimension());
         assertEquals(fixture.begin().sourceWorld(), fixture.begin().world().dimension());
         assertEquals(ClientPreparedTravelServer.AutomaticCross.DEFER, fixture.server().automaticCross(fixture.begin().sourcePortal(), 3));
@@ -190,7 +190,7 @@ class ClientPreparedTravelCrossingTest {
 
     private static Fixture ready() {
         ClientPortalGeometry geometry = new ClientPortalGeometry(0, 64, 0, Direction.S.ordinal(), true, 0, false, 1, 3,
-            new long[]{7}, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, ClientPortalGeometry.KIND_FRAME, 0, 1, List.of());
+            new long[]{7}, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, ClientPortalGeometry.KIND_FRAME, 0.0D, 0, 1, List.of());
         return ready(geometry, ClientViewFixtures.travelBegin().sourceWorld());
     }
 

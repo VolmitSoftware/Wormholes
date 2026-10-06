@@ -53,6 +53,6 @@ public class ClientEndPortalSurfaceTest {
         boolean[] cells = {true, true, true, true, false, true, true, true, true};
         return new ClientPortalGeometry(-1, 64, -1, Direction.U.ordinal(), true, 0, false,
             3, 3, ClientPortalGeometry.apertureMask(3, 3, cells), 0, 0, 1, 64, 0,
-            0, 0, 0, 0, 0, kind, parent, 1, List.of());
+            0, 0, 0, 0, 0, kind, 0.0D, parent, 1, List.of());
     }
 }

@@ -63,7 +63,7 @@ public class WormholesClientSessionTest extends MinecraftTestBase {
                     geometry.apertureHeight(), geometry.apertureMask(), geometry.nearPlanePadding(), geometry.aperturePadding(),
                     geometry.frustumCullingRatio(), geometry.depthBlocks(), geometry.recursionDepth(), geometry.blackoutPolicy(),
                     geometry.blackoutState(), geometry.maskAirPolicy(), geometry.lightingPolicy(), geometry.fidelityFlags(),
-                    geometry.kind(), geometry.parentPortalKey(), geometry.targetIdentity() + 1, geometry.nested());
+                    geometry.kind(), geometry.planeOffset(), geometry.parentPortalKey(), geometry.targetIdentity() + 1, geometry.nested());
                 session.handle(new ClientViewMessage.Portal(1, 2, changed), sink);
             } else if (change == 4) {
                 session.accept(new ClientViewMessage.Accept(1, ClientViewCapability.ALL, 20,

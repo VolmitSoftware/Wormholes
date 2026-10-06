@@ -24,7 +24,7 @@ class ClientPortalApertureTest {
                     : new DoorwayPlane(-4, 16, -8, normal);
                 int height = normal.isVertical() ? 1 : 2;
                 ClientPortalGeometry geometry = new ClientPortalGeometry(-4, 16, -8, normal.ordinal(), front, 0, false, 1, height,
-                    new long[]{height == 1 ? 1 : 3}, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, ClientPortalGeometry.KIND_DOOR, 0, 0, List.of());
+                    new long[]{height == 1 ? 1 : 3}, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, ClientPortalGeometry.KIND_DOOR, DoorwayPlane.planeOffset(normal), 0, 0, List.of());
                 ClientPortalAperture aperture = ClientPortalAperture.from(geometry);
                 DoorVec3 center = doorway.center();
                 ClientPortalAperture.Point physicalCenter = new ClientPortalAperture.Point(center.x(), center.y(), center.z());
@@ -190,6 +190,6 @@ class ClientPortalApertureTest {
             }
         }
         return new ClientPortalGeometry(-4, 16, -8, facing.ordinal(), front, turns, false, rows[0].length(), rows.length,
-            ClientPortalGeometry.apertureMask(rows[0].length(), rows.length, open), 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, List.of());
+            ClientPortalGeometry.apertureMask(rows[0].length(), rows.length, open), 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, 0, 0.0D, 0, 0, List.of());
     }
 }

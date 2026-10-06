@@ -22,7 +22,7 @@ final class ClientMeshPlanTest {
             for (boolean front : new boolean[] {false, true}) {
                 ClientPortalGeometry geometry = new ClientPortalGeometry(-17, 63, -33, direction.ordinal(), front,
                     0, false, 9, 5, new long[] {(1L << 45) - 1}, 0, 0.75F, 1, 160,
-                    0, 0, 0, 0, 0, 0, 0, 0, 1, List.of());
+                    0, 0, 0, 0, 0, 0, 0, 0.0D, 0, 1, List.of());
                 AxisAlignedBB area = geometry.apertureArea();
                 GeometryVector center = new GeometryVector((area.getXa() + area.getXb()) / 2,
                     (area.getYa() + area.getYb()) / 2, (area.getZa() + area.getZb()) / 2);
@@ -60,7 +60,7 @@ final class ClientMeshPlanTest {
             for (boolean front : new boolean[] {false, true}) {
                 for (int origin : new int[] {-17, -16, -1, 0, 15, 16}) {
                     ClientPortalGeometry geometry = new ClientPortalGeometry(origin, origin, origin, direction.ordinal(), front,
-                        0, false, 1, 1, new long[] {1}, 0, 0.75F, 1, 32, 0, 0, 0, 0, 0, 0, 0, 0, 1, List.of());
+                        0, false, 1, 1, new long[] {1}, 0, 0.75F, 1, 32, 0, 0, 0, 0, 0, 0, 0, 0.0D, 0, 1, List.of());
                     String context = direction + " front=" + front + " origin=" + origin;
                     PlateBox bounds = ClientMeshPlan.bounds(geometry);
                     assertTrue(bounds.index(origin, origin, origin) >= 0, context);
@@ -83,7 +83,7 @@ final class ClientMeshPlanTest {
         for (Direction direction : Direction.values()) {
             for (boolean front : new boolean[] {false, true}) {
                 ClientPortalGeometry geometry = new ClientPortalGeometry(-85, -67, -20, direction.ordinal(), front, 0, false, 3, 3,
-                    original.apertureMask(), 0, 0.75F, 1, 64, 0, 0, 0, 0, 0, 0, 0, 0, 1, List.of());
+                    original.apertureMask(), 0, 0.75F, 1, 64, 0, 0, 0, 0, 0, 0, 0, 0.0D, 0, 1, List.of());
                 AxisAlignedBB area = geometry.apertureArea();
                 GeometryVector center = new GeometryVector((area.getXa() + area.getXb()) / 2,
                     (area.getYa() + area.getYb()) / 2, (area.getZa() + area.getZb()) / 2);

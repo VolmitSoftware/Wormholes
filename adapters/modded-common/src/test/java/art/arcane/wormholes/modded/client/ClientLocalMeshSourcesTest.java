@@ -606,7 +606,7 @@ public class ClientLocalMeshSourcesTest extends MinecraftTestBase {
 
         private void add(int key) throws Exception {
             ClientPortalGeometry geometry = new ClientPortalGeometry(0, 0, 0, Direction.S.ordinal(), true, 0, true, 1, 1,
-                new long[] {1}, 0, 0, 0, 16, 0, 0, 0, 0, 0, 0, 0, 0, key, List.of());
+                new long[] {1}, 0, 0, 0, 16, 0, 0, 0, 0, 0, 0, 0, 0.0D, 0, key, List.of());
             session.handle(new ClientViewMessage.Portal(key, 1, geometry), sink);
             session.handle(new ClientViewMessage.MeshBegin(key, 1, BOUNDS, 1), sink);
             session.handle(new ClientViewMessage.Environment(key, PortalEnvironmentTest.environment(PortalEnvironmentTest.identity())), sink);

@@ -29,10 +29,10 @@ import art.arcane.volmlib.nativelib.chunk.ChunkPacketAccess;
 import com.github.retrooper.packetevents.protocol.ConnectionState;
 
 import art.arcane.wormholes.network.client.ClientViewCapability;
+import art.arcane.wormholes.network.client.ClientViewChannel;
 import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.network.client.ClientViewMessageType;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
 import art.arcane.wormholes.render.client.session.ClientViewInbound;
 import art.arcane.wormholes.render.client.session.ClientViewSessionState;
 
@@ -108,7 +108,7 @@ final class BukkitClientViewNegotiatorTest {
             List<ClientViewPacketEvents.Sent> sent = fixture.drain();
             assertEquals(2, sent.size());
             assertEquals(PacketEventsClientViewTransport.REGISTER_CHANNEL, sent.get(0).channel());
-            assertArrayEquals(ClientViewProtocol.CHANNEL.getBytes(StandardCharsets.UTF_8), sent.get(0).data());
+            assertArrayEquals(ClientViewChannel.CHANNEL.getBytes(StandardCharsets.UTF_8), sent.get(0).data());
             assertTrue(sent.get(1).configuration());
             ClientViewMessage.Offer offer = (ClientViewMessage.Offer) ClientViewCodec.decodeS2C(sent.get(1).data(), ClientViewCapability.ALL).message();
             assertEquals(ClientViewFixture.DATA_VERSION, offer.mcDataVersion());
@@ -232,10 +232,10 @@ final class BukkitClientViewNegotiatorTest {
             fixture.negotiator.on(join(fixture));
             assertTrue(fixture.drain().isEmpty());
 
-            fixture.negotiator.on(register(fixture, ClientViewProtocol.CHANNEL));
+            fixture.negotiator.on(register(fixture, ClientViewChannel.CHANNEL));
 
             assertEquals(List.of(ClientViewMessageType.OFFER), types(fixture.messages()));
-            fixture.negotiator.on(register(fixture, ClientViewProtocol.CHANNEL));
+            fixture.negotiator.on(register(fixture, ClientViewChannel.CHANNEL));
             assertTrue(fixture.drain().isEmpty());
         }
     }
@@ -245,7 +245,7 @@ final class BukkitClientViewNegotiatorTest {
         try (ClientViewFixture fixture = new ClientViewFixture(ClientViewFixture.options(true, false, 100), ConnectionState.PLAY)) {
             fixture.clientView.observer(fixture.playerId, fixture.user).brand("vanilla");
             fixture.negotiator.on(join(fixture));
-            fixture.negotiator.on(register(fixture, ClientViewProtocol.CHANNEL));
+            fixture.negotiator.on(register(fixture, ClientViewChannel.CHANNEL));
             fixture.expiryTasks.get(0).run();
             assertEquals(ClientViewSessionState.VANILLA, fixture.session().state());
             assertEquals(List.of(fixture.portal), fixture.route());

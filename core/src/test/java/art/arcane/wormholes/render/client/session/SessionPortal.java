@@ -58,6 +58,6 @@ final class SessionPortal {
         Arrays.fill(open, true);
         return new ClientPortalGeometry(10 + offsetX, 66, 20, Direction.S.ordinal(), frontSide, 0, mirror, 3, 3,
             ClientPortalGeometry.apertureMask(3, 3, open), 2.0F, 0.75F, 0.2F, 24, recursionDepth, ClientPortalGeometry.BLACKOUT_SHELL,
-            palette.id(BLACKOUT), ClientPortalGeometry.MASK_AIR_PROJECT, 0, 0, ClientPortalGeometry.KIND_FRAME, 0, 0L, List.of());
+            palette.id(BLACKOUT), ClientPortalGeometry.MASK_AIR_PROJECT, 0, 0, ClientPortalGeometry.KIND_FRAME, 0.0D, 0, 0L, List.of());
     }
 }

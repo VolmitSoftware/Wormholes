@@ -219,7 +219,7 @@ public class MinecraftPreparedTravelWarmupTest extends MinecraftTestBase {
             Holder.Reference<DimensionType> dimension = mock(Holder.Reference.class);
             PortalFrame frame = PortalFrame.canonical(Direction.N);
             ClientPortalGeometry geometry = new ClientPortalGeometry(0, 64, 0, Direction.N.ordinal(), true, 0, false,
-                2, 3, new long[]{63}, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, 0, 0, 11, List.of());
+                2, 3, new long[]{63}, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, 0, 0.0D, 0, 11, List.of());
             when(runtime.portals()).thenReturn(registry);
             when(runtime.leases()).thenReturn(leases);
             when(runtime.server()).thenReturn(server);

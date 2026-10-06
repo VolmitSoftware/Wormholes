@@ -170,7 +170,7 @@ class BukkitPreparedTravelLifecycleTest {
             ClientViewMessage.TravelPose.class, double.class, String.class, long.class);
         optionsConstructor.setAccessible(true);
         ClientPortalGeometry geometry = new ClientPortalGeometry(0, 64, 0, 0, true, 0, false, 1, 1, new long[]{1},
-            0, 0, 1, 64, 0, 0, 0, 0, 0, 0, ClientPortalGeometry.KIND_FRAME, 0, 1, List.of());
+            0, 0, 1, 64, 0, 0, 0, 0, 0, 0, ClientPortalGeometry.KIND_FRAME, 0.0D, 0, 1, List.of());
         Object options = optionsConstructor.newInstance(geometry, ClientViewEnvironment.Transform.IDENTITY, UUID.randomUUID(), UUID.randomUUID(), world, new GeometryVector(0, 64, 0),
             new ClientViewMessage.TravelPose(0, 64, 0, 0, 0), 1.62D, "minecraft:overworld", 1L);
         Class<?> preparationType = Class.forName(BukkitPreparedTravel.class.getName() + "$Preparation");

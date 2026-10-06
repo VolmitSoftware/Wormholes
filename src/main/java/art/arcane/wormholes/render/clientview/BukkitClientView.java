@@ -41,8 +41,8 @@ import art.arcane.volmlib.nativelib.chunk.ChunkPacketAccess;
 
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.network.client.ClientViewCapability;
+import art.arcane.wormholes.network.client.ClientViewChannel;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
 import art.arcane.wormholes.portal.ArrivalWarmer;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.rtp.RtpRimRenderer;
@@ -113,8 +113,8 @@ public final class BukkitClientView implements ClientViewRouting {
         }
         owner.getServer().getPluginManager().registerEvents(negotiator, owner);
         Messenger messenger = owner.getServer().getMessenger();
-        messenger.registerOutgoingPluginChannel(owner, ClientViewProtocol.CHANNEL);
-        messenger.registerIncomingPluginChannel(owner, ClientViewProtocol.CHANNEL, negotiator);
+        messenger.registerOutgoingPluginChannel(owner, ClientViewChannel.CHANNEL);
+        messenger.registerIncomingPluginChannel(owner, ClientViewChannel.CHANNEL, negotiator);
         packetListener = PacketEvents.getAPI().getEventManager().registerListener(transport);
         registerConfigureListener(owner, negotiator);
     }
@@ -128,8 +128,8 @@ public final class BukkitClientView implements ClientViewRouting {
         }
         HandlerList.unregisterAll(negotiator);
         Messenger messenger = owner.getServer().getMessenger();
-        messenger.unregisterIncomingPluginChannel(owner, ClientViewProtocol.CHANNEL, negotiator);
-        messenger.unregisterOutgoingPluginChannel(owner, ClientViewProtocol.CHANNEL);
+        messenger.unregisterIncomingPluginChannel(owner, ClientViewChannel.CHANNEL, negotiator);
+        messenger.unregisterOutgoingPluginChannel(owner, ClientViewChannel.CHANNEL);
         PacketListenerCommon listener = packetListener;
         packetListener = null;
         if (listener != null && PacketEvents.getAPI() != null) {

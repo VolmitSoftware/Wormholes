@@ -235,7 +235,7 @@ public class ClientMirrorTest {
         return new ClientPortalGeometry(0, 64, MIRROR_Z, Direction.S.ordinal(), true, 0, true, 3, 3,
             ClientPortalGeometry.apertureMask(3, 3, open), 0.0F, 0.0F, 0.0F, 8, recursionDepth,
             ClientPortalGeometry.BLACKOUT_OFF, 0, ClientPortalGeometry.MASK_AIR_PROJECT, 0, 0,
-            ClientPortalGeometry.KIND_FRAME, 0, 0L, nested);
+            ClientPortalGeometry.KIND_FRAME, 0.0D, 0, 0L, nested);
     }
 
     private static ClientPortalGeometry child() {
@@ -244,7 +244,7 @@ public class ClientMirrorTest {
         return new ClientPortalGeometry(0, 64, 13, Direction.S.ordinal(), false, 0, false, 3, 3,
             ClientPortalGeometry.apertureMask(3, 3, open), 0.0F, 0.0F, 0.0F, 8, 0,
             ClientPortalGeometry.BLACKOUT_OFF, 0, ClientPortalGeometry.MASK_AIR_PROJECT, 0, 0,
-            ClientPortalGeometry.KIND_RTP, MIRROR_KEY, 7L, List.of());
+            ClientPortalGeometry.KIND_RTP, 0.0D, MIRROR_KEY, 7L, List.of());
     }
 
     private static int contentLight(int z) {

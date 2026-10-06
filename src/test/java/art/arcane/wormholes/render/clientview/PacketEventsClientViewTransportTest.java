@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import art.arcane.wormholes.network.client.ClientViewChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
@@ -73,9 +74,9 @@ final class PacketEventsClientViewTransportTest {
             List<ClientViewPacketEvents.Sent> sent = user.drain();
             assertEquals(3, sent.size());
             assertEquals(PacketEventsClientViewTransport.REGISTER_CHANNEL, sent.get(0).channel());
-            assertArrayEquals(ClientViewProtocol.CHANNEL.getBytes(StandardCharsets.UTF_8), sent.get(0).data());
+            assertArrayEquals(ClientViewChannel.CHANNEL.getBytes(StandardCharsets.UTF_8), sent.get(0).data());
             assertTrue(sent.get(1).configuration());
-            assertEquals(ClientViewProtocol.CHANNEL, sent.get(1).channel());
+            assertEquals(ClientViewChannel.CHANNEL, sent.get(1).channel());
             assertFalse(sent.get(2).configuration());
             assertArrayEquals(new byte[] {4}, sent.get(2).data());
             assertEquals(1, user.pings);

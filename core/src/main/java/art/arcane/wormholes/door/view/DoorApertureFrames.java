@@ -5,6 +5,7 @@ import art.arcane.wormholes.door.DoorHalf;
 import art.arcane.wormholes.door.DoorPlanePairing;
 import art.arcane.wormholes.door.DoorwayPlane;
 import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.wormholes.render.client.ClientPortalGeometry;
 import art.arcane.wormholes.util.Direction;
 
 import java.util.Objects;
@@ -47,6 +48,10 @@ public final class DoorApertureFrames {
     /** How tall the aperture is, in blocks. */
     public static double height(DoorwayPlane plane) {
         return Objects.requireNonNull(plane, "plane").form() == DoorForm.TRAPDOOR ? 1.0D : 2.0D;
+    }
+
+    public static double geometryPlaneOffset(int kind, PortalFrame frame) {
+        return kind == ClientPortalGeometry.KIND_DOOR ? DoorwayPlane.planeOffset(frame.getNormal()) : 0.0D;
     }
 
     private static PortalFrame horizontalFrame(Direction normal, Direction facing) {

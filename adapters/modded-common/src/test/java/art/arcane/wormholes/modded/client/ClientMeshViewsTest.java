@@ -136,7 +136,7 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
         ClientPortalRenderer renderer = mock(ClientPortalRenderer.class);
         ClientLevel level = mock(ClientLevel.class);
         ClientPortalGeometry base = new ClientPortalGeometry(0, 64, 0, Direction.S.ordinal(), true, 0, true,
-            1, 2, new long[]{3}, 0, 0, 1, 64, 3, 0, 0, 0, 0, 0, ClientPortalGeometry.KIND_FRAME, 0, 1, List.of());
+            1, 2, new long[]{3}, 0, 0, 1, 64, 3, 0, 0, 0, 0, 0, ClientPortalGeometry.KIND_FRAME, 0.0D, 0, 1, List.of());
         when(session.active()).thenReturn(true);
         when(session.meshes()).thenReturn(meshes);
         when(meshes.view(7)).thenReturn(view);
@@ -609,7 +609,7 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
             when(view.bounds()).thenReturn(new PlateBox(-16, -64, -16, 48, 384, 48));
             when(level.registryAccess()).thenReturn(RegistryAccess.EMPTY);
             ClientPortalGeometry geometry = new ClientPortalGeometry(0, 64, 0, Direction.S.ordinal(), true, 0, true,
-                1, 2, new long[]{3}, 0, 0, 1, 64, 3, 0, 0, 0, 0, 0, ClientPortalGeometry.KIND_FRAME, 0, 1, List.of());
+                1, 2, new long[]{3}, 0, 0, 1, 64, 3, 0, 0, 0, 0, 0, ClientPortalGeometry.KIND_FRAME, 0.0D, 0, 1, List.of());
             when(portal.portalKey()).thenReturn(7);
             when(portal.geometry()).thenReturn(geometry);
             when(session.portal(7)).thenReturn(portal);
@@ -632,7 +632,7 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
         return new ClientPortalGeometry(base.originX(), base.originY(), base.originZ(), base.facing(), base.frontSide(), quarterTurns,
             base.mirror(), base.apertureWidth(), base.apertureHeight(), base.apertureMask(), base.nearPlanePadding(),
             base.aperturePadding(), base.frustumCullingRatio(), base.depthBlocks(), base.recursionDepth(), base.blackoutPolicy(),
-            base.blackoutState(), base.maskAirPolicy(), base.lightingPolicy(), base.fidelityFlags(), base.kind(),
+            base.blackoutState(), base.maskAirPolicy(), base.lightingPolicy(), base.fidelityFlags(), base.kind(), base.planeOffset(),
             base.parentPortalKey(), targetIdentity, base.nested());
     }
 }

@@ -43,7 +43,7 @@ final class ClientViewSweepParityTest {
                             ClientPortalGeometry geometry = ClientPortalGeometry.fromPortal(new ClientPortalGeometry.Source(aperture,
                                 frame, front, false, 0, 2.0D, padding, 0.2D, 8, 0, ClientPortalGeometry.BLACKOUT_OFF, 0,
                                 ClientPortalGeometry.MASK_AIR_PROJECT, ProjectedBlockClaim.LightingPolicy.LOCAL, 0,
-                                ClientPortalGeometry.KIND_FRAME, 0, 0L, List.of())).orElseThrow();
+                                ClientPortalGeometry.KIND_FRAME, 0.0D, 0, 0L, List.of())).orElseThrow();
                             PlateBox bounds = new PlateBox(-31, -34, -29, 25, 25, 25);
                             ClientViewSweep sweep = new ClientViewSweep(geometry, bounds, hysteresis);
                             LongOpenHashSet previous = new LongOpenHashSet();

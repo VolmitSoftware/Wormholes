@@ -742,6 +742,7 @@ public final class ClientViewCodec {
         out.u8(geometry.lightingPolicy());
         out.u8(geometry.fidelityFlags());
         out.u8(geometry.kind());
+        out.f64(geometry.planeOffset());
         out.varint(geometry.parentPortalKey());
         out.i64(geometry.targetIdentity());
         List<ClientPortalGeometry> nested = geometry.nested();
@@ -780,6 +781,7 @@ public final class ClientViewCodec {
         int lightingPolicy = in.u8();
         int fidelityFlags = in.u8();
         int kind = in.u8();
+        double planeOffset = in.f64();
         int parentPortalKey = in.varint();
         long targetIdentity = in.i64();
         int nestedCount = in.checkedCount(in.u8(), ClientViewProtocol.MAX_NESTED_GEOMETRY, 40);
@@ -789,7 +791,7 @@ public final class ClientViewCodec {
         }
         return new ClientPortalGeometry(originX, originY, originZ, facing, frontSide, quarterTurns, mirror, apertureWidth, apertureHeight,
             mask, nearPlanePadding, aperturePadding, frustumCullingRatio, depthBlocks, recursionDepth, blackoutPolicy, blackoutState,
-            maskAirPolicy, lightingPolicy, fidelityFlags, kind, parentPortalKey, targetIdentity, nested);
+            maskAirPolicy, lightingPolicy, fidelityFlags, kind, planeOffset, parentPortalKey, targetIdentity, nested);
     }
 
     public static byte[] deflate(byte[] data, int length) {

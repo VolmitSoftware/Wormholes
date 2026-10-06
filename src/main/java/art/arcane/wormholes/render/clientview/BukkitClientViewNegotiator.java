@@ -1,5 +1,6 @@
 package art.arcane.wormholes.render.clientview;
 
+import art.arcane.wormholes.network.client.ClientViewChannel;
 import java.util.Collection;
 import java.util.Objects;
 import java.util.UUID;
@@ -139,7 +140,7 @@ public final class BukkitClientViewNegotiator implements Listener, PluginMessage
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void on(PlayerRegisterChannelEvent event) {
-        if (!ClientViewProtocol.CHANNEL.equals(event.getChannel())) {
+        if (!ClientViewChannel.CHANNEL.equals(event.getChannel())) {
             return;
         }
         offerPlay(event.getPlayer());
@@ -178,7 +179,7 @@ public final class BukkitClientViewNegotiator implements Listener, PluginMessage
 
     @Override
     public void onPluginMessageReceived(String channel, Player player, byte[] message) {
-        if (!ClientViewProtocol.CHANNEL.equals(channel) || message == null) {
+        if (!ClientViewChannel.CHANNEL.equals(channel) || message == null) {
             return;
         }
         ClientViewServerSession<ClientViewObserver, BlockData> session = view.registry().session(player.getUniqueId());
@@ -204,7 +205,7 @@ public final class BukkitClientViewNegotiator implements Listener, PluginMessage
     }
 
     private static boolean capable(Player player, ClientViewObserver observer) {
-        return brand(observer) == ClientViewHandshake.Brand.MODDED || player.getListeningPluginChannels().contains(ClientViewProtocol.CHANNEL);
+        return brand(observer) == ClientViewHandshake.Brand.MODDED || player.getListeningPluginChannels().contains(ClientViewChannel.CHANNEL);
     }
 
     private static ClientViewHandshake.Brand brand(ClientViewObserver observer) {

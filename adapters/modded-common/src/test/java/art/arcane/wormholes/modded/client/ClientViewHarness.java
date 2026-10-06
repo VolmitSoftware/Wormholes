@@ -162,7 +162,7 @@ final class ClientViewHarness {
         return new ClientPortalGeometry(0, 64, 10, Direction.S.ordinal(), true, 0, false, 3, 3,
             ClientPortalGeometry.apertureMask(3, 3, open), 0.0F, 0.0F, 0.0F, 8, 0,
             ClientPortalGeometry.BLACKOUT_OFF, 0, ClientPortalGeometry.MASK_AIR_PROJECT, 0, 0,
-            ClientPortalGeometry.KIND_FRAME, 0, 0L, List.of());
+            ClientPortalGeometry.KIND_FRAME, 0.0D, 0, 0L, List.of());
     }
 
     static final class FakeSurface implements ClientViewSurface {

@@ -7,7 +7,6 @@ import java.util.Objects;
 import java.util.Optional;
 
 import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.door.DoorwayPlane;
 import art.arcane.wormholes.portal.PortalCellAperture;
 import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.portal.PortalGeometry;
@@ -36,6 +35,7 @@ public record ClientPortalGeometry(int originX,
                                    int lightingPolicy,
                                    int fidelityFlags,
                                    int kind,
+                                   double planeOffset,
                                    int parentPortalKey,
                                    long targetIdentity,
                                    List<ClientPortalGeometry> nested) {
@@ -109,7 +109,7 @@ public record ClientPortalGeometry(int originX,
             columns, rows, apertureMask(columns, rows, open),
             (float) source.nearPlanePadding(), (float) source.aperturePadding(), (float) source.frustumCullingRatio(),
             source.depthBlocks(), Math.max(0, source.recursionDepth()), source.blackoutPolicy(), source.blackoutState(),
-            source.maskAirPolicy(), lighting.ordinal(), source.fidelityFlags(), source.kind(), source.parentPortalKey(),
+            source.maskAirPolicy(), lighting.ordinal(), source.fidelityFlags(), source.kind(), source.planeOffset(), source.parentPortalKey(),
             source.targetIdentity(), source.nested()));
     }
 
@@ -143,19 +143,20 @@ public record ClientPortalGeometry(int originX,
             && blackoutPolicy >= BLACKOUT_OFF && blackoutPolicy <= BLACKOUT_SHELL_AND_BURIED
             && maskAirPolicy >= MASK_AIR_PROJECT && maskAirPolicy <= MASK_AIR_KEEP_REAL
             && lightingPolicy >= 0 && lightingPolicy < LIGHTING_POLICIES.length
-            && kind >= KIND_FRAME && kind <= KIND_VANILLA_REPLACEMENT;
+            && kind >= KIND_FRAME && kind <= KIND_VANILLA_REPLACEMENT
+            && Double.isFinite(planeOffset);
     }
 
     public ClientPortalGeometry withParent(int parentKey) {
         return new ClientPortalGeometry(originX, originY, originZ, facing, frontSide, quarterTurns, mirror, apertureWidth, apertureHeight,
             apertureMask, nearPlanePadding, aperturePadding, frustumCullingRatio, depthBlocks, recursionDepth, blackoutPolicy, blackoutState,
-            maskAirPolicy, lightingPolicy, fidelityFlags, kind, parentKey, targetIdentity, nested);
+            maskAirPolicy, lightingPolicy, fidelityFlags, kind, planeOffset, parentKey, targetIdentity, nested);
     }
 
     public ClientPortalGeometry withNested(List<ClientPortalGeometry> children) {
         return new ClientPortalGeometry(originX, originY, originZ, facing, frontSide, quarterTurns, mirror, apertureWidth, apertureHeight,
             apertureMask, nearPlanePadding, aperturePadding, frustumCullingRatio, depthBlocks, recursionDepth, blackoutPolicy, blackoutState,
-            maskAirPolicy, lightingPolicy, fidelityFlags, kind, parentPortalKey, targetIdentity, children);
+            maskAirPolicy, lightingPolicy, fidelityFlags, kind, planeOffset, parentPortalKey, targetIdentity, children);
     }
 
     public boolean apertureOpen(int column, int row) {
@@ -202,7 +203,7 @@ public record ClientPortalGeometry(int originX,
     public double planeCoordinate() {
         Direction normal = facingDirection();
         int origin = normal.x() != 0 ? originX : normal.y() != 0 ? originY : originZ;
-        return origin + 0.5D + (kind == KIND_DOOR ? (normal.x() + normal.y() + normal.z()) * DoorwayPlane.planeOffset(normal) : 0.0D);
+        return origin + 0.5D + (normal.x() + normal.y() + normal.z()) * planeOffset;
     }
 
     public double signedDistance(double x, double y, double z) {
@@ -222,7 +223,8 @@ public record ClientPortalGeometry(int originX,
     public ClientPortalGeometry withDepth(int depth) {
         return new ClientPortalGeometry(originX, originY, originZ, facing, frontSide, quarterTurns, mirror, apertureWidth,
             apertureHeight, apertureMask, nearPlanePadding, aperturePadding, frustumCullingRatio, depth, recursionDepth,
-            blackoutPolicy, blackoutState, maskAirPolicy, lightingPolicy, fidelityFlags, kind, parentPortalKey, targetIdentity, nested);
+            blackoutPolicy, blackoutState, maskAirPolicy, lightingPolicy, fidelityFlags, kind, planeOffset, parentPortalKey, targetIdentity,
+            nested);
     }
 
     public PortalFrame frame() {
@@ -313,6 +315,7 @@ public record ClientPortalGeometry(int originX,
             && depthBlocks == that.depthBlocks && recursionDepth == that.recursionDepth
             && blackoutPolicy == that.blackoutPolicy && blackoutState == that.blackoutState && maskAirPolicy == that.maskAirPolicy
             && lightingPolicy == that.lightingPolicy && fidelityFlags == that.fidelityFlags && kind == that.kind
+            && Double.doubleToLongBits(planeOffset) == Double.doubleToLongBits(that.planeOffset)
             && parentPortalKey == that.parentPortalKey && targetIdentity == that.targetIdentity;
     }
 
@@ -320,7 +323,7 @@ public record ClientPortalGeometry(int originX,
     public int hashCode() {
         int result = Objects.hash(originX, originY, originZ, facing, frontSide, quarterTurns, mirror, apertureWidth, apertureHeight,
             nearPlanePadding, aperturePadding, frustumCullingRatio, depthBlocks, recursionDepth, blackoutPolicy, blackoutState,
-            maskAirPolicy, lightingPolicy, fidelityFlags, kind, parentPortalKey, targetIdentity, nested);
+            maskAirPolicy, lightingPolicy, fidelityFlags, kind, planeOffset, parentPortalKey, targetIdentity, nested);
         return result * 31 + Arrays.hashCode(apertureMask);
     }
 
@@ -333,7 +336,7 @@ public record ClientPortalGeometry(int originX,
             + ", frustumCullingRatio=" + frustumCullingRatio + ", depthBlocks=" + depthBlocks + ", recursionDepth=" + recursionDepth
             + ", blackoutPolicy=" + blackoutPolicy + ", blackoutState=" + blackoutState + ", maskAirPolicy=" + maskAirPolicy
             + ", lightingPolicy=" + lightingPolicy + ", fidelityFlags=" + fidelityFlags + ", kind=" + kind
-            + ", parentPortalKey=" + parentPortalKey + ", targetIdentity=" + targetIdentity + ", nested=" + nested + "]";
+            + ", planeOffset=" + planeOffset + ", parentPortalKey=" + parentPortalKey + ", targetIdentity=" + targetIdentity + ", nested=" + nested + "]";
     }
 
     public static int axisOf(Direction direction) {
@@ -368,6 +371,7 @@ public record ClientPortalGeometry(int originX,
                          ProjectedBlockClaim.LightingPolicy lightingPolicy,
                          int fidelityFlags,
                          int kind,
+                         double planeOffset,
                          int parentPortalKey,
                          long targetIdentity,
                          List<ClientPortalGeometry> nested) {

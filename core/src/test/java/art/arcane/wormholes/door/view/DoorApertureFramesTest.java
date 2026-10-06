@@ -55,7 +55,7 @@ class DoorApertureFramesTest {
                     for (boolean front : new boolean[]{true, false}) {
                         ClientPortalGeometry geometry = ClientPortalGeometry.fromPortal(new ClientPortalGeometry.Source(cells, frame,
                             front, false, 0, padding, padding, 1, 128, 4, 0, 0, 0, ProjectedBlockClaim.LightingPolicy.LOCAL,
-                            0, ClientPortalGeometry.KIND_DOOR, 0, 1, List.of())).orElseThrow();
+                            0, ClientPortalGeometry.KIND_DOOR, DoorwayPlane.planeOffset(frame.getNormal()), 0, 1, List.of())).orElseThrow();
                         assertEquals(frame, geometry.frame());
                         assertEquals(plane.planeY(), geometry.planeCoordinate(), 0.0D);
                         ClientPortalAperture aperture = ClientPortalAperture.from(geometry);

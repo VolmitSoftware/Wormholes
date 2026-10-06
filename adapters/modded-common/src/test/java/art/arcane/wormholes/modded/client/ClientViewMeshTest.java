@@ -187,7 +187,7 @@ public class ClientViewMeshTest extends MinecraftTestBase {
             source.quarterTurns(), true, source.apertureWidth(), source.apertureHeight(), source.apertureMask(),
             source.nearPlanePadding(), source.aperturePadding(), source.frustumCullingRatio(), source.depthBlocks(), 3,
             source.blackoutPolicy(), source.blackoutState(), source.maskAirPolicy(), source.lightingPolicy(), source.fidelityFlags(),
-            source.kind(), 0, 0L, nested);
+            source.kind(), source.planeOffset(), 0, 0L, nested);
     }
 
     private static void begin(ClientViewHarness harness) throws Exception {

@@ -2128,7 +2128,7 @@ public class ClientPortalRendererTest extends MinecraftTestBase {
         ClientPortalGeometry geometry = ClientPortalGeometry.fromPortal(new ClientPortalGeometry.Source(aperture,
             PortalFrame.canonical(Direction.S), front, false, 0, 0, 0, 0, 64, 0,
             ClientPortalGeometry.BLACKOUT_OFF, 0, ClientPortalGeometry.MASK_AIR_PROJECT,
-            ProjectedBlockClaim.LightingPolicy.LOCAL, 0, ClientPortalGeometry.KIND_FRAME, parent, 0, List.of())).orElseThrow();
+            ProjectedBlockClaim.LightingPolicy.LOCAL, 0, ClientPortalGeometry.KIND_FRAME, 0.0D, parent, 0, List.of())).orElseThrow();
         when(scene.geometry()).thenReturn(geometry);
         when(scene.sectionKeys()).thenReturn(new LongArrayList());
         return scene;

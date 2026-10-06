@@ -120,6 +120,6 @@ public class ClientVanillaPortalEffectTest extends MinecraftTestBase {
     private static ClientPortalGeometry geometry(int kind) {
         return new ClientPortalGeometry(10, 64, -8, Direction.N.ordinal(), true, 0, false, 3, 3,
             new long[]{0x1efL}, 0.0F, 0.0F, 0.0F, 8, 0, ClientPortalGeometry.BLACKOUT_OFF, 0,
-            ClientPortalGeometry.MASK_AIR_PROJECT, 0, 0, kind, 0, 0L, List.of());
+            ClientPortalGeometry.MASK_AIR_PROJECT, 0, 0, kind, 0.0D, 0, 0L, List.of());
     }
 }

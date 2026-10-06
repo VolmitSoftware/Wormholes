@@ -16,7 +16,7 @@ final class ClientTravelTestFixtures {
 
     static ClientPortalGeometry geometry(boolean front, long mask) {
         return new ClientPortalGeometry(0, 0, 0, Direction.N.ordinal(), front, 0, false, 2, 3, new long[]{mask},
-            0, 0, 1, 64, 0, 0, 0, 0, 0, 0, 0, 0, 11, List.of());
+            0, 0, 1, 64, 0, 0, 0, 0, 0, 0, 0, 0.0D, 0, 11, List.of());
     }
 
     static Object field(Object target, String name) throws ReflectiveOperationException {

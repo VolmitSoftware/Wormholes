@@ -1,5 +1,6 @@
 package art.arcane.wormholes.render.clientview;
 
+import art.arcane.wormholes.network.client.ClientViewChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import java.util.UUID;
@@ -28,7 +29,7 @@ public final class PacketEventsClientViewTransport extends PacketListenerAbstrac
     public static final String REGISTER_CHANNEL = "minecraft:register";
     public static final String BRAND_CHANNEL = "minecraft:brand";
     private static final int MAX_BRAND_BYTES = ClientViewProtocol.MAX_STRING_BYTES;
-    private static final byte[] REGISTER_PAYLOAD = ClientViewProtocol.CHANNEL.getBytes(StandardCharsets.UTF_8);
+    private static final byte[] REGISTER_PAYLOAD = ClientViewChannel.CHANNEL.getBytes(StandardCharsets.UTF_8);
 
     private final Inbound inbound;
 
@@ -43,7 +44,7 @@ public final class PacketEventsClientViewTransport extends PacketListenerAbstrac
         if (user == null) {
             return;
         }
-        user.writePacketSilently(pluginMessage(user, ClientViewProtocol.CHANNEL, payload));
+        user.writePacketSilently(pluginMessage(user, ClientViewChannel.CHANNEL, payload));
     }
 
     @Override
@@ -126,7 +127,7 @@ public final class PacketEventsClientViewTransport extends PacketListenerAbstrac
     private void receive(PacketReceiveEvent event, String channel, byte[] data) {
         User user = event.getUser();
         UUID playerId = user == null ? null : user.getUUID();
-        if (ClientViewProtocol.CHANNEL.equals(channel)) {
+        if (ClientViewChannel.CHANNEL.equals(channel)) {
             event.setCancelled(true);
             if (playerId != null && data != null) {
                 inbound.payload(user, data);

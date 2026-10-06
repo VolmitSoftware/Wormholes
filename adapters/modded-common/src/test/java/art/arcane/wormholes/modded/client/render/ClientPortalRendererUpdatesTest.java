@@ -101,7 +101,7 @@ public class ClientPortalRendererUpdatesTest {
     private static PortalScene scene() {
         PortalScene scene = mock(PortalScene.class);
         when(scene.geometry()).thenReturn(new ClientPortalGeometry(0, 64, 0, Direction.S.ordinal(), true, 0, false,
-            1, 2, new long[]{3}, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, ClientPortalGeometry.KIND_FRAME, 0, 1, List.of()));
+            1, 2, new long[]{3}, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, ClientPortalGeometry.KIND_FRAME, 0.0D, 0, 1, List.of()));
         return scene;
     }
 

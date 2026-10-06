@@ -66,7 +66,7 @@ final class ClientSpaceTest {
         aperture.setArea(area);
         ClientPortalGeometry.Source source = new ClientPortalGeometry.Source(aperture, PortalFrame.canonical(normal), true, true, 0, 2.0D,
             0.75D, 0.2D, 16, 1, ClientPortalGeometry.BLACKOUT_OFF, 0, ClientPortalGeometry.MASK_AIR_PROJECT,
-            ProjectedBlockClaim.LightingPolicy.LOCAL, 0, ClientPortalGeometry.KIND_FRAME, 0, 0L, List.of());
+            ProjectedBlockClaim.LightingPolicy.LOCAL, 0, ClientPortalGeometry.KIND_FRAME, 0.0D, 0, 0L, List.of());
         return ClientPortalGeometry.fromPortal(source).orElseThrow();
     }
 }

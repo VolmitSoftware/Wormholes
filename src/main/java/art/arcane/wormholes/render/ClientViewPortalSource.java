@@ -10,6 +10,7 @@ import org.bukkit.entity.Player;
 
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.door.view.AbstractApertureFacade;
+import art.arcane.wormholes.door.view.DoorApertureFrames;
 import art.arcane.wormholes.network.client.ClientViewProtocol;
 import art.arcane.wormholes.network.client.SessionPalette;
 import art.arcane.wormholes.portal.DimensionalPortalKind;
@@ -213,12 +214,14 @@ public final class ClientViewPortalSource {
         int blackoutPolicy = blackoutState == null ? ClientPortalGeometry.BLACKOUT_OFF : ClientPortalGeometry.BLACKOUT_SHELL;
         int blackoutId = blackoutState == null ? ClientViewProtocol.PALETTE_AIR : palette.id(blackoutState);
         FidelityPortalExtension fidelity = ProjectorPlates.fidelity(portal);
+        int kind = kind();
         return ClientPortalGeometry.fromPortal(new ClientPortalGeometry.Source(portal.getStructure(), portal.getFrame(), frontSide,
             mirror, mirror ? destination.mirrorRotationQuarterTurns : 0, Settings.NEAR_PLANE_PADDING,
             Settings.PROJECTION_APERTURE_PADDING_BLOCKS, Settings.FRUSTUM_CULLING_RATIO, portal.getNetworkViewDepth(),
             Settings.PROJECTION_RECURSIVE_PORTAL_DEPTH,
             blackoutPolicy, blackoutId, ClientPortalGeometry.MASK_AIR_PROJECT, lightingPolicy(fidelity), fidelityFlags(fidelity),
-            kind(), 0, nativeMesh ? ProjectorPassRevision.mix(identitySalt, meshTargetRevision()) : targetIdentity(rtpTarget, identitySalt), List.of())).orElse(null);
+            kind, DoorApertureFrames.geometryPlaneOffset(kind, portal.getFrame()), 0,
+            nativeMesh ? ProjectorPassRevision.mix(identitySalt, meshTargetRevision()) : targetIdentity(rtpTarget, identitySalt), List.of())).orElse(null);
     }
 
     public void noteAcoustics(AcousticsBridge<Player> bridge, long nowMillis) {
@@ -256,10 +259,11 @@ public final class ClientViewPortalSource {
         if (structure == null || frame == null || portal.getOrigin() == null || eye == null) {
             return null;
         }
+        int kind = effectKind(portal);
         return ClientPortalGeometry.fromPortal(new ClientPortalGeometry.Source(structure, frame, ProjectorPlates.frontSide(portal, eye), false, 0,
             Settings.NEAR_PLANE_PADDING, Settings.PROJECTION_APERTURE_PADDING_BLOCKS, Settings.FRUSTUM_CULLING_RATIO, portal.getNetworkViewDepth(), 0,
             ClientPortalGeometry.BLACKOUT_OFF, ClientViewProtocol.PALETTE_AIR, ClientPortalGeometry.MASK_AIR_PROJECT,
-            ProjectedBlockClaim.LightingPolicy.LOCAL, 0, effectKind(portal), 0, 0L, List.of())).orElse(null);
+            ProjectedBlockClaim.LightingPolicy.LOCAL, 0, kind, DoorApertureFrames.geometryPlaneOffset(kind, frame), 0, 0L, List.of())).orElse(null);
     }
 
     private static int effectKind(ILocalPortal portal) {

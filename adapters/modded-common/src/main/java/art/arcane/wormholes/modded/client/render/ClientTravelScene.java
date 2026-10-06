@@ -71,7 +71,7 @@ public final class ClientTravelScene implements PortalScene {
     private static ClientPortalGeometry geometry(ClientViewMessage.TravelPose arrival) {
         return new ClientPortalGeometry((int) Math.floor(arrival.x()), (int) Math.floor(arrival.y()),
             (int) Math.floor(arrival.z()), Direction.N.ordinal(), true, 0, false, 1, 1, new long[]{1L},
-            0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, -1L, List.of());
+            0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0.0D, 0, -1L, List.of());
     }
 
     public void nativeColumns(Map<ClientViewMessage.TravelCoordinate, byte[]> columns) {

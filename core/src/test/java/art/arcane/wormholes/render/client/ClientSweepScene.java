@@ -134,7 +134,7 @@ public final class ClientSweepScene {
     ClientPortalGeometry geometry(boolean frontSide, int blackoutPolicy) {
         return ClientPortalGeometry.fromPortal(new ClientPortalGeometry.Source(aperture, localFrame, frontSide, false, 0,
             NEAR_PLANE_PADDING, APERTURE_PADDING, CULLING_RATIO, depth, 0, blackoutPolicy, ClientSweepPalette.BLACKOUT_ID,
-            ClientPortalGeometry.MASK_AIR_PROJECT, ProjectedBlockClaim.LightingPolicy.SOURCE, 0, ClientPortalGeometry.KIND_RTP, 0, 0L,
+            ClientPortalGeometry.MASK_AIR_PROJECT, ProjectedBlockClaim.LightingPolicy.SOURCE, 0, ClientPortalGeometry.KIND_RTP, 0.0D, 0, 0L,
             List.of())).orElseThrow();
     }
 

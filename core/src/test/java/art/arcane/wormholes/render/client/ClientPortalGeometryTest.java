@@ -105,7 +105,7 @@ final class ClientPortalGeometryTest {
             first.frontSide(), first.quarterTurns(), first.mirror(), first.apertureWidth(), first.apertureHeight(),
             new long[] {0x7FFEL}, first.nearPlanePadding(), first.aperturePadding(), first.frustumCullingRatio(), first.depthBlocks(),
             first.recursionDepth(), first.blackoutPolicy(), first.blackoutState(), first.maskAirPolicy(), first.lightingPolicy(),
-            first.fidelityFlags(), first.kind(), first.parentPortalKey(), first.targetIdentity(), first.nested());
+            first.fidelityFlags(), first.kind(), first.planeOffset(), first.parentPortalKey(), first.targetIdentity(), first.nested());
         assertNotEquals(first, holed);
         assertFalse(holed.apertureOpen(0, 0));
         assertTrue(holed.apertureOpen(1, 0));
@@ -134,7 +134,7 @@ final class ClientPortalGeometryTest {
             base.frontSide(), base.quarterTurns(), base.mirror(), base.apertureWidth(), base.apertureHeight(), base.apertureMask(),
             base.nearPlanePadding(), base.aperturePadding(), base.frustumCullingRatio(), base.depthBlocks(), base.recursionDepth(),
             base.blackoutPolicy(), base.blackoutState(), base.maskAirPolicy(), base.lightingPolicy(), base.fidelityFlags(),
-            base.kind(), base.parentPortalKey(), 123L, base.nested());
+            base.kind(), base.planeOffset(), base.parentPortalKey(), 123L, base.nested());
         assertFalse(base.sameSurface(retargeted));
     }
 
@@ -207,7 +207,7 @@ final class ClientPortalGeometryTest {
     private static ClientPortalGeometry.Source source(PortalCellAperture aperture, PortalFrame frame, boolean mirror, int mirrorTurns) {
         return new ClientPortalGeometry.Source(aperture, frame, true, mirror, mirrorTurns, 2.0D, 0.75D, 0.2D, 64, 3,
             ClientPortalGeometry.BLACKOUT_SHELL, 7, ClientPortalGeometry.MASK_AIR_PROJECT, ProjectedBlockClaim.LightingPolicy.SOURCE,
-            ClientPortalGeometry.FIDELITY_LIGHTING | ClientPortalGeometry.FIDELITY_WEATHER, ClientPortalGeometry.KIND_FRAME, 0, 0L,
+            ClientPortalGeometry.FIDELITY_LIGHTING | ClientPortalGeometry.FIDELITY_WEATHER, ClientPortalGeometry.KIND_FRAME, 0.0D, 0, 0L,
             List.of());
     }
 
@@ -215,7 +215,7 @@ final class ClientPortalGeometryTest {
         return new ClientPortalGeometry(base.originX(), base.originY(), base.originZ(), facing, base.frontSide(), base.quarterTurns(),
             base.mirror(), base.apertureWidth(), base.apertureHeight(), mask, base.nearPlanePadding(), base.aperturePadding(),
             base.frustumCullingRatio(), base.depthBlocks(), base.recursionDepth(), base.blackoutPolicy(), base.blackoutState(),
-            base.maskAirPolicy(), base.lightingPolicy(), base.fidelityFlags(), base.kind() + kindOffset, base.parentPortalKey(),
+            base.maskAirPolicy(), base.lightingPolicy(), base.fidelityFlags(), base.kind() + kindOffset, base.planeOffset(), base.parentPortalKey(),
             base.targetIdentity(), base.nested());
     }
 }

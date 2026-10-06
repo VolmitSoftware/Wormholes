@@ -32,6 +32,7 @@ import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.network.client.ClientViewProtocol;
 import art.arcane.wormholes.network.client.ClientViewProtocolException;
 import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.wormholes.network.client.ClientViewChannel;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.ITunnel;
 import art.arcane.wormholes.portal.MirrorRotation;
@@ -209,7 +210,7 @@ final class ClientViewFixture implements AutoCloseable {
     List<ClientViewMessage> messages() throws ClientViewProtocolException {
         List<ClientViewMessage> messages = new ArrayList<ClientViewMessage>();
         for (ClientViewPacketEvents.Sent sent : drain()) {
-            if (!ClientViewProtocol.CHANNEL.equals(sent.channel())) {
+            if (!ClientViewChannel.CHANNEL.equals(sent.channel())) {
                 continue;
             }
             ClientViewMessage message = ClientViewCodec.decodeS2C(sent.data(), caps == 0L ? ClientViewCapability.ALL : caps).message();

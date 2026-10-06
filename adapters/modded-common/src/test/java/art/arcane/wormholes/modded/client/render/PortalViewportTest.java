@@ -145,7 +145,7 @@ public class PortalViewportTest {
         ClientPortalGeometry geometry = ClientPortalGeometry.fromPortal(new ClientPortalGeometry.Source(aperture,
             PortalFrame.canonical(Direction.S), true, false, 0, 0, 0, 0, 64, 0,
             ClientPortalGeometry.BLACKOUT_OFF, 0, ClientPortalGeometry.MASK_AIR_PROJECT,
-            ProjectedBlockClaim.LightingPolicy.LOCAL, 0, ClientPortalGeometry.KIND_FRAME, 0, 0, List.of())).orElseThrow();
+            ProjectedBlockClaim.LightingPolicy.LOCAL, 0, ClientPortalGeometry.KIND_FRAME, 0.0D, 0, 0, List.of())).orElseThrow();
         return ClientPortalAperture.from(geometry);
     }
 }

@@ -199,7 +199,7 @@ final class ClientPreparedTravelCodecTest {
             value.quarterTurns(), mirror, value.apertureWidth(), value.apertureHeight(), value.apertureMask(),
             value.nearPlanePadding(), value.aperturePadding(), value.frustumCullingRatio(), value.depthBlocks(),
             value.recursionDepth(), value.blackoutPolicy(), value.blackoutState(), value.maskAirPolicy(), value.lightingPolicy(),
-            value.fidelityFlags(), value.kind(), parent, value.targetIdentity(), nested);
+            value.fidelityFlags(), value.kind(), value.planeOffset(), parent, value.targetIdentity(), nested);
     }
 
     private static List<ClientViewFixtures.Vector> travelVectors() {

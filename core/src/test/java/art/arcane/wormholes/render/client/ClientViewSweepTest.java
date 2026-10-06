@@ -238,7 +238,7 @@ final class ClientViewSweepTest {
         ClientSweepScene scene = ClientSweepScene.rtpWall(32, 24);
         ClientPortalGeometry valid = scene.geometry(true, ClientPortalGeometry.BLACKOUT_OFF);
         ClientPortalGeometry broken = new ClientPortalGeometry(valid.originX(), valid.originY(), valid.originZ(), 17, true, 0, false,
-            valid.apertureWidth(), valid.apertureHeight(), valid.apertureMask(), 2.0F, 0.75F, 0.2F, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0L, List.of());
+            valid.apertureWidth(), valid.apertureHeight(), valid.apertureMask(), 2.0F, 0.75F, 0.2F, 32, 0, 0, 0, 0, 0, 0, 0, 0.0D, 0, 0L, List.of());
         assertThrows(IllegalArgumentException.class, () -> new ClientViewSweep(broken, scene.bounds(true), HYSTERESIS));
         assertThrows(IllegalArgumentException.class, () -> new ClientViewSweep(valid, scene.bounds(true), -1.0D));
     }
@@ -318,7 +318,7 @@ final class ClientViewSweepTest {
         ClientPortalGeometry geometry = ClientPortalGeometry.fromPortal(new ClientPortalGeometry.Source(aperture, frame, frontSide, mirror, 0,
             ClientSweepScene.NEAR_PLANE_PADDING, ClientSweepScene.APERTURE_PADDING, ClientSweepScene.CULLING_RATIO, 64, 0,
             ClientPortalGeometry.BLACKOUT_OFF, 0, ClientPortalGeometry.MASK_AIR_PROJECT, ProjectedBlockClaim.LightingPolicy.SOURCE, 0,
-            mirror ? ClientPortalGeometry.KIND_FRAME : ClientPortalGeometry.KIND_RTP, 0, 0L, List.of())).orElseThrow();
+            mirror ? ClientPortalGeometry.KIND_FRAME : ClientPortalGeometry.KIND_RTP, 0.0D, 0, 0L, List.of())).orElseThrow();
         PlateBox bounds = ClientSweepScene.plateBox(area, frame, origin, frontSide, 64, 40, ClientSweepScene.APERTURE_PADDING);
         return new ClientViewSweep(geometry, bounds, HYSTERESIS);
     }
