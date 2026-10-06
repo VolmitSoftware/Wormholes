@@ -613,7 +613,7 @@ public final class ProjectionClaimSet<C extends BlockProjectionClaim<C>> {
         private int reverts;
         private boolean immediateLightingUpdate;
 
-        ProjectionClaimSetResult() {
+        public ProjectionClaimSetResult() {
             this(0);
         }
 

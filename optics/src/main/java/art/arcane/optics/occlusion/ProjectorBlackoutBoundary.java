@@ -8,28 +8,28 @@ public final class ProjectorBlackoutBoundary {
 
     private final LongOpenHashSet[] faces;
 
-    ProjectorBlackoutBoundary() {
+    public ProjectorBlackoutBoundary() {
         faces = new LongOpenHashSet[FACE_COUNT];
         for (int index = 0; index < FACE_COUNT; index++) {
             faces[index] = new LongOpenHashSet(64);
         }
     }
 
-    static int faceMask(int axis, int sign) {
+    public static int faceMask(int axis, int sign) {
         return 1 << faceIndex(axis, sign);
     }
 
-    void clear() {
+    public void clear() {
         for (LongOpenHashSet face : faces) {
             face.clear();
         }
     }
 
-    void clearFace(int axis, int sign) {
+    public void clearFace(int axis, int sign) {
         faces[faceIndex(axis, sign)].clear();
     }
 
-    void add(long key, int mask) {
+    public void add(long key, int mask) {
         for (int index = 0; index < FACE_COUNT; index++) {
             if ((mask & (1 << index)) != 0) {
                 faces[index].add(key);
@@ -37,11 +37,11 @@ public final class ProjectorBlackoutBoundary {
         }
     }
 
-    LongSet cells(int axis, int sign) {
+    public LongSet cells(int axis, int sign) {
         return faces[faceIndex(axis, sign)];
     }
 
-    boolean containsOther(long key, int axis, int sign) {
+    public boolean containsOther(long key, int axis, int sign) {
         int excluded = faceIndex(axis, sign);
         for (int index = 0; index < FACE_COUNT; index++) {
             if (index != excluded && faces[index].contains(key)) {

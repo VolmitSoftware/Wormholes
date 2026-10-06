@@ -188,7 +188,7 @@ public final class ViewVolume {
             && Frustum.containsBoxUnion(frustums, minX, minY, minZ, maxX, maxY, maxZ);
     }
 
-    boolean containsRow(int axis, double x, double y, double z, double end) {
+    public boolean containsRow(int axis, double x, double y, double z, double end) {
         if (frustums.length > 3) {
             return false;
         }

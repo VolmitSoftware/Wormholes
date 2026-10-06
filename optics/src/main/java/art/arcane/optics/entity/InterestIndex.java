@@ -14,14 +14,14 @@ public final class InterestIndex<T> {
     private final Object lifecycleLock;
     private volatile boolean closed;
 
-    InterestIndex() {
+    public InterestIndex() {
         this.entitiesByTarget = new ConcurrentHashMap<T, Set<UUID>>();
         this.targetsByEntity = new ConcurrentHashMap<UUID, Set<T>>();
         this.lifecycleLock = new Object();
         this.closed = false;
     }
 
-    void activate(T target) {
+    public void activate(T target) {
         T requiredTarget = Objects.requireNonNull(target, "target");
         synchronized (lifecycleLock) {
             if (closed) {
@@ -33,7 +33,7 @@ public final class InterestIndex<T> {
         }
     }
 
-    boolean replace(T target, Set<UUID> entityIds) {
+    public boolean replace(T target, Set<UUID> entityIds) {
         T requiredTarget = Objects.requireNonNull(target, "target");
         Set<UUID> next = Set.copyOf(Objects.requireNonNull(entityIds, "entityIds"));
         synchronized (requiredTarget) {
@@ -56,7 +56,7 @@ public final class InterestIndex<T> {
         }
     }
 
-    void deactivate(T target) {
+    public void deactivate(T target) {
         if (target == null) {
             return;
         }
@@ -71,7 +71,7 @@ public final class InterestIndex<T> {
         }
     }
 
-    List<T> targets(UUID entityId) {
+    public List<T> targets(UUID entityId) {
         if (entityId == null) {
             return List.of();
         }
@@ -87,7 +87,7 @@ public final class InterestIndex<T> {
         return entitiesByTarget.size();
     }
 
-    void close() {
+    public void close() {
         synchronized (lifecycleLock) {
             if (closed) {
                 return;

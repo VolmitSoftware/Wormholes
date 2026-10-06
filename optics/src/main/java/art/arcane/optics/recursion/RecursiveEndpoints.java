@@ -211,7 +211,7 @@ public final class RecursiveEndpoints<W, P extends Endpoint> {
             && view.getZb() >= minZ && view.getZa() <= maxZ;
     }
 
-    static boolean clipLinear(double constant, double slope, double[] range) {
+    public static boolean clipLinear(double constant, double slope, double[] range) {
         if (slope > CLIP_SLOPE_EPSILON) {
             range[0] = Math.max(range[0], -constant / slope);
         } else if (slope < -CLIP_SLOPE_EPSILON) {

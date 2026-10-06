@@ -125,7 +125,7 @@ public final class ProjectorFrameTransform {
         return axis == 0 ? x : axis == 1 ? y : z;
     }
 
-    static double coordinateSnapTolerance(double fromX,
+    public static double coordinateSnapTolerance(double fromX,
                                           double fromY,
                                           double fromZ,
                                           double toX,
@@ -139,7 +139,7 @@ public final class ProjectorFrameTransform {
         return Math.max(1.0E-10D, largestUlp * 8.0D);
     }
 
-    static double snapNearInteger(double value, double tolerance) {
+    public static double snapNearInteger(double value, double tolerance) {
         double nearestInteger = Math.rint(value);
         return Math.abs(value - nearestInteger) <= tolerance ? nearestInteger : value;
     }

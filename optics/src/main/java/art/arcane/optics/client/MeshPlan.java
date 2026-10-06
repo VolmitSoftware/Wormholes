@@ -123,15 +123,15 @@ public final class MeshPlan {
     }
 
     public record Section(int x, int y, int z, double distance) {
-        PlateBox clip() {
+        public PlateBox clip() {
             return new PlateBox(x << 4, y << 4, z << 4, 16, 16, 16);
         }
 
-        Coordinate coordinate() {
+        public Coordinate coordinate() {
             return new Coordinate(x, y, z);
         }
     }
 
-    record Coordinate(int x, int y, int z) {
+    public record Coordinate(int x, int y, int z) {
     }
 }

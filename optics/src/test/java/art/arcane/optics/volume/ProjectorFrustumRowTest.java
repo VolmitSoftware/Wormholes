@@ -1,4 +1,4 @@
-package art.arcane.optics.scan;
+package art.arcane.optics.volume;
 
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.aperture.Aperture;
@@ -14,9 +14,6 @@ import java.util.Random;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import art.arcane.optics.volume.Frustum;
-import art.arcane.optics.volume.ProjectorFrustumRow;
-import art.arcane.optics.volume.ViewVolume;
 
 final class ProjectorFrustumRowTest {
     private double aperturePadding = 0.75D;

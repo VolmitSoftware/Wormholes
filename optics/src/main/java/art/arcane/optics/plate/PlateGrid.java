@@ -116,7 +116,7 @@ public final class PlateGrid<B> {
         return total;
     }
 
-    static final class Writer<B> {
+    public static final class Writer<B> {
         private final PlateBox box;
         private final char[] cells;
         private final ArrayList<PlateCell<B>> palette;
@@ -127,7 +127,7 @@ public final class PlateGrid<B> {
         private char airEntry;
         private int cellCount;
 
-        Writer(PlateBox box) {
+        public Writer(PlateBox box) {
             long size = box.cells();
             if (size > Integer.MAX_VALUE - 8) {
                 throw new IllegalArgumentException("plate box of " + size + " cells exceeds the dense grid limit");
@@ -209,7 +209,7 @@ public final class PlateGrid<B> {
             cellCount = cells.length;
         }
 
-        PlateGrid<B> finish() {
+        public PlateGrid<B> finish() {
             return new PlateGrid<B>(box, cells, List.copyOf(palette), blockEntityCells, cellCount);
         }
 

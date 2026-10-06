@@ -10,19 +10,19 @@ public final class ClientViewLane implements Runnable {
     private final AtomicBoolean scheduled;
     private final AtomicBoolean pending;
 
-    ClientViewLane(Executor executor, Runnable body) {
+    public ClientViewLane(Executor executor, Runnable body) {
         this.executor = executor;
         this.body = body;
         this.scheduled = new AtomicBoolean();
         this.pending = new AtomicBoolean();
     }
 
-    void submit() {
+    public void submit() {
         pending.set(true);
         schedule();
     }
 
-    boolean stalled() {
+    public boolean stalled() {
         return pending.get() && !scheduled.get();
     }
 

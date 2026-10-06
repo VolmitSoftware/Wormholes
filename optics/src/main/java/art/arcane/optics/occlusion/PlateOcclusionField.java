@@ -15,14 +15,14 @@ public final class PlateOcclusionField<B, M> {
     private final PlateBox box;
     private final byte[] states;
 
-    PlateOcclusionField(MaterialView<B, M> view, BlockStates<B, M> blocks, PlateBox box) {
+    public PlateOcclusionField(MaterialView<B, M> view, BlockStates<B, M> blocks, PlateBox box) {
         this.view = view;
         this.blocks = blocks;
         this.box = box.cells() > MAX_CELLS ? PlateBox.EMPTY : box;
         this.states = new byte[(int) this.box.cells()];
     }
 
-    int depth(int x, int y, int z, B self) {
+    public int depth(int x, int y, int z, B self) {
         if (self == null || !blocks.isOccluding(blocks.material(self))) {
             return 0;
         }

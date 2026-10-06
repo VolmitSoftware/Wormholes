@@ -9,7 +9,7 @@ public final class ProjectorFrustumRow {
     private int minimum;
     private int length;
 
-    boolean prepare(ViewVolume frustum, int axis, double x, double y, double z, int start, int end) {
+    public boolean prepare(ViewVolume frustum, int axis, double x, double y, double z, int start, int end) {
         minimum = Math.min(start, end);
         long cells = (long) Math.max(start, end) - minimum + 1L;
         length = 0;
@@ -26,7 +26,7 @@ public final class ProjectorFrustumRow {
         return true;
     }
 
-    boolean contains(int coordinate) {
+    public boolean contains(int coordinate) {
         int offset = coordinate - minimum;
         return offset >= 0 && offset < length && (accepted[offset >> 6] & (1L << offset)) != 0L;
     }

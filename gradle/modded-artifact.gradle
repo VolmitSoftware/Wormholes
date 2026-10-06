@@ -36,7 +36,7 @@ abstract class VerifyModdedArtifact extends DefaultTask {
             String metadata = getMetadata().get()
             for (String required : [metadata, 'art/arcane/wormholes/modded/WormholesModRuntime.class',
                                     'art/arcane/wormholes/network/WireCodec.class',
-                                    'art/arcane/wormholes/portal/PortalFrame.class',
+                                    'art/arcane/optics/frame/Frame.class',
                                     'art/arcane/optics/spi/OpticsMetrics.class']) {
                 if (archive.getEntry(required) == null) {
                     throw new GradleException("${artifact.name} is missing ${required}")

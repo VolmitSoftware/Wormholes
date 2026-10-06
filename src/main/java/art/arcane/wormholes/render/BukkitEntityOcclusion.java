@@ -13,6 +13,7 @@ import static art.arcane.optics.occlusion.ProjectedEntityOcclusion.LABEL_VERTICA
 import static art.arcane.optics.occlusion.ProjectedEntityOcclusion.MIN_VISUAL_HEIGHT;
 import static art.arcane.optics.occlusion.ProjectedEntityOcclusion.VISUAL_HALF_WIDTH;
 import art.arcane.optics.entity.SnapshotProjector;
+import art.arcane.optics.occlusion.ProjectedEntityOcclusion;
 import art.arcane.optics.occlusion.ProjectorViewOcclusion;
 import art.arcane.optics.recursion.EntityPath;
 

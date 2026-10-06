@@ -58,10 +58,10 @@ public class MinecraftProjectorSamplerTest extends MinecraftTestBase {
         Fixture fixture = fixture();
         Frame frame = Frame.canonical(E);
         BlockState eastFacing = Blocks.FURNACE.defaultBlockState()
-            .setValue(BlockStateProperties.HORIZONTAL_FACING, Face.EAST);
+            .setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.EAST);
         fixture.sampler().prepareTransformCache(frame, frame, true, 0);
         BlockState mirrored = fixture.sampler().transformProjectedBlockData(eastFacing, frame, frame, true, frame, 0);
-        assertEquals(Face.WEST, mirrored.getValue(BlockStateProperties.HORIZONTAL_FACING));
+        assertEquals(Direction.WEST, mirrored.getValue(BlockStateProperties.HORIZONTAL_FACING));
         assertSame(mirrored, fixture.sampler().transformProjectedBlockData(eastFacing, frame, frame, true, frame, 0));
     }
 

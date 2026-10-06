@@ -12,7 +12,7 @@ public final class ClientViewAckWindow {
     private long lastRttNanos;
     private long appliedCells;
 
-    ClientViewAckWindow(int capacity) {
+    public ClientViewAckWindow(int capacity) {
         this.capacity = Math.max(0, capacity);
         int slots = this.capacity == 0 ? UNBOUNDED_TRACKING : this.capacity;
         this.sequences = new int[slots];
@@ -20,15 +20,15 @@ public final class ClientViewAckWindow {
         this.closed = new boolean[slots];
     }
 
-    synchronized void record(int sequence, long nanos) {
+    public synchronized void record(int sequence, long nanos) {
         append(sequence, nanos, true);
     }
 
-    synchronized void open(int sequence, long nanos) {
+    public synchronized void open(int sequence, long nanos) {
         append(sequence, nanos, false);
     }
 
-    synchronized boolean close(int openSequence, int closeSequence, long nanos) {
+    public synchronized boolean close(int openSequence, int closeSequence, long nanos) {
         int slot = openSlot(openSequence);
         if (slot < 0) {
             return false;
@@ -39,7 +39,7 @@ public final class ClientViewAckWindow {
         return true;
     }
 
-    synchronized boolean abandon(int openSequence) {
+    public synchronized boolean abandon(int openSequence) {
         int slot = openSlot(openSequence);
         if (slot < 0) {
             return false;
@@ -48,11 +48,11 @@ public final class ClientViewAckWindow {
         return true;
     }
 
-    synchronized boolean full() {
+    public synchronized boolean full() {
         return capacity > 0 && size >= capacity;
     }
 
-    synchronized boolean ack(int sequence, int applied, long nanos) {
+    public synchronized boolean ack(int sequence, int applied, long nanos) {
         appliedCells += Math.max(0, applied);
         boolean freed = false;
         int slot = 0;
@@ -69,23 +69,23 @@ public final class ClientViewAckWindow {
         return freed;
     }
 
-    synchronized void clear() {
+    public synchronized void clear() {
         size = 0;
     }
 
-    synchronized int outstanding() {
+    public synchronized int outstanding() {
         return size;
     }
 
-    synchronized long acked() {
+    public synchronized long acked() {
         return acked;
     }
 
-    synchronized long lastRttNanos() {
+    public synchronized long lastRttNanos() {
         return lastRttNanos;
     }
 
-    synchronized long appliedCells() {
+    public synchronized long appliedCells() {
         return appliedCells;
     }
 

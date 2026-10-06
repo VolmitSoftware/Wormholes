@@ -3,6 +3,7 @@ package art.arcane.wormholes.render;
 import art.arcane.wormholes.network.view.BukkitProjectedMapData;
 import java.util.Optional;
 import java.util.UUID;
+import art.arcane.optics.entity.ProjectedMaps;
 import art.arcane.optics.entity.ProjectedMaps.Projection;
 import java.util.logging.Level;
 
