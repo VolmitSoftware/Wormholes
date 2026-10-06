@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.modded.mixin.ProjectionEntityMapAccess;
-import art.arcane.wormholes.render.EntityRenderLocalOcclusionArbiter;
+import art.arcane.optics.occlusion.LocalOcclusionArbiter;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
@@ -10,7 +10,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.UUID;
 
-public final class MinecraftEntityVisibility implements EntityRenderLocalOcclusionArbiter.Host<ServerPlayer, Entity> {
+public final class MinecraftEntityVisibility implements LocalOcclusionArbiter.Host<ServerPlayer, Entity> {
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
     private final WormholesModRuntime runtime;
 

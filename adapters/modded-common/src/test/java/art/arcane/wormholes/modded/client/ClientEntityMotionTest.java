@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.wormholes.network.view.EntityVisual;
+import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.entity.Entity;
@@ -90,8 +90,8 @@ public class ClientEntityMotionTest extends MinecraftTestBase {
         item.setPos(1000, 64, 2000);
         item.setOldPosAndRot();
         ClientItemMotion motion = new ClientItemMotion(item);
-        EntityVisual start = visual(1000, 64, 0, 0);
-        EntityVisual next = visual(1001, 63, 0, 0);
+        EntitySnapshot start = visual(1000, 64, 0, 0);
+        EntitySnapshot next = visual(1001, 63, 0, 0);
         motion.move(next, start);
         assertEquals(1000, item.getX(), 0);
         motion.tick();
@@ -118,11 +118,11 @@ public class ClientEntityMotionTest extends MinecraftTestBase {
         ItemEntity item = item(level);
         item.setPos(1000, 64, 2000);
         ClientItemMotion motion = new ClientItemMotion(item);
-        EntityVisual start = visual(1000, 64, 0, 0);
-        EntityVisual moving = visual(1001, 63, 0, 0);
+        EntitySnapshot start = visual(1000, 64, 0, 0);
+        EntitySnapshot moving = visual(1001, 63, 0, 0);
         motion.move(moving, start);
         motion.tick();
-        EntityVisual teleported = visual(-500, 80, 0, 0);
+        EntitySnapshot teleported = visual(-500, 80, 0, 0);
         motion.move(teleported, moving);
         assertEquals(-500, item.getX(), 0);
         assertEquals(-500, item.xOld, 0);
@@ -135,8 +135,8 @@ public class ClientEntityMotionTest extends MinecraftTestBase {
     @Test
     public void headTurnsDoNotRestartBodyInterpolationAndBodyMovementDoesNotResetHead() {
         Entity entity = mock(Entity.class);
-        EntityVisual forward = visual(0, 64, 25, 0);
-        EntityVisual headTurn = visual(0, 64, 25, 90);
+        EntitySnapshot forward = visual(0, 64, 25, 0);
+        EntitySnapshot headTurn = visual(0, 64, 25, 90);
         ClientLevelScene.move(entity, headTurn, forward);
         verify(entity).lerpHeadTo(90, 3);
         verify(entity, never()).moveOrInterpolateTo(any(Vec3.class), anyFloat(), anyFloat());
@@ -185,7 +185,7 @@ public class ClientEntityMotionTest extends MinecraftTestBase {
         flagsField.setAccessible(true);
         EntityDataAccessor<?> flags = (EntityDataAccessor<?>) flagsField.get(null);
         ClientSceneWorld world = mock(ClientSceneWorld.class);
-        when(world.spawn(anyInt(), any(UUID.class), any(EntityVisual.class))).thenReturn(true);
+        when(world.spawn(anyInt(), any(UUID.class), any(EntitySnapshot.class))).thenReturn(true);
         doAnswer(call -> {
             byte[] equipment = call.getArgument(1);
             held.set(equipment[0] == 0 ? ItemStack.EMPTY : apple);
@@ -216,8 +216,8 @@ public class ClientEntityMotionTest extends MinecraftTestBase {
         verify(living, times(update ? 2 : 1)).onSyncedDataUpdated(flags);
     }
 
-    private static EntityVisual usingVisual(UUID id, int flags) {
-        return EntityVisual.full(id, "minecraft:zombie", 0, 64, 0, 1.95D, 0, 0, 1, 0, 0, 0, 0, 0, true,
+    private static EntitySnapshot usingVisual(UUID id, int flags) {
+        return EntitySnapshot.full(id, "minecraft:zombie", 0, 64, 0, 1.95D, 0, 0, 1, 0, 0, 0, 0, 0, true,
             "", "", "", null, null, new byte[] {(byte) flags}, new byte[] {(byte) (flags == 0 ? 0 : 1)}, 0);
     }
 
@@ -250,10 +250,10 @@ public class ClientEntityMotionTest extends MinecraftTestBase {
         return item;
     }
 
-    private static EntityVisual visual(double x, double y, float bodyYaw, float headYaw) {
+    private static EntitySnapshot visual(double x, double y, float bodyYaw, float headYaw) {
         double radians = Math.toRadians(headYaw);
-        return EntityVisual.full(UUID.randomUUID(), "minecraft:item", x, y, 2000, 0.25D,
+        return EntitySnapshot.full(UUID.randomUUID(), "minecraft:item", x, y, 2000, 0.25D,
             -Math.sin(radians), 0, Math.cos(radians), bodyYaw, 0, 0.25D, -0.1D, 0, false,
-            "", "", "", null, null, EntityVisual.EMPTY, EntityVisual.EMPTY, 0);
+            "", "", "", null, null, EntitySnapshot.EMPTY, EntitySnapshot.EMPTY, 0);
     }
 }

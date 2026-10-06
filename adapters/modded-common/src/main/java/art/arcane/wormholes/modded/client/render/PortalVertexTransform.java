@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client.render;
 
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.math.Face;
 import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.core.BlockPos;
@@ -9,11 +9,11 @@ import net.minecraft.core.BlockPos;
 import java.nio.ByteBuffer;
 
 final class PortalVertexTransform implements VertexConsumer {
-    private final Direction xAxis;
-    private final Direction yAxis;
-    private final Direction zAxis;
+    private final Face xAxis;
+    private final Face yAxis;
+    private final Face zAxis;
     private final boolean reflected;
-    private final ClientViewEnvironment.Transform transform;
+    private final ProjectionEnvironment.Transform transform;
     private VertexConsumer target;
     private float x;
     private float y;
@@ -22,7 +22,7 @@ final class PortalVertexTransform implements VertexConsumer {
     private float inputY;
     private float inputZ;
 
-    PortalVertexTransform(ClientViewEnvironment.Transform transform) {
+    PortalVertexTransform(ProjectionEnvironment.Transform transform) {
         this.transform = transform;
         xAxis = transform.xAxis();
         yAxis = transform.yAxis();

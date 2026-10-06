@@ -1,9 +1,9 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.network.client.ClientViewCodec;
-import art.arcane.wormholes.network.client.ClientViewCapability;
+import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewProtocolException;
+import art.arcane.optics.stream.ClientViewProtocolException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -111,7 +111,7 @@ public final class ClientViewReceiver {
     }
 
     private void prepared(ClientViewCodec.S2CFrame frame, int bytes) {
-        if (session.active() && session.has(ClientViewCapability.PREPARED_TRAVEL)) {
+        if (session.active() && session.has(ViewStreamCapability.PREPARED_TRAVEL)) {
             travel.accept(frame.message());
             enqueue(new Queued(frame, bytes, System.nanoTime()));
         }

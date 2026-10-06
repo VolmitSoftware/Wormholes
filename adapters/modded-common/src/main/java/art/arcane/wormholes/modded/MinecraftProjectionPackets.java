@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.render.ProjectionCellKey;
+import art.arcane.optics.math.CellKeys;
 import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -33,9 +33,9 @@ public final class MinecraftProjectionPackets {
         Long2ObjectMap<Short2ObjectMap<BlockState>> sections = new Long2ObjectOpenHashMap<>();
         for (Long2ObjectMap.Entry<BlockState> entry : blocks.long2ObjectEntrySet()) {
             long key = entry.getLongKey();
-            int x = ProjectionCellKey.unpackX(key);
-            int y = ProjectionCellKey.unpackY(key);
-            int z = ProjectionCellKey.unpackZ(key);
+            int x = CellKeys.unpackX(key);
+            int y = CellKeys.unpackY(key);
+            int z = CellKeys.unpackZ(key);
             if (world.isOutsideBuildHeight(y)
                 || !world.getChunkSource().chunkMap.isChunkTracked(player, x >> 4, z >> 4)) {
                 continue;
@@ -76,9 +76,9 @@ public final class MinecraftProjectionPackets {
         LongIterator iterator = cells.iterator();
         while (iterator.hasNext()) {
             long key = iterator.nextLong();
-            int x = ProjectionCellKey.unpackX(key);
-            int y = ProjectionCellKey.unpackY(key);
-            int z = ProjectionCellKey.unpackZ(key);
+            int x = CellKeys.unpackX(key);
+            int y = CellKeys.unpackY(key);
+            int z = CellKeys.unpackZ(key);
             LevelChunk chunk = world.getChunkSource().getChunkNow(x >> 4, z >> 4);
             if (chunk != null && !world.isOutsideBuildHeight(y)) {
                 restored.put(key, chunk.getBlockState(position.set(x, y, z)));

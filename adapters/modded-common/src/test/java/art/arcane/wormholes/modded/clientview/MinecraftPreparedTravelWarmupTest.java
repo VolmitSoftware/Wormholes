@@ -1,9 +1,9 @@
 package art.arcane.wormholes.modded.clientview;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.wormholes.chunk.ChunkLease;
-import art.arcane.wormholes.chunk.ChunkLeaseRegistry;
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.plate.ChunkLease;
+import art.arcane.optics.plate.ChunkLeaseRegistry;
+import art.arcane.optics.math.Vec3;
 import art.arcane.wormholes.modded.MinecraftChunkPacketEncoding;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.MinecraftPortalRegistry;
@@ -12,15 +12,15 @@ import art.arcane.wormholes.modded.MinecraftProjectionWorldView;
 import art.arcane.wormholes.modded.MinecraftProjectorPortalAccess;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
+import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.portal.PortalFrame;
-import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
-import art.arcane.wormholes.render.client.ClientViewEntityTransform;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.view.WorldChangeTracker;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.client.ClientViewEntityTransform;
 import art.arcane.wormholes.render.client.session.ClientPreparedTravelServer;
 import art.arcane.wormholes.render.client.session.ClientViewServerSession;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
@@ -172,15 +172,15 @@ public class MinecraftPreparedTravelWarmupTest extends MinecraftTestBase {
     private static MockedStatic<MinecraftPortalEnvironment> environment(Fixture fixture) {
         MockedStatic<MinecraftPortalEnvironment> environment = mockStatic(MinecraftPortalEnvironment.class);
         environment.when(() -> MinecraftPortalEnvironment.capture(eq(fixture.level), any(), any(), anyBoolean()))
-            .thenReturn(PortalEnvironmentTest.environment(ClientViewEnvironment.Transform.IDENTITY));
+            .thenReturn(PortalEnvironmentTest.environment(ProjectionEnvironment.Transform.IDENTITY));
         return environment;
     }
 
     private static MinecraftPortal portal() {
         MinecraftPortal portal = mock(MinecraftPortal.class);
         when(portal.getId()).thenReturn(UUID.randomUUID());
-        when(portal.getOrigin()).thenReturn(new GeometryVector(0, 64, 0));
-        when(portal.getFrame()).thenReturn(PortalFrame.canonical(Direction.N));
+        when(portal.getOrigin()).thenReturn(new Vec3(0, 64, 0));
+        when(portal.getFrame()).thenReturn(Frame.canonical(Face.N));
         when(portal.isOpen()).thenReturn(true);
         return portal;
     }
@@ -217,8 +217,8 @@ public class MinecraftPreparedTravelWarmupTest extends MinecraftTestBase {
             MinecraftServer server = mock(MinecraftServer.class);
             PlayerList players = mock(PlayerList.class);
             Holder.Reference<DimensionType> dimension = mock(Holder.Reference.class);
-            PortalFrame frame = PortalFrame.canonical(Direction.N);
-            ClientPortalGeometry geometry = new ClientPortalGeometry(0, 64, 0, Direction.N.ordinal(), true, 0, false,
+            Frame frame = Frame.canonical(Face.N);
+            ApertureDescriptor geometry = new ApertureDescriptor(0, 64, 0, Face.N.ordinal(), true, 0, false,
                 2, 3, new long[]{63}, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, 0, 0.0D, 0, 11, List.of());
             when(runtime.portals()).thenReturn(registry);
             when(runtime.leases()).thenReturn(leases);
@@ -226,7 +226,7 @@ public class MinecraftPreparedTravelWarmupTest extends MinecraftTestBase {
             when(server.getPlayerList()).thenReturn(players);
             when(players.getViewDistance()).thenReturn(5);
             when(runtime.projections()).thenReturn(projections);
-            when(projections.changes()).thenReturn(new ProjectionWorldChangeTracker());
+            when(projections.changes()).thenReturn(new WorldChangeTracker());
             when(player.getUUID()).thenReturn(playerId);
             when(player.getY()).thenReturn(64.0D);
             when(player.level()).thenReturn(level);
@@ -237,7 +237,7 @@ public class MinecraftPreparedTravelWarmupTest extends MinecraftTestBase {
             when(portals.portal(peer, source.getId())).thenReturn(source);
             when(portals.scene()).thenReturn(scene);
             when(scene.destination(peer, source.getId(), true)).thenReturn(new MinecraftClientViewScene.Destination(level,
-                destination, new ClientViewEntityTransform.Frame(0, 64, 0, frame, 0, 64, 0, frame, false, 0, true, 64)));
+                destination, new ClientViewEntityTransform.EntityFrame(0, 64, 0, frame, 0, 64, 0, frame, false, 0, true, 64)));
             when(registry.get(source.getId())).thenReturn(source);
             when(registry.resolveLevel(destination)).thenReturn(level);
             when(registry.canDepart(player, source)).thenReturn(true);

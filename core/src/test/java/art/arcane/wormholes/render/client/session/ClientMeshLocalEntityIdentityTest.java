@@ -2,10 +2,10 @@ package art.arcane.wormholes.render.client.session;
 
 import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewMessageType;
-import art.arcane.wormholes.network.view.EntityVisual;
-import art.arcane.wormholes.render.ProjectedEntityEvent;
-import art.arcane.wormholes.render.client.ClientViewEntityTransform;
+import art.arcane.optics.stream.ViewStreamMessageType;
+import art.arcane.optics.entity.EntitySnapshot;
+import art.arcane.optics.entity.ProjectedEntityEvent;
+import art.arcane.optics.client.ClientViewEntityTransform;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -15,6 +15,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import art.arcane.optics.stream.ClientViewInbound;
 
 final class ClientMeshLocalEntityIdentityTest {
     @Test
@@ -23,23 +24,23 @@ final class ClientMeshLocalEntityIdentityTest {
         ClientViewMessage.EntityFrame initial = fixture.lastFrame();
         assertEquals(List.of(fixture.localOpaque, fixture.remoteOpaque), initial.presentIds());
         assertEquals(2, initial.entities().size());
-        int frames = fixture.harness.sent(ClientViewMessageType.ENTITY_FRAME);
+        int frames = fixture.harness.sent(ViewStreamMessageType.ENTITY_FRAME);
         fixture.harness.tick();
-        assertEquals(frames, fixture.harness.sent(ClientViewMessageType.ENTITY_FRAME));
+        assertEquals(frames, fixture.harness.sent(ViewStreamMessageType.ENTITY_FRAME));
         fixture.cover(1, true);
         fixture.harness.tick();
         ClientViewMessage.EntityFrame filtered = fixture.lastFrame();
-        assertTrue(fixture.harness.sent(ClientViewMessageType.ENTITY_FRAME) > frames);
+        assertTrue(fixture.harness.sent(ViewStreamMessageType.ENTITY_FRAME) > frames);
         assertTrue(filtered.presence());
         assertEquals(List.of(fixture.remoteOpaque), filtered.presentIds());
-        assertEquals(List.of(fixture.remoteOpaque), filtered.entities().stream().map(EntityVisual::id).toList());
+        assertEquals(List.of(fixture.remoteOpaque), filtered.entities().stream().map(EntitySnapshot::id).toList());
         assertFalse(filtered.presentIds().contains(fixture.localOpaque));
         fixture.cover(2, false);
         fixture.harness.tick();
         ClientViewMessage.EntityFrame resumed = fixture.lastFrame();
         assertTrue(resumed.presence());
         assertEquals(List.of(fixture.localOpaque, fixture.remoteOpaque), resumed.presentIds());
-        assertTrue(resumed.entities().stream().allMatch(EntityVisual::isFull));
+        assertTrue(resumed.entities().stream().allMatch(EntitySnapshot::isFull));
         assertTrue(fixture.harness.warnings.isEmpty(), fixture.harness.warnings.toString());
     }
 
@@ -71,10 +72,10 @@ final class ClientMeshLocalEntityIdentityTest {
         return result;
     }
 
-    private static EntityVisual visual(UUID id) {
-        return new EntityVisual(EntityVisual.MODE_FULL, 0, EntityVisual.FIELD_ALL_FULL, id, "minecraft:armor_stand", 11, 67, 20,
+    private static EntitySnapshot visual(UUID id) {
+        return new EntitySnapshot(EntitySnapshot.MODE_FULL, 0, EntitySnapshot.FIELD_ALL_FULL, id, "minecraft:armor_stand", 11, 67, 20,
             1.975, 0, 0, -1, 180, 0, 0, 0, 0, true, "", "", "", null, null,
-            EntityVisual.EMPTY, EntityVisual.EMPTY, EntityVisual.EMPTY);
+            EntitySnapshot.EMPTY, EntitySnapshot.EMPTY, EntitySnapshot.EMPTY);
     }
 
     private static final class Fixture {
@@ -87,7 +88,7 @@ final class ClientMeshLocalEntityIdentityTest {
         private final ClientViewMessage.MeshBegin begin;
 
         private Fixture() throws Exception {
-            List<EntityVisual> visuals = List.of(visual(localOpaque), visual(remoteOpaque));
+            List<EntitySnapshot> visuals = List.of(visual(localOpaque), visual(remoteOpaque));
             source = new ClientViewEntityFrames<>(new ClientViewEntityFrames.Scenes<String>() {
                 @Override
                 public Object sceneKey(String observer, UUID portal) {
@@ -95,7 +96,7 @@ final class ClientMeshLocalEntityIdentityTest {
                 }
 
                 @Override
-                public List<EntityVisual> capture(String observer, UUID portal, long tick) {
+                public List<EntitySnapshot> capture(String observer, UUID portal, long tick) {
                     return visuals;
                 }
 
@@ -112,7 +113,7 @@ final class ClientMeshLocalEntityIdentityTest {
             portal.plate = portal.build(new SessionWorld(1));
             harness.handshake(SessionHarness.NATIVE_CAPS);
             harness.tick();
-            begin = (ClientViewMessage.MeshBegin) harness.last(ClientViewMessageType.MESH_BEGIN);
+            begin = (ClientViewMessage.MeshBegin) harness.last(ViewStreamMessageType.MESH_BEGIN);
             assertEquals(localOpaque, source.projectedId(localReal));
         }
 
@@ -122,7 +123,7 @@ final class ClientMeshLocalEntityIdentityTest {
         }
 
         private ClientViewMessage.EntityFrame lastFrame() {
-            return (ClientViewMessage.EntityFrame) harness.last(ClientViewMessageType.ENTITY_FRAME);
+            return (ClientViewMessage.EntityFrame) harness.last(ViewStreamMessageType.ENTITY_FRAME);
         }
     }
 }

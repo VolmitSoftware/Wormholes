@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
+import art.arcane.optics.fidelity.BlockEntitySample;
 import net.minecraft.world.level.block.state.BlockState;
 
 public interface ClientViewSurface {

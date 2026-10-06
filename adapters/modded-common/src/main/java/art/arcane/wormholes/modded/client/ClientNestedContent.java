@@ -1,9 +1,9 @@
 package art.arcane.wormholes.modded.client;
 
-import art.arcane.wormholes.network.client.ClientViewProtocol;
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
-import art.arcane.wormholes.render.client.ClientSpace;
-import art.arcane.wormholes.render.plate.PlateBox;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.fidelity.BlockEntitySample;
+import art.arcane.optics.client.ClientSpace;
+import art.arcane.optics.plate.PlateBox;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 
 import java.util.Objects;
@@ -62,7 +62,7 @@ public final class ClientNestedContent implements ClientPortalContent {
     }
 
     private int reflect(int paletteId) {
-        if (reflector.identity() || paletteId < ClientViewProtocol.RESERVED_PALETTE_IDS) {
+        if (reflector.identity() || paletteId < ViewStreamLimits.RESERVED_PALETTE_IDS) {
             return paletteId;
         }
         int known = reflectedIds.get(paletteId);

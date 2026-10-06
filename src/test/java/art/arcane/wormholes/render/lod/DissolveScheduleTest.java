@@ -13,8 +13,8 @@ import org.bukkit.Material;
 import org.bukkit.block.data.BlockData;
 import org.junit.jupiter.api.Test;
 
-import art.arcane.wormholes.render.ProjectedBlockClaim;
-import art.arcane.wormholes.render.ProjectionCellKey;
+import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.math.CellKeys;
 
 final class DissolveScheduleTest {
     @Test
@@ -59,16 +59,16 @@ final class DissolveScheduleTest {
     void filterKeepsTheNearestCellsFirst() {
         Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
         for (int depth = 1; depth <= 8; depth++) {
-            claims.put(ProjectionCellKey.pack(0, 64, -depth), claim());
+            claims.put(CellKeys.pack(0, 64, -depth), claim());
         }
-        DissolveSchedule.filter(claims, 0.5D, 8.0D, key -> -ProjectionCellKey.unpackZ(key));
+        DissolveSchedule.filter(claims, 0.5D, 8.0D, key -> -CellKeys.unpackZ(key));
         assertEquals(4, claims.size());
         for (long key : claims.keySet()) {
-            assertTrue(-ProjectionCellKey.unpackZ(key) <= 4, "only the near half survives at fraction 0.5");
+            assertTrue(-CellKeys.unpackZ(key) <= 4, "only the near half survives at fraction 0.5");
         }
-        DissolveSchedule.filter(claims, 1.0D, 8.0D, key -> -ProjectionCellKey.unpackZ(key));
+        DissolveSchedule.filter(claims, 1.0D, 8.0D, key -> -CellKeys.unpackZ(key));
         assertEquals(4, claims.size(), "fraction one keeps every claim");
-        DissolveSchedule.filter(claims, 0.0D, 8.0D, key -> -ProjectionCellKey.unpackZ(key));
+        DissolveSchedule.filter(claims, 0.0D, 8.0D, key -> -CellKeys.unpackZ(key));
         assertTrue(claims.isEmpty());
     }
 

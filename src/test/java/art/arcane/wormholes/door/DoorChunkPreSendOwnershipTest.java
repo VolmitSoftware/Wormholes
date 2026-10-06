@@ -1,7 +1,7 @@
 package art.arcane.wormholes.door;
 
 import org.bukkit.structure.Structure;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.api.traversal.TraversalContext;
@@ -251,7 +251,7 @@ final class DoorChunkPreSendOwnershipTest {
     }
 
     private static RuntimeDoor runtimeDoor() {
-        DoorwayPlane plane = new DoorwayPlane(0, 64, 0, Direction.N);
+        DoorwayPlane plane = new DoorwayPlane(0, 64, 0, Face.N);
         PlacedDoorEndpoint endpoint = new PlacedDoorEndpoint(
             new DoorPosition(WORLD_ID, "minecraft:overworld", 0, 64, 0),
             DoorItemIdentity.publicDoor(new UUID(89L, 97L))

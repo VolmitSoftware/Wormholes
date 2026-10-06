@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client.render;
 
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
+import art.arcane.optics.math.Vec3;
+import art.arcane.optics.stream.ProjectionEnvironment;
 import net.minecraft.client.renderer.fog.FogData;
 import net.minecraft.client.renderer.state.LightmapRenderState;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
@@ -23,8 +23,8 @@ final class PortalEnvironment {
         return from + (float) Math.atan2(Math.sin(difference), Math.cos(difference)) * blend;
     }
 
-    static SkyRenderState sky(ClientViewEnvironment environment, GeometryVector eye) {
-        ClientViewEnvironment.Sky source = environment.sky();
+    static SkyRenderState sky(ProjectionEnvironment environment, Vec3 eye) {
+        ProjectionEnvironment.Sky source = environment.sky();
         SkyRenderState state = new SkyRenderState();
         state.skybox = switch (source.skybox()) {
             case NONE -> DimensionType.Skybox.NONE;
@@ -43,7 +43,7 @@ final class PortalEnvironment {
         return state;
     }
 
-    static LightmapRenderState light(ClientViewEnvironment environment, LightmapRenderState local) {
+    static LightmapRenderState light(ProjectionEnvironment environment, LightmapRenderState local) {
         LightmapRenderState state = new LightmapRenderState();
         state.needsUpdate = true;
         state.blockFactor = local.blockFactor;
@@ -59,9 +59,9 @@ final class PortalEnvironment {
         return state;
     }
 
-    static FogData fog(ClientViewEnvironment environment, CameraRenderState camera, int distance, int cloudDistance) {
-        ClientViewEnvironment.Fog source = environment.fog();
-        ClientViewEnvironment.Sky sky = environment.sky();
+    static FogData fog(ProjectionEnvironment environment, CameraRenderState camera, int distance, int cloudDistance) {
+        ProjectionEnvironment.Fog source = environment.fog();
+        ProjectionEnvironment.Sky sky = environment.sky();
         Vector3fc color = vector(source.color());
         Vector3f forwards = new Vector3f(0.0f, 0.0f, -1.0f);
         new Matrix4f(camera.viewRotationMatrix).mul(PortalProjection.rotation(environment.transform())).invert().transformDirection(forwards);
@@ -86,11 +86,11 @@ final class PortalEnvironment {
         return result;
     }
 
-    static Vector3f vector(ClientViewEnvironment.Color color) {
+    static Vector3f vector(ProjectionEnvironment.Color color) {
         return new Vector3f(color.red(), color.green(), color.blue());
     }
 
-    static Vector4f vector(ClientViewEnvironment.ColorAlpha color) {
+    static Vector4f vector(ProjectionEnvironment.ColorAlpha color) {
         return new Vector4f(color.red(), color.green(), color.blue(), color.alpha());
     }
 }

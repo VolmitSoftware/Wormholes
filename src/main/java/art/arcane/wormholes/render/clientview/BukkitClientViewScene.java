@@ -15,13 +15,13 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 
 import art.arcane.wormholes.Settings;
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
-import art.arcane.wormholes.render.client.ClientViewEnvironmentTransform;
-import art.arcane.wormholes.network.client.BrickLightSource;
+import art.arcane.optics.math.Vec3;
+import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.client.ClientViewEnvironmentTransform;
+import art.arcane.optics.stream.BrickLightSource;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
-import art.arcane.wormholes.network.view.EntityVisual;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.wormholes.portal.AmbientOutlineGeometry;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.IPortal;
@@ -30,12 +30,12 @@ import art.arcane.wormholes.portal.rtp.RtpRimRenderer;
 import art.arcane.wormholes.render.ClientViewPortalSource;
 import art.arcane.wormholes.render.ClientViewSceneCapture;
 import art.arcane.wormholes.render.FidelitySubsystem;
-import art.arcane.wormholes.render.acoustics.AcousticsBridge;
-import art.arcane.wormholes.render.client.ClientViewEntityTransform;
+import art.arcane.optics.fidelity.AcousticsBridge;
+import art.arcane.optics.client.ClientViewEntityTransform;
 import art.arcane.wormholes.render.client.session.ClientViewEmitters;
 import art.arcane.wormholes.render.client.session.ClientViewEntityFrames;
 import art.arcane.wormholes.render.client.session.ClientViewSceneFx;
-import art.arcane.wormholes.render.plate.ViewPlate;
+import art.arcane.optics.plate.ViewPlate;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 
 final class BukkitClientViewScene implements ClientViewEntityFrames.Scenes<ClientViewObserver>, ClientViewSceneFx.Effects<ClientViewObserver> {
@@ -63,7 +63,7 @@ final class BukkitClientViewScene implements ClientViewEntityFrames.Scenes<Clien
     @Override
     public Object sceneKey(ClientViewObserver observer, UUID portalId) {
         ClientViewPortalSource source = portals.source(observer, portalId);
-        ClientViewEntityTransform.Frame frame = frame(observer, source);
+        ClientViewEntityTransform.EntityFrame frame = frame(observer, source);
         if (frame == null || !Settings.ENTITY_SPOOFING) {
             return null;
         }
@@ -72,7 +72,7 @@ final class BukkitClientViewScene implements ClientViewEntityFrames.Scenes<Clien
     }
 
     @Override
-    public List<EntityVisual> capture(ClientViewObserver observer, UUID portalId, long tick) {
+    public List<EntitySnapshot> capture(ClientViewObserver observer, UUID portalId, long tick) {
         ClientViewPortalSource source = portals.source(observer, portalId);
         return source == null ? List.of() : capture.entities(source, frame(observer, source), tick, observer.meshDepth() > 0);
     }
@@ -83,12 +83,12 @@ final class BukkitClientViewScene implements ClientViewEntityFrames.Scenes<Clien
     }
 
     @Override
-    public boolean visible(ClientViewObserver observer, EntityVisual visual) {
+    public boolean visible(ClientViewObserver observer, EntitySnapshot visual) {
         return capture.visible(observer.player(), visual.id());
     }
 
     @Override
-    public boolean isObserver(ClientViewObserver observer, EntityVisual visual) {
+    public boolean isObserver(ClientViewObserver observer, EntitySnapshot visual) {
         return capture.isObserver(observer.player(), visual.id());
     }
 
@@ -116,7 +116,7 @@ final class BukkitClientViewScene implements ClientViewEntityFrames.Scenes<Clien
         }
         ClientViewEmitters.ambient(new ClientViewEmitters.Ambient(portal.getAmbientStyle(), portal.getAmbientColor(), portal.isOpen(),
             Settings.AMBIENT_PARTICLE_INTERVAL_TICKS, AMBIENT_CADENCE_TICKS, structure.getArea(), outline), emitters);
-        if (bed != null && emitters.size() < ClientViewProtocol.MAX_FX_EMITTERS) {
+        if (bed != null && emitters.size() < ViewStreamLimits.MAX_FX_EMITTERS) {
             emitters.add(ClientViewEmitters.sound(bed, AcousticsBridge.AMBIENT_INTERVAL_TICKS));
         }
         return emitters;
@@ -132,12 +132,12 @@ final class BukkitClientViewScene implements ClientViewEntityFrames.Scenes<Clien
         }
         int darken = view.getSkyDarken();
         if (world == null && view instanceof RemoteWorldView remote) {
-            ClientViewEnvironment environment = remote.environment(ClientViewEnvironment.Transform.IDENTITY);
+            ProjectionEnvironment environment = remote.environment(ProjectionEnvironment.Transform.IDENTITY);
             if (environment == null) {
                 return null;
             }
             boolean weather = source.relaysWeather();
-            boolean clock = weather && environment.sky().skybox() == ClientViewEnvironment.Skybox.OVERWORLD;
+            boolean clock = weather && environment.sky().skybox() == ProjectionEnvironment.Skybox.OVERWORLD;
             int flags = (weather ? ClientViewMessage.Atmosphere.FLAG_WEATHER : 0) | (clock ? ClientViewMessage.Atmosphere.FLAG_TIME : 0);
             return new ClientViewSceneFx.Sample(clock ? environment.gameTime() : 0L, clock,
                 weather ? environment.sky().rain() : 0.0F, weather ? environment.sky().thunder() : 0.0F,
@@ -161,34 +161,34 @@ final class BukkitClientViewScene implements ClientViewEntityFrames.Scenes<Clien
     }
 
     @Override
-    public ClientViewEnvironment environment(ClientViewObserver observer, UUID portalId, long tick) {
+    public ProjectionEnvironment environment(ClientViewObserver observer, UUID portalId, long tick) {
         return environment(observer, null, portalId, portals.source(observer, portalId), observer.eye(), tick);
     }
 
     @Override
-    public ClientViewEnvironment nestedEnvironment(ClientViewObserver observer, UUID parent, UUID portalId, long tick) {
+    public ProjectionEnvironment nestedEnvironment(ClientViewObserver observer, UUID parent, UUID portalId, long tick) {
         return environment(observer, parent, portalId, portals.nestedSource(observer, parent, portalId), observer.reflectedEye(parent), tick);
     }
 
-    private ClientViewEnvironment environment(ClientViewObserver observer, UUID parent, UUID portalId, ClientViewPortalSource source,
+    private ProjectionEnvironment environment(ClientViewObserver observer, UUID parent, UUID portalId, ClientViewPortalSource source,
                                                Location eye, long tick) {
         if (source == null || eye == null || source.transformFrame() == null) {
             return null;
         }
-        ClientViewEnvironment.Transform transform = ClientViewEnvironmentTransform.of(source.transformFrame());
+        ProjectionEnvironment.Transform transform = ClientViewEnvironmentTransform.of(source.transformFrame());
         if (source.destinationView() instanceof RemoteWorldView remote) {
             return remote.environment(transform);
         }
         if (source.destinationWorld() == null) {
             return null;
         }
-        GeometryVector destinationEye = transform.destinationPoint(eye.getX(), eye.getY(), eye.getZ());
+        Vec3 destinationEye = transform.destinationPoint(eye.getX(), eye.getY(), eye.getZ());
         return environments.capture(new BukkitEnvironmentCapture.Request(observer.id(), parent, portalId, source.destinationWorld(),
             destinationEye, transform, tick));
     }
 
-    private static ClientViewEntityTransform.Frame frame(ClientViewObserver observer, ClientViewPortalSource source) {
-        ClientViewEntityTransform.Frame frame = source == null ? null : source.transformFrame();
+    private static ClientViewEntityTransform.EntityFrame frame(ClientViewObserver observer, ClientViewPortalSource source) {
+        ClientViewEntityTransform.EntityFrame frame = source == null ? null : source.transformFrame();
         return frame != null && observer.meshDepth() > 0 ? frame.withDepth(observer.meshDepth()) : frame;
     }
 
@@ -209,6 +209,6 @@ final class BukkitClientViewScene implements ClientViewEntityFrames.Scenes<Clien
         return source == null ? BrickLightSource.NONE : capture.light(source, plate, observer.meshDepth() > 0);
     }
 
-    private record SceneKey(UUID portal, Object view, UUID anchor, ClientViewEntityTransform.Frame frame, boolean nativeMesh) {
+    private record SceneKey(UUID portal, Object view, UUID anchor, ClientViewEntityTransform.EntityFrame frame, boolean nativeMesh) {
     }
 }

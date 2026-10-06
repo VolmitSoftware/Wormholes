@@ -1,8 +1,8 @@
 package art.arcane.wormholes.network.view;
 
 import art.arcane.optics.entity.EntityProfile;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
-import art.arcane.wormholes.render.view.ProjectionSkyMath;
+import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.light.SkyMath;
 
 import art.arcane.wormholes.network.replication.ChunkBulk;
 import art.arcane.wormholes.network.replication.BlockChange;
@@ -10,7 +10,7 @@ import art.arcane.wormholes.network.replication.ChunkDiffBatch;
 import art.arcane.wormholes.network.replication.ReplicationStreamKey;
 import art.arcane.wormholes.network.replication.RemoteChunkStore;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
+import art.arcane.optics.fidelity.BlockEntitySample;
 
 
 
@@ -22,6 +22,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import art.arcane.optics.entity.EntityDeltaCodec;
+import art.arcane.optics.entity.EntitySnapshot;
 
 public final class RemoteViewCache<B, M, E> {
     public static final class DecodedSlice<B> {
@@ -104,14 +106,14 @@ public final class RemoteViewCache<B, M, E> {
         private volatile long lastUpdateMillis;
         private volatile long revision;
         private volatile int skyDarken;
-        private volatile ClientViewEnvironment environment;
+        private volatile ProjectionEnvironment environment;
         private volatile boolean storm;
         private volatile boolean thunder;
         private volatile boolean viewReady;
         private volatile UUID sourceWorldId;
         private volatile ProjectionRenderMode renderMode;
-        private volatile List<EntityVisual> entities = List.of();
-        private final Map<UUID, EntityVisual> lastEntityState = new ConcurrentHashMap<>();
+        private volatile List<EntitySnapshot> entities = List.of();
+        private final Map<UUID, EntitySnapshot> lastEntityState = new ConcurrentHashMap<>();
         private final Map<UUID, Integer> stateVersions = new ConcurrentHashMap<>();
         private final Map<Long, DecodedSlice<B>> slices = new ConcurrentHashMap<>();
         private final Map<UUID, EntityProfile> profiles = new ConcurrentHashMap<>();
@@ -150,7 +152,7 @@ public final class RemoteViewCache<B, M, E> {
             return box != null && !slices.isEmpty();
         }
 
-        public List<EntityVisual> getEntities() {
+        public List<EntitySnapshot> getEntities() {
             return entities;
         }
 
@@ -170,12 +172,12 @@ public final class RemoteViewCache<B, M, E> {
             return revision;
         }
 
-        public ClientViewEnvironment environment() {
+        public ProjectionEnvironment environment() {
             return environment;
         }
 
         public int getSkyDarken() {
-            return ProjectionSkyMath.weatherDarken(skyDarken, storm, thunder);
+            return SkyMath.weatherDarken(skyDarken, storm, thunder);
         }
 
         public boolean hasStorm() {
@@ -450,7 +452,7 @@ public final class RemoteViewCache<B, M, E> {
         }
     }
 
-    public void applyEnvironment(String peerName, UUID portalId, ClientViewEnvironment environment) {
+    public void applyEnvironment(String peerName, UUID portalId, ProjectionEnvironment environment) {
         RemoteView<B, M, E> view = views.get(key(peerName, portalId));
         if (view != null) {
             view.environment = environment;
@@ -467,17 +469,17 @@ public final class RemoteViewCache<B, M, E> {
         view.lastUpdateMillis = System.currentTimeMillis();
     }
 
-    public void applyEntities(String peerName, UUID portalId, List<EntityVisual> entities, List<UUID> presentIds) {
+    public void applyEntities(String peerName, UUID portalId, List<EntitySnapshot> entities, List<UUID> presentIds) {
         RemoteView<B, M, E> view = views.get(key(peerName, portalId));
         if (view == null) {
             return;
         }
-        for (EntityVisual incoming : entities) {
-            EntityVisual lastKnown = view.lastEntityState.get(incoming.id());
+        for (EntitySnapshot incoming : entities) {
+            EntitySnapshot lastKnown = view.lastEntityState.get(incoming.id());
             if (!canApplyEntityUpdate(incoming, lastKnown)) {
                 continue;
             }
-            EntityVisual full = EntityDeltaCodec.applyDelta(incoming, lastKnown);
+            EntitySnapshot full = EntityDeltaCodec.applyDelta(incoming, lastKnown);
             view.lastEntityState.put(incoming.id(), full);
             if (full.isPlayer() && full.playerName() != null && !full.playerName().isEmpty()) {
                 EntityProfile previous = view.profiles.get(full.id());
@@ -487,9 +489,9 @@ public final class RemoteViewCache<B, M, E> {
             }
             boolean stateChanged = false;
             int presentMask = incoming.presentMask();
-            boolean metadataIncluded = incoming.isFull() || (presentMask & EntityVisual.FIELD_METADATA) != 0;
-            boolean equipmentIncluded = incoming.isFull() || (presentMask & EntityVisual.FIELD_EQUIPMENT) != 0;
-            boolean mapDataIncluded = incoming.isFull() || (presentMask & EntityVisual.FIELD_MAP_DATA) != 0;
+            boolean metadataIncluded = incoming.isFull() || (presentMask & EntitySnapshot.FIELD_METADATA) != 0;
+            boolean equipmentIncluded = incoming.isFull() || (presentMask & EntitySnapshot.FIELD_EQUIPMENT) != 0;
+            boolean mapDataIncluded = incoming.isFull() || (presentMask & EntitySnapshot.FIELD_MAP_DATA) != 0;
             if (metadataIncluded && full.metadata() != null && full.metadata().length > 0
                 && blobChanged(view.lastMetadataBlobs.get(full.id()), full.metadata())) {
                 try {
@@ -540,7 +542,7 @@ public final class RemoteViewCache<B, M, E> {
         view.lastUpdateMillis = System.currentTimeMillis();
     }
 
-    static boolean canApplyEntityUpdate(EntityVisual incoming, EntityVisual lastKnown) {
+    static boolean canApplyEntityUpdate(EntitySnapshot incoming, EntitySnapshot lastKnown) {
         return incoming.isFull()
             || (lastKnown != null && incoming.sequence() == ((lastKnown.sequence() + 1) & 0xFFFF));
     }

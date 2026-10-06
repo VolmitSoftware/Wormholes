@@ -5,7 +5,7 @@ import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.portal.DimensionalPortalKind;
 import art.arcane.wormholes.portal.ILocalPortal;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.wormholes.portal.PortalType;
 import org.bukkit.World;
@@ -62,7 +62,7 @@ class VanillaPortalEndExitTest {
             Settings.REPLACE_NETHER_AND_END_PORTALS = true;
             when(manager.getLocalPortals()).thenReturn(List.of());
             reconcile.invoke(null, world, cells);
-            factory.verify(() -> PortalFactory.createFromCells(eq(cells), any(PortalFrame.class), eq(PortalType.PORTAL),
+            factory.verify(() -> PortalFactory.createFromCells(eq(cells), any(Frame.class), eq(PortalType.PORTAL),
                 eq("End return"), eq(DimensionalPortalKind.END_EXIT)));
             factory.clearInvocations();
             when(manager.getLocalPortals()).thenReturn(List.of(exit));

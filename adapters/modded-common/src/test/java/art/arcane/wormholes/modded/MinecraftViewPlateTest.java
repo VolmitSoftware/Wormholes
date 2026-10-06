@@ -1,20 +1,20 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.portal.PortalFrame;
-import art.arcane.wormholes.portal.PortalGeometry;
-import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
-import art.arcane.wormholes.render.ProjectorSample;
-import art.arcane.wormholes.render.ProjectionCellKey;
-import art.arcane.wormholes.render.lod.LodPolicy;
-import art.arcane.wormholes.render.plate.PlateCaptureJob;
-import art.arcane.wormholes.render.plate.PlateCell;
-import art.arcane.wormholes.render.plate.PlateBox;
-import art.arcane.wormholes.render.plate.ViewPlate;
-import art.arcane.wormholes.render.plate.ViewPlateBuilder;
-import art.arcane.wormholes.render.plate.ViewPlateKey;
-import art.arcane.wormholes.render.view.ProjectionContentView;
-import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.aperture.ApertureCells;
+import art.arcane.optics.view.WorldChangeTracker;
+import art.arcane.optics.scan.ProjectorSample;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.volume.LodPolicy;
+import art.arcane.optics.plate.PlateCaptureJob;
+import art.arcane.optics.plate.PlateCell;
+import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.plate.ViewPlate;
+import art.arcane.optics.plate.ViewPlateBuilder;
+import art.arcane.optics.plate.ViewPlateKey;
+import art.arcane.optics.view.ContentView;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Face;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerChunkCache;
 import net.minecraft.server.level.ServerLevel;
@@ -50,22 +50,22 @@ public class MinecraftViewPlateTest extends MinecraftTestBase {
     @Test
     public void meshSectionsKeepDestinationModelStatesWhilePacketPlatesRotateStates() {
         BlockState source = Blocks.OAK_STAIRS.defaultBlockState();
-        ProjectionContentView<BlockState, BlockState> view = mock(ProjectionContentView.class);
+        ContentView<BlockState, BlockState> view = mock(ContentView.class);
         when(view.sampleBlockData(anyInt(), anyInt(), anyInt())).thenReturn(source);
         when(view.sampleMaterial(anyInt(), anyInt(), anyInt())).thenReturn(source);
         when(view.worldId()).thenReturn(UUID.randomUUID());
         when(view.sampleBiome(anyInt(), anyInt(), anyInt())).thenReturn("minecraft:plains");
-        when(view.getLight(anyInt(), anyInt(), anyInt())).thenReturn(ProjectionContentView.packLight(15, 0));
-        PortalGeometry geometry = new PortalGeometry();
-        geometry.setArea(new AxisAlignedBB(0, 0.999D, 64, 64.999D, 0, 0.999D));
+        when(view.getLight(anyInt(), anyInt(), anyInt())).thenReturn(ContentView.packLight(15, 0));
+        ApertureCells geometry = new ApertureCells();
+        geometry.setArea(new Box(0, 0.999D, 64, 64.999D, 0, 0.999D));
         ViewPlateKey key = new ViewPlateKey(UUID.randomUUID(), view, true, 0, 0L);
-        ViewPlateBuilder.Request<BlockState, BlockState, ProjectionContentView<BlockState, BlockState>> request = new ViewPlateBuilder.Request<>(
-            key, geometry, view, PortalFrame.canonical(Direction.E), PortalFrame.canonical(Direction.S),
+        ViewPlateBuilder.Request<BlockState, BlockState, ContentView<BlockState, BlockState>> request = new ViewPlateBuilder.Request<>(
+            key, geometry, view, Frame.canonical(Face.E), Frame.canonical(Face.S),
             0.4995D, 64.4995D, 0.4995D, 20.4995D, 64.4995D, 20.4995D, false, 0,
             4, 0, 0, false, Blocks.AIR.defaultBlockState(), LodPolicy.NONE, false, 0L, 0L, 0L, MinecraftProjectorBlocks.INSTANCE);
         ViewPlateBuilder.Job<BlockState, Object> section = ViewPlateBuilder.sectionJob(request, new PlateBox(-16, 64, 0, 16, 16, 16));
         assertTrue(section.step(Integer.MAX_VALUE));
-        long cell = ProjectionCellKey.pack(-1, 64, 0);
+        long cell = CellKeys.pack(-1, 64, 0);
         assertSame(source, section.result().cell(cell).data());
         assertSame(source, section.result().cell(cell).sourceData());
         assertNotEquals(source, ViewPlateBuilder.build(request).cell(cell).data());
@@ -110,11 +110,11 @@ public class MinecraftViewPlateTest extends MinecraftTestBase {
         when(view.getMaxHeight()).thenReturn(320);
         when(view.sampleBlockData(anyInt(), anyInt(), anyInt())).thenReturn(stone);
         when(view.sampleMaterial(anyInt(), anyInt(), anyInt())).thenReturn(stone);
-        PortalGeometry geometry = new PortalGeometry();
-        geometry.setArea(new AxisAlignedBB(0, 2, 64, 67, 0, 1));
-        PortalFrame frame = PortalFrame.canonical(Direction.S);
+        ApertureCells geometry = new ApertureCells();
+        geometry.setArea(new Box(0, 2, 64, 67, 0, 1));
+        Frame frame = Frame.canonical(Face.S);
         ViewPlateKey key = new ViewPlateKey(UUID.randomUUID(), view, true, 0, 0L);
-        ViewPlateBuilder.Request<BlockState, BlockState, ProjectionContentView<BlockState, BlockState>> request = new ViewPlateBuilder.Request<>(
+        ViewPlateBuilder.Request<BlockState, BlockState, ContentView<BlockState, BlockState>> request = new ViewPlateBuilder.Request<>(
             key, geometry, view, frame, frame,
             1.0D, 65.0D, 0.0D, 1.0D, 65.0D, 0.0D, false, 0,
             4.0D, 0.0D, 0.0D, false, Blocks.AIR.defaultBlockState(), LodPolicy.NONE,
@@ -129,7 +129,7 @@ public class MinecraftViewPlateTest extends MinecraftTestBase {
             PlateCaptureJob<BlockState, ServerLevel, MinecraftPlateCaptureSource.CapturedChunk> job = new PlateCaptureJob<>(new PlateCaptureJob.Plan<>(
                 key, level, ViewPlateBuilder.footprint(request), new MinecraftPlateCaptureSource(runtime, MinecraftPlateCaptureSource.Options.column(worldId, false)),
                 captured -> ViewPlateBuilder.job(request.withDestView(new MinecraftCapturedChunkView(worldId, -64, 320, 7L, captured)))));
-            assertNull(service.plates().current(key, 7L, 3L, new ProjectionWorldChangeTracker(), false, previous -> job));
+            assertNull(service.plates().current(key, 7L, 3L, new WorldChangeTracker(), false, previous -> job));
             assertEquals(1, service.plateCaptureQueueSize());
             assertTrue(service.plates().isBuilding(job));
             int ticks = 0;

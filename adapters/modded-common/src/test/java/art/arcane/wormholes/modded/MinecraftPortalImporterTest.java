@@ -2,7 +2,7 @@ package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.ops.importers.ImportedPortal;
 import art.arcane.wormholes.ops.importers.PortalFactoryBridge;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
@@ -43,7 +43,7 @@ public class MinecraftPortalImporterTest extends MinecraftTestBase {
         when(portal.getId()).thenReturn(id);
         when(registry.get(id)).thenReturn(portal);
         MinecraftPortalImporter importer = new MinecraftPortalImporter(new MinecraftPortalImporter.Options(runtime, UUID.randomUUID(), () -> true));
-        PortalFactoryBridge.CreateResult result = importer.create(new ImportedPortal("Gate", "minecraft:overworld", 1, 70, 2, Direction.N, 2, 3, ""));
+        PortalFactoryBridge.CreateResult result = importer.create(new ImportedPortal("Gate", "minecraft:overworld", 1, 70, 2, Face.N, 2, 3, ""));
         assertTrue(result.ok());
         assertEquals(id, result.portalId());
         verify(portal).setName("Gate");
@@ -59,7 +59,7 @@ public class MinecraftPortalImporterTest extends MinecraftTestBase {
         when(runtime.server()).thenReturn(server);
         when(server.isSameThread()).thenReturn(true);
         MinecraftPortalImporter importer = new MinecraftPortalImporter(new MinecraftPortalImporter.Options(runtime, null, () -> false));
-        assertFalse(importer.create(new ImportedPortal("Gate", "minecraft:overworld", 1, 70, 2, Direction.N, 2, 3, "")).ok());
+        assertFalse(importer.create(new ImportedPortal("Gate", "minecraft:overworld", 1, 70, 2, Face.N, 2, 3, "")).ok());
         verify(runtime, never()).portals();
     }
 }

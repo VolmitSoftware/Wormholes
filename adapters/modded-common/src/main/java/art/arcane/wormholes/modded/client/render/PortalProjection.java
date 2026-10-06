@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client.render;
 
 import org.joml.Matrix4f;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
+import art.arcane.optics.stream.ProjectionEnvironment;
 import org.joml.Matrix4d;
 import org.joml.Matrix4fc;
 import org.joml.Vector4f;
@@ -11,13 +11,13 @@ final class PortalProjection {
     private PortalProjection() {
     }
 
-    static Matrix4f rotation(ClientViewEnvironment.Transform transform) {
+    static Matrix4f rotation(ProjectionEnvironment.Transform transform) {
         return new Matrix4f().m00(transform.xAxis().x()).m01(transform.xAxis().y()).m02(transform.xAxis().z())
             .m10(transform.yAxis().x()).m11(transform.yAxis().y()).m12(transform.yAxis().z())
             .m20(transform.zAxis().x()).m21(transform.zAxis().y()).m22(transform.zAxis().z());
     }
 
-    static Matrix4d destinationToSource(ClientViewEnvironment.Transform transform) {
+    static Matrix4d destinationToSource(ProjectionEnvironment.Transform transform) {
         return new Matrix4d().m00(transform.xAxis().x()).m01(transform.xAxis().y()).m02(transform.xAxis().z())
             .m10(transform.yAxis().x()).m11(transform.yAxis().y()).m12(transform.yAxis().z())
             .m20(transform.zAxis().x()).m21(transform.zAxis().y()).m22(transform.zAxis().z())

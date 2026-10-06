@@ -1,7 +1,7 @@
 package art.arcane.wormholes.network.view;
 
-import art.arcane.wormholes.network.client.SectionBiomes;
-import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.optics.stream.SectionBiomes;
+import art.arcane.optics.math.Box;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -9,7 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 final class NativeViewBoundsTest {
     @Test
     void requestedMeshExtentIncludesAlignedSectionEdgesAndBiomeHalo() {
-        AxisAlignedBB aperture = new AxisAlignedBB(-0.5D, 2.5D, 70, 74, -200.5D, -200.5D);
+        Box aperture = new Box(-0.5D, 2.5D, 70, 74, -200.5D, -200.5D);
         for (int distance : new int[] {32, 160, 512}) {
             ViewBox box = ViewCaptureBounds.computeMesh(aperture, distance, -64, 320);
             assertTrue(box.minX() <= -distance - 16 - SectionBiomes.PADDING);
@@ -21,7 +21,7 @@ final class NativeViewBoundsTest {
 
     @Test
     void nativeExtentRespectsWorldHeightAndMaximumRenderDistance() {
-        AxisAlignedBB aperture = new AxisAlignedBB(0, 1, 300, 304, 0, 1);
+        Box aperture = new Box(0, 1, 300, 304, 0, 1);
         ViewBox box = ViewCaptureBounds.computeMesh(aperture, 1024, -64, 320);
         assertEquals(-64, box.minY());
         assertEquals(319, box.maxY());

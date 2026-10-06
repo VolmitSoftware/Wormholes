@@ -1,7 +1,6 @@
 package art.arcane.wormholes.network;
 
 import art.arcane.wormholes.config.toml.NetworkConfig;
-import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.localization.MeshMessages;
 import art.arcane.wormholes.modded.MinecraftMenuText;
 import art.arcane.wormholes.modded.MinecraftPortal;
@@ -9,7 +8,7 @@ import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.network.mesh.DestinationPolicy;
 import art.arcane.wormholes.network.mesh.DestinationPolicyEngine;
 import art.arcane.wormholes.network.mesh.HandoffQueue;
-import art.arcane.wormholes.portal.PortalCrossing;
+import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.wormholes.portal.DepartureHoldPolicy;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
@@ -40,7 +39,7 @@ public final class MinecraftGatewayPolicies implements AutoCloseable {
         return policy != null && !policy.candidates().isEmpty();
     }
 
-    boolean begin(ServerPlayer player, MinecraftPortal portal, PortalCrossing crossing) {
+    boolean begin(ServerPlayer player, MinecraftPortal portal, PlaneCrossing crossing) {
         DestinationPolicy policy = policy(portal);
         if (policy == null || policy.candidates().isEmpty()) {
             return false;
@@ -131,17 +130,17 @@ public final class MinecraftGatewayPolicies implements AutoCloseable {
             && runtime.portals().get(hold.portal().getId()) == hold.portal() && hold.portal().isOpen()
             && runtime.portals().canDepart(player, hold.portal()) && hold.policy().equals(policy(hold.portal()))
             && DepartureHoldPolicy.decide(true, player.level() == hold.level(),
-                hold.crossing().sourceSideDistance(new GeometryVector(player.getX(), player.getY(), player.getZ())),
+                hold.crossing().sourceSideDistance(new art.arcane.optics.math.Vec3(player.getX(), player.getY(), player.getZ())),
                 player.position().distanceToSqr(hold.position()), 1L) == DepartureHoldPolicy.Decision.HOLD_PIN;
     }
 
-    private void reject(ServerPlayer player, MinecraftPortal portal, PortalCrossing crossing, boolean timedOut) {
+    private void reject(ServerPlayer player, MinecraftPortal portal, PlaneCrossing crossing, boolean timedOut) {
         runtime.rules().failed(player);
         if (player.hasDisconnected() || player.isRemoved()) {
             return;
         }
         if (player.level() == runtime.portals().resolveLevel(portal)) {
-            GeometryVector point = crossing.rejectionPoint();
+            art.arcane.optics.math.Vec3 point = crossing.rejectionPoint();
             player.connection.teleport(point.x(), point.y(), point.z(), player.getYRot(), player.getXRot());
             runtime.portals().recordArrival(player, portal);
         }
@@ -152,6 +151,6 @@ public final class MinecraftGatewayPolicies implements AutoCloseable {
         return portal == null ? null : portal.meshPolicy();
     }
 
-    private record Hold(ServerPlayer player, MinecraftPortal portal, PortalCrossing crossing, DestinationPolicy policy, Level level, Vec3 position) {
+    private record Hold(ServerPlayer player, MinecraftPortal portal, PlaneCrossing crossing, DestinationPolicy policy, Level level, Vec3 position) {
     }
 }

@@ -1,6 +1,6 @@
 package art.arcane.wormholes.ops.importers;
 
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -127,23 +127,23 @@ public final class StargateImporter implements PortalImporter {
     }
 
     /** Stargate stores the gate's outward vector as {@code modX,modZ,rotX}. */
-    private static Direction facing(String field) {
+    private static Face facing(String field) {
         String[] parts = field.split(",");
         if (parts.length < 2) {
-            return Direction.N;
+            return Face.N;
         }
         int modX = (int) Math.signum(parseOrZero(parts[0]));
         int modZ = (int) Math.signum(parseOrZero(parts[1]));
         if (modX > 0) {
-            return Direction.E;
+            return Face.E;
         }
         if (modX < 0) {
-            return Direction.W;
+            return Face.W;
         }
         if (modZ > 0) {
-            return Direction.S;
+            return Face.S;
         }
-        return Direction.N;
+        return Face.N;
     }
 
     private static double parseOrZero(String value) {

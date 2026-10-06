@@ -1,6 +1,6 @@
 package art.arcane.wormholes.portal;
 
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 
 import java.util.ArrayDeque;
 import java.util.HashSet;
@@ -54,7 +54,7 @@ public final class PortalConstruction {
 		return flatAxes >= 1;
 	}
 
-	public static Direction derivePortalNormal(int xDepth, int yDepth, int zDepth, double lookX, double lookY, double lookZ)
+	public static Face derivePortalNormal(int xDepth, int yDepth, int zDepth, double lookX, double lookY, double lookZ)
 	{
 		double ax = xDepth == 0 ? Math.abs(lookX) : -1.0D;
 		double ay = yDepth == 0 ? Math.abs(lookY) : -1.0D;
@@ -62,15 +62,15 @@ public final class PortalConstruction {
 
 		if(ax >= ay && ax >= az)
 		{
-			return lookX >= 0.0D ? Direction.E : Direction.W;
+			return lookX >= 0.0D ? Face.E : Face.W;
 		}
 
 		if(ay >= az)
 		{
-			return lookY >= 0.0D ? Direction.U : Direction.D;
+			return lookY >= 0.0D ? Face.U : Face.D;
 		}
 
-		return lookZ >= 0.0D ? Direction.S : Direction.N;
+		return lookZ >= 0.0D ? Face.S : Face.N;
 	}
 
 }

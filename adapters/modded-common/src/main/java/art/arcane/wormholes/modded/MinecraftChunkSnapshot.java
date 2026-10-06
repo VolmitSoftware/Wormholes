@@ -4,8 +4,8 @@ import art.arcane.wormholes.network.replication.ChunkBulkBuilder;
 import art.arcane.wormholes.network.view.ViewBox;
 import art.arcane.wormholes.network.view.ViewSlice;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
-import art.arcane.wormholes.render.ProjectionCellKey;
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.fidelity.BlockEntitySample;
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -72,7 +72,7 @@ public final class MinecraftChunkSnapshot {
             if (box.contains(location.getX(), location.getY(), location.getZ())) {
                 BlockEntitySample sample = view.sampleBlockEntity(location.getX(), location.getY(), location.getZ());
                 if (sample != null) {
-                    snapshot.blockEntities.put(ProjectionCellKey.pack(location.getX(), location.getY(), location.getZ()), sample);
+                    snapshot.blockEntities.put(CellKeys.pack(location.getX(), location.getY(), location.getZ()), sample);
                 }
             }
         }

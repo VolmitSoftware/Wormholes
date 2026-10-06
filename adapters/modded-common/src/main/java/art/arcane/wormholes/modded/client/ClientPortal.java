@@ -1,8 +1,8 @@
 package art.arcane.wormholes.modded.client;
 
-import art.arcane.wormholes.render.client.ClientCellRules;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
-import art.arcane.wormholes.render.client.ClientViewSweep;
+import art.arcane.optics.client.ClientCellRules;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.client.ClientSweep;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
@@ -13,16 +13,16 @@ public final class ClientPortal {
     private final int portalKey;
     private final LongArrayList pendingEnters;
     private final IntOpenHashSet touchedBricks;
-    private ClientPortalGeometry geometry;
+    private ApertureDescriptor geometry;
     private int geometryRevision;
     private ClientPlate plate;
     private ClientPortalContent content;
-    private ClientViewSweep sweep;
+    private ClientSweep sweep;
     private ClientCellRules.Policy policy;
     private boolean contentDirty;
     private double hysteresis;
 
-    public ClientPortal(int portalKey, ClientPortalGeometry geometry, int geometryRevision, double hysteresis) {
+    public ClientPortal(int portalKey, ApertureDescriptor geometry, int geometryRevision, double hysteresis) {
         this.portalKey = portalKey;
         this.geometry = Objects.requireNonNull(geometry, "geometry");
         this.geometryRevision = geometryRevision;
@@ -35,7 +35,7 @@ public final class ClientPortal {
         return portalKey;
     }
 
-    public ClientPortalGeometry geometry() {
+    public ApertureDescriptor geometry() {
         return geometry;
     }
 
@@ -55,7 +55,7 @@ public final class ClientPortal {
         return geometry.parentPortalKey() != 0;
     }
 
-    public ClientViewSweep sweep() {
+    public ClientSweep sweep() {
         return sweep;
     }
 
@@ -88,7 +88,7 @@ public final class ClientPortal {
         return touchedBricks;
     }
 
-    public void geometry(ClientPortalGeometry next, int revision) {
+    public void geometry(ApertureDescriptor next, int revision) {
         Objects.requireNonNull(next, "next");
         boolean changed = !geometry.equals(next);
         geometry = next;
@@ -128,7 +128,7 @@ public final class ClientPortal {
         content = next;
         policy = ClientCellRules.Policy.of(geometry, next.backingState());
         if (sweep == null) {
-            sweep = new ClientViewSweep(geometry, next.cells(), hysteresis);
+            sweep = new ClientSweep(geometry, next.cells(), hysteresis);
         } else if (!sweep.bounds().equals(next.cells())) {
             sweep.reconfigure(geometry, next.cells());
         }

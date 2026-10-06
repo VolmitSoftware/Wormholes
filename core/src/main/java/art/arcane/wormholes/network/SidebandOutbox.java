@@ -1,6 +1,6 @@
 package art.arcane.wormholes.network;
 
-import art.arcane.wormholes.network.view.EntityVisual;
+import art.arcane.optics.entity.EntitySnapshot;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
@@ -213,7 +213,7 @@ final class SidebandOutbox {
         if (entities.entities().isEmpty()) {
             return true;
         }
-        for (EntityVisual entity : entities.entities()) {
+        for (EntitySnapshot entity : entities.entities()) {
             if (entity.isFull()) {
                 return true;
             }

@@ -1,13 +1,13 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.chunk.ChunkLease;
-import art.arcane.wormholes.render.ProjectionCellKey;
-import art.arcane.wormholes.render.view.CachedSection;
-import art.arcane.wormholes.render.view.ProjectionContentView;
-import art.arcane.wormholes.render.view.SectionCache;
-import art.arcane.wormholes.render.blockentity.BlockEntityMaterials;
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
-import art.arcane.wormholes.render.blockentity.BlockEntitySanitizer;
+import art.arcane.optics.plate.ChunkLease;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.view.CachedSection;
+import art.arcane.optics.view.ContentView;
+import art.arcane.optics.view.SectionCache;
+import art.arcane.optics.fidelity.BlockEntityMaterials;
+import art.arcane.optics.fidelity.BlockEntitySample;
+import art.arcane.optics.fidelity.BlockEntitySanitizer;
 import art.arcane.wormholes.render.FidelitySettings;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -30,7 +30,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
-public final class MinecraftProjectionWorldView implements ProjectionContentView<BlockState, BlockState>, AutoCloseable {
+public final class MinecraftProjectionWorldView implements ContentView<BlockState, BlockState>, AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
     private static final int MAX_WANTED_SECTIONS = 4096;
 
@@ -211,8 +211,8 @@ public final class MinecraftProjectionWorldView implements ProjectionContentView
         LongIterator iterator = wantedSections.iterator();
         while (iterator.hasNext()) {
             long wanted = iterator.nextLong();
-            if (ProjectionCellKey.unpackX(wanted) == chunkX && ProjectionCellKey.unpackZ(wanted) == chunkZ) {
-                sections.capture(chunkX, ProjectionCellKey.unpackY(wanted), chunkZ);
+            if (CellKeys.unpackX(wanted) == chunkX && CellKeys.unpackZ(wanted) == chunkZ) {
+                sections.capture(chunkX, CellKeys.unpackY(wanted), chunkZ);
                 iterator.remove();
             }
         }
@@ -243,7 +243,7 @@ public final class MinecraftProjectionWorldView implements ProjectionContentView
         if (wantedSections.size() >= MAX_WANTED_SECTIONS) {
             wantedSections.clear();
         }
-        wantedSections.add(ProjectionCellKey.pack(x >> 4, y >> 4, z >> 4));
+        wantedSections.add(CellKeys.pack(x >> 4, y >> 4, z >> 4));
     }
 
     private void release(long key, ChunkLease lease) {

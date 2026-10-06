@@ -20,7 +20,7 @@ import art.arcane.volmlib.util.localization.LinesKey;
 import art.arcane.volmlib.util.localization.MessageArgs;
 import art.arcane.volmlib.util.localization.MessageArgument;
 import art.arcane.volmlib.util.localization.TextKey;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 
 final class LocalPortalText
 {
@@ -123,7 +123,7 @@ final class LocalPortalText
 		return text.equalsIgnoreCase(localized(WormholesMessages.PORTAL_INPUT_CANCEL));
 	}
 
-	static String directionLabel(Direction direction)
+	static String directionLabel(Face direction)
 	{
 		TextKey key = switch(direction)
 		{

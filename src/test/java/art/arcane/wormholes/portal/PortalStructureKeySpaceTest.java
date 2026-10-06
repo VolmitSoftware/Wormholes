@@ -11,7 +11,7 @@ import org.bukkit.util.Vector;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.util.Cuboid;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 
 public final class PortalStructureKeySpaceTest {
     @Test
@@ -67,7 +67,7 @@ public final class PortalStructureKeySpaceTest {
         }
 
         @Override
-        public Vector getCornerVector(Direction x, Direction y, Direction z) {
+        public Vector getCornerVector(Face x, Face y, Face z) {
             double s = 0.999D;
             return new Vector(x.x() == 1 ? (x2 + s) : x1, y.y() == 1 ? (y2 + s) : y1, z.z() == 1 ? (z2 + s) : z1);
         }

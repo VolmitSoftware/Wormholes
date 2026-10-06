@@ -1,6 +1,6 @@
 package art.arcane.wormholes.network.client;
 
-import art.arcane.wormholes.network.replication.XxHash64;
+import art.arcane.optics.stream.XxHash64;
 
 import java.util.Arrays;
 import java.util.Comparator;
@@ -9,6 +9,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.function.IntFunction;
+import art.arcane.optics.stream.Brick;
+import art.arcane.optics.stream.BrickCodec;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ClientViewWriter;
+import art.arcane.optics.stream.SectionBiomes;
+import art.arcane.optics.stream.ViewStreamLimits;
 
 public final class ClientMeshHash {
     private ClientMeshHash() {
@@ -61,7 +67,7 @@ public final class ClientMeshHash {
         int used = 0;
         boolean ordered = true;
         boolean air = false;
-        for (int cell = 0; cell < ClientViewProtocol.BRICK_CELLS; cell++) {
+        for (int cell = 0; cell < ViewStreamLimits.BRICK_CELLS; cell++) {
             int index = original.localIndexAt(cell);
             if (names[index] != null) {
                 continue;
@@ -101,10 +107,10 @@ public final class ClientMeshHash {
             return Brick.single(0, single);
         }
         if (palette.reuseIndices()) {
-            return new Brick(0, Brick.Encoding.PALETTED, original.bitsPerIndex(), 0, ClientViewProtocol.PALETTE_AIR,
+            return new Brick(0, Brick.Encoding.PALETTED, original.bitsPerIndex(), 0, ViewStreamLimits.PALETTE_AIR,
                 remap, original.packedIndices(), null, null, null);
         }
-        int[] cells = new int[ClientViewProtocol.BRICK_CELLS];
+        int[] cells = new int[ViewStreamLimits.BRICK_CELLS];
         for (int cell = 0; cell < cells.length; cell++) {
             cells[cell] = remap[original.localIndexAt(cell)];
         }
@@ -112,10 +118,10 @@ public final class ClientMeshHash {
     }
 
     private static String state(int id, int backing, IntFunction<String> states) throws ClientViewProtocolException {
-        if (id == ClientViewProtocol.PALETTE_OCCLUDED || id == ClientViewProtocol.PALETTE_BACKING) {
+        if (id == ViewStreamLimits.PALETTE_OCCLUDED || id == ViewStreamLimits.PALETTE_BACKING) {
             id = backing;
         }
-        String value = id == ClientViewProtocol.PALETTE_AIR ? SessionPalette.AIR : states.apply(id);
+        String value = id == ViewStreamLimits.PALETTE_AIR ? SessionPalette.AIR : states.apply(id);
         if (value == null) {
             throw new ClientViewProtocolException("Unknown cached section palette state " + id);
         }

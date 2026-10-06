@@ -1,10 +1,10 @@
 package art.arcane.wormholes.network;
 
 
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.portal.PortalCrossing;
-import art.arcane.wormholes.portal.PortalFrame;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Vec3;
+import art.arcane.optics.crossing.PlaneCrossing;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.math.Face;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -28,7 +28,7 @@ public record WireTraversive(
     double lookZ,
     boolean frontSide
 ) {
-    public static WireTraversive fromCrossing(PortalCrossing crossing) {
+    public static WireTraversive fromCrossing(PlaneCrossing crossing) {
         return new WireTraversive(crossing.frame().getNormal().name(), crossing.frame().getRight().name(),
             crossing.frame().getUp().name(), crossing.origin().x(), crossing.origin().y(), crossing.origin().z(),
             crossing.point().x(), crossing.point().y(), crossing.point().z(),
@@ -36,11 +36,11 @@ public record WireTraversive(
             crossing.look().x(), crossing.look().y(), crossing.look().z(), crossing.frontSide());
     }
 
-    public PortalCrossing crossing() {
-        return new PortalCrossing(new PortalFrame(Direction.valueOf(frameNormal), Direction.valueOf(frameRight),
-            Direction.valueOf(frameUp)), new GeometryVector(originX, originY, originZ),
-            new GeometryVector(pointX, pointY, pointZ), new GeometryVector(velocityX, velocityY, velocityZ),
-            new GeometryVector(lookX, lookY, lookZ), frontSide);
+    public PlaneCrossing crossing() {
+        return new PlaneCrossing(new Frame(Face.valueOf(frameNormal), Face.valueOf(frameRight),
+            Face.valueOf(frameUp)), new Vec3(originX, originY, originZ),
+            new Vec3(pointX, pointY, pointZ), new Vec3(velocityX, velocityY, velocityZ),
+            new Vec3(lookX, lookY, lookZ), frontSide);
     }
 
     public void write(DataOutputStream out) throws IOException {

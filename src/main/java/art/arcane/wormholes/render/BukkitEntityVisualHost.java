@@ -2,7 +2,7 @@ package art.arcane.wormholes.render;
 
 import art.arcane.optics.entity.EntityProfile;
 import org.bukkit.World;
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import java.util.Locale;
 import java.util.UUID;
 import java.util.List;
@@ -22,13 +22,15 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSp
 
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
-import art.arcane.wormholes.network.view.EntityVisual;
+import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.wormholes.portal.ILocalPortal;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.render.view.ProjectionEntityView;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
+import art.arcane.optics.entity.SnapshotProjector;
+import art.arcane.optics.entity.SpoofedEntity;
 
-final class BukkitEntityVisualHost implements EntityRenderVisualProjector.Host<Player, Vector3d, EntityType, ProjectionEntityView> {
+final class BukkitEntityVisualHost implements SnapshotProjector.Host<Player, Vector3d, EntityType, ProjectionEntityView> {
     private final EntityRenderPacketChannel channel;
     private final EntityRenderPlayerIdentity identity;
     private final EntityRenderMetadataBridge metadataBridge;
@@ -43,7 +45,7 @@ final class BukkitEntityVisualHost implements EntityRenderVisualProjector.Host<P
     }
 
     @Override
-    public List<EntityVisual> entities(ProjectionEntityView view, EntityRenderVisualProjector.EntityRange range) {
+    public List<EntitySnapshot> entities(ProjectionEntityView view, SnapshotProjector.EntityRange range) {
         return view.getEntities(range.x(), range.y(), range.z(), range.range());
     }
 
@@ -83,29 +85,29 @@ final class BukkitEntityVisualHost implements EntityRenderVisualProjector.Host<P
     public boolean hasMap(ProjectionEntityView view, UUID entityId) { return view.getMapView(entityId) != null; }
 
     @Override
-    public void playerInfo(Player observer, EntityRenderSpoofedEntity state, EntityProfile profile) {
+    public void playerInfo(Player observer, SpoofedEntity state, EntityProfile profile) {
         identity.sendRemotePlayerInfo(observer, profile, state, state.upsideDown);
     }
 
     @Override
-    public void spawn(Player observer, EntityRenderSpoofedEntity state, EntityRenderVisualProjector.Spawn<Vector3d, EntityType> spawn) {
+    public void spawn(Player observer, SpoofedEntity state, SnapshotProjector.Spawn<Vector3d, EntityType> spawn) {
         channel.send(observer, new WrapperPlayServerSpawnEntity(state.fakeId, Optional.of(state.fakeUuid), spawn.type(),
             spawn.position(), spawn.pitch(), spawn.yaw(), spawn.yaw(), spawn.data(), Optional.of(spawn.velocity())));
     }
 
     @Override
-    public void spawnLabel(Player observer, EntityRenderSpoofedEntity state, EntityRenderVisualProjector.Label<Vector3d> label) {
+    public void spawnLabel(Player observer, SpoofedEntity state, SnapshotProjector.Label<Vector3d> label) {
         identity.spawnPlayerLabel(observer, state, label.position(), label.height());
     }
 
     @Override
-    public void updateLabel(Player observer, EntityRenderSpoofedEntity state, EntityRenderVisualProjector.Label<Vector3d> label) {
+    public void updateLabel(Player observer, SpoofedEntity state, SnapshotProjector.Label<Vector3d> label) {
         identity.updatePlayerLabelPosition(observer, state, label.position(), label.height());
         identity.updatePlayerLabelText(observer, state, label.profile());
     }
 
     @Override
-    public void entityState(Player observer, EntityRenderSpoofedEntity state, EntityRenderVisualProjector.State<ProjectionEntityView> update) {
+    public void entityState(Player observer, SpoofedEntity state, SnapshotProjector.State<ProjectionEntityView> update) {
         metadataBridge.sendRemoteEntityState(observer, update.view(), update.visual(), state, update.metadataTransform(), update.initial());
     }
 

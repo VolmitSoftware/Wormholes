@@ -4,11 +4,11 @@ import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
 
 import art.arcane.wormholes.modded.mixin.client.DebugScreenEntriesAccessor;
-import art.arcane.wormholes.network.client.ClientViewCapability;
+import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewProtocolException;
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.fidelity.BlockEntitySample;
 import net.minecraft.SharedConstants;
 import net.minecraft.client.Camera;
 import net.minecraft.client.ClientBrandRetriever;
@@ -224,7 +224,7 @@ public final class WormholesClient {
         }
         meshViews.update(session, level);
         reflections.tick(level, player, minecraft.getConnection(), session, tick,
-            config.selfReflection && session.active() && session.has(ClientViewCapability.CLIENT_MIRROR));
+            config.selfReflection && session.active() && session.has(ViewStreamCapability.CLIENT_MIRROR));
     }
 
     public String debugLine() {

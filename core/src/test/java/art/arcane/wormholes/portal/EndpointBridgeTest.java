@@ -1,13 +1,14 @@
 package art.arcane.wormholes.portal;
 
 import art.arcane.optics.aperture.Endpoint;
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Face;
 import org.junit.jupiter.api.Test;
 
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import art.arcane.optics.frame.Frame;
 
 final class EndpointBridgeTest {
     @Test
@@ -33,13 +34,13 @@ final class EndpointBridgeTest {
         }
 
         @Override
-        public Direction getDirection() {
-            return Direction.N;
+        public Face getDirection() {
+            return Face.N;
         }
 
         @Override
-        public PortalFrame getFrame() {
-            return PortalFrame.canonical(Direction.N);
+        public Frame getFrame() {
+            return Frame.canonical(Face.N);
         }
 
         @Override
@@ -62,8 +63,8 @@ final class EndpointBridgeTest {
         }
 
         @Override
-        public GeometryVector getOrigin() {
-            return new GeometryVector(0, 64, 0);
+        public Vec3 getOrigin() {
+            return new Vec3(0, 64, 0);
         }
     }
 }

@@ -13,7 +13,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.bukkit.World;
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -44,7 +44,7 @@ final class TransitPortalExtensionTest {
         assertFalse(transit.isBounce());
         assertEquals(TransitionProfile.NONE, transit.profile());
 
-        transit.setMomentum(new MomentumPolicy(MomentumPolicy.Mode.SCALE, 1.5D, 6.0D, new GeometryVector(0.0D, 0.25D, 0.0D)));
+        transit.setMomentum(new MomentumPolicy(MomentumPolicy.Mode.SCALE, 1.5D, 6.0D, new Vec3(0.0D, 0.25D, 0.0D)));
         transit.setOrientation(OrientationPolicy.SNAP);
         transit.setMembrane(true);
         transit.setBounce(true);
@@ -63,7 +63,7 @@ final class TransitPortalExtensionTest {
         assertEquals(MomentumPolicy.Mode.SCALE, copy.momentum().mode());
         assertEquals(1.5D, copy.momentum().factor());
         assertEquals(6.0D, copy.momentum().maxSpeed());
-        assertEquals(new GeometryVector(0.0D, 0.25D, 0.0D), copy.momentum().impulse());
+        assertEquals(new Vec3(0.0D, 0.25D, 0.0D), copy.momentum().impulse());
         assertEquals(OrientationPolicy.SNAP, copy.orientation());
         assertTrue(copy.isMembrane());
         assertTrue(copy.isBounce());
@@ -102,7 +102,7 @@ final class TransitPortalExtensionTest {
 
     @Test
     void momentumPolicyEncodingRoundTripsAndRejectsGarbage() {
-        MomentumPolicy policy = new MomentumPolicy(MomentumPolicy.Mode.IMPULSE, 1.0D, 0.0D, new GeometryVector(0.5D, -0.25D, 2.0D));
+        MomentumPolicy policy = new MomentumPolicy(MomentumPolicy.Mode.IMPULSE, 1.0D, 0.0D, new Vec3(0.5D, -0.25D, 2.0D));
         assertEquals(policy, MomentumPolicy.decode(policy.encode()));
         assertNull(MomentumPolicy.decode("nonsense"));
         assertNull(MomentumPolicy.decode(""));

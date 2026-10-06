@@ -1,8 +1,8 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.config.WormholesSettings;
-import art.arcane.wormholes.chunk.ChunkLease;
-import art.arcane.wormholes.chunk.ChunkLeaseRegistry;
+import art.arcane.optics.plate.ChunkLease;
+import art.arcane.optics.plate.ChunkLeaseRegistry;
 import art.arcane.wormholes.door.DoorAccessState;
 import art.arcane.wormholes.door.DoorItemIdentity;
 import art.arcane.wormholes.door.DoorPosition;
@@ -15,7 +15,7 @@ import art.arcane.wormholes.door.PocketCreationDefaults;
 import art.arcane.wormholes.door.PocketRules;
 import art.arcane.wormholes.door.DoorVec3;
 import art.arcane.wormholes.door.ReturnTicket;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
@@ -188,9 +188,9 @@ public class MinecraftPocketPreviewTest extends MinecraftTestBase {
             PlacedDoorEndpoint exit = new PlacedDoorEndpoint(new DoorPosition(UUID.randomUUID(), "wormholes:pockets", 0, 64, 0),
                 DoorItemIdentity.newReturn(UUID.randomUUID()));
             MinecraftDoorService.DoorView returnView = new MinecraftDoorService.DoorView(exit, fixture.pocketLevel,
-                new DoorwayPlane(0, 64, 0, Direction.S), true);
+                new DoorwayPlane(0, 64, 0, Face.S), true);
             MinecraftDoorService.ProjectionDestination destination = fixture.doors.projectionDestination(returnView, observer).orElseThrow();
-            DoorVec3 current = new DoorwayPlane(80, 72, 90, Direction.N).center();
+            DoorVec3 current = new DoorwayPlane(80, 72, 90, Face.N).center();
             assertEquals(current.x(), destination.origin().x(), 0);
             assertEquals(current.y(), destination.origin().y(), 0);
             assertEquals(current.z(), destination.origin().z(), 0);
@@ -224,7 +224,7 @@ public class MinecraftPocketPreviewTest extends MinecraftTestBase {
             PlacedDoorEndpoint endpoint = new PlacedDoorEndpoint(new DoorPosition(UUID.randomUUID(), "wormholes:pockets", 0, 64, 0),
                 DoorItemIdentity.newReturn(UUID.randomUUID()));
             MinecraftDoorService.DoorView exit = new MinecraftDoorService.DoorView(endpoint, fixture.pocketLevel,
-                new DoorwayPlane(0, 64, 0, Direction.S), true);
+                new DoorwayPlane(0, 64, 0, Face.S), true);
             when(fixture.overworld.hasChunk(anyInt(), anyInt())).thenReturn(false);
             assertTrue(fixture.doors.projectionDestination(exit, observer).isEmpty());
             if (disconnect) {
@@ -296,7 +296,7 @@ public class MinecraftPocketPreviewTest extends MinecraftTestBase {
             DoorItemIdentity identity = personal ? DoorItemIdentity.newPersonal() : DoorItemIdentity.newPublic();
             PlacedDoorEndpoint endpoint = new PlacedDoorEndpoint(new DoorPosition(UUID.randomUUID(), "minecraft:overworld", 4, 64, 8), identity);
             doors.state().registerEndpoint(endpoint, UUID.randomUUID());
-            return new MinecraftDoorService.DoorView(endpoint, overworld, new DoorwayPlane(4, 64, 8, Direction.N), true);
+            return new MinecraftDoorService.DoorView(endpoint, overworld, new DoorwayPlane(4, 64, 8, Face.N), true);
         }
 
         private MinecraftPocketRooms.Prepared prepared(PocketSpace space) {

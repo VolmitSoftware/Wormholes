@@ -22,11 +22,14 @@ import org.bukkit.util.Vector;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.portal.ILocalPortal;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
-import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Face;
+import art.arcane.optics.recursion.RecursiveEndpoints;
+import art.arcane.optics.scan.ProjectorSample;
+import art.arcane.optics.scan.ProjectorSampler;
 
 final class ProjectorRecursivePortalsCycleTest {
     private static final double EYE_X = 1.0D;
@@ -39,20 +42,20 @@ final class ProjectorRecursivePortalsCycleTest {
     @Test
     void reachClassifiesSampleVolumesByTheCandidatesTheyCanHit() {
         FacingPair pair = new FacingPair(true);
-        ProjectorRecursivePortals<World, ILocalPortal> portals = BukkitProjectorPortalAccess.create(pair::portals);
-        ProjectorRecursivePortals<World, ILocalPortal>.Index index = portals.indexFor(pair.world, EYE_X, EYE_Y, EYE_Z, pair.back);
-        List<ProjectorRecursivePortals<World, ILocalPortal>.Candidate> masks = new ArrayList<ProjectorRecursivePortals<World, ILocalPortal>.Candidate>();
+        RecursiveEndpoints<World, ILocalPortal> portals = BukkitProjectorPortalAccess.create(pair::portals);
+        RecursiveEndpoints<World, ILocalPortal>.Index index = portals.indexFor(pair.world, EYE_X, EYE_Y, EYE_Z, pair.back);
+        List<RecursiveEndpoints<World, ILocalPortal>.Candidate> masks = new ArrayList<RecursiveEndpoints<World, ILocalPortal>.Candidate>();
 
-        assertEquals(ProjectorRecursivePortals.Reach.RECURSIVE,
+        assertEquals(RecursiveEndpoints.Reach.RECURSIVE,
             index.reach(SAMPLE_X, SAMPLE_Y, SAMPLE_Z, SAMPLE_X, SAMPLE_Y, SAMPLE_Z, 3, masks));
         assertTrue(masks.isEmpty());
-        assertEquals(ProjectorRecursivePortals.Reach.MASK,
+        assertEquals(RecursiveEndpoints.Reach.MASK,
             index.reach(SAMPLE_X, SAMPLE_Y, SAMPLE_Z, SAMPLE_X, SAMPLE_Y, SAMPLE_Z, 0, masks));
         assertEquals(1, masks.size());
-        assertEquals(ProjectorRecursivePortals.Reach.NONE, index.reach(80.0D, 40.0D, -20.0D, 180.0D, 90.0D, 20.0D, 3, masks));
-        assertEquals(ProjectorRecursivePortals.Reach.NONE, index.reach(-180.0D, 40.0D, -20.0D, -80.0D, 90.0D, 20.0D, 3, masks));
-        assertEquals(ProjectorRecursivePortals.Reach.NONE, index.reach(-20.0D, 200.0D, -20.0D, 20.0D, 250.0D, 20.0D, 3, masks));
-        assertEquals(ProjectorRecursivePortals.Reach.NONE, index.reach(-20.0D, 40.0D, -180.0D, 20.0D, 90.0D, -80.0D, 3, masks));
+        assertEquals(RecursiveEndpoints.Reach.NONE, index.reach(80.0D, 40.0D, -20.0D, 180.0D, 90.0D, 20.0D, 3, masks));
+        assertEquals(RecursiveEndpoints.Reach.NONE, index.reach(-180.0D, 40.0D, -20.0D, -80.0D, 90.0D, 20.0D, 3, masks));
+        assertEquals(RecursiveEndpoints.Reach.NONE, index.reach(-20.0D, 200.0D, -20.0D, 20.0D, 250.0D, 20.0D, 3, masks));
+        assertEquals(RecursiveEndpoints.Reach.NONE, index.reach(-20.0D, 40.0D, -180.0D, 20.0D, 90.0D, -80.0D, 3, masks));
         assertTrue(masks.isEmpty());
         assertTrue(portals.reaches(pair.world, pair.back, SAMPLE_X, SAMPLE_Y, SAMPLE_Z, SAMPLE_X, SAMPLE_Y, SAMPLE_Z));
         assertFalse(portals.reaches(pair.world, pair.back, 80.0D, 40.0D, -20.0D, 180.0D, 90.0D, 20.0D));
@@ -61,15 +64,15 @@ final class ProjectorRecursivePortalsCycleTest {
     @Test
     void portalsWithoutADestinationReachOnlyAsMasks() {
         FacingPair pair = new FacingPair(false);
-        ProjectorRecursivePortals<World, ILocalPortal> portals = BukkitProjectorPortalAccess.create(pair::portals);
-        ProjectorRecursivePortals<World, ILocalPortal>.Index index = portals.indexFor(pair.world, EYE_X, EYE_Y, EYE_Z, pair.back);
-        List<ProjectorRecursivePortals<World, ILocalPortal>.Candidate> masks = new ArrayList<ProjectorRecursivePortals<World, ILocalPortal>.Candidate>();
+        RecursiveEndpoints<World, ILocalPortal> portals = BukkitProjectorPortalAccess.create(pair::portals);
+        RecursiveEndpoints<World, ILocalPortal>.Index index = portals.indexFor(pair.world, EYE_X, EYE_Y, EYE_Z, pair.back);
+        List<RecursiveEndpoints<World, ILocalPortal>.Candidate> masks = new ArrayList<RecursiveEndpoints<World, ILocalPortal>.Candidate>();
 
-        assertEquals(ProjectorRecursivePortals.Reach.MASK,
+        assertEquals(RecursiveEndpoints.Reach.MASK,
             index.reach(SAMPLE_X, SAMPLE_Y, SAMPLE_Z, SAMPLE_X, SAMPLE_Y, SAMPLE_Z, 3, masks));
         assertEquals(1, masks.size());
         assertTrue(masks.get(0).covers(SAMPLE_X, SAMPLE_Y, SAMPLE_Z));
-        ProjectorRecursivePortals.Hit<World, ILocalPortal> hit = index.find(SAMPLE_X, SAMPLE_Y, SAMPLE_Z, 3);
+        RecursiveEndpoints.Hit<World, ILocalPortal> hit = index.find(SAMPLE_X, SAMPLE_Y, SAMPLE_Z, 3);
         assertNotNull(hit);
         assertFalse(hit.traversable);
         assertFalse(hit.cycle);
@@ -79,8 +82,8 @@ final class ProjectorRecursivePortalsCycleTest {
     @Test
     void unreachableGeometrySharesOneEmptyIndex() {
         FacingPair pair = new FacingPair(true);
-        ProjectorRecursivePortals<World, ILocalPortal> portals = BukkitProjectorPortalAccess.create(pair::portals);
-        ProjectorRecursivePortals<World, ILocalPortal>.Index empty = portals.emptyIndex();
+        RecursiveEndpoints<World, ILocalPortal> portals = BukkitProjectorPortalAccess.create(pair::portals);
+        RecursiveEndpoints<World, ILocalPortal>.Index empty = portals.emptyIndex();
 
         assertFalse(portals.reaches(pair.world, pair.back, 400.0D, 40.0D, 400.0D, 480.0D, 90.0D, 480.0D));
         assertTrue(empty.isEmpty());
@@ -94,7 +97,7 @@ final class ProjectorRecursivePortalsCycleTest {
     @Test
     void clippedLinesContainEveryCoveredPoint() {
         FacingPair pair = new FacingPair(false);
-        ProjectorRecursivePortals<World, ILocalPortal> portals = BukkitProjectorPortalAccess.create(pair::portals);
+        RecursiveEndpoints<World, ILocalPortal> portals = BukkitProjectorPortalAccess.create(pair::portals);
         Random random = new Random(40_961L);
         double[] range = new double[2];
         int covered = 0;
@@ -103,8 +106,8 @@ final class ProjectorRecursivePortalsCycleTest {
             double eyeX = -6.0D + (random.nextDouble() * 14.0D);
             double eyeY = 58.0D + (random.nextDouble() * 14.0D);
             double eyeZ = (random.nextBoolean() ? -1.0D : 1.0D) * (0.2D + (random.nextDouble() * 9.0D));
-            ProjectorRecursivePortals<World, ILocalPortal>.Index index = portals.indexFor(pair.world, eyeX, eyeY, eyeZ, pair.back);
-            for (ProjectorRecursivePortals<World, ILocalPortal>.Candidate candidate : index.paths()) {
+            RecursiveEndpoints<World, ILocalPortal>.Index index = portals.indexFor(pair.world, eyeX, eyeY, eyeZ, pair.back);
+            for (RecursiveEndpoints<World, ILocalPortal>.Candidate candidate : index.paths()) {
                 double baseX = -8.0D + (random.nextDouble() * 18.0D);
                 double baseY = 56.0D + (random.nextDouble() * 18.0D);
                 double baseZ = -14.0D + (random.nextDouble() * 28.0D);
@@ -158,13 +161,13 @@ final class ProjectorRecursivePortalsCycleTest {
     @Test
     void aCandidateAlreadyOnThePathIsReportedAsACycle() {
         FacingPair pair = new FacingPair(true);
-        ProjectorRecursivePortals<World, ILocalPortal> portals = BukkitProjectorPortalAccess.create(pair::portals);
-        ProjectorRecursivePortals<World, ILocalPortal>.Index index = portals.indexFor(pair.world, EYE_X, EYE_Y, EYE_Z, pair.back);
+        RecursiveEndpoints<World, ILocalPortal> portals = BukkitProjectorPortalAccess.create(pair::portals);
+        RecursiveEndpoints<World, ILocalPortal>.Index index = portals.indexFor(pair.world, EYE_X, EYE_Y, EYE_Z, pair.back);
 
-        ProjectorRecursivePortals.Hit<World, ILocalPortal> fresh = index.find(SAMPLE_X, SAMPLE_Y, SAMPLE_Z, 3);
-        ProjectorRecursivePortals.RecursionPath path = new ProjectorRecursivePortals.RecursionPath();
+        RecursiveEndpoints.Hit<World, ILocalPortal> fresh = index.find(SAMPLE_X, SAMPLE_Y, SAMPLE_Z, 3);
+        RecursiveEndpoints.RecursionPath path = new RecursiveEndpoints.RecursionPath();
         path.push(pair.front.getId());
-        ProjectorRecursivePortals.Hit<World, ILocalPortal> revisited = index.find(SAMPLE_X, SAMPLE_Y, SAMPLE_Z, 3, path);
+        RecursiveEndpoints.Hit<World, ILocalPortal> revisited = index.find(SAMPLE_X, SAMPLE_Y, SAMPLE_Z, 3, path);
 
         assertNotNull(fresh);
         assertTrue(fresh.traversable);
@@ -178,7 +181,7 @@ final class ProjectorRecursivePortalsCycleTest {
     @Test
     void aSelfFacingPairMasksAtTheSecondNestingInsteadOfSpendingTheDepthBudget() {
         FacingPair pair = new FacingPair(true);
-        ProjectorRecursivePortals<World, ILocalPortal> portals = BukkitProjectorPortalAccess.create(pair::portals);
+        RecursiveEndpoints<World, ILocalPortal> portals = BukkitProjectorPortalAccess.create(pair::portals);
         AtomicInteger nestedViewLookups = new AtomicInteger();
         ProjectionWorldView view = new StoneWorldView(pair.world);
         @SuppressWarnings("unchecked")
@@ -197,7 +200,7 @@ final class ProjectorRecursivePortalsCycleTest {
     }
 
     private static ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler(FacingPair pair) {
-        ProjectorRecursivePortals<World, ILocalPortal> portals = BukkitProjectorPortalAccess.create(pair::portals);
+        RecursiveEndpoints<World, ILocalPortal> portals = BukkitProjectorPortalAccess.create(pair::portals);
         ProjectionWorldView view = new StoneWorldView(pair.world);
         @SuppressWarnings("unchecked")
         ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView>[] sampler = (ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView>[]) new ProjectorSampler<?, ?, ?, ?, ?>[1];
@@ -213,8 +216,8 @@ final class ProjectorRecursivePortalsCycleTest {
 
         private FacingPair(boolean linked) {
             world = RenderTestSupport.world("recursion", List.<Entity>of());
-            Map<String, Object> frontState = portalState(PortalFrame.canonical(Direction.S), 0.0D);
-            Map<String, Object> backState = portalState(PortalFrame.canonical(Direction.N), 4.0D);
+            Map<String, Object> frontState = portalState(Frame.canonical(Face.S), 0.0D);
+            Map<String, Object> backState = portalState(Frame.canonical(Face.N), 4.0D);
             front = RenderTestSupport.portal(frontState);
             back = RenderTestSupport.portal(backState);
             if (linked) {
@@ -223,10 +226,10 @@ final class ProjectorRecursivePortalsCycleTest {
             }
         }
 
-        private Map<String, Object> portalState(PortalFrame frame, double planeZ) {
+        private Map<String, Object> portalState(Frame frame, double planeZ) {
             Map<String, Object> state = RenderTestSupport.portalState(world, new Vector(1.0D, 65.0D, planeZ), frame);
-            state.put("structure", new ApertureStructure(new AxisAlignedBB(0.0D, 2.0D, 64.0D, 66.0D, planeZ, planeZ + 1.0D)));
-            state.put("view", new AxisAlignedBB(-20.0D, 20.0D, 40.0D, 90.0D, -20.0D, 20.0D));
+            state.put("structure", new ApertureStructure(new Box(0.0D, 2.0D, 64.0D, 66.0D, planeZ, planeZ + 1.0D)));
+            state.put("view", new Box(-20.0D, 20.0D, 40.0D, 90.0D, -20.0D, 20.0D));
             state.put("supportsProjections", Boolean.TRUE);
             state.put("projecting", Boolean.TRUE);
             state.put("open", Boolean.TRUE);
@@ -243,14 +246,14 @@ final class ProjectorRecursivePortalsCycleTest {
     }
 
     private static final class ApertureStructure extends PortalStructure {
-        private final AxisAlignedBB area;
+        private final Box area;
 
-        private ApertureStructure(AxisAlignedBB area) {
+        private ApertureStructure(Box area) {
             this.area = area;
         }
 
         @Override
-        public AxisAlignedBB getArea() {
+        public Box getArea() {
             return area;
         }
 

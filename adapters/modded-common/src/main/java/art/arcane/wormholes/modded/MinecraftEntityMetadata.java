@@ -1,8 +1,8 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.render.ProjectedEntityMetadata;
-import art.arcane.wormholes.render.ProjectedItemFrameMetadata;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.entity.ProjectedMetadata;
+import art.arcane.optics.entity.ItemFrameMetadata;
+import art.arcane.optics.math.Face;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.EntityDataSerializer;
@@ -13,11 +13,11 @@ import net.minecraft.world.level.saveddata.maps.MapId;
 
 import java.util.Optional;
 
-public final class MinecraftEntityMetadata implements ProjectedItemFrameMetadata.Access<SynchedEntityData.DataValue<?>>,
-    ProjectedEntityMetadata.Access<SynchedEntityData.DataValue<?>> {
+public final class MinecraftEntityMetadata implements ItemFrameMetadata.Access<SynchedEntityData.DataValue<?>>,
+    ProjectedMetadata.Access<SynchedEntityData.DataValue<?>> {
     public static final MinecraftEntityMetadata ACCESS = new MinecraftEntityMetadata();
-    public static final ProjectedItemFrameMetadata<SynchedEntityData.DataValue<?>> FRAMES = new ProjectedItemFrameMetadata<>(ACCESS);
-    public static final ProjectedEntityMetadata<SynchedEntityData.DataValue<?>> ENTITIES = new ProjectedEntityMetadata<>(ACCESS);
+    public static final ItemFrameMetadata<SynchedEntityData.DataValue<?>> FRAMES = new ItemFrameMetadata<>(ACCESS);
+    public static final ProjectedMetadata<SynchedEntityData.DataValue<?>> ENTITIES = new ProjectedMetadata<>(ACCESS);
 
     private MinecraftEntityMetadata() {
     }
@@ -31,7 +31,7 @@ public final class MinecraftEntityMetadata implements ProjectedItemFrameMetadata
     @Override
     public boolean isItem(Object value) { return value instanceof ItemStack; }
     @Override
-    public Object direction(Direction direction) {
+    public Object direction(Face direction) {
         return switch (direction) {
             case D -> net.minecraft.core.Direction.DOWN;
             case U -> net.minecraft.core.Direction.UP;

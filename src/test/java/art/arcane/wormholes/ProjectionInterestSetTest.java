@@ -14,14 +14,14 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.portal.ILocalPortal;
-import art.arcane.wormholes.render.EntityRenderLocalOcclusionArbiter;
-import art.arcane.wormholes.render.ProjectionGazeScheduler;
+import art.arcane.optics.occlusion.LocalOcclusionArbiter;
+import art.arcane.optics.volume.GazeScheduler;
 
 final class ProjectionInterestSetTest {
     private static final ILocalPortal NEAREST = portal("nearest");
     private static final ILocalPortal OVERLAPPING = portal("overlapping");
     private static final ILocalPortal FARTHER = portal("farther");
-    private static final List<ProjectionGazeScheduler.Candidate<ILocalPortal>> INTERESTED = List.of(
+    private static final List<GazeScheduler.Candidate<ILocalPortal>> INTERESTED = List.of(
         candidate(NEAREST), candidate(OVERLAPPING), candidate(FARTHER));
 
     @Test
@@ -88,15 +88,15 @@ final class ProjectionInterestSetTest {
     }
 
     private static ProjectionInterestSet newSet() {
-        return new ProjectionInterestSet(null, new EntityRenderLocalOcclusionArbiter<>(BukkitEntityVisibility.create()), null, null, () -> true);
+        return new ProjectionInterestSet(null, new LocalOcclusionArbiter<>(BukkitEntityVisibility.create()), null, null, () -> true);
     }
 
-    private static ProjectionGazeScheduler.Eye eye(long tick) {
-        return new ProjectionGazeScheduler.Eye((tick & 1L) * 0.3D, 65.0D, 0.0D, 0.0F, 0.0F);
+    private static GazeScheduler.Eye eye(long tick) {
+        return new GazeScheduler.Eye((tick & 1L) * 0.3D, 65.0D, 0.0D, 0.0F, 0.0F);
     }
 
-    private static ProjectionGazeScheduler.Candidate<ILocalPortal> candidate(ILocalPortal portal) {
-        return new ProjectionGazeScheduler.Candidate<ILocalPortal>(portal, UUID.nameUUIDFromBytes(portal.getName().getBytes()),
+    private static GazeScheduler.Candidate<ILocalPortal> candidate(ILocalPortal portal) {
+        return new GazeScheduler.Candidate<ILocalPortal>(portal, UUID.nameUUIDFromBytes(portal.getName().getBytes()),
             -1.0D, 64.0D, 5.0D, 1.0D, 66.0D, 7.0D, false, false);
     }
 

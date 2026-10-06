@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
+import art.arcane.optics.view.WorldChangeTracker;
+import art.arcane.optics.fidelity.BlockEntitySample;
 import java.lang.ref.WeakReference;
 import java.util.LinkedHashMap;
 import java.util.Iterator;
@@ -14,7 +14,7 @@ import net.minecraft.world.level.chunk.PalettedContainer;
 final class MinecraftPlateSnapshotCache {
     static final Limits VIEW_LIMITS = new Limits(16_384, 12_000, 268_435_456L);
 
-    private final ProjectionWorldChangeTracker changes;
+    private final WorldChangeTracker changes;
     private final Limits limits;
     private final LinkedHashMap<Key, Entry> snapshots = new LinkedHashMap<>(16, 0.75F, true);
     private long bytes;
@@ -27,7 +27,7 @@ final class MinecraftPlateSnapshotCache {
     private long dirtyInvalidations;
     private long chunkInvalidations;
 
-    MinecraftPlateSnapshotCache(ProjectionWorldChangeTracker changes, Limits limits) {
+    MinecraftPlateSnapshotCache(WorldChangeTracker changes, Limits limits) {
         this.changes = Objects.requireNonNull(changes);
         this.limits = Objects.requireNonNull(limits);
     }

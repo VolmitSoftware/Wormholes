@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test;
 import com.github.retrooper.packetevents.protocol.ConnectionState;
 import com.github.retrooper.packetevents.protocol.player.User;
 
-import art.arcane.wormholes.network.client.ClientViewProtocol;
+import art.arcane.optics.stream.ViewStreamLimits;
 
 final class PacketEventsClientViewTransportTest {
     private static final PacketEventsClientViewTransport.Inbound IGNORED = new PacketEventsClientViewTransport.Inbound() {
@@ -49,7 +49,7 @@ final class PacketEventsClientViewTransportTest {
         assertNull(PacketEventsClientViewTransport.readBrand(new byte[] {9, 'f', 'a'}));
         assertNull(PacketEventsClientViewTransport.readBrand(new byte[0]));
         assertNull(PacketEventsClientViewTransport.readBrand(new byte[] {(byte) 0x80, (byte) 0x80, (byte) 0x80, (byte) 0x80, (byte) 0x80, 1}));
-        byte[] oversized = new byte[ClientViewProtocol.MAX_STRING_BYTES + 3];
+        byte[] oversized = new byte[ViewStreamLimits.MAX_STRING_BYTES + 3];
         Arrays.fill(oversized, (byte) 'a');
         oversized[0] = (byte) 0x81;
         oversized[1] = (byte) 0x02;

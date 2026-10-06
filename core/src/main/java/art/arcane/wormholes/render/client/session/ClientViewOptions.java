@@ -1,8 +1,9 @@
 package art.arcane.wormholes.render.client.session;
 
 import art.arcane.wormholes.config.toml.ClientViewConfig;
-import art.arcane.wormholes.network.client.ClientViewCapability;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
+import art.arcane.optics.stream.ViewStreamCapability;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.ClientViewPhase;
 
 public record ClientViewOptions(boolean enabled,
                                 boolean configurationHandshake,
@@ -22,7 +23,7 @@ public record ClientViewOptions(boolean enabled,
 
     public ClientViewOptions {
         helloGraceMillis = Math.max(0, Math.min(ClientViewConfig.MAX_HELLO_GRACE_MILLIS, helloGraceMillis));
-        maxFrameBytes = ClientViewProtocol.clampMaxFrameBytes(maxFrameBytes);
+        maxFrameBytes = ViewStreamLimits.clampMaxFrameBytes(maxFrameBytes);
         ackWindowFrames = Math.max(0, Math.min(ClientViewConfig.MAX_ACK_WINDOW_FRAMES, ackWindowFrames));
         interestGraceTicks = Math.max(0, interestGraceTicks);
     }
@@ -38,34 +39,34 @@ public record ClientViewOptions(boolean enabled,
     }
 
     public long serverCaps(ClientViewPhase phase) {
-        long caps = ClientViewCapability.of(ClientViewCapability.PLATES, ClientViewCapability.FX_EMITTERS,
-            ClientViewCapability.ATMOSPHERE, ClientViewCapability.LINK_UNCOMPRESSED, ClientViewCapability.MESH_RENDER,
-            ClientViewCapability.LOCAL_MESH, ClientViewCapability.MESH_REUSE, ClientViewCapability.PREPARED_TRAVEL,
-            ClientViewCapability.PREPARED_TRAVEL_CACHE);
+        long caps = ViewStreamCapability.of(ViewStreamCapability.PLATES, ViewStreamCapability.FX_EMITTERS,
+            ViewStreamCapability.ATMOSPHERE, ViewStreamCapability.LINK_UNCOMPRESSED, ViewStreamCapability.MESH_RENDER,
+            ViewStreamCapability.LOCAL_MESH, ViewStreamCapability.MESH_REUSE, ViewStreamCapability.PREPARED_TRAVEL,
+            ViewStreamCapability.PREPARED_TRAVEL_CACHE);
         if (brickCache) {
-            caps |= ClientViewCapability.BRICK_CACHE.mask();
+            caps |= ViewStreamCapability.BRICK_CACHE.mask();
         }
         if (destinationLight) {
-            caps |= ClientViewCapability.DEST_LIGHT.mask();
+            caps |= ViewStreamCapability.DEST_LIGHT.mask();
         }
         if (entityFrames) {
-            caps |= ClientViewCapability.ENTITY_FRAMES.mask() | ClientViewCapability.ENTITY_EVENTS.mask()
-                | ClientViewCapability.ENTITY_SELF.mask();
+            caps |= ViewStreamCapability.ENTITY_FRAMES.mask() | ViewStreamCapability.ENTITY_EVENTS.mask()
+                | ViewStreamCapability.ENTITY_SELF.mask();
         }
         if (zeroCopy) {
-            caps |= ClientViewCapability.ZERO_COPY.mask();
+            caps |= ViewStreamCapability.ZERO_COPY.mask();
         }
         if (viewStats) {
-            caps |= ClientViewCapability.VIEW_STATS.mask();
+            caps |= ViewStreamCapability.VIEW_STATS.mask();
         }
         if (clientMirror) {
-            caps |= ClientViewCapability.CLIENT_MIRROR.mask();
+            caps |= ViewStreamCapability.CLIENT_MIRROR.mask();
         }
         if (clientRecursion) {
-            caps |= ClientViewCapability.CLIENT_RECURSION.mask();
+            caps |= ViewStreamCapability.CLIENT_RECURSION.mask();
         }
         if (phase == ClientViewPhase.CONFIGURATION) {
-            caps |= ClientViewCapability.CONFIG_PHASE.mask();
+            caps |= ViewStreamCapability.CONFIG_PHASE.mask();
         }
         return caps;
     }

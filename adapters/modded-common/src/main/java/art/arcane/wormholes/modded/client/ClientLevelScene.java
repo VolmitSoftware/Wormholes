@@ -1,17 +1,16 @@
 package art.arcane.wormholes.modded.client;
 
-import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.modded.MinecraftAcoustics;
 import art.arcane.wormholes.modded.MinecraftEntityPackets;
-import art.arcane.wormholes.render.ProjectedEntityEvent;
+import art.arcane.optics.entity.ProjectedEntityEvent;
 import art.arcane.wormholes.modded.MinecraftAnimationParticles;
 import art.arcane.wormholes.modded.MinecraftPacketBlobs;
-import art.arcane.wormholes.network.view.EntityVisual;
-import art.arcane.wormholes.render.EntityVisualProjection;
+import art.arcane.optics.entity.EntitySnapshot;
+import art.arcane.optics.entity.EntityVisualProjection;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import art.arcane.wormholes.portal.effects.PortalAnimation;
-import art.arcane.wormholes.render.acoustics.AcousticsProfile;
-import art.arcane.wormholes.render.ProjectedPlayerNames;
+import art.arcane.optics.fidelity.AcousticsProfile;
+import art.arcane.optics.entity.PlayerNames;
 import com.mojang.datafixers.util.Pair;
 import io.netty.buffer.Unpooled;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -72,7 +71,7 @@ public final class ClientLevelScene implements ClientSceneWorld {
     }
 
     @Override
-    public boolean spawn(int entityId, UUID projectionId, EntityVisual visual) {
+    public boolean spawn(int entityId, UUID projectionId, EntitySnapshot visual) {
         ClientPacketListener connection = listener.get();
         EntityType<?> type = type(visual.typeKey());
         if (connection == null || type == null) {
@@ -98,7 +97,7 @@ public final class ClientLevelScene implements ClientSceneWorld {
     }
 
     @Override
-    public void move(int entityId, EntityVisual visual, EntityVisual previous) {
+    public void move(int entityId, EntitySnapshot visual, EntitySnapshot previous) {
         Entity entity = level.getEntity(entityId);
         if (entity == null) {
             return;
@@ -142,7 +141,7 @@ public final class ClientLevelScene implements ClientSceneWorld {
         motion.tick();
     }
 
-    static void move(Entity entity, EntityVisual visual, EntityVisual previous) {
+    static void move(Entity entity, EntitySnapshot visual, EntitySnapshot previous) {
         if (visual.x() != previous.x() || visual.y() != previous.y() || visual.z() != previous.z()
             || visual.yaw() != previous.yaw() || visual.pitch() != previous.pitch()) {
             entity.moveOrInterpolateTo(new Vec3(visual.x(), visual.y(), visual.z()), visual.yaw(), visual.pitch());
@@ -159,7 +158,7 @@ public final class ClientLevelScene implements ClientSceneWorld {
         }
     }
 
-    static float headYaw(EntityVisual visual) {
+    static float headYaw(EntitySnapshot visual) {
         return visual.lookX() * visual.lookX() + visual.lookZ() * visual.lookZ() < 1.0E-12D
             ? visual.yaw() : EntityVisualProjection.yaw(visual.lookX(), visual.lookZ());
     }
@@ -217,7 +216,7 @@ public final class ClientLevelScene implements ClientSceneWorld {
     }
 
     @Override
-    public void remove(int entityId, EntityVisual visual) {
+    public void remove(int entityId, EntitySnapshot visual) {
         itemMotion.remove(entityId);
         if (level.getEntity(entityId) != null) {
             level.removeEntity(entityId, Entity.RemovalReason.DISCARDED);
@@ -247,8 +246,8 @@ public final class ClientLevelScene implements ClientSceneWorld {
 
     @Override
     public void emission(PortalAnimation.ParticleEmission emission) {
-        GeometryVector position = emission.position();
-        GeometryVector spread = emission.spread();
+        art.arcane.optics.math.Vec3 position = emission.position();
+        art.arcane.optics.math.Vec3 spread = emission.spread();
         spawn(MinecraftAnimationParticles.options(emission.type()), position.x(), position.y(), position.z(), emission.count(), spread.x(),
             spread.y(), spread.z(), emission.speed());
     }
@@ -326,7 +325,7 @@ public final class ClientLevelScene implements ClientSceneWorld {
         }
     }
 
-    private ClientboundPlayerInfoUpdatePacket playerInfo(UUID projectionId, EntityVisual visual) {
+    private ClientboundPlayerInfoUpdatePacket playerInfo(UUID projectionId, EntitySnapshot visual) {
         RegistryFriendlyByteBuf buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), level.registryAccess());
         try {
             buffer.writeEnumSet(EnumSet.of(ClientboundPlayerInfoUpdatePacket.Action.ADD_PLAYER, ClientboundPlayerInfoUpdatePacket.Action.UPDATE_GAME_MODE,
@@ -334,7 +333,7 @@ public final class ClientLevelScene implements ClientSceneWorld {
                 ClientboundPlayerInfoUpdatePacket.Action.UPDATE_HAT), ClientboundPlayerInfoUpdatePacket.Action.class);
             buffer.writeVarInt(1);
             buffer.writeUUID(projectionId);
-            buffer.writeUtf(ProjectedPlayerNames.playerLabelText(visual.playerName()), 16);
+            buffer.writeUtf(PlayerNames.playerLabelText(visual.playerName()), 16);
             boolean texture = visual.textureValue() != null && !visual.textureValue().isEmpty();
             buffer.writeVarInt(texture ? 1 : 0);
             if (texture) {

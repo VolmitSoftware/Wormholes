@@ -11,15 +11,21 @@ import java.util.Objects;
 import java.util.WeakHashMap;
 import java.util.function.Function;
 
-import art.arcane.wormholes.render.ProjectionCellKey;
-import art.arcane.wormholes.render.ProjectorSample;
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
-import art.arcane.wormholes.render.plate.PlateBox;
-import art.arcane.wormholes.render.plate.PlateCell;
-import art.arcane.wormholes.render.plate.PlateGrid;
-import art.arcane.wormholes.render.plate.ViewPlate;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.scan.ProjectorSample;
+import art.arcane.optics.fidelity.BlockEntitySample;
+import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.plate.PlateCell;
+import art.arcane.optics.plate.PlateGrid;
+import art.arcane.optics.plate.ViewPlate;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+import art.arcane.optics.stream.Brick;
+import art.arcane.optics.stream.BrickCodec;
+import art.arcane.optics.stream.BrickLightSource;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.PlateSectionBox;
+import art.arcane.optics.stream.ViewStreamLimits;
 
 public final class PlateStreamEncoder<B> {
     private static final String FALLBACK_BACKING_STATE = "minecraft:stone";
@@ -87,7 +93,7 @@ public final class PlateStreamEncoder<B> {
         Object2IntOpenHashMap<String> backingVotes = new Object2IntOpenHashMap<String>(16);
         IntOpenHashSet referenced = new IntOpenHashSet(256);
         int[] kindCounts = new int[ProjectorSample.Kind.values().length + 1];
-        int[] cells = new int[ClientViewProtocol.BRICK_CELLS];
+        int[] cells = new int[ViewStreamLimits.BRICK_CELLS];
         int paletteSize = plate.paletteSize();
         int[] refIds = new int[paletteSize + 1];
         Arrays.fill(refIds, -1);
@@ -103,25 +109,25 @@ public final class PlateStreamEncoder<B> {
             int baseZ = sections.sectionZ(brickIndex) << 4;
             blockEntityCells.clear();
             int blockEntityBytes = 0;
-            for (int y = 0; y < ClientViewProtocol.BRICK_EDGE; y++) {
+            for (int y = 0; y < ViewStreamLimits.BRICK_EDGE; y++) {
                 int worldY = baseY + y;
                 boolean rowY = worldY >= box.minY() && worldY < maxY;
-                for (int z = 0; z < ClientViewProtocol.BRICK_EDGE; z++) {
+                for (int z = 0; z < ViewStreamLimits.BRICK_EDGE; z++) {
                     int worldZ = baseZ + z;
                     boolean rowZ = rowY && worldZ >= box.minZ() && worldZ < maxZ;
                     int rowBase = (y << 8) | (z << 4);
-                    for (int x = 0; x < ClientViewProtocol.BRICK_EDGE; x++) {
+                    for (int x = 0; x < ViewStreamLimits.BRICK_EDGE; x++) {
                         int worldX = baseX + x;
                         int cellIndex = rowBase | x;
                         if (!rowZ || worldX < box.minX() || worldX >= maxX) {
-                            cells[cellIndex] = ClientViewProtocol.PALETTE_AIR;
+                            cells[cellIndex] = ViewStreamLimits.PALETTE_AIR;
                             continue;
                         }
                         int ref = plate.cellRef(worldX, worldY, worldZ);
                         boolean entityCell = PlateGrid.blockEntityRef(ref);
                         PlateCell<B> cell = null;
                         if (entityCell) {
-                            cell = plate.cell(ProjectionCellKey.pack(worldX, worldY, worldZ));
+                            cell = plate.cell(CellKeys.pack(worldX, worldY, worldZ));
                         } else if (ref != PlateGrid.NO_CELL) {
                             cell = refCells.get(ref);
                             if (cell == null) {
@@ -130,7 +136,7 @@ public final class PlateStreamEncoder<B> {
                             }
                         }
                         if (cell == null) {
-                            cells[cellIndex] = ClientViewProtocol.PALETTE_AIR;
+                            cells[cellIndex] = ViewStreamLimits.PALETTE_AIR;
                             kindCounts[kindCounts.length - 1]++;
                             continue;
                         }
@@ -138,9 +144,9 @@ public final class PlateStreamEncoder<B> {
                         kindCounts[kind.ordinal()]++;
                         int id;
                         switch (kind) {
-                            case OCCLUDED -> id = ClientViewProtocol.PALETTE_OCCLUDED;
+                            case OCCLUDED -> id = ViewStreamLimits.PALETTE_OCCLUDED;
                             case BACKING_BLOCK -> {
-                                id = ClientViewProtocol.PALETTE_BACKING;
+                                id = ViewStreamLimits.PALETTE_BACKING;
                                 backingVotes.addTo(entityCell ? stateString(cell, cellStates) : refState(ref, cell, refStates), 1);
                             }
                             case BLOCK -> {
@@ -156,15 +162,15 @@ public final class PlateStreamEncoder<B> {
                                     }
                                 }
                                 if (blockEntities && cell.blockEntity() != null
-                                    && blockEntityCells.size() < ClientViewProtocol.MAX_BRICK_BLOCK_ENTITIES) {
+                                    && blockEntityCells.size() < ViewStreamLimits.MAX_BRICK_BLOCK_ENTITIES) {
                                     byte[] payload = blockEntityPayload(cell.blockEntity());
-                                    if (payload != null && blockEntityBytes + payload.length <= ClientViewProtocol.MAX_BRICK_BLOCK_ENTITY_BYTES) {
+                                    if (payload != null && blockEntityBytes + payload.length <= ViewStreamLimits.MAX_BRICK_BLOCK_ENTITY_BYTES) {
                                         blockEntityBytes += payload.length;
                                         blockEntityCells.add(new Brick.BlockEntityCell(cellIndex, payload));
                                     }
                                 }
                             }
-                            default -> id = ClientViewProtocol.PALETTE_AIR;
+                            default -> id = ViewStreamLimits.PALETTE_AIR;
                         }
                         cells[cellIndex] = id;
                     }
@@ -175,8 +181,8 @@ public final class PlateStreamEncoder<B> {
                 brick = brick.withBlockEntities(blockEntityCells.toArray(new Brick.BlockEntityCell[0]));
             }
             if (light != BrickLightSource.NONE) {
-                byte[] blockNibbles = new byte[ClientViewProtocol.LIGHT_NIBBLE_BYTES];
-                byte[] skyNibbles = new byte[ClientViewProtocol.LIGHT_NIBBLE_BYTES];
+                byte[] blockNibbles = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
+                byte[] skyNibbles = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
                 if (light.fill(sections.sectionX(brickIndex), sections.sectionY(brickIndex), sections.sectionZ(brickIndex), blockNibbles, skyNibbles)) {
                     brick = brick.withLight(blockNibbles, skyNibbles);
                 }
@@ -238,7 +244,7 @@ public final class PlateStreamEncoder<B> {
     private static byte[] blockEntityPayload(BlockEntitySample sample) {
         try {
             byte[] payload = BlockEntitySample.encode(sample);
-            return payload.length > ClientViewProtocol.MAX_BLOCK_ENTITY_PAYLOAD_BYTES ? null : payload;
+            return payload.length > ViewStreamLimits.MAX_BLOCK_ENTITY_PAYLOAD_BYTES ? null : payload;
         } catch (IOException e) {
             return null;
         }

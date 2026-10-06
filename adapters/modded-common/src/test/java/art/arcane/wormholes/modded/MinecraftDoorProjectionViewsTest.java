@@ -9,10 +9,10 @@ import art.arcane.wormholes.door.DoorProjectionState;
 import art.arcane.wormholes.door.DoorwayPlane;
 import art.arcane.wormholes.door.PlacedDoorEndpoint;
 import art.arcane.wormholes.door.view.DoorApertureFrames;
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.math.Vec3;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalType;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
@@ -47,11 +47,11 @@ public class MinecraftDoorProjectionViewsTest extends MinecraftTestBase {
         assertTrue(source.getGeometry().containsBlock(2, 64, 3));
         assertTrue(source.getGeometry().containsBlock(2, 65, 3));
         assertEquals(4, source.getNetworkViewLateralPad());
-        fixture.route(new GeometryVector(20.5D, 65.0D, 30.5D));
+        fixture.route(new Vec3(20.5D, 65.0D, 30.5D));
         assertSame(source, views.update(fixture.player, List.of(fixture.door), false).getFirst());
         assertSame(destination, views.destination(source));
         assertEquals(identity, views.routeIdentity(source));
-        fixture.route(new GeometryVector(30.5D, 65.0D, 30.5D));
+        fixture.route(new Vec3(30.5D, 65.0D, 30.5D));
         MinecraftPortal moved = views.update(fixture.player, List.of(fixture.door), false).getFirst();
         assertNotSame(source, moved);
         assertFalse(views.current(source));
@@ -68,7 +68,7 @@ public class MinecraftDoorProjectionViewsTest extends MinecraftTestBase {
         MinecraftPortal source = first.update(fixture.player, List.of(fixture.door), false).getFirst();
         MinecraftPortal matching = second.update(fixture.player, List.of(fixture.door), false).getFirst();
         assertEquals(first.routeIdentity(source), second.routeIdentity(matching));
-        fixture.route(new GeometryVector(120.5D, 65.0D, 30.5D));
+        fixture.route(new Vec3(120.5D, 65.0D, 30.5D));
         MinecraftPortal moved = second.update(fixture.player, List.of(fixture.door), false).getFirst();
         assertNotEquals(first.routeIdentity(source), second.routeIdentity(moved));
     }
@@ -93,7 +93,7 @@ public class MinecraftDoorProjectionViewsTest extends MinecraftTestBase {
         fixture.settings.getDoors().projectionEnabled = false;
         Optional<MinecraftDoorService.ProjectionDestination> route = fixture.doors.projectionDestination(fixture.door, fixture.observerId);
         for (boolean trapdoor : new boolean[] {false, true}) {
-            DoorwayPlane plane = trapdoor ? DoorwayPlane.trapdoor(2, 64, 3, Direction.N, DoorHalf.TOP, DoorOpenState.OPEN)
+            DoorwayPlane plane = trapdoor ? DoorwayPlane.trapdoor(2, 64, 3, Face.N, DoorHalf.TOP, DoorOpenState.OPEN)
                 : fixture.door.plane();
             MinecraftDoorService.DoorView disabled = new MinecraftDoorService.DoorView(fixture.door.endpoint().withProjection(DoorProjectionState.OFF),
                 fixture.level, plane, true);
@@ -101,7 +101,7 @@ public class MinecraftDoorProjectionViewsTest extends MinecraftTestBase {
             MinecraftDoorProjectionViews views = new MinecraftDoorProjectionViews(fixture.runtime);
             assertTrue(views.update(fixture.player, List.of(disabled), false).isEmpty());
             MinecraftPortal source = views.update(fixture.player, List.of(disabled), true).getFirst();
-            assertEquals(trapdoor ? Direction.U : Direction.N, source.getFrame().getNormal());
+            assertEquals(trapdoor ? Face.U : Face.N, source.getFrame().getNormal());
             assertTrue(source.getGeometry().containsBlock(2, 64, 3));
             assertEquals(!trapdoor, source.getGeometry().containsBlock(2, 65, 3));
             assertTrue(views.update(fixture.player, List.of(disabled), false).isEmpty());
@@ -114,7 +114,7 @@ public class MinecraftDoorProjectionViewsTest extends MinecraftTestBase {
         Fixture fixture = new Fixture();
         fixture.settings.getDoors().projectionEnabled = false;
         Optional<MinecraftDoorService.ProjectionDestination> route = fixture.doors.projectionDestination(fixture.door, fixture.observerId);
-        for (Direction facing : new Direction[]{Direction.N, Direction.E, Direction.S, Direction.W}) {
+        for (Face facing : new Face[]{Face.N, Face.E, Face.S, Face.W}) {
             for (DoorHalf half : DoorHalf.values()) {
                 DoorwayPlane plane = DoorwayPlane.trapdoor(2, 64, 3, facing, half, DoorOpenState.OPEN);
                 MinecraftDoorService.DoorView disabled = new MinecraftDoorService.DoorView(
@@ -166,19 +166,19 @@ public class MinecraftDoorProjectionViewsTest extends MinecraftTestBase {
             DoorItemIdentity identity = DoorItemIdentity.newPersonal();
             PlacedDoorEndpoint endpoint = new PlacedDoorEndpoint(new DoorPosition(UUID.randomUUID(), "minecraft:overworld", 2, 64, 3), identity,
                 DoorOpenState.OPEN, DoorProjectionState.INHERIT);
-            door = new MinecraftDoorService.DoorView(endpoint, level, new DoorwayPlane(2, 64, 3, Direction.N), true);
+            door = new MinecraftDoorService.DoorView(endpoint, level, new DoorwayPlane(2, 64, 3, Face.N), true);
             when(runtime.configuration()).thenReturn(configuration);
             when(configuration.settings()).thenReturn(settings);
             when(runtime.doors()).thenReturn(doors);
             when(player.level()).thenReturn(level);
             when(player.getUUID()).thenReturn(observerId);
             when(level.dimension()).thenReturn(Level.OVERWORLD);
-            route(new GeometryVector(20.5D, 65.0D, 30.5D));
+            route(new Vec3(20.5D, 65.0D, 30.5D));
         }
 
-        private void route(GeometryVector origin) {
+        private void route(Vec3 origin) {
             when(doors.projectionDestination(door, observerId)).thenReturn(Optional.of(new MinecraftDoorService.ProjectionDestination(
-                destinationId, level, origin, PortalFrame.fromNormalUp(Direction.S, Direction.U))));
+                destinationId, level, origin, Frame.fromNormalUp(Face.S, Face.U))));
         }
     }
 }

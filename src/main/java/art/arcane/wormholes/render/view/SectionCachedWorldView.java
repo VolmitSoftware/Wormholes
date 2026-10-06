@@ -1,7 +1,7 @@
 package art.arcane.wormholes.render.view;
 
-import art.arcane.wormholes.render.ProjectionCellKey;
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.fidelity.BlockEntitySample;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import org.bukkit.Material;
@@ -9,6 +9,8 @@ import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
 
 import java.util.Objects;
+import art.arcane.optics.view.CachedSection;
+import art.arcane.optics.view.SectionCache;
 
 public final class SectionCachedWorldView implements ProjectionWorldView {
     private static final int MAX_WANTED_SECTIONS = 4096;
@@ -156,8 +158,8 @@ public final class SectionCachedWorldView implements ProjectionWorldView {
         LongIterator iterator = wantedSections.iterator();
         while (iterator.hasNext()) {
             long wanted = iterator.nextLong();
-            if (ProjectionCellKey.unpackX(wanted) == chunkX && ProjectionCellKey.unpackZ(wanted) == chunkZ) {
-                sections.capture(chunkX, ProjectionCellKey.unpackY(wanted), chunkZ);
+            if (CellKeys.unpackX(wanted) == chunkX && CellKeys.unpackZ(wanted) == chunkZ) {
+                sections.capture(chunkX, CellKeys.unpackY(wanted), chunkZ);
                 iterator.remove();
             }
         }
@@ -187,7 +189,7 @@ public final class SectionCachedWorldView implements ProjectionWorldView {
         if (wantedSections.size() >= MAX_WANTED_SECTIONS) {
             wantedSections.clear();
         }
-        wantedSections.add(ProjectionCellKey.pack(x >> 4, y >> 4, z >> 4));
+        wantedSections.add(CellKeys.pack(x >> 4, y >> 4, z >> 4));
     }
 
     private boolean loaded(int x, int z) {

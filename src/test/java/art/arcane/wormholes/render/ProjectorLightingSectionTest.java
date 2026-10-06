@@ -1,6 +1,6 @@
 package art.arcane.wormholes.render;
 
-import art.arcane.wormholes.render.view.ProjectionContentView;
+import art.arcane.optics.view.ContentView;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -25,6 +25,8 @@ import com.github.retrooper.packetevents.protocol.world.chunk.LightData;
 
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
+import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.light.ProjectorLighting;
 
 public final class ProjectorLightingSectionTest {
     @Test
@@ -370,7 +372,7 @@ public final class ProjectorLightingSectionTest {
             @Override
             public int getLight(int x, int y, int z) {
                 samples.incrementAndGet();
-                return ProjectionContentView.packLight(sky, block);
+                return ContentView.packLight(sky, block);
             }
 
             @Override

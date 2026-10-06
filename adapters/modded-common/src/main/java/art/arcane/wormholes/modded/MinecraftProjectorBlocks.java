@@ -1,8 +1,8 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.render.DirectionMapping;
-import art.arcane.wormholes.render.blockentity.BlockEntityMaterials;
-import art.arcane.wormholes.render.ProjectionBlockTypes;
+import art.arcane.optics.frame.DirectionMapping;
+import art.arcane.optics.fidelity.BlockEntityMaterials;
+import art.arcane.optics.view.BlockStates;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.EmptyBlockGetter;
 import net.minecraft.world.level.block.Block;
@@ -14,7 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.Property;
 
-public enum MinecraftProjectorBlocks implements ProjectionBlockTypes<BlockState, BlockState> {
+public enum MinecraftProjectorBlocks implements BlockStates<BlockState, BlockState> {
     INSTANCE;
 
     private static final Map<Block, Boolean> OCCLUDING = new ConcurrentHashMap<>();

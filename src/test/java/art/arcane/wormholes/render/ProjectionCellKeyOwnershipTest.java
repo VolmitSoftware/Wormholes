@@ -12,6 +12,8 @@ import org.bukkit.util.Vector;
 import org.junit.jupiter.api.Test;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.math.CellKeys;
 
 public final class ProjectionCellKeyOwnershipTest {
     @Test
@@ -32,12 +34,12 @@ public final class ProjectionCellKeyOwnershipTest {
 
         assertEquals(cells.length, claims.size(), "every skinned cell must produce exactly one distinct claim key");
         for (int[] cell : cells) {
-            long key = ProjectionCellKey.pack(cell[0], cell[1], cell[2]);
+            long key = CellKeys.pack(cell[0], cell[1], cell[2]);
             assertTrue(claims.containsKey(key),
                 "the skin renderer must key its claims with the same layout the arbiter decodes with");
-            assertEquals(cell[0], ProjectionCellKey.unpackX(key), "x round trip");
-            assertEquals(cell[1], ProjectionCellKey.unpackY(key), "y round trip");
-            assertEquals(cell[2], ProjectionCellKey.unpackZ(key), "z round trip");
+            assertEquals(cell[0], CellKeys.unpackX(key), "x round trip");
+            assertEquals(cell[1], CellKeys.unpackY(key), "y round trip");
+            assertEquals(cell[2], CellKeys.unpackZ(key), "z round trip");
         }
     }
 }

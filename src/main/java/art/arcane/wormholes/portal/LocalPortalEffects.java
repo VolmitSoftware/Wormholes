@@ -21,7 +21,8 @@ import art.arcane.wormholes.render.client.session.ClientViewEmitters;
 import art.arcane.wormholes.render.clientview.BukkitClientView;
 import art.arcane.wormholes.render.clientview.ClientViewEffects;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
-import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.frame.Frame;
 
 final class LocalPortalEffects
 {
@@ -104,7 +105,7 @@ final class LocalPortalEffects
 				break;
 			case CLOSE:
 				long closeSequence = effectSequence.incrementAndGet();
-				AxisAlignedBB closeArea = portal.getStructure().getArea();
+				Box closeArea = portal.getStructure().getArea();
 				World closeWorld = portal.getStructure().getWorld();
 				if(closeArea != null && closeWorld != null)
 				{
@@ -125,7 +126,7 @@ final class LocalPortalEffects
 				break;
 			case OPEN:
 				long openSequence = effectSequence.incrementAndGet();
-				AxisAlignedBB openArea = portal.getStructure().getArea();
+				Box openArea = portal.getStructure().getArea();
 				Location openCenter = portal.getStructure().getCenter();
 				World openWorld = portal.getStructure().getWorld();
 				if(openArea != null && openCenter != null && openWorld != null)
@@ -259,7 +260,7 @@ final class LocalPortalEffects
 	{
 		PortalStructure structure = portal.getStructure();
 		World world = structure.getWorld();
-		PortalFrame frame = portal.getFrame();
+		Frame frame = portal.getFrame();
 		if(world == null || frame == null)
 		{
 			return;

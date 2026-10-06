@@ -11,13 +11,20 @@ import java.util.Random;
 
 import org.junit.jupiter.api.Test;
 
-import art.arcane.wormholes.render.plate.PlateBox;
-import art.arcane.wormholes.render.plate.ViewPlate;
+import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.plate.ViewPlate;
+import art.arcane.optics.stream.Brick;
+import art.arcane.optics.stream.BrickCodec;
+import art.arcane.optics.stream.BrickLightSource;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.PlateSectionBox;
+import art.arcane.optics.stream.ViewStreamCapability;
+import art.arcane.optics.stream.ViewStreamLimits;
 
 final class PlatePatchEncoderTest {
     @Test
     void aUniformReplacementUsesFewerBytesThanSparseCellEdits() throws ClientViewProtocolException {
-        int[] cells = new int[ClientViewProtocol.BRICK_CELLS];
+        int[] cells = new int[ViewStreamLimits.BRICK_CELLS];
         Arrays.fill(cells, 3);
         Brick target = BrickCodec.pack(0, cells);
         Arrays.fill(cells, 0, 32, 4);
@@ -32,7 +39,7 @@ final class PlatePatchEncoderTest {
 
     @Test
     void anIsolatedEditKeepsTheSmallerSparseRepresentation() throws ClientViewProtocolException {
-        int[] cells = new int[ClientViewProtocol.BRICK_CELLS];
+        int[] cells = new int[ViewStreamLimits.BRICK_CELLS];
         for (int index = 0; index < cells.length; index++) {
             cells[index] = 3 + index % 4;
         }
@@ -74,7 +81,7 @@ final class PlatePatchEncoderTest {
                 switch (op) {
                     case ClientViewMessage.SparseOp s -> {
                         sparse++;
-                        assertTrue(s.cellIndices().length < ClientViewProtocol.SPARSE_PATCH_MAX_CELLS);
+                        assertTrue(s.cellIndices().length < ViewStreamLimits.SPARSE_PATCH_MAX_CELLS);
                     }
                     case ClientViewMessage.FullOp f -> full++;
                     case ClientViewMessage.ClearOp c -> clear++;
@@ -82,8 +89,8 @@ final class PlatePatchEncoderTest {
             }
             Brick[] patched = PlatePatchEncoder.apply(previous.bricks().toArray(new Brick[0]), patch);
             assertEquals(next.bricks(), List.of(patched), "round " + round);
-            byte[] frame = ClientViewCodec.encodeS2C(patch, round, ClientViewProtocol.FLAG_LAST);
-            assertEquals(patch, ClientViewCodec.decodeS2C(frame, ClientViewCapability.ALL).message());
+            byte[] frame = ClientViewCodec.encodeS2C(patch, round, ViewStreamLimits.FLAG_LAST);
+            assertEquals(patch, ClientViewCodec.decodeS2C(frame, ViewStreamCapability.ALL).message());
         }
         assertTrue(sparse > 0, "no sparse ops were produced");
         assertTrue(full > 0, "no full ops were produced");

@@ -2,14 +2,14 @@ package art.arcane.wormholes.modded.client.render;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
-import art.arcane.wormholes.network.client.Brick;
-import art.arcane.wormholes.network.client.SectionBiomes;
+import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.Brick;
+import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.wormholes.modded.client.ClientMeshSections;
 import art.arcane.wormholes.modded.client.ClientMeshWorld;
 import art.arcane.wormholes.modded.client.ClientPalette;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
-import art.arcane.wormholes.render.plate.PlateBox;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.plate.PlateBox;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -346,7 +346,7 @@ public class ClientTravelMeshReuseTest extends MinecraftTestBase {
         renderer.clear();
         PortalScene currentScene = fixtureScene();
         ClientTravelScene sourceScene = mock(ClientTravelScene.class);
-        ClientPortalGeometry sourceGeometry = fixtureScene().geometry();
+        ApertureDescriptor sourceGeometry = fixtureScene().geometry();
         when(sourceScene.geometry()).thenReturn(sourceGeometry);
         renderer.prepareTravel(currentScene, null);
         renderer.prepareTravelSource(sourceScene);
@@ -387,7 +387,7 @@ public class ClientTravelMeshReuseTest extends MinecraftTestBase {
         renderer.clear();
         ClientTravelScene scene = mock(ClientTravelScene.class);
         doCallRealMethod().when(scene).matchesMeshIdentity(anyLong(), any());
-        ClientPortalGeometry geometry = fixtureScene().geometry();
+        ApertureDescriptor geometry = fixtureScene().geometry();
         when(scene.geometry()).thenReturn(geometry);
         when(scene.revision(7)).thenReturn(42L);
         renderer.prepareTravel(fixtureScene(), null);
@@ -429,7 +429,7 @@ public class ClientTravelMeshReuseTest extends MinecraftTestBase {
         renderer.clear();
         ClientTravelScene scene = mock(ClientTravelScene.class);
         doCallRealMethod().when(scene).matchesMeshIdentity(anyLong(), any());
-        ClientPortalGeometry geometry = fixtureScene().geometry();
+        ApertureDescriptor geometry = fixtureScene().geometry();
         when(scene.geometry()).thenReturn(geometry);
         when(scene.revision(7)).thenReturn(42L);
         when(scene.revision(8)).thenReturn(42L);
@@ -488,7 +488,7 @@ public class ClientTravelMeshReuseTest extends MinecraftTestBase {
         renderer.clear();
         ClientTravelScene scene = mock(ClientTravelScene.class);
         doCallRealMethod().when(scene).matchesMeshIdentity(anyLong(), any());
-        ClientPortalGeometry geometry = fixtureScene().geometry();
+        ApertureDescriptor geometry = fixtureScene().geometry();
         when(scene.geometry()).thenReturn(geometry);
         AtomicInteger revisionReads = new AtomicInteger();
         when(scene.revision(anyLong())).thenAnswer(invocation -> {
@@ -540,7 +540,7 @@ public class ClientTravelMeshReuseTest extends MinecraftTestBase {
         ClientTravelScene scene = mock(ClientTravelScene.class);
         doCallRealMethod().when(scene).matchesMeshIdentity(anyLong(), any());
         PortalScene geometry = fixtureScene();
-        ClientPortalGeometry nativeGeometry = geometry.geometry();
+        ApertureDescriptor nativeGeometry = geometry.geometry();
         when(scene.geometry()).thenReturn(nativeGeometry);
         when(scene.revision(7)).thenReturn(42L);
         ClientTravelScene.MeshIdentity original = identity((byte) 1);
@@ -586,7 +586,7 @@ public class ClientTravelMeshReuseTest extends MinecraftTestBase {
         renderer.clear();
         ClientTravelScene scene = mock(ClientTravelScene.class);
         doCallRealMethod().when(scene).matchesMeshIdentity(anyLong(), any());
-        ClientPortalGeometry geometry = fixtureScene().geometry();
+        ApertureDescriptor geometry = fixtureScene().geometry();
         when(scene.geometry()).thenReturn(geometry);
         when(scene.revision(7)).thenReturn(42L);
         when(scene.meshContext()).thenReturn(identity((byte) 1));
@@ -647,7 +647,7 @@ public class ClientTravelMeshReuseTest extends MinecraftTestBase {
         renderer.clear();
         ClientTravelScene scene = mock(ClientTravelScene.class);
         doCallRealMethod().when(scene).matchesMeshIdentity(anyLong(), any());
-        ClientPortalGeometry geometry = fixtureScene().geometry();
+        ApertureDescriptor geometry = fixtureScene().geometry();
         when(scene.geometry()).thenReturn(geometry);
         when(scene.revision(7)).thenReturn(42L);
         renderer.prepareTravel(scene, null);
@@ -688,7 +688,7 @@ public class ClientTravelMeshReuseTest extends MinecraftTestBase {
     private static final class BulkFixture implements AutoCloseable {
         private static final PlateBox BOUNDS = new PlateBox(-32, -32, -32, 96, 96, 96);
         private final ClientPortalRenderer renderer = ClientPortalRenderer.instance();
-        private final ClientViewEnvironment environment = PortalEnvironmentTest.environment(ClientViewEnvironment.Transform.IDENTITY);
+        private final ProjectionEnvironment environment = PortalEnvironmentTest.environment(ProjectionEnvironment.Transform.IDENTITY);
         private final RegistryAccess registry = mock(RegistryAccess.class);
         private final ClientMeshSections store;
         private final Long2ObjectOpenHashMap<PortalGpuMesh> meshes = new Long2ObjectOpenHashMap<>();
@@ -717,7 +717,7 @@ public class ClientTravelMeshReuseTest extends MinecraftTestBase {
 
         private void bind(int key) throws Exception {
             Class<?> identityType = Class.forName(ClientMeshSections.class.getName() + "$Identity");
-            Constructor<?> constructor = identityType.getDeclaredConstructor(ClientViewEnvironment.class, long.class, long.class);
+            Constructor<?> constructor = identityType.getDeclaredConstructor(ProjectionEnvironment.class, long.class, long.class);
             constructor.setAccessible(true);
             Object identity = constructor.newInstance(environment, 1L, 77L);
             Method bind = ClientMeshSections.class.getDeclaredMethod("bind", int.class, identityType);
@@ -728,7 +728,7 @@ public class ClientTravelMeshReuseTest extends MinecraftTestBase {
         private void open(int key) throws Exception {
             view = store.view(key);
             scene = mock(PortalScene.class, CALLS_REAL_METHODS);
-            ClientPortalGeometry geometry = fixtureScene().geometry();
+            ApertureDescriptor geometry = fixtureScene().geometry();
             when(scene.geometry()).thenReturn(geometry);
             when(scene.sectionKeys()).thenAnswer(invocation -> view.sectionKeys());
             when(scene.revision(anyLong())).thenAnswer(invocation -> {

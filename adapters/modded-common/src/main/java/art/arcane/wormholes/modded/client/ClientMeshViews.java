@@ -2,9 +2,9 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.client.render.PortalScene;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
-import art.arcane.wormholes.render.plate.PlateBox;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.stream.ProjectionEnvironment;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntIterator;
 import it.unimi.dsi.fastutil.longs.LongIterable;
@@ -46,9 +46,9 @@ public final class ClientMeshViews {
                 continue;
             }
             Scene scene = scenes.get(portal.portalKey());
-            ClientViewEnvironment environment = session.environment(portal.portalKey());
-            ClientViewEnvironment.Transform transform = environment == null ? null : environment.transform();
-            ClientViewEnvironment.Dimension dimension = environment == null ? null : environment.dimension();
+            ProjectionEnvironment environment = session.environment(portal.portalKey());
+            ProjectionEnvironment.Transform transform = environment == null ? null : environment.transform();
+            ProjectionEnvironment.Dimension dimension = environment == null ? null : environment.dimension();
             ClientMeshSections.Identity identity = view.identity();
             int blendRadius = Minecraft.getInstance().options.biomeBlendRadius().get();
             boolean terrainUnchanged = scene != null && scene.view == view && Objects.equals(scene.transform, transform)
@@ -103,7 +103,7 @@ public final class ClientMeshViews {
         if (scene == null || scene.level != entity.level() || scene.session.meshes().view(portalKey) != scene.view) {
             return false;
         }
-        ClientViewEnvironment environment = scene.environment();
+        ProjectionEnvironment environment = scene.environment();
         if (environment == null) {
             return false;
         }
@@ -118,7 +118,7 @@ public final class ClientMeshViews {
                 continue;
             }
             try {
-                ClientViewEnvironment environment = scene.environment();
+                ProjectionEnvironment environment = scene.environment();
                 if (environment != null) {
                     scene.features.extract(scene.portalKey, camera, partialTick, environment.transform());
                     renderer.featuresReady(scene.portalKey);
@@ -142,17 +142,17 @@ public final class ClientMeshViews {
         ClientPortalRenderer.instance().clear();
     }
 
-    private record Scene(int portalKey, ClientPortalGeometry surfaceGeometry, ClientMeshSections.View view, ClientLevel level,
-                         ClientMeshEntities features, ClientViewSession session, ClientViewEnvironment.Transform transform,
-                         ClientViewEnvironment.Dimension dimension, ClientMeshSections.Identity identity, int blendRadius,
+    private record Scene(int portalKey, ApertureDescriptor surfaceGeometry, ClientMeshSections.View view, ClientLevel level,
+                         ClientMeshEntities features, ClientViewSession session, ProjectionEnvironment.Transform transform,
+                         ProjectionEnvironment.Dimension dimension, ClientMeshSections.Identity identity, int blendRadius,
                          PlateBox bounds, PortalScene.MeshIdentity meshContext) implements PortalScene {
         @Override
-        public ClientPortalGeometry geometry() {
+        public ApertureDescriptor geometry() {
             return session.portal(portalKey).geometry();
         }
 
         @Override
-        public ClientViewEnvironment environment() {
+        public ProjectionEnvironment environment() {
             return session.environment(portalKey);
         }
 
@@ -182,7 +182,7 @@ public final class ClientMeshViews {
             if (meshContext == null) {
                 return null;
             }
-            ClientViewEnvironment current = environment();
+            ProjectionEnvironment current = environment();
             return current != null && identity.equals(view.identity()) && bounds.equals(view.bounds())
                 && dimension.equals(current.dimension()) && identity.matchesEnvironment(current) ? meshContext : null;
         }

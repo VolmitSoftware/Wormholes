@@ -1,6 +1,6 @@
 package art.arcane.wormholes.ops.importers;
 
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -48,10 +48,10 @@ class EssentialsWarpsImporterTest {
         assertEquals(-4, arena.x());
         assertEquals(70, arena.y());
         assertEquals(8, arena.z());
-        assertEquals(Direction.N, arena.facing());
+        assertEquals(Face.N, arena.facing());
         assertEquals(2, arena.width());
         assertEquals(3, arena.height());
-        assertEquals(Direction.W, factory.created().get(1).facing());
+        assertEquals(Face.W, factory.created().get(1).facing());
     }
 
     @Test

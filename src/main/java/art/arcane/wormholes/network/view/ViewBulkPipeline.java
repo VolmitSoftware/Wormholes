@@ -12,8 +12,8 @@ import art.arcane.wormholes.network.replication.ChunkResyncRequest;
 import art.arcane.wormholes.network.replication.ReplicationStreamKey;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.render.blockentity.BlockEntityCapturer;
-import art.arcane.wormholes.render.plate.PlateCaptureJob;
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
+import art.arcane.optics.plate.PlateCaptureJob;
+import art.arcane.optics.fidelity.BlockEntitySample;
 
 import org.bukkit.ChunkSnapshot;
 import org.bukkit.block.Biome;

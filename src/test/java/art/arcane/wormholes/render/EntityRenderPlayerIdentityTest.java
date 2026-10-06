@@ -25,6 +25,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
+import art.arcane.optics.entity.SpoofedEntity;
 
 class EntityRenderPlayerIdentityTest {
     @Test
@@ -35,7 +36,7 @@ class EntityRenderPlayerIdentityTest {
             bukkit.when(Bukkit::getServer).thenReturn(server);
             try (MockedStatic<SpigotReflectionUtil> reflection = mockStatic(SpigotReflectionUtil.class)) {
                 Player player = ProjectedEntityPacketRecorder.player(true);
-                EntityRenderSpoofedEntity state = EntityRenderSpoofedEntity.create(true, false, true);
+                SpoofedEntity state = SpoofedEntity.create(true, false, true);
                 state.playerProfile = new EntityProfile("Observer", "", "");
                 state.playerProfileCheckedAtNanos = 1_000_000_000L;
                 EntityRenderPlayerIdentity identity = new EntityRenderPlayerIdentity(new EntityRenderPacketChannel());
@@ -78,7 +79,7 @@ class EntityRenderPlayerIdentityTest {
         try {
             Player observer = ProjectedEntityPacketRecorder.player(true);
             EntityProfile profile = new EntityProfile("Player", "snapshot-skin", "snapshot-signature");
-            EntityRenderSpoofedEntity state = EntityRenderSpoofedEntity.create(true, false, true);
+            SpoofedEntity state = SpoofedEntity.create(true, false, true);
             EntityRenderPlayerIdentity identity = new EntityRenderPlayerIdentity(new EntityRenderPacketChannel());
 
             identity.sendRemotePlayerInfo(observer, profile, state, false);
@@ -113,7 +114,7 @@ class EntityRenderPlayerIdentityTest {
                 }
                 reflection.when(() -> SpigotReflectionUtil.getUserProfile(player))
                     .thenReturn(List.of(new TextureProperty("textures", "current-skin", "current-signature")));
-                EntityRenderSpoofedEntity state = EntityRenderSpoofedEntity.create(true, false, true);
+                SpoofedEntity state = SpoofedEntity.create(true, false, true);
                 EntityRenderPlayerIdentity identity = new EntityRenderPlayerIdentity(new EntityRenderPacketChannel());
 
                 identity.sendPlayerInfo(player, player, state, false);

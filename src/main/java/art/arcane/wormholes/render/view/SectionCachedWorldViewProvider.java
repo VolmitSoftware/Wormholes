@@ -3,8 +3,8 @@ package art.arcane.wormholes.render.view;
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.render.BukkitProjectorBlocks;
-import art.arcane.wormholes.render.ProjectionCellKey;
-import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.view.WorldChangeTracker;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
@@ -17,10 +17,11 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.logging.Level;
+import art.arcane.optics.view.SectionCache;
 
-final class SectionCachedWorldViewProvider implements ProjectionWorldViewProvider, ProjectionWorldChangeTracker.ChangeListener {
+final class SectionCachedWorldViewProvider implements ProjectionWorldViewProvider, WorldChangeTracker.ChangeListener {
     private final Plugin plugin;
-    private final ProjectionWorldChangeTracker tracker;
+    private final WorldChangeTracker tracker;
     private final SectionCache<BlockData, Material> cache;
     private final Map<World, SectionCachedWorldView> views;
     private final Map<UUID, SectionCachedWorldView> viewsById;
@@ -28,7 +29,7 @@ final class SectionCachedWorldViewProvider implements ProjectionWorldViewProvide
     private final Thread owner;
     private int tick;
 
-    SectionCachedWorldViewProvider(Plugin plugin, ProjectionWorldChangeTracker tracker) {
+    SectionCachedWorldViewProvider(Plugin plugin, WorldChangeTracker tracker) {
         this.plugin = plugin;
         this.tracker = tracker;
         this.cache = new SectionCache<BlockData, Material>(BukkitProjectorBlocks.defaults(), limits());
@@ -107,8 +108,8 @@ final class SectionCachedWorldViewProvider implements ProjectionWorldViewProvide
         }
         SectionCachedWorldView view = viewsById.get(worldId);
         if (view != null) {
-            view.sections().blockChanged(ProjectionCellKey.unpackX(blockKey), ProjectionCellKey.unpackY(blockKey),
-                ProjectionCellKey.unpackZ(blockKey));
+            view.sections().blockChanged(CellKeys.unpackX(blockKey), CellKeys.unpackY(blockKey),
+                CellKeys.unpackZ(blockKey));
         }
     }
 

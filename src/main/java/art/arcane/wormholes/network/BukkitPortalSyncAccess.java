@@ -5,12 +5,12 @@ import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.ITunnel;
 import art.arcane.wormholes.portal.LocalPortal;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.UniversalTunnel;
 import art.arcane.wormholes.platform.BukkitRegionTaskProvider;
 import art.arcane.wormholes.service.WormholesTelemetry;
-import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.optics.math.Box;
 import org.bukkit.Location;
 import java.util.List;
 import java.util.Map;
@@ -152,8 +152,8 @@ public enum BukkitPortalSyncAccess implements PortalSyncAccess<ILocalPortal> {
 
     @Override
     public PortalInfo describe(ILocalPortal portal) {
-        PortalFrame frame = portal.getFrame();
-        AxisAlignedBB area = portal.getStructure().getArea();
+        Frame frame = portal.getFrame();
+        Box area = portal.getStructure().getArea();
         return new PortalInfo(
             portal.getId(),
             portal.getName(),

@@ -1,7 +1,7 @@
 package art.arcane.wormholes.door;
 
-import art.arcane.wormholes.util.Direction;
-import art.arcane.wormholes.util.Axis;
+import art.arcane.optics.math.Face;
+import art.arcane.optics.math.Axis;
 import java.util.Objects;
 
 public final class DoorPortalGeometry {
@@ -17,10 +17,10 @@ public final class DoorPortalGeometry {
     private DoorPortalGeometry() {
     }
 	/** The surface normal of the visible panel: flat and upward for a trapdoor. */
-	public static Direction panelFace(DoorwayPlane plane)
+	public static Face panelFace(DoorwayPlane plane)
 	{
 		Objects.requireNonNull(plane, "plane");
-		return plane.horizontal() ? Direction.U : plane.facing();
+		return plane.horizontal() ? Face.U : plane.facing();
 	}
 
 	/**
@@ -45,7 +45,7 @@ public final class DoorPortalGeometry {
 			PORTAL_WIDTH);
 	}
 
-	private static PortalPlaneGeometry contactGeometry(PortalPlaneGeometry geometry, Direction facing)
+	private static PortalPlaneGeometry contactGeometry(PortalPlaneGeometry geometry, Face facing)
 	{
 		return switch(facing)
 		{
@@ -67,7 +67,7 @@ public final class DoorPortalGeometry {
 		};
 	}
 
-	public static PortalPlaneGeometry geometry(Direction facing, DoorHinge hinge)
+	public static PortalPlaneGeometry geometry(Face facing, DoorHinge hinge)
 	{
 		Objects.requireNonNull(facing, "facing");
 		Objects.requireNonNull(hinge, "hinge");
@@ -106,7 +106,7 @@ public final class DoorPortalGeometry {
 		};
 	}
 
-	public static PortalPlaneGeometry overlayGeometry(PortalPlaneGeometry backing, Direction facing)
+	public static PortalPlaneGeometry overlayGeometry(PortalPlaneGeometry backing, Face facing)
 	{
 		Objects.requireNonNull(backing, "backing");
 		Objects.requireNonNull(facing, "facing");
@@ -155,7 +155,7 @@ public final class DoorPortalGeometry {
 	}
 
 	/** A nether portal block only ever lies on X or Z, so a flat panel picks X. */
-	public static Axis overlayAxis(Direction facing)
+	public static Axis overlayAxis(Face facing)
 	{
 		Objects.requireNonNull(facing, "facing");
 		return switch(facing)
@@ -165,7 +165,7 @@ public final class DoorPortalGeometry {
 		};
 	}
 
-	private static float lateralTranslation(Direction facing, DoorHinge hinge)
+	private static float lateralTranslation(Face facing, DoorHinge hinge)
 	{
 		int hingeSign = hinge == DoorHinge.LEFT ? 1 : -1;
 		int farSideSign = switch(facing)

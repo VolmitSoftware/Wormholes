@@ -10,6 +10,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.MapMeta;
 import org.bukkit.map.MapView;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerMapData;
+import art.arcane.optics.entity.MapSnapshot;
 
 public final class BukkitProjectedMapData {
     private static volatile MapPixelsAccess nativeMaps;
@@ -17,7 +18,7 @@ public final class BukkitProjectedMapData {
     private BukkitProjectedMapData() {
     }
 
-    public static Optional<ProjectedMapData> capture(ItemFrame itemFrame) {
+    public static Optional<MapSnapshot> capture(ItemFrame itemFrame) {
         if (itemFrame == null) {
             return Optional.empty();
         }
@@ -36,7 +37,7 @@ public final class BukkitProjectedMapData {
         }
     }
 
-    public static Optional<ProjectedMapData> capture(MapView mapView) {
+    public static Optional<MapSnapshot> capture(MapView mapView) {
         MapPixelsAccess access = nativeMaps;
         if (access == null) {
             access = NativeAdapters.find(MapPixelsAccess.class).orElse(null);
@@ -45,14 +46,14 @@ public final class BukkitProjectedMapData {
         if (access == null) {
             return Optional.empty();
         }
-        return access.capture(mapView).map(snapshot -> new ProjectedMapData(
+        return access.capture(mapView).map(snapshot -> new MapSnapshot(
             snapshot.sourceMapId(), snapshot.scale(), snapshot.tracking(), snapshot.locked(), snapshot.pixels()));
     }
 
-    public static WrapperPlayServerMapData toPacket(ProjectedMapData data, int virtualMapId) {
+    public static WrapperPlayServerMapData toPacket(MapSnapshot data, int virtualMapId) {
         return new WrapperPlayServerMapData(
             virtualMapId, data.scale(), data.tracking(), data.locked(), List.of(),
-            ProjectedMapData.WIDTH, ProjectedMapData.HEIGHT, 0, 0, data.pixels());
+            MapSnapshot.WIDTH, MapSnapshot.HEIGHT, 0, 0, data.pixels());
     }
 
 }

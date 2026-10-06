@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.math.Face;
 
 import java.lang.reflect.Field;
 import java.util.List;
@@ -10,12 +10,12 @@ final class ClientTravelTestFixtures {
     private ClientTravelTestFixtures() {
     }
 
-    static ClientPortalGeometry geometry() {
+    static ApertureDescriptor geometry() {
         return geometry(true, 63);
     }
 
-    static ClientPortalGeometry geometry(boolean front, long mask) {
-        return new ClientPortalGeometry(0, 0, 0, Direction.N.ordinal(), front, 0, false, 2, 3, new long[]{mask},
+    static ApertureDescriptor geometry(boolean front, long mask) {
+        return new ApertureDescriptor(0, 0, 0, Face.N.ordinal(), front, 0, false, 2, 3, new long[]{mask},
             0, 0, 1, 64, 0, 0, 0, 0, 0, 0, 0, 0.0D, 0, 11, List.of());
     }
 

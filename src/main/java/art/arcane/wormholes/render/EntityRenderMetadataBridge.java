@@ -19,12 +19,17 @@ import io.github.retrooper.packetevents.util.SpigotConversionUtil;
 import net.kyori.adventure.text.Component;
 
 import art.arcane.wormholes.Wormholes;
-import art.arcane.wormholes.network.view.EntityVisual;
+import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.wormholes.network.view.PacketBlobs;
 import art.arcane.wormholes.render.view.ProjectionEntityView;
+import art.arcane.optics.entity.ItemFrameTransform;
+import art.arcane.optics.entity.PlayerNames;
+import art.arcane.optics.entity.ProjectedMaps;
+import art.arcane.optics.entity.ProjectedMetadata;
+import art.arcane.optics.entity.SpoofedEntity;
 
 final class EntityRenderMetadataBridge {
-    private static final ProjectedEntityMetadata<EntityData<?>> METADATA = new ProjectedEntityMetadata<>(new MetadataAccess());
+    private static final ProjectedMetadata<EntityData<?>> METADATA = new ProjectedMetadata<>(new MetadataAccess());
     static final long METADATA_BRIDGE_RETRY_MILLIS = 60_000L;
 
     private final EntityRenderPacketChannel channel;
@@ -39,7 +44,7 @@ final class EntityRenderMetadataBridge {
 
     void sendEntityState(Player observer,
                          Entity entity,
-                         EntityRenderSpoofedEntity state,
+                         SpoofedEntity state,
                          int metadataTransform,
                          boolean force) {
         long now = System.currentTimeMillis();
@@ -52,14 +57,14 @@ final class EntityRenderMetadataBridge {
 
     void sendRemoteEntityState(Player observer,
                                ProjectionEntityView remoteView,
-                               EntityVisual visual,
-                               EntityRenderSpoofedEntity state,
+                               EntitySnapshot visual,
+                               SpoofedEntity state,
                                int metadataTransform,
                                boolean force) {
         List<EntityData<?>> metadata = remoteView.getMetadata(visual.id());
         if (metadata != null && !metadata.isEmpty()) {
             Integer sourceMapId = BukkitItemFrameMetadata.TRANSFORM.mapId(metadata);
-            ProjectedEntityMaps.Projection mapProjection = mapBridge.projectVisual(
+            ProjectedMaps.Projection mapProjection = mapBridge.projectVisual(
                 observer, remoteView, visual, state, metadataTransform, sourceMapId, force);
             metadata = BukkitItemFrameMetadata.TRANSFORM.transformMetadata(
                 metadata, metadataTransform, mapProjection.mapId(), mapProjection.stripMapId());
@@ -125,7 +130,7 @@ final class EntityRenderMetadataBridge {
 
     private void sendEntityMetadata(Player observer,
                                     Entity entity,
-                                    EntityRenderSpoofedEntity state,
+                                    SpoofedEntity state,
                                     EntityRenderCaches.EntityStateSnapshot snapshot,
                                     int metadataTransform,
                                     boolean force,
@@ -134,11 +139,11 @@ final class EntityRenderMetadataBridge {
             return;
         }
         Integer sourceMapId = BukkitItemFrameMetadata.TRANSFORM.mapId(snapshot.metadata);
-        ProjectedEntityMaps.Projection mapProjection = mapBridge.projectLocal(
+        ProjectedMaps.Projection mapProjection = mapBridge.projectLocal(
             observer, entity, state, metadataTransform, sourceMapId, force);
         List<EntityData<?>> metadata = BukkitItemFrameMetadata.TRANSFORM.transformMetadata(
             snapshot.metadata, metadataTransform, mapProjection.mapId(), mapProjection.stripMapId());
-        boolean metadataUnchanged = metadataTransform == ProjectedItemFrameTransform.NONE
+        boolean metadataUnchanged = metadataTransform == ItemFrameTransform.NONE
             && mapProjection.mapId() == null
             && !mapProjection.stripMapId();
         String signature = metadataUnchanged ? snapshot.metadataSig : metadataSignature(metadata);
@@ -156,7 +161,7 @@ final class EntityRenderMetadataBridge {
         channel.send(observer, new WrapperPlayServerEntityMetadata(state.fakeId, metadata));
     }
 
-    private void sendEntityEquipment(Player observer, EntityRenderSpoofedEntity state, EntityRenderCaches.EntityStateSnapshot snapshot, boolean force) {
+    private void sendEntityEquipment(Player observer, SpoofedEntity state, EntityRenderCaches.EntityStateSnapshot snapshot, boolean force) {
         if (snapshot.equipment.isEmpty()) {
             return;
         }
@@ -174,7 +179,7 @@ final class EntityRenderMetadataBridge {
         if (!(entity instanceof LivingEntity)) {
             return metadata;
         }
-        return METADATA.upsideDownEntity(metadata, ProjectedPlayerNames.isFlipName(entity.getCustomName()));
+        return METADATA.upsideDownEntity(metadata, PlayerNames.isFlipName(entity.getCustomName()));
     }
 
     private static List<EntityData<?>> withUpsideDownMetadataRemote(boolean isPlayer, List<EntityData<?>> metadata) {
@@ -200,7 +205,7 @@ final class EntityRenderMetadataBridge {
         }
         return builder.toString();
     }
-    private static final class MetadataAccess implements ProjectedEntityMetadata.Access<EntityData<?>> {
+    private static final class MetadataAccess implements ProjectedMetadata.Access<EntityData<?>> {
         public int index(EntityData<?> value) { return value.getIndex(); }
         public Object value(EntityData<?> value) { return value.getValue(); }
         public EntityData<?> skinParts(int index, byte parts) { return new EntityData<>(index, EntityDataTypes.BYTE, parts); }

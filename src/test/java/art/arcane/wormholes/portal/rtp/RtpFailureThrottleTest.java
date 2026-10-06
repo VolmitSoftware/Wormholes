@@ -15,7 +15,7 @@ import org.bukkit.entity.Player;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.portal.LocalPortal;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.Traversive;
 
 public final class RtpFailureThrottleTest
@@ -123,7 +123,7 @@ public final class RtpFailureThrottleTest
 				LocalPortal portal,
 				Entity entity,
 				Traversive traversive,
-				PortalFrame targetFrame,
+				Frame targetFrame,
 				Location target)
 		{
 		}

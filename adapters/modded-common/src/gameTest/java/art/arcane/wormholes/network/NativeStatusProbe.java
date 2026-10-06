@@ -3,9 +3,9 @@ package art.arcane.wormholes.network;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import art.arcane.wormholes.modded.MinecraftJsonDocuments;
 import art.arcane.wormholes.modded.WormholesModRuntime;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.RemotePortal;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import net.minecraft.SharedConstants;
 import net.minecraft.server.MinecraftServer;
 
@@ -66,7 +66,7 @@ public final class NativeStatusProbe {
             route.privateHost = "127.0.0.1";
             route.privatePort = server.getPort();
             client.savePeer(route);
-            PortalFrame frame = PortalFrame.canonical(Direction.N);
+            Frame frame = Frame.canonical(Face.N);
             PortalInfo info = new PortalInfo(portalId, "Status probe gateway", "minecraft:overworld", "GATEWAY", true,
                 frame.getNormal().name(), frame.getRight().name(), frame.getUp().name(),
                 0, 64, 0, 0, 64, 0, 2, 67, 0);

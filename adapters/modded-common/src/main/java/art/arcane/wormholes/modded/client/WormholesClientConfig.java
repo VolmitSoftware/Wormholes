@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
-import art.arcane.wormholes.network.client.ClientViewProtocol;
-import art.arcane.wormholes.render.client.ClientViewSweep;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.client.ClientSweep;
 import art.arcane.wormholes.util.project.config.ConfigDescription;
 import art.arcane.wormholes.util.project.config.ConfigDoc;
 import art.arcane.wormholes.util.project.config.TomlCodec;
@@ -27,7 +27,7 @@ public class WormholesClientConfig {
     @ConfigDescription("Batch block writes for plate-based ClientView. The dedicated portal renderer does not write projected blocks into local chunks.")
     public boolean bulkWrite = false;
     @ConfigDescription("Edge hysteresis in blocks for plate-based ClientView. The dedicated renderer clips to the portal opening instead.")
-    public double hysteresisBlocks = ClientViewSweep.DEFAULT_HYSTERESIS_BLOCKS;
+    public double hysteresisBlocks = ClientSweep.DEFAULT_HYSTERESIS_BLOCKS;
     @ConfigDescription("Maximum chunk sections changed per tick for plate-based ClientView. 0 applies all changes; dedicated rendering streams sections progressively.")
     public int sectionsPerTick = 0;
     @ConfigDescription("Show detailed ClientView metrics on the F3 debug screen alongside the connection status.")
@@ -51,7 +51,7 @@ public class WormholesClientConfig {
         renderer = rendererMode().key();
         maxPlateMemoryMb = Math.max(MIN_PLATE_MEMORY_MB, Math.min(MAX_PLATE_MEMORY_MB, maxPlateMemoryMb));
         if (!Double.isFinite(hysteresisBlocks) || hysteresisBlocks < 0.0D) {
-            hysteresisBlocks = ClientViewSweep.DEFAULT_HYSTERESIS_BLOCKS;
+            hysteresisBlocks = ClientSweep.DEFAULT_HYSTERESIS_BLOCKS;
         }
         hysteresisBlocks = Math.min(MAX_HYSTERESIS_BLOCKS, hysteresisBlocks);
         sectionsPerTick = Math.max(0, Math.min(MAX_SECTIONS_PER_TICK, sectionsPerTick));
@@ -74,7 +74,7 @@ public class WormholesClientConfig {
     }
 
     public int maxFrameBytes() {
-        return ClientViewProtocol.DEFAULT_MAX_FRAME_BYTES;
+        return ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES;
     }
 
     public enum Renderer {

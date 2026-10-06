@@ -3,7 +3,7 @@ package art.arcane.wormholes.portal;
 import art.arcane.wormholes.TraversableManager;
 import art.arcane.wormholes.TraversableManager.Movement;
 import art.arcane.wormholes.TraversableManager.EntityContinuity;
-import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.optics.math.Box;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
@@ -91,7 +91,7 @@ final class PortalCaptureHistory {
         return pending;
     }
 
-    static Segment clip(Location start, Location end, AxisAlignedBB area) {
+    static Segment clip(Location start, Location end, Box area) {
         double first = 0.0D;
         double last = 1.0D;
         for (int axis = 0; axis < 3; axis++) {

@@ -2,7 +2,7 @@ package art.arcane.wormholes.modded;
 
 import art.arcane.volmlib.util.localization.LinesKey;
 import art.arcane.volmlib.util.localization.TextKey;
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import art.arcane.wormholes.localization.OpsMessages;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.ops.PortalListModel;
@@ -16,7 +16,7 @@ import art.arcane.wormholes.portal.rtp.RtpService;
 import art.arcane.wormholes.portal.rtp.RtpSettings;
 import art.arcane.wormholes.portal.rtp.RtpValidationRequest;
 import art.arcane.wormholes.portal.rtp.RtpWorld;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -247,7 +247,7 @@ public final class MinecraftOperations implements AutoCloseable {
         if (portal == null) {
             return 0;
         }
-        GeometryVector point = portal.getOrigin();
+        Vec3 point = portal.getOrigin();
         lines(source, OpsMessages.PORTALS_INFO, Map.of("portal", portal.getName(), "id", portal.getId().toString(),
             "world", portal.getWorldKey(), "value", point.x() + ", " + point.y() + ", " + point.z(),
             "state", portal.isOpen() ? "open" : "closed", "destination", destination(portal), "owner", portal.getOwner().toString()));
@@ -312,9 +312,9 @@ public final class MinecraftOperations implements AutoCloseable {
             send(source, OpsMessages.PORTALS_NOT_FOUND, Map.of("name", query));
             return 0;
         }
-        GeometryVector center = portal.getOrigin();
-        Direction normal = portal.getFrame().getNormal();
-        GeometryVector front = center.add(new GeometryVector(normal.x() * 1.5D, 0, normal.z() * 1.5D));
+        Vec3 center = portal.getOrigin();
+        Face normal = portal.getFrame().getNormal();
+        Vec3 front = center.add(new Vec3(normal.x() * 1.5D, 0, normal.z() * 1.5D));
         String key = portal.getWorldKey();
         RtpWorld world = new RtpWorld(UUID.nameUUIDFromBytes(key.getBytes(StandardCharsets.UTF_8)), key,
             level.getMinY(), level.getMaxY() + 1, level.getSeaLevel());
@@ -330,7 +330,7 @@ public final class MinecraftOperations implements AutoCloseable {
                     LOGGER.error("Could not choose a safe operator landing at portal {}", portal.getId(), failure);
                 }
                 boolean safe = candidate != null && new RtpSafetyValidator().validate(candidate.validationRequest()).join().safe();
-                GeometryVector point = safe ? front : center;
+                Vec3 point = safe ? front : center;
                 if (!safe) {
                     send(source, OpsMessages.PORTALS_TELEPORT_UNSAFE, Map.of("portal", portal.getName()));
                 }

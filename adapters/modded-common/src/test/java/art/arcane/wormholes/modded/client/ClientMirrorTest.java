@@ -1,26 +1,26 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import art.arcane.wormholes.modded.MinecraftProjectedBlockStates;
-import art.arcane.wormholes.network.client.Brick;
-import art.arcane.wormholes.network.client.BrickCodec;
-import art.arcane.wormholes.network.client.BrickLightSource;
-import art.arcane.wormholes.network.client.ClientViewCapability;
+import art.arcane.optics.stream.Brick;
+import art.arcane.optics.stream.BrickCodec;
+import art.arcane.optics.stream.BrickLightSource;
+import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
-import art.arcane.wormholes.network.client.ClientViewProtocolException;
-import art.arcane.wormholes.network.client.PlateSectionBox;
-import art.arcane.wormholes.portal.PortalFrame;
-import art.arcane.wormholes.render.DirectionMapping;
-import art.arcane.wormholes.render.PortalCoordMap;
-import art.arcane.wormholes.render.ProjectionCellKey;
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
-import art.arcane.wormholes.render.client.ClientViewSweep;
-import art.arcane.wormholes.render.plate.PlateBox;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.PlateSectionBox;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.DirectionMapping;
+import art.arcane.optics.frame.PortalCoordMap;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.fidelity.BlockEntitySample;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.client.ClientSweep;
+import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.Face;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -82,7 +82,7 @@ public class ClientMirrorTest {
         harness.surface.set(1, 65, 13, GOLD);
         harness.surface.set(0, 64, 12, Blocks.OAK_STAIRS.defaultBlockState().rotate(Rotation.CLOCKWISE_90));
         harness.surface.set(2, 66, 12, Blocks.OAK_STAIRS.defaultBlockState().rotate(Rotation.CLOCKWISE_180));
-        harness.receive(new ClientViewMessage.Portal(MIRROR_KEY, 1, mirror(0, List.of())), ClientViewProtocol.FLAG_LAST);
+        harness.receive(new ClientViewMessage.Portal(MIRROR_KEY, 1, mirror(0, List.of())), ViewStreamLimits.FLAG_LAST);
         harness.tick(EYE_X, EYE_Y, EYE_Z);
         ClientPortal portal = harness.session.portal(MIRROR_KEY);
         assertNotNull(harness.tick.mirror(MIRROR_KEY));
@@ -98,7 +98,7 @@ public class ClientMirrorTest {
         Harness harness = new Harness();
         harness.receive(new ClientViewMessage.Portal(MIRROR_KEY, 1, mirror(0, List.of())), 0);
         harness.receive(new ClientViewMessage.Atmosphere(MIRROR_KEY, 6000L, 0.8F, 0.0F, ClientViewMessage.Atmosphere.FLAG_WEATHER),
-            ClientViewProtocol.FLAG_LAST);
+            ViewStreamLimits.FLAG_LAST);
         for (int i = 0; i < ClientAtmosphere.WEATHER_BURST_TICKS * 40 && harness.tick.atmosphere().weatherParticles() == 0L; i++) {
             harness.tick(EYE_X, EYE_Y, EYE_Z);
         }
@@ -109,7 +109,7 @@ public class ClientMirrorTest {
     @Test
     public void mirrorReflectsThePreProjectionShadowAndFollowsBlockChanges() throws ClientViewProtocolException {
         Harness harness = new Harness();
-        harness.receive(new ClientViewMessage.Portal(MIRROR_KEY, 1, mirror(0, List.of())), ClientViewProtocol.FLAG_LAST);
+        harness.receive(new ClientViewMessage.Portal(MIRROR_KEY, 1, mirror(0, List.of())), ViewStreamLimits.FLAG_LAST);
         harness.tick(EYE_X, EYE_Y, EYE_Z);
         ClientPortal portal = harness.session.portal(MIRROR_KEY);
         assertEquals(0, harness.assertReflection(portal));
@@ -119,7 +119,7 @@ public class ClientMirrorTest {
         harness.tick.blockChanged(harness.level, source[0], source[1], source[2]);
         harness.tick(EYE_X, EYE_Y, EYE_Z);
         assertSame(GOLD, harness.surface.state(display[0], display[1], display[2]));
-        long sourceKey = ProjectionCellKey.pack(source[0], source[1], source[2]);
+        long sourceKey = CellKeys.pack(source[0], source[1], source[2]);
         harness.tick.overlay().enter(sourceKey, DIAMOND, GOLD, 99, false);
         harness.surface.set(source[0], source[1], source[2], DIAMOND);
         harness.tick.blockChanged(harness.level, source[0], source[1], source[2]);
@@ -138,10 +138,10 @@ public class ClientMirrorTest {
     public void droppingTheMirrorRevertsEveryReflectedCell() throws ClientViewProtocolException {
         Harness harness = new Harness();
         harness.surface.set(1, 65, 13, GOLD);
-        harness.receive(new ClientViewMessage.Portal(MIRROR_KEY, 1, mirror(0, List.of())), ClientViewProtocol.FLAG_LAST);
+        harness.receive(new ClientViewMessage.Portal(MIRROR_KEY, 1, mirror(0, List.of())), ViewStreamLimits.FLAG_LAST);
         harness.tick(EYE_X, EYE_Y, EYE_Z);
         assertTrue(harness.tick.overlay().size() > 0);
-        harness.receive(new ClientViewMessage.PortalDrop(MIRROR_KEY), ClientViewProtocol.FLAG_LAST);
+        harness.receive(new ClientViewMessage.PortalDrop(MIRROR_KEY), ViewStreamLimits.FLAG_LAST);
         harness.tick(EYE_X, EYE_Y, EYE_Z);
         assertEquals(0, harness.tick.overlay().size());
         assertEquals(0, harness.surface.changedCells());
@@ -150,8 +150,8 @@ public class ClientMirrorTest {
 
     @Test
     public void withoutTheClientMirrorCapabilityNothingIsDrawnLocally() throws ClientViewProtocolException {
-        Harness harness = new Harness(ClientViewHarness.PLATE_CAPS & ~ClientViewCapability.CLIENT_MIRROR.mask());
-        harness.receive(new ClientViewMessage.Portal(MIRROR_KEY, 1, mirror(0, List.of())), ClientViewProtocol.FLAG_LAST);
+        Harness harness = new Harness(ClientViewHarness.PLATE_CAPS & ~ViewStreamCapability.CLIENT_MIRROR.mask());
+        harness.receive(new ClientViewMessage.Portal(MIRROR_KEY, 1, mirror(0, List.of())), ViewStreamLimits.FLAG_LAST);
         harness.tick(EYE_X, EYE_Y, EYE_Z);
         assertNull(harness.tick.mirror(MIRROR_KEY));
         assertEquals(0, harness.tick.overlay().size());
@@ -170,9 +170,9 @@ public class ClientMirrorTest {
         mirror.sweep().appliedKeys(applied);
         for (int index = 0; index < applied.size(); index++) {
             long key = applied.getLong(index);
-            int x = ProjectionCellKey.unpackX(key);
-            int y = ProjectionCellKey.unpackY(key);
-            int z = ProjectionCellKey.unpackZ(key);
+            int x = CellKeys.unpackX(key);
+            int y = CellKeys.unpackY(key);
+            int z = CellKeys.unpackZ(key);
             if (nested.displays(CHILD_KEY, x, y, z)) {
                 assertSame("nested cell " + x + "," + y + "," + z, GOLD, harness.surface.state(x, y, z));
                 assertEquals(CHILD_KEY, harness.tick.overlay().get(key).portalKey());
@@ -181,7 +181,7 @@ public class ClientMirrorTest {
         }
         assertTrue("no nested cell lies inside the mirror cone", nestedGold > 0);
 
-        harness.receive(new ClientViewMessage.PortalDrop(CHILD_KEY), ClientViewProtocol.FLAG_LAST);
+        harness.receive(new ClientViewMessage.PortalDrop(CHILD_KEY), ViewStreamLimits.FLAG_LAST);
         harness.tick(EYE_X, EYE_Y, EYE_Z);
         assertEquals(0, nested.cells(CHILD_KEY));
         assertEquals(0, harness.assertReflection(mirror));
@@ -204,7 +204,7 @@ public class ClientMirrorTest {
         for (int index = 0; index < CHILD_SECTIONS.brickCount(); index++) {
             ops.add(new ClientViewMessage.FullOp(childBrick(index, z -> PATCHED_BLOCK_LIGHT)));
         }
-        harness.receive(new ClientViewMessage.PlatePatch(CHILD_KEY, 1, 2, ops), ClientViewProtocol.FLAG_LAST);
+        harness.receive(new ClientViewMessage.PlatePatch(CHILD_KEY, 1, 2, ops), ViewStreamLimits.FLAG_LAST);
         harness.tick(EYE_X, EYE_Y, EYE_Z);
         assertEquals(2, harness.session.portal(CHILD_KEY).plate().revision());
         assertTrue("no nested cell was checked", harness.assertNestedLight(z -> PATCHED_BLOCK_LIGHT) > 0);
@@ -212,7 +212,7 @@ public class ClientMirrorTest {
 
     @Test
     public void theMirrorBoxCoversTheDisplaySideOnly() {
-        ClientPortalGeometry geometry = mirror(0, List.of());
+        ApertureDescriptor geometry = mirror(0, List.of());
         PlateBox box = ClientMirrorBuilder.displayBox(geometry);
         assertTrue(box.minZ() + box.sizeZ() - 1 < MIRROR_Z);
         assertTrue(box.minZ() >= MIRROR_Z - 1 - geometry.depthBlocks());
@@ -220,31 +220,31 @@ public class ClientMirrorTest {
     }
 
     private static int[] source(int x, int y, int z) {
-        ClientPortalGeometry geometry = mirror(0, List.of());
-        PortalFrame frame = geometry.frame();
+        ApertureDescriptor geometry = mirror(0, List.of());
+        Frame frame = geometry.frame();
         double[] out = new double[3];
-        GeometryVector origin = geometry.apertureArea().center();
+        Vec3 origin = geometry.apertureArea().center();
         PortalCoordMap.mirrorDisplayToSourcePointInto(x + 0.5D, y + 0.5D, z + 0.5D, origin.getX(), origin.getY(), origin.getZ(), frame,
             geometry.mirrorQuarterTurns(), out);
         return new int[] {(int) Math.floor(out[0]), (int) Math.floor(out[1]), (int) Math.floor(out[2])};
     }
 
-    private static ClientPortalGeometry mirror(int recursionDepth, List<ClientPortalGeometry> nested) {
+    private static ApertureDescriptor mirror(int recursionDepth, List<ApertureDescriptor> nested) {
         boolean[] open = new boolean[9];
         Arrays.fill(open, true);
-        return new ClientPortalGeometry(0, 64, MIRROR_Z, Direction.S.ordinal(), true, 0, true, 3, 3,
-            ClientPortalGeometry.apertureMask(3, 3, open), 0.0F, 0.0F, 0.0F, 8, recursionDepth,
-            ClientPortalGeometry.BLACKOUT_OFF, 0, ClientPortalGeometry.MASK_AIR_PROJECT, 0, 0,
-            ClientPortalGeometry.KIND_FRAME, 0.0D, 0, 0L, nested);
+        return new ApertureDescriptor(0, 64, MIRROR_Z, Face.S.ordinal(), true, 0, true, 3, 3,
+            ApertureDescriptor.apertureMask(3, 3, open), 0.0F, 0.0F, 0.0F, 8, recursionDepth,
+            ApertureDescriptor.BLACKOUT_OFF, 0, ApertureDescriptor.MASK_AIR_PROJECT, 0, 0,
+            ApertureDescriptor.KIND_FRAME, 0.0D, 0, 0L, nested);
     }
 
-    private static ClientPortalGeometry child() {
+    private static ApertureDescriptor child() {
         boolean[] open = new boolean[9];
         Arrays.fill(open, true);
-        return new ClientPortalGeometry(0, 64, 13, Direction.S.ordinal(), false, 0, false, 3, 3,
-            ClientPortalGeometry.apertureMask(3, 3, open), 0.0F, 0.0F, 0.0F, 8, 0,
-            ClientPortalGeometry.BLACKOUT_OFF, 0, ClientPortalGeometry.MASK_AIR_PROJECT, 0, 0,
-            ClientPortalGeometry.KIND_RTP, 0.0D, MIRROR_KEY, 7L, List.of());
+        return new ApertureDescriptor(0, 64, 13, Face.S.ordinal(), false, 0, false, 3, 3,
+            ApertureDescriptor.apertureMask(3, 3, open), 0.0F, 0.0F, 0.0F, 8, 0,
+            ApertureDescriptor.BLACKOUT_OFF, 0, ApertureDescriptor.MASK_AIR_PROJECT, 0, 0,
+            ApertureDescriptor.KIND_RTP, 0.0D, MIRROR_KEY, 7L, List.of());
     }
 
     private static int contentLight(int z) {
@@ -255,25 +255,25 @@ public class ClientMirrorTest {
         int baseX = CHILD_SECTIONS.sectionX(brickIndex) << 4;
         int baseY = CHILD_SECTIONS.sectionY(brickIndex) << 4;
         int baseZ = CHILD_SECTIONS.sectionZ(brickIndex) << 4;
-        int[] cells = new int[ClientViewProtocol.BRICK_CELLS];
+        int[] cells = new int[ViewStreamLimits.BRICK_CELLS];
         for (int cellIndex = 0; cellIndex < cells.length; cellIndex++) {
-            int x = baseX + ClientViewProtocol.brickCellX(cellIndex);
-            int y = baseY + ClientViewProtocol.brickCellY(cellIndex);
-            int z = baseZ + ClientViewProtocol.brickCellZ(cellIndex);
+            int x = baseX + ViewStreamLimits.brickCellX(cellIndex);
+            int y = baseY + ViewStreamLimits.brickCellY(cellIndex);
+            int z = baseZ + ViewStreamLimits.brickCellZ(cellIndex);
             boolean inside = x >= CHILD_PLATE.minX() && x < CHILD_PLATE.minX() + CHILD_PLATE.sizeX()
                 && y >= CHILD_PLATE.minY() && y < CHILD_PLATE.minY() + CHILD_PLATE.sizeY()
                 && z >= CHILD_PLATE.minZ() && z < CHILD_PLATE.minZ() + CHILD_PLATE.sizeZ();
-            cells[cellIndex] = inside ? GOLD_ID : ClientViewProtocol.PALETTE_AIR;
+            cells[cellIndex] = inside ? GOLD_ID : ViewStreamLimits.PALETTE_AIR;
         }
         Brick brick = BrickCodec.pack(brickIndex, cells);
         if (brick.isEmpty()) {
             return brick;
         }
-        byte[] block = new byte[ClientViewProtocol.LIGHT_NIBBLE_BYTES];
-        for (int cellIndex = 0; cellIndex < ClientViewProtocol.BRICK_CELLS; cellIndex++) {
-            BrickLightSource.setNibble(block, cellIndex, blockLightByZ.applyAsInt(baseZ + ClientViewProtocol.brickCellZ(cellIndex)));
+        byte[] block = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
+        for (int cellIndex = 0; cellIndex < ViewStreamLimits.BRICK_CELLS; cellIndex++) {
+            BrickLightSource.setNibble(block, cellIndex, blockLightByZ.applyAsInt(baseZ + ViewStreamLimits.brickCellZ(cellIndex)));
         }
-        return brick.withLight(block, new byte[ClientViewProtocol.LIGHT_NIBBLE_BYTES]);
+        return brick.withLight(block, new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES]);
     }
 
     private static final class Harness {
@@ -293,7 +293,7 @@ public class ClientMirrorTest {
             config = new WormholesClientConfig();
             config.normalize();
             session = new ClientViewSession(config, new ClientPalette(BuiltInRegistries.BLOCK), 1, "test");
-            session.accept(new ClientViewMessage.Accept(1, acceptedCaps, 20, ClientViewProtocol.DEFAULT_MAX_FRAME_BYTES, 7L, 8));
+            session.accept(new ClientViewMessage.Accept(1, acceptedCaps, 20, ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 7L, 8));
             receiver = new ClientViewReceiver(session);
             tick = new ClientViewTick(session, receiver, config, new ClientViewStats());
             List<ClientViewMessage> sent = new ArrayList<>();
@@ -309,7 +309,7 @@ public class ClientMirrorTest {
         }
 
         private void streamNested() throws ClientViewProtocolException {
-            ClientPortalGeometry child = child();
+            ApertureDescriptor child = child();
             receive(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(GOLD_ID, "minecraft:gold_block"))), 0);
             receive(new ClientViewMessage.Portal(MIRROR_KEY, 1, mirror(2, List.of(child))), 0);
             receive(new ClientViewMessage.Portal(CHILD_KEY, 1, child), 0);
@@ -327,7 +327,7 @@ public class ClientMirrorTest {
             }
             receive(new ClientViewMessage.PlateBegin(CHILD_KEY, 1, CHILD_SECTIONS, CHILD_PLATE, GOLD_ID, bricks.length, hashes), 0);
             receive(new ClientViewMessage.PlateBricks(CHILD_KEY, 1, Arrays.asList(bricks)), 0);
-            receive(new ClientViewMessage.PlateEnd(CHILD_KEY, 1), ClientViewProtocol.FLAG_LAST);
+            receive(new ClientViewMessage.PlateEnd(CHILD_KEY, 1), ViewStreamLimits.FLAG_LAST);
         }
 
         private void tick(double eyeX, double eyeY, double eyeZ) {
@@ -341,9 +341,9 @@ public class ClientMirrorTest {
             int checked = 0;
             for (int index = 0; index < applied.size(); index++) {
                 long key = applied.getLong(index);
-                int x = ProjectionCellKey.unpackX(key);
-                int y = ProjectionCellKey.unpackY(key);
-                int z = ProjectionCellKey.unpackZ(key);
+                int x = CellKeys.unpackX(key);
+                int y = CellKeys.unpackY(key);
+                int z = CellKeys.unpackZ(key);
                 if (!nested.displays(CHILD_KEY, x, y, z)) {
                     continue;
                 }
@@ -361,24 +361,24 @@ public class ClientMirrorTest {
             portal.sweep().appliedKeys(applied);
             assertFalse(applied.isEmpty());
             long key = applied.getLong(applied.size() / 2);
-            return new int[] {ProjectionCellKey.unpackX(key), ProjectionCellKey.unpackY(key), ProjectionCellKey.unpackZ(key)};
+            return new int[] {CellKeys.unpackX(key), CellKeys.unpackY(key), CellKeys.unpackZ(key)};
         }
 
         private int assertReflection(ClientPortal portal) {
-            ClientPortalGeometry geometry = portal.geometry();
+            ApertureDescriptor geometry = portal.geometry();
             DirectionMapping mapping = DirectionMapping.mirror(geometry.frame(), geometry.mirrorQuarterTurns(), new double[3]);
             LongArrayList applied = new LongArrayList();
-            ClientViewSweep sweep = portal.sweep();
+            ClientSweep sweep = portal.sweep();
             sweep.appliedKeys(applied);
             assertEquals(sweep.appliedCount(), applied.size());
             int gold = 0;
             for (int index = 0; index < applied.size(); index++) {
                 long key = applied.getLong(index);
-                int x = ProjectionCellKey.unpackX(key);
-                int y = ProjectionCellKey.unpackY(key);
-                int z = ProjectionCellKey.unpackZ(key);
+                int x = CellKeys.unpackX(key);
+                int y = CellKeys.unpackY(key);
+                int z = CellKeys.unpackZ(key);
                 int[] source = source(x, y, z);
-                ProjectionOverlay.Entry sourceEntry = tick.overlay().get(ProjectionCellKey.pack(source[0], source[1], source[2]));
+                ProjectionOverlay.Entry sourceEntry = tick.overlay().get(CellKeys.pack(source[0], source[1], source[2]));
                 BlockState shadow = sourceEntry != null ? sourceEntry.shadow() : surface.state(source[0], source[1], source[2]);
                 BlockState expected = MinecraftProjectedBlockStates.transform(shadow, mapping);
                 BlockState shown = surface.state(x, y, z);
@@ -402,11 +402,11 @@ public class ClientMirrorTest {
         private ClientLightPatches patches;
 
         private void set(int x, int y, int z, BlockState state) {
-            real.put(ProjectionCellKey.pack(x, y, z), state);
+            real.put(CellKeys.pack(x, y, z), state);
         }
 
         private BlockState real(int x, int y, int z) {
-            BlockState state = real.get(ProjectionCellKey.pack(x, y, z));
+            BlockState state = real.get(CellKeys.pack(x, y, z));
             if (state != null) {
                 return state;
             }
@@ -420,13 +420,13 @@ public class ClientMirrorTest {
 
         @Override
         public BlockState state(int x, int y, int z) {
-            BlockState state = written.get(ProjectionCellKey.pack(x, y, z));
+            BlockState state = written.get(CellKeys.pack(x, y, z));
             return state == null ? real(x, y, z) : state;
         }
 
         @Override
         public void write(int x, int y, int z, BlockState state) {
-            long key = ProjectionCellKey.pack(x, y, z);
+            long key = CellKeys.pack(x, y, z);
             if (state == real(x, y, z)) {
                 written.remove(key);
             } else {

@@ -22,13 +22,15 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockRedstoneEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.junit.jupiter.api.Test;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.view.WorldChangeTracker;
 
 public final class ProjectionChangeListenerTest {
     private static final UUID WORLD_ID = UUID.fromString("5f2e7d8c-3a54-4f7b-9d3e-1b2c3d4e5f60");
 
     @Test
     public void redstoneChangesInvalidatePoweredNeighborsAcrossChunkBoundaries() {
-        ProjectionWorldChangeTracker tracker = new ProjectionWorldChangeTracker();
+        WorldChangeTracker tracker = new WorldChangeTracker();
         List<Long> blocks = recordBlocks(tracker);
         World world = world();
         Block source = block(world, 15, 64, 15, mock(BlockData.class));
@@ -47,7 +49,7 @@ public final class ProjectionChangeListenerTest {
 
     @Test
     public void openingADoorMarksBothHalves() {
-        ProjectionWorldChangeTracker tracker = new ProjectionWorldChangeTracker();
+        WorldChangeTracker tracker = new WorldChangeTracker();
         List<Long> blocks = recordBlocks(tracker);
         World world = world();
         Door door = mock(Door.class);
@@ -59,23 +61,23 @@ public final class ProjectionChangeListenerTest {
         new ProjectionChangeListener(tracker).on(interact(Action.RIGHT_CLICK_BLOCK, lower));
 
         assertTrue(tracker.dirtySince(WORLD_ID, 1, -3, 1, -3, 0L));
-        assertEquals(List.of(Long.valueOf(ProjectionCellKey.pack(20, 79, -40)), Long.valueOf(ProjectionCellKey.pack(20, 80, -40))), blocks);
+        assertEquals(List.of(Long.valueOf(CellKeys.pack(20, 79, -40)), Long.valueOf(CellKeys.pack(20, 80, -40))), blocks);
     }
 
     @Test
     public void flippingALeverMarksTheLever() {
-        ProjectionWorldChangeTracker tracker = new ProjectionWorldChangeTracker();
+        WorldChangeTracker tracker = new WorldChangeTracker();
         List<Long> blocks = recordBlocks(tracker);
         Block lever = block(world(), 3, 64, 5, mock(Switch.class));
 
         new ProjectionChangeListener(tracker).on(interact(Action.RIGHT_CLICK_BLOCK, lever));
 
-        assertEquals(List.of(Long.valueOf(ProjectionCellKey.pack(3, 64, 5))), blocks);
+        assertEquals(List.of(Long.valueOf(CellKeys.pack(3, 64, 5))), blocks);
     }
 
     @Test
     public void clickingAnInertBlockOrLeftClickingADoorMarksNothing() {
-        ProjectionWorldChangeTracker tracker = new ProjectionWorldChangeTracker();
+        WorldChangeTracker tracker = new WorldChangeTracker();
         List<Long> blocks = recordBlocks(tracker);
         World world = world();
         Block stone = block(world, 3, 64, 5, mock(BlockData.class));
@@ -91,9 +93,9 @@ public final class ProjectionChangeListenerTest {
         assertFalse(tracker.dirtySince(WORLD_ID, -8, -8, 8, 8, 0L));
     }
 
-    private static List<Long> recordBlocks(ProjectionWorldChangeTracker tracker) {
+    private static List<Long> recordBlocks(WorldChangeTracker tracker) {
         List<Long> blocks = new ArrayList<Long>();
-        tracker.addListener(new ProjectionWorldChangeTracker.ChangeListener() {
+        tracker.addListener(new WorldChangeTracker.ChangeListener() {
             @Override
             public void blockChanged(UUID worldId, long blockKey) {
                 blocks.add(Long.valueOf(blockKey));

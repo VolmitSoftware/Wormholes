@@ -11,22 +11,25 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
-import art.arcane.wormholes.portal.PortalFrame;
-import art.arcane.wormholes.portal.PortalGeometry;
-import art.arcane.wormholes.render.ProjectionCellKey;
-import art.arcane.wormholes.render.ProjectorSample;
-import art.arcane.wormholes.render.lod.LodPolicy;
-import art.arcane.wormholes.render.plate.PlateBox;
-import art.arcane.wormholes.render.plate.PlateCell;
-import art.arcane.wormholes.render.plate.ViewPlate;
-import art.arcane.wormholes.render.plate.ViewPlateBuilder;
-import art.arcane.wormholes.render.plate.ViewPlateKey;
-import art.arcane.wormholes.render.view.ProjectionContentView;
-import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.aperture.ApertureCells;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.scan.ProjectorSample;
+import art.arcane.optics.volume.LodPolicy;
+import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.plate.PlateCell;
+import art.arcane.optics.plate.ViewPlate;
+import art.arcane.optics.plate.ViewPlateBuilder;
+import art.arcane.optics.plate.ViewPlateKey;
+import art.arcane.optics.view.ContentView;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Face;
+import art.arcane.optics.stream.Brick;
+import art.arcane.optics.stream.BrickCodec;
+import art.arcane.optics.stream.ViewStreamLimits;
 
 final class PlateExposurePropertyTest {
-    private static final Direction[] HORIZONTAL = {Direction.N, Direction.S, Direction.E, Direction.W};
+    private static final Face[] HORIZONTAL = {Face.N, Face.S, Face.E, Face.W};
 
     record Exposure(int occludedCells, int backingCells, int blockCells, int hiddenStates) {
     }
@@ -65,25 +68,25 @@ final class PlateExposurePropertyTest {
             int baseY = encoded.sections().sectionY(index) << 4;
             int baseZ = encoded.sections().sectionZ(index) << 4;
             for (int i = 0; i < cells.length; i++) {
-                int x = baseX + ClientViewProtocol.brickCellX(i);
-                int y = baseY + ClientViewProtocol.brickCellY(i);
-                int z = baseZ + ClientViewProtocol.brickCellZ(i);
-                PlateCell<String> source = box.index(x, y, z) < 0 ? null : plate.cell(ProjectionCellKey.pack(x, y, z));
+                int x = baseX + ViewStreamLimits.brickCellX(i);
+                int y = baseY + ViewStreamLimits.brickCellY(i);
+                int z = baseZ + ViewStreamLimits.brickCellZ(i);
+                PlateCell<String> source = box.index(x, y, z) < 0 ? null : plate.cell(CellKeys.pack(x, y, z));
                 int id = cells[i];
                 if (source != null && source.kind() == ProjectorSample.Kind.OCCLUDED) {
-                    assertEquals(ClientViewProtocol.PALETTE_OCCLUDED, id, "occluded cell " + x + "," + y + "," + z + " leaked a state");
+                    assertEquals(ViewStreamLimits.PALETTE_OCCLUDED, id, "occluded cell " + x + "," + y + "," + z + " leaked a state");
                 } else if (source != null && source.kind() == ProjectorSample.Kind.BACKING_BLOCK) {
-                    assertEquals(ClientViewProtocol.PALETTE_BACKING, id, "backing cell " + x + "," + y + "," + z + " leaked a state");
-                } else if (id >= ClientViewProtocol.RESERVED_PALETTE_IDS) {
+                    assertEquals(ViewStreamLimits.PALETTE_BACKING, id, "backing cell " + x + "," + y + "," + z + " leaked a state");
+                } else if (id >= ViewStreamLimits.RESERVED_PALETTE_IDS) {
                     referenced.add(id);
                 }
             }
             if (brick.hasBlockEntities()) {
                 for (Brick.BlockEntityCell entity : brick.blockEntities()) {
-                    int x = baseX + ClientViewProtocol.brickCellX(entity.cellIndex());
-                    int y = baseY + ClientViewProtocol.brickCellY(entity.cellIndex());
-                    int z = baseZ + ClientViewProtocol.brickCellZ(entity.cellIndex());
-                    PlateCell<String> source = plate.cell(ProjectionCellKey.pack(x, y, z));
+                    int x = baseX + ViewStreamLimits.brickCellX(entity.cellIndex());
+                    int y = baseY + ViewStreamLimits.brickCellY(entity.cellIndex());
+                    int z = baseZ + ViewStreamLimits.brickCellZ(entity.cellIndex());
+                    PlateCell<String> source = plate.cell(CellKeys.pack(x, y, z));
                     assertEquals(ProjectorSample.Kind.BLOCK, source.kind(), "block entity on a non-visible cell");
                 }
             }
@@ -109,8 +112,8 @@ final class PlateExposurePropertyTest {
     }
 
     static ViewPlate<String> randomPlate(SyntheticWorld world, Random random, boolean blockEntities) {
-        Direction local = HORIZONTAL[random.nextInt(4)];
-        Direction remote = HORIZONTAL[random.nextInt(4)];
+        Face local = HORIZONTAL[random.nextInt(4)];
+        Face remote = HORIZONTAL[random.nextInt(4)];
         int lx = random.nextInt(200);
         int lz = random.nextInt(200);
         int rx = 400 + random.nextInt(600);
@@ -119,15 +122,15 @@ final class PlateExposurePropertyTest {
         int ry = surface == Integer.MIN_VALUE ? 64 : surface + 1;
         int width = 1 + random.nextInt(3);
         int height = 2 + random.nextInt(2);
-        PortalGeometry geometry = new PortalGeometry();
-        boolean alongX = local == Direction.N || local == Direction.S;
+        ApertureCells geometry = new ApertureCells();
+        boolean alongX = local == Face.N || local == Face.S;
         geometry.setArea(alongX
-            ? new AxisAlignedBB(lx, lx + width - 0.001D, 64, 64 + height - 0.001D, lz, lz + 0.999D)
-            : new AxisAlignedBB(lx, lx + 0.999D, 64, 64 + height - 0.001D, lz, lz + width - 0.001D));
+            ? new Box(lx, lx + width - 0.001D, 64, 64 + height - 0.001D, lz, lz + 0.999D)
+            : new Box(lx, lx + 0.999D, 64, 64 + height - 0.001D, lz, lz + width - 0.001D));
         ViewPlateKey key = new ViewPlateKey(UUID.nameUUIDFromBytes(("p" + lx + lz).getBytes()), world, random.nextBoolean(), 0, 0L);
-        ViewPlateBuilder.Request<String, String, ProjectionContentView<String, String>> request =
-            new ViewPlateBuilder.Request<String, String, ProjectionContentView<String, String>>(key, geometry, world,
-                PortalFrame.canonical(local), PortalFrame.canonical(remote), lx + 0.4995D, 64.4995D, lz + 0.5005D,
+        ViewPlateBuilder.Request<String, String, ContentView<String, String>> request =
+            new ViewPlateBuilder.Request<String, String, ContentView<String, String>>(key, geometry, world,
+                Frame.canonical(local), Frame.canonical(remote), lx + 0.4995D, 64.4995D, lz + 0.5005D,
                 rx + 0.4995D, ry + 1.4995D, rz + 0.4995D, false, 0, 12 + random.nextInt(20), 4 + random.nextInt(8), 0.75D, true,
                 SyntheticWorld.AIR, random.nextBoolean() ? LodPolicy.NONE : new LodPolicy(true, 8, 12), blockEntities, 0L, 0L, 0L,
                 SyntheticBlocks.INSTANCE);
@@ -150,7 +153,7 @@ final class PlateExposurePropertyTest {
             occluded += exposure.occludedCells();
             backing += exposure.backingCells();
             hiddenOnly += exposure.hiddenStates();
-            assertEquals(encoded.referencedIds().length + ClientViewProtocol.RESERVED_PALETTE_IDS, palette.size(),
+            assertEquals(encoded.referencedIds().length + ViewStreamLimits.RESERVED_PALETTE_IDS, palette.size(),
                 "a fresh palette must hold exactly the reserved ids plus the states this plate advertises");
         }
         assertTrue(hiddenOnly > 0, "random plates should contain states that exist only under buried cells");

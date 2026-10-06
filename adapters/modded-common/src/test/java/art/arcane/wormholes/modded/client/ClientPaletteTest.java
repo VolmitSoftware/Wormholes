@@ -2,8 +2,8 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
-import art.arcane.wormholes.network.client.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.ClientViewProtocolException;
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -56,8 +56,8 @@ public class ClientPaletteTest extends MinecraftTestBase {
     @Test
     public void reservedAndOutOfRangeIdsAreRejected() {
         ClientPalette palette = new ClientPalette(BuiltInRegistries.BLOCK);
-        for (int id : new int[] {ClientViewProtocol.PALETTE_AIR, ClientViewProtocol.PALETTE_OCCLUDED, ClientViewProtocol.PALETTE_BACKING,
-            ClientViewProtocol.MAX_SESSION_PALETTE_SIZE}) {
+        for (int id : new int[] {ViewStreamLimits.PALETTE_AIR, ViewStreamLimits.PALETTE_OCCLUDED, ViewStreamLimits.PALETTE_BACKING,
+            ViewStreamLimits.MAX_SESSION_PALETTE_SIZE}) {
             try {
                 palette.apply(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(id, "minecraft:stone"))));
                 fail("palette accepted id " + id);
@@ -65,9 +65,9 @@ public class ClientPaletteTest extends MinecraftTestBase {
                 assertTrue(expected.getMessage().contains(Integer.toString(id)));
             }
         }
-        assertSame(palette.air(), palette.state(ClientViewProtocol.PALETTE_AIR));
-        assertTrue(palette.sentinel(ClientViewProtocol.PALETTE_OCCLUDED));
-        assertTrue(palette.sentinel(ClientViewProtocol.PALETTE_BACKING));
+        assertSame(palette.air(), palette.state(ViewStreamLimits.PALETTE_AIR));
+        assertTrue(palette.sentinel(ViewStreamLimits.PALETTE_OCCLUDED));
+        assertTrue(palette.sentinel(ViewStreamLimits.PALETTE_BACKING));
         assertFalse(palette.sentinel(3));
     }
 
@@ -83,7 +83,7 @@ public class ClientPaletteTest extends MinecraftTestBase {
         assertEquals(stoneId, palette.localId(stone));
         assertSame(stone, palette.state(stoneId));
         assertSame(gold, palette.state(goldId));
-        assertEquals(ClientViewProtocol.PALETTE_AIR, palette.localId(Blocks.AIR.defaultBlockState()));
+        assertEquals(ViewStreamLimits.PALETTE_AIR, palette.localId(Blocks.AIR.defaultBlockState()));
         assertEquals(2, palette.localSize());
         assertTrue(palette.known(goldId));
         assertFalse(palette.known(goldId + 1));
@@ -108,7 +108,7 @@ public class ClientPaletteTest extends MinecraftTestBase {
         palette.apply(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(3, "minecraft:stone"))));
         palette.localId(Blocks.GOLD_BLOCK.defaultBlockState());
         palette.reset();
-        assertEquals(ClientViewProtocol.RESERVED_PALETTE_IDS, palette.size());
+        assertEquals(ViewStreamLimits.RESERVED_PALETTE_IDS, palette.size());
         assertEquals(0, palette.localSize());
         assertFalse(palette.known(3));
         assertSame(palette.air(), palette.state(3));

@@ -11,24 +11,26 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.junit.jupiter.api.Test;
+import art.arcane.optics.entity.EntityDeltaCodec;
+import art.arcane.optics.entity.EntitySnapshot;
 
 final class ViewEntityPublisherDeliveryTest {
     @Test
     void mapChangesRequireARecoverableFullSnapshot() {
-        assertTrue(ViewEntityPublisher.requiresFullSnapshot(EntityVisual.FIELD_MAP_DATA));
+        assertTrue(ViewEntityPublisher.requiresFullSnapshot(EntitySnapshot.FIELD_MAP_DATA));
         assertTrue(ViewEntityPublisher.requiresFullSnapshot(
-            EntityVisual.FIELD_POSITION | EntityVisual.FIELD_MAP_DATA));
-        assertFalse(ViewEntityPublisher.requiresFullSnapshot(EntityVisual.FIELD_POSITION));
+            EntitySnapshot.FIELD_POSITION | EntitySnapshot.FIELD_MAP_DATA));
+        assertFalse(ViewEntityPublisher.requiresFullSnapshot(EntitySnapshot.FIELD_POSITION));
     }
 
     @Test
     void fullAndDeltaVisualsUseSeparateDeliveryBatches() {
-        EntityVisual full = visual(new UUID(0L, 1L));
-        EntityVisual baseline = visual(new UUID(0L, 2L));
-        EntityVisual delta = EntityDeltaCodec.buildDelta(
-            baseline, baseline, 1, EntityVisual.FIELD_POSITION);
+        EntitySnapshot full = visual(new UUID(0L, 1L));
+        EntitySnapshot baseline = visual(new UUID(0L, 2L));
+        EntitySnapshot delta = EntityDeltaCodec.buildDelta(
+            baseline, baseline, 1, EntitySnapshot.FIELD_POSITION);
 
-        List<List<EntityVisual>> batches = ViewEntityPublisher.deliveryBatches(List.of(delta, full));
+        List<List<EntitySnapshot>> batches = ViewEntityPublisher.deliveryBatches(List.of(delta, full));
 
         assertEquals(2, batches.size());
         assertEquals(1, batches.get(0).size());
@@ -53,12 +55,12 @@ final class ViewEntityPublisherDeliveryTest {
         assertTrue(sentProfiles.contains(plainId));
     }
 
-    private static EntityVisual visual(UUID id) {
+    private static EntitySnapshot visual(UUID id) {
         return visual(id, "");
     }
 
-    private static EntityVisual visual(UUID id, String textureValue) {
-        return EntityVisual.full(
+    private static EntitySnapshot visual(UUID id, String textureValue) {
+        return EntitySnapshot.full(
             id,
             "minecraft:item_frame",
             0.0D, 64.0D, 0.0D,
@@ -69,7 +71,7 @@ final class ViewEntityPublisherDeliveryTest {
             false,
             "", textureValue, "",
             null, null,
-            EntityVisual.EMPTY, EntityVisual.EMPTY, EntityVisual.EMPTY,
+            EntitySnapshot.EMPTY, EntitySnapshot.EMPTY, EntitySnapshot.EMPTY,
             0);
     }
 }

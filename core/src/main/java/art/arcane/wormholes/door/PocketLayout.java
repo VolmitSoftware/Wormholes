@@ -1,6 +1,6 @@
 package art.arcane.wormholes.door;
 
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
@@ -76,7 +76,7 @@ public record PocketLayout(PocketSpace space) {
 
     public DoorwayPlane returnDoorPlane() {
         PocketBlockPosition lower = returnDoorLower();
-        return new DoorwayPlane(lower.x(), lower.y(), lower.z(), Direction.S);
+        return new DoorwayPlane(lower.x(), lower.y(), lower.z(), Face.S);
     }
 
     public PocketEntryCoordinates entry() {

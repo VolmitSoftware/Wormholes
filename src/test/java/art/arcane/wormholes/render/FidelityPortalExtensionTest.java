@@ -13,9 +13,9 @@ import org.junit.jupiter.api.Test;
 
 import art.arcane.volmlib.util.json.JSONObject;
 import art.arcane.wormholes.hook.PortalExtensionFactory;
-import art.arcane.wormholes.render.acoustics.AcousticsProfile;
-import art.arcane.wormholes.render.atmosphere.AtmosphereMode;
-import art.arcane.wormholes.render.lod.LodProfile;
+import art.arcane.optics.fidelity.AcousticsProfile;
+import art.arcane.optics.fidelity.AtmosphereMode;
+import art.arcane.optics.volume.LodProfile;
 
 final class FidelityPortalExtensionTest {
     @Test

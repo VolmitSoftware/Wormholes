@@ -1,13 +1,12 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.chunk.ChunkLease;
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.plate.ChunkLease;
 import art.arcane.wormholes.portal.Portal;
-import art.arcane.wormholes.portal.PortalFrame;
-import art.arcane.wormholes.portal.PortalGeometry;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.wormholes.portal.PortalType;
-import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Face;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -59,15 +58,15 @@ final class MinecraftEndReturnPreview {
         MinecraftPortal previous = destinations.get(exit.getId());
         String world = transition.newLevel().dimension().identifier().toString();
         if (previous != null && previous.getWorldKey().equals(world)
-            && previous.getOrigin().equals(new GeometryVector(point.x, point.y, point.z))) {
+            && previous.getOrigin().equals(new art.arcane.optics.math.Vec3(point.x, point.y, point.z))) {
             return previous;
         }
-        PortalGeometry geometry = new PortalGeometry();
-        geometry.setArea(new AxisAlignedBB(point.x - 2, point.x + 2, point.y, point.y + 0.999,
+        ApertureCells geometry = new ApertureCells();
+        geometry.setArea(new Box(point.x - 2, point.x + 2, point.y, point.y + 0.999,
             point.z - 2, point.z + 2));
         UUID id = UUID.nameUUIDFromBytes((exit.getId() + ":" + observer.getUUID()).getBytes(StandardCharsets.UTF_8));
         MinecraftPortal destination = new MinecraftPortal(new MinecraftPortal.Definition(
-            new Portal.State(id, new GeometryVector(point.x, point.y, point.z), "End return", PortalFrame.canonical(Direction.U), true),
+            new Portal.State(id, new art.arcane.optics.math.Vec3(point.x, point.y, point.z), "End return", Frame.canonical(Face.U), true),
             geometry, world, Map.of("owner", id.toString(), "type", PortalType.PORTAL.name(), "projectionMode", "OFF",
                 "outgoingTraversalsEnabled", false, "incomingTraversalsEnabled", true)));
         destinations.put(exit.getId(), destination);

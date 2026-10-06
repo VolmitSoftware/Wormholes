@@ -1,15 +1,15 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.wormholes.network.client.ClientViewCapability;
+import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewChannel;
 import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
-import art.arcane.wormholes.network.client.ClientViewProtocolException;
-import art.arcane.wormholes.network.client.PlateSectionBox;
-import art.arcane.wormholes.render.client.ClientViewSweep;
-import art.arcane.wormholes.render.plate.PlateBox;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.PlateSectionBox;
+import art.arcane.optics.client.ClientSweep;
+import art.arcane.optics.plate.PlateBox;
 import org.junit.After;
 import org.junit.Test;
 
@@ -38,7 +38,7 @@ public class ClientViewFailureTest extends MinecraftTestBase {
         ClientViewHarness harness = new ClientViewHarness();
         harness.receive(new ClientViewMessage.Portal(ClientViewHarness.PORTAL_KEY, 1, ClientViewHarness.geometry()), 0);
         PlateBox cells = new PlateBox(-8, 56, 0, 300, 200, 300);
-        assertTrue(cells.cells() > ClientViewSweep.MAX_BOUNDS_CELLS);
+        assertTrue(cells.cells() > ClientSweep.MAX_BOUNDS_CELLS);
         PlateSectionBox sections = PlateSectionBox.snap(cells);
         long[] hashes = new long[sections.brickCount()];
         for (int index = 0; index < hashes.length; index++) {
@@ -47,7 +47,7 @@ public class ClientViewFailureTest extends MinecraftTestBase {
         harness.receive(new ClientViewMessage.PlateBegin(ClientViewHarness.PORTAL_KEY, 1, sections, cells, ClientViewHarness.STONE_ID,
             sections.brickCount(), hashes), 0);
         harness.receive(new ClientViewMessage.PlateBricks(ClientViewHarness.PORTAL_KEY, 1, List.of()), 0);
-        harness.receive(new ClientViewMessage.PlateEnd(ClientViewHarness.PORTAL_KEY, 1), ClientViewProtocol.FLAG_LAST);
+        harness.receive(new ClientViewMessage.PlateEnd(ClientViewHarness.PORTAL_KEY, 1), ViewStreamLimits.FLAG_LAST);
 
         harness.tick(EYE_X, EYE_Y, EYE_Z);
 
@@ -59,12 +59,12 @@ public class ClientViewFailureTest extends MinecraftTestBase {
 
     @Test
     public void aRuntimeFailureWhileHandlingOneMessageCountsAsAProtocolFailure() throws ClientViewProtocolException {
-        ClientViewHarness harness = new ClientViewHarness(ClientViewCapability.ALL);
+        ClientViewHarness harness = new ClientViewHarness(ViewStreamCapability.ALL);
         harness.stream();
         harness.tick(EYE_X, EYE_Y, EYE_Z);
         harness.scene.failGameTime = true;
         harness.receive(new ClientViewMessage.Atmosphere(ClientViewHarness.PORTAL_KEY, 18000L, 0.8F, 0.5F,
-            ClientViewMessage.Atmosphere.FLAG_WEATHER), ClientViewProtocol.FLAG_LAST);
+            ClientViewMessage.Atmosphere.FLAG_WEATHER), ViewStreamLimits.FLAG_LAST);
 
         harness.tick(EYE_X, EYE_Y, EYE_Z);
 
@@ -77,7 +77,7 @@ public class ClientViewFailureTest extends MinecraftTestBase {
 
     @Test
     public void aSenderThatThrowsKeepsNativeSelectionUnavailableForRecovery() throws ClientViewProtocolException {
-        ClientViewHarness harness = new ClientViewHarness(ClientViewCapability.ALL);
+        ClientViewHarness harness = new ClientViewHarness(ViewStreamCapability.ALL);
         harness.tick.sender(message -> {
             throw new UnsupportedOperationException("Payload " + ClientViewChannel.CHANNEL + " may not be sent to the server!");
         });
@@ -95,7 +95,7 @@ public class ClientViewFailureTest extends MinecraftTestBase {
 
     @Test
     public void aLaterOfferNegotiatesAgainAfterASendFailure() throws ClientViewProtocolException {
-        ClientViewHarness harness = new ClientViewHarness(ClientViewCapability.ALL);
+        ClientViewHarness harness = new ClientViewHarness(ViewStreamCapability.ALL);
         boolean[] blocked = {true};
         harness.tick.sender(message -> {
             if (blocked[0]) {
@@ -109,9 +109,9 @@ public class ClientViewFailureTest extends MinecraftTestBase {
         assertEquals(ClientViewSession.State.NATIVE_RECOVERING, harness.session.state());
 
         blocked[0] = false;
-        harness.receive(offer(), ClientViewProtocol.FLAG_LAST);
-        harness.receive(new ClientViewMessage.Accept(2, ClientViewCapability.ALL, 20, ClientViewProtocol.DEFAULT_MAX_FRAME_BYTES, 9L, 8),
-            ClientViewProtocol.FLAG_LAST);
+        harness.receive(offer(), ViewStreamLimits.FLAG_LAST);
+        harness.receive(new ClientViewMessage.Accept(2, ViewStreamCapability.ALL, 20, ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 9L, 8),
+            ViewStreamLimits.FLAG_LAST);
         harness.stream();
         harness.tick(EYE_X, EYE_Y, EYE_Z);
 
@@ -123,8 +123,8 @@ public class ClientViewFailureTest extends MinecraftTestBase {
 
     @Test
     public void anOfferReplyThatCannotBeSentKeepsAcceptedNativeSelection() throws ClientViewProtocolException {
-        ClientViewHarness harness = new ClientViewHarness(ClientViewCapability.ALL);
-        byte[] offer = ClientViewCodec.encodeS2C(offer(), 1, ClientViewProtocol.FLAG_LAST);
+        ClientViewHarness harness = new ClientViewHarness(ViewStreamCapability.ALL);
+        byte[] offer = ClientViewCodec.encodeS2C(offer(), 1, ViewStreamLimits.FLAG_LAST);
 
         harness.receiver.receive(offer, bytes -> {
             throw new UnsupportedOperationException("Payload " + ClientViewChannel.CHANNEL + " may not be sent to the server!");
@@ -142,9 +142,9 @@ public class ClientViewFailureTest extends MinecraftTestBase {
         ClientPortal previous = harness.session.portal(ClientViewHarness.PORTAL_KEY);
         int acks = harness.acks().size();
 
-        harness.receive(offer(), ClientViewProtocol.FLAG_LAST);
-        harness.receive(new ClientViewMessage.Accept(2, ClientViewHarness.PLATE_CAPS, 20, ClientViewProtocol.DEFAULT_MAX_FRAME_BYTES, 9L, 8),
-            ClientViewProtocol.FLAG_LAST);
+        harness.receive(offer(), ViewStreamLimits.FLAG_LAST);
+        harness.receive(new ClientViewMessage.Accept(2, ClientViewHarness.PLATE_CAPS, 20, ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 9L, 8),
+            ViewStreamLimits.FLAG_LAST);
         harness.tick(EYE_X, EYE_Y, EYE_Z);
 
         assertEquals(ClientViewSession.State.CLIENT_VIEW, harness.session.state());
@@ -164,9 +164,9 @@ public class ClientViewFailureTest extends MinecraftTestBase {
 
     @Test
     public void malformedNativeStreamRetriesHelloAtBoundedCadenceThenAcceptsFreshMesh() throws ClientViewProtocolException {
-        ClientViewHarness harness = new ClientViewHarness(ClientViewCapability.ALL);
+        ClientViewHarness harness = new ClientViewHarness(ViewStreamCapability.ALL);
         harness.receive(offer(), 0);
-        harness.receive(new ClientViewMessage.Accept(2, ClientViewCapability.ALL, 20, ClientViewProtocol.DEFAULT_MAX_FRAME_BYTES, 9L, 8), 0);
+        harness.receive(new ClientViewMessage.Accept(2, ViewStreamCapability.ALL, 20, ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 9L, 8), 0);
         harness.tick(EYE_X, EYE_Y, EYE_Z);
         harness.sent.clear();
         harness.receiver.receive(new byte[] {(byte) 255}, null);
@@ -190,6 +190,6 @@ public class ClientViewFailureTest extends MinecraftTestBase {
     }
 
     private static ClientViewMessage.Offer offer() {
-        return new ClientViewMessage.Offer(ClientViewProtocol.WIRE_VERSION, 1, ClientViewCapability.ALL, ClientViewProtocol.DEFAULT_MAX_FRAME_BYTES, 0L);
+        return new ClientViewMessage.Offer(ViewStreamLimits.WIRE_VERSION, 1, ViewStreamCapability.ALL, ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 0L);
     }
 }

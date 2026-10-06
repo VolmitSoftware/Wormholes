@@ -4,7 +4,7 @@ import art.arcane.wormholes.door.view.DoorApertureFrames;
 import art.arcane.wormholes.door.view.DoorProjectionAdapter;
 import art.arcane.wormholes.door.view.DoorProjectionDestination;
 import art.arcane.wormholes.survival.doors.dimension.PocketWorldService;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.block.data.type.Door;
@@ -31,7 +31,7 @@ final class DoorApertureDestinationServiceTest {
             UUID observer = UUID.randomUUID();
             DoorItemIdentity identity = kind == DoorKind.PERSONAL
                 ? DoorItemIdentity.newPersonal() : DoorItemIdentity.newPublic();
-            DoorProjectionAdapter source = harness.adapter(identity, new DoorwayPlane(12, 64, 8, Direction.W));
+            DoorProjectionAdapter source = harness.adapter(identity, new DoorwayPlane(12, 64, 8, Face.W));
             PocketBinding binding = kind == DoorKind.PERSONAL ? PocketBinding.personal(observer) : PocketBinding.publicDoor(identity.itemId());
             when(harness.state.resolveDestination(identity, observer)).thenReturn(new PocketDoorDestination(binding));
             when(harness.state.findPocket(binding)).thenReturn(Optional.empty());
@@ -61,7 +61,7 @@ final class DoorApertureDestinationServiceTest {
         Harness harness = new Harness();
         UUID observer = UUID.randomUUID();
         DoorItemIdentity identity = DoorItemIdentity.newPublic();
-        DoorProjectionAdapter source = harness.adapter(identity, new DoorwayPlane(12, 64, 8, Direction.W));
+        DoorProjectionAdapter source = harness.adapter(identity, new DoorwayPlane(12, 64, 8, Face.W));
         PocketBinding binding = PocketBinding.publicDoor(identity.itemId());
         PocketSpace space = harness.space(binding, 8192);
         when(harness.state.resolveDestination(identity, observer)).thenReturn(new PocketDoorDestination(binding));
@@ -84,7 +84,7 @@ final class DoorApertureDestinationServiceTest {
     void publicInstancedViewsUseResolvedObserverBindingAndNeverShareThePublicRoom() {
         Harness harness = new Harness();
         DoorItemIdentity identity = DoorItemIdentity.newPublic();
-        DoorProjectionAdapter source = harness.adapter(identity, new DoorwayPlane(12, 64, 8, Direction.W));
+        DoorProjectionAdapter source = harness.adapter(identity, new DoorwayPlane(12, 64, 8, Face.W));
         UUID first = UUID.randomUUID();
         UUID second = UUID.randomUUID();
         PocketBinding firstBinding = PocketBinding.instance("room", first);
@@ -109,8 +109,8 @@ final class DoorApertureDestinationServiceTest {
     void returnViewUsesEachObserversCurrentSourceApertureInsteadOfLandingPose() {
         Harness harness = new Harness();
         DoorProjectionAdapter inside = harness.adapter(DoorItemIdentity.newReturn(UUID.randomUUID()),
-            new DoorwayPlane(7, 80, 15, Direction.S));
-        for (Direction facing : new Direction[]{Direction.N, Direction.E}) {
+            new DoorwayPlane(7, 80, 15, Face.S));
+        for (Face facing : new Face[]{Face.N, Face.E}) {
             UUID observer = UUID.randomUUID();
             DoorwayPlane plane = new DoorwayPlane(50 + facing.x() * 20, 68, 30, facing);
             DoorProjectionAdapter outside = harness.adapter(DoorItemIdentity.newPersonal(), plane);
@@ -132,7 +132,7 @@ final class DoorApertureDestinationServiceTest {
         Harness harness = new Harness();
         UUID observer = UUID.randomUUID();
         DoorItemIdentity identity = DoorItemIdentity.newPersonal();
-        DoorProjectionAdapter source = harness.adapter(identity, new DoorwayPlane(12, 64, 8, Direction.W));
+        DoorProjectionAdapter source = harness.adapter(identity, new DoorwayPlane(12, 64, 8, Face.W));
         PocketBinding binding = PocketBinding.personal(observer);
         PocketSpace space = harness.space(binding, 8);
         when(harness.state.resolveDestination(identity, observer)).thenReturn(new PocketDoorDestination(binding));
@@ -149,7 +149,7 @@ final class DoorApertureDestinationServiceTest {
         Harness harness = new Harness();
         UUID observer = UUID.randomUUID();
         DoorItemIdentity identity = DoorItemIdentity.newPublic();
-        DoorProjectionAdapter source = harness.adapter(identity, new DoorwayPlane(12, 64, 8, Direction.W));
+        DoorProjectionAdapter source = harness.adapter(identity, new DoorwayPlane(12, 64, 8, Face.W));
         when(harness.state.accessRecord(identity.itemId())).thenReturn(Optional.of(new DoorAccessRecord(
             identity.itemId(), UUID.randomUUID(), Map.of(observer, DoorAccessState.BLACKLIST))));
         PocketBinding binding = PocketBinding.publicDoor(identity.itemId());
@@ -166,7 +166,7 @@ final class DoorApertureDestinationServiceTest {
         Harness harness = new Harness();
         UUID observer = UUID.randomUUID();
         DoorProjectionAdapter inside = harness.adapter(DoorItemIdentity.newReturn(UUID.randomUUID()),
-            new DoorwayPlane(7, 80, 15, Direction.S));
+            new DoorwayPlane(7, 80, 15, Face.S));
         PlacedDoorEndpoint outside = new PlacedDoorEndpoint(new DoorPosition(harness.overworld.getUID(),
             "minecraft:overworld", 40, 70, 22), DoorItemIdentity.newPersonal());
         when(harness.state.findEndpointByItem(outside.identity().itemId())).thenReturn(Optional.of(outside));
@@ -213,7 +213,7 @@ final class DoorApertureDestinationServiceTest {
             PocketBlockPosition lower = layout.returnDoorLower();
             PlacedDoorEndpoint endpoint = new PlacedDoorEndpoint(new DoorPosition(pocketWorld.getUID(),
                 "wormholes:pockets", lower.x(), lower.y(), lower.z()), layout.returnDoorIdentity());
-            register(endpoint, new DoorwayPlane(lower.x(), lower.y(), lower.z(), Direction.S), pocketWorld);
+            register(endpoint, new DoorwayPlane(lower.x(), lower.y(), lower.z(), Face.S), pocketWorld);
             return endpoint;
         }
 

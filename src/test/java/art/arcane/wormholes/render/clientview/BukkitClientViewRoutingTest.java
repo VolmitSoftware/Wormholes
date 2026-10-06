@@ -22,17 +22,17 @@ import org.mockito.Answers;
 
 import com.github.retrooper.packetevents.protocol.ConnectionState;
 
-import art.arcane.wormholes.network.client.ClientViewCapability;
+import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewMessageType;
-import art.arcane.wormholes.network.client.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamMessageType;
+import art.arcane.optics.stream.ClientViewProtocolException;
 import art.arcane.wormholes.portal.ILocalPortal;
-import art.arcane.wormholes.render.EntityRenderLocalOcclusionArbiter;
+import art.arcane.optics.occlusion.LocalOcclusionArbiter;
 import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.wormholes.render.PortalProjector;
 import art.arcane.wormholes.render.ProjectionClaimArbiter;
-import art.arcane.wormholes.render.client.session.ClientViewInbound;
-import art.arcane.wormholes.render.client.session.ClientViewSessionState;
+import art.arcane.optics.stream.ClientViewInbound;
+import art.arcane.optics.stream.ClientViewSessionState;
 
 final class BukkitClientViewRoutingTest {
     @Test
@@ -40,7 +40,7 @@ final class BukkitClientViewRoutingTest {
         try (ClientViewFixture fixture = new ClientViewFixture(ClientViewFixture.options(true, false, 100), ConnectionState.PLAY)) {
             fixture.clientView.observer(fixture.playerId, fixture.user).brand("fabric");
             assertTrue(fixture.negotiator.offerPlay(fixture.player));
-            fixture.hello(ClientViewFixture.CLIENT_CAPS | ClientViewCapability.MESH_RENDER.mask());
+            fixture.hello(ClientViewFixture.CLIENT_CAPS | ViewStreamCapability.MESH_RENDER.mask());
             when(fixture.portal.getFrame()).thenReturn(null);
             assertTrue(fixture.route().isEmpty());
             assertTrue(fixture.clientView.nativeMesh(fixture.player));
@@ -82,8 +82,8 @@ final class BukkitClientViewRoutingTest {
             fixture.buildPlates();
             assertTrue(fixture.route().isEmpty());
             List<ClientViewMessage> plate = fixture.messages();
-            assertEquals(List.of(ClientViewMessageType.PALETTE, ClientViewMessageType.PORTAL, ClientViewMessageType.PLATE_BEGIN,
-                ClientViewMessageType.PLATE_BRICKS, ClientViewMessageType.PLATE_END), types(plate));
+            assertEquals(List.of(ViewStreamMessageType.PALETTE, ViewStreamMessageType.PORTAL, ViewStreamMessageType.PLATE_BEGIN,
+                ViewStreamMessageType.PLATE_BRICKS, ViewStreamMessageType.PLATE_END), types(plate));
             ClientViewMessage.Portal portal = (ClientViewMessage.Portal) plate.get(1);
             assertTrue(portal.geometry().mirror());
             ClientViewMessage.Palette palette = (ClientViewMessage.Palette) plate.get(0);
@@ -151,10 +151,10 @@ final class BukkitClientViewRoutingTest {
             fixture.route();
             fixture.buildPlates();
             fixture.route();
-            assertTrue(types(fixture.messages()).contains(ClientViewMessageType.PLATE_END));
+            assertTrue(types(fixture.messages()).contains(ViewStreamMessageType.PLATE_END));
             long builds = fixture.plates.buildsCompleted();
             ProjectionClaimArbiter arbiter = mock(ProjectionClaimArbiter.class, withSettings().defaultAnswer(Answers.RETURNS_MOCKS));
-            EntityRenderLocalOcclusionArbiter<Player, Entity> occlusion = mock(EntityRenderLocalOcclusionArbiter.class);
+            LocalOcclusionArbiter<Player, Entity> occlusion = mock(LocalOcclusionArbiter.class);
             PortalProjector projector = new PortalProjector(fixture.portal, fixture.player, arbiter, fixture.views, () -> true, occlusion,
                 fixture.plates);
 
@@ -170,7 +170,7 @@ final class BukkitClientViewRoutingTest {
 
     @Test
     void clientMirrorObserversOwnTheMirrorWithoutBuildingItsPlate() throws ClientViewProtocolException {
-        try (ClientViewFixture fixture = negotiated(ClientViewFixture.CLIENT_CAPS | ClientViewCapability.CLIENT_MIRROR.mask())) {
+        try (ClientViewFixture fixture = negotiated(ClientViewFixture.CLIENT_CAPS | ViewStreamCapability.CLIENT_MIRROR.mask())) {
             for (int tick = 0; tick < 3; tick++) {
                 assertTrue(fixture.route().isEmpty());
             }
@@ -178,7 +178,7 @@ final class BukkitClientViewRoutingTest {
             assertEquals(0, fixture.plates.size());
             assertEquals(List.of(fixture.playerId + " " + fixture.portal.getId()), fixture.released);
             List<ClientViewMessage> stream = fixture.messages();
-            assertEquals(List.of(ClientViewMessageType.PORTAL), types(stream));
+            assertEquals(List.of(ViewStreamMessageType.PORTAL), types(stream));
             assertTrue(((ClientViewMessage.Portal) stream.get(0)).geometry().mirror());
             assertTrue(fixture.clientView.attending());
         }
@@ -186,8 +186,8 @@ final class BukkitClientViewRoutingTest {
 
     @Test
     void portalsInFrontOfAClientMirrorStreamAsNestedChildren() throws ClientViewProtocolException {
-        try (ClientViewFixture fixture = negotiated(ClientViewFixture.CLIENT_CAPS | ClientViewCapability.CLIENT_MIRROR.mask()
-            | ClientViewCapability.CLIENT_RECURSION.mask())) {
+        try (ClientViewFixture fixture = negotiated(ClientViewFixture.CLIENT_CAPS | ViewStreamCapability.CLIENT_MIRROR.mask()
+            | ViewStreamCapability.CLIENT_RECURSION.mask())) {
             ILocalPortal child = fixture.linkedPortal(2);
             fixture.routeWith(child);
             fixture.buildPlates();
@@ -210,7 +210,7 @@ final class BukkitClientViewRoutingTest {
             assertTrue(parent != null && nested != null, "expected a mirror and a nested PORTAL in " + types(stream));
             assertEquals(parent.portalKey(), nested.geometry().parentPortalKey());
             assertEquals(List.of(nested.geometry()), parent.geometry().nested());
-            assertTrue(types(stream).contains(ClientViewMessageType.PLATE_BEGIN));
+            assertTrue(types(stream).contains(ViewStreamMessageType.PLATE_BEGIN));
             assertTrue(direct != null, "a projectable portal behind the player is also attended directly in " + types(stream));
             assertTrue(fixture.session().owns(child.getId()));
         }
@@ -254,12 +254,12 @@ final class BukkitClientViewRoutingTest {
         assertTrue(fixture.negotiator.offerPlay(fixture.player));
         assertEquals(ClientViewInbound.HELLO_ACCEPTED, fixture.hello(clientCaps));
         List<ClientViewMessage> handshake = fixture.messages();
-        assertEquals(List.of(ClientViewMessageType.OFFER, ClientViewMessageType.ACCEPT), types(handshake));
+        assertEquals(List.of(ViewStreamMessageType.OFFER, ViewStreamMessageType.ACCEPT), types(handshake));
         return fixture;
     }
 
-    private static List<ClientViewMessageType> types(List<ClientViewMessage> messages) {
-        List<ClientViewMessageType> types = new ArrayList<ClientViewMessageType>(messages.size());
+    private static List<ViewStreamMessageType> types(List<ClientViewMessage> messages) {
+        List<ViewStreamMessageType> types = new ArrayList<ViewStreamMessageType>(messages.size());
         for (ClientViewMessage message : messages) {
             types.add(message.type());
         }

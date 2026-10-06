@@ -1,19 +1,18 @@
 package art.arcane.wormholes.modded.clientview;
 
-import art.arcane.wormholes.chunk.ChunkLease;
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.portal.PortalCrossing;
+import art.arcane.optics.plate.ChunkLease;
+import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.MinecraftChunkPacketEncoding;
 import art.arcane.wormholes.modded.MinecraftProjectionWorldView;
 import art.arcane.wormholes.modded.WormholesModRuntime;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
+import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
+import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.wormholes.network.client.ClientTravelWindow;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
+import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.wormholes.render.client.session.ClientPreparedTravelServer;
-import art.arcane.wormholes.render.client.ClientViewEnvironmentTransform;
+import art.arcane.optics.client.ClientViewEnvironmentTransform;
 import art.arcane.wormholes.render.client.session.ClientViewServerSession;
 import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
 import net.minecraft.server.level.ServerLevel;
@@ -78,7 +77,7 @@ final class MinecraftPreparedTravel {
             return;
         }
         Preparation preparation = preparations.get(player.getUUID());
-        GeometryVector feet = mappedCrossing(player, source, destination);
+        art.arcane.optics.math.Vec3 feet = mappedCrossing(player, source, destination);
         long route = session.player().portals().routeIdentity(source);
         LandingRoute landing = new LandingRoute(source, destination, world, route, feet.getBlockX() >> 4, feet.getBlockZ() >> 4);
         if (!landingReady(session, player, landing)) {
@@ -156,7 +155,7 @@ final class MinecraftPreparedTravel {
 
     Optional<ClientViewMessage.TravelCommit> commit(ClientViewServerSession<MinecraftClientViewPeer, BlockState> session,
                                                     ServerPlayer player, UUID source, ServerLevel world,
-                                                    ClientViewMessage.TravelPose arrival, GeometryVector velocity) {
+                                                    ClientViewMessage.TravelPose arrival, art.arcane.optics.math.Vec3 velocity) {
         Preparation preparation = preparations.get(player.getUUID());
         if (preparation == null || preparation.world != world || !session.travel().crossing()) {
             return Optional.empty();
@@ -174,9 +173,9 @@ final class MinecraftPreparedTravel {
     private void cross(ClientViewServerSession<MinecraftClientViewPeer, BlockState> session, ServerPlayer player,
                        ClientViewMessage.TravelCross request) {
         Preparation preparation = preparations.get(player.getUUID());
-        ClientPortalGeometry geometry = preparation == null ? null : session.travelGeometry(preparation.source.getId());
-        GeometryVector feet = new GeometryVector(player.getX(), player.getY(), player.getZ());
-        GeometryVector velocity = runtime.portals().observedVelocity(player);
+        ApertureDescriptor geometry = preparation == null ? null : session.travelGeometry(preparation.source.getId());
+        art.arcane.optics.math.Vec3 feet = new art.arcane.optics.math.Vec3(player.getX(), player.getY(), player.getZ());
+        art.arcane.optics.math.Vec3 velocity = runtime.portals().observedVelocity(player);
         boolean allowed = preparation != null && geometry != null && !preparation.committed
             && player.level() == runtime.portals().resolveLevel(preparation.source)
             && session.player().portals().projectionDestination(preparation.source) == preparation.destination
@@ -191,10 +190,10 @@ final class MinecraftPreparedTravel {
         }
         if (allowed) {
             boolean front = geometry.signedDistance(request.previousEye().x(), request.previousEye().y(), request.previousEye().z()) > 0.0D;
-            GeometryVector admittedFeet = new GeometryVector(request.sourcePose().x(), request.sourcePose().y(), request.sourcePose().z());
+            art.arcane.optics.math.Vec3 admittedFeet = new art.arcane.optics.math.Vec3(request.sourcePose().x(), request.sourcePose().y(), request.sourcePose().z());
             Vec3 look = Vec3.directionFromRotation(request.sourcePose().pitch(), request.sourcePose().yaw());
-            PortalCrossing actual = new PortalCrossing(preparation.source.getFrame().view(front), preparation.source.getOrigin(), admittedFeet,
-                velocity, new GeometryVector(look.x, look.y, look.z), front);
+            PlaneCrossing actual = new PlaneCrossing(preparation.source.getFrame().view(front), preparation.source.getOrigin(), admittedFeet,
+                velocity, new art.arcane.optics.math.Vec3(look.x, look.y, look.z), front);
             allowed = dispatchCross(session.player(), player, preparation.source, preparation.destination, geometry.kind(), actual);
         }
         if (!allowed) {
@@ -248,7 +247,7 @@ final class MinecraftPreparedTravel {
         portals.interested(session.player(), interested);
         MinecraftPortal nearest = null;
         double distance = Double.POSITIVE_INFINITY;
-        GeometryVector feet = new GeometryVector(player.getX(), player.getY(), player.getZ());
+        art.arcane.optics.math.Vec3 feet = new art.arcane.optics.math.Vec3(player.getX(), player.getY(), player.getZ());
         for (UUID id : interested) {
             MinecraftPortal source = portals.portal(session.player(), id);
             if (source == null || source.isMirrorMode() || !source.isOpen()) {
@@ -277,9 +276,9 @@ final class MinecraftPreparedTravel {
     }
 
     boolean dispatchCross(MinecraftClientViewPeer peer, ServerPlayer player, MinecraftPortal source, MinecraftPortal destination,
-                          int kind, PortalCrossing crossing) {
+                          int kind, PlaneCrossing crossing) {
         boolean door = peer.door(source.getId()) == source;
-        if (door != (kind == ClientPortalGeometry.KIND_DOOR) || !eligible(peer, player, source, destination)) {
+        if (door != (kind == ApertureDescriptor.KIND_DOOR) || !eligible(peer, player, source, destination)) {
             return false;
         }
         return door ? runtime.doors().crossPrepared(player, source.getId(), crossing)
@@ -288,8 +287,8 @@ final class MinecraftPreparedTravel {
 
     private Preparation create(ClientViewServerSession<MinecraftClientViewPeer, BlockState> session, ServerPlayer player,
                                MinecraftPortal source, MinecraftPortal destination, ServerLevel world,
-                               GeometryVector feet, long route, int radius) {
-        ClientPortalGeometry geometry = session.travelGeometry(source.getId());
+                               art.arcane.optics.math.Vec3 feet, long route, int radius) {
+        ApertureDescriptor geometry = session.travelGeometry(source.getId());
         MinecraftClientViewScene.Destination mapped = geometry == null ? null
             : portals.scene().destination(session.player(), source.getId(), geometry.frontSide());
         if (mapped == null || geometry.mirror()) {
@@ -299,12 +298,12 @@ final class MinecraftPreparedTravel {
         ClientViewMessage.TravelWorld metadata = new ClientViewMessage.TravelWorld(world.dimension().identifier().toString(),
             world.dimensionTypeRegistration().unwrapKey().orElseThrow().identifier().toString(),
             BiomeManager.obfuscateSeed(world.getSeed()), world.isDebug(), world.isFlat(), world.getSeaLevel(), world.getMinY(), world.getHeight());
-        GeometryVector eye = feet.add(new GeometryVector(0, player.getEyeHeight(), 0));
+        art.arcane.optics.math.Vec3 eye = feet.add(new art.arcane.optics.math.Vec3(0, player.getEyeHeight(), 0));
         ClientViewMessage.TravelBegin begin = new ClientViewMessage.TravelBegin(UUID.randomUUID(), ++generation, source.getId(),
             player.level().dimension().identifier().toString(), geometry, ClientViewEnvironmentTransform.of(mapped.frame()), metadata,
             new ClientViewMessage.TravelPose(feet.x(), feet.y(), feet.z(), player.getYRot(), player.getXRot()), coordinates,
-            MinecraftPortalEnvironment.capture(world, eye, ClientViewEnvironment.Transform.IDENTITY, world.isFlat()),
-            ClientViewProtocol.MAX_TRAVEL_EXPIRY_MILLIS);
+            MinecraftPortalEnvironment.capture(world, eye, ProjectionEnvironment.Transform.IDENTITY, world.isFlat()),
+            ViewStreamLimits.MAX_TRAVEL_EXPIRY_MILLIS);
         session.travel().begin(begin, System.currentTimeMillis());
         session.travel().reuseSelected(session.preparedTravelCacheSelected());
         session.travel().watchWorld(runtime.projections().changes(), MinecraftProjectionWorldView.worldId(world));
@@ -346,7 +345,7 @@ final class MinecraftPreparedTravel {
             discard(session);
             ChunkLease lease = runtime.leases().retain(route.world(), MinecraftProjectionWorldView.worldId(route.world()),
                 route.chunkX(), route.chunkZ());
-            landing = new LandingWarmup(route, lease, System.currentTimeMillis() + ClientViewProtocol.MAX_TRAVEL_EXPIRY_MILLIS);
+            landing = new LandingWarmup(route, lease, System.currentTimeMillis() + ViewStreamLimits.MAX_TRAVEL_EXPIRY_MILLIS);
             landings.put(playerId, landing);
         }
         if (!landing.lease().isValid() || System.currentTimeMillis() >= landing.deadline()) {
@@ -373,8 +372,8 @@ final class MinecraftPreparedTravel {
         return false;
     }
 
-    private static GeometryVector mappedCrossing(ServerPlayer player, MinecraftPortal source, MinecraftPortal destination) {
-        return source.getFrame().transformCrossingPoint(new GeometryVector(player.getX(), player.getY(), player.getZ()), source.getOrigin(),
+    private static art.arcane.optics.math.Vec3 mappedCrossing(ServerPlayer player, MinecraftPortal source, MinecraftPortal destination) {
+        return source.getFrame().transformCrossingPoint(new art.arcane.optics.math.Vec3(player.getX(), player.getY(), player.getZ()), source.getOrigin(),
             destination.getOrigin(), destination.getFrame());
     }
 
@@ -448,7 +447,7 @@ final class MinecraftPreparedTravel {
             this.coordinates = options.coordinates();
         }
 
-        private boolean contains(GeometryVector point) {
+        private boolean contains(art.arcane.optics.math.Vec3 point) {
             int x = point.getBlockX() >> 4;
             int z = point.getBlockZ() >> 4;
             return coordinates.contains(new ClientViewMessage.TravelCoordinate(x - 1, z - 1))

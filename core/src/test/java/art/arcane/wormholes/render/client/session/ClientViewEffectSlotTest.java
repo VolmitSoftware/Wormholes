@@ -15,13 +15,14 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.config.VisualQualityProfile;
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.network.client.ClientViewCapability;
+import art.arcane.optics.math.Vec3;
+import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewMessageType;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
-import art.arcane.wormholes.network.client.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamMessageType;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.ClientViewProtocolException;
 import art.arcane.wormholes.portal.effects.PortalAnimation;
+import art.arcane.optics.stream.ClientViewSessionState;
 
 final class ClientViewEffectSlotTest {
     private static final ClientViewMessage.FxEmitter SPARKS = new ClientViewMessage.FxEmitter(ClientViewMessage.FxKind.SURFACE,
@@ -37,16 +38,16 @@ final class ClientViewEffectSlotTest {
         drain(queued, harness);
         assertTrue(harness.session.effectsReceiver());
         assertTrue(harness.registry.effectsReceiver(harness.playerId));
-        ClientViewMessage.FxEmitter animation = ClientViewEmitters.animation(PortalAnimation.Mode.OPEN, new GeometryVector(5.5D, 66.0D, 20.5D),
-            new GeometryVector(3.0D, 4.0D, 0.0D), VisualQualityProfile.BALANCED);
+        ClientViewMessage.FxEmitter animation = ClientViewEmitters.animation(PortalAnimation.Mode.OPEN, new Vec3(5.5D, 66.0D, 20.5D),
+            new Vec3(3.0D, 4.0D, 0.0D), VisualQualityProfile.BALANCED);
 
         assertTrue(harness.session.oneShot(burst));
         assertTrue(harness.registry.oneShot(harness.playerId, animation));
         drain(queued, harness);
 
-        assertEquals(1, harness.sent(ClientViewMessageType.FX));
-        ClientViewMessage.Fx fx = (ClientViewMessage.Fx) harness.last(ClientViewMessageType.FX);
-        assertEquals(ClientViewProtocol.WORLD_FX_KEY, fx.portalKey());
+        assertEquals(1, harness.sent(ViewStreamMessageType.FX));
+        ClientViewMessage.Fx fx = (ClientViewMessage.Fx) harness.last(ViewStreamMessageType.FX);
+        assertEquals(ViewStreamLimits.WORLD_FX_KEY, fx.portalKey());
         assertEquals(List.of(burst, animation), fx.emitters());
         assertTrue(harness.warnings.isEmpty(), harness.warnings.toString());
     }
@@ -72,12 +73,12 @@ final class ClientViewEffectSlotTest {
     @Test
     void sessionsWithoutFxEmittersNeverTakeOneShots() throws ClientViewProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
-        harness.handshake(SessionHarness.CLIENT_CAPS & ~ClientViewCapability.FX_EMITTERS.mask());
+        harness.handshake(SessionHarness.CLIENT_CAPS & ~ViewStreamCapability.FX_EMITTERS.mask());
         assertEquals(ClientViewSessionState.CLIENT_VIEW, harness.session.state());
         assertFalse(harness.session.effectsReceiver());
         assertFalse(harness.session.oneShot(ClientViewEmitters.burst("minecraft:smoke", 0.0D, 0.0D, 0.0D, 6, 0.0D, 0.0D, 0.01D)));
         harness.pump();
-        assertEquals(0, harness.sent(ClientViewMessageType.FX));
+        assertEquals(0, harness.sent(ViewStreamMessageType.FX));
     }
 
     @Test
@@ -104,7 +105,7 @@ final class ClientViewEffectSlotTest {
         assertTrue(harness.client.plates.isEmpty(), "an effect slot never streams a plate");
         assertFalse(harness.session.owns(rtp.id), "an effect slot leaves the portal to the vanilla projector");
         assertFalse(harness.events.contains("release " + rtp.id));
-        ClientViewMessage.Fx sparks = (ClientViewMessage.Fx) harness.last(ClientViewMessageType.FX);
+        ClientViewMessage.Fx sparks = (ClientViewMessage.Fx) harness.last(ViewStreamMessageType.FX);
         assertEquals(effectKey, sparks.portalKey());
         assertEquals(List.of(SPARKS), sparks.emitters());
         assertTrue(entityRequests.isEmpty(), "effect slots carry no entity frames");
@@ -151,7 +152,7 @@ final class ClientViewEffectSlotTest {
         harness.tick();
         harness.tick();
         assertTrue(harness.client.portals.isEmpty());
-        assertEquals(0, harness.sent(ClientViewMessageType.PORTAL));
+        assertEquals(0, harness.sent(ViewStreamMessageType.PORTAL));
     }
 
     private static int saturate(ClientViewServerSession<String, String> session, ClientViewMessage.FxEmitter burst) {

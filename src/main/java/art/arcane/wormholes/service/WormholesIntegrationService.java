@@ -17,7 +17,7 @@ import art.arcane.wormholes.network.TraversalService;
 import art.arcane.wormholes.network.WireCompression;
 import art.arcane.wormholes.network.replication.ChunkReplicationManager;
 import art.arcane.wormholes.network.view.ViewServer;
-import art.arcane.wormholes.render.blockentity.ProjectedBlockEntityLayer;
+import art.arcane.optics.fidelity.ProjectedBlockEntityLayer;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.ServicePriority;
 

@@ -28,19 +28,19 @@ import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.rtp.RtpRimRenderer;
-import art.arcane.wormholes.render.EntityRenderLocalOcclusionArbiter;
+import art.arcane.optics.occlusion.LocalOcclusionArbiter;
 import art.arcane.wormholes.render.PortalProjector;
 import art.arcane.wormholes.render.PortalSkinRenderer;
 import art.arcane.wormholes.render.ProjectionClaimArbiter;
 import art.arcane.wormholes.render.clientview.ClientViewRouting;
-import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.optics.math.Box;
 
 final class ProjectionInterestFrameClientViewTest {
     private final AtomicLong now = new AtomicLong();
     private final ProjectionBudgetLedger ledger = new ProjectionBudgetLedger(now::get);
     private final ProjectionInterestSet interestSet = mock(ProjectionInterestSet.class);
     private final ProjectionClaimArbiter claimArbiter = mock(ProjectionClaimArbiter.class);
-    private final EntityRenderLocalOcclusionArbiter<Player, Entity> localEntityOcclusion = mock(EntityRenderLocalOcclusionArbiter.class);
+    private final LocalOcclusionArbiter<Player, Entity> localEntityOcclusion = mock(LocalOcclusionArbiter.class);
     private final PortalProjector projector = mock(PortalProjector.class);
     private final Player observer = mock(Player.class);
     private final UUID observerId = UUID.randomUUID();
@@ -58,7 +58,7 @@ final class ProjectionInterestFrameClientViewTest {
         when(observer.getEyeLocation()).thenReturn(new Location(world, 0.0D, 65.6D, 0.0D));
         when(portal.getId()).thenReturn(UUID.randomUUID());
         when(portal.getCenter()).thenReturn(new Location(world, 0.0D, 64.0D, 4.0D));
-        when(portal.getView()).thenReturn(new AxisAlignedBB(-10.0D, 10.0D, 54.0D, 74.0D, -10.0D, 10.0D));
+        when(portal.getView()).thenReturn(new Box(-10.0D, 10.0D, 54.0D, 74.0D, -10.0D, 10.0D));
         when(portal.supportsProjections()).thenReturn(true);
         when(portal.isProjecting()).thenReturn(true);
         when(portal.isOpen()).thenReturn(true);

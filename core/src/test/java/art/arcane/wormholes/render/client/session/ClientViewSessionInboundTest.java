@@ -8,8 +8,10 @@ import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
-import art.arcane.wormholes.network.client.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ClientViewInbound;
+import art.arcane.optics.stream.ClientViewSessionState;
 
 final class ClientViewSessionInboundTest {
     private static final long NANOS_PER_MILLI = 1_000_000L;
@@ -23,7 +25,7 @@ final class ClientViewSessionInboundTest {
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
         harness.handshake(SessionHarness.CLIENT_CAPS);
         assertEquals(ClientViewInbound.HANDLED, harness.c2s(viewStats(400)));
-        long earlyMillis = ClientViewProtocol.VIEW_STATS_MIN_INTERVAL_MILLIS - 60L;
+        long earlyMillis = ViewStreamLimits.VIEW_STATS_MIN_INTERVAL_MILLIS - 60L;
         harness.clock.addAndGet(earlyMillis * NANOS_PER_MILLI - SessionHarness.C2S_SPACING_NANOS);
         assertEquals(ClientViewInbound.HANDLED, harness.c2s(viewStats(500)));
         ClientViewSessionStats stats = harness.session.stats();

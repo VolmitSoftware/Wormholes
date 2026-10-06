@@ -10,14 +10,13 @@ import art.arcane.wormholes.modded.mixin.client.PreparedLevelAccess;
 import art.arcane.wormholes.modded.mixin.client.PreparedLevelDataAccess;
 import art.arcane.wormholes.modded.mixin.client.PreparedPacketAccess;
 import art.arcane.wormholes.modded.mixin.client.PreparedEntityAccess;
-import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.network.client.ClientTravelWindow;
-import art.arcane.wormholes.network.client.ClientViewCapability;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.stream.ViewStreamCapability;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.frame.Frame;
 import io.netty.buffer.Unpooled;
 import io.netty.buffer.ByteBuf;
 import it.unimi.dsi.fastutil.longs.LongIterator;
@@ -554,12 +553,12 @@ public final class ClientPreparedTravel {
         if (retained == null || !retained.valid(minecraft.getConnection())) {
             return false;
         }
-        ClientPortalGeometry aperture = retained.aperture();
-        return aperture != null && aperture.parentPortalKey() == 0 && aperture.kind() == ClientPortalGeometry.KIND_VANILLA_REPLACEMENT
+        ApertureDescriptor aperture = retained.aperture();
+        return aperture != null && aperture.parentPortalKey() == 0 && aperture.kind() == ApertureDescriptor.KIND_VANILLA_REPLACEMENT
             && aperture.containsCell(position.getX(), position.getY(), position.getZ());
     }
 
-    public void discardManagedVanillaPortal(ClientLevel level, ClientPortalGeometry geometry) {
+    public void discardManagedVanillaPortal(ClientLevel level, ApertureDescriptor geometry) {
         RetainedWorld retained = retainedWorlds.get(level);
         if (retained != null && geometry.sameContentSurface(retained.aperture())) {
             retainedWorlds.put(level, retained.withAperture(null));
@@ -1146,7 +1145,7 @@ public final class ClientPreparedTravel {
     public boolean receiveNativeChunk(ClientLevel level, ClientboundLevelChunkWithLightPacket packet) {
         WormholesClient client = WormholesClient.instance();
         if (level == null || client == null || !client.session().active()
-            || !client.session().has(ClientViewCapability.PREPARED_TRAVEL_CACHE)) {
+            || !client.session().has(ViewStreamCapability.PREPARED_TRAVEL_CACHE)) {
             return false;
         }
         ClientViewMessage.TravelCoordinate coordinate = new ClientViewMessage.TravelCoordinate(packet.x(), packet.z());
@@ -1400,9 +1399,9 @@ public final class ClientPreparedTravel {
         List<ClientViewMessage.TravelCoordinate> manifest = ClientTravelWindow.coordinates(centerX, centerZ, radius);
         Vec3 eye = player.getEyePosition();
         return new ClientViewMessage.TravelBegin(begin.token(), begin.generation(), begin.sourcePortal(), begin.sourceWorld(),
-            begin.sourceGeometry(), ClientViewEnvironment.Transform.IDENTITY, world,
+            begin.sourceGeometry(), ProjectionEnvironment.Transform.IDENTITY, world,
             new ClientViewMessage.TravelPose(player.getX(), player.getY(), player.getZ(), player.getYRot(), player.getXRot()), manifest,
-            MinecraftPortalEnvironment.capture(level, vector(eye), ClientViewEnvironment.Transform.IDENTITY, world.flat()), begin.expiresMillis());
+            MinecraftPortalEnvironment.capture(level, vector(eye), ProjectionEnvironment.Transform.IDENTITY, world.flat()), begin.expiresMillis());
     }
 
     private void advanceSourcePreparation() {
@@ -1738,7 +1737,7 @@ public final class ClientPreparedTravel {
         previous.sourceColumns.clear();
     }
 
-    static boolean crossed(ClientPortalGeometry geometry, Vec3 previous, Vec3 current) {
+    static boolean crossed(ApertureDescriptor geometry, Vec3 previous, Vec3 current) {
         double side = geometry.frontSide() ? 1 : -1;
         double before = geometry.signedDistance(previous.x, previous.y, previous.z) * side;
         double after = geometry.signedDistance(current.x, current.y, current.z) * side;
@@ -1746,9 +1745,9 @@ public final class ClientPreparedTravel {
             return false;
         }
         Vec3 intersection = previous.lerp(current, before / (before - after));
-        PortalFrame frame = PortalFrame.canonical(geometry.facingDirection());
-        int columnAxis = ClientPortalGeometry.axisOf(frame.getRight());
-        int rowAxis = ClientPortalGeometry.axisOf(frame.getUp());
+        Frame frame = Frame.canonical(geometry.facingDirection());
+        int columnAxis = ApertureDescriptor.axisOf(frame.getRight());
+        int rowAxis = ApertureDescriptor.axisOf(frame.getUp());
         int column = (int) Math.floor(component(intersection, columnAxis)) - origin(geometry, columnAxis);
         int row = (int) Math.floor(component(intersection, rowAxis)) - origin(geometry, rowAxis);
         return geometry.apertureOpen(column, row);
@@ -1758,12 +1757,12 @@ public final class ClientPreparedTravel {
         return switch (axis) { case 0 -> point.x; case 1 -> point.y; default -> point.z; };
     }
 
-    private static int origin(ClientPortalGeometry geometry, int axis) {
+    private static int origin(ApertureDescriptor geometry, int axis) {
         return switch (axis) { case 0 -> geometry.originX(); case 1 -> geometry.originY(); default -> geometry.originZ(); };
     }
 
-    private static GeometryVector vector(Vec3 point) {
-        return new GeometryVector(point.x, point.y, point.z);
+    private static art.arcane.optics.math.Vec3 vector(Vec3 point) {
+        return new art.arcane.optics.math.Vec3(point.x, point.y, point.z);
     }
 
     private static ClientViewMessage.TravelPose pose(ClientTravelMotion motion) {
@@ -2034,7 +2033,7 @@ public final class ClientPreparedTravel {
         LocalPlayer player = minecraft.player;
         if (player != null && minecraft.level != null
             && value.sourceWorld().equals(minecraft.level.dimension().identifier().toString())) {
-            GeometryVector feet = value.destinationToSource().destinationPoint(player.getX(), player.getY(), player.getZ());
+            art.arcane.optics.math.Vec3 feet = value.destinationToSource().destinationPoint(player.getX(), player.getY(), player.getZ());
             ClientTravelMotion.Rotation look = new ClientTravelMotion.Rotation(player.getYRot(), player.getXRot())
                 .transform(value.destinationToSource());
             return arrivalCamera(new ClientViewMessage.TravelPose(feet.x(), feet.y(), feet.z(), look.yaw(), look.pitch()), eyeHeight(player));
@@ -2160,7 +2159,7 @@ public final class ClientPreparedTravel {
 
     private record RetainedWorld(ClientLevel level, ClientPacketListener connection, Object registry,
                                  ClientViewMessage.TravelWorld world, long deadline,
-                                 Map<ClientViewMessage.TravelCoordinate, byte[]> payloads, ClientPortalGeometry aperture) {
+                                 Map<ClientViewMessage.TravelCoordinate, byte[]> payloads, ApertureDescriptor aperture) {
         private boolean valid(ClientPacketListener current) {
             return current != null && current == connection && current.registryAccess() == registry
                 && level.registryAccess() == registry && System.currentTimeMillis() < deadline;
@@ -2170,7 +2169,7 @@ public final class ClientPreparedTravel {
             return valid(current) && matchesWorld(world, construction);
         }
 
-        private RetainedWorld withAperture(ClientPortalGeometry geometry) {
+        private RetainedWorld withAperture(ApertureDescriptor geometry) {
             return new RetainedWorld(level, connection, registry, world, deadline, payloads, geometry);
         }
 
@@ -2187,14 +2186,14 @@ public final class ClientPreparedTravel {
         }
 
         private void remember(ClientViewMessage.TravelCoordinate coordinate, byte[] data) {
-            if (payloads.size() >= ClientViewProtocol.MAX_TRAVEL_CHUNKS || data.length > ClientViewProtocol.MAX_TRAVEL_CHUNK_BYTES) {
+            if (payloads.size() >= ViewStreamLimits.MAX_TRAVEL_CHUNKS || data.length > ViewStreamLimits.MAX_TRAVEL_CHUNK_BYTES) {
                 return;
             }
             long bytes = data.length;
             for (byte[] installed : payloads.values()) {
                 bytes += installed.length;
             }
-            if (bytes <= ClientViewProtocol.MAX_TRAVEL_BYTES) {
+            if (bytes <= ViewStreamLimits.MAX_TRAVEL_BYTES) {
                 payloads.put(coordinate, data);
             }
         }
@@ -2207,7 +2206,7 @@ public final class ClientPreparedTravel {
         private final Map<ClientViewMessage.TravelCoordinate, byte[]> payloads = new HashMap<>();
         private ClientLevel level;
         private ClientTravelScene scene;
-        private ClientPortalGeometry aperture;
+        private ApertureDescriptor aperture;
         private boolean changed;
         private int cursor;
         private int bytes;
@@ -2237,7 +2236,7 @@ public final class ClientPreparedTravel {
             ClientViewMessage.TravelCoordinate coordinate = new ClientViewMessage.TravelCoordinate(column.x(), column.z());
             byte[] previous = payloads.get(coordinate);
             int remaining = bytes - (previous == null ? 0 : previous.length);
-            if (length > ClientViewProtocol.MAX_TRAVEL_CHUNK_BYTES || length > ClientViewProtocol.MAX_TRAVEL_BYTES - remaining) {
+            if (length > ViewStreamLimits.MAX_TRAVEL_CHUNK_BYTES || length > ViewStreamLimits.MAX_TRAVEL_BYTES - remaining) {
                 throw new IllegalArgumentException("Native portal return snapshots exceed preparation bounds");
             }
             payloads.put(coordinate, column.data());

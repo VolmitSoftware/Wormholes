@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
+import art.arcane.optics.stream.ViewStreamLimits;
 
 import java.util.BitSet;
 import java.util.HashMap;
@@ -44,7 +44,7 @@ final class ClientTravelChunks {
             if (assembly != null) {
                 bytes -= assembly.data.length;
             }
-            if (bytes + fragment.totalBytes() > ClientViewProtocol.MAX_TRAVEL_BYTES) {
+            if (bytes + fragment.totalBytes() > ViewStreamLimits.MAX_TRAVEL_BYTES) {
                 throw new IllegalArgumentException("Prepared travel exceeds its chunk byte budget");
             }
             assembly = new Assembly(fragment);
@@ -58,7 +58,7 @@ final class ClientTravelChunks {
             return null;
         }
         byte[] payload = fragment.payload();
-        System.arraycopy(payload, 0, assembly.data, fragment.fragmentIndex() * ClientViewProtocol.TRAVEL_FRAGMENT_BYTES, payload.length);
+        System.arraycopy(payload, 0, assembly.data, fragment.fragmentIndex() * ViewStreamLimits.TRAVEL_FRAGMENT_BYTES, payload.length);
         assembly.received.set(fragment.fragmentIndex());
         if (assembly.received.cardinality() != assembly.fragments) {
             return null;
@@ -84,7 +84,7 @@ final class ClientTravelChunks {
             return true;
         }
         long replacementBytes = bytes - sizes.getOrDefault(coordinate, 0) - (assembly == null ? 0 : assembly.data.length) + data.length;
-        if (replacementBytes > ClientViewProtocol.MAX_TRAVEL_BYTES) {
+        if (replacementBytes > ViewStreamLimits.MAX_TRAVEL_BYTES) {
             throw new IllegalArgumentException("Prepared travel exceeds its chunk byte budget");
         }
         pending.remove(coordinate);

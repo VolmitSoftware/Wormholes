@@ -6,11 +6,13 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import art.arcane.optics.entity.EntityDeltaCodec;
+import art.arcane.optics.entity.EntitySnapshot;
 
 class RemoteViewCacheEntitySequenceTest {
     @Test
     void deltaRequiresAnExistingContiguousBaseline() {
-        EntityVisual baseline = visual(10);
+        EntitySnapshot baseline = visual(10);
 
         assertFalse(RemoteViewCache.canApplyEntityUpdate(delta(11), null));
         assertTrue(RemoteViewCache.canApplyEntityUpdate(delta(11), baseline));
@@ -25,13 +27,13 @@ class RemoteViewCacheEntitySequenceTest {
         assertTrue(RemoteViewCache.canApplyEntityUpdate(delta(0), visual(65535)));
     }
 
-    private static EntityVisual delta(int sequence) {
-        EntityVisual full = visual(sequence);
-        return EntityDeltaCodec.buildDelta(full, full, sequence, EntityVisual.FIELD_POSITION);
+    private static EntitySnapshot delta(int sequence) {
+        EntitySnapshot full = visual(sequence);
+        return EntityDeltaCodec.buildDelta(full, full, sequence, EntitySnapshot.FIELD_POSITION);
     }
 
-    private static EntityVisual visual(int sequence) {
-        return EntityVisual.full(
+    private static EntitySnapshot visual(int sequence) {
+        return EntitySnapshot.full(
             new UUID(0L, 1L),
             "minecraft:zombie",
             0.0D, 64.0D, 0.0D,

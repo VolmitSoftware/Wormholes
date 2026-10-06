@@ -1,6 +1,6 @@
 package art.arcane.wormholes.door.view;
 
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import art.arcane.wormholes.door.DoorVisualAnimationBudget;
 import art.arcane.wormholes.door.DoorwayPlane;
 import art.arcane.wormholes.door.RuntimeDoor;
@@ -206,7 +206,7 @@ public final class DoorProjectionRegistry {
         if (adapter == null || adapter.isDestroyed() || !adapter.isOpen()) {
             return false;
         }
-        GeometryVector origin = adapter.getOrigin();
+        Vec3 origin = adapter.getOrigin();
         double range = adapter.getEffectiveActivationRange();
         return attendance.hasPlayerWithin(
             adapter.getWorld().getUID(), origin.getX(), origin.getY(), origin.getZ(), range * range);

@@ -22,6 +22,11 @@ import org.bukkit.block.data.BlockData;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.render.view.ProjectionWorldView;
+import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.claim.ProjectionClaimSet;
+import art.arcane.optics.scan.CellScan;
+import art.arcane.optics.scan.ProjectorSample;
+import art.arcane.optics.scan.ProjectorSampler;
 
 public final class ProjectionClaimSetTest {
     private static final long CELL_KEY = 42L;
@@ -214,11 +219,11 @@ public final class ProjectionClaimSetTest {
 
     @Test
     public void maskAndRemoteAirSkipCellsThatAreAlreadyLocalAir() {
-        assertFalse(ProjectorCellScan.shouldProjectAirSample(ProjectorSample.Kind.MASK_AIR, true));
-        assertTrue(ProjectorCellScan.shouldProjectAirSample(ProjectorSample.Kind.MASK_AIR, false));
-        assertFalse(ProjectorCellScan.shouldProjectAirSample(ProjectorSample.Kind.REMOTE_AIR, true));
-        assertTrue(ProjectorCellScan.shouldProjectAirSample(ProjectorSample.Kind.REMOTE_AIR, false));
-        assertFalse(ProjectorCellScan.shouldProjectAirSample(ProjectorSample.Kind.NO_SAMPLE, false));
+        assertFalse(CellScan.shouldProjectAirSample(ProjectorSample.Kind.MASK_AIR, true));
+        assertTrue(CellScan.shouldProjectAirSample(ProjectorSample.Kind.MASK_AIR, false));
+        assertFalse(CellScan.shouldProjectAirSample(ProjectorSample.Kind.REMOTE_AIR, true));
+        assertTrue(CellScan.shouldProjectAirSample(ProjectorSample.Kind.REMOTE_AIR, false));
+        assertFalse(CellScan.shouldProjectAirSample(ProjectorSample.Kind.NO_SAMPLE, false));
     }
 
     @Test

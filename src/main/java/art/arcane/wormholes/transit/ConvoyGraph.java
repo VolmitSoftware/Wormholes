@@ -18,10 +18,10 @@ import org.bukkit.entity.Player;
 import org.bukkit.util.BoundingBox;
 
 import art.arcane.wormholes.platform.WormholesPlatform;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalStructure;
-import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Face;
 
 /**
  * The physically attached rig around one entity: vehicle chain, passengers, and leash edges. Members are
@@ -211,8 +211,8 @@ public final class ConvoyGraph {
     }
 
     /** The rig's union bounding box must fit the aperture along the frame's right and up axes. */
-    public boolean fits(PortalStructure structure, PortalFrame frame) {
-        AxisAlignedBB area = structure == null ? null : structure.getArea();
+    public boolean fits(PortalStructure structure, Frame frame) {
+        Box area = structure == null ? null : structure.getArea();
         if (area == null || frame == null) {
             return true;
         }
@@ -232,7 +232,7 @@ public final class ConvoyGraph {
     }
 
     /** Every member is inside the source capture zone of {@code world}, so the whole rig can commit this tick. */
-    public boolean allInsidePlane(World world, AxisAlignedBB captureZone) {
+    public boolean allInsidePlane(World world, Box captureZone) {
         if (captureZone == null) {
             return true;
         }
@@ -248,7 +248,7 @@ public final class ConvoyGraph {
         return true;
     }
 
-    private static double extent(BoundingBox box, Direction axis) {
+    private static double extent(BoundingBox box, Face axis) {
         if (axis.x() != 0) {
             return box.getWidthX();
         }
@@ -259,7 +259,7 @@ public final class ConvoyGraph {
     }
 
     /** Structure areas span block corners (max corner sits at +0.999), so the block extent is the ceiling of the span. */
-    private static double aperture(AxisAlignedBB area, Direction axis) {
+    private static double aperture(Box area, Face axis) {
         double size = axis.x() != 0 ? area.sizeX() : axis.y() != 0 ? area.sizeY() : area.sizeZ();
         return Math.max(1.0D, Math.ceil(size - 1.0E-9D));
     }

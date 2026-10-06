@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.network.client.ClientTravelHash;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
+import art.arcane.optics.stream.ViewStreamLimits;
 
 import java.security.MessageDigest;
 import java.lang.ref.WeakReference;
@@ -26,7 +26,7 @@ final class ClientTravelCache {
     }
 
     void put(String world, int x, int z, byte[] data) {
-        if (data.length > ClientViewProtocol.MAX_TRAVEL_CHUNK_BYTES) {
+        if (data.length > ViewStreamLimits.MAX_TRAVEL_CHUNK_BYTES) {
             return;
         }
         Key key = new Key(world, x, z);
@@ -39,7 +39,7 @@ final class ClientTravelCache {
             bytes -= previous.data.length;
         }
         Iterator<Map.Entry<Key, Entry>> iterator = columns.entrySet().iterator();
-        while (bytes + data.length > ClientViewProtocol.MAX_TRAVEL_BYTES && iterator.hasNext()) {
+        while (bytes + data.length > ViewStreamLimits.MAX_TRAVEL_BYTES && iterator.hasNext()) {
             bytes -= iterator.next().getValue().data.length;
             iterator.remove();
         }

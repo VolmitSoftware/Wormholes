@@ -3,19 +3,19 @@ package art.arcane.wormholes.render.clientview;
 import art.arcane.wormholes.Settings;
 
 import art.arcane.wormholes.door.view.DoorProjectionAdapter;
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import art.arcane.wormholes.network.client.SessionPalette;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.ITunnel;
-import art.arcane.wormholes.portal.MirrorRotation;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.QuarterTurn;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
 import art.arcane.wormholes.render.ClientViewPortalSource;
 import art.arcane.wormholes.render.PortalProjector;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
-import art.arcane.wormholes.render.plate.PlateBox;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.Face;
 import com.github.retrooper.packetevents.protocol.ConnectionState;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -75,7 +75,7 @@ final class BukkitClientViewDoorsTest {
             BukkitClientViewPortalAccess access = new BukkitClientViewPortalAccess(fixture.views, fixture.plates, ignored -> null,
                 (player, portal) -> { }, () -> 71L);
             access.prepareNested(observer, root.getId(), null, root.getId());
-            ClientPortalGeometry rootGeometry = access.geometry(observer, root.getId(), new SessionPalette());
+            ApertureDescriptor rootGeometry = access.geometry(observer, root.getId(), new SessionPalette());
             assertNotNull(rootGeometry);
             assertSame(destinationWorld, observer.reflectedEye(root.getId()).getWorld());
             List<UUID> children = new ArrayList<>();
@@ -83,9 +83,9 @@ final class BukkitClientViewDoorsTest {
             assertEquals(List.of(child.getId()), children);
             UUID childContext = UUID.randomUUID();
             access.prepareNested(observer, childContext, root.getId(), child.getId());
-            ClientPortalGeometry childGeometry = access.nestedGeometry(observer, root.getId(), child.getId(), new SessionPalette());
+            ApertureDescriptor childGeometry = access.nestedGeometry(observer, root.getId(), child.getId(), new SessionPalette());
             assertNotNull(childGeometry);
-            assertEquals(childKind == ApertureKind.DOOR ? ClientPortalGeometry.KIND_DOOR : ClientPortalGeometry.KIND_FRAME,
+            assertEquals(childKind == ApertureKind.DOOR ? ApertureDescriptor.KIND_DOOR : ApertureDescriptor.KIND_FRAME,
                 childGeometry.kind());
             assertNotNull(observer.nestedContext(childContext));
             assertSame(destinationWorld, observer.nestedContext(childContext).sourceEye().getWorld());
@@ -130,13 +130,13 @@ final class BukkitClientViewDoorsTest {
             PortalProjector.RtpProjectionTarget first = target(fixture.world);
             SessionPalette palette = new SessionPalette();
             source.update(fixture.player, fixture.eye, first, 1L, true);
-            ClientPortalGeometry before = source.geometry(palette, 71L);
+            ApertureDescriptor before = source.geometry(palette, 71L);
             Location opposite = new Location(fixture.world, fixture.eye.getX(), fixture.eye.getY(), -fixture.eye.getZ());
             source.update(fixture.player, opposite, first, 1L, true);
             assertNotEquals(before.frontSide(), source.geometry(palette, 71L).frontSide());
             long identity = source.geometry(palette, 71L).targetIdentity();
             PortalProjector.RtpProjectionTarget next = new PortalProjector.RtpProjectionTarget(fixture.world, 101.5D, 65.5D, 0.5D,
-                PortalFrame.canonical(Direction.E), 2L);
+                Frame.canonical(Face.E), 2L);
             source.update(fixture.player, opposite, next, 1L, true);
             assertNotEquals(identity, source.geometry(palette, 71L).targetIdentity());
             World pocket = mock(World.class);
@@ -177,9 +177,9 @@ final class BukkitClientViewDoorsTest {
             first.meshDepth(208);
             second.meshDepth(208);
             PortalProjector.RtpProjectionTarget north = new PortalProjector.RtpProjectionTarget(fixture.world, 100.5, 65, 100.5,
-                PortalFrame.canonical(Direction.N), 1);
+                Frame.canonical(Face.N), 1);
             PortalProjector.RtpProjectionTarget east = new PortalProjector.RtpProjectionTarget(fixture.world, 100.5, 65, 100.5,
-                PortalFrame.canonical(Direction.E), 2);
+                Frame.canonical(Face.E), 2);
             first.beginFrame(fixture.player, fixture.eye, List.of(door), List.of(door), Map.of(id, north), 1);
             second.beginFrame(fixture.player, fixture.eye, List.of(door), List.of(door), Map.of(id, east), 1);
 
@@ -190,7 +190,7 @@ final class BukkitClientViewDoorsTest {
             assertNotEquals(northScene, eastScene);
 
             PortalProjector.RtpProjectionTarget matchingNorth = new PortalProjector.RtpProjectionTarget(fixture.world, 100.5, 65, 100.5,
-                PortalFrame.canonical(Direction.N), 3);
+                Frame.canonical(Face.N), 3);
             second.beginFrame(fixture.player, fixture.eye, List.of(door), List.of(door), Map.of(id, matchingNorth), 2);
             assertEquals(northScene, access.scene().sceneKey(second, id));
 
@@ -212,12 +212,12 @@ final class BukkitClientViewDoorsTest {
             ClientViewObserver observer = new ClientViewObserver(fixture.playerId, fixture.user);
             observer.meshDepth(208);
             PortalProjector.RtpProjectionTarget first = new PortalProjector.RtpProjectionTarget(fixture.world, 100.5, 65, 100.5,
-                PortalFrame.canonical(Direction.S), 1);
+                Frame.canonical(Face.S), 1);
             observer.beginFrame(fixture.player, fixture.eye, List.of(door), List.of(door), Map.of(door.getId(), first), 1);
-            ClientPortalGeometry geometry = access.geometry(observer, door.getId(), new SessionPalette());
+            ApertureDescriptor geometry = access.geometry(observer, door.getId(), new SessionPalette());
             assertNotNull(geometry);
-            assertEquals(ClientPortalGeometry.KIND_DOOR, geometry.kind());
-            assertEquals(ClientPortalGeometry.BLACKOUT_OFF, geometry.blackoutPolicy());
+            assertEquals(ApertureDescriptor.KIND_DOOR, geometry.kind());
+            assertEquals(ApertureDescriptor.BLACKOUT_OFF, geometry.blackoutPolicy());
             assertNotEquals(0L, geometry.targetIdentity());
             long revision = access.geometryRevision(observer, door.getId());
             PlateBox clip = new PlateBox(0, 64, 0, 16, 16, 16);
@@ -226,7 +226,7 @@ final class BukkitClientViewDoorsTest {
             long firstIdentity = fixture.jobs.getFirst().key().targetIdentity();
 
             PortalProjector.RtpProjectionTarget next = new PortalProjector.RtpProjectionTarget(fixture.world, 200.5, 65, 100.5,
-                PortalFrame.canonical(Direction.S), 2);
+                Frame.canonical(Face.S), 2);
             observer.beginFrame(fixture.player, fixture.eye, List.of(door), List.of(door), Map.of(door.getId(), next), 2);
             assertNotEquals(revision, access.geometryRevision(observer, door.getId()));
             assertNotEquals(geometry.targetIdentity(), access.geometry(observer, door.getId(), new SessionPalette()).targetIdentity());
@@ -269,8 +269,8 @@ final class BukkitClientViewDoorsTest {
         DoorProjectionAdapter door = mock(DoorProjectionAdapter.class);
         ILocalPortal source = fixture.portal;
         UUID id = source.getId();
-        GeometryVector origin = source.getOrigin();
-        PortalFrame frame = source.getFrame();
+        Vec3 origin = source.getOrigin();
+        Frame frame = source.getFrame();
         PortalStructure structure = source.getStructure();
         when(door.getId()).thenReturn(id);
         when(door.getWorld()).thenReturn(fixture.world);
@@ -296,7 +296,7 @@ final class BukkitClientViewDoorsTest {
         when(aperture.getId()).thenReturn(UUID.randomUUID());
         when(aperture.getWorld()).thenReturn(world);
         when(aperture.getOrigin()).thenReturn(structure.getArea().center());
-        when(aperture.getFrame()).thenReturn(PortalFrame.canonical(Direction.N));
+        when(aperture.getFrame()).thenReturn(Frame.canonical(Face.N));
         when(aperture.getStructure()).thenReturn(structure);
         when(aperture.getRenderMode()).thenReturn(ProjectionRenderMode.PANOPTIC);
         when(aperture.getNetworkViewDepth()).thenReturn(24);
@@ -304,12 +304,12 @@ final class BukkitClientViewDoorsTest {
         when(aperture.isOpen()).thenReturn(true);
         if (kind == ApertureKind.MIRROR) {
             when(aperture.isMirrorMode()).thenReturn(true);
-            when(aperture.getMirrorRotation()).thenReturn(MirrorRotation.DEGREES_0);
+            when(aperture.getMirrorRotation()).thenReturn(QuarterTurn.DEGREES_0);
         } else if (kind == ApertureKind.LINKED) {
             ILocalPortal destination = mock(ILocalPortal.class);
-            GeometryVector destinationOrigin = fixture.portal.getOrigin();
+            Vec3 destinationOrigin = fixture.portal.getOrigin();
             when(destination.getWorld()).thenReturn(destinationWorld);
-            when(destination.getFrame()).thenReturn(PortalFrame.canonical(Direction.S));
+            when(destination.getFrame()).thenReturn(Frame.canonical(Face.S));
             when(destination.getOrigin()).thenReturn(destinationOrigin);
             ITunnel tunnel = aperture.getTunnel();
             when(tunnel.getDestination()).thenReturn(destination);
@@ -319,7 +319,7 @@ final class BukkitClientViewDoorsTest {
 
     private static PortalProjector.RtpProjectionTarget target(World world) {
         return new PortalProjector.RtpProjectionTarget(world, 1.4995D, 65.4995D, 0.4995D,
-            PortalFrame.canonical(Direction.S), 1L);
+            Frame.canonical(Face.S), 1L);
     }
 
     private enum ApertureKind {

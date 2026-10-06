@@ -1,6 +1,6 @@
 package art.arcane.wormholes.render.view;
 
-import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
+import art.arcane.optics.view.WorldChangeTracker;
 import org.bukkit.World;
 import org.bukkit.plugin.Plugin;
 
@@ -32,7 +32,7 @@ public interface ProjectionWorldViewProvider {
         return 0;
     }
 
-    static ProjectionWorldViewProvider sectionCached(Plugin plugin, ProjectionWorldChangeTracker tracker) {
+    static ProjectionWorldViewProvider sectionCached(Plugin plugin, WorldChangeTracker tracker) {
         return new SectionCachedWorldViewProvider(plugin, tracker);
     }
 }

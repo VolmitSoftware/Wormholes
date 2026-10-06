@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.render.ProjectedEntityEvent;
-import art.arcane.wormholes.render.acoustics.AcousticsBridge;
+import art.arcane.optics.entity.ProjectedEntityEvent;
+import art.arcane.optics.fidelity.AcousticsBridge;
 
 import art.arcane.wormholes.network.view.RemoteViewCache;
 import art.arcane.wormholes.network.view.ViewSubscriptionManager;

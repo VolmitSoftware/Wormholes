@@ -1,18 +1,18 @@
 package art.arcane.wormholes.modded.clientview;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import art.arcane.wormholes.modded.MinecraftDoorService;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.MinecraftPortalRegistry;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.portal.Portal;
-import art.arcane.wormholes.portal.PortalCrossing;
-import art.arcane.wormholes.portal.PortalFrame;
-import art.arcane.wormholes.portal.PortalGeometry;
+import art.arcane.optics.crossing.PlaneCrossing;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.wormholes.portal.PortalType;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.math.Face;
 import net.minecraft.server.level.ServerPlayer;
 import org.junit.Test;
 
@@ -39,11 +39,11 @@ public class MinecraftPreparedTravelEntranceTest extends MinecraftTestBase {
             door.getOwner();
             return false;
         });
-        PortalCrossing crossing = crossing(door);
+        PlaneCrossing crossing = crossing(door);
         when(fixture.doors().crossPrepared(fixture.player(), door.getId(), crossing)).thenReturn(true);
         assertTrue(fixture.travel().eligible(fixture.peer(), fixture.player(), door, receiver));
         assertTrue(fixture.travel().dispatchCross(fixture.peer(), fixture.player(), door, receiver,
-            ClientPortalGeometry.KIND_DOOR, crossing));
+            ApertureDescriptor.KIND_DOOR, crossing));
         verify(fixture.registry(), never()).canDepart(any(), any());
         verify(fixture.registry(), never()).canArrive(any(), any());
         verify(fixture.registry(), never()).crossPrepared(any(), any(), any(), any());
@@ -58,10 +58,10 @@ public class MinecraftPreparedTravelEntranceTest extends MinecraftTestBase {
         when(fixture.registry().get(portal.getId())).thenReturn(portal);
         when(fixture.registry().canDepart(fixture.player(), portal)).thenReturn(true);
         when(fixture.registry().canArrive(fixture.player(), receiver)).thenReturn(true);
-        PortalCrossing crossing = crossing(portal);
+        PlaneCrossing crossing = crossing(portal);
         when(fixture.registry().crossPrepared(fixture.player(), portal.getId(), receiver, crossing)).thenReturn(true);
         assertTrue(fixture.travel().dispatchCross(fixture.peer(), fixture.player(), portal, receiver,
-            ClientPortalGeometry.KIND_FRAME, crossing));
+            ApertureDescriptor.KIND_FRAME, crossing));
         verify(fixture.registry()).crossPrepared(fixture.player(), portal.getId(), receiver, crossing);
         verify(fixture.doors(), never()).crossPrepared(any(), any(), any());
     }
@@ -76,7 +76,7 @@ public class MinecraftPreparedTravelEntranceTest extends MinecraftTestBase {
         when(fixture.peer().door(door.getId())).thenReturn(null);
         assertFalse(fixture.travel().eligible(fixture.peer(), fixture.player(), door, receiver));
         assertFalse(fixture.travel().dispatchCross(fixture.peer(), fixture.player(), door, receiver,
-            ClientPortalGeometry.KIND_DOOR, crossing(door)));
+            ApertureDescriptor.KIND_DOOR, crossing(door)));
         verify(fixture.registry(), never()).canDepart(any(), any());
         verify(fixture.registry(), never()).crossPrepared(any(), any(), any(), any());
         verify(fixture.doors(), never()).crossPrepared(any(), any(), any());
@@ -84,14 +84,14 @@ public class MinecraftPreparedTravelEntranceTest extends MinecraftTestBase {
 
     private MinecraftPortal descriptor() {
         UUID id = UUID.randomUUID();
-        return new MinecraftPortal(new MinecraftPortal.Definition(new Portal.State(id, new GeometryVector(0.5D, 65, 0.5D),
-            id.toString(), PortalFrame.canonical(Direction.N), true), new PortalGeometry(), "minecraft:overworld",
+        return new MinecraftPortal(new MinecraftPortal.Definition(new Portal.State(id, new Vec3(0.5D, 65, 0.5D),
+            id.toString(), Frame.canonical(Face.N), true), new ApertureCells(), "minecraft:overworld",
             Map.of("type", PortalType.PORTAL.name())));
     }
 
-    private PortalCrossing crossing(MinecraftPortal portal) {
-        return new PortalCrossing(portal.getFrame(), portal.getOrigin(), portal.getOrigin(),
-            new GeometryVector(0, 0, -0.4D), new GeometryVector(0, 0, -1), true);
+    private PlaneCrossing crossing(MinecraftPortal portal) {
+        return new PlaneCrossing(portal.getFrame(), portal.getOrigin(), portal.getOrigin(),
+            new Vec3(0, 0, -0.4D), new Vec3(0, 0, -1), true);
     }
 
     private Fixture fixture() {

@@ -9,13 +9,15 @@ import art.arcane.wormholes.network.WireTraversive;
 import org.bukkit.entity.Entity;
 import org.bukkit.util.Vector;
 
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
+import art.arcane.optics.crossing.PlaneCrossing;
+import art.arcane.optics.frame.Frame;
 
 public class Traversive
 {
 	private final Object object;
 	private final TraversableType type;
-	private final PortalFrame inFrame;
+	private final Frame inFrame;
 	private final Vector inOrigin;
 	private final Vector inPoint;
 	private final Vector inVelocity;
@@ -23,22 +25,22 @@ public class Traversive
 	private final boolean frontSide;
 	private final UUID sourcePortalId;
 
-	public Traversive(Object o, TraversableType type, Direction inDirection, Vector inOrigin, Vector inPoint, Vector inVelocity, Vector inLook)
+	public Traversive(Object o, TraversableType type, Face inDirection, Vector inOrigin, Vector inPoint, Vector inVelocity, Vector inLook)
 	{
-		this(o, type, PortalFrame.canonical(inDirection), inOrigin, inPoint, inVelocity, inLook, true);
+		this(o, type, Frame.canonical(inDirection), inOrigin, inPoint, inVelocity, inLook, true);
 	}
 
-	public Traversive(Object o, TraversableType type, PortalFrame inFrame, Vector inOrigin, Vector inPoint, Vector inVelocity, Vector inLook)
+	public Traversive(Object o, TraversableType type, Frame inFrame, Vector inOrigin, Vector inPoint, Vector inVelocity, Vector inLook)
 	{
 		this(o, type, inFrame, inOrigin, inPoint, inVelocity, inLook, true);
 	}
 
-	public Traversive(Object o, TraversableType type, PortalFrame inFrame, Vector inOrigin, Vector inPoint, Vector inVelocity, Vector inLook, boolean frontSide)
+	public Traversive(Object o, TraversableType type, Frame inFrame, Vector inOrigin, Vector inPoint, Vector inVelocity, Vector inLook, boolean frontSide)
 	{
 		this(o, type, inFrame, inOrigin, inPoint, inVelocity, inLook, frontSide, null);
 	}
 
-	public Traversive(Object o, TraversableType type, PortalFrame inFrame, Vector inOrigin, Vector inPoint, Vector inVelocity, Vector inLook, boolean frontSide, UUID sourcePortalId)
+	public Traversive(Object o, TraversableType type, Frame inFrame, Vector inOrigin, Vector inPoint, Vector inVelocity, Vector inLook, boolean frontSide, UUID sourcePortalId)
 	{
 		this.object = o;
 		this.type = type;
@@ -51,22 +53,22 @@ public class Traversive
 		this.sourcePortalId = sourcePortalId;
 	}
 
-	public Traversive(Entity entity, Direction inDirection, Vector inOrigin, Vector inPoint, Vector inVelocity, Vector inLook)
+	public Traversive(Entity entity, Face inDirection, Vector inOrigin, Vector inPoint, Vector inVelocity, Vector inLook)
 	{
 		this(entity, TraversableType.ENTITY, inDirection, inOrigin, inPoint, inVelocity, inLook);
 	}
 
-	public Traversive(Entity entity, PortalFrame inFrame, Vector inOrigin, Vector inPoint, Vector inVelocity, Vector inLook)
+	public Traversive(Entity entity, Frame inFrame, Vector inOrigin, Vector inPoint, Vector inVelocity, Vector inLook)
 	{
 		this(entity, TraversableType.ENTITY, inFrame, inOrigin, inPoint, inVelocity, inLook);
 	}
 
-	public Traversive(Entity entity, PortalFrame inFrame, Vector inOrigin, Vector inPoint, Vector inVelocity, Vector inLook, boolean frontSide)
+	public Traversive(Entity entity, Frame inFrame, Vector inOrigin, Vector inPoint, Vector inVelocity, Vector inLook, boolean frontSide)
 	{
 		this(entity, TraversableType.ENTITY, inFrame, inOrigin, inPoint, inVelocity, inLook, frontSide);
 	}
 
-	public Traversive(Entity entity, PortalFrame inFrame, Vector inOrigin, Vector inPoint, Vector inVelocity, Vector inLook, boolean frontSide, UUID sourcePortalId)
+	public Traversive(Entity entity, Frame inFrame, Vector inOrigin, Vector inPoint, Vector inVelocity, Vector inLook, boolean frontSide, UUID sourcePortalId)
 	{
 		this(entity, TraversableType.ENTITY, inFrame, inOrigin, inPoint, inVelocity, inLook, frontSide, sourcePortalId);
 	}
@@ -76,7 +78,7 @@ public class Traversive
     }
 
     public static Traversive fromWire(WireTraversive wire, Object object) {
-        PortalFrame frame = new PortalFrame(Direction.valueOf(wire.frameNormal()), Direction.valueOf(wire.frameRight()), Direction.valueOf(wire.frameUp()));
+        Frame frame = new Frame(Face.valueOf(wire.frameNormal()), Face.valueOf(wire.frameRight()), Face.valueOf(wire.frameUp()));
         return new Traversive(
             object,
             TraversableType.ENTITY,
@@ -95,47 +97,47 @@ public class Traversive
 		return new Traversive(member, TraversableType.ENTITY, inFrame, inOrigin, memberPoint, inVelocity, inLook, frontSide, sourcePortalId);
 	}
 
-    public PortalCrossing crossing() {
-        return new PortalCrossing(inFrame, BukkitGeometry.vector(inOrigin), BukkitGeometry.vector(inPoint),
+    public PlaneCrossing crossing() {
+        return new PlaneCrossing(inFrame, BukkitGeometry.vector(inOrigin), BukkitGeometry.vector(inPoint),
             BukkitGeometry.vector(inVelocity), BukkitGeometry.vector(inLook), frontSide);
     }
 
-	public Vector getOutVelocity(Direction outDirection)
+	public Vector getOutVelocity(Face outDirection)
 	{
-		return getOutVelocity(PortalFrame.canonical(outDirection));
+		return getOutVelocity(Frame.canonical(outDirection));
 	}
 
-	public Vector getOutVelocity(PortalFrame outFrame)
+	public Vector getOutVelocity(Frame outFrame)
 	{
 		return BukkitGeometry.bukkit(inFrame.transformVector(BukkitGeometry.vector(getInVelocity()), outFrame.view(frontSide)));
 	}
 
-	public Vector getOutLook(Direction outDirection)
+	public Vector getOutLook(Face outDirection)
 	{
-		return getOutLook(PortalFrame.canonical(outDirection));
+		return getOutLook(Frame.canonical(outDirection));
 	}
 
-	public Vector getOutLook(PortalFrame outFrame)
+	public Vector getOutLook(Frame outFrame)
 	{
 		return BukkitGeometry.bukkit(inFrame.transformVector(BukkitGeometry.vector(getInLook()), outFrame.view(frontSide)));
 	}
 
-	public Vector getOutOffset(Direction outDirection)
+	public Vector getOutOffset(Face outDirection)
 	{
-		return getOutOffset(PortalFrame.canonical(outDirection));
+		return getOutOffset(Frame.canonical(outDirection));
 	}
 
-	public Vector getOutOffset(PortalFrame outFrame)
+	public Vector getOutOffset(Frame outFrame)
 	{
 		return BukkitGeometry.bukkit(inFrame.transformVector(BukkitGeometry.vector(getInOffset()), outFrame.view(frontSide)));
 	}
 
-	public Vector getOutPoint(PortalFrame outFrame, Vector outOrigin)
+	public Vector getOutPoint(Frame outFrame, Vector outOrigin)
 	{
 		return BukkitGeometry.bukkit(inFrame.transformPoint(BukkitGeometry.vector(inPoint), BukkitGeometry.vector(inOrigin), BukkitGeometry.vector(outOrigin), outFrame.view(frontSide)));
 	}
 
-	public PortalFrame getInFrame()
+	public Frame getInFrame()
 	{
 		return inFrame;
 	}

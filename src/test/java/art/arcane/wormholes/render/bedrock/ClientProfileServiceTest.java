@@ -19,6 +19,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.render.FidelitySettings;
+import art.arcane.optics.fidelity.BedrockProfile;
 
 final class ClientProfileServiceTest {
     private static final UUID JAVA_ID = UUID.fromString("8f3c1d2e-4b5a-4c6d-8e7f-90a1b2c3d4e5");

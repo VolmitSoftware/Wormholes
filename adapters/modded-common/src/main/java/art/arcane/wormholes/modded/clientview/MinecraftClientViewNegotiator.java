@@ -1,11 +1,11 @@
 package art.arcane.wormholes.modded.clientview;
 
 import art.arcane.wormholes.modded.MinecraftClientProfiles;
-import art.arcane.wormholes.render.client.session.ClientViewInbound;
-import art.arcane.wormholes.render.client.session.ClientViewPhase;
+import art.arcane.optics.stream.ClientViewInbound;
+import art.arcane.optics.stream.ClientViewPhase;
 import art.arcane.wormholes.render.client.session.ClientViewServerSession;
 import art.arcane.wormholes.render.client.session.ClientViewSessionRegistry;
-import art.arcane.wormholes.render.client.session.ClientViewSessionState;
+import art.arcane.optics.stream.ClientViewSessionState;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.server.network.ConfigurationTask;

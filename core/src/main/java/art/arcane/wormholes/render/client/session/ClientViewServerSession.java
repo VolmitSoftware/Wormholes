@@ -14,27 +14,33 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.IntSupplier;
 
-import art.arcane.wormholes.network.client.BrickLightSource;
+import art.arcane.optics.stream.BrickLightSource;
 import art.arcane.wormholes.network.client.ClientMeshHash;
-import art.arcane.wormholes.network.client.ClientViewCapability;
+import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.wormholes.network.client.ClientViewHandshake;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
-import art.arcane.wormholes.network.client.ClientViewProtocolException;
-import art.arcane.wormholes.network.client.ClientViewRateLimiter;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ClientViewRateLimiter;
 import art.arcane.wormholes.network.client.EncodedPlate;
 import art.arcane.wormholes.network.client.FrameSplitter;
 import art.arcane.wormholes.network.client.PlatePatchEncoder;
 import art.arcane.wormholes.network.client.SessionPalette;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.render.plate.ViewPlate;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.math.Vec3;
+import art.arcane.optics.plate.ViewPlate;
+import art.arcane.optics.client.MeshPlan;
+import art.arcane.optics.stream.ClientViewAckWindow;
+import art.arcane.optics.stream.ClientViewInbound;
+import art.arcane.optics.stream.ClientViewLane;
+import art.arcane.optics.stream.ClientViewPhase;
+import art.arcane.optics.stream.ClientViewSessionState;
 
 public final class ClientViewServerSession<P, B> {
     static final long BRICK_MISS_TIMEOUT_NANOS = 5_000_000_000L;
     private static final long NANOS_PER_MILLI = 1_000_000L;
-    private static final int PLAY_PHASE_GRACE_MILLIS = ClientViewProtocol.PLAY_PHASE_PENDING_TICKS * 50;
+    private static final int PLAY_PHASE_GRACE_MILLIS = ViewStreamLimits.PLAY_PHASE_PENDING_TICKS * 50;
     private static final int NESTED_GEOMETRY = 1;
     private static final int NESTED_PLATE = 1 << 1;
     private static final int MAX_PENDING_BURSTS = 1024;
@@ -147,19 +153,19 @@ public final class ClientViewServerSession<P, B> {
     }
 
     public boolean nativeRendererSelected() {
-        return !closed && state == ClientViewSessionState.CLIENT_VIEW && ClientViewCapability.MESH_RENDER.in(caps);
+        return !closed && state == ClientViewSessionState.CLIENT_VIEW && ViewStreamCapability.MESH_RENDER.in(caps);
     }
 
     public boolean preparedTravelSelected() {
-        return nativeRendererSelected() && ClientViewCapability.PREPARED_TRAVEL.in(caps);
+        return nativeRendererSelected() && ViewStreamCapability.PREPARED_TRAVEL.in(caps);
     }
 
     public boolean preparedTravelCacheSelected() {
-        return preparedTravelSelected() && ClientViewCapability.PREPARED_TRAVEL_CACHE.in(caps);
+        return preparedTravelSelected() && ViewStreamCapability.PREPARED_TRAVEL_CACHE.in(caps);
     }
 
-    public ClientPortalGeometry travelGeometry(UUID portal) {
-        ClientPortalGeometry geometry = platform.portals().geometry(player, portal, registry.palette());
+    public ApertureDescriptor travelGeometry(UUID portal) {
+        ApertureDescriptor geometry = platform.portals().geometry(player, portal, registry.palette());
         return geometry == null ? null : geometry.withParent(0).withNested(List.of());
     }
 
@@ -203,7 +209,7 @@ public final class ClientViewServerSession<P, B> {
     }
 
     public boolean effectsReceiver() {
-        return !closed && state == ClientViewSessionState.CLIENT_VIEW && ClientViewCapability.FX_EMITTERS.in(caps);
+        return !closed && state == ClientViewSessionState.CLIENT_VIEW && ViewStreamCapability.FX_EMITTERS.in(caps);
     }
 
     public boolean oneShot(ClientViewMessage.FxEmitter emitter) {
@@ -320,7 +326,7 @@ public final class ClientViewServerSession<P, B> {
         mesh.beginTick();
         ClientViewPortalAccess<P, B> portals = platform.portals();
         interest.clear();
-        if (ClientViewCapability.PLATES.in(caps)) {
+        if (ViewStreamCapability.PLATES.in(caps)) {
             portals.interested(player, interest);
         }
         boolean plateless = false;
@@ -341,7 +347,7 @@ public final class ClientViewServerSession<P, B> {
             }
             slot.lastInterestTick = serverTick;
         }
-        if (ClientViewCapability.FX_EMITTERS.in(caps)) {
+        if (ViewStreamCapability.FX_EMITTERS.in(caps)) {
             attachEffects(portals, serverTick);
         }
         boolean signal = recoveryReason != null || plateless || lane.stalled();
@@ -539,12 +545,12 @@ public final class ClientViewServerSession<P, B> {
         int grace = phase == ClientViewPhase.PLAY ? PLAY_PHASE_GRACE_MILLIS : options.helloGraceMillis();
         long serverCaps = options.serverCaps(phase) & platform.platformCaps();
         return new ClientViewHandshake.Policy(registry.enabled(), platform.mcDataVersion(), serverCaps, options.maxFrameBytes(), grace,
-            ClientViewProtocol.DEFAULT_TICK_RATE, options.ackWindowFrames(), options.zeroCopy());
+            ViewStreamLimits.DEFAULT_TICK_RATE, options.ackWindowFrames(), options.zeroCopy());
     }
 
     private ClientViewInbound onHello(ClientViewMessage.Hello hello, long now) {
-        if (nativeRendererSelected() && hello.wire() == ClientViewProtocol.WIRE_VERSION
-            && hello.mcDataVersion() == platform.mcDataVersion() && ClientViewCapability.MESH_RENDER.in(hello.clientCaps())) {
+        if (nativeRendererSelected() && hello.wire() == ViewStreamLimits.WIRE_VERSION
+            && hello.mcDataVersion() == platform.mcDataVersion() && ViewStreamCapability.MESH_RENDER.in(hello.clientCaps())) {
             recovery.compareAndSet(null, ClientViewMessage.ResetReason.PROTOCOL);
             return ClientViewInbound.HANDLED;
         }
@@ -579,7 +585,7 @@ public final class ClientViewServerSession<P, B> {
     }
 
     private ClientViewInbound onMiss(ClientViewMessage.BrickMiss misses) {
-        if (state != ClientViewSessionState.CLIENT_VIEW || !ClientViewCapability.BRICK_CACHE.in(caps)) {
+        if (state != ClientViewSessionState.CLIENT_VIEW || !ViewStreamCapability.BRICK_CACHE.in(caps)) {
             return stale();
         }
         List<ClientViewMessage.BrickMiss.Plate> plates = misses.plates();
@@ -594,7 +600,7 @@ public final class ClientViewServerSession<P, B> {
         if (state != ClientViewSessionState.CLIENT_VIEW) {
             return stale();
         }
-        if (ClientViewCapability.MESH_RENDER.in(caps) && mesh.staleRefusal(refused.portalKey(), refused.plateRevision())) {
+        if (ViewStreamCapability.MESH_RENDER.in(caps) && mesh.staleRefusal(refused.portalKey(), refused.plateRevision())) {
             return stale();
         }
         inbox.add(new Refused<B>(refused.portalKey(), refused.plateRevision()));
@@ -603,15 +609,15 @@ public final class ClientViewServerSession<P, B> {
     }
 
     private ClientViewInbound onMeshAck(ClientViewMessage.MeshAck ack) {
-        if (state != ClientViewSessionState.CLIENT_VIEW || !ClientViewCapability.MESH_RENDER.in(caps)) {
+        if (state != ClientViewSessionState.CLIENT_VIEW || !ViewStreamCapability.MESH_RENDER.in(caps)) {
             return stale();
         }
         return mesh.acknowledge(ack) ? ClientViewInbound.HANDLED : stale();
     }
 
     private ClientViewInbound onMeshLocal(ClientViewMessage.MeshLocal local) {
-        if (state != ClientViewSessionState.CLIENT_VIEW || !ClientViewCapability.LOCAL_MESH.in(caps)
-            || !ClientViewCapability.MESH_RENDER.in(caps)) {
+        if (state != ClientViewSessionState.CLIENT_VIEW || !ViewStreamCapability.LOCAL_MESH.in(caps)
+            || !ViewStreamCapability.MESH_RENDER.in(caps)) {
             return stale();
         }
         List<UUID> entities = new ArrayList<>(local.entities().size());
@@ -624,8 +630,8 @@ public final class ClientViewServerSession<P, B> {
     }
 
     private ClientViewInbound onMeshCached(ClientViewMessage.MeshCached cached) {
-        if (state != ClientViewSessionState.CLIENT_VIEW || !ClientViewCapability.MESH_REUSE.in(caps)
-            || !ClientViewCapability.MESH_RENDER.in(caps)) {
+        if (state != ClientViewSessionState.CLIENT_VIEW || !ViewStreamCapability.MESH_REUSE.in(caps)
+            || !ViewStreamCapability.MESH_RENDER.in(caps)) {
             return stale();
         }
         return mesh.cached(cached) ? ClientViewInbound.HANDLED : stale();
@@ -644,8 +650,8 @@ public final class ClientViewServerSession<P, B> {
     }
 
     private ClientViewInbound onViewStats(ClientViewMessage.ViewStats stats, long now) {
-        if (state != ClientViewSessionState.CLIENT_VIEW || !ClientViewCapability.VIEW_STATS.in(caps) || !registry.options().viewStats()
-            || (viewStats != null && now - viewStatsMillis < ClientViewProtocol.VIEW_STATS_MIN_INTERVAL_MILLIS - ClientViewProtocol.VIEW_STATS_JITTER_MILLIS)) {
+        if (state != ClientViewSessionState.CLIENT_VIEW || !ViewStreamCapability.VIEW_STATS.in(caps) || !registry.options().viewStats()
+            || (viewStats != null && now - viewStatsMillis < ViewStreamLimits.VIEW_STATS_MIN_INTERVAL_MILLIS - ViewStreamLimits.VIEW_STATS_JITTER_MILLIS)) {
             return stale();
         }
         viewStats = stats;
@@ -680,7 +686,7 @@ public final class ClientViewServerSession<P, B> {
             return null;
         }
         long stamp = portals.geometryRevision(player, portal);
-        ClientPortalGeometry geometry = ownable(portal, portals);
+        ApertureDescriptor geometry = ownable(portal, portals);
         if (geometry == null) {
             return null;
         }
@@ -697,7 +703,7 @@ public final class ClientViewServerSession<P, B> {
             return false;
         }
         long stamp = portals.geometryRevision(player, slot.portalId);
-        ClientPortalGeometry geometry = ownable(slot.portalId, portals);
+        ApertureDescriptor geometry = ownable(slot.portalId, portals);
         if (geometry == null) {
             return false;
         }
@@ -705,8 +711,8 @@ public final class ClientViewServerSession<P, B> {
         return true;
     }
 
-    private ClientPortalGeometry ownable(UUID portal, ClientViewPortalAccess<P, B> portals) {
-        ClientPortalGeometry geometry = meshGeometry(portals.geometry(player, portal, registry.palette()), portals);
+    private ApertureDescriptor ownable(UUID portal, ClientViewPortalAccess<P, B> portals) {
+        ApertureDescriptor geometry = meshGeometry(portals.geometry(player, portal, registry.palette()), portals);
         if (geometry == null) {
             reject(portal);
             return null;
@@ -714,7 +720,7 @@ public final class ClientViewServerSession<P, B> {
         return meshEnabled() || clientMirror(geometry) || !portals.refused(player, portal) ? geometry : null;
     }
 
-    private void own(ClientViewPortalSlot<B> slot, long stamp, ClientPortalGeometry geometry, ClientViewPortalAccess<P, B> portals) {
+    private void own(ClientViewPortalSlot<B> slot, long stamp, ApertureDescriptor geometry, ClientViewPortalAccess<P, B> portals) {
         slot.effects = false;
         slot.geometryStamp = stamp;
         slot.baseGeometry = geometry;
@@ -732,7 +738,7 @@ public final class ClientViewServerSession<P, B> {
             ClientViewPortalSlot<B> slot = slots.get(portal);
             if (slot == null) {
                 long stamp = portals.effectGeometryRevision(player, portal);
-                ClientPortalGeometry geometry = portals.effectGeometry(player, portal, registry.palette());
+                ApertureDescriptor geometry = portals.effectGeometry(player, portal, registry.palette());
                 if (geometry == null) {
                     continue;
                 }
@@ -815,7 +821,7 @@ public final class ClientViewServerSession<P, B> {
         long stamp = portals.geometryRevision(player, slot.portalId);
         int meshDepth = meshEnabled() ? portals.meshDistanceBlocks(player) : 0;
         if (stamp != slot.geometryStamp || meshDepth > 0 && slot.baseGeometry.depthBlocks() != meshDepth) {
-            ClientPortalGeometry geometry = meshGeometry(portals.geometry(player, slot.portalId, registry.palette()), portals);
+            ApertureDescriptor geometry = meshGeometry(portals.geometry(player, slot.portalId, registry.palette()), portals);
             if (geometry == null) {
                 return Refresh.REJECT;
             }
@@ -839,7 +845,7 @@ public final class ClientViewServerSession<P, B> {
         }
         int nested = refreshNested(slot, portals, options, serverTick);
         if (geometryChanged || (nested & NESTED_GEOMETRY) != 0) {
-            ClientPortalGeometry composed = compose(slot);
+            ApertureDescriptor composed = compose(slot);
             if (!composed.equals(slot.geometry)) {
                 slot.geometry = composed;
             }
@@ -870,7 +876,7 @@ public final class ClientViewServerSession<P, B> {
         boolean changed = false;
         long stamp = portals.effectGeometryRevision(player, slot.portalId);
         if (stamp != slot.geometryStamp) {
-            ClientPortalGeometry geometry = portals.effectGeometry(player, slot.portalId, registry.palette());
+            ApertureDescriptor geometry = portals.effectGeometry(player, slot.portalId, registry.palette());
             if (geometry == null) {
                 return Refresh.DETACH;
             }
@@ -910,7 +916,7 @@ public final class ClientViewServerSession<P, B> {
     private boolean refreshScene(ClientViewPortalSlot<B> slot, ClientViewOptions options, long serverTick) {
         long sessionCaps = caps;
         boolean queued = false;
-        if (!slot.effects && options.entityFrames() && ClientViewCapability.ENTITY_FRAMES.in(sessionCaps)) {
+        if (!slot.effects && options.entityFrames() && ViewStreamCapability.ENTITY_FRAMES.in(sessionCaps)) {
             ClientViewMessage.EntityFrame frame = platform.entities().frame(player, slot.portalId, slot.key, serverTick, slot.needFullEntities,
                 clientMirror(slot.baseGeometry));
             if (frame != null) {
@@ -918,7 +924,7 @@ public final class ClientViewServerSession<P, B> {
                 inbox.add(new Scene<B>(slot, mesh.localEntities(frame)));
                 queued = true;
             }
-            if (ClientViewCapability.ENTITY_EVENTS.in(sessionCaps)) {
+            if (ViewStreamCapability.ENTITY_EVENTS.in(sessionCaps)) {
                 List<ClientViewMessage.EntityEvent> events = platform.entities().events(player, slot.portalId, slot.key);
                 for (int eventIndex = 0; eventIndex < events.size(); eventIndex++) {
                     if (mesh.localEntity(slot.key, events.get(eventIndex).entityId())) {
@@ -938,14 +944,14 @@ public final class ClientViewServerSession<P, B> {
             }
         }
         slot.needFullScene = false;
-        if (ClientViewCapability.FX_EMITTERS.in(sessionCaps)) {
+        if (ViewStreamCapability.FX_EMITTERS.in(sessionCaps)) {
             ClientViewMessage.Fx fx = platform.fx().fx(player, slot.portalId, slot.key, serverTick, fullScene);
             if (fx != null) {
                 inbox.add(new Scene<B>(slot, fx));
                 queued = true;
             }
         }
-        if (!slot.effects && ClientViewCapability.ATMOSPHERE.in(sessionCaps)) {
+        if (!slot.effects && ViewStreamCapability.ATMOSPHERE.in(sessionCaps)) {
             ClientViewMessage.Atmosphere atmosphere = platform.fx().atmosphere(player, slot.portalId, slot.key, serverTick, fullScene);
             if (atmosphere != null) {
                 inbox.add(new Scene<B>(slot, atmosphere));
@@ -959,7 +965,7 @@ public final class ClientViewServerSession<P, B> {
         if (meshEnabled()) {
             portals.prepareNested(player, slot.contextId, null, slot.portalId);
             int depth = nativeRecursionDepth(slot.baseGeometry);
-            return refreshNativeNested(slot, portals, serverTick, 0, depth, slot.baseGeometry.mirror() ? 1 : 0, new int[]{ClientViewProtocol.MAX_NESTED_GEOMETRY});
+            return refreshNativeNested(slot, portals, serverTick, 0, depth, slot.baseGeometry.mirror() ? 1 : 0, new int[]{ViewStreamLimits.MAX_NESTED_GEOMETRY});
         }
         if (!clientRecursion(slot.baseGeometry)) {
             if (slot.children.isEmpty()) {
@@ -970,7 +976,7 @@ public final class ClientViewServerSession<P, B> {
         }
         nestedScratch.clear();
         portals.nested(player, slot.portalId, slot.baseGeometry, nestedScratch);
-        int limit = Math.min(nestedScratch.size(), ClientViewProtocol.MAX_NESTED_GEOMETRY);
+        int limit = Math.min(nestedScratch.size(), ViewStreamLimits.MAX_NESTED_GEOMETRY);
         int flags = 0;
         for (int i = slot.children.size() - 1; i >= 0; i--) {
             ClientViewPortalSlot<B> child = slot.children.get(i);
@@ -987,7 +993,7 @@ public final class ClientViewServerSession<P, B> {
             ClientViewPortalSlot<B> child = slot.child(childId);
             long stamp = portals.nestedGeometryRevision(player, slot.portalId, childId);
             if (child == null || stamp != child.geometryStamp) {
-                ClientPortalGeometry geometry = meshGeometry(portals.nestedGeometry(player, slot.portalId, childId, registry.palette()), portals);
+                ApertureDescriptor geometry = meshGeometry(portals.nestedGeometry(player, slot.portalId, childId, registry.palette()), portals);
                 if (geometry == null || !geometry.nested().isEmpty()) {
                     if (child != null) {
                         slot.children.remove(child);
@@ -1059,7 +1065,7 @@ public final class ClientViewServerSession<P, B> {
             long stamp = portals.nestedGeometryRevision(player, slot.contextId, childId);
             if (child.baseGeometry == null || child.geometryStamp != stamp
                 || child.baseGeometry.depthBlocks() != portals.meshDistanceBlocks(player)) {
-                ClientPortalGeometry geometry = meshGeometry(portals.nestedGeometry(player, slot.contextId, childId, registry.palette()), portals);
+                ApertureDescriptor geometry = meshGeometry(portals.nestedGeometry(player, slot.contextId, childId, registry.palette()), portals);
                 if (geometry == null) {
                     slot.children.remove(child);
                     if (created) {
@@ -1077,7 +1083,7 @@ public final class ClientViewServerSession<P, B> {
                 }
             }
             int childMirrors = mirrors + (child.baseGeometry.mirror() ? 1 : 0);
-            if (childMirrors > ClientViewProtocol.MAX_MIRROR_REFLECTIONS) {
+            if (childMirrors > ViewStreamLimits.MAX_MIRROR_REFLECTIONS) {
                 slot.children.remove(child);
                 if (created) {
                     portals.releaseNested(player, child.contextId);
@@ -1096,7 +1102,7 @@ public final class ClientViewServerSession<P, B> {
             remaining[0]--;
             int descendants = refreshNativeNested(child, portals, serverTick, depth + 1,
                 Math.min(depthLimit, depth + 1 + nativeRecursionDepth(child.baseGeometry)), childMirrors, remaining);
-            ClientPortalGeometry composed = compose(child).withParent(slot.key);
+            ApertureDescriptor composed = compose(child).withParent(slot.key);
             if (!composed.equals(child.geometry)) {
                 child.geometry = composed;
                 flags |= NESTED_GEOMETRY;
@@ -1108,7 +1114,7 @@ public final class ClientViewServerSession<P, B> {
                 flags |= NESTED_PLATE;
                 continue;
             }
-            if (registry.options().entityFrames() && ClientViewCapability.ENTITY_FRAMES.in(caps)) {
+            if (registry.options().entityFrames() && ViewStreamCapability.ENTITY_FRAMES.in(caps)) {
                 ClientViewMessage.EntityFrame entities = platform.entities().frame(player, child.contextId, child.key, serverTick,
                     child.needFullEntities, clientMirror(child.baseGeometry));
                 if (entities != null) {
@@ -1116,7 +1122,7 @@ public final class ClientViewServerSession<P, B> {
                     inbox.add(new Scene<>(child, mesh.localEntities(entities)));
                     flags |= NESTED_PLATE;
                 }
-                if (ClientViewCapability.ENTITY_EVENTS.in(caps)) {
+                if (ViewStreamCapability.ENTITY_EVENTS.in(caps)) {
                     List<ClientViewMessage.EntityEvent> events = platform.entities().events(player, child.contextId, child.key);
                     for (int eventIndex = 0; eventIndex < events.size(); eventIndex++) {
                         if (mesh.localEntity(child.key, events.get(eventIndex).entityId())) {
@@ -1134,7 +1140,7 @@ public final class ClientViewServerSession<P, B> {
                 flags |= NESTED_PLATE;
             }
             child.needFullScene = false;
-            GeometryVector eye = portals.nestedEye(player, slot.contextId);
+            Vec3 eye = portals.nestedEye(player, slot.contextId);
             if (eye != null) {
                 try {
                     if (mesh.refresh(child, portals, player, serverTick, platform.nanoClock().getAsLong(), true, eye)) {
@@ -1158,11 +1164,11 @@ public final class ClientViewServerSession<P, B> {
         return flags;
     }
 
-    private static <B> ClientPortalGeometry compose(ClientViewPortalSlot<B> slot) {
+    private static <B> ApertureDescriptor compose(ClientViewPortalSlot<B> slot) {
         if (slot.children.isEmpty()) {
             return slot.baseGeometry;
         }
-        List<ClientPortalGeometry> nested = new ArrayList<ClientPortalGeometry>(slot.children.size());
+        List<ApertureDescriptor> nested = new ArrayList<ApertureDescriptor>(slot.children.size());
         for (int i = 0; i < slot.children.size(); i++) {
             nested.add(slot.children.get(i).geometry);
         }
@@ -1170,32 +1176,32 @@ public final class ClientViewServerSession<P, B> {
     }
 
     private boolean meshEnabled() {
-        return ClientViewCapability.MESH_RENDER.in(caps) && platform.portals().meshDistanceBlocks(player) > 0;
+        return ViewStreamCapability.MESH_RENDER.in(caps) && platform.portals().meshDistanceBlocks(player) > 0;
     }
 
-    private ClientPortalGeometry meshGeometry(ClientPortalGeometry geometry, ClientViewPortalAccess<P, B> portals) {
+    private ApertureDescriptor meshGeometry(ApertureDescriptor geometry, ClientViewPortalAccess<P, B> portals) {
         return geometry != null && meshEnabled() ? geometry.withDepth(portals.meshDistanceBlocks(player)) : geometry;
     }
 
-    private boolean clientMirror(ClientPortalGeometry geometry) {
-        return geometry != null && geometry.mirror() && ClientViewCapability.CLIENT_MIRROR.in(caps) && registry.options().clientMirror();
+    private boolean clientMirror(ApertureDescriptor geometry) {
+        return geometry != null && geometry.mirror() && ViewStreamCapability.CLIENT_MIRROR.in(caps) && registry.options().clientMirror();
     }
 
-    private static int nativeRecursionDepth(ClientPortalGeometry geometry) {
+    private static int nativeRecursionDepth(ApertureDescriptor geometry) {
         if (geometry.recursionDepth() <= 0) {
             return 0;
         }
-        return geometry.mirror() ? ClientViewProtocol.MAX_GEOMETRY_DEPTH - 1
-            : Math.min(geometry.recursionDepth(), ClientViewProtocol.MAX_LINKED_GEOMETRY_DEPTH - 1);
+        return geometry.mirror() ? ViewStreamLimits.MAX_GEOMETRY_DEPTH - 1
+            : Math.min(geometry.recursionDepth(), ViewStreamLimits.MAX_LINKED_GEOMETRY_DEPTH - 1);
     }
 
-    private boolean clientRecursion(ClientPortalGeometry geometry) {
-        return geometry != null && geometry.recursionDepth() > 0 && ClientViewCapability.CLIENT_RECURSION.in(caps)
+    private boolean clientRecursion(ApertureDescriptor geometry) {
+        return geometry != null && geometry.recursionDepth() > 0 && ViewStreamCapability.CLIENT_RECURSION.in(caps)
             && registry.options().clientRecursion();
     }
 
     private BrickLightSource light(UUID portal, ViewPlate<B> plate, ClientViewPortalAccess<P, B> portals, ClientViewOptions options) {
-        if (!options.destinationLight() || !ClientViewCapability.DEST_LIGHT.in(caps)) {
+        if (!options.destinationLight() || !ViewStreamCapability.DEST_LIGHT.in(caps)) {
             return BrickLightSource.NONE;
         }
         BrickLightSource light = portals.lightBaseline(player, portal, plate);
@@ -1212,8 +1218,8 @@ public final class ClientViewServerSession<P, B> {
         laneScene.clear();
         cursor = registry.palette().cursor();
         laneCaps = open.accept().caps();
-        entitySelfPending = ClientViewCapability.ENTITY_SELF.in(laneCaps);
-        splitter = new FrameSplitter(open.accept().maxFrameBytes(), ClientViewCapability.LINK_UNCOMPRESSED.in(laneCaps));
+        entitySelfPending = ViewStreamCapability.ENTITY_SELF.in(laneCaps);
+        splitter = new FrameSplitter(open.accept().maxFrameBytes(), ViewStreamCapability.LINK_UNCOMPRESSED.in(laneCaps));
         laneOpen = true;
     }
 
@@ -1254,7 +1260,7 @@ public final class ClientViewServerSession<P, B> {
         laneScene.clear();
         laneBursts.clear();
         cursor.reset();
-        entitySelfPending = ClientViewCapability.ENTITY_SELF.in(laneCaps);
+        entitySelfPending = ViewStreamCapability.ENTITY_SELF.in(laneCaps);
         ClientViewAckWindow active = window;
         if (active != null) {
             active.clear();
@@ -1273,7 +1279,7 @@ public final class ClientViewServerSession<P, B> {
             }
             completeStream(slot, null, now);
         }
-        ClientPortalGeometry geometry = slot.geometry;
+        ApertureDescriptor geometry = slot.geometry;
         ClientViewPortalSlot.PlateTarget<B> target = slot.target;
         boolean geometryDue = !slot.standby && geometry != null && geometry != slot.sentGeometry;
         boolean plateDue = target != null && target.plate() != slot.sentPlate && (slot.standby || slot.announced || geometryDue);
@@ -1306,7 +1312,7 @@ public final class ClientViewServerSession<P, B> {
         return false;
     }
 
-    private void stream(ClientViewPortalSlot<B> slot, ClientPortalGeometry geometry, ClientViewPortalSlot.PlateTarget<B> target, long now)
+    private void stream(ClientViewPortalSlot<B> slot, ApertureDescriptor geometry, ClientViewPortalSlot.PlateTarget<B> target, long now)
         throws ClientViewProtocolException {
         List<ClientViewMessage> group = new ArrayList<ClientViewMessage>(6);
         List<ClientViewMessage.PaletteEntry> entries = new ArrayList<ClientViewMessage.PaletteEntry>();
@@ -1321,7 +1327,7 @@ public final class ClientViewServerSession<P, B> {
         int plateRevision = slot.plateRevision;
         if (target != null) {
             plateRevision++;
-            long handle = ClientViewCapability.ZERO_COPY.in(laneCaps)
+            long handle = ViewStreamCapability.ZERO_COPY.in(laneCaps)
                 ? platform.handoffs().publish(slot.key, plateRevision, target.plate(), target.light())
                 : 0L;
             if (handle != 0L) {
@@ -1338,7 +1344,7 @@ public final class ClientViewServerSession<P, B> {
                     } else {
                         group.add(patch);
                     }
-                } else if (ClientViewCapability.BRICK_CACHE.in(laneCaps) && hashManifestFits(slot.key, encoded)) {
+                } else if (ViewStreamCapability.BRICK_CACHE.in(laneCaps) && hashManifestFits(slot.key, encoded)) {
                     group.add(encoded.begin(slot.key, plateRevision, true, registry.hashSalt()));
                     close = false;
                 } else {
@@ -1382,7 +1388,7 @@ public final class ClientViewServerSession<P, B> {
 
     private boolean hashManifestFits(int portalKey, EncodedPlate encoded) throws ClientViewProtocolException {
         int headerBytes = ClientViewCodec.encodeBody(encoded.begin(portalKey, 0, false, 0L)).length;
-        long frameBytes = ClientViewProtocol.S2C_HEADER_BYTES + headerBytes + (long) Long.BYTES * encoded.brickCount();
+        long frameBytes = ViewStreamLimits.S2C_HEADER_BYTES + headerBytes + (long) Long.BYTES * encoded.brickCount();
         return frameBytes <= splitter.maxFrameBytes();
     }
 
@@ -1398,7 +1404,7 @@ public final class ClientViewServerSession<P, B> {
     }
 
     private void refuseLane(int portalKey, int revision) {
-        if (ClientViewCapability.MESH_RENDER.in(laneCaps) && mesh.staleRefusal(portalKey, revision)) {
+        if (ViewStreamCapability.MESH_RENDER.in(laneCaps) && mesh.staleRefusal(portalKey, revision)) {
             return;
         }
         for (int i = 0; i < laneSlots.size(); i++) {
@@ -1482,9 +1488,9 @@ public final class ClientViewServerSession<P, B> {
 
     private void sendBursts() {
         int size = laneBursts.size();
-        for (int from = 0; from < size; from += ClientViewProtocol.MAX_FX_EMITTERS) {
-            ClientViewMessage.Fx fx = new ClientViewMessage.Fx(ClientViewProtocol.WORLD_FX_KEY,
-                laneBursts.subList(from, Math.min(size, from + ClientViewProtocol.MAX_FX_EMITTERS)));
+        for (int from = 0; from < size; from += ViewStreamLimits.MAX_FX_EMITTERS) {
+            ClientViewMessage.Fx fx = new ClientViewMessage.Fx(ViewStreamLimits.WORLD_FX_KEY,
+                laneBursts.subList(from, Math.min(size, from + ViewStreamLimits.MAX_FX_EMITTERS)));
             try {
                 emit(List.of(fx), false);
             } catch (ClientViewProtocolException failure) {
@@ -1533,13 +1539,13 @@ public final class ClientViewServerSession<P, B> {
                 if (mesh.unchanged(ready, encoded.hashes(registry.hashSalt())[0] ^ Integer.toUnsignedLong(ready.biomes().hashCode()), encoded.backingState())) {
                     continue;
                 }
-                ClientMeshPlan.Coordinate coordinate = ready.coordinate();
+                MeshPlan.Coordinate coordinate = ready.coordinate();
                 ClientViewMessage.MeshSection section = new ClientViewMessage.MeshSection(ready.slot().key, ready.generation(),
                     coordinate.x(), coordinate.y(), coordinate.z(), ready.revision(), encoded.backingState(), encoded.brick(0), ready.biomes());
                 List<ClientViewMessage> group = new ArrayList<ClientViewMessage>(2);
-                long reuseHash = ClientViewCapability.MESH_REUSE.in(caps)
+                long reuseHash = ViewStreamCapability.MESH_REUSE.in(caps)
                     ? ClientMeshHash.resolved(section, registry.hashSalt(), registry.palette()::state) : 0L;
-                if (ClientViewCapability.MESH_REUSE.in(caps) && mesh.reuse(ready, reuseHash)) {
+                if (ViewStreamCapability.MESH_REUSE.in(caps) && mesh.reuse(ready, reuseHash)) {
                     group.add(new ClientViewMessage.MeshReuse(section.portalKey(), section.generation(), section.sectionX(), section.sectionY(),
                         section.sectionZ(), section.revision(), reuseHash));
                 } else {
@@ -1551,7 +1557,7 @@ public final class ClientViewServerSession<P, B> {
                 }
                 int bytes = 0;
                 for (ClientViewMessage message : group) {
-                    bytes += ClientViewCodec.encodeBody(message).length + ClientViewProtocol.S2C_HEADER_BYTES;
+                    bytes += ClientViewCodec.encodeBody(message).length + ViewStreamLimits.S2C_HEADER_BYTES;
                 }
                 if (bytes > ClientMeshStream.SECTION_RESERVATION_BYTES) {
                     throw new ClientViewProtocolException("mesh section plus palette needs " + bytes + " bytes; reservation is "
@@ -1601,7 +1607,7 @@ public final class ClientViewServerSession<P, B> {
 
     private void sendDirect(ClientViewMessage message) {
         try {
-            byte[] frame = ClientViewCodec.encodeS2C(message, sequence.getAndIncrement(), ClientViewProtocol.FLAG_LAST);
+            byte[] frame = ClientViewCodec.encodeS2C(message, sequence.getAndIncrement(), ViewStreamLimits.FLAG_LAST);
             platform.transport().send(player, frame);
             platform.transport().flush(player);
             framesSent.incrementAndGet();
@@ -1621,16 +1627,16 @@ public final class ClientViewServerSession<P, B> {
         return platform.nanoClock().getAsLong() / NANOS_PER_MILLI;
     }
 
-    private static int[] geometryPaletteIds(ClientPortalGeometry geometry) {
+    private static int[] geometryPaletteIds(ApertureDescriptor geometry) {
         if (geometry.nested().isEmpty()) {
             return new int[] {geometry.blackoutState()};
         }
-        ArrayList<ClientPortalGeometry> pending = new ArrayList<ClientPortalGeometry>();
+        ArrayList<ApertureDescriptor> pending = new ArrayList<ApertureDescriptor>();
         pending.add(geometry);
         int[] ids = new int[4];
         int count = 0;
         while (!pending.isEmpty()) {
-            ClientPortalGeometry next = pending.remove(pending.size() - 1);
+            ApertureDescriptor next = pending.remove(pending.size() - 1);
             if (count == ids.length) {
                 ids = Arrays.copyOf(ids, count * 2);
             }

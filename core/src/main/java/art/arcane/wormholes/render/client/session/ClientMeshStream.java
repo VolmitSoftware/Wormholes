@@ -11,15 +11,16 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.IntPredicate;
 
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
+import art.arcane.optics.math.Vec3;
+import art.arcane.optics.view.WorldChangeTracker;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.view.EntityVisual;
-import art.arcane.wormholes.network.client.BrickLightSource;
-import art.arcane.wormholes.network.client.SectionBiomes;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
-import art.arcane.wormholes.render.plate.ViewPlate;
-import art.arcane.wormholes.render.plate.PlateBox;
+import art.arcane.optics.entity.EntitySnapshot;
+import art.arcane.optics.stream.BrickLightSource;
+import art.arcane.optics.stream.SectionBiomes;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.plate.ViewPlate;
+import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.client.MeshPlan;
 
 final class ClientMeshStream<B> {
     static final int SCOPES_PER_TICK = 8;
@@ -51,12 +52,12 @@ final class ClientMeshStream<B> {
     }
 
     synchronized <P> boolean refresh(ClientViewPortalSlot<B> slot, ClientViewPortalAccess<P, B> portals, P player,
-                                     long tick, long now, boolean destinationLight, GeometryVector eye) {
+                                     long tick, long now, boolean destinationLight, Vec3 eye) {
         if (eye == null) {
             return false;
         }
         State<B> state = states.get(slot.key);
-        ClientPortalGeometry geometry = slot.geometry;
+        ApertureDescriptor geometry = slot.geometry;
         if (state == null || !state.geometry.sameSurface(geometry)) {
             remove(slot.key);
             state = new State<B>(slot, ++generation, geometry);
@@ -65,7 +66,7 @@ final class ClientMeshStream<B> {
             if (captureTurns.size() < SCOPES_PER_TICK) {
                 captureTurns.add(slot.key);
             }
-            control.add(new ClientViewMessage.MeshBegin(slot.key, state.generation, ClientMeshPlan.bounds(geometry), ClientMeshPlan.capacity(geometry)));
+            control.add(new ClientViewMessage.MeshBegin(slot.key, state.generation, MeshPlan.bounds(geometry), MeshPlan.capacity(geometry)));
         }
         if (state.eye == null || tick - state.plannedTick >= 8 && state.eye.distance(eye) > 0.5) {
             replan(state, eye, tick);
@@ -95,7 +96,7 @@ final class ClientMeshStream<B> {
         if (quota <= 0) {
             return changed;
         }
-        ProjectionWorldChangeTracker changes = portals.meshChanges(player);
+        WorldChangeTracker changes = portals.meshChanges(player);
         ArrayList<Entry<B>> captures = new ArrayList<Entry<B>>(quota);
         int admissions = Math.max(1, MAX_PENDING_CAPTURES / Math.max(slot.announced ? 1 : 2, scopes));
         boolean canStart = pending < MAX_PENDING_CAPTURES && pending + inFlight < MAX_IN_FLIGHT;
@@ -124,8 +125,8 @@ final class ClientMeshStream<B> {
             admissions--;
         }
         for (Entry<B> entry : captures) {
-            ClientMeshPlan.Coordinate coordinate = entry.coordinate;
-            ClientMeshPlan.Section section = new ClientMeshPlan.Section(coordinate.x(), coordinate.y(), coordinate.z(), 0);
+            MeshPlan.Coordinate coordinate = entry.coordinate;
+            MeshPlan.Section section = new MeshPlan.Section(coordinate.x(), coordinate.y(), coordinate.z(), 0);
             checksThisTick++;
             ViewPlate<B> plate = slot.nestedChild()
                 ? portals.nestedMeshSection(player, slot.portalId, slot.childId, section.clip(), geometry.depthBlocks())
@@ -217,7 +218,7 @@ final class ClientMeshStream<B> {
         if (state == null || state.generation != ack.generation()) {
             return false;
         }
-        Entry<B> entry = state.entries.get(new ClientMeshPlan.Coordinate(ack.sectionX(), ack.sectionY(), ack.sectionZ()));
+        Entry<B> entry = state.entries.get(new MeshPlan.Coordinate(ack.sectionX(), ack.sectionY(), ack.sectionZ()));
         if (entry == null || !entry.awaiting || entry.revision != ack.revision()) {
             return false;
         }
@@ -251,9 +252,9 @@ final class ClientMeshStream<B> {
             || message.sequence() <= state.localSequence) {
             return false;
         }
-        PlateBox bounds = ClientMeshPlan.bounds(state.geometry);
+        PlateBox bounds = MeshPlan.bounds(state.geometry);
         for (ClientViewMessage.MeshCoordinate section : message.sections()) {
-            ClientMeshPlan.Section target = new ClientMeshPlan.Section(section.x(), section.y(), section.z(), 0);
+            MeshPlan.Section target = new MeshPlan.Section(section.x(), section.y(), section.z(), 0);
             if (!inside(bounds, target)) {
                 return false;
             }
@@ -261,17 +262,17 @@ final class ClientMeshStream<B> {
         if (message.available()) {
             Set<UUID> entities = new HashSet<>(state.localEntities);
             entities.addAll(message.entities());
-            Set<ClientMeshPlan.Coordinate> sections = new HashSet<>(state.localSections);
+            Set<MeshPlan.Coordinate> sections = new HashSet<>(state.localSections);
             for (ClientViewMessage.MeshCoordinate section : message.sections()) {
-                sections.add(new ClientMeshPlan.Coordinate(section.x(), section.y(), section.z()));
+                sections.add(new MeshPlan.Coordinate(section.x(), section.y(), section.z()));
             }
-            if (entities.size() > 4096 || sections.size() > ClientMeshPlan.capacity(state.geometry)) {
+            if (entities.size() > 4096 || sections.size() > MeshPlan.capacity(state.geometry)) {
                 return false;
             }
         }
         state.localSequence = message.sequence();
         for (ClientViewMessage.MeshCoordinate section : message.sections()) {
-            ClientMeshPlan.Coordinate coordinate = new ClientMeshPlan.Coordinate(section.x(), section.y(), section.z());
+            MeshPlan.Coordinate coordinate = new MeshPlan.Coordinate(section.x(), section.y(), section.z());
             if (message.available()) {
                 state.localSections.add(coordinate);
             } else {
@@ -300,7 +301,7 @@ final class ClientMeshStream<B> {
         return true;
     }
 
-    private static boolean inside(PlateBox bounds, ClientMeshPlan.Section section) {
+    private static boolean inside(PlateBox bounds, MeshPlan.Section section) {
         long x = (long) section.x() * 16;
         long y = (long) section.y() * 16;
         long z = (long) section.z() * 16;
@@ -314,9 +315,9 @@ final class ClientMeshStream<B> {
         if (state == null || state.localEntities.isEmpty()) {
             return frame;
         }
-        List<EntityVisual> entities = new ArrayList<>(frame.entities().size());
+        List<EntitySnapshot> entities = new ArrayList<>(frame.entities().size());
         List<UUID> present = new ArrayList<>(frame.presentIds().size());
-        for (EntityVisual entity : frame.entities()) {
+        for (EntitySnapshot entity : frame.entities()) {
             if (!state.localEntities.contains(entity.id())) {
                 entities.add(entity);
             }
@@ -340,21 +341,21 @@ final class ClientMeshStream<B> {
         if (state == null || state.generation != message.generation() || message.sequence() <= state.cacheSequence) {
             return false;
         }
-        PlateBox bounds = ClientMeshPlan.bounds(state.geometry);
-        HashSet<ClientMeshPlan.Coordinate> added = new HashSet<>(state.cached.keySet());
+        PlateBox bounds = MeshPlan.bounds(state.geometry);
+        HashSet<MeshPlan.Coordinate> added = new HashSet<>(state.cached.keySet());
         for (ClientViewMessage.MeshClaim claim : message.claims()) {
-            ClientMeshPlan.Section section = new ClientMeshPlan.Section(claim.x(), claim.y(), claim.z(), 0);
+            MeshPlan.Section section = new MeshPlan.Section(claim.x(), claim.y(), claim.z(), 0);
             if (!inside(bounds, section)) {
                 return false;
             }
             added.add(section.coordinate());
         }
-        if (message.available() && added.size() > ClientMeshPlan.capacity(state.geometry)) {
+        if (message.available() && added.size() > MeshPlan.capacity(state.geometry)) {
             return false;
         }
         state.cacheSequence = message.sequence();
         for (ClientViewMessage.MeshClaim claim : message.claims()) {
-            ClientMeshPlan.Coordinate coordinate = new ClientMeshPlan.Coordinate(claim.x(), claim.y(), claim.z());
+            MeshPlan.Coordinate coordinate = new MeshPlan.Coordinate(claim.x(), claim.y(), claim.z());
             if (message.available()) {
                 state.cached.put(coordinate, claim.hash());
             } else {
@@ -401,12 +402,12 @@ final class ClientMeshStream<B> {
         inFlight = 0;
     }
 
-    private void replan(State<B> state, GeometryVector eye, long tick) {
+    private void replan(State<B> state, Vec3 eye, long tick) {
         state.eye = eye;
         state.plannedTick = tick;
-        state.order = ClientMeshPlan.visible(state.geometry, eye);
+        state.order = MeshPlan.visible(state.geometry, eye);
         state.wanted.clear();
-        for (ClientMeshPlan.Section section : state.order) {
+        for (MeshPlan.Section section : state.order) {
             state.wanted.add(section.coordinate());
         }
         state.initialCursor = 0;
@@ -414,7 +415,7 @@ final class ClientMeshStream<B> {
 
     private Entry<B> initialEntry(State<B> state) {
         while (state.initialCursor < state.order.size()) {
-            ClientMeshPlan.Coordinate coordinate = state.order.get(state.initialCursor++).coordinate();
+            MeshPlan.Coordinate coordinate = state.order.get(state.initialCursor++).coordinate();
             if (!state.localSections.contains(coordinate) && !state.entries.containsKey(coordinate)) {
                 Entry<B> entry = new Entry<B>(coordinate);
                 state.entries.put(coordinate, entry);
@@ -425,7 +426,7 @@ final class ClientMeshStream<B> {
         return null;
     }
 
-    private Entry<B> refreshEntry(State<B> state, long tick, ProjectionWorldChangeTracker changes) {
+    private Entry<B> refreshEntry(State<B> state, long tick, WorldChangeTracker changes) {
         if (changes != null) {
             if (++state.refreshSequence % 2 == 0) {
                 int count = Math.min(16, state.order.size());
@@ -465,7 +466,7 @@ final class ClientMeshStream<B> {
         return null;
     }
 
-    private boolean dirty(Entry<B> entry, ProjectionWorldChangeTracker changes) {
+    private boolean dirty(Entry<B> entry, WorldChangeTracker changes) {
         if (entry == null || entry.awaiting || entry.queued || entry.pending) {
             return false;
         }
@@ -491,26 +492,26 @@ final class ClientMeshStream<B> {
         };
     }
 
-    record Ready<B>(ClientViewPortalSlot<B> slot, int generation, ClientMeshPlan.Coordinate coordinate, int revision, ViewPlate<B> plate, BrickLightSource light, SectionBiomes biomes) {
+    record Ready<B>(ClientViewPortalSlot<B> slot, int generation, MeshPlan.Coordinate coordinate, int revision, ViewPlate<B> plate, BrickLightSource light, SectionBiomes biomes) {
     }
 
     private static final class State<B> {
         private final ClientViewPortalSlot<B> slot;
         private final int generation;
-        private final ClientPortalGeometry geometry;
+        private final ApertureDescriptor geometry;
         private final ArrayList<Entry<B>> capturing = new ArrayList<Entry<B>>(MAX_PENDING_CAPTURES);
-        private final HashMap<ClientMeshPlan.Coordinate, Entry<B>> entries = new HashMap<ClientMeshPlan.Coordinate, Entry<B>>();
+        private final HashMap<MeshPlan.Coordinate, Entry<B>> entries = new HashMap<MeshPlan.Coordinate, Entry<B>>();
         private final ArrayList<Entry<B>> residents = new ArrayList<Entry<B>>();
-        private final HashSet<ClientMeshPlan.Coordinate> wanted = new HashSet<ClientMeshPlan.Coordinate>();
+        private final HashSet<MeshPlan.Coordinate> wanted = new HashSet<MeshPlan.Coordinate>();
         private final HashSet<Entry<B>> awaiting = new HashSet<Entry<B>>();
-        private final Set<ClientMeshPlan.Coordinate> localSections = new HashSet<>();
+        private final Set<MeshPlan.Coordinate> localSections = new HashSet<>();
         private final Set<UUID> localEntities = new HashSet<>();
-        private final HashMap<ClientMeshPlan.Coordinate, Long> cached = new HashMap<>();
+        private final HashMap<MeshPlan.Coordinate, Long> cached = new HashMap<>();
         private int localSequence;
         private int cacheSequence;
         private boolean localAllowed;
-        private List<ClientMeshPlan.Section> order = new ArrayList<ClientMeshPlan.Section>();
-        private GeometryVector eye;
+        private List<MeshPlan.Section> order = new ArrayList<MeshPlan.Section>();
+        private Vec3 eye;
         private long plannedTick;
         private int cursor;
         private int dirtyCursor;
@@ -523,7 +524,7 @@ final class ClientMeshStream<B> {
         private int revision;
         private boolean begun;
 
-        private State(ClientViewPortalSlot<B> slot, int generation, ClientPortalGeometry geometry) {
+        private State(ClientViewPortalSlot<B> slot, int generation, ApertureDescriptor geometry) {
             this.slot = slot;
             this.generation = generation;
             this.geometry = geometry;
@@ -531,7 +532,7 @@ final class ClientMeshStream<B> {
     }
 
     private static final class Entry<B> {
-        private final ClientMeshPlan.Coordinate coordinate;
+        private final MeshPlan.Coordinate coordinate;
         private WeakReference<ViewPlate<B>> previous = new WeakReference<ViewPlate<B>>(null);
         private ViewPlate.ChangeRegion changeRegion;
         private int revision;
@@ -544,7 +545,7 @@ final class ClientMeshStream<B> {
         private long contentHash;
         private int backingState;
 
-        private Entry(ClientMeshPlan.Coordinate coordinate) {
+        private Entry(MeshPlan.Coordinate coordinate) {
             this.coordinate = coordinate;
         }
     }

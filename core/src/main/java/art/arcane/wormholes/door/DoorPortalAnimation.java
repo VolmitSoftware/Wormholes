@@ -1,6 +1,6 @@
 package art.arcane.wormholes.door;
 
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 
 import java.util.Objects;
 
@@ -9,7 +9,7 @@ import java.util.Objects;
  *
  * <p>The face passed in is the surface normal of the panel, not the block's
  * facing: a hinged door hands in its cardinal facing, while a trapdoor's panel
- * lies flat and hands in {@link Direction#U}. A flat panel pulses across both
+ * lies flat and hands in {@link Face#U}. A flat panel pulses across both
  * horizontal axes and holds its thickness instead.</p>
  */
 public final class DoorPortalAnimation
@@ -31,7 +31,7 @@ public final class DoorPortalAnimation
 	{
 	}
 
-	public static PortalPlaneGeometry frame(PortalPlaneGeometry base, Direction facing, int tick)
+	public static PortalPlaneGeometry frame(PortalPlaneGeometry base, Face facing, int tick)
 	{
 		Objects.requireNonNull(base, "base");
 		float pulse = 1.0F - (PULSE_DEPTH * (0.5F + (0.5F * (float) Math.sin((tick * TAU) / PULSE_PERIOD_TICKS))));
@@ -77,7 +77,7 @@ public final class DoorPortalAnimation
 		};
 	}
 
-	public static double[] orbitPoint(PortalPlaneGeometry base, Direction facing, int tick, int arm)
+	public static double[] orbitPoint(PortalPlaneGeometry base, Face facing, int tick, int arm)
 	{
 		Objects.requireNonNull(base, "base");
 		if(arm < 0 || arm >= ORBIT_ARMS)
@@ -120,7 +120,7 @@ public final class DoorPortalAnimation
 		};
 	}
 
-	public static double[] scatterPoint(PortalPlaneGeometry base, Direction facing, double u, double v)
+	public static double[] scatterPoint(PortalPlaneGeometry base, Face facing, double u, double v)
 	{
 		Objects.requireNonNull(base, "base");
 		if(u < 0.0D || u >= 1.0D || v < 0.0D || v >= 1.0D)
@@ -150,7 +150,7 @@ public final class DoorPortalAnimation
 		return verticalCenter + (base.scaleY() * ORBIT_VERTICAL_FRACTION * Math.sin(angle));
 	}
 
-	private static Direction requireSupported(Direction facing)
+	private static Face requireSupported(Face facing)
 	{
 		Objects.requireNonNull(facing, "facing");
 		return facing;

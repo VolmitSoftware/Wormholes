@@ -3,15 +3,15 @@ package art.arcane.wormholes.render.client.session;
 import java.util.List;
 
 import art.arcane.wormholes.config.VisualQualityProfile;
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
+import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.AmbientSparkCadence;
 import art.arcane.wormholes.portal.effects.PortalAnimation;
-import art.arcane.wormholes.render.acoustics.AcousticsBridge;
-import art.arcane.wormholes.render.acoustics.AcousticsProfile;
-import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.optics.fidelity.AcousticsBridge;
+import art.arcane.optics.fidelity.AcousticsProfile;
+import art.arcane.optics.math.Box;
 
 public final class ClientViewEmitters {
     public static final String SPARK_PARTICLE = "minecraft:mycelium";
@@ -35,7 +35,7 @@ public final class ClientViewEmitters {
     private ClientViewEmitters() {
     }
 
-    public static void rim(AxisAlignedBB area, int red, int green, int blue, int intervalTicks, List<ClientViewMessage.FxEmitter> out) {
+    public static void rim(Box area, int red, int green, int blue, int intervalTicks, List<ClientViewMessage.FxEmitter> out) {
         if (area == null) {
             return;
         }
@@ -53,7 +53,7 @@ public final class ClientViewEmitters {
             return;
         }
         int cadence = Math.max(1, ambient.cadenceTicks());
-        AxisAlignedBB area = ambient.area();
+        Box area = ambient.area();
         if (style == AmbientParticleStyle.SPARKS) {
             int interval = Math.max(1, Math.min(MAX_SURFACE_INTERVAL, ambient.intervalTicks()));
             int flags = (ambient.open() ? SURFACE_OPEN_FLAG : 0) | (interval << SURFACE_INTERVAL_SHIFT);
@@ -74,7 +74,7 @@ public final class ClientViewEmitters {
         if (points == null || points.isEmpty()) {
             return;
         }
-        int limit = Math.min(points.size(), ClientViewProtocol.MAX_FX_EMITTERS - out.size());
+        int limit = Math.min(points.size(), ViewStreamLimits.MAX_FX_EMITTERS - out.size());
         int window = ambient.open() ? OPEN_OUTLINE_WINDOW : CLOSED_OUTLINE_WINDOW;
         int ticks = rotation(points.size(), window, cadence);
         for (int index = 0; index < limit; index++) {
@@ -88,7 +88,7 @@ public final class ClientViewEmitters {
         return kind == ClientViewMessage.FxKind.ANIMATION || kind == ClientViewMessage.FxKind.BURST || emitter.ticks() == 0;
     }
 
-    public static ClientViewMessage.FxEmitter animation(PortalAnimation.Mode mode, GeometryVector center, GeometryVector size,
+    public static ClientViewMessage.FxEmitter animation(PortalAnimation.Mode mode, Vec3 center, Vec3 size,
                                                         VisualQualityProfile quality) {
         int normal = PortalAnimation.normalAxis(size);
         double[] extent = {size.x(), size.y(), size.z()};
@@ -110,7 +110,7 @@ public final class ClientViewEmitters {
         if (mode >= modes.length || normal > 2 || quality >= qualities.length || !Float.isFinite(emitter.paramA()) || !Float.isFinite(emitter.paramB())) {
             return null;
         }
-        return new Animation(modes[mode], new GeometryVector(emitter.x(), emitter.y(), emitter.z()),
+        return new Animation(modes[mode], new Vec3(emitter.x(), emitter.y(), emitter.z()),
             PortalAnimation.planeSize(normal, emitter.paramA(), emitter.paramB()), qualities[quality]);
     }
 
@@ -153,10 +153,10 @@ public final class ClientViewEmitters {
         return (Math.max(0, Math.min(255, channel)) >> COLOR_LEVELS_SHIFT) * COLOR_LEVEL_SCALE;
     }
 
-    public record Animation(PortalAnimation.Mode mode, GeometryVector center, GeometryVector size, VisualQualityProfile quality) {
+    public record Animation(PortalAnimation.Mode mode, Vec3 center, Vec3 size, VisualQualityProfile quality) {
     }
 
-    public record Ambient(AmbientParticleStyle style, int rgb, boolean open, int intervalTicks, int cadenceTicks, AxisAlignedBB area,
+    public record Ambient(AmbientParticleStyle style, int rgb, boolean open, int intervalTicks, int cadenceTicks, Box area,
                           List<double[]> outline) {
     }
 }

@@ -1,9 +1,9 @@
 package art.arcane.wormholes.render.client.session;
 
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.network.client.SessionPalette;
-import art.arcane.wormholes.network.view.EntityVisual;
+import art.arcane.optics.entity.EntitySnapshot;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -14,6 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import art.arcane.optics.client.MeshPlan;
 
 final class ClientMeshLocalTest {
     @Test
@@ -123,7 +124,7 @@ final class ClientMeshLocalTest {
     void retractingOnlyOneLoadedSectionResumesItsRemoteCapture() {
         Fixture fixture = new Fixture(true, true);
         ClientViewMessage.MeshCoordinate first = fixture.coordinate();
-        ClientMeshPlan.Section second = ClientMeshPlan.visible(fixture.slot.geometry, fixture.eye).get(1);
+        MeshPlan.Section second = MeshPlan.visible(fixture.slot.geometry, fixture.eye).get(1);
         ClientViewMessage.MeshCoordinate retained = new ClientViewMessage.MeshCoordinate(second.x(), second.y(), second.z());
         assertTrue(fixture.stream.local(new ClientViewMessage.MeshLocal(1, fixture.begin.generation(), 1, true,
             List.of(first, retained), List.of())));
@@ -155,8 +156,8 @@ final class ClientMeshLocalTest {
         Fixture fixture = new Fixture(true, true);
         UUID local = UUID.randomUUID();
         UUID remote = UUID.randomUUID();
-        EntityVisual localVisual = visual(local);
-        EntityVisual remoteVisual = visual(remote);
+        EntitySnapshot localVisual = visual(local);
+        EntitySnapshot remoteVisual = visual(remote);
         assertTrue(fixture.stream.local(new ClientViewMessage.MeshLocal(1, fixture.begin.generation(), 1, true,
             List.of(), List.of(local))));
         ClientViewMessage.EntityFrame incoming = new ClientViewMessage.EntityFrame(1, 7,
@@ -195,17 +196,17 @@ final class ClientMeshLocalTest {
             List.of(), List.of(id))));
     }
 
-    private static EntityVisual visual(UUID id) {
-        return new EntityVisual(EntityVisual.MODE_FULL, 0, EntityVisual.FIELD_ALL_FULL, id, "minecraft:armor_stand", 11, 67, 20,
+    private static EntitySnapshot visual(UUID id) {
+        return new EntitySnapshot(EntitySnapshot.MODE_FULL, 0, EntitySnapshot.FIELD_ALL_FULL, id, "minecraft:armor_stand", 11, 67, 20,
             1.975, 0, 0, -1, 180, 0, 0, 0, 0, true, "", "", "", null, null,
-            EntityVisual.EMPTY, EntityVisual.EMPTY, EntityVisual.EMPTY);
+            EntitySnapshot.EMPTY, EntitySnapshot.EMPTY, EntitySnapshot.EMPTY);
     }
 
     private static final class Fixture {
         private final FakePortalAccess access = new FakePortalAccess(new ArrayList<>());
         private final ClientMeshStream<String> stream = new ClientMeshStream<>();
         private final ClientViewPortalSlot<String> slot;
-        private final GeometryVector eye = new GeometryVector(11, 67, 15);
+        private final Vec3 eye = new Vec3(11, 67, 15);
         private final ClientViewMessage.MeshBegin begin;
 
         private Fixture(boolean mirror, boolean local) {
@@ -222,7 +223,7 @@ final class ClientMeshLocalTest {
         }
 
         private ClientViewMessage.MeshCoordinate coordinate() {
-            ClientMeshPlan.Section section = ClientMeshPlan.visible(slot.geometry, eye).getFirst();
+            MeshPlan.Section section = MeshPlan.visible(slot.geometry, eye).getFirst();
             return new ClientViewMessage.MeshCoordinate(section.x(), section.y(), section.z());
         }
 

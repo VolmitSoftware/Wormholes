@@ -1,7 +1,7 @@
 package art.arcane.wormholes.render.view;
 
-import art.arcane.wormholes.render.DirectionMapping;
-import art.arcane.wormholes.render.ProjectionBlockTypes;
+import art.arcane.optics.frame.DirectionMapping;
+import art.arcane.optics.view.BlockStates;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
@@ -21,6 +21,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import art.arcane.optics.view.CachedSection;
+import art.arcane.optics.view.SectionCache;
 
 class SectionCachedWorldViewTest {
     private static final SectionCache.Limits LIMITS = new SectionCache.Limits(true, 1L << 30, 16, 600);
@@ -185,7 +187,7 @@ class SectionCachedWorldViewTest {
         }
     }
 
-    private static final class StoneBlocks implements ProjectionBlockTypes<BlockData, Material> {
+    private static final class StoneBlocks implements BlockStates<BlockData, Material> {
         @Override
         public BlockData air() {
             return null;

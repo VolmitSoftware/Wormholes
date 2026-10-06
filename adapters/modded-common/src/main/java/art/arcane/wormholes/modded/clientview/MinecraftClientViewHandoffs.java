@@ -1,10 +1,10 @@
 package art.arcane.wormholes.modded.clientview;
 
-import art.arcane.wormholes.network.client.BrickLightSource;
-import art.arcane.wormholes.render.ProjectorSample;
-import art.arcane.wormholes.render.client.session.ClientViewPlateHandoff;
-import art.arcane.wormholes.render.plate.PlateCell;
-import art.arcane.wormholes.render.plate.ViewPlate;
+import art.arcane.optics.stream.BrickLightSource;
+import art.arcane.optics.scan.ProjectorSample;
+import art.arcane.optics.stream.ClientViewPlateHandoff;
+import art.arcane.optics.plate.PlateCell;
+import art.arcane.optics.plate.ViewPlate;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.objects.Reference2IntOpenHashMap;
 import net.minecraft.commands.arguments.blocks.BlockStateParser;

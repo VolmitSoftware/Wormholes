@@ -7,24 +7,24 @@ import art.arcane.volmlib.nativelib.chunk.ChunkWorldContext;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.platform.WormholesPlatform;
-import art.arcane.wormholes.chunk.ChunkLease;
+import art.arcane.optics.plate.ChunkLease;
 import art.arcane.wormholes.chunk.BukkitChunkLeaseProvider;
 import art.arcane.wormholes.chunk.presend.ChunkCoordinate;
 import art.arcane.wormholes.chunk.presend.ChunkPreSendPlanner;
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
+import art.arcane.optics.math.Vec3;
+import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
+import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.LocalPortal;
-import art.arcane.wormholes.portal.PortalCrossing;
+import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.wormholes.util.BukkitGeometry;
 import art.arcane.wormholes.door.view.DoorProjectionAdapter;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import art.arcane.wormholes.render.ClientViewPortalSource;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
-import art.arcane.wormholes.render.client.ClientViewEntityTransform;
-import art.arcane.wormholes.render.client.ClientViewEnvironmentTransform;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.client.ClientViewEntityTransform;
+import art.arcane.optics.client.ClientViewEnvironmentTransform;
 import art.arcane.wormholes.render.client.session.ClientPreparedTravelServer;
 import art.arcane.wormholes.render.client.session.ClientViewServerSession;
 import org.bukkit.Location;
@@ -77,7 +77,7 @@ final class BukkitPreparedTravel implements AutoCloseable {
         ILocalPortal source = nearest(session, player, interested);
         ClientViewPortalSource route = source == null ? null : session.player().source(source.getId());
         World world = route == null ? null : route.destinationWorld();
-        ClientViewEntityTransform.Frame frame = route == null ? null : route.transformFrame();
+        ClientViewEntityTransform.EntityFrame frame = route == null ? null : route.transformFrame();
         if (world == null || frame == null || frame.mirror()
             || route.destinationAnchor() == null || route.destinationAnchor().isRemote()
             || route.destinationAnchor() instanceof ILocalPortal anchor && !anchor.canArrive(player)) {
@@ -85,9 +85,9 @@ final class BukkitPreparedTravel implements AutoCloseable {
             return;
         }
         Location location = player.getLocation();
-        GeometryVector feet = frame.localFrame().transformCrossingPoint(new GeometryVector(location.getX(), location.getY(), location.getZ()),
-            new GeometryVector(frame.localOriginX(), frame.localOriginY(), frame.localOriginZ()),
-            new GeometryVector(frame.remoteOriginX(), frame.remoteOriginY(), frame.remoteOriginZ()), frame.remoteFrame());
+        Vec3 feet = frame.localFrame().transformCrossingPoint(new Vec3(location.getX(), location.getY(), location.getZ()),
+            new Vec3(frame.localOriginX(), frame.localOriginY(), frame.localOriginZ()),
+            new Vec3(frame.remoteOriginX(), frame.remoteOriginY(), frame.remoteOriginZ()), frame.remoteFrame());
         Preparation preparation = preparations.get(player.getUniqueId());
         if (preparation != null && preparation.failed) {
             retryAfter.put(player.getUniqueId(), System.currentTimeMillis() + 30_000L);
@@ -101,7 +101,7 @@ final class BukkitPreparedTravel implements AutoCloseable {
             if (sourceContext.isEmpty()) {
                 return;
             }
-            ClientPortalGeometry geometry = session.travelGeometry(source.getId());
+            ApertureDescriptor geometry = session.travelGeometry(source.getId());
             if (geometry == null || geometry.mirror()) {
                 return;
             }
@@ -134,7 +134,7 @@ final class BukkitPreparedTravel implements AutoCloseable {
     }
 
     ClientViewMessage.TravelCommit commit(ClientViewServerSession<ClientViewObserver, BlockData> session,
-                                         Player player, UUID source, Location target, GeometryVector velocity) {
+                                         Player player, UUID source, Location target, Vec3 velocity) {
         Preparation preparation = preparations.get(player.getUniqueId());
         if (preparation == null || preparation.begin == null || preparation.world != target.getWorld() || !session.travel().crossing()) {
             return null;
@@ -174,11 +174,11 @@ final class BukkitPreparedTravel implements AutoCloseable {
             }
         }
         ClientViewPortalSource route = source == null ? null : session.player().source(source.getId());
-        ClientPortalGeometry geometry = source == null ? null : session.travelGeometry(source.getId());
+        ApertureDescriptor geometry = source == null ? null : session.travelGeometry(source.getId());
         Optional<ChunkWorldContext> context = packets.context(player.getWorld());
         Location location = player.getLocation();
-        GeometryVector feet = BukkitGeometry.vector(location);
-        GeometryVector velocity = BukkitGeometry.vector(Wormholes.traversableManager.getVelocity(player));
+        Vec3 feet = BukkitGeometry.vector(location);
+        Vec3 velocity = BukkitGeometry.vector(Wormholes.traversableManager.getVelocity(player));
         boolean allowed = preparation != null && source != null && geometry != null && context.isPresent()
             && !preparation.committed && preparation.live.get() && source.isOpen() && !source.isMirrorMode()
             && source.getStructure().getWorld() == player.getWorld() && source.canDepart(player)
@@ -196,10 +196,10 @@ final class BukkitPreparedTravel implements AutoCloseable {
         }
         if (allowed) {
             boolean front = geometry.signedDistance(request.previousEye().x(), request.previousEye().y(), request.previousEye().z()) > 0.0D;
-            GeometryVector admittedFeet = new GeometryVector(request.sourcePose().x(), request.sourcePose().y(), request.sourcePose().z());
+            Vec3 admittedFeet = new Vec3(request.sourcePose().x(), request.sourcePose().y(), request.sourcePose().z());
             Location admitted = new Location(player.getWorld(), admittedFeet.x(), admittedFeet.y(), admittedFeet.z(),
                 request.sourcePose().yaw(), request.sourcePose().pitch());
-            PortalCrossing actual = new PortalCrossing(source.getFrame().view(front), source.getOrigin(), admittedFeet, velocity,
+            PlaneCrossing actual = new PlaneCrossing(source.getFrame().view(front), source.getOrigin(), admittedFeet, velocity,
                 BukkitGeometry.vector(admitted.getDirection()), front);
             allowed = source instanceof LocalPortal local ? local.crossPrepared(player, actual)
                 : source instanceof DoorProjectionAdapter && Wormholes.dimensionalDoorManager != null
@@ -301,13 +301,13 @@ final class BukkitPreparedTravel implements AutoCloseable {
                 return;
             }
             ChunkWorldContext metadata = context.get();
-            GeometryVector eye = preparation.feet.add(new GeometryVector(0, preparation.eyeHeight, 0));
-            ClientViewEnvironment environment = authoritativeEnvironment(BukkitPortalEnvironment.capture(preparation.world, eye,
-                ClientViewEnvironment.Transform.IDENTITY), metadata);
+            Vec3 eye = preparation.feet.add(new Vec3(0, preparation.eyeHeight, 0));
+            ProjectionEnvironment environment = authoritativeEnvironment(BukkitPortalEnvironment.capture(preparation.world, eye,
+                ProjectionEnvironment.Transform.IDENTITY), metadata);
             preparation.begin = new ClientViewMessage.TravelBegin(UUID.randomUUID(), preparation.generation, preparation.source,
                 preparation.sourceWorld, preparation.sourceGeometry, preparation.destinationToSource, new ClientViewMessage.TravelWorld(metadata.dimension(), metadata.dimensionType(), metadata.seed(),
                     metadata.debug(), metadata.flat(), metadata.seaLevel(), metadata.minY(), metadata.height()), preparation.arrival,
-                preparation.coordinates, environment, ClientViewProtocol.MAX_TRAVEL_EXPIRY_MILLIS);
+                preparation.coordinates, environment, ViewStreamLimits.MAX_TRAVEL_EXPIRY_MILLIS);
         } catch (RuntimeException failure) {
             plugin.getLogger().log(Level.SEVERE, "Could not prepare portal destination " + preparation.destination, failure);
             preparation.failed = true;
@@ -379,7 +379,7 @@ final class BukkitPreparedTravel implements AutoCloseable {
     private static ILocalPortal nearest(ClientViewServerSession<ClientViewObserver, BlockData> session,
                                        Player player, List<ILocalPortal> interested) {
         Location point = player.getLocation();
-        GeometryVector feet = new GeometryVector(point.getX(), point.getY(), point.getZ());
+        Vec3 feet = new Vec3(point.getX(), point.getY(), point.getZ());
         ILocalPortal nearest = null;
         double distance = Double.POSITIVE_INFINITY;
         for (ILocalPortal portal : interested) {
@@ -400,10 +400,10 @@ final class BukkitPreparedTravel implements AutoCloseable {
         return nearest;
     }
 
-    private static ClientViewEnvironment authoritativeEnvironment(ClientViewEnvironment environment, ChunkWorldContext metadata) {
-        ClientViewEnvironment.World world = environment.world();
-        return new ClientViewEnvironment(metadata.gameTime(), environment.sky(), environment.fog(), environment.lighting(),
-            environment.clouds(), environment.transform(), environment.dimension(), new ClientViewEnvironment.World(metadata.dimension(),
+    private static ProjectionEnvironment authoritativeEnvironment(ProjectionEnvironment environment, ChunkWorldContext metadata) {
+        ProjectionEnvironment.World world = environment.world();
+        return new ProjectionEnvironment(metadata.gameTime(), environment.sky(), environment.fog(), environment.lighting(),
+            environment.clouds(), environment.transform(), environment.dimension(), new ProjectionEnvironment.World(metadata.dimension(),
                 metadata.clockTime(), world.biomeKey(), metadata.seaLevel(), world.blockLight(), world.skyLight(), world.logicalHeight(),
                 world.hasCeiling(), world.ambientLight(), world.eyeMedium(), world.hasFixedTime()));
     }
@@ -411,17 +411,17 @@ final class BukkitPreparedTravel implements AutoCloseable {
     private record Snapshot(ClientViewMessage.TravelCoordinate coordinate, int revision, ChunkPacketSnapshot packet, long stamp) {
     }
 
-    private record PreparationOptions(ClientPortalGeometry sourceGeometry, ClientViewEnvironment.Transform destinationToSource, UUID source, UUID destination, World world, GeometryVector feet,
+    private record PreparationOptions(ApertureDescriptor sourceGeometry, ProjectionEnvironment.Transform destinationToSource, UUID source, UUID destination, World world, Vec3 feet,
                                       ClientViewMessage.TravelPose arrival, double eyeHeight, String sourceWorld, long generation) {
     }
 
     private static final class Preparation implements AutoCloseable {
-        private final ClientPortalGeometry sourceGeometry;
-        private final ClientViewEnvironment.Transform destinationToSource;
+        private final ApertureDescriptor sourceGeometry;
+        private final ProjectionEnvironment.Transform destinationToSource;
         private final UUID source;
         private final UUID destination;
         private final World world;
-        private final GeometryVector feet;
+        private final Vec3 feet;
         private final ClientViewMessage.TravelPose arrival;
         private final double eyeHeight;
         private final String sourceWorld;
@@ -453,7 +453,7 @@ final class BukkitPreparedTravel implements AutoCloseable {
             }
         }
 
-        private boolean contains(GeometryVector point) {
+        private boolean contains(Vec3 point) {
             int x = point.getBlockX() >> 4;
             int z = point.getBlockZ() >> 4;
             return coordinates.contains(new ClientViewMessage.TravelCoordinate(x - 1, z - 1))

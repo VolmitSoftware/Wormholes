@@ -1,27 +1,28 @@
 package art.arcane.wormholes.render;
 
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalStructure;
-import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Face;
 import org.junit.jupiter.api.Test;
 
 import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import art.arcane.optics.volume.PlaneWindow;
 
 final class ProjectorPlaneWindowRowTest {
     @Test
     void preparedRowsMatchScalarRaysAcrossFramesAndApertureHoles() {
         Random random = new Random(79584L);
-        for (Direction normal : new Direction[]{Direction.N, Direction.S, Direction.E, Direction.W, Direction.U, Direction.D}) {
-            PortalFrame frame = PortalFrame.canonical(normal);
+        for (Face normal : new Face[]{Face.N, Face.S, Face.E, Face.W, Face.U, Face.D}) {
+            Frame frame = Frame.canonical(normal);
             int normalAxis = axis(normal);
             for (int rotation = 0; rotation < 4; rotation++, frame = frame.rotateClockwise()) {
                 for (double offset : new double[]{0.0D, -30_000_000.0D, 30_000_000.0D}) {
                     double[] origin = new double[]{offset + 0.5D, 64.5D, offset + 0.5D};
-                    AxisAlignedBB area = new AxisAlignedBB(
+                    Box area = new Box(
                         origin[0] - (normalAxis == 0 ? 0.5D : 4.5D), origin[0] + (normalAxis == 0 ? 0.5D : 4.5D),
                         origin[1] - (normalAxis == 1 ? 0.5D : 4.5D), origin[1] + (normalAxis == 1 ? 0.5D : 4.5D),
                         origin[2] - (normalAxis == 2 ? 0.5D : 4.5D), origin[2] + (normalAxis == 2 ? 0.5D : 4.5D));
@@ -37,7 +38,7 @@ final class ProjectorPlaneWindowRowTest {
                         point[normalAxis] -= sign * (0.1D + random.nextDouble() * 64.0D);
                         point[fixedAxis] += random.nextDouble() * 80.0D - 40.0D;
                         double facing = normal.x() + normal.y() + normal.z();
-                        ProjectorPlaneWindow window = ProjectorPlaneWindow.create(new HoledStructure(), area, frame,
+                        PlaneWindow window = PlaneWindow.create(new HoledStructure(), area, frame,
                             origin[0], origin[1], origin[2], new double[]{0.0D, 0.05D, 0.5D, 0.75D, 1.0D}[sample % 5], eyeDistance * facing);
                         double cellDistance = (point[normalAxis] - origin[normalAxis]) * facing;
                         window.prepareRow(variableAxis, eye[0], eye[1], eye[2], point[0], point[1], point[2], cellDistance);
@@ -56,8 +57,8 @@ final class ProjectorPlaneWindowRowTest {
     @Test
     void repeatedPortalHitCellsReuseMembershipChecks() {
         HoledStructure structure = new HoledStructure();
-        ProjectorPlaneWindow window = ProjectorPlaneWindow.create(structure,
-            new AxisAlignedBB(-4, 4, 64, 65, -4, 4), PortalFrame.canonical(Direction.D),
+        PlaneWindow window = PlaneWindow.create(structure,
+            new Box(-4, 4, 64, 65, -4, 4), Frame.canonical(Face.D),
             0, 64.5D, 0, 0.75D, -0.1D);
         window.prepareRow(0, 0, 64.6D, 0, 0, 0.5D, 0, 64.0D);
         for (int coordinate = -96; coordinate <= 96; coordinate++) {
@@ -66,7 +67,7 @@ final class ProjectorPlaneWindowRowTest {
         assertTrue(structure.lookups < 20, "lookups=" + structure.lookups);
     }
 
-    private static int axis(Direction direction) {
+    private static int axis(Face direction) {
         return direction.x() != 0 ? 0 : direction.y() != 0 ? 1 : 2;
     }
 

@@ -4,16 +4,16 @@ import art.arcane.wormholes.network.PortalInfo;
 import art.arcane.wormholes.network.PortalSettingsCodec;
 import art.arcane.wormholes.network.PortalSyncAccess;
 import art.arcane.wormholes.network.PortalSyncService;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalType;
-import art.arcane.wormholes.render.atmosphere.AtmosphereMode;
-import art.arcane.wormholes.render.acoustics.AcousticsProfile;
-import art.arcane.wormholes.render.lod.LodProfile;
+import art.arcane.optics.fidelity.AtmosphereMode;
+import art.arcane.optics.fidelity.AcousticsProfile;
+import art.arcane.optics.volume.LodProfile;
 import art.arcane.wormholes.transit.MomentumPolicy;
 import art.arcane.wormholes.transit.OrientationPolicy;
 import art.arcane.wormholes.transit.TransitionProfile;
 import java.util.List;
-import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.optics.math.Box;
 
 import java.util.Map;
 import java.util.UUID;
@@ -32,8 +32,8 @@ public final class MinecraftPortalSyncAccess implements PortalSyncAccess<Minecra
 
     @Override
     public PortalInfo describe(MinecraftPortal portal) {
-        PortalFrame frame = portal.getFrame();
-        AxisAlignedBB area = portal.getGeometry().getArea();
+        Frame frame = portal.getFrame();
+        Box area = portal.getGeometry().getArea();
         return new PortalInfo(portal.getId(), portal.getName(), portal.getWorldKey(), portal.getType().name(), portal.isOpen(),
             frame.getNormal().name(), frame.getRight().name(), frame.getUp().name(),
             portal.getOrigin().getX(), portal.getOrigin().getY(), portal.getOrigin().getZ(),

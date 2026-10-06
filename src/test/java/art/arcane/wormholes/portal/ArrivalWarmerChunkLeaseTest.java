@@ -1,9 +1,9 @@
 package art.arcane.wormholes.portal;
 
 import art.arcane.wormholes.chunk.BukkitChunkLeaseProvider;
-import art.arcane.wormholes.chunk.ChunkLease;
-import art.arcane.wormholes.chunk.ChunkLeasePlatform;
-import art.arcane.wormholes.chunk.ChunkLeaseRegistry;
+import art.arcane.optics.plate.ChunkLease;
+import art.arcane.optics.plate.ChunkLeasePlatform;
+import art.arcane.optics.plate.ChunkLeaseRegistry;
 import org.bukkit.World;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;

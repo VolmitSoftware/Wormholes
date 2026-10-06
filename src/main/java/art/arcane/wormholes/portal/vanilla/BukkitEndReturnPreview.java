@@ -5,9 +5,9 @@ import art.arcane.volmlib.nativelib.player.PlayerRespawnAccess;
 import art.arcane.volmlib.nativelib.player.RespawnPolicy;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.platform.WormholesPlatform;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.render.PortalProjector;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
@@ -25,7 +25,7 @@ import java.util.logging.Level;
 
 public final class BukkitEndReturnPreview implements AutoCloseable {
     private static final long REFRESH_TICKS = 40L;
-    private static final PortalFrame FRAME = PortalFrame.canonical(Direction.U);
+    private static final Frame FRAME = Frame.canonical(Face.U);
 
     private final Host host;
     private final Map<UUID, Entry> entries = new ConcurrentHashMap<>();

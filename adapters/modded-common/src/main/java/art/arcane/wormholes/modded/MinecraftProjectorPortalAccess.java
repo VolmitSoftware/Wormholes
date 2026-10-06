@@ -1,16 +1,16 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.config.toml.ProjectionConfig;
-import art.arcane.wormholes.portal.MirrorRotation;
+import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.wormholes.portal.DimensionalPortalKind;
 import art.arcane.wormholes.portal.PortalType;
 import net.minecraft.server.level.ServerPlayer;
 import art.arcane.wormholes.portal.RemotePortal;
-import art.arcane.wormholes.portal.PortalCellAperture;
+import art.arcane.optics.aperture.CellAperture;
 import art.arcane.wormholes.portal.PortalSurfaceSkins;
 import art.arcane.wormholes.portal.ProjectionMode;
-import art.arcane.wormholes.render.ProjectorRecursivePortals;
-import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.optics.recursion.RecursiveEndpoints;
+import art.arcane.optics.math.Box;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-public final class MinecraftProjectorPortalAccess implements ProjectorRecursivePortals.PortalAccess<ServerLevel, MinecraftPortal> {
+public final class MinecraftProjectorPortalAccess implements RecursiveEndpoints.PortalAccess<ServerLevel, MinecraftPortal> {
     private final WormholesModRuntime runtime;
     private final MinecraftEndReturnPreview endReturns;
     private MinecraftDoorProjectionViews doors;
@@ -53,10 +53,10 @@ public final class MinecraftProjectorPortalAccess implements ProjectorRecursiveP
         return runtime.portals().get(portal.getId()) == portal || doors != null && doors.current(portal);
     }
 
-    public ProjectorRecursivePortals<ServerLevel, MinecraftPortal> createRecursiveIndex() {
-        return new ProjectorRecursivePortals<>(this, () -> {
+    public RecursiveEndpoints<ServerLevel, MinecraftPortal> createRecursiveIndex() {
+        return new RecursiveEndpoints<>(this, () -> {
             ProjectionConfig config = runtime.configuration().settings().getProjection();
-            return new ProjectorRecursivePortals.Options(config.aperturePaddingBlocks, config.depthBlocks);
+            return new RecursiveEndpoints.Options(config.aperturePaddingBlocks, config.depthBlocks);
         });
     }
 
@@ -77,12 +77,12 @@ public final class MinecraftProjectorPortalAccess implements ProjectorRecursiveP
     }
 
     @Override
-    public PortalCellAperture structure(MinecraftPortal portal) {
+    public CellAperture structure(MinecraftPortal portal) {
         return portal.getGeometry();
     }
 
     @Override
-    public AxisAlignedBB view(MinecraftPortal portal) {
+    public Box view(MinecraftPortal portal) {
         double configuredRange = portal.setting("activationRange") instanceof Number value ? value.doubleValue() : 0.0D;
         double range = configuredRange > 0.0D ? configuredRange : runtime.configuration().settings().getProjection().range;
         long revision = portal.getGeometry().getRevision();
@@ -111,7 +111,7 @@ public final class MinecraftProjectorPortalAccess implements ProjectorRecursiveP
     @Override
     public int mirrorQuarterTurns(MinecraftPortal portal) {
         int degrees = portal.setting("mirrorRotationDegrees") instanceof Number value ? value.intValue() : 0;
-        return MirrorRotation.fromDegrees(degrees).coherentFor(portal.getFrame()).getQuarterTurns();
+        return QuarterTurn.fromDegrees(degrees).coherentFor(portal.getFrame()).getQuarterTurns();
     }
 
     @Override
@@ -158,6 +158,6 @@ public final class MinecraftProjectorPortalAccess implements ProjectorRecursiveP
             .map(block -> !MinecraftProjectorBlocks.occluding(block)).orElse(false);
     }
 
-    private record ViewBounds(long revision, double range, AxisAlignedBB bounds) {
+    private record ViewBounds(long revision, double range, Box bounds) {
     }
 }

@@ -4,7 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -105,12 +105,12 @@ public final class BetterPortalsImporter implements PortalImporter {
         }
     }
 
-    private static Direction facing(String direction) {
+    private static Face facing(String direction) {
         return switch (direction.toUpperCase()) {
-            case "EAST" -> Direction.E;
-            case "WEST" -> Direction.W;
-            case "SOUTH" -> Direction.S;
-            default -> Direction.N;
+            case "EAST" -> Face.E;
+            case "WEST" -> Face.W;
+            case "SOUTH" -> Face.S;
+            default -> Face.N;
         };
     }
 }

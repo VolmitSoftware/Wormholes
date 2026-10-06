@@ -10,6 +10,8 @@ import com.github.retrooper.packetevents.protocol.world.chunk.LightData;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerUpdateLight;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
+import art.arcane.optics.light.ProjectorLighting;
+import art.arcane.optics.view.WorldChangeTracker;
 
 public final class BukkitProjectorLighting implements ProjectorLighting.Host<Player> {
     private final ProjectionChunkVisibility visibility;
@@ -55,7 +57,7 @@ public final class BukkitProjectorLighting implements ProjectorLighting.Host<Pla
     }
 
     @Override
-    public ProjectionWorldChangeTracker tracker() {
+    public WorldChangeTracker tracker() {
         return Wormholes.projectionChangeTracker;
     }
 

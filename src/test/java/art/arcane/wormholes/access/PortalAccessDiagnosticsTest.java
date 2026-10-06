@@ -1,6 +1,6 @@
 package art.arcane.wormholes.access;
 
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import art.arcane.wormholes.util.BukkitGeometry;
 
 import art.arcane.wormholes.Wormholes;
@@ -15,7 +15,7 @@ import art.arcane.wormholes.portal.LocalPortal;
 import art.arcane.wormholes.portal.PortalPermissionMode;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.RemotePortal;
-import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.optics.math.Box;
 import art.arcane.wormholes.util.RemoteWorld;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
@@ -102,7 +102,7 @@ class PortalAccessDiagnosticsTest {
     @Test
     void remotePreflightLeavesPermissionsToTheDestination() {
         RemotePortal portal = new RemotePortal(UUID.randomUUID(), new RemoteWorld("qa-b", "minecraft:overworld"),
-            new GeometryVector(0, 64, 0), PortalType.GATEWAY, true, new AxisAlignedBB(0, 2, 64, 67, 0, 0));
+            new Vec3(0, 64, 0), PortalType.GATEWAY, true, new Box(0, 2, 64, 67, 0, 0));
         portal.setName("Destination Gate");
         portal.putMirroredExtensionSetting("access.permissionKey", "stable_remote");
         portal.setMirroredPermissionMode(PortalPermissionMode.WHITELIST);

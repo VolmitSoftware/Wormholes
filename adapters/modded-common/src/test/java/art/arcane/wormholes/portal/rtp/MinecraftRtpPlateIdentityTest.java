@@ -1,10 +1,10 @@
 package art.arcane.wormholes.portal.rtp;
 
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import art.arcane.wormholes.modded.MinecraftPortal;
-import art.arcane.wormholes.portal.PortalFrame;
-import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Face;
 import org.junit.Test;
 
 import java.util.UUID;
@@ -37,13 +37,13 @@ public class MinecraftRtpPlateIdentityTest {
 
     private static MinecraftPortal source() {
         MinecraftPortal portal = mock(MinecraftPortal.class);
-        when(portal.getFrame()).thenReturn(PortalFrame.canonical(Direction.S));
+        when(portal.getFrame()).thenReturn(Frame.canonical(Face.S));
         return portal;
     }
 
     private static RtpProjectionView.ReadyData ready(RtpDestination destination, long routeRevision) {
         return RtpProjectionGeometry.create(new RtpProjectionGeometry.Source(PORTAL, "minecraft:overworld",
-            new GeometryVector(1.5D, 65.0D, 0.5D), PortalFrame.canonical(Direction.S), new AxisAlignedBB(0, 3, 64, 67, 0, 1), 1L),
+            new Vec3(1.5D, 65.0D, 0.5D), Frame.canonical(Face.S), new Box(0, 3, 64, 67, 0, 1), 1L),
             destination, routeRevision);
     }
 }

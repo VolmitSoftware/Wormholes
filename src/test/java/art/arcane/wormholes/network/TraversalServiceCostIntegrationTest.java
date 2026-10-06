@@ -22,7 +22,7 @@ import art.arcane.wormholes.config.toml.ProjectionConfig;
 import art.arcane.wormholes.config.toml.RenderConfig;
 import art.arcane.wormholes.portal.LocalPortal;
 import art.arcane.wormholes.portal.ILocalPortal;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.wormholes.portal.PortalTravelCost;
 import art.arcane.wormholes.portal.PortalType;
@@ -30,7 +30,7 @@ import art.arcane.wormholes.portal.TraversableType;
 import art.arcane.wormholes.portal.Traversive;
 import art.arcane.wormholes.portal.UniversalTunnel;
 import art.arcane.wormholes.util.Cuboid;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import com.github.retrooper.packetevents.protocol.player.ClientVersion;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
@@ -609,7 +609,7 @@ final class TraversalServiceCostIntegrationTest {
         return new Traversive(
             entity,
             TraversableType.ENTITY,
-            PortalFrame.canonical(Direction.N),
+            Frame.canonical(Face.N),
             new Vector(0.0D, 65.0D, 1.0D),
             new Vector(0.25D, 65.5D, 1.25D),
             new Vector(0.0D, 0.0D, 1.0D),

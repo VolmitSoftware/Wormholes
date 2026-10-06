@@ -1,7 +1,7 @@
 package art.arcane.wormholes.network.client;
 
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
+import art.arcane.optics.math.Vec3;
+import art.arcane.optics.aperture.ApertureDescriptor;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -15,6 +15,9 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamCapability;
+import art.arcane.optics.stream.ViewStreamLimits;
 
 final class ClientPreparedTravelCodecTest {
     private static final UUID TOKEN = new UUID(12, 34);
@@ -30,8 +33,8 @@ final class ClientPreparedTravelCodecTest {
 
     @Test
     void chunkFragmentsPreserveTheFullBoundaryAndFinalPartialPayload() throws ClientViewProtocolException {
-        int total = ClientViewProtocol.TRAVEL_FRAGMENT_BYTES + 17;
-        byte[] first = new byte[ClientViewProtocol.TRAVEL_FRAGMENT_BYTES];
+        int total = ViewStreamLimits.TRAVEL_FRAGMENT_BYTES + 17;
+        byte[] first = new byte[ViewStreamLimits.TRAVEL_FRAGMENT_BYTES];
         for (int index = 0; index < first.length; index++) {
             first[index] = (byte) index;
         }
@@ -40,9 +43,9 @@ final class ClientPreparedTravelCodecTest {
         for (ClientViewMessage.TravelChunk chunk : List.of(
             new ClientViewMessage.TravelChunk(TOKEN, 3, -32, -10, 9, 0, 2, total, first),
             new ClientViewMessage.TravelChunk(TOKEN, 3, -32, -10, 9, 1, 2, total, last))) {
-            byte[] frame = ClientViewCodec.encodeS2C(chunk, 11, ClientViewProtocol.FLAG_LAST, true);
-            assertTrue(frame.length < ClientViewProtocol.MIN_MAX_FRAME_BYTES);
-            assertEquals(chunk, ClientViewCodec.decodeS2C(frame, ClientViewCapability.ALL).message());
+            byte[] frame = ClientViewCodec.encodeS2C(chunk, 11, ViewStreamLimits.FLAG_LAST, true);
+            assertTrue(frame.length < ViewStreamLimits.MIN_MAX_FRAME_BYTES);
+            assertEquals(chunk, ClientViewCodec.decodeS2C(frame, ViewStreamCapability.ALL).message());
         }
     }
 
@@ -64,22 +67,22 @@ final class ClientPreparedTravelCodecTest {
 
     @Test
     void manifestBoundFitsAFrameAndRejectsEmptyDuplicateAndOversizedCoordinates() throws ClientViewProtocolException {
-        List<ClientViewMessage.TravelChunkRevision> chunks = new ArrayList<>(ClientViewProtocol.MAX_TRAVEL_CHUNKS);
-        for (int index = 0; index < ClientViewProtocol.MAX_TRAVEL_CHUNKS; index++) {
+        List<ClientViewMessage.TravelChunkRevision> chunks = new ArrayList<>(ViewStreamLimits.MAX_TRAVEL_CHUNKS);
+        for (int index = 0; index < ViewStreamLimits.MAX_TRAVEL_CHUNKS; index++) {
             chunks.add(new ClientViewMessage.TravelChunkRevision(index - 544, -index, index + 1));
         }
         ClientViewMessage.TravelEnd end = new ClientViewMessage.TravelEnd(TOKEN, 3, 19, chunks);
         byte[] frame = encode(end);
-        assertTrue(frame.length < ClientViewProtocol.MIN_MAX_FRAME_BYTES);
+        assertTrue(frame.length < ViewStreamLimits.MIN_MAX_FRAME_BYTES);
         assertEquals(end, decode(frame, true));
         assertThrows(IllegalArgumentException.class, () -> new ClientViewMessage.TravelEnd(TOKEN, 3, 19, List.of()));
         assertThrows(IllegalArgumentException.class, () -> new ClientViewMessage.TravelEnd(TOKEN, 3, 19,
             List.of(new ClientViewMessage.TravelChunkRevision(0, 0, 1), new ClientViewMessage.TravelChunkRevision(0, 0, 2))));
         chunks.add(new ClientViewMessage.TravelChunkRevision(2000, 2000, 1));
         assertThrows(IllegalArgumentException.class, () -> new ClientViewMessage.TravelEnd(TOKEN, 3, 19, chunks));
-        for (int count : new int[]{0, ClientViewProtocol.MAX_TRAVEL_CHUNKS + 1, 65535}) {
+        for (int count : new int[]{0, ViewStreamLimits.MAX_TRAVEL_CHUNKS + 1, 65535}) {
             byte[] invalid = frame.clone();
-            buffer(invalid).putShort(ClientViewProtocol.S2C_HEADER_BYTES + 32, (short) count);
+            buffer(invalid).putShort(ViewStreamLimits.S2C_HEADER_BYTES + 32, (short) count);
             assertThrows(ClientViewProtocolException.class, () -> decode(invalid, true));
         }
     }
@@ -87,7 +90,7 @@ final class ClientPreparedTravelCodecTest {
     @Test
     void decoderRejectsInconsistentFragmentIndicesCountsSizesAndRevisions() throws ClientViewProtocolException {
         byte[] frame = encode(new ClientViewMessage.TravelChunk(TOKEN, 3, -32, -10, 9, 0, 1, 4, new byte[]{1, 2, 3, 4}));
-        int start = ClientViewProtocol.S2C_HEADER_BYTES + 24;
+        int start = ViewStreamLimits.S2C_HEADER_BYTES + 24;
         for (int revision : new int[]{0, -1}) {
             byte[] invalid = frame.clone();
             buffer(invalid).putInt(start + 8, revision);
@@ -99,7 +102,7 @@ final class ClientPreparedTravelCodecTest {
             assertThrows(ClientViewProtocolException.class, () -> decode(invalid, true));
         }
         for (int offset : new int[]{start + 16, start + 20}) {
-            for (int size : new int[]{0, -1, ClientViewProtocol.MAX_TRAVEL_CHUNK_BYTES + 1}) {
+            for (int size : new int[]{0, -1, ViewStreamLimits.MAX_TRAVEL_CHUNK_BYTES + 1}) {
                 byte[] invalid = frame.clone();
                 buffer(invalid).putInt(offset, size);
                 assertThrows(ClientViewProtocolException.class, () -> decode(invalid, true));
@@ -111,7 +114,7 @@ final class ClientPreparedTravelCodecTest {
     void decoderRejectsNonpositiveGenerationAndBarrierRevision() throws ClientViewProtocolException {
         for (ClientViewFixtures.Vector vector : travelVectors()) {
             byte[] frame = encode(vector.message());
-            int header = vector.clientbound() ? ClientViewProtocol.S2C_HEADER_BYTES : ClientViewProtocol.C2S_HEADER_BYTES;
+            int header = vector.clientbound() ? ViewStreamLimits.S2C_HEADER_BYTES : ViewStreamLimits.C2S_HEADER_BYTES;
             for (long generation : new long[]{0, -1, Long.MIN_VALUE}) {
                 byte[] invalid = frame.clone();
                 buffer(invalid).putLong(header + 16, generation);
@@ -135,7 +138,7 @@ final class ClientPreparedTravelCodecTest {
             begin.world().dimension(), begin.sourceGeometry(), begin.destinationToSource(), begin.world(), begin.arrival(), begin.chunks(),
             begin.environment(), begin.expiresMillis());
         assertEquals(sameWorld.sourceWorld(), sameWorld.world().dimension());
-        for (ClientPortalGeometry geometry : List.of(geometry(begin.sourceGeometry(), true, 0, List.of()),
+        for (ApertureDescriptor geometry : List.of(geometry(begin.sourceGeometry(), true, 0, List.of()),
             geometry(begin.sourceGeometry(), false, 7, List.of()),
             geometry(begin.sourceGeometry(), false, 0, List.of(begin.sourceGeometry())))) {
             assertThrows(IllegalArgumentException.class, () -> new ClientViewMessage.TravelBegin(TOKEN, 3, begin.sourcePortal(),
@@ -144,7 +147,7 @@ final class ClientPreparedTravelCodecTest {
         }
         assertThrows(IllegalArgumentException.class, () -> new ClientViewMessage.TravelBegin(TOKEN, 3, begin.sourcePortal(),
             begin.sourceWorld(), begin.sourceGeometry(), begin.destinationToSource(), begin.world(), begin.arrival(), begin.chunks(), ClientViewFixtures.environment(), begin.expiresMillis()));
-        for (int expiry : new int[]{0, -1, ClientViewProtocol.MAX_TRAVEL_EXPIRY_MILLIS + 1}) {
+        for (int expiry : new int[]{0, -1, ViewStreamLimits.MAX_TRAVEL_EXPIRY_MILLIS + 1}) {
             assertThrows(IllegalArgumentException.class, () -> new ClientViewMessage.TravelBegin(TOKEN, 3, begin.sourcePortal(),
                 begin.sourceWorld(), begin.sourceGeometry(), begin.destinationToSource(), begin.world(), begin.arrival(), begin.chunks(), begin.environment(), expiry));
         }
@@ -172,7 +175,7 @@ final class ClientPreparedTravelCodecTest {
                 assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.decodeC2S(frame));
             } else {
                 assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.encodeS2C(message, 0, 0));
-                assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.decodeS2C(frame, ClientViewCapability.ALL));
+                assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.decodeS2C(frame, ViewStreamCapability.ALL));
             }
         }
     }
@@ -181,11 +184,11 @@ final class ClientPreparedTravelCodecTest {
     void crossingRejectsNonfiniteVectorsAndCommitRejectsNonfiniteVelocity() {
         ClientViewMessage.TravelPose pose = ClientViewFixtures.travelBegin().arrival();
         for (double coordinate : new double[]{Double.NaN, Double.POSITIVE_INFINITY, 30_000_001}) {
-            GeometryVector invalid = new GeometryVector(coordinate, 0, 0);
+            Vec3 invalid = new Vec3(coordinate, 0, 0);
             assertThrows(IllegalArgumentException.class, () -> new ClientViewMessage.TravelCross(TOKEN, 3, 9, pose,
-                invalid, new GeometryVector(0, 0, 0)));
+                invalid, new Vec3(0, 0, 0)));
             assertThrows(IllegalArgumentException.class, () -> new ClientViewMessage.TravelCross(TOKEN, 3, 9, pose,
-                new GeometryVector(0, 0, 0), invalid));
+                new Vec3(0, 0, 0), invalid));
             if (!Double.isFinite(coordinate)) {
                 assertThrows(IllegalArgumentException.class, () -> new ClientViewMessage.TravelCommit(TOKEN, 3, 9,
                     "minecraft:overworld", "minecraft:overworld", pose, invalid));
@@ -193,9 +196,9 @@ final class ClientPreparedTravelCodecTest {
         }
     }
 
-    private static ClientPortalGeometry geometry(ClientPortalGeometry value, boolean mirror, int parent,
-                                                  List<ClientPortalGeometry> nested) {
-        return new ClientPortalGeometry(value.originX(), value.originY(), value.originZ(), value.facing(), value.frontSide(),
+    private static ApertureDescriptor geometry(ApertureDescriptor value, boolean mirror, int parent,
+                                                  List<ApertureDescriptor> nested) {
+        return new ApertureDescriptor(value.originX(), value.originY(), value.originZ(), value.facing(), value.frontSide(),
             value.quarterTurns(), mirror, value.apertureWidth(), value.apertureHeight(), value.apertureMask(),
             value.nearPlanePadding(), value.aperturePadding(), value.frustumCullingRatio(), value.depthBlocks(),
             value.recursionDepth(), value.blackoutPolicy(), value.blackoutState(), value.maskAirPolicy(), value.lightingPolicy(),
@@ -213,12 +216,12 @@ final class ClientPreparedTravelCodecTest {
     }
 
     private static byte[] encode(ClientViewMessage message) throws ClientViewProtocolException {
-        return message.type().isClientbound() ? ClientViewCodec.encodeS2C(message, 7, ClientViewProtocol.FLAG_LAST)
+        return message.type().isClientbound() ? ClientViewCodec.encodeS2C(message, 7, ViewStreamLimits.FLAG_LAST)
             : ClientViewCodec.encodeC2S(message);
     }
 
     private static ClientViewMessage decode(byte[] frame, boolean clientbound) throws ClientViewProtocolException {
-        return clientbound ? ClientViewCodec.decodeS2C(frame, ClientViewCapability.ALL).message() : ClientViewCodec.decodeC2S(frame);
+        return clientbound ? ClientViewCodec.decodeS2C(frame, ViewStreamCapability.ALL).message() : ClientViewCodec.decodeC2S(frame);
     }
 
     private static ByteBuffer buffer(byte[] bytes) {

@@ -1,25 +1,24 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.render.ProjectedEntityEvent;
-import art.arcane.wormholes.render.EntityProjectionRecovery;
+import art.arcane.optics.entity.ProjectedEntityEvent;
+import art.arcane.optics.entity.ProjectionRecovery;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import art.arcane.wormholes.config.toml.RenderConfig;
-import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.portal.IPortal;
-import art.arcane.wormholes.portal.PortalFrame;
-import art.arcane.wormholes.render.EntityProjectionPath;
-import art.arcane.wormholes.render.EntityRenderSpoofRegistry;
-import art.arcane.wormholes.render.EntityRenderVisualProjector;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.recursion.EntityPath;
+import art.arcane.optics.entity.SpoofRegistry;
+import art.arcane.optics.entity.SnapshotProjector;
 import art.arcane.wormholes.render.FidelitySettings;
-import art.arcane.wormholes.render.Frustum4D;
-import art.arcane.wormholes.render.ProjectedEntityOcclusion;
-import art.arcane.wormholes.render.ProjectorFrameTransform;
-import art.arcane.wormholes.render.ProjectorLocalEntityEnvelope;
-import art.arcane.wormholes.render.ProjectorRecursivePortals;
-import art.arcane.wormholes.render.view.ProjectionContentView;
-import art.arcane.wormholes.render.view.ProjectionEntityData;
+import art.arcane.optics.volume.ViewVolume;
+import art.arcane.optics.occlusion.ProjectedEntityOcclusion;
+import art.arcane.optics.frame.ProjectorFrameTransform;
+import art.arcane.optics.volume.LocalEntityEnvelope;
+import art.arcane.optics.recursion.RecursiveEndpoints;
+import art.arcane.optics.view.ContentView;
+import art.arcane.optics.view.EntityData;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.network.protocol.game.ClientboundHurtAnimationPacket;
 import net.minecraft.server.level.ServerLevel;
@@ -45,12 +44,12 @@ public final class MinecraftProjectedEntities implements AutoCloseable {
     private final ServerPlayer observer;
     private final MinecraftPortal source;
     private final MinecraftEntityPackets packets = new MinecraftEntityPackets();
-    private final EntityRenderSpoofRegistry<ServerPlayer, Vec3> registry = new EntityRenderSpoofRegistry<>(packets);
-    private final EntityRenderVisualProjector<ServerPlayer, ServerLevel, MinecraftPortal, Vec3, EntityType<?>,
-        ProjectionEntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment>> projector;
-    private final ProjectorRecursivePortals<ServerLevel, MinecraftPortal> recursive;
+    private final SpoofRegistry<ServerPlayer, Vec3> registry = new SpoofRegistry<>(packets);
+    private final SnapshotProjector<ServerPlayer, ServerLevel, MinecraftPortal, Vec3, EntityType<?>,
+        EntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment>> projector;
+    private final RecursiveEndpoints<ServerLevel, MinecraftPortal> recursive;
     private final Map<UUID, MinecraftProjectedEntities> nested = new HashMap<>();
-    private final EntityProjectionRecovery<ServerPlayer> recovery = new EntityProjectionRecovery<>(new RecoveryHost());
+    private final ProjectionRecovery<ServerPlayer> recovery = new ProjectionRecovery<>(new RecoveryHost());
     private final UUID visibilityOwner = UUID.randomUUID();
 
     public MinecraftProjectedEntities(WormholesModRuntime runtime, Context context) {
@@ -58,7 +57,7 @@ public final class MinecraftProjectedEntities implements AutoCloseable {
         this.observer = context.observer();
         this.source = context.source();
         this.recursive = context.recursive();
-        this.projector = new EntityRenderVisualProjector<>(registry, new MinecraftEntityVisualHost(observer, packets), FidelitySettings::snapshot);
+        this.projector = new SnapshotProjector<>(registry, new MinecraftEntityVisualHost(observer, packets), FidelitySettings::snapshot);
     }
 
     public void apply(View view) {
@@ -76,8 +75,8 @@ public final class MinecraftProjectedEntities implements AutoCloseable {
             }
         }
         recursive.revalidate();
-        EntityProjectionPath<ServerLevel, MinecraftPortal> path = view.destination() == null ? null
-            : new EntityProjectionPath<>(new EntityProjectionPath.Root<>(source, view.destination(), view.localFrame(), view.remoteFrame(),
+        EntityPath<ServerLevel, MinecraftPortal> path = view.destination() == null ? null
+            : new EntityPath<>(new EntityPath.Root<>(source, view.destination(), view.localFrame(), view.remoteFrame(),
                 view.mirror(), view.quarterTurns(), view.eye(), view.frustum(), view.world(),
                 runtime.configuration().settings().getProjection().recursivePortalDepth), recursive);
         try {
@@ -119,21 +118,21 @@ public final class MinecraftProjectedEntities implements AutoCloseable {
         recovery.teardown(observer);
     }
 
-    private void render(View view, EntityProjectionPath<ServerLevel, MinecraftPortal> path, int limit) {
+    private void render(View view, EntityPath<ServerLevel, MinecraftPortal> path, int limit) {
         double range = Math.min(runtime.configuration().settings().getRender().entitySpoofRange, view.depth());
-        projector.apply(observer, new EntityRenderVisualProjector.Pass<>(source, view.anchor(), view.entities(),
+        projector.apply(observer, new SnapshotProjector.Pass<>(source, view.anchor(), view.entities(),
             view.localFrame(), view.remoteFrame(), view.frustum(), view.mirror(), view.quarterTurns(), path, view.occlusion(), range, limit));
         registry.commitDestroyed();
     }
 
-    private void renderRecursive(View view, EntityProjectionPath<ServerLevel, MinecraftPortal> path, int[] budget) {
+    private void renderRecursive(View view, EntityPath<ServerLevel, MinecraftPortal> path, int[] budget) {
         Set<UUID> visible = new HashSet<>();
         if (path != null) {
-            for (ProjectorRecursivePortals<ServerLevel, MinecraftPortal>.Candidate candidate : path.index.paths()) {
+            for (RecursiveEndpoints<ServerLevel, MinecraftPortal>.Candidate candidate : path.index.paths()) {
                 if (budget[0] <= 0 || budget[1] <= 0) {
                     break;
                 }
-                EntityProjectionPath<ServerLevel, MinecraftPortal> childPath = path.child(candidate, recursive);
+                EntityPath<ServerLevel, MinecraftPortal> childPath = path.child(candidate, recursive);
                 if (childPath == null) {
                     continue;
                 }
@@ -162,9 +161,9 @@ public final class MinecraftProjectedEntities implements AutoCloseable {
     }
 
     private void hideLocal(View view) {
-        GeometryVector origin = source.getOrigin();
-        PortalFrame frame = source.getFrame();
-        double eyeDot = ProjectorLocalEntityEnvelope.dot(view.eye().x() - origin.x(), view.eye().y() - origin.y(), view.eye().z() - origin.z(), frame);
+        art.arcane.optics.math.Vec3 origin = source.getOrigin();
+        Frame frame = source.getFrame();
+        double eyeDot = LocalEntityEnvelope.dot(view.eye().x() - origin.x(), view.eye().y() - origin.y(), view.eye().z() - origin.z(), frame);
         double clearance = ProjectorFrameTransform.portalPlaneClearance(source.getGeometry().getArea(), frame);
         double maxDepth = view.depth() + clearance;
         Collection<Entity> candidates = runtime.projections().localEntities(observer.level(), source, maxDepth);
@@ -174,7 +173,7 @@ public final class MinecraftProjectedEntities implements AutoCloseable {
                 continue;
             }
             AABB box = entity.getBoundingBox();
-            if (ProjectorLocalEntityEnvelope.envelopeFullyProjected(box.minX - 0.5D, box.minY, box.minZ - 0.5D,
+            if (LocalEntityEnvelope.envelopeFullyProjected(box.minX - 0.5D, box.minY, box.minZ - 0.5D,
                 box.maxX + 0.5D, box.maxY + 0.75D, box.maxZ + 0.5D, origin, frame, view.frustum(), eyeDot >= 0.0D, clearance, maxDepth)) {
                 desired.put(entity.getUUID(), entity);
             }
@@ -182,7 +181,7 @@ public final class MinecraftProjectedEntities implements AutoCloseable {
         runtime.projections().entityVisibility().replace(observer, visibilityOwner, desired);
     }
 
-    private final class RecoveryHost implements EntityProjectionRecovery.Host<ServerPlayer> {
+    private final class RecoveryHost implements ProjectionRecovery.Host<ServerPlayer> {
         public boolean online(ServerPlayer player) { return !player.hasDisconnected(); }
         public boolean hasState() { return registry.size() != 0 || packets.hasNameTeam(); }
         public boolean schedule(ServerPlayer player, Runnable task) { return runtime.schedule(task, 1L); }
@@ -211,13 +210,13 @@ public final class MinecraftProjectedEntities implements AutoCloseable {
         }
     }
 
-    public record Context(ServerPlayer observer, MinecraftPortal source, ProjectorRecursivePortals<ServerLevel, MinecraftPortal> recursive) {
+    public record Context(ServerPlayer observer, MinecraftPortal source, RecursiveEndpoints<ServerLevel, MinecraftPortal> recursive) {
     }
 
     public record View(MinecraftPortal destination, IPortal anchor, ServerLevel world,
-                       ProjectionEntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment> entities,
-                       PortalFrame localFrame, PortalFrame remoteFrame, Frustum4D frustum, GeometryVector eye,
-                       boolean mirror, int quarterTurns, ProjectedEntityOcclusion<BlockState, ProjectionContentView<BlockState, BlockState>> occlusion,
+                       EntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment> entities,
+                       Frame localFrame, Frame remoteFrame, ViewVolume frustum, art.arcane.optics.math.Vec3 eye,
+                       boolean mirror, int quarterTurns, ProjectedEntityOcclusion<BlockState, ContentView<BlockState, BlockState>> occlusion,
                        double depth) {
     }
 }

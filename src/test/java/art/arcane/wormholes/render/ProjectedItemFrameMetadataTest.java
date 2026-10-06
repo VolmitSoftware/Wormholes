@@ -14,17 +14,18 @@ import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
 import com.github.retrooper.packetevents.protocol.world.BlockFace;
 import com.github.retrooper.packetevents.util.Vector3d;
 
-import art.arcane.wormholes.portal.PortalFrame;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.math.Face;
+import art.arcane.optics.entity.ItemFrameTransform;
 
 public final class ProjectedItemFrameMetadataTest {
     @Test
     public void metadataTransformsDirectionWithoutMutatingTheCapturedList() {
-        PortalFrame sourceFrame = PortalFrame.canonical(Direction.N);
-        PortalFrame targetFrame = PortalFrame.canonical(Direction.U);
+        Frame sourceFrame = Frame.canonical(Face.N);
+        Frame targetFrame = Frame.canonical(Face.U);
         double[] scratch = new double[3];
-        int transform = ProjectedItemFrameTransform.between(
-            Direction.N, sourceFrame, targetFrame, scratch);
+        int transform = ItemFrameTransform.between(
+            Face.N, sourceFrame, targetFrame, scratch);
         EntityData<String> retained = new EntityData<String>(11, null, "retained");
         List<EntityData<?>> source = List.of(
             new EntityData<BlockFace>(8, null, BlockFace.NORTH),

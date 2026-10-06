@@ -1,6 +1,6 @@
 package art.arcane.wormholes.network.view;
 
-import art.arcane.wormholes.render.view.ProjectionSkyMath;
+import art.arcane.optics.light.SkyMath;
 
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Wormholes;
@@ -120,7 +120,7 @@ final class ViewSubscriptions {
         session.sendStates.remove(peerName);
         session.lastSentPresentIds.remove(peerName);
         session.lastPeerSideband.remove(peerName);
-        int initialSkyDarken = art.arcane.wormholes.render.view.ProjectionSkyMath.computeSkyDarken(session.world.getTime());
+        int initialSkyDarken = art.arcane.optics.light.SkyMath.computeSkyDarken(session.world.getTime());
         session.timeDeliveryStates.put(peerName, new ViewServer.TimeDeliveryState(initialSkyDarken));
         timeDelivery.queue(session, peerName, initialSkyDarken, session.world.hasStorm(), session.world.isThundering());
         for (long[] column : session.columns) {

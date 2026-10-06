@@ -9,8 +9,9 @@ import org.bukkit.entity.Player;
 import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import art.arcane.optics.occlusion.LocalOcclusionArbiter;
 
-public final class BukkitEntityVisibility implements EntityRenderLocalOcclusionArbiter.Host<Player, Entity> {
+public final class BukkitEntityVisibility implements LocalOcclusionArbiter.Host<Player, Entity> {
     private final Controller controller;
 
     private BukkitEntityVisibility(Controller controller) {

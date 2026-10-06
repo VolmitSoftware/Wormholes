@@ -1,14 +1,14 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.portal.PortalFrame;
-import art.arcane.wormholes.portal.PortalGeometry;
+import art.arcane.optics.math.Vec3;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.ProjectionMode;
 import art.arcane.wormholes.portal.rtp.MinecraftRtpRuntime;
-import art.arcane.wormholes.render.ProjectorRecursivePortals;
-import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.recursion.RecursiveEndpoints;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Face;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import org.junit.Before;
@@ -50,10 +50,10 @@ public class MinecraftProjectorPortalAccessRecursionTest extends MinecraftTestBa
         rtp = mock(MinecraftRtpRuntime.class);
         observer = mock(ServerPlayer.class);
         world = mock(ServerLevel.class);
-        front = portal(PortalType.PORTAL, PortalFrame.canonical(Direction.S), 0.0D);
-        MinecraftPortal back = portal(PortalType.PORTAL, PortalFrame.canonical(Direction.N), 4.0D);
-        random = portal(PortalType.RTP, PortalFrame.canonical(Direction.S), -2.0D);
-        route = portal(PortalType.PORTAL, PortalFrame.canonical(Direction.N), 40.0D);
+        front = portal(PortalType.PORTAL, Frame.canonical(Face.S), 0.0D);
+        MinecraftPortal back = portal(PortalType.PORTAL, Frame.canonical(Face.N), 4.0D);
+        random = portal(PortalType.RTP, Frame.canonical(Face.S), -2.0D);
+        route = portal(PortalType.PORTAL, Frame.canonical(Face.N), 40.0D);
         UUID frontId = front.getId();
         UUID backId = back.getId();
         UUID randomId = random.getId();
@@ -78,7 +78,7 @@ public class MinecraftProjectorPortalAccessRecursionTest extends MinecraftTestBa
 
     @Test
     public void revalidateReadsKnownRandomDestinationsWithoutAttendingThem() {
-        ProjectorRecursivePortals<ServerLevel, MinecraftPortal> recursive = access.createRecursiveIndex();
+        RecursiveEndpoints<ServerLevel, MinecraftPortal> recursive = access.createRecursiveIndex();
 
         recursive.revalidate();
         recursive.indexFor(world, EYE_X, EYE_Y, EYE_Z, front);
@@ -91,9 +91,9 @@ public class MinecraftProjectorPortalAccessRecursionTest extends MinecraftTestBa
 
     @Test
     public void revalidateKeepsTheIndexWhileNoPortalChanged() {
-        ProjectorRecursivePortals<ServerLevel, MinecraftPortal> recursive = access.createRecursiveIndex();
+        RecursiveEndpoints<ServerLevel, MinecraftPortal> recursive = access.createRecursiveIndex();
         recursive.revalidate();
-        ProjectorRecursivePortals<ServerLevel, MinecraftPortal>.Index first = recursive.indexFor(world, EYE_X, EYE_Y, EYE_Z, front);
+        RecursiveEndpoints<ServerLevel, MinecraftPortal>.Index first = recursive.indexFor(world, EYE_X, EYE_Y, EYE_Z, front);
 
         recursive.revalidate();
 
@@ -102,9 +102,9 @@ public class MinecraftProjectorPortalAccessRecursionTest extends MinecraftTestBa
 
     @Test
     public void revalidateRebuildsTheIndexWhenTheKnownRouteChanges() {
-        ProjectorRecursivePortals<ServerLevel, MinecraftPortal> recursive = access.createRecursiveIndex();
+        RecursiveEndpoints<ServerLevel, MinecraftPortal> recursive = access.createRecursiveIndex();
         recursive.revalidate();
-        ProjectorRecursivePortals<ServerLevel, MinecraftPortal>.Index first = recursive.indexFor(world, EYE_X, EYE_Y, EYE_Z, front);
+        RecursiveEndpoints<ServerLevel, MinecraftPortal>.Index first = recursive.indexFor(world, EYE_X, EYE_Y, EYE_Z, front);
 
         when(rtp.knownDestination(observer, random)).thenReturn(null);
         recursive.revalidate();
@@ -128,15 +128,15 @@ public class MinecraftProjectorPortalAccessRecursionTest extends MinecraftTestBa
         assertNull(unobserved.projectionDestination(random));
     }
 
-    private static MinecraftPortal portal(PortalType type, PortalFrame frame, double planeZ) {
+    private static MinecraftPortal portal(PortalType type, Frame frame, double planeZ) {
         MinecraftPortal portal = mock(MinecraftPortal.class);
-        PortalGeometry geometry = new PortalGeometry();
-        geometry.setArea(new AxisAlignedBB(0.0D, 1.999D, 64.0D, 65.999D, planeZ, planeZ + 0.999D));
+        ApertureCells geometry = new ApertureCells();
+        geometry.setArea(new Box(0.0D, 1.999D, 64.0D, 65.999D, planeZ, planeZ + 0.999D));
         when(portal.getId()).thenReturn(UUID.randomUUID());
         when(portal.getType()).thenReturn(type);
         when(portal.getGeometry()).thenReturn(geometry);
         when(portal.getFrame()).thenReturn(frame);
-        when(portal.getOrigin()).thenReturn(new GeometryVector(1.0D, 65.0D, planeZ + 0.5D));
+        when(portal.getOrigin()).thenReturn(new Vec3(1.0D, 65.0D, planeZ + 0.5D));
         when(portal.isOpen()).thenReturn(true);
         when(portal.getProjectionMode()).thenReturn(ProjectionMode.ON);
         when(portal.getTunnelType()).thenReturn("");

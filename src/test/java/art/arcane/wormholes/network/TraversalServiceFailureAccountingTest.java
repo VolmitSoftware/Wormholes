@@ -9,11 +9,11 @@ import art.arcane.wormholes.config.toml.NetworkConfig;
 import art.arcane.wormholes.config.toml.ProjectionConfig;
 import art.arcane.wormholes.config.toml.RenderConfig;
 import art.arcane.wormholes.portal.ILocalPortal;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.TraversableType;
 import art.arcane.wormholes.portal.Traversive;
 import art.arcane.wormholes.portal.UniversalTunnel;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
@@ -285,7 +285,7 @@ class TraversalServiceFailureAccountingTest {
         return new Traversive(
             null,
             TraversableType.ENTITY,
-            PortalFrame.canonical(Direction.N),
+            Frame.canonical(Face.N),
             new Vector(0.0D, 64.0D, 0.0D),
             new Vector(0.0D, 64.0D, 0.0D),
             new Vector(0.0D, 0.0D, 1.0D),

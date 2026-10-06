@@ -1,24 +1,24 @@
 package art.arcane.wormholes.door;
 
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 final class DoorPlanePairingApertureTest
 {
-	private static final Direction[] CARDINALS =
-		{Direction.N, Direction.S, Direction.E, Direction.W};
+	private static final Face[] CARDINALS =
+		{Face.N, Face.S, Face.E, Face.W};
 	private static final double TOLERANCE = 1.0E-9D;
 
 	@Test
 	void hingedPairsPreserveHeightAndMirrorLateralPosition()
 	{
-		for(Direction sourceFacing : CARDINALS)
+		for(Face sourceFacing : CARDINALS)
 		{
 			DoorwayPlane source = new DoorwayPlane(0, 64, 0, sourceFacing);
 			DoorwayCrossing crossing = doorCrossing(source, 0.3D, 1.75D);
-			for(Direction destinationFacing : CARDINALS)
+			for(Face destinationFacing : CARDINALS)
 			{
 				DoorwayPlane destination = new DoorwayPlane(40, 20, -30, destinationFacing);
 				DoorVec3 mapped = DoorPlanePairing.mapAperturePoint(source, destination, crossing);
@@ -33,8 +33,8 @@ final class DoorPlanePairingApertureTest
 	@Test
 	void fastDiagonalCrossingUsesTheIntersectionInsteadOfTheSampleEndpoint()
 	{
-		DoorwayPlane source = new DoorwayPlane(0, 64, 0, Direction.S);
-		DoorwayPlane destination = new DoorwayPlane(40, 20, -30, Direction.E);
+		DoorwayPlane source = new DoorwayPlane(0, 64, 0, Face.S);
+		DoorwayPlane destination = new DoorwayPlane(40, 20, -30, Face.E);
 		DoorVec3 center = source.center();
 		DoorVec3 from = new DoorVec3(center.x() - 0.4D, 66.4D, center.z() + 1.0D);
 		DoorVec3 to = new DoorVec3(center.x() + 0.4D, 64.4D, center.z() - 3.0D);
@@ -52,9 +52,9 @@ final class DoorPlanePairingApertureTest
 	@Test
 	void doorHeightScalesOntoTheTrapdoorThirdAxis()
 	{
-		DoorwayPlane source = new DoorwayPlane(0, 64, 0, Direction.N);
+		DoorwayPlane source = new DoorwayPlane(0, 64, 0, Face.N);
 		DoorwayPlane destination = DoorwayPlane.trapdoor(
-			20, 30, -8, Direction.E, DoorHalf.BOTTOM, DoorOpenState.OPEN);
+			20, 30, -8, Face.E, DoorHalf.BOTTOM, DoorOpenState.OPEN);
 		DoorwayCrossing crossing = doorCrossing(source, 0.2D, 1.75D);
 
 		DoorVec3 mapped = DoorPlanePairing.mapAperturePoint(source, destination, crossing);
@@ -68,8 +68,8 @@ final class DoorPlanePairingApertureTest
 	void trapdoorDepthScalesOntoTheDoorHeight()
 	{
 		DoorwayPlane source = DoorwayPlane.trapdoor(
-			0, 64, 0, Direction.S, DoorHalf.TOP, DoorOpenState.OPEN);
-		DoorwayPlane destination = new DoorwayPlane(20, 30, -8, Direction.W);
+			0, 64, 0, Face.S, DoorHalf.TOP, DoorOpenState.OPEN);
+		DoorwayPlane destination = new DoorwayPlane(20, 30, -8, Face.W);
 		DoorwayCrossing crossing = trapdoorCrossing(source, -0.2D, 0.25D);
 
 		DoorVec3 mapped = DoorPlanePairing.mapAperturePoint(source, destination, crossing);
@@ -83,9 +83,9 @@ final class DoorPlanePairingApertureTest
 	void trapdoorPairsPreserveBothNormalizedInPlaneCoordinates()
 	{
 		DoorwayPlane source = DoorwayPlane.trapdoor(
-			0, 64, 0, Direction.E, DoorHalf.BOTTOM, DoorOpenState.OPEN);
+			0, 64, 0, Face.E, DoorHalf.BOTTOM, DoorOpenState.OPEN);
 		DoorwayPlane destination = DoorwayPlane.trapdoor(
-			20, 30, -8, Direction.N, DoorHalf.TOP, DoorOpenState.OPEN);
+			20, 30, -8, Face.N, DoorHalf.TOP, DoorOpenState.OPEN);
 		DoorwayCrossing crossing = trapdoorCrossing(source, 0.35D, -0.4D);
 
 		DoorVec3 mapped = DoorPlanePairing.mapAperturePoint(source, destination, crossing);

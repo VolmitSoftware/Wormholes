@@ -1,6 +1,6 @@
 package art.arcane.wormholes.render;
 
-import art.arcane.wormholes.render.view.ProjectionContentView;
+import art.arcane.optics.view.ContentView;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -21,6 +21,8 @@ import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
+import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.light.ProjectorLighting;
 
 public final class ProjectorLightingOverlayTest {
     @Test
@@ -262,7 +264,7 @@ public final class ProjectorLightingOverlayTest {
                 if (sky < 0 || block < 0) {
                     return ProjectionWorldView.LIGHT_UNAVAILABLE;
                 }
-                return ProjectionContentView.packLight(sky, block);
+                return ContentView.packLight(sky, block);
             }
 
             @Override

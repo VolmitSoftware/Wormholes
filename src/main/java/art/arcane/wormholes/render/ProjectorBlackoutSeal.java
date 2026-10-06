@@ -5,9 +5,10 @@ import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
 
 import art.arcane.wormholes.portal.BlackoutColor;
-import art.arcane.wormholes.render.atmosphere.AtmosphereMode;
-import art.arcane.wormholes.render.atmosphere.FogPlatePolicy;
+import art.arcane.optics.fidelity.AtmosphereMode;
+import art.arcane.optics.fidelity.FogPlatePolicy;
 import art.arcane.wormholes.render.atmosphere.BukkitFogPlateShells;
+import art.arcane.optics.claim.ProjectionBlackout;
 
 /**
  * The block the blackout shell is built from for the current pass: the portal's concrete colour, or

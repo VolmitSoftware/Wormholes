@@ -1,8 +1,8 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.view.EntityDeltaCodec;
-import art.arcane.wormholes.network.view.EntityVisual;
+import art.arcane.optics.entity.EntityDeltaCodec;
+import art.arcane.optics.entity.EntitySnapshot;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectIterator;
@@ -10,7 +10,7 @@ import it.unimi.dsi.fastutil.objects.ObjectIterator;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.ArrayList;
-import art.arcane.wormholes.render.ProjectedEntityEvent;
+import art.arcane.optics.entity.ProjectedEntityEvent;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -43,9 +43,9 @@ public final class ClientProjectedEntities {
     public void apply(ClientViewMessage.EntityFrame frame) {
         Objects.requireNonNull(frame, "frame");
         PortalEntities state = portals.computeIfAbsent(frame.portalKey(), ignored -> new PortalEntities());
-        List<EntityVisual> visuals = frame.entities();
+        List<EntitySnapshot> visuals = frame.entities();
         for (int index = 0; index < visuals.size(); index++) {
-            EntityVisual incoming = visuals.get(index);
+            EntitySnapshot incoming = visuals.get(index);
             WormholesClient client = WormholesClient.instance();
             if (client != null && client.localMeshes().localEntity(frame.portalKey(), incoming.id())) {
                 continue;
@@ -55,7 +55,7 @@ public final class ClientProjectedEntities {
                 deltasWithoutBase++;
                 continue;
             }
-            EntityVisual merged = EntityDeltaCodec.applyDelta(incoming, tracked == null ? null : tracked.visual);
+            EntitySnapshot merged = EntityDeltaCodec.applyDelta(incoming, tracked == null ? null : tracked.visual);
             if (tracked == null) {
                 tracked = new Tracked(frame.portalKey(), merged);
                 state.tracked.put(merged.id(), tracked);
@@ -224,7 +224,7 @@ public final class ClientProjectedEntities {
         return tracked == null ? 0 : tracked.entityId;
     }
 
-    public EntityVisual visual(int portalKey, UUID id) {
+    public EntitySnapshot visual(int portalKey, UUID id) {
         PortalEntities state = portals.get(portalKey);
         Tracked tracked = state == null ? null : state.tracked.get(id);
         return tracked == null ? null : tracked.visual;
@@ -248,7 +248,7 @@ public final class ClientProjectedEntities {
         return spawnFailures;
     }
 
-    static boolean inCone(ClientPortal portal, EntityVisual visual) {
+    static boolean inCone(ClientPortal portal, EntitySnapshot visual) {
         int x = (int) Math.floor(visual.x());
         int y = (int) Math.floor(visual.y() + Math.max(0.0D, visual.height()) * 0.5D);
         int z = (int) Math.floor(visual.z());
@@ -281,7 +281,7 @@ public final class ClientProjectedEntities {
     }
 
     private void sync(Tracked tracked) {
-        EntityVisual visual = tracked.visual;
+        EntitySnapshot visual = tracked.visual;
         if (visual == tracked.synced) {
             return;
         }
@@ -320,20 +320,20 @@ public final class ClientProjectedEntities {
 
     private static final class Tracked {
         private final UUID projectionId;
-        private EntityVisual visual;
-        private EntityVisual synced;
+        private EntitySnapshot visual;
+        private EntitySnapshot synced;
         private byte[] syncedMetadata;
         private byte[] syncedEquipment;
         private int entityId;
         private boolean present;
 
-        private Tracked(int portalKey, EntityVisual visual) {
+        private Tracked(int portalKey, EntitySnapshot visual) {
             this.projectionId = UUID.nameUUIDFromBytes(("wormholes:projection:" + portalKey + ":" + visual.id())
                 .getBytes(StandardCharsets.UTF_8));
             this.visual = visual;
         }
 
-        private void update(EntityVisual next) {
+        private void update(EntitySnapshot next) {
             visual = next;
         }
     }

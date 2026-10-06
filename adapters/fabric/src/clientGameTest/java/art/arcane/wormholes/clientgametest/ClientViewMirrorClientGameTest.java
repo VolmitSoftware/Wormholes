@@ -1,6 +1,6 @@
 package art.arcane.wormholes.clientgametest;
 
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import art.arcane.wormholes.modded.client.ClientMeshSections;
 import art.arcane.wormholes.modded.client.ClientMeshEntities;
 import art.arcane.wormholes.modded.MinecraftPortal;
@@ -8,7 +8,7 @@ import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.modded.client.ClientEntityIds;
 import art.arcane.wormholes.modded.client.ClientPortal;
 import art.arcane.wormholes.modded.client.WormholesClient;
-import art.arcane.wormholes.network.client.ClientViewCapability;
+import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.portal.PortalType;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
@@ -65,8 +65,8 @@ public final class ClientViewMirrorClientGameTest implements FabricClientGameTes
     private void runScenario(ClientGameTestContext context, TestServerConnection connection, TestServerContext server, String label) {
         connection.waitForChunksDownload();
         context.waitFor(client -> WormholesClient.instance() != null && WormholesClient.instance().session().active(), NEGOTIATION_TIMEOUT_TICKS);
-        boolean mirrorCaps = context.computeOnClient(client -> WormholesClient.instance().session().has(ClientViewCapability.CLIENT_MIRROR)
-            && WormholesClient.instance().session().has(ClientViewCapability.CLIENT_RECURSION));
+        boolean mirrorCaps = context.computeOnClient(client -> WormholesClient.instance().session().has(ViewStreamCapability.CLIENT_MIRROR)
+            && WormholesClient.instance().session().has(ViewStreamCapability.CLIENT_RECURSION));
         assertTrue(mirrorCaps, "the session did not negotiate CLIENT_MIRROR and CLIENT_RECURSION");
         ServerPlayer player = server.computeOnServer(minecraftServer -> connection.getServerPlayer());
         UUID mirrorId = server.computeOnServer(minecraftServer -> buildMirror(minecraftServer, player));
@@ -106,7 +106,7 @@ public final class ClientViewMirrorClientGameTest implements FabricClientGameTes
         assertTrue(failure == null, "ceiling mirror: " + failure);
         boolean flipped = context.computeOnClient(client -> {
             Entity entity = WormholesClient.instance().reflections().entity(mirrorKey());
-            return WormholesClient.instance().session().environment(mirrorKey()).transform().yAxis() == Direction.D
+            return WormholesClient.instance().session().environment(mirrorKey()).transform().yAxis() == Face.D
                 && WormholesClient.instance().reflections().meshEntity(entity.getId());
         });
         assertTrue(flipped, "the ceiling reflection is not drawn upside down");

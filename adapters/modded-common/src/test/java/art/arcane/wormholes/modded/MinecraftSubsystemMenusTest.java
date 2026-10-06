@@ -1,12 +1,12 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.access.PortalRole;
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import art.arcane.wormholes.portal.Portal;
-import art.arcane.wormholes.portal.PortalFrame;
-import art.arcane.wormholes.portal.PortalGeometry;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.wormholes.portal.rtp.RtpPortalEditorModel;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import org.junit.Test;
 
 import java.util.List;
@@ -88,10 +88,10 @@ public class MinecraftSubsystemMenusTest {
     }
 
     private static MinecraftPortal portal() {
-        PortalGeometry geometry = new PortalGeometry();
-        geometry.setBlocks(List.of(new GeometryVector(0, 64, 0), new GeometryVector(0, 65, 0)));
+        ApertureCells geometry = new ApertureCells();
+        geometry.setBlocks(List.of(new Vec3(0, 64, 0), new Vec3(0, 65, 0)));
         UUID id = UUID.randomUUID();
         return new MinecraftPortal(new MinecraftPortal.Definition(new Portal.State(id, geometry.getApertureCenter(), "Access",
-            PortalFrame.canonical(Direction.N), true), geometry, "minecraft:overworld", Map.of("owner", UUID.randomUUID().toString(), "type", "PORTAL")));
+            Frame.canonical(Face.N), true), geometry, "minecraft:overworld", Map.of("owner", UUID.randomUUID().toString(), "type", "PORTAL")));
     }
 }

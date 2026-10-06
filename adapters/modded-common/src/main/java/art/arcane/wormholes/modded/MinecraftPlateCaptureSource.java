@@ -2,13 +2,13 @@ package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.wormholes.modded.clientview.MinecraftLightSnapshot;
-import art.arcane.wormholes.render.plate.PlateBox;
-import art.arcane.wormholes.render.ProjectionCellKey;
-import art.arcane.wormholes.render.blockentity.BlockEntityMaterials;
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
-import art.arcane.wormholes.render.blockentity.BlockEntitySanitizer;
-import art.arcane.wormholes.render.plate.ChunkLeaseHold;
-import art.arcane.wormholes.render.plate.PlateCaptureJob;
+import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.fidelity.BlockEntityMaterials;
+import art.arcane.optics.fidelity.BlockEntitySample;
+import art.arcane.optics.fidelity.BlockEntitySanitizer;
+import art.arcane.optics.plate.ChunkLeaseHold;
+import art.arcane.optics.plate.PlateCaptureJob;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerLevel;
@@ -123,7 +123,7 @@ final class MinecraftPlateCaptureSource implements PlateCaptureJob.Source<Server
                 new BlockEntitySanitizer.Options<>(FidelitySettings.blockEntityTypes, FidelitySettings.blockEntityContainers, MinecraftBlockEntityTags.INSTANCE));
             if (sample != null) {
                 BlockPos position = entry.getKey();
-                samples.put(Long.valueOf(ProjectionCellKey.pack(position.getX(), position.getY(), position.getZ())), sample);
+                samples.put(Long.valueOf(CellKeys.pack(position.getX(), position.getY(), position.getZ())), sample);
             }
         }
         return samples;

@@ -3,7 +3,7 @@ package art.arcane.wormholes.modded.client;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.client.render.ClientTravelScene;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
+import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import net.minecraft.client.multiplayer.ClientChunkCache;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -42,10 +42,10 @@ public class ClientPreparedTravelSameWorldTest extends MinecraftTestBase {
             }
         }
         ClientViewMessage.TravelBegin begin = new ClientViewMessage.TravelBegin(new UUID(1, 2), 1, new UUID(2, 3),
-            "minecraft:overworld", ClientTravelTestFixtures.geometry(), ClientViewEnvironment.Transform.IDENTITY,
+            "minecraft:overworld", ClientTravelTestFixtures.geometry(), ProjectionEnvironment.Transform.IDENTITY,
             new ClientViewMessage.TravelWorld("minecraft:overworld", "minecraft:overworld", 1, false, false, 63, -64, 384),
             new ClientViewMessage.TravelPose(0, 80, 0, 0, 0), coordinates,
-            PortalEnvironmentTest.environment(ClientViewEnvironment.Transform.IDENTITY), 30_000);
+            PortalEnvironmentTest.environment(ProjectionEnvironment.Transform.IDENTITY), 30_000);
         ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
         set(travel, "begin", begin);
         set(travel, "scene", scene);

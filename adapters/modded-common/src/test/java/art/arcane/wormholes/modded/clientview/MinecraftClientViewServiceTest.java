@@ -7,13 +7,13 @@ import art.arcane.wormholes.modded.MinecraftProjectionService;
 import art.arcane.wormholes.modded.WormholesModConfiguration;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.modded.mixin.ServerConnectionAccess;
-import art.arcane.wormholes.network.client.ClientViewCapability;
+import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.wormholes.network.client.ClientViewHandshake;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewMessageType;
-import art.arcane.wormholes.network.client.ClientViewProtocolException;
-import art.arcane.wormholes.render.client.session.ClientViewInbound;
+import art.arcane.optics.stream.ViewStreamMessageType;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ClientViewInbound;
 import art.arcane.wormholes.render.client.session.ClientViewOptions;
 import com.mojang.authlib.GameProfile;
 import io.netty.channel.embedded.EmbeddedChannel;
@@ -40,7 +40,7 @@ import static org.mockito.Mockito.withSettings;
 
 public class MinecraftClientViewServiceTest extends MinecraftTestBase {
     private static final UUID ALEX = UUID.fromString("00000000-0000-0000-0000-00000000a1e7");
-    private static final long HELLO_CAPS = ClientViewCapability.of(ClientViewCapability.PLATES, ClientViewCapability.BRICK_CACHE);
+    private static final long HELLO_CAPS = ViewStreamCapability.of(ViewStreamCapability.PLATES, ViewStreamCapability.BRICK_CACHE);
 
     private final List<byte[]> sent = new ArrayList<>();
     private final ServerLevel overworld = mock(ServerLevel.class);
@@ -83,20 +83,20 @@ public class MinecraftClientViewServiceTest extends MinecraftTestBase {
     public void nativeGreetingAdvertisesAndNegotiatesLocalMesh() throws ClientViewProtocolException {
         service.channelRegistered(player(overworld));
         ClientViewMessage.Offer offer = (ClientViewMessage.Offer) message(sent.get(sent.size() - 1));
-        assertTrue(ClientViewCapability.LOCAL_MESH.in(offer.serverCaps()));
-        assertTrue(ClientViewCapability.ENTITY_SELF.in(offer.serverCaps()));
-        assertTrue(ClientViewCapability.PREPARED_TRAVEL.in(offer.serverCaps()));
-        assertTrue(ClientViewCapability.PREPARED_TRAVEL_CACHE.in(offer.serverCaps()));
+        assertTrue(ViewStreamCapability.LOCAL_MESH.in(offer.serverCaps()));
+        assertTrue(ViewStreamCapability.ENTITY_SELF.in(offer.serverCaps()));
+        assertTrue(ViewStreamCapability.PREPARED_TRAVEL.in(offer.serverCaps()));
+        assertTrue(ViewStreamCapability.PREPARED_TRAVEL_CACHE.in(offer.serverCaps()));
 
         byte[] hello = ClientViewCodec.encodeC2S(ClientViewHandshake.clientHello(offer, offer.mcDataVersion(),
-            ClientViewCapability.ALL, 512 * 1024, 256, 0L, "fabric"));
+            ViewStreamCapability.ALL, 512 * 1024, 256, 0L, "fabric"));
         assertEquals(ClientViewInbound.HELLO_ACCEPTED, service.receive(connection, hello));
         ClientViewMessage.Accept accept = (ClientViewMessage.Accept) message(sent.get(sent.size() - 1));
-        assertTrue(ClientViewCapability.LOCAL_MESH.in(accept.caps()));
-        assertTrue(ClientViewCapability.ENTITY_SELF.in(accept.caps()));
-        assertTrue(ClientViewCapability.MESH_RENDER.in(accept.caps()));
-        assertTrue(ClientViewCapability.PREPARED_TRAVEL.in(accept.caps()));
-        assertTrue(ClientViewCapability.PREPARED_TRAVEL_CACHE.in(accept.caps()));
+        assertTrue(ViewStreamCapability.LOCAL_MESH.in(accept.caps()));
+        assertTrue(ViewStreamCapability.ENTITY_SELF.in(accept.caps()));
+        assertTrue(ViewStreamCapability.MESH_RENDER.in(accept.caps()));
+        assertTrue(ViewStreamCapability.PREPARED_TRAVEL.in(accept.caps()));
+        assertTrue(ViewStreamCapability.PREPARED_TRAVEL_CACHE.in(accept.caps()));
     }
 
     @Test
@@ -137,7 +137,7 @@ public class MinecraftClientViewServiceTest extends MinecraftTestBase {
         int mark = sent.size();
         service.runtimeEnabled(true);
 
-        assertEquals(List.of(ClientViewMessageType.OFFER), types(mark));
+        assertEquals(List.of(ViewStreamMessageType.OFFER), types(mark));
         accept();
         mark = sent.size();
         service.runtimeEnabled(true);
@@ -156,14 +156,14 @@ public class MinecraftClientViewServiceTest extends MinecraftTestBase {
         options = options(true);
         tick(player);
 
-        assertEquals(List.of(ClientViewMessageType.OFFER), types(0));
+        assertEquals(List.of(ViewStreamMessageType.OFFER), types(0));
         accept();
     }
 
     private void negotiate(ServerPlayer player) throws ClientViewProtocolException {
         int mark = sent.size();
         service.channelRegistered(player);
-        assertEquals(List.of(ClientViewMessageType.OFFER), types(mark));
+        assertEquals(List.of(ViewStreamMessageType.OFFER), types(mark));
         accept();
     }
 
@@ -199,8 +199,8 @@ public class MinecraftClientViewServiceTest extends MinecraftTestBase {
         return reasons;
     }
 
-    private List<ClientViewMessageType> types(int from) throws ClientViewProtocolException {
-        List<ClientViewMessageType> types = new ArrayList<>();
+    private List<ViewStreamMessageType> types(int from) throws ClientViewProtocolException {
+        List<ViewStreamMessageType> types = new ArrayList<>();
         for (int i = from; i < sent.size(); i++) {
             types.add(message(sent.get(i)).type());
         }
@@ -208,7 +208,7 @@ public class MinecraftClientViewServiceTest extends MinecraftTestBase {
     }
 
     private static ClientViewMessage message(byte[] payload) throws ClientViewProtocolException {
-        return ClientViewCodec.decodeS2C(payload, ClientViewCapability.ALL).message();
+        return ClientViewCodec.decodeS2C(payload, ViewStreamCapability.ALL).message();
     }
 
     private static ClientViewOptions options(boolean enabled) {

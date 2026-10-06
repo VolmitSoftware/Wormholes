@@ -19,12 +19,12 @@ import org.bukkit.Particle;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.portal.ILocalPortal;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalStructure;
-import art.arcane.wormholes.util.Axis;
+import art.arcane.optics.math.Axis;
 
 public final class PortalToolPreviewRenderer
 {
@@ -60,7 +60,7 @@ public final class PortalToolPreviewRenderer
 				continue;
 			}
 			PortalStructure structure = portal.getStructure();
-			PortalFrame frame = portal.getFrame();
+			Frame frame = portal.getFrame();
 			if(structure == null || frame == null)
 			{
 				continue;
@@ -120,7 +120,7 @@ public final class PortalToolPreviewRenderer
 			{
 				return current.geometry();
 			}
-			List<GeometryVector> positions = structure.geometry().getBlockPositions();
+			List<Vec3> positions = structure.geometry().getBlockPositions();
 			if(structure.getRevision() != revision)
 			{
 				continue;

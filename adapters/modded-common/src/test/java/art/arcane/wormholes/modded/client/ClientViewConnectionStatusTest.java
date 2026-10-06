@@ -1,9 +1,9 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.wormholes.network.client.ClientViewCapability;
+import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
+import art.arcane.optics.stream.ViewStreamLimits;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.components.debug.DebugScreenDisplayer;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -18,7 +18,7 @@ public class ClientViewConnectionStatusTest extends MinecraftTestBase {
     public void pendingAndUnansweredNegotiationAreDisconnectedUntilAccepted() {
         ClientViewSession session = session(new WormholesClientConfig());
         assertEquals(ClientViewSession.ConnectionStatus.DISCONNECTED, session.connectionStatus());
-        session.offer(offer(ClientViewProtocol.WIRE_VERSION, 1));
+        session.offer(offer(ViewStreamLimits.WIRE_VERSION, 1));
         assertEquals(ClientViewSession.ConnectionStatus.DISCONNECTED, session.connectionStatus());
         session.unanswered();
         assertEquals(ClientViewSession.ConnectionStatus.DISCONNECTED, session.connectionStatus());
@@ -29,19 +29,19 @@ public class ClientViewConnectionStatusTest extends MinecraftTestBase {
     @Test
     public void wireAndMinecraftVersionIncompatibilityShowMismatchFromTheOffer() {
         ClientViewSession session = session(new WormholesClientConfig());
-        session.offer(offer(ClientViewProtocol.WIRE_VERSION + 1, 1));
+        session.offer(offer(ViewStreamLimits.WIRE_VERSION + 1, 1));
         assertEquals(ClientViewSession.ConnectionStatus.MISMATCH, session.connectionStatus());
-        session.offer(offer(ClientViewProtocol.WIRE_VERSION, 2));
+        session.offer(offer(ViewStreamLimits.WIRE_VERSION, 2));
         assertEquals(ClientViewSession.ConnectionStatus.MISMATCH, session.connectionStatus());
     }
 
     @Test
     public void explicitMismatchDeclinesClearWhenAnotherNegotiationSucceeds() {
         ClientViewSession session = session(new WormholesClientConfig());
-        session.offer(offer(ClientViewProtocol.WIRE_VERSION, 1));
+        session.offer(offer(ViewStreamLimits.WIRE_VERSION, 1));
         session.decline(new ClientViewMessage.Decline(ClientViewMessage.DeclineReason.WIRE_MISMATCH));
         assertEquals(ClientViewSession.ConnectionStatus.MISMATCH, session.connectionStatus());
-        session.offer(offer(ClientViewProtocol.WIRE_VERSION, 1));
+        session.offer(offer(ViewStreamLimits.WIRE_VERSION, 1));
         assertEquals(ClientViewSession.ConnectionStatus.DISCONNECTED, session.connectionStatus());
         session.decline(new ClientViewMessage.Decline(ClientViewMessage.DeclineReason.DATA_VERSION_MISMATCH));
         assertEquals(ClientViewSession.ConnectionStatus.MISMATCH, session.connectionStatus());
@@ -61,7 +61,7 @@ public class ClientViewConnectionStatusTest extends MinecraftTestBase {
         WormholesClientConfig config = new WormholesClientConfig();
         config.renderer = "block-packets";
         ClientViewSession standard = session(config);
-        standard.offer(offer(ClientViewProtocol.WIRE_VERSION + 1, 2));
+        standard.offer(offer(ViewStreamLimits.WIRE_VERSION + 1, 2));
         standard.accept(accept());
         assertEquals(ClientViewSession.ConnectionStatus.DISCONNECTED, standard.connectionStatus());
     }
@@ -87,11 +87,11 @@ public class ClientViewConnectionStatusTest extends MinecraftTestBase {
     }
 
     private static ClientViewMessage.Offer offer(int wire, int dataVersion) {
-        return new ClientViewMessage.Offer(wire, dataVersion, ClientViewCapability.ALL, ClientViewProtocol.DEFAULT_MAX_FRAME_BYTES, 0L);
+        return new ClientViewMessage.Offer(wire, dataVersion, ViewStreamCapability.ALL, ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 0L);
     }
 
     private static ClientViewMessage.Accept accept() {
-        return new ClientViewMessage.Accept(1, ClientViewCapability.ALL, ClientViewProtocol.DEFAULT_TICK_RATE,
-            ClientViewProtocol.DEFAULT_MAX_FRAME_BYTES, 7L, 8);
+        return new ClientViewMessage.Accept(1, ViewStreamCapability.ALL, ViewStreamLimits.DEFAULT_TICK_RATE,
+            ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 7L, 8);
     }
 }

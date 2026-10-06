@@ -15,26 +15,26 @@ import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
+import art.arcane.optics.math.Vec3;
+import art.arcane.optics.view.WorldChangeTracker;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.ProjectionManager;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
-import art.arcane.wormholes.render.client.ClientViewEnvironmentTransform;
-import art.arcane.wormholes.render.plate.PlateBox;
-import art.arcane.wormholes.network.client.BrickLightSource;
-import art.arcane.wormholes.network.client.SectionBiomes;
+import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.client.ClientViewEnvironmentTransform;
+import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.stream.BrickLightSource;
+import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.wormholes.network.client.SessionPalette;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.render.ClientViewPortalSource;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
-import art.arcane.wormholes.render.client.ClientRecursionPlanner;
-import art.arcane.wormholes.render.client.ClientSpace;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.recursion.ClientRecursionPlanner;
+import art.arcane.optics.client.ClientSpace;
 import art.arcane.wormholes.render.client.session.ClientViewPortalAccess;
-import art.arcane.wormholes.render.plate.ViewPlate;
-import art.arcane.wormholes.render.plate.ViewPlateCache;
+import art.arcane.optics.plate.ViewPlate;
+import art.arcane.optics.plate.ViewPlateCache;
 import art.arcane.wormholes.render.view.ProjectionWorldViewProvider;
-import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.optics.math.Box;
 
 public final class BukkitClientViewPortalAccess implements ClientViewPortalAccess<ClientViewObserver, BlockData> {
     private final ProjectionWorldViewProvider views;
@@ -74,7 +74,7 @@ public final class BukkitClientViewPortalAccess implements ClientViewPortalAcces
     }
 
     @Override
-    public ClientPortalGeometry geometry(ClientViewObserver observer, UUID portal, SessionPalette palette) {
+    public ApertureDescriptor geometry(ClientViewObserver observer, UUID portal, SessionPalette palette) {
         ClientViewPortalSource source = source(observer, portal);
         return source == null ? null : source.geometry(palette, identitySalt.getAsLong());
     }
@@ -121,13 +121,13 @@ public final class BukkitClientViewPortalAccess implements ClientViewPortalAcces
     }
 
     @Override
-    public GeometryVector meshEye(ClientViewObserver observer) {
+    public Vec3 meshEye(ClientViewObserver observer) {
         Location eye = observer.eye();
-        return eye == null ? null : new GeometryVector(eye.getX(), eye.getY(), eye.getZ());
+        return eye == null ? null : new Vec3(eye.getX(), eye.getY(), eye.getZ());
     }
 
     @Override
-    public ProjectionWorldChangeTracker meshChanges(ClientViewObserver observer) {
+    public WorldChangeTracker meshChanges(ClientViewObserver observer) {
         return Wormholes.projectionChangeTracker;
     }
 
@@ -146,7 +146,7 @@ public final class BukkitClientViewPortalAccess implements ClientViewPortalAcces
     }
 
     @Override
-    public void nested(ClientViewObserver observer, UUID parent, ClientPortalGeometry parentGeometry, List<UUID> out) {
+    public void nested(ClientViewObserver observer, UUID parent, ApertureDescriptor parentGeometry, List<UUID> out) {
         if (observer.meshDepth() > 0) {
             nestedNative(observer, parent, parentGeometry, out);
             return;
@@ -159,7 +159,7 @@ public final class BukkitClientViewPortalAccess implements ClientViewPortalAcces
         if (mirror == null || eye == null || mirror.transformFrame() == null) {
             return;
         }
-        ClientViewEnvironment.Transform transform = ClientViewEnvironmentTransform.of(mirror.transformFrame());
+        ProjectionEnvironment.Transform transform = ClientViewEnvironmentTransform.of(mirror.transformFrame());
         double[] reflected = new double[3];
         ClientSpace.mirror(parentGeometry).toContent(eye.getX(), eye.getY(), eye.getZ(), reflected);
         observer.reflectedEye(parent, new Location(eye.getWorld(), reflected[0], reflected[1], reflected[2]));
@@ -169,7 +169,7 @@ public final class BukkitClientViewPortalAccess implements ClientViewPortalAcces
             if (candidate == mirror.portal() || candidate.isMirrorMode() || candidate.getStructure() == null) {
                 continue;
             }
-            AxisAlignedBB area = candidate.getStructure().getArea();
+            Box area = candidate.getStructure().getArea();
             if (ClientRecursionPlanner.destinationReaches(parentGeometry, transform, area)) {
                 out.add(candidate.getId());
             }
@@ -185,8 +185,8 @@ public final class BukkitClientViewPortalAccess implements ClientViewPortalAcces
             return;
         }
         observer.nestedContext(context, source, eye);
-        ClientViewEnvironment.Transform transform = ClientViewEnvironmentTransform.of(source.transformFrame());
-        GeometryVector destinationEye = transform.destinationPoint(eye.getX(), eye.getY(), eye.getZ());
+        ProjectionEnvironment.Transform transform = ClientViewEnvironmentTransform.of(source.transformFrame());
+        Vec3 destinationEye = transform.destinationPoint(eye.getX(), eye.getY(), eye.getZ());
         observer.reflectedEye(context, new Location(source.destinationWorld(), destinationEye.x(), destinationEye.y(), destinationEye.z()));
     }
 
@@ -196,18 +196,18 @@ public final class BukkitClientViewPortalAccess implements ClientViewPortalAcces
     }
 
     @Override
-    public GeometryVector nestedEye(ClientViewObserver observer, UUID context) {
+    public Vec3 nestedEye(ClientViewObserver observer, UUID context) {
         Location eye = observer.reflectedEye(context);
-        return eye == null ? null : new GeometryVector(eye.getX(), eye.getY(), eye.getZ());
+        return eye == null ? null : new Vec3(eye.getX(), eye.getY(), eye.getZ());
     }
 
-    private void nestedNative(ClientViewObserver observer, UUID parent, ClientPortalGeometry geometry, List<UUID> out) {
+    private void nestedNative(ClientViewObserver observer, UUID parent, ApertureDescriptor geometry, List<UUID> out) {
         ClientViewObserver.NestedContext context = observer.nestedContext(parent);
         if (context == null) {
             return;
         }
         ClientViewPortalSource source = context.source();
-        ClientViewEnvironment.Transform transform = ClientViewEnvironmentTransform.of(source.transformFrame());
+        ProjectionEnvironment.Transform transform = ClientViewEnvironmentTransform.of(source.transformFrame());
         List<ILocalPortal> candidates = new ArrayList<>(observer.candidates());
         if (Wormholes.portalManager != null) {
             candidates.addAll(Wormholes.portalManager.getLocalPortals());
@@ -241,7 +241,7 @@ public final class BukkitClientViewPortalAccess implements ClientViewPortalAcces
     }
 
     @Override
-    public ClientPortalGeometry nestedGeometry(ClientViewObserver observer, UUID parent, UUID child, SessionPalette palette) {
+    public ApertureDescriptor nestedGeometry(ClientViewObserver observer, UUID parent, UUID child, SessionPalette palette) {
         ClientViewPortalSource source = nestedSource(observer, parent, child);
         return source == null || observer.meshDepth() == 0 && source.refused() ? null : source.geometry(palette, identitySalt.getAsLong());
     }
@@ -272,7 +272,7 @@ public final class BukkitClientViewPortalAccess implements ClientViewPortalAcces
     }
 
     @Override
-    public ClientPortalGeometry effectGeometry(ClientViewObserver observer, UUID portalId, SessionPalette palette) {
+    public ApertureDescriptor effectGeometry(ClientViewObserver observer, UUID portalId, SessionPalette palette) {
         ILocalPortal portal = portal(observer, portalId);
         return portal == null ? null : ClientViewPortalSource.effectGeometry(portal, observer.eye());
     }

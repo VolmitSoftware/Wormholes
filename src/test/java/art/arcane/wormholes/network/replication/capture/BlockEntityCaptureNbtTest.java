@@ -22,7 +22,7 @@ import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.render.blockentity.BlockEntityCapturer;
 import art.arcane.wormholes.render.blockentity.BlockEntityNbt;
 import art.arcane.wormholes.render.blockentity.BlockEntityNbtAssembler;
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
+import art.arcane.optics.fidelity.BlockEntitySample;
 
 final class BlockEntityCaptureNbtTest {
     @Test

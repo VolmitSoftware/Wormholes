@@ -3,7 +3,7 @@ package art.arcane.wormholes.portal.vanilla;
 import art.arcane.volmlib.nativelib.player.RespawnPoint;
 import art.arcane.volmlib.nativelib.player.RespawnPolicy;
 import art.arcane.wormholes.render.PortalProjector;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
@@ -39,7 +39,7 @@ class BukkitEndReturnPreviewTest {
         assertEquals(10, firstTarget.originX());
         assertEquals(20, secondTarget.originX());
         assertNotEquals(firstTarget.routeRevision(), secondTarget.routeRevision());
-        assertEquals(Direction.U, firstTarget.frame().getNormal());
+        assertEquals(Face.U, firstTarget.frame().getNormal());
         assertSame(firstTarget, preview.target(first, 39));
         assertEquals(2, host.pending.size());
         assertSame(firstTarget, preview.target(first, 40));

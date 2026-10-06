@@ -34,10 +34,10 @@ import art.arcane.volmlib.util.collection.KList;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.IPortal;
 import art.arcane.wormholes.portal.ITunnel;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalStructure;
-import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Face;
 
 /** Stateful block data proxies for the render transform tests. */
 final class RenderTestSupport {
@@ -104,8 +104,8 @@ final class RenderTestSupport {
     /** A three by three aperture standing in the z = 5 plane. */
     static final class ApertureStructure extends PortalStructure {
         @Override
-        public AxisAlignedBB getArea() {
-            return new AxisAlignedBB(0.0D, 3.0D, 0.0D, 3.0D, 5.0D, 5.0D);
+        public Box getArea() {
+            return new Box(0.0D, 3.0D, 0.0D, 3.0D, 5.0D, 5.0D);
         }
 
         @Override
@@ -114,9 +114,9 @@ final class RenderTestSupport {
         }
 
         @Override
-        public List<AxisAlignedBB> getCachedApertureFaces(Direction face) {
-            KList<AxisAlignedBB> faces = new KList<AxisAlignedBB>();
-            faces.add(new AxisAlignedBB(0.0D, 3.0D, 0.0D, 3.0D, 5.0D, 5.0D));
+        public List<Box> getCachedApertureFaces(Face face) {
+            KList<Box> faces = new KList<Box>();
+            faces.add(new Box(0.0D, 3.0D, 0.0D, 3.0D, 5.0D, 5.0D));
             return faces;
         }
     }
@@ -177,11 +177,11 @@ final class RenderTestSupport {
         return (World) stateful(World.class, state);
     }
 
-    static ILocalPortal portal(World world, Vector origin, PortalFrame frame) {
+    static ILocalPortal portal(World world, Vector origin, Frame frame) {
         return portal(portalState(world, origin, frame));
     }
 
-    static Map<String, Object> portalState(World world, Vector origin, PortalFrame frame) {
+    static Map<String, Object> portalState(World world, Vector origin, Frame frame) {
         Map<String, Object> state = new HashMap<String, Object>();
         state.put("id", UUID.randomUUID());
         state.put("world", world);

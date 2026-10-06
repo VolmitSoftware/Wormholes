@@ -1,16 +1,16 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
-import art.arcane.wormholes.network.client.Brick;
-import art.arcane.wormholes.network.client.BrickCodec;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
+import art.arcane.optics.stream.Brick;
+import art.arcane.optics.stream.BrickCodec;
+import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
-import art.arcane.wormholes.network.client.SectionBiomes;
-import art.arcane.wormholes.render.plate.PlateBox;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.SectionBiomes;
+import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.Face;
 import com.mojang.blaze3d.vertex.QuadInstance;
 import net.minecraft.client.color.block.BlockColors;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
@@ -51,8 +51,8 @@ public class ClientMeshWorldTest extends MinecraftTestBase {
         ClientMeshSections store = new ClientMeshSections(palette, 65536);
         store.begin(7, 1, new PlateBox(-16, -16, -16, 32, 32, 32), 8);
         int[] cells = new int[4096];
-        byte[] block = new byte[ClientViewProtocol.LIGHT_NIBBLE_BYTES];
-        byte[] sky = new byte[ClientViewProtocol.LIGHT_NIBBLE_BYTES];
+        byte[] block = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
+        byte[] sky = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
         for (int cell = 0; cell < cells.length; cell++) {
             int x = cell & 15;
             int z = cell >> 4 & 15;
@@ -69,10 +69,10 @@ public class ClientMeshWorldTest extends MinecraftTestBase {
                 }
             }
         }
-        for (Direction[] axes : new Direction[][] {{Direction.U, Direction.W, Direction.S},
-            {Direction.D, Direction.E, Direction.S}, {Direction.W, Direction.U, Direction.S}, {Direction.S, Direction.U, Direction.W}}) {
-            ClientViewEnvironment.Transform transform = new ClientViewEnvironment.Transform(axes[0], axes[1], axes[2],
-                new GeometryVector(100, -31, 200));
+        for (Face[] axes : new Face[][] {{Face.U, Face.W, Face.S},
+            {Face.D, Face.E, Face.S}, {Face.W, Face.U, Face.S}, {Face.S, Face.U, Face.W}}) {
+            ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(axes[0], axes[1], axes[2],
+                new Vec3(100, -31, 200));
             ClientMeshWorld snapshot = snapshot(store, 0L, transform, 0);
             BlockAndTintGetter destination = snapshot.destination();
             BlockPos.MutableBlockPos center = new BlockPos.MutableBlockPos();
@@ -105,8 +105,8 @@ public class ClientMeshWorldTest extends MinecraftTestBase {
     @Test
     public void lightSnapshotRetainsDestinationValuesAfterStreamChanges() throws Exception {
         ClientMeshSections store = store();
-        byte[] block = new byte[ClientViewProtocol.LIGHT_NIBBLE_BYTES];
-        byte[] sky = new byte[ClientViewProtocol.LIGHT_NIBBLE_BYTES];
+        byte[] block = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
+        byte[] sky = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
         Arrays.fill(block, (byte) 0x22);
         Arrays.fill(sky, (byte) 0xFF);
         store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 3, Brick.single(0, 3).withLight(block, sky),
@@ -127,8 +127,8 @@ public class ClientMeshWorldTest extends MinecraftTestBase {
         indices[SectionBiomes.cell(15, 15, 15) * 2] = 1;
         store.put(new ClientViewMessage.MeshSection(7, 1, -1, -1, -1, 1, 3, Brick.single(0, 3),
             new SectionBiomes(List.of("minecraft:plains", "minecraft:desert"), indices)));
-        ClientViewEnvironment.Transform transform = new ClientViewEnvironment.Transform(Direction.E, Direction.U, Direction.S,
-            new GeometryVector(100, 0, 200));
+        ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(Face.E, Face.U, Face.S,
+            new Vec3(100, 0, 200));
         ClientMeshWorld snapshot = snapshot(store, SectionPos.asLong(-1, -1, -1), transform, 0);
         assertEquals(0xFF112233, snapshot.getBlockTint(new BlockPos(-16, -16, -16), (biome, x, z) -> biome.getWaterColor()));
         assertEquals(0xFF445566, snapshot.getBlockTint(new BlockPos(-1, -1, -1), (biome, x, z) -> biome.getWaterColor()));
@@ -152,8 +152,8 @@ public class ClientMeshWorldTest extends MinecraftTestBase {
         }
         store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 3, Brick.single(0, 3),
             new SectionBiomes(List.of("minecraft:plains", "minecraft:desert"), indices)));
-        ClientViewEnvironment.Transform transform = new ClientViewEnvironment.Transform(Direction.U, Direction.E, Direction.S,
-            new GeometryVector(0, 0, 0));
+        ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(Face.U, Face.E, Face.S,
+            new Vec3(0, 0, 0));
         ClientMeshWorld snapshot = snapshot(store, 0L, transform, 1);
         ColorResolver resolver = (biome, x, z) -> biome.getWaterColor() == 0x112233 ? 0 : 0xFFFFFF;
         assertEquals(0xFF555555, snapshot.getBlockTint(new BlockPos(8, 3, 8), resolver));
@@ -177,11 +177,11 @@ public class ClientMeshWorldTest extends MinecraftTestBase {
         store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 3, Brick.single(0, 3),
             new SectionBiomes(List.of("minecraft:plains", "minecraft:desert"), indices)));
         BlockColors colors = BlockColors.createDefault();
-        for (Direction[] axes : new Direction[][] {{Direction.E, Direction.U, Direction.S},
-            {Direction.U, Direction.W, Direction.S}, {Direction.D, Direction.E, Direction.S},
-            {Direction.W, Direction.D, Direction.S}, {Direction.E, Direction.N, Direction.U}}) {
-            ClientViewEnvironment.Transform transform = new ClientViewEnvironment.Transform(axes[0], axes[1], axes[2],
-                new GeometryVector(-100.5, 63.5, -200.5));
+        for (Face[] axes : new Face[][] {{Face.E, Face.U, Face.S},
+            {Face.U, Face.W, Face.S}, {Face.D, Face.E, Face.S},
+            {Face.W, Face.D, Face.S}, {Face.E, Face.N, Face.U}}) {
+            ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(axes[0], axes[1], axes[2],
+                new Vec3(-100.5, 63.5, -200.5));
             ClientMeshWorld snapshot = snapshot(store, 0L, transform, 7);
             int x = axes[1].x() < 0 ? 15 : 0;
             int y = axes[1].y() < 0 ? 15 : 0;
@@ -221,7 +221,7 @@ public class ClientMeshWorldTest extends MinecraftTestBase {
     }
 
     @SuppressWarnings("unchecked")
-    private static ClientMeshWorld snapshot(ClientMeshSections store, long center, ClientViewEnvironment.Transform transform, int blend) {
+    private static ClientMeshWorld snapshot(ClientMeshSections store, long center, ProjectionEnvironment.Transform transform, int blend) {
         Registry<Biome> registry = mock(Registry.class);
         Biome plains = mock(Biome.class);
         Biome desert = mock(Biome.class);

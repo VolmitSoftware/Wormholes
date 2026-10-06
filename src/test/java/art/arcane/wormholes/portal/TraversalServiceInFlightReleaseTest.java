@@ -11,7 +11,7 @@ import art.arcane.wormholes.config.toml.RenderConfig;
 import art.arcane.wormholes.network.NetworkManager;
 import art.arcane.wormholes.network.TraversalService;
 import art.arcane.wormholes.service.WormholesTelemetry;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
@@ -31,6 +31,7 @@ import java.util.logging.Logger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import art.arcane.optics.frame.Frame;
 
 @Timeout(30)
 class TraversalServiceInFlightReleaseTest {
@@ -123,7 +124,7 @@ class TraversalServiceInFlightReleaseTest {
         return new Traversive(
             null,
             TraversableType.ENTITY,
-            PortalFrame.canonical(Direction.N),
+            Frame.canonical(Face.N),
             new Vector(0.0D, 64.0D, 0.0D),
             new Vector(0.0D, 64.0D, 0.0D),
             new Vector(0.0D, 0.0D, 1.0D),

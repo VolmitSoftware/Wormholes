@@ -3,21 +3,21 @@ package art.arcane.wormholes.render.client.session;
 import java.util.List;
 import java.util.UUID;
 
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
-import art.arcane.wormholes.render.plate.PlateBox;
-import art.arcane.wormholes.network.client.BrickLightSource;
-import art.arcane.wormholes.network.client.SectionBiomes;
+import art.arcane.optics.math.Vec3;
+import art.arcane.optics.view.WorldChangeTracker;
+import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.stream.BrickLightSource;
+import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.wormholes.network.client.SessionPalette;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
-import art.arcane.wormholes.render.plate.ViewPlate;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.plate.ViewPlate;
 
 public interface ClientViewPortalAccess<P, B> {
     void interested(P observer, List<UUID> out);
 
     long geometryRevision(P observer, UUID portal);
 
-    ClientPortalGeometry geometry(P observer, UUID portal, SessionPalette palette);
+    ApertureDescriptor geometry(P observer, UUID portal, SessionPalette palette);
 
     ViewPlate<B> plate(P observer, UUID portal, boolean firstAttendance);
 
@@ -25,7 +25,7 @@ public interface ClientViewPortalAccess<P, B> {
         return 0;
     }
 
-    default GeometryVector meshEye(P observer) {
+    default Vec3 meshEye(P observer) {
         return null;
     }
 
@@ -35,11 +35,11 @@ public interface ClientViewPortalAccess<P, B> {
     default void releaseNested(P observer, UUID context) {
     }
 
-    default GeometryVector nestedEye(P observer, UUID context) {
+    default Vec3 nestedEye(P observer, UUID context) {
         return null;
     }
 
-    default ProjectionWorldChangeTracker meshChanges(P observer) {
+    default WorldChangeTracker meshChanges(P observer) {
         return null;
     }
 
@@ -75,11 +75,11 @@ public interface ClientViewPortalAccess<P, B> {
 
     void releaseVanilla(P observer, UUID portal);
 
-    void nested(P observer, UUID parent, ClientPortalGeometry parentGeometry, List<UUID> out);
+    void nested(P observer, UUID parent, ApertureDescriptor parentGeometry, List<UUID> out);
 
     long nestedGeometryRevision(P observer, UUID parent, UUID child);
 
-    ClientPortalGeometry nestedGeometry(P observer, UUID parent, UUID child, SessionPalette palette);
+    ApertureDescriptor nestedGeometry(P observer, UUID parent, UUID child, SessionPalette palette);
 
     ViewPlate<B> nestedPlate(P observer, UUID parent, UUID child);
 
@@ -87,5 +87,5 @@ public interface ClientViewPortalAccess<P, B> {
 
     long effectGeometryRevision(P observer, UUID portal);
 
-    ClientPortalGeometry effectGeometry(P observer, UUID portal, SessionPalette palette);
+    ApertureDescriptor effectGeometry(P observer, UUID portal, SessionPalette palette);
 }

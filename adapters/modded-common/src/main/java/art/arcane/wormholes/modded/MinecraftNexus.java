@@ -12,7 +12,7 @@ import art.arcane.wormholes.nexus.NetworkRegistry;
 import art.arcane.wormholes.nexus.NetworkRole;
 import art.arcane.wormholes.nexus.PortalNetwork;
 import art.arcane.wormholes.nexus.RedstoneIoIndex;
-import art.arcane.wormholes.portal.PortalCrossing;
+import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.wormholes.portal.PortalStateCodec;
 import art.arcane.wormholes.portal.PortalType;
 import net.minecraft.core.BlockPos;
@@ -23,7 +23,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.BlockHitResult;
-import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.optics.math.Box;
 import net.minecraft.world.level.block.RedstoneWireBlock;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -240,7 +240,7 @@ public final class MinecraftNexus implements AutoCloseable {
         return policy.isActive() && policy.isPerTraveler();
     }
 
-    public NetworkMember destination(MinecraftPortal portal, Entity traveler, PortalCrossing crossing) {
+    public NetworkMember destination(MinecraftPortal portal, Entity traveler, PlaneCrossing crossing) {
         State state = state(portal);
         DestinationPolicy policy = state.policy();
         if (policy.isActive() && policy.isPerTraveler()) {
@@ -386,7 +386,7 @@ public final class MinecraftNexus implements AutoCloseable {
                 continue;
             }
             PortalNetwork network = networks.memberOf(id);
-            AxisAlignedBB area = portal.getGeometry().captureZone(runtime.configuration().settings().getRender().captureZoneRadius);
+            Box area = portal.getGeometry().captureZone(runtime.configuration().settings().getRender().captureZoneRadius);
             if (network != null && network.visibleTo(player.getUUID(), administrator(player)) && area.containsPrimitive(x, y, z)) {
                 return portal;
             }

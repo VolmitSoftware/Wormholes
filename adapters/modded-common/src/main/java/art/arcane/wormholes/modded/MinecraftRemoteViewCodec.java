@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.network.view.RemoteViewCodec;
-import art.arcane.wormholes.render.blockentity.BlockEntityMaterials;
+import art.arcane.optics.fidelity.BlockEntityMaterials;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
 import net.minecraft.core.RegistryAccess;

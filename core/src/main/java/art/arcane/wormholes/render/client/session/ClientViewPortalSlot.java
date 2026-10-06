@@ -4,10 +4,10 @@ import java.util.ArrayList;
 import java.util.UUID;
 import java.nio.ByteBuffer;
 
-import art.arcane.wormholes.network.client.BrickLightSource;
+import art.arcane.optics.stream.BrickLightSource;
 import art.arcane.wormholes.network.client.EncodedPlate;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
-import art.arcane.wormholes.render.plate.ViewPlate;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.plate.ViewPlate;
 
 final class ClientViewPortalSlot<B> {
     final UUID portalId;
@@ -21,11 +21,11 @@ final class ClientViewPortalSlot<B> {
     long lastInterestTick;
     long lastEffectTick;
     long geometryStamp;
-    ClientPortalGeometry baseGeometry;
+    ApertureDescriptor baseGeometry;
     ViewPlate<B> observedPlate;
     ClientViewPortalSlot<B> standbySlot;
 
-    volatile ClientPortalGeometry geometry;
+    volatile ApertureDescriptor geometry;
     volatile PlateTarget<B> target;
     volatile boolean needFullEntities;
     volatile boolean needFullScene;
@@ -34,7 +34,7 @@ final class ClientViewPortalSlot<B> {
 
     boolean laneAttached;
     boolean announced;
-    ClientPortalGeometry sentGeometry;
+    ApertureDescriptor sentGeometry;
     int geometryRevision;
     ViewPlate<B> sentPlate;
     EncodedPlate sentEncoded;

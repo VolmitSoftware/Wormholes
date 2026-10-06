@@ -26,12 +26,12 @@ import art.arcane.wormholes.chunk.presend.BukkitChunkPreSendCapture;
 import art.arcane.wormholes.chunk.presend.BukkitChunkPreSendProvider;
 import art.arcane.wormholes.chunk.presend.BukkitChunkPreSendTransaction;
 import art.arcane.wormholes.portal.LocalPortal;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.wormholes.portal.Traversive;
 import art.arcane.wormholes.portal.PortalTravelCost;
 import art.arcane.wormholes.service.WormholesTelemetry;
-import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.optics.math.Box;
 
 final class RtpTraversalPipeline
 {
@@ -352,7 +352,7 @@ final class RtpTraversalPipeline
 				fail(portal, entity, preparation, null);
 				return;
 			}
-			PortalFrame targetFrame = RtpProjectionGeometry.targetFrameFor(portal.getFrame());
+			Frame targetFrame = RtpProjectionGeometry.targetFrameFor(portal.getFrame());
 			Location target = targetLocation(targetWorld, preparation.claim().destination(), traversive, targetFrame, envelope);
 			service.markTraversalDispatched(preparation).whenComplete((marked, markFailure) -> guard(portal, entity, preparation, retained, () ->
 			{
@@ -384,7 +384,7 @@ final class RtpTraversalPipeline
 		Entity entity,
 		Traversive traversive,
 		RtpService.TraversalPreparation preparation,
-		PortalFrame targetFrame,
+		Frame targetFrame,
 		Location target,
 		World targetWorld,
 		Retained retained)
@@ -415,7 +415,7 @@ final class RtpTraversalPipeline
 		Entity entity,
 		Traversive traversive,
 		RtpService.TraversalPreparation preparation,
-		PortalFrame targetFrame,
+		Frame targetFrame,
 		Location target,
 		World targetWorld,
 		Retained retained)
@@ -485,7 +485,7 @@ final class RtpTraversalPipeline
 		Entity entity,
 		Traversive traversive,
 		RtpService.TraversalPreparation preparation,
-		PortalFrame targetFrame,
+		Frame targetFrame,
 		Location target,
 		Retained retained,
 		Active traversal,
@@ -513,7 +513,7 @@ final class RtpTraversalPipeline
 		Entity entity,
 		Traversive traversive,
 		RtpService.TraversalPreparation preparation,
-		PortalFrame targetFrame,
+		Frame targetFrame,
 		Location target,
 		Retained retained,
 		Active traversal)
@@ -572,7 +572,7 @@ final class RtpTraversalPipeline
 		Entity entity,
 		Traversive traversive,
 		RtpService.TraversalPreparation preparation,
-		PortalFrame targetFrame,
+		Frame targetFrame,
 		Location target,
 		Retained retained,
 		Active traversal)
@@ -605,7 +605,7 @@ final class RtpTraversalPipeline
 		Entity entity,
 		Traversive traversive,
 		RtpService.TraversalPreparation preparation,
-		PortalFrame targetFrame,
+		Frame targetFrame,
 		Location target,
 		Retained retained,
 		Active traversal)
@@ -658,7 +658,7 @@ final class RtpTraversalPipeline
 			Entity entity,
 			Traversive traversive,
 			RtpService.TraversalPreparation preparation,
-			PortalFrame targetFrame,
+			Frame targetFrame,
 			Location target,
 			Retained retained,
 			Active traversal)
@@ -1017,7 +1017,7 @@ final class RtpTraversalPipeline
 		{
 			return false;
 		}
-		AxisAlignedBB area = structure.getArea();
+		Box area = structure.getArea();
 		return area != null
 				&& location.getX() >= area.getXa() - SOURCE_CAPTURE_MARGIN
 				&& location.getX() <= area.getXb() + SOURCE_CAPTURE_MARGIN
@@ -1046,7 +1046,7 @@ final class RtpTraversalPipeline
 			World world,
 			RtpDestination destination,
 			Traversive traversive,
-			PortalFrame targetFrame,
+			Frame targetFrame,
 			RtpValidationRequest.EntityEnvelope envelope)
 	{
 		double centerXOffset = (envelope.minimumXOffset() + envelope.maximumXOffset()) / 2.0D;
@@ -1278,7 +1278,7 @@ final class RtpTraversalPipeline
 		private final Entity entity;
 		private final Traversive traversive;
 		private final RtpService.TraversalPreparation preparation;
-		private final PortalFrame targetFrame;
+		private final Frame targetFrame;
 		private final Location target;
 		private final Retained retained;
 		private final Active traversal;
@@ -1290,7 +1290,7 @@ final class RtpTraversalPipeline
 			Entity entity,
 			Traversive traversive,
 			RtpService.TraversalPreparation preparation,
-			PortalFrame targetFrame,
+			Frame targetFrame,
 			Location target,
 			Retained retained,
 			Active traversal)
@@ -1327,7 +1327,7 @@ final class RtpTraversalPipeline
 			return preparation;
 		}
 
-		private PortalFrame targetFrame()
+		private Frame targetFrame()
 		{
 			return targetFrame;
 		}

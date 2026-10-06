@@ -1,7 +1,7 @@
 package art.arcane.wormholes.render.client.session;
 
 import java.security.SecureRandom;
-import art.arcane.wormholes.render.ProjectedEntityEvent;
+import art.arcane.optics.entity.ProjectedEntityEvent;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -10,7 +10,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import art.arcane.wormholes.network.client.BrickLightSource;
+import art.arcane.optics.stream.BrickLightSource;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.network.client.PlateStreamEncoder;
 import art.arcane.wormholes.network.client.SessionPalette;

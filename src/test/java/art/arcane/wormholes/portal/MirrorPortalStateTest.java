@@ -23,8 +23,10 @@ import org.junit.jupiter.api.Test;
 import art.arcane.wormholes.util.Cuboid;
 import art.arcane.wormholes.render.BukkitProjectorPortalAccess;
 import java.util.List;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import art.arcane.volmlib.util.json.JSONObject;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.QuarterTurn;
 
 public final class MirrorPortalStateTest {
     @Test
@@ -98,46 +100,46 @@ public final class MirrorPortalStateTest {
     @Test
     public void mirrorRotationPreservesQuarterTurnsAcrossFrameChanges() {
         LocalPortal portal = portal(PortalType.PORTAL);
-        PortalFrame wall = PortalFrame.canonical(Direction.N);
-        PortalFrame floor = PortalFrame.canonical(Direction.U);
-        assertFalse(MirrorRotation.supportsQuarterTurns(wall));
-        assertTrue(MirrorRotation.supportsQuarterTurns(floor));
+        Frame wall = Frame.canonical(Face.N);
+        Frame floor = Frame.canonical(Face.U);
+        assertFalse(QuarterTurn.supportsQuarterTurns(wall));
+        assertTrue(QuarterTurn.supportsQuarterTurns(floor));
 
-        portal.setMirrorRotation(MirrorRotation.DEGREES_90);
-        assertEquals(MirrorRotation.DEGREES_90, portal.getMirrorRotation());
-        assertEquals(MirrorRotation.DEGREES_0, portal.getMirrorRotation().coherentFor(wall));
+        portal.setMirrorRotation(QuarterTurn.DEGREES_90);
+        assertEquals(QuarterTurn.DEGREES_90, portal.getMirrorRotation());
+        assertEquals(QuarterTurn.DEGREES_0, portal.getMirrorRotation().coherentFor(wall));
         portal.setMirrorRotation(portal.getMirrorRotation().clockwiseFor(portal.getFrame()));
-        assertEquals(MirrorRotation.DEGREES_180, portal.getMirrorRotation());
+        assertEquals(QuarterTurn.DEGREES_180, portal.getMirrorRotation());
         portal.setMirrorRotation(portal.getMirrorRotation().counterClockwiseFor(portal.getFrame()));
-        assertEquals(MirrorRotation.DEGREES_0, portal.getMirrorRotation());
+        assertEquals(QuarterTurn.DEGREES_0, portal.getMirrorRotation());
 
         portal.setFrame(floor);
-        portal.setMirrorRotation(MirrorRotation.DEGREES_90);
-        assertEquals(MirrorRotation.DEGREES_90, portal.getMirrorRotation());
+        portal.setMirrorRotation(QuarterTurn.DEGREES_90);
+        assertEquals(QuarterTurn.DEGREES_90, portal.getMirrorRotation());
         portal.setFrame(wall);
-        assertEquals(MirrorRotation.DEGREES_90, portal.getMirrorRotation());
+        assertEquals(QuarterTurn.DEGREES_90, portal.getMirrorRotation());
         portal.setFrame(floor);
-        portal.setMirrorRotation(MirrorRotation.DEGREES_270);
+        portal.setMirrorRotation(QuarterTurn.DEGREES_270);
         portal.setFrame(wall);
-        assertEquals(MirrorRotation.DEGREES_270, portal.getMirrorRotation());
-        assertEquals(MirrorRotation.DEGREES_180, portal.getMirrorRotation().coherentFor(wall));
+        assertEquals(QuarterTurn.DEGREES_270, portal.getMirrorRotation());
+        assertEquals(QuarterTurn.DEGREES_180, portal.getMirrorRotation().coherentFor(wall));
         assertEquals(2, new BukkitProjectorPortalAccess(List::of).mirrorQuarterTurns(portal));
 
         JSONObject stored = new JSONObject();
         stored.put("mirrorRotationDegrees", 270);
-        assertEquals(MirrorRotation.DEGREES_270, LocalPortalSettings.resolveMirrorRotation(stored));
+        assertEquals(QuarterTurn.DEGREES_270, LocalPortalSettings.resolveMirrorRotation(stored));
         try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
             BlockData stone = mock(BlockData.class);
             when(stone.getAsString()).thenReturn("minecraft:stone");
             bukkit.when(() -> Bukkit.createBlockData(anyString())).thenReturn(stone);
             portal.settings().load(stored);
-            assertEquals(MirrorRotation.DEGREES_270, portal.getMirrorRotation());
+            assertEquals(QuarterTurn.DEGREES_270, portal.getMirrorRotation());
         }
-        assertEquals(MirrorRotation.DEGREES_0, LocalPortalSettings.resolveMirrorRotation(new JSONObject()));
-        assertEquals(MirrorRotation.DEGREES_270, MirrorRotation.fromDegrees(-90));
-        assertEquals(MirrorRotation.DEGREES_90, MirrorRotation.fromDegrees(450));
-        assertEquals(MirrorRotation.DEGREES_0, MirrorRotation.DEGREES_270.clockwise());
-        assertEquals(MirrorRotation.DEGREES_270, MirrorRotation.DEGREES_0.counterClockwise());
+        assertEquals(QuarterTurn.DEGREES_0, LocalPortalSettings.resolveMirrorRotation(new JSONObject()));
+        assertEquals(QuarterTurn.DEGREES_270, QuarterTurn.fromDegrees(-90));
+        assertEquals(QuarterTurn.DEGREES_90, QuarterTurn.fromDegrees(450));
+        assertEquals(QuarterTurn.DEGREES_0, QuarterTurn.DEGREES_270.clockwise());
+        assertEquals(QuarterTurn.DEGREES_270, QuarterTurn.DEGREES_0.counterClockwise());
     }
 
     @Test

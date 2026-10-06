@@ -1,7 +1,7 @@
 package art.arcane.wormholes.network;
 
 import art.arcane.wormholes.access.PortalAdmission;
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -17,7 +17,7 @@ import art.arcane.wormholes.portal.PortalPermissionMode;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.ProjectionMode;
 import art.arcane.wormholes.portal.RemotePortal;
-import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.optics.math.Box;
 import art.arcane.wormholes.util.RemoteWorld;
 
 public final class MirrorInboundGateTest {
@@ -96,10 +96,10 @@ public final class MirrorInboundGateTest {
         return new RemotePortal(
             UUID.randomUUID(),
             new RemoteWorld("beta", "world"),
-            new GeometryVector(0.0D, 64.0D, 0.0D),
+            new Vec3(0.0D, 64.0D, 0.0D),
             PortalType.GATEWAY,
             open,
-            new AxisAlignedBB(0.0D, 1.0D, 64.0D, 67.0D, 0.0D, 1.0D)
+            new Box(0.0D, 1.0D, 64.0D, 67.0D, 0.0D, 1.0D)
         );
     }
 

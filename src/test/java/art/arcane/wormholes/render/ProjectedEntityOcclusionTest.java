@@ -16,9 +16,12 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.util.BoundingBox;
 import org.junit.jupiter.api.Test;
 
-import art.arcane.wormholes.network.view.EntityVisual;
+import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.occlusion.ProjectedEntityOcclusion;
+import art.arcane.optics.occlusion.ProjectorViewOcclusion;
 
 public final class ProjectedEntityOcclusionTest {
     @Test
@@ -60,7 +63,7 @@ public final class ProjectedEntityOcclusionTest {
         FakeWorldView view = new FakeWorldView();
         LongOpenHashSet blockers = wall(view, 2, -4, 6, -4, 6);
         ProjectedEntityOcclusion<BlockData, ProjectionWorldView> occlusion = occlusion();
-        occlusion.beginPass(view, 0.5D, 0.5D, 0.5D, Direction.W, blockers,
+        occlusion.beginPass(view, 0.5D, 0.5D, 0.5D, Face.W, blockers,
             0.5D, 1.5D, 0.5D, 0.0D);
         view.incrementRevision();
         occlusion.startBatch();
@@ -69,7 +72,7 @@ public final class ProjectedEntityOcclusionTest {
             4.25D, 1.0D, 0.25D,
             4.75D, 2.0D, 0.75D)));
 
-        occlusion.beginPass(view, 0.5D, 0.5D, 0.5D, Direction.W, new LongOpenHashSet(),
+        occlusion.beginPass(view, 0.5D, 0.5D, 0.5D, Face.W, new LongOpenHashSet(),
             0.5D, 1.5D, 0.5D, 0.0D);
         occlusion.startBatch();
         assertFalse(occlusion.fullyHidden(visual(4.5D, 1.0D, 0.5D, 0.7D)));
@@ -82,7 +85,7 @@ public final class ProjectedEntityOcclusionTest {
         long capturedRevision = view.getRevision();
         view.incrementRevision();
         ProjectedEntityOcclusion<BlockData, ProjectionWorldView> occlusion = occlusion();
-        occlusion.beginPass(view, 0.5D, 0.5D, 0.5D, Direction.W, blockers,
+        occlusion.beginPass(view, 0.5D, 0.5D, 0.5D, Face.W, blockers,
             0.5D, 1.5D, 0.5D, 0.0D);
         occlusion.retainRevision(capturedRevision);
         occlusion.startBatch();
@@ -92,7 +95,7 @@ public final class ProjectedEntityOcclusionTest {
     private static void begin(ProjectedEntityOcclusion<BlockData, ProjectionWorldView> occlusion,
                               FakeWorldView view,
                               LongOpenHashSet blockers) {
-        occlusion.beginPass(view, 0.5D, 0.5D, 0.5D, Direction.W, blockers,
+        occlusion.beginPass(view, 0.5D, 0.5D, 0.5D, Face.W, blockers,
             0.5D, 1.5D, 0.5D, 0.0D);
         occlusion.startBatch();
     }
@@ -113,14 +116,14 @@ public final class ProjectedEntityOcclusionTest {
         for (int y = minY; y <= maxY; y++) {
             for (int z = minZ; z <= maxZ; z++) {
                 view.put(x, y, z, Material.STONE);
-                blockers.add(ProjectionCellKey.pack(x, y, z));
+                blockers.add(CellKeys.pack(x, y, z));
             }
         }
         return blockers;
     }
 
-    private static EntityVisual visual(double x, double y, double z, double height) {
-        return EntityVisual.full(
+    private static EntitySnapshot visual(double x, double y, double z, double height) {
+        return EntitySnapshot.full(
             UUID.randomUUID(), "minecraft:minecart",
             x, y, z, height,
             0.0D, 0.0D, 1.0D,
@@ -129,7 +132,7 @@ public final class ProjectedEntityOcclusionTest {
             true,
             "", "", "",
             null, null,
-            EntityVisual.EMPTY, EntityVisual.EMPTY, EntityVisual.EMPTY,
+            EntitySnapshot.EMPTY, EntitySnapshot.EMPTY, EntitySnapshot.EMPTY,
             0);
     }
 

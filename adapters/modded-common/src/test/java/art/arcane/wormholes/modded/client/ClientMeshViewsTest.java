@@ -1,16 +1,16 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.client.render.PortalScene;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
+import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.Brick;
-import art.arcane.wormholes.network.client.SectionBiomes;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
-import art.arcane.wormholes.render.plate.PlateBox;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.stream.Brick;
+import art.arcane.optics.stream.SectionBiomes;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.Face;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongLinkedOpenHashSet;
@@ -89,10 +89,10 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
         ClientMeshSections meshes = mock(ClientMeshSections.class);
         ClientMeshSections.View view = mock(ClientMeshSections.View.class);
         ClientPortal portal = mock(ClientPortal.class);
-        ClientPortalGeometry geometry = mock(ClientPortalGeometry.class);
+        ApertureDescriptor geometry = mock(ApertureDescriptor.class);
         ClientPortalRenderer renderer = mock(ClientPortalRenderer.class);
         ClientLevel level = mock(ClientLevel.class);
-        ClientViewEnvironment environment = mock(ClientViewEnvironment.class);
+        ProjectionEnvironment environment = mock(ProjectionEnvironment.class);
         Camera camera = mock(Camera.class);
         when(session.active()).thenReturn(true);
         when(session.meshes()).thenReturn(meshes);
@@ -106,8 +106,8 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
         portals.put(7, portal);
         when(session.portals()).thenReturn(portals);
         when(session.environment(7)).thenReturn(environment);
-        when(environment.transform()).thenReturn(new ClientViewEnvironment.Transform(Direction.E, Direction.U, Direction.S,
-            new GeometryVector(0, 0, 0)));
+        when(environment.transform()).thenReturn(new ProjectionEnvironment.Transform(Face.E, Face.U, Face.S,
+            new Vec3(0, 0, 0)));
         when(renderer.available(7)).thenReturn(true);
         IllegalStateException failure = new IllegalStateException("Feature renderer unavailable");
         try (MockedStatic<ClientPortalRenderer> renderers = mockStatic(ClientPortalRenderer.class);
@@ -135,8 +135,8 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
         ClientPortal portal = mock(ClientPortal.class);
         ClientPortalRenderer renderer = mock(ClientPortalRenderer.class);
         ClientLevel level = mock(ClientLevel.class);
-        ClientPortalGeometry base = new ClientPortalGeometry(0, 64, 0, Direction.S.ordinal(), true, 0, true,
-            1, 2, new long[]{3}, 0, 0, 1, 64, 3, 0, 0, 0, 0, 0, ClientPortalGeometry.KIND_FRAME, 0.0D, 0, 1, List.of());
+        ApertureDescriptor base = new ApertureDescriptor(0, 64, 0, Face.S.ordinal(), true, 0, true,
+            1, 2, new long[]{3}, 0, 0, 1, 64, 3, 0, 0, 0, 0, 0, ApertureDescriptor.KIND_FRAME, 0.0D, 0, 1, List.of());
         when(session.active()).thenReturn(true);
         when(session.meshes()).thenReturn(meshes);
         when(meshes.view(7)).thenReturn(view);
@@ -154,12 +154,12 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
             views.update(session, level);
             ArgumentCaptor<PortalScene> scene = ArgumentCaptor.forClass(PortalScene.class);
             verify(renderer).replaceScene(eq(7), scene.capture());
-            ClientPortalGeometry first = base.withParent(7);
-            ClientPortalGeometry second = base.withParent(8);
-            List<ClientPortalGeometry> changes = List.of(base.withNested(List.of(first)),
+            ApertureDescriptor first = base.withParent(7);
+            ApertureDescriptor second = base.withParent(8);
+            List<ApertureDescriptor> changes = List.of(base.withNested(List.of(first)),
                 base.withNested(List.of(first.withNested(List.of(second)), second)),
                 base.withNested(List.of(second, first)), base);
-            for (ClientPortalGeometry geometry : changes) {
+            for (ApertureDescriptor geometry : changes) {
                 when(portal.geometry()).thenReturn(geometry);
                 views.update(session, level);
                 assertSame(geometry, scene.getValue().geometry());
@@ -183,10 +183,10 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
         ClientMeshSections meshes = mock(ClientMeshSections.class);
         ClientMeshSections.View view = mock(ClientMeshSections.View.class);
         ClientPortal portal = mock(ClientPortal.class);
-        ClientPortalGeometry geometry = mock(ClientPortalGeometry.class);
+        ApertureDescriptor geometry = mock(ApertureDescriptor.class);
         ClientPortalRenderer renderer = mock(ClientPortalRenderer.class);
         ClientLevel level = mock(ClientLevel.class);
-        ClientViewEnvironment environment = mock(ClientViewEnvironment.class);
+        ProjectionEnvironment environment = mock(ProjectionEnvironment.class);
         when(session.active()).thenReturn(true);
         when(session.meshes()).thenReturn(meshes);
         when(meshes.view(7)).thenReturn(view);
@@ -199,16 +199,16 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
         portals.put(7, portal);
         when(session.portals()).thenReturn(portals);
         when(session.environment(7)).thenReturn(environment);
-        when(environment.transform()).thenReturn(new ClientViewEnvironment.Transform(Direction.E, Direction.U, Direction.S,
-            new GeometryVector(0, 0, 0)));
+        when(environment.transform()).thenReturn(new ProjectionEnvironment.Transform(Face.E, Face.U, Face.S,
+            new Vec3(0, 0, 0)));
         try (MockedStatic<ClientPortalRenderer> renderers = mockStatic(ClientPortalRenderer.class)) {
             renderers.when(ClientPortalRenderer::instance).thenReturn(renderer);
             ClientMeshViews views = new ClientMeshViews();
             views.update(session, level);
             views.update(session, level);
             verify(renderer, times(1)).replaceScene(eq(7), any(PortalScene.class));
-            when(environment.transform()).thenReturn(new ClientViewEnvironment.Transform(Direction.U, Direction.W, Direction.S,
-                new GeometryVector(0, 0, 0)));
+            when(environment.transform()).thenReturn(new ProjectionEnvironment.Transform(Face.U, Face.W, Face.S,
+                new Vec3(0, 0, 0)));
             views.update(session, level);
             views.update(session, level);
             verify(renderer, times(2)).replaceScene(eq(7), any(PortalScene.class));
@@ -239,7 +239,7 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
             assertEquals(List.of(fixture.level, destination), featureLevels);
             Camera camera = mock(Camera.class);
             fixture.views.extract(camera, 0.5F);
-            verify(features.constructed().get(1)).extract(7, camera, 0.5F, ClientViewEnvironment.Transform.IDENTITY);
+            verify(features.constructed().get(1)).extract(7, camera, 0.5F, ProjectionEnvironment.Transform.IDENTITY);
             fixture.views.detach();
             verify(fixture.renderer).remove(7);
         }
@@ -263,8 +263,8 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
             ClientMeshSections.Identity worldIdentity = new ClientMeshSections.Identity(fixture.environment, 1, 2);
             when(fixture.view.identity()).thenReturn(worldIdentity);
             fixture.views.update(fixture.session, foreignRegistry);
-            when(fixture.environment.dimension()).thenReturn(new ClientViewEnvironment.Dimension(-64, 384, true,
-                ClientViewEnvironment.CardinalLighting.NETHER, 63, false));
+            when(fixture.environment.dimension()).thenReturn(new ProjectionEnvironment.Dimension(-64, 384, true,
+                ProjectionEnvironment.CardinalLighting.NETHER, 63, false));
             fixture.views.update(fixture.session, foreignRegistry);
             ClientMeshSections.View replacement = mock(ClientMeshSections.View.class);
             when(replacement.changed()).thenReturn(new LongOpenHashSet());
@@ -377,16 +377,16 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
             verify(fixture.renderer, times(3)).replaceScene(eq(7), captured.capture());
             PortalScene third = captured.getValue();
             assertNotNull(third.meshContext());
-            when(fixture.environment.dimension()).thenReturn(new ClientViewEnvironment.Dimension(-32, 256, false,
-                ClientViewEnvironment.CardinalLighting.NETHER, 63, false));
+            when(fixture.environment.dimension()).thenReturn(new ProjectionEnvironment.Dimension(-32, 256, false,
+                ProjectionEnvironment.CardinalLighting.NETHER, 63, false));
             assertNull(third.meshContext());
             assertFalse(third.matchesMeshIdentity(0L, firstProof));
             fixture.views.update(fixture.session, fixture.level);
             verify(fixture.renderer, times(4)).replaceScene(eq(7), captured.capture());
             PortalScene fourth = captured.getValue();
             assertNotNull(fourth.meshContext());
-            when(fixture.environment.transform()).thenReturn(new ClientViewEnvironment.Transform(Direction.E, Direction.U, Direction.S,
-                new GeometryVector(16, 0, 0)));
+            when(fixture.environment.transform()).thenReturn(new ProjectionEnvironment.Transform(Face.E, Face.U, Face.S,
+                new Vec3(16, 0, 0)));
             assertNull(fourth.meshContext());
             assertFalse(fourth.matchesMeshIdentity(0L, firstProof));
             fixture.views.update(fixture.session, fixture.level);
@@ -543,7 +543,7 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
         ClientPortal otherPortal = mock(ClientPortal.class);
         PlateBox bounds = fixture.view.bounds();
         ClientMeshSections.Identity identity = fixture.view.identity();
-        ClientPortalGeometry geometry = fixture.portal.geometry();
+        ApertureDescriptor geometry = fixture.portal.geometry();
         when(otherView.changed()).thenReturn(new LongLinkedOpenHashSet());
         when(otherView.bounds()).thenReturn(bounds);
         when(otherView.identity()).thenReturn(identity);
@@ -597,8 +597,8 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
         private final ClientPortal portal = mock(ClientPortal.class);
         private final ClientPortalRenderer renderer = mock(ClientPortalRenderer.class);
         private final ClientLevel level = mock(ClientLevel.class);
-        private final ClientViewEnvironment environment = mock(ClientViewEnvironment.class);
-        private final ClientViewEnvironment.World world = mock(ClientViewEnvironment.World.class);
+        private final ProjectionEnvironment environment = mock(ProjectionEnvironment.class);
+        private final ProjectionEnvironment.World world = mock(ProjectionEnvironment.World.class);
         private final ClientMeshViews views = new ClientMeshViews();
 
         private Fixture() {
@@ -608,8 +608,8 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
             when(view.changed()).thenReturn(new LongOpenHashSet());
             when(view.bounds()).thenReturn(new PlateBox(-16, -64, -16, 48, 384, 48));
             when(level.registryAccess()).thenReturn(RegistryAccess.EMPTY);
-            ClientPortalGeometry geometry = new ClientPortalGeometry(0, 64, 0, Direction.S.ordinal(), true, 0, true,
-                1, 2, new long[]{3}, 0, 0, 1, 64, 3, 0, 0, 0, 0, 0, ClientPortalGeometry.KIND_FRAME, 0.0D, 0, 1, List.of());
+            ApertureDescriptor geometry = new ApertureDescriptor(0, 64, 0, Face.S.ordinal(), true, 0, true,
+                1, 2, new long[]{3}, 0, 0, 1, 64, 3, 0, 0, 0, 0, 0, ApertureDescriptor.KIND_FRAME, 0.0D, 0, 1, List.of());
             when(portal.portalKey()).thenReturn(7);
             when(portal.geometry()).thenReturn(geometry);
             when(session.portal(7)).thenReturn(portal);
@@ -617,19 +617,19 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
             portals.put(7, portal);
             when(session.portals()).thenReturn(portals);
             when(session.environment(7)).thenReturn(environment);
-            when(environment.transform()).thenReturn(ClientViewEnvironment.Transform.IDENTITY);
+            when(environment.transform()).thenReturn(ProjectionEnvironment.Transform.IDENTITY);
             when(world.dimensionKey()).thenReturn("minecraft:overworld");
             when(environment.world()).thenReturn(world);
             ClientMeshSections.Identity identity = new ClientMeshSections.Identity(environment, 1, 1);
             when(view.identity()).thenReturn(identity);
-            when(environment.dimension()).thenReturn(new ClientViewEnvironment.Dimension(-64, 384, true,
-                ClientViewEnvironment.CardinalLighting.DEFAULT, 63, false));
+            when(environment.dimension()).thenReturn(new ProjectionEnvironment.Dimension(-64, 384, true,
+                ProjectionEnvironment.CardinalLighting.DEFAULT, 63, false));
             when(renderer.available(7)).thenReturn(true);
         }
     }
 
-    private static ClientPortalGeometry surface(ClientPortalGeometry base, int quarterTurns, long targetIdentity) {
-        return new ClientPortalGeometry(base.originX(), base.originY(), base.originZ(), base.facing(), base.frontSide(), quarterTurns,
+    private static ApertureDescriptor surface(ApertureDescriptor base, int quarterTurns, long targetIdentity) {
+        return new ApertureDescriptor(base.originX(), base.originY(), base.originZ(), base.facing(), base.frontSide(), quarterTurns,
             base.mirror(), base.apertureWidth(), base.apertureHeight(), base.apertureMask(), base.nearPlanePadding(),
             base.aperturePadding(), base.frustumCullingRatio(), base.depthBlocks(), base.recursionDepth(), base.blackoutPolicy(),
             base.blackoutState(), base.maskAirPolicy(), base.lightingPolicy(), base.fidelityFlags(), base.kind(), base.planeOffset(),

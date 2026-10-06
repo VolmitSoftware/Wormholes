@@ -1,11 +1,10 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.render.FidelitySettings;
-import art.arcane.wormholes.render.acoustics.AcousticsProfile;
-import art.arcane.wormholes.render.atmosphere.AtmosphereMode;
+import art.arcane.optics.fidelity.AcousticsProfile;
+import art.arcane.optics.fidelity.AtmosphereMode;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
@@ -89,7 +88,7 @@ final class MinecraftFidelityGameTest {
         destination.setAmbientStyle(AmbientParticleStyle.OFF);
         source.setNetworkViewDepth(8);
         source.setNetworkViewLateralPad(8);
-        GeometryVector origin = source.getOrigin();
+        art.arcane.optics.math.Vec3 origin = source.getOrigin();
         player.setPos(origin.x(), origin.y() - player.getEyeHeight(), origin.z() - 3);
         player.setYRot(0);
         player.setXRot(0);
@@ -110,7 +109,7 @@ final class MinecraftFidelityGameTest {
             }
             helper.assertTrue(rainPacket, "Destination weather did not reach native observer: packets=" + packets.size() + ", projectors=" + runtime.projections().projectorCount() + ", rain=" + helper.getLevel().isRaining());
             packets.clear();
-            GeometryVector target = destination.getOrigin();
+            art.arcane.optics.math.Vec3 target = destination.getOrigin();
             helper.getLevel().playSound(null, target.x(), target.y(), target.z(), SoundEvents.NOTE_BLOCK_HARP, SoundSource.BLOCKS, 1.0f, 1.0f);
             helper.runAfterDelay(1, this::verifySound);
         } catch (Throwable failure) {
@@ -121,7 +120,7 @@ final class MinecraftFidelityGameTest {
     private void verifySound() {
         try {
             connection.channel().runPendingTasks();
-            GeometryVector aperture = source.getGeometry().getApertureCenter();
+            art.arcane.optics.math.Vec3 aperture = source.getGeometry().getApertureCenter();
             boolean relayed = packets.stream().anyMatch(packet -> packet instanceof ClientboundSoundPacket sound
                 && sound.getSound().value().location().toString().equals("minecraft:block.note_block.harp")
                 && Math.abs(sound.getX() - aperture.x()) < 0.13 && Math.abs(sound.getZ() - aperture.z()) < 0.13

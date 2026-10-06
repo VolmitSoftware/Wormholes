@@ -10,6 +10,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import art.arcane.optics.entity.PlayerNames;
 
 public final class ProjectedPlayerLabelTest {
     @Test
@@ -42,20 +43,20 @@ public final class ProjectedPlayerLabelTest {
         UUID firstUuid = UUID.fromString("12345678-1234-5678-90ab-cdef12345678");
         UUID secondUuid = UUID.fromString("abcdef12-3456-7890-abcd-ef1234567890");
 
-        String first = ProjectedPlayerNames.projectedProfileName("Alice", firstUuid, false);
-        String second = ProjectedPlayerNames.projectedProfileName("Alice", secondUuid, false);
+        String first = PlayerNames.projectedProfileName("Alice", firstUuid, false);
+        String second = PlayerNames.projectedProfileName("Alice", secondUuid, false);
 
         assertEquals(16, first.length());
         assertTrue(first.matches("wh[0-9a-f]{14}"));
         assertNotEquals("Alice", first);
         assertNotEquals(first, second);
-        assertEquals("Dinnerbone", ProjectedPlayerNames.projectedProfileName("Alice", firstUuid, true));
-        assertEquals("PortalPlayer", ProjectedPlayerNames.projectedProfileName("Dinnerbone", firstUuid, true));
+        assertEquals("Dinnerbone", PlayerNames.projectedProfileName("Alice", firstUuid, true));
+        assertEquals("PortalPlayer", PlayerNames.projectedProfileName("Dinnerbone", firstUuid, true));
     }
 
     @Test
     public void blankAndOversizedLabelsAreSafeAndNonempty() {
-        assertEquals("PortalPlayer", ProjectedPlayerNames.playerLabelText(" "));
-        assertEquals("abcdefghijklmnop", ProjectedPlayerNames.playerLabelText("abcdefghijklmnop-extra"));
+        assertEquals("PortalPlayer", PlayerNames.playerLabelText(" "));
+        assertEquals("abcdefghijklmnop", PlayerNames.playerLabelText("abcdefghijklmnop-extra"));
     }
 }

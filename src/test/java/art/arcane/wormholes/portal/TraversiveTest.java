@@ -5,15 +5,16 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.bukkit.util.Vector;
 import org.junit.jupiter.api.Test;
 
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
+import art.arcane.optics.frame.Frame;
 
 public final class TraversiveTest {
     private static final double EPSILON = 1e-9D;
 
     @Test
     public void outPointPreservesPortalRightAndUpOffset() {
-        PortalFrame inFrame = PortalFrame.canonical(Direction.N);
-        PortalFrame outFrame = PortalFrame.canonical(Direction.E);
+        Frame inFrame = Frame.canonical(Face.N);
+        Frame outFrame = Frame.canonical(Face.E);
         Vector inOrigin = new Vector(10.0D, 64.0D, 20.0D);
         Vector outOrigin = new Vector(100.0D, 70.0D, -30.0D);
         Vector inPoint = new Vector(11.25D, 64.5D, 19.5D);
@@ -32,8 +33,8 @@ public final class TraversiveTest {
 
     @Test
     public void backSideTraversalFlipsHorizontalScreenAxis() {
-        PortalFrame inFrame = PortalFrame.canonical(Direction.N).view(false);
-        PortalFrame outFrame = PortalFrame.canonical(Direction.E);
+        Frame inFrame = Frame.canonical(Face.N).view(false);
+        Frame outFrame = Frame.canonical(Face.E);
         Vector inOrigin = new Vector(10.0D, 64.0D, 20.0D);
         Vector outOrigin = new Vector(100.0D, 70.0D, -30.0D);
         Vector inPoint = new Vector(8.75D, 64.5D, 20.5D);
@@ -50,7 +51,7 @@ public final class TraversiveTest {
 
     @Test
     public void sourcePortalRidesAlongAndMemberCopiesKeepEverythingButThePoint() {
-        PortalFrame inFrame = PortalFrame.canonical(Direction.N);
+        Frame inFrame = Frame.canonical(Face.N);
         Vector inOrigin = new Vector(10.0D, 64.0D, 20.0D);
         Vector inPoint = new Vector(11.25D, 64.5D, 19.5D);
         Vector velocity = new Vector(0.0D, 0.0D, -0.4D);

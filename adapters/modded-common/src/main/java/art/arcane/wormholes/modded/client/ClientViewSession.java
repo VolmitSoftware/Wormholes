@@ -1,14 +1,14 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.clientview.LocalPlateHandles;
-import art.arcane.wormholes.network.client.ClientViewCapability;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
+import art.arcane.optics.stream.ViewStreamCapability;
+import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.wormholes.network.client.ClientViewHandshake;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
-import art.arcane.wormholes.network.client.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.ClientViewProtocolException;
 import art.arcane.wormholes.network.client.PlateHandoff;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
+import art.arcane.optics.aperture.ApertureDescriptor;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
@@ -31,8 +31,8 @@ public final class ClientViewSession {
     private final ClientPlateStore plates;
     private final ClientMeshSections meshes;
     private final Int2ObjectOpenHashMap<ClientPortal> portals;
-    private final Int2ObjectOpenHashMap<ClientPortalGeometry> meshGeometry = new Int2ObjectOpenHashMap<>();
-    private final Int2ObjectOpenHashMap<ClientViewEnvironment> environments = new Int2ObjectOpenHashMap<>();
+    private final Int2ObjectOpenHashMap<ApertureDescriptor> meshGeometry = new Int2ObjectOpenHashMap<>();
+    private final Int2ObjectOpenHashMap<ProjectionEnvironment> environments = new Int2ObjectOpenHashMap<>();
     private final IntOpenHashSet dirtyPortals;
     private final Int2ObjectOpenHashMap<List<ClientViewMessage.MeshClaim>> pendingClaims = new Int2ObjectOpenHashMap<>();
     private final Int2IntOpenHashMap cacheSequences = new Int2IntOpenHashMap();
@@ -66,22 +66,22 @@ public final class ClientViewSession {
         this.dataVersion = dataVersion;
         this.brandTag = brandTag == null ? "" : brandTag;
         this.state = State.INIT;
-        this.caps = ClientViewCapability.ALL;
+        this.caps = ViewStreamCapability.ALL;
     }
 
     public long clientCapabilities() {
         if (config.rendererMode() == WormholesClientConfig.Renderer.BLOCK_PACKETS) {
             return 0;
         }
-        long capabilities = ClientViewCapability.of(ClientViewCapability.PLATES, ClientViewCapability.BRICK_CACHE, ClientViewCapability.DEST_LIGHT,
-            ClientViewCapability.ENTITY_FRAMES, ClientViewCapability.ENTITY_EVENTS, ClientViewCapability.FX_EMITTERS, ClientViewCapability.ATMOSPHERE, ClientViewCapability.ZERO_COPY,
-            ClientViewCapability.CONFIG_PHASE, ClientViewCapability.LINK_UNCOMPRESSED, ClientViewCapability.VIEW_STATS, ClientViewCapability.MESH_RENDER,
-            ClientViewCapability.LOCAL_MESH, ClientViewCapability.MESH_REUSE, ClientViewCapability.PREPARED_TRAVEL, ClientViewCapability.PREPARED_TRAVEL_CACHE, ClientViewCapability.ENTITY_SELF);
+        long capabilities = ViewStreamCapability.of(ViewStreamCapability.PLATES, ViewStreamCapability.BRICK_CACHE, ViewStreamCapability.DEST_LIGHT,
+            ViewStreamCapability.ENTITY_FRAMES, ViewStreamCapability.ENTITY_EVENTS, ViewStreamCapability.FX_EMITTERS, ViewStreamCapability.ATMOSPHERE, ViewStreamCapability.ZERO_COPY,
+            ViewStreamCapability.CONFIG_PHASE, ViewStreamCapability.LINK_UNCOMPRESSED, ViewStreamCapability.VIEW_STATS, ViewStreamCapability.MESH_RENDER,
+            ViewStreamCapability.LOCAL_MESH, ViewStreamCapability.MESH_REUSE, ViewStreamCapability.PREPARED_TRAVEL, ViewStreamCapability.PREPARED_TRAVEL_CACHE, ViewStreamCapability.ENTITY_SELF);
         if (config.clientMirror) {
-            capabilities |= ClientViewCapability.CLIENT_MIRROR.mask();
+            capabilities |= ViewStreamCapability.CLIENT_MIRROR.mask();
         }
         if (config.clientRecursion) {
-            capabilities |= ClientViewCapability.CLIENT_RECURSION.mask();
+            capabilities |= ViewStreamCapability.CLIENT_RECURSION.mask();
         }
         return capabilities;
     }
@@ -109,12 +109,12 @@ public final class ClientViewSession {
         }
         accept = received;
         declineReason = null;
-        caps = ClientViewCapability.intersection(received.caps(), clientCapabilities());
-        if (!ClientViewCapability.ENTITY_SELF.in(caps)) {
+        caps = ViewStreamCapability.intersection(received.caps(), clientCapabilities());
+        if (!ViewStreamCapability.ENTITY_SELF.in(caps)) {
             selfEntityId = null;
         }
-        nativeSelected |= ClientViewCapability.MESH_RENDER.in(caps);
-        state = nativeSelected && !ClientViewCapability.MESH_RENDER.in(caps) ? State.NATIVE_RECOVERING : State.CLIENT_VIEW;
+        nativeSelected |= ViewStreamCapability.MESH_RENDER.in(caps);
+        state = nativeSelected && !ViewStreamCapability.MESH_RENDER.in(caps) ? State.NATIVE_RECOVERING : State.CLIENT_VIEW;
     }
 
     public UUID selfEntityId() {
@@ -206,7 +206,7 @@ public final class ClientViewSession {
                 case ClientViewMessage.MeshBegin begin -> meshBegin(begin, sink);
                 case ClientViewMessage.MeshSection section -> meshSection(section, sink);
                 case ClientViewMessage.MeshReuse reuse -> {
-                    if (has(ClientViewCapability.MESH_REUSE)) {
+                    if (has(ViewStreamCapability.MESH_REUSE)) {
                         ClientMeshSections.Result result = meshes.reuse(reuse);
                         if (result == ClientMeshSections.Result.DUPLICATE) {
                             sink.meshAck(new ClientViewMessage.MeshAck(reuse.portalKey(), reuse.generation(), reuse.sectionX(), reuse.sectionY(), reuse.sectionZ(), reuse.revision()));
@@ -217,7 +217,7 @@ public final class ClientViewSession {
                 case ClientViewMessage.Environment environment -> {
                     if (portals.containsKey(environment.portalKey())) {
                         environments.put(environment.portalKey(), environment.environment());
-                        if (has(ClientViewCapability.MESH_REUSE)) {
+                        if (has(ViewStreamCapability.MESH_REUSE)) {
                             long target = portals.get(environment.portalKey()).geometry().targetIdentity();
                             ClientMeshSections.Identity binding = new ClientMeshSections.Identity(environment.environment(), accept.hashSalt(), target);
                             ClientMeshSections.View view = meshes.view(environment.portalKey());
@@ -246,7 +246,7 @@ public final class ClientViewSession {
                     }
                 }
                 case ClientViewMessage.EntitySelf self -> {
-                    if (ClientViewCapability.ENTITY_SELF.in(caps)) {
+                    if (ViewStreamCapability.ENTITY_SELF.in(caps)) {
                         selfEntityId = self.projectedId();
                     }
                 }
@@ -258,7 +258,7 @@ public final class ClientViewSession {
                     }
                 }
                 case ClientViewMessage.Fx fx -> {
-                    if (fx.portalKey() == ClientViewProtocol.WORLD_FX_KEY || portals.containsKey(fx.portalKey())) {
+                    if (fx.portalKey() == ViewStreamLimits.WORLD_FX_KEY || portals.containsKey(fx.portalKey())) {
                         sink.fx(fx);
                     } else {
                         ignoredSceneMessages++;
@@ -337,8 +337,8 @@ public final class ClientViewSession {
             return false;
         }
         for (ClientPortal portal : portals.values()) {
-            ClientPortalGeometry geometry = portal.geometry();
-            if (!portal.nested() && geometry.kind() == ClientPortalGeometry.KIND_VANILLA_REPLACEMENT
+            ApertureDescriptor geometry = portal.geometry();
+            if (!portal.nested() && geometry.kind() == ApertureDescriptor.KIND_VANILLA_REPLACEMENT
                 && geometry.containsCell(x, y, z)) {
                 return true;
             }
@@ -353,7 +353,7 @@ public final class ClientViewSession {
         ClientViewMessage.Offer current = offer;
         if (declineReason == ClientViewMessage.DeclineReason.WIRE_MISMATCH
             || declineReason == ClientViewMessage.DeclineReason.DATA_VERSION_MISMATCH
-            || current != null && (current.wire() != ClientViewProtocol.WIRE_VERSION || current.mcDataVersion() != dataVersion)) {
+            || current != null && (current.wire() != ViewStreamLimits.WIRE_VERSION || current.mcDataVersion() != dataVersion)) {
             return ConnectionStatus.MISMATCH;
         }
         return ConnectionStatus.DISCONNECTED;
@@ -363,7 +363,7 @@ public final class ClientViewSession {
         return caps;
     }
 
-    public boolean has(ClientViewCapability capability) {
+    public boolean has(ViewStreamCapability capability) {
         return capability.in(caps);
     }
 
@@ -400,13 +400,13 @@ public final class ClientViewSession {
     }
 
     public void cacheClaims(int portalKey, List<ClientViewMessage.MeshClaim> claims) {
-        if (!claims.isEmpty() && meshes.view(portalKey) != null && has(ClientViewCapability.MESH_REUSE)) {
+        if (!claims.isEmpty() && meshes.view(portalKey) != null && has(ViewStreamCapability.MESH_REUSE)) {
             pendingClaims.computeIfAbsent(portalKey, ignored -> new ArrayList<>()).addAll(claims);
         }
     }
 
     public void flushCached(Consumer<ClientViewMessage> sender) {
-        if (!active() || !has(ClientViewCapability.MESH_REUSE)) {
+        if (!active() || !has(ViewStreamCapability.MESH_REUSE)) {
             return;
         }
         int remaining = 4;
@@ -439,7 +439,7 @@ public final class ClientViewSession {
         return meshes;
     }
 
-    public ClientViewEnvironment environment(int portalKey) {
+    public ProjectionEnvironment environment(int portalKey) {
         return environments.get(portalKey);
     }
 
@@ -504,9 +504,9 @@ public final class ClientViewSession {
             ignoredSceneMessages++;
             return;
         }
-        ClientPortalGeometry previous = meshGeometry.get(message.portalKey());
+        ApertureDescriptor previous = meshGeometry.get(message.portalKey());
         boolean retain = previous != null && previous.sameContentSurface(portal.geometry()) && portal.geometry().mirror()
-            && has(ClientViewCapability.LOCAL_MESH) && environments.containsKey(message.portalKey());
+            && has(ViewStreamCapability.LOCAL_MESH) && environments.containsKey(message.portalKey());
         boolean begun = retain
             ? meshes.retainLocal(message.portalKey(), message.generation(), message.bounds(), message.maxResidentSections())
             : meshes.begin(message.portalKey(), message.generation(), message.bounds(), message.maxResidentSections());
@@ -535,7 +535,7 @@ public final class ClientViewSession {
 
     private void begin(ClientViewMessage.PlateBegin begin, Sink sink) throws ClientViewProtocolException {
         ClientViewMessage.BrickMiss.Plate miss = plates.begin(begin);
-        if (miss != null && has(ClientViewCapability.BRICK_CACHE)) {
+        if (miss != null && has(ViewStreamCapability.BRICK_CACHE)) {
             sink.brickMiss(miss);
         }
     }

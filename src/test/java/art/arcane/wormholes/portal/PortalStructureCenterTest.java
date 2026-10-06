@@ -14,10 +14,10 @@ import org.bukkit.util.Vector;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.Settings;
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import art.arcane.wormholes.util.Cuboid;
-import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Face;
 
 public final class PortalStructureCenterTest {
     private static final double EPSILON = 1e-9D;
@@ -37,9 +37,9 @@ public final class PortalStructureCenterTest {
     @Test
     public void restoredLocalOriginUsesGeometryRatherThanSavedInsetCenter() {
         LocalPortal portal = LocalPortalTestSupport.portal(LocalPortalTestSupport.world("center"), PortalType.PORTAL);
-        portal.restore(new Portal.State(portal.getId(), new GeometryVector(0.4995D, 65.4995D, 1.4995D),
+        portal.restore(new Portal.State(portal.getId(), new Vec3(0.4995D, 65.4995D, 1.4995D),
             portal.getName(), portal.getFrame(), true));
-        assertEquals(new GeometryVector(0.5D, 65.5D, 1.5D), portal.getOrigin());
+        assertEquals(new Vec3(0.5D, 65.5D, 1.5D), portal.getOrigin());
         assertEquals(portal.getStructure().getApertureCenter(), portal.getOrigin());
         assertEquals(0.999D, portal.getStructure().getArea().getXb(), 0.0D);
     }
@@ -77,14 +77,14 @@ public final class PortalStructureCenterTest {
         PortalStructure structure = new PortalStructure();
         structure.setArea(cuboid(0, 64, 0, 3, 68, 1));
 
-        List<AxisAlignedBB> first = structure.getCachedApertureFaces(Direction.N);
-        List<AxisAlignedBB> second = structure.getCachedApertureFaces(Direction.N);
+        List<Box> first = structure.getCachedApertureFaces(Face.N);
+        List<Box> second = structure.getCachedApertureFaces(Face.N);
 
         assertSame(first, second);
         assertThrows(UnsupportedOperationException.class, first::clear);
 
         structure.setArea(cuboid(10, 10, 10, 10, 12, 10));
-        List<AxisAlignedBB> rebuilt = structure.getCachedApertureFaces(Direction.N);
+        List<Box> rebuilt = structure.getCachedApertureFaces(Face.N);
 
         assertNotSame(first, rebuilt);
         assertEquals(1, rebuilt.size());
@@ -97,7 +97,7 @@ public final class PortalStructureCenterTest {
 
         structure.setArea(cuboid(0, 64, 0, 3, 68, 1));
         long firstAreaRevision = structure.getRevision();
-        structure.getCachedApertureFaces(Direction.N);
+        structure.getCachedApertureFaces(Face.N);
         structure.getCenter();
 
         assertEquals(initialRevision + 1L, firstAreaRevision);
@@ -115,19 +115,19 @@ public final class PortalStructureCenterTest {
             Settings.CAPTURE_ZONE_RADIUS = 8.0D;
             PortalStructure structure = new PortalStructure();
             structure.setArea(cuboid(0, 64, 0, 2, 66, 1));
-            AxisAlignedBB area = structure.getArea();
-            AxisAlignedBB initial = structure.getCaptureZone();
+            Box area = structure.getArea();
+            Box initial = structure.getCaptureZone();
 
             assertEquals(area.min().getX() - 8.0D, initial.min().getX(), EPSILON);
             assertEquals(area.max().getX() + 8.0D, initial.max().getX(), EPSILON);
 
             Settings.CAPTURE_ZONE_RADIUS = 16.0D;
-            AxisAlignedBB stale = structure.getCaptureZone();
+            Box stale = structure.getCaptureZone();
             assertEquals(initial.min().getX(), stale.min().getX(), EPSILON);
             assertEquals(initial.max().getX(), stale.max().getX(), EPSILON);
 
             structure.rebuildCaptureZone();
-            AxisAlignedBB rebuilt = structure.getCaptureZone();
+            Box rebuilt = structure.getCaptureZone();
             assertEquals(area.min().getX() - 16.0D, rebuilt.min().getX(), EPSILON);
             assertEquals(area.max().getX() + 16.0D, rebuilt.max().getX(), EPSILON);
             assertEquals(area.min().getY() - 16.0D, rebuilt.min().getY(), EPSILON);
@@ -157,7 +157,7 @@ public final class PortalStructureCenterTest {
         }
 
         @Override
-        public Vector getCornerVector(Direction x, Direction y, Direction z) {
+        public Vector getCornerVector(Face x, Face y, Face z) {
             double s = 0.999D;
             return new Vector(x.x() == 1 ? (x2 + s) : x1, y.y() == 1 ? (y2 + s) : y1, z.z() == 1 ? (z2 + s) : z1);
         }

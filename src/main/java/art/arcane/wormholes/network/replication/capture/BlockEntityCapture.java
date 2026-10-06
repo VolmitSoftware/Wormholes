@@ -6,8 +6,8 @@ import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.network.view.ViewSlice;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.render.blockentity.BlockEntityCapturer;
-import art.arcane.wormholes.render.blockentity.BlockEntityMaterials;
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
+import art.arcane.optics.fidelity.BlockEntityMaterials;
+import art.arcane.optics.fidelity.BlockEntitySample;
 
 import org.bukkit.World;
 import org.bukkit.block.Block;

@@ -6,10 +6,10 @@ import org.bukkit.Location;
 import org.bukkit.World;
 
 import art.arcane.wormholes.portal.ILocalPortal;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalStructure;
-import art.arcane.wormholes.util.Axis;
-import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.optics.math.Axis;
+import art.arcane.optics.math.Box;
 
 final class ProjectionPortalOcclusion {
     private static final double EPSILON = 1.0E-7D;
@@ -45,13 +45,13 @@ final class ProjectionPortalOcclusion {
         }
         PortalStructure nearerStructure = nearer.getStructure();
         PortalStructure fartherStructure = farther.getStructure();
-        PortalFrame nearerFrame = nearer.getFrame();
+        Frame nearerFrame = nearer.getFrame();
         if (nearerStructure == null || fartherStructure == null || nearerFrame == null
             || !nearerStructure.isFullCuboid()) {
             return false;
         }
-        AxisAlignedBB nearerArea = nearerStructure.getArea();
-        AxisAlignedBB fartherArea = fartherStructure.getArea();
+        Box nearerArea = nearerStructure.getArea();
+        Box fartherArea = fartherStructure.getArea();
         if (nearerArea == null || fartherArea == null) {
             return false;
         }
@@ -63,9 +63,9 @@ final class ProjectionPortalOcclusion {
     static boolean fullyOccludes(double eyeX,
                                  double eyeY,
                                  double eyeZ,
-                                 AxisAlignedBB nearer,
+                                 Box nearer,
                                  Axis nearerAxis,
-                                 AxisAlignedBB farther) {
+                                 Box farther) {
         if (nearer == null || nearerAxis == null || farther == null) {
             return false;
         }
@@ -100,7 +100,7 @@ final class ProjectionPortalOcclusion {
                                               double targetX,
                                               double targetY,
                                               double targetZ,
-                                              AxisAlignedBB nearer,
+                                              Box nearer,
                                               Axis nearerAxis,
                                               double plane,
                                               double eyeAxis) {
@@ -129,7 +129,7 @@ final class ProjectionPortalOcclusion {
         };
     }
 
-    private static double minimum(AxisAlignedBB box, Axis axis) {
+    private static double minimum(Box box, Axis axis) {
         return switch (axis) {
             case X -> box.getXa();
             case Y -> box.getYa();
@@ -137,7 +137,7 @@ final class ProjectionPortalOcclusion {
         };
     }
 
-    private static double maximum(AxisAlignedBB box, Axis axis) {
+    private static double maximum(Box box, Axis axis) {
         return switch (axis) {
             case X -> box.getXb();
             case Y -> box.getYb();

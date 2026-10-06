@@ -1,14 +1,14 @@
 package art.arcane.wormholes.modded.client;
 
-import art.arcane.wormholes.network.client.Brick;
+import art.arcane.optics.stream.Brick;
 import art.arcane.wormholes.network.client.ClientMeshHash;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
+import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.SectionBiomes;
-import art.arcane.wormholes.network.client.ClientViewProtocolException;
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
-import art.arcane.wormholes.render.plate.PlateBox;
+import art.arcane.optics.stream.SectionBiomes;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.fidelity.BlockEntitySample;
+import art.arcane.optics.plate.PlateBox;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
@@ -462,12 +462,12 @@ public final class ClientMeshSections {
 
     static final class Identity {
         private final String world;
-        private final ClientViewEnvironment.Transform transform;
+        private final ProjectionEnvironment.Transform transform;
         private final long epoch;
         private final long targetIdentity;
         private final int hash;
 
-        Identity(ClientViewEnvironment environment, long epoch, long targetIdentity) {
+        Identity(ProjectionEnvironment environment, long epoch, long targetIdentity) {
             world = environment.world().dimensionKey();
             transform = environment.transform();
             this.epoch = epoch;
@@ -478,7 +478,7 @@ public final class ClientMeshSections {
             hash = 31 * value + Long.hashCode(targetIdentity);
         }
 
-        boolean matchesEnvironment(ClientViewEnvironment environment) {
+        boolean matchesEnvironment(ProjectionEnvironment environment) {
             return environment != null && world.equals(environment.world().dimensionKey()) && transform.equals(environment.transform());
         }
 
@@ -621,7 +621,7 @@ public final class ClientMeshSections {
                 states[index] = palette.state(id);
             }
             if (bitsPerIndex != 0) {
-                for (int cell = 0; cell < ClientViewProtocol.BRICK_CELLS; cell++) {
+                for (int cell = 0; cell < ViewStreamLimits.BRICK_CELLS; cell++) {
                     if (localIndex(cell) >= states.length) {
                         throw new ClientViewProtocolException("Mesh section references an invalid local palette index");
                     }
@@ -636,7 +636,7 @@ public final class ClientMeshSections {
                 size += 48L + biome.length() * 2L;
             }
             for (Brick.BlockEntityCell cell : brick.blockEntities()) {
-                if (cell.cellIndex() < 0 || cell.cellIndex() >= ClientViewProtocol.BRICK_CELLS || blockEntities.containsKey(cell.cellIndex())) {
+                if (cell.cellIndex() < 0 || cell.cellIndex() >= ViewStreamLimits.BRICK_CELLS || blockEntities.containsKey(cell.cellIndex())) {
                     throw new ClientViewProtocolException("Invalid or repeated mesh block entity cell");
                 }
                 try {

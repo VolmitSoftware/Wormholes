@@ -17,17 +17,17 @@ import org.junit.jupiter.api.Test;
 
 import com.github.retrooper.packetevents.protocol.ConnectionState;
 
-import art.arcane.wormholes.network.client.ClientViewCapability;
+import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
-import art.arcane.wormholes.network.client.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.ClientViewProtocolException;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.render.client.session.ClientViewEmitters;
-import art.arcane.wormholes.render.client.session.ClientViewInbound;
+import art.arcane.optics.stream.ClientViewInbound;
 
 final class BukkitClientViewEffectsTest {
-    private static final long FX_CAPS = ClientViewFixture.CLIENT_CAPS | ClientViewCapability.FX_EMITTERS.mask();
+    private static final long FX_CAPS = ClientViewFixture.CLIENT_CAPS | ViewStreamCapability.FX_EMITTERS.mask();
 
     @Test
     void particlesSkipReceiversAndHandThemTheClientEmitter() throws ClientViewProtocolException {
@@ -45,7 +45,7 @@ final class BukkitClientViewEffectsTest {
             assertEquals(List.of(nearby), vanilla, "vanilla players inside particle range keep their packets");
             List<ClientViewMessage.Fx> fx = fx(fixture.messages());
             assertEquals(1, fx.size());
-            assertEquals(ClientViewProtocol.WORLD_FX_KEY, fx.get(0).portalKey());
+            assertEquals(ViewStreamLimits.WORLD_FX_KEY, fx.get(0).portalKey());
             assertEquals(List.of(burst), fx.get(0).emitters());
         }
     }

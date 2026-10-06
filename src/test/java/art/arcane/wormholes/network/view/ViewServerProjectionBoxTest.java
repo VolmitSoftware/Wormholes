@@ -14,10 +14,10 @@ import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.portal.ILocalPortal;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.wormholes.util.Cuboid;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 
 public final class ViewServerProjectionBoxTest {
     @Test
@@ -25,7 +25,7 @@ public final class ViewServerProjectionBoxTest {
         double previousPadding = Settings.PROJECTION_APERTURE_PADDING_BLOCKS;
         Settings.PROJECTION_APERTURE_PADDING_BLOCKS = 0.75D;
         try {
-            ILocalPortal portal = portal(Direction.E, 12);
+            ILocalPortal portal = portal(Face.E, 12);
 
             assertEquals(new ViewBox(-54, 51, 7, 74, 79, 37), ViewServer.computeBox(portal, 64));
         } finally {
@@ -38,7 +38,7 @@ public final class ViewServerProjectionBoxTest {
         double previousPadding = Settings.PROJECTION_APERTURE_PADDING_BLOCKS;
         Settings.PROJECTION_APERTURE_PADDING_BLOCKS = 0.75D;
         try {
-            ILocalPortal portal = portal(Direction.U, 12);
+            ILocalPortal portal = portal(Face.U, 12);
 
             assertEquals(new ViewBox(-3, 0, 7, 27, 127, 35), ViewServer.computeBox(portal, 64));
         } finally {
@@ -51,7 +51,7 @@ public final class ViewServerProjectionBoxTest {
         double previousPadding = Settings.PROJECTION_APERTURE_PADDING_BLOCKS;
         Settings.PROJECTION_APERTURE_PADDING_BLOCKS = 1.25D;
         try {
-            ILocalPortal portal = portal(Direction.E, 12);
+            ILocalPortal portal = portal(Face.E, 12);
 
             assertEquals(new ViewBox(-54, 50, 6, 74, 80, 38), ViewServer.computeBox(portal, 64));
         } finally {
@@ -64,14 +64,14 @@ public final class ViewServerProjectionBoxTest {
         double previousPadding = Settings.PROJECTION_APERTURE_PADDING_BLOCKS;
         Settings.PROJECTION_APERTURE_PADDING_BLOCKS = 0.75D;
         try {
-            assertEquals(ViewServer.computeBox(portal(Direction.E, 12), 64),
-                ViewServer.computeBox(portal(Direction.W, 12), 64));
+            assertEquals(ViewServer.computeBox(portal(Face.E, 12), 64),
+                ViewServer.computeBox(portal(Face.W, 12), 64));
             assertEquals(new ViewBox(-3, 51, -44, 27, 79, 84),
-                ViewServer.computeBox(portal(Direction.N, 12), 64));
-            assertEquals(ViewServer.computeBox(portal(Direction.N, 12), 64),
-                ViewServer.computeBox(portal(Direction.S, 12), 64));
-            assertEquals(ViewServer.computeBox(portal(Direction.U, 12), 64),
-                ViewServer.computeBox(portal(Direction.D, 12), 64));
+                ViewServer.computeBox(portal(Face.N, 12), 64));
+            assertEquals(ViewServer.computeBox(portal(Face.N, 12), 64),
+                ViewServer.computeBox(portal(Face.S, 12), 64));
+            assertEquals(ViewServer.computeBox(portal(Face.U, 12), 64),
+                ViewServer.computeBox(portal(Face.D, 12), 64));
         } finally {
             Settings.PROJECTION_APERTURE_PADDING_BLOCKS = previousPadding;
         }
@@ -121,7 +121,7 @@ public final class ViewServerProjectionBoxTest {
         }
     }
 
-    private static ILocalPortal portal(Direction normal, int lateralPad) {
+    private static ILocalPortal portal(Face normal, int lateralPad) {
         World world = world();
         PortalStructure structure = new PortalStructure();
         Map<String, Object> area = new HashMap<String, Object>();
@@ -150,7 +150,7 @@ public final class ViewServerProjectionBoxTest {
         }
         structure.setArea(new Cuboid(area));
         structure.setWorld(world);
-        PortalFrame frame = PortalFrame.canonical(normal);
+        Frame frame = Frame.canonical(normal);
         return (ILocalPortal) Proxy.newProxyInstance(
             ILocalPortal.class.getClassLoader(),
             new Class<?>[] { ILocalPortal.class },

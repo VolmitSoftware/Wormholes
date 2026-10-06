@@ -1,11 +1,11 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.wormholes.network.client.Brick;
-import art.arcane.wormholes.network.client.ClientViewCapability;
+import art.arcane.optics.stream.Brick;
+import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
-import art.arcane.wormholes.network.client.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.ClientViewProtocolException;
 import org.junit.After;
 import org.junit.Test;
 
@@ -31,9 +31,9 @@ public class ClientViewAckTest extends MinecraftTestBase {
     public void everyClosedGroupOfATickCollapsesIntoOneCumulativeAck() throws ClientViewProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
-        harness.receive(new ClientViewMessage.Portal(ClientViewHarness.PORTAL_KEY, 2, ClientViewHarness.geometry()), ClientViewProtocol.FLAG_LAST);
+        harness.receive(new ClientViewMessage.Portal(ClientViewHarness.PORTAL_KEY, 2, ClientViewHarness.geometry()), ViewStreamLimits.FLAG_LAST);
         harness.receive(new ClientViewMessage.Atmosphere(ClientViewHarness.PORTAL_KEY, 6000L, 0.0F, 0.0F, ClientViewMessage.Atmosphere.FLAG_TIME),
-            ClientViewProtocol.FLAG_LAST);
+            ViewStreamLimits.FLAG_LAST);
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
         List<ClientViewMessage.Ack> acks = harness.acks();
         assertEquals(1, acks.size());
@@ -69,12 +69,12 @@ public class ClientViewAckTest extends MinecraftTestBase {
         assertTrue(applied > 0);
         assertEquals(0, harness.acks().size());
         harness.receive(new ClientViewMessage.Atmosphere(ClientViewHarness.PORTAL_KEY, 6000L, 0.0F, 0.0F, ClientViewMessage.Atmosphere.FLAG_TIME),
-            ClientViewProtocol.FLAG_LAST);
+            ViewStreamLimits.FLAG_LAST);
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
         assertEquals(1, harness.acks().size());
         assertEquals(applied, harness.acks().get(0).appliedCells());
         harness.receive(new ClientViewMessage.Atmosphere(ClientViewHarness.PORTAL_KEY, 6001L, 0.0F, 0.0F, ClientViewMessage.Atmosphere.FLAG_TIME),
-            ClientViewProtocol.FLAG_LAST);
+            ViewStreamLimits.FLAG_LAST);
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
         assertEquals(2, harness.acks().size());
         assertEquals(0, harness.acks().get(1).appliedCells());
@@ -110,12 +110,12 @@ public class ClientViewAckTest extends MinecraftTestBase {
     public void aNewOfferDropsTheAckAndBrickMissOwedToThePreviousServer() throws ClientViewProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
-        harness.receive(new ClientViewMessage.Offer(ClientViewProtocol.WIRE_VERSION, 1, ClientViewCapability.ALL,
-            ClientViewProtocol.DEFAULT_MAX_FRAME_BYTES, 0L), ClientViewProtocol.FLAG_LAST);
-        harness.receive(new ClientViewMessage.Accept(2, ClientViewCapability.ALL, 20, ClientViewProtocol.DEFAULT_MAX_FRAME_BYTES, 9L, 8),
-            ClientViewProtocol.FLAG_LAST);
+        harness.receive(new ClientViewMessage.Offer(ViewStreamLimits.WIRE_VERSION, 1, ViewStreamCapability.ALL,
+            ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 0L), ViewStreamLimits.FLAG_LAST);
+        harness.receive(new ClientViewMessage.Accept(2, ViewStreamCapability.ALL, 20, ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 9L, 8),
+            ViewStreamLimits.FLAG_LAST);
         harness.seq = 0;
-        harness.receive(new ClientViewMessage.Portal(ClientViewHarness.PORTAL_KEY, 1, ClientViewHarness.geometry()), ClientViewProtocol.FLAG_LAST);
+        harness.receive(new ClientViewMessage.Portal(ClientViewHarness.PORTAL_KEY, 1, ClientViewHarness.geometry()), ViewStreamLimits.FLAG_LAST);
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
         List<ClientViewMessage.Ack> acks = harness.acks();
         assertEquals(1, acks.size());
@@ -128,17 +128,17 @@ public class ClientViewAckTest extends MinecraftTestBase {
         ClientViewHarness harness = new ClientViewHarness();
         int plates = 12;
         for (int key = 1; key <= plates; key++) {
-            harness.tick.brickMiss(new ClientViewMessage.BrickMiss.Plate(key, 1, new long[ClientViewProtocol.MAX_BRICK_MISS_WORDS / 2]));
+            harness.tick.brickMiss(new ClientViewMessage.BrickMiss.Plate(key, 1, new long[ViewStreamLimits.MAX_BRICK_MISS_WORDS / 2]));
         }
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
         List<ClientViewMessage.BrickMiss> misses = misses(harness);
         int carried = 0;
         for (ClientViewMessage.BrickMiss miss : misses) {
-            int bytes = ClientViewProtocol.C2S_HEADER_BYTES + 1;
+            int bytes = ViewStreamLimits.C2S_HEADER_BYTES + 1;
             for (ClientViewMessage.BrickMiss.Plate plate : miss.plates()) {
                 bytes += plate.wireBytes();
             }
-            assertTrue(bytes + " bytes in one BRICK_MISS", bytes <= ClientViewProtocol.MAX_C2S_BYTES);
+            assertTrue(bytes + " bytes in one BRICK_MISS", bytes <= ViewStreamLimits.MAX_C2S_BYTES);
             carried += miss.plates().size();
         }
         assertEquals(plates, carried);

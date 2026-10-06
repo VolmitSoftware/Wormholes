@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
+import art.arcane.optics.stream.ViewStreamLimits;
 
 import java.util.Arrays;
 
@@ -79,7 +79,7 @@ public final class ClientViewStats {
     }
 
     public boolean reportDue(long nowMillis) {
-        return nowMillis - lastReportMillis >= ClientViewProtocol.VIEW_STATS_MIN_INTERVAL_MILLIS;
+        return nowMillis - lastReportMillis >= ViewStreamLimits.VIEW_STATS_MIN_INTERVAL_MILLIS;
     }
 
     public ClientViewMessage.ViewStats report(long nowMillis, int clientTick, int attended, int overlayCells, int unknownStates, int plateMb) {

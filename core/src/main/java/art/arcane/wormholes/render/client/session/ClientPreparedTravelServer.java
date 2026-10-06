@@ -1,11 +1,11 @@
 package art.arcane.wormholes.render.client.session;
 
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
+import art.arcane.optics.math.Vec3;
+import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
+import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.wormholes.network.client.ClientTravelHash;
-import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
+import art.arcane.optics.view.WorldChangeTracker;
 
 import java.util.ArrayDeque;
 import java.util.Arrays;
@@ -19,12 +19,12 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Predicate;
 
-public final class ClientPreparedTravelServer implements ProjectionWorldChangeTracker.ChangeListener, AutoCloseable {
+public final class ClientPreparedTravelServer implements WorldChangeTracker.ChangeListener, AutoCloseable {
     private static final int MAX_RETAINED_COLUMNS = 256;
-    private static final int MAX_RETAINED_BYTES = ClientViewProtocol.MAX_TRAVEL_BYTES;
+    private static final int MAX_RETAINED_BYTES = ViewStreamLimits.MAX_TRAVEL_BYTES;
     private static final int MAX_SENT_BARRIERS = 16;
     private static final long PROBE_BUDGET_NANOS = 2_000_000L;
-    private static final long PROBE_INTERVAL_MILLIS = 1_000L / ClientViewProtocol.DEFAULT_TICK_RATE;
+    private static final long PROBE_INTERVAL_MILLIS = 1_000L / ViewStreamLimits.DEFAULT_TICK_RATE;
     private static final long PROBE_TIMEOUT_MILLIS = 1_000L;
     private static final long CROSSING_TIMEOUT_MILLIS = 2_000L;
     private final HashMap<ClientViewMessage.TravelCoordinate, Column> columns = new HashMap<>();
@@ -32,7 +32,7 @@ public final class ClientPreparedTravelServer implements ProjectionWorldChangeTr
     private int retainedBytes;
     private final ArrayDeque<Long> emittedBarriers = new ArrayDeque<>(MAX_SENT_BARRIERS);
     private final ArrayDeque<Long> acknowledgedBarriers = new ArrayDeque<>(MAX_SENT_BARRIERS);
-    private final ArrayDeque<Probe> pendingProbes = new ArrayDeque<>(ClientViewProtocol.MAX_TRAVEL_REUSE_PROBES_PER_TICK);
+    private final ArrayDeque<Probe> pendingProbes = new ArrayDeque<>(ViewStreamLimits.MAX_TRAVEL_REUSE_PROBES_PER_TICK);
     private long probeWindowMillis = Long.MIN_VALUE;
     private int probesInWindow;
     private ClientViewMessage.TravelCross pendingCross;
@@ -49,7 +49,7 @@ public final class ClientPreparedTravelServer implements ProjectionWorldChangeTr
     private int captureCursor;
     private boolean announced;
     private boolean reuseSelected;
-    private ProjectionWorldChangeTracker changes;
+    private WorldChangeTracker changes;
     private UUID destinationWorld;
     private boolean worldInvalidated;
 
@@ -87,7 +87,7 @@ public final class ClientPreparedTravelServer implements ProjectionWorldChangeTr
         return Optional.ofNullable(begin);
     }
 
-    public synchronized void watchWorld(ProjectionWorldChangeTracker tracker, UUID world) {
+    public synchronized void watchWorld(WorldChangeTracker tracker, UUID world) {
         Objects.requireNonNull(tracker);
         Objects.requireNonNull(world);
         if (begin == null) {
@@ -136,7 +136,7 @@ public final class ClientPreparedTravelServer implements ProjectionWorldChangeTr
         Objects.requireNonNull(position);
         Objects.requireNonNull(payload);
         if (begin == null || worldInvalidated || !begin.chunks().contains(position) || revision <= 0 || payload.length == 0
-            || payload.length > ClientViewProtocol.MAX_TRAVEL_CHUNK_BYTES) {
+            || payload.length > ViewStreamLimits.MAX_TRAVEL_CHUNK_BYTES) {
             return false;
         }
         Column previous = columns.get(position);
@@ -144,7 +144,7 @@ public final class ClientPreparedTravelServer implements ProjectionWorldChangeTr
             return false;
         }
         int nextBytes = bytes - (previous == null ? 0 : previous.payload.length) + payload.length;
-        if (nextBytes > ClientViewProtocol.MAX_TRAVEL_BYTES) {
+        if (nextBytes > ViewStreamLimits.MAX_TRAVEL_BYTES) {
             return false;
         }
         columns.put(position, new Column(revision, snapshot(position, payload)));
@@ -231,7 +231,7 @@ public final class ClientPreparedTravelServer implements ProjectionWorldChangeTr
             probesInWindow = 0;
         }
         int checks = begin.chunks().size();
-        while (checks-- > 0 && remaining >= ClientViewProtocol.TRAVEL_REUSE_BYTES) {
+        while (checks-- > 0 && remaining >= ViewStreamLimits.TRAVEL_REUSE_BYTES) {
             if (cursor >= begin.chunks().size()) {
                 cursor = 0;
             }
@@ -242,14 +242,14 @@ public final class ClientPreparedTravelServer implements ProjectionWorldChangeTr
             }
             if (reuseSelected && !column.cacheAnswered) {
                 if (!column.probed) {
-                    if (pendingProbes.size() >= ClientViewProtocol.MAX_TRAVEL_REUSE_PROBES_PER_TICK) {
+                    if (pendingProbes.size() >= ViewStreamLimits.MAX_TRAVEL_REUSE_PROBES_PER_TICK) {
                         if (nowMillis - pendingProbes.getFirst().sentMillis() < PROBE_TIMEOUT_MILLIS) {
                             continue;
                         }
                         column.cacheAnswered = true;
                     } else {
-                        if (probedColumns >= ClientViewProtocol.MAX_TRAVEL_REUSE_PROBES_PER_TICK
-                            || probesInWindow >= ClientViewProtocol.MAX_TRAVEL_REUSE_PROBES_PER_TICK
+                        if (probedColumns >= ViewStreamLimits.MAX_TRAVEL_REUSE_PROBES_PER_TICK
+                            || probesInWindow >= ViewStreamLimits.MAX_TRAVEL_REUSE_PROBES_PER_TICK
                             || probedColumns > 0 && System.nanoTime() - probeStarted >= PROBE_BUDGET_NANOS) {
                             continue;
                         }
@@ -265,7 +265,7 @@ public final class ClientPreparedTravelServer implements ProjectionWorldChangeTr
                             return;
                         }
                         probesInWindow++;
-                        remaining -= ClientViewProtocol.TRAVEL_REUSE_BYTES;
+                        remaining -= ViewStreamLimits.TRAVEL_REUSE_BYTES;
                         continue;
                     }
                 } else if (nowMillis - column.probedAt >= PROBE_TIMEOUT_MILLIS) {
@@ -275,13 +275,13 @@ public final class ClientPreparedTravelServer implements ProjectionWorldChangeTr
                     continue;
                 }
             }
-            if (remaining < ClientViewProtocol.TRAVEL_FRAGMENT_BYTES) {
+            if (remaining < ViewStreamLimits.TRAVEL_FRAGMENT_BYTES) {
                 continue;
             }
-            int fragments = (column.payload.length + ClientViewProtocol.TRAVEL_FRAGMENT_BYTES - 1)
-                / ClientViewProtocol.TRAVEL_FRAGMENT_BYTES;
-            int offset = column.fragment * ClientViewProtocol.TRAVEL_FRAGMENT_BYTES;
-            int length = Math.min(ClientViewProtocol.TRAVEL_FRAGMENT_BYTES, column.payload.length - offset);
+            int fragments = (column.payload.length + ViewStreamLimits.TRAVEL_FRAGMENT_BYTES - 1)
+                / ViewStreamLimits.TRAVEL_FRAGMENT_BYTES;
+            int offset = column.fragment * ViewStreamLimits.TRAVEL_FRAGMENT_BYTES;
+            int length = Math.min(ViewStreamLimits.TRAVEL_FRAGMENT_BYTES, column.payload.length - offset);
             byte[] payload = new byte[length];
             System.arraycopy(column.payload, offset, payload, 0, length);
             ClientViewMessage.TravelChunk chunk = new ClientViewMessage.TravelChunk(begin.token(), begin.generation(),
@@ -369,22 +369,22 @@ public final class ClientPreparedTravelServer implements ProjectionWorldChangeTr
             || !sameSurface(begin.sourceGeometry(), authority.geometry())) {
             return false;
         }
-        GeometryVector feet = new GeometryVector(value.sourcePose().x(), value.sourcePose().y(), value.sourcePose().z());
-        GeometryVector observed = new GeometryVector(authority.pose().x(), authority.pose().y(), authority.pose().z());
-        double speed = authority.velocity().distance(new GeometryVector(0, 0, 0));
+        Vec3 feet = new Vec3(value.sourcePose().x(), value.sourcePose().y(), value.sourcePose().z());
+        Vec3 observed = new Vec3(authority.pose().x(), authority.pose().y(), authority.pose().z());
+        double speed = authority.velocity().distance(new Vec3(0, 0, 0));
         double tolerance = Math.clamp(0.75D + speed * 3.0D, 0.75D, 2.0D);
         if (feet.distance(observed) > tolerance || value.previousEye().distance(value.currentEye()) > 4.0D
-            || value.previousEye().distance(observed.add(new GeometryVector(0, authority.eyeHeight(), 0))) > tolerance + 1.0D
-            || value.currentEye().distance(feet.add(new GeometryVector(0, authority.eyeHeight(), 0))) > 0.125D) {
+            || value.previousEye().distance(observed.add(new Vec3(0, authority.eyeHeight(), 0))) > tolerance + 1.0D
+            || value.currentEye().distance(feet.add(new Vec3(0, authority.eyeHeight(), 0))) > 0.125D) {
             return false;
         }
-        ClientPortalGeometry geometry = authority.geometry();
+        ApertureDescriptor geometry = authority.geometry();
         double previous = geometry.signedDistance(value.previousEye().x(), value.previousEye().y(), value.previousEye().z());
         double current = geometry.signedDistance(value.currentEye().x(), value.currentEye().y(), value.currentEye().z());
         if (previous == current || previous * current > 0.0D) {
             return false;
         }
-        GeometryVector intersection = value.previousEye().add(value.currentEye().subtract(value.previousEye())
+        Vec3 intersection = value.previousEye().add(value.currentEye().subtract(value.previousEye())
             .multiply(previous / (previous - current)));
         return geometry.aperture().contains(intersection);
     }
@@ -448,7 +448,7 @@ public final class ClientPreparedTravelServer implements ProjectionWorldChangeTr
         }
     }
 
-    private static boolean sameSurface(ClientPortalGeometry first, ClientPortalGeometry second) {
+    private static boolean sameSurface(ApertureDescriptor first, ApertureDescriptor second) {
         return second != null && !second.mirror() && first.originX() == second.originX() && first.originY() == second.originY()
             && first.originZ() == second.originZ() && first.facing() == second.facing() && first.quarterTurns() == second.quarterTurns()
             && first.kind() == second.kind() && first.apertureWidth() == second.apertureWidth()
@@ -510,7 +510,7 @@ public final class ClientPreparedTravelServer implements ProjectionWorldChangeTr
     }
 
     public record Commit(UUID portal, String sourceWorld, String destinationWorld,
-                         ClientViewMessage.TravelPose arrival, GeometryVector velocity, long nowMillis) {
+                         ClientViewMessage.TravelPose arrival, Vec3 velocity, long nowMillis) {
         public Commit {
             Objects.requireNonNull(portal);
             Objects.requireNonNull(sourceWorld);
@@ -520,8 +520,8 @@ public final class ClientPreparedTravelServer implements ProjectionWorldChangeTr
         }
     }
 
-    public record Authority(String world, ClientPortalGeometry geometry, ClientViewMessage.TravelPose pose,
-                            GeometryVector velocity, double eyeHeight) {
+    public record Authority(String world, ApertureDescriptor geometry, ClientViewMessage.TravelPose pose,
+                            Vec3 velocity, double eyeHeight) {
         public Authority {
             Objects.requireNonNull(world);
             Objects.requireNonNull(geometry);
@@ -578,7 +578,7 @@ public final class ClientPreparedTravelServer implements ProjectionWorldChangeTr
         }
 
         private boolean sent() {
-            return reused || fragment * ClientViewProtocol.TRAVEL_FRAGMENT_BYTES >= payload.length;
+            return reused || fragment * ViewStreamLimits.TRAVEL_FRAGMENT_BYTES >= payload.length;
         }
     }
 }

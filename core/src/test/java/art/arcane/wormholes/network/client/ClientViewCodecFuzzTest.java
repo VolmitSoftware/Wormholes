@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Random;
 
 import org.junit.jupiter.api.Test;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamMessageType;
 
 final class ClientViewCodecFuzzTest {
     private static final int RANDOM_INPUTS = 10_000;
@@ -21,7 +23,7 @@ final class ClientViewCodecFuzzTest {
             byte[] payload = new byte[random.nextInt(i % 10 == 0 ? 4096 : 96)];
             random.nextBytes(payload);
             if (payload.length > 0 && random.nextBoolean()) {
-                ClientViewMessageType[] types = ClientViewMessageType.values();
+                ViewStreamMessageType[] types = ViewStreamMessageType.values();
                 payload[0] = (byte) types[random.nextInt(types.length)].id();
             }
             if (payload.length > 5 && random.nextInt(4) == 0) {

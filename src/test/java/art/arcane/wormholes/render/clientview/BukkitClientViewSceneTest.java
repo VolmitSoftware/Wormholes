@@ -22,15 +22,15 @@ import org.junit.jupiter.api.Test;
 import com.github.retrooper.packetevents.protocol.ConnectionState;
 
 import art.arcane.wormholes.Settings;
-import art.arcane.wormholes.network.client.Brick;
-import art.arcane.wormholes.network.client.BrickLightSource;
-import art.arcane.wormholes.network.client.ClientViewCapability;
+import art.arcane.optics.stream.Brick;
+import art.arcane.optics.stream.BrickLightSource;
+import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
-import art.arcane.wormholes.network.client.ClientViewProtocolException;
-import art.arcane.wormholes.network.view.EntityVisual;
-import art.arcane.wormholes.render.client.session.ClientViewInbound;
-import art.arcane.wormholes.render.view.ProjectionContentView;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.entity.EntitySnapshot;
+import art.arcane.optics.stream.ClientViewInbound;
+import art.arcane.optics.view.ContentView;
 import art.arcane.wormholes.render.view.ProjectionEntityView;
 
 final class BukkitClientViewSceneTest {
@@ -45,10 +45,10 @@ final class BukkitClientViewSceneTest {
 
     @Test
     void observerBindingMatchesItsOpaqueVisualBeforeTheFirstEntityFrame() throws ClientViewProtocolException {
-        try (ClientViewFixture fixture = negotiated(ClientViewFixture.CLIENT_CAPS | ClientViewCapability.ENTITY_SELF.mask())) {
-            EntityVisual self = EntityVisual.full(fixture.playerId, "minecraft:player", 1.5D, 64.0D, 3.0D, 1.8D,
+        try (ClientViewFixture fixture = negotiated(ClientViewFixture.CLIENT_CAPS | ViewStreamCapability.ENTITY_SELF.mask())) {
+            EntitySnapshot self = EntitySnapshot.full(fixture.playerId, "minecraft:player", 1.5D, 64.0D, 3.0D, 1.8D,
                 0.0D, 0.0D, 1.0D, 0.0F, 0.0F, 0.0D, 0.0D, 0.0D, true, "Observer", "", "", null, null,
-                EntityVisual.EMPTY, EntityVisual.EMPTY, 0);
+                EntitySnapshot.EMPTY, EntitySnapshot.EMPTY, 0);
             ProjectionEntityView entities = (ProjectionEntityView) fixture.view;
             when(entities.getEntities(anyDouble(), anyDouble(), anyDouble(), anyDouble())).thenReturn(List.of(self));
             when(entities.isVisibleTo(any(Player.class), eq(fixture.playerId))).thenReturn(true);
@@ -74,7 +74,7 @@ final class BukkitClientViewSceneTest {
     void destinationLightRidesInThePlateBricksWhenLightingFidelityIsOn() throws ClientViewProtocolException {
         Settings.LIGHTING_FIDELITY = true;
         try (ClientViewFixture fixture = negotiated(ClientViewFixture.CLIENT_CAPS)) {
-            when(fixture.view.getLight(anyInt(), anyInt(), anyInt())).thenReturn(ProjectionContentView.packLight(13, 5));
+            when(fixture.view.getLight(anyInt(), anyInt(), anyInt())).thenReturn(ContentView.packLight(13, 5));
             fixture.route();
             fixture.buildPlates();
             fixture.route();
@@ -87,7 +87,7 @@ final class BukkitClientViewSceneTest {
                     if (!brick.hasLight()) {
                         continue;
                     }
-                    for (int cell = 0; cell < ClientViewProtocol.BRICK_CELLS; cell++) {
+                    for (int cell = 0; cell < ViewStreamLimits.BRICK_CELLS; cell++) {
                         if (BrickLightSource.nibble(brick.skyLight(), cell) == 13) {
                             assertEquals(5, BrickLightSource.nibble(brick.blockLight(), cell));
                             lit++;
@@ -103,8 +103,8 @@ final class BukkitClientViewSceneTest {
     void destinationEntitiesStreamInLocalSpaceUnderOpaqueIdsAndFollowVisibility() throws ClientViewProtocolException {
         try (ClientViewFixture fixture = negotiated(ClientViewFixture.CLIENT_CAPS)) {
             UUID source = UUID.randomUUID();
-            EntityVisual stand = EntityVisual.full(source, "minecraft:armor_stand", 1.5D, 64.0D, 3.0D, 1.975D, 0.0D, 0.0D, 1.0D, 0.0F, 0.0F,
-                0.0D, 0.0D, 0.0D, true, "", "", "", null, null, EntityVisual.EMPTY, EntityVisual.EMPTY, 0);
+            EntitySnapshot stand = EntitySnapshot.full(source, "minecraft:armor_stand", 1.5D, 64.0D, 3.0D, 1.975D, 0.0D, 0.0D, 1.0D, 0.0F, 0.0F,
+                0.0D, 0.0D, 0.0D, true, "", "", "", null, null, EntitySnapshot.EMPTY, EntitySnapshot.EMPTY, 0);
             ProjectionEntityView entities = (ProjectionEntityView) fixture.view;
             when(entities.getEntities(anyDouble(), anyDouble(), anyDouble(), anyDouble())).thenReturn(List.of(stand));
             when(entities.isVisibleTo(any(Player.class), eq(source))).thenReturn(true);
@@ -112,7 +112,7 @@ final class BukkitClientViewSceneTest {
             ClientViewMessage.EntityFrame frame = lastFrame(fixture.messages());
             assertNotNull(frame, "no entity frame was streamed");
             assertEquals(1, frame.entities().size());
-            EntityVisual local = frame.entities().get(0);
+            EntitySnapshot local = frame.entities().get(0);
             assertNotEquals(source, local.id());
             assertTrue(local.isFull());
             assertTrue(local.z() < 0.5D, "the reflected stand should sit behind the mirror plane, was " + local.z());
@@ -127,7 +127,7 @@ final class BukkitClientViewSceneTest {
 
     @Test
     void clientDrawnMirrorsLeaveTheObserverOutOfItsOwnEntityFrames() throws ClientViewProtocolException {
-        assertEquals(1, mirrorPresence(ClientViewFixture.CLIENT_CAPS | ClientViewCapability.CLIENT_MIRROR.mask()),
+        assertEquals(1, mirrorPresence(ClientViewFixture.CLIENT_CAPS | ViewStreamCapability.CLIENT_MIRROR.mask()),
             "the client draws its own reflection");
         assertEquals(2, mirrorPresence(ClientViewFixture.CLIENT_CAPS), "a streamed mirror plate keeps the projected observer");
     }
@@ -135,12 +135,12 @@ final class BukkitClientViewSceneTest {
     @Test
     void meshEntitiesUseClientDepthWhileLegacyEntitiesKeepPortalDepth() throws ClientViewProtocolException {
         Settings.ENTITY_SPOOF_RANGE = 128;
-        try (ClientViewFixture fixture = negotiated(ClientViewFixture.CLIENT_CAPS | ClientViewCapability.MESH_RENDER.mask())) {
+        try (ClientViewFixture fixture = negotiated(ClientViewFixture.CLIENT_CAPS | ViewStreamCapability.MESH_RENDER.mask())) {
             when(fixture.player.getClientViewDistance()).thenReturn(10);
             ProjectionEntityView entities = (ProjectionEntityView) fixture.view;
-            EntityVisual stand = EntityVisual.full(UUID.randomUUID(), "minecraft:armor_stand", 1.5D, 64.0D, 111.0D, 1.975D,
+            EntitySnapshot stand = EntitySnapshot.full(UUID.randomUUID(), "minecraft:armor_stand", 1.5D, 64.0D, 111.0D, 1.975D,
                 0.0D, 0.0D, 1.0D, 0.0F, 0.0F, 0.0D, 0.0D, 0.0D, true, "", "", "", null, null,
-                EntityVisual.EMPTY, EntityVisual.EMPTY, 0);
+                EntitySnapshot.EMPTY, EntitySnapshot.EMPTY, 0);
             when(entities.getEntities(anyDouble(), anyDouble(), anyDouble(), anyDouble())).thenReturn(List.of(stand));
             when(entities.isVisibleTo(any(Player.class), any(UUID.class))).thenReturn(true);
             fixture.route();
@@ -159,10 +159,10 @@ final class BukkitClientViewSceneTest {
 
     private static int mirrorPresence(long clientCaps) throws ClientViewProtocolException {
         try (ClientViewFixture fixture = negotiated(clientCaps)) {
-            EntityVisual self = EntityVisual.full(fixture.playerId, "minecraft:player", 1.5D, 64.0D, 3.0D, 1.8D, 0.0D, 0.0D, 1.0D, 0.0F, 0.0F,
-                0.0D, 0.0D, 0.0D, true, "", "", "", null, null, EntityVisual.EMPTY, EntityVisual.EMPTY, 0);
-            EntityVisual stand = EntityVisual.full(UUID.randomUUID(), "minecraft:armor_stand", 0.5D, 64.0D, 3.0D, 1.975D, 0.0D, 0.0D, 1.0D, 0.0F,
-                0.0F, 0.0D, 0.0D, 0.0D, true, "", "", "", null, null, EntityVisual.EMPTY, EntityVisual.EMPTY, 0);
+            EntitySnapshot self = EntitySnapshot.full(fixture.playerId, "minecraft:player", 1.5D, 64.0D, 3.0D, 1.8D, 0.0D, 0.0D, 1.0D, 0.0F, 0.0F,
+                0.0D, 0.0D, 0.0D, true, "", "", "", null, null, EntitySnapshot.EMPTY, EntitySnapshot.EMPTY, 0);
+            EntitySnapshot stand = EntitySnapshot.full(UUID.randomUUID(), "minecraft:armor_stand", 0.5D, 64.0D, 3.0D, 1.975D, 0.0D, 0.0D, 1.0D, 0.0F,
+                0.0F, 0.0D, 0.0D, 0.0D, true, "", "", "", null, null, EntitySnapshot.EMPTY, EntitySnapshot.EMPTY, 0);
             ProjectionEntityView entities = (ProjectionEntityView) fixture.view;
             when(entities.getEntities(anyDouble(), anyDouble(), anyDouble(), anyDouble())).thenReturn(List.of(self, stand));
             when(entities.isVisibleTo(any(Player.class), any(UUID.class))).thenReturn(true);

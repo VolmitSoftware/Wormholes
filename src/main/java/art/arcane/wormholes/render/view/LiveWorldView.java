@@ -1,15 +1,16 @@
 package art.arcane.wormholes.render.view;
 
-import art.arcane.wormholes.render.view.ProjectionContentView;
+import art.arcane.optics.view.ContentView;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.render.blockentity.BlockEntityCapturer;
-import art.arcane.wormholes.render.blockentity.BlockEntityMaterials;
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
+import art.arcane.optics.fidelity.BlockEntityMaterials;
+import art.arcane.optics.fidelity.BlockEntitySample;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.data.BlockData;
+import art.arcane.optics.light.SkyMath;
 
 public final class LiveWorldView implements ProjectionWorldView {
     private final World world;
@@ -84,12 +85,12 @@ public final class LiveWorldView implements ProjectionWorldView {
             return LIGHT_UNAVAILABLE;
         }
         Block block = world.getBlockAt(x, y, z);
-        return ProjectionContentView.packLight(block.getLightFromSky(), block.getLightFromBlocks());
+        return ContentView.packLight(block.getLightFromSky(), block.getLightFromBlocks());
     }
 
     @Override
     public int getSkyDarken() {
-        return ProjectionSkyMath.computeSkyDarken(world.getTime(), world.hasStorm(), world.isThundering());
+        return SkyMath.computeSkyDarken(world.getTime(), world.hasStorm(), world.isThundering());
     }
 
     @Override

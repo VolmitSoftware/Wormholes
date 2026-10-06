@@ -1,6 +1,6 @@
 package art.arcane.wormholes.ops.importers;
 
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -93,17 +93,17 @@ public final class EssentialsWarpsImporter implements PortalImporter {
     }
 
     /** Minecraft yaw: 0 faces south, 90 faces west, 180 faces north, 270 faces east. */
-    private static Direction facing(double yaw) {
+    private static Face facing(double yaw) {
         double normalized = ((yaw % 360.0D) + 360.0D) % 360.0D;
         if (normalized >= 45.0D && normalized < 135.0D) {
-            return Direction.W;
+            return Face.W;
         }
         if (normalized >= 135.0D && normalized < 225.0D) {
-            return Direction.N;
+            return Face.N;
         }
         if (normalized >= 225.0D && normalized < 315.0D) {
-            return Direction.E;
+            return Face.E;
         }
-        return Direction.S;
+        return Face.S;
     }
 }

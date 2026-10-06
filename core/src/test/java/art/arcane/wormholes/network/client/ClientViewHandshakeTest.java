@@ -7,20 +7,22 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
+import art.arcane.optics.stream.ViewStreamCapability;
+import art.arcane.optics.stream.ViewStreamLimits;
 
 final class ClientViewHandshakeTest {
     private static final int DATA_VERSION = 4325;
     private static final long NONCE = 0x55AA55AA55AA55AAL;
 
     private static ClientViewHandshake handshake(boolean enabled, long nonce) {
-        ClientViewHandshake.Policy policy = new ClientViewHandshake.Policy(enabled, DATA_VERSION, ClientViewCapability.ALL,
-            ClientViewProtocol.DEFAULT_MAX_FRAME_BYTES, 100, 20, 8, true);
+        ClientViewHandshake.Policy policy = new ClientViewHandshake.Policy(enabled, DATA_VERSION, ViewStreamCapability.ALL,
+            ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 100, 20, 8, true);
         return new ClientViewHandshake(policy, nonce, () -> 7, () -> 0x1234L);
     }
 
     private static ClientViewMessage.Hello hello(ClientViewMessage.Offer offer, long nonceFound, String brand) {
-        return ClientViewHandshake.clientHello(offer, DATA_VERSION, ClientViewCapability.of(ClientViewCapability.PLATES,
-            ClientViewCapability.BRICK_CACHE, ClientViewCapability.ZERO_COPY, ClientViewCapability.VIEW_STATS), 256 * 1024, 256, nonceFound, brand);
+        return ClientViewHandshake.clientHello(offer, DATA_VERSION, ViewStreamCapability.of(ViewStreamCapability.PLATES,
+            ViewStreamCapability.BRICK_CACHE, ViewStreamCapability.ZERO_COPY, ViewStreamCapability.VIEW_STATS), 256 * 1024, 256, nonceFound, brand);
     }
 
     @Test
@@ -52,7 +54,7 @@ final class ClientViewHandshakeTest {
     void helloCompletesTheHandshakeWithTheCapabilityIntersection() {
         ClientViewHandshake handshake = handshake(true, 0L);
         ClientViewMessage.Offer offer = handshake.offer(1000L);
-        assertEquals(ClientViewProtocol.WIRE_VERSION, offer.wire());
+        assertEquals(ViewStreamLimits.WIRE_VERSION, offer.wire());
         assertEquals(0L, offer.zeroCopyNonce());
         ClientViewHandshake.Result result = handshake.onHello(hello(offer, 0L, "fabric"), 1020L, true);
         assertTrue(result.accepted());
@@ -62,10 +64,10 @@ final class ClientViewHandshakeTest {
         assertEquals(0x1234L, accept.hashSalt());
         assertEquals(256 * 1024, accept.maxFrameBytes());
         assertEquals(8, accept.ackWindowFrames());
-        assertTrue(ClientViewCapability.PLATES.in(accept.caps()));
-        assertTrue(ClientViewCapability.BRICK_CACHE.in(accept.caps()));
-        assertFalse(ClientViewCapability.DEST_LIGHT.in(accept.caps()));
-        assertFalse(ClientViewCapability.ZERO_COPY.in(accept.caps()));
+        assertTrue(ViewStreamCapability.PLATES.in(accept.caps()));
+        assertTrue(ViewStreamCapability.BRICK_CACHE.in(accept.caps()));
+        assertFalse(ViewStreamCapability.DEST_LIGHT.in(accept.caps()));
+        assertFalse(ViewStreamCapability.ZERO_COPY.in(accept.caps()));
         assertEquals(ClientViewHandshake.State.CLIENT_VIEW, handshake.state());
         assertNull(handshake.onHello(hello(offer, 0L, "fabric"), 1030L, true).reply());
     }
@@ -84,13 +86,13 @@ final class ClientViewHandshakeTest {
     void mismatchesAndPolicyProduceTheRightDecline() {
         ClientViewHandshake wire = handshake(true, 0L);
         ClientViewMessage.Offer offer = wire.offer(0L);
-        ClientViewMessage.Hello badWire = new ClientViewMessage.Hello(ClientViewProtocol.WIRE_VERSION + 1, DATA_VERSION, ClientViewCapability.ALL, 1, 1, 0L, "fabric");
+        ClientViewMessage.Hello badWire = new ClientViewMessage.Hello(ViewStreamLimits.WIRE_VERSION + 1, DATA_VERSION, ViewStreamCapability.ALL, 1, 1, 0L, "fabric");
         assertEquals(ClientViewMessage.DeclineReason.WIRE_MISMATCH, ((ClientViewMessage.Decline) wire.onHello(badWire, 1L, true).reply()).reason());
         assertEquals(ClientViewHandshake.State.DECLINED, wire.state());
 
         ClientViewHandshake data = handshake(true, 0L);
         data.offer(0L);
-        ClientViewMessage.Hello badData = new ClientViewMessage.Hello(ClientViewProtocol.WIRE_VERSION, DATA_VERSION + 1, ClientViewCapability.ALL, 1, 1, 0L, "fabric");
+        ClientViewMessage.Hello badData = new ClientViewMessage.Hello(ViewStreamLimits.WIRE_VERSION, DATA_VERSION + 1, ViewStreamCapability.ALL, 1, 1, 0L, "fabric");
         assertEquals(ClientViewMessage.DeclineReason.DATA_VERSION_MISMATCH, ((ClientViewMessage.Decline) data.onHello(badData, 1L, true).reply()).reason());
 
         ClientViewHandshake disabled = handshake(false, 0L);
@@ -102,7 +104,7 @@ final class ClientViewHandshakeTest {
         ClientViewMessage.Offer capacityOffer = capacity.offer(0L);
         assertEquals(ClientViewMessage.DeclineReason.CAPACITY,
             ((ClientViewMessage.Decline) capacity.onHello(hello(capacityOffer, 0L, "fabric"), 1L, false).reply()).reason());
-        assertEquals(offer.serverCaps(), ClientViewCapability.ALL);
+        assertEquals(offer.serverCaps(), ViewStreamCapability.ALL);
     }
 
     @Test
@@ -113,14 +115,14 @@ final class ClientViewHandshakeTest {
         ClientViewMessage.Hello echoed = hello(offer, NONCE, "fabric");
         assertEquals(NONCE, echoed.zeroCopyNonceEcho());
         ClientViewMessage.Accept accept = (ClientViewMessage.Accept) memory.onHello(echoed, 1L, true).reply();
-        assertTrue(ClientViewCapability.ZERO_COPY.in(accept.caps()));
+        assertTrue(ViewStreamCapability.ZERO_COPY.in(accept.caps()));
 
         ClientViewHandshake tcp = handshake(true, NONCE);
         ClientViewMessage.Offer tcpOffer = tcp.offer(0L);
         ClientViewMessage.Hello notFound = hello(tcpOffer, 0L, "fabric");
         assertEquals(0L, notFound.zeroCopyNonceEcho());
         ClientViewMessage.Accept tcpAccept = (ClientViewMessage.Accept) tcp.onHello(notFound, 1L, true).reply();
-        assertFalse(ClientViewCapability.ZERO_COPY.in(tcpAccept.caps()));
+        assertFalse(ViewStreamCapability.ZERO_COPY.in(tcpAccept.caps()));
         assertEquals(ClientViewHandshake.Brand.MODDED, ClientViewHandshake.classifyBrand("Forge"));
         assertEquals(ClientViewHandshake.Brand.VANILLA, ClientViewHandshake.classifyBrand(" vanilla "));
         assertEquals(ClientViewHandshake.Brand.UNKNOWN, ClientViewHandshake.classifyBrand(""));

@@ -4,8 +4,8 @@ import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.network.client.ClientTravelHash;
 import art.arcane.wormholes.network.client.ClientTravelWindow;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewCapability;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
+import art.arcane.optics.stream.ViewStreamCapability;
+import art.arcane.optics.stream.ViewStreamLimits;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientPacketListener;
@@ -29,9 +29,8 @@ import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.wormholes.modded.client.render.PortalIrisMainPipelines;
 import art.arcane.wormholes.modded.clientview.MinecraftPortalEnvironment;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
+import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.aperture.ApertureDescriptor;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.phys.Vec3;
 import org.mockito.MockedStatic;
@@ -103,7 +102,7 @@ public class ClientPreparedTravelCachedTest {
         ClientViewSession session = mock(ClientViewSession.class);
         when(client.session()).thenReturn(session);
         when(session.active()).thenReturn(true);
-        when(session.has(ClientViewCapability.PREPARED_TRAVEL_CACHE)).thenReturn(true);
+        when(session.has(ViewStreamCapability.PREPARED_TRAVEL_CACHE)).thenReturn(true);
         byte[] raw = {7, 1, 9};
         ClientboundLevelChunkWithLightPacket original = nativePacket(0, 0, raw);
         byte[] expected = encoded(source, original);
@@ -124,7 +123,7 @@ public class ClientPreparedTravelCachedTest {
             assertArrayEquals(expected, cache.peek("minecraft:the_nether", 0, 0));
             travel.receiveNativeChunk(source, nativePacket(128, 0, new byte[]{3}));
             assertNull(cache.peek("minecraft:the_nether", 128, 0));
-            when(session.has(ClientViewCapability.PREPARED_TRAVEL_CACHE)).thenReturn(false);
+            when(session.has(ViewStreamCapability.PREPARED_TRAVEL_CACHE)).thenReturn(false);
             travel.receiveNativeChunk(source, nativePacket(0, 0, new byte[]{4}));
             assertArrayEquals(expected, cache.peek("minecraft:the_nether", 0, 0));
         }
@@ -221,7 +220,7 @@ public class ClientPreparedTravelCachedTest {
         Class<?> retainedType = Class.forName(ClientPreparedTravel.class.getName() + "$RetainedWorld");
         Constructor<?> retainedConstructor = retainedType.getDeclaredConstructor(ClientLevel.class, ClientPacketListener.class,
             Object.class, ClientViewMessage.TravelWorld.class, long.class, Map.class,
-            ClientPortalGeometry.class);
+            ApertureDescriptor.class);
         retainedConstructor.setAccessible(true);
         ClientViewMessage.TravelWorld retainedWorld = mismatch == 6
             ? new ClientViewMessage.TravelWorld(begin.world().dimension(), begin.world().dimensionType(), begin.world().seed() + 1,
@@ -243,8 +242,8 @@ public class ClientPreparedTravelCachedTest {
              MockedConstruction<ClientboundLevelChunkWithLightPacket> packets = mockConstruction(ClientboundLevelChunkWithLightPacket.class)) {
             access.when(Minecraft::getInstance).thenReturn(minecraft);
             renderers.when(ClientPortalRenderer::instance).thenReturn(renderer);
-            environments.when(() -> MinecraftPortalEnvironment.capture(level, new GeometryVector(eye.x, eye.y, eye.z),
-                ClientViewEnvironment.Transform.IDENTITY, begin.world().flat())).thenReturn(begin.environment());
+            environments.when(() -> MinecraftPortalEnvironment.capture(level, new art.arcane.optics.math.Vec3(eye.x, eye.y, eye.z),
+                ProjectionEnvironment.Transform.IDENTITY, begin.world().flat())).thenReturn(begin.environment());
             encoder.when(() -> MinecraftChunkPacketEncoding.encode(any(), any())).thenReturn(fresh);
             if (mismatch == 1) {
                 travel.sectionChanged(level, coordinate.x(), 4, coordinate.z());
@@ -492,15 +491,15 @@ public class ClientPreparedTravelCachedTest {
         columnConstructor.setAccessible(true);
         Method capture = sourceType.getDeclaredMethod("capture", int.class, columnType);
         capture.setAccessible(true);
-        Object oversized = columnConstructor.newInstance(0, 0, 0, new byte[ClientViewProtocol.MAX_TRAVEL_CHUNK_BYTES + 1]);
+        Object oversized = columnConstructor.newInstance(0, 0, 0, new byte[ViewStreamLimits.MAX_TRAVEL_CHUNK_BYTES + 1]);
         assertTrue(assertThrows(InvocationTargetException.class,
             () -> capture.invoke(source, 0, oversized)).getCause() instanceof IllegalArgumentException);
         assertEquals(0, ((Map<?, ?>) get(source, "payloads")).size());
         assertEquals(0, get(source, "bytes"));
-        set(source, "bytes", ClientViewProtocol.MAX_TRAVEL_BYTES - 1);
+        set(source, "bytes", ViewStreamLimits.MAX_TRAVEL_BYTES - 1);
         Object column = columnConstructor.newInstance(0, 0, 0, new byte[]{1});
         capture.invoke(source, 0, column);
-        assertEquals(ClientViewProtocol.MAX_TRAVEL_BYTES, get(source, "bytes"));
+        assertEquals(ViewStreamLimits.MAX_TRAVEL_BYTES, get(source, "bytes"));
         assertTrue(assertThrows(InvocationTargetException.class,
             () -> capture.invoke(source, 1, columnConstructor.newInstance(1, 0, 0, new byte[]{1}))).getCause() instanceof IllegalArgumentException);
         assertEquals(1, ((Map<?, ?>) get(source, "payloads")).size());
@@ -522,14 +521,14 @@ public class ClientPreparedTravelCachedTest {
         when(player.getY()).thenReturn(85.5);
         when(player.getZ()).thenReturn(-3.4);
         when(player.getEyePosition()).thenReturn(new Vec3(12.25, 87.12, -3.4));
-        GeometryVector eye = new GeometryVector(12.25, 87.12, -3.4);
-        ClientViewEnvironment template = PortalEnvironmentTest.environment(ClientViewEnvironment.Transform.IDENTITY);
-        ClientViewEnvironment environment = new ClientViewEnvironment(template.gameTime(), template.sky(), template.fog(),
+        art.arcane.optics.math.Vec3 eye = new art.arcane.optics.math.Vec3(12.25, 87.12, -3.4);
+        ProjectionEnvironment template = PortalEnvironmentTest.environment(ProjectionEnvironment.Transform.IDENTITY);
+        ProjectionEnvironment environment = new ProjectionEnvironment(template.gameTime(), template.sky(), template.fog(),
             template.lighting(), template.clouds(), template.transform(),
-            new ClientViewEnvironment.Dimension(world.minY(), world.height(), false,
-                ClientViewEnvironment.CardinalLighting.DEFAULT, 0.0, false),
-            new ClientViewEnvironment.World(world.dimension(), 6000, "minecraft:nether_wastes", world.seaLevel(),
-                7, 0, 128, true, 0.1F, ClientViewEnvironment.EyeMedium.NONE, false));
+            new ProjectionEnvironment.Dimension(world.minY(), world.height(), false,
+                ProjectionEnvironment.CardinalLighting.DEFAULT, 0.0, false),
+            new ProjectionEnvironment.World(world.dimension(), 6000, "minecraft:nether_wastes", world.seaLevel(),
+                7, 0, 128, true, 0.1F, ProjectionEnvironment.EyeMedium.NONE, false));
         Method capture = ClientPreparedTravel.class.getDeclaredMethod("sourceBegin", ClientLevel.class, LocalPlayer.class);
         capture.setAccessible(true);
         Minecraft minecraft = mock(Minecraft.class);
@@ -548,7 +547,7 @@ public class ClientPreparedTravelCachedTest {
              MockedStatic<ClientSodiumTerrain> terrain = mockStatic(ClientSodiumTerrain.class)) {
             access.when(Minecraft::getInstance).thenReturn(minecraft);
             renderers.when(ClientPortalRenderer::instance).thenReturn(renderer);
-            environments.when(() -> MinecraftPortalEnvironment.capture(level, eye, ClientViewEnvironment.Transform.IDENTITY, true))
+            environments.when(() -> MinecraftPortalEnvironment.capture(level, eye, ProjectionEnvironment.Transform.IDENTITY, true))
                 .thenReturn(environment);
             ClientViewMessage.TravelBegin source = (ClientViewMessage.TravelBegin) capture.invoke(travel, level, player);
             assertSame(world, source.world());
@@ -559,14 +558,14 @@ public class ClientPreparedTravelCachedTest {
             assertTrue(source.chunks().contains(new ClientViewMessage.TravelCoordinate(-3, -3)));
             assertTrue(source.chunks().contains(new ClientViewMessage.TravelCoordinate(3, 3)));
             assertEquals(85.5, source.arrival().y(), 0.0);
-            assertEquals(ClientViewEnvironment.Transform.IDENTITY, source.destinationToSource());
+            assertEquals(ProjectionEnvironment.Transform.IDENTITY, source.destinationToSource());
             Method initialize = ClientPreparedTravel.class.getDeclaredMethod("captureSource");
             initialize.setAccessible(true);
             initialize.invoke(travel);
             verify(renderer).prepareTravelSourceEnvironment(environment);
             assertTrue(((Map<?, ?>) get(get(travel, "sourcePreparation"), "payloads")).isEmpty());
             assertEquals(0, get(travel, "sourceCapture"));
-            environments.verify(() -> MinecraftPortalEnvironment.capture(level, eye, ClientViewEnvironment.Transform.IDENTITY, true), times(2));
+            environments.verify(() -> MinecraftPortalEnvironment.capture(level, eye, ProjectionEnvironment.Transform.IDENTITY, true), times(2));
         }
     }
 
@@ -599,7 +598,7 @@ public class ClientPreparedTravelCachedTest {
         ClientViewMessage.TravelBegin begin = new ClientViewMessage.TravelBegin(original.token(), original.generation(),
             original.sourcePortal(), original.sourceWorld(), original.sourceGeometry(), original.destinationToSource(),
             original.world(), original.arrival(), manifest, original.environment(), original.expiresMillis());
-        ClientViewEnvironment environment = begin.environment();
+        ProjectionEnvironment environment = begin.environment();
         List<ClientViewMessage> sent = new ArrayList<>();
         ClientPreparedTravel travel = new ClientPreparedTravel(sent::add);
         Minecraft minecraft = mock(Minecraft.class);
@@ -643,7 +642,7 @@ public class ClientPreparedTravelCachedTest {
         if (mismatch != 1) {
             Class<?> retainedType = Class.forName(ClientPreparedTravel.class.getName() + "$RetainedWorld");
             Constructor<?> constructor = retainedType.getDeclaredConstructor(ClientLevel.class, ClientPacketListener.class,
-                Object.class, ClientViewMessage.TravelWorld.class, long.class, Map.class, ClientPortalGeometry.class);
+                Object.class, ClientViewMessage.TravelWorld.class, long.class, Map.class, ApertureDescriptor.class);
             constructor.setAccessible(true);
             ClientViewMessage.TravelWorld world = begin.world();
             if (mismatch == 5) {

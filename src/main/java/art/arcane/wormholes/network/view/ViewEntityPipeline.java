@@ -1,9 +1,9 @@
 package art.arcane.wormholes.network.view;
 
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
+import art.arcane.optics.math.Vec3;
+import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.wormholes.render.clientview.BukkitPortalEnvironment;
-import art.arcane.wormholes.render.view.ProjectionSkyMath;
+import art.arcane.optics.light.SkyMath;
 
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 
@@ -39,6 +39,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import art.arcane.optics.entity.EntitySnapshot;
+import art.arcane.optics.entity.MapSnapshot;
 
 final class ViewEntityPipeline {
     private static final class EntityCaptureContext {
@@ -167,7 +169,7 @@ final class ViewEntityPipeline {
         }
         EntityCaptureContext context = new EntityCaptureContext(token);
         try {
-            int skyDarken = art.arcane.wormholes.render.view.ProjectionSkyMath.computeSkyDarken(session.world.getTime());
+            int skyDarken = art.arcane.optics.light.SkyMath.computeSkyDarken(session.world.getTime());
             int weather = (session.world.hasStorm() ? 1 : 0) | (session.world.isThundering() ? 2 : 0);
             if (skyDarken != session.lastSkyDarken || weather != session.lastWeather) {
                 session.lastSkyDarken = skyDarken;
@@ -178,8 +180,8 @@ final class ViewEntityPipeline {
             }
             if (session.meshDistance > 0 && tickCounter >= session.nextEnvironmentTick) {
                 ViewEntityState.Center center = session.center();
-                ClientViewEnvironment environment = BukkitPortalEnvironment.capture(session.world,
-                    new GeometryVector(center.x(), center.y(), center.z()), ClientViewEnvironment.Transform.IDENTITY);
+                ProjectionEnvironment environment = BukkitPortalEnvironment.capture(session.world,
+                    new Vec3(center.x(), center.y(), center.z()), ProjectionEnvironment.Transform.IDENTITY);
                 timeDelivery.queueEnvironment(session, environment);
                 session.nextEnvironmentTick = tickCounter + 20;
             }
@@ -195,7 +197,7 @@ final class ViewEntityPipeline {
                     }
                     admission.admit(entityRank(session, entity), entity);
                 }
-                Map<UUID, EntityVisual> captured = new HashMap<>();
+                Map<UUID, EntitySnapshot> captured = new HashMap<>();
                 for (Entity entity : admission.selectedEntities()) {
                     if (!registry.isEntityCaptureActive(session, token)) {
                         retireCapture(session, token);
@@ -204,7 +206,7 @@ final class ViewEntityPipeline {
                     if (!ProjectionEntityFilter.canBroadcast(entity)) {
                         continue;
                     }
-                    EntityVisual currentFull = captureEntityVisualFull(session, context, entity, entityTick);
+                    EntitySnapshot currentFull = captureEntityVisualFull(session, context, entity, entityTick);
                     captured.put(currentFull.id(), currentFull);
                 }
                 completeEntityCaptureSuccess(session, context, entityTick, scheduler, deltaEnabled, captured);
@@ -267,7 +269,7 @@ final class ViewEntityPipeline {
             retireCapture(session, context.token);
             return;
         }
-        Map<UUID, EntityVisual> captured = new ConcurrentHashMap<>();
+        Map<UUID, EntitySnapshot> captured = new ConcurrentHashMap<>();
         List<CompletableFuture<Void>> captures = new ArrayList<>(entities.size());
         for (Entity entity : entities) {
             CompletableFuture<Void> capture = new CompletableFuture<>();
@@ -284,7 +286,7 @@ final class ViewEntityPipeline {
                         capture.complete(null);
                         return;
                     }
-                    EntityVisual visual = captureEntityVisualFull(session, context, entity, entityTick);
+                    EntitySnapshot visual = captureEntityVisualFull(session, context, entity, entityTick);
                     if (registry.isEntityCaptureActive(session, context.token)) {
                         captured.put(visual.id(), visual);
                     }
@@ -308,7 +310,7 @@ final class ViewEntityPipeline {
 
     private void completeEntityCaptureSuccess(ViewSession session, EntityCaptureContext context, long entityTick,
                                               EntityRateScheduler scheduler, boolean deltaEnabled,
-                                              Map<UUID, EntityVisual> captured) {
+                                              Map<UUID, EntitySnapshot> captured) {
         ViewServer.EntityCaptureToken token = context.token;
         if (!registry.isEntityCaptureActive(session, token)) {
             retireCapture(session, token);
@@ -324,7 +326,7 @@ final class ViewEntityPipeline {
             }
             session.sentProfiles.addAll(context.profileUpdates);
             session.blobCaptureStates.putAll(context.blobStateUpdates);
-            for (EntityVisual visual : captured.values()) {
+            for (EntitySnapshot visual : captured.values()) {
                 session.lastCapturedSnapshots.put(visual.id(), visual);
             }
             entityInterests.replace(session, captured.keySet());
@@ -410,7 +412,7 @@ final class ViewEntityPipeline {
         return new ViewEntityAdmission.EntityRank(entity.getUniqueId(), entity instanceof Player, (dx * dx) + (dy * dy) + (dz * dz));
     }
 
-    private EntityVisual captureEntityVisualFull(ViewSession session, EntityCaptureContext context, Entity entity, long entityTick) {
+    private EntitySnapshot captureEntityVisualFull(ViewSession session, EntityCaptureContext context, Entity entity, long entityTick) {
         Location location = entity.getLocation();
         Vector look = entityLook(entity, location);
         Vector velocity = entity.getVelocity();
@@ -437,7 +439,7 @@ final class ViewEntityPipeline {
             } catch (IllegalStateException ignored) {
             }
         }
-        EntityVisual previousVisual = session.lastCapturedSnapshots.get(entity.getUniqueId());
+        EntitySnapshot previousVisual = session.lastCapturedSnapshots.get(entity.getUniqueId());
         ViewEntityState.BlobCaptureState<Pose> previousBlobState = session.blobCaptureStates.get(entity.getUniqueId());
         Pose pose = entity.getPose();
         boolean onFire = entity.getFireTicks() > 0;
@@ -461,7 +463,7 @@ final class ViewEntityPipeline {
             equipment = previousVisual.equipment();
             mapData = previousVisual.mapData();
         }
-        return EntityVisual.full(
+        return EntitySnapshot.full(
             entity.getUniqueId(),
             entity.getType().getKey().toString(),
             location.getX(), location.getY(), location.getZ(),
@@ -484,11 +486,11 @@ final class ViewEntityPipeline {
 
     private static byte[] captureMapData(Entity entity) {
         if (!(entity instanceof ItemFrame itemFrame)) {
-            return EntityVisual.EMPTY;
+            return EntitySnapshot.EMPTY;
         }
         return BukkitProjectedMapData.capture(itemFrame)
-            .map(ProjectedMapData::encode)
-            .orElse(EntityVisual.EMPTY);
+            .map(MapSnapshot::encode)
+            .orElse(EntitySnapshot.EMPTY);
     }
 
     private static int equipmentSignature(Entity entity) {

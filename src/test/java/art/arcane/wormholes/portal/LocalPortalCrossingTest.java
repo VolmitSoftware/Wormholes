@@ -5,7 +5,7 @@ import art.arcane.wormholes.util.BukkitGeometry;
 import art.arcane.wormholes.TraversableManager;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.util.Cuboid;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.event.entity.EntityTeleportEvent;
@@ -20,6 +20,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import art.arcane.optics.frame.Frame;
 
 class LocalPortalCrossingTest {
     private TraversableManager previousManager;
@@ -38,7 +39,7 @@ class LocalPortalCrossingTest {
     @Test
     void crossingPreservesTheFullDiagonalEndpointAndVelocityAcrossEveryFrame() {
         World world = LocalPortalTestSupport.world("crossing-frames");
-        for (Direction direction : List.of(Direction.N, Direction.S, Direction.E, Direction.W, Direction.U, Direction.D)) {
+        for (Face direction : List.of(Face.N, Face.S, Face.E, Face.W, Face.U, Face.D)) {
             LocalPortal source = portal(world, direction);
             for (boolean frontSide : List.of(Boolean.TRUE, Boolean.FALSE)) {
                 double sign = frontSide ? -1.0D : 1.0D;
@@ -68,7 +69,7 @@ class LocalPortalCrossingTest {
     @Test
     void slowCrossingKeepsItsVelocityInsteadOfUsingTheLookDirection() {
         World world = LocalPortalTestSupport.world("slow-crossing");
-        LocalPortal source = portal(world, Direction.E);
+        LocalPortal source = portal(world, Face.E);
         Vector velocity = new Vector(-0.004D, 0.002D, 0.001D);
         Vector end = BukkitGeometry.bukkit(source.getOrigin()).add(new Vector(-0.001D, 0.0D, 0.0D));
         LocalPortalTestSupport.FakeEntity entity = LocalPortalTestSupport.FakeEntity.entity("slow", end.toLocation(world));
@@ -84,7 +85,7 @@ class LocalPortalCrossingTest {
     @Test
     void occupyingTheApertureWithoutCrossingItsPlaneDoesNotTeleport() {
         World world = LocalPortalTestSupport.world("uncrossed-aperture");
-        LocalPortal source = portal(world, Direction.E);
+        LocalPortal source = portal(world, Face.E);
         Vector end = BukkitGeometry.bukkit(source.getOrigin()).add(new Vector(0.1D, 0.0D, 0.0D));
         LocalPortalTestSupport.FakeEntity entity = LocalPortalTestSupport.FakeEntity.entity("uncrossed", end.toLocation(world));
         for (Vector velocity : List.of(new Vector(), new Vector(-0.1D, 0.0D, 0.0D), new Vector(0.0D, 0.1D, 0.0D))) {
@@ -96,7 +97,7 @@ class LocalPortalCrossingTest {
     @Test
     void crossingOutsideTheApertureDoesNotTeleport() {
         World world = LocalPortalTestSupport.world("outside-aperture");
-        LocalPortal source = portal(world, Direction.E);
+        LocalPortal source = portal(world, Face.E);
         Vector end = BukkitGeometry.bukkit(source.getOrigin()).add(new Vector(-0.1D, 8.0D, 0.0D));
         LocalPortalTestSupport.FakeEntity entity = LocalPortalTestSupport.FakeEntity.entity("outside", end.toLocation(world));
         entity.entity().setVelocity(new Vector(-0.4D, 0.0D, 0.0D));
@@ -106,7 +107,7 @@ class LocalPortalCrossingTest {
     @Test
     void startingOnThePlanePreservesTheDepartureSide() {
         World world = LocalPortalTestSupport.world("plane-start");
-        LocalPortal source = portal(world, Direction.E);
+        LocalPortal source = portal(world, Face.E);
         Vector start = BukkitGeometry.bukkit(source.getOrigin());
         for (double speed : List.of(-0.1D, 0.1D)) {
             Vector velocity = new Vector(speed, 0.0D, 0.0D);
@@ -122,7 +123,7 @@ class LocalPortalCrossingTest {
     @Test
     void previousEntityPositionClosesTheGapLeftByVelocityDrag() {
         World world = LocalPortalTestSupport.world("entity-drag");
-        LocalPortal source = portal(world, Direction.E);
+        LocalPortal source = portal(world, Face.E);
         Vector start = BukkitGeometry.bukkit(source.getOrigin()).add(new Vector(0.001D, 0.0D, 0.0D));
         Vector end = start.clone().add(new Vector(-0.1D, 0.0D, 0.0D));
         LocalPortalTestSupport.FakeEntity entity = LocalPortalTestSupport.FakeEntity.entity("drag", start.toLocation(world));
@@ -146,7 +147,7 @@ class LocalPortalCrossingTest {
     @Test
     void externalEntityTeleportInvalidatesThePreviousSweep() {
         World world = LocalPortalTestSupport.world("entity-teleport");
-        LocalPortal source = portal(world, Direction.E);
+        LocalPortal source = portal(world, Face.E);
         Location start = BukkitGeometry.bukkit(source.getOrigin()).add(new Vector(0.2D, 0.0D, 0.0D)).toLocation(world);
         Location end = start.clone().subtract(0.4D, 0.0D, 0.0D);
         LocalPortalTestSupport.FakeEntity entity = LocalPortalTestSupport.FakeEntity.entity("teleported", start);
@@ -166,7 +167,7 @@ class LocalPortalCrossingTest {
     @Test
     void entityCaptureExpiresAfterLeavingTheCaptureZone() {
         World world = LocalPortalTestSupport.world("entity-capture-expiry");
-        LocalPortal source = portal(world, Direction.E);
+        LocalPortal source = portal(world, Face.E);
         Location location = BukkitGeometry.location(source.getOrigin(), world);
         LocalPortalTestSupport.FakeEntity entity = LocalPortalTestSupport.FakeEntity.entity("expired", location);
         PortalCaptureHistory history = new PortalCaptureHistory();
@@ -178,12 +179,12 @@ class LocalPortalCrossingTest {
         assertEquals(location, history.capture(Wormholes.traversableManager.entityContinuity(entity.entity(), location, 1_100L), location, 1_100L));
     }
 
-    private static LocalPortal portal(World world, Direction normal) {
+    private static LocalPortal portal(World world, Face normal) {
         PortalStructure structure = new PortalStructure();
         structure.setWorld(world);
         structure.setArea(new Cuboid(new Location(world, -2.0D, 64.0D, -2.0D), new Location(world, 2.0D, 68.0D, 2.0D)));
         LocalPortal portal = new LocalPortal(UUID.randomUUID(), PortalType.PORTAL, structure);
-        portal.setFrame(PortalFrame.canonical(normal));
+        portal.setFrame(Frame.canonical(normal));
         portal.setAmbientAttended(false);
         return portal;
     }

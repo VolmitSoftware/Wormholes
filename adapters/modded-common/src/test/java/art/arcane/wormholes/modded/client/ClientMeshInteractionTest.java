@@ -2,7 +2,7 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.view.EntityVisual;
+import art.arcane.optics.entity.EntitySnapshot;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.entity.Entity;
@@ -251,8 +251,8 @@ public class ClientMeshInteractionTest extends MinecraftTestBase {
         try (MockedStatic<WormholesClient> clients = mockStatic(WormholesClient.class)) {
             clients.when(WormholesClient::instance).thenReturn(client);
             for (int revision = 1; revision <= 40; revision++) {
-                EntityVisual visual = EntityVisual.full(visualId, "minecraft:pig", revision, 0, 0.5, 1, 0, 0,
-                    1, 0, 0, 0, 0, 0, true, "", "", "", null, null, new byte[] {(byte) revision}, EntityVisual.EMPTY, revision);
+                EntitySnapshot visual = EntitySnapshot.full(visualId, "minecraft:pig", revision, 0, 0.5, 1, 0, 0,
+                    1, 0, 0, 0, 0, 0, true, "", "", "", null, null, new byte[] {(byte) revision}, EntitySnapshot.EMPTY, revision);
                 for (int key = 1; key <= 2; key++) {
                     projected.apply(new ClientViewMessage.EntityFrame(key, revision, List.of(visual), List.of(visualId), true));
                 }

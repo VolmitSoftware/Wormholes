@@ -1,10 +1,10 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.optics.entity.EntityProfile;
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.network.view.EntityVisual;
+import art.arcane.optics.math.Vec3;
+import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.wormholes.network.view.ViewEntityState;
-import art.arcane.wormholes.render.view.ProjectionEntityData;
+import art.arcane.optics.view.EntityData;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -21,17 +21,17 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-public final class MinecraftLocalEntityView implements ProjectionEntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment> {
+public final class MinecraftLocalEntityView implements EntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment> {
     private final ServerLevel level;
     private final MinecraftPacketBlobs blobs;
     private final MinecraftEntityVisualCapture capture;
     private final ViewEntityState<Pose> state;
     private final Map<UUID, Sample> samples = new HashMap<>();
     private List<Entity> candidates = List.of();
-    private List<EntityVisual> visuals = List.of();
+    private List<EntitySnapshot> visuals = List.of();
     private long candidateTick = Long.MIN_VALUE;
     private long captureTick = Long.MIN_VALUE;
-    private GeometryVector origin;
+    private Vec3 origin;
     private int range;
 
     public MinecraftLocalEntityView(ServerLevel level, UUID portalId) {
@@ -41,7 +41,7 @@ public final class MinecraftLocalEntityView implements ProjectionEntityData<Sync
         this.state = new ViewEntityState<>(portalId, new ViewEntityState.Center(0, 0, 0));
     }
 
-    public void update(GeometryVector center, Options options) {
+    public void update(Vec3 center, Options options) {
         if (!level.getServer().isSameThread()) {
             throw new IllegalStateException("Entity projection capture requires the server thread");
         }
@@ -59,12 +59,12 @@ public final class MinecraftLocalEntityView implements ProjectionEntityData<Sync
             candidateTick = tick;
         }
         Set<UUID> present = new HashSet<>(candidates.size());
-        List<EntityVisual> next = new ArrayList<>(candidates.size());
+        List<EntitySnapshot> next = new ArrayList<>(candidates.size());
         for (Entity entity : candidates) {
             if (!eligible(entity) || entity.level() != level) {
                 continue;
             }
-            EntityVisual visual = capture.capture(entity, state, tick);
+            EntitySnapshot visual = capture.capture(entity, state, tick);
             Sample previous = samples.get(visual.id());
             boolean metadataChanged = previous == null || previous.visual().metadata() != visual.metadata();
             boolean equipmentChanged = previous == null || previous.visual().equipment() != visual.equipment();
@@ -96,7 +96,7 @@ public final class MinecraftLocalEntityView implements ProjectionEntityData<Sync
     }
 
     @Override
-    public List<EntityVisual> getEntities(double centerX, double centerY, double centerZ, double range) { return visuals; }
+    public List<EntitySnapshot> getEntities(double centerX, double centerY, double centerZ, double range) { return visuals; }
     @Override
     public EntityProfile getProfile(UUID entityId) { Sample sample = samples.get(entityId); return sample == null ? null : sample.profile(); }
     @Override
@@ -113,7 +113,7 @@ public final class MinecraftLocalEntityView implements ProjectionEntityData<Sync
     public record Options(double range, int candidateCacheTicks) {
     }
 
-    private record Sample(EntityVisual visual, List<SynchedEntityData.DataValue<?>> metadata,
+    private record Sample(EntitySnapshot visual, List<SynchedEntityData.DataValue<?>> metadata,
                           List<MinecraftPacketBlobs.Equipment> equipment, EntityProfile profile, int version) {
     }
 }

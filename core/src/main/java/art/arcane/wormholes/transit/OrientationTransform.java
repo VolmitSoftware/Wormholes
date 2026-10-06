@@ -1,11 +1,11 @@
 package art.arcane.wormholes.transit;
 
 
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 
-import art.arcane.wormholes.portal.PortalFrame;
-import art.arcane.wormholes.portal.PortalCrossing;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.crossing.PlaneCrossing;
+import art.arcane.optics.math.Face;
 
 /**
  * Derives the traveler's exit look from an {@link OrientationPolicy}. Frame-relative policies (FRAME,
@@ -15,14 +15,14 @@ import art.arcane.wormholes.util.Direction;
  */
 public final class OrientationTransform {
     private static final double TWO_PI = 2.0D * Math.PI;
-    private static final GeometryVector WORLD_UP = new GeometryVector(0.0D, 1.0D, 0.0D);
+    private static final Vec3 WORLD_UP = new Vec3(0.0D, 1.0D, 0.0D);
 
     private OrientationTransform() {
     }
 
     /** Bukkit yaw (0 = south, 90 = west) and pitch (-90 = up) for an exit direction. */
     public record Look(float yaw, float pitch) {
-        public static Look of(GeometryVector direction) {
+        public static Look of(Vec3 direction) {
             double x = direction.getX();
             double y = direction.getY();
             double z = direction.getZ();
@@ -36,14 +36,14 @@ public final class OrientationTransform {
         }
     }
 
-    public static Look apply(PortalCrossing traversive, PortalFrame outFrame, OrientationPolicy policy, boolean gravityFlip) {
+    public static Look apply(PlaneCrossing traversive, Frame outFrame, OrientationPolicy policy, boolean gravityFlip) {
         return Look.of(direction(traversive, outFrame, policy, gravityFlip));
     }
 
-    public static GeometryVector direction(PortalCrossing traversive, PortalFrame outFrame, OrientationPolicy policy, boolean gravityFlip) {
+    public static Vec3 direction(PlaneCrossing traversive, Frame outFrame, OrientationPolicy policy, boolean gravityFlip) {
         OrientationPolicy active = policy == null ? OrientationPolicy.FRAME : policy;
-        PortalFrame outView = outFrame.view(traversive.frontSide());
-        GeometryVector look = switch (active) {
+        Frame outView = outFrame.view(traversive.frontSide());
+        Vec3 look = switch (active) {
             case FRAME -> traversive.outLook(outFrame);
             case LOOK -> traversive.look();
             case SNAP -> vector(outView.getNormal()).multiply(-1.0D);
@@ -55,8 +55,8 @@ public final class OrientationTransform {
         return look;
     }
 
-    private static GeometryVector reflectAcrossPlane(GeometryVector look, Direction normal) {
-        GeometryVector unit = vector(normal);
+    private static Vec3 reflectAcrossPlane(Vec3 look, Face normal) {
+        Vec3 unit = vector(normal);
         double along = dot(look, unit);
         return look.subtract(unit.multiply(2.0D * along));
     }
@@ -66,10 +66,10 @@ public final class OrientationTransform {
      * With exit travel direction e = -normal (vertical) and s = e dot worldUp, the rotation sends up to
      * worldUp and e to -s * up.
      */
-    private static GeometryVector flipUpright(GeometryVector look, PortalFrame outView) {
-        GeometryVector right = vector(outView.getRight());
-        GeometryVector up = vector(outView.getUp());
-        GeometryVector exitDirection = vector(outView.getNormal()).multiply(-1.0D);
+    private static Vec3 flipUpright(Vec3 look, Frame outView) {
+        Vec3 right = vector(outView.getRight());
+        Vec3 up = vector(outView.getUp());
+        Vec3 exitDirection = vector(outView.getNormal()).multiply(-1.0D);
         double sign = dot(exitDirection, WORLD_UP);
         double alongRight = dot(look, right);
         double alongUp = dot(look, up);
@@ -78,11 +78,11 @@ public final class OrientationTransform {
             .add(WORLD_UP.multiply(alongUp))
             .add(up.multiply(-sign * alongExit));
     }
-    private static GeometryVector vector(Direction direction) {
-        return new GeometryVector(direction.x(), direction.y(), direction.z());
+    private static Vec3 vector(Face direction) {
+        return new Vec3(direction.x(), direction.y(), direction.z());
     }
 
-    private static double dot(GeometryVector a, GeometryVector b) {
+    private static double dot(Vec3 a, Vec3 b) {
         return a.x() * b.x() + a.y() * b.y() + a.z() * b.z();
     }
 }

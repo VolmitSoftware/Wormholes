@@ -1,7 +1,7 @@
 package art.arcane.wormholes.render;
 
 import org.bukkit.block.data.BlockData;
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -44,18 +44,32 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 
 import art.arcane.wormholes.Settings;
-import art.arcane.wormholes.render.bedrock.BedrockProfile;
+import art.arcane.optics.fidelity.BedrockProfile;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
-import art.arcane.wormholes.network.view.EntityVisual;
+import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.IPortal;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.render.view.ProjectionEntityView;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.render.view.RemoteWorldView;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
+import art.arcane.optics.entity.EntityRelationship;
+import art.arcane.optics.entity.EntityVisualProjection;
+import art.arcane.optics.entity.ItemFrameTransform;
+import art.arcane.optics.entity.PlayerNames;
+import art.arcane.optics.entity.ProjectionRecovery;
+import art.arcane.optics.entity.SnapshotProjector;
+import art.arcane.optics.entity.SpoofRegistry;
+import art.arcane.optics.entity.SpoofedEntity;
+import art.arcane.optics.frame.PortalCoordMap;
+import art.arcane.optics.occlusion.LocalOcclusionArbiter;
+import art.arcane.optics.occlusion.ProjectedEntityOcclusion;
+import art.arcane.optics.recursion.EntityPath;
+import art.arcane.optics.recursion.RecursiveEndpoints;
+import art.arcane.optics.volume.ViewVolume;
 
 public final class ProjectedEntityRenderer {
     private static final int DISPLAY_POSITION_ROTATION_INTERPOLATION_INDEX = 10;
@@ -70,22 +84,22 @@ public final class ProjectedEntityRenderer {
     private final EntityRenderPacketChannel channel;
     private final EntityRenderPlayerIdentity identity;
     private BedrockProfile viewerProfile = BedrockProfile.JAVA;
-    private final EntityRenderSpoofRegistry<Player, Vector3d> registry;
+    private final SpoofRegistry<Player, Vector3d> registry;
     private final EntityRenderMetadataBridge metadataBridge;
     private final EntityRenderLocalOccluder occluder;
-    private final EntityRenderVisualProjector<Player, World, ILocalPortal, Vector3d, EntityType, ProjectionEntityView> visualProjector;
+    private final SnapshotProjector<Player, World, ILocalPortal, Vector3d, EntityType, ProjectionEntityView> visualProjector;
     private final Map<NamespacedKey, EntityType> entityTypeCache;
     private final double[] scratchVisiblePoint;
     private final double[] scratchDirection;
     private final double[] scratchLook;
     private final double[] scratchEntityPosition;
     private final List<EntityRelationship> scratchRelationships;
-    private final EntityProjectionRecovery<Player> recovery;
+    private final ProjectionRecovery<Player> recovery;
     private volatile int publishedSpoofedCount;
     private final Map<UUID, ProjectedEntityRenderer> nestedRenderers = new HashMap<UUID, ProjectedEntityRenderer>();
-    private ProjectorRecursivePortals<World, ILocalPortal> recursivePortals;
+    private RecursiveEndpoints<World, ILocalPortal> recursivePortals;
     private volatile int publishedNestedCount;
-    private EntityProjectionPath<World, ILocalPortal> projectionPath;
+    private EntityPath<World, ILocalPortal> projectionPath;
     private int renderLimit = Integer.MAX_VALUE;
 
     public ProjectedEntityRenderer() {
@@ -97,42 +111,42 @@ public final class ProjectedEntityRenderer {
     }
 
     private ProjectedEntityRenderer(EntityRenderPacketChannel channel, EntityRenderPlayerIdentity identity) {
-        this(channel, identity, new EntityRenderSpoofRegistry<>(new BukkitEntityRegistryHost(channel, identity)));
+        this(channel, identity, new SpoofRegistry<>(new BukkitEntityRegistryHost(channel, identity)));
     }
 
-    ProjectedEntityRenderer(EntityRenderPacketChannel channel, EntityRenderPlayerIdentity identity, EntityRenderSpoofRegistry<Player, Vector3d> registry) {
-        this(channel, identity, registry, new EntityRenderLocalOcclusionArbiter<>(BukkitEntityVisibility.create()), UUID.randomUUID());
+    ProjectedEntityRenderer(EntityRenderPacketChannel channel, EntityRenderPlayerIdentity identity, SpoofRegistry<Player, Vector3d> registry) {
+        this(channel, identity, registry, new LocalOcclusionArbiter<>(BukkitEntityVisibility.create()), UUID.randomUUID());
     }
 
-    ProjectedEntityRenderer(EntityRenderLocalOcclusionArbiter<Player, Entity> localOcclusion, UUID localOcclusionOwnerId) {
+    ProjectedEntityRenderer(LocalOcclusionArbiter<Player, Entity> localOcclusion, UUID localOcclusionOwnerId) {
         this(new EntityRenderPacketChannel(), localOcclusion, localOcclusionOwnerId);
     }
 
     private ProjectedEntityRenderer(EntityRenderPacketChannel channel,
-                                    EntityRenderLocalOcclusionArbiter<Player, Entity> localOcclusion,
+                                    LocalOcclusionArbiter<Player, Entity> localOcclusion,
                                     UUID localOcclusionOwnerId) {
         this(channel, new EntityRenderPlayerIdentity(channel), localOcclusion, localOcclusionOwnerId);
     }
 
     private ProjectedEntityRenderer(EntityRenderPacketChannel channel,
                                     EntityRenderPlayerIdentity identity,
-                                    EntityRenderLocalOcclusionArbiter<Player, Entity> localOcclusion,
+                                    LocalOcclusionArbiter<Player, Entity> localOcclusion,
                                     UUID localOcclusionOwnerId) {
-        this(channel, identity, new EntityRenderSpoofRegistry<>(new BukkitEntityRegistryHost(channel, identity)), localOcclusion,
+        this(channel, identity, new SpoofRegistry<>(new BukkitEntityRegistryHost(channel, identity)), localOcclusion,
             localOcclusionOwnerId);
     }
 
     private ProjectedEntityRenderer(EntityRenderPacketChannel channel,
                                     EntityRenderPlayerIdentity identity,
-                                    EntityRenderSpoofRegistry<Player, Vector3d> registry,
-                                    EntityRenderLocalOcclusionArbiter<Player, Entity> localOcclusion,
+                                    SpoofRegistry<Player, Vector3d> registry,
+                                    LocalOcclusionArbiter<Player, Entity> localOcclusion,
                                     UUID localOcclusionOwnerId) {
         this.channel = channel;
         this.identity = identity;
         this.registry = registry;
         this.metadataBridge = new EntityRenderMetadataBridge(channel);
         this.occluder = new EntityRenderLocalOccluder(localOcclusion, localOcclusionOwnerId);
-        this.visualProjector = new EntityRenderVisualProjector<>(registry, new BukkitEntityVisualHost(channel,
+        this.visualProjector = new SnapshotProjector<>(registry, new BukkitEntityVisualHost(channel,
             new BukkitEntityVisualHost.Options(identity, this.metadataBridge)), FidelitySettings::snapshot);
         this.entityTypeCache = new HashMap<NamespacedKey, EntityType>(32);
         this.scratchVisiblePoint = new double[3];
@@ -140,7 +154,7 @@ public final class ProjectedEntityRenderer {
         this.scratchLook = new double[3];
         this.scratchEntityPosition = new double[5];
         this.scratchRelationships = new ArrayList<EntityRelationship>(16);
-        this.recovery = new EntityProjectionRecovery<>(new RecoveryHost());
+        this.recovery = new ProjectionRecovery<>(new RecoveryHost());
     }
 
     public void setViewerProfile(BedrockProfile profile) {
@@ -156,10 +170,10 @@ public final class ProjectedEntityRenderer {
         return publishedSpoofedCount + publishedNestedCount;
     }
 
-    void prepareRecursiveProjection(EntityProjectionPath.Root<World, ILocalPortal> root, ProjectorRecursivePortals<World, ILocalPortal> portals) {
+    void prepareRecursiveProjection(EntityPath.Root<World, ILocalPortal> root, RecursiveEndpoints<World, ILocalPortal> portals) {
         recursivePortals = portals;
         portals.revalidate();
-        projectionPath = root == null ? null : new EntityProjectionPath<>(root, portals);
+        projectionPath = root == null ? null : new EntityPath<>(root, portals);
     }
 
     void applyRecursive(Player observer, RecursiveRender context) {
@@ -168,14 +182,14 @@ public final class ProjectedEntityRenderer {
     }
 
     private void applyRecursive(Player observer, RecursiveRender context,
-                                ProjectorRecursivePortals<World, ILocalPortal> portals, int[] budget) {
+                                RecursiveEndpoints<World, ILocalPortal> portals, int[] budget) {
         Set<UUID> visiblePaths = new HashSet<UUID>();
         if (projectionPath != null && Settings.ENTITY_SPOOFING) {
-            for (ProjectorRecursivePortals<World, ILocalPortal>.Candidate candidate : projectionPath.index.paths()) {
+            for (RecursiveEndpoints<World, ILocalPortal>.Candidate candidate : projectionPath.index.paths()) {
                 if (budget[0] <= 0 || budget[1] <= 0) {
                     break;
                 }
-                EntityProjectionPath<World, ILocalPortal> childPath = projectionPath.child(candidate, portals);
+                EntityPath<World, ILocalPortal> childPath = projectionPath.child(candidate, portals);
                 if (childPath == null) {
                     continue;
                 }
@@ -218,17 +232,17 @@ public final class ProjectedEntityRenderer {
         publishedNestedCount = count;
     }
 
-    record RecursiveRender(ILocalPortal localPortal, PortalFrame localFrame, Frustum4D frustum, double depth,
+    record RecursiveRender(ILocalPortal localPortal, Frame localFrame, ViewVolume frustum, double depth,
                            boolean snapshots, Function<World, ProjectionWorldView> viewLookup, ProjectedEntityOcclusion<BlockData, ProjectionWorldView> occlusion) {
     }
 
     public void apply(Player observer,
                       ILocalPortal localPortal,
                       ILocalPortal remotePortal,
-                      Frustum4D frustum,
+                      ViewVolume frustum,
                       double projectionDepth,
-                      PortalFrame localViewFrame,
-                      PortalFrame remoteViewFrame,
+                      Frame localViewFrame,
+                      Frame remoteViewFrame,
                       int mirrorRotationQuarterTurns,
                       ProjectedEntityOcclusion<BlockData, ProjectionWorldView> entityOcclusion) {
         if (!Settings.ENTITY_SPOOFING || entityLimit() <= 0) {
@@ -300,10 +314,10 @@ public final class ProjectedEntityRenderer {
                             double remoteOriginY,
                             double remoteOriginZ,
                             RemoteWorldView remoteView,
-                            Frustum4D frustum,
+                            ViewVolume frustum,
                             double projectionDepth,
-                            PortalFrame localViewFrame,
-                            PortalFrame remoteViewFrame,
+                            Frame localViewFrame,
+                            Frame remoteViewFrame,
                             ProjectedEntityOcclusion<BlockData, ProjectionWorldView> entityOcclusion) {
         if (!Settings.ENTITY_SPOOFING || entityLimit() <= 0) {
             close(observer);
@@ -331,8 +345,8 @@ public final class ProjectedEntityRenderer {
             }
             int count = 0;
 
-            List<EntityVisual> visuals = remoteView.getEntities();
-            for (EntityVisual visual : visuals) {
+            List<EntitySnapshot> visuals = remoteView.getEntities();
+            for (EntitySnapshot visual : visuals) {
                 if (count >= entityLimit()) {
                     break;
                 }
@@ -365,10 +379,10 @@ public final class ProjectedEntityRenderer {
                               boolean mirror,
                               int mirrorRotationQuarterTurns,
                               ProjectionEntityView entityView,
-                              Frustum4D frustum,
+                              ViewVolume frustum,
                               double projectionDepth,
-                              PortalFrame localViewFrame,
-                              PortalFrame remoteViewFrame,
+                              Frame localViewFrame,
+                              Frame remoteViewFrame,
                               ProjectedEntityOcclusion<BlockData, ProjectionWorldView> entityOcclusion) {
         if (!Settings.ENTITY_SPOOFING || entityLimit() <= 0) {
             close(observer);
@@ -393,7 +407,7 @@ public final class ProjectedEntityRenderer {
             if (projectionPath == null || !projectionPath.nested()) {
                 occluder.hideLocalEntities(observer, localPortal, frustum, projectionDepth);
             }
-            visualProjector.apply(observer, new EntityRenderVisualProjector.Pass<>(localPortal, remotePortal, entityView,
+            visualProjector.apply(observer, new SnapshotProjector.Pass<>(localPortal, remotePortal, entityView,
                 localViewFrame, remoteViewFrame, frustum, mirror, mirrorRotationQuarterTurns, projectionPath,
                 entityOcclusion, range, entityLimit()));
         } catch (RuntimeException error) {
@@ -556,9 +570,9 @@ public final class ProjectedEntityRenderer {
     private boolean projectEntity(Player observer,
                                   ILocalPortal localPortal,
                                   ILocalPortal remotePortal,
-                                  PortalFrame localViewFrame,
-                                  PortalFrame remoteViewFrame,
-                                  Frustum4D frustum,
+                                  Frame localViewFrame,
+                                  Frame remoteViewFrame,
+                                  ViewVolume frustum,
                                   Entity entity,
                                   boolean upsideDown,
                                   int mirrorRotationQuarterTurns) {
@@ -568,10 +582,10 @@ public final class ProjectedEntityRenderer {
         }
 
         boolean mirror = remotePortal == localPortal;
-        GeometryVector localOrigin = localPortal.getOrigin();
-        GeometryVector remoteOrigin = remotePortal.getOrigin();
-        PortalFrame mirrorPlaneFrame = mirror ? localPortal.getFrame() : null;
-        GeometryVector mirrorPlaneOrigin = mirror ? localOrigin : null;
+        Vec3 localOrigin = localPortal.getOrigin();
+        Vec3 remoteOrigin = remotePortal.getOrigin();
+        Frame mirrorPlaneFrame = mirror ? localPortal.getFrame() : null;
+        Vec3 mirrorPlaneOrigin = mirror ? localOrigin : null;
 
         WormholesPlatform.entityPosition(entity, scratchEntityPosition);
         double entityX = scratchEntityPosition[0];
@@ -617,25 +631,25 @@ public final class ProjectedEntityRenderer {
         }
         float yaw = EntityVisualProjection.yaw(scratchDirection[0], scratchDirection[2]);
         float pitch = EntityVisualProjection.pitch(scratchDirection[0], scratchDirection[1], scratchDirection[2]);
-        Direction sourceFacing = Direction.closest(scratchLook[0], scratchLook[1], scratchLook[2]);
-        int metadataTransform = ProjectedItemFrameTransform.NONE;
+        Face sourceFacing = Face.closest(scratchLook[0], scratchLook[1], scratchLook[2]);
+        int metadataTransform = ItemFrameTransform.NONE;
         if (itemFrame) {
             metadataTransform = projectionPath != null ? projectionPath.itemFrameTransform(sourceFacing) : mirror
-                ? ProjectedItemFrameTransform.mirror(sourceFacing, mirrorPlaneFrame,
+                ? ItemFrameTransform.mirror(sourceFacing, mirrorPlaneFrame,
                     mirrorRotationQuarterTurns, scratchDirection)
-                : ProjectedItemFrameTransform.between(sourceFacing, remoteViewFrame, localViewFrame,
+                : ItemFrameTransform.between(sourceFacing, remoteViewFrame, localViewFrame,
                     scratchDirection);
         }
         Vector3d position;
         if (hanging && projectionPath != null) {
             position = projectionPath.anchor(entityX, scratchEntityPosition[1], entityZ, Vector3d::new);
         } else if (hanging && mirror) {
-            position = ProjectedItemFrameTransform.mirrorAnchor(
+            position = ItemFrameTransform.mirrorAnchor(
                 entityX, scratchEntityPosition[1], entityZ,
                 mirrorPlaneOrigin.getX(), mirrorPlaneOrigin.getY(), mirrorPlaneOrigin.getZ(),
                 mirrorPlaneFrame, mirrorRotationQuarterTurns, scratchVisiblePoint, Vector3d::new);
         } else if (hanging) {
-            position = ProjectedItemFrameTransform.betweenAnchor(
+            position = ItemFrameTransform.betweenAnchor(
                 entityX, scratchEntityPosition[1], entityZ,
                 remoteOrigin.getX(), remoteOrigin.getY(), remoteOrigin.getZ(),
                 localOrigin.getX(), localOrigin.getY(), localOrigin.getZ(),
@@ -648,7 +662,7 @@ public final class ProjectedEntityRenderer {
             ? mirroredVelocity(entity, mirrorPlaneFrame, mirrorRotationQuarterTurns)
             : transformedVelocity(entity, remoteViewFrame, localViewFrame);
 
-        EntityRenderSpoofedEntity state = registry.get(entity.getUniqueId());
+        SpoofedEntity state = registry.get(entity.getUniqueId());
         if (state != null && (state.upsideDown != upsideDown
             || entity instanceof Player player && identity.playerProfileChanged(player, state, System.nanoTime()))) {
             registry.destroySingle(observer, entity.getUniqueId(), state);
@@ -656,13 +670,13 @@ public final class ProjectedEntityRenderer {
         }
         if (state == null) {
             boolean playerEntity = entity instanceof Player;
-            state = EntityRenderSpoofedEntity.create(playerEntity, upsideDown, entity instanceof LivingEntity);
+            state = SpoofedEntity.create(playerEntity, upsideDown, entity instanceof LivingEntity);
             registry.track(entity.getUniqueId(), state);
             if (playerEntity) {
                 identity.sendPlayerInfo(observer, (Player) entity, state, upsideDown);
             }
             WrapperPlayServerSpawnEntity spawn = new WrapperPlayServerSpawnEntity(state.fakeId, Optional.of(state.fakeUuid),
-                packetType, position, pitch, yaw, yaw, ProjectedItemFrameTransform.spawnData(metadataTransform), Optional.of(velocity));
+                packetType, position, pitch, yaw, yaw, ItemFrameTransform.spawnData(metadataTransform), Optional.of(velocity));
             channel.send(observer, spawn);
             identity.spawnPlayerLabel(observer, state, position, entity.getHeight());
             state.updateRotation(yaw, pitch);
@@ -674,7 +688,7 @@ public final class ProjectedEntityRenderer {
             return true;
         }
 
-        EntityRenderSpoofedEntity.Move move = state.updatePosition(position.getX(), position.getY(), position.getZ());
+        SpoofedEntity.Move move = state.updatePosition(position.getX(), position.getY(), position.getZ());
         boolean rotationChanged = state.updateRotation(yaw, pitch);
         boolean metadataTransformChanged = state.updateMetadataTransform(metadataTransform);
         registry.syncMotion(observer, state, move, rotationChanged, position, yaw, pitch, entity.isOnGround());
@@ -716,13 +730,13 @@ public final class ProjectedEntityRenderer {
         return new Vector3d(scratchDirection[0], scratchDirection[1], scratchDirection[2]);
     }
 
-    private Vector3d transformedVelocity(Entity entity, PortalFrame fromFrame, PortalFrame toFrame) {
+    private Vector3d transformedVelocity(Entity entity, Frame fromFrame, Frame toFrame) {
         Vector velocity = entity.getVelocity();
         fromFrame.transformVectorInto(velocity.getX(), velocity.getY(), velocity.getZ(), toFrame, scratchDirection);
         return new Vector3d(scratchDirection[0], scratchDirection[1], scratchDirection[2]);
     }
 
-    private Vector3d mirroredVelocity(Entity entity, PortalFrame planeFrame, int mirrorRotationQuarterTurns) {
+    private Vector3d mirroredVelocity(Entity entity, Frame planeFrame, int mirrorRotationQuarterTurns) {
         Vector velocity = entity.getVelocity();
         PortalCoordMap.mirrorSourceToDisplayVectorInto(velocity.getX(), velocity.getY(), velocity.getZ(), planeFrame,
             mirrorRotationQuarterTurns, scratchDirection);
@@ -730,7 +744,7 @@ public final class ProjectedEntityRenderer {
     }
 
     static Vector3d playerLabelPosition(Vector3d playerPosition, double playerHeight) {
-        return new Vector3d(playerPosition.getX(), ProjectedPlayerNames.labelY(playerPosition.getY(), playerHeight), playerPosition.getZ());
+        return new Vector3d(playerPosition.getX(), PlayerNames.labelY(playerPosition.getY(), playerHeight), playerPosition.getZ());
     }
 
     static List<EntityData<?>> playerLabelMetadata(String label) {
@@ -753,14 +767,14 @@ public final class ProjectedEntityRenderer {
             DISPLAY_BRIGHTNESS_INDEX,
             FULL_BRIGHT,
             TEXT_DISPLAY_TEXT_INDEX,
-            Component.text(ProjectedPlayerNames.playerLabelText(label), NamedTextColor.WHITE),
+            Component.text(PlayerNames.playerLabelText(label), NamedTextColor.WHITE),
             TEXT_DISPLAY_BACKGROUND_INDEX,
             0);
     }
 
     static List<EntityData<?>> playerLabelTextMetadata(String label) {
         return List.of(new EntityData<Component>(TEXT_DISPLAY_TEXT_INDEX, EntityDataTypes.ADV_COMPONENT,
-            Component.text(ProjectedPlayerNames.playerLabelText(label), NamedTextColor.WHITE)));
+            Component.text(PlayerNames.playerLabelText(label), NamedTextColor.WHITE)));
     }
 
     static <K, V> boolean removeCompletedRestores(Map<K, V> pending, Predicate<V> completed) {
@@ -784,7 +798,7 @@ public final class ProjectedEntityRenderer {
                                    int backgroundIndex,
                                    int background) {
     }
-    private final class RecoveryHost implements EntityProjectionRecovery.Host<Player> {
+    private final class RecoveryHost implements ProjectionRecovery.Host<Player> {
         public boolean online(Player observer) { return observer != null && observer.isOnline(); }
         public boolean hasState() { return registry.size() != 0 || identity.hasVanillaNameTeam(); }
         public void send(Player observer) { sendTeardown(observer); }

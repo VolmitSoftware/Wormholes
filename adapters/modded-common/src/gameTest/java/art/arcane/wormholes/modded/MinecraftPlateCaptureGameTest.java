@@ -1,15 +1,15 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.portal.PortalFrame;
-import art.arcane.wormholes.portal.PortalGeometry;
-import art.arcane.wormholes.render.lod.LodPolicy;
-import art.arcane.wormholes.render.plate.PlateCaptureJob;
-import art.arcane.wormholes.render.plate.ViewPlate;
-import art.arcane.wormholes.render.plate.ViewPlateBuilder;
-import art.arcane.wormholes.render.plate.ViewPlateKey;
-import art.arcane.wormholes.render.view.ProjectionContentView;
-import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.aperture.ApertureCells;
+import art.arcane.optics.volume.LodPolicy;
+import art.arcane.optics.plate.PlateCaptureJob;
+import art.arcane.optics.plate.ViewPlate;
+import art.arcane.optics.plate.ViewPlateBuilder;
+import art.arcane.optics.plate.ViewPlateKey;
+import art.arcane.optics.view.ContentView;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Face;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
@@ -33,15 +33,15 @@ final class MinecraftPlateCaptureGameTest {
         MinecraftProjectionService projections = runtime.projections();
         MinecraftProjectionWorldView view = projections.view(level);
         BlockPos aperture = helper.absolutePos(new BlockPos(6, 2, 14));
-        PortalGeometry geometry = new PortalGeometry();
-        geometry.setArea(new AxisAlignedBB(aperture.getX(), aperture.getX() + 5, aperture.getY(), aperture.getY() + 5,
+        ApertureCells geometry = new ApertureCells();
+        geometry.setArea(new Box(aperture.getX(), aperture.getX() + 5, aperture.getY(), aperture.getY() + 5,
             aperture.getZ(), aperture.getZ() + 1));
-        PortalFrame frame = PortalFrame.canonical(Direction.S);
+        Frame frame = Frame.canonical(Face.S);
         double originX = aperture.getX() + 2.5D;
         double originY = aperture.getY() + 2.5D;
         double originZ = aperture.getZ() + 0.5D;
         ViewPlateKey key = new ViewPlateKey(UUID.randomUUID(), view, true, 0, 0L);
-        ViewPlateBuilder.Request<BlockState, BlockState, ProjectionContentView<BlockState, BlockState>> request = new ViewPlateBuilder.Request<>(
+        ViewPlateBuilder.Request<BlockState, BlockState, ContentView<BlockState, BlockState>> request = new ViewPlateBuilder.Request<>(
             key, geometry, view, frame, frame, originX, originY, originZ, originX, originY, originZ, false, 0,
             12.0D, 4.0D, 0.0D, false, Blocks.AIR.defaultBlockState(), LodPolicy.NONE,
             false, 0L, 1L, projections.changes().currentVersion(), MinecraftProjectorBlocks.INSTANCE);

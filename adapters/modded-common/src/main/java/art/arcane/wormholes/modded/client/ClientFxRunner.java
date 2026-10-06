@@ -1,12 +1,12 @@
 package art.arcane.wormholes.modded.client;
 
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
+import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.wormholes.portal.AmbientSparkCadence;
-import art.arcane.wormholes.portal.PortalGeometry;
+import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.wormholes.portal.effects.PortalAnimation;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
+import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.wormholes.render.client.session.ClientViewEmitters;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
@@ -56,7 +56,7 @@ public final class ClientFxRunner {
             }
             fire(new Active(emitter), portal);
         }
-        if (fx.portalKey() == ClientViewProtocol.WORLD_FX_KEY && continuous.isEmpty()) {
+        if (fx.portalKey() == ViewStreamLimits.WORLD_FX_KEY && continuous.isEmpty()) {
             return;
         }
         replace(fx.portalKey(), continuous);
@@ -194,7 +194,7 @@ public final class ClientFxRunner {
         if (count <= 0) {
             return;
         }
-        GeometryVector cell = portal == null ? null : active.cell(portal.geometry());
+        Vec3 cell = portal == null ? null : active.cell(portal.geometry());
         double x = cell == null ? emitter.x() : cell.x();
         double y = cell == null ? emitter.y() : cell.y();
         double z = cell == null ? emitter.z() : cell.z();
@@ -242,14 +242,14 @@ public final class ClientFxRunner {
     private static final class Active {
         private final ClientViewMessage.FxEmitter emitter;
         private long cursor;
-        private ClientPortalGeometry apertureOf;
-        private PortalGeometry aperture;
+        private ApertureDescriptor apertureOf;
+        private ApertureCells aperture;
 
         private Active(ClientViewMessage.FxEmitter emitter) {
             this.emitter = emitter;
         }
 
-        private GeometryVector cell(ClientPortalGeometry geometry) {
+        private Vec3 cell(ApertureDescriptor geometry) {
             if (geometry != apertureOf) {
                 apertureOf = geometry;
                 aperture = geometry.aperture();

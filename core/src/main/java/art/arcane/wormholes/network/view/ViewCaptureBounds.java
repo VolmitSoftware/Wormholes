@@ -1,13 +1,13 @@
 package art.arcane.wormholes.network.view;
 
-import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Face;
 
 public final class ViewCaptureBounds {
     private ViewCaptureBounds() {
     }
 
-    public static ViewBox compute(AxisAlignedBB area, Direction normal, Options options) {
+    public static ViewBox compute(Box area, Face normal, Options options) {
         int depth = Math.max(0, options.depth());
         int lateral = Math.max(0, options.lateralPad()) + (int) Math.ceil(Math.max(0.0D, options.aperturePadding()));
         int expandX = normal.x() == 0 ? lateral : depth;
@@ -23,9 +23,9 @@ public final class ViewCaptureBounds {
             maxX, Math.min(maxY, options.maxHeight() - 1), maxZ);
     }
 
-    public static ViewBox computeMesh(AxisAlignedBB area, int distance, int minHeight, int maxHeight) {
+    public static ViewBox computeMesh(Box area, int distance, int minHeight, int maxHeight) {
         int radius = Math.clamp(distance, 32, 512) + 32;
-        return compute(area, Direction.N, new Options(radius, radius, 0.0D, minHeight, maxHeight));
+        return compute(area, Face.N, new Options(radius, radius, 0.0D, minHeight, maxHeight));
     }
 
     public record Options(int depth, int lateralPad, double aperturePadding, int minHeight, int maxHeight) {

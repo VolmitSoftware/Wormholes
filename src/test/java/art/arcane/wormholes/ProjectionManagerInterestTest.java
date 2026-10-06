@@ -12,6 +12,7 @@ import art.arcane.wormholes.config.toml.MainConfig;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import art.arcane.wormholes.config.toml.ProjectionConfig;
 import art.arcane.wormholes.config.toml.RenderConfig;
+import art.arcane.optics.aperture.ObserverGeometry;
 
 public final class ProjectionManagerInterestTest {
     @Test
@@ -40,7 +41,7 @@ public final class ProjectionManagerInterestTest {
 
     @Test
     public void sideGraceRejectsEdgeOnViews() {
-        assertFalse(ProjectionObserverGeometry.hasStablePortalSide(8.0D, 64.0D, 0.0D,
+        assertFalse(ObserverGeometry.hasStablePortalSide(8.0D, 64.0D, 0.0D,
                 0.0D, 64.0D, 0.0D,
                 0.0D, 0.0D, -1.0D,
                 0.12D));
@@ -48,12 +49,12 @@ public final class ProjectionManagerInterestTest {
 
     @Test
     public void sideGraceAllowsFrontAndBackViews() {
-        assertTrue(ProjectionObserverGeometry.hasStablePortalSide(0.0D, 64.0D, -8.0D,
+        assertTrue(ObserverGeometry.hasStablePortalSide(0.0D, 64.0D, -8.0D,
                 0.0D, 64.0D, 0.0D,
                 0.0D, 0.0D, -1.0D,
                 0.12D));
 
-        assertTrue(ProjectionObserverGeometry.hasStablePortalSide(0.0D, 64.0D, 8.0D,
+        assertTrue(ObserverGeometry.hasStablePortalSide(0.0D, 64.0D, 8.0D,
                 0.0D, 64.0D, 0.0D,
                 0.0D, 0.0D, -1.0D,
                 0.12D));

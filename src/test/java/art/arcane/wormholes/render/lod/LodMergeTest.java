@@ -19,17 +19,19 @@ import org.bukkit.block.data.BlockData;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.portal.ILocalPortal;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalStructure;
-import art.arcane.wormholes.render.ProjectionCellKey;
-import art.arcane.wormholes.render.ProjectorSample;
-import art.arcane.wormholes.render.plate.PlateCell;
-import art.arcane.wormholes.render.plate.ViewPlate;
-import art.arcane.wormholes.render.plate.ViewPlateBuilder;
-import art.arcane.wormholes.render.plate.ViewPlateKey;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.scan.ProjectorSample;
+import art.arcane.optics.plate.PlateCell;
+import art.arcane.optics.plate.ViewPlate;
+import art.arcane.optics.plate.ViewPlateBuilder;
+import art.arcane.optics.plate.ViewPlateKey;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.util.Cuboid;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
+import art.arcane.optics.volume.LodPolicy;
+import art.arcane.optics.volume.LodProfile;
 
 final class LodMergeTest {
     private static final UUID PORTAL_ID = UUID.fromString("00000000-0000-0000-0000-00000000010d");
@@ -42,16 +44,16 @@ final class LodMergeTest {
         LodPolicy lod = new LodPolicy(true, 1, 100);
         ViewPlate<BlockData> plate = ViewPlateBuilder.build(request(portal, structure, destination, lod, 8.0D));
 
-        PlateCell<BlockData> slab0 = plate.cell(ProjectionCellKey.pack(0, 64, -1));
-        PlateCell<BlockData> slab1 = plate.cell(ProjectionCellKey.pack(0, 64, -2));
-        PlateCell<BlockData> slab2 = plate.cell(ProjectionCellKey.pack(0, 64, -3));
-        PlateCell<BlockData> slab3 = plate.cell(ProjectionCellKey.pack(0, 64, -4));
-        PlateCell<BlockData> slab4 = plate.cell(ProjectionCellKey.pack(0, 64, -5));
+        PlateCell<BlockData> slab0 = plate.cell(CellKeys.pack(0, 64, -1));
+        PlateCell<BlockData> slab1 = plate.cell(CellKeys.pack(0, 64, -2));
+        PlateCell<BlockData> slab2 = plate.cell(CellKeys.pack(0, 64, -3));
+        PlateCell<BlockData> slab3 = plate.cell(CellKeys.pack(0, 64, -4));
+        PlateCell<BlockData> slab4 = plate.cell(CellKeys.pack(0, 64, -5));
         assertNotSame(slab0.data(), slab1.data(), "slabs inside the distance keep their own samples");
         assertSame(slab1, slab2, "the first odd slab past the distance reuses the previous slab cell");
         assertNotSame(slab2, slab3, "even slabs are sampled again");
         assertSame(slab3, slab4);
-        assertTrue(plate.cellKeys().contains(ProjectionCellKey.pack(0, 64, -3)),
+        assertTrue(plate.cellKeys().contains(CellKeys.pack(0, 64, -3)),
             "merged cells keep their own local key so the arbiter restores the real local block");
     }
 
@@ -61,14 +63,14 @@ final class LodMergeTest {
         ILocalPortal portal = portal(structure);
         FlowerView destination = new FlowerView();
         ViewPlate<BlockData> cut = ViewPlateBuilder.build(request(portal, structure, destination, new LodPolicy(false, 100, 2), 8.0D));
-        assertEquals(ProjectorSample.Kind.BLOCK, cut.cell(ProjectionCellKey.pack(0, 64, -1)).kind());
-        assertEquals(ProjectorSample.Kind.BLOCK, cut.cell(ProjectionCellKey.pack(0, 64, -2)).kind());
-        assertEquals(ProjectorSample.Kind.REMOTE_AIR, cut.cell(ProjectionCellKey.pack(0, 64, -4)).kind());
-        assertEquals(Material.STONE, cut.cell(ProjectionCellKey.pack(0, 63, -4)).data().getMaterial(),
+        assertEquals(ProjectorSample.Kind.BLOCK, cut.cell(CellKeys.pack(0, 64, -1)).kind());
+        assertEquals(ProjectorSample.Kind.BLOCK, cut.cell(CellKeys.pack(0, 64, -2)).kind());
+        assertEquals(ProjectorSample.Kind.REMOTE_AIR, cut.cell(CellKeys.pack(0, 64, -4)).kind());
+        assertEquals(Material.STONE, cut.cell(CellKeys.pack(0, 63, -4)).data().getMaterial(),
             "full blocks past the cutoff stay");
 
         ViewPlate<BlockData> none = ViewPlateBuilder.build(request(portal, structure, destination, LodPolicy.NONE, 8.0D));
-        assertEquals(ProjectorSample.Kind.BLOCK, none.cell(ProjectionCellKey.pack(0, 64, -4)).kind());
+        assertEquals(ProjectorSample.Kind.BLOCK, none.cell(CellKeys.pack(0, 64, -4)).kind());
         assertTrue(LodPolicy.NONE.isNone());
         assertFalse(new LodPolicy(true, 32, 48).isNone());
     }
@@ -93,7 +95,7 @@ final class LodMergeTest {
 
     private static ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView> request(ILocalPortal portal, PortalStructure structure,
                                                     ProjectionWorldView destination, LodPolicy lod, double depth) {
-        PortalFrame frame = portal.getFrame();
+        Frame frame = portal.getFrame();
         return new ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView>(new ViewPlateKey(PORTAL_ID, destination, true, 0, 0L), portal.getStructure(), destination, frame, frame,
             structure.getCenter().getX(), structure.getCenter().getY(), structure.getCenter().getZ(),
             structure.getCenter().getX(), structure.getCenter().getY(), structure.getCenter().getZ(),
@@ -115,7 +117,7 @@ final class LodMergeTest {
     }
 
     private static ILocalPortal portal(PortalStructure structure) {
-        PortalFrame frame = PortalFrame.canonical(Direction.S);
+        Frame frame = Frame.canonical(Face.S);
         org.bukkit.util.Vector origin = structure.getCenter().toVector();
         return (ILocalPortal) Proxy.newProxyInstance(ILocalPortal.class.getClassLoader(), new Class<?>[] {ILocalPortal.class},
             (proxy, method, args) -> switch (method.getName()) {

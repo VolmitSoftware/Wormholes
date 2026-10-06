@@ -1,16 +1,16 @@
 package art.arcane.wormholes.modded.client;
 
-import art.arcane.wormholes.network.view.EntityVisual;
-import art.arcane.wormholes.render.ProjectedEntityEvent;
+import art.arcane.optics.entity.EntitySnapshot;
+import art.arcane.optics.entity.ProjectedEntityEvent;
 import art.arcane.wormholes.portal.effects.PortalAnimation;
-import art.arcane.wormholes.render.acoustics.AcousticsProfile;
+import art.arcane.optics.fidelity.AcousticsProfile;
 
 import java.util.UUID;
 
 public interface ClientSceneWorld {
-    boolean spawn(int entityId, UUID projectionId, EntityVisual visual);
+    boolean spawn(int entityId, UUID projectionId, EntitySnapshot visual);
 
-    void move(int entityId, EntityVisual visual, EntityVisual previous);
+    void move(int entityId, EntitySnapshot visual, EntitySnapshot previous);
 
     void tick(int entityId, int portalKey, boolean nativeMesh);
 
@@ -21,7 +21,7 @@ public interface ClientSceneWorld {
 
     void equipment(int entityId, byte[] equipment);
 
-    void remove(int entityId, EntityVisual visual);
+    void remove(int entityId, EntitySnapshot visual);
 
     void particle(String key, double x, double y, double z, double spread, double speed, int count);
 

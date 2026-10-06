@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.chunk.ChunkLease;
+import art.arcane.optics.plate.ChunkLease;
 import art.arcane.wormholes.door.DoorTransit;
 import art.arcane.wormholes.door.DoorwayCrossing;
 import art.arcane.wormholes.door.DoorOpenCycle;
@@ -8,15 +8,14 @@ import art.arcane.wormholes.door.DoorAutoCloseBook;
 import art.arcane.wormholes.door.DoorTravelerClass;
 import art.arcane.wormholes.door.DoorVec3;
 import art.arcane.wormholes.door.view.DoorApertureFrames;
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.portal.PortalCrossing;
+import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.wormholes.door.DoorItemIdentity;
 import art.arcane.wormholes.door.DoorOpenState;
 import art.arcane.wormholes.door.DoorPosition;
 import art.arcane.wormholes.door.DoorwayPlane;
 import art.arcane.wormholes.door.PairEndpoint;
 import art.arcane.wormholes.door.PlacedDoorEndpoint;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.block.Blocks;
@@ -88,15 +87,15 @@ public class MinecraftPreparedDoorCloseTest extends MinecraftTestBase {
         });
         PlacedDoorEndpoint endpoint = new PlacedDoorEndpoint(new DoorPosition(UUID.randomUUID(), "minecraft:overworld", 10, 80, 7),
             DoorItemIdentity.paired(UUID.randomUUID(), UUID.randomUUID(), PairEndpoint.A));
-        DoorwayPlane source = new DoorwayPlane(4, 80, 7, Direction.W);
-        DoorwayPlane destination = new DoorwayPlane(10, 80, 7, Direction.W);
+        DoorwayPlane source = new DoorwayPlane(4, 80, 7, Face.W);
+        DoorwayPlane destination = new DoorwayPlane(10, 80, 7, Face.W);
         DoorVec3 center = source.center();
-        PortalCrossing crossing = new PortalCrossing(
+        PlaneCrossing crossing = new PlaneCrossing(
             DoorApertureFrames.of(source),
-            new GeometryVector(center.x(), center.y(), center.z()),
-            new GeometryVector(center.x() + 0.1D, 80, center.z()),
-            new GeometryVector(0.2D, 0, 0),
-            new GeometryVector(1, 0, 0), true);
+            new art.arcane.optics.math.Vec3(center.x(), center.y(), center.z()),
+            new art.arcane.optics.math.Vec3(center.x() + 0.1D, 80, center.z()),
+            new art.arcane.optics.math.Vec3(0.2D, 0, 0),
+            new art.arcane.optics.math.Vec3(1, 0, 0), true);
         DoorTransit transit = new DoorTransit(source, new DoorwayCrossing(center, 1, 0, 0, DoorwayCrossing.Direction.FRONT_TO_BACK),
             -90, 0, 0.3D, 1.8D, DoorTravelerClass.LIVING, null, crossing);
         Class<?> activeType = Class.forName(MinecraftDoorService.class.getName() + "$ActiveDoor");
@@ -125,7 +124,7 @@ public class MinecraftPreparedDoorCloseTest extends MinecraftTestBase {
         when(player.getUUID()).thenReturn(traveler);
         PlacedDoorEndpoint endpoint = new PlacedDoorEndpoint(new DoorPosition(UUID.randomUUID(), "minecraft:overworld", 4, 80, 7),
             DoorItemIdentity.paired(UUID.randomUUID(), UUID.randomUUID(), PairEndpoint.A));
-        DoorwayPlane plane = new DoorwayPlane(4, 80, 7, Direction.W);
+        DoorwayPlane plane = new DoorwayPlane(4, 80, 7, Face.W);
         DoorTransit transit = new DoorTransit(plane, DoorwayCrossing.Direction.FRONT_TO_BACK, 0, 0);
         Class<?> activeType = Class.forName(MinecraftDoorService.class.getName() + "$ActiveDoor");
         Constructor<?> activeConstructor = activeType.getDeclaredConstructor(PlacedDoorEndpoint.class);
@@ -168,7 +167,7 @@ public class MinecraftPreparedDoorCloseTest extends MinecraftTestBase {
         UUID doorId = UUID.randomUUID();
         PlacedDoorEndpoint endpoint = new PlacedDoorEndpoint(new DoorPosition(UUID.randomUUID(), "minecraft:overworld", 4, 80, 7),
             DoorItemIdentity.paired(doorId, UUID.randomUUID(), PairEndpoint.A));
-        DoorwayPlane plane = new DoorwayPlane(4, 80, 7, Direction.W);
+        DoorwayPlane plane = new DoorwayPlane(4, 80, 7, Face.W);
         ServerLevel level = mock(ServerLevel.class);
         ServerPlayer player = mock(ServerPlayer.class);
         when(player.isAlive()).thenReturn(true);

@@ -1,8 +1,8 @@
 package art.arcane.wormholes.render.view;
 
 import art.arcane.optics.entity.EntityProfile;
-import art.arcane.wormholes.network.view.EntityVisual;
-import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
+import art.arcane.optics.entity.EntitySnapshot;
+import art.arcane.optics.view.WorldChangeTracker;
 
 import org.junit.jupiter.api.Test;
 
@@ -53,8 +53,8 @@ class RegionSnapshotWorldViewProviderTest {
     @Test
     void keepsEntityStateStableWhenOnlyMotionChanges() {
         UUID id = UUID.randomUUID();
-        EntityVisual first = visual(id, 1.0D, new byte[] {1, 2}, new byte[] {3});
-        EntityVisual moved = visual(id, 9.0D, new byte[] {1, 2}, new byte[] {3});
+        EntitySnapshot first = visual(id, 1.0D, new byte[] {1, 2}, new byte[] {3});
+        EntitySnapshot moved = visual(id, 9.0D, new byte[] {1, 2}, new byte[] {3});
         EntityProfile profile = new EntityProfile("Player", "texture", "signature");
 
         assertTrue(RegionSnapshotWorldViewProvider.sameEntityState(first, profile, moved, profile));
@@ -63,7 +63,7 @@ class RegionSnapshotWorldViewProviderTest {
     @Test
     void changesEntityStateForMetadataEquipmentMapOrProfileChanges() {
         UUID id = UUID.randomUUID();
-        EntityVisual base = visual(id, 1.0D, new byte[] {1}, new byte[] {2});
+        EntitySnapshot base = visual(id, 1.0D, new byte[] {1}, new byte[] {2});
         EntityProfile profile = new EntityProfile("Player", "texture", "signature");
 
         assertFalse(RegionSnapshotWorldViewProvider.sameEntityState(base, profile,
@@ -78,7 +78,7 @@ class RegionSnapshotWorldViewProviderTest {
 
     @Test
     void invalidatesOnlyChangedChunkAfterCapturedVersion() {
-        ProjectionWorldChangeTracker tracker = new ProjectionWorldChangeTracker();
+        WorldChangeTracker tracker = new WorldChangeTracker();
         UUID worldId = UUID.randomUUID();
         long capturedVersion = tracker.currentVersion();
         tracker.markChanged(worldId, 2 << 4, 3 << 4);
@@ -90,7 +90,7 @@ class RegionSnapshotWorldViewProviderTest {
 
     @Test
     void reusesBlockSnapshotUntilItsChunkChanges() {
-        ProjectionWorldChangeTracker tracker = new ProjectionWorldChangeTracker();
+        WorldChangeTracker tracker = new WorldChangeTracker();
         UUID worldId = UUID.randomUUID();
         long capturedVersion = tracker.currentVersion();
 
@@ -113,18 +113,18 @@ class RegionSnapshotWorldViewProviderTest {
 
     @Test
     void refreshesBlockSnapshotAfterSafetyBackstop() {
-        ProjectionWorldChangeTracker tracker = new ProjectionWorldChangeTracker();
+        WorldChangeTracker tracker = new WorldChangeTracker();
 
         assertTrue(RegionSnapshotWorldViewProvider.requiresBlockSnapshotRefresh(
             tracker, UUID.randomUUID(), 2, 3, true, tracker.currentVersion(), 1_000L, 61_000L));
     }
 
-    private static EntityVisual visual(UUID id, double x, byte[] metadata, byte[] equipment) {
+    private static EntitySnapshot visual(UUID id, double x, byte[] metadata, byte[] equipment) {
         return visual(id, x, metadata, equipment, new byte[0]);
     }
 
-    private static EntityVisual visual(UUID id, double x, byte[] metadata, byte[] equipment, byte[] mapData) {
-        return EntityVisual.full(id, "minecraft:zombie", x, 64.0D, 0.0D, 1.8D,
+    private static EntitySnapshot visual(UUID id, double x, byte[] metadata, byte[] equipment, byte[] mapData) {
+        return EntitySnapshot.full(id, "minecraft:zombie", x, 64.0D, 0.0D, 1.8D,
             0.0D, 0.0D, 1.0D, 0.0F, 0.0F, 0.0D, 0.0D, 0.0D, true,
             "", "", "", null, null, metadata, equipment, mapData, 0);
     }

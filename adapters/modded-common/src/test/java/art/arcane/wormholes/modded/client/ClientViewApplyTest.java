@@ -1,14 +1,14 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.wormholes.network.client.Brick;
+import art.arcane.optics.stream.Brick;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
-import art.arcane.wormholes.network.client.ClientViewProtocolException;
-import art.arcane.wormholes.render.ProjectionCellKey;
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
-import art.arcane.wormholes.render.client.ClientCellRules;
-import art.arcane.wormholes.render.plate.PlateBox;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.fidelity.BlockEntitySample;
+import art.arcane.optics.client.ClientCellRules;
+import art.arcane.optics.plate.PlateBox;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
@@ -66,9 +66,9 @@ public class ClientViewApplyTest {
         assertTrue("cone applied nothing", overlay.size() > 0);
         int projectedAir = 0;
         for (long key : overlay.keys()) {
-            int x = ProjectionCellKey.unpackX(key);
-            int y = ProjectionCellKey.unpackY(key);
-            int z = ProjectionCellKey.unpackZ(key);
+            int x = CellKeys.unpackX(key);
+            int y = CellKeys.unpackY(key);
+            int z = CellKeys.unpackZ(key);
             assertTrue("cell outside the plate " + x + "," + y + "," + z, harness.plateContains(x, y, z));
             assertTrue("cell in front of the portal " + z, z < 10);
             BlockState applied = harness.surface.state(x, y, z);
@@ -104,7 +104,7 @@ public class ClientViewApplyTest {
 
             @Override
             public int backingState() {
-                return ClientViewProtocol.PALETTE_AIR;
+                return ViewStreamLimits.PALETTE_AIR;
             }
 
             @Override
@@ -117,9 +117,9 @@ public class ClientViewApplyTest {
                 return sample;
             }
         };
-        ClientCellRules.Policy policy = ClientCellRules.Policy.of(ClientViewHarness.geometry(), ClientViewProtocol.PALETTE_AIR);
-        long loaded = ProjectionCellKey.pack(1, 64, 1);
-        long missing = ProjectionCellKey.pack(161, 64, 161);
+        ClientCellRules.Policy policy = ClientCellRules.Policy.of(ClientViewHarness.geometry(), ViewStreamLimits.PALETTE_AIR);
+        long loaded = CellKeys.pack(1, 64, 1);
+        long missing = CellKeys.pack(161, 64, 161);
         surface.unloaded.add(ChunkPos.pack(10, 10));
 
         assertTrue(applier.enter(loaded, PORTAL_KEY, content, policy, false));
@@ -154,7 +154,7 @@ public class ClientViewApplyTest {
         assertSame(overlay.get(key).projected(), overlay.serverState(key, gold));
         assertSame(gold, overlay.get(key).shadow());
         harness.tick(EYE_X, EYE_Y, 5.0D);
-        assertSame(gold, harness.surface.state(ProjectionCellKey.unpackX(key), ProjectionCellKey.unpackY(key), ProjectionCellKey.unpackZ(key)));
+        assertSame(gold, harness.surface.state(CellKeys.unpackX(key), CellKeys.unpackY(key), CellKeys.unpackZ(key)));
     }
 
     @Test
@@ -163,7 +163,7 @@ public class ClientViewApplyTest {
         harness.stream();
         harness.tick(EYE_X, EYE_Y, EYE_Z);
         assertTrue(harness.tick.overlay().size() > 0);
-        harness.receive(new ClientViewMessage.PortalDrop(PORTAL_KEY), ClientViewProtocol.FLAG_LAST);
+        harness.receive(new ClientViewMessage.PortalDrop(PORTAL_KEY), ViewStreamLimits.FLAG_LAST);
         harness.tick(EYE_X, EYE_Y, EYE_Z);
         assertEquals(0, harness.tick.overlay().size());
         assertEquals(0, harness.surface.changedCells());
@@ -172,7 +172,7 @@ public class ClientViewApplyTest {
         harness.stream();
         harness.tick(EYE_X, EYE_Y, EYE_Z);
         assertTrue(harness.tick.overlay().size() > 0);
-        harness.receive(new ClientViewMessage.SessionReset(ClientViewMessage.ResetReason.DISABLED), ClientViewProtocol.FLAG_LAST);
+        harness.receive(new ClientViewMessage.SessionReset(ClientViewMessage.ResetReason.DISABLED), ViewStreamLimits.FLAG_LAST);
         harness.tick(EYE_X, EYE_Y, EYE_Z);
         assertEquals(0, harness.surface.changedCells());
         assertEquals(ClientViewSession.State.VANILLA, harness.session.state());
@@ -188,8 +188,8 @@ public class ClientViewApplyTest {
         ProjectionOverlay overlay = harness.tick.overlay();
         assertTrue(overlay.pendingCells() > 0);
         for (long key : overlay.keys()) {
-            int x = ProjectionCellKey.unpackX(key);
-            int z = ProjectionCellKey.unpackZ(key);
+            int x = CellKeys.unpackX(key);
+            int z = CellKeys.unpackZ(key);
             boolean inMissingChunk = (x >> 4) == 0 && (z >> 4) == 0;
             assertEquals(inMissingChunk, overlay.get(key).pending());
             if (inMissingChunk) {
@@ -201,8 +201,8 @@ public class ClientViewApplyTest {
         assertTrue(reapplied > 0);
         assertEquals(0, overlay.pendingCells());
         for (long key : overlay.keys()) {
-            int x = ProjectionCellKey.unpackX(key);
-            assertSame(x == AIR_COLUMN_X ? AIR : STONE, harness.surface.state(x, ProjectionCellKey.unpackY(key), ProjectionCellKey.unpackZ(key)));
+            int x = CellKeys.unpackX(key);
+            assertSame(x == AIR_COLUMN_X ? AIR : STONE, harness.surface.state(x, CellKeys.unpackY(key), CellKeys.unpackZ(key)));
         }
     }
 
@@ -216,13 +216,13 @@ public class ClientViewApplyTest {
         harness.receive(new ClientViewMessage.PlatePatch(PORTAL_KEY, 1, 2, List.of(new ClientViewMessage.FullOp(ClientViewHarness.brick(0, GOLD_ID)),
             new ClientViewMessage.FullOp(ClientViewHarness.brick(1, GOLD_ID)), new ClientViewMessage.FullOp(ClientViewHarness.brick(2, GOLD_ID)),
             new ClientViewMessage.FullOp(ClientViewHarness.brick(3, GOLD_ID)))),
-            ClientViewProtocol.FLAG_LAST);
+            ViewStreamLimits.FLAG_LAST);
         harness.tick(EYE_X, EYE_Y, EYE_Z);
         ClientPortal portal = harness.session.portal(PORTAL_KEY);
         assertTrue(harness.tick.overlay().size() > before);
         assertEquals(portal.sweep().appliedCount(), harness.tick.overlay().size());
         for (long key : harness.tick.overlay().keys()) {
-            BlockState state = harness.surface.state(ProjectionCellKey.unpackX(key), ProjectionCellKey.unpackY(key), ProjectionCellKey.unpackZ(key));
+            BlockState state = harness.surface.state(CellKeys.unpackX(key), CellKeys.unpackY(key), CellKeys.unpackZ(key));
             assertSame(GOLD, state);
         }
         assertEquals(2, portal.plate().revision());
@@ -236,17 +236,17 @@ public class ClientViewApplyTest {
         int y = (int) Math.floor(EYE_Y);
         ClientPortal portal = harness.session.portal(PORTAL_KEY);
         assertTrue("the real air cell must lie in the cone", portal.sweep().applied(AIR_COLUMN_X, y, REAL_AIR_Z));
-        assertNull(harness.tick.overlay().get(ProjectionCellKey.pack(AIR_COLUMN_X, y, REAL_AIR_Z)));
+        assertNull(harness.tick.overlay().get(CellKeys.pack(AIR_COLUMN_X, y, REAL_AIR_Z)));
         assertSame(AIR, harness.surface.state(AIR_COLUMN_X, y, REAL_AIR_Z));
         assertEquals(ClientViewHarness.DESTINATION_BLOCK_LIGHT, harness.surface.blockLight(AIR_COLUMN_X, y, REAL_AIR_Z));
         int brick = ClientViewHarness.SECTIONS.index(AIR_COLUMN_X >> 4, y >> 4, REAL_AIR_Z >> 4);
-        int cell = ClientViewProtocol.brickCellIndex(AIR_COLUMN_X, y, REAL_AIR_Z);
+        int cell = ViewStreamLimits.brickCellIndex(AIR_COLUMN_X, y, REAL_AIR_Z);
         harness.receive(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(GOLD_ID, "minecraft:gold_block"))), 0);
         harness.receive(new ClientViewMessage.PlatePatch(PORTAL_KEY, 1, 2,
-            List.of(new ClientViewMessage.SparseOp(brick, new int[] {cell}, new int[] {GOLD_ID}))), ClientViewProtocol.FLAG_LAST);
+            List.of(new ClientViewMessage.SparseOp(brick, new int[] {cell}, new int[] {GOLD_ID}))), ViewStreamLimits.FLAG_LAST);
         harness.tick(EYE_X, EYE_Y, EYE_Z);
         assertSame(GOLD, harness.surface.state(AIR_COLUMN_X, y, REAL_AIR_Z));
-        assertEquals(PORTAL_KEY, harness.tick.overlay().get(ProjectionCellKey.pack(AIR_COLUMN_X, y, REAL_AIR_Z)).portalKey());
+        assertEquals(PORTAL_KEY, harness.tick.overlay().get(CellKeys.pack(AIR_COLUMN_X, y, REAL_AIR_Z)).portalKey());
         assertEquals(ClientViewHarness.DESTINATION_BLOCK_LIGHT, harness.surface.blockLight(AIR_COLUMN_X, y, REAL_AIR_Z));
     }
 
@@ -267,7 +267,7 @@ public class ClientViewApplyTest {
         harness.receive(new ClientViewMessage.PlateBegin(PORTAL_KEY, 2, ClientViewHarness.SECTIONS, ClientViewHarness.PLATE,
             ClientViewHarness.STONE_ID, hashes.length, hashes), 0);
         harness.receive(new ClientViewMessage.PlateBricks(PORTAL_KEY, 2, bricks), 0);
-        harness.receive(new ClientViewMessage.PlateEnd(PORTAL_KEY, 2), ClientViewProtocol.FLAG_LAST);
+        harness.receive(new ClientViewMessage.PlateEnd(PORTAL_KEY, 2), ViewStreamLimits.FLAG_LAST);
         harness.tick(EYE_X, EYE_Y, EYE_Z);
         assertEquals(2, harness.session.portal(PORTAL_KEY).plate().revision());
         assertSame(GOLD, harness.surface.state(AIR_COLUMN_X, y, REAL_AIR_Z));
@@ -285,7 +285,7 @@ public class ClientViewApplyTest {
         long before = harness.tick.applier().appliedCells();
         harness.receive(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(GOLD_ID, "minecraft:gold_block"))), 0);
         harness.receive(new ClientViewMessage.PlatePatch(PORTAL_KEY, 1, 2,
-            List.of(new ClientViewMessage.FullOp(ClientViewHarness.brick(brick, GOLD_ID)))), ClientViewProtocol.FLAG_LAST);
+            List.of(new ClientViewMessage.FullOp(ClientViewHarness.brick(brick, GOLD_ID)))), ViewStreamLimits.FLAG_LAST);
         harness.tick(EYE_X, EYE_Y, EYE_Z);
         ClientPortal portal = harness.session.portal(PORTAL_KEY);
         int coneCells = 0;
@@ -306,8 +306,8 @@ public class ClientViewApplyTest {
     private static int cellsOutsideSection(ProjectionOverlay overlay, int sectionX, int sectionY, int sectionZ) {
         int outside = 0;
         for (long key : overlay.keys()) {
-            if (ProjectionCellKey.unpackX(key) >> 4 != sectionX || ProjectionCellKey.unpackY(key) >> 4 != sectionY
-                || ProjectionCellKey.unpackZ(key) >> 4 != sectionZ) {
+            if (CellKeys.unpackX(key) >> 4 != sectionX || CellKeys.unpackY(key) >> 4 != sectionY
+                || CellKeys.unpackZ(key) >> 4 != sectionZ) {
                 outside++;
             }
         }

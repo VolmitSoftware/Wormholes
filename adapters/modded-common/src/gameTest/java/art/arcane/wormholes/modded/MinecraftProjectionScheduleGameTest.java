@@ -1,6 +1,5 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.PortalType;
 import io.netty.channel.ChannelHandlerContext;
@@ -66,7 +65,7 @@ final class MinecraftProjectionScheduleGameTest {
             test.ahead = test.probe(new Probe.Layout(2, 6, 16, new Vec3(0, 0, -1)), Blocks.GOLD_BLOCK.defaultBlockState(),
                 Blocks.EMERALD_BLOCK.defaultBlockState());
             test.far = test.helper.absolutePos(new BlockPos(66, 3, 6));
-            GeometryVector origin = test.ahead.source().getOrigin();
+            art.arcane.optics.math.Vec3 origin = test.ahead.source().getOrigin();
             test.place(new Vec3(origin.x(), origin.y() - test.connection.player().getEyeHeight(), origin.z() - 3.0D));
             test.remaining = DISCOVERY_TICKS;
             test.helper.runAfterDelay(1, test::discoverForDirt);
@@ -104,7 +103,7 @@ final class MinecraftProjectionScheduleGameTest {
             test.retargetMarkers = List.of(Blocks.LAPIS_BLOCK.defaultBlockState(), Blocks.REDSTONE_BLOCK.defaultBlockState());
             test.mark(new BlockPos(-77, 3, 84), test.retargetMarkers.get(0));
             test.mark(new BlockPos(-77, 3, 88), test.retargetMarkers.get(1));
-            GeometryVector origin = test.ahead.source().getOrigin();
+            art.arcane.optics.math.Vec3 origin = test.ahead.source().getOrigin();
             test.place(new Vec3(origin.x(), origin.y() - test.connection.player().getEyeHeight(), origin.z() - 3.0D));
             test.remaining = DISCOVERY_TICKS;
             test.helper.runAfterDelay(1, test::discoverForRetarget);

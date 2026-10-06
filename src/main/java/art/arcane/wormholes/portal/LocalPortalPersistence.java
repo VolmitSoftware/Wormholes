@@ -18,6 +18,7 @@ import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.util.GeometryPersistence;
 import art.arcane.volmlib.util.json.JSONObject;
 import art.arcane.wormholes.util.VIO;
+import art.arcane.optics.frame.Frame;
 
 final class LocalPortalPersistence
 {
@@ -74,7 +75,7 @@ final class LocalPortalPersistence
 		structure.loadJSON(j.getJSONObject("structure"));
 		if(!portal.hasExplicitFrame())
 		{
-			portal.applyFrame(PortalFrame.derive(structure.getArea(), portal.direction));
+			portal.applyFrame(Frame.derive(structure.getArea(), portal.direction));
 		}
 		portal.assignType(PortalType.valueOf(j.getString("type")));
 		portal.rtp().load(j);

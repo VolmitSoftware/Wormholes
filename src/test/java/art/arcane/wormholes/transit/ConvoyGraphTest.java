@@ -13,10 +13,10 @@ import org.bukkit.entity.Entity;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.portal.LocalPortal;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.transit.TransitTestSupport.Rig;
-import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Face;
 
 final class ConvoyGraphTest {
     @Test
@@ -85,11 +85,11 @@ final class ConvoyGraphTest {
     void fitComparesTheRigsUnionBoxWithTheApertureAxes() {
         World world = TransitTestSupport.world("fit");
         LocalPortal portal = TransitTestSupport.portal(world);
-        portal.setFrame(PortalFrame.canonical(Direction.W));
-        AxisAlignedBB area = portal.getStructure().getArea();
+        portal.setFrame(Frame.canonical(Face.W));
+        Box area = portal.getStructure().getArea();
         assertTrue(area.sizeX() < 1.0D, "test portal is a one-block-thick wall on the x axis");
         assertTrue(area.sizeZ() > 2.0D && area.sizeZ() < 3.0D, "three blocks wide along z");
-        assertEquals(Direction.N, portal.getFrame().getRight(), "aperture width runs along z");
+        assertEquals(Face.N, portal.getFrame().getRight(), "aperture width runs along z");
 
         Rig boat = Rig.vehicle("boat", at(world, 1.0D), 1.375D, 0.5625D);
         Rig driver = Rig.player("driver", at(world, 1.0D)).ride(boat);
@@ -111,7 +111,7 @@ final class ConvoyGraphTest {
     void allInsidePlaneRequiresEveryMemberInsideTheCaptureZoneOfTheSameWorld() {
         World world = TransitTestSupport.world("inside");
         World elsewhere = TransitTestSupport.world("elsewhere");
-        AxisAlignedBB zone = new AxisAlignedBB(-8.0D, 8.0D, 56.0D, 74.0D, -8.0D, 10.0D);
+        Box zone = new Box(-8.0D, 8.0D, 56.0D, 74.0D, -8.0D, 10.0D);
         Rig boat = Rig.vehicle("boat", at(world, 2.0D), 1.375D, 0.5625D);
         Rig driver = Rig.player("driver", at(world, 2.0D)).ride(boat);
         Rig horse = Rig.mob("horse", at(world, 9.0D), 1.4D, 1.6D).leashTo(driver);

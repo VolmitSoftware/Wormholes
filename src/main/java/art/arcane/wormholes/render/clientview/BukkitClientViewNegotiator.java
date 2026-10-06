@@ -26,14 +26,14 @@ import com.github.retrooper.packetevents.protocol.player.User;
 
 import art.arcane.wormholes.network.client.ClientViewHandshake;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
-import art.arcane.wormholes.render.client.session.ClientViewPhase;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.ClientViewPhase;
 import art.arcane.wormholes.render.client.session.ClientViewServerSession;
 import art.arcane.wormholes.render.client.session.ClientViewSessionRegistry;
-import art.arcane.wormholes.render.client.session.ClientViewSessionState;
+import art.arcane.optics.stream.ClientViewSessionState;
 
 public final class BukkitClientViewNegotiator implements Listener, PluginMessageListener {
-    public static final long PLAY_EXPIRY_TICKS = ClientViewProtocol.PLAY_PHASE_PENDING_TICKS + 1L;
+    public static final long PLAY_EXPIRY_TICKS = ViewStreamLimits.PLAY_PHASE_PENDING_TICKS + 1L;
     private static final double TELEPORT_RESET_DISTANCE_SQUARED = 16.0D * 16.0D;
 
     private final BukkitClientView view;

@@ -9,10 +9,11 @@ import com.github.retrooper.packetevents.protocol.entity.type.EntityType;
 import com.github.retrooper.packetevents.protocol.entity.type.EntityTypes;
 import com.github.retrooper.packetevents.protocol.item.ItemStack;
 import com.github.retrooper.packetevents.protocol.world.BlockFace;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
+import art.arcane.optics.entity.ItemFrameMetadata;
 
 final class BukkitItemFrameMetadata {
-    static final ProjectedItemFrameMetadata<EntityData<?>> TRANSFORM = new ProjectedItemFrameMetadata<>(new Access());
+    static final ItemFrameMetadata<EntityData<?>> TRANSFORM = new ItemFrameMetadata<>(new Access());
 
     private BukkitItemFrameMetadata() {
     }
@@ -25,7 +26,7 @@ final class BukkitItemFrameMetadata {
         return isItemFrame(entityType) || entityType == EntityTypes.PAINTING;
     }
 
-    private static BlockFace blockFace(Direction direction) {
+    private static BlockFace blockFace(Face direction) {
         return switch (direction) {
             case D -> BlockFace.DOWN;
             case U -> BlockFace.UP;
@@ -41,12 +42,12 @@ final class BukkitItemFrameMetadata {
         EntityDataType<T> type = (EntityDataType<T>) source.getType();
         return new EntityData<T>(source.getIndex(), type, value);
     }
-    private static final class Access implements ProjectedItemFrameMetadata.Access<EntityData<?>> {
+    private static final class Access implements ItemFrameMetadata.Access<EntityData<?>> {
         public int index(EntityData<?> value) { return value.getIndex(); }
         public Object value(EntityData<?> value) { return value.getValue(); }
         public boolean isDirection(Object value) { return value instanceof BlockFace; }
         public boolean isItem(Object value) { return value instanceof ItemStack; }
-        public Object direction(Direction direction) { return blockFace(direction); }
+        public Object direction(Face direction) { return blockFace(direction); }
         public Integer mapId(Object item) { return ((ItemStack) item).getComponent(ComponentTypes.MAP_ID).orElse(null); }
         public Object withMapId(Object item, Integer id) {
             ItemStack copy = ((ItemStack) item).copy();

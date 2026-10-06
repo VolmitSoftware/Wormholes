@@ -1,9 +1,9 @@
 package art.arcane.wormholes.render.client.session;
 
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.network.client.SessionPalette;
-import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
+import art.arcane.optics.view.WorldChangeTracker;
 import art.arcane.wormholes.render.plate.PlateTestFixtures;
 import org.junit.jupiter.api.Test;
 
@@ -15,6 +15,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import art.arcane.optics.client.MeshPlan;
 
 final class ClientMeshLocalSchedulingTest {
     @Test
@@ -53,7 +54,7 @@ final class ClientMeshLocalSchedulingTest {
         private final FakePortalAccess access = new FakePortalAccess(new ArrayList<>());
         private final ClientMeshStream<String> stream = new ClientMeshStream<>();
         private final ClientViewPortalSlot<String> slot;
-        private final GeometryVector eye = new GeometryVector(11, 67, 15);
+        private final Vec3 eye = new Vec3(11, 67, 15);
         private final List<ClientViewMessage.MeshCoordinate> coordinates;
         private int tick;
         private int sequence;
@@ -65,7 +66,7 @@ final class ClientMeshLocalSchedulingTest {
             SessionPortal portal = access.add(new SessionPortal("local-scan", 0));
             portal.mirror = true;
             access.localWorld = true;
-            access.meshChanges = new ProjectionWorldChangeTracker();
+            access.meshChanges = new WorldChangeTracker();
             slot = new ClientViewPortalSlot<>(portal.id, 1, false);
             slot.geometry = portal.geometry(new SessionPalette()).withDepth(256);
             slot.sentGeometry = slot.geometry;
@@ -73,7 +74,7 @@ final class ClientMeshLocalSchedulingTest {
             slot.laneAttached = true;
             coordinates = new ArrayList<>();
             UUID world = UUID.randomUUID();
-            for (ClientMeshPlan.Section section : ClientMeshPlan.visible(slot.geometry, eye)) {
+            for (MeshPlan.Section section : MeshPlan.visible(slot.geometry, eye)) {
                 coordinates.add(new ClientViewMessage.MeshCoordinate(section.x(), section.y(), section.z()));
                 access.meshPlates.put(section.clip(), PlateTestFixtures.tracked(portal.id, section.clip(), world, 0));
             }

@@ -1,6 +1,6 @@
 package art.arcane.wormholes.render;
 
-import art.arcane.wormholes.render.view.ProjectionContentView;
+import art.arcane.optics.view.ContentView;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -33,6 +33,9 @@ import org.junit.jupiter.api.Test;
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
+import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.claim.ProjectionClaimSet;
+import art.arcane.optics.light.ProjectorLighting;
 
 public final class ProjectionClaimArbiterConcurrencyTest {
     private static final long CELL_KEY = 42L;
@@ -806,7 +809,7 @@ public final class ProjectionClaimArbiterConcurrencyTest {
 
             @Override
             public int getLight(int x, int y, int z) {
-                return ProjectionContentView.packLight(15, 0);
+                return ContentView.packLight(15, 0);
             }
 
             @Override

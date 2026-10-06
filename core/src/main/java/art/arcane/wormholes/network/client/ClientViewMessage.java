@@ -6,13 +6,20 @@ import java.util.HashSet;
 import java.util.Objects;
 import java.util.UUID;
 
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.network.view.EntityVisual;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
-import art.arcane.wormholes.render.plate.PlateBox;
+import art.arcane.optics.math.Vec3;
+import art.arcane.optics.entity.EntitySnapshot;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.stream.Brick;
+import art.arcane.optics.stream.ClientViewWriter;
+import art.arcane.optics.stream.PlateSectionBox;
+import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.SectionBiomes;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.ViewStreamMessageType;
 
 public sealed interface ClientViewMessage {
-    ClientViewMessageType type();
+    ViewStreamMessageType type();
 
     record TravelWorld(String dimension, String dimensionType, long seed, boolean debug, boolean flat,
                        int seaLevel, int minY, int height) {
@@ -46,8 +53,8 @@ public sealed interface ClientViewMessage {
         }
     }
 
-    record TravelBegin(UUID token, long generation, UUID sourcePortal, String sourceWorld, ClientPortalGeometry sourceGeometry,
-                       ClientViewEnvironment.Transform destinationToSource, TravelWorld world, TravelPose arrival, List<TravelCoordinate> chunks, ClientViewEnvironment environment,
+    record TravelBegin(UUID token, long generation, UUID sourcePortal, String sourceWorld, ApertureDescriptor sourceGeometry,
+                       ProjectionEnvironment.Transform destinationToSource, TravelWorld world, TravelPose arrival, List<TravelCoordinate> chunks, ProjectionEnvironment environment,
                        int expiresMillis) implements ClientViewMessage {
         public TravelBegin {
             travelIdentity(token, generation);
@@ -62,18 +69,18 @@ public sealed interface ClientViewMessage {
             if (sourceWorld.isEmpty() || sourceWorld.length() > 256
                 || !sourceGeometry.valid() || sourceGeometry.mirror() || sourceGeometry.parentPortalKey() != 0
                 || !sourceGeometry.nested().isEmpty()
-                || chunks.isEmpty() || chunks.size() > ClientViewProtocol.MAX_TRAVEL_CHUNKS
+                || chunks.isEmpty() || chunks.size() > ViewStreamLimits.MAX_TRAVEL_CHUNKS
                 || new HashSet<>(chunks).size() != chunks.size()
-                || expiresMillis <= 0 || expiresMillis > ClientViewProtocol.MAX_TRAVEL_EXPIRY_MILLIS
+                || expiresMillis <= 0 || expiresMillis > ViewStreamLimits.MAX_TRAVEL_EXPIRY_MILLIS
                 || !world.dimension().equals(environment.world().dimensionKey())
-                || !ClientViewEnvironment.Transform.IDENTITY.equals(environment.transform())) {
+                || !ProjectionEnvironment.Transform.IDENTITY.equals(environment.transform())) {
                 throw new IllegalArgumentException("Travel preparation");
             }
         }
 
         @Override
-        public ClientViewMessageType type() {
-            return ClientViewMessageType.TRAVEL_BEGIN;
+        public ViewStreamMessageType type() {
+            return ViewStreamMessageType.TRAVEL_BEGIN;
         }
     }
 
@@ -82,11 +89,11 @@ public sealed interface ClientViewMessage {
         public TravelChunk {
             travelIdentity(token, generation);
             Objects.requireNonNull(payload, "payload");
-            if (revision <= 0 || totalBytes <= 0 || totalBytes > ClientViewProtocol.MAX_TRAVEL_CHUNK_BYTES
-                || fragmentCount != (totalBytes + ClientViewProtocol.TRAVEL_FRAGMENT_BYTES - 1) / ClientViewProtocol.TRAVEL_FRAGMENT_BYTES
+            if (revision <= 0 || totalBytes <= 0 || totalBytes > ViewStreamLimits.MAX_TRAVEL_CHUNK_BYTES
+                || fragmentCount != (totalBytes + ViewStreamLimits.TRAVEL_FRAGMENT_BYTES - 1) / ViewStreamLimits.TRAVEL_FRAGMENT_BYTES
                 || fragmentIndex < 0 || fragmentIndex >= fragmentCount
-                || payload.length != Math.min(ClientViewProtocol.TRAVEL_FRAGMENT_BYTES,
-                    totalBytes - fragmentIndex * ClientViewProtocol.TRAVEL_FRAGMENT_BYTES)) {
+                || payload.length != Math.min(ViewStreamLimits.TRAVEL_FRAGMENT_BYTES,
+                    totalBytes - fragmentIndex * ViewStreamLimits.TRAVEL_FRAGMENT_BYTES)) {
                 throw new IllegalArgumentException("Travel chunk fragment");
             }
             payload = payload.clone();
@@ -112,8 +119,8 @@ public sealed interface ClientViewMessage {
         }
 
         @Override
-        public ClientViewMessageType type() {
-            return ClientViewMessageType.TRAVEL_CHUNK;
+        public ViewStreamMessageType type() {
+            return ViewStreamMessageType.TRAVEL_CHUNK;
         }
     }
 
@@ -121,7 +128,7 @@ public sealed interface ClientViewMessage {
         public TravelReuse {
             travelIdentity(token, generation);
             Objects.requireNonNull(hash, "hash");
-            if (revision <= 0 || hash.length != ClientViewProtocol.TRAVEL_HASH_BYTES) {
+            if (revision <= 0 || hash.length != ViewStreamLimits.TRAVEL_HASH_BYTES) {
                 throw new IllegalArgumentException("Travel cache proof");
             }
             hash = hash.clone();
@@ -146,8 +153,8 @@ public sealed interface ClientViewMessage {
         }
 
         @Override
-        public ClientViewMessageType type() {
-            return ClientViewMessageType.TRAVEL_REUSE;
+        public ViewStreamMessageType type() {
+            return ViewStreamMessageType.TRAVEL_REUSE;
         }
     }
 
@@ -155,7 +162,7 @@ public sealed interface ClientViewMessage {
         public TravelCached {
             travelIdentity(token, generation);
             Objects.requireNonNull(hash, "hash");
-            if (revision <= 0 || hash.length != ClientViewProtocol.TRAVEL_HASH_BYTES) {
+            if (revision <= 0 || hash.length != ViewStreamLimits.TRAVEL_HASH_BYTES) {
                 throw new IllegalArgumentException("Travel cache proof");
             }
             hash = hash.clone();
@@ -181,8 +188,8 @@ public sealed interface ClientViewMessage {
         }
 
         @Override
-        public ClientViewMessageType type() {
-            return ClientViewMessageType.TRAVEL_CACHED;
+        public ViewStreamMessageType type() {
+            return ViewStreamMessageType.TRAVEL_CACHED;
         }
     }
 
@@ -190,7 +197,7 @@ public sealed interface ClientViewMessage {
         public TravelEnd {
             travelIdentity(token, generation);
             chunks = List.copyOf(chunks);
-            if (contentRevision <= 0 || chunks.isEmpty() || chunks.size() > ClientViewProtocol.MAX_TRAVEL_CHUNKS) {
+            if (contentRevision <= 0 || chunks.isEmpty() || chunks.size() > ViewStreamLimits.MAX_TRAVEL_CHUNKS) {
                 throw new IllegalArgumentException("Travel manifest");
             }
             HashSet<TravelCoordinate> coordinates = new HashSet<>();
@@ -202,8 +209,8 @@ public sealed interface ClientViewMessage {
         }
 
         @Override
-        public ClientViewMessageType type() {
-            return ClientViewMessageType.TRAVEL_END;
+        public ViewStreamMessageType type() {
+            return ViewStreamMessageType.TRAVEL_END;
         }
     }
 
@@ -216,13 +223,13 @@ public sealed interface ClientViewMessage {
         }
 
         @Override
-        public ClientViewMessageType type() {
-            return ClientViewMessageType.TRAVEL_READY;
+        public ViewStreamMessageType type() {
+            return ViewStreamMessageType.TRAVEL_READY;
         }
     }
 
     record TravelCommit(UUID token, long generation, long contentRevision, String sourceWorld, String destinationWorld,
-                        TravelPose arrival, GeometryVector velocity) implements ClientViewMessage {
+                        TravelPose arrival, Vec3 velocity) implements ClientViewMessage {
         public TravelCommit {
             travelIdentity(token, generation);
             travelVector(velocity);
@@ -236,13 +243,13 @@ public sealed interface ClientViewMessage {
         }
 
         @Override
-        public ClientViewMessageType type() {
-            return ClientViewMessageType.TRAVEL_COMMIT;
+        public ViewStreamMessageType type() {
+            return ViewStreamMessageType.TRAVEL_COMMIT;
         }
     }
 
     record TravelCross(UUID token, long generation, long contentRevision, TravelPose sourcePose,
-                       GeometryVector previousEye, GeometryVector currentEye) implements ClientViewMessage {
+                       Vec3 previousEye, Vec3 currentEye) implements ClientViewMessage {
         public TravelCross {
             travelIdentity(token, generation);
             Objects.requireNonNull(sourcePose, "sourcePose");
@@ -256,8 +263,8 @@ public sealed interface ClientViewMessage {
         }
 
         @Override
-        public ClientViewMessageType type() {
-            return ClientViewMessageType.TRAVEL_CROSS;
+        public ViewStreamMessageType type() {
+            return ViewStreamMessageType.TRAVEL_CROSS;
         }
     }
 
@@ -267,12 +274,12 @@ public sealed interface ClientViewMessage {
         }
 
         @Override
-        public ClientViewMessageType type() {
-            return ClientViewMessageType.TRAVEL_CANCEL;
+        public ViewStreamMessageType type() {
+            return ViewStreamMessageType.TRAVEL_CANCEL;
         }
     }
 
-    private static void travelVector(GeometryVector vector) {
+    private static void travelVector(Vec3 vector) {
         Objects.requireNonNull(vector, "vector");
         if (!Double.isFinite(vector.x()) || !Double.isFinite(vector.y()) || !Double.isFinite(vector.z())) {
             throw new IllegalArgumentException("Travel vector");
@@ -288,8 +295,8 @@ public sealed interface ClientViewMessage {
 
     record Offer(int wire, int mcDataVersion, long serverCaps, int maxFrameBytes, long zeroCopyNonce) implements ClientViewMessage {
         @Override
-        public ClientViewMessageType type() {
-            return ClientViewMessageType.OFFER;
+        public ViewStreamMessageType type() {
+            return ViewStreamMessageType.OFFER;
         }
     }
 
@@ -300,15 +307,15 @@ public sealed interface ClientViewMessage {
         }
 
         @Override
-        public ClientViewMessageType type() {
-            return ClientViewMessageType.HELLO;
+        public ViewStreamMessageType type() {
+            return ViewStreamMessageType.HELLO;
         }
     }
 
     record Accept(int sessionId, long caps, int tickRate, int maxFrameBytes, long hashSalt, int ackWindowFrames) implements ClientViewMessage {
         @Override
-        public ClientViewMessageType type() {
-            return ClientViewMessageType.ACCEPT;
+        public ViewStreamMessageType type() {
+            return ViewStreamMessageType.ACCEPT;
         }
     }
 
@@ -318,8 +325,8 @@ public sealed interface ClientViewMessage {
         }
 
         @Override
-        public ClientViewMessageType type() {
-            return ClientViewMessageType.DECLINE;
+        public ViewStreamMessageType type() {
+            return ViewStreamMessageType.DECLINE;
         }
     }
 
@@ -329,8 +336,8 @@ public sealed interface ClientViewMessage {
         }
 
         @Override
-        public ClientViewMessageType type() {
-            return ClientViewMessageType.PALETTE;
+        public ViewStreamMessageType type() {
+            return ViewStreamMessageType.PALETTE;
         }
     }
 
@@ -340,21 +347,21 @@ public sealed interface ClientViewMessage {
         }
     }
 
-    record Portal(int portalKey, int geometryRevision, ClientPortalGeometry geometry) implements ClientViewMessage {
+    record Portal(int portalKey, int geometryRevision, ApertureDescriptor geometry) implements ClientViewMessage {
         public Portal {
             Objects.requireNonNull(geometry, "geometry");
         }
 
         @Override
-        public ClientViewMessageType type() {
-            return ClientViewMessageType.PORTAL;
+        public ViewStreamMessageType type() {
+            return ViewStreamMessageType.PORTAL;
         }
     }
 
     record PortalDrop(int portalKey) implements ClientViewMessage {
         @Override
-        public ClientViewMessageType type() {
-            return ClientViewMessageType.PORTAL_DROP;
+        public ViewStreamMessageType type() {
+            return ViewStreamMessageType.PORTAL_DROP;
         }
     }
 
@@ -373,8 +380,8 @@ public sealed interface ClientViewMessage {
         }
 
         @Override
-        public ClientViewMessageType type() {
-            return ClientViewMessageType.MESH_BEGIN;
+        public ViewStreamMessageType type() {
+            return ViewStreamMessageType.MESH_BEGIN;
         }
     }
 
@@ -389,22 +396,22 @@ public sealed interface ClientViewMessage {
         }
 
         @Override
-        public ClientViewMessageType type() {
-            return ClientViewMessageType.MESH_SECTION;
+        public ViewStreamMessageType type() {
+            return ViewStreamMessageType.MESH_SECTION;
         }
     }
 
     record MeshDrop(int portalKey, int generation, int sectionX, int sectionY, int sectionZ) implements ClientViewMessage {
         @Override
-        public ClientViewMessageType type() {
-            return ClientViewMessageType.MESH_DROP;
+        public ViewStreamMessageType type() {
+            return ViewStreamMessageType.MESH_DROP;
         }
     }
 
     record MeshAck(int portalKey, int generation, int sectionX, int sectionY, int sectionZ, int revision) implements ClientViewMessage {
         @Override
-        public ClientViewMessageType type() {
-            return ClientViewMessageType.MESH_ACK;
+        public ViewStreamMessageType type() {
+            return ViewStreamMessageType.MESH_ACK;
         }
     }
 
@@ -422,8 +429,8 @@ public sealed interface ClientViewMessage {
         }
 
         @Override
-        public ClientViewMessageType type() {
-            return ClientViewMessageType.MESH_LOCAL;
+        public ViewStreamMessageType type() {
+            return ViewStreamMessageType.MESH_LOCAL;
         }
     }
 
@@ -438,8 +445,8 @@ public sealed interface ClientViewMessage {
         }
 
         @Override
-        public ClientViewMessageType type() {
-            return ClientViewMessageType.MESH_CACHED;
+        public ViewStreamMessageType type() {
+            return ViewStreamMessageType.MESH_CACHED;
         }
     }
 
@@ -448,8 +455,8 @@ public sealed interface ClientViewMessage {
 
     record MeshReuse(int portalKey, int generation, int sectionX, int sectionY, int sectionZ, int revision, long hash) implements ClientViewMessage {
         @Override
-        public ClientViewMessageType type() {
-            return ClientViewMessageType.MESH_REUSE;
+        public ViewStreamMessageType type() {
+            return ViewStreamMessageType.MESH_REUSE;
         }
     }
 
@@ -461,7 +468,7 @@ public sealed interface ClientViewMessage {
         public PlateBegin {
             Objects.requireNonNull(sections, "sections");
             Objects.requireNonNull(cells, "cells");
-            if (brickCount < 0 || brickCount > ClientViewProtocol.MAX_BRICKS_PER_PLATE) {
+            if (brickCount < 0 || brickCount > ViewStreamLimits.MAX_BRICKS_PER_PLATE) {
                 throw new IllegalArgumentException("brick count " + brickCount);
             }
             if (brickHashes != null && brickHashes.length != brickCount) {
@@ -474,8 +481,8 @@ public sealed interface ClientViewMessage {
         }
 
         @Override
-        public ClientViewMessageType type() {
-            return ClientViewMessageType.PLATE_BEGIN;
+        public ViewStreamMessageType type() {
+            return ViewStreamMessageType.PLATE_BEGIN;
         }
 
         @Override
@@ -503,15 +510,15 @@ public sealed interface ClientViewMessage {
         }
 
         @Override
-        public ClientViewMessageType type() {
-            return ClientViewMessageType.PLATE_BRICKS;
+        public ViewStreamMessageType type() {
+            return ViewStreamMessageType.PLATE_BRICKS;
         }
     }
 
     record PlateEnd(int portalKey, int plateRevision) implements ClientViewMessage {
         @Override
-        public ClientViewMessageType type() {
-            return ClientViewMessageType.PLATE_END;
+        public ViewStreamMessageType type() {
+            return ViewStreamMessageType.PLATE_END;
         }
     }
 
@@ -525,8 +532,8 @@ public sealed interface ClientViewMessage {
         }
 
         @Override
-        public ClientViewMessageType type() {
-            return ClientViewMessageType.PLATE_PATCH;
+        public ViewStreamMessageType type() {
+            return ViewStreamMessageType.PLATE_PATCH;
         }
     }
 
@@ -563,7 +570,7 @@ public sealed interface ClientViewMessage {
             if (cellIndices.length != paletteIds.length) {
                 throw new IllegalArgumentException("sparse op with mismatched arrays");
             }
-            if (cellIndices.length > ClientViewProtocol.BRICK_CELLS) {
+            if (cellIndices.length > ViewStreamLimits.BRICK_CELLS) {
                 throw new IllegalArgumentException("sparse op with " + cellIndices.length + " cells");
             }
         }
@@ -599,15 +606,15 @@ public sealed interface ClientViewMessage {
 
     record PlateHandle(int portalKey, int plateRevision, long handle) implements ClientViewMessage {
         @Override
-        public ClientViewMessageType type() {
-            return ClientViewMessageType.PLATE_HANDLE;
+        public ViewStreamMessageType type() {
+            return ViewStreamMessageType.PLATE_HANDLE;
         }
     }
 
     record BrickMiss(List<Plate> plates) implements ClientViewMessage {
         public BrickMiss {
             plates = List.copyOf(plates);
-            if (plates.isEmpty() || plates.size() > ClientViewProtocol.MAX_BRICK_MISS_PLATES) {
+            if (plates.isEmpty() || plates.size() > ViewStreamLimits.MAX_BRICK_MISS_PLATES) {
                 throw new IllegalArgumentException("brick miss for " + plates.size() + " plates");
             }
         }
@@ -617,14 +624,14 @@ public sealed interface ClientViewMessage {
         }
 
         @Override
-        public ClientViewMessageType type() {
-            return ClientViewMessageType.BRICK_MISS;
+        public ViewStreamMessageType type() {
+            return ViewStreamMessageType.BRICK_MISS;
         }
 
         public record Plate(int portalKey, int plateRevision, long[] bitset) {
             public Plate {
                 Objects.requireNonNull(bitset, "bitset");
-                if (bitset.length > ClientViewProtocol.MAX_BRICK_MISS_WORDS) {
+                if (bitset.length > ViewStreamLimits.MAX_BRICK_MISS_WORDS) {
                     throw new IllegalArgumentException("brick miss bitset of " + bitset.length + " words");
                 }
             }
@@ -668,8 +675,8 @@ public sealed interface ClientViewMessage {
 
     record PlateRefused(int portalKey, int plateRevision) implements ClientViewMessage {
         @Override
-        public ClientViewMessageType type() {
-            return ClientViewMessageType.PLATE_REFUSED;
+        public ViewStreamMessageType type() {
+            return ViewStreamMessageType.PLATE_REFUSED;
         }
     }
 
@@ -682,8 +689,8 @@ public sealed interface ClientViewMessage {
         }
 
         @Override
-        public ClientViewMessageType type() {
-            return ClientViewMessageType.ENTITY_EVENT;
+        public ViewStreamMessageType type() {
+            return ViewStreamMessageType.ENTITY_EVENT;
         }
     }
 
@@ -693,12 +700,12 @@ public sealed interface ClientViewMessage {
         }
 
         @Override
-        public ClientViewMessageType type() {
-            return ClientViewMessageType.ENTITY_SELF;
+        public ViewStreamMessageType type() {
+            return ViewStreamMessageType.ENTITY_SELF;
         }
     }
 
-    record EntityFrame(int portalKey, int entitySeq, List<EntityVisual> entities, List<UUID> presentIds, boolean presence)
+    record EntityFrame(int portalKey, int entitySeq, List<EntitySnapshot> entities, List<UUID> presentIds, boolean presence)
         implements ClientViewMessage {
         public EntityFrame {
             entities = List.copyOf(entities);
@@ -706,31 +713,31 @@ public sealed interface ClientViewMessage {
             if (!presence && !presentIds.isEmpty()) {
                 throw new IllegalArgumentException("entity frame carries present ids without a presence update");
             }
-            if (entities.size() > ClientViewProtocol.MAX_ENTITIES_PER_FRAME) {
+            if (entities.size() > ViewStreamLimits.MAX_ENTITIES_PER_FRAME) {
                 throw new IllegalArgumentException("entity frame with " + entities.size() + " entities");
             }
-            if (presentIds.size() > ClientViewProtocol.MAX_PRESENT_IDS_PER_FRAME) {
+            if (presentIds.size() > ViewStreamLimits.MAX_PRESENT_IDS_PER_FRAME) {
                 throw new IllegalArgumentException("entity frame with " + presentIds.size() + " present ids");
             }
         }
 
         @Override
-        public ClientViewMessageType type() {
-            return ClientViewMessageType.ENTITY_FRAME;
+        public ViewStreamMessageType type() {
+            return ViewStreamMessageType.ENTITY_FRAME;
         }
     }
 
     record Fx(int portalKey, List<FxEmitter> emitters) implements ClientViewMessage {
         public Fx {
             emitters = List.copyOf(emitters);
-            if (emitters.size() > ClientViewProtocol.MAX_FX_EMITTERS) {
+            if (emitters.size() > ViewStreamLimits.MAX_FX_EMITTERS) {
                 throw new IllegalArgumentException("fx with " + emitters.size() + " emitters");
             }
         }
 
         @Override
-        public ClientViewMessageType type() {
-            return ClientViewMessageType.FX;
+        public ViewStreamMessageType type() {
+            return ViewStreamMessageType.FX;
         }
     }
 
@@ -741,14 +748,14 @@ public sealed interface ClientViewMessage {
         }
     }
 
-    record Environment(int portalKey, ClientViewEnvironment environment) implements ClientViewMessage {
+    record Environment(int portalKey, ProjectionEnvironment environment) implements ClientViewMessage {
         public Environment {
             Objects.requireNonNull(environment, "environment");
         }
 
         @Override
-        public ClientViewMessageType type() {
-            return ClientViewMessageType.ENVIRONMENT;
+        public ViewStreamMessageType type() {
+            return ViewStreamMessageType.ENVIRONMENT;
         }
     }
 
@@ -768,8 +775,8 @@ public sealed interface ClientViewMessage {
         }
 
         @Override
-        public ClientViewMessageType type() {
-            return ClientViewMessageType.ATMOSPHERE;
+        public ViewStreamMessageType type() {
+            return ViewStreamMessageType.ATMOSPHERE;
         }
     }
 
@@ -779,23 +786,23 @@ public sealed interface ClientViewMessage {
         }
 
         @Override
-        public ClientViewMessageType type() {
-            return ClientViewMessageType.SESSION_RESET;
+        public ViewStreamMessageType type() {
+            return ViewStreamMessageType.SESSION_RESET;
         }
     }
 
     record Ack(int seq, int clientTick, int appliedCells) implements ClientViewMessage {
         @Override
-        public ClientViewMessageType type() {
-            return ClientViewMessageType.ACK;
+        public ViewStreamMessageType type() {
+            return ViewStreamMessageType.ACK;
         }
     }
 
     record ViewStats(int clientTick, int attended, int overlayCells, int unknownStates, int sweepMicrosP50, int applyMicrosP50,
                      int plateMb) implements ClientViewMessage {
         @Override
-        public ClientViewMessageType type() {
-            return ClientViewMessageType.VIEW_STATS;
+        public ViewStreamMessageType type() {
+            return ViewStreamMessageType.VIEW_STATS;
         }
     }
 

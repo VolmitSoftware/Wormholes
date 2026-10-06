@@ -2,10 +2,10 @@ package art.arcane.wormholes.network;
 
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.Settings;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.TraversableType;
 import art.arcane.wormholes.portal.Traversive;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
@@ -100,7 +100,7 @@ class TraversalArrivalPlacerDispatchTest {
         return new Traversive(
             null,
             TraversableType.PLAYER,
-            PortalFrame.canonical(Direction.N),
+            Frame.canonical(Face.N),
             new Vector(0.0D, 64.0D, 0.0D),
             new Vector(0.0D, 64.0D, 0.0D),
             new Vector(0.0D, 0.0D, 1.0D),

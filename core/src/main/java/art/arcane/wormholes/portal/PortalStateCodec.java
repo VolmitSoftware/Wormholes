@@ -1,8 +1,8 @@
 package art.arcane.wormholes.portal;
 
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Face;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -10,6 +10,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import art.arcane.optics.aperture.ApertureCells;
+import art.arcane.optics.frame.Frame;
 
 public final class PortalStateCodec {
     private PortalStateCodec() {
@@ -30,35 +32,35 @@ public final class PortalStateCodec {
     }
 
     public static Portal.State read(Map<String, Object> source) {
-        Direction direction = Direction.valueOf(string(source, "direction"));
+        Face direction = Face.valueOf(string(source, "direction"));
         boolean explicitFrame = source.containsKey("frame");
-        PortalFrame frame = PortalFrame.canonical(direction);
+        Frame frame = Frame.canonical(direction);
         if (explicitFrame) {
             Map<String, Object> stored = object(source, "frame");
-            frame = new PortalFrame(Direction.valueOf((String) stored.getOrDefault("normal", direction.name())),
-                Direction.valueOf(string(stored, "right")), Direction.valueOf(string(stored, "up")));
+            frame = new Frame(Face.valueOf((String) stored.getOrDefault("normal", direction.name())),
+                Face.valueOf(string(stored, "right")), Face.valueOf(string(stored, "up")));
         }
         return new Portal.State(UUID.fromString(string(source, "id")), readVector(object(source, "origin")),
             string(source, "name"), frame, explicitFrame);
     }
 
-    public static Map<String, Object> writeGeometry(String worldKey, PortalGeometry geometry) {
-        AxisAlignedBB area = geometry.getArea();
+    public static Map<String, Object> writeGeometry(String worldKey, ApertureCells geometry) {
+        Box area = geometry.getArea();
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("worldKey", worldKey);
         result.put("area", Map.of("xa", area.getXa(), "xb", area.getXb(), "ya", area.getYa(),
             "yb", area.getYb(), "za", area.getZa(), "zb", area.getZb()));
         List<Map<String, Object>> cells = new ArrayList<>();
-        for (GeometryVector cell : geometry.getBlockPositions()) {
+        for (Vec3 cell : geometry.getBlockPositions()) {
             cells.add(Map.of("x", cell.getBlockX(), "y", cell.getBlockY(), "z", cell.getBlockZ()));
         }
         result.put("blocks", cells);
         return result;
     }
 
-    public static void readGeometry(Map<String, Object> source, PortalGeometry geometry) {
+    public static void readGeometry(Map<String, Object> source, ApertureCells geometry) {
         Map<String, Object> bounds = object(source, "area");
-        AxisAlignedBB area = new AxisAlignedBB(number(bounds, "xa"), number(bounds, "xb"),
+        Box area = new Box(number(bounds, "xa"), number(bounds, "xb"),
             number(bounds, "ya"), number(bounds, "yb"), number(bounds, "za"), number(bounds, "zb"));
         if (!source.containsKey("blocks")) {
             geometry.setArea(area);
@@ -67,7 +69,7 @@ public final class PortalStateCodec {
         if (!(source.get("blocks") instanceof List<?> blocks)) {
             throw new IllegalArgumentException("Portal blocks must be an array");
         }
-        List<GeometryVector> cells = new ArrayList<>(blocks.size());
+        List<Vec3> cells = new ArrayList<>(blocks.size());
         for (Object block : blocks) {
             cells.add(readVector(asObject(block)));
         }
@@ -85,12 +87,12 @@ public final class PortalStateCodec {
         return value;
     }
 
-    private static Map<String, Object> vector(GeometryVector vector) {
+    private static Map<String, Object> vector(Vec3 vector) {
         return Map.of("x", vector.x(), "y", vector.y(), "z", vector.z());
     }
 
-    private static GeometryVector readVector(Map<String, Object> source) {
-        return new GeometryVector(number(source, "x"), number(source, "y"), number(source, "z"));
+    private static Vec3 readVector(Map<String, Object> source) {
+        return new Vec3(number(source, "x"), number(source, "y"), number(source, "z"));
     }
 
     private static double number(Map<String, Object> source, String key) {

@@ -12,9 +12,9 @@ import art.arcane.wormholes.network.replication.ChunkBulkBuilder;
 import art.arcane.wormholes.network.replication.ChunkDiffBatch;
 import art.arcane.wormholes.network.replication.ReplicationTestStream;
 import art.arcane.wormholes.network.replication.LightDiff;
-import art.arcane.wormholes.network.view.EntityDeltaCodec;
+import art.arcane.optics.entity.EntityDeltaCodec;
 import art.arcane.wormholes.network.view.EntitySendState;
-import art.arcane.wormholes.network.view.EntityVisual;
+import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.wormholes.network.view.ViewSlice;
 
 import java.io.IOException;
@@ -274,20 +274,20 @@ public final class WormholesBandwidthHarness {
 
     private static WireMessage buildEntityFrame(SubscriberState subscriber, ScenarioConfig config, int tick) {
         UUID portalId = subscriber.portalId;
-        List<EntityVisual> entities = new ArrayList<>(ENTITY_BATCH_SIZE);
+        List<EntitySnapshot> entities = new ArrayList<>(ENTITY_BATCH_SIZE);
         for (int i = 0; i < ENTITY_BATCH_SIZE; i++) {
             UUID entityId = subscriber.entityIds[i];
             EntitySendState sendState = subscriber.sendStates[i];
-            EntityVisual currentFull = synthesizeEntity(entityId, subscriber.random, tick, i);
-            EntityVisual outgoing;
+            EntitySnapshot currentFull = synthesizeEntity(entityId, subscriber.random, tick, i);
+            EntitySnapshot outgoing;
             if (config.deltaEnabled) {
-                EntityVisual previous = sendState.getLastSentSnapshot();
+                EntitySnapshot previous = sendState.getLastSentSnapshot();
                 int mask = previous == null ? 0 : EntityDeltaCodec.computeMask(currentFull, previous);
-                EntityVisual delta = EntityDeltaCodec.buildDelta(currentFull, previous, sendState.allocateSequence(), mask);
+                EntitySnapshot delta = EntityDeltaCodec.buildDelta(currentFull, previous, sendState.allocateSequence(), mask);
                 outgoing = delta;
                 sendState.recordSent(currentFull, delta.isFull(), tick);
             } else {
-                outgoing = EntityVisual.full(
+                outgoing = EntitySnapshot.full(
                     currentFull.id(), currentFull.typeKey(),
                     currentFull.x(), currentFull.y(), currentFull.z(),
                     currentFull.height(),
@@ -315,7 +315,7 @@ public final class WormholesBandwidthHarness {
         return new WireMessage.ViewEntities(portalId, entities, presentIds);
     }
 
-    private static EntityVisual synthesizeEntity(UUID entityId, Random random, int tick, int slot) {
+    private static EntitySnapshot synthesizeEntity(UUID entityId, Random random, int tick, int slot) {
         double x = 100.0D + Math.sin((tick + slot) * 0.05D) * 5.0D;
         double y = 64.0D + Math.cos((tick + slot) * 0.07D) * 0.5D;
         double z = 200.0D + Math.cos((tick + slot) * 0.05D) * 5.0D;
@@ -325,7 +325,7 @@ public final class WormholesBandwidthHarness {
         random.nextBytes(metadata);
         byte[] equipment = new byte[16];
         random.nextBytes(equipment);
-        return EntityVisual.full(
+        return EntitySnapshot.full(
             entityId,
             "minecraft:zombie",
             x, y, z,

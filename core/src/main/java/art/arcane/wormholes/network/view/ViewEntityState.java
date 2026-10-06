@@ -5,6 +5,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import art.arcane.optics.entity.EntitySnapshot;
 
 public class ViewEntityState<P> {
     final UUID portalId;
@@ -17,7 +18,7 @@ public class ViewEntityState<P> {
     final Map<String, Set<UUID>> lastSentPresentIds = new ConcurrentHashMap<>();
     final Map<String, Long> sidebandEntityNextTick = new ConcurrentHashMap<>();
     final Map<String, Boolean> lastPeerSideband = new ConcurrentHashMap<>();
-    final Map<UUID, EntityVisual> lastCapturedSnapshots = new ConcurrentHashMap<>();
+    final Map<UUID, EntitySnapshot> lastCapturedSnapshots = new ConcurrentHashMap<>();
     final Map<UUID, BlobCaptureState<P>> blobCaptureStates = new ConcurrentHashMap<>();
     final AtomicBoolean captureFailureLogged = new AtomicBoolean(false);
     public ViewEntityState(UUID portalId, Center center) {
@@ -47,7 +48,7 @@ public class ViewEntityState<P> {
         return sentProfiles;
     }
 
-    public Map<UUID, EntityVisual> lastCapturedSnapshots() {
+    public Map<UUID, EntitySnapshot> lastCapturedSnapshots() {
         return lastCapturedSnapshots;
     }
 

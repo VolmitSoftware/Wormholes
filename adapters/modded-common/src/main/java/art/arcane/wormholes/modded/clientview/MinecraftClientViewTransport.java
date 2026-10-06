@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded.clientview;
 
-import art.arcane.wormholes.network.client.ClientViewTransport;
+import art.arcane.optics.stream.ClientViewTransport;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket;
 

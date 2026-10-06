@@ -14,7 +14,7 @@ import art.arcane.wormholes.access.AccessGuards;
 import art.arcane.wormholes.access.PlacementKind;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
-import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.optics.math.Box;
 import art.arcane.volmlib.util.json.JSONObject;
 
 final class LocalPortalLinking
@@ -235,7 +235,7 @@ final class LocalPortalLinking
 				? null : Wormholes.portalManager.getLocalPortal(destructionCounterpartId);
 		tunnel = null;
 
-		AxisAlignedBB deletionArea = portal.getStructure().getArea();
+		Box deletionArea = portal.getStructure().getArea();
 		World deletionWorld = portal.getStructure().getWorld();
 		Location deletionCenter = portal.getStructure().getCenter();
 		Location anchor = deletionCenter != null ? deletionCenter : portal.getCenter();
@@ -314,7 +314,7 @@ final class LocalPortalLinking
 				&& portal.getId().equals(dimensionalTunnel.getDestinationId());
 	}
 
-	private void playDeletionEffect(AxisAlignedBB deletionArea, World deletionWorld, Location deletionCenter, Location anchor)
+	private void playDeletionEffect(Box deletionArea, World deletionWorld, Location deletionCenter, Location anchor)
 	{
 		if(anchor == null || anchor.getWorld() == null)
 		{

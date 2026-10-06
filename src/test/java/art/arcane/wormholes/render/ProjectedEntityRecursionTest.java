@@ -31,14 +31,18 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerDe
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity;
 
 import art.arcane.wormholes.Settings;
-import art.arcane.wormholes.network.view.EntityVisual;
+import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.wormholes.render.view.ProjectionEntityView;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.portal.ILocalPortal;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalStructure;
-import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Face;
+import art.arcane.optics.occlusion.ProjectedEntityOcclusion;
+import art.arcane.optics.recursion.EntityPath;
+import art.arcane.optics.recursion.RecursiveEndpoints;
+import art.arcane.optics.volume.ViewVolume;
 
 final class ProjectedEntityRecursionTest {
     @Test
@@ -147,7 +151,7 @@ final class ProjectedEntityRecursionTest {
     void composesRotatedPositionAndVelocity() {
         withSettings(() -> {
             Fixture fixture = new Fixture();
-            fixture.destinationState.put("frame", PortalFrame.canonical(Direction.E));
+            fixture.destinationState.put("frame", Frame.canonical(Face.E));
             fixture.gate(1.5D, 8.0D);
             fixture.entityState.put("location", new Location(fixture.finalWorld, -1.5D, 1.0D, 100.0D));
             fixture.entityState.put("boundingBox", new BoundingBox(-2.0D, 1.0D, 99.5D, -1.0D, 2.0D, 100.5D));
@@ -171,13 +175,13 @@ final class ProjectedEntityRecursionTest {
             ProjectionWorldView snapshot = mock(ProjectionWorldView.class,
                 Mockito.withSettings().extraInterfaces(ProjectionEntityView.class));
             ProjectionEntityView entities = (ProjectionEntityView) snapshot;
-            EntityVisual visual = EntityVisual.full(fixture.entityId, "minecraft:zombie",
+            EntitySnapshot visual = EntitySnapshot.full(fixture.entityId, "minecraft:zombie",
                 1.5D, 1.0D, 103.0D, 1.0D, 0.0D, 0.0D, 1.0D, 0.0F, 0.0F,
                 0.125D, 0.25D, 0.5D, true, "", "", "", null, null, null, null, 0);
             when(entities.getEntities(anyDouble(), anyDouble(), anyDouble(), anyDouble())).thenReturn(List.of(visual));
             when(entities.isVisibleTo(any(), any())).thenReturn(true);
             fixture.finalEntities.clear();
-            fixture.renderer.prepareRecursiveProjection(new EntityProjectionPath.Root<>(fixture.local, fixture.remote, fixture.frame, fixture.frame, false, 0, BukkitGeometry.vector(fixture.eye.toVector()), fixture.frustum, fixture.remote.getWorld(), Settings.PROJECTION_RECURSIVE_PORTAL_DEPTH), fixture.recursive);
+            fixture.renderer.prepareRecursiveProjection(new EntityPath.Root<>(fixture.local, fixture.remote, fixture.frame, fixture.frame, false, 0, BukkitGeometry.vector(fixture.eye.toVector()), fixture.frustum, fixture.remote.getWorld(), Settings.PROJECTION_RECURSIVE_PORTAL_DEPTH), fixture.recursive);
             fixture.renderer.applyRecursive(fixture.observer, new ProjectedEntityRenderer.RecursiveRender(
                 fixture.local, fixture.frame, fixture.frustum, 32.0D, true, ignored -> snapshot, fixture.occlusion));
             assertEquals(1, fixture.renderer.getSpoofedCount());
@@ -226,16 +230,16 @@ final class ProjectedEntityRecursionTest {
         private final World localWorld = RenderTestSupport.world("recursive-local", List.of());
         private final World middleWorld = RenderTestSupport.world("recursive-middle", middleEntities);
         private final World finalWorld = RenderTestSupport.world("recursive-final", finalEntities);
-        private final PortalFrame frame = PortalFrame.canonical(Direction.N);
+        private final Frame frame = Frame.canonical(Face.N);
         private final ILocalPortal local = RenderTestSupport.portal(localWorld, new Vector(1.5D, 1.5D, 5.0D), frame);
         private final ILocalPortal remote = RenderTestSupport.portal(middleWorld, new Vector(1.5D, 1.5D, 5.0D), frame);
         private final Map<String, Object> destinationState = RenderTestSupport.portalState(finalWorld,
             new Vector(1.5D, 1.5D, 100.0D), frame);
         private final ILocalPortal destination = RenderTestSupport.portal(destinationState);
         private final List<ILocalPortal> portals = new ArrayList<ILocalPortal>();
-        private final ProjectorRecursivePortals<World, ILocalPortal> recursive = BukkitProjectorPortalAccess.create(() -> portals);
+        private final RecursiveEndpoints<World, ILocalPortal> recursive = BukkitProjectorPortalAccess.create(() -> portals);
         private final Location eye = new Location(localWorld, 1.5D, 1.5D, 0.0D);
-        private final Frustum4D frustum = new Frustum4D(BukkitGeometry.vector(eye), new RenderTestSupport.ApertureStructure(), new Frustum4D.Options(32.0D, 32.0D, Settings.NEAR_PLANE_PADDING, Settings.FRUSTUM_CULLING_RATIO, Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
+        private final ViewVolume frustum = new ViewVolume(BukkitGeometry.vector(eye), new RenderTestSupport.ApertureStructure(), new ViewVolume.Options(32.0D, 32.0D, Settings.NEAR_PLANE_PADDING, Settings.FRUSTUM_CULLING_RATIO, Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
         private final ProjectedEntityPacketRecorder recorder = ProjectedEntityPacketRecorder.install();
         private final ProjectedEntityRenderer renderer = new ProjectedEntityRenderer();
         private final Player observer = ProjectedEntityPacketRecorder.player(true);
@@ -250,8 +254,8 @@ final class ProjectedEntityRecursionTest {
 
         private Map<String, Object> gate(double x, double z) {
             Map<String, Object> state = RenderTestSupport.portalState(middleWorld, new Vector(x, 1.5D, z), frame);
-            state.put("structure", new Aperture(new AxisAlignedBB(x - 0.7D, x + 0.7D, 0.0D, 3.0D, z, z)));
-            state.put("view", new AxisAlignedBB(-32.0D, 32.0D, -32.0D, 32.0D, z, z + 32.0D));
+            state.put("structure", new Aperture(new Box(x - 0.7D, x + 0.7D, 0.0D, 3.0D, z, z)));
+            state.put("view", new Box(-32.0D, 32.0D, -32.0D, 32.0D, z, z + 32.0D));
             state.put("supportsProjections", Boolean.TRUE);
             state.put("projecting", Boolean.TRUE);
             state.put("open", Boolean.TRUE);
@@ -261,7 +265,7 @@ final class ProjectedEntityRecursionTest {
         }
 
         private void render() {
-            renderer.prepareRecursiveProjection(new EntityProjectionPath.Root<>(local, remote, frame, frame, false, 0, BukkitGeometry.vector(eye.toVector()), frustum, remote.getWorld(), Settings.PROJECTION_RECURSIVE_PORTAL_DEPTH), recursive);
+            renderer.prepareRecursiveProjection(new EntityPath.Root<>(local, remote, frame, frame, false, 0, BukkitGeometry.vector(eye.toVector()), frustum, remote.getWorld(), Settings.PROJECTION_RECURSIVE_PORTAL_DEPTH), recursive);
             renderer.apply(observer, local, remote, frustum, 32.0D, frame, frame, 0, occlusion);
             renderer.applyRecursive(observer, new ProjectedEntityRenderer.RecursiveRender(local, frame, frustum,
                 32.0D, false, ignored -> null, occlusion));
@@ -274,14 +278,14 @@ final class ProjectedEntityRecursionTest {
     }
 
     private static final class Aperture extends PortalStructure {
-        private final AxisAlignedBB area;
+        private final Box area;
 
-        private Aperture(AxisAlignedBB area) {
+        private Aperture(Box area) {
             this.area = area;
         }
 
         @Override
-        public AxisAlignedBB getArea() {
+        public Box getArea() {
             return area;
         }
 
@@ -291,7 +295,7 @@ final class ProjectedEntityRecursionTest {
         }
 
         @Override
-        public List<AxisAlignedBB> getCachedApertureFaces(Direction face) {
+        public List<Box> getCachedApertureFaces(Face face) {
             return List.of(area);
         }
     }

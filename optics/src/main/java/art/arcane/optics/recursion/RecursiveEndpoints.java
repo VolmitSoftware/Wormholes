@@ -1,0 +1,851 @@
+package art.arcane.optics.recursion;
+
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.UUID;
+import java.util.function.Supplier;
+
+
+import art.arcane.optics.math.Vec3;
+import art.arcane.optics.frame.Frame;
+import art.arcane.wormholes.portal.IPortal;
+import art.arcane.optics.aperture.CellAperture;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.frame.PortalCoordMap;
+import art.arcane.optics.frame.ProjectorFrameTransform;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.scan.ProjectorPassRevision;
+import art.arcane.optics.volume.PlaneWindow;
+
+public final class RecursiveEndpoints<W, P extends IPortal> {
+    private static final int BUCKET_SHIFT = 4;
+    private static final int MAX_INDEXES_PER_PASS = 256;
+    private static final int MAX_RETAINED_INDEXES = 16;
+    private static final double CLIP_MARGIN = 1.0E-4D;
+    private static final double CLIP_SLOPE_EPSILON = 1.0E-12D;
+
+    private final PortalAccess<W, P> portalAccess;
+    private final Supplier<Options> options;
+    private final HashMap<W, List<P>> candidatesByWorld;
+    private final ArrayList<Index> indexes;
+    private final double[] scratchRot;
+    private final Index emptyIndex;
+    private final Hit<W, P> maskHit;
+    private Index lastIndex;
+    private long portalSignature;
+
+    public RecursiveEndpoints(PortalAccess<W, P> portalAccess, Supplier<Options> options) {
+        this.portalAccess = portalAccess;
+        this.options = options;
+        this.candidatesByWorld = new HashMap<W, List<P>>(4);
+        this.indexes = new ArrayList<Index>(4);
+        this.scratchRot = new double[3];
+        this.emptyIndex = new Index();
+        this.maskHit = Hit.mask(1.0D, false);
+        this.lastIndex = null;
+        this.portalSignature = 0L;
+    }
+
+    public void clear() {
+        candidatesByWorld.clear();
+        indexes.clear();
+        lastIndex = null;
+    }
+
+    public void revalidate() {
+        long signature = portalSignature();
+        if (signature != portalSignature || indexes.size() > MAX_RETAINED_INDEXES) {
+            clear();
+            portalSignature = signature;
+        }
+    }
+
+    private long portalSignature() {
+        Options current = options.get();
+        long hash = ProjectorPassRevision.mix(0x9E3779B97F4A7C15L, Double.doubleToLongBits(current.aperturePadding()));
+        hash = ProjectorPassRevision.mix(hash, Double.doubleToLongBits(current.depthBlocks()));
+        List<P> portals = portalAccess.portals();
+        hash = ProjectorPassRevision.mix(hash, portals.size());
+        for (P portal : portals) {
+            hash = mixPortal(hash, portal);
+        }
+        return hash == 0L ? 1L : hash;
+    }
+
+    private long mixPortal(long hash, P portal) {
+        if (portal == null) {
+            return ProjectorPassRevision.mix(hash, 0L);
+        }
+        long mixed = mixIdentity(hash, portal);
+        mixed = ProjectorPassRevision.mix(mixed, portalAccess.eligible(portal) ? 1L : 2L);
+        W world = portalAccess.world(portal);
+        mixed = ProjectorPassRevision.mix(mixed, world == null ? 0L : System.identityHashCode(world));
+        CellAperture structure = portalAccess.structure(portal);
+        if (structure != null) {
+            mixed = ProjectorPassRevision.mix(mixed, structure.getRevision());
+            mixed = mixBox(mixed, structure.getArea());
+        }
+        mixed = mixBox(mixed, portalAccess.view(portal));
+        boolean mirror = portalAccess.mirror(portal);
+        mixed = ProjectorPassRevision.mix(mixed, mirror ? 1L + portalAccess.mirrorQuarterTurns(portal) : 0L);
+        P destination = portalAccess.destination(portal);
+        if (destination == null) {
+            return ProjectorPassRevision.mix(mixed, 0L);
+        }
+        mixed = mixIdentity(mixed, destination);
+        W destinationWorld = portalAccess.world(destination);
+        return ProjectorPassRevision.mix(mixed, destinationWorld == null ? 0L : System.identityHashCode(destinationWorld));
+    }
+
+    private static long mixIdentity(long hash, IPortal portal) {
+        UUID id = portal.getId();
+        long mixed = ProjectorPassRevision.mix(hash, id == null ? 0L : id.getMostSignificantBits());
+        mixed = ProjectorPassRevision.mix(mixed, id == null ? 0L : id.getLeastSignificantBits());
+        Vec3 origin = portal.getOrigin();
+        if (origin != null) {
+            mixed = ProjectorPassRevision.mix(mixed, Double.doubleToLongBits(origin.getX()));
+            mixed = ProjectorPassRevision.mix(mixed, Double.doubleToLongBits(origin.getY()));
+            mixed = ProjectorPassRevision.mix(mixed, Double.doubleToLongBits(origin.getZ()));
+        }
+        Frame frame = portal.getFrame();
+        return ProjectorPassRevision.mix(mixed, frame == null ? -1L
+            : frame.getNormal().ordinal() | (frame.getRight().ordinal() << 3) | (frame.getUp().ordinal() << 6));
+    }
+
+    private static long mixBox(long hash, Box box) {
+        if (box == null) {
+            return ProjectorPassRevision.mix(hash, -1L);
+        }
+        long mixed = ProjectorPassRevision.mix(hash, Double.doubleToLongBits(box.getXa()));
+        mixed = ProjectorPassRevision.mix(mixed, Double.doubleToLongBits(box.getXb()));
+        mixed = ProjectorPassRevision.mix(mixed, Double.doubleToLongBits(box.getYa()));
+        mixed = ProjectorPassRevision.mix(mixed, Double.doubleToLongBits(box.getYb()));
+        mixed = ProjectorPassRevision.mix(mixed, Double.doubleToLongBits(box.getZa()));
+        return ProjectorPassRevision.mix(mixed, Double.doubleToLongBits(box.getZb()));
+    }
+
+    public Index indexFor(W world, double eyeX, double eyeY, double eyeZ, P excludedPortal) {
+        Index memo = lastIndex;
+        if (memo != null && memo.matches(world, eyeX, eyeY, eyeZ, excludedPortal)) {
+            return memo;
+        }
+        for (Index index : indexes) {
+            if (index.matches(world, eyeX, eyeY, eyeZ, excludedPortal)) {
+                lastIndex = index;
+                return index;
+            }
+        }
+        if (indexes.size() >= MAX_INDEXES_PER_PASS) {
+            indexes.clear();
+        }
+        Index created = new Index(world, eyeX, eyeY, eyeZ, excludedPortal);
+        indexes.add(created);
+        lastIndex = created;
+        return created;
+    }
+
+    public Index emptyIndex() {
+        return emptyIndex;
+    }
+
+    public boolean reaches(W world, P excludedPortal, double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
+        if (world == null) {
+            return false;
+        }
+        for (P candidate : candidates(world)) {
+            if (isExcluded(candidate, excludedPortal)) {
+                continue;
+            }
+            if (overlaps(portalAccess.view(candidate), minX, minY, minZ, maxX, maxY, maxZ)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private List<P> candidates(W world) {
+        List<P> cached = candidatesByWorld.get(world);
+        if (cached != null) {
+            return cached;
+        }
+
+        List<P> found = new ArrayList<P>();
+        for (P candidate : portalAccess.portals()) {
+            if (!isCandidate(candidate, world)) {
+                continue;
+            }
+            found.add(candidate);
+        }
+        candidatesByWorld.put(world, found);
+        return found;
+    }
+
+    private boolean isCandidate(P candidate, W world) {
+        if (candidate == null || world == null) {
+            return false;
+        }
+        if (!portalAccess.eligible(candidate)) {
+            return false;
+        }
+        W candidateWorld = portalAccess.world(candidate);
+        if (candidateWorld == null || !candidateWorld.equals(world)) {
+            return false;
+        }
+        return true;
+    }
+
+    private boolean isExcluded(P candidate, P excludedPortal) {
+        return candidate != null
+            && excludedPortal != null
+            && candidate.getId() != null
+            && candidate.getId().equals(excludedPortal.getId());
+    }
+
+    private static boolean overlaps(Box view, double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
+        return view != null
+            && view.getXb() >= minX && view.getXa() <= maxX
+            && view.getYb() >= minY && view.getYa() <= maxY
+            && view.getZb() >= minZ && view.getZa() <= maxZ;
+    }
+
+    static boolean clipLinear(double constant, double slope, double[] range) {
+        if (slope > CLIP_SLOPE_EPSILON) {
+            range[0] = Math.max(range[0], -constant / slope);
+        } else if (slope < -CLIP_SLOPE_EPSILON) {
+            range[1] = Math.min(range[1], -constant / slope);
+        } else if (constant < -CLIP_MARGIN) {
+            return false;
+        }
+        return range[0] <= range[1];
+    }
+
+    private static boolean clipAxis(double base, double direction, double low, double high, double[] range) {
+        return clipLinear(base - low + CLIP_MARGIN, direction, range)
+            && clipLinear(high + CLIP_MARGIN - base, -direction, range);
+    }
+
+    private static double rayPlaneT(double eyeSignedDistance, double pointSignedDistance) {
+        double denominator = pointSignedDistance - eyeSignedDistance;
+        if (Math.abs(denominator) < 1.0E-7D) {
+            return -1.0D;
+        }
+        double t = -eyeSignedDistance / denominator;
+        return t > 1.0E-7D && t < 1.0D ? t : -1.0D;
+    }
+
+    public final class Index {
+        private final W world;
+        private final UUID excludedPortalId;
+        private final double eyeX;
+        private final double eyeY;
+        private final double eyeZ;
+        private final ArrayList<Candidate> paths;
+        private Long2ObjectOpenHashMap<ArrayList<Candidate>> buckets;
+
+        private Index() {
+            this.world = null;
+            this.excludedPortalId = null;
+            this.eyeX = Double.NaN;
+            this.eyeY = Double.NaN;
+            this.eyeZ = Double.NaN;
+            this.paths = new ArrayList<Candidate>(0);
+            this.buckets = null;
+        }
+
+        private Index(W world, double eyeX, double eyeY, double eyeZ, P excludedPortal) {
+            this.world = world;
+            this.excludedPortalId = excludedPortal == null ? null : excludedPortal.getId();
+            this.eyeX = eyeX;
+            this.eyeY = eyeY;
+            this.eyeZ = eyeZ;
+            this.paths = new ArrayList<Candidate>();
+            this.buckets = null;
+            for (P candidate : candidates(world)) {
+                if (isExcluded(candidate, excludedPortal)) {
+                    continue;
+                }
+                Candidate indexed = new Candidate(candidate, eyeX, eyeY, eyeZ);
+                if (indexed.valid) {
+                    paths.add(indexed);
+                }
+            }
+        }
+
+        private boolean matches(W world, double eyeX, double eyeY, double eyeZ, P excludedPortal) {
+            UUID candidateExcludedId = excludedPortal == null ? null : excludedPortal.getId();
+            if (this.world == null ? world != null : !this.world.equals(world)) {
+                return false;
+            }
+            if (excludedPortalId == null ? candidateExcludedId != null : !excludedPortalId.equals(candidateExcludedId)) {
+                return false;
+            }
+            return Double.compare(this.eyeX, eyeX) == 0
+                && Double.compare(this.eyeY, eyeY) == 0
+                && Double.compare(this.eyeZ, eyeZ) == 0;
+        }
+
+        public List<Candidate> paths() {
+            return paths;
+        }
+
+        public boolean isEmpty() {
+            return paths.isEmpty();
+        }
+
+        public Hit<W, P> maskHit() {
+            return maskHit;
+        }
+
+        public Reach reach(double minX, double minY, double minZ, double maxX, double maxY, double maxZ,
+                           int remainingDepth, List<Candidate> maskCandidates) {
+            maskCandidates.clear();
+            for (Candidate candidate : paths) {
+                if (!overlaps(candidate.view, minX, minY, minZ, maxX, maxY, maxZ)) {
+                    continue;
+                }
+                if (candidate.traversable && remainingDepth > 0) {
+                    maskCandidates.clear();
+                    return Reach.RECURSIVE;
+                }
+                maskCandidates.add(candidate);
+            }
+            return maskCandidates.isEmpty() ? Reach.NONE : Reach.MASK;
+        }
+
+        public Hit<W, P> find(double pointX, double pointY, double pointZ, int remainingDepth) {
+            return find(pointX, pointY, pointZ, remainingDepth, null);
+        }
+
+        public Hit<W, P> find(double pointX, double pointY, double pointZ, int remainingDepth, RecursionPath visited) {
+            if (paths.isEmpty()) {
+                return null;
+            }
+            ArrayList<Candidate> bucketCandidates = buckets().get(CellKeys.pack(bucket(pointX), bucket(pointY), bucket(pointZ)));
+            if (bucketCandidates == null) {
+                return null;
+            }
+            Hit<W, P> best = null;
+            for (Candidate candidate : bucketCandidates) {
+                Hit<W, P> hit = candidate.hit(pointX, pointY, pointZ, remainingDepth, visited);
+                if (hit == null) {
+                    continue;
+                }
+                if (best == null || hit.rayT < best.rayT) {
+                    best = hit;
+                }
+            }
+            return best;
+        }
+
+        private Long2ObjectOpenHashMap<ArrayList<Candidate>> buckets() {
+            Long2ObjectOpenHashMap<ArrayList<Candidate>> built = buckets;
+            if (built != null) {
+                return built;
+            }
+            built = new Long2ObjectOpenHashMap<ArrayList<Candidate>>();
+            for (Candidate candidate : paths) {
+                index(built, candidate);
+            }
+            buckets = built;
+            return built;
+        }
+
+        private void index(Long2ObjectOpenHashMap<ArrayList<Candidate>> target, Candidate candidate) {
+            int minX = bucket(candidate.view.getXa());
+            int maxX = bucket(candidate.view.getXb());
+            int minY = bucket(candidate.view.getYa());
+            int maxY = bucket(candidate.view.getYb());
+            int minZ = bucket(candidate.view.getZa());
+            int maxZ = bucket(candidate.view.getZb());
+            for (int x = minX; x <= maxX; x++) {
+                for (int y = minY; y <= maxY; y++) {
+                    for (int z = minZ; z <= maxZ; z++) {
+                        long key = CellKeys.pack(x, y, z);
+                        ArrayList<Candidate> bucketCandidates = target.get(key);
+                        if (bucketCandidates == null) {
+                            bucketCandidates = new ArrayList<Candidate>(2);
+                            target.put(key, bucketCandidates);
+                        }
+                        bucketCandidates.add(candidate);
+                    }
+                }
+            }
+        }
+
+        private int bucket(double coordinate) {
+            return ((int) Math.floor(coordinate)) >> BUCKET_SHIFT;
+        }
+    }
+
+    public final class Candidate {
+        public final UUID portalId;
+        public final Box view;
+        private final Frame localFrame;
+        private final Frame remoteFrame;
+        public final W nestedWorld;
+        public final P nestedDestination;
+        private final PlaneWindow planeWindow;
+        private final double originX;
+        private final double originY;
+        private final double originZ;
+        private final double remoteOriginX;
+        private final double remoteOriginY;
+        private final double remoteOriginZ;
+        private final double normalX;
+        private final double normalY;
+        private final double normalZ;
+        private final double projectionNormalX;
+        private final double projectionNormalY;
+        private final double projectionNormalZ;
+        private final double transformXX;
+        private final double transformXY;
+        private final double transformXZ;
+        private final double transformYX;
+        private final double transformYY;
+        private final double transformYZ;
+        private final double transformZX;
+        private final double transformZY;
+        private final double transformZZ;
+        public final double transformedEyeX;
+        public final double transformedEyeY;
+        public final double transformedEyeZ;
+        private final double eyeX;
+        private final double eyeY;
+        private final double eyeZ;
+        private final double eyeSignedDistance;
+        private final double clearance;
+        private final double maxDepth;
+        private final boolean eyeFrontSide;
+        public final boolean traversable;
+        private final boolean mirrorProjection;
+        private final int mirrorRotationQuarterTurns;
+        private final Frame mirrorFrame;
+        private final boolean valid;
+
+        private Candidate(P candidate, double eyeX, double eyeY, double eyeZ) {
+            this.eyeX = eyeX;
+            this.eyeY = eyeY;
+            this.eyeZ = eyeZ;
+            this.portalId = candidate == null ? null : candidate.getId();
+            if (candidate == null || candidate.getOrigin() == null || candidate.getFrame() == null || portalAccess.structure(candidate) == null) {
+                this.view = null;
+                this.localFrame = null;
+                this.remoteFrame = null;
+                this.nestedWorld = null;
+                this.nestedDestination = null;
+                this.planeWindow = null;
+                this.originX = 0.0D;
+                this.originY = 0.0D;
+                this.originZ = 0.0D;
+                this.remoteOriginX = 0.0D;
+                this.remoteOriginY = 0.0D;
+                this.remoteOriginZ = 0.0D;
+                this.normalX = 0.0D;
+                this.normalY = 0.0D;
+                this.normalZ = 0.0D;
+                this.projectionNormalX = 0.0D;
+                this.projectionNormalY = 0.0D;
+                this.projectionNormalZ = 0.0D;
+                this.transformXX = 0.0D;
+                this.transformXY = 0.0D;
+                this.transformXZ = 0.0D;
+                this.transformYX = 0.0D;
+                this.transformYY = 0.0D;
+                this.transformYZ = 0.0D;
+                this.transformZX = 0.0D;
+                this.transformZY = 0.0D;
+                this.transformZZ = 0.0D;
+                this.transformedEyeX = 0.0D;
+                this.transformedEyeY = 0.0D;
+                this.transformedEyeZ = 0.0D;
+                this.eyeSignedDistance = 0.0D;
+                this.clearance = 0.0D;
+                this.maxDepth = 0.0D;
+                this.eyeFrontSide = false;
+                this.traversable = false;
+                this.mirrorProjection = false;
+                this.mirrorRotationQuarterTurns = 0;
+                this.mirrorFrame = null;
+                this.valid = false;
+                return;
+            }
+
+            Box candidateView = portalAccess.view(candidate);
+            Frame frame = candidate.getFrame();
+            double candidateOriginX = candidate.getOrigin().getX();
+            double candidateOriginY = candidate.getOrigin().getY();
+            double candidateOriginZ = candidate.getOrigin().getZ();
+            double frameNormalX = frame.getNormal().x();
+            double frameNormalY = frame.getNormal().y();
+            double frameNormalZ = frame.getNormal().z();
+            double eyeRelX = eyeX - candidateOriginX;
+            double eyeRelY = eyeY - candidateOriginY;
+            double eyeRelZ = eyeZ - candidateOriginZ;
+            boolean frontSide = ((eyeRelX * frameNormalX) + (eyeRelY * frameNormalY) + (eyeRelZ * frameNormalZ)) >= 0.0D;
+            Frame candidateLocalFrame = frame.view(frontSide);
+            double localProjectionNormalX = candidateLocalFrame.getNormal().x();
+            double localProjectionNormalY = candidateLocalFrame.getNormal().y();
+            double localProjectionNormalZ = candidateLocalFrame.getNormal().z();
+            double signedEyeDistance = (eyeRelX * localProjectionNormalX) + (eyeRelY * localProjectionNormalY) + (eyeRelZ * localProjectionNormalZ);
+            double candidateClearance = ProjectorFrameTransform.portalPlaneClearance(portalAccess.structure(candidate).getArea(), frame);
+
+            P destination;
+            W destinationWorld;
+            Frame destinationFrame;
+            double destinationOriginX;
+            double destinationOriginY;
+            double destinationOriginZ;
+            boolean canTraverse;
+            boolean mirrors;
+            int mirrorQuarterTurns;
+            P linkedDestination = portalAccess.destination(candidate);
+            if (portalAccess.mirror(candidate)) {
+                destination = candidate;
+                destinationWorld = portalAccess.world(candidate);
+                destinationFrame = frame.flipNormal().view(frontSide);
+                destinationOriginX = candidateOriginX;
+                destinationOriginY = candidateOriginY;
+                destinationOriginZ = candidateOriginZ;
+                canTraverse = destinationWorld != null;
+                mirrors = true;
+                mirrorQuarterTurns = portalAccess.mirrorQuarterTurns(candidate);
+            } else if (linkedDestination != null) {
+                destination = linkedDestination;
+                destinationWorld = portalAccess.world(linkedDestination);
+                destinationFrame = linkedDestination.getFrame() == null ? null : linkedDestination.getFrame().view(frontSide);
+                destinationOriginX = linkedDestination.getOrigin() == null ? 0.0D : linkedDestination.getOrigin().getX();
+                destinationOriginY = linkedDestination.getOrigin() == null ? 0.0D : linkedDestination.getOrigin().getY();
+                destinationOriginZ = linkedDestination.getOrigin() == null ? 0.0D : linkedDestination.getOrigin().getZ();
+                canTraverse = destinationWorld != null && destinationFrame != null && linkedDestination.getOrigin() != null;
+                mirrors = false;
+                mirrorQuarterTurns = 0;
+            } else {
+                destination = null;
+                destinationWorld = null;
+                destinationFrame = null;
+                destinationOriginX = 0.0D;
+                destinationOriginY = 0.0D;
+                destinationOriginZ = 0.0D;
+                canTraverse = false;
+                mirrors = false;
+                mirrorQuarterTurns = 0;
+            }
+
+            double matrixXX = 0.0D;
+            double matrixXY = 0.0D;
+            double matrixXZ = 0.0D;
+            double matrixYX = 0.0D;
+            double matrixYY = 0.0D;
+            double matrixYZ = 0.0D;
+            double matrixZX = 0.0D;
+            double matrixZY = 0.0D;
+            double matrixZZ = 0.0D;
+            double nestedEyeX = 0.0D;
+            double nestedEyeY = 0.0D;
+            double nestedEyeZ = 0.0D;
+            if (canTraverse) {
+                if (mirrors) {
+                    double[] matrixScratch = scratchRot;
+                    PortalCoordMap.mirrorDisplayToSourceVectorInto(1.0D, 0.0D, 0.0D, frame, mirrorQuarterTurns, matrixScratch);
+                    matrixXX = matrixScratch[0];
+                    matrixYX = matrixScratch[1];
+                    matrixZX = matrixScratch[2];
+                    PortalCoordMap.mirrorDisplayToSourceVectorInto(0.0D, 1.0D, 0.0D, frame, mirrorQuarterTurns, matrixScratch);
+                    matrixXY = matrixScratch[0];
+                    matrixYY = matrixScratch[1];
+                    matrixZY = matrixScratch[2];
+                    PortalCoordMap.mirrorDisplayToSourceVectorInto(0.0D, 0.0D, 1.0D, frame, mirrorQuarterTurns, matrixScratch);
+                    matrixXZ = matrixScratch[0];
+                    matrixYZ = matrixScratch[1];
+                    matrixZZ = matrixScratch[2];
+                } else {
+                    int fromRightX = candidateLocalFrame.getRight().x();
+                    int fromRightY = candidateLocalFrame.getRight().y();
+                    int fromRightZ = candidateLocalFrame.getRight().z();
+                    int fromUpX = candidateLocalFrame.getUp().x();
+                    int fromUpY = candidateLocalFrame.getUp().y();
+                    int fromUpZ = candidateLocalFrame.getUp().z();
+                    int fromNormalX = candidateLocalFrame.getNormal().x();
+                    int fromNormalY = candidateLocalFrame.getNormal().y();
+                    int fromNormalZ = candidateLocalFrame.getNormal().z();
+                    int toRightX = destinationFrame.getRight().x();
+                    int toRightY = destinationFrame.getRight().y();
+                    int toRightZ = destinationFrame.getRight().z();
+                    int toUpX = destinationFrame.getUp().x();
+                    int toUpY = destinationFrame.getUp().y();
+                    int toUpZ = destinationFrame.getUp().z();
+                    int toNormalX = destinationFrame.getNormal().x();
+                    int toNormalY = destinationFrame.getNormal().y();
+                    int toNormalZ = destinationFrame.getNormal().z();
+
+                    matrixXX = (fromRightX * toRightX) + (fromUpX * toUpX) + (fromNormalX * toNormalX);
+                    matrixXY = (fromRightY * toRightX) + (fromUpY * toUpX) + (fromNormalY * toNormalX);
+                    matrixXZ = (fromRightZ * toRightX) + (fromUpZ * toUpX) + (fromNormalZ * toNormalX);
+                    matrixYX = (fromRightX * toRightY) + (fromUpX * toUpY) + (fromNormalX * toNormalY);
+                    matrixYY = (fromRightY * toRightY) + (fromUpY * toUpY) + (fromNormalY * toNormalY);
+                    matrixYZ = (fromRightZ * toRightY) + (fromUpZ * toUpY) + (fromNormalZ * toNormalY);
+                    matrixZX = (fromRightX * toRightZ) + (fromUpX * toUpZ) + (fromNormalX * toNormalZ);
+                    matrixZY = (fromRightY * toRightZ) + (fromUpY * toUpZ) + (fromNormalY * toNormalZ);
+                    matrixZZ = (fromRightZ * toRightZ) + (fromUpZ * toUpZ) + (fromNormalZ * toNormalZ);
+                }
+                nestedEyeX = destinationOriginX + (eyeRelX * matrixXX) + (eyeRelY * matrixXY) + (eyeRelZ * matrixXZ);
+                nestedEyeY = destinationOriginY + (eyeRelX * matrixYX) + (eyeRelY * matrixYY) + (eyeRelZ * matrixYZ);
+                nestedEyeZ = destinationOriginZ + (eyeRelX * matrixZX) + (eyeRelY * matrixZY) + (eyeRelZ * matrixZZ);
+            }
+
+            this.view = candidateView;
+            this.localFrame = candidateLocalFrame;
+            this.remoteFrame = destinationFrame;
+            this.nestedWorld = destinationWorld;
+            this.nestedDestination = destination;
+            this.planeWindow = candidateView == null ? null : PlaneWindow.create(portalAccess.structure(candidate), portalAccess.structure(candidate).getArea(), candidateLocalFrame,
+                candidateOriginX, candidateOriginY, candidateOriginZ, options.get().aperturePadding(),
+                signedEyeDistance);
+            this.originX = candidateOriginX;
+            this.originY = candidateOriginY;
+            this.originZ = candidateOriginZ;
+            this.remoteOriginX = destinationOriginX;
+            this.remoteOriginY = destinationOriginY;
+            this.remoteOriginZ = destinationOriginZ;
+            this.normalX = frameNormalX;
+            this.normalY = frameNormalY;
+            this.normalZ = frameNormalZ;
+            this.projectionNormalX = localProjectionNormalX;
+            this.projectionNormalY = localProjectionNormalY;
+            this.projectionNormalZ = localProjectionNormalZ;
+            this.transformXX = matrixXX;
+            this.transformXY = matrixXY;
+            this.transformXZ = matrixXZ;
+            this.transformYX = matrixYX;
+            this.transformYY = matrixYY;
+            this.transformYZ = matrixYZ;
+            this.transformZX = matrixZX;
+            this.transformZY = matrixZY;
+            this.transformZZ = matrixZZ;
+            this.transformedEyeX = nestedEyeX;
+            this.transformedEyeY = nestedEyeY;
+            this.transformedEyeZ = nestedEyeZ;
+            this.eyeSignedDistance = signedEyeDistance;
+            this.clearance = candidateClearance;
+            this.maxDepth = options.get().depthBlocks() + candidateClearance;
+            this.eyeFrontSide = frontSide;
+            this.traversable = canTraverse;
+            this.mirrorProjection = mirrors;
+            this.mirrorRotationQuarterTurns = mirrorQuarterTurns;
+            this.mirrorFrame = mirrors ? frame : null;
+            this.valid = candidateView != null && planeWindow != null;
+        }
+
+        public void sourceToDisplayPoint(double x, double y, double z, double[] out) {
+            sourceToDisplayVector(x - remoteOriginX, y - remoteOriginY, z - remoteOriginZ, out);
+            out[0] += originX;
+            out[1] += originY;
+            out[2] += originZ;
+        }
+
+        public void sourceToDisplayVector(double x, double y, double z, double[] out) {
+            out[0] = x * transformXX + y * transformYX + z * transformZX;
+            out[1] = x * transformXY + y * transformYY + z * transformZY;
+            out[2] = x * transformXZ + y * transformYZ + z * transformZZ;
+        }
+
+        public boolean covers(double pointX, double pointY, double pointZ) {
+            return rayT(pointX, pointY, pointZ) > 0.0D;
+        }
+
+        public boolean clipLine(double baseX, double baseY, double baseZ,
+                                double directionX, double directionY, double directionZ, double[] range) {
+            if (!valid
+                || !clipAxis(baseX, directionX, view.getXa(), view.getXb(), range)
+                || !clipAxis(baseY, directionY, view.getYa(), view.getYb(), range)
+                || !clipAxis(baseZ, directionZ, view.getZa(), view.getZb(), range)) {
+                return false;
+            }
+            double signedBase = ((baseX - originX) * projectionNormalX) + ((baseY - originY) * projectionNormalY)
+                + ((baseZ - originZ) * projectionNormalZ);
+            double signedSlope = (directionX * projectionNormalX) + (directionY * projectionNormalY) + (directionZ * projectionNormalZ);
+            return clipLinear(signedBase + maxDepth + CLIP_MARGIN, signedSlope, range)
+                && clipLinear(CLIP_MARGIN - clearance - signedBase, -signedSlope, range)
+                && planeWindow.clipRay(eyeX, eyeY, eyeZ, baseX, baseY, baseZ, directionX, directionY, directionZ,
+                    signedBase, signedSlope, CLIP_MARGIN, range);
+        }
+
+        private double rayT(double pointX, double pointY, double pointZ) {
+            if (!valid || !view.containsPrimitive(pointX, pointY, pointZ)) {
+                return -1.0D;
+            }
+            double pointRelX = pointX - originX;
+            double pointRelY = pointY - originY;
+            double pointRelZ = pointZ - originZ;
+            double pointDot = (pointRelX * normalX) + (pointRelY * normalY) + (pointRelZ * normalZ);
+            if (!ProjectorFrameTransform.projectsBehindPortalPlane(pointDot, eyeFrontSide, clearance)) {
+                return -1.0D;
+            }
+            if (Math.abs(pointDot) > maxDepth) {
+                return -1.0D;
+            }
+            double pointSignedDistance = (pointRelX * projectionNormalX) + (pointRelY * projectionNormalY) + (pointRelZ * projectionNormalZ);
+            double rayT = rayPlaneT(eyeSignedDistance, pointSignedDistance);
+            if (rayT <= 0.0D) {
+                return -1.0D;
+            }
+            if (!planeWindow.containsRayIntersection(eyeX, eyeY, eyeZ, pointX, pointY, pointZ, pointSignedDistance)) {
+                return -1.0D;
+            }
+            return rayT;
+        }
+
+        private Hit<W, P> hit(double pointX, double pointY, double pointZ, int remainingDepth, RecursionPath visited) {
+            double rayT = rayT(pointX, pointY, pointZ);
+            if (rayT <= 0.0D) {
+                return null;
+            }
+            if (visited != null && visited.contains(portalId)) {
+                return Hit.mask(rayT, true);
+            }
+            if (!traversable || remainingDepth <= 0) {
+                return Hit.mask(rayT, false);
+            }
+
+            double pointRelX = pointX - originX;
+            double pointRelY = pointY - originY;
+            double pointRelZ = pointZ - originZ;
+            double nextPointX = remoteOriginX + (pointRelX * transformXX) + (pointRelY * transformXY) + (pointRelZ * transformXZ);
+            double nextPointY = remoteOriginY + (pointRelX * transformYX) + (pointRelY * transformYY) + (pointRelZ * transformYZ);
+            double nextPointZ = remoteOriginZ + (pointRelX * transformZX) + (pointRelY * transformZY) + (pointRelZ * transformZZ);
+            return new Hit<>(portalId, nestedWorld, nestedDestination, localFrame, remoteFrame,
+                nextPointX, nextPointY, nextPointZ,
+                transformedEyeX, transformedEyeY, transformedEyeZ,
+                rayT, true, false, mirrorProjection, mirrorRotationQuarterTurns, mirrorFrame);
+        }
+    }
+
+    /** Portal ids already entered by the sample being resolved, newest last. */
+    public static final class RecursionPath {
+        private static final int CAPACITY = 64;
+
+        private final UUID[] ids = new UUID[CAPACITY];
+        private int size;
+
+        public void clear() {
+            for (int index = 0; index < Math.min(size, CAPACITY); index++) {
+                ids[index] = null;
+            }
+            size = 0;
+        }
+
+        public boolean contains(UUID portalId) {
+            if (portalId == null) {
+                return false;
+            }
+            for (int index = 0; index < Math.min(size, CAPACITY); index++) {
+                if (portalId.equals(ids[index])) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        public void push(UUID portalId) {
+            if (size < CAPACITY) {
+                ids[size] = portalId;
+            }
+            size++;
+        }
+
+        public void pop() {
+            if (size <= 0) {
+                return;
+            }
+            size--;
+            if (size < CAPACITY) {
+                ids[size] = null;
+            }
+        }
+    }
+
+    public static final class Hit<W, P> {
+        public final UUID portalId;
+        public final W world;
+        public final P destinationPortal;
+        public final Frame localFrame;
+        public final Frame remoteFrame;
+        public final double pointX;
+        public final double pointY;
+        public final double pointZ;
+        public final double eyeX;
+        public final double eyeY;
+        public final double eyeZ;
+        private final double rayT;
+        public final boolean traversable;
+        public final boolean cycle;
+        public final boolean mirrorProjection;
+        public final int mirrorRotationQuarterTurns;
+        public final Frame mirrorFrame;
+
+        private Hit(UUID portalId,
+                    W world,
+                    P destinationPortal,
+                    Frame localFrame,
+                    Frame remoteFrame,
+                    double pointX,
+                    double pointY,
+                    double pointZ,
+                    double eyeX,
+                    double eyeY,
+                    double eyeZ,
+                    double rayT,
+                    boolean traversable,
+                    boolean cycle,
+                    boolean mirrorProjection,
+                    int mirrorRotationQuarterTurns,
+                    Frame mirrorFrame) {
+            this.portalId = portalId;
+            this.world = world;
+            this.destinationPortal = destinationPortal;
+            this.localFrame = localFrame;
+            this.remoteFrame = remoteFrame;
+            this.pointX = pointX;
+            this.pointY = pointY;
+            this.pointZ = pointZ;
+            this.eyeX = eyeX;
+            this.eyeY = eyeY;
+            this.eyeZ = eyeZ;
+            this.rayT = rayT;
+            this.traversable = traversable;
+            this.cycle = cycle;
+            this.mirrorProjection = mirrorProjection;
+            this.mirrorRotationQuarterTurns = mirrorRotationQuarterTurns;
+            this.mirrorFrame = mirrorFrame;
+        }
+
+        private static <W, P> Hit<W, P> mask(double rayT, boolean cycle) {
+            return new Hit<>(null, null, null, null, null,
+                0.0D, 0.0D, 0.0D,
+                0.0D, 0.0D, 0.0D,
+                rayT, false, cycle, false, 0, null);
+        }
+    }
+    public record Options(double aperturePadding, double depthBlocks) {
+    }
+
+    public enum Reach {
+        NONE,
+        MASK,
+        RECURSIVE
+    }
+
+    public interface PortalAccess<W, P extends IPortal> {
+        List<P> portals();
+        W world(P portal);
+        CellAperture structure(P portal);
+        Box view(P portal);
+        boolean eligible(P portal);
+        boolean mirror(P portal);
+        int mirrorQuarterTurns(P portal);
+        P destination(P portal);
+    }
+}

@@ -3,7 +3,7 @@ package art.arcane.wormholes.localization;
 import art.arcane.volmlib.util.localization.MessageArgs;
 import art.arcane.volmlib.util.localization.MessageArgument;
 import art.arcane.volmlib.util.localization.TextKey;
-import art.arcane.wormholes.network.client.ClientViewCapability;
+import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.render.client.session.ClientViewSessionStats;
 
@@ -57,7 +57,7 @@ public final class ClientViewReplies {
 
     static String describe(ClientViewSessionStats stats) {
         StringJoiner caps = new StringJoiner(",");
-        for (ClientViewCapability capability : ClientViewCapability.decode(stats.caps())) {
+        for (ViewStreamCapability capability : ViewStreamCapability.decode(stats.caps())) {
             caps.add(capability.name().toLowerCase(Locale.ROOT));
         }
         StringBuilder line = new StringBuilder(160);

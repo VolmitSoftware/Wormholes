@@ -1,20 +1,19 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.render.ProjectedEntityEvent;
-import art.arcane.wormholes.render.EntityCandidateCache;
-import art.arcane.wormholes.render.acoustics.AcousticsBridge;
-import art.arcane.wormholes.render.acoustics.AcousticsProfile;
+import art.arcane.optics.entity.ProjectedEntityEvent;
+import art.arcane.optics.entity.CandidateCache;
+import art.arcane.optics.fidelity.AcousticsBridge;
+import art.arcane.optics.fidelity.AcousticsProfile;
 import art.arcane.wormholes.network.WireMessage;
 import java.util.Collection;
 import net.minecraft.world.phys.AABB;
 
-import art.arcane.wormholes.ProjectionObserverGeometry;
+import art.arcane.optics.aperture.ObserverGeometry;
 import art.arcane.wormholes.config.ProjectionGazeOptions;
 import art.arcane.wormholes.modded.clientview.MinecraftClientViewService;
 import art.arcane.wormholes.config.toml.ProjectionConfig;
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.render.ProjectedBlockClaim;
-import art.arcane.wormholes.render.EntityRenderLocalOcclusionArbiter;
+import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.occlusion.LocalOcclusionArbiter;
 import art.arcane.wormholes.portal.IPortal;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.network.protocol.Packet;
@@ -23,28 +22,28 @@ import net.minecraft.network.protocol.game.ClientboundHurtAnimationPacket;
 import net.minecraft.network.protocol.game.ClientboundDamageEventPacket;
 import net.minecraft.world.entity.Entity;
 import java.util.concurrent.ConcurrentHashMap;
-import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
-import art.arcane.wormholes.render.plate.PlateCaptureJob;
-import art.arcane.wormholes.render.plate.PlateCaptureQueue;
-import art.arcane.wormholes.render.plate.PlateWorkers;
-import art.arcane.wormholes.render.plate.ViewPlate;
-import art.arcane.wormholes.render.plate.ViewPlateBuilder;
-import art.arcane.wormholes.render.plate.ViewPlateCache;
-import art.arcane.wormholes.render.plate.ViewPlateKey;
-import art.arcane.wormholes.render.view.ProjectionContentView;
-import art.arcane.wormholes.render.view.SectionCache;
-import art.arcane.wormholes.render.ProjectorLighting;
+import art.arcane.optics.view.WorldChangeTracker;
+import art.arcane.optics.plate.PlateCaptureJob;
+import art.arcane.optics.plate.PlateCaptureQueue;
+import art.arcane.optics.plate.PlateWorkers;
+import art.arcane.optics.plate.ViewPlate;
+import art.arcane.optics.plate.ViewPlateBuilder;
+import art.arcane.optics.plate.ViewPlateCache;
+import art.arcane.optics.plate.ViewPlateKey;
+import art.arcane.optics.view.ContentView;
+import art.arcane.optics.view.SectionCache;
+import art.arcane.optics.light.ProjectorLighting;
 import art.arcane.wormholes.config.toml.RenderConfig;
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
-import art.arcane.wormholes.render.blockentity.ProjectedBlockEntityLayer;
+import art.arcane.optics.fidelity.BlockEntitySample;
+import art.arcane.optics.fidelity.ProjectedBlockEntityLayer;
 import art.arcane.wormholes.render.FidelitySettings;
-import art.arcane.wormholes.render.ProjectionCellKey;
-import art.arcane.wormholes.render.ProjectionBlockSlices;
-import art.arcane.wormholes.render.ProjectionClaimSet;
-import art.arcane.wormholes.render.ProjectionGazeScheduler;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.scan.ProjectionBlockSlices;
+import art.arcane.optics.claim.ProjectionClaimSet;
+import art.arcane.optics.volume.GazeScheduler;
 import art.arcane.wormholes.service.WormholesTelemetry;
-import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Face;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongIterator;
@@ -79,10 +78,10 @@ public final class MinecraftProjectionService implements AutoCloseable {
     private final HashMap<UUID, Long> hurtEventTicks = new HashMap<>();
     private final MinecraftProjectorPortalAccess portals;
     private final MinecraftProjectionPackets packets;
-    private final EntityRenderLocalOcclusionArbiter<ServerPlayer, Entity> entityVisibility;
-    private final EntityCandidateCache<ServerLevel, Entity> localEntityCandidates = new EntityCandidateCache<>(MinecraftProjectionService::queryLocalEntities);
+    private final LocalOcclusionArbiter<ServerPlayer, Entity> entityVisibility;
+    private final CandidateCache<ServerLevel, Entity> localEntityCandidates = new CandidateCache<>(MinecraftProjectionService::queryLocalEntities);
     private final Map<SceneKey, Scene> entityScenes = new HashMap<>();
-    private final ProjectionWorldChangeTracker changes = new ProjectionWorldChangeTracker();
+    private final WorldChangeTracker changes = new WorldChangeTracker();
     private final MinecraftPlateSnapshotCache plateSnapshots = new MinecraftPlateSnapshotCache(changes, MinecraftPlateSnapshotCache.VIEW_LIMITS);
     private final Map<ServerLevel, MinecraftProjectionWorldView> views = new HashMap<>();
     private final Map<UUID, Observer> observers = new HashMap<>();
@@ -103,16 +102,16 @@ public final class MinecraftProjectionService implements AutoCloseable {
         this.runtime = runtime;
         this.portals = new MinecraftProjectorPortalAccess(runtime);
         this.packets = new MinecraftProjectionPackets(runtime);
-        this.entityVisibility = new EntityRenderLocalOcclusionArbiter<>(new MinecraftEntityVisibility(runtime));
+        this.entityVisibility = new LocalOcclusionArbiter<>(new MinecraftEntityVisibility(runtime));
     }
 
     public Collection<Entity> localEntities(ServerLevel world, MinecraftPortal portal, double range) {
-        return localEntityCandidates.nearby(new EntityCandidateCache.Query<>(portal.getId(), world,
+        return localEntityCandidates.nearby(new CandidateCache.Query<>(portal.getId(), world,
             portal.getGeometry().getApertureCenter(), range, runtime.configuration().settings().getRender().entityCandidateCacheTicks),
             System.currentTimeMillis());
     }
 
-    private static Collection<Entity> queryLocalEntities(ServerLevel world, GeometryVector center, int range) {
+    private static Collection<Entity> queryLocalEntities(ServerLevel world, art.arcane.optics.math.Vec3 center, int range) {
         return world.getEntities((Entity) null, new AABB(center.x() - range, center.y() - range, center.z() - range,
             center.x() + range, center.y() + range, center.z() + range));
     }
@@ -135,7 +134,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
     }
 
     public void noteClientViewAcoustics(ServerPlayer player, UUID portalId, ServerLevel destination, double destinationX, double destinationY,
-                                        double destinationZ, GeometryVector aperture, AcousticsProfile profile) {
+                                        double destinationZ, art.arcane.optics.math.Vec3 aperture, AcousticsProfile profile) {
         Observer observer = observers.get(player.getUUID());
         if (observer == null || destination == null) {
             return;
@@ -387,7 +386,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
         return entityVisibility.isClaimed(observerId, entityId);
     }
 
-    EntityRenderLocalOcclusionArbiter<ServerPlayer, Entity> entityVisibility() {
+    LocalOcclusionArbiter<ServerPlayer, Entity> entityVisibility() {
         return entityVisibility;
     }
 
@@ -416,7 +415,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
         }
     }
 
-    public ProjectionWorldChangeTracker changes() {
+    public WorldChangeTracker changes() {
         return changes;
     }
 
@@ -504,9 +503,9 @@ public final class MinecraftProjectionService implements AutoCloseable {
         return tick % Math.max(1, refreshIntervalTicks) == 0L;
     }
 
-    static List<ProjectionGazeScheduler.Candidate<MinecraftPortal>> blockCandidates(List<MinecraftPortal> active,
+    static List<GazeScheduler.Candidate<MinecraftPortal>> blockCandidates(List<MinecraftPortal> active,
                                                                                    Predicate<MinecraftPortal> pendingScan, boolean passTick) {
-        List<ProjectionGazeScheduler.Candidate<MinecraftPortal>> candidates = new ArrayList<>(active.size());
+        List<GazeScheduler.Candidate<MinecraftPortal>> candidates = new ArrayList<>(active.size());
         for (MinecraftPortal portal : active) {
             boolean pending = pendingScan.test(portal);
             if (passTick || pending) {
@@ -516,14 +515,14 @@ public final class MinecraftProjectionService implements AutoCloseable {
         return candidates;
     }
 
-    static ProjectionGazeScheduler.Candidate<MinecraftPortal> gazeCandidate(MinecraftPortal portal, boolean pendingScan) {
-        AxisAlignedBB area = portal.getGeometry().getArea();
+    static GazeScheduler.Candidate<MinecraftPortal> gazeCandidate(MinecraftPortal portal, boolean pendingScan) {
+        Box area = portal.getGeometry().getArea();
         if (area != null) {
-            return new ProjectionGazeScheduler.Candidate<>(portal, portal.getId(), area.getXa(), area.getYa(), area.getZa(),
+            return new GazeScheduler.Candidate<>(portal, portal.getId(), area.getXa(), area.getYa(), area.getZa(),
                 area.getXb(), area.getYb(), area.getZb(), pendingScan, false);
         }
-        GeometryVector origin = portal.getOrigin();
-        return new ProjectionGazeScheduler.Candidate<>(portal, portal.getId(), origin.x() - 0.5D, origin.y() - 0.5D, origin.z() - 0.5D,
+        art.arcane.optics.math.Vec3 origin = portal.getOrigin();
+        return new GazeScheduler.Candidate<>(portal, portal.getId(), origin.x() - 0.5D, origin.y() - 0.5D, origin.z() - 0.5D,
             origin.x() + 0.5D, origin.y() + 0.5D, origin.z() + 0.5D, pendingScan, false);
     }
 
@@ -551,12 +550,12 @@ public final class MinecraftProjectionService implements AutoCloseable {
         }
         Vec3 eye = player.getEyePosition();
         Vec3 look = player.getLookAngle();
-        GeometryVector origin = portal.getOrigin();
-        GeometryVector center = portal.getGeometry().getApertureCenter();
-        Direction normal = portal.getFrame().getNormal();
-        return ProjectionObserverGeometry.hasStablePortalSide(eye.x, eye.y, eye.z, origin.x(), origin.y(), origin.z(),
+        art.arcane.optics.math.Vec3 origin = portal.getOrigin();
+        art.arcane.optics.math.Vec3 center = portal.getGeometry().getApertureCenter();
+        Face normal = portal.getFrame().getNormal();
+        return ObserverGeometry.hasStablePortalSide(eye.x, eye.y, eye.z, origin.x(), origin.y(), origin.z(),
             normal.x(), normal.y(), normal.z(), config().sideGraceDot)
-            && ProjectionObserverGeometry.isLookingTowardPortal(eye.x, eye.y, eye.z, center.x(), center.y(), center.z(),
+            && ObserverGeometry.isLookingTowardPortal(eye.x, eye.y, eye.z, center.x(), center.y(), center.z(),
                 look.x, look.y, look.z, config().observerInterestDot);
     }
 
@@ -568,7 +567,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
         private final AcousticsBridge<ServerPlayer> acoustics;
         private final Map<UUID, MinecraftPortalProjector> projectors = new HashMap<>();
         private final Map<UUID, Long> grace = new HashMap<>();
-        private final ProjectionClaimSet<ProjectedBlockClaim<BlockState, ProjectionContentView<BlockState, BlockState>>> claims = new ProjectionClaimSet<>();
+        private final ProjectionClaimSet<ProjectedBlockClaim<BlockState, ContentView<BlockState, BlockState>>> claims = new ProjectionClaimSet<>();
         private final LongOpenHashSet staged = new LongOpenHashSet();
         private final LongOpenHashSet displacedClaimKeys = new LongOpenHashSet();
         private final LongOpenHashSet restoredClaimKeys = new LongOpenHashSet();
@@ -576,12 +575,12 @@ public final class MinecraftProjectionService implements AutoCloseable {
         private final Long2ObjectMap<LongOpenHashSet> sentChunks = new Long2ObjectOpenHashMap<>();
         private final ProjectedBlockEntityLayer<ServerPlayer> blockEntities =
             new ProjectedBlockEntityLayer<>(new MinecraftBlockEntityPackets(runtime));
-        private final ProjectorLighting<ServerPlayer, BlockState, ProjectionContentView<BlockState, BlockState>> lighting =
+        private final ProjectorLighting<ServerPlayer, BlockState, ContentView<BlockState, BlockState>> lighting =
             new ProjectorLighting<>(new MinecraftProjectorLighting(runtime), WormholesTelemetry.metrics());
         private final LongOpenHashSet dirtyLight = new LongOpenHashSet();
         private final MinecraftAtmosphere atmosphere;
         private final MinecraftPortalSurfaces surfaces;
-        private final ProjectionGazeScheduler gaze = new ProjectionGazeScheduler();
+        private final GazeScheduler gaze = new GazeScheduler();
         private long lastLightTick = Long.MIN_VALUE;
 
         private Observer(ServerPlayer player) {
@@ -626,11 +625,11 @@ public final class MinecraftProjectionService implements AutoCloseable {
                     iterator.remove();
                 }
             }
-            List<ProjectionGazeScheduler.Candidate<MinecraftPortal>> gazeCandidates = blockCandidates(active, this::pendingScan,
+            List<GazeScheduler.Candidate<MinecraftPortal>> gazeCandidates = blockCandidates(active, this::pendingScan,
                 blockPassTick(tick, config().refreshIntervalTicks));
             Vec3 eye = player.getEyePosition();
             List<MinecraftPortal> selected = gaze.select(player.getUUID(),
-                new ProjectionGazeScheduler.Eye(eye.x, eye.y, eye.z, player.getYRot(), player.getXRot()),
+                new GazeScheduler.Eye(eye.x, eye.y, eye.z, player.getYRot(), player.getXRot()),
                 gazeCandidates, budget, tick, ProjectionGazeOptions.from(config()));
             gaze.retain(player.getUUID(), activeIds);
             ProjectionBlockSlices slices = new ProjectionBlockSlices(selected.size());
@@ -720,10 +719,10 @@ public final class MinecraftProjectionService implements AutoCloseable {
             LongIterator iterator = pending.iterator();
             while (iterator.hasNext()) {
                 long key = iterator.nextLong();
-                int x = ProjectionCellKey.unpackX(key);
-                int y = ProjectionCellKey.unpackY(key);
-                int z = ProjectionCellKey.unpackZ(key);
-                ProjectedBlockClaim<BlockState, ProjectionContentView<BlockState, BlockState>> claim = claims.getWinningClaim(key);
+                int x = CellKeys.unpackX(key);
+                int y = CellKeys.unpackY(key);
+                int z = CellKeys.unpackZ(key);
+                ProjectedBlockClaim<BlockState, ContentView<BlockState, BlockState>> claim = claims.getWinningClaim(key);
                 if (!world.getChunkSource().chunkMap.isChunkTracked(player, x >> 4, z >> 4)) {
                     if (claim == null) {
                         iterator.remove();
@@ -791,8 +790,8 @@ public final class MinecraftProjectionService implements AutoCloseable {
                     if (pending.contains(key) || projector.scan().claims().get(key) != claims.getWinningClaim(key)) {
                         continue;
                     }
-                    int x = ProjectionCellKey.unpackX(key);
-                    int z = ProjectionCellKey.unpackZ(key);
+                    int x = CellKeys.unpackX(key);
+                    int z = CellKeys.unpackZ(key);
                     if (world.getChunkSource().chunkMap.isChunkTracked(player, x >> 4, z >> 4)) {
                         desired.put(key, entry.getValue());
                     }
@@ -803,7 +802,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
         }
 
         private BlockEntitySample localBlockEntity(int x, int y, int z) {
-            if (claims.getWinningClaim(ProjectionCellKey.pack(x, y, z)) != null) {
+            if (claims.getWinningClaim(CellKeys.pack(x, y, z)) != null) {
                 return null;
             }
             return view(world).sampleBlockEntity(x, y, z);
@@ -836,13 +835,13 @@ public final class MinecraftProjectionService implements AutoCloseable {
             }
         }
     }
-    private final class SectionEviction implements ProjectionWorldChangeTracker.ChangeListener {
+    private final class SectionEviction implements WorldChangeTracker.ChangeListener {
         @Override
         public void blockChanged(UUID worldId, long blockKey) {
             MinecraftProjectionWorldView view = viewById(worldId);
             if (view != null) {
-                view.sections().blockChanged(ProjectionCellKey.unpackX(blockKey), ProjectionCellKey.unpackY(blockKey),
-                    ProjectionCellKey.unpackZ(blockKey));
+                view.sections().blockChanged(CellKeys.unpackX(blockKey), CellKeys.unpackY(blockKey),
+                    CellKeys.unpackZ(blockKey));
             }
         }
 

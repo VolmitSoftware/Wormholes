@@ -1,8 +1,7 @@
 package art.arcane.wormholes.modded.client.render;
 
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.math.Face;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
@@ -16,8 +15,8 @@ import static org.junit.Assert.assertEquals;
 public class PortalFeatureRendererTest {
     @Test
     public void entitiesAndBlockEntitiesReuseTheSameUnchangedRotation() {
-        ClientViewEnvironment.Transform transform = new ClientViewEnvironment.Transform(Direction.U, Direction.W, Direction.S,
-            new GeometryVector(100, 50, -20));
+        ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(Face.U, Face.W, Face.S,
+            new art.arcane.optics.math.Vec3(100, 50, -20));
         Matrix4f rotation = PortalProjection.rotation(transform);
         Matrix4f original = new Matrix4f(rotation);
         EntityRenderState entity = new EntityRenderState();
@@ -40,10 +39,10 @@ public class PortalFeatureRendererTest {
         state.x = -12.5D;
         state.y = 64;
         state.z = 30.5D;
-        for (Direction[] axes : new Direction[][] {{Direction.U, Direction.W, Direction.S}, {Direction.D, Direction.E, Direction.S},
-            {Direction.D, Direction.W, Direction.N}, {Direction.U, Direction.E, Direction.N}}) {
-            ClientViewEnvironment.Transform transform = new ClientViewEnvironment.Transform(axes[0], axes[1], axes[2],
-                new GeometryVector(100.5D, -20.25D, 50));
+        for (Face[] axes : new Face[][] {{Face.U, Face.W, Face.S}, {Face.D, Face.E, Face.S},
+            {Face.D, Face.W, Face.N}, {Face.U, Face.E, Face.N}}) {
+            ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(axes[0], axes[1], axes[2],
+                new art.arcane.optics.math.Vec3(100.5D, -20.25D, 50));
             PoseStack pose = new PoseStack();
             PortalFeatureRenderer.entityPose(pose, state, new Vec3(1, 2, 3), transform, PortalProjection.rotation(transform));
             Vector3f feet = pose.last().pose().transformPosition(new Vector3f());
@@ -60,17 +59,17 @@ public class PortalFeatureRendererTest {
     @Test
     public void blockEntityPositionsAndLocalModelVerticesUseDestinationRotationAndReflection() {
         for (BlockPose example : new BlockPose[] {
-            new BlockPose(Direction.U, Direction.W, new Vector3f(67, 58, 15), new Vector3f(66.5F, 59, 15.25F)),
-            new BlockPose(Direction.W, Direction.U, new Vector3f(85, 76, 15), new Vector3f(84, 76.5F, 15.25F))
+            new BlockPose(Face.U, Face.W, new Vector3f(67, 58, 15), new Vector3f(66.5F, 59, 15.25F)),
+            new BlockPose(Face.W, Face.U, new Vector3f(85, 76, 15), new Vector3f(84, 76.5F, 15.25F))
         }) {
             PoseStack pose = new PoseStack();
-            ClientViewEnvironment.Transform transform = new ClientViewEnvironment.Transform(example.xAxis(), example.yAxis(), Direction.S,
-                new GeometryVector(100, 50, -20));
+            ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(example.xAxis(), example.yAxis(), Face.S,
+                new art.arcane.optics.math.Vec3(100, 50, -20));
             PortalFeatureRenderer.blockPose(pose, new BlockPos(12, 30, 40), new Vec3(3, 4, 5), transform, PortalProjection.rotation(transform));
             assertEquals(example.origin(), pose.last().pose().transformPosition(new Vector3f()));
             assertEquals(example.vertex(), pose.last().pose().transformPosition(new Vector3f(1, 0.5F, 0.25F)));
         }
     }
 
-    private record BlockPose(Direction xAxis, Direction yAxis, Vector3f origin, Vector3f vertex) { }
+    private record BlockPose(Face xAxis, Face yAxis, Vector3f origin, Vector3f vertex) { }
 }

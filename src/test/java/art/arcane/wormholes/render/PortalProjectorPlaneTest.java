@@ -6,10 +6,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
-import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Face;
+import art.arcane.optics.frame.ProjectorFrameTransform;
+import art.arcane.optics.volume.PlaneWindow;
 
 public final class PortalProjectorPlaneTest {
 	@Test
@@ -29,13 +31,13 @@ public final class PortalProjectorPlaneTest {
 
 	@Test
 	public void planeClearanceTracksPortalNormalThickness() {
-		AxisAlignedBB northPortal = new AxisAlignedBB(0.0D, 4.999D, 64.0D, 68.999D, 10.0D, 10.999D);
-		double northClearance = ProjectorFrameTransform.portalPlaneClearance(northPortal, PortalFrame.canonical(Direction.N));
+		Box northPortal = new Box(0.0D, 4.999D, 64.0D, 68.999D, 10.0D, 10.999D);
+		double northClearance = ProjectorFrameTransform.portalPlaneClearance(northPortal, Frame.canonical(Face.N));
 		assertTrue(northClearance > 0.5D);
 		assertTrue(northClearance < 0.502D);
 
-		AxisAlignedBB thickDownPortal = new AxisAlignedBB(0.0D, 4.999D, 63.0D, 64.999D, 10.0D, 14.999D);
-		double downClearance = ProjectorFrameTransform.portalPlaneClearance(thickDownPortal, PortalFrame.canonical(Direction.D));
+		Box thickDownPortal = new Box(0.0D, 4.999D, 63.0D, 64.999D, 10.0D, 14.999D);
+		double downClearance = ProjectorFrameTransform.portalPlaneClearance(thickDownPortal, Frame.canonical(Face.D));
 		assertTrue(downClearance > 0.999D);
 		assertTrue(downClearance < 1.002D);
 	}
@@ -52,8 +54,8 @@ public final class PortalProjectorPlaneTest {
 
 	@Test
 	public void portalPlaneWindowRejectsRaysThatMissTheApertureBounds() {
-		AxisAlignedBB area = new AxisAlignedBB(0.0D, 2.999D, 64.0D, 66.999D, 10.0D, 10.999D);
-		PortalFrame frame = PortalFrame.canonical(Direction.N);
+		Box area = new Box(0.0D, 2.999D, 64.0D, 66.999D, 10.0D, 10.999D);
+		Frame frame = Frame.canonical(Face.N);
 		double originX = 1.5D;
 		double originY = 65.5D;
 		double originZ = 10.5D;
@@ -61,7 +63,7 @@ public final class PortalProjectorPlaneTest {
 		double eyeY = 65.5D;
 		double eyeZ = 6.5D;
 		double eyeSignedDistance = 4.0D;
-		ProjectorPlaneWindow window = ProjectorPlaneWindow.create(null, area, frame,
+		PlaneWindow window = PlaneWindow.create(null, area, frame,
 			originX, originY, originZ, 0.0D, eyeSignedDistance);
 
 		assertTrue(window.containsRayIntersection(eyeX, eyeY, eyeZ, 1.5D, 65.5D, 15.5D, -5.0D));
@@ -71,12 +73,12 @@ public final class PortalProjectorPlaneTest {
 
 	@Test
 	public void backSideViewFrameKeepsUpAndFlipsRight() {
-		PortalFrame front = PortalFrame.canonical(Direction.N);
-		PortalFrame back = PortalProjector.viewFrame(front, false);
+		Frame front = Frame.canonical(Face.N);
+		Frame back = PortalProjector.viewFrame(front, false);
 
-		assertEquals(Direction.S, back.getNormal());
-		assertEquals(Direction.U, back.getUp());
-		assertEquals(Direction.W, back.getRight());
+		assertEquals(Face.S, back.getNormal());
+		assertEquals(Face.U, back.getUp());
+		assertEquals(Face.W, back.getRight());
 	}
 
 	@Test

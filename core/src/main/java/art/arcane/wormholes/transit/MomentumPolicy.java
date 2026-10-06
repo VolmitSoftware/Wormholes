@@ -3,13 +3,13 @@ package art.arcane.wormholes.transit;
 import java.util.Locale;
 import java.util.Objects;
 
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 
 /**
  * How a portal derives a traveler's exit speed from their entry speed. {@code maxSpeed} of zero means
  * "use the configured ceiling"; {@code impulse} is only used by {@link Mode#IMPULSE}.
  */
-public record MomentumPolicy(Mode mode, double factor, double maxSpeed, GeometryVector impulse) {
+public record MomentumPolicy(Mode mode, double factor, double maxSpeed, Vec3 impulse) {
     private static final String SEPARATOR = ";";
 
     public enum Mode {
@@ -45,11 +45,11 @@ public record MomentumPolicy(Mode mode, double factor, double maxSpeed, Geometry
         mode = Objects.requireNonNull(mode, "mode");
         factor = Double.isFinite(factor) ? factor : 1.0D;
         maxSpeed = Double.isFinite(maxSpeed) && maxSpeed > 0.0D ? maxSpeed : 0.0D;
-        impulse = impulse == null ? new GeometryVector(0, 0, 0) : impulse;
+        impulse = impulse == null ? new Vec3(0, 0, 0) : impulse;
     }
 
     public static MomentumPolicy of(Mode mode) {
-        return new MomentumPolicy(mode, 1.0D, 0.0D, new GeometryVector(0, 0, 0));
+        return new MomentumPolicy(mode, 1.0D, 0.0D, new Vec3(0, 0, 0));
     }
 
     public MomentumPolicy withMode(Mode nextMode) {
@@ -85,7 +85,7 @@ public record MomentumPolicy(Mode mode, double factor, double maxSpeed, Geometry
         try {
             double factor = Double.parseDouble(parts[1]);
             double maxSpeed = Double.parseDouble(parts[2]);
-            GeometryVector impulse = new GeometryVector(
+            Vec3 impulse = new Vec3(
                 Double.parseDouble(impulseParts[0]),
                 Double.parseDouble(impulseParts[1]),
                 Double.parseDouble(impulseParts[2]));

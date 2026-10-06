@@ -1,11 +1,11 @@
 package art.arcane.wormholes.modded.clientview;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.wormholes.network.client.ClientViewCapability;
+import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
-import art.arcane.wormholes.network.client.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.ClientViewProtocolException;
 import art.arcane.wormholes.network.client.SessionPalette;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import io.netty.channel.embedded.EmbeddedChannel;
@@ -36,13 +36,13 @@ public class MinecraftClientViewWireTest extends MinecraftTestBase {
         for (Block block : BuiltInRegistries.BLOCK) {
             for (BlockState state : block.getStateDefinition().getPossibleStates()) {
                 int id = palette.id(BlockStateParser.serialize(state));
-                assertTrue(id >= ClientViewProtocol.RESERVED_PALETTE_IDS || state.isAir());
+                assertTrue(id >= ViewStreamLimits.RESERVED_PALETTE_IDS || state.isAir());
                 BlockState parsed = BlockStateParser.parseForBlock(BuiltInRegistries.BLOCK, palette.state(id), false).blockState();
                 assertSame(palette.state(id), state, parsed);
                 states++;
             }
         }
-        assertEquals(states, palette.size() - ClientViewProtocol.RESERVED_PALETTE_IDS + airStates());
+        assertEquals(states, palette.size() - ViewStreamLimits.RESERVED_PALETTE_IDS + airStates());
     }
 
     @Test
@@ -61,8 +61,8 @@ public class MinecraftClientViewWireTest extends MinecraftTestBase {
             ids[i] = palette.id(BlockStateParser.serialize(sample.get(i)));
         }
         List<ClientViewMessage.PaletteEntry> entries = palette.cursor().pending(ids);
-        byte[] frame = ClientViewCodec.encodeS2C(new ClientViewMessage.Palette(entries), 7, ClientViewProtocol.FLAG_LAST);
-        ClientViewMessage.Palette decoded = (ClientViewMessage.Palette) ClientViewCodec.decodeS2C(frame, ClientViewCapability.ALL).message();
+        byte[] frame = ClientViewCodec.encodeS2C(new ClientViewMessage.Palette(entries), 7, ViewStreamLimits.FLAG_LAST);
+        ClientViewMessage.Palette decoded = (ClientViewMessage.Palette) ClientViewCodec.decodeS2C(frame, ViewStreamCapability.ALL).message();
         for (ClientViewMessage.PaletteEntry entry : decoded.entries()) {
             BlockState expected = sample.get(indexOf(ids, entry.id()));
             assertSame(expected, BlockStateParser.parseForBlock(BuiltInRegistries.BLOCK, entry.state(), false).blockState());

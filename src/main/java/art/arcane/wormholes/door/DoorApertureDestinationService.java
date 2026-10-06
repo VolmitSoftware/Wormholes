@@ -5,11 +5,11 @@ import art.arcane.wormholes.door.view.DoorApertureFrames;
 import art.arcane.wormholes.door.view.DoorApertureDestinations;
 import art.arcane.wormholes.door.view.DoorProjectionAdapter;
 import art.arcane.wormholes.door.view.DoorProjectionDestination;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.survival.doors.dimension.PocketWorldService;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import org.bukkit.World;
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -78,7 +78,7 @@ final class DoorApertureDestinationService implements DoorApertureDestinations {
         }
         DoorVec3 center = plane.center();
         return Optional.of(new DoorProjectionDestination(placed.identity().itemId(), WorldIdentity.serialize(world),
-            new GeometryVector(center.x(), center.y(), center.z()), DoorApertureFrames.destinationFrame(adapter.plane(), plane)));
+            new Vec3(center.x(), center.y(), center.z()), DoorApertureFrames.destinationFrame(adapter.plane(), plane)));
     }
 
     private Optional<DoorProjectionDestination> pocketEntry(DoorProjectionAdapter adapter, UUID observerId) {
@@ -122,12 +122,12 @@ final class DoorApertureDestinationService implements DoorApertureDestinations {
             return resolved;
         }
         return Optional.of(new DoorProjectionDestination(found.sourceEndpointId(), found.sourceWorldKey(),
-            new GeometryVector(found.x(), found.y() + DoorApertureFrames.height(adapter.plane()) * 0.5D, found.z()),
-            PortalFrame.fromNormalUp(lookDirection(found.yaw()).reverse(), Direction.U)));
+            new Vec3(found.x(), found.y() + DoorApertureFrames.height(adapter.plane()) * 0.5D, found.z()),
+            Frame.fromNormalUp(lookDirection(found.yaw()).reverse(), Face.U)));
     }
 
-    private static Direction lookDirection(float yaw) {
+    private static Face lookDirection(float yaw) {
         double radians = Math.toRadians(yaw);
-        return Direction.closest(-Math.sin(radians), 0.0D, Math.cos(radians));
+        return Face.closest(-Math.sin(radians), 0.0D, Math.cos(radians));
     }
 }

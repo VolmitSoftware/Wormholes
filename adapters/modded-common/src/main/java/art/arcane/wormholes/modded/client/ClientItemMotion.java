@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
-import art.arcane.wormholes.network.view.EntityVisual;
+import art.arcane.optics.entity.EntitySnapshot;
 import net.minecraft.world.entity.InterpolationHandler;
 import net.minecraft.world.entity.LinearInterpolationHandler;
 import net.minecraft.world.entity.PositionPath;
@@ -19,7 +19,7 @@ final class ClientItemMotion {
         this.interpolation = LinearInterpolationHandler.create(entity, INTERPOLATION_TICKS);
     }
 
-    void move(EntityVisual visual, EntityVisual previous) {
+    void move(EntitySnapshot visual, EntitySnapshot previous) {
         Vec3 position = new Vec3(visual.x(), visual.y(), visual.z());
         double dx = visual.x() - previous.x();
         double dy = visual.y() - previous.y();

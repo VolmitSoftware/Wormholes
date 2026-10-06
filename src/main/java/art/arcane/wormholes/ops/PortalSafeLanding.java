@@ -11,7 +11,7 @@ import art.arcane.wormholes.portal.rtp.RtpSafetyValidator;
 import art.arcane.wormholes.portal.rtp.RtpService;
 import art.arcane.wormholes.portal.rtp.RtpSettings;
 import art.arcane.wormholes.portal.rtp.RtpValidationRequest;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import org.bukkit.Location;
 import org.bukkit.World;
 
@@ -68,7 +68,7 @@ public final class PortalSafeLanding {
     }
 
     private static Location front(ILocalPortal portal, Location center) {
-        Direction normal = portal.getFrame() == null ? Direction.N : portal.getFrame().getNormal();
+        Face normal = portal.getFrame() == null ? Face.N : portal.getFrame().getNormal();
         return center.clone().add(normal.x() * FRONT_OFFSET_BLOCKS, 0.0D, normal.z() * FRONT_OFFSET_BLOCKS);
     }
 }

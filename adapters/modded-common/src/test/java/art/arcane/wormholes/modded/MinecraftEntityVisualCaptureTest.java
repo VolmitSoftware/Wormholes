@@ -1,11 +1,11 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.modded.mixin.EntityDataAccess;
-import art.arcane.wormholes.network.view.EntityDeltaCodec;
+import art.arcane.optics.entity.EntityDeltaCodec;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
-import art.arcane.wormholes.network.view.EntityVisual;
+import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.wormholes.network.view.ViewEntityState;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.LivingEntity;
@@ -44,20 +44,20 @@ public class MinecraftEntityVisualCaptureTest extends MinecraftTestBase {
         when(animal.getHeadLookAngle()).thenReturn(new Vec3(0, 0, 1));
         when(animal.getLookAngle()).thenReturn(new Vec3(0.5D, 0, 0.5D));
         ViewEntityState<Pose> state = new ViewEntityState<>(UUID.randomUUID(), new ViewEntityState.Center(0, 0, 0));
-        EntityVisual previous = EntityVisual.full(id, "minecraft:cow", 10, 64, 20, 0, 0, 0, 1,
-            25, 0, 0, 0, 0, false, "", "", "", null, null, EntityVisual.EMPTY, EntityVisual.EMPTY, 0);
+        EntitySnapshot previous = EntitySnapshot.full(id, "minecraft:cow", 10, 64, 20, 0, 0, 0, 1,
+            25, 0, 0, 0, 0, false, "", "", "", null, null, EntitySnapshot.EMPTY, EntitySnapshot.EMPTY, 0);
         state.lastCapturedSnapshots().put(id, previous);
         state.blobCaptureStates().put(id, new ViewEntityState.BlobCaptureState<>(1, Pose.STANDING, false, 1, 0L));
         MinecraftEntityVisualCapture capture = new MinecraftEntityVisualCapture(mock(MinecraftPacketBlobs.class));
-        EntityVisual first = capture.capture(animal, state, 2);
+        EntitySnapshot first = capture.capture(animal, state, 2);
         when(animal.getHeadLookAngle()).thenReturn(new Vec3(-1, 0, 0));
-        EntityVisual turned = capture.capture(animal, state, 3);
+        EntitySnapshot turned = capture.capture(animal, state, 3);
         assertEquals(25, turned.yaw(), 0);
         assertEquals(-1, turned.lookX(), 0);
         assertEquals(0, turned.lookZ(), 0);
         int mask = EntityDeltaCodec.computeMask(turned, first);
-        assertTrue((mask & EntityVisual.FIELD_LOOK_VEC) != 0);
-        assertEquals(0, mask & (EntityVisual.FIELD_POSITION | EntityVisual.FIELD_YAW_PITCH));
+        assertTrue((mask & EntitySnapshot.FIELD_LOOK_VEC) != 0);
+        assertEquals(0, mask & (EntitySnapshot.FIELD_POSITION | EntitySnapshot.FIELD_YAW_PITCH));
     }
     @Test
     public void shortHandUseBabyAndAggressiveMetadataChangesAreCapturedImmediately() {
@@ -84,16 +84,16 @@ public class MinecraftEntityVisualCaptureTest extends MinecraftTestBase {
         });
         ViewEntityState<Pose> state = new ViewEntityState<>(UUID.randomUUID(), new ViewEntityState.Center(0, 0, 0));
         MinecraftEntityVisualCapture capture = new MinecraftEntityVisualCapture(blobs);
-        EntityVisual idle = capture.capture(animal, state, 1);
+        EntitySnapshot idle = capture.capture(animal, state, 1);
         assertEquals(0, idle.metadata()[0]);
         hand.setValue((byte) 1);
         revision.incrementAndGet();
-        EntityVisual using = capture.capture(animal, state, 2);
+        EntitySnapshot using = capture.capture(animal, state, 2);
         assertEquals(1, using.metadata()[0]);
-        assertTrue((EntityDeltaCodec.computeMask(using, idle) & EntityVisual.FIELD_METADATA) != 0);
+        assertTrue((EntityDeltaCodec.computeMask(using, idle) & EntitySnapshot.FIELD_METADATA) != 0);
         hand.setValue((byte) 0);
         revision.incrementAndGet();
-        EntityVisual stopped = capture.capture(animal, state, 3);
+        EntitySnapshot stopped = capture.capture(animal, state, 3);
         assertEquals(0, stopped.metadata()[0]);
         baby.setValue(true);
         revision.incrementAndGet();

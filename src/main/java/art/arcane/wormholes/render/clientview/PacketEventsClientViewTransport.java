@@ -21,14 +21,14 @@ import com.github.retrooper.packetevents.wrapper.configuration.server.WrapperCon
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPluginMessage;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPluginMessage;
 
-import art.arcane.wormholes.network.client.ClientViewProtocol;
-import art.arcane.wormholes.network.client.ClientViewTransport;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.ClientViewTransport;
 
 public final class PacketEventsClientViewTransport extends PacketListenerAbstract implements ClientViewTransport<ClientViewObserver> {
     public static final int PING_ID = 0x57484356;
     public static final String REGISTER_CHANNEL = "minecraft:register";
     public static final String BRAND_CHANNEL = "minecraft:brand";
-    private static final int MAX_BRAND_BYTES = ClientViewProtocol.MAX_STRING_BYTES;
+    private static final int MAX_BRAND_BYTES = ViewStreamLimits.MAX_STRING_BYTES;
     private static final byte[] REGISTER_PAYLOAD = ClientViewChannel.CHANNEL.getBytes(StandardCharsets.UTF_8);
 
     private final Inbound inbound;

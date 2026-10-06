@@ -11,16 +11,24 @@ import java.util.Random;
 
 import org.junit.jupiter.api.Test;
 
-import art.arcane.wormholes.network.replication.XxHash64;
+import art.arcane.optics.stream.XxHash64;
+import art.arcane.optics.stream.Brick;
+import art.arcane.optics.stream.BrickCodec;
+import art.arcane.optics.stream.BrickLightSource;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ClientViewReader;
+import art.arcane.optics.stream.ClientViewWriter;
+import art.arcane.optics.stream.SectionBiomes;
+import art.arcane.optics.stream.ViewStreamLimits;
 
 final class BrickCodecTest {
     @Test
     void senderRejectsBrickBodiesThatFitAFrameButExceedTheDecoderLimit() {
-        int[] cells = new int[ClientViewProtocol.BRICK_CELLS];
+        int[] cells = new int[ViewStreamLimits.BRICK_CELLS];
         for (int cell = 0; cell < cells.length; cell++) {
             cells[cell] = cell + 3;
         }
-        byte[] light = new byte[ClientViewProtocol.LIGHT_NIBBLE_BYTES];
+        byte[] light = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
         new Random(42L).nextBytes(light);
         Brick.BlockEntityCell[] entities = new Brick.BlockEntityCell[512];
         for (int cell = 0; cell < entities.length; cell++) {
@@ -28,19 +36,19 @@ final class BrickCodecTest {
         }
         Brick brick = BrickCodec.pack(0, cells).withLight(light, light).withBlockEntities(entities);
         int bodyBytes = BrickCodec.encodedSize(brick);
-        assertTrue(bodyBytes > ClientViewProtocol.MAX_BRICK_BYTES);
-        assertTrue(bodyBytes + 32 < ClientViewProtocol.MIN_MAX_FRAME_BYTES);
+        assertTrue(bodyBytes > ViewStreamLimits.MAX_BRICK_BYTES);
+        assertTrue(bodyBytes + 32 < ViewStreamLimits.MIN_MAX_FRAME_BYTES);
         ClientViewMessage.MeshSection section = new ClientViewMessage.MeshSection(1, 1, 0, 0, 0, 1, 3, brick, SectionBiomes.NONE);
         assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.encodeS2C(section, 0, 0));
     }
 
     @Test
     void uniformBricksCollapseToEmptyOrSingle() {
-        int[] air = new int[ClientViewProtocol.BRICK_CELLS];
+        int[] air = new int[ViewStreamLimits.BRICK_CELLS];
         Brick empty = BrickCodec.pack(3, air);
         assertEquals(Brick.Encoding.EMPTY, empty.encoding());
         assertEquals(0, empty.bitsPerIndex());
-        int[] stone = new int[ClientViewProtocol.BRICK_CELLS];
+        int[] stone = new int[ViewStreamLimits.BRICK_CELLS];
         Arrays.fill(stone, 9);
         Brick single = BrickCodec.pack(4, stone);
         assertEquals(Brick.Encoding.SINGLE, single.encoding());
@@ -52,7 +60,7 @@ final class BrickCodecTest {
     void everyBitWidthRoundTripsThroughBytes() throws ClientViewProtocolException {
         int[] paletteSizes = {2, 3, 4, 5, 16, 17, 200, 256, 257, 1200};
         for (int size : paletteSizes) {
-            int[] cells = new int[ClientViewProtocol.BRICK_CELLS];
+            int[] cells = new int[ViewStreamLimits.BRICK_CELLS];
             for (int i = 0; i < cells.length; i++) {
                 cells[i] = 3 + (i * 31 + i / 7) % size;
             }
@@ -72,16 +80,16 @@ final class BrickCodecTest {
 
     @Test
     void packedIndicesUseVanillaCellOrderAndLowBitsFirst() {
-        int[] cells = new int[ClientViewProtocol.BRICK_CELLS];
-        cells[ClientViewProtocol.brickCellIndex(1, 0, 0)] = 7;
+        int[] cells = new int[ViewStreamLimits.BRICK_CELLS];
+        cells[ViewStreamLimits.brickCellIndex(1, 0, 0)] = 7;
         Brick brick = BrickCodec.pack(0, cells);
         assertEquals(1, brick.bitsPerIndex());
         assertEquals(0, brick.localPalette()[0]);
         assertEquals(7, brick.localPalette()[1]);
         assertEquals(2L, brick.packedIndices()[0]);
-        assertEquals(1, ClientViewProtocol.brickCellIndex(1, 0, 0));
-        assertEquals(256, ClientViewProtocol.brickCellIndex(0, 1, 0));
-        assertEquals(16, ClientViewProtocol.brickCellIndex(0, 0, 1));
+        assertEquals(1, ViewStreamLimits.brickCellIndex(1, 0, 0));
+        assertEquals(256, ViewStreamLimits.brickCellIndex(0, 1, 0));
+        assertEquals(16, ViewStreamLimits.brickCellIndex(0, 0, 1));
     }
 
     @Test
@@ -104,15 +112,15 @@ final class BrickCodecTest {
         BrickCodec.write(out, lit);
         Brick decoded = BrickCodec.read(new ClientViewReader(out.toByteArray()));
         assertEquals(lit, decoded);
-        assertEquals(15, BrickLightSource.nibble(decoded.skyLight(), ClientViewProtocol.brickCellIndex(0, 8, 0)));
-        assertEquals(0, BrickLightSource.nibble(decoded.skyLight(), ClientViewProtocol.brickCellIndex(0, 7, 0)));
+        assertEquals(15, BrickLightSource.nibble(decoded.skyLight(), ViewStreamLimits.brickCellIndex(0, 8, 0)));
+        assertEquals(0, BrickLightSource.nibble(decoded.skyLight(), ViewStreamLimits.brickCellIndex(0, 7, 0)));
         assertEquals(1, decoded.blockEntities().length);
-        assertEquals(ClientViewProtocol.brickCellIndex(3, 8, 3), decoded.blockEntities()[0].cellIndex());
+        assertEquals(ViewStreamLimits.brickCellIndex(3, 8, 3), decoded.blockEntities()[0].cellIndex());
     }
 
     @Test
     void decoderRejectsIndicesOutsideTheLocalPalette() throws ClientViewProtocolException {
-        int[] cells = new int[ClientViewProtocol.BRICK_CELLS];
+        int[] cells = new int[ViewStreamLimits.BRICK_CELLS];
         cells[0] = 4;
         cells[1] = 5;
         Brick brick = BrickCodec.pack(0, cells);
@@ -127,23 +135,23 @@ final class BrickCodecTest {
 
     @Test
     void lightLayersPickTheSmallestOfUniformRunsAndRaw() throws ClientViewProtocolException {
-        byte[] uniform = new byte[ClientViewProtocol.LIGHT_NIBBLE_BYTES];
+        byte[] uniform = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
         Arrays.fill(uniform, (byte) 0xFF);
-        byte[] runs = new byte[ClientViewProtocol.LIGHT_NIBBLE_BYTES];
-        for (int cell = 0; cell < ClientViewProtocol.BRICK_CELLS; cell++) {
-            BrickLightSource.setNibble(runs, cell, ClientViewProtocol.brickCellY(cell) >= 8 ? 15 : 0);
+        byte[] runs = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
+        for (int cell = 0; cell < ViewStreamLimits.BRICK_CELLS; cell++) {
+            BrickLightSource.setNibble(runs, cell, ViewStreamLimits.brickCellY(cell) >= 8 ? 15 : 0);
         }
-        byte[] raw = new byte[ClientViewProtocol.LIGHT_NIBBLE_BYTES];
+        byte[] raw = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
         new Random(11L).nextBytes(raw);
         assertLightLayer(uniform, BrickCodec.LIGHT_UNIFORM, 2);
         assertLightLayer(runs, BrickCodec.LIGHT_RUNS, 8);
-        assertLightLayer(raw, BrickCodec.LIGHT_RAW, 1 + ClientViewProtocol.LIGHT_NIBBLE_BYTES);
+        assertLightLayer(raw, BrickCodec.LIGHT_RAW, 1 + ViewStreamLimits.LIGHT_NIBBLE_BYTES);
     }
 
     @Test
     void theEncodedSizeMatchesTheBodyForEveryLightMode() throws ClientViewProtocolException {
-        byte[] uniform = new byte[ClientViewProtocol.LIGHT_NIBBLE_BYTES];
-        byte[] raw = new byte[ClientViewProtocol.LIGHT_NIBBLE_BYTES];
+        byte[] uniform = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
+        byte[] raw = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
         new Random(12L).nextBytes(raw);
         Brick paletted = ClientViewFixtures.palettedBrick(1);
         for (Brick brick : new Brick[] {Brick.empty(0).withLight(uniform, uniform), paletted.withLight(uniform, raw),
@@ -194,7 +202,7 @@ final class BrickCodecTest {
         Random random = new Random(7L);
         for (int round = 0; round < 200; round++) {
             int distinct = 1 + random.nextInt(random.nextInt(8) == 0 ? 600 : 20);
-            int[] cells = new int[ClientViewProtocol.BRICK_CELLS];
+            int[] cells = new int[ViewStreamLimits.BRICK_CELLS];
             for (int i = 0; i < cells.length; i++) {
                 cells[i] = random.nextInt(distinct) == 0 ? 0 : 3 + random.nextInt(distinct);
             }

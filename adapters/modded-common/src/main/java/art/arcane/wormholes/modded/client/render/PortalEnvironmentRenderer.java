@@ -1,7 +1,6 @@
 package art.arcane.wormholes.modded.client.render;
 
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
+import art.arcane.optics.stream.ProjectionEnvironment;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
 import com.mojang.renderpearl.api.commands.RenderPass;
@@ -30,7 +29,7 @@ final class PortalEnvironmentRenderer implements AutoCloseable {
     private final FogRenderer fog = new FogRenderer();
     private final Matrix4f view = new Matrix4f();
     private PortalClouds clouds;
-    private ClientViewEnvironment previous;
+    private ProjectionEnvironment previous;
     private long receivedTime;
     private float previousSun;
     private float previousMoon;
@@ -40,7 +39,7 @@ final class PortalEnvironmentRenderer implements AutoCloseable {
     private FogData fogData;
     private SkyRenderState sky;
 
-    void prepare(ClientViewEnvironment environment, CameraRenderState camera) {
+    void prepare(ProjectionEnvironment environment, CameraRenderState camera) {
         Minecraft minecraft = Minecraft.getInstance();
         long now = minecraft.level.getGameTime();
         boolean changed = environment != previous;
@@ -55,7 +54,7 @@ final class PortalEnvironmentRenderer implements AutoCloseable {
         if (changed || local.needsUpdate) {
             lightmap.render(PortalEnvironment.light(environment, local));
         }
-        GeometryVector eye = environment.transform().destinationPoint(camera.pos.x, camera.pos.y, camera.pos.z);
+        art.arcane.optics.math.Vec3 eye = environment.transform().destinationPoint(camera.pos.x, camera.pos.y, camera.pos.z);
         sky = PortalEnvironment.sky(environment, eye);
         float blend = blendTicks == 0 ? 1 : Math.clamp((now - receivedTime + camera.cameraEntityPartialTicks) / blendTicks, 0.0f, 1.0f);
         sky.sunAngle = PortalEnvironment.angle(previousSun, sky.sunAngle, blend);

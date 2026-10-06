@@ -11,18 +11,18 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.config.VisualQualityProfile;
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
+import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.AmbientSparkCadence;
 import art.arcane.wormholes.portal.effects.PortalAnimation;
-import art.arcane.wormholes.render.acoustics.AcousticsBridge;
-import art.arcane.wormholes.render.acoustics.AcousticsProfile;
-import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.optics.fidelity.AcousticsBridge;
+import art.arcane.optics.fidelity.AcousticsProfile;
+import art.arcane.optics.math.Box;
 
 class ClientViewEmittersTest {
-    private static final AxisAlignedBB AREA = new AxisAlignedBB(10.0D, 13.0D, 64.0D, 67.0D, 20.0D, 21.0D);
+    private static final Box AREA = new Box(10.0D, 13.0D, 64.0D, 67.0D, 20.0D, 21.0D);
 
     @Test
     void rimCoversEveryCornerWithAQuantizedColor() {
@@ -69,7 +69,7 @@ class ClientViewEmittersTest {
         }
         List<ClientViewMessage.FxEmitter> open = new ArrayList<ClientViewMessage.FxEmitter>();
         ClientViewEmitters.ambient(new ClientViewEmitters.Ambient(AmbientParticleStyle.OUTLINE, 0x123456, true, 1, 1, AREA, outline), open);
-        assertEquals(ClientViewProtocol.MAX_FX_EMITTERS, open.size());
+        assertEquals(ViewStreamLimits.MAX_FX_EMITTERS, open.size());
         assertEquals(13, open.get(0).ticks());
         List<ClientViewMessage.FxEmitter> off = new ArrayList<ClientViewMessage.FxEmitter>();
         ClientViewEmitters.ambient(new ClientViewEmitters.Ambient(AmbientParticleStyle.OFF, 0, true, 1, 1, AREA, outline), off);
@@ -78,12 +78,12 @@ class ClientViewEmittersTest {
 
     @Test
     void animationsRoundTripTheirModeCenterPlaneAndQuality() {
-        GeometryVector[] sizes = {new GeometryVector(3.0D, 4.0D, 0.0D), new GeometryVector(0.0D, 4.0D, 2.0D), new GeometryVector(5.0D, 0.0D, 5.0D),
-            new GeometryVector(0.0D, 1.0D, 0.0D), new GeometryVector(1.0D, 1.0D, 1.0D), new GeometryVector(2.0D, 0.0D, 0.0D)};
+        Vec3[] sizes = {new Vec3(3.0D, 4.0D, 0.0D), new Vec3(0.0D, 4.0D, 2.0D), new Vec3(5.0D, 0.0D, 5.0D),
+            new Vec3(0.0D, 1.0D, 0.0D), new Vec3(1.0D, 1.0D, 1.0D), new Vec3(2.0D, 0.0D, 0.0D)};
         for (PortalAnimation.Mode mode : PortalAnimation.Mode.values()) {
             for (VisualQualityProfile quality : VisualQualityProfile.values()) {
-                for (GeometryVector size : sizes) {
-                    GeometryVector center = new GeometryVector(10.5D, 66.25D, -20.5D);
+                for (Vec3 size : sizes) {
+                    Vec3 center = new Vec3(10.5D, 66.25D, -20.5D);
                     ClientViewMessage.FxEmitter emitter = ClientViewEmitters.animation(mode, center, size, quality);
                     assertEquals(ClientViewMessage.FxKind.ANIMATION, emitter.kind());
                     assertTrue(ClientViewEmitters.oneShot(emitter));

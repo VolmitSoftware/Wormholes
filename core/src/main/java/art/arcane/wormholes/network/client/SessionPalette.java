@@ -6,6 +6,7 @@ import java.util.BitSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import art.arcane.optics.stream.ViewStreamLimits;
 
 public final class SessionPalette {
     public static final String AIR = "minecraft:air";
@@ -71,7 +72,7 @@ public final class SessionPalette {
     }
 
     public static boolean reserved(int id) {
-        return id >= 0 && id < ClientViewProtocol.RESERVED_PALETTE_IDS;
+        return id >= 0 && id < ViewStreamLimits.RESERVED_PALETTE_IDS;
     }
 
     public static String canonical(String state) {
@@ -122,7 +123,7 @@ public final class SessionPalette {
             return known;
         }
         int id = size;
-        if (id >= ClientViewProtocol.MAX_SESSION_PALETTE_SIZE) {
+        if (id >= ViewStreamLimits.MAX_SESSION_PALETTE_SIZE) {
             throw new IllegalStateException("session palette exhausted at " + id + " states");
         }
         String[] current = states;
@@ -177,7 +178,7 @@ public final class SessionPalette {
 
         public void reset() {
             sent.clear();
-            sent.set(0, ClientViewProtocol.RESERVED_PALETTE_IDS);
+            sent.set(0, ViewStreamLimits.RESERVED_PALETTE_IDS);
         }
     }
 }

@@ -13,21 +13,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import art.arcane.wormholes.network.client.Brick;
-import art.arcane.wormholes.network.client.BrickCodec;
+import art.arcane.optics.stream.Brick;
+import art.arcane.optics.stream.BrickCodec;
 import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.wormholes.network.client.ClientViewHandshake;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewMessageType;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
-import art.arcane.wormholes.network.client.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamMessageType;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.ClientViewProtocolException;
 import art.arcane.wormholes.network.client.PlatePatchEncoder;
 import art.arcane.wormholes.network.client.SessionPalette;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
+import art.arcane.optics.aperture.ApertureDescriptor;
 
 final class ClientModel {
     final Map<Integer, String> palette = new HashMap<Integer, String>();
-    final Map<Integer, ClientPortalGeometry> portals = new HashMap<Integer, ClientPortalGeometry>();
+    final Map<Integer, ApertureDescriptor> portals = new HashMap<Integer, ApertureDescriptor>();
     final Map<Integer, Brick[]> plates = new HashMap<Integer, Brick[]>();
     final Map<Integer, Integer> plateRevisions = new HashMap<Integer, Integer>();
     final Map<Long, Brick> brickCache = new HashMap<Long, Brick>();
@@ -35,7 +35,7 @@ final class ClientModel {
     final List<ClientViewMessage> received = new ArrayList<ClientViewMessage>();
     final List<byte[]> outbound = new ArrayList<byte[]>();
     final Map<Integer, OpenPlate> open = new HashMap<Integer, OpenPlate>();
-    final Map<ClientViewMessageType, Integer> closedByType = new EnumMap<ClientViewMessageType, Integer>(ClientViewMessageType.class);
+    final Map<ViewStreamMessageType, Integer> closedByType = new EnumMap<ViewStreamMessageType, Integer>(ViewStreamMessageType.class);
     final List<ClientViewMessage.BrickMiss.Plate> pendingMisses = new ArrayList<ClientViewMessage.BrickMiss.Plate>();
     long caps;
     long salt;
@@ -160,8 +160,8 @@ final class ClientModel {
             default -> {
             }
         }
-        if (message.type() == ClientViewMessageType.OFFER || message.type() == ClientViewMessageType.ACCEPT
-            || message.type() == ClientViewMessageType.DECLINE) {
+        if (message.type() == ViewStreamMessageType.OFFER || message.type() == ViewStreamMessageType.ACCEPT
+            || message.type() == ViewStreamMessageType.DECLINE) {
             return;
         }
         lastSeq = decoded.seq();
@@ -173,7 +173,7 @@ final class ClientModel {
 
     byte[] hello(int dataVersion, long clientCaps, String brand, long nonceFound) throws ClientViewProtocolException {
         return ClientViewCodec.encodeC2S(ClientViewHandshake.clientHello(offer, dataVersion, clientCaps,
-            ClientViewProtocol.DEFAULT_MAX_FRAME_BYTES, 256, nonceFound, brand));
+            ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 256, nonceFound, brand));
     }
 
     byte[] ack() throws ClientViewProtocolException {
@@ -185,7 +185,7 @@ final class ClientModel {
         return ClientViewCodec.encodeC2S(new ClientViewMessage.Ack(seq, 0, 1));
     }
 
-    int closed(ClientViewMessageType type) {
+    int closed(ViewStreamMessageType type) {
         Integer count = closedByType.get(type);
         return count == null ? 0 : count;
     }
@@ -194,7 +194,7 @@ final class ClientModel {
         return new ArrayList<ClientViewMessage>(received.subList(index, received.size()));
     }
 
-    int count(ClientViewMessageType type) {
+    int count(ViewStreamMessageType type) {
         int count = 0;
         for (ClientViewMessage message : received) {
             if (message.type() == type) {
@@ -237,9 +237,9 @@ final class ClientModel {
 
     private void resetPalette() {
         palette.clear();
-        palette.put(ClientViewProtocol.PALETTE_AIR, SessionPalette.AIR);
-        palette.put(ClientViewProtocol.PALETTE_OCCLUDED, SessionPalette.OCCLUDED);
-        palette.put(ClientViewProtocol.PALETTE_BACKING, SessionPalette.BACKING);
+        palette.put(ViewStreamLimits.PALETTE_AIR, SessionPalette.AIR);
+        palette.put(ViewStreamLimits.PALETTE_OCCLUDED, SessionPalette.OCCLUDED);
+        palette.put(ViewStreamLimits.PALETTE_BACKING, SessionPalette.BACKING);
     }
 
     static final class OpenPlate {

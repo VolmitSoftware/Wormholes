@@ -5,6 +5,7 @@ import org.bukkit.World;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
+import art.arcane.optics.plate.ChunkLeaseRegistry;
 
 public final class BukkitChunkLeaseProvider {
     private static final AtomicReference<ChunkLeaseRegistry<World>> REGISTRY = new AtomicReference<>();

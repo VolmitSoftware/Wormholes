@@ -11,7 +11,7 @@ import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.BlackoutColor;
 import art.arcane.wormholes.portal.DimensionalPortalKind;
 import art.arcane.wormholes.portal.LocalPortal;
-import art.arcane.wormholes.portal.MirrorRotation;
+import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.wormholes.portal.PortalPermissionMode;
 import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.wormholes.portal.PortalType;
@@ -222,7 +222,7 @@ class PortalSettingsSyncTest {
 
         assertEquals(ProjectionMode.OFF, remote.getMirroredProjectionMode());
         assertTrue(remote.isMirroredMirrorMode());
-        assertEquals(MirrorRotation.DEGREES_270, remote.getMirroredProjectionRotation());
+        assertEquals(QuarterTurn.DEGREES_270, remote.getMirroredProjectionRotation());
         assertEquals(PortalPermissionMode.WHITELIST, remote.getMirroredPermissionMode());
         assertFalse(remote.isMirroredOutgoingTraversalsEnabled());
         assertFalse(remote.isMirroredIncomingTraversalsEnabled());
@@ -407,11 +407,11 @@ class PortalSettingsSyncTest {
     @Test
     void malformedMirrorRotationPreservesPreviousValue() {
         RemotePortal remote = newRemotePortal("alpha", UUID.randomUUID());
-        remote.setMirroredProjectionRotation(MirrorRotation.DEGREES_180);
+        remote.setMirroredProjectionRotation(QuarterTurn.DEGREES_180);
 
         PortalSettingsCodec.applyToRemote(remote, Map.of(PortalSettingsCodec.KEY_MIRROR_ROTATION, "not-a-number"));
 
-        assertEquals(MirrorRotation.DEGREES_180, remote.getMirroredProjectionRotation());
+        assertEquals(QuarterTurn.DEGREES_180, remote.getMirroredProjectionRotation());
     }
 
     @Test
@@ -448,7 +448,7 @@ class PortalSettingsSyncTest {
         assertNotNull(remote);
         assertEquals(ProjectionMode.ON, remote.getMirroredProjectionMode());
         assertTrue(remote.isMirroredMirrorMode());
-        assertEquals(MirrorRotation.DEGREES_180, remote.getMirroredProjectionRotation());
+        assertEquals(QuarterTurn.DEGREES_180, remote.getMirroredProjectionRotation());
         assertFalse(remote.isMirroredIncomingTraversalsEnabled());
         assertFalse(remote.acceptsInboundTraversal());
     }

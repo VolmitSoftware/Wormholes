@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.bukkit.Location;
 import org.bukkit.util.Vector;
 import org.junit.jupiter.api.Test;
+import art.arcane.optics.entity.EntityVisualProjection;
 
 public final class ProjectedEntityRendererLookDirectionTest {
 	@Test

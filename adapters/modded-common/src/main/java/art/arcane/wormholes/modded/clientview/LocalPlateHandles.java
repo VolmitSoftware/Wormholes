@@ -1,8 +1,8 @@
 package art.arcane.wormholes.modded.clientview;
 
-import art.arcane.wormholes.network.client.BrickLightSource;
+import art.arcane.optics.stream.BrickLightSource;
 import art.arcane.wormholes.network.client.PlateHandoff;
-import art.arcane.wormholes.render.plate.ViewPlate;
+import art.arcane.optics.plate.ViewPlate;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.security.SecureRandom;

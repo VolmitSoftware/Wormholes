@@ -7,13 +7,14 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import art.arcane.optics.entity.EntitySnapshot;
 
 class ViewServerBlobRecaptureGateTest {
     private static final long INTERVAL = 40L;
     private static final int UNCHANGED_STATE = 0;
 
-    private static EntityVisual visual() {
-        return EntityVisual.full(
+    private static EntitySnapshot visual() {
+        return EntitySnapshot.full(
             new UUID(1L, 2L),
             "minecraft:zombie",
             0.0D, 64.0D, 0.0D,

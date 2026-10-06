@@ -14,17 +14,17 @@ import org.bukkit.World;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.portal.ILocalPortal;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalStructure;
-import art.arcane.wormholes.util.Axis;
-import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Axis;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Face;
 
 final class ProjectionPortalOcclusionTest {
     @Test
     void nearerApertureFullyCoversAlignedFartherPortal() {
-        AxisAlignedBB nearer = new AxisAlignedBB(-3.0D, 3.0D, 61.0D, 69.0D, 5.0D, 5.0D);
-        AxisAlignedBB farther = new AxisAlignedBB(-2.0D, 2.0D, 62.0D, 68.0D, 10.0D, 10.0D);
+        Box nearer = new Box(-3.0D, 3.0D, 61.0D, 69.0D, 5.0D, 5.0D);
+        Box farther = new Box(-2.0D, 2.0D, 62.0D, 68.0D, 10.0D, 10.0D);
 
         assertTrue(ProjectionPortalOcclusion.fullyOccludes(
             0.0D, 65.0D, 0.0D, nearer, Axis.Z, farther));
@@ -32,8 +32,8 @@ final class ProjectionPortalOcclusionTest {
 
     @Test
     void uncoveredFartherCornerKeepsPortalVisible() {
-        AxisAlignedBB nearer = new AxisAlignedBB(-1.0D, 1.0D, 63.0D, 67.0D, 5.0D, 5.0D);
-        AxisAlignedBB farther = new AxisAlignedBB(-3.0D, 3.0D, 61.0D, 69.0D, 10.0D, 10.0D);
+        Box nearer = new Box(-1.0D, 1.0D, 63.0D, 67.0D, 5.0D, 5.0D);
+        Box farther = new Box(-3.0D, 3.0D, 61.0D, 69.0D, 10.0D, 10.0D);
 
         assertFalse(ProjectionPortalOcclusion.fullyOccludes(
             0.0D, 65.0D, 0.0D, nearer, Axis.Z, farther));
@@ -41,8 +41,8 @@ final class ProjectionPortalOcclusionTest {
 
     @Test
     void offsetPortalWithVisibleEdgeRemainsProjected() {
-        AxisAlignedBB nearer = new AxisAlignedBB(-3.0D, 3.0D, 61.0D, 69.0D, 5.0D, 5.0D);
-        AxisAlignedBB farther = new AxisAlignedBB(4.0D, 8.0D, 62.0D, 68.0D, 10.0D, 10.0D);
+        Box nearer = new Box(-3.0D, 3.0D, 61.0D, 69.0D, 5.0D, 5.0D);
+        Box farther = new Box(4.0D, 8.0D, 62.0D, 68.0D, 10.0D, 10.0D);
 
         assertFalse(ProjectionPortalOcclusion.fullyOccludes(
             0.0D, 65.0D, 0.0D, nearer, Axis.Z, farther));
@@ -50,8 +50,8 @@ final class ProjectionPortalOcclusionTest {
 
     @Test
     void portalInFrontOfCandidateCannotOccludeIt() {
-        AxisAlignedBB claimedNearer = new AxisAlignedBB(-3.0D, 3.0D, 61.0D, 69.0D, 10.0D, 10.0D);
-        AxisAlignedBB actualNearer = new AxisAlignedBB(-2.0D, 2.0D, 62.0D, 68.0D, 5.0D, 5.0D);
+        Box claimedNearer = new Box(-3.0D, 3.0D, 61.0D, 69.0D, 10.0D, 10.0D);
+        Box actualNearer = new Box(-2.0D, 2.0D, 62.0D, 68.0D, 5.0D, 5.0D);
 
         assertFalse(ProjectionPortalOcclusion.fullyOccludes(
             0.0D, 65.0D, 0.0D, claimedNearer, Axis.Z, actualNearer));
@@ -59,8 +59,8 @@ final class ProjectionPortalOcclusionTest {
 
     @Test
     void obliqueFullCoverageIsRecognized() {
-        AxisAlignedBB nearer = new AxisAlignedBB(2.0D, 2.0D, 61.0D, 69.0D, -3.0D, 3.0D);
-        AxisAlignedBB farther = new AxisAlignedBB(5.0D, 5.0D, 63.0D, 67.0D, -1.0D, 1.0D);
+        Box nearer = new Box(2.0D, 2.0D, 61.0D, 69.0D, -3.0D, 3.0D);
+        Box farther = new Box(5.0D, 5.0D, 63.0D, 67.0D, -1.0D, 1.0D);
 
         assertTrue(ProjectionPortalOcclusion.fullyOccludes(
             0.0D, 65.0D, 0.0D, nearer, Axis.X, farther));
@@ -68,8 +68,8 @@ final class ProjectionPortalOcclusionTest {
 
     @Test
     void eyeInsideNearPortalPlaneFailsOpen() {
-        AxisAlignedBB nearer = new AxisAlignedBB(-3.0D, 3.0D, 61.0D, 69.0D, 0.0D, 1.0D);
-        AxisAlignedBB farther = new AxisAlignedBB(-2.0D, 2.0D, 62.0D, 68.0D, 10.0D, 10.0D);
+        Box nearer = new Box(-3.0D, 3.0D, 61.0D, 69.0D, 0.0D, 1.0D);
+        Box farther = new Box(-2.0D, 2.0D, 62.0D, 68.0D, 10.0D, 10.0D);
 
         assertFalse(ProjectionPortalOcclusion.fullyOccludes(
             0.0D, 65.0D, 0.5D, nearer, Axis.Z, farther));
@@ -79,9 +79,9 @@ final class ProjectionPortalOcclusionTest {
     void fullyCoveredPortalIsRejectedByNearerFrontToBackList() {
         World world = world();
         ILocalPortal nearer = portal(world,
-            new AxisAlignedBB(-3.0D, 3.0D, 61.0D, 69.0D, 5.0D, 5.0D), true);
+            new Box(-3.0D, 3.0D, 61.0D, 69.0D, 5.0D, 5.0D), true);
         ILocalPortal farther = portal(world,
-            new AxisAlignedBB(-2.0D, 2.0D, 62.0D, 68.0D, 10.0D, 10.0D), true);
+            new Box(-2.0D, 2.0D, 62.0D, 68.0D, 10.0D, 10.0D), true);
         assertTrue(ProjectionPortalOcclusion.isFullyOccluded(
             new Location(world, 0.0D, 65.0D, 0.0D), List.of(nearer), farther));
     }
@@ -90,9 +90,9 @@ final class ProjectionPortalOcclusionTest {
     void irregularNearPortalFailsOpen() {
         World world = world();
         ILocalPortal nearer = portal(world,
-            new AxisAlignedBB(-3.0D, 3.0D, 61.0D, 69.0D, 5.0D, 5.0D), false);
+            new Box(-3.0D, 3.0D, 61.0D, 69.0D, 5.0D, 5.0D), false);
         ILocalPortal farther = portal(world,
-            new AxisAlignedBB(-2.0D, 2.0D, 62.0D, 68.0D, 10.0D, 10.0D), true);
+            new Box(-2.0D, 2.0D, 62.0D, 68.0D, 10.0D, 10.0D), true);
         assertFalse(ProjectionPortalOcclusion.isFullyOccluded(
             new Location(world, 0.0D, 65.0D, 0.0D), List.of(nearer), farther));
     }
@@ -108,10 +108,10 @@ final class ProjectionPortalOcclusionTest {
             ProjectionPortalOcclusionTest.class.getClassLoader(), new Class<?>[] { World.class }, handler);
     }
 
-    private static ILocalPortal portal(World world, AxisAlignedBB area, boolean fullCuboid) {
+    private static ILocalPortal portal(World world, Box area, boolean fullCuboid) {
         PortalStructure structure = new TestPortalStructure(area, fullCuboid);
         UUID id = UUID.randomUUID();
-        PortalFrame frame = PortalFrame.canonical(Direction.S);
+        Frame frame = Frame.canonical(Face.S);
         InvocationHandler handler = (Object proxy, Method method, Object[] args) -> switch (method.getName()) {
             case "getWorld" -> world;
             case "getStructure" -> structure;
@@ -127,16 +127,16 @@ final class ProjectionPortalOcclusionTest {
     }
 
     private static final class TestPortalStructure extends PortalStructure {
-        private final AxisAlignedBB area;
+        private final Box area;
         private final boolean fullCuboid;
 
-        private TestPortalStructure(AxisAlignedBB area, boolean fullCuboid) {
+        private TestPortalStructure(Box area, boolean fullCuboid) {
             this.area = area;
             this.fullCuboid = fullCuboid;
         }
 
         @Override
-        public AxisAlignedBB getArea() {
+        public Box getArea() {
             return area;
         }
 

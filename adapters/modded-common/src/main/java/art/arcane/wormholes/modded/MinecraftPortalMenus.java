@@ -3,16 +3,15 @@ package art.arcane.wormholes.modded;
 import art.arcane.volmlib.util.localization.LinesKey;
 import art.arcane.volmlib.util.localization.MessageArgs;
 import art.arcane.volmlib.util.localization.TextKey;
-import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.network.NetworkManager;
 import art.arcane.wormholes.portal.DimensionalPortalKind;
-import art.arcane.wormholes.portal.MirrorRotation;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.QuarterTurn;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.ProjectionMode;
 import art.arcane.wormholes.portal.rtp.RtpSettings;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
@@ -657,7 +656,7 @@ public final class MinecraftPortalMenus implements AutoCloseable {
         List<String> lore = element.getLore();
         lore.add(MinecraftLegacyText.text(viewer, WormholesMessages.PORTAL_MENU_MIRROR_ROTATION,
             MinecraftPortalText.arguments("degrees", mirrorRotation(viewer, portal).getDegrees())));
-        if (runtime.clientViews().nativeMesh(viewer) || MirrorRotation.supportsQuarterTurns(portal.getFrame())) {
+        if (runtime.clientViews().nativeMesh(viewer) || QuarterTurn.supportsQuarterTurns(portal.getFrame())) {
             lore.add(MinecraftLegacyText.text(viewer, WormholesMessages.PORTAL_MENU_MIRROR_ROTATE_CLOCKWISE));
             lore.add(MinecraftLegacyText.text(viewer, WormholesMessages.PORTAL_MENU_MIRROR_ROTATE_COUNTERCLOCKWISE));
             return;
@@ -665,12 +664,12 @@ public final class MinecraftPortalMenus implements AutoCloseable {
         lore.addAll(MinecraftLegacyText.lines(viewer, WormholesMessages.PORTAL_MENU_MIRROR_FLIP, MessageArgs.empty()));
     }
 
-    private MirrorRotation mirrorRotation(ServerPlayer viewer, MinecraftPortal portal) {
+    private QuarterTurn mirrorRotation(ServerPlayer viewer, MinecraftPortal portal) {
         return runtime.clientViews().nativeMesh(viewer) ? portal.getMirrorRotation() : portal.getMirrorRotation().coherentFor(portal.getFrame());
     }
 
     private void rotateMirrorImage(MinecraftElement element, MinecraftWindow window, ServerPlayer viewer, MinecraftPortal portal,
-                                   MirrorRotation rotation) {
+                                   QuarterTurn rotation) {
         if (!portal.isMirrorMode()) {
             MinecraftPortalText.notifySetting(viewer, portal, WormholesMessages.PORTAL_MIRROR_SELECT_FIRST);
             return;
@@ -696,7 +695,7 @@ public final class MinecraftPortalMenus implements AutoCloseable {
         MinecraftElement element = MinecraftPortalText.localizedElement(viewer, control.id(), control.label(),
             MinecraftPortalText.arguments("up", MinecraftPortalText.directionLabel(viewer, portal.getFrame().getUp())), control.icon());
         element.onLeftClick(clicked -> runEntity(viewer, () -> {
-            PortalFrame frame = control.apply(portal.getFrame());
+            Frame frame = control.apply(portal.getFrame());
             if (update(viewer, portal, target -> target.setFrame(frame))) {
                 MessageArgs arguments = control == FrameControl.FLIP
                     ? MinecraftPortalText.arguments("portal", portal.getName(), "direction", MinecraftPortalText.directionLabel(viewer, portal.getDirection()))
@@ -721,8 +720,8 @@ public final class MinecraftPortalMenus implements AutoCloseable {
                 return;
             }
             Vec3 look = player.getLookAngle();
-            PortalFrame frame = PortalFrame.fromDirectionAndLook(Direction.closest(look.x, look.y, look.z),
-                new GeometryVector(look.x, look.y, look.z));
+            Frame frame = Frame.fromDirectionAndLook(Face.closest(look.x, look.y, look.z),
+                new art.arcane.optics.math.Vec3(look.x, look.y, look.z));
             if (!update(player, portal, target -> target.setFrame(frame))) {
                 return;
             }
@@ -744,7 +743,7 @@ public final class MinecraftPortalMenus implements AutoCloseable {
             }
             Vec3 look = player.getLookAngle();
             shortTitles.send(player, prompt.portalId(),
-                GRAY_BOLD + MinecraftPortalText.directionLabel(player, Direction.closest(look.x, look.y, look.z)));
+                GRAY_BOLD + MinecraftPortalText.directionLabel(player, Face.closest(look.x, look.y, look.z)));
         }
     }
 
@@ -808,7 +807,7 @@ public final class MinecraftPortalMenus implements AutoCloseable {
             };
         }
 
-        PortalFrame apply(PortalFrame frame) {
+        Frame apply(Frame frame) {
             return switch (this) {
                 case FLIP -> frame.flipNormal();
                 case COUNTER_CLOCKWISE -> frame.rotateCounterClockwise();

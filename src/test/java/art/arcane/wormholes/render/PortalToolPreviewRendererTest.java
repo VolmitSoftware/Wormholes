@@ -17,14 +17,14 @@ import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 import org.junit.jupiter.api.Test;
 
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import art.arcane.wormholes.portal.ToolPreviewGeometry;
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.portal.ILocalPortal;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalStructure;
-import art.arcane.wormholes.util.Axis;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Axis;
+import art.arcane.optics.math.Face;
 
 public final class PortalToolPreviewRendererTest
 {
@@ -66,7 +66,7 @@ public final class PortalToolPreviewRendererTest
 			Player viewer = player(viewerWorld, new Location(viewerWorld, 0.5D, 64.5D, 4.0D), outlineParticles, fillParticles);
 			PortalToolPreviewRenderer renderer = new PortalToolPreviewRenderer();
 
-			renderer.render(viewer, List.of(portal(viewerWorld, structureGrid(100, 20, 0, 64, 0), Direction.N)));
+			renderer.render(viewer, List.of(portal(viewerWorld, structureGrid(100, 20, 0, 64, 0), Face.N)));
 			assertEquals(ToolPreviewGeometry.MAX_OUTLINE_PARTICLES, outlineParticles.get());
 			assertEquals(ToolPreviewGeometry.MAX_FILL_PARTICLES, fillParticles.get());
 
@@ -75,7 +75,7 @@ public final class PortalToolPreviewRendererTest
 			List<ILocalPortal> crowded = new ArrayList<>(150);
 			for(int index = 0; index < 150; index++)
 			{
-				crowded.add(portal(viewerWorld, structureGrid(1, 1, 0, 64, 0), Direction.N));
+				crowded.add(portal(viewerWorld, structureGrid(1, 1, 0, 64, 0), Face.N));
 			}
 			renderer.render(viewer, crowded);
 			assertEquals(ToolPreviewGeometry.MAX_OUTLINE_PARTICLES, outlineParticles.get());
@@ -83,11 +83,11 @@ public final class PortalToolPreviewRendererTest
 
 			outlineParticles.set(0);
 			fillParticles.set(0);
-			renderer.render(viewer, List.of(portal(viewerWorld, structureGrid(1, 1, 100, 64, 0), Direction.N)));
+			renderer.render(viewer, List.of(portal(viewerWorld, structureGrid(1, 1, 100, 64, 0), Face.N)));
 			assertEquals(0, outlineParticles.get());
 			assertEquals(0, fillParticles.get());
 
-			renderer.render(viewer, List.of(portal(otherWorld, structureGrid(1, 1, 0, 64, 0), Direction.N)));
+			renderer.render(viewer, List.of(portal(otherWorld, structureGrid(1, 1, 0, 64, 0), Face.N)));
 			assertEquals(0, outlineParticles.get());
 			assertEquals(0, fillParticles.get());
 		}
@@ -110,10 +110,10 @@ public final class PortalToolPreviewRendererTest
 		return new MutableStructure(blocks);
 	}
 
-	private static ILocalPortal portal(World world, PortalStructure structure, Direction normal)
+	private static ILocalPortal portal(World world, PortalStructure structure, Face normal)
 	{
 		UUID portalId = UUID.randomUUID();
-		PortalFrame frame = PortalFrame.canonical(normal);
+		Frame frame = Frame.canonical(normal);
 		return (ILocalPortal) Proxy.newProxyInstance(ILocalPortal.class.getClassLoader(), new Class<?>[] {ILocalPortal.class},
 			(proxy, method, arguments) -> switch(method.getName())
 			{
@@ -182,10 +182,10 @@ public final class PortalToolPreviewRendererTest
 
 		private void replace(List<Vector> replacement)
 		{
-			List<GeometryVector> cells = new ArrayList<>(replacement.size());
+			List<Vec3> cells = new ArrayList<>(replacement.size());
 			for(Vector position : replacement)
 			{
-				cells.add(new GeometryVector(position.getX(), position.getY(), position.getZ()));
+				cells.add(new Vec3(position.getX(), position.getY(), position.getZ()));
 			}
 			geometry().setBlocks(cells);
 		}

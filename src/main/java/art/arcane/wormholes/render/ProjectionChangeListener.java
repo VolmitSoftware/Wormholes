@@ -32,13 +32,14 @@ import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.world.StructureGrowEvent;
 import org.bukkit.event.world.WorldUnloadEvent;
+import art.arcane.optics.view.WorldChangeTracker;
 
 public final class ProjectionChangeListener implements Listener {
     private static final BlockFace[] NEIGHBORS = {BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST, BlockFace.UP, BlockFace.DOWN};
 
-    private final ProjectionWorldChangeTracker tracker;
+    private final WorldChangeTracker tracker;
 
-    public ProjectionChangeListener(ProjectionWorldChangeTracker tracker) {
+    public ProjectionChangeListener(WorldChangeTracker tracker) {
         this.tracker = tracker;
     }
 

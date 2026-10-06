@@ -1,13 +1,12 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.AmbientSparkCadence;
 import art.arcane.wormholes.portal.PortalType;
-import art.arcane.wormholes.render.ProjectedBlockClaim;
-import art.arcane.wormholes.render.ProjectionCellKey;
-import art.arcane.wormholes.render.ProjectionClaimSet;
-import art.arcane.wormholes.render.view.ProjectionContentView;
+import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.claim.ProjectionClaimSet;
+import art.arcane.optics.view.ContentView;
 import io.netty.channel.embedded.EmbeddedChannel;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -48,7 +47,7 @@ final class MinecraftPortalSurfaceGameTest {
         BlockPos cell = helper.absolutePos(new BlockPos(24, 3, 4));
         MinecraftPortal portal = runtime.portals().create(player.getUUID(), helper.getLevel(), List.of(cell, cell.above()),
             PortalType.PORTAL, new Vec3(0, 0, -1));
-        ProjectionClaimSet<ProjectedBlockClaim<BlockState, ProjectionContentView<BlockState, BlockState>>> claims = new ProjectionClaimSet<>();
+        ProjectionClaimSet<ProjectedBlockClaim<BlockState, ContentView<BlockState, BlockState>>> claims = new ProjectionClaimSet<>();
         LongOpenHashSet staged = new LongOpenHashSet();
         MinecraftProjectorPortalAccess access = new MinecraftProjectorPortalAccess(runtime);
         Vec3 previous = player.position();
@@ -91,7 +90,7 @@ final class MinecraftPortalSurfaceGameTest {
             helper.assertTrue(sparks.size() == 1 && sparks.get(0).particle() == ParticleTypes.MYCELIUM, "Spark burst was not one particle packet");
             helper.assertTrue(sparks.get(0).count() == (portal.isOpen() ? 4 : 1) && sparks.get(0).xDist() == (float) AmbientSparkCadence.CELL_SPREAD,
                 "Spark burst lost its count or cell spread");
-            helper.assertTrue(portal.getGeometry().contains(new GeometryVector(sparks.get(0).x(), sparks.get(0).y(), sparks.get(0).z())),
+            helper.assertTrue(portal.getGeometry().contains(new art.arcane.optics.math.Vec3(sparks.get(0).x(), sparks.get(0).y(), sparks.get(0).z())),
                 "Spark burst left the aperture cells");
             surfaces.update(List.of(portal), access, 11);
             helper.assertTrue(particles(channel).isEmpty(), "Sparks were sent between five-tick steps");
@@ -99,13 +98,13 @@ final class MinecraftPortalSurfaceGameTest {
             surfaces.update(List.of(portal), access, 7);
             claims.resolveStaged(staged);
             staged.clear();
-            long key = ProjectionCellKey.pack(cell.getX(), cell.getY(), cell.getZ());
+            long key = CellKeys.pack(cell.getX(), cell.getY(), cell.getZ());
             helper.assertTrue(claims.getWinningClaim(key) != null && claims.getWinningClaim(key).getData().is(Blocks.WATER),
                 "Water skin did not claim aperture cells");
             channel.runPendingTasks();
             helper.assertTrue(channel.outboundMessages().stream().anyMatch(packet -> packet instanceof ClientboundRemoveEntitiesPacket removed
                 && removed.entityIds().contains(display)), "Changing to fluid did not remove skin display");
-            Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockState, ProjectionContentView<BlockState, BlockState>>> behind = new Long2ObjectOpenHashMap<>();
+            Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockState, ContentView<BlockState, BlockState>>> behind = new Long2ObjectOpenHashMap<>();
             behind.put(key, new ProjectedBlockClaim<>(Blocks.STONE.defaultBlockState(), null, ProjectedBlockClaim.NO_REMOTE_KEY, false));
             UUID background = UUID.randomUUID();
             claims.replacePortalClaims(background, background.toString(), 100, behind);

@@ -1,10 +1,9 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.ops.importers.ImportedPortal;
 import art.arcane.wormholes.ops.importers.PortalFactoryBridge;
 import art.arcane.wormholes.portal.PortalType;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -67,7 +66,7 @@ final class MinecraftPortalImporter implements PortalFactoryBridge {
             return CreateResult.refused("Aperture has invalid dimensions or exceeds world height");
         }
         List<BlockPos> cells = new ArrayList<>(portal.width() * portal.height());
-        boolean alongX = portal.facing() == Direction.N || portal.facing() == Direction.S;
+        boolean alongX = portal.facing() == Face.N || portal.facing() == Face.S;
         for (int across = 0; across < portal.width(); across++) {
             for (int up = 0; up < portal.height(); up++) {
                 BlockPos cell = new BlockPos(portal.x() + (alongX ? across : 0), portal.y() + up,
@@ -78,7 +77,7 @@ final class MinecraftPortalImporter implements PortalFactoryBridge {
                 cells.add(cell);
             }
         }
-        GeometryVector normal = portal.facing().toVector();
+        art.arcane.optics.math.Vec3 normal = portal.facing().toVector();
         try {
             MinecraftPortal created = options.runtime().portals().create(options.owner(), level, cells,
                 PortalType.PORTAL, new Vec3(normal.x(), normal.y(), normal.z()));

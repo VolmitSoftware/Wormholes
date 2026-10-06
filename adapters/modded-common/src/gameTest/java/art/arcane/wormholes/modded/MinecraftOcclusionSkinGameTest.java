@@ -1,15 +1,14 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.modded.mixin.DoorDisplayDataAccess;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
-import art.arcane.wormholes.render.PortalCoordMap;
-import art.arcane.wormholes.render.ProjectedBlockClaim;
-import art.arcane.wormholes.render.ProjectionCellKey;
-import art.arcane.wormholes.render.ProjectionClaimSet;
-import art.arcane.wormholes.render.view.ProjectionContentView;
-import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.optics.frame.PortalCoordMap;
+import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.claim.ProjectionClaimSet;
+import art.arcane.optics.view.ContentView;
+import art.arcane.optics.math.Box;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -50,8 +49,8 @@ public final class MinecraftOcclusionSkinGameTest {
         destination = runtime.portals().create(player.getUUID(), helper.getLevel(), cells(14), PortalType.PORTAL, new Vec3(0, 0, -1));
         helper.assertTrue(runtime.portals().link(player, source.getId(), destination.getId()), "Occlusion portals did not link");
         source.setRenderMode(ProjectionRenderMode.VENTICULAR);
-        GeometryVector origin = source.getOrigin();
-        GeometryVector eye = origin.add(source.getFrame().getNormal().toVector().multiply(3.0D));
+        art.arcane.optics.math.Vec3 origin = source.getOrigin();
+        art.arcane.optics.math.Vec3 eye = origin.add(source.getFrame().getNormal().toVector().multiply(3.0D));
         player.setPos(eye.x(), eye.y() - player.getEyeHeight(), eye.z());
     }
 
@@ -97,12 +96,12 @@ public final class MinecraftOcclusionSkinGameTest {
                  new MinecraftPortalProjector.Context(observer.player(), source, ignored -> view, new MinecraftProjectorPortalAccess(runtime), null))) {
             MinecraftPortalProjector.Result result = projector.update(level.getGameTime(), Long.MAX_VALUE);
             helper.assertTrue(result == MinecraftPortalProjector.Result.READY, "Venticular projection pass did not complete: " + result);
-            ProjectedBlockClaim<BlockState, ProjectionContentView<BlockState, BlockState>> coverClaim = projector.claimDelta().claims()
-                .get(ProjectionCellKey.pack(coverCell.getX(), coverCell.getY(), coverCell.getZ()));
+            ProjectedBlockClaim<BlockState, ContentView<BlockState, BlockState>> coverClaim = projector.claimDelta().claims()
+                .get(CellKeys.pack(coverCell.getX(), coverCell.getY(), coverCell.getZ()));
             helper.assertTrue(coverClaim != null && coverClaim.getData().is(cover.getBlock()),
                 "Venticular projection did not place the " + cover.getBlock().getName().getString() + " row in front of the marker");
-            ProjectedBlockClaim<BlockState, ProjectionContentView<BlockState, BlockState>> markerClaim = projector.claimDelta().claims()
-                .get(ProjectionCellKey.pack(markerCell.getX(), markerCell.getY(), markerCell.getZ()));
+            ProjectedBlockClaim<BlockState, ContentView<BlockState, BlockState>> markerClaim = projector.claimDelta().claims()
+                .get(CellKeys.pack(markerCell.getX(), markerCell.getY(), markerCell.getZ()));
             return markerClaim != null && markerClaim.getData().is(marker.getBlock());
         } finally {
             clearScene(level);
@@ -110,7 +109,7 @@ public final class MinecraftOcclusionSkinGameTest {
     }
 
     private void verifySkinFace() {
-        ProjectionClaimSet<ProjectedBlockClaim<BlockState, ProjectionContentView<BlockState, BlockState>>> claims = new ProjectionClaimSet<>();
+        ProjectionClaimSet<ProjectedBlockClaim<BlockState, ContentView<BlockState, BlockState>>> claims = new ProjectionClaimSet<>();
         LongOpenHashSet staged = new LongOpenHashSet();
         source.setSurfaceSkin("minecraft:glass");
         observer.drainPackets();
@@ -145,7 +144,7 @@ public final class MinecraftOcclusionSkinGameTest {
             }
         }
         helper.assertTrue(scale != null && translation != null, "Skin display metadata did not carry its transformation");
-        AxisAlignedBB area = source.getGeometry().getArea();
+        Box area = source.getGeometry().getArea();
         double plane = source.getOrigin().z();
         helper.assertTrue(near(scale.z(), SKIN_DEPTH), "Skin face depth along the portal normal is " + scale.z() + " instead of " + SKIN_DEPTH);
         helper.assertTrue(near(spawn.getZ() + translation.z() + scale.z() / 2.0D, plane), "Skin face is not centered on the portal plane");
@@ -164,8 +163,8 @@ public final class MinecraftOcclusionSkinGameTest {
     }
 
     private BlockPos remote(BlockPos local) {
-        GeometryVector from = source.getOrigin();
-        GeometryVector to = destination.getOrigin();
+        art.arcane.optics.math.Vec3 from = source.getOrigin();
+        art.arcane.optics.math.Vec3 to = destination.getOrigin();
         double[] transformed = new double[3];
         PortalCoordMap.transformPointInto(local.getX() + 0.5D, local.getY() + 0.5D, local.getZ() + 0.5D, from.x(), from.y(), from.z(),
             to.x(), to.y(), to.z(), source.getFrame(), destination.getFrame(), transformed);

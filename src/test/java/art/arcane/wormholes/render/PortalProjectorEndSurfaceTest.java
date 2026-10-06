@@ -2,13 +2,13 @@ package art.arcane.wormholes.render;
 
 import art.arcane.wormholes.portal.DimensionalPortalKind;
 import art.arcane.wormholes.portal.ILocalPortal;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
-import art.arcane.wormholes.render.atmosphere.AtmosphereMode;
+import art.arcane.optics.fidelity.AtmosphereMode;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.util.BukkitGeometry;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -39,6 +39,7 @@ import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import art.arcane.optics.math.CellKeys;
 
 class PortalProjectorEndSurfaceTest {
     @Test
@@ -51,8 +52,8 @@ class PortalProjectorEndSurfaceTest {
             fixture.projector.project(true, false);
             assertTrue(fixture.projector.hasProjection());
             assertEquals(fixture.aperture, fixture.keys(Material.AIR));
-            assertFalse(fixture.keys(Material.AIR).contains(ProjectionCellKey.pack(1, 64, 1)));
-            assertFalse(fixture.keys(Material.AIR).contains(ProjectionCellKey.pack(2, 64, 2)));
+            assertFalse(fixture.keys(Material.AIR).contains(CellKeys.pack(1, 64, 1)));
+            assertFalse(fixture.keys(Material.AIR).contains(CellKeys.pack(2, 64, 2)));
             fixture.sent.clear();
             fixture.projector.close();
             assertEquals(fixture.aperture, fixture.keys(Material.END_PORTAL));
@@ -75,7 +76,7 @@ class PortalProjectorEndSurfaceTest {
             assertEquals(fixture.aperture, fixture.keys(Material.AIR));
             fixture.sent.clear();
             fixture.projector.setRtpProjectionTarget(new PortalProjector.RtpProjectionTarget(fixture.remote, 10, 70, 10,
-                PortalFrame.canonical(Direction.U), 2));
+                Frame.canonical(Face.U), 2));
             assertEquals(fixture.aperture, fixture.keys(Material.END_PORTAL));
         }
     }
@@ -159,7 +160,7 @@ class PortalProjectorEndSurfaceTest {
                         when(cell.getZ()).thenReturn(z);
                         cells.add(cell);
                         if (x != 2 || z != 2) {
-                            aperture.add(ProjectionCellKey.pack(x, 64, z));
+                            aperture.add(CellKeys.pack(x, 64, z));
                         }
                     }
                 }
@@ -170,7 +171,7 @@ class PortalProjectorEndSurfaceTest {
                 when(portal.getWorld()).thenReturn(world);
                 when(portal.getName()).thenReturn("End return");
                 when(portal.getDimensionalPortalKind()).thenReturn(kind);
-                when(portal.getFrame()).thenReturn(PortalFrame.canonical(Direction.U));
+                when(portal.getFrame()).thenReturn(Frame.canonical(Face.U));
                 when(portal.getOrigin()).thenReturn(BukkitGeometry.vector(structure.getCenter()));
                 when(portal.getStructure()).thenReturn(structure);
                 when(portal.isOpen()).thenReturn(true);
@@ -186,7 +187,7 @@ class PortalProjectorEndSurfaceTest {
                 doAnswer(call -> {
                     Location location = call.getArgument(0);
                     BlockData data = call.getArgument(1);
-                    sent.add(new Change(ProjectionCellKey.pack(location.getBlockX(), location.getBlockY(), location.getBlockZ()), data.getMaterial()));
+                    sent.add(new Change(CellKeys.pack(location.getBlockX(), location.getBlockY(), location.getBlockZ()), data.getMaterial()));
                     return null;
                 }).when(observer).sendBlockChange(any(Location.class), any(BlockData.class));
                 localView = view(world, stone);
@@ -194,7 +195,7 @@ class PortalProjectorEndSurfaceTest {
                     int x = call.getArgument(0);
                     int y = call.getArgument(1);
                     int z = call.getArgument(2);
-                    return aperture.contains(ProjectionCellKey.pack(x, y, z)) ? endPortal : stone;
+                    return aperture.contains(CellKeys.pack(x, y, z)) ? endPortal : stone;
                 });
                 sampleLocalMaterials();
                 remoteView = view(remote, stone);
@@ -203,7 +204,7 @@ class PortalProjectorEndSurfaceTest {
                     (player, chunkX, chunkZ) -> true);
                 projector = new PortalProjector(portal, observer, arbiter, target -> target == world ? localView : remoteView, () -> true);
                 projector.setRtpProjectionTarget(new PortalProjector.RtpProjectionTarget(remote, 10, 70, 10,
-                    PortalFrame.canonical(Direction.U), 1));
+                    Frame.canonical(Face.U), 1));
             } catch (RuntimeException | Error failure) {
                 bukkit.close();
                 restoreFidelity();
@@ -216,7 +217,7 @@ class PortalProjectorEndSurfaceTest {
                 int x = call.getArgument(0);
                 int y = call.getArgument(1);
                 int z = call.getArgument(2);
-                return aperture.contains(ProjectionCellKey.pack(x, y, z)) ? Material.END_PORTAL : Material.STONE;
+                return aperture.contains(CellKeys.pack(x, y, z)) ? Material.END_PORTAL : Material.STONE;
             }).when(localView).sampleMaterial(anyInt(), anyInt(), anyInt());
         }
 

@@ -1,9 +1,9 @@
 package art.arcane.wormholes.network.client;
 
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 
 import art.arcane.wormholes.render.client.session.ClientPreparedTravelServer;
-import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
+import art.arcane.optics.view.WorldChangeTracker;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -16,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import art.arcane.optics.stream.ViewStreamLimits;
 
 class ClientPreparedTravelServerTest {
     @Test
@@ -25,16 +26,16 @@ class ClientPreparedTravelServerTest {
         tracker.begin(begin, 0);
         List<ClientViewMessage> sent = new ArrayList<>();
         assertFalse(tracker.ready(new ClientViewMessage.TravelReady(begin.token(), begin.generation(), 1)));
-        byte[] payload = new byte[ClientViewProtocol.TRAVEL_FRAGMENT_BYTES + 17];
+        byte[] payload = new byte[ViewStreamLimits.TRAVEL_FRAGMENT_BYTES + 17];
         for (ClientViewMessage.TravelCoordinate position : begin.chunks()) {
             assertTrue(tracker.column(position, 1, payload));
         }
-        tracker.tick(1, ClientViewProtocol.TRAVEL_FRAGMENT_BYTES, sent::add);
+        tracker.tick(1, ViewStreamLimits.TRAVEL_FRAGMENT_BYTES, sent::add);
         assertInstanceOf(ClientViewMessage.TravelBegin.class, sent.getFirst());
         assertEquals(1, sent.stream().filter(ClientViewMessage.TravelChunk.class::isInstance).count());
         assertTrue(sent.stream().noneMatch(ClientViewMessage.TravelEnd.class::isInstance));
         for (int tick = 2; tick < 30; tick++) {
-            tracker.tick(tick, ClientViewProtocol.TRAVEL_FRAGMENT_BYTES * 2, sent::add);
+            tracker.tick(tick, ViewStreamLimits.TRAVEL_FRAGMENT_BYTES * 2, sent::add);
         }
         ClientViewMessage.TravelEnd end = assertInstanceOf(ClientViewMessage.TravelEnd.class, sent.getLast());
         assertFalse(tracker.ready(new ClientViewMessage.TravelReady(UUID.randomUUID(), begin.generation(), end.contentRevision())));
@@ -54,7 +55,7 @@ class ClientPreparedTravelServerTest {
         for (ClientViewMessage.TravelCoordinate position : begin.chunks()) {
             tracker.column(position, 1, new byte[]{1});
         }
-        tracker.tick(1, ClientViewProtocol.TRAVEL_FRAGMENT_BYTES * 9, sent::add);
+        tracker.tick(1, ViewStreamLimits.TRAVEL_FRAGMENT_BYTES * 9, sent::add);
         ClientViewMessage.TravelEnd end = assertInstanceOf(ClientViewMessage.TravelEnd.class, sent.getLast());
         assertTrue(tracker.ready(new ClientViewMessage.TravelReady(begin.token(), begin.generation(), end.contentRevision())));
         ClientViewMessage.TravelCoordinate dirty = begin.chunks().getFirst();
@@ -63,7 +64,7 @@ class ClientPreparedTravelServerTest {
         assertTrue(tracker.readyRoute(begin.sourcePortal(), 2));
         sent.clear();
         assertTrue(tracker.column(dirty, tracker.nextRevision(dirty), new byte[]{2}));
-        tracker.tick(2, ClientViewProtocol.TRAVEL_FRAGMENT_BYTES * 9, sent::add);
+        tracker.tick(2, ViewStreamLimits.TRAVEL_FRAGMENT_BYTES * 9, sent::add);
         assertEquals(2, sent.size());
         ClientViewMessage.TravelChunk chunk = assertInstanceOf(ClientViewMessage.TravelChunk.class, sent.getFirst());
         assertEquals(begin.token(), chunk.token());
@@ -81,13 +82,13 @@ class ClientPreparedTravelServerTest {
         for (ClientViewMessage.TravelCoordinate position : begin.chunks()) {
             tracker.column(position, 1, new byte[]{1});
         }
-        tracker.tick(1, ClientViewProtocol.TRAVEL_FRAGMENT_BYTES * 9, sent::add);
+        tracker.tick(1, ViewStreamLimits.TRAVEL_FRAGMENT_BYTES * 9, sent::add);
         ClientViewMessage.TravelEnd end = assertInstanceOf(ClientViewMessage.TravelEnd.class, sent.getLast());
         tracker.ready(new ClientViewMessage.TravelReady(begin.token(), begin.generation(), end.contentRevision()));
         assertTrue(tracker.commit(new ClientPreparedTravelServer.Commit(UUID.randomUUID(), begin.sourceWorld(),
-            begin.world().dimension(), begin.arrival(), new GeometryVector(0, 0, 0), 2)).isEmpty());
+            begin.world().dimension(), begin.arrival(), new Vec3(0, 0, 0), 2)).isEmpty());
         assertTrue(tracker.commit(new ClientPreparedTravelServer.Commit(begin.sourcePortal(), begin.world().dimension(),
-            begin.sourceWorld(), begin.arrival(), new GeometryVector(0, 0, 0), 2)).isEmpty());
+            begin.sourceWorld(), begin.arrival(), new Vec3(0, 0, 0), 2)).isEmpty());
         assertTrue(tracker.commit(commit(begin, new ClientViewMessage.TravelPose(17, 64, 0, 0, 0))).isEmpty());
         assertTrue(tracker.commit(commit(begin, begin.arrival())).isPresent());
     }
@@ -109,7 +110,7 @@ class ClientPreparedTravelServerTest {
     @Test
     void destinationWorldClearRevokesReadyBeforeTheOwningTickAndCancelsTheTransaction() throws Exception {
         ClientPreparedTravelServer tracker = new ClientPreparedTravelServer();
-        ProjectionWorldChangeTracker changes = new ProjectionWorldChangeTracker();
+        WorldChangeTracker changes = new WorldChangeTracker();
         UUID world = UUID.randomUUID();
         ClientViewMessage.TravelBegin begin = begin();
         tracker.begin(begin, 0);
@@ -118,7 +119,7 @@ class ClientPreparedTravelServerTest {
         for (ClientViewMessage.TravelCoordinate coordinate : begin.chunks()) {
             assertTrue(tracker.column(coordinate, 1, new byte[]{1}));
         }
-        tracker.tick(1, ClientViewProtocol.TRAVEL_FRAGMENT_BYTES * 9, sent::add);
+        tracker.tick(1, ViewStreamLimits.TRAVEL_FRAGMENT_BYTES * 9, sent::add);
         ClientViewMessage.TravelEnd end = assertInstanceOf(ClientViewMessage.TravelEnd.class, sent.getLast());
         ClientViewMessage.TravelReady ready = new ClientViewMessage.TravelReady(begin.token(), begin.generation(), end.contentRevision());
         assertTrue(tracker.ready(ready));
@@ -128,7 +129,7 @@ class ClientPreparedTravelServerTest {
         assertFalse(tracker.needs(begin.chunks().getFirst()));
         assertFalse(tracker.column(begin.chunks().getFirst(), 2, new byte[]{2}));
         sent.clear();
-        tracker.tick(2, ClientViewProtocol.TRAVEL_FRAGMENT_BYTES, sent::add);
+        tracker.tick(2, ViewStreamLimits.TRAVEL_FRAGMENT_BYTES, sent::add);
         assertEquals(List.of(new ClientViewMessage.TravelCancel(begin.token(), begin.generation())), sent);
         assertTrue(tracker.preparing().isEmpty());
         assertEquals(0, listenerCount(changes));
@@ -137,8 +138,8 @@ class ClientPreparedTravelServerTest {
     @Test
     void normalDirtyColumnsAndOtherWorldClearsDoNotRevokePreparationAndRebindingReleasesListeners() throws Exception {
         ClientPreparedTravelServer tracker = new ClientPreparedTravelServer();
-        ProjectionWorldChangeTracker changes = new ProjectionWorldChangeTracker();
-        ProjectionWorldChangeTracker replacement = new ProjectionWorldChangeTracker();
+        WorldChangeTracker changes = new WorldChangeTracker();
+        WorldChangeTracker replacement = new WorldChangeTracker();
         UUID world = UUID.randomUUID();
         UUID nextWorld = UUID.randomUUID();
         ClientViewMessage.TravelBegin begin = begin();
@@ -162,14 +163,14 @@ class ClientPreparedTravelServerTest {
         assertEquals(0, listenerCount(replacement));
     }
 
-    private static int listenerCount(ProjectionWorldChangeTracker changes) throws ReflectiveOperationException {
-        Field field = ProjectionWorldChangeTracker.class.getDeclaredField("listeners");
+    private static int listenerCount(WorldChangeTracker changes) throws ReflectiveOperationException {
+        Field field = WorldChangeTracker.class.getDeclaredField("listeners");
         field.setAccessible(true);
         return ((Collection<?>) field.get(changes)).size();
     }
 
     private static ClientPreparedTravelServer.Commit commit(ClientViewMessage.TravelBegin begin, ClientViewMessage.TravelPose arrival) {
-        return new ClientPreparedTravelServer.Commit(begin.sourcePortal(), begin.sourceWorld(), begin.world().dimension(), arrival, new GeometryVector(0, 0, 0), 2);
+        return new ClientPreparedTravelServer.Commit(begin.sourcePortal(), begin.sourceWorld(), begin.world().dimension(), arrival, new Vec3(0, 0, 0), 2);
     }
 
     private static ClientViewMessage.TravelBegin begin() {

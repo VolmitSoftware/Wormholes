@@ -1,15 +1,15 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.wormholes.network.client.Brick;
-import art.arcane.wormholes.network.client.BrickCodec;
-import art.arcane.wormholes.network.client.ClientViewCapability;
+import art.arcane.optics.stream.Brick;
+import art.arcane.optics.stream.BrickCodec;
+import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
-import art.arcane.wormholes.network.client.ClientViewProtocolException;
-import art.arcane.wormholes.network.client.PlateSectionBox;
-import art.arcane.wormholes.render.plate.PlateBox;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.PlateSectionBox;
+import art.arcane.optics.plate.PlateBox;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import net.minecraft.core.registries.BuiltInRegistries;
 import org.junit.Test;
@@ -39,7 +39,7 @@ public class ClientPlateStoreTest extends MinecraftTestBase {
         PlateBox cells = new PlateBox(0, 64, 0, 16, 16, 16);
         ClientViewMessage.PlateBegin begin = new ClientViewMessage.PlateBegin(7, 1, sections, cells, 3, 1, null);
         begin = (ClientViewMessage.PlateBegin) ClientViewCodec.decodeS2C(
-            ClientViewCodec.encodeS2C(begin, 1, 0), ClientViewCapability.ALL).message();
+            ClientViewCodec.encodeS2C(begin, 1, 0), ViewStreamCapability.ALL).message();
         assertNull(store.begin(begin));
         assertTrue(store.pending(7));
         assertEquals(1, store.bricks(new ClientViewMessage.PlateBricks(7, 1, List.of(brick(0, 3, 5)))));
@@ -50,7 +50,7 @@ public class ClientPlateStoreTest extends MinecraftTestBase {
         assertEquals(3, plate.paletteIdAt(0, 64, 0));
         assertEquals(5, plate.paletteIdAt(1, 64, 0));
         assertEquals(3, plate.paletteIdAt(15, 79, 15));
-        assertEquals(ClientViewProtocol.PALETTE_AIR, plate.paletteIdAt(16, 64, 0));
+        assertEquals(ViewStreamLimits.PALETTE_AIR, plate.paletteIdAt(16, 64, 0));
         assertEquals(3, plate.backingState());
         assertTrue(store.bytes() > 0L);
         assertTrue(store.bytes() <= store.budgetBytes());
@@ -104,14 +104,14 @@ public class ClientPlateStoreTest extends MinecraftTestBase {
         assertNotNull(store.end(new ClientViewMessage.PlateEnd(3, 1)));
         IntArrayList touched = new IntArrayList();
         ClientViewMessage.PlatePatch patch = new ClientViewMessage.PlatePatch(3, 1, 2, List.of(
-            new ClientViewMessage.SparseOp(0, new int[] {ClientViewProtocol.brickCellIndex(2, 3, 4)}, new int[] {9}),
+            new ClientViewMessage.SparseOp(0, new int[] {ViewStreamLimits.brickCellIndex(2, 3, 4)}, new int[] {9}),
             new ClientViewMessage.ClearOp(1)));
         ClientPlate patched = store.patch(patch, touched);
         assertNotNull(patched);
         assertEquals(2, patched.revision());
         assertEquals(9, patched.paletteIdAt(2, 3, 4));
         assertEquals(3, patched.paletteIdAt(0, 0, 0));
-        assertEquals(ClientViewProtocol.PALETTE_AIR, patched.paletteIdAt(16, 0, 0));
+        assertEquals(ViewStreamLimits.PALETTE_AIR, patched.paletteIdAt(16, 0, 0));
         assertEquals(List.of(0, 1), touched);
         assertNull(store.patch(new ClientViewMessage.PlatePatch(3, 1, 3, List.of(new ClientViewMessage.ClearOp(0))), new IntArrayList()));
         ClientPlate full = store.patch(new ClientViewMessage.PlatePatch(3, 2, 3, List.of(new ClientViewMessage.FullOp(brick(1, 6, 6)))), new IntArrayList());
@@ -228,17 +228,17 @@ public class ClientPlateStoreTest extends MinecraftTestBase {
             int baseX = sections.sectionX(brick.brickIndex()) << 4;
             int baseY = sections.sectionY(brick.brickIndex()) << 4;
             int baseZ = sections.sectionZ(brick.brickIndex()) << 4;
-            for (int cellIndex = 0; cellIndex < ClientViewProtocol.BRICK_CELLS; cellIndex += 97) {
-                int x = baseX + ClientViewProtocol.brickCellX(cellIndex);
-                int y = baseY + ClientViewProtocol.brickCellY(cellIndex);
-                int z = baseZ + ClientViewProtocol.brickCellZ(cellIndex);
-                int expected = plate.contains(x, y, z) ? brick.paletteIdAt(cellIndex) : ClientViewProtocol.PALETTE_AIR;
+            for (int cellIndex = 0; cellIndex < ViewStreamLimits.BRICK_CELLS; cellIndex += 97) {
+                int x = baseX + ViewStreamLimits.brickCellX(cellIndex);
+                int y = baseY + ViewStreamLimits.brickCellY(cellIndex);
+                int z = baseZ + ViewStreamLimits.brickCellZ(cellIndex);
+                int expected = plate.contains(x, y, z) ? brick.paletteIdAt(cellIndex) : ViewStreamLimits.PALETTE_AIR;
                 assertEquals("cell " + x + "," + y + "," + z, expected, plate.paletteIdAt(x, y, z));
                 checked++;
             }
             if (brick.hasLight()) {
                 assertTrue(plate.hasLight(brick.brickIndex()));
-                assertEquals(ClientViewProtocol.LIGHT_NIBBLE_BYTES, plate.blockLight(brick.brickIndex()).length);
+                assertEquals(ViewStreamLimits.LIGHT_NIBBLE_BYTES, plate.blockLight(brick.brickIndex()).length);
             }
         }
         assertTrue(checked > 0);
@@ -259,7 +259,7 @@ public class ClientPlateStoreTest extends MinecraftTestBase {
     }
 
     private static ClientViewMessage golden(String name) throws IOException, ClientViewProtocolException {
-        long caps = ClientViewCapability.ALL;
+        long caps = ViewStreamCapability.ALL;
         for (String line : Files.readAllLines(GOLDENS.resolve("vectors.txt"), StandardCharsets.UTF_8)) {
             String[] parts = line.trim().split("\\s+");
             if (parts.length >= 3 && parts[0].equals(name)) {
@@ -271,9 +271,9 @@ public class ClientPlateStoreTest extends MinecraftTestBase {
     }
 
     private static Brick brick(int brickIndex, int fillId, int firstCellId) {
-        int[] cells = new int[ClientViewProtocol.BRICK_CELLS];
+        int[] cells = new int[ViewStreamLimits.BRICK_CELLS];
         Arrays.fill(cells, fillId);
-        cells[ClientViewProtocol.brickCellIndex(1, 0, 0)] = firstCellId;
+        cells[ViewStreamLimits.brickCellIndex(1, 0, 0)] = firstCellId;
         return BrickCodec.pack(brickIndex, cells);
     }
 
@@ -282,7 +282,7 @@ public class ClientPlateStoreTest extends MinecraftTestBase {
     }
 
     private static Brick noisyBrick(int brickIndex, int salt) {
-        int[] cells = new int[ClientViewProtocol.BRICK_CELLS];
+        int[] cells = new int[ViewStreamLimits.BRICK_CELLS];
         for (int index = 0; index < cells.length; index++) {
             cells[index] = 3 + ((index * 31 + salt) % 200);
         }

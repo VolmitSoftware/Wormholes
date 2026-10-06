@@ -3,14 +3,15 @@ package art.arcane.wormholes.portal;
 import java.util.UUID;
 
 import art.arcane.optics.aperture.Endpoint;
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
+import art.arcane.optics.frame.Frame;
 
 public interface IPortal extends Endpoint {
-    public Direction getDirection();
+    public Face getDirection();
 
-    public PortalFrame getFrame();
+    public Frame getFrame();
 
     public UUID getId();
 
@@ -20,7 +21,7 @@ public interface IPortal extends Endpoint {
 
     public boolean isRemote();
 
-    public GeometryVector getOrigin();
+    public Vec3 getOrigin();
 
     @Override
     default UUID id() {

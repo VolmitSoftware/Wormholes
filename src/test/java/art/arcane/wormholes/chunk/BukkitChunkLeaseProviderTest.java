@@ -15,6 +15,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import art.arcane.optics.plate.ChunkLease;
+import art.arcane.optics.plate.ChunkLeasePlatform;
+import art.arcane.optics.plate.ChunkLeaseRegistry;
 
 class BukkitChunkLeaseProviderTest {
     private static final UUID WORLD_ID = UUID.fromString("20000000-0000-0000-0000-000000000001");

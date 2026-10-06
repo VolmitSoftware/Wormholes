@@ -1,6 +1,6 @@
 package art.arcane.wormholes.door;
 
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -88,7 +88,7 @@ final class RuntimeDoorTest
 		assertFalse(runtime.cycle().portalActive());
 		assertEquals(initial, runtime.projectionPlane());
 
-		DoorwayPlane rotated = new DoorwayPlane(1, 64, 2, Direction.E);
+		DoorwayPlane rotated = new DoorwayPlane(1, 64, 2, Face.E);
 		runtime.update(snapshot(rotated, true));
 		assertEquals(rotated, runtime.projectionPlane());
 		assertTrue(runtime.cycle().portalActive());
@@ -105,8 +105,8 @@ final class RuntimeDoorTest
 	private static DoorwayPlane plane(DoorForm form, DoorOpenState openState)
 	{
 		return form == DoorForm.TRAPDOOR
-			? DoorwayPlane.trapdoor(1, 64, 2, Direction.N, DoorHalf.BOTTOM, openState)
-			: new DoorwayPlane(1, 64, 2, Direction.N, form, DoorHalf.BOTTOM, openState);
+			? DoorwayPlane.trapdoor(1, 64, 2, Face.N, DoorHalf.BOTTOM, openState)
+			: new DoorwayPlane(1, 64, 2, Face.N, form, DoorHalf.BOTTOM, openState);
 	}
 
 	private static VanillaDoorSnapshot snapshot(DoorwayPlane plane, boolean open)

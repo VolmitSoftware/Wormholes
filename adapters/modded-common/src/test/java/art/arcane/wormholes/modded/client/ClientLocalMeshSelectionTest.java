@@ -1,10 +1,10 @@
 package art.arcane.wormholes.modded.client;
 
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.math.Face;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -17,7 +17,7 @@ public class ClientLocalMeshSelectionTest {
     public void rootSelectionUsesActualCameraPositionWithoutApplyingItsOwnDestinationTransform() {
         ClientViewSession session = mock(ClientViewSession.class);
         ClientPortal root = portal(1, 0);
-        GeometryVector eye = new GeometryVector(4.5, 12.25, -3.75);
+        Vec3 eye = new Vec3(4.5, 12.25, -3.75);
         assertEquals(eye, ClientLocalMeshSources.sourceEye(session, root, eye));
     }
 
@@ -27,12 +27,12 @@ public class ClientLocalMeshSelectionTest {
         ClientPortal root = portal(1, 0);
         ClientPortal child = portal(2, 1);
         when(session.portal(1)).thenReturn(root);
-        ClientViewEnvironment.Transform reflection = new ClientViewEnvironment.Transform(Direction.E, Direction.U, Direction.N,
-            new GeometryVector(0, 0, 10));
-        ClientViewEnvironment environment = PortalEnvironmentTest.environment(reflection);
+        ProjectionEnvironment.Transform reflection = new ProjectionEnvironment.Transform(Face.E, Face.U, Face.N,
+            new Vec3(0, 0, 10));
+        ProjectionEnvironment environment = PortalEnvironmentTest.environment(reflection);
         when(session.environment(1)).thenReturn(environment);
-        assertEquals(new GeometryVector(2.5, 3.25, -4.75),
-            ClientLocalMeshSources.sourceEye(session, child, new GeometryVector(2.5, 3.25, 14.75)));
+        assertEquals(new Vec3(2.5, 3.25, -4.75),
+            ClientLocalMeshSources.sourceEye(session, child, new Vec3(2.5, 3.25, 14.75)));
     }
 
     @Test
@@ -43,28 +43,28 @@ public class ClientLocalMeshSelectionTest {
         ClientPortal child = portal(3, 2);
         when(session.portal(1)).thenReturn(root);
         when(session.portal(2)).thenReturn(parent);
-        ClientViewEnvironment rootEnvironment = PortalEnvironmentTest.environment(new ClientViewEnvironment.Transform(
-            Direction.S, Direction.U, Direction.W, new GeometryVector(100, 20, -50)));
-        ClientViewEnvironment parentEnvironment = PortalEnvironmentTest.environment(new ClientViewEnvironment.Transform(
-            Direction.W, Direction.U, Direction.S, new GeometryVector(6, 0, 0)));
+        ProjectionEnvironment rootEnvironment = PortalEnvironmentTest.environment(new ProjectionEnvironment.Transform(
+            Face.S, Face.U, Face.W, new Vec3(100, 20, -50)));
+        ProjectionEnvironment parentEnvironment = PortalEnvironmentTest.environment(new ProjectionEnvironment.Transform(
+            Face.W, Face.U, Face.S, new Vec3(6, 0, 0)));
         when(session.environment(1)).thenReturn(rootEnvironment);
         when(session.environment(2)).thenReturn(parentEnvironment);
-        assertEquals(new GeometryVector(2, 3, 4),
-            ClientLocalMeshSources.sourceEye(session, child, new GeometryVector(96, 23, -46)));
-        assertEquals(new GeometryVector(0, 4, 6),
-            ClientLocalMeshSources.sourceEye(session, child, new GeometryVector(94, 24, -44)));
+        assertEquals(new Vec3(2, 3, 4),
+            ClientLocalMeshSources.sourceEye(session, child, new Vec3(96, 23, -46)));
+        assertEquals(new Vec3(0, 4, 6),
+            ClientLocalMeshSources.sourceEye(session, child, new Vec3(94, 24, -44)));
     }
 
     @Test
     public void missingOrCyclicAncestryCannotSelectAnUnrelatedSourceFootprint() {
         ClientViewSession session = mock(ClientViewSession.class);
         ClientPortal child = portal(3, 2);
-        GeometryVector eye = new GeometryVector(4, 5, 6);
+        Vec3 eye = new Vec3(4, 5, 6);
         assertNull(ClientLocalMeshSources.sourceEye(session, child, eye));
         ClientPortal parent = portal(2, 0);
         when(session.portal(2)).thenReturn(parent);
         assertNull(ClientLocalMeshSources.sourceEye(session, child, eye));
-        ClientViewEnvironment environment = PortalEnvironmentTest.environment(ClientViewEnvironment.Transform.IDENTITY);
+        ProjectionEnvironment environment = PortalEnvironmentTest.environment(ProjectionEnvironment.Transform.IDENTITY);
         when(session.environment(2)).thenReturn(environment);
         parent = portal(2, 3);
         when(session.portal(2)).thenReturn(parent);
@@ -75,7 +75,7 @@ public class ClientLocalMeshSelectionTest {
 
     private static ClientPortal portal(int key, int parent) {
         ClientPortal portal = mock(ClientPortal.class);
-        ClientPortalGeometry geometry = mock(ClientPortalGeometry.class);
+        ApertureDescriptor geometry = mock(ApertureDescriptor.class);
         when(portal.portalKey()).thenReturn(key);
         when(portal.geometry()).thenReturn(geometry);
         when(geometry.parentPortalKey()).thenReturn(parent);

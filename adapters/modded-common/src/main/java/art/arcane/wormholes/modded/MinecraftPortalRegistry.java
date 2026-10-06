@@ -6,16 +6,15 @@ import java.util.Optional;
 
 import art.arcane.wormholes.nexus.NetworkMember;
 import art.arcane.wormholes.network.MinecraftGatewayPolicies;
-import art.arcane.wormholes.chunk.ChunkLease;
+import art.arcane.optics.plate.ChunkLease;
 import art.arcane.wormholes.chunk.presend.ChunkPreSendTicket;
 import art.arcane.wormholes.config.toml.TransitConfig;
-import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.portal.Portal;
 import art.arcane.wormholes.portal.PortalConstruction;
-import art.arcane.wormholes.portal.PortalCrossing;
-import art.arcane.wormholes.portal.PortalFrame;
-import art.arcane.wormholes.portal.PortalGeometry;
+import art.arcane.optics.crossing.PlaneCrossing;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.wormholes.portal.PortalStateCodec;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.DimensionalPortalKind;
@@ -23,8 +22,8 @@ import art.arcane.wormholes.transit.MomentumPolicy;
 import art.arcane.wormholes.transit.MomentumTransform;
 import art.arcane.wormholes.transit.OrientationPolicy;
 import art.arcane.wormholes.transit.OrientationTransform;
-import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Face;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
@@ -76,7 +75,7 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
     private final Map<UUID, Arrival> arrivals = new HashMap<>();
     private final Map<UUID, Departure> pending = new HashMap<>();
     private final Map<UUID, Position> previousPositions = new HashMap<>();
-    private final Map<UUID, GeometryVector> observedVelocities = new HashMap<>();
+    private final Map<UUID, art.arcane.optics.math.Vec3> observedVelocities = new HashMap<>();
     private final Map<UUID, DeferredCrossing> deferredCrossings = new HashMap<>();
     private final ExecutorService storage = Executors.newSingleThreadExecutor(Thread.ofPlatform().name("Wormholes-portal-storage").factory());
     private final Set<UUID> visited = new HashSet<>();
@@ -148,7 +147,7 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
         if (closed || cells == null || cells.isEmpty()) {
             throw new IllegalArgumentException("A portal needs aperture cells");
         }
-        List<GeometryVector> positions = new ArrayList<>(cells.size());
+        List<art.arcane.optics.math.Vec3> positions = new ArrayList<>(cells.size());
         for (BlockPos cell : cells) {
             if (cell.getY() < level.getMinY() || cell.getY() >= level.getMaxY()) {
                 throw new IllegalArgumentException("Portal lies outside the world height");
@@ -156,11 +155,11 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
             if (at(level, cell) != null) {
                 throw new IllegalArgumentException("Portal overlaps an existing aperture");
             }
-            positions.add(new GeometryVector(cell.getX(), cell.getY(), cell.getZ()));
+            positions.add(new art.arcane.optics.math.Vec3(cell.getX(), cell.getY(), cell.getZ()));
         }
-        PortalGeometry geometry = new PortalGeometry();
+        ApertureCells geometry = new ApertureCells();
         geometry.setBlocks(positions);
-        AxisAlignedBB bounds = geometry.getArea();
+        Box bounds = geometry.getArea();
         int xDepth = (int) Math.floor(bounds.getXb()) - (int) Math.floor(bounds.getXa());
         int yDepth = (int) Math.floor(bounds.getYb()) - (int) Math.floor(bounds.getYa());
         int zDepth = (int) Math.floor(bounds.getZb()) - (int) Math.floor(bounds.getZa());
@@ -168,8 +167,8 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
             throw new IllegalArgumentException("Portal aperture must be flat");
         }
         Vec3 direction = look == null ? new Vec3(0, 0, -1) : look;
-        Direction normal = PortalConstruction.derivePortalNormal(xDepth, yDepth, zDepth, direction.x, direction.y, direction.z);
-        PortalFrame frame = PortalFrame.fromDirectionAndLook(normal, vector(direction));
+        Face normal = PortalConstruction.derivePortalNormal(xDepth, yDepth, zDepth, direction.x, direction.y, direction.z);
+        Frame frame = Frame.fromDirectionAndLook(normal, vector(direction));
         UUID id = UUID.randomUUID();
         String typeName = type.name().toLowerCase(Locale.ROOT);
         String name = Character.toUpperCase(typeName.charAt(0)) + typeName.substring(1) + " " + id.toString().substring(0, 4);
@@ -320,7 +319,7 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
             if (level == null || !universal && !random && !resolving && !runtime.nexus().perTraveler(source) && !MinecraftGatewayPolicies.active(source) && (destination == null || !destination.isOpen())) {
                 continue;
             }
-            AxisAlignedBB area = source.getGeometry().captureZone(radius);
+            Box area = source.getGeometry().captureZone(radius);
             AABB search = new AABB(area.getXa(), area.getYa(), area.getZa(), area.getXb(), area.getYb(), area.getZb());
             for (Entity entity : captureEntities(source, level, search)) {
                 Entity root = entity.getRootVehicle();
@@ -329,10 +328,10 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
                 }
                 Vec3 current = root.position();
                 Position previous = previousPositions.get(root.getUUID());
-                GeometryVector start = previous != null && previous.level() == level
-                    ? vector(previous.point()) : new GeometryVector(root.xo, root.yo, root.zo);
-                GeometryVector end = vector(current);
-                GeometryVector intersection = PortalCrossing.intersection(source.getFrame(), source.getOrigin(), start, end);
+                art.arcane.optics.math.Vec3 start = previous != null && previous.level() == level
+                    ? vector(previous.point()) : new art.arcane.optics.math.Vec3(root.xo, root.yo, root.zo);
+                art.arcane.optics.math.Vec3 end = vector(current);
+                art.arcane.optics.math.Vec3 intersection = PlaneCrossing.intersection(source.getFrame(), source.getOrigin(), start, end);
                 DeferredCrossing deferred = deferredCrossings.get(root.getUUID());
                 boolean retained = deferred != null && deferred.source() == source && retainedCrossing(deferred, now) && deferred.crossing().frame().getNormal().x() * (end.x() - source.getOrigin().x())
                         + deferred.crossing().frame().getNormal().y() * (end.y() - source.getOrigin().y())
@@ -346,8 +345,8 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
                 }
                 visited.add(root.getUUID());
                 Vec3 velocity = root instanceof ServerPlayer ? current.subtract(start.x(), start.y(), start.z()) : root.getDeltaMovement();
-                PortalCrossing crossing = PortalCrossing.create(source.getFrame(), source.getOrigin(),
-                    new PortalCrossing.Motion(start, end, vector(velocity), vector(root.getLookAngle())));
+                PlaneCrossing crossing = PlaneCrossing.create(source.getFrame(), source.getOrigin(),
+                    new PlaneCrossing.Motion(start, end, vector(velocity), vector(root.getLookAngle())));
                 if (retained) {
                     crossing = deferred.crossing();
                 }
@@ -400,12 +399,12 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
         }
     }
 
-    public GeometryVector observedVelocity(ServerPlayer player) {
+    public art.arcane.optics.math.Vec3 observedVelocity(ServerPlayer player) {
         runtime.requireServerThread();
         return observedVelocities.getOrDefault(player.getUUID(), vector(player.getDeltaMovement()));
     }
 
-    public boolean crossPrepared(ServerPlayer player, UUID sourceId, MinecraftPortal destination, PortalCrossing crossing) {
+    public boolean crossPrepared(ServerPlayer player, UUID sourceId, MinecraftPortal destination, PlaneCrossing crossing) {
         runtime.requireServerThread();
         MinecraftPortal source = portals.get(sourceId);
         if (closed || source == null || !source.isOpen() || source.isMirrorMode() || source.getType() == PortalType.RTP
@@ -422,7 +421,7 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
             return false;
         }
         ServerLevel targetLevel = resolveLevel(destination);
-        GeometryVector target = crossing.outPoint(destination.getFrame(), destination.getOrigin());
+        art.arcane.optics.math.Vec3 target = crossing.outPoint(destination.getFrame(), destination.getOrigin());
         if (targetLevel == null || !targetLevel.noCollision(player, player.getBoundingBox().move(
             target.x() - player.getX(), target.y() - player.getY(), target.z() - player.getZ()))
             || !MinecraftTransit.depart(runtime, source, player, crossing)) {
@@ -460,7 +459,7 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
     }
 
     private record DeferredCrossing(ServerPlayer player, MinecraftPortal source, ServerLevel level, UUID destination,
-                                    String destinationServer, PortalCrossing crossing, long expiresAt) {
+                                    String destinationServer, PlaneCrossing crossing, long expiresAt) {
     }
 
     boolean travelling(UUID entityId) {
@@ -563,7 +562,7 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
         }
     }
 
-    private void depart(Entity entity, MinecraftPortal source, MinecraftPortal destination, PortalCrossing crossing) {
+    private void depart(Entity entity, MinecraftPortal source, MinecraftPortal destination, PlaneCrossing crossing) {
         ServerLevel targetLevel = resolveLevel(destination);
         if (targetLevel == null || destination.getType() == PortalType.RTP || !admit(entity, source, destination)) {
             return;
@@ -573,7 +572,7 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
                 return;
             }
         }
-        GeometryVector target = crossing.outPoint(destination.getFrame(), destination.getOrigin());
+        art.arcane.optics.math.Vec3 target = crossing.outPoint(destination.getFrame(), destination.getOrigin());
         ChunkLease lease = runtime.leases().retain(targetLevel,
             UUID.nameUUIDFromBytes(destination.getWorldKey().getBytes(StandardCharsets.UTF_8)),
             target.getBlockX() >> 4, target.getBlockZ() >> 4);
@@ -651,8 +650,8 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
         return true;
     }
 
-    private void arrive(Entity entity, MinecraftPortal destination, PortalCrossing crossing, ServerLevel targetLevel,
-                        GeometryVector target, MinecraftPortal source, boolean predicted) {
+    private void arrive(Entity entity, MinecraftPortal destination, PlaneCrossing crossing, ServerLevel targetLevel,
+                        art.arcane.optics.math.Vec3 target, MinecraftPortal source, boolean predicted) {
         TransitConfig config = runtime.configuration().settings().getTransit();
         MomentumPolicy momentum = MomentumPolicy.decode((String) source.setting("transit.momentum"));
         if (momentum == null) {
@@ -660,7 +659,7 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
         }
         OrientationPolicy orientation = OrientationPolicy.parse((String) source.setting("transit.orientation"),
             OrientationPolicy.parse(config.orientationDefault, OrientationPolicy.FRAME));
-        GeometryVector velocity = MomentumTransform.apply(crossing.outVelocity(destination.getFrame()), momentum, config.momentumMaxSpeed);
+        art.arcane.optics.math.Vec3 velocity = MomentumTransform.apply(crossing.outVelocity(destination.getFrame()), momentum, config.momentumMaxSpeed);
         OrientationTransform.Look look = OrientationTransform.apply(crossing, destination.getFrame(), orientation, config.gravityFlipEnabled);
         List<ChunkPreSendTicket<ServerLevel, ServerPlayer>> preSend = new ArrayList<>();
         List<MinecraftTravelCosts.Admission> payments = new ArrayList<>();
@@ -801,15 +800,15 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
     }
 
     private static boolean overlaps(MinecraftPortal portal, Entity entity) {
-        AxisAlignedBB area = portal.getGeometry().getArea();
+        Box area = portal.getGeometry().getArea();
         return entity.getBoundingBox().intersects(area.getXa(), area.getYa(), area.getZa(), area.getXb(), area.getYb(), area.getZb());
     }
 
-    private static GeometryVector vector(Vec3 vector) {
-        return new GeometryVector(vector.x, vector.y, vector.z);
+    private static art.arcane.optics.math.Vec3 vector(Vec3 vector) {
+        return new art.arcane.optics.math.Vec3(vector.x, vector.y, vector.z);
     }
 
-    private static Vec3 vector(GeometryVector vector) {
+    private static Vec3 vector(art.arcane.optics.math.Vec3 vector) {
         return new Vec3(vector.x(), vector.y(), vector.z());
     }
 

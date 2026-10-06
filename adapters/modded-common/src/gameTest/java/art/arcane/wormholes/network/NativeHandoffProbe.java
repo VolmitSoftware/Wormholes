@@ -6,8 +6,7 @@ import art.arcane.wormholes.modded.MinecraftGameTestPlayer;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.MinecraftProxyPayload;
 import art.arcane.wormholes.modded.WormholesModRuntime;
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.portal.PortalCrossing;
+import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.transit.TransitionProfile;
 import net.minecraft.world.effect.MobEffects;
@@ -67,9 +66,9 @@ public final class NativeHandoffProbe {
         MinecraftPortal portal = runtime.portals().create(identity.id(), helper.getLevel(),
             List.of(anchor, anchor.above(), anchor.east(), anchor.east().above()), PortalType.GATEWAY, new Vec3(0, 0, -1));
         portal.setTransitionProfile(TransitionProfile.NONE.withMaskOverrideTicks(100));
-        PortalCrossing crossing = new PortalCrossing(portal.getFrame(), portal.getOrigin(),
-            portal.getOrigin().add(new GeometryVector(0, 0, 0.2D)), new GeometryVector(0, 0, 0.1D),
-            new GeometryVector(0, 0, -1), true);
+        PlaneCrossing crossing = new PlaneCrossing(portal.getFrame(), portal.getOrigin(),
+            portal.getOrigin().add(new art.arcane.optics.math.Vec3(0, 0, 0.2D)), new art.arcane.optics.math.Vec3(0, 0, 0.1D),
+            new art.arcane.optics.math.Vec3(0, 0, -1), true);
         NetworkManager target = runtime.network().manager();
         NetworkConfig previous = target.activeConfig();
         String peer = "handoff-probe-" + UUID.randomUUID();
@@ -121,7 +120,7 @@ public final class NativeHandoffProbe {
     }
 
     private static void exchange(WormholesModRuntime runtime, NetworkManager target, String peer, NameAndId identity,
-                                 MinecraftPortal portal, PortalCrossing crossing, MinecraftGameTestPlayer[] joined) throws Exception {
+                                 MinecraftPortal portal, PlaneCrossing crossing, MinecraftGameTestPlayer[] joined) throws Exception {
         MinecraftServer server = runtime.server();
         Path directory = Files.createTempDirectory("wormholes-handoff-probe-");
         NetworkManager client = null;
@@ -161,7 +160,7 @@ public final class NativeHandoffProbe {
                     && receipt.transferId().equals(transfer) && receipt.arrived()),
                 () -> poll(source, route, outgoing), "native joined player arrival receipt");
             onServer(server, () -> {
-                GeometryVector expected = crossing.outPoint(portal.getFrame(), portal.getOrigin());
+                art.arcane.optics.math.Vec3 expected = crossing.outPoint(portal.getFrame(), portal.getOrigin());
                 if (joined[0].player().position().distanceToSqr(expected.x(), expected.y(), expected.z()) > 0.04D) {
                     throw new IllegalStateException("Native joined traveler was not placed at the portal crossing");
                 }

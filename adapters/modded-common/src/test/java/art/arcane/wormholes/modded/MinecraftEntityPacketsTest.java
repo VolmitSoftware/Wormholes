@@ -1,9 +1,9 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.optics.entity.EntityProfile;
-import art.arcane.wormholes.network.view.ProjectedMapData;
-import art.arcane.wormholes.render.EntityRenderSpoofedEntity;
-import art.arcane.wormholes.render.ProjectedPlayerNames;
+import art.arcane.optics.entity.MapSnapshot;
+import art.arcane.optics.entity.SpoofedEntity;
+import art.arcane.optics.entity.PlayerNames;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.network.protocol.game.ClientboundMapItemDataPacket;
 import net.minecraft.network.protocol.game.ClientboundAnimatePacket;
@@ -42,8 +42,8 @@ public class MinecraftEntityPacketsTest extends MinecraftTestBase {
 
     @Test
     public void playerInfoPreservesSignedSkinAndHidesTabEntry() {
-        EntityRenderSpoofedEntity state = EntityRenderSpoofedEntity.create(true, false, true);
-        state.setPlayerIdentity(ProjectedPlayerNames.syntheticProfileName(state.fakeUuid), "PortalTester");
+        SpoofedEntity state = SpoofedEntity.create(true, false, true);
+        state.setPlayerIdentity(PlayerNames.syntheticProfileName(state.fakeUuid), "PortalTester");
         ClientboundPlayerInfoUpdatePacket packet = MinecraftEntityPackets.playerInfo(RegistryAccess.EMPTY, state,
             new EntityProfile("PortalTester", "texture-value", "texture-signature"));
         ClientboundPlayerInfoUpdatePacket.Entry entry = packet.entries().getFirst();
@@ -72,9 +72,9 @@ public class MinecraftEntityPacketsTest extends MinecraftTestBase {
 
     @Test
     public void mapAndPlayerMetadataPreserveSharedProjectionSemantics() {
-        byte[] pixels = new byte[ProjectedMapData.PIXEL_COUNT];
+        byte[] pixels = new byte[MapSnapshot.PIXEL_COUNT];
         pixels[0] = 24;
-        ClientboundMapItemDataPacket packet = MinecraftEntityVisualHost.mapPacket(new ProjectedMapData(17, (byte) 2, true, true, pixels), -1_900_000_001);
+        ClientboundMapItemDataPacket packet = MinecraftEntityVisualHost.mapPacket(new MapSnapshot(17, (byte) 2, true, true, pixels), -1_900_000_001);
         assertEquals(-1_900_000_001, packet.mapId().id());
         assertEquals((byte) 2, packet.scale());
         assertTrue(packet.locked());

@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.optics.math.Box;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.core.registries.Registries;
@@ -27,7 +27,7 @@ final class MinecraftPortalCandidates {
     static MinecraftPortalCandidates capture(Collection<MinecraftPortal> portals, double padding) {
         Map<ResourceKey<Level>, Long2ObjectOpenHashMap<List<MinecraftPortal>>> indexed = new HashMap<>();
         for (MinecraftPortal portal : portals) {
-            AxisAlignedBB area = portal.getGeometry().getArea();
+            Box area = portal.getGeometry().getArea();
             Identifier dimension = Identifier.tryParse(portal.getWorldKey());
             if (area == null || dimension == null) {
                 continue;

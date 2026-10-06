@@ -9,20 +9,22 @@ import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.LocalPortal;
-import art.arcane.wormholes.portal.PortalFrame;
-import art.arcane.wormholes.render.lod.LodPolicy;
-import art.arcane.wormholes.render.plate.PlateCaptureJob;
-import art.arcane.wormholes.render.plate.PlateBox;
-import art.arcane.wormholes.render.plate.ViewPlate;
-import art.arcane.wormholes.render.plate.ViewPlateBuilder;
-import art.arcane.wormholes.render.plate.ViewPlateCache;
-import art.arcane.wormholes.render.plate.ViewPlateKey;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.volume.LodPolicy;
+import art.arcane.optics.plate.PlateCaptureJob;
+import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.plate.ViewPlate;
+import art.arcane.optics.plate.ViewPlateBuilder;
+import art.arcane.optics.plate.ViewPlateCache;
+import art.arcane.optics.plate.ViewPlateKey;
 import art.arcane.wormholes.render.view.CapturedChunkView;
 import art.arcane.wormholes.render.view.PlateCaptureSource;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.render.view.ProjectionWorldViewProvider;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import art.arcane.optics.scan.ProjectorPassRevision;
+import art.arcane.optics.view.WorldChangeTracker;
 
 final class ProjectorPlates {
     private ProjectorPlates() {
@@ -34,7 +36,7 @@ final class ProjectorPlates {
     }
 
     static boolean frontSide(ILocalPortal portal, Location eye) {
-        Direction facing = portal.getFrame().getNormal();
+        Face facing = portal.getFrame().getNormal();
         return ((eye.getX() - portal.getOrigin().getX()) * facing.x()
             + (eye.getY() - portal.getOrigin().getY()) * facing.y()
             + (eye.getZ() - portal.getOrigin().getZ()) * facing.z()) >= 0.0D;
@@ -53,13 +55,13 @@ final class ProjectorPlates {
 
     static Target target(ILocalPortal portal, ProjectorDestination destination, boolean eyeFrontSide, boolean buriedCellCulling,
                          PortalProjector.RtpProjectionTarget rtpTarget, FidelityPortalExtension fidelity) {
-        PortalFrame localFrame = portal.getFrame();
+        Frame localFrame = portal.getFrame();
         double localOriginX = portal.getOrigin().getX();
         double localOriginY = portal.getOrigin().getY();
         double localOriginZ = portal.getOrigin().getZ();
         boolean mirrorMode = destination.mirrorMode;
         int quarterTurns = destination.mirrorRotationQuarterTurns;
-        PortalFrame remoteFrame = rtpTarget != null ? rtpTarget.frame()
+        Frame remoteFrame = rtpTarget != null ? rtpTarget.frame()
             : mirrorMode ? localFrame.flipNormal() : destination.destAnchor.getFrame();
         double remoteOriginX = mirrorMode ? localOriginX : destination.originX;
         double remoteOriginY = mirrorMode ? localOriginY : destination.originY;
@@ -81,7 +83,7 @@ final class ProjectorPlates {
 
     static ViewPlate<BlockData> acquire(ViewPlateCache<BlockData, World> cache, ProjectionWorldViewProvider viewProvider, ILocalPortal portal,
                                         ProjectorDestination destination, BlockData air, Target target, long destinationRevision, boolean urgent) {
-        ProjectionWorldChangeTracker tracker = Wormholes.projectionChangeTracker;
+        WorldChangeTracker tracker = Wormholes.projectionChangeTracker;
         return cache.current(target.key(), destinationRevision, target.transformRevision(), tracker, urgent, previous -> {
             ProjectionWorldView plateView = destination.plateView();
             long trackerVersion = tracker == null ? Long.MIN_VALUE : tracker.currentVersion();
@@ -103,7 +105,7 @@ final class ProjectorPlates {
         ViewPlateKey key = new ViewPlateKey(original.portalId(), new MeshSection(original.destinationViewIdentity(), clip),
             original.frontSide(), original.mirrorQuarterTurns(), original.targetIdentity());
         long transform = ProjectorPassRevision.mix(target.transformRevision(), boundedDistance);
-        ProjectionWorldChangeTracker tracker = Wormholes.projectionChangeTracker;
+        WorldChangeTracker tracker = Wormholes.projectionChangeTracker;
         long revision = destination.destView.getRevision();
         return cache.current(key, revision, transform, tracker, false, previous -> {
             ProjectionWorldView view = destination.plateView();
@@ -160,8 +162,8 @@ final class ProjectorPlates {
 
     record Target(ViewPlateKey key,
                   long transformRevision,
-                  PortalFrame localFrame,
-                  PortalFrame remoteFrame,
+                  Frame localFrame,
+                  Frame remoteFrame,
                   double localOriginX,
                   double localOriginY,
                   double localOriginZ,

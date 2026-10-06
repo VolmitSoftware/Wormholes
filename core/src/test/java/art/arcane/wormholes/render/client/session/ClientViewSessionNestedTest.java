@@ -12,20 +12,20 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.HashMap;
 import java.util.HashSet;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.math.Vec3;
 
 import org.junit.jupiter.api.Test;
 
-import art.arcane.wormholes.network.client.ClientViewCapability;
+import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewMessageType;
-import art.arcane.wormholes.network.client.ClientViewProtocolException;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
+import art.arcane.optics.stream.ViewStreamMessageType;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.aperture.ApertureDescriptor;
 
 final class ClientViewSessionNestedTest {
-    private static final long WITHOUT_MIRROR = SessionHarness.CLIENT_CAPS & ~ClientViewCapability.CLIENT_MIRROR.mask();
-    private static final long WITHOUT_RECURSION = SessionHarness.CLIENT_CAPS & ~ClientViewCapability.CLIENT_RECURSION.mask();
+    private static final long WITHOUT_MIRROR = SessionHarness.CLIENT_CAPS & ~ViewStreamCapability.CLIENT_MIRROR.mask();
+    private static final long WITHOUT_RECURSION = SessionHarness.CLIENT_CAPS & ~ViewStreamCapability.CLIENT_RECURSION.mask();
 
     @Test
     void nativeMirrorCyclesKeepSixDistinctBranchKeysWhileTheEyeMoves() throws ClientViewProtocolException {
@@ -46,26 +46,26 @@ final class ClientViewSessionNestedTest {
         };
         harness.handshake(SessionHarness.NATIVE_CAPS);
         harness.tick();
-        assertEquals(4, ClientViewProtocol.MAX_MIRROR_REFLECTIONS);
-        assertEquals(ClientViewProtocol.MAX_MIRROR_REFLECTIONS, harness.client.portals.size());
-        assertEquals(ClientViewProtocol.MAX_MIRROR_REFLECTIONS, harness.access.contexts.size());
+        assertEquals(4, ViewStreamLimits.MAX_MIRROR_REFLECTIONS);
+        assertEquals(ViewStreamLimits.MAX_MIRROR_REFLECTIONS, harness.client.portals.size());
+        assertEquals(ViewStreamLimits.MAX_MIRROR_REFLECTIONS, harness.access.contexts.size());
         assertEquals(2, new HashSet<>(harness.access.contexts.values()).size());
-        assertEquals(ClientViewProtocol.MAX_MIRROR_REFLECTIONS, entityContexts.size());
+        assertEquals(ViewStreamLimits.MAX_MIRROR_REFLECTIONS, entityContexts.size());
         assertEquals(harness.access.contexts.keySet(), new HashSet<>(entityContexts.values()));
         int parentKey = 0;
-        for (int depth = 0; depth < ClientViewProtocol.MAX_MIRROR_REFLECTIONS; depth++) {
+        for (int depth = 0; depth < ViewStreamLimits.MAX_MIRROR_REFLECTIONS; depth++) {
             int key = keyOf(harness, parentKey);
-            ClientPortalGeometry geometry = harness.client.portals.get(key);
-            assertEquals(depth == ClientViewProtocol.MAX_MIRROR_REFLECTIONS - 1 ? 0 : 1, geometry.nested().size());
+            ApertureDescriptor geometry = harness.client.portals.get(key);
+            assertEquals(depth == ViewStreamLimits.MAX_MIRROR_REFLECTIONS - 1 ? 0 : 1, geometry.nested().size());
             parentKey = key;
         }
-        Map<Integer, ClientPortalGeometry> initial = Map.copyOf(harness.client.portals);
-        int begins = harness.sent(ClientViewMessageType.MESH_BEGIN);
+        Map<Integer, ApertureDescriptor> initial = Map.copyOf(harness.client.portals);
+        int begins = harness.sent(ViewStreamMessageType.MESH_BEGIN);
         for (int tick = 0; tick < 60; tick++) {
-            harness.access.eye = new GeometryVector(11 + tick * 0.1, 67, 15);
+            harness.access.eye = new Vec3(11 + tick * 0.1, 67, 15);
             harness.tick();
             assertEquals(initial, harness.client.portals);
-            assertEquals(begins, harness.sent(ClientViewMessageType.MESH_BEGIN));
+            assertEquals(begins, harness.sent(ViewStreamMessageType.MESH_BEGIN));
         }
         harness.access.nested.put(first.id, List.of());
         harness.tick();
@@ -97,13 +97,13 @@ final class ClientViewSessionNestedTest {
         SessionPortal root = harness.access.add(new SessionPortal("linked root", 0));
         root.recursionDepth = 3;
         List<SessionPortal> children = new ArrayList<>();
-        for (int index = 0; index < ClientViewProtocol.MAX_NESTED_GEOMETRY; index++) {
+        for (int index = 0; index < ViewStreamLimits.MAX_NESTED_GEOMETRY; index++) {
             children.add(new SessionPortal("branch " + index, index * 4));
         }
         harness.access.nested.put(root.id, children);
         harness.handshake(SessionHarness.NATIVE_CAPS);
         harness.tick();
-        assertEquals(1 + ClientViewProtocol.MAX_NESTED_GEOMETRY, harness.client.portals.size());
+        assertEquals(1 + ViewStreamLimits.MAX_NESTED_GEOMETRY, harness.client.portals.size());
         SessionPortal first = children.getFirst();
         first.recursionDepth = 2;
         first.geometryRevision++;
@@ -112,8 +112,8 @@ final class ClientViewSessionNestedTest {
         harness.access.nested.put(first.id, List.of(grandchild));
         harness.access.nested.put(grandchild.id, List.of(root));
         harness.tick();
-        assertEquals(1 + ClientViewProtocol.MAX_NESTED_GEOMETRY, harness.client.portals.size());
-        assertEquals(1 + ClientViewProtocol.MAX_NESTED_GEOMETRY, harness.access.contexts.size());
+        assertEquals(1 + ViewStreamLimits.MAX_NESTED_GEOMETRY, harness.client.portals.size());
+        assertEquals(1 + ViewStreamLimits.MAX_NESTED_GEOMETRY, harness.access.contexts.size());
         assertTrue(harness.access.contexts.containsValue(grandchild.id));
         assertFalse(harness.access.contexts.containsValue(children.getLast().id));
         assertEquals(1, harness.access.contexts.values().stream().filter(root.id::equals).count());
@@ -139,10 +139,10 @@ final class ClientViewSessionNestedTest {
         assertEquals(List.of("release " + mirror.id), releases(harness));
         assertFalse(harness.access.plateRequested.contains(mirror.id), "the mirror plate was requested");
         assertFalse(harness.access.refusalChecked.contains(mirror.id), "the mirror plate refusal was consulted");
-        assertEquals(1, harness.sent(ClientViewMessageType.PORTAL));
-        assertEquals(0, harness.sent(ClientViewMessageType.PLATE_BEGIN));
-        assertEquals(0, harness.sent(ClientViewMessageType.PLATE_BRICKS));
-        ClientPortalGeometry geometry = harness.client.portals.values().iterator().next();
+        assertEquals(1, harness.sent(ViewStreamMessageType.PORTAL));
+        assertEquals(0, harness.sent(ViewStreamMessageType.PLATE_BEGIN));
+        assertEquals(0, harness.sent(ViewStreamMessageType.PLATE_BRICKS));
+        ApertureDescriptor geometry = harness.client.portals.values().iterator().next();
         assertTrue(geometry.mirror());
     }
 
@@ -154,7 +154,7 @@ final class ClientViewSessionNestedTest {
         harness.handshake(WITHOUT_MIRROR);
         harness.tick();
         assertTrue(harness.session.owns(mirror.id));
-        assertEquals(1, harness.sent(ClientViewMessageType.PLATE_BEGIN));
+        assertEquals(1, harness.sent(ViewStreamMessageType.PLATE_BEGIN));
         assertTrue(harness.access.plateRequested.contains(mirror.id));
     }
 
@@ -171,8 +171,8 @@ final class ClientViewSessionNestedTest {
         assertEquals(2, harness.client.portals.size());
         int parentKey = keyOf(harness, 0);
         int childKey = keyOf(harness, parentKey);
-        ClientPortalGeometry parent = harness.client.portals.get(parentKey);
-        ClientPortalGeometry nested = harness.client.portals.get(childKey);
+        ApertureDescriptor parent = harness.client.portals.get(parentKey);
+        ApertureDescriptor nested = harness.client.portals.get(childKey);
         assertEquals(1, parent.nested().size());
         assertEquals(nested, parent.nested().get(0), "the nested entry equals the child PORTAL");
         assertEquals(parentKey, nested.parentPortalKey());
@@ -185,7 +185,7 @@ final class ClientViewSessionNestedTest {
             harness.tick();
         }
         assertTrue(harness.client.portals.isEmpty(), "dropping the parent drops its children");
-        assertEquals(2, harness.sent(ClientViewMessageType.PORTAL_DROP));
+        assertEquals(2, harness.sent(ViewStreamMessageType.PORTAL_DROP));
     }
 
     @Test
@@ -199,10 +199,10 @@ final class ClientViewSessionNestedTest {
         int parentKey = keyOf(harness, 0);
         harness.access.nested.get(mirror.id).clear();
         harness.tick();
-        assertEquals(1, harness.sent(ClientViewMessageType.PORTAL_DROP));
+        assertEquals(1, harness.sent(ViewStreamMessageType.PORTAL_DROP));
         assertEquals(1, harness.client.portals.size());
         assertTrue(harness.client.portals.get(parentKey).nested().isEmpty());
-        assertEquals(3, harness.sent(ClientViewMessageType.PORTAL));
+        assertEquals(3, harness.sent(ViewStreamMessageType.PORTAL));
     }
 
     @Test
@@ -214,11 +214,11 @@ final class ClientViewSessionNestedTest {
         harness.handshake(SessionHarness.CLIENT_CAPS);
         harness.tick();
         harness.tick();
-        assertEquals(2, harness.sent(ClientViewMessageType.PORTAL));
+        assertEquals(2, harness.sent(ViewStreamMessageType.PORTAL));
         child.geometryRevision++;
         child.frontSide = !child.frontSide;
         harness.tick();
-        assertEquals(4, harness.sent(ClientViewMessageType.PORTAL));
+        assertEquals(4, harness.sent(ViewStreamMessageType.PORTAL));
         int parentKey = keyOf(harness, 0);
         int childKey = keyOf(harness, parentKey);
         assertEquals(harness.client.portals.get(childKey), harness.client.portals.get(parentKey).nested().get(0));
@@ -292,7 +292,7 @@ final class ClientViewSessionNestedTest {
     }
 
     private static int keyOf(SessionHarness harness, int parentKey) {
-        for (Map.Entry<Integer, ClientPortalGeometry> entry : harness.client.portals.entrySet()) {
+        for (Map.Entry<Integer, ApertureDescriptor> entry : harness.client.portals.entrySet()) {
             if (entry.getValue().parentPortalKey() == parentKey) {
                 return entry.getKey();
             }

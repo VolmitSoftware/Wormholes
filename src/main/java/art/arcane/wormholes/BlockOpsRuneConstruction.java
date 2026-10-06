@@ -33,7 +33,7 @@ import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.PortalTypeAccess;
 import art.arcane.wormholes.service.WormholesHud;
 import art.arcane.wormholes.service.WormholesTelemetry;
-import art.arcane.wormholes.util.M;
+import art.arcane.optics.math.M;
 
 final class BlockOpsRuneConstruction
 {

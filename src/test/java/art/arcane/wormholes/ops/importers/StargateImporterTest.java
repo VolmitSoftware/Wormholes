@@ -1,6 +1,6 @@
 package art.arcane.wormholes.ops.importers;
 
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -45,8 +45,8 @@ class StargateImporterTest {
         assertEquals(10, first.x());
         assertEquals(64, first.y());
         assertEquals(20, first.z());
-        assertEquals(Direction.E, first.facing());
-        assertEquals(Direction.N, factory.created().get(1).facing());
+        assertEquals(Face.E, first.facing());
+        assertEquals(Face.N, factory.created().get(1).facing());
         assertEquals(2, factory.links().size());
         assertTrue(factory.links().containsValue("hub:gateB"));
         assertTrue(report.notes().stream().anyMatch(note -> note.contains("network")), report.notes().toString());

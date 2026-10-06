@@ -12,7 +12,7 @@ import org.bukkit.Location;
 import org.bukkit.World;
 
 import art.arcane.wormholes.portal.ILocalPortal;
-import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.optics.math.Box;
 
 public final class PortalCandidateSnapshot {
     private static final double CELL_SIZE = 128.0D;
@@ -63,7 +63,7 @@ public final class PortalCandidateSnapshot {
                 continue;
             }
             World world = resolveWorld(portal, centerWorld);
-            AxisAlignedBB view = indexedView(portal, minimumPadding);
+            Box view = indexedView(portal, minimumPadding);
             if (world == null || view == null) {
                 continue;
             }
@@ -80,19 +80,19 @@ public final class PortalCandidateSnapshot {
         return new PortalCandidateSnapshot(Map.copyOf(frozenWorlds));
     }
 
-    private static AxisAlignedBB indexedView(ILocalPortal portal, double minimumPadding) {
-        AxisAlignedBB view = portal.getView();
+    private static Box indexedView(ILocalPortal portal, double minimumPadding) {
+        Box view = portal.getView();
         if (!Double.isFinite(minimumPadding) || minimumPadding <= 0.0D) {
             return view;
         }
         if (view != null && !finite(view)) {
             return view;
         }
-        AxisAlignedBB area = portal.getArea();
+        Box area = portal.getArea();
         if (area == null || !finite(area)) {
             return view;
         }
-        AxisAlignedBB padded = new AxisAlignedBB(
+        Box padded = new Box(
             area.getXa() - minimumPadding,
             area.getXb() + minimumPadding,
             area.getYa() - minimumPadding,
@@ -102,7 +102,7 @@ public final class PortalCandidateSnapshot {
         if (view == null) {
             return padded;
         }
-        return new AxisAlignedBB(
+        return new Box(
             Math.min(view.getXa(), padded.getXa()),
             Math.max(view.getXb(), padded.getXb()),
             Math.min(view.getYa(), padded.getYa()),
@@ -111,7 +111,7 @@ public final class PortalCandidateSnapshot {
             Math.max(view.getZb(), padded.getZb()));
     }
 
-    private static boolean finite(AxisAlignedBB view) {
+    private static boolean finite(Box view) {
         return Double.isFinite(view.getXa()) && Double.isFinite(view.getXb())
             && Double.isFinite(view.getYa()) && Double.isFinite(view.getYb())
             && Double.isFinite(view.getZa()) && Double.isFinite(view.getZb());
@@ -142,7 +142,7 @@ public final class PortalCandidateSnapshot {
             overflow = new ArrayList<Entry>();
         }
 
-        private void add(Entry entry, AxisAlignedBB view) {
+        private void add(Entry entry, Box view) {
             if (!finite(view)) {
                 overflow.add(entry);
                 return;

@@ -1,14 +1,14 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
-import art.arcane.wormholes.render.client.ClientViewSweep;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.client.ClientSweep;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.frame.Frame;
 import net.minecraft.core.SectionPos;
-import art.arcane.wormholes.render.plate.PlateBox;
-import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Face;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectIterator;
@@ -186,7 +186,7 @@ public final class ClientAtmosphere {
             || clientTick % WEATHER_BURST_TICKS != 0) {
             return;
         }
-        ClientViewSweep sweep = portal.sweep();
+        ClientSweep sweep = portal.sweep();
         ClientPortalContent content = portal.content();
         PlateBox bounds = sweep.bounds();
         if (bounds.cells() == 0L || sweep.appliedCount() == 0) {
@@ -197,7 +197,7 @@ public final class ClientAtmosphere {
             int x = bounds.minX() + random.nextInt(Math.max(1, bounds.sizeX()));
             int y = bounds.minY() + random.nextInt(Math.max(1, bounds.sizeY()));
             int z = bounds.minZ() + random.nextInt(Math.max(1, bounds.sizeZ()));
-            if (!sweep.applied(x, y, z) || content.paletteIdAt(x, y, z) != ClientViewProtocol.PALETTE_AIR) {
+            if (!sweep.applied(x, y, z) || content.paletteIdAt(x, y, z) != ViewStreamLimits.PALETTE_AIR) {
                 continue;
             }
             world.particle(RAIN_PARTICLE, x + 0.5D, y + 0.5D, z + 0.5D, 0.4D, 0.0D, 1);
@@ -206,7 +206,7 @@ public final class ClientAtmosphere {
         }
     }
 
-    private void meshWeather(ClientPortalGeometry geometry, ClientMeshSections.View mesh, ClientViewMessage.Atmosphere atmosphere,
+    private void meshWeather(ApertureDescriptor geometry, ClientMeshSections.View mesh, ClientViewMessage.Atmosphere atmosphere,
                              double eyeX, double eyeY, double eyeZ) {
         if ((atmosphere.flags() & ClientViewMessage.Atmosphere.FLAG_WEATHER) == 0 || atmosphere.rain() < RAIN_THRESHOLD
             || clientTick % WEATHER_BURST_TICKS != 0 || mesh.sectionKeys().isEmpty()) {
@@ -214,8 +214,8 @@ public final class ClientAtmosphere {
         }
         long[] sections = mesh.sectionKeys().toLongArray();
         int particles = atmosphere.thunder() > RAIN_THRESHOLD ? STORM_PARTICLES : RAIN_PARTICLES;
-        PortalFrame frame = PortalFrame.canonical(geometry.facingDirection());
-        Direction normal = geometry.facingDirection();
+        Frame frame = Frame.canonical(geometry.facingDirection());
+        Face normal = geometry.facingDirection();
         double eyeDot = geometry.signedDistance(eyeX, eyeY, eyeZ);
         for (int attempt = 0; attempt < particles * SAMPLE_ATTEMPTS && particles > 0; attempt++) {
             long key = sections[random.nextInt(sections.length)];
@@ -247,8 +247,8 @@ public final class ClientAtmosphere {
     }
 
     private static boolean inside(ClientPortal portal, double eyeX, double eyeY, double eyeZ) {
-        AxisAlignedBB area = portal.geometry().apertureArea();
-        Direction facing = portal.geometry().facingDirection();
+        Box area = portal.geometry().apertureArea();
+        Face facing = portal.geometry().facingDirection();
         return (facing.x() != 0 || within(eyeX, area.getXa(), area.getXb()))
             && (facing.y() != 0 || within(eyeY, area.getYa(), area.getYb()))
             && (facing.z() != 0 || within(eyeZ, area.getZa(), area.getZb()));

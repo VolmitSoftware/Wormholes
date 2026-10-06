@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.render.view.CachedSection;
-import art.arcane.wormholes.render.view.SectionCache;
+import art.arcane.optics.view.CachedSection;
+import art.arcane.optics.view.SectionCache;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.state.BlockState;

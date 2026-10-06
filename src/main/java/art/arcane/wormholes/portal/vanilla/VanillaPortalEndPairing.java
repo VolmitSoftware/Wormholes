@@ -14,9 +14,9 @@ import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.portal.DimensionalPortalKind;
 import art.arcane.wormholes.portal.ILocalPortal;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalType;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 
 final class VanillaPortalEndPairing
 {
@@ -67,7 +67,7 @@ final class VanillaPortalEndPairing
 			{
 				return;
 			}
-			ILocalPortal sourcePortal = PortalFactory.createFromCells(window, PortalFrame.canonical(Direction.U), PortalType.PORTAL, VanillaPortalIndex.END_TAG, DimensionalPortalKind.END_SOURCE);
+			ILocalPortal sourcePortal = PortalFactory.createFromCells(window, Frame.canonical(Face.U), PortalType.PORTAL, VanillaPortalIndex.END_TAG, DimensionalPortalKind.END_SOURCE);
 			if(sourcePortal == null)
 			{
 				return;
@@ -126,7 +126,7 @@ final class VanillaPortalEndPairing
 								VanillaPortalCleanup.destroyIfUnlinked(sourcePortal);
 								return;
 							}
-							counterpart = PortalFactory.createReceiverFromCells(built, PortalFrame.canonical(Direction.U), PortalType.PORTAL, VanillaPortalIndex.END_TAG, DimensionalPortalKind.END_ARRIVAL);
+							counterpart = PortalFactory.createReceiverFromCells(built, Frame.canonical(Face.U), PortalType.PORTAL, VanillaPortalIndex.END_TAG, DimensionalPortalKind.END_ARRIVAL);
 						}
 						if(counterpart != null && PortalFactory.linkOneWay(sourcePortal, counterpart))
 						{

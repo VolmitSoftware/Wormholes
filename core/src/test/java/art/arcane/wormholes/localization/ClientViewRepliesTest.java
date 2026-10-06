@@ -3,9 +3,9 @@ package art.arcane.wormholes.localization;
 import art.arcane.volmlib.util.localization.LocalizationCandidate;
 import art.arcane.volmlib.util.localization.LocalizationSnapshot;
 import art.arcane.volmlib.util.localization.PluralSelector;
-import art.arcane.wormholes.network.client.ClientViewCapability;
+import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.render.client.session.ClientViewSessionState;
+import art.arcane.optics.stream.ClientViewSessionState;
 import art.arcane.wormholes.render.client.session.ClientViewSessionStats;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.junit.jupiter.api.Test;
@@ -33,7 +33,7 @@ final class ClientViewRepliesTest {
     @Test
     void statusListsEverySessionAndFallsBackToTheIdForUnknownPlayers() {
         ClientViewSessionStats alex = stats(ALEX, ClientViewSessionState.CLIENT_VIEW,
-            ClientViewCapability.of(ClientViewCapability.PLATES, ClientViewCapability.BRICK_CACHE), 3072L, 0L, 0L,
+            ViewStreamCapability.of(ViewStreamCapability.PLATES, ViewStreamCapability.BRICK_CACHE), 3072L, 0L, 0L,
             new ClientViewMessage.ViewStats(10, 2, 400, 0, 120, 80, 12));
         ClientViewSessionStats ghost = stats(GHOST, ClientViewSessionState.PENDING, 0L, 0L, 4L, 2L, null);
         List<String> lines = plain(ClientViewReplies.status(false, true, List.of(alex, ghost),

@@ -1,7 +1,7 @@
 package art.arcane.wormholes.network;
 
-import art.arcane.wormholes.network.view.EntityDeltaCodec;
-import art.arcane.wormholes.network.view.EntityVisual;
+import art.arcane.optics.entity.EntityDeltaCodec;
+import art.arcane.optics.entity.EntitySnapshot;
 
 import org.junit.jupiter.api.Test;
 
@@ -341,8 +341,8 @@ class SidebandOutboxTest {
         return encoded(new WireMessage.ViewEntityAnimation(new UUID(0L, id), new UUID(0L, id), false, 0, 0.0F), frameBytes);
     }
 
-    private static EntityVisual fullVisual(UUID id) {
-        return EntityVisual.full(
+    private static EntitySnapshot fullVisual(UUID id) {
+        return EntitySnapshot.full(
             id,
             "minecraft:zombie",
             0.0D, 64.0D, 0.0D,
@@ -362,14 +362,14 @@ class SidebandOutboxTest {
         );
     }
 
-    private static EntityVisual deltaVisual(UUID id) {
-        EntityVisual full = fullVisual(id);
-        return EntityDeltaCodec.buildDelta(full, full, 1, EntityVisual.FIELD_POSITION);
+    private static EntitySnapshot deltaVisual(UUID id) {
+        EntitySnapshot full = fullVisual(id);
+        return EntityDeltaCodec.buildDelta(full, full, 1, EntitySnapshot.FIELD_POSITION);
     }
 
-    private static EntityVisual mapDeltaVisual(UUID id) {
-        EntityVisual previous = fullVisual(id);
-        EntityVisual current = EntityVisual.full(
+    private static EntitySnapshot mapDeltaVisual(UUID id) {
+        EntitySnapshot previous = fullVisual(id);
+        EntitySnapshot current = EntitySnapshot.full(
             id,
             previous.typeKey(),
             previous.x(), previous.y(), previous.z(),
@@ -383,7 +383,7 @@ class SidebandOutboxTest {
             previous.metadata(), previous.equipment(), new byte[]{1},
             1
         );
-        return EntityDeltaCodec.buildDelta(current, previous, 1, EntityVisual.FIELD_MAP_DATA);
+        return EntityDeltaCodec.buildDelta(current, previous, 1, EntitySnapshot.FIELD_MAP_DATA);
     }
 
     private static WireMessage.Routed routed(WireMessage.ViewEntities message) throws IOException {

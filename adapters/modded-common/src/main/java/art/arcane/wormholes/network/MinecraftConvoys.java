@@ -1,16 +1,15 @@
 package art.arcane.wormholes.network;
 
 import art.arcane.wormholes.nexus.NetworkMember;
-import art.arcane.wormholes.chunk.ChunkLease;
+import art.arcane.optics.plate.ChunkLease;
 import art.arcane.wormholes.config.toml.TransitConfig;
-import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.network.convoy.ConvoyArrivalPlacer;
 import art.arcane.wormholes.network.convoy.ConvoyLedger;
 import art.arcane.wormholes.network.convoy.ConvoyManifest;
 import art.arcane.wormholes.network.convoy.ConvoyTransferService;
-import art.arcane.wormholes.portal.PortalCrossing;
+import art.arcane.optics.crossing.PlaneCrossing;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -46,8 +45,8 @@ final class MinecraftConvoys implements AutoCloseable {
     private final Map<UUID, MinecraftPortal> ruleSources = new HashMap<>();
     private final Map<UUID, List<ConvoyTransferService.Member<Entity>>> departing = new HashMap<>();
     private final Map<UUID, Preparation> preparations = new HashMap<>();
-    private final ConvoyTransferService<Entity, ServerPlayer, List<ConvoyTransferService.Member<Entity>>, NetworkMember, PortalCrossing, MinecraftPortal> transfers;
-    private final ConvoyArrivalPlacer<Entity, MinecraftPortal, PortalCrossing, Destination> arrivals;
+    private final ConvoyTransferService<Entity, ServerPlayer, List<ConvoyTransferService.Member<Entity>>, NetworkMember, PlaneCrossing, MinecraftPortal> transfers;
+    private final ConvoyArrivalPlacer<Entity, MinecraftPortal, PlaneCrossing, Destination> arrivals;
     private boolean closed;
 
     MinecraftConvoys(WormholesModRuntime runtime, NetworkManager network, MinecraftEntityTransfers entities) {
@@ -58,7 +57,7 @@ final class MinecraftConvoys implements AutoCloseable {
         arrivals = new ConvoyArrivalPlacer<>(new ConvoyLedger(), new Spawner(), network::send, System::currentTimeMillis);
     }
 
-    boolean begin(Entity seed, MinecraftPortal source, PortalCrossing crossing, NetworkMember destination) {
+    boolean begin(Entity seed, MinecraftPortal source, PlaneCrossing crossing, NetworkMember destination) {
         runtime.requireServerThread();
         List<ConvoyTransferService.Member<Entity>> members = members(seed);
         if (members.size() < 2) {
@@ -153,7 +152,7 @@ final class MinecraftConvoys implements AutoCloseable {
         }
     }
 
-    void playerPlaced(ServerPlayer player, MinecraftPortal portal, PortalCrossing crossing) {
+    void playerPlaced(ServerPlayer player, MinecraftPortal portal, PlaneCrossing crossing) {
         arrivals.onPlayerPlaced(player, portal, crossing);
     }
 
@@ -277,11 +276,11 @@ final class MinecraftConvoys implements AutoCloseable {
         }
     }
 
-    private void reject(Entity entity, MinecraftPortal source, PortalCrossing crossing) {
+    private void reject(Entity entity, MinecraftPortal source, PlaneCrossing crossing) {
         if (entity.isRemoved()) {
             return;
         }
-        GeometryVector point = crossing.rejectionPoint();
+        art.arcane.optics.math.Vec3 point = crossing.rejectionPoint();
         entity.teleportTo(point.x(), point.y(), point.z());
         entity.setDeltaMovement(Vec3.ZERO);
         runtime.portals().recordArrival(entity, source);
@@ -306,8 +305,8 @@ final class MinecraftConvoys implements AutoCloseable {
         entity.setComponent(DataComponents.CUSTOM_DATA, CustomData.of(data));
     }
 
-    private static GeometryVector geometry(Vec3 vector) {
-        return new GeometryVector(vector.x, vector.y, vector.z);
+    private static art.arcane.optics.math.Vec3 geometry(Vec3 vector) {
+        return new art.arcane.optics.math.Vec3(vector.x, vector.y, vector.z);
     }
 
     private final class Transport implements ConvoyTransferService.Transport {
@@ -316,7 +315,7 @@ final class MinecraftConvoys implements AutoCloseable {
         public boolean send(String peer, WireMessage message) { return network.send(peer, message); }
     }
 
-    private final class Rig implements ConvoyTransferService.Rig<Entity, ServerPlayer, List<ConvoyTransferService.Member<Entity>>, NetworkMember, PortalCrossing, MinecraftPortal> {
+    private final class Rig implements ConvoyTransferService.Rig<Entity, ServerPlayer, List<ConvoyTransferService.Member<Entity>>, NetworkMember, PlaneCrossing, MinecraftPortal> {
         public UUID id(Entity entity) { return entity.getUUID(); }
         public UUID playerId(ServerPlayer player) { return player.getUUID(); }
         public String name(Entity entity) { return entity.getName().getString(); }
@@ -324,8 +323,8 @@ final class MinecraftConvoys implements AutoCloseable {
         public String peer(NetworkMember target) { return target.serverName(); }
         public UUID destination(NetworkMember target) { return target.portalId(); }
         public List<ConvoyTransferService.Member<Entity>> members(List<ConvoyTransferService.Member<Entity>> members) { return members; }
-        public WireTraversive crossing(Entity entity, PortalCrossing crossing) {
-            return WireTraversive.fromCrossing(new PortalCrossing(crossing.frame(), crossing.origin(), geometry(entity.position()),
+        public WireTraversive crossing(Entity entity, PlaneCrossing crossing) {
+            return WireTraversive.fromCrossing(new PlaneCrossing(crossing.frame(), crossing.origin(), geometry(entity.position()),
                 geometry(entity.getDeltaMovement()), geometry(entity.getLookAngle()), crossing.frontSide()));
         }
         public byte[] snapshot(Entity entity) { return MinecraftEntitySnapshots.captureMember(entity); }
@@ -352,12 +351,12 @@ final class MinecraftConvoys implements AutoCloseable {
             frozen.remove(entity.getUUID());
             entity.discard();
         }
-        public boolean dispatchPlayer(ServerPlayer player, NetworkMember tunnel, PortalCrossing crossing, MinecraftPortal source) {
+        public boolean dispatchPlayer(ServerPlayer player, NetworkMember tunnel, PlaneCrossing crossing, MinecraftPortal source) {
             player.stopRiding();
             player.ejectPassengers();
             return runtime.network().handoffs().begin(player, tunnel.serverName(), source, crossing, tunnel.portalId());
         }
-        public void rejectSource(ServerPlayer player, MinecraftPortal source, PortalCrossing crossing) {
+        public void rejectSource(ServerPlayer player, MinecraftPortal source, PlaneCrossing crossing) {
             List<ConvoyTransferService.Member<Entity>> members = departing.remove(player.getUUID());
             runtime.rules().failed(player);
             ruleSources.remove(player.getUUID());
@@ -378,10 +377,10 @@ final class MinecraftConvoys implements AutoCloseable {
         public boolean schedule(Runnable task, long delayTicks) { return runtime.schedule(task, delayTicks); }
     }
 
-    private final class Spawner implements ConvoyArrivalPlacer.Spawner<Entity, MinecraftPortal, PortalCrossing, Destination> {
+    private final class Spawner implements ConvoyArrivalPlacer.Spawner<Entity, MinecraftPortal, PlaneCrossing, Destination> {
         public UUID id(Entity entity) { return entity.getUUID(); }
         public String name(Entity entity) { return entity.getName().getString(); }
-        public PortalCrossing crossing(WireTraversive crossing, Entity entity) { return crossing.crossing(); }
+        public PlaneCrossing crossing(WireTraversive crossing, Entity entity) { return crossing.crossing(); }
         public MinecraftPortal exit(UUID id) { return runtime.portals().get(id); }
         public boolean accepts(MinecraftPortal portal) {
             return !closed && runtime.configuration().settings().getTransit().convoyEnabled
@@ -433,7 +432,7 @@ final class MinecraftConvoys implements AutoCloseable {
             }
             leashable.setLeashedTo(holder, true);
         }
-        public void settle(MinecraftPortal portal, Entity entity, PortalCrossing crossing) { entities.settle(entity, portal, crossing); }
+        public void settle(MinecraftPortal portal, Entity entity, PlaneCrossing crossing) { entities.settle(entity, portal, crossing); }
         public boolean runRegion(Destination destination, Runnable task, Runnable rejected) {
             ServerLevel level = runtime.portals().resolveLevel(destination.portal());
             UUID world = UUID.nameUUIDFromBytes(destination.portal().getWorldKey().getBytes(StandardCharsets.UTF_8));
@@ -452,7 +451,7 @@ final class MinecraftConvoys implements AutoCloseable {
         public boolean schedule(Runnable task, long delayTicks) { return runtime.schedule(task, delayTicks); }
     }
 
-    private record Destination(MinecraftPortal portal, GeometryVector point) {
+    private record Destination(MinecraftPortal portal, art.arcane.optics.math.Vec3 point) {
     }
 
     private record Hold(Entity entity, Vec3 position, TraversalEntityTransit.TransitState state, boolean invisible) {

@@ -8,7 +8,7 @@ import art.arcane.wormholes.localization.FidelityMessages;
 import art.arcane.wormholes.localization.TransitMessages;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.render.FidelitySettings;
-import art.arcane.wormholes.render.atmosphere.AtmosphereMode;
+import art.arcane.optics.fidelity.AtmosphereMode;
 import art.arcane.wormholes.transit.MomentumPolicy;
 import art.arcane.wormholes.transit.OrientationPolicy;
 import art.arcane.wormholes.transit.TransitionProfile;

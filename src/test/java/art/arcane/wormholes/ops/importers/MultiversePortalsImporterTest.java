@@ -1,6 +1,6 @@
 package art.arcane.wormholes.ops.importers;
 
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -42,7 +42,7 @@ class MultiversePortalsImporterTest {
         assertEquals(0, report.skippedCount());
         ImportedPortal gate = factory.created().get(0);
         assertEquals("gate", gate.name());
-        assertEquals(Direction.E, gate.facing());
+        assertEquals(Face.E, gate.facing());
         assertEquals(3, gate.width());
         assertEquals(3, gate.height());
         assertEquals("arena", gate.destination());

@@ -14,14 +14,14 @@ import org.bukkit.util.Vector;
 
 import art.arcane.wormholes.access.AccessGuards;
 import art.arcane.wormholes.portal.LocalPortal;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalConstruction;
 import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.localization.WormholesMessages;
-import art.arcane.wormholes.util.Axis;
+import art.arcane.optics.math.Axis;
 import art.arcane.wormholes.util.Cuboid;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 
@@ -139,7 +139,7 @@ public class ConstructionManager implements Listener
 			double lookX = look == null ? 0.0D : look.getX();
 			double lookY = look == null ? 0.0D : look.getY();
 			double lookZ = look == null ? -1.0D : look.getZ();
-			Direction normal = PortalConstruction.derivePortalNormal(xDepth, yDepth, zDepth, lookX, lookY, lookZ);
+			Face normal = PortalConstruction.derivePortalNormal(xDepth, yDepth, zDepth, lookX, lookY, lookZ);
 			PortalStructure s = new PortalStructure();
 			s.setBlocks(blocks);
 			LocalPortal portal = createPortal(s, type);
@@ -147,7 +147,7 @@ public class ConstructionManager implements Listener
 			{
 				portal.setOwner(ownerId);
 			}
-			portal.setFrame(PortalFrame.fromDirectionAndLook(normal, BukkitGeometry.vector(look)));
+			portal.setFrame(Frame.fromDirectionAndLook(normal, BukkitGeometry.vector(look)));
 			portal.open();
 			portal.save();
 			Wormholes.portalManager.addLocalPortal(portal);

@@ -9,15 +9,15 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
-import art.arcane.wormholes.render.plate.PlateBox;
+import art.arcane.optics.math.Vec3;
+import art.arcane.optics.view.WorldChangeTracker;
+import art.arcane.optics.plate.PlateBox;
 import art.arcane.wormholes.render.plate.PlateTestFixtures;
-import art.arcane.wormholes.render.plate.ViewPlateKey;
-import art.arcane.wormholes.network.client.BrickLightSource;
+import art.arcane.optics.plate.ViewPlateKey;
+import art.arcane.optics.stream.BrickLightSource;
 import art.arcane.wormholes.network.client.SessionPalette;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
-import art.arcane.wormholes.render.plate.ViewPlate;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.plate.ViewPlate;
 
 final class FakePortalAccess implements ClientViewPortalAccess<String, String> {
     final Map<UUID, SessionPortal> portals = new LinkedHashMap<UUID, SessionPortal>();
@@ -31,14 +31,14 @@ final class FakePortalAccess implements ClientViewPortalAccess<String, String> {
     final List<String> events;
     final Map<UUID, UUID> contexts = new HashMap<>();
     int meshDistance;
-    ProjectionWorldChangeTracker meshChanges;
+    WorldChangeTracker meshChanges;
     int meshCalls;
     final List<PlateBox> meshRequests = new ArrayList<PlateBox>();
     boolean meshReady = true;
     boolean meshQueued;
     boolean localWorld;
     final Set<PlateBox> unavailableMesh = new HashSet<PlateBox>();
-    GeometryVector eye = new GeometryVector(11, 67, 15);
+    Vec3 eye = new Vec3(11, 67, 15);
     final Map<PlateBox, ViewPlate<String>> meshPlates = new HashMap<PlateBox, ViewPlate<String>>();
     int standbyCalls;
     int geometryCalls;
@@ -68,7 +68,7 @@ final class FakePortalAccess implements ClientViewPortalAccess<String, String> {
     }
 
     @Override
-    public ClientPortalGeometry geometry(String observer, UUID portal, SessionPalette palette) {
+    public ApertureDescriptor geometry(String observer, UUID portal, SessionPalette palette) {
         geometryCalls++;
         SessionPortal known = portals.get(portal);
         return known.geometryAvailable ? known.geometry(palette) : null;
@@ -89,12 +89,12 @@ final class FakePortalAccess implements ClientViewPortalAccess<String, String> {
     }
 
     @Override
-    public GeometryVector meshEye(String observer) {
+    public Vec3 meshEye(String observer) {
         return eye;
     }
 
     @Override
-    public ProjectionWorldChangeTracker meshChanges(String observer) {
+    public WorldChangeTracker meshChanges(String observer) {
         return meshChanges;
     }
 
@@ -156,12 +156,12 @@ final class FakePortalAccess implements ClientViewPortalAccess<String, String> {
     }
 
     @Override
-    public GeometryVector nestedEye(String observer, UUID context) {
+    public Vec3 nestedEye(String observer, UUID context) {
         return eye;
     }
 
     @Override
-    public void nested(String observer, UUID parent, ClientPortalGeometry parentGeometry, List<UUID> out) {
+    public void nested(String observer, UUID parent, ApertureDescriptor parentGeometry, List<UUID> out) {
         nestedCalls++;
         List<SessionPortal> children = nested.get(contexts.getOrDefault(parent, parent));
         if (children == null) {
@@ -178,7 +178,7 @@ final class FakePortalAccess implements ClientViewPortalAccess<String, String> {
     }
 
     @Override
-    public ClientPortalGeometry nestedGeometry(String observer, UUID parent, UUID child, SessionPalette palette) {
+    public ApertureDescriptor nestedGeometry(String observer, UUID parent, UUID child, SessionPalette palette) {
         SessionPortal known = child(parent, child);
         return known.geometryAvailable ? known.geometry(palette) : null;
     }
@@ -208,7 +208,7 @@ final class FakePortalAccess implements ClientViewPortalAccess<String, String> {
     }
 
     @Override
-    public ClientPortalGeometry effectGeometry(String observer, UUID portal, SessionPalette palette) {
+    public ApertureDescriptor effectGeometry(String observer, UUID portal, SessionPalette palette) {
         SessionPortal known = effectPortals.get(portal);
         return known == null || !known.geometryAvailable ? null : known.geometry(palette);
     }

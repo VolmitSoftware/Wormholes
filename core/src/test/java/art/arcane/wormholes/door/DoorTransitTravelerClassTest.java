@@ -1,6 +1,6 @@
 package art.arcane.wormholes.door;
 
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class DoorTransitTravelerClassTest
 {
-	private static final DoorwayPlane PLANE = new DoorwayPlane(0, 64, 0, Direction.N);
+	private static final DoorwayPlane PLANE = new DoorwayPlane(0, 64, 0, Face.N);
 
 	@Test
 	void theShorthandConstructorsProduceALivingTransitWithoutMomentum()
@@ -81,7 +81,7 @@ final class DoorTransitTravelerClassTest
 			0.0F, 0.0F, 0.3D, 1.8D, DoorTravelerClass.LIVING, velocity);
 		assertTrue(transit.carriesMomentum());
 		assertSame(velocity, transit.velocity());
-		DoorVec3 mapped = DoorVelocityTransform.map(PLANE, new DoorwayPlane(0, 64, 0, Direction.E), velocity);
+		DoorVec3 mapped = DoorVelocityTransform.map(PLANE, new DoorwayPlane(0, 64, 0, Face.E), velocity);
 		assertEquals(velocity.y(), mapped.y());
 		assertEquals(velocity.x() * velocity.x() + velocity.z() * velocity.z(),
 			mapped.x() * mapped.x() + mapped.z() * mapped.z(), 0.000001D);

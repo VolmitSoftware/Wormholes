@@ -12,27 +12,30 @@ import org.bukkit.Location;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.Settings;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalStructure;
-import art.arcane.wormholes.render.lod.LodPolicy;
-import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.optics.volume.LodPolicy;
+import art.arcane.optics.math.Box;
 import art.arcane.wormholes.util.Cuboid;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
+import art.arcane.optics.frame.ProjectorFrameTransform;
+import art.arcane.optics.volume.PlaneWindow;
+import art.arcane.optics.volume.ViewVolume;
 
 public final class PortalProjectorCellBudgetTest {
     private static final double DEPTH_BLOCKS = 64.0D;
     private static final double LATERAL_PAD = 48.0D;
     private static final double[] CLOSE_APPROACHES = new double[] { 0.5D, 0.75D, 1.0D, 2.0D };
     private static final double[] OFFSETS = new double[] { 0.0D, 0.5D, 1.5D };
-    private static final Direction[] HORIZONTAL_NORMALS = new Direction[] {
-        Direction.N, Direction.S, Direction.E, Direction.W
+    private static final Face[] HORIZONTAL_NORMALS = new Face[] {
+        Face.N, Face.S, Face.E, Face.W
     };
 
     @Test
     public void oneByTwoAndThreeByThreePortalsKeepConfiguredDepthAtCloseApproaches() {
         int[][] apertures = new int[][] { { 1, 2 }, { 3, 3 } };
-        for (Direction normal : HORIZONTAL_NORMALS) {
-            PortalFrame frame = PortalFrame.canonical(normal);
+        for (Face normal : HORIZONTAL_NORMALS) {
+            Frame frame = Frame.canonical(normal);
             for (int[] aperture : apertures) {
                 PortalStructure structure = structure(normal, aperture[0], aperture[1]);
                 for (double distance : CLOSE_APPROACHES) {
@@ -51,8 +54,8 @@ public final class PortalProjectorCellBudgetTest {
     @Test
     public void closeOffAxisViewsPreserveDepthBeforeTradingLateralSpread() {
         int[][] apertures = new int[][] { { 1, 2 }, { 3, 3 } };
-        for (Direction normal : HORIZONTAL_NORMALS) {
-            PortalFrame frame = PortalFrame.canonical(normal);
+        for (Face normal : HORIZONTAL_NORMALS) {
+            Frame frame = Frame.canonical(normal);
             for (int[] aperture : apertures) {
                 PortalStructure structure = structure(normal, aperture[0], aperture[1]);
                 for (double offset : OFFSETS) {
@@ -71,8 +74,8 @@ public final class PortalProjectorCellBudgetTest {
 
     @Test
     public void mirroredNormalsProduceIdenticalBudgetSolutions() {
-        assertMirroredPair(Direction.N, Direction.S);
-        assertMirroredPair(Direction.E, Direction.W);
+        assertMirroredPair(Face.N, Face.S);
+        assertMirroredPair(Face.E, Face.W);
     }
 
     @Test
@@ -81,9 +84,9 @@ public final class PortalProjectorCellBudgetTest {
             { 1, 2, 64 }, { 3, 3, 64 }, { 9, 5, 64 }, { 33, 33, 128 }, { 128, 128, 128 }, { 256, 256, 128 },
             { 600, 600, 128 }
         };
-        PortalFrame frame = PortalFrame.canonical(Direction.S);
+        Frame frame = Frame.canonical(Face.S);
         for (int[] aperture : apertures) {
-            PortalStructure structure = structure(Direction.S, aperture[0], aperture[1]);
+            PortalStructure structure = structure(Face.S, aperture[0], aperture[1]);
             for (double distance : CLOSE_APPROACHES) {
                 for (double offset : OFFSETS) {
                     ProjectorViewFrustum fitted = fit(structure, frame,
@@ -99,15 +102,15 @@ public final class PortalProjectorCellBudgetTest {
 
     @Test
     public void anOverBudgetViewCoarsensBeforeItShedsDepth() {
-        PortalFrame frame = PortalFrame.canonical(Direction.S);
+        Frame frame = Frame.canonical(Face.S);
         long budget = Settings.PROJECTION_MAX_PROJECTED_CELLS;
         PortalStructure structure = null;
         Location observerEye = null;
         for (int size = 8; size <= 200 && structure == null; size += 2) {
-            PortalStructure candidate = structure(Direction.S, size, size);
+            PortalStructure candidate = structure(Face.S, size, size);
             Location eye = eye(candidate, frame, 4.0D, 0.0D, 0.0D);
             ProjectorViewFrustum probe = new ProjectorViewFrustum(null);
-            Frustum4D narrow = probe.frustumFor(eye, candidate, 128.0D, 0.0D);
+            ViewVolume narrow = probe.frustumFor(eye, candidate, 128.0D, 0.0D);
             long narrowWork = probe.estimateCandidateWork(candidate, frame, eye, narrow, 128.0D, Long.MAX_VALUE);
             if (narrowWork > budget && narrowWork <= (budget * 3L) / 2L) {
                 structure = candidate;
@@ -122,7 +125,7 @@ public final class PortalProjectorCellBudgetTest {
         assertFalse(dense.fittedCoarse());
 
         ProjectorViewFrustum coarse = new ProjectorViewFrustum(null);
-        coarse.setLodPolicy(new art.arcane.wormholes.render.lod.LodPolicy(false, 1, 48));
+        coarse.setLodPolicy(new art.arcane.optics.volume.LodPolicy(false, 1, 48));
         coarse.fit(null, structure, frame, observerEye, 128.0D, LATERAL_PAD);
         assertTrue(coarse.fittedCoarse(), "run merging must be tried before shedding depth");
         assertEquals(128.0D, coarse.fittedDepth(), 1.0E-9D, "the coarse fit keeps the requested depth");
@@ -131,11 +134,11 @@ public final class PortalProjectorCellBudgetTest {
 
     @Test
     public void apertureLargerThanTheBudgetProducesAnEmptyProjection() {
-        PortalFrame frame = PortalFrame.canonical(Direction.S);
-        PortalStructure structure = structure(Direction.S, 600, 600);
+        Frame frame = Frame.canonical(Face.S);
+        PortalStructure structure = structure(Face.S, 600, 600);
         Location observerEye = eye(structure, frame, 0.5D, 0.0D, 0.0D);
         ProjectorViewFrustum viewFrustum = new ProjectorViewFrustum(null);
-        Frustum4D frustum = viewFrustum.fit(null, structure, frame, observerEye, 128.0D, LATERAL_PAD);
+        ViewVolume frustum = viewFrustum.fit(null, structure, frame, observerEye, 128.0D, LATERAL_PAD);
 
         assertEquals(0.0D, viewFrustum.fittedDepth(), 0.0D);
         assertEquals(0L, viewFrustum.fittedCandidateWork());
@@ -146,14 +149,14 @@ public final class PortalProjectorCellBudgetTest {
     public void estimatorMatchesTheActualCandidateLoopAcrossMirroredOffAxisViews() {
         double[] distances = new double[] { -0.75D, 0.75D };
         double[] offsets = new double[] { -1.5D, 0.5D, 1.5D };
-        for (Direction normal : HORIZONTAL_NORMALS) {
-            PortalFrame frame = PortalFrame.canonical(normal);
+        for (Face normal : HORIZONTAL_NORMALS) {
+            Frame frame = Frame.canonical(normal);
             PortalStructure structure = structure(normal, 3, 3);
             for (double distance : distances) {
                 for (double offset : offsets) {
                     Location observerEye = eye(structure, frame, distance, offset, offset * 0.25D);
                     ProjectorViewFrustum viewFrustum = new ProjectorViewFrustum(null);
-                    Frustum4D frustum = viewFrustum.frustumFor(observerEye, structure, 16.0D, 4.0D);
+                    ViewVolume frustum = viewFrustum.frustumFor(observerEye, structure, 16.0D, 4.0D);
                     long estimated = viewFrustum.estimateCandidateWork(structure, frame, observerEye, frustum,
                         16.0D, Long.MAX_VALUE);
                     long actual = countCandidateLoop(structure, frame, observerEye, frustum, 16.0D);
@@ -167,13 +170,13 @@ public final class PortalProjectorCellBudgetTest {
 
     @Test
     public void identicalInputsReuseTheCompleteBudgetSolution() {
-        PortalFrame frame = PortalFrame.canonical(Direction.S);
-        PortalStructure structure = structure(Direction.S, 3, 3);
+        Frame frame = Frame.canonical(Face.S);
+        PortalStructure structure = structure(Face.S, 3, 3);
         Location eye = eye(structure, frame, 0.5D, 1.0D, 0.0D);
         ProjectorViewFrustum viewFrustum = new ProjectorViewFrustum(null);
 
-        Frustum4D first = viewFrustum.fit(null, structure, frame, eye, DEPTH_BLOCKS, LATERAL_PAD);
-        Frustum4D second = viewFrustum.fit(null, structure, frame, eye, DEPTH_BLOCKS, LATERAL_PAD);
+        ViewVolume first = viewFrustum.fit(null, structure, frame, eye, DEPTH_BLOCKS, LATERAL_PAD);
+        ViewVolume second = viewFrustum.fit(null, structure, frame, eye, DEPTH_BLOCKS, LATERAL_PAD);
 
         assertSame(first, second);
         assertEquals(1L, viewFrustum.fitRecalculationCount());
@@ -184,15 +187,15 @@ public final class PortalProjectorCellBudgetTest {
 
     @Test
     public void equivalentDetailPoliciesReuseTheFittedFrustumAcrossProductionPasses() {
-        PortalFrame frame = PortalFrame.canonical(Direction.S);
-        PortalStructure structure = structure(Direction.S, 3, 3);
+        Frame frame = Frame.canonical(Face.S);
+        PortalStructure structure = structure(Face.S, 3, 3);
         Location eye = eye(structure, frame, 0.5D, 1.0D, 0.0D);
         ProjectorViewFrustum viewFrustum = new ProjectorViewFrustum(null);
         viewFrustum.setLodPolicy(FidelitySettings.lodPolicy(null));
-        Frustum4D first = viewFrustum.fit(null, structure, frame, eye, DEPTH_BLOCKS, LATERAL_PAD);
+        ViewVolume first = viewFrustum.fit(null, structure, frame, eye, DEPTH_BLOCKS, LATERAL_PAD);
 
         viewFrustum.setLodPolicy(FidelitySettings.lodPolicy(null));
-        Frustum4D second = viewFrustum.fit(null, structure, frame, eye, DEPTH_BLOCKS, LATERAL_PAD);
+        ViewVolume second = viewFrustum.fit(null, structure, frame, eye, DEPTH_BLOCKS, LATERAL_PAD);
 
         assertSame(first, second);
         assertEquals(1L, viewFrustum.fitRecalculationCount());
@@ -203,10 +206,10 @@ public final class PortalProjectorCellBudgetTest {
         assertEquals(2L, viewFrustum.fitRecalculationCount());
     }
 
-    private static void assertMirroredPair(Direction firstNormal, Direction secondNormal) {
+    private static void assertMirroredPair(Face firstNormal, Face secondNormal) {
         PortalStructure structure = structure(firstNormal, 3, 3);
-        PortalFrame firstFrame = PortalFrame.canonical(firstNormal);
-        PortalFrame secondFrame = PortalFrame.canonical(secondNormal);
+        Frame firstFrame = Frame.canonical(firstNormal);
+        Frame secondFrame = Frame.canonical(secondNormal);
         ProjectorViewFrustum first = fit(structure, firstFrame,
             eye(structure, firstFrame, 0.5D, 1.25D, 0.5D), DEPTH_BLOCKS, LATERAL_PAD);
         ProjectorViewFrustum second = fit(structure, secondFrame,
@@ -219,7 +222,7 @@ public final class PortalProjectorCellBudgetTest {
     }
 
     private static ProjectorViewFrustum fit(PortalStructure structure,
-                                            PortalFrame frame,
+                                            Frame frame,
                                             Location eye,
                                             double depth,
                                             double lateralPad) {
@@ -229,11 +232,11 @@ public final class PortalProjectorCellBudgetTest {
     }
 
     private static long countCandidateLoop(PortalStructure structure,
-                                           PortalFrame frame,
+                                           Frame frame,
                                            Location eye,
-                                           Frustum4D frustum,
+                                           ViewVolume frustum,
                                            double depthBlocks) {
-        AxisAlignedBB region = frustum.getRegion();
+        Box region = frustum.getRegion();
         int[] axisMin = new int[] {
             ProjectorFrameTransform.minBlockForCenter(region.getXa()),
             ProjectorFrameTransform.minBlockForCenter(region.getYa()),
@@ -248,12 +251,12 @@ public final class PortalProjectorCellBudgetTest {
         double originX = center.getX();
         double originY = center.getY();
         double originZ = center.getZ();
-        Direction normal = frame.getNormal();
+        Face normal = frame.getNormal();
         double eyeRelX = eye.getX() - originX;
         double eyeRelY = eye.getY() - originY;
         double eyeRelZ = eye.getZ() - originZ;
         boolean eyeFrontSide = dot(eyeRelX, eyeRelY, eyeRelZ, normal) >= 0.0D;
-        PortalFrame projectionFrame = frame.view(eyeFrontSide);
+        Frame projectionFrame = frame.view(eyeFrontSide);
         double clearance = ProjectorFrameTransform.portalPlaneClearance(structure.getArea(), frame);
         double maximumDepth = depthBlocks + clearance;
         double signedMinimum = eyeFrontSide ? -maximumDepth : clearance;
@@ -268,9 +271,9 @@ public final class PortalProjectorCellBudgetTest {
         axisMax[normalAxis] = Math.min(axisMax[normalAxis],
             ProjectorFrameTransform.maxBlockForCenter(Math.max(centerA, centerB)));
 
-        Direction projectionNormal = projectionFrame.getNormal();
-        Direction projectionRight = projectionFrame.getRight();
-        Direction projectionUp = projectionFrame.getUp();
+        Face projectionNormal = projectionFrame.getNormal();
+        Face projectionRight = projectionFrame.getRight();
+        Face projectionUp = projectionFrame.getUp();
         int projectionNormalAxis = axis(projectionNormal);
         int rightAxis = axis(projectionRight);
         int upAxis = axis(projectionUp);
@@ -279,7 +282,7 @@ public final class PortalProjectorCellBudgetTest {
         double rightOrigin = coordinate(rightAxis, originX, originY, originZ);
         double upOrigin = coordinate(upAxis, originX, originY, originZ);
         double projectionEyeDot = dot(eyeRelX, eyeRelY, eyeRelZ, projectionNormal);
-        ProjectorPlaneWindow planeWindow = ProjectorPlaneWindow.create(structure, structure.getArea(), projectionFrame,
+        PlaneWindow planeWindow = PlaneWindow.create(structure, structure.getArea(), projectionFrame,
             originX, originY, originZ, Settings.PROJECTION_APERTURE_PADDING_BLOCKS, projectionEyeDot);
         double projectionFacingNormal = coordinate(projectionNormal, projectionNormalAxis);
         double[] slabBounds = new double[4];
@@ -290,13 +293,13 @@ public final class PortalProjectorCellBudgetTest {
             if (!planeWindow.slabWindow(eye.getX(), eye.getY(), eye.getZ(), slabSignedDistance, slabBounds)) {
                 continue;
             }
-            int rightMinimum = ProjectorPlaneWindow.slabBlockMin(slabBounds[0], slabBounds[1], rightSign,
+            int rightMinimum = PlaneWindow.slabBlockMin(slabBounds[0], slabBounds[1], rightSign,
                 rightOrigin, axisMin[rightAxis]);
-            int rightMaximum = ProjectorPlaneWindow.slabBlockMax(slabBounds[0], slabBounds[1], rightSign,
+            int rightMaximum = PlaneWindow.slabBlockMax(slabBounds[0], slabBounds[1], rightSign,
                 rightOrigin, axisMax[rightAxis]);
-            int upMinimum = ProjectorPlaneWindow.slabBlockMin(slabBounds[2], slabBounds[3], upSign,
+            int upMinimum = PlaneWindow.slabBlockMin(slabBounds[2], slabBounds[3], upSign,
                 upOrigin, axisMin[upAxis]);
-            int upMaximum = ProjectorPlaneWindow.slabBlockMax(slabBounds[2], slabBounds[3], upSign,
+            int upMaximum = PlaneWindow.slabBlockMax(slabBounds[2], slabBounds[3], upSign,
                 upOrigin, axisMax[upAxis]);
             for (int right = rightMinimum; right <= rightMaximum; right++) {
                 for (int up = upMinimum; up <= upMaximum; up++) {
@@ -307,15 +310,15 @@ public final class PortalProjectorCellBudgetTest {
         return actual;
     }
 
-    private static double dot(double x, double y, double z, Direction direction) {
+    private static double dot(double x, double y, double z, Face direction) {
         return (x * direction.x()) + (y * direction.y()) + (z * direction.z());
     }
 
-    private static int axis(Direction direction) {
+    private static int axis(Face direction) {
         return direction.x() != 0 ? 0 : direction.y() != 0 ? 1 : 2;
     }
 
-    private static double coordinate(Direction direction, int axis) {
+    private static double coordinate(Face direction, int axis) {
         return axis == 0 ? direction.x() : axis == 1 ? direction.y() : direction.z();
     }
 
@@ -324,7 +327,7 @@ public final class PortalProjectorCellBudgetTest {
     }
 
     private static Location eye(PortalStructure structure,
-                                PortalFrame frame,
+                                Frame frame,
                                 double distance,
                                 double rightOffset,
                                 double upOffset) {
@@ -338,7 +341,7 @@ public final class PortalProjectorCellBudgetTest {
                 + (frame.getUp().z() * upOffset));
     }
 
-    private static PortalStructure structure(Direction normal, int width, int height) {
+    private static PortalStructure structure(Face normal, int width, int height) {
         Map<String, Object> values = new HashMap<String, Object>();
         values.put("worldKey", "minecraft:overworld");
         values.put("y1", Integer.valueOf(64));

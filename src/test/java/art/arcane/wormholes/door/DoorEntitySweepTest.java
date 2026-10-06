@@ -1,6 +1,6 @@
 package art.arcane.wormholes.door;
 
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.type.Door;
@@ -40,16 +40,16 @@ final class DoorEntitySweepTest
 		DoorOpenCycle cycle = new DoorOpenCycle();
 		cycle.observe(true);
 
-		DoorTransitGate.complete(cycle, new DoorTransit(new DoorwayPlane(0, 64, 0, Direction.N), DoorwayCrossing.Direction.FRONT_TO_BACK, 0.0F, 0.0F, 0.25D, 0.25D, DoorTravelerClass.OBJECT, new DoorVec3(0.0D, 0.0D, -3.0D)), true, false);
+		DoorTransitGate.complete(cycle, new DoorTransit(new DoorwayPlane(0, 64, 0, Face.N), DoorwayCrossing.Direction.FRONT_TO_BACK, 0.0F, 0.0F, 0.25D, 0.25D, DoorTravelerClass.OBJECT, new DoorVec3(0.0D, 0.0D, -3.0D)), true, false);
 
 		// the object sweep reads exactly this to decide whether arrows 2..n are fed
 		assertTrue(cycle.portalActive());
-		assertTrue(DoorEntitySweep.shouldSweep(new DoorwayPlane(0, 64, 0, Direction.N), cycle, true));
+		assertTrue(DoorEntitySweep.shouldSweep(new DoorwayPlane(0, 64, 0, Face.N), cycle, true));
 		assertEquals(DoorOpenCycle.Phase.ARMED, cycle.phase());
 	}
 
 	private static final UUID WORLD_ID = new UUID(17L, 19L);
-	private static final DoorwayPlane PLANE = new DoorwayPlane(0, 64, 0, Direction.N);
+	private static final DoorwayPlane PLANE = new DoorwayPlane(0, 64, 0, Face.N);
 
 	private static Entity stub(Class<?>... interfaces)
 	{
@@ -410,7 +410,7 @@ final class DoorEntitySweepTest
 			PlacedDoorEndpoint endpoint = new PlacedDoorEndpoint(
 				new DoorPosition(WORLD_ID, "minecraft:overworld", blockX, 64, blockZ),
 				DoorItemIdentity.publicDoor(doorId));
-			DoorwayPlane plane = new DoorwayPlane(blockX, 64, blockZ, Direction.N);
+			DoorwayPlane plane = new DoorwayPlane(blockX, 64, blockZ, Face.N);
 			RuntimeDoor runtime = new RuntimeDoor(endpoint);
 			runtime.update(new VanillaDoorSnapshot(WORLD_ID, plane, Door.Hinge.LEFT, true, false));
 			sweep.observe(endpoint, runtime, world, true);

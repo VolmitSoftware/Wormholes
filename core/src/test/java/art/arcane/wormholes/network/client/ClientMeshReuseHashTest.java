@@ -1,6 +1,6 @@
 package art.arcane.wormholes.network.client;
 
-import art.arcane.wormholes.network.replication.XxHash64;
+import art.arcane.optics.stream.XxHash64;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
@@ -18,6 +18,12 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import art.arcane.optics.stream.Brick;
+import art.arcane.optics.stream.BrickCodec;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ClientViewWriter;
+import art.arcane.optics.stream.SectionBiomes;
+import art.arcane.optics.stream.ViewStreamLimits;
 
 final class ClientMeshReuseHashTest {
     @Test
@@ -25,12 +31,12 @@ final class ClientMeshReuseHashTest {
         IntFunction<String> names = id -> "test:block_" + id;
         for (int size : new int[] {2, 3, 5, 17, 257}) {
             for (boolean air : new boolean[] {false, true}) {
-                int[] cells = new int[ClientViewProtocol.BRICK_CELLS];
+                int[] cells = new int[ViewStreamLimits.BRICK_CELLS];
                 for (int cell = 0; cell < cells.length; cell++) {
                     cells[cell] = air && cell % size == 0 ? 0 : 3 + cell % size;
                 }
-                byte[] block = new byte[ClientViewProtocol.LIGHT_NIBBLE_BYTES];
-                byte[] sky = new byte[ClientViewProtocol.LIGHT_NIBBLE_BYTES];
+                byte[] block = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
+                byte[] sky = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
                 Arrays.fill(block, (byte) 0x74);
                 Arrays.fill(sky, (byte) 0x9a);
                 byte[] originalBlock = block.clone();
@@ -65,7 +71,7 @@ final class ClientMeshReuseHashTest {
             indexedBrick(2, new int[] {7, 8, 11}, new int[] {0, 1}),
             indexedBrick(2, new int[] {7, 8, 11}, new int[] {2, 0, 1}),
             indexedBrick(16, new int[] {7, 8}, new int[] {0, 1}),
-            indexedBrick(2, new int[] {ClientViewProtocol.PALETTE_BACKING, ClientViewProtocol.PALETTE_OCCLUDED, 7, 8},
+            indexedBrick(2, new int[] {ViewStreamLimits.PALETTE_BACKING, ViewStreamLimits.PALETTE_OCCLUDED, 7, 8},
                 new int[] {0, 1, 2, 3}))) {
             ClientViewMessage.MeshSection section = section(brick, SectionBiomes.NONE);
             assertEquals(expandedHash(section, 71, names), ClientMeshHash.resolved(section, 71, names));
@@ -86,11 +92,11 @@ final class ClientMeshReuseHashTest {
         IntFunction<String> names = Map.of(7, "minecraft:stone", 9, "minecraft:stone", 81, "custom:block")::get;
         assertEquals(3797941112907736624L, ClientMeshHash.resolved(section(Brick.empty(0), SectionBiomes.NONE), 71, names));
         assertEquals(-586368193290271323L, ClientMeshHash.resolved(section(Brick.single(0, 7), SectionBiomes.NONE), 71, names));
-        assertEquals(-586368193290271323L, ClientMeshHash.resolved(section(Brick.single(0, ClientViewProtocol.PALETTE_BACKING),
+        assertEquals(-586368193290271323L, ClientMeshHash.resolved(section(Brick.single(0, ViewStreamLimits.PALETTE_BACKING),
             SectionBiomes.NONE), 71, names));
         assertEquals(-1765332103534220278L, ClientMeshHash.resolved(section(Brick.single(0, 81), SectionBiomes.NONE), 71, names));
-        byte[] block = new byte[ClientViewProtocol.LIGHT_NIBBLE_BYTES];
-        byte[] sky = new byte[ClientViewProtocol.LIGHT_NIBBLE_BYTES];
+        byte[] block = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
+        byte[] sky = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
         Arrays.fill(block, (byte) 0x73);
         Arrays.fill(sky, (byte) 0xff);
         Brick brick = Brick.single(0, 7).withLight(block, sky).withBlockEntities(new Brick.BlockEntityCell[] {
@@ -116,7 +122,7 @@ final class ClientMeshReuseHashTest {
                 default -> throw new AssertionError("Unused palette state was resolved: " + id);
             };
         };
-        int[] cells = new int[ClientViewProtocol.BRICK_CELLS];
+        int[] cells = new int[ViewStreamLimits.BRICK_CELLS];
         Arrays.fill(cells, 7);
         cells[0] = 81;
         assertEquals(ClientMeshHash.resolved(section(BrickCodec.pack(0, cells), SectionBiomes.NONE), 71,
@@ -130,7 +136,7 @@ final class ClientMeshReuseHashTest {
         long[] packed = new long[Brick.packedLongs(2)];
         Arrays.fill(packed, 0xe4e4e4e4e4e4e4e4L);
         Brick brick = new Brick(0, Brick.Encoding.PALETTED, 2, 0, 0,
-            new int[] {ClientViewProtocol.PALETTE_BACKING, ClientViewProtocol.PALETTE_OCCLUDED, 9, 81},
+            new int[] {ViewStreamLimits.PALETTE_BACKING, ViewStreamLimits.PALETTE_OCCLUDED, 9, 81},
             packed, null, null, null);
         IntFunction<String> names = Map.of(7, "minecraft:stone", 9, "stone", 81, "minecraft:stone")::get;
         assertEquals(ClientMeshHash.resolved(section(Brick.single(0, 7), SectionBiomes.NONE), 71, names),
@@ -156,7 +162,7 @@ final class ClientMeshReuseHashTest {
         ClientViewMessage.MeshSection changedBacking = new ClientViewMessage.MeshSection(1, 1, 2, -3, 4, 1, 8,
             previous.brick(), previous.biomes());
         assertEquals(ClientMeshHash.resolved(previous, 71, names), ClientMeshHash.resolved(changedBacking, 71, names));
-        for (int sentinel : List.of(ClientViewProtocol.PALETTE_BACKING, ClientViewProtocol.PALETTE_OCCLUDED)) {
+        for (int sentinel : List.of(ViewStreamLimits.PALETTE_BACKING, ViewStreamLimits.PALETTE_OCCLUDED)) {
             ClientViewMessage.MeshSection stone = section(Brick.single(0, sentinel), SectionBiomes.NONE);
             ClientViewMessage.MeshSection dirt = new ClientViewMessage.MeshSection(1, 1, 2, -3, 4, 1, 8,
                 stone.brick(), stone.biomes());
@@ -166,7 +172,7 @@ final class ClientMeshReuseHashTest {
 
     @Test
     void resolvedContentSurvivesPaletteIdsPackingOrderAndTransportChanges() throws ClientViewProtocolException {
-        int[] cells = new int[ClientViewProtocol.BRICK_CELLS];
+        int[] cells = new int[ViewStreamLimits.BRICK_CELLS];
         cells[0] = 7;
         cells[1] = 8;
         Brick first = BrickCodec.pack(0, cells);
@@ -241,8 +247,8 @@ final class ClientMeshReuseHashTest {
 
     @Test
     void blockLightSkyLightAndBlockEntityUpdatesInvalidateClaims() throws ClientViewProtocolException {
-        byte[] block = new byte[ClientViewProtocol.LIGHT_NIBBLE_BYTES];
-        byte[] sky = new byte[ClientViewProtocol.LIGHT_NIBBLE_BYTES];
+        byte[] block = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
+        byte[] sky = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
         Brick first = Brick.single(0, 7).withLight(block, sky)
             .withBlockEntities(new Brick.BlockEntityCell[] {new Brick.BlockEntityCell(12, new byte[] {1, 2, 3})});
         long hash = ClientMeshHash.hash(section(first, SectionBiomes.NONE), 31);
@@ -263,7 +269,7 @@ final class ClientMeshReuseHashTest {
 
     @Test
     void packedBlocksAndBiomePaletteOrCellChangesInvalidateClaims() throws ClientViewProtocolException {
-        int[] cells = new int[ClientViewProtocol.BRICK_CELLS];
+        int[] cells = new int[ViewStreamLimits.BRICK_CELLS];
         cells[12] = 7;
         Brick first = BrickCodec.pack(0, cells);
         byte[] biomeCells = new byte[SectionBiomes.INDEX_BYTES];
@@ -286,7 +292,7 @@ final class ClientMeshReuseHashTest {
 
     private static Brick indexedBrick(int bits, int[] palette, int[] indices) {
         long[] packed = new long[Brick.packedLongs(bits)];
-        for (int cell = 0; cell < ClientViewProtocol.BRICK_CELLS; cell++) {
+        for (int cell = 0; cell < ViewStreamLimits.BRICK_CELLS; cell++) {
             int offset = cell * bits;
             packed[offset >>> 6] |= (long) indices[cell % indices.length] << (offset & 63);
         }
@@ -312,13 +318,13 @@ final class ClientMeshReuseHashTest {
         throws ClientViewProtocolException {
         TreeMap<String, Integer> dictionary = new TreeMap<>();
         dictionary.put(SessionPalette.AIR, 0);
-        String[] states = new String[ClientViewProtocol.BRICK_CELLS];
+        String[] states = new String[ViewStreamLimits.BRICK_CELLS];
         for (int cell = 0; cell < states.length; cell++) {
             int id = section.brick().paletteIdAt(cell);
-            if (id == ClientViewProtocol.PALETTE_BACKING || id == ClientViewProtocol.PALETTE_OCCLUDED) {
+            if (id == ViewStreamLimits.PALETTE_BACKING || id == ViewStreamLimits.PALETTE_OCCLUDED) {
                 id = section.backingState();
             }
-            states[cell] = id == ClientViewProtocol.PALETTE_AIR ? SessionPalette.AIR : SessionPalette.canonical(names.apply(id));
+            states[cell] = id == ViewStreamLimits.PALETTE_AIR ? SessionPalette.AIR : SessionPalette.canonical(names.apply(id));
             dictionary.put(states[cell], 0);
         }
         ClientViewWriter output = new ClientViewWriter(1024);
@@ -358,7 +364,7 @@ final class ClientMeshReuseHashTest {
     }
 
     private static int[] unpack(Brick brick) {
-        int[] cells = new int[ClientViewProtocol.BRICK_CELLS];
+        int[] cells = new int[ViewStreamLimits.BRICK_CELLS];
         for (int cell = 0; cell < cells.length; cell++) {
             cells[cell] = brick.paletteIdAt(cell);
         }

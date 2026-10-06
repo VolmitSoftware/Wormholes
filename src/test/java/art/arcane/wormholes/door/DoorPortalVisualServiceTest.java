@@ -1,8 +1,8 @@
 package art.arcane.wormholes.door;
 
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 
-import art.arcane.wormholes.util.Axis;
+import art.arcane.optics.math.Axis;
 import org.bukkit.Material;
 import org.bukkit.Location;
 import org.bukkit.Server;
@@ -44,20 +44,20 @@ class DoorPortalVisualServiceTest
 	@Test
 	void portalKeepsTheHingeInsetAndExtendsFlushToEveryLatchEdge()
 	{
-		assertLateralBounds(Direction.N, DoorHinge.LEFT, PIXEL, 1.0F);
-		assertLateralBounds(Direction.N, DoorHinge.RIGHT, 0.0F, 1.0F - PIXEL);
-		assertLateralBounds(Direction.S, DoorHinge.LEFT, 0.0F, 1.0F - PIXEL);
-		assertLateralBounds(Direction.S, DoorHinge.RIGHT, PIXEL, 1.0F);
-		assertLateralBounds(Direction.E, DoorHinge.LEFT, PIXEL, 1.0F);
-		assertLateralBounds(Direction.E, DoorHinge.RIGHT, 0.0F, 1.0F - PIXEL);
-		assertLateralBounds(Direction.W, DoorHinge.LEFT, 0.0F, 1.0F - PIXEL);
-		assertLateralBounds(Direction.W, DoorHinge.RIGHT, PIXEL, 1.0F);
+		assertLateralBounds(Face.N, DoorHinge.LEFT, PIXEL, 1.0F);
+		assertLateralBounds(Face.N, DoorHinge.RIGHT, 0.0F, 1.0F - PIXEL);
+		assertLateralBounds(Face.S, DoorHinge.LEFT, 0.0F, 1.0F - PIXEL);
+		assertLateralBounds(Face.S, DoorHinge.RIGHT, PIXEL, 1.0F);
+		assertLateralBounds(Face.E, DoorHinge.LEFT, PIXEL, 1.0F);
+		assertLateralBounds(Face.E, DoorHinge.RIGHT, 0.0F, 1.0F - PIXEL);
+		assertLateralBounds(Face.W, DoorHinge.LEFT, 0.0F, 1.0F - PIXEL);
+		assertLateralBounds(Face.W, DoorHinge.RIGHT, PIXEL, 1.0F);
 	}
 
 	@Test
 	void everyCardinalPlaneIsInsetFromTheDoorFrame()
 	{
-		for(Direction facing : new Direction[] {Direction.N, Direction.S, Direction.E, Direction.W})
+		for(Face facing : new Face[] {Face.N, Face.S, Face.E, Face.W})
 		{
 			for(DoorHinge hinge : DoorHinge.values())
 			{
@@ -74,7 +74,7 @@ class DoorPortalVisualServiceTest
 	@Test
 	void movementThresholdMatchesTheVisiblePortalSurface()
 	{
-		for(Direction facing : new Direction[] {Direction.N, Direction.S, Direction.E, Direction.W})
+		for(Face facing : new Face[] {Face.N, Face.S, Face.E, Face.W})
 		{
 			for(DoorHinge hinge : DoorHinge.values())
 			{
@@ -99,16 +99,16 @@ class DoorPortalVisualServiceTest
 	{
 		assertEquals(Material.CRYING_OBSIDIAN, DoorPortalVisualService.PORTAL_MATERIAL);
 		assertEquals(Material.NETHER_PORTAL, DoorPortalVisualService.PORTAL_OVERLAY_MATERIAL);
-		assertEquals(Axis.X, DoorPortalGeometry.overlayAxis(Direction.N));
-		assertEquals(Axis.X, DoorPortalGeometry.overlayAxis(Direction.S));
-		assertEquals(Axis.Z, DoorPortalGeometry.overlayAxis(Direction.E));
-		assertEquals(Axis.Z, DoorPortalGeometry.overlayAxis(Direction.W));
+		assertEquals(Axis.X, DoorPortalGeometry.overlayAxis(Face.N));
+		assertEquals(Axis.X, DoorPortalGeometry.overlayAxis(Face.S));
+		assertEquals(Axis.Z, DoorPortalGeometry.overlayAxis(Face.E));
+		assertEquals(Axis.Z, DoorPortalGeometry.overlayAxis(Face.W));
 	}
 
 	@Test
 	void animatedOverlayStraddlesBothBackingFacesWithoutZFighting()
 	{
-		for(Direction facing : new Direction[] {Direction.N, Direction.S, Direction.E, Direction.W})
+		for(Face facing : new Face[] {Face.N, Face.S, Face.E, Face.W})
 		{
 			for(DoorHinge hinge : DoorHinge.values())
 			{
@@ -133,23 +133,23 @@ class DoorPortalVisualServiceTest
 	void nonCardinalFacingsAreRejected()
 	{
 		assertThrows(IllegalArgumentException.class,
-			() -> DoorPortalGeometry.geometry(Direction.U, DoorHinge.LEFT));
+			() -> DoorPortalGeometry.geometry(Face.U, DoorHinge.LEFT));
 		assertThrows(NullPointerException.class,
 			() -> DoorPortalGeometry.geometry(null, DoorHinge.LEFT));
 		assertThrows(NullPointerException.class,
-			() -> DoorPortalGeometry.geometry(Direction.N, null));
+			() -> DoorPortalGeometry.geometry(Face.N, null));
 	}
 
 	@Test
 	void trapdoorVeilIsAFlatUnitPanelLyingInThePlatePlane()
 	{
-		for(Direction facing : new Direction[] {Direction.N, Direction.S, Direction.E, Direction.W})
+		for(Face facing : new Face[] {Face.N, Face.S, Face.E, Face.W})
 		{
 			for(org.bukkit.block.data.Bisected.Half half : org.bukkit.block.data.Bisected.Half.values())
 			{
 					DoorwayPlane plane = DoorwayPlane.trapdoor(
 						4, 70, -9, facing, BukkitDoorGeometry.half(half), DoorOpenState.OPEN);
-				assertEquals(Direction.U, DoorPortalGeometry.panelFace(plane));
+				assertEquals(Face.U, DoorPortalGeometry.panelFace(plane));
 				PortalPlaneGeometry geometry =
 					DoorPortalGeometry.planeGeometry(plane, DoorHinge.LEFT);
 				assertEquals(geometry.scaleX(), geometry.scaleZ(), EPSILON);
@@ -167,7 +167,7 @@ class DoorPortalVisualServiceTest
 				assertTrue(geometry.translationY() + geometry.scaleY() <= 1.0F);
 
 				PortalPlaneGeometry overlay =
-					DoorPortalGeometry.overlayGeometry(geometry, Direction.U);
+					DoorPortalGeometry.overlayGeometry(geometry, Face.U);
 				assertEquals(geometry.scaleX(), overlay.scaleX(), EPSILON);
 				assertEquals(geometry.scaleZ(), overlay.scaleZ(), EPSILON);
 				// the animated overlay straddles both faces of the flat backing, as it does on a hinged door
@@ -176,7 +176,7 @@ class DoorPortalVisualServiceTest
 					geometry.translationY() + (geometry.scaleY() / 2.0F),
 					overlay.translationY() + (overlay.scaleY() / 2.0F),
 					EPSILON);
-				assertEquals(Axis.X, DoorPortalGeometry.overlayAxis(Direction.U));
+				assertEquals(Axis.X, DoorPortalGeometry.overlayAxis(Face.U));
 			}
 		}
 	}
@@ -188,7 +188,7 @@ class DoorPortalVisualServiceTest
 			0,
 			64,
 			0,
-			Direction.N,
+			Face.N,
 			BukkitDoorGeometry.half(org.bukkit.block.data.Bisected.Half.TOP),
 			DoorOpenState.CLOSED);
 		assertEquals(
@@ -199,7 +199,7 @@ class DoorPortalVisualServiceTest
 	@Test
 	void hingedPlaneGeometryStillDelegatesToTheCardinalTable()
 	{
-		for(Direction facing : new Direction[] {Direction.N, Direction.S, Direction.E, Direction.W})
+		for(Face facing : new Face[] {Face.N, Face.S, Face.E, Face.W})
 		{
 			for(DoorHinge hinge : DoorHinge.values())
 			{
@@ -217,7 +217,7 @@ class DoorPortalVisualServiceTest
 		for(org.bukkit.block.data.Bisected.Half half : org.bukkit.block.data.Bisected.Half.values())
 		{
 			DoorwayPlane plane = DoorwayPlane.trapdoor(
-				0, 64, 0, Direction.N, BukkitDoorGeometry.half(half), DoorOpenState.CLOSED);
+				0, 64, 0, Face.N, BukkitDoorGeometry.half(half), DoorOpenState.CLOSED);
 			PortalPlaneGeometry geometry =
 				DoorPortalGeometry.planeGeometry(plane, DoorHinge.LEFT);
 			float plateMinimum = half == org.bukkit.block.data.Bisected.Half.BOTTOM
@@ -236,7 +236,7 @@ class DoorPortalVisualServiceTest
 				EPSILON);
 		}
 
-		for(Direction facing : new Direction[] {Direction.N, Direction.S, Direction.E, Direction.W})
+		for(Face facing : new Face[] {Face.N, Face.S, Face.E, Face.W})
 		{
 			for(DoorHinge hinge : DoorHinge.values())
 			{
@@ -284,7 +284,7 @@ class DoorPortalVisualServiceTest
 			DoorItemIdentity.personal(UUID.randomUUID()));
 		VanillaDoorSnapshot snapshot = new VanillaDoorSnapshot(
 			worldId,
-			new DoorwayPlane(1, 2, 3, Direction.N),
+			new DoorwayPlane(1, 2, 3, Face.N),
 			org.bukkit.block.data.type.Door.Hinge.LEFT,
 			true,
 			false);
@@ -360,7 +360,7 @@ class DoorPortalVisualServiceTest
 		DoorPortalVisualService service = new DoorPortalVisualService(plugin);
 		PlacedDoorEndpoint endpoint = new PlacedDoorEndpoint(new DoorPosition(worldId, "minecraft:overworld", 1, 2, 3),
 			DoorItemIdentity.personal(UUID.randomUUID()), DoorOpenState.OPEN, DoorProjectionState.OFF);
-		VanillaDoorSnapshot snapshot = new VanillaDoorSnapshot(worldId, new DoorwayPlane(1, 2, 3, Direction.N),
+		VanillaDoorSnapshot snapshot = new VanillaDoorSnapshot(worldId, new DoorwayPlane(1, 2, 3, Face.N),
 			org.bukkit.block.data.type.Door.Hinge.LEFT, true, false);
 		service.show(endpoint, snapshot, false);
 		Player nativeObserver = mock(Player.class);
@@ -407,7 +407,7 @@ class DoorPortalVisualServiceTest
 		DoorPortalVisualService service = new DoorPortalVisualService(plugin);
 		PlacedDoorEndpoint endpoint = new PlacedDoorEndpoint(new DoorPosition(worldId, "minecraft:overworld", 1, 2, 3),
 			DoorItemIdentity.personal(UUID.randomUUID()));
-		VanillaDoorSnapshot snapshot = new VanillaDoorSnapshot(worldId, new DoorwayPlane(1, 2, 3, Direction.N),
+		VanillaDoorSnapshot snapshot = new VanillaDoorSnapshot(worldId, new DoorwayPlane(1, 2, 3, Face.N),
 			org.bukkit.block.data.type.Door.Hinge.LEFT, true, false);
 
 		service.show(endpoint, snapshot, false);
@@ -475,7 +475,7 @@ class DoorPortalVisualServiceTest
 			identity);
 		VanillaDoorSnapshot snapshot = new VanillaDoorSnapshot(
 			worldId,
-			new DoorwayPlane(1, 2, 3, Direction.N),
+			new DoorwayPlane(1, 2, 3, Face.N),
 			org.bukkit.block.data.type.Door.Hinge.LEFT,
 			true,
 			false);
@@ -537,7 +537,7 @@ class DoorPortalVisualServiceTest
 			DoorItemIdentity.personal(UUID.randomUUID()));
 		VanillaDoorSnapshot snapshot = new VanillaDoorSnapshot(
 			worldId,
-			new DoorwayPlane(1, 2, 3, Direction.N),
+			new DoorwayPlane(1, 2, 3, Face.N),
 			org.bukkit.block.data.type.Door.Hinge.LEFT,
 			true,
 			false);
@@ -609,7 +609,7 @@ class DoorPortalVisualServiceTest
 			DoorItemIdentity.personal(UUID.randomUUID()));
 		VanillaDoorSnapshot snapshot = new VanillaDoorSnapshot(
 			worldId,
-			new DoorwayPlane(1, 2, 3, Direction.N),
+			new DoorwayPlane(1, 2, 3, Face.N),
 			org.bukkit.block.data.type.Door.Hinge.LEFT,
 			true,
 			false);
@@ -686,14 +686,14 @@ class DoorPortalVisualServiceTest
 				overlay);
 			PortalPlaneGeometry base =
 				DoorPortalGeometry.overlayGeometry(
-					DoorPortalGeometry.geometry(Direction.N, DoorHinge.LEFT), Direction.N);
+					DoorPortalGeometry.geometry(Face.N, DoorHinge.LEFT), Face.N);
 			org.bukkit.Location anchor = new org.bukkit.Location(world, 1.5D, 2.0D, 3.5D);
 
 			ThreadLocalRandom random = mock(ThreadLocalRandom.class);
 			try(MockedStatic<ThreadLocalRandom> randomSource = mockStatic(ThreadLocalRandom.class))
 			{
 				randomSource.when(ThreadLocalRandom::current).thenReturn(random);
-				service.animateFrame(visual, world, anchor, Direction.N, base, 2);
+				service.animateFrame(visual, world, anchor, Face.N, base, 2);
 			}
 
 			assertEquals(0, interpolationDelay.get());
@@ -702,7 +702,7 @@ class DoorPortalVisualServiceTest
 			assertEquals(2, particleSpawns.get());
 
 			particleSpawns.set(0);
-			service.animateFrame(visual, world, anchor, Direction.N, base, 0);
+			service.animateFrame(visual, world, anchor, Face.N, base, 0);
 			assertEquals(3, particleSpawns.get());
 		}
 		finally
@@ -756,10 +756,10 @@ class DoorPortalVisualServiceTest
 				overlay);
 			PortalPlaneGeometry base =
 				DoorPortalGeometry.overlayGeometry(
-					DoorPortalGeometry.geometry(Direction.E, DoorHinge.RIGHT), Direction.E);
+					DoorPortalGeometry.geometry(Face.E, DoorHinge.RIGHT), Face.E);
 
 			service.animateFrame(
-				visual, world, new org.bukkit.Location(world, 1.5D, 2.0D, 3.5D), Direction.E, base, 4);
+				visual, world, new org.bukkit.Location(world, 1.5D, 2.0D, 3.5D), Face.E, base, 4);
 
 			assertEquals(3, overlayCalls.get());
 		}
@@ -796,17 +796,17 @@ class DoorPortalVisualServiceTest
 	}
 
 	private static void assertLateralBounds(
-		Direction facing,
+		Face facing,
 		DoorHinge hinge,
 		float expectedMin,
 		float expectedMax)
 	{
 		PortalPlaneGeometry geometry =
 			DoorPortalGeometry.geometry(facing, hinge);
-		float translation = facing == Direction.N || facing == Direction.S
+		float translation = facing == Face.N || facing == Face.S
 			? geometry.translationX()
 			: geometry.translationZ();
-		float scale = facing == Direction.N || facing == Direction.S
+		float scale = facing == Face.N || facing == Face.S
 			? geometry.scaleX()
 			: geometry.scaleZ();
 
@@ -817,18 +817,18 @@ class DoorPortalVisualServiceTest
 
 	private static float normalTranslation(
 		PortalPlaneGeometry geometry,
-		Direction facing)
+		Face facing)
 	{
-		return facing == Direction.N || facing == Direction.S
+		return facing == Face.N || facing == Face.S
 			? geometry.translationZ()
 			: geometry.translationX();
 	}
 
 	private static float normalScale(
 		PortalPlaneGeometry geometry,
-		Direction facing)
+		Face facing)
 	{
-		return facing == Direction.N || facing == Direction.S
+		return facing == Face.N || facing == Face.S
 			? geometry.scaleZ()
 			: geometry.scaleX();
 	}

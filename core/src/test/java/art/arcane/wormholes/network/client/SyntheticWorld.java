@@ -5,13 +5,13 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
-import art.arcane.wormholes.render.view.ProjectionContentView;
+import art.arcane.optics.fidelity.BlockEntitySample;
+import art.arcane.optics.view.ContentView;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 
-final class SyntheticWorld implements ProjectionContentView<String, String> {
+final class SyntheticWorld implements ContentView<String, String> {
     static final int MIN_Y = 0;
     static final int MAX_Y = 128;
     static final String AIR = "minecraft:air";

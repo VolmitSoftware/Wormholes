@@ -1,12 +1,12 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.chunk.ChunkLease;
-import art.arcane.wormholes.chunk.ChunkLeaseRegistry;
+import art.arcane.optics.plate.ChunkLease;
+import art.arcane.optics.plate.ChunkLeaseRegistry;
 import art.arcane.wormholes.render.FidelitySettings;
-import art.arcane.wormholes.render.ProjectionCellKey;
-import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
-import art.arcane.wormholes.render.plate.PlateCaptureJob;
-import art.arcane.wormholes.render.plate.ViewPlateBuilder;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.view.WorldChangeTracker;
+import art.arcane.optics.plate.PlateCaptureJob;
+import art.arcane.optics.plate.ViewPlateBuilder;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -18,7 +18,7 @@ import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.chunk.DataLayer;
 import net.minecraft.world.level.lighting.LevelLightEngine;
 import net.minecraft.world.level.lighting.LayerLightEventListener;
-import art.arcane.wormholes.render.view.ProjectionContentView;
+import art.arcane.optics.view.ContentView;
 import java.util.Optional;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerChunkCache;
@@ -80,7 +80,7 @@ public class MinecraftPlateCaptureSourceTest extends MinecraftTestBase {
             fixture.changes().markChanged(fixture.worldId(), position.getX(), position.getY(), position.getZ());
             assertNull(source.cached(fixture.level(), 0, 0));
             MinecraftPlateCaptureSource.CapturedChunk after = source.capture(fixture.level(), 0, 0);
-            long cell = ProjectionCellKey.pack(1, 64, 3);
+            long cell = CellKeys.pack(1, 64, 3);
             assertNotEquals(before.blockEntities().get(cell), after.blockEntities().get(cell));
             assertSame(after, source.cached(fixture.level(), 0, 0));
         } finally {
@@ -124,8 +124,8 @@ public class MinecraftPlateCaptureSourceTest extends MinecraftTestBase {
         blockLayer.set(1, 2, 3, 0);
         skyLayer.set(1, 2, 3, 0);
         assertEquals("minecraft:plains", captured.biomes()[0][0]);
-        assertEquals(ProjectionContentView.packLight(13, 4), captured.light().light(1, 2, 3));
-        assertEquals(ProjectionContentView.packLight(15, 0), captured.light().light(1, 25, 3));
+        assertEquals(ContentView.packLight(13, 4), captured.light().light(1, 2, 3));
+        assertEquals(ContentView.packLight(15, 0), captured.light().light(1, 25, 3));
         Long2ObjectOpenHashMap<MinecraftPlateCaptureSource.CapturedChunk> chunks = new Long2ObjectOpenHashMap<>();
         chunks.put(0L, captured);
         MinecraftCapturedChunkView view = new MinecraftCapturedChunkView(fixture.worldId(), 0, 16, 1,
@@ -206,7 +206,7 @@ public class MinecraftPlateCaptureSourceTest extends MinecraftTestBase {
             MinecraftPlateCaptureSource.CapturedChunk complete = new MinecraftPlateCaptureSource(fixture.runtime(), MinecraftPlateCaptureSource.Options.column(fixture.worldId(), true))
                 .capture(fixture.level(), 0, 0);
             assertEquals(1, complete.blockEntities().size());
-            assertEquals("minecraft:sign", complete.blockEntities().get(ProjectionCellKey.pack(1, 64, 3)).typeKey());
+            assertEquals("minecraft:sign", complete.blockEntities().get(CellKeys.pack(1, 64, 3)).typeKey());
             assertTrue(complete.blockEntitiesComplete());
             MinecraftPlateCaptureSource.CapturedChunk skipped = new MinecraftPlateCaptureSource(fixture.runtime(), MinecraftPlateCaptureSource.Options.column(fixture.worldId(), false))
                 .capture(fixture.level(), 0, 0);
@@ -234,7 +234,7 @@ public class MinecraftPlateCaptureSourceTest extends MinecraftTestBase {
             MinecraftPlateCaptureSource.CapturedChunk captured = new MinecraftPlateCaptureSource(fixture.runtime(), options)
                 .capture(fixture.level(), 0, 0);
             assertEquals(1, captured.blockEntities().size());
-            assertTrue(captured.blockEntities().containsKey(ProjectionCellKey.pack(1, 64, 3)));
+            assertTrue(captured.blockEntities().containsKey(CellKeys.pack(1, 64, 3)));
             assertTrue(captured.blockEntitiesComplete());
         } finally {
             FidelitySettings.blockEntityTypes = types;
@@ -285,7 +285,7 @@ public class MinecraftPlateCaptureSourceTest extends MinecraftTestBase {
     private static Fixture fixture() {
         WormholesModRuntime runtime = mock(WormholesModRuntime.class);
         MinecraftProjectionService projections = mock(MinecraftProjectionService.class);
-        ProjectionWorldChangeTracker changes = new ProjectionWorldChangeTracker();
+        WorldChangeTracker changes = new WorldChangeTracker();
         MinecraftPlateSnapshotCache snapshots = new MinecraftPlateSnapshotCache(changes, MinecraftPlateSnapshotCache.VIEW_LIMITS);
         when(runtime.projections()).thenReturn(projections);
         when(projections.plateSnapshots()).thenReturn(snapshots);
@@ -306,7 +306,7 @@ public class MinecraftPlateCaptureSourceTest extends MinecraftTestBase {
     }
 
     private record Fixture(WormholesModRuntime runtime, ServerLevel level, LevelChunk chunk, ChunkLeaseRegistry<ServerLevel> leases,
-                           ChunkLease lease, CompletableFuture<Boolean> ready, UUID worldId, ProjectionWorldChangeTracker changes) {
+                           ChunkLease lease, CompletableFuture<Boolean> ready, UUID worldId, WorldChangeTracker changes) {
     }
 
     private static BlockState air() {

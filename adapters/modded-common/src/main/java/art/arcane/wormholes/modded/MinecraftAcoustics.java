@@ -1,8 +1,8 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.modded.clientview.MinecraftClientViewService;
-import art.arcane.wormholes.render.acoustics.AcousticsBridge;
-import art.arcane.wormholes.render.acoustics.AcousticsProfile;
+import art.arcane.optics.fidelity.AcousticsBridge;
+import art.arcane.optics.fidelity.AcousticsProfile;
 import art.arcane.wormholes.render.client.session.ClientViewEmitters;
 import net.minecraft.core.Holder;
 import net.minecraft.network.protocol.Packet;

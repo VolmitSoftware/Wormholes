@@ -2,9 +2,9 @@ package art.arcane.wormholes.portal;
 
 import art.arcane.wormholes.TraversableManager;
 import art.arcane.wormholes.TraversableManager.Movement;
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import art.arcane.wormholes.util.BukkitGeometry;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import art.arcane.optics.frame.Frame;
 
 class LocalPortalDeferredCrossingTest {
     @Test
@@ -48,9 +49,9 @@ class LocalPortalDeferredCrossingTest {
     void changingSourcePlaneOrClosingEntranceInvalidatesSavedCrossing() throws Exception {
         Fixture fixture = fixture();
         Object deferred = deferred(fixture);
-        when(fixture.portal().getOrigin()).thenReturn(new GeometryVector(1.5D, 65, 1.5D));
+        when(fixture.portal().getOrigin()).thenReturn(new Vec3(1.5D, 65, 1.5D));
         assertFalse(continuous(deferred, fixture));
-        when(fixture.portal().getOrigin()).thenReturn(new GeometryVector(0.5D, 65, 1.5D));
+        when(fixture.portal().getOrigin()).thenReturn(new Vec3(0.5D, 65, 1.5D));
         when(fixture.portal().isOpen()).thenReturn(false);
         assertFalse(continuous(deferred, fixture));
     }
@@ -62,8 +63,8 @@ class LocalPortalDeferredCrossingTest {
         TraversableManager manager = new TraversableManager();
         manager.movement(player, start);
         LocalPortal portal = mock(LocalPortal.class);
-        PortalFrame frame = PortalFrame.canonical(Direction.E);
-        GeometryVector origin = new GeometryVector(0.5D, 65, 1.5D);
+        Frame frame = Frame.canonical(Face.E);
+        Vec3 origin = new Vec3(0.5D, 65, 1.5D);
         when(portal.isOpen()).thenReturn(true);
         when(portal.getOrigin()).thenReturn(origin);
         when(portal.getFrame()).thenReturn(frame);

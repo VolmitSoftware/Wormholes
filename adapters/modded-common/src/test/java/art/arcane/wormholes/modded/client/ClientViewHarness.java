@@ -1,23 +1,23 @@
 package art.arcane.wormholes.modded.client;
 
-import art.arcane.wormholes.network.client.BrickLightSource;
-import art.arcane.wormholes.network.client.Brick;
-import art.arcane.wormholes.network.client.BrickCodec;
-import art.arcane.wormholes.network.client.ClientViewCapability;
+import art.arcane.optics.stream.BrickLightSource;
+import art.arcane.optics.stream.Brick;
+import art.arcane.optics.stream.BrickCodec;
+import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
-import art.arcane.wormholes.network.client.ClientViewProtocolException;
-import art.arcane.wormholes.network.client.PlateSectionBox;
-import art.arcane.wormholes.network.view.EntityVisual;
-import art.arcane.wormholes.render.ProjectedEntityEvent;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.PlateSectionBox;
+import art.arcane.optics.entity.EntitySnapshot;
+import art.arcane.optics.entity.ProjectedEntityEvent;
 import art.arcane.wormholes.portal.effects.PortalAnimation;
-import art.arcane.wormholes.render.ProjectionCellKey;
-import art.arcane.wormholes.render.acoustics.AcousticsProfile;
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
-import art.arcane.wormholes.render.plate.PlateBox;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.fidelity.AcousticsProfile;
+import art.arcane.optics.fidelity.BlockEntitySample;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.Face;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -39,7 +39,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 final class ClientViewHarness {
-    static final long PLATE_CAPS = ClientViewCapability.ALL & ~ClientViewCapability.MESH_RENDER.mask();
+    static final long PLATE_CAPS = ViewStreamCapability.ALL & ~ViewStreamCapability.MESH_RENDER.mask();
     static final BlockState STONE = Blocks.STONE.defaultBlockState();
     static final BlockState DIRT = Blocks.DIRT.defaultBlockState();
     static final BlockState AIR = Blocks.AIR.defaultBlockState();
@@ -76,7 +76,7 @@ final class ClientViewHarness {
         config = new WormholesClientConfig();
         config.normalize();
         session = new ClientViewSession(config, new ClientPalette(BuiltInRegistries.BLOCK), 1, "test");
-        session.accept(new ClientViewMessage.Accept(1, caps, 20, ClientViewProtocol.DEFAULT_MAX_FRAME_BYTES, 7L, 8));
+        session.accept(new ClientViewMessage.Accept(1, caps, 20, ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 7L, 8));
         receiver = new ClientViewReceiver(session);
         stats = new ClientViewStats();
         tick = new ClientViewTick(session, receiver, config, stats);
@@ -100,7 +100,7 @@ final class ClientViewHarness {
         }
         receive(new ClientViewMessage.PlateBegin(PORTAL_KEY, 1, SECTIONS, PLATE, STONE_ID, bricks.length, hashes), 0);
         receive(new ClientViewMessage.PlateBricks(PORTAL_KEY, 1, Arrays.asList(bricks)), 0);
-        receive(new ClientViewMessage.PlateEnd(PORTAL_KEY, 1), ClientViewProtocol.FLAG_LAST);
+        receive(new ClientViewMessage.PlateEnd(PORTAL_KEY, 1), ViewStreamLimits.FLAG_LAST);
     }
 
     void receive(ClientViewMessage message, int flags) throws ClientViewProtocolException {
@@ -130,7 +130,7 @@ final class ClientViewHarness {
     }
 
     static Brick brick(int brickIndex, int fill) {
-        int[] cells = new int[ClientViewProtocol.BRICK_CELLS];
+        int[] cells = new int[ViewStreamLimits.BRICK_CELLS];
         Arrays.fill(cells, fill);
         return BrickCodec.pack(brickIndex, cells);
     }
@@ -139,30 +139,30 @@ final class ClientViewHarness {
         int baseX = SECTIONS.sectionX(brickIndex) << 4;
         int baseY = SECTIONS.sectionY(brickIndex) << 4;
         int baseZ = SECTIONS.sectionZ(brickIndex) << 4;
-        int[] cells = new int[ClientViewProtocol.BRICK_CELLS];
+        int[] cells = new int[ViewStreamLimits.BRICK_CELLS];
         for (int cellIndex = 0; cellIndex < cells.length; cellIndex++) {
-            int x = baseX + ClientViewProtocol.brickCellX(cellIndex);
-            int y = baseY + ClientViewProtocol.brickCellY(cellIndex);
-            int z = baseZ + ClientViewProtocol.brickCellZ(cellIndex);
+            int x = baseX + ViewStreamLimits.brickCellX(cellIndex);
+            int y = baseY + ViewStreamLimits.brickCellY(cellIndex);
+            int z = baseZ + ViewStreamLimits.brickCellZ(cellIndex);
             boolean inside = x >= PLATE.minX() && x < PLATE.minX() + PLATE.sizeX() && y >= PLATE.minY() && y < PLATE.minY() + PLATE.sizeY()
                 && z >= PLATE.minZ() && z < PLATE.minZ() + PLATE.sizeZ();
-            cells[cellIndex] = !inside || x == AIR_COLUMN_X ? ClientViewProtocol.PALETTE_AIR : STONE_ID;
+            cells[cellIndex] = !inside || x == AIR_COLUMN_X ? ViewStreamLimits.PALETTE_AIR : STONE_ID;
         }
         Brick brick = BrickCodec.pack(brickIndex, cells);
-        byte[] block = new byte[ClientViewProtocol.LIGHT_NIBBLE_BYTES];
-        byte[] sky = new byte[ClientViewProtocol.LIGHT_NIBBLE_BYTES];
+        byte[] block = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
+        byte[] sky = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
         Arrays.fill(block, (byte) ((DESTINATION_BLOCK_LIGHT << 4) | DESTINATION_BLOCK_LIGHT));
         Arrays.fill(sky, (byte) ((DESTINATION_SKY_LIGHT << 4) | DESTINATION_SKY_LIGHT));
         return brick.isEmpty() ? brick : brick.withLight(block, sky);
     }
 
-    static ClientPortalGeometry geometry() {
+    static ApertureDescriptor geometry() {
         boolean[] open = new boolean[9];
         Arrays.fill(open, true);
-        return new ClientPortalGeometry(0, 64, 10, Direction.S.ordinal(), true, 0, false, 3, 3,
-            ClientPortalGeometry.apertureMask(3, 3, open), 0.0F, 0.0F, 0.0F, 8, 0,
-            ClientPortalGeometry.BLACKOUT_OFF, 0, ClientPortalGeometry.MASK_AIR_PROJECT, 0, 0,
-            ClientPortalGeometry.KIND_FRAME, 0.0D, 0, 0L, List.of());
+        return new ApertureDescriptor(0, 64, 10, Face.S.ordinal(), true, 0, false, 3, 3,
+            ApertureDescriptor.apertureMask(3, 3, open), 0.0F, 0.0F, 0.0F, 8, 0,
+            ApertureDescriptor.BLACKOUT_OFF, 0, ApertureDescriptor.MASK_AIR_PROJECT, 0, 0,
+            ApertureDescriptor.KIND_FRAME, 0.0D, 0, 0L, List.of());
     }
 
     static final class FakeSurface implements ClientViewSurface {
@@ -188,7 +188,7 @@ final class ClientViewHarness {
             if (!chunkLoaded(x >> 4, z >> 4)) {
                 return null;
             }
-            BlockState state = states.get(ProjectionCellKey.pack(x, y, z));
+            BlockState state = states.get(CellKeys.pack(x, y, z));
             return state == null ? real(x, y, z) : state;
         }
 
@@ -196,7 +196,7 @@ final class ClientViewHarness {
         public void write(int x, int y, int z, BlockState state) {
             assertNotNull(state);
             assertTrue("write into a missing chunk", chunkLoaded(x >> 4, z >> 4));
-            long key = ProjectionCellKey.pack(x, y, z);
+            long key = CellKeys.pack(x, y, z);
             if (state == real(x, y, z)) {
                 states.remove(key);
             } else {
@@ -241,8 +241,8 @@ final class ClientViewHarness {
         }
 
         void replaceLight(int sectionX, int sectionY, int sectionZ, int block, int sky) {
-            byte[] blockLayer = new byte[ClientViewProtocol.LIGHT_NIBBLE_BYTES];
-            byte[] skyLayer = new byte[ClientViewProtocol.LIGHT_NIBBLE_BYTES];
+            byte[] blockLayer = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
+            byte[] skyLayer = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
             Arrays.fill(blockLayer, (byte) ((block << 4) | block));
             Arrays.fill(skyLayer, (byte) ((sky << 4) | sky));
             light.put(SectionPos.asLong(sectionX, sectionY, sectionZ), new byte[][] {blockLayer, skyLayer});
@@ -254,7 +254,7 @@ final class ClientViewHarness {
                 return patched;
             }
             byte[][] layers = light.get(SectionPos.asLong(x >> 4, y >> 4, z >> 4));
-            return layers == null ? LOCAL_BLOCK_LIGHT : BrickLightSource.nibble(layers[0], ClientViewProtocol.brickCellIndex(x, y, z));
+            return layers == null ? LOCAL_BLOCK_LIGHT : BrickLightSource.nibble(layers[0], ViewStreamLimits.brickCellIndex(x, y, z));
         }
 
         int skyLight(int x, int y, int z) {
@@ -263,14 +263,14 @@ final class ClientViewHarness {
                 return patched;
             }
             byte[][] layers = light.get(SectionPos.asLong(x >> 4, y >> 4, z >> 4));
-            return layers == null ? LOCAL_SKY_LIGHT : BrickLightSource.nibble(layers[1], ClientViewProtocol.brickCellIndex(x, y, z));
+            return layers == null ? LOCAL_SKY_LIGHT : BrickLightSource.nibble(layers[1], ViewStreamLimits.brickCellIndex(x, y, z));
         }
 
         ProjectionOverlay.ChunkSections sections() {
             return new ProjectionOverlay.ChunkSections() {
                 @Override
                 public BlockState state(int x, int y, int z) {
-                    BlockState state = states.get(ProjectionCellKey.pack(x, y, z));
+                    BlockState state = states.get(CellKeys.pack(x, y, z));
                     return state == null ? real(x, y, z) : state;
                 }
 
@@ -290,7 +290,7 @@ final class ClientViewHarness {
 
     static final class FakeScene implements ClientSceneWorld {
         final Map<Integer, UUID> identities = new HashMap<>();
-        final Map<Integer, EntityVisual> entities = new HashMap<>();
+        final Map<Integer, EntitySnapshot> entities = new HashMap<>();
         final Map<Integer, byte[]> metadata = new HashMap<>();
         final List<String> events = new ArrayList<>();
         final List<ProjectedEntityEvent> entityActions = new ArrayList<>();
@@ -304,7 +304,7 @@ final class ClientViewHarness {
         boolean failGameTime;
 
         @Override
-        public boolean spawn(int entityId, UUID projectionId, EntityVisual visual) {
+        public boolean spawn(int entityId, UUID projectionId, EntitySnapshot visual) {
             if (identities.containsValue(projectionId)) {
                 return false;
             }
@@ -319,7 +319,7 @@ final class ClientViewHarness {
         }
 
         @Override
-        public void move(int entityId, EntityVisual visual, EntityVisual previous) {
+        public void move(int entityId, EntitySnapshot visual, EntitySnapshot previous) {
             entities.put(entityId, visual);
             moves++;
         }
@@ -340,7 +340,7 @@ final class ClientViewHarness {
         }
 
         @Override
-        public void remove(int entityId, EntityVisual visual) {
+        public void remove(int entityId, EntitySnapshot visual) {
             identities.remove(entityId);
             entities.remove(entityId);
             events.add("remove " + entityId);

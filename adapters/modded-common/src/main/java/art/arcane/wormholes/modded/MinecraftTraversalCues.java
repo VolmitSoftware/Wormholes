@@ -1,11 +1,10 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.render.client.session.ClientViewEmitters;
 import art.arcane.wormholes.transit.TransitionProfile;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import net.minecraft.world.phys.Vec3;
 import art.arcane.wormholes.transit.TraversalCues;
@@ -25,7 +24,7 @@ import net.minecraft.world.entity.Entity;
 public final class MinecraftTraversalCues {
     private MinecraftTraversalCues() { }
 
-    public static void threshold(WormholesModRuntime runtime, MinecraftPortal source, GeometryVector point, Entity traveler) {
+    public static void threshold(WormholesModRuntime runtime, MinecraftPortal source, art.arcane.optics.math.Vec3 point, Entity traveler) {
         if (!runtime.configuration().settings().getTransit().cinematicsEnabled) {
             return;
         }
@@ -81,8 +80,8 @@ public final class MinecraftTraversalCues {
     }
 
     public static void reject(WormholesModRuntime runtime, MinecraftPortal portal, Entity traveler) {
-        Direction normal = portal.getFrame().getNormal();
-        GeometryVector origin = portal.getOrigin();
+        Face normal = portal.getFrame().getNormal();
+        art.arcane.optics.math.Vec3 origin = portal.getOrigin();
         double side = (traveler.xo - origin.x()) * normal.x() + (traveler.yo - origin.y()) * normal.y()
             + (traveler.zo - origin.z()) * normal.z();
         double magnitude = 3.0D * runtime.configuration().settings().getMain().portalPushbackMultiplier

@@ -1,6 +1,6 @@
 package art.arcane.wormholes.door;
 
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -9,8 +9,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 final class DoorVelocityTransformTest
 {
-	private static final Direction[] CARDINALS =
-		{Direction.N, Direction.S, Direction.E, Direction.W};
+	private static final Face[] CARDINALS =
+		{Face.N, Face.S, Face.E, Face.W};
 	private static final double TOLERANCE = 1.0E-9D;
 
 	/** Minecraft heading for a yaw: 0 looks toward +Z, 90 toward -X. */
@@ -23,10 +23,10 @@ final class DoorVelocityTransformTest
 	@Test
 	void rotatedMomentumMatchesTheArrivalYawForEveryCardinalPairing()
 	{
-		for(Direction sourceFacing : CARDINALS)
+		for(Face sourceFacing : CARDINALS)
 		{
 			DoorwayPlane source = new DoorwayPlane(0, 64, 0, sourceFacing);
-			for(Direction destinationFacing : CARDINALS)
+			for(Face destinationFacing : CARDINALS)
 			{
 				DoorwayPlane destination = new DoorwayPlane(40, 64, 40, destinationFacing);
 				for(float yaw : new float[] {0.0F, 45.0F, 90.0F, 179.0F, -90.0F, -135.0F})
@@ -83,8 +83,8 @@ final class DoorVelocityTransformTest
 	{
 		assertNull(DoorVelocityTransform.rotateYaw(null, 42.0F));
 		assertNull(DoorVelocityTransform.map(
-			new DoorwayPlane(0, 64, 0, Direction.N),
-			new DoorwayPlane(9, 64, 9, Direction.E),
+			new DoorwayPlane(0, 64, 0, Face.N),
+			new DoorwayPlane(9, 64, 9, Face.E),
 			null));
 	}
 
@@ -109,10 +109,10 @@ final class DoorVelocityTransformTest
 	@Test
 	void twoHingedDoorsKeepTheEstablishedFrontToFrontRule()
 	{
-		for(Direction sourceFacing : CARDINALS)
+		for(Face sourceFacing : CARDINALS)
 		{
 			DoorwayPlane source = new DoorwayPlane(0, 64, 0, sourceFacing);
-			for(Direction destinationFacing : CARDINALS)
+			for(Face destinationFacing : CARDINALS)
 			{
 				DoorwayPlane destination = new DoorwayPlane(30, 64, 30, destinationFacing);
 				DoorVec3 velocity = new DoorVec3(
@@ -130,10 +130,10 @@ final class DoorVelocityTransformTest
 	void aFallThroughATrapdoorKeepsFalling()
 	{
 		DoorVec3 falling = new DoorVec3(0.0D, -1.6D, 0.0D);
-		for(Direction sourceFacing : CARDINALS)
+		for(Face sourceFacing : CARDINALS)
 		{
 			DoorwayPlane source = trapdoor(0, 64, 0, sourceFacing);
-			for(Direction destinationFacing : CARDINALS)
+			for(Face destinationFacing : CARDINALS)
 			{
 				DoorwayPlane destination = trapdoor(20, 30, 20, destinationFacing);
 				DoorVec3 mapped = DoorVelocityTransform.map(source, destination, falling);
@@ -147,8 +147,8 @@ final class DoorVelocityTransformTest
 	void aShotFiredUpThroughATrapdoorKeepsClimbing()
 	{
 		DoorVec3 rising = new DoorVec3(0.0D, 2.4D, 0.0D);
-		DoorwayPlane source = trapdoor(0, 64, 0, Direction.N);
-		DoorwayPlane destination = trapdoor(80, 12, -40, Direction.W);
+		DoorwayPlane source = trapdoor(0, 64, 0, Face.N);
+		DoorwayPlane destination = trapdoor(80, 12, -40, Face.W);
 
 		assertEquals(2.4D, DoorVelocityTransform.map(source, destination, rising).y(), TOLERANCE);
 	}
@@ -156,8 +156,8 @@ final class DoorVelocityTransformTest
 	@Test
 	void aDoorwayHandsAHorizontalShotToATrapdoorAsAVerticalOne()
 	{
-		DoorwayPlane source = new DoorwayPlane(0, 64, 0, Direction.N);
-		DoorwayPlane destination = trapdoor(30, 64, 30, Direction.S);
+		DoorwayPlane source = new DoorwayPlane(0, 64, 0, Face.N);
+		DoorwayPlane destination = trapdoor(30, 64, 30, Face.S);
 		// travelling along the north-facing door's own normal, so straight out of it
 		DoorVec3 velocity = new DoorVec3(0.0D, 0.0D, -3.0D);
 
@@ -171,8 +171,8 @@ final class DoorVelocityTransformTest
 	@Test
 	void aTrapdoorHandsAFallToADoorwayAsAHorizontalShot()
 	{
-		DoorwayPlane source = trapdoor(0, 64, 0, Direction.E);
-		DoorwayPlane destination = new DoorwayPlane(-20, 64, 5, Direction.W);
+		DoorwayPlane source = trapdoor(0, 64, 0, Face.E);
+		DoorwayPlane destination = new DoorwayPlane(-20, 64, 5, Face.W);
 		DoorVec3 velocity = new DoorVec3(0.0D, -2.0D, 0.0D);
 
 		DoorVec3 mapped = DoorVelocityTransform.map(source, destination, velocity);
@@ -185,14 +185,14 @@ final class DoorVelocityTransformTest
 	@Test
 	void mappingRequiresBothPlanes()
 	{
-		DoorwayPlane plane = new DoorwayPlane(0, 64, 0, Direction.N);
+		DoorwayPlane plane = new DoorwayPlane(0, 64, 0, Face.N);
 		DoorVec3 velocity = new DoorVec3(1.0D, 0.0D, 0.0D);
 
 		assertThrows(NullPointerException.class, () -> DoorVelocityTransform.map(null, plane, velocity));
 		assertThrows(NullPointerException.class, () -> DoorVelocityTransform.map(plane, null, velocity));
 	}
 
-	private static DoorwayPlane trapdoor(int x, int y, int z, Direction facing)
+	private static DoorwayPlane trapdoor(int x, int y, int z, Face facing)
 	{
 		return DoorwayPlane.trapdoor(
 			x, y, z, facing, DoorHalf.BOTTOM, DoorOpenState.OPEN);

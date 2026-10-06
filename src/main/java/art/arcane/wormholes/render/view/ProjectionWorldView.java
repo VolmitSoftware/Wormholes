@@ -5,9 +5,10 @@ import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
 
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
+import art.arcane.optics.fidelity.BlockEntitySample;
+import art.arcane.optics.view.ContentView;
 
-public interface ProjectionWorldView extends ProjectionContentView<BlockData, Material> {
+public interface ProjectionWorldView extends ContentView<BlockData, Material> {
 
     World getWorld();
 

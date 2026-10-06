@@ -1,6 +1,6 @@
 package art.arcane.wormholes.door;
 
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -50,9 +50,9 @@ final class VanillaDoorSnapshotTest
 	@Test
 	void portalLivenessFollowsTheConfiguredOpenStateForBothForms()
 	{
-		DoorwayPlane door = new DoorwayPlane(0, 64, 0, Direction.N);
+		DoorwayPlane door = new DoorwayPlane(0, 64, 0, Face.N);
 		DoorwayPlane trapdoor = DoorwayPlane.trapdoor(
-			0, 64, 0, Direction.N, DoorHalf.BOTTOM, DoorOpenState.OPEN);
+			0, 64, 0, Face.N, DoorHalf.BOTTOM, DoorOpenState.OPEN);
 
 		for(DoorwayPlane plane : new DoorwayPlane[] {door, trapdoor})
 		{

@@ -3,7 +3,7 @@ package art.arcane.wormholes.modded;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 
-import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
+import art.arcane.optics.view.WorldChangeTracker;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.UUID;
@@ -14,7 +14,7 @@ import org.junit.Test;
 public final class MinecraftPlateSnapshotCacheTest {
     @Test
     public void overlappingViewWorkingSetSurvivesCaptureTraversalAndReopening() {
-        ProjectionWorldChangeTracker changes = new ProjectionWorldChangeTracker();
+        WorldChangeTracker changes = new WorldChangeTracker();
         MinecraftPlateSnapshotCache cache = new MinecraftPlateSnapshotCache(changes, MinecraftPlateSnapshotCache.VIEW_LIMITS);
         UUID world = UUID.randomUUID();
         Object chunk = new Object();
@@ -37,7 +37,7 @@ public final class MinecraftPlateSnapshotCacheTest {
 
     @Test
     public void unchangedExactRangeAndOptionsReuseAnImmutableSnapshot() {
-        ProjectionWorldChangeTracker changes = new ProjectionWorldChangeTracker();
+        WorldChangeTracker changes = new WorldChangeTracker();
         MinecraftPlateSnapshotCache cache = cache(changes, 8, 4096);
         MinecraftPlateSnapshotCache.Key key = key(UUID.randomUUID(), 64, 79, true, true);
         Object chunk = new Object();
@@ -52,7 +52,7 @@ public final class MinecraftPlateSnapshotCacheTest {
 
     @Test
     public void blockLightAndBlockEntityColumnChangesInvalidateWithoutDiscardingUnrelatedChunks() {
-        ProjectionWorldChangeTracker changes = new ProjectionWorldChangeTracker();
+        WorldChangeTracker changes = new WorldChangeTracker();
         MinecraftPlateSnapshotCache cache = cache(changes, 8, 4096);
         MinecraftPlateSnapshotCache.Key key = key(UUID.randomUUID(), 64, 79, true, true);
         Object chunk = new Object();
@@ -69,7 +69,7 @@ public final class MinecraftPlateSnapshotCacheTest {
 
     @Test
     public void replacedChunksWorldUnloadAndBackstopNeverReuseOldData() {
-        ProjectionWorldChangeTracker changes = new ProjectionWorldChangeTracker();
+        WorldChangeTracker changes = new WorldChangeTracker();
         MinecraftPlateSnapshotCache cache = cache(changes, 8, 4096);
         MinecraftPlateSnapshotCache.Key key = key(UUID.randomUUID(), 64, 79, true, true);
         Object chunk = new Object();
@@ -86,7 +86,7 @@ public final class MinecraftPlateSnapshotCacheTest {
 
     @Test
     public void entryAndByteLimitsEvictOldestSnapshotsAndFlushReleasesEverything() {
-        ProjectionWorldChangeTracker changes = new ProjectionWorldChangeTracker();
+        WorldChangeTracker changes = new WorldChangeTracker();
         MinecraftPlateSnapshotCache cache = cache(changes, 8, 1024);
         Object chunk = new Object();
         MinecraftPlateCaptureSource.CapturedChunk snapshot = snapshot();
@@ -108,7 +108,7 @@ public final class MinecraftPlateSnapshotCacheTest {
         assertSame(snapshot, limited.get(second, chunk, 0));
     }
 
-    private static MinecraftPlateSnapshotCache cache(ProjectionWorldChangeTracker changes, int entries, long bytes) {
+    private static MinecraftPlateSnapshotCache cache(WorldChangeTracker changes, int entries, long bytes) {
         return new MinecraftPlateSnapshotCache(changes, new MinecraftPlateSnapshotCache.Limits(entries, 100, bytes));
     }
 

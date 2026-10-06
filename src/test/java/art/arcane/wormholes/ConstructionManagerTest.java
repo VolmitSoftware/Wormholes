@@ -12,7 +12,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.junit.jupiter.api.Test;
 
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 
 public final class ConstructionManagerTest {
     @Test
@@ -140,26 +140,26 @@ public final class ConstructionManagerTest {
 
     @Test
     public void planarNormalFollowsFlatAxis() {
-        assertEquals(Direction.E, PortalConstruction.derivePortalNormal(0, 3, 4, 1.0D, 0.0D, 0.0D));
-        assertEquals(Direction.W, PortalConstruction.derivePortalNormal(0, 3, 4, -0.2D, 0.9D, 0.1D));
-        assertEquals(Direction.U, PortalConstruction.derivePortalNormal(5, 0, 2, 0.0D, 1.0D, 0.0D));
-        assertEquals(Direction.D, PortalConstruction.derivePortalNormal(5, 0, 2, 0.9D, -0.1D, 0.3D));
-        assertEquals(Direction.S, PortalConstruction.derivePortalNormal(5, 2, 0, 0.0D, 0.0D, 1.0D));
-        assertEquals(Direction.N, PortalConstruction.derivePortalNormal(5, 2, 0, 0.1D, 0.2D, -0.9D));
+        assertEquals(Face.E, PortalConstruction.derivePortalNormal(0, 3, 4, 1.0D, 0.0D, 0.0D));
+        assertEquals(Face.W, PortalConstruction.derivePortalNormal(0, 3, 4, -0.2D, 0.9D, 0.1D));
+        assertEquals(Face.U, PortalConstruction.derivePortalNormal(5, 0, 2, 0.0D, 1.0D, 0.0D));
+        assertEquals(Face.D, PortalConstruction.derivePortalNormal(5, 0, 2, 0.9D, -0.1D, 0.3D));
+        assertEquals(Face.S, PortalConstruction.derivePortalNormal(5, 2, 0, 0.0D, 0.0D, 1.0D));
+        assertEquals(Face.N, PortalConstruction.derivePortalNormal(5, 2, 0, 0.1D, 0.2D, -0.9D));
     }
 
     @Test
     public void lineNormalPicksLookDominantFlatAxis() {
-        assertEquals(Direction.N, PortalConstruction.derivePortalNormal(2, 0, 0, 0.0D, 0.0D, -1.0D));
-        assertEquals(Direction.D, PortalConstruction.derivePortalNormal(2, 0, 0, 0.0D, -1.0D, 0.0D));
-        assertEquals(Direction.E, PortalConstruction.derivePortalNormal(0, 2, 0, 1.0D, 0.5D, 0.0D));
-        assertEquals(Direction.S, PortalConstruction.derivePortalNormal(0, 2, 0, 0.1D, 0.5D, 1.0D));
+        assertEquals(Face.N, PortalConstruction.derivePortalNormal(2, 0, 0, 0.0D, 0.0D, -1.0D));
+        assertEquals(Face.D, PortalConstruction.derivePortalNormal(2, 0, 0, 0.0D, -1.0D, 0.0D));
+        assertEquals(Face.E, PortalConstruction.derivePortalNormal(0, 2, 0, 1.0D, 0.5D, 0.0D));
+        assertEquals(Face.S, PortalConstruction.derivePortalNormal(0, 2, 0, 0.1D, 0.5D, 1.0D));
     }
 
     @Test
     public void pointNormalPicksLookDominantAxis() {
-        assertEquals(Direction.U, PortalConstruction.derivePortalNormal(0, 0, 0, 0.1D, 0.9D, 0.2D));
-        assertEquals(Direction.S, PortalConstruction.derivePortalNormal(0, 0, 0, 0.0D, 0.0D, 1.0D));
-        assertEquals(Direction.W, PortalConstruction.derivePortalNormal(0, 0, 0, -0.8D, 0.1D, 0.2D));
+        assertEquals(Face.U, PortalConstruction.derivePortalNormal(0, 0, 0, 0.1D, 0.9D, 0.2D));
+        assertEquals(Face.S, PortalConstruction.derivePortalNormal(0, 0, 0, 0.0D, 0.0D, 1.0D));
+        assertEquals(Face.W, PortalConstruction.derivePortalNormal(0, 0, 0, -0.8D, 0.1D, 0.2D));
     }
 }

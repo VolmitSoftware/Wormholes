@@ -3,9 +3,8 @@ package art.arcane.wormholes.modded;
 import art.arcane.wormholes.chunk.presend.ChunkPreSendTicket;
 import art.arcane.wormholes.config.toml.MainConfig;
 import art.arcane.wormholes.config.toml.TransitConfig;
-import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.localization.TransitMessages;
-import art.arcane.wormholes.portal.PortalCrossing;
+import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.wormholes.transit.AdaptiveArrivalMask;
 import art.arcane.wormholes.transit.MomentumTransform;
 import art.arcane.wormholes.transit.TransitionProfile;
@@ -22,14 +21,14 @@ import java.util.Map;
 public final class MinecraftTransit {
     private MinecraftTransit() { }
 
-    public static boolean depart(WormholesModRuntime runtime, MinecraftPortal portal, Entity traveler, PortalCrossing crossing) {
+    public static boolean depart(WormholesModRuntime runtime, MinecraftPortal portal, Entity traveler, PlaneCrossing crossing) {
         boolean bounce = Boolean.TRUE.equals(portal.setting("transit.bounce"));
         boolean membrane = Boolean.TRUE.equals(portal.setting("transit.membrane")) && !crossing.frontSide();
         if (!bounce && !membrane) {
             return true;
         }
-        GeometryVector normal = new GeometryVector(crossing.frame().getNormal().x(), crossing.frame().getNormal().y(), crossing.frame().getNormal().z());
-        GeometryVector rejected = bounce
+        art.arcane.optics.math.Vec3 normal = new art.arcane.optics.math.Vec3(crossing.frame().getNormal().x(), crossing.frame().getNormal().y(), crossing.frame().getNormal().z());
+        art.arcane.optics.math.Vec3 rejected = bounce
             ? MomentumTransform.reflect(crossing.velocity(), normal, runtime.configuration().settings().getMain().portalPushbackMultiplier)
             : normal.multiply(3.0D * runtime.configuration().settings().getMain().portalPushbackMultiplier
                 * runtime.rules().document(portal).profile().pushbackScale());

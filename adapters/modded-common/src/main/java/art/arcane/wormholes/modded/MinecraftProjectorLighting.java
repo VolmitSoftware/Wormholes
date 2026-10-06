@@ -1,8 +1,8 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.config.toml.RenderConfig;
-import art.arcane.wormholes.render.ProjectorLighting;
-import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
+import art.arcane.optics.light.ProjectorLighting;
+import art.arcane.optics.view.WorldChangeTracker;
 import net.minecraft.network.protocol.game.ClientboundLightUpdatePacket;
 import net.minecraft.network.protocol.game.ClientboundLightUpdatePacketData;
 import net.minecraft.server.level.ServerPlayer;
@@ -40,7 +40,7 @@ public final class MinecraftProjectorLighting implements ProjectorLighting.Host<
     }
 
     @Override
-    public ProjectionWorldChangeTracker tracker() {
+    public WorldChangeTracker tracker() {
         return runtime.projections().changes();
     }
 

@@ -3,10 +3,10 @@ package art.arcane.wormholes.network.client;
 import java.util.Locale;
 import java.util.Set;
 
-import art.arcane.wormholes.render.DirectionMapping;
-import art.arcane.wormholes.render.ProjectionBlockTypes;
+import art.arcane.optics.frame.DirectionMapping;
+import art.arcane.optics.view.BlockStates;
 
-final class SyntheticBlocks implements ProjectionBlockTypes<String, String> {
+final class SyntheticBlocks implements BlockStates<String, String> {
     static final SyntheticBlocks INSTANCE = new SyntheticBlocks();
     static final String OCCLUDED = "#occluded";
     private static final Set<String> BLOCK_ENTITY_MATERIALS = Set.of("chest", "barrel", "sign", "oak_sign", "lectern");

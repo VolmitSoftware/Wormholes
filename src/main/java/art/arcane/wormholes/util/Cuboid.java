@@ -17,6 +17,8 @@ import org.bukkit.util.Vector;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
 import art.arcane.volmlib.util.bukkit.WorldIdentity;
+import art.arcane.optics.math.Axis;
+import art.arcane.optics.math.Face;
 
 /**
  * Cuboids
@@ -54,7 +56,7 @@ public class Cuboid implements Iterable<Block>, Cloneable, ConfigurationSerializ
 		z2 = Math.max(l1.getBlockZ(), l2.getBlockZ());
 	}
 
-	public Vector getCornerVector(Direction x, Direction y, Direction z)
+	public Vector getCornerVector(Face x, Face y, Face z)
 	{
 		double s = 0.999;
 		assert x.getAxis().equals(Axis.X) : " X direction must be on the X axis.";
@@ -97,7 +99,7 @@ public class Cuboid implements Iterable<Block>, Cloneable, ConfigurationSerializ
 		this(l1, l1);
 	}
 
-	public Cuboid e(Direction d, int amt)
+	public Cuboid e(Face d, int amt)
 	{
 		return expand(switch (d) {
             case U -> CuboidDirection.Up;
@@ -111,7 +113,7 @@ public class Cuboid implements Iterable<Block>, Cloneable, ConfigurationSerializ
 
 	public Cuboid e(Axis d, int amt)
 	{
-		return e(Direction.getDirection(d.positive()), amt).e(Direction.getDirection(d.negative()), amt);
+		return e(Face.getDirection(d.positive()), amt).e(Face.getDirection(d.negative()), amt);
 	}
 
 	/**

@@ -1,13 +1,13 @@
 package art.arcane.wormholes.network.view;
 
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
+import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.chunk.BukkitChunkLeaseProvider;
-import art.arcane.wormholes.chunk.ChunkLease;
-import art.arcane.wormholes.chunk.ChunkLeaseRegistry;
+import art.arcane.optics.plate.ChunkLease;
+import art.arcane.optics.plate.ChunkLeaseRegistry;
 import art.arcane.wormholes.network.NetworkManager;
 import art.arcane.wormholes.network.WireCapability;
 import art.arcane.wormholes.network.WireMessage;
@@ -17,7 +17,7 @@ import art.arcane.wormholes.network.replication.ReplicationStreamKey;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
 import art.arcane.wormholes.render.FidelitySettings;
-import art.arcane.wormholes.render.acoustics.AcousticsProfile;
+import art.arcane.optics.fidelity.AcousticsProfile;
 import art.arcane.wormholes.service.WormholesTelemetry;
 
 import org.bukkit.World;
@@ -38,6 +38,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.logging.Level;
+import art.arcane.optics.entity.EntitySnapshot;
 
 public final class ViewServer implements Listener {
     public record Stats(int subscriptions, int trackedEntities, long chunkBulkSentCount, long chunkDiffSentCount, long entitySendCount, long timeSendCount) {
@@ -75,8 +76,8 @@ public final class ViewServer implements Listener {
     static final class TimeDeliveryState {
         private final AtomicBoolean deliveryRunning = new AtomicBoolean(false);
         private final AtomicBoolean initialAccepted = new AtomicBoolean(false);
-        volatile ClientViewEnvironment desiredEnvironment;
-        volatile ClientViewEnvironment acceptedEnvironment;
+        volatile ProjectionEnvironment desiredEnvironment;
+        volatile ProjectionEnvironment acceptedEnvironment;
         private volatile int desiredSkyDarken;
         private volatile int acceptedSkyDarken = -1;
         private volatile boolean desiredStorm;
@@ -413,7 +414,7 @@ public final class ViewServer implements Listener {
         return sidebandAllowed == null ? Set.of() : sidebandAllowed;
     }
 
-    static boolean shouldRecaptureBlobs(EntityVisual previousVisual, ViewEntityState.BlobCaptureState<Pose> previousBlobState, long entityTick, long intervalTicks,
+    static boolean shouldRecaptureBlobs(EntitySnapshot previousVisual, ViewEntityState.BlobCaptureState<Pose> previousBlobState, long entityTick, long intervalTicks,
                                         Pose pose, boolean onFire, int stateSignature, long metadataRevision) {
         return previousVisual == null
             || previousBlobState == null

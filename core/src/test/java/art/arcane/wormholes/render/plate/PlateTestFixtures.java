@@ -1,6 +1,10 @@
 package art.arcane.wormholes.render.plate;
 
 import java.util.UUID;
+import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.plate.PlateGrid;
+import art.arcane.optics.plate.ViewPlate;
+import art.arcane.optics.plate.ViewPlateKey;
 
 public final class PlateTestFixtures {
     private PlateTestFixtures() {

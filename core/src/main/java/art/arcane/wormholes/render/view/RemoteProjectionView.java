@@ -1,17 +1,19 @@
 package art.arcane.wormholes.render.view;
 
 import art.arcane.optics.entity.EntityProfile;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
-import art.arcane.wormholes.network.view.EntityVisual;
+import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.wormholes.network.view.RemoteViewCache;
 import art.arcane.wormholes.network.view.ViewBox;
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
+import art.arcane.optics.fidelity.BlockEntitySample;
 
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Function;
+import art.arcane.optics.view.ContentView;
+import art.arcane.optics.view.EntityData;
 
-public class RemoteProjectionView<B, T, M, E> implements ProjectionContentView<B, T>, ProjectionEntityData<M, E> {
+public class RemoteProjectionView<B, T, M, E> implements ContentView<B, T>, EntityData<M, E> {
     private final RemoteViewCache.RemoteView<B, M, E> view;
     private final B fallback;
     private final Function<B, T> materials;
@@ -27,8 +29,8 @@ public class RemoteProjectionView<B, T, M, E> implements ProjectionContentView<B
         this.materials = options.materials();
     }
 
-    public ClientViewEnvironment environment(ClientViewEnvironment.Transform transform) {
-        ClientViewEnvironment captured = view.environment();
+    public ProjectionEnvironment environment(ProjectionEnvironment.Transform transform) {
+        ProjectionEnvironment captured = view.environment();
         return captured == null ? null : captured.withTransform(transform);
     }
 
@@ -115,14 +117,14 @@ public class RemoteProjectionView<B, T, M, E> implements ProjectionContentView<B
         if (light == LIGHT_UNAVAILABLE || y >= box.minY() && y <= box.maxY()) {
             return light;
         }
-        return ProjectionContentView.packLight(y > box.maxY() ? ProjectionContentView.unpackSkyLight(light) : 0, 0);
+        return ContentView.packLight(y > box.maxY() ? ContentView.unpackSkyLight(light) : 0, 0);
     }
 
-    public List<EntityVisual> getEntities() {
+    public List<EntitySnapshot> getEntities() {
         return view.getEntities();
     }
 
-    public List<EntityVisual> getEntities(double centerX, double centerY, double centerZ, double range) {
+    public List<EntitySnapshot> getEntities(double centerX, double centerY, double centerZ, double range) {
         return view.getEntities();
     }
 

@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
+import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import org.junit.Test;
 
@@ -135,9 +135,9 @@ public class ClientPreparedTravelPendingTest {
 
     private static ClientViewMessage.TravelBegin begin(long nonce) {
         return new ClientViewMessage.TravelBegin(new UUID(3, nonce), nonce, new UUID(2, 9), "minecraft:the_nether",
-            ClientTravelTestFixtures.geometry(), ClientViewEnvironment.Transform.IDENTITY, new ClientViewMessage.TravelWorld("minecraft:overworld", "minecraft:overworld", 7, false, false, 63, -64, 384),
+            ClientTravelTestFixtures.geometry(), ProjectionEnvironment.Transform.IDENTITY, new ClientViewMessage.TravelWorld("minecraft:overworld", "minecraft:overworld", 7, false, false, 63, -64, 384),
             new ClientViewMessage.TravelPose(0, 80, 0, 0, 0), List.of(COLUMN),
-            PortalEnvironmentTest.environment(ClientViewEnvironment.Transform.IDENTITY), 30_000);
+            PortalEnvironmentTest.environment(ProjectionEnvironment.Transform.IDENTITY), 30_000);
     }
 
     private static ClientViewMessage.TravelChunk column(ClientViewMessage.TravelBegin begin, int revision) {

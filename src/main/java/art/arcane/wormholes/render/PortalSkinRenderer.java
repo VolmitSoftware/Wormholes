@@ -2,7 +2,7 @@ package art.arcane.wormholes.render;
 
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.render.PortalSkinGeometry.SkinTransform;
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -49,9 +49,11 @@ import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.PortalSurfaceSkins;
-import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Face;
 import art.arcane.wormholes.render.bedrock.ClientProfileService;
+import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.math.CellKeys;
 
 public final class PortalSkinRenderer {
     private static final int FULL_BRIGHT = (15 << 4) | (15 << 20);
@@ -311,7 +313,7 @@ public final class PortalSkinRenderer {
             if (portalWorld == null || !world.getUID().equals(portalWorld.getUID())) {
                 continue;
             }
-            AxisAlignedBB view = portal.getView();
+            Box view = portal.getView();
             if (view == null || !view.containsPrimitive(location.getX(), location.getY(), location.getZ())) {
                 continue;
             }
@@ -407,7 +409,7 @@ public final class PortalSkinRenderer {
         Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims =
             new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(Math.max(4, cells.size() * 2));
         for (Vector cell : cells) {
-            long key = ProjectionCellKey.pack(cell.getBlockX(), cell.getBlockY(), cell.getBlockZ());
+            long key = CellKeys.pack(cell.getBlockX(), cell.getBlockY(), cell.getBlockZ());
             claims.put(key, new ProjectedBlockClaim<BlockData, ProjectionWorldView>(data, null, ProjectedBlockClaim.NO_REMOTE_KEY, false));
         }
         return claims;
@@ -628,8 +630,8 @@ public final class PortalSkinRenderer {
 
     private static double priorityDistance(Player observer, ILocalPortal portal) {
         Location eye = observer.getEyeLocation();
-        GeometryVector origin = portal.getOrigin();
-        Direction normal = portal.getFrame().getNormal();
+        Vec3 origin = portal.getOrigin();
+        Face normal = portal.getFrame().getNormal();
         double dot = ((eye.getX() - origin.getX()) * normal.x())
             + ((eye.getY() - origin.getY()) * normal.y())
             + ((eye.getZ() - origin.getZ()) * normal.z());

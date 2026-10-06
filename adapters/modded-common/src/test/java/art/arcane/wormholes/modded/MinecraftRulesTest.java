@@ -17,10 +17,9 @@ import art.arcane.volmlib.util.localization.PluralSelector;
 import java.util.Set;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
-import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.portal.Portal;
-import art.arcane.wormholes.portal.PortalFrame;
-import art.arcane.wormholes.portal.PortalGeometry;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.wormholes.rules.RuleDocument;
 import art.arcane.wormholes.rules.PortalCooldowns;
 import art.arcane.wormholes.rules.TraversalProfile;
@@ -28,7 +27,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import java.util.concurrent.atomic.AtomicInteger;
 import net.minecraft.server.level.ServerPlayer;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import org.junit.Test;
 
 import java.util.HashMap;
@@ -191,13 +190,13 @@ public class MinecraftRulesTest extends MinecraftTestBase {
     }
 
     private static MinecraftPortal portal(Map<String, Object> rules) {
-        PortalGeometry geometry = new PortalGeometry();
-        geometry.setBlocks(List.of(new GeometryVector(0, 64, 0), new GeometryVector(0, 65, 0)));
+        ApertureCells geometry = new ApertureCells();
+        geometry.setBlocks(List.of(new art.arcane.optics.math.Vec3(0, 64, 0), new art.arcane.optics.math.Vec3(0, 65, 0)));
         UUID id = UUID.randomUUID();
         Map<String, Object> values = new HashMap<>(rules);
         values.put("owner", id.toString());
         values.put("type", "PORTAL");
         return new MinecraftPortal(new MinecraftPortal.Definition(new Portal.State(id, geometry.getApertureCenter(),
-            "Rules", PortalFrame.canonical(Direction.N), true), geometry, "minecraft:overworld", values));
+            "Rules", Frame.canonical(Face.N), true), geometry, "minecraft:overworld", values));
     }
 }

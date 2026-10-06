@@ -12,9 +12,20 @@ import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
 import java.util.zip.Inflater;
 
-import art.arcane.wormholes.network.view.EntityVisual;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
-import art.arcane.wormholes.render.plate.PlateBox;
+import art.arcane.optics.entity.EntitySnapshot;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.stream.Brick;
+import art.arcane.optics.stream.BrickCodec;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ClientViewReader;
+import art.arcane.optics.stream.ClientViewWriter;
+import art.arcane.optics.stream.PlateSectionBox;
+import art.arcane.optics.stream.ProjectionEnvironmentCodec;
+import art.arcane.optics.stream.SectionBiomes;
+import art.arcane.optics.stream.ViewStreamCapability;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.ViewStreamMessageType;
 
 public final class ClientViewCodec {
     private static final int MAX_CELL_BOX_EDGE = 65535;
@@ -24,7 +35,7 @@ public final class ClientViewCodec {
 
     public record S2CFrame(int seq, int flags, ClientViewMessage message) {
         public boolean last() {
-            return (flags & ClientViewProtocol.FLAG_LAST) != 0;
+            return (flags & ViewStreamLimits.FLAG_LAST) != 0;
         }
     }
 
@@ -36,7 +47,7 @@ public final class ClientViewCodec {
         if (!message.type().isClientbound()) {
             throw new ClientViewProtocolException(message.type() + " is not clientbound");
         }
-        if ((flags & ~(ClientViewProtocol.FLAG_LAST | ClientViewProtocol.FLAG_RESERVED)) != 0) {
+        if ((flags & ~(ViewStreamLimits.FLAG_LAST | ViewStreamLimits.FLAG_RESERVED)) != 0) {
             throw new ClientViewProtocolException("caller flags " + flags + " are not allowed");
         }
         ClientViewWriter body = new ClientViewWriter(256);
@@ -45,19 +56,19 @@ public final class ClientViewCodec {
         int rawLength = body.size();
         int outFlags = flags;
         byte[] payloadBody = null;
-        if (deflate && rawLength >= ClientViewProtocol.DEFLATE_THRESHOLD_BYTES) {
+        if (deflate && rawLength >= ViewStreamLimits.DEFLATE_THRESHOLD_BYTES) {
             byte[] deflated = deflate(raw, rawLength);
             if (deflated.length < rawLength) {
                 payloadBody = deflated;
-                outFlags |= ClientViewProtocol.FLAG_DEFLATED;
+                outFlags |= ViewStreamLimits.FLAG_DEFLATED;
             }
         }
         int bodyLength = payloadBody == null ? rawLength : payloadBody.length;
-        if (bodyLength + ClientViewProtocol.S2C_HEADER_BYTES > ClientViewProtocol.HARD_MAX_FRAME_BYTES) {
-            throw new ClientViewProtocolException(message.type() + " frame of " + (bodyLength + ClientViewProtocol.S2C_HEADER_BYTES)
+        if (bodyLength + ViewStreamLimits.S2C_HEADER_BYTES > ViewStreamLimits.HARD_MAX_FRAME_BYTES) {
+            throw new ClientViewProtocolException(message.type() + " frame of " + (bodyLength + ViewStreamLimits.S2C_HEADER_BYTES)
                 + " bytes exceeds the hard cap");
         }
-        ClientViewWriter out = new ClientViewWriter(ClientViewProtocol.S2C_HEADER_BYTES + bodyLength);
+        ClientViewWriter out = new ClientViewWriter(ViewStreamLimits.S2C_HEADER_BYTES + bodyLength);
         out.u8(message.type().id());
         out.i32(seq);
         out.u8(outFlags);
@@ -76,7 +87,7 @@ public final class ClientViewCodec {
         ClientViewWriter out = new ClientViewWriter(64);
         out.u8(message.type().id());
         writeBody(out, message);
-        if (out.size() > ClientViewProtocol.MAX_C2S_BYTES) {
+        if (out.size() > ViewStreamLimits.MAX_C2S_BYTES) {
             throw new ClientViewProtocolException(message.type() + " payload of " + out.size() + " bytes exceeds the C2S cap");
         }
         return out.toByteArray();
@@ -87,22 +98,22 @@ public final class ClientViewCodec {
     }
 
     public static S2CFrame decodeS2C(byte[] payload, int offset, int length, long caps) throws ClientViewProtocolException {
-        if (length > ClientViewProtocol.HARD_MAX_FRAME_BYTES) {
+        if (length > ViewStreamLimits.HARD_MAX_FRAME_BYTES) {
             throw new ClientViewProtocolException("S2C payload of " + length + " bytes exceeds the hard cap");
         }
         ClientViewReader header = new ClientViewReader(payload, offset, length);
-        ClientViewMessageType type = ClientViewMessageType.byId(header.u8());
+        ViewStreamMessageType type = ViewStreamMessageType.byId(header.u8());
         if (type == null || !type.isClientbound()) {
             throw new ClientViewProtocolException("unknown clientbound message type");
         }
         int seq = header.i32();
         int flags = header.u8();
-        if ((flags & ~ClientViewProtocol.FLAG_MASK) != 0) {
+        if ((flags & ~ViewStreamLimits.FLAG_MASK) != 0) {
             throw new ClientViewProtocolException("unknown frame flags " + flags);
         }
         ClientViewReader body;
-        if ((flags & ClientViewProtocol.FLAG_DEFLATED) != 0) {
-            byte[] inflated = inflate(payload, offset + header.position(), header.remaining(), ClientViewProtocol.HARD_MAX_FRAME_BYTES);
+        if ((flags & ViewStreamLimits.FLAG_DEFLATED) != 0) {
+            byte[] inflated = inflate(payload, offset + header.position(), header.remaining(), ViewStreamLimits.HARD_MAX_FRAME_BYTES);
             body = new ClientViewReader(inflated);
         } else {
             body = new ClientViewReader(payload, offset + header.position(), header.remaining());
@@ -117,15 +128,15 @@ public final class ClientViewCodec {
     }
 
     public static ClientViewMessage decodeC2S(byte[] payload, int offset, int length) throws ClientViewProtocolException {
-        if (length > ClientViewProtocol.MAX_C2S_BYTES) {
+        if (length > ViewStreamLimits.MAX_C2S_BYTES) {
             throw new ClientViewProtocolException("C2S payload of " + length + " bytes exceeds the cap");
         }
         ClientViewReader in = new ClientViewReader(payload, offset, length);
-        ClientViewMessageType type = ClientViewMessageType.byId(in.u8());
+        ViewStreamMessageType type = ViewStreamMessageType.byId(in.u8());
         if (type == null || !type.isServerbound()) {
             throw new ClientViewProtocolException("unknown serverbound message type");
         }
-        ClientViewMessage message = readBody(in, type, ClientViewCapability.NONE);
+        ClientViewMessage message = readBody(in, type, ViewStreamCapability.NONE);
         in.expectEnd();
         return message;
     }
@@ -165,7 +176,7 @@ public final class ClientViewCodec {
             case ClientViewMessage.Decline m -> out.u8(m.reason().ordinal());
             case ClientViewMessage.Palette m -> {
                 List<ClientViewMessage.PaletteEntry> entries = m.entries();
-                if (entries.size() > ClientViewProtocol.MAX_PALETTE_ENTRIES_PER_MESSAGE) {
+                if (entries.size() > ViewStreamLimits.MAX_PALETTE_ENTRIES_PER_MESSAGE) {
                     throw new ClientViewProtocolException("palette message with " + entries.size() + " entries");
                 }
                 out.varint(entries.size());
@@ -297,7 +308,7 @@ public final class ClientViewCodec {
             }
             case ClientViewMessage.PlateBricks m -> {
                 List<Brick> bricks = m.bricks();
-                if (bricks.size() > ClientViewProtocol.MAX_BRICKS_PER_PLATE) {
+                if (bricks.size() > ViewStreamLimits.MAX_BRICKS_PER_PLATE) {
                     throw new ClientViewProtocolException("plate bricks message with " + bricks.size() + " bricks");
                 }
                 out.varint(m.portalKey());
@@ -313,7 +324,7 @@ public final class ClientViewCodec {
             }
             case ClientViewMessage.PlatePatch m -> {
                 List<ClientViewMessage.PatchOp> ops = m.ops();
-                if (ops.size() > ClientViewProtocol.MAX_PATCH_OPS) {
+                if (ops.size() > ViewStreamLimits.MAX_PATCH_OPS) {
                     throw new ClientViewProtocolException("plate patch with " + ops.size() + " ops");
                 }
                 out.varint(m.portalKey());
@@ -359,13 +370,13 @@ public final class ClientViewCodec {
                 out.varint(m.portalKey());
                 out.i32(m.entitySeq());
                 out.u8(m.entities().size());
-                for (EntityVisual visual : m.entities()) {
+                for (EntitySnapshot visual : m.entities()) {
                     byte[] bytes = entityBytes(visual);
                     out.varint(bytes.length);
                     out.bytes(bytes);
                 }
                 if (!m.presence()) {
-                    out.u16(ClientViewProtocol.PRESENCE_UNCHANGED);
+                    out.u16(ViewStreamLimits.PRESENCE_UNCHANGED);
                 } else {
                     out.u16(m.presentIds().size());
                     for (UUID id : m.presentIds()) {
@@ -391,7 +402,7 @@ public final class ClientViewCodec {
             }
             case ClientViewMessage.Environment m -> {
                 out.varint(m.portalKey());
-                ClientViewEnvironmentCodec.write(out, m.environment());
+                ProjectionEnvironmentCodec.write(out, m.environment());
             }
             case ClientViewMessage.Atmosphere m -> {
                 out.varint(m.portalKey());
@@ -418,7 +429,7 @@ public final class ClientViewCodec {
         }
     }
 
-    public static ClientViewMessage readBody(ClientViewReader in, ClientViewMessageType type, long caps) throws ClientViewProtocolException {
+    public static ClientViewMessage readBody(ClientViewReader in, ViewStreamMessageType type, long caps) throws ClientViewProtocolException {
         return switch (type) {
             case OFFER -> new ClientViewMessage.Offer(in.u16(), in.i32(), in.i64(), in.i32(), in.i64());
             case HELLO -> new ClientViewMessage.Hello(in.u16(), in.i32(), in.i64(), in.i32(), in.u16(), in.i64(), in.string());
@@ -431,10 +442,10 @@ public final class ClientViewCodec {
                 yield new ClientViewMessage.Decline(reason);
             }
             case PALETTE -> {
-                int count = in.checkedCount(in.varint(), ClientViewProtocol.MAX_PALETTE_ENTRIES_PER_MESSAGE, 2);
+                int count = in.checkedCount(in.varint(), ViewStreamLimits.MAX_PALETTE_ENTRIES_PER_MESSAGE, 2);
                 List<ClientViewMessage.PaletteEntry> entries = new ArrayList<ClientViewMessage.PaletteEntry>(count);
                 for (int i = 0; i < count; i++) {
-                    int id = in.varint(ClientViewProtocol.MAX_SESSION_PALETTE_SIZE - 1);
+                    int id = in.varint(ViewStreamLimits.MAX_SESSION_PALETTE_SIZE - 1);
                     entries.add(new ClientViewMessage.PaletteEntry(id, in.string()));
                 }
                 yield new ClientViewMessage.Palette(entries);
@@ -466,7 +477,7 @@ public final class ClientViewCodec {
                 int sectionY = in.i32();
                 int sectionZ = in.i32();
                 int revision = in.i32();
-                int backing = in.varint(ClientViewProtocol.MAX_SESSION_PALETTE_SIZE - 1);
+                int backing = in.varint(ViewStreamLimits.MAX_SESSION_PALETTE_SIZE - 1);
                 Brick brick = BrickCodec.read(in);
                 if (brick.brickIndex() != 0) {
                     throw new ClientViewProtocolException("mesh section brick index must be zero");
@@ -535,7 +546,7 @@ public final class ClientViewCodec {
                 int sizeX = in.u8();
                 int sizeY = in.u8();
                 int sizeZ = in.u8();
-                if ((long) sizeX * sizeY * sizeZ > ClientViewProtocol.MAX_BRICKS_PER_PLATE) {
+                if ((long) sizeX * sizeY * sizeZ > ViewStreamLimits.MAX_BRICKS_PER_PLATE) {
                     throw new ClientViewProtocolException("section box exceeds the brick cap");
                 }
                 PlateSectionBox sections = new PlateSectionBox(minSectionX, minSectionY, minSectionZ, sizeX, sizeY, sizeZ);
@@ -543,13 +554,13 @@ public final class ClientViewCodec {
                 int minY = in.i32();
                 int minZ = in.i32();
                 PlateBox cells = new PlateBox(minX, minY, minZ, in.u16(), in.u16(), in.u16());
-                int backingState = in.varint(ClientViewProtocol.MAX_SESSION_PALETTE_SIZE - 1);
+                int backingState = in.varint(ViewStreamLimits.MAX_SESSION_PALETTE_SIZE - 1);
                 int brickCount = in.u16();
                 if (brickCount != sections.brickCount()) {
                     throw new ClientViewProtocolException("brick count " + brickCount + " does not match the section box");
                 }
                 long[] hashes = null;
-                if (ClientViewCapability.BRICK_CACHE.in(caps) && (brickCount == 0 || in.remaining() > 0)) {
+                if (ViewStreamCapability.BRICK_CACHE.in(caps) && (brickCount == 0 || in.remaining() > 0)) {
                     if (in.remaining() != brickCount * Long.BYTES) {
                         throw new ClientViewProtocolException("brick hash manifest does not match the brick count");
                     }
@@ -560,7 +571,7 @@ public final class ClientViewCodec {
             case PLATE_BRICKS -> {
                 int portalKey = in.varint();
                 int revision = in.i32();
-                int count = in.checkedCount(in.u16(), ClientViewProtocol.MAX_BRICKS_PER_PLATE, 5);
+                int count = in.checkedCount(in.u16(), ViewStreamLimits.MAX_BRICKS_PER_PLATE, 5);
                 List<Brick> bricks = new ArrayList<Brick>(count);
                 for (int i = 0; i < count; i++) {
                     bricks.add(BrickCodec.read(in));
@@ -572,7 +583,7 @@ public final class ClientViewCodec {
                 int portalKey = in.varint();
                 int from = in.i32();
                 int to = in.i32();
-                int count = in.checkedCount(in.u16(), ClientViewProtocol.MAX_PATCH_OPS, 3);
+                int count = in.checkedCount(in.u16(), ViewStreamLimits.MAX_PATCH_OPS, 3);
                 List<ClientViewMessage.PatchOp> ops = new ArrayList<ClientViewMessage.PatchOp>(count);
                 for (int i = 0; i < count; i++) {
                     ops.add(readPatchOp(in));
@@ -581,7 +592,7 @@ public final class ClientViewCodec {
             }
             case PLATE_HANDLE -> new ClientViewMessage.PlateHandle(in.varint(), in.i32(), in.i64());
             case BRICK_MISS -> {
-                int count = in.checkedCount(in.u8(), ClientViewProtocol.MAX_BRICK_MISS_PLATES, 6);
+                int count = in.checkedCount(in.u8(), ViewStreamLimits.MAX_BRICK_MISS_PLATES, 6);
                 if (count == 0) {
                     throw new ClientViewProtocolException("brick miss without plates");
                 }
@@ -589,7 +600,7 @@ public final class ClientViewCodec {
                 for (int i = 0; i < count; i++) {
                     int portalKey = in.varint();
                     int revision = in.i32();
-                    int words = in.checkedCount(in.varint(), ClientViewProtocol.MAX_BRICK_MISS_WORDS, 8);
+                    int words = in.checkedCount(in.varint(), ViewStreamLimits.MAX_BRICK_MISS_WORDS, 8);
                     plates.add(new ClientViewMessage.BrickMiss.Plate(portalKey, revision, in.longs(words)));
                 }
                 yield new ClientViewMessage.BrickMiss(plates);
@@ -610,17 +621,17 @@ public final class ClientViewCodec {
             case ENTITY_FRAME -> {
                 int portalKey = in.varint();
                 int seq = in.i32();
-                int count = in.checkedCount(in.u8(), ClientViewProtocol.MAX_ENTITIES_PER_FRAME, 1);
-                List<EntityVisual> entities = new ArrayList<EntityVisual>(count);
+                int count = in.checkedCount(in.u8(), ViewStreamLimits.MAX_ENTITIES_PER_FRAME, 1);
+                List<EntitySnapshot> entities = new ArrayList<EntitySnapshot>(count);
                 for (int i = 0; i < count; i++) {
-                    int length = in.varint(ClientViewProtocol.MAX_ENTITY_VISUAL_BYTES);
+                    int length = in.varint(ViewStreamLimits.MAX_ENTITY_VISUAL_BYTES);
                     entities.add(entityFromBytes(in.bytes(length)));
                 }
                 int presentCount = in.u16();
-                if (presentCount == ClientViewProtocol.PRESENCE_UNCHANGED) {
+                if (presentCount == ViewStreamLimits.PRESENCE_UNCHANGED) {
                     yield new ClientViewMessage.EntityFrame(portalKey, seq, entities, List.of(), false);
                 }
-                int present = in.checkedCount(presentCount, ClientViewProtocol.MAX_PRESENT_IDS_PER_FRAME, 16);
+                int present = in.checkedCount(presentCount, ViewStreamLimits.MAX_PRESENT_IDS_PER_FRAME, 16);
                 List<UUID> presentIds = new ArrayList<UUID>(present);
                 for (int i = 0; i < present; i++) {
                     long most = in.i64();
@@ -630,7 +641,7 @@ public final class ClientViewCodec {
             }
             case FX -> {
                 int portalKey = in.varint();
-                int count = in.checkedCount(in.u8(), ClientViewProtocol.MAX_FX_EMITTERS, 37);
+                int count = in.checkedCount(in.u8(), ViewStreamLimits.MAX_FX_EMITTERS, 37);
                 List<ClientViewMessage.FxEmitter> emitters = new ArrayList<ClientViewMessage.FxEmitter>(count);
                 for (int i = 0; i < count; i++) {
                     ClientViewMessage.FxKind kind = ClientViewMessage.FxKind.byId(in.u8());
@@ -649,7 +660,7 @@ public final class ClientViewCodec {
                 yield new ClientViewMessage.Fx(portalKey, emitters);
             }
             case TRAVEL_BEGIN, TRAVEL_CHUNK, TRAVEL_END, TRAVEL_READY, TRAVEL_COMMIT, TRAVEL_CANCEL, TRAVEL_CROSS, TRAVEL_REUSE, TRAVEL_CACHED -> ClientViewTravelCodec.read(in, type);
-            case ENVIRONMENT -> new ClientViewMessage.Environment(in.varint(), ClientViewEnvironmentCodec.read(in));
+            case ENVIRONMENT -> new ClientViewMessage.Environment(in.varint(), ProjectionEnvironmentCodec.read(in));
             case ATMOSPHERE -> new ClientViewMessage.Atmosphere(in.varint(), in.i64(), in.f32(), in.f32(), in.u8());
             case SESSION_RESET -> {
                 ClientViewMessage.ResetReason reason = ClientViewMessage.ResetReason.byId(in.u8());
@@ -695,15 +706,15 @@ public final class ClientViewCodec {
                 yield new ClientViewMessage.FullOp(brick);
             }
             case ClientViewMessage.PatchOp.OP_SPARSE -> {
-                int count = in.checkedCount(in.u16(), ClientViewProtocol.BRICK_CELLS, 3);
+                int count = in.checkedCount(in.u16(), ViewStreamLimits.BRICK_CELLS, 3);
                 int[] cells = new int[count];
                 int[] ids = new int[count];
                 for (int i = 0; i < count; i++) {
                     cells[i] = in.u16();
-                    if (cells[i] >= ClientViewProtocol.BRICK_CELLS) {
+                    if (cells[i] >= ViewStreamLimits.BRICK_CELLS) {
                         throw new ClientViewProtocolException("sparse cell outside the brick");
                     }
-                    ids[i] = in.varint(ClientViewProtocol.MAX_SESSION_PALETTE_SIZE - 1);
+                    ids[i] = in.varint(ViewStreamLimits.MAX_SESSION_PALETTE_SIZE - 1);
                 }
                 yield new ClientViewMessage.SparseOp(brickIndex, cells, ids);
             }
@@ -712,9 +723,9 @@ public final class ClientViewCodec {
         };
     }
 
-    public static void writeGeometry(ClientViewWriter out, ClientPortalGeometry geometry, int depth) throws ClientViewProtocolException {
-        if (depth >= ClientViewProtocol.MAX_GEOMETRY_DEPTH) {
-            throw new ClientViewProtocolException("portal geometry nested deeper than " + ClientViewProtocol.MAX_GEOMETRY_DEPTH);
+    public static void writeGeometry(ClientViewWriter out, ApertureDescriptor geometry, int depth) throws ClientViewProtocolException {
+        if (depth >= ViewStreamLimits.MAX_GEOMETRY_DEPTH) {
+            throw new ClientViewProtocolException("portal geometry nested deeper than " + ViewStreamLimits.MAX_GEOMETRY_DEPTH);
         }
         out.i32(geometry.originX());
         out.i32(geometry.originY());
@@ -726,7 +737,7 @@ public final class ClientViewCodec {
         out.u16(geometry.apertureWidth());
         out.u16(geometry.apertureHeight());
         long[] mask = geometry.apertureMask();
-        if (mask.length > ClientViewProtocol.MAX_APERTURE_MASK_WORDS) {
+        if (mask.length > ViewStreamLimits.MAX_APERTURE_MASK_WORDS) {
             throw new ClientViewProtocolException("aperture mask of " + mask.length + " words");
         }
         out.varint(mask.length);
@@ -745,19 +756,19 @@ public final class ClientViewCodec {
         out.f64(geometry.planeOffset());
         out.varint(geometry.parentPortalKey());
         out.i64(geometry.targetIdentity());
-        List<ClientPortalGeometry> nested = geometry.nested();
-        if (nested.size() > ClientViewProtocol.MAX_NESTED_GEOMETRY) {
+        List<ApertureDescriptor> nested = geometry.nested();
+        if (nested.size() > ViewStreamLimits.MAX_NESTED_GEOMETRY) {
             throw new ClientViewProtocolException("portal geometry with " + nested.size() + " nested portals");
         }
         out.u8(nested.size());
-        for (ClientPortalGeometry child : nested) {
+        for (ApertureDescriptor child : nested) {
             writeGeometry(out, child, depth + 1);
         }
     }
 
-    public static ClientPortalGeometry readGeometry(ClientViewReader in, int depth) throws ClientViewProtocolException {
-        if (depth >= ClientViewProtocol.MAX_GEOMETRY_DEPTH) {
-            throw new ClientViewProtocolException("portal geometry nested deeper than " + ClientViewProtocol.MAX_GEOMETRY_DEPTH);
+    public static ApertureDescriptor readGeometry(ClientViewReader in, int depth) throws ClientViewProtocolException {
+        if (depth >= ViewStreamLimits.MAX_GEOMETRY_DEPTH) {
+            throw new ClientViewProtocolException("portal geometry nested deeper than " + ViewStreamLimits.MAX_GEOMETRY_DEPTH);
         }
         int originX = in.i32();
         int originY = in.i32();
@@ -768,7 +779,7 @@ public final class ClientViewCodec {
         boolean mirror = readFlag(in);
         int apertureWidth = in.u16();
         int apertureHeight = in.u16();
-        int words = in.checkedCount(in.varint(), ClientViewProtocol.MAX_APERTURE_MASK_WORDS, 8);
+        int words = in.checkedCount(in.varint(), ViewStreamLimits.MAX_APERTURE_MASK_WORDS, 8);
         long[] mask = in.longs(words);
         float nearPlanePadding = in.f32();
         float aperturePadding = in.f32();
@@ -776,7 +787,7 @@ public final class ClientViewCodec {
         int depthBlocks = in.u16();
         int recursionDepth = in.u8();
         int blackoutPolicy = in.u8();
-        int blackoutState = in.varint(ClientViewProtocol.MAX_SESSION_PALETTE_SIZE - 1);
+        int blackoutState = in.varint(ViewStreamLimits.MAX_SESSION_PALETTE_SIZE - 1);
         int maskAirPolicy = in.u8();
         int lightingPolicy = in.u8();
         int fidelityFlags = in.u8();
@@ -784,12 +795,12 @@ public final class ClientViewCodec {
         double planeOffset = in.f64();
         int parentPortalKey = in.varint();
         long targetIdentity = in.i64();
-        int nestedCount = in.checkedCount(in.u8(), ClientViewProtocol.MAX_NESTED_GEOMETRY, 40);
-        List<ClientPortalGeometry> nested = new ArrayList<ClientPortalGeometry>(nestedCount);
+        int nestedCount = in.checkedCount(in.u8(), ViewStreamLimits.MAX_NESTED_GEOMETRY, 40);
+        List<ApertureDescriptor> nested = new ArrayList<ApertureDescriptor>(nestedCount);
         for (int i = 0; i < nestedCount; i++) {
             nested.add(readGeometry(in, depth + 1));
         }
-        return new ClientPortalGeometry(originX, originY, originZ, facing, frontSide, quarterTurns, mirror, apertureWidth, apertureHeight,
+        return new ApertureDescriptor(originX, originY, originZ, facing, frontSide, quarterTurns, mirror, apertureWidth, apertureHeight,
             mask, nearPlanePadding, aperturePadding, frustumCullingRatio, depthBlocks, recursionDepth, blackoutPolicy, blackoutState,
             maskAirPolicy, lightingPolicy, fidelityFlags, kind, planeOffset, parentPortalKey, targetIdentity, nested);
     }
@@ -838,7 +849,7 @@ public final class ClientViewCodec {
         }
     }
 
-    public static byte[] entityBytes(EntityVisual visual) throws ClientViewProtocolException {
+    public static byte[] entityBytes(EntitySnapshot visual) throws ClientViewProtocolException {
         ByteArrayOutputStream buffer = new ByteArrayOutputStream(128);
         DataOutputStream out = new DataOutputStream(buffer);
         try {
@@ -848,16 +859,16 @@ public final class ClientViewCodec {
             throw new ClientViewProtocolException("entity visual encode failed", e);
         }
         byte[] bytes = buffer.toByteArray();
-        if (bytes.length > ClientViewProtocol.MAX_ENTITY_VISUAL_BYTES) {
+        if (bytes.length > ViewStreamLimits.MAX_ENTITY_VISUAL_BYTES) {
             throw new ClientViewProtocolException("entity visual of " + bytes.length + " bytes exceeds the cap");
         }
         return bytes;
     }
 
-    public static EntityVisual entityFromBytes(byte[] bytes) throws ClientViewProtocolException {
+    public static EntitySnapshot entityFromBytes(byte[] bytes) throws ClientViewProtocolException {
         DataInputStream in = new DataInputStream(new ByteArrayInputStream(bytes));
         try {
-            EntityVisual visual = EntityVisual.read(in);
+            EntitySnapshot visual = EntitySnapshot.read(in);
             if (in.available() != 0) {
                 throw new ClientViewProtocolException("trailing bytes after entity visual");
             }

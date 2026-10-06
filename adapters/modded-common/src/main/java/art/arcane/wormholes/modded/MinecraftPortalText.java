@@ -4,7 +4,7 @@ import art.arcane.volmlib.util.localization.LinesKey;
 import art.arcane.volmlib.util.localization.MessageArgs;
 import art.arcane.volmlib.util.localization.MessageArgument;
 import art.arcane.volmlib.util.localization.TextKey;
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.portal.NetworkViewQuality;
 import art.arcane.wormholes.portal.PortalPermissionMode;
@@ -15,7 +15,7 @@ import art.arcane.wormholes.portal.ProjectionMode;
 import art.arcane.wormholes.portal.rtp.RtpAllocationMode;
 import art.arcane.wormholes.portal.rtp.RtpRotationMode;
 import art.arcane.wormholes.portal.rtp.RtpSettings;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.Item;
@@ -119,7 +119,7 @@ public final class MinecraftPortalText {
         if (level == null) {
             return;
         }
-        GeometryVector center = portal.getGeometry().getApertureCenter();
+        Vec3 center = portal.getGeometry().getApertureCenter();
         for (ServerPlayer player : level.players()) {
             if (player.distanceToSqr(center.x(), center.y(), center.z()) > NOTIFICATION_RADIUS_SQUARED) {
                 continue;
@@ -146,7 +146,7 @@ public final class MinecraftPortalText {
         return rtpRotationLabel(viewer, requiredSettings.getRotationMode());
     }
 
-    public static String directionLabel(ServerPlayer viewer, Direction direction) {
+    public static String directionLabel(ServerPlayer viewer, Face direction) {
         TextKey key = switch (direction) {
             case U -> WormholesMessages.PORTAL_LABEL_DIRECTION_UP;
             case D -> WormholesMessages.PORTAL_LABEL_DIRECTION_DOWN;

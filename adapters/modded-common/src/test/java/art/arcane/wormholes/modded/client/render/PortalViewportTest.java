@@ -1,12 +1,12 @@
 package art.arcane.wormholes.modded.client.render;
 
-import art.arcane.wormholes.render.client.ClientPortalAperture;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
-import art.arcane.wormholes.portal.PortalGeometry;
-import art.arcane.wormholes.portal.PortalFrame;
-import art.arcane.wormholes.render.ProjectedBlockClaim;
-import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.aperture.AperturePolygon;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.aperture.ApertureCells;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Face;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.world.phys.AABB;
@@ -139,13 +139,13 @@ public class PortalViewportTest {
         return camera;
     }
 
-    private static ClientPortalAperture aperture() {
-        PortalGeometry aperture = new PortalGeometry();
-        aperture.setArea(new AxisAlignedBB(0, 1.999, 0, 1.999, 0, 0.999));
-        ClientPortalGeometry geometry = ClientPortalGeometry.fromPortal(new ClientPortalGeometry.Source(aperture,
-            PortalFrame.canonical(Direction.S), true, false, 0, 0, 0, 0, 64, 0,
-            ClientPortalGeometry.BLACKOUT_OFF, 0, ClientPortalGeometry.MASK_AIR_PROJECT,
-            ProjectedBlockClaim.LightingPolicy.LOCAL, 0, ClientPortalGeometry.KIND_FRAME, 0.0D, 0, 0, List.of())).orElseThrow();
-        return ClientPortalAperture.from(geometry);
+    private static AperturePolygon aperture() {
+        ApertureCells aperture = new ApertureCells();
+        aperture.setArea(new Box(0, 1.999, 0, 1.999, 0, 0.999));
+        ApertureDescriptor geometry = ApertureDescriptor.fromPortal(new ApertureDescriptor.Source(aperture,
+            Frame.canonical(Face.S), true, false, 0, 0, 0, 0, 64, 0,
+            ApertureDescriptor.BLACKOUT_OFF, 0, ApertureDescriptor.MASK_AIR_PROJECT,
+            ProjectedBlockClaim.LightingPolicy.LOCAL, 0, ApertureDescriptor.KIND_FRAME, 0.0D, 0, 0, List.of())).orElseThrow();
+        return AperturePolygon.from(geometry);
     }
 }

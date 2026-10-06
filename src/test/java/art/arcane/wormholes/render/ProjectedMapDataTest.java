@@ -36,7 +36,7 @@ import art.arcane.volmlib.nativelib.common.map.ReflectiveMapPixelsAccess;
 
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerMapData;
 
-import art.arcane.wormholes.network.view.ProjectedMapData;
+import art.arcane.optics.entity.MapSnapshot;
 
 public final class ProjectedMapDataTest {
     private MockedStatic<NativeAdapters> nativeAdapters;
@@ -56,10 +56,10 @@ public final class ProjectedMapDataTest {
     @Test
     public void encodedPayloadRoundTripsEveryFieldAndOwnsItsPixels() {
         byte[] source = pixels();
-        ProjectedMapData original = new ProjectedMapData(73, (byte) 3, true, true, source);
+        MapSnapshot original = new MapSnapshot(73, (byte) 3, true, true, source);
         source[0] = 99;
 
-        ProjectedMapData decoded = ProjectedMapData.decode(original.encode());
+        MapSnapshot decoded = MapSnapshot.decode(original.encode());
         byte[] exposed = decoded.pixels();
         exposed[1] = 88;
 
@@ -74,7 +74,7 @@ public final class ProjectedMapDataTest {
 
     @Test
     public void decodeRejectsMalformedPayloadHeadersAndShape() {
-        ProjectedMapData mapData = new ProjectedMapData(1, (byte) 0, false, false, pixels());
+        MapSnapshot mapData = new MapSnapshot(1, (byte) 0, false, false, pixels());
         byte[] encoded = mapData.encode();
         byte[] invalidMagic = encoded.clone();
         invalidMagic[0] ^= 1;
@@ -86,26 +86,26 @@ public final class ProjectedMapDataTest {
         invalidFlags[10] = 4;
 
         assertThrows(IllegalArgumentException.class,
-            () -> ProjectedMapData.decode(Arrays.copyOf(encoded, encoded.length - 1)));
-        assertThrows(IllegalArgumentException.class, () -> ProjectedMapData.decode(invalidMagic));
-        assertThrows(IllegalArgumentException.class, () -> ProjectedMapData.decode(invalidVersion));
-        assertThrows(IllegalArgumentException.class, () -> ProjectedMapData.decode(invalidScale));
-        assertThrows(IllegalArgumentException.class, () -> ProjectedMapData.decode(invalidFlags));
+            () -> MapSnapshot.decode(Arrays.copyOf(encoded, encoded.length - 1)));
+        assertThrows(IllegalArgumentException.class, () -> MapSnapshot.decode(invalidMagic));
+        assertThrows(IllegalArgumentException.class, () -> MapSnapshot.decode(invalidVersion));
+        assertThrows(IllegalArgumentException.class, () -> MapSnapshot.decode(invalidScale));
+        assertThrows(IllegalArgumentException.class, () -> MapSnapshot.decode(invalidFlags));
         assertThrows(IllegalArgumentException.class,
-            () -> new ProjectedMapData(1, (byte) 0, false, false, new byte[1]));
+            () -> new MapSnapshot(1, (byte) 0, false, false, new byte[1]));
     }
 
     @Test
     public void horizontalMirrorReversesEachRowAndIsAnInvolution() {
-        ProjectedMapData original = new ProjectedMapData(19, (byte) 2, true, false, pixels());
-        ProjectedMapData mirrored = original.mirrorHorizontally();
+        MapSnapshot original = new MapSnapshot(19, (byte) 2, true, false, pixels());
+        MapSnapshot mirrored = original.mirrorHorizontally();
         byte[] source = original.pixels();
         byte[] reflected = mirrored.pixels();
 
-        for (int y = 0; y < ProjectedMapData.HEIGHT; y++) {
-            int row = y * ProjectedMapData.WIDTH;
-            for (int x = 0; x < ProjectedMapData.WIDTH; x++) {
-                assertEquals(source[row + (ProjectedMapData.WIDTH - 1 - x)], reflected[row + x]);
+        for (int y = 0; y < MapSnapshot.HEIGHT; y++) {
+            int row = y * MapSnapshot.WIDTH;
+            for (int x = 0; x < MapSnapshot.WIDTH; x++) {
+                assertEquals(source[row + (MapSnapshot.WIDTH - 1 - x)], reflected[row + x]);
             }
         }
         assertEquals(original, mirrored.mirrorHorizontally());
@@ -115,7 +115,7 @@ public final class ProjectedMapDataTest {
     public void packetUsesVirtualIdAndFullDefensivePixelPatch() {
         ProjectedEntityPacketRecorder recorder = ProjectedEntityPacketRecorder.install();
         try {
-            ProjectedMapData mapData = new ProjectedMapData(7, (byte) 4, true, true, pixels());
+            MapSnapshot mapData = new MapSnapshot(7, (byte) 4, true, true, pixels());
 
             WrapperPlayServerMapData packet = BukkitProjectedMapData.toPacket(mapData, -31);
 
@@ -124,8 +124,8 @@ public final class ProjectedMapDataTest {
             assertTrue(packet.isTrackingPosition());
             assertTrue(packet.isLocked());
             assertEquals(List.of(), packet.getDecorations());
-            assertEquals(ProjectedMapData.WIDTH, packet.getColumns());
-            assertEquals(ProjectedMapData.HEIGHT, packet.getRows());
+            assertEquals(MapSnapshot.WIDTH, packet.getColumns());
+            assertEquals(MapSnapshot.HEIGHT, packet.getRows());
             assertEquals(0, packet.getX());
             assertEquals(0, packet.getZ());
             assertArrayEquals(mapData.pixels(), packet.getData());
@@ -141,7 +141,7 @@ public final class ProjectedMapDataTest {
         byte[] rawPixels = pixels();
         CraftMapView mapView = new CraftMapView(41, MapView.Scale.FAR, true, true, rawPixels);
 
-        Optional<ProjectedMapData> captured = BukkitProjectedMapData.capture(mapView);
+        Optional<MapSnapshot> captured = BukkitProjectedMapData.capture(mapView);
         rawPixels[0] = 112;
 
         assertTrue(captured.isPresent());
@@ -165,7 +165,7 @@ public final class ProjectedMapDataTest {
         ItemStack item = new TestMapItemStack(mapMeta);
         ItemFrame itemFrame = itemFrame(item);
 
-        Optional<ProjectedMapData> captured = BukkitProjectedMapData.capture(itemFrame);
+        Optional<MapSnapshot> captured = BukkitProjectedMapData.capture(itemFrame);
 
         assertTrue(captured.isPresent());
         assertEquals(52, captured.orElseThrow().sourceMapId());
@@ -175,10 +175,10 @@ public final class ProjectedMapDataTest {
     }
 
     private static byte[] pixels() {
-        byte[] pixels = new byte[ProjectedMapData.PIXEL_COUNT];
-        for (int y = 0; y < ProjectedMapData.HEIGHT; y++) {
-            int row = y * ProjectedMapData.WIDTH;
-            for (int x = 0; x < ProjectedMapData.WIDTH; x++) {
+        byte[] pixels = new byte[MapSnapshot.PIXEL_COUNT];
+        for (int y = 0; y < MapSnapshot.HEIGHT; y++) {
+            int row = y * MapSnapshot.WIDTH;
+            for (int x = 0; x < MapSnapshot.WIDTH; x++) {
                 pixels[row + x] = (byte) ((x * 31) + (y * 17));
             }
         }

@@ -24,15 +24,22 @@ import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.portal.ILocalPortal;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
-import art.arcane.wormholes.render.lod.LodPolicy;
+import art.arcane.optics.volume.LodPolicy;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
-import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.optics.math.Box;
 import art.arcane.wormholes.util.BukkitGeometry;
 import art.arcane.wormholes.util.Cuboid;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
+import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.occlusion.ProjectorViewOcclusion;
+import art.arcane.optics.recursion.RecursiveEndpoints;
+import art.arcane.optics.scan.CellScan;
+import art.arcane.optics.scan.ProjectorSampleMemo;
+import art.arcane.optics.scan.ProjectorSampler;
+import art.arcane.optics.volume.ViewVolume;
 
 final class ProjectorCellScanMaskGeometryTest {
     private static final double DEPTH = 16.0D;
@@ -48,7 +55,7 @@ final class ProjectorCellScanMaskGeometryTest {
             int maskedKeyChanges = 0;
             LongOpenHashSet previousMasks = new LongOpenHashSet();
             for (int pass = 0; pass < 28; pass++) {
-                Frustum4D frustum = scene.frustum(eye);
+                ViewVolume frustum = scene.frustum(eye);
                 incremental.run(scene, eye, frustum, pass == 0, mode);
                 ScanRig cold = scene.rig(true);
                 cold.run(scene, eye, frustum, true, mode);
@@ -126,13 +133,13 @@ final class ProjectorCellScanMaskGeometryTest {
         private Scene() {
             world = RenderTestSupport.world("mask-geometry", List.<Entity>of());
             mirrorStructure = structure(-2, 67, -2, 2, 67, 2);
-            Map<String, Object> mirrorState = portalState(world, mirrorStructure, PortalFrame.canonical(Direction.U));
+            Map<String, Object> mirrorState = portalState(world, mirrorStructure, Frame.canonical(Face.U));
             mirrorState.put("mirrorMode", Boolean.TRUE);
             mirror = RenderTestSupport.portal(mirrorState);
             PortalStructure apertureStructure = structure(5, 63, -1, 5, 65, 1);
-            ILocalPortal aperture = RenderTestSupport.portal(portalState(world, apertureStructure, PortalFrame.canonical(Direction.E)));
+            ILocalPortal aperture = RenderTestSupport.portal(portalState(world, apertureStructure, Frame.canonical(Face.E)));
             portals = List.of(mirror, aperture);
-            Map<String, Object> decoyState = portalState(world, structure(0, 20, 0, 0, 20, 0), PortalFrame.canonical(Direction.D));
+            Map<String, Object> decoyState = portalState(world, structure(0, 20, 0, 0, 20, 0), Frame.canonical(Face.D));
             ILocalPortal decoy = RenderTestSupport.portal(decoyState);
             decoyState.put("tunnel", RenderTestSupport.tunnel(decoy));
             portalsWithDecoy = List.of(mirror, aperture, decoy);
@@ -152,25 +159,25 @@ final class ProjectorCellScanMaskGeometryTest {
         private ScanRig rig(boolean perCellRecursion) throws ReflectiveOperationException {
             ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo(ProjectorCellScanMaskGeometryTest::occludingMaterial);
             List<ILocalPortal> candidates = perCellRecursion ? portalsWithDecoy : portals;
-            ProjectorRecursivePortals<World, ILocalPortal> recursivePortals = BukkitProjectorPortalAccess.create(() -> candidates);
+            RecursiveEndpoints<World, ILocalPortal> recursivePortals = BukkitProjectorPortalAccess.create(() -> candidates);
             ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withServer(
                 () -> BukkitProjectorBlocks.sampler(memo, recursivePortals, ignored -> view));
-            ProjectorCellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan = BukkitProjectorBlocks.scan(
+            CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan = BukkitProjectorBlocks.scan(
                 mirror, sampler, memo, new ProjectorBlackoutSeal());
-            Field occlusion = ProjectorCellScan.class.getDeclaredField("viewOcclusion");
+            Field occlusion = CellScan.class.getDeclaredField("viewOcclusion");
             occlusion.setAccessible(true);
             occlusion.set(scan, new ProjectorViewOcclusion<BlockData>(ProjectorCellScanMaskGeometryTest::occluding));
             return new ScanRig(scan);
         }
 
-        private Frustum4D frustum(Vector eye) {
-            return new Frustum4D(BukkitGeometry.vector(eye), mirrorStructure, new Frustum4D.Options(DEPTH, 12.0D,
+        private ViewVolume frustum(Vector eye) {
+            return new ViewVolume(BukkitGeometry.vector(eye), mirrorStructure, new ViewVolume.Options(DEPTH, 12.0D,
                 Settings.NEAR_PLANE_PADDING, Settings.FRUSTUM_CULLING_RATIO, Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
         }
     }
 
-    private record ScanRig(ProjectorCellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan) {
-        private void run(Scene scene, Vector eye, Frustum4D frustum, boolean cold, ProjectionRenderMode mode) {
+    private record ScanRig(CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan) {
+        private void run(Scene scene, Vector eye, ViewVolume frustum, boolean cold, ProjectionRenderMode mode) {
             scan.run(scene.destination, null, BukkitGeometry.vector(eye), frustum, DEPTH, cold, false, true,
                 mode.scanMode(), null, false, LodPolicy.NONE);
         }
@@ -261,11 +268,11 @@ final class ProjectorCellScanMaskGeometryTest {
         return structure;
     }
 
-    private static Map<String, Object> portalState(World world, PortalStructure structure, PortalFrame frame) {
+    private static Map<String, Object> portalState(World world, PortalStructure structure, Frame frame) {
         Vector origin = structure.getCenter().toVector();
         Map<String, Object> state = RenderTestSupport.portalState(world, origin, frame);
         state.put("structure", structure);
-        state.put("view", new AxisAlignedBB(origin.getX() - 48.0D, origin.getX() + 48.0D,
+        state.put("view", new Box(origin.getX() - 48.0D, origin.getX() + 48.0D,
             origin.getY() - 48.0D, origin.getY() + 48.0D, origin.getZ() - 48.0D, origin.getZ() + 48.0D));
         state.put("supportsProjections", Boolean.TRUE);
         state.put("projecting", Boolean.TRUE);

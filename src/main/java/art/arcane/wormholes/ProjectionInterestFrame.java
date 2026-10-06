@@ -20,21 +20,21 @@ import org.bukkit.entity.Player;
 
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.rtp.RtpRimRenderer;
-import art.arcane.wormholes.render.EntityRenderLocalOcclusionArbiter;
+import art.arcane.optics.occlusion.LocalOcclusionArbiter;
 import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.wormholes.render.PortalProjector;
 import art.arcane.wormholes.render.PortalSkinRenderer;
-import art.arcane.wormholes.render.ProjectionBlockSlices;
+import art.arcane.optics.scan.ProjectionBlockSlices;
 import art.arcane.wormholes.render.ProjectionClaimArbiter;
-import art.arcane.wormholes.render.ProjectionGazeScheduler;
+import art.arcane.optics.volume.GazeScheduler;
 import art.arcane.wormholes.render.clientview.ClientViewRouting;
-import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.optics.math.Box;
 
 final class ProjectionInterestFrame {
     private final ProjectionInterestSet interestSet;
     private final ProjectionBudgetLedger ledger;
     private final ProjectionClaimArbiter claimArbiter;
-    private final EntityRenderLocalOcclusionArbiter<Player, Entity> localEntityOcclusion;
+    private final LocalOcclusionArbiter<Player, Entity> localEntityOcclusion;
     private final PortalSkinRenderer skinRenderer;
     private final RtpRimRenderer rtpRimRenderer;
     private final Supplier<ProjectionManager.RtpProjectionProvider> rtpProjectionProvider;
@@ -44,7 +44,7 @@ final class ProjectionInterestFrame {
     ProjectionInterestFrame(ProjectionInterestSet interestSet,
                             ProjectionBudgetLedger ledger,
                             ProjectionClaimArbiter claimArbiter,
-                            EntityRenderLocalOcclusionArbiter<Player, Entity> localEntityOcclusion,
+                            LocalOcclusionArbiter<Player, Entity> localEntityOcclusion,
                             PortalSkinRenderer skinRenderer,
                             RtpRimRenderer rtpRimRenderer,
                             Supplier<ProjectionManager.RtpProjectionProvider> rtpProjectionProvider,
@@ -125,7 +125,7 @@ final class ProjectionInterestFrame {
             if (!observerWorld.equals(center.getWorld())) {
                 continue;
             }
-            AxisAlignedBB view = portal.getView();
+            Box view = portal.getView();
             if (view == null || !view.containsPrimitive(observerLocation.getX(), observerLocation.getY(), observerLocation.getZ())) {
                 continue;
             }
@@ -176,8 +176,8 @@ final class ProjectionInterestFrame {
         interestSet.closeUnplanned(observerId, interestedIds, frameTick, FidelitySettings.dissolveTicks);
         interestSet.setRtpTargets(observerId, resolvedRtpTargets);
         List<PortalProjector> retiring = interestSet.retiringProjectors(observerId);
-        List<ProjectionGazeScheduler.Candidate<ILocalPortal>> blockCandidates =
-            new ArrayList<ProjectionGazeScheduler.Candidate<ILocalPortal>>(interested.size() + retiring.size());
+        List<GazeScheduler.Candidate<ILocalPortal>> blockCandidates =
+            new ArrayList<GazeScheduler.Candidate<ILocalPortal>>(interested.size() + retiring.size());
         for (ILocalPortal portal : interested) {
             boolean pendingScan = interestSet.hasPendingScan(portal.getId(), observerId);
             if (updateBlocks || pendingScan) {
@@ -234,15 +234,15 @@ final class ProjectionInterestFrame {
         return ordered;
     }
 
-    private static ProjectionGazeScheduler.Eye gazeEye(Location eye) {
-        return new ProjectionGazeScheduler.Eye(eye.getX(), eye.getY(), eye.getZ(), eye.getYaw(), eye.getPitch());
+    private static GazeScheduler.Eye gazeEye(Location eye) {
+        return new GazeScheduler.Eye(eye.getX(), eye.getY(), eye.getZ(), eye.getYaw(), eye.getPitch());
     }
 
-    private static ProjectionGazeScheduler.Candidate<ILocalPortal> gazeCandidate(ILocalPortal portal, Location eye,
+    private static GazeScheduler.Candidate<ILocalPortal> gazeCandidate(ILocalPortal portal, Location eye,
                                                                                boolean pendingScan, boolean retiring) {
-        AxisAlignedBB area = portal.getArea();
+        Box area = portal.getArea();
         if (area != null) {
-            return new ProjectionGazeScheduler.Candidate<ILocalPortal>(portal, portal.getId(),
+            return new GazeScheduler.Candidate<ILocalPortal>(portal, portal.getId(),
                 area.getXa(), area.getYa(), area.getZa(), area.getXb(), area.getYb(), area.getZb(),
                 pendingScan, retiring);
         }
@@ -250,7 +250,7 @@ final class ProjectionInterestFrame {
         double x = center == null ? eye.getX() : center.getX();
         double y = center == null ? eye.getY() : center.getY();
         double z = center == null ? eye.getZ() : center.getZ();
-        return new ProjectionGazeScheduler.Candidate<ILocalPortal>(portal, portal.getId(),
+        return new GazeScheduler.Candidate<ILocalPortal>(portal, portal.getId(),
             x - 0.5D, y - 0.5D, z - 0.5D, x + 0.5D, y + 0.5D, z + 0.5D, pendingScan, retiring);
     }
 

@@ -1,29 +1,30 @@
 package art.arcane.wormholes.portal;
 
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Face;
 
 import java.util.Objects;
 import java.util.UUID;
+import art.arcane.optics.frame.Frame;
 
 public abstract class Portal implements IPortal {
-    protected Direction direction;
-    private PortalFrame frame;
+    protected Face direction;
+    private Frame frame;
     private boolean explicitFrame;
     private UUID id;
-    private GeometryVector origin;
+    private Vec3 origin;
     private String name;
 
-    public Portal(UUID id, GeometryVector origin) {
+    public Portal(UUID id, Vec3 origin) {
         this.id = Objects.requireNonNull(id, "id");
         this.origin = Objects.requireNonNull(origin, "origin");
-        frame = PortalFrame.canonical(Direction.N);
+        frame = Frame.canonical(Face.N);
         direction = frame.getNormal();
         name = "Portal " + id.toString().substring(0, 4);
     }
 
     @Override
-    public GeometryVector getOrigin() {
+    public Vec3 getOrigin() {
         return origin;
     }
 
@@ -43,12 +44,12 @@ public abstract class Portal implements IPortal {
     }
 
     @Override
-    public Direction getDirection() {
+    public Face getDirection() {
         return frame.getNormal();
     }
 
     @Override
-    public PortalFrame getFrame() {
+    public Frame getFrame() {
         return frame;
     }
 
@@ -65,12 +66,12 @@ public abstract class Portal implements IPortal {
         applyFrame(state.frame());
     }
 
-    protected void applyFrame(PortalFrame frame) {
+    protected void applyFrame(Frame frame) {
         this.frame = Objects.requireNonNull(frame, "frame");
         direction = frame.getNormal();
     }
 
-    public record State(UUID id, GeometryVector origin, String name, PortalFrame frame, boolean explicitFrame) {
+    public record State(UUID id, Vec3 origin, String name, Frame frame, boolean explicitFrame) {
         public State {
             Objects.requireNonNull(id, "id");
             Objects.requireNonNull(origin, "origin");

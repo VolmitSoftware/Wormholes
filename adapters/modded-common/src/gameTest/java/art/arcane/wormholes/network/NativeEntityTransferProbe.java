@@ -2,13 +2,12 @@ package art.arcane.wormholes.network;
 
 import art.arcane.wormholes.nexus.NetworkMember;
 import art.arcane.wormholes.config.toml.NetworkConfig;
-import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.modded.MinecraftGameTestPlayer;
 import art.arcane.wormholes.modded.MinecraftJsonDocuments;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.network.convoy.ConvoyManifest;
-import art.arcane.wormholes.portal.PortalCrossing;
+import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.wormholes.portal.PortalType;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
@@ -41,7 +40,7 @@ public final class NativeEntityTransferProbe {
     private MinecraftEntityTransfers transfers;
     private MinecraftPortal source;
     private MinecraftPortal exit;
-    private PortalCrossing crossing;
+    private PlaneCrossing crossing;
     private Path directory;
     private Pig pig;
     private WireMessage.EntityTransfer entityOffer;
@@ -66,8 +65,8 @@ public final class NativeEntityTransferProbe {
             source = portal(3);
             exit = portal(12);
             source.linkRemote("destination", exit.getId());
-            crossing = new PortalCrossing(source.getFrame(), source.getOrigin(), source.getOrigin(),
-                new GeometryVector(0, 0, 0.1D), new GeometryVector(0, 0, -1), true);
+            crossing = new PlaneCrossing(source.getFrame(), source.getOrigin(), source.getOrigin(),
+                new art.arcane.optics.math.Vec3(0, 0, 0.1D), new art.arcane.optics.math.Vec3(0, 0, -1), true);
             network = new ProbeNetwork(directory);
             transfers = new MinecraftEntityTransfers(runtime, network);
             pig = pig("EntityTransferSource");
@@ -112,7 +111,7 @@ public final class NativeEntityTransferProbe {
                 List<Entity> arrivals = named("EntityTransferArrival");
                 assertThat(arrivals.size() == 1, "Destination did not spawn exactly one native entity");
                 created.addAll(arrivals);
-                GeometryVector target = crossing.outPoint(exit.getFrame(), exit.getOrigin());
+                art.arcane.optics.math.Vec3 target = crossing.outPoint(exit.getFrame(), exit.getOrigin());
                 assertThat(arrivals.getFirst().position().distanceToSqr(target.x(), target.y(), target.z()) < 4,
                     "Destination entity was not placed at its exit");
                 transfers.receive("source", entityOffer);

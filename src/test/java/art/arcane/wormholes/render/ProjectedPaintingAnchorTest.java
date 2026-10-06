@@ -27,8 +27,10 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSp
 
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.portal.ILocalPortal;
-import art.arcane.wormholes.portal.PortalFrame;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.math.Face;
+import art.arcane.optics.entity.SpoofRegistry;
+import art.arcane.optics.volume.ViewVolume;
 
 final class ProjectedPaintingAnchorTest {
     @Test
@@ -64,14 +66,14 @@ final class ProjectedPaintingAnchorTest {
     }
 
     private static void project(World world) {
-        PortalFrame remoteFrame = PortalFrame.canonical(Direction.N);
-        PortalFrame localFrame = PortalFrame.canonical(Direction.E);
+        Frame remoteFrame = Frame.canonical(Face.N);
+        Frame localFrame = Frame.canonical(Face.E);
         ILocalPortal localPortal = RenderTestSupport.portal(world, new Vector(0.0D, 0.0D, 0.0D), localFrame);
         ILocalPortal remotePortal = RenderTestSupport.portal(world, new Vector(0.0D, 0.0D, 0.0D), remoteFrame);
-        Frustum4D frustum = new Frustum4D(BukkitGeometry.vector(new Location(null, 1.5D, 1.5D, 0.0D)), new RenderTestSupport.ApertureStructure(), new Frustum4D.Options(16.0D, 16.0D, Settings.NEAR_PLANE_PADDING, Settings.FRUSTUM_CULLING_RATIO, Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
+        ViewVolume frustum = new ViewVolume(BukkitGeometry.vector(new Location(null, 1.5D, 1.5D, 0.0D)), new RenderTestSupport.ApertureStructure(), new ViewVolume.Options(16.0D, 16.0D, Settings.NEAR_PLANE_PADDING, Settings.FRUSTUM_CULLING_RATIO, Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
         EntityRenderPacketChannel channel = new EntityRenderPacketChannel();
         EntityRenderPlayerIdentity identity = new EntityRenderPlayerIdentity(channel);
-        EntityRenderSpoofRegistry<Player, Vector3d> registry = new EntityRenderSpoofRegistry<>(new BukkitEntityRegistryHost(channel, identity));
+        SpoofRegistry<Player, Vector3d> registry = new SpoofRegistry<>(new BukkitEntityRegistryHost(channel, identity));
         ProjectedEntityRenderer renderer = new ProjectedEntityRenderer(channel, identity, registry);
         Player observer = ProjectedEntityPacketRecorder.player(true);
 

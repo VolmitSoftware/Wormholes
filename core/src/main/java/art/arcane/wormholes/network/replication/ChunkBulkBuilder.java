@@ -3,8 +3,8 @@ package art.arcane.wormholes.network.replication;
 import art.arcane.wormholes.network.view.ViewBox;
 import art.arcane.wormholes.network.view.ViewSlice;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
-import art.arcane.wormholes.render.ProjectionCellKey;
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.fidelity.BlockEntitySample;
 
 
 import java.io.ByteArrayOutputStream;
@@ -102,9 +102,9 @@ public final class ChunkBulkBuilder<S, B, T> {
         Map<Long, BlockEntitySample> inside = new HashMap<Long, BlockEntitySample>(Math.max(4, blockEntities.size()));
         for (Map.Entry<Long, BlockEntitySample> entry : blockEntities.entrySet()) {
             long key = entry.getKey().longValue();
-            int x = ProjectionCellKey.unpackX(key);
-            int y = ProjectionCellKey.unpackY(key);
-            int z = ProjectionCellKey.unpackZ(key);
+            int x = CellKeys.unpackX(key);
+            int y = CellKeys.unpackY(key);
+            int z = CellKeys.unpackZ(key);
             if (x >= minX && x <= maxX && y >= minY && y <= maxY && z >= minZ && z <= maxZ) {
                 inside.put(entry.getKey(), entry.getValue());
             }

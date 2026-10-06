@@ -1,22 +1,22 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftBlockEntityTags;
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
+import art.arcane.optics.math.Vec3;
+import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.wormholes.modded.clientview.MinecraftLightSnapshot;
-import art.arcane.wormholes.network.client.Brick;
-import art.arcane.wormholes.network.client.BrickCodec;
-import art.arcane.wormholes.network.client.ClientViewCapability;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
+import art.arcane.optics.stream.Brick;
+import art.arcane.optics.stream.BrickCodec;
+import art.arcane.optics.stream.ViewStreamCapability;
+import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewProtocolException;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
-import art.arcane.wormholes.network.client.SectionBiomes;
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
-import art.arcane.wormholes.render.blockentity.BlockEntitySanitizer;
-import art.arcane.wormholes.render.client.ClientViewBlockTransform;
-import art.arcane.wormholes.render.client.session.ClientMeshPlan;
-import art.arcane.wormholes.render.plate.PlateBox;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.SectionBiomes;
+import art.arcane.optics.fidelity.BlockEntitySample;
+import art.arcane.optics.fidelity.BlockEntitySanitizer;
+import art.arcane.optics.client.ClientViewBlockTransform;
+import art.arcane.optics.client.MeshPlan;
+import art.arcane.optics.plate.PlateBox;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -160,24 +160,24 @@ public final class ClientLocalMeshSources {
         }
         capturePending();
         session.flushCached(sender);
-        if (!session.active() || !session.has(ClientViewCapability.MESH_RENDER) || !session.has(ClientViewCapability.CLIENT_MIRROR)) {
+        if (!session.active() || !session.has(ViewStreamCapability.MESH_RENDER) || !session.has(ViewStreamCapability.CLIENT_MIRROR)) {
             retract(session);
             routes.clear();
             return;
         }
         routes.entrySet().removeIf(entry -> session.portal(entry.getKey()) == null || session.meshes().view(entry.getKey()) == null);
         for (ClientPortal portal : session.portals().values()) {
-            ClientViewEnvironment environment = session.environment(portal.portalKey());
+            ProjectionEnvironment environment = session.environment(portal.portalKey());
             ClientMeshSections.View view = session.meshes().view(portal.portalKey());
             boolean local = environment != null && eligible(portal, environment, current);
-            if (view == null || environment == null || !local && !session.has(ClientViewCapability.MESH_REUSE)) {
+            if (view == null || environment == null || !local && !session.has(ViewStreamCapability.MESH_REUSE)) {
                 Route removed = routes.remove(portal.portalKey());
                 if (removed != null) {
                     release(session, removed);
                 }
                 continue;
             }
-            GeometryVector eye = sourceEye(session, portal, new GeometryVector(eyeX, eyeY, eyeZ));
+            Vec3 eye = sourceEye(session, portal, new Vec3(eyeX, eyeY, eyeZ));
             if (eye == null) {
                 Route removed = routes.remove(portal.portalKey());
                 if (removed != null) {
@@ -225,7 +225,7 @@ public final class ClientLocalMeshSources {
                 }
                 route.replanned = false;
             }
-            if (route.local && session.has(ClientViewCapability.LOCAL_MESH)) {
+            if (route.local && session.has(ViewStreamCapability.LOCAL_MESH)) {
                 updateEntities(route);
             } else {
                 route.entities.clear();
@@ -286,11 +286,11 @@ public final class ClientLocalMeshSources {
             }
         }
         for (Route route : active) {
-            if (!route.cached.isEmpty() && session.has(ClientViewCapability.MESH_REUSE)) {
+            if (!route.cached.isEmpty() && session.has(ViewStreamCapability.MESH_REUSE)) {
                 session.cacheClaims(route.key, route.cached);
                 route.cached.clear();
             }
-            if (session.has(ClientViewCapability.LOCAL_MESH)) {
+            if (session.has(ViewStreamCapability.LOCAL_MESH)) {
                 flush(route, true, route.added, route.addedEntities);
                 flush(route, false, route.removed, route.removedEntities);
             } else {
@@ -302,21 +302,21 @@ public final class ClientLocalMeshSources {
         }
     }
 
-    private static boolean eligible(ClientPortal portal, ClientViewEnvironment environment, ClientLevel level) {
+    private static boolean eligible(ClientPortal portal, ProjectionEnvironment environment, ClientLevel level) {
         return portal.geometry().mirror() && environment.world().dimensionKey().equals(level.dimension().identifier().toString());
     }
 
-    static GeometryVector sourceEye(ClientViewSession session, ClientPortal portal, GeometryVector eye) {
-        List<ClientViewEnvironment.Transform> ancestors = new ArrayList<>();
+    static Vec3 sourceEye(ClientViewSession session, ClientPortal portal, Vec3 eye) {
+        List<ProjectionEnvironment.Transform> ancestors = new ArrayList<>();
         int parent = portal.geometry().parentPortalKey();
         Set<Integer> visited = new HashSet<>();
         visited.add(portal.portalKey());
         while (parent != 0) {
-            if (!visited.add(parent) || ancestors.size() >= ClientViewProtocol.MAX_GEOMETRY_DEPTH) {
+            if (!visited.add(parent) || ancestors.size() >= ViewStreamLimits.MAX_GEOMETRY_DEPTH) {
                 return null;
             }
             ClientPortal ancestor = session.portal(parent);
-            ClientViewEnvironment environment = session.environment(parent);
+            ProjectionEnvironment environment = session.environment(parent);
             if (ancestor == null || environment == null) {
                 return null;
             }
@@ -499,7 +499,7 @@ public final class ClientLocalMeshSources {
             }
         }
         route.removedEntities.addAll(route.entities);
-        if (session.active() && session.has(ClientViewCapability.LOCAL_MESH)) {
+        if (session.active() && session.has(ViewStreamCapability.LOCAL_MESH)) {
             flush(route, false, route.removed, route.removedEntities);
         }
     }
@@ -523,7 +523,7 @@ public final class ClientLocalMeshSources {
         private final int key;
         private final int generation;
         private final ClientMeshSections.View view;
-        private final ClientViewEnvironment.Transform transform;
+        private final ProjectionEnvironment.Transform transform;
         private final ClientViewBlockTransform cells;
         private final String world;
         private final boolean local;
@@ -541,7 +541,7 @@ public final class ClientLocalMeshSources {
         private final List<UUID> removedEntities = new ArrayList<>();
         private int cursor;
         private int sequence;
-        private GeometryVector eye;
+        private Vec3 eye;
         private long plannedTick;
         private boolean replanned;
 
@@ -590,7 +590,7 @@ public final class ClientLocalMeshSources {
             }
         }
 
-        private Route(ClientPortal portal, ClientMeshSections.View view, ClientViewEnvironment.Transform transform, GeometryVector eye, long tick, String world, boolean local) {
+        private Route(ClientPortal portal, ClientMeshSections.View view, ProjectionEnvironment.Transform transform, Vec3 eye, long tick, String world, boolean local) {
             this.world = world;
             this.local = local;
             this.key = portal.portalKey();
@@ -601,12 +601,12 @@ public final class ClientLocalMeshSources {
             plan(portal.geometry(), eye, tick);
         }
 
-        private void plan(ClientPortalGeometry geometry, GeometryVector eye, long tick) {
+        private void plan(ApertureDescriptor geometry, Vec3 eye, long tick) {
             this.eye = eye;
             plannedTick = tick;
             selection.clear();
             selected.clear();
-            for (ClientMeshPlan.Section section : ClientMeshPlan.visible(geometry, eye)) {
+            for (MeshPlan.Section section : MeshPlan.visible(geometry, eye)) {
                 long key = SectionPos.asLong(section.x(), section.y(), section.z());
                 if (inBounds(key)) {
                     selection.add(key);

@@ -11,7 +11,7 @@ import org.bukkit.Location;
 import org.bukkit.World;
 
 import art.arcane.wormholes.portal.LocalPortal;
-import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.optics.math.Box;
 
 final class RtpAttendanceRegistry
 {
@@ -30,7 +30,7 @@ final class RtpAttendanceRegistry
 
 	void touch(LocalPortal portal, UUID viewerId, long touchedAtMillis)
 	{
-		AxisAlignedBB view = Objects.requireNonNull(portal.getView(), "portal view");
+		Box view = Objects.requireNonNull(portal.getView(), "portal view");
 		World world = Objects.requireNonNull(portal.getStructure().getWorld(), "portal source world");
 		UUID portalId = portal.getId();
 		presencesByViewer.compute(viewerId, (ignored, current) ->
@@ -168,7 +168,7 @@ final class RtpAttendanceRegistry
 		private long touchedAtMillis;
 		private boolean serviceTouchPending;
 
-		private void update(UUID worldId, AxisAlignedBB view, long touchedAtMillis)
+		private void update(UUID worldId, Box view, long touchedAtMillis)
 		{
 			this.worldId = worldId;
 			this.minimumX = view.getXa();

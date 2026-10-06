@@ -1,8 +1,8 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
-import art.arcane.wormholes.network.client.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.ClientViewProtocolException;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.Reference2IntOpenHashMap;
@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Objects;
 
 public final class ClientPalette {
-    public static final int LOCAL_BASE = ClientViewProtocol.MAX_SESSION_PALETTE_SIZE;
+    public static final int LOCAL_BASE = ViewStreamLimits.MAX_SESSION_PALETTE_SIZE;
     private static final int INITIAL_CAPACITY = 256;
 
     private final HolderLookup<Block> blocks;
@@ -52,7 +52,7 @@ public final class ClientPalette {
         for (int index = 0; index < entries.size(); index++) {
             ClientViewMessage.PaletteEntry entry = entries.get(index);
             int id = entry.id();
-            if (id < ClientViewProtocol.RESERVED_PALETTE_IDS || id >= ClientViewProtocol.MAX_SESSION_PALETTE_SIZE) {
+            if (id < ViewStreamLimits.RESERVED_PALETTE_IDS || id >= ViewStreamLimits.MAX_SESSION_PALETTE_SIZE) {
                 throw new ClientViewProtocolException("palette id " + id + " is reserved or out of range");
             }
             BlockState resolved = parse(blocks, entry.state());
@@ -90,13 +90,13 @@ public final class ClientPalette {
     }
 
     public boolean sentinel(int id) {
-        return id == ClientViewProtocol.PALETTE_OCCLUDED || id == ClientViewProtocol.PALETTE_BACKING;
+        return id == ViewStreamLimits.PALETTE_OCCLUDED || id == ViewStreamLimits.PALETTE_BACKING;
     }
 
     public int localId(BlockState state) {
         Objects.requireNonNull(state, "state");
         if (state.isAir()) {
-            return ClientViewProtocol.PALETTE_AIR;
+            return ViewStreamLimits.PALETTE_AIR;
         }
         int known = localIds.getInt(state);
         if (known >= 0) {
@@ -126,8 +126,8 @@ public final class ClientPalette {
 
     public void reset() {
         Arrays.fill(states, null);
-        states[ClientViewProtocol.PALETTE_AIR] = air;
-        size = ClientViewProtocol.RESERVED_PALETTE_IDS;
+        states[ViewStreamLimits.PALETTE_AIR] = air;
+        size = ViewStreamLimits.RESERVED_PALETTE_IDS;
         unknownStates = 0;
         localStates.clear();
         localIds.clear();

@@ -17,7 +17,7 @@ import art.arcane.wormholes.config.toml.RenderConfig;
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.render.FidelityPortalExtension;
 import art.arcane.wormholes.render.FidelitySettings;
-import art.arcane.wormholes.render.atmosphere.AtmosphereMode;
+import art.arcane.optics.fidelity.AtmosphereMode;
 
 class FidelityConfigTest {
     @TempDir

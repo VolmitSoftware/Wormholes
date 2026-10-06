@@ -1,7 +1,6 @@
 package art.arcane.wormholes.network;
 
 import art.arcane.wormholes.config.toml.NetworkConfig;
-import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.modded.MinecraftGameTestPlayer;
 import art.arcane.wormholes.modded.MinecraftJsonDocuments;
 import art.arcane.wormholes.modded.MinecraftPortal;
@@ -10,7 +9,7 @@ import art.arcane.wormholes.network.mesh.DestinationCandidate;
 import art.arcane.wormholes.network.mesh.DestinationPolicy;
 import art.arcane.wormholes.network.mesh.LoadBeacon;
 import art.arcane.wormholes.network.mesh.SelectionStrategy;
-import art.arcane.wormholes.portal.PortalCrossing;
+import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.wormholes.portal.PortalType;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
@@ -40,7 +39,7 @@ public final class NativeGatewayPolicyProbe {
     private ProbeNetwork network;
     private MinecraftPlayerHandoffs handoffs;
     private MinecraftGatewayPolicies policies;
-    private PortalCrossing crossing;
+    private PlaneCrossing crossing;
     private Path directory;
     private int stage;
     private int ticks;
@@ -68,8 +67,8 @@ public final class NativeGatewayPolicyProbe {
             actor.player().setNoGravity(true);
             actor.player().setPos(source.getOrigin().x(), source.getOrigin().y(), source.getOrigin().z());
             runtime.portals().recordArrival(actor.player(), source);
-            crossing = new PortalCrossing(source.getFrame(), source.getOrigin(), source.getOrigin(),
-                new GeometryVector(0, 0, 0.1D), new GeometryVector(0, 0, -1), true);
+            crossing = new PlaneCrossing(source.getFrame(), source.getOrigin(), source.getOrigin(),
+                new art.arcane.optics.math.Vec3(0, 0, 0.1D), new art.arcane.optics.math.Vec3(0, 0, -1), true);
             runtime.network().remotePortals().applyDirectory(peer, List.of(new PortalInfo(destination, "queue-exit", "minecraft:overworld",
                 "GATEWAY", true, "N", "E", "U", 0, 64, 0, 0, 64, 0, 2, 67, 1)));
             network = new ProbeNetwork(directory, peer);

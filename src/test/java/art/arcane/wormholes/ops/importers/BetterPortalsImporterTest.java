@@ -1,6 +1,6 @@
 package art.arcane.wormholes.ops.importers;
 
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -39,10 +39,10 @@ class BetterPortalsImporterTest {
         assertEquals("north", north.name());
         assertEquals("world", north.worldName());
         assertEquals(10, north.x());
-        assertEquals(Direction.N, north.facing());
+        assertEquals(Face.N, north.facing());
         assertEquals(2, north.width());
         assertEquals(3, north.height());
-        assertEquals(Direction.E, factory.created().get(1).facing());
+        assertEquals(Face.E, factory.created().get(1).facing());
     }
 
     @Test

@@ -1,9 +1,8 @@
 package art.arcane.wormholes.modded.clientview;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.math.Face;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
@@ -71,18 +70,18 @@ public class MinecraftPortalEnvironmentTest extends MinecraftTestBase {
         Vec3 point = new Vec3(128.5D, 92.0D, -32.25D);
         when(attributes.getValue(eq(EnvironmentAttributes.SKY_COLOR), eq(point))).thenReturn(new Vector3f(1.25F, 0.4F, 0.8F));
         when(attributes.getValue(eq(EnvironmentAttributes.SUN_ANGLE), eq(point))).thenReturn(90.0F);
-        ClientViewEnvironment.Transform transform = new ClientViewEnvironment.Transform(Direction.E, Direction.U, Direction.S,
-            new GeometryVector(-128, 0, 0));
-        ClientViewEnvironment result = MinecraftPortalEnvironment.capture(world, new GeometryVector(point.x, point.y, point.z), transform, world.isFlat());
-        assertEquals(ClientViewEnvironment.Skybox.END, result.sky().skybox());
+        ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(Face.E, Face.U, Face.S,
+            new art.arcane.optics.math.Vec3(-128, 0, 0));
+        ProjectionEnvironment result = MinecraftPortalEnvironment.capture(world, new art.arcane.optics.math.Vec3(point.x, point.y, point.z), transform, world.isFlat());
+        assertEquals(ProjectionEnvironment.Skybox.END, result.sky().skybox());
         assertEquals(1.25F, result.sky().color().red(), 0.0001F);
         assertEquals((float) (Math.PI / 2), result.sky().sunAngle(), 0.0001F);
         assertEquals(0.6F, result.sky().rain(), 0.0001F);
         assertEquals(-96, result.dimension().minY());
-        assertEquals(ClientViewEnvironment.CardinalLighting.NETHER, result.dimension().cardinalLighting());
+        assertEquals(ProjectionEnvironment.CardinalLighting.NETHER, result.dimension().cardinalLighting());
         assertFalse(result.dimension().hasSkyLight());
         assertEquals(18000L, result.gameTime());
-        assertEquals(new ClientViewEnvironment.World("minecraft:the_end", 72000L, "minecraft:plains", 63, 7, 15, 256, true, 0.1F, ClientViewEnvironment.EyeMedium.NONE, false), result.world());
+        assertEquals(new ProjectionEnvironment.World("minecraft:the_end", 72000L, "minecraft:plains", 63, 7, 15, 256, true, 0.1F, ProjectionEnvironment.EyeMedium.NONE, false), result.world());
     }
 
     @Test
@@ -93,25 +92,25 @@ public class MinecraftPortalEnvironmentTest extends MinecraftTestBase {
         when(fluid.is(FluidTags.WATER)).thenReturn(true);
         when(fluid.getHeightForCamera(eq(world), any(BlockPos.class))).thenReturn(0.25F);
         when(fluid.getHeight(eq(world), any(BlockPos.class))).thenReturn(0.875F);
-        assertEquals(ClientViewEnvironment.EyeMedium.WATER, sample(world, 64.249).world().eyeMedium());
-        assertEquals(ClientViewEnvironment.EyeMedium.NONE, sample(world, 64.25).world().eyeMedium());
-        assertEquals(ClientViewEnvironment.EyeMedium.NONE, sample(world, 64.75).world().eyeMedium());
+        assertEquals(ProjectionEnvironment.EyeMedium.WATER, sample(world, 64.249).world().eyeMedium());
+        assertEquals(ProjectionEnvironment.EyeMedium.NONE, sample(world, 64.25).world().eyeMedium());
+        assertEquals(ProjectionEnvironment.EyeMedium.NONE, sample(world, 64.75).world().eyeMedium());
         verify(fluid, times(3)).getHeightForCamera(world, new BlockPos(3, 64, -5));
         when(fluid.is(FluidTags.WATER)).thenReturn(false);
         when(fluid.is(FluidTags.LAVA)).thenReturn(true);
-        assertEquals(ClientViewEnvironment.EyeMedium.LAVA, sample(world, 64.874).world().eyeMedium());
-        assertEquals(ClientViewEnvironment.EyeMedium.NONE, sample(world, 64.875).world().eyeMedium());
+        assertEquals(ProjectionEnvironment.EyeMedium.LAVA, sample(world, 64.874).world().eyeMedium());
+        assertEquals(ProjectionEnvironment.EyeMedium.NONE, sample(world, 64.875).world().eyeMedium());
         when(fluid.is(FluidTags.LAVA)).thenReturn(false);
         when(world.getBlockState(any(BlockPos.class))).thenReturn(Blocks.POWDER_SNOW.defaultBlockState());
         when(world.dimensionType().hasFixedTime()).thenReturn(true);
-        ClientViewEnvironment snow = sample(world, 64.5);
-        assertEquals(ClientViewEnvironment.EyeMedium.POWDER_SNOW, snow.world().eyeMedium());
+        ProjectionEnvironment snow = sample(world, 64.5);
+        assertEquals(ProjectionEnvironment.EyeMedium.POWDER_SNOW, snow.world().eyeMedium());
         assertTrue(snow.world().hasFixedTime());
         assertEquals("minecraft:overworld", snow.world().dimensionKey());
     }
 
-    private static ClientViewEnvironment sample(ServerLevel world, double y) {
-        return MinecraftPortalEnvironment.capture(world, new GeometryVector(3.5, y, -4.5), ClientViewEnvironment.Transform.IDENTITY, world.isFlat());
+    private static ProjectionEnvironment sample(ServerLevel world, double y) {
+        return MinecraftPortalEnvironment.capture(world, new art.arcane.optics.math.Vec3(3.5, y, -4.5), ProjectionEnvironment.Transform.IDENTITY, world.isFlat());
     }
 
     @SuppressWarnings("unchecked")

@@ -1,7 +1,7 @@
 package art.arcane.wormholes.render;
 
-import art.arcane.wormholes.portal.PortalFrame;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.math.Face;
 import org.bukkit.Material;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.MultipleFacing;
@@ -17,6 +17,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import art.arcane.optics.frame.DirectionMapping;
 
 final class ProjectedBlockDataTransformerMultipleFacingTest {
     private static final Set<BlockFace> FACES = Set.of(BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST,
@@ -25,8 +26,8 @@ final class ProjectedBlockDataTransformerMultipleFacingTest {
     @Test
     void mushroomFacesFollowEveryMirrorPlaneAndQuarterTurnWithoutChangingSource() {
         for (Material material : new Material[] {Material.RED_MUSHROOM_BLOCK, Material.BROWN_MUSHROOM_BLOCK, Material.MUSHROOM_STEM}) {
-            for (Direction normal : Direction.values()) {
-                PortalFrame frame = PortalFrame.canonical(normal);
+            for (Face normal : Face.values()) {
+                Frame frame = Frame.canonical(normal);
                 for (int quarterTurns = 0; quarterTurns < 4; quarterTurns++) {
                     DirectionMapping mapping = DirectionMapping.mirror(frame, quarterTurns, new double[3]);
                     for (int mask = 0; mask < 64; mask++) {
@@ -35,7 +36,7 @@ final class ProjectedBlockDataTransformerMultipleFacingTest {
                         MultipleFacing projected = (MultipleFacing) ProjectedBlockDataTransformer.mirror(original, frame, quarterTurns, new double[3]);
                         assertTrue(ProjectedBlockDataTransformer.requiresTransform(original));
                         assertEquals(enabled, original.getFaces());
-                        for (Direction face : Direction.values()) {
+                        for (Face face : Face.values()) {
                             assertEquals(enabled.contains(blockFace(face)), projected.hasFace(blockFace(mapping.map(face))));
                         }
                     }
@@ -46,17 +47,17 @@ final class ProjectedBlockDataTransformerMultipleFacingTest {
 
     @Test
     void mushroomFacesFollowWallToFloorAndFloorToWallProjections() {
-        for (Direction from : Direction.values()) {
-            for (Direction to : Direction.values()) {
-                PortalFrame fromFrame = PortalFrame.canonical(from);
-                PortalFrame toFrame = PortalFrame.canonical(to);
+        for (Face from : Face.values()) {
+            for (Face to : Face.values()) {
+                Frame fromFrame = Frame.canonical(from);
+                Frame toFrame = Frame.canonical(to);
                 DirectionMapping mapping = DirectionMapping.between(fromFrame, toFrame, new double[3]);
                 for (int mask = 0; mask < 64; mask++) {
                     Set<BlockFace> enabled = enabledFaces(mask);
                     MultipleFacing original = mushroom(Material.RED_MUSHROOM_BLOCK, enabled);
                     MultipleFacing projected = (MultipleFacing) ProjectedBlockDataTransformer.transform(original, fromFrame, toFrame, new double[3]);
                     assertEquals(enabled, original.getFaces());
-                    for (Direction face : Direction.values()) {
+                    for (Face face : Face.values()) {
                         assertEquals(enabled.contains(blockFace(face)), projected.hasFace(blockFace(mapping.map(face))));
                     }
                 }
@@ -88,7 +89,7 @@ final class ProjectedBlockDataTransformerMultipleFacingTest {
 
     private static Set<BlockFace> enabledFaces(int mask) {
         EnumSet<BlockFace> enabled = EnumSet.noneOf(BlockFace.class);
-        for (Direction face : Direction.values()) {
+        for (Face face : Face.values()) {
             if ((mask & (1 << face.ordinal())) != 0) {
                 enabled.add(blockFace(face));
             }
@@ -96,7 +97,7 @@ final class ProjectedBlockDataTransformerMultipleFacingTest {
         return enabled;
     }
 
-    private static BlockFace blockFace(Direction face) {
+    private static BlockFace blockFace(Face face) {
         return switch (face) {
             case N -> BlockFace.NORTH;
             case S -> BlockFace.SOUTH;

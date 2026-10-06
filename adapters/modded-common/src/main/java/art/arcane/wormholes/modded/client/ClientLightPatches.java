@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
-import art.arcane.wormholes.network.client.ClientViewProtocol;
-import art.arcane.wormholes.render.ProjectionCellKey;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.math.CellKeys;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
@@ -19,7 +19,7 @@ import java.util.function.IntSupplier;
 
 public final class ClientLightPatches {
     public static final int NO_LIGHT = -1;
-    private static final int WORDS = ClientViewProtocol.BRICK_CELLS / 64;
+    private static final int WORDS = ViewStreamLimits.BRICK_CELLS / 64;
     private static final int ALL_BORDERS = ClientViewSurface.BORDER_WEST | ClientViewSurface.BORDER_EAST
         | ClientViewSurface.BORDER_DOWN | ClientViewSurface.BORDER_UP | ClientViewSurface.BORDER_NORTH | ClientViewSurface.BORDER_SOUTH;
     private static final long[] BOUNDARY_CELLS = boundaryCells();
@@ -83,7 +83,7 @@ public final class ClientLightPatches {
         if (overlay == null) {
             return null;
         }
-        ProjectionOverlay.Entry entry = overlay.get(ProjectionCellKey.pack(x, y, z));
+        ProjectionOverlay.Entry entry = overlay.get(CellKeys.pack(x, y, z));
         return entry == null || entry.pending() ? null : entry.shadow();
     }
 
@@ -92,7 +92,7 @@ public final class ClientLightPatches {
         if (section == null) {
             return NO_LIGHT;
         }
-        int cell = ClientViewProtocol.brickCellIndex(x, y, z);
+        int cell = ViewStreamLimits.brickCellIndex(x, y, z);
         if ((section.mask[cell >>> 6] & (1L << (cell & 63))) == 0L) {
             return NO_LIGHT;
         }
@@ -104,13 +104,13 @@ public final class ClientLightPatches {
     public void refresh(int sectionX, int sectionY, int sectionZ, LongArrayList cellKeys, IntArrayList cellPortals, CellLight source) {
         long key = SectionPos.asLong(sectionX, sectionY, sectionZ);
         long[] mask = new long[WORDS];
-        byte[] target = new byte[ClientViewProtocol.BRICK_CELLS];
+        byte[] target = new byte[ViewStreamLimits.BRICK_CELLS];
         IntOpenHashSet portals = new IntOpenHashSet(2);
         boolean any = false;
         int borders = 0;
         for (int index = 0; index < cellKeys.size(); index++) {
             long cell = cellKeys.getLong(index);
-            int y = ProjectionCellKey.unpackY(cell);
+            int y = CellKeys.unpackY(cell);
             if (y >> 4 != sectionY) {
                 continue;
             }
@@ -119,7 +119,7 @@ public final class ClientLightPatches {
             if (packed < 0) {
                 continue;
             }
-            int cellIndex = ClientViewProtocol.brickCellIndex(ProjectionCellKey.unpackX(cell), y, ProjectionCellKey.unpackZ(cell));
+            int cellIndex = ViewStreamLimits.brickCellIndex(CellKeys.unpackX(cell), y, CellKeys.unpackZ(cell));
             mask[cellIndex >>> 6] |= 1L << (cellIndex & 63);
             target[cellIndex] = (byte) (packed & 0xFF);
             if (borders != ALL_BORDERS) {
@@ -241,7 +241,7 @@ public final class ClientLightPatches {
 
     private static long[] boundaryCells() {
         long[] cells = new long[WORDS];
-        for (int cell = 0; cell < ClientViewProtocol.BRICK_CELLS; cell++) {
+        for (int cell = 0; cell < ViewStreamLimits.BRICK_CELLS; cell++) {
             if (cellBorders(cell) != 0) {
                 cells[cell >>> 6] |= 1L << (cell & 63);
             }

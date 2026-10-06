@@ -16,7 +16,10 @@ import org.bukkit.block.BlockState;
 
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.render.FidelitySettings;
-import art.arcane.wormholes.render.ProjectionCellKey;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.fidelity.BlockEntityMaterials;
+import art.arcane.optics.fidelity.BlockEntitySample;
+import art.arcane.optics.fidelity.BlockEntitySanitizer;
 
 /**
  * Turns a block state into a sanitized {@link BlockEntitySample}: the vanilla snapshot tag when the
@@ -94,7 +97,7 @@ public final class BlockEntityCapturer {
             }
             BlockEntitySample sample = capture(state);
             if (sample != null) {
-                samples.put(Long.valueOf(ProjectionCellKey.pack(state.getX(), state.getY(), state.getZ())), sample);
+                samples.put(Long.valueOf(CellKeys.pack(state.getX(), state.getY(), state.getZ())), sample);
             }
         }
         return samples;

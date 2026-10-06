@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client.render;
 
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.stream.ProjectionEnvironment;
 import it.unimi.dsi.fastutil.longs.LongIterable;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
@@ -14,7 +14,7 @@ import java.util.function.Predicate;
 import java.util.function.ObjLongConsumer;
 
 public interface PortalScene {
-    ClientPortalGeometry geometry();
+    ApertureDescriptor geometry();
 
     default boolean fullWorld() {
         return false;
@@ -24,7 +24,7 @@ public interface PortalScene {
         return false;
     }
 
-    default ClientViewEnvironment environment() {
+    default ProjectionEnvironment environment() {
         return null;
     }
 

@@ -1,6 +1,6 @@
 package art.arcane.wormholes.door;
 
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -10,12 +10,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public final class DoorwayPlaneTest {
     private static final double TOLERANCE = 1.0E-9D;
-    private static final Direction[] CARDINALS = {Direction.N, Direction.S, Direction.E, Direction.W};
+    private static final Face[] CARDINALS = {Face.N, Face.S, Face.E, Face.W};
 
 	@Test
 	public void northFacingDoorDetectsFastDiagonalCrossingInsideAperture()
 	{
-		DoorwayPlane plane = new DoorwayPlane(10, 64, -4, Direction.N);
+		DoorwayPlane plane = new DoorwayPlane(10, 64, -4, Face.N);
 
 		DoorwayCrossing crossing = plane.crossing(
 			new DoorVec3(10.2D, 64.25D, -4.5D),
@@ -29,7 +29,7 @@ public final class DoorwayPlaneTest {
 	@Test
 	public void eastFacingDoorDetectsCrossingInEitherDirection()
 	{
-		DoorwayPlane plane = new DoorwayPlane(-2, 20, 7, Direction.E);
+		DoorwayPlane plane = new DoorwayPlane(-2, 20, 7, Face.E);
 
 		DoorwayCrossing crossing = plane.crossing(
 			new DoorVec3(-0.5D, 20.0D, 7.5D),
@@ -43,7 +43,7 @@ public final class DoorwayPlaneTest {
 	@Test
 	public void apertureIncludesPhysicalEdgesButRejectsOutsideAndCoplanarMotion()
 	{
-		DoorwayPlane plane = new DoorwayPlane(0, 64, 0, Direction.S);
+		DoorwayPlane plane = new DoorwayPlane(0, 64, 0, Face.S);
 
 		assertTrue(plane.crossing(
 			new DoorVec3(0.0D, 66.0D, 0.0D),
@@ -62,7 +62,7 @@ public final class DoorwayPlaneTest {
 	@Test
 	public void movementStartingOnPlaneDoesNotPullPlayerThrough()
 	{
-		DoorwayPlane plane = new DoorwayPlane(0, 64, 0, Direction.N);
+		DoorwayPlane plane = new DoorwayPlane(0, 64, 0, Face.N);
 		DoorVec3 center = plane.center();
 
 		assertFalse(plane.crossing(
@@ -73,7 +73,7 @@ public final class DoorwayPlaneTest {
 	@Test
 	public void recessedThresholdAcceptsNormalStepHeightApproachAtTheSecondEndpoint()
 	{
-		DoorwayPlane plane = new DoorwayPlane(-284, 69, 166, Direction.S);
+		DoorwayPlane plane = new DoorwayPlane(-284, 69, 166, Face.S);
 
 		DoorwayCrossing crossing = plane.crossing(
 			new DoorVec3(-283.79D, 68.875D, 164.36D),
@@ -90,7 +90,7 @@ public final class DoorwayPlaneTest {
 	public void invalidFacingAndNonFiniteCoordinatesAreRejected()
 	{
 		assertThrows(IllegalArgumentException.class,
-			() -> new DoorwayPlane(0, 0, 0, Direction.U));
+			() -> new DoorwayPlane(0, 0, 0, Face.U));
 		assertThrows(IllegalArgumentException.class,
 			() -> new DoorVec3(Double.NaN, 0.0D, 0.0D));
 	}
@@ -98,7 +98,7 @@ public final class DoorwayPlaneTest {
 	@Test
 	public void arrivalSidesStaySymmetricAroundPhysicalDoorForEveryFacing()
 	{
-		for(Direction facing : new Direction[]{Direction.N, Direction.S, Direction.E, Direction.W})
+		for(Face facing : new Face[]{Face.N, Face.S, Face.E, Face.W})
 		{
 			DoorwayPlane plane = new DoorwayPlane(10, 64, -4, facing);
 			for(DoorwayCrossing.Direction direction : DoorwayCrossing.Direction.values())
@@ -123,10 +123,10 @@ public final class DoorwayPlaneTest {
 	@Test
 	public void yawRotationPreservesTravelDirectionAcrossEveryFacingPair()
 	{
-		for(Direction sourceFacing : new Direction[]{Direction.N, Direction.S, Direction.E, Direction.W})
+		for(Face sourceFacing : new Face[]{Face.N, Face.S, Face.E, Face.W})
 		{
 			DoorwayPlane source = new DoorwayPlane(0, 64, 0, sourceFacing);
-			for(Direction targetFacing : new Direction[]{Direction.N, Direction.S, Direction.E, Direction.W})
+			for(Face targetFacing : new Face[]{Face.N, Face.S, Face.E, Face.W})
 			{
 				DoorwayPlane target = new DoorwayPlane(100, 70, 100, targetFacing);
 				for(DoorwayCrossing.Direction direction : DoorwayCrossing.Direction.values())
@@ -150,7 +150,7 @@ public final class DoorwayPlaneTest {
 	@Test
 	public void arrivalGeometryRejectsInvalidOffsetsAndYaw()
 	{
-		DoorwayPlane plane = new DoorwayPlane(0, 64, 0, Direction.S);
+		DoorwayPlane plane = new DoorwayPlane(0, 64, 0, Face.S);
 		assertThrows(IllegalArgumentException.class,
 			() -> plane.entrySidePoint(DoorwayCrossing.Direction.FRONT_TO_BACK, 0.0D));
 		assertThrows(IllegalArgumentException.class,
@@ -169,7 +169,7 @@ public final class DoorwayPlaneTest {
 	@Test
 	public void aTrapdoorPlaneLiesFlatAtItsPlateHeightForBothHalves()
 	{
-		for(Direction facing : CARDINALS)
+		for(Face facing : CARDINALS)
 		{
 			DoorwayPlane bottom = DoorwayPlane.trapdoor(
 				3, 70, -9, facing, DoorHalf.BOTTOM, DoorOpenState.OPEN);
@@ -197,19 +197,19 @@ public final class DoorwayPlaneTest {
 	{
 		assertThrows(IllegalArgumentException.class,
 			() -> new DoorwayPlane(
-				0, 64, 0, Direction.N, DoorForm.DOOR, DoorHalf.TOP, DoorOpenState.OPEN));
+				0, 64, 0, Face.N, DoorForm.DOOR, DoorHalf.TOP, DoorOpenState.OPEN));
 		assertTrue(new DoorwayPlane(
-			0, 64, 0, Direction.N, DoorForm.DOOR, DoorHalf.BOTTOM, DoorOpenState.CLOSED)
+			0, 64, 0, Face.N, DoorForm.DOOR, DoorHalf.BOTTOM, DoorOpenState.CLOSED)
 			.contactSurface());
 		assertThrows(IllegalArgumentException.class,
 			() -> DoorwayPlane.trapdoor(
-				0, 64, 0, Direction.U, DoorHalf.BOTTOM, DoorOpenState.OPEN));
+				0, 64, 0, Face.U, DoorHalf.BOTTOM, DoorOpenState.OPEN));
 	}
 
 	@Test
 	public void fallingThroughATrapdoorCrossesFrontToBackAndClimbingCrossesBackToFront()
 	{
-		for(Direction facing : CARDINALS)
+		for(Face facing : CARDINALS)
 		{
 			for(DoorHalf half : DoorHalf.values())
 			{
@@ -237,7 +237,7 @@ public final class DoorwayPlaneTest {
 	@Test
 	public void aTrapdoorApertureIsOneBlockWideOnBothInPlaneAxes()
 	{
-		for(Direction facing : CARDINALS)
+		for(Face facing : CARDINALS)
 		{
 			DoorwayPlane plane = DoorwayPlane.trapdoor(
 				0, 64, 0, facing, DoorHalf.BOTTOM, DoorOpenState.OPEN);
@@ -259,7 +259,7 @@ public final class DoorwayPlaneTest {
 	public void slidingAlongATrapdoorPlaneIsNeverACrossing()
 	{
 		DoorwayPlane plane = DoorwayPlane.trapdoor(
-			0, 64, 0, Direction.S, DoorHalf.TOP, DoorOpenState.OPEN);
+			0, 64, 0, Face.S, DoorHalf.TOP, DoorOpenState.OPEN);
 
 		assertTrue(plane.crossing(
 			new DoorVec3(0.2D, plane.planeY(), 0.2D),
@@ -270,7 +270,7 @@ public final class DoorwayPlaneTest {
 	public void sidePointsOfATrapdoorSitDirectlyAboveAndBelowThePlate()
 	{
 		DoorwayPlane plane = DoorwayPlane.trapdoor(
-			-4, 12, 8, Direction.E, DoorHalf.BOTTOM, DoorOpenState.OPEN);
+			-4, 12, 8, Face.E, DoorHalf.BOTTOM, DoorOpenState.OPEN);
 
 		DoorVec3 above = plane.sidePoint(1, 1.0D);
 		DoorVec3 below = plane.sidePoint(-1, 1.0D);
@@ -296,7 +296,7 @@ public final class DoorwayPlaneTest {
 		for(DoorHalf half : DoorHalf.values())
 		{
 			DoorwayPlane pad = DoorwayPlane.trapdoor(
-				0, 64, 0, Direction.N, half, DoorOpenState.CLOSED);
+				0, 64, 0, Face.N, half, DoorOpenState.CLOSED);
 			double planeY = pad.planeY();
 
 			DoorwayCrossing landing = pad.contact(
@@ -313,7 +313,7 @@ public final class DoorwayPlaneTest {
 	public void aPadAlsoFiresForATravelerRisingIntoItFromUnderneath()
 	{
 		DoorwayPlane pad = DoorwayPlane.trapdoor(
-			0, 64, 0, Direction.S, DoorHalf.TOP, DoorOpenState.CLOSED);
+			0, 64, 0, Face.S, DoorHalf.TOP, DoorOpenState.CLOSED);
 		double planeY = pad.planeY();
 
 		DoorwayCrossing contact = pad.contact(
@@ -327,7 +327,7 @@ public final class DoorwayPlaneTest {
 	public void aClosedHingedDoorUsesTravelerWidthToDetectContactOnEitherFace()
 	{
 		DoorwayPlane plane = new DoorwayPlane(
-			0, 64, 0, Direction.N, DoorForm.DOOR, DoorHalf.BOTTOM, DoorOpenState.CLOSED);
+			0, 64, 0, Face.N, DoorForm.DOOR, DoorHalf.BOTTOM, DoorOpenState.CLOSED);
 		DoorVec3 center = plane.center();
 		DoorVec3 positiveFrom = offsetNormal(plane, center, 0.8D, 65.0D);
 		DoorVec3 positiveTo = offsetNormal(plane, center, 0.42D, 65.0D);
@@ -347,7 +347,7 @@ public final class DoorwayPlaneTest {
 	public void aClosedTrapdoorUsesTravelerHeightForContactFromBelow()
 	{
 		DoorwayPlane plane = DoorwayPlane.trapdoor(
-			0, 64, 0, Direction.S, DoorHalf.TOP, DoorOpenState.CLOSED);
+			0, 64, 0, Face.S, DoorHalf.TOP, DoorOpenState.CLOSED);
 		DoorVec3 from = new DoorVec3(0.5D, plane.planeY() - 2.2D, 0.5D);
 		DoorVec3 to = new DoorVec3(0.5D, plane.planeY() - 1.9D, 0.5D);
 
@@ -361,7 +361,7 @@ public final class DoorwayPlaneTest {
 	public void standingStillOnAPadNeverFiresItAgain()
 	{
 		DoorwayPlane pad = DoorwayPlane.trapdoor(
-			0, 64, 0, Direction.W, DoorHalf.BOTTOM, DoorOpenState.CLOSED);
+			0, 64, 0, Face.W, DoorHalf.BOTTOM, DoorOpenState.CLOSED);
 		double planeY = pad.planeY();
 
 		assertTrue(pad.contact(
@@ -376,7 +376,7 @@ public final class DoorwayPlaneTest {
 	public void aPadIgnoresContactOutsideItsOwnBlock()
 	{
 		DoorwayPlane pad = DoorwayPlane.trapdoor(
-			0, 64, 0, Direction.E, DoorHalf.BOTTOM, DoorOpenState.CLOSED);
+			0, 64, 0, Face.E, DoorHalf.BOTTOM, DoorOpenState.CLOSED);
 		double planeY = pad.planeY();
 
 		assertTrue(pad.contact(
@@ -388,9 +388,9 @@ public final class DoorwayPlaneTest {
 	public void polarityDecidesWhichActivationRuleIntersectUses()
 	{
 		DoorwayPlane swing = DoorwayPlane.trapdoor(
-			0, 64, 0, Direction.N, DoorHalf.BOTTOM, DoorOpenState.OPEN);
+			0, 64, 0, Face.N, DoorHalf.BOTTOM, DoorOpenState.OPEN);
 		DoorwayPlane pad = DoorwayPlane.trapdoor(
-			0, 64, 0, Direction.N, DoorHalf.BOTTOM, DoorOpenState.CLOSED);
+			0, 64, 0, Face.N, DoorHalf.BOTTOM, DoorOpenState.CLOSED);
 		DoorVec3 from = new DoorVec3(0.5D, swing.planeY() + 0.6D, 0.5D);
 		DoorVec3 landing = new DoorVec3(0.5D, swing.planeY() + 0.02D, 0.5D);
 		DoorVec3 through = new DoorVec3(0.5D, swing.planeY() - 0.6D, 0.5D);

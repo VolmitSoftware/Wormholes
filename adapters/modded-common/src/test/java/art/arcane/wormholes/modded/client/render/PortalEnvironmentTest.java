@@ -1,8 +1,8 @@
 package art.arcane.wormholes.modded.client.render;
 
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Vec3;
+import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.math.Face;
 import net.minecraft.client.renderer.fog.FogData;
 import net.minecraft.client.renderer.state.LightmapRenderState;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
@@ -46,13 +46,13 @@ public class PortalEnvironmentTest {
 
     @Test
     public void skyAndFogUseDestinationMetadataAndRequestedDistance() {
-        ClientViewEnvironment environment = environment(identity());
-        SkyRenderState sky = PortalEnvironment.sky(environment, new GeometryVector(0, 80, 0));
+        ProjectionEnvironment environment = environment(identity());
+        SkyRenderState sky = PortalEnvironment.sky(environment, new Vec3(0, 80, 0));
         assertEquals(new Vector3f(0.2f, 0.4f, 0.8f), sky.skyColor);
         assertEquals(MoonPhase.THIRD_QUARTER, sky.moonPhase);
         assertEquals(0.7f, sky.rainBrightness, 0.0001f);
         assertFalse(sky.shouldRenderDarkDisc);
-        assertTrue(PortalEnvironment.sky(environment, new GeometryVector(0, 40, 0)).shouldRenderDarkDisc);
+        assertTrue(PortalEnvironment.sky(environment, new Vec3(0, 40, 0)).shouldRenderDarkDisc);
         CameraRenderState camera = new CameraRenderState();
         FogData fog = PortalEnvironment.fog(environment, camera, 13, 12);
         assertEquals(208, fog.renderDistanceEnd, 0);
@@ -65,28 +65,28 @@ public class PortalEnvironmentTest {
 
     @Test
     public void skyDirectionUsesTheSameSignedAxesAsDestinationGeometry() {
-        ClientViewEnvironment.Transform transform = new ClientViewEnvironment.Transform(Direction.U, Direction.E, Direction.S,
-            new GeometryVector(100, 200, 300));
+        ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(Face.U, Face.E, Face.S,
+            new Vec3(100, 200, 300));
         Vector3f mapped = PortalProjection.rotation(transform).transformDirection(new Vector3f(2, 3, 4));
         assertEquals(new Vector3f(3, 2, 4), mapped);
-        assertEquals(new GeometryVector(2, 3, 4), transform.destinationPoint(103, 202, 304));
+        assertEquals(new Vec3(2, 3, 4), transform.destinationPoint(103, 202, 304));
     }
 
-    public static ClientViewEnvironment.Transform identity() {
-        return new ClientViewEnvironment.Transform(Direction.E, Direction.U, Direction.S, new GeometryVector(0, 0, 0));
+    public static ProjectionEnvironment.Transform identity() {
+        return new ProjectionEnvironment.Transform(Face.E, Face.U, Face.S, new Vec3(0, 0, 0));
     }
 
-    public static ClientViewEnvironment environment(ClientViewEnvironment.Transform transform) {
-        ClientViewEnvironment.Color sky = new ClientViewEnvironment.Color(0.2f, 0.4f, 0.8f);
-        ClientViewEnvironment.Color white = new ClientViewEnvironment.Color(1, 1, 1);
-        return new ClientViewEnvironment(6000,
-            new ClientViewEnvironment.Sky(ClientViewEnvironment.Skybox.OVERWORLD, 1, 2, 3, 0.2f,
-                new ClientViewEnvironment.ColorAlpha(1, 0.5f, 0.1f, 0), sky, 2, 0.3f, 0.1f),
-            new ClientViewEnvironment.Fog(sky, 30, 900, 800, 700, sky, -8, 96),
-            new ClientViewEnvironment.Lighting(white, 0.85f, new ClientViewEnvironment.Color(0.7f, 0.8f, 1),
-                new ClientViewEnvironment.Color(0, 0, 0)),
-            new ClientViewEnvironment.Clouds(new ClientViewEnvironment.ColorAlpha(1, 1, 1, 1), 192), transform,
-            new ClientViewEnvironment.Dimension(-64, 384, true, ClientViewEnvironment.CardinalLighting.DEFAULT, 63, false),
-            new ClientViewEnvironment.World("minecraft:overworld", 6000, "minecraft:plains", 63, 7, 15, 256, true, 0.1F, ClientViewEnvironment.EyeMedium.NONE, false));
+    public static ProjectionEnvironment environment(ProjectionEnvironment.Transform transform) {
+        ProjectionEnvironment.Color sky = new ProjectionEnvironment.Color(0.2f, 0.4f, 0.8f);
+        ProjectionEnvironment.Color white = new ProjectionEnvironment.Color(1, 1, 1);
+        return new ProjectionEnvironment(6000,
+            new ProjectionEnvironment.Sky(ProjectionEnvironment.Skybox.OVERWORLD, 1, 2, 3, 0.2f,
+                new ProjectionEnvironment.ColorAlpha(1, 0.5f, 0.1f, 0), sky, 2, 0.3f, 0.1f),
+            new ProjectionEnvironment.Fog(sky, 30, 900, 800, 700, sky, -8, 96),
+            new ProjectionEnvironment.Lighting(white, 0.85f, new ProjectionEnvironment.Color(0.7f, 0.8f, 1),
+                new ProjectionEnvironment.Color(0, 0, 0)),
+            new ProjectionEnvironment.Clouds(new ProjectionEnvironment.ColorAlpha(1, 1, 1, 1), 192), transform,
+            new ProjectionEnvironment.Dimension(-64, 384, true, ProjectionEnvironment.CardinalLighting.DEFAULT, 63, false),
+            new ProjectionEnvironment.World("minecraft:overworld", 6000, "minecraft:plains", 63, 7, 15, 256, true, 0.1F, ProjectionEnvironment.EyeMedium.NONE, false));
     }
 }

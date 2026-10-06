@@ -3,17 +3,17 @@ package art.arcane.wormholes.render.client.session;
 import java.util.Locale;
 import java.util.UUID;
 
-import art.arcane.wormholes.render.DirectionMapping;
-import art.arcane.wormholes.render.ProjectionBlockTypes;
-import art.arcane.wormholes.render.ProjectionCellKey;
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
-import art.arcane.wormholes.render.view.ProjectionContentView;
+import art.arcane.optics.frame.DirectionMapping;
+import art.arcane.optics.view.BlockStates;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.fidelity.BlockEntitySample;
+import art.arcane.optics.view.ContentView;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 
-final class SessionWorld implements ProjectionContentView<String, String> {
+final class SessionWorld implements ContentView<String, String> {
     static final String AIR = "minecraft:air";
     static final String OCCLUDED = "#occluded";
-    static final ProjectionBlockTypes<String, String> BLOCKS = new Blocks();
+    static final BlockStates<String, String> BLOCKS = new Blocks();
     private static final String[] ORES = {"minecraft:coal_ore", "minecraft:iron_ore", "minecraft:diamond_ore"};
 
     private final UUID id;
@@ -25,7 +25,7 @@ final class SessionWorld implements ProjectionContentView<String, String> {
     }
 
     void set(int x, int y, int z, String state) {
-        overrides.put(ProjectionCellKey.pack(x, y, z), state);
+        overrides.put(CellKeys.pack(x, y, z), state);
     }
 
     static String materialOf(String block) {
@@ -77,7 +77,7 @@ final class SessionWorld implements ProjectionContentView<String, String> {
 
     @Override
     public String sampleBlockData(int x, int y, int z) {
-        String override = overrides.get(ProjectionCellKey.pack(x, y, z));
+        String override = overrides.get(CellKeys.pack(x, y, z));
         if (override != null) {
             return override;
         }
@@ -112,7 +112,7 @@ final class SessionWorld implements ProjectionContentView<String, String> {
         return 0L;
     }
 
-    private static final class Blocks implements ProjectionBlockTypes<String, String> {
+    private static final class Blocks implements BlockStates<String, String> {
         @Override
         public String air() {
             return AIR;

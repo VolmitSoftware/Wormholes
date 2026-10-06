@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.network.PortalSettingsTarget;
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.ExactItemPayment;
 import art.arcane.wormholes.config.toml.RulesConfig;
@@ -9,11 +9,11 @@ import art.arcane.wormholes.rules.RuleDocument;
 import art.arcane.wormholes.rules.RuleDocumentCodec;
 import art.arcane.wormholes.portal.TravelCurrencyAmount;
 import art.arcane.wormholes.portal.BlackoutColor;
-import art.arcane.wormholes.portal.MirrorRotation;
+import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.wormholes.portal.NetworkViewQuality;
-import art.arcane.wormholes.render.atmosphere.AtmosphereMode;
-import art.arcane.wormholes.render.acoustics.AcousticsProfile;
-import art.arcane.wormholes.render.lod.LodProfile;
+import art.arcane.optics.fidelity.AtmosphereMode;
+import art.arcane.optics.fidelity.AcousticsProfile;
+import art.arcane.optics.volume.LodProfile;
 import art.arcane.wormholes.transit.MomentumPolicy;
 import art.arcane.wormholes.transit.OrientationPolicy;
 import art.arcane.wormholes.transit.TransitionProfile;
@@ -30,8 +30,8 @@ import art.arcane.wormholes.access.PortalPermissionKey;
 import art.arcane.wormholes.portal.Portal;
 import art.arcane.wormholes.network.mesh.DestinationPolicy;
 import art.arcane.wormholes.portal.DimensionalPortalKind;
-import art.arcane.wormholes.portal.PortalFrame;
-import art.arcane.wormholes.portal.PortalGeometry;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.wormholes.portal.PortalStateCodec;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.rtp.RtpSettings;
@@ -48,7 +48,7 @@ import java.util.UUID;
 import java.util.function.Predicate;
 
 public final class MinecraftPortal extends Portal implements PortalSettingsTarget {
-    private final PortalGeometry geometry;
+    private final ApertureCells geometry;
     private final String worldKey;
     private final Map<String, Object> values;
     private boolean open = true;
@@ -63,7 +63,7 @@ public final class MinecraftPortal extends Portal implements PortalSettingsTarge
         meshPolicy = DestinationPolicy.decode(values.get("mesh.policy") instanceof String encoded ? encoded : "");
         values.putIfAbsent("access.permissionKey", PortalPermissionKey.sanitize(definition.state().name()));
         if (!definition.state().explicitFrame()) {
-            applyFrame(PortalFrame.derive(geometry.getArea(), getDirection()));
+            applyFrame(Frame.derive(geometry.getArea(), getDirection()));
         }
         setNetworkViewDepth(getNetworkViewDepth());
         setNetworkViewLateralPad(getNetworkViewLateralPad());
@@ -76,7 +76,7 @@ public final class MinecraftPortal extends Portal implements PortalSettingsTarge
     }
 
     public static MinecraftPortal read(Map<String, Object> values) {
-        PortalGeometry geometry = new PortalGeometry();
+        ApertureCells geometry = new ApertureCells();
         Map<String, Object> structure = PortalStateCodec.object(values, "structure");
         PortalStateCodec.readGeometry(structure, geometry);
         State state = PortalStateCodec.read(values);
@@ -99,7 +99,7 @@ public final class MinecraftPortal extends Portal implements PortalSettingsTarge
         return false;
     }
 
-    public PortalGeometry getGeometry() {
+    public ApertureCells getGeometry() {
         return geometry;
     }
 
@@ -134,7 +134,7 @@ public final class MinecraftPortal extends Portal implements PortalSettingsTarge
         this.open = open;
     }
 
-    public void setFrame(PortalFrame frame) {
+    public void setFrame(Frame frame) {
         applyFrame(frame);
     }
 
@@ -417,13 +417,13 @@ public final class MinecraftPortal extends Portal implements PortalSettingsTarge
     }
 
     @Override
-    public MirrorRotation getMirrorRotation() {
-        return MirrorRotation.fromDegrees(intValue("mirrorRotationDegrees", 0));
+    public QuarterTurn getMirrorRotation() {
+        return QuarterTurn.fromDegrees(intValue("mirrorRotationDegrees", 0));
     }
 
     @Override
-    public void setMirrorRotation(MirrorRotation rotation) {
-        values.put("mirrorRotationDegrees", (rotation == null ? MirrorRotation.DEGREES_0 : rotation).getDegrees());
+    public void setMirrorRotation(QuarterTurn rotation) {
+        values.put("mirrorRotationDegrees", (rotation == null ? QuarterTurn.DEGREES_0 : rotation).getDegrees());
     }
 
     @Override
@@ -712,6 +712,6 @@ public final class MinecraftPortal extends Portal implements PortalSettingsTarge
         return PortalPermissionKey.sanitize(name);
     }
 
-    public record Definition(State state, PortalGeometry geometry, String worldKey, Map<String, Object> values) {
+    public record Definition(State state, ApertureCells geometry, String worldKey, Map<String, Object> values) {
     }
 }

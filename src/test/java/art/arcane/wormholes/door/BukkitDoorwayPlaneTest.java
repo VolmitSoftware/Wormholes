@@ -1,6 +1,6 @@
 package art.arcane.wormholes.door;
 
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -27,7 +27,7 @@ public final class BukkitDoorwayPlaneTest
 		VanillaDoorSnapshot snapshot = VanillaDoorSnapshot.fromBlockData(worldId, 3, 81, 9, door);
 
 		assertEquals(worldId, snapshot.worldId());
-		assertEquals(new DoorwayPlane(3, 80, 9, Direction.W), snapshot.plane());
+		assertEquals(new DoorwayPlane(3, 80, 9, Face.W), snapshot.plane());
 		assertEquals(Door.Hinge.RIGHT, snapshot.hinge());
 		assertTrue(snapshot.open());
 		assertFalse(snapshot.powered());
@@ -84,7 +84,7 @@ public final class BukkitDoorwayPlaneTest
 	@Test
 	public void destinationArrivalCanStepDownWithoutChangingDoorSide()
 	{
-		DoorwayPlane plane = new DoorwayPlane(-132, 68, 56, Direction.E);
+		DoorwayPlane plane = new DoorwayPlane(-132, 68, 56, Face.E);
 		DoorVec3 nominal = plane.entrySidePoint(DoorwayCrossing.Direction.BACK_TO_FRONT, 1.0D);
 		DoorVec3 selected = DoorArrivals.findSafeVerticalDoorStanding(
 			nominal,
@@ -128,7 +128,7 @@ public final class BukkitDoorwayPlaneTest
 			assertEquals(91, plane.blockY());
 			assertEquals(2, plane.blockZ());
 			assertEquals(BukkitDoorGeometry.half(half), plane.half());
-			assertEquals(Direction.W, plane.facing());
+			assertEquals(Face.W, plane.facing());
 			assertEquals(DoorForm.TRAPDOOR, plane.form());
 			assertTrue(plane.contactSurface());
 		}

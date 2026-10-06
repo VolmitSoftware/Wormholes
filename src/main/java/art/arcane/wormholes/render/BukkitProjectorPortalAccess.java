@@ -4,27 +4,28 @@ import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.ITunnel;
-import art.arcane.wormholes.portal.PortalCellAperture;
-import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.optics.aperture.CellAperture;
+import art.arcane.optics.math.Box;
 import org.bukkit.World;
 
 import java.util.List;
 import java.util.function.Supplier;
+import art.arcane.optics.recursion.RecursiveEndpoints;
 
-public final class BukkitProjectorPortalAccess implements ProjectorRecursivePortals.PortalAccess<World, ILocalPortal> {
+public final class BukkitProjectorPortalAccess implements RecursiveEndpoints.PortalAccess<World, ILocalPortal> {
     private final Supplier<List<ILocalPortal>> source;
 
     public BukkitProjectorPortalAccess(Supplier<List<ILocalPortal>> source) {
         this.source = source;
     }
 
-    public static ProjectorRecursivePortals<World, ILocalPortal> create() {
+    public static RecursiveEndpoints<World, ILocalPortal> create() {
         return create(() -> Wormholes.portalManager == null ? List.of() : Wormholes.portalManager.getLocalPortals());
     }
 
-    public static ProjectorRecursivePortals<World, ILocalPortal> create(Supplier<List<ILocalPortal>> source) {
-        return new ProjectorRecursivePortals<>(new BukkitProjectorPortalAccess(source),
-            () -> new ProjectorRecursivePortals.Options(Settings.PROJECTION_APERTURE_PADDING_BLOCKS, Settings.PROJECTION_DEPTH_BLOCKS));
+    public static RecursiveEndpoints<World, ILocalPortal> create(Supplier<List<ILocalPortal>> source) {
+        return new RecursiveEndpoints<>(new BukkitProjectorPortalAccess(source),
+            () -> new RecursiveEndpoints.Options(Settings.PROJECTION_APERTURE_PADDING_BLOCKS, Settings.PROJECTION_DEPTH_BLOCKS));
     }
 
     @Override
@@ -38,12 +39,12 @@ public final class BukkitProjectorPortalAccess implements ProjectorRecursivePort
     }
 
     @Override
-    public PortalCellAperture structure(ILocalPortal portal) {
+    public CellAperture structure(ILocalPortal portal) {
         return portal.getStructure();
     }
 
     @Override
-    public AxisAlignedBB view(ILocalPortal portal) {
+    public Box view(ILocalPortal portal) {
         return portal.getView();
     }
 

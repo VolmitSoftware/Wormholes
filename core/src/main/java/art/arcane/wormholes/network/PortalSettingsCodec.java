@@ -2,7 +2,7 @@ package art.arcane.wormholes.network;
 
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.BlackoutColor;
-import art.arcane.wormholes.portal.MirrorRotation;
+import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.wormholes.portal.PortalPermissionMode;
 import art.arcane.wormholes.portal.ProjectionMode;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
@@ -48,7 +48,7 @@ public final class PortalSettingsCodec {
             }
             switch (key) {
                 case KEY_MIRROR_ROTATION -> remote.setMirroredProjectionRotation(
-                    MirrorRotation.fromDegrees(parseIntOr(value, remote.getMirroredProjectionRotation().getDegrees())));
+                    QuarterTurn.fromDegrees(parseIntOr(value, remote.getMirroredProjectionRotation().getDegrees())));
                 case KEY_PERMISSION_MODE -> {
                     PortalPermissionMode mode = parsePermissionMode(value);
                     if (mode != null) {
@@ -168,7 +168,7 @@ public final class PortalSettingsCodec {
         }
         switch (key) {
             case KEY_MIRROR_ROTATION -> portal.setMirrorRotation(
-                MirrorRotation.fromDegrees(parseIntOr(value, portal.getMirrorRotation().getDegrees())));
+                QuarterTurn.fromDegrees(parseIntOr(value, portal.getMirrorRotation().getDegrees())));
             case KEY_PERMISSION_MODE -> {
                 PortalPermissionMode mode = parsePermissionMode(value);
                 if (mode != null) {

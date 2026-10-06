@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.chunk.ChunkLeaseRegistry;
+import art.arcane.optics.plate.ChunkLeaseRegistry;
 import art.arcane.wormholes.modded.clientview.MinecraftClientViewCommands;
 import art.arcane.wormholes.modded.clientview.MinecraftClientViewService;
 import art.arcane.wormholes.portal.rtp.MinecraftRtpRuntime;

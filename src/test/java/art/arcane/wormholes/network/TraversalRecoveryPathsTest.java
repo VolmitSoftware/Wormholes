@@ -1,6 +1,6 @@
 package art.arcane.wormholes.network;
 
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 
 import art.arcane.wormholes.Settings;
 import com.github.retrooper.packetevents.protocol.player.ClientVersion;
@@ -13,10 +13,10 @@ import art.arcane.wormholes.config.toml.ProjectionConfig;
 import art.arcane.wormholes.config.toml.RenderConfig;
 import art.arcane.wormholes.network.TraversalFailureLedger.Failure;
 import art.arcane.wormholes.portal.ILocalPortal;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.TraversableType;
 import art.arcane.wormholes.portal.Traversive;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
@@ -370,14 +370,14 @@ class TraversalRecoveryPathsTest {
     }
 
     private static TraversalEntityTransit.TransitState transitState() {
-        return new TraversalEntityTransit.TransitState(false, false, true, new GeometryVector(0.0D, 0.0D, 0.0D));
+        return new TraversalEntityTransit.TransitState(false, false, true, new Vec3(0.0D, 0.0D, 0.0D));
     }
 
     private static Traversive traversive() {
         return new Traversive(
             null,
             TraversableType.ENTITY,
-            PortalFrame.canonical(Direction.N),
+            Frame.canonical(Face.N),
             new Vector(0.0D, 64.0D, 0.0D),
             new Vector(0.0D, 64.0D, 0.0D),
             new Vector(0.0D, 0.0D, 1.0D),

@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.network.client.ClientTravelHash;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
+import art.arcane.optics.stream.ViewStreamLimits;
 import org.junit.Test;
 
 import java.lang.reflect.Field;
@@ -63,8 +63,8 @@ public class ClientTravelCacheTest {
     @Test
     public void identicalContentTouchesLruWithoutEvictingOrReplacingPayload() {
         ClientTravelCache cache = new ClientTravelCache();
-        byte[] data = new byte[ClientViewProtocol.MAX_TRAVEL_CHUNK_BYTES];
-        int capacity = ClientViewProtocol.MAX_TRAVEL_BYTES / data.length;
+        byte[] data = new byte[ViewStreamLimits.MAX_TRAVEL_CHUNK_BYTES];
+        int capacity = ViewStreamLimits.MAX_TRAVEL_BYTES / data.length;
         cache.put("world", 0, 0, data);
         byte[] owned = cache.peek("world", 0, 0);
         for (int x = 1; x < capacity; x++) {
@@ -142,9 +142,9 @@ public class ClientTravelCacheTest {
     public void inactiveColumnsEvictWithinExistingByteBudget() {
         ClientTravelCache cache = new ClientTravelCache();
         cache.bind(new Object(), new Object());
-        byte[] data = new byte[ClientViewProtocol.MAX_TRAVEL_CHUNK_BYTES];
+        byte[] data = new byte[ViewStreamLimits.MAX_TRAVEL_CHUNK_BYTES];
         byte[] hash = ClientTravelHash.of(data);
-        int capacity = ClientViewProtocol.MAX_TRAVEL_BYTES / data.length;
+        int capacity = ViewStreamLimits.MAX_TRAVEL_BYTES / data.length;
         for (int x = 0; x <= capacity; x++) {
             cache.put("world", x, 0, data);
         }

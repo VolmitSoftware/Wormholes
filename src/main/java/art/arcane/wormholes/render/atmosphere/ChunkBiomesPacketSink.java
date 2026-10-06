@@ -17,6 +17,7 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerCh
 
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.service.WormholesTelemetry;
+import art.arcane.optics.fidelity.BiomeClaimSet;
 
 /**
  * Sends chunk-column biome grids through the chunk-biomes packet. The packet replaces every section's

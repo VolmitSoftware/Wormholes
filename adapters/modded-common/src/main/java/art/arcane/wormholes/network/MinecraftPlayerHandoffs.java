@@ -2,11 +2,10 @@ package art.arcane.wormholes.network;
 
 import art.arcane.wormholes.api.traversal.TraversalKind;
 import art.arcane.wormholes.api.traversal.TraversalRefundReason;
-import art.arcane.wormholes.chunk.ChunkLease;
+import art.arcane.optics.plate.ChunkLease;
 import art.arcane.wormholes.chunk.presend.ChunkPreSendTicket;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import art.arcane.wormholes.config.toml.TransitConfig;
-import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.modded.MinecraftMenuText;
 import art.arcane.wormholes.modded.MinecraftWormholesApi;
@@ -18,7 +17,7 @@ import art.arcane.wormholes.modded.MinecraftTransit;
 import art.arcane.wormholes.modded.MinecraftTraversalContext;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.modded.mixin.ServerConnectionAccess;
-import art.arcane.wormholes.portal.PortalCrossing;
+import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.wormholes.portal.DepartureHoldPolicy;
 import art.arcane.wormholes.transit.MomentumPolicy;
 import art.arcane.wormholes.transit.MomentumTransform;
@@ -70,7 +69,7 @@ public final class MinecraftPlayerHandoffs implements AutoCloseable {
         policies = new MinecraftGatewayPolicies(runtime, network, this);
     }
 
-    public boolean begin(ServerPlayer player, String peerName, MinecraftPortal source, PortalCrossing crossing, UUID destinationId) {
+    public boolean begin(ServerPlayer player, String peerName, MinecraftPortal source, PlaneCrossing crossing, UUID destinationId) {
         runtime.requireServerThread();
         if (!closed && source != null && !runtime.network().entityTransfers().convoyPending(player.getUUID())
             && policies.begin(player, source, crossing)) {
@@ -79,7 +78,7 @@ public final class MinecraftPlayerHandoffs implements AutoCloseable {
         return beginResolved(player, peerName, source, crossing, destinationId);
     }
 
-    boolean beginResolved(ServerPlayer player, String peerName, MinecraftPortal source, PortalCrossing crossing, UUID destinationId) {
+    boolean beginResolved(ServerPlayer player, String peerName, MinecraftPortal source, PlaneCrossing crossing, UUID destinationId) {
         runtime.requireServerThread();
         if (closed || player.hasDisconnected() || player.isPassenger() || !player.getPassengers().isEmpty()
             || source != null && (!source.isOpen() || !runtime.portals().canDepart(player, source))) {
@@ -307,7 +306,7 @@ public final class MinecraftPlayerHandoffs implements AutoCloseable {
     private void prepare(PlayerHandoffAdmission.Reservation reservation, MinecraftPortal exit) {
         PlayerHandoffAdmission.Request admission = reservation.request();
         ServerLevel level = runtime.portals().resolveLevel(exit);
-        GeometryVector target = admission.traversive().crossing().outPoint(exit.getFrame(), exit.getOrigin());
+        art.arcane.optics.math.Vec3 target = admission.traversive().crossing().outPoint(exit.getFrame(), exit.getOrigin());
         if (!finite(target) || target.y() < level.getMinY() || target.y() >= level.getMaxY()
             || Math.abs(target.x()) > 29_999_984 || Math.abs(target.z()) > 29_999_984) {
             throw new IllegalArgumentException("Arrival position is outside destination bounds");
@@ -478,14 +477,14 @@ public final class MinecraftPlayerHandoffs implements AutoCloseable {
         }
         ChunkPreSendTicket<ServerLevel, ServerPlayer> ticket = null;
         try {
-            PortalCrossing crossing = request.traversive().crossing();
-            GeometryVector target = crossing.outPoint(exit.getFrame(), exit.getOrigin());
+            PlaneCrossing crossing = request.traversive().crossing();
+            art.arcane.optics.math.Vec3 target = crossing.outPoint(exit.getFrame(), exit.getOrigin());
             TransitConfig config = runtime.configuration().settings().getTransit();
             MomentumPolicy momentum = MomentumPolicy.decode((String) exit.setting("transit.momentum"));
             if (momentum == null) {
                 momentum = MomentumPolicy.of(MomentumPolicy.Mode.parse(config.momentumDefault, MomentumPolicy.Mode.PRESERVE));
             }
-            GeometryVector velocity = MomentumTransform.apply(crossing.outVelocity(exit.getFrame()), momentum, config.momentumMaxSpeed);
+            art.arcane.optics.math.Vec3 velocity = MomentumTransform.apply(crossing.outVelocity(exit.getFrame()), momentum, config.momentumMaxSpeed);
             OrientationTransform.Look look = OrientationTransform.apply(crossing, exit.getFrame(),
                 OrientationPolicy.parse((String) exit.setting("transit.orientation"), OrientationPolicy.parse(config.orientationDefault, OrientationPolicy.FRAME)),
                 config.gravityFlipEnabled);
@@ -577,7 +576,7 @@ public final class MinecraftPlayerHandoffs implements AutoCloseable {
                 && player.position().distanceToSqr(departure.position()) <= DepartureHoldPolicy.FAR_DRIFT_SQUARED
                 && (departure.crossing().sourceSideDistance(geometry(player.position())) <= DepartureHoldPolicy.RETREAT_FREE_DISTANCE
                     || player.position().distanceToSqr(departure.position()) <= DepartureHoldPolicy.RETREAT_CANCEL_DRIFT_SQUARED)) {
-                GeometryVector target = departure.crossing().rejectionPoint();
+                art.arcane.optics.math.Vec3 target = departure.crossing().rejectionPoint();
                 player.connection.teleport(target.x(), target.y(), target.z(), player.getYRot(), player.getXRot());
                 double strength = 3.0D * runtime.configuration().settings().getMain().portalPushbackMultiplier;
                 player.setDeltaMovement(new Vec3(departure.crossing().frame().getNormal().x() * strength,
@@ -613,19 +612,19 @@ public final class MinecraftPlayerHandoffs implements AutoCloseable {
         }
     }
 
-    private static GeometryVector geometry(Vec3 point) {
-        return new GeometryVector(point.x, point.y, point.z);
+    private static art.arcane.optics.math.Vec3 geometry(Vec3 point) {
+        return new art.arcane.optics.math.Vec3(point.x, point.y, point.z);
     }
 
-    private static Vec3 vector(GeometryVector point) {
+    private static Vec3 vector(art.arcane.optics.math.Vec3 point) {
         return new Vec3(point.x(), point.y(), point.z());
     }
 
-    private static boolean finite(GeometryVector point) {
+    private static boolean finite(art.arcane.optics.math.Vec3 point) {
         return Double.isFinite(point.x()) && Double.isFinite(point.y()) && Double.isFinite(point.z());
     }
 
-    private record Departure(ServerPlayer player, String peer, MinecraftPortal source, UUID destinationId, PortalCrossing crossing,
+    private record Departure(ServerPlayer player, String peer, MinecraftPortal source, UUID destinationId, PlaneCrossing crossing,
                              PlayerTransferMethod method, GameEndpoint endpoint, ServerLevel level, Vec3 position, long deadline) {
     }
 

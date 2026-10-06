@@ -2,8 +2,8 @@ package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.modded.mixin.MapDataAccess;
 import art.arcane.wormholes.modded.mixin.EntityDataAccess;
-import art.arcane.wormholes.network.view.EntityVisual;
-import art.arcane.wormholes.network.view.ProjectedMapData;
+import art.arcane.optics.entity.EntitySnapshot;
+import art.arcane.optics.entity.MapSnapshot;
 import art.arcane.wormholes.network.view.ViewEntityState;
 import com.mojang.authlib.properties.Property;
 import net.minecraft.core.component.DataComponents;
@@ -35,9 +35,9 @@ public final class MinecraftEntityVisualCapture {
         this.blobs = blobs;
     }
 
-    public EntityVisual capture(Entity entity, ViewEntityState<Pose> state, long tick) {
+    public EntitySnapshot capture(Entity entity, ViewEntityState<Pose> state, long tick) {
         UUID id = entity.getUUID();
-        EntityVisual previous = state.lastCapturedSnapshots().get(id);
+        EntitySnapshot previous = state.lastCapturedSnapshots().get(id);
         ViewEntityState.BlobCaptureState<Pose> previousBlob = state.blobCaptureStates().get(id);
         int signature = signature(entity);
         long metadataRevision = ((EntityDataRevision) entity.getEntityData()).wormholesRevision();
@@ -71,7 +71,7 @@ public final class MinecraftEntityVisualCapture {
             : entity instanceof LivingEntity ? entity.getHeadLookAngle() : entity.getLookAngle();
         Entity vehicle = entity.getVehicle();
         Entity leash = entity instanceof Leashable leashable ? leashable.getLeashHolder() : null;
-        EntityVisual visual = EntityVisual.full(id, BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).toString(),
+        EntitySnapshot visual = EntitySnapshot.full(id, BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).toString(),
             position.x, position.y, position.z, entity.getBbHeight(), look.x, look.y, look.z,
             entity instanceof LivingEntity living ? living.yBodyRot : entity.getYRot(), entity.getXRot(), velocity.x, velocity.y, velocity.z, entity.onGround(),
             name, texture, textureSignature, vehicle == null ? null : vehicle.getUUID(), leash == null ? null : leash.getUUID(),
@@ -91,7 +91,7 @@ public final class MinecraftEntityVisualCapture {
 
     private byte[] equipment(Entity entity) {
         if (!(entity instanceof LivingEntity living)) {
-            return EntityVisual.EMPTY;
+            return EntitySnapshot.EMPTY;
         }
         List<MinecraftPacketBlobs.Equipment> items = new ArrayList<>(EQUIPMENT.length);
         for (EquipmentSlot slot : EQUIPMENT) {
@@ -121,15 +121,15 @@ public final class MinecraftEntityVisualCapture {
 
     private static byte[] map(Entity entity) {
         if (!(entity instanceof ItemFrame frame)) {
-            return EntityVisual.EMPTY;
+            return EntitySnapshot.EMPTY;
         }
         ItemStack item = frame.getItem();
         MapId id = item.get(DataComponents.MAP_ID);
         MapItemSavedData data = MapItem.getSavedData(item, entity.level());
         if (id == null || data == null) {
-            return EntityVisual.EMPTY;
+            return EntitySnapshot.EMPTY;
         }
-        return new ProjectedMapData(id.id(), data.scale, ((MapDataAccess) data).wormholesTrackingPosition(),
+        return new MapSnapshot(id.id(), data.scale, ((MapDataAccess) data).wormholesTrackingPosition(),
             data.locked, data.colors).encode();
     }
 }

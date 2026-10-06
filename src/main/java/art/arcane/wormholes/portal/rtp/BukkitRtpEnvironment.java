@@ -1,6 +1,6 @@
 package art.arcane.wormholes.portal.rtp;
 
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -35,11 +35,11 @@ import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.platform.BukkitRegionTaskProvider;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.LocalPortal;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.wormholes.portal.Traversive;
-import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Face;
 
 public final class BukkitRtpEnvironment implements BukkitRtpRuntime.Environment
 {
@@ -155,7 +155,7 @@ public final class BukkitRtpEnvironment implements BukkitRtpRuntime.Environment
 			LocalPortal portal,
 			Entity entity,
 			Traversive traversive,
-			PortalFrame targetFrame,
+			Frame targetFrame,
 			Location target)
 	{
 		portal.completeRtpTraversal(entity, traversive, targetFrame, target);
@@ -169,7 +169,7 @@ public final class BukkitRtpEnvironment implements BukkitRtpRuntime.Environment
 		{
 			return;
 		}
-		AxisAlignedBB area = portal.getStructure().getArea();
+		Box area = portal.getStructure().getArea();
 		if(area == null)
 		{
 			return;
@@ -272,12 +272,12 @@ public final class BukkitRtpEnvironment implements BukkitRtpRuntime.Environment
         PortalStructure structure = portal.getStructure();
         Location center = structure.getCenter();
         return RtpProjectionGeometry.create(new RtpProjectionGeometry.Source(portalId, WorldIdentity.serialize(structure.getWorld()),
-            new GeometryVector(center.getX(), center.getY(), center.getZ()), portal.getFrame(), structure.getArea(), structure.getRevision()),
+            new Vec3(center.getX(), center.getY(), center.getZ()), portal.getFrame(), structure.getArea(), structure.getRevision()),
             destination, routeRevision);
     }
 
-    static double previewAnchorLift(Location center, AxisAlignedBB area) {
-        return RtpProjectionGeometry.previewAnchorLift(center == null ? null : new GeometryVector(center.getX(), center.getY(), center.getZ()), area);
+    static double previewAnchorLift(Location center, Box area) {
+        return RtpProjectionGeometry.previewAnchorLift(center == null ? null : new Vec3(center.getX(), center.getY(), center.getZ()), area);
     }
 
 	private long delayTicks(long delayMillis)

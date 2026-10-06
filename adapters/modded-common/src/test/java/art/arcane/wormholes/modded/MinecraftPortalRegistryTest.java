@@ -2,8 +2,8 @@ package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.rules.RuleDocument;
 import art.arcane.wormholes.nexus.NetworkMember;
-import art.arcane.wormholes.chunk.ChunkLease;
-import art.arcane.wormholes.chunk.ChunkLeaseRegistry;
+import art.arcane.optics.plate.ChunkLease;
+import art.arcane.optics.plate.ChunkLeaseRegistry;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.rtp.MinecraftRtpRuntime;
 import art.arcane.wormholes.network.MinecraftPlayerHandoffs;

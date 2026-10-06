@@ -1,10 +1,9 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
+import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import net.minecraft.client.Camera;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
@@ -29,8 +28,8 @@ public class ClientTravelCrossingPoseTest extends MinecraftTestBase {
     @Test
     public void standingReverseCrossingPreservesExactFeetAboveDestinationFloor() throws ReflectiveOperationException {
         ClientViewMessage.TravelPose pose = pose(new Vec3(1001.5, 200, 0.4), 0.75f);
-        ClientViewEnvironment.Transform transform = new ClientViewEnvironment.Transform(Direction.E, Direction.U, Direction.S,
-            new GeometryVector(-102, 120, 0));
+        ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(Face.E, Face.U, Face.S,
+            new art.arcane.optics.math.Vec3(-102, 120, 0));
         Vec3 destination = ClientTravelMotion.point(transform, new Vec3(pose.x(), pose.y(), pose.z()));
         assertEquals(200, pose.y(), 0);
         assertEquals(80, destination.y, 0);

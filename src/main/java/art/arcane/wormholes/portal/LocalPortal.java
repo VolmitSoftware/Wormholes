@@ -1,7 +1,7 @@
 package art.arcane.wormholes.portal;
 
 import art.arcane.wormholes.network.PortalSettingsTarget;
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import java.util.Map;
 
 import java.io.IOException;
@@ -23,11 +23,14 @@ import art.arcane.wormholes.hook.PortalExtension;
 import art.arcane.wormholes.util.BukkitGeometry;
 import art.arcane.wormholes.portal.rtp.RtpSettings;
 import art.arcane.volmlib.util.inventorygui.Window;
-import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Face;
 import art.arcane.wormholes.api.traversal.internal.TraversalCostGateway;
 import art.arcane.wormholes.util.F;
 import art.arcane.volmlib.util.json.JSONObject;
+import art.arcane.optics.crossing.PlaneCrossing;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.QuarterTurn;
 
 public class LocalPortal extends Portal implements ILocalPortal, Listener, PortalSettingsTarget
 {
@@ -60,7 +63,7 @@ public class LocalPortal extends Portal implements ILocalPortal, Listener, Porta
 	}
 
     @Override
-    public GeometryVector getOrigin() {
+    public Vec3 getOrigin() {
         return structure.getApertureCenter();
     }
 
@@ -79,7 +82,7 @@ public class LocalPortal extends Portal implements ILocalPortal, Listener, Porta
 		return effects;
 	}
 
-    public boolean crossPrepared(Player player, PortalCrossing crossing)
+    public boolean crossPrepared(Player player, PlaneCrossing crossing)
     {
         return traversal.crossPrepared(player, crossing);
     }
@@ -300,13 +303,13 @@ public class LocalPortal extends Portal implements ILocalPortal, Listener, Porta
 	}
 
 	@Override
-	public void setDirection(Direction d)
+	public void setDirection(Face d)
 	{
 		gate.setDirection(d);
 	}
 
 	@Override
-	public void setFrame(PortalFrame frame)
+	public void setFrame(Frame frame)
 	{
 		gate.setFrame(frame);
 	}
@@ -436,7 +439,7 @@ public class LocalPortal extends Portal implements ILocalPortal, Listener, Porta
 		traversal.rejectCostTraversal(entity, traversive, cost, status);
 	}
 
-	public void completeRtpTraversal(Entity entity, Traversive traversive, PortalFrame targetFrame, Location target)
+	public void completeRtpTraversal(Entity entity, Traversive traversive, Frame targetFrame, Location target)
 	{
 		rtp.completeTraversal(entity, traversive, targetFrame, target);
 	}
@@ -693,13 +696,13 @@ public class LocalPortal extends Portal implements ILocalPortal, Listener, Porta
 	}
 
 	@Override
-	public MirrorRotation getMirrorRotation()
+	public QuarterTurn getMirrorRotation()
 	{
 		return settings.getMirrorRotation();
 	}
 
 	@Override
-	public void setMirrorRotation(MirrorRotation rotation)
+	public void setMirrorRotation(QuarterTurn rotation)
 	{
 		settings.setMirrorRotation(rotation);
 	}
@@ -930,7 +933,7 @@ public class LocalPortal extends Portal implements ILocalPortal, Listener, Porta
 	}
 
 	@Override
-	public AxisAlignedBB getView()
+	public Box getView()
 	{
 		return gate.getView();
 	}
@@ -964,7 +967,7 @@ public class LocalPortal extends Portal implements ILocalPortal, Listener, Porta
 	}
 
 	@Override
-	public AxisAlignedBB getArea()
+	public Box getArea()
 	{
 		return getStructure().getArea();
 	}

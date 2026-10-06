@@ -9,9 +9,9 @@ import org.bukkit.World;
 import art.arcane.wormholes.chunk.BukkitChunkLeaseProvider;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.render.blockentity.BlockEntityCapturer;
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
-import art.arcane.wormholes.render.plate.ChunkLeaseHold;
-import art.arcane.wormholes.render.plate.PlateCaptureJob;
+import art.arcane.optics.fidelity.BlockEntitySample;
+import art.arcane.optics.plate.ChunkLeaseHold;
+import art.arcane.optics.plate.PlateCaptureJob;
 
 public final class PlateCaptureSource implements PlateCaptureJob.Source<World, PlateCaptureSource.CapturedChunk> {
     private final boolean blockEntities;

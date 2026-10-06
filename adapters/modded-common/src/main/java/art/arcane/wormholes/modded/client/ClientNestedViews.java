@@ -1,10 +1,10 @@
 package art.arcane.wormholes.modded.client;
 
-import art.arcane.wormholes.render.ProjectionCellKey;
-import art.arcane.wormholes.render.client.ClientCellRules;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
-import art.arcane.wormholes.render.client.ClientRecursionPlanner;
-import art.arcane.wormholes.render.client.ClientViewSweep;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.client.ClientCellRules;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.recursion.ClientRecursionPlanner;
+import art.arcane.optics.client.ClientSweep;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -24,7 +24,7 @@ public final class ClientNestedViews {
     private final ClientRecursionPlanner planner;
     private final Int2ObjectOpenHashMap<View> views;
     private final IntOpenHashSet planned;
-    private final IdentityHashMap<ClientPortalGeometry, ClientPortal> matched;
+    private final IdentityHashMap<ApertureDescriptor, ClientPortal> matched;
     private final LongOpenHashSet next;
     private final LongOpenHashSet touchedSections;
     private final LongArrayList scratch;
@@ -77,7 +77,7 @@ public final class ClientNestedViews {
 
     public boolean displays(int portalKey, int x, int y, int z) {
         View view = views.get(portalKey);
-        return view != null && view.display.contains(ProjectionCellKey.pack(x, y, z));
+        return view != null && view.display.contains(CellKeys.pack(x, y, z));
     }
 
     public void contentCell(int portalKey, int x, int y, int z, int[] out) {
@@ -102,7 +102,7 @@ public final class ClientNestedViews {
         long applied = 0L;
         for (int index = 0; index < roots.size(); index++) {
             ClientPortal root = roots.get(index);
-            ClientPortalGeometry geometry = root.geometry();
+            ApertureDescriptor geometry = root.geometry();
             if (geometry.recursionDepth() <= 0 || geometry.nested().isEmpty() || !root.ready()) {
                 continue;
             }
@@ -114,7 +114,7 @@ public final class ClientNestedViews {
             matched.put(geometry, root);
             for (int coneIndex = 0; coneIndex < cones.size(); coneIndex++) {
                 ClientRecursionPlanner.NestedCone cone = cones.get(coneIndex);
-                List<ClientPortalGeometry> ancestors = cone.ancestors();
+                List<ApertureDescriptor> ancestors = cone.ancestors();
                 ClientPortal parent = matched.get(ancestors.get(ancestors.size() - 1));
                 ClientPortal child = parent == null ? null : child(parent.portalKey(), cone.geometry());
                 if (child == null || child.plate() == null || child.sweep() == null) {
@@ -158,11 +158,11 @@ public final class ClientNestedViews {
         }
     }
 
-    private ClientPortal child(int parentKey, ClientPortalGeometry geometry) {
+    private ClientPortal child(int parentKey, ApertureDescriptor geometry) {
         ObjectIterator<ClientPortal> portals = session.portals().values().iterator();
         while (portals.hasNext()) {
             ClientPortal portal = portals.next();
-            ClientPortalGeometry candidate = portal.geometry();
+            ApertureDescriptor candidate = portal.geometry();
             if (candidate.parentPortalKey() == parentKey && candidate.equals(geometry)) {
                 return portal;
             }
@@ -171,12 +171,12 @@ public final class ClientNestedViews {
     }
 
     private void touch(long key) {
-        touchedSections.add(SectionPos.asLong(ProjectionCellKey.unpackX(key) >> 4, ProjectionCellKey.unpackY(key) >> 4,
-            ProjectionCellKey.unpackZ(key) >> 4));
+        touchedSections.add(SectionPos.asLong(CellKeys.unpackX(key) >> 4, CellKeys.unpackY(key) >> 4,
+            CellKeys.unpackZ(key) >> 4));
     }
 
     private static double quantize(double value) {
-        return Math.round(value * ClientViewSweep.EYE_STEPS_PER_BLOCK) / ClientViewSweep.EYE_STEPS_PER_BLOCK;
+        return Math.round(value * ClientSweep.EYE_STEPS_PER_BLOCK) / ClientSweep.EYE_STEPS_PER_BLOCK;
     }
 
     private final class View {
@@ -186,7 +186,7 @@ public final class ClientNestedViews {
         private final LongOpenHashSet display;
         private ClientNestedContent nestedContent;
         private ClientCellRules.Policy policy;
-        private ClientPortalGeometry rootGeometry;
+        private ApertureDescriptor rootGeometry;
         private int parentKey;
         private double eyeX;
         private double eyeY;
@@ -200,10 +200,10 @@ public final class ClientNestedViews {
             this.display = new LongOpenHashSet(256);
         }
 
-        private long update(ClientRecursionPlanner.NestedCone cone, ClientPortal child, ClientPortal parent, ClientPortalGeometry root,
+        private long update(ClientRecursionPlanner.NestedCone cone, ClientPortal child, ClientPortal parent, ApertureDescriptor root,
                             double quantizedX, double quantizedY, double quantizedZ) {
             parentKey = parent.portalKey();
-            ClientViewSweep sweep = child.sweep();
+            ClientSweep sweep = child.sweep();
             drain(sweep);
             sweep.sweep(cone.contentEyeX(), cone.contentEyeY(), cone.contentEyeZ(), 0.0D, 0.0D, 0.0D);
             drain(sweep);
@@ -227,9 +227,9 @@ public final class ClientNestedViews {
             LongIterator cells = content.iterator();
             while (cells.hasNext()) {
                 long key = cells.nextLong();
-                cone.space().displayCell(ProjectionCellKey.unpackX(key), ProjectionCellKey.unpackY(key), ProjectionCellKey.unpackZ(key), cell, point);
+                cone.space().displayCell(CellKeys.unpackX(key), CellKeys.unpackY(key), CellKeys.unpackZ(key), cell, point);
                 if (insideParent(parent, cell[0], cell[1], cell[2]) && cone.visible(cell[0] + 0.5D, cell[1] + 0.5D, cell[2] + 0.5D)) {
-                    next.add(ProjectionCellKey.pack(cell[0], cell[1], cell[2]));
+                    next.add(CellKeys.pack(cell[0], cell[1], cell[2]));
                 }
             }
             long applied = 0L;
@@ -273,12 +273,12 @@ public final class ClientNestedViews {
         private boolean insideParent(ClientPortal parent, int x, int y, int z) {
             View parentView = views.get(parent.portalKey());
             if (parentView != null) {
-                return parentView.display.contains(ProjectionCellKey.pack(x, y, z));
+                return parentView.display.contains(CellKeys.pack(x, y, z));
             }
             return parent.sweep().applied(x, y, z);
         }
 
-        private void drain(ClientViewSweep sweep) {
+        private void drain(ClientSweep sweep) {
             LongArrayList exited = sweep.exited();
             for (int index = 0; index < exited.size(); index++) {
                 content.remove(exited.getLong(index));
@@ -323,10 +323,10 @@ public final class ClientNestedViews {
                 }
                 return;
             }
-            int x = ProjectionCellKey.unpackX(key);
-            int y = ProjectionCellKey.unpackY(key);
-            int z = ProjectionCellKey.unpackZ(key);
-            ClientViewSweep sweep = parent.sweep();
+            int x = CellKeys.unpackX(key);
+            int y = CellKeys.unpackY(key);
+            int z = CellKeys.unpackZ(key);
+            ClientSweep sweep = parent.sweep();
             ProjectionOverlay.Entry entry = overlay.get(key);
             if (sweep.applied(x, y, z) && (entry == null || entry.portalKey() == parentKey)) {
                 applier.enter(key, parentKey, parent.content(), parent.policy(), sweep.shell(x, y, z));

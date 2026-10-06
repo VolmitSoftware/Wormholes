@@ -8,6 +8,8 @@ import java.util.logging.Level;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
+import art.arcane.optics.fidelity.BedrockProfile;
+import art.arcane.optics.fidelity.ClientProfiles;
 
 
 /**

@@ -7,18 +7,19 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.Rotatable;
 import org.junit.jupiter.api.Test;
 
-import art.arcane.wormholes.portal.PortalFrame;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.math.Face;
+import art.arcane.optics.frame.Rotation16;
 
 final class ProjectedBlockDataTransformerRotationTest {
-    private static final Direction[] HORIZONTAL_CLOCKWISE = {Direction.N, Direction.E, Direction.S, Direction.W};
+    private static final Face[] HORIZONTAL_CLOCKWISE = {Face.N, Face.E, Face.S, Face.W};
 
     @Test
     void standingSignAtNorthNorthEastRotatesOneQuarterTurnThroughAQuarterTurnPortal() {
         Rotatable sign = RenderTestSupport.rotatable(BlockFace.NORTH_NORTH_EAST);
 
         BlockData projected = ProjectedBlockDataTransformer.transform((BlockData) sign,
-            PortalFrame.canonical(Direction.N), PortalFrame.canonical(Direction.E), new double[3]);
+            Frame.canonical(Face.N), Frame.canonical(Face.E), new double[3]);
 
         assertEquals(BlockFace.EAST_SOUTH_EAST, ((Rotatable) projected).getRotation());
     }
@@ -27,15 +28,15 @@ final class ProjectedBlockDataTransformerRotationTest {
     void everySixteenthRotationFollowsTheFrameThroughEveryQuarterTurn() {
         for (int fromIndex = 0; fromIndex < HORIZONTAL_CLOCKWISE.length; fromIndex++) {
             for (int toIndex = 0; toIndex < HORIZONTAL_CLOCKWISE.length; toIndex++) {
-                PortalFrame from = PortalFrame.canonical(HORIZONTAL_CLOCKWISE[fromIndex]);
-                PortalFrame to = PortalFrame.canonical(HORIZONTAL_CLOCKWISE[toIndex]);
+                Frame from = Frame.canonical(HORIZONTAL_CLOCKWISE[fromIndex]);
+                Frame to = Frame.canonical(HORIZONTAL_CLOCKWISE[toIndex]);
                 int quarterTurns = toIndex - fromIndex;
                 for (int rotation = 0; rotation < 16; rotation++) {
                     Rotatable sign = RenderTestSupport.rotatable(BukkitBlockRotation16.face(rotation));
 
                     BlockData projected = ProjectedBlockDataTransformer.transform((BlockData) sign, from, to, new double[3]);
 
-                    assertEquals(BukkitBlockRotation16.face(BlockRotation16.rotate(rotation, quarterTurns)),
+                    assertEquals(BukkitBlockRotation16.face(Rotation16.rotate(rotation, quarterTurns)),
                         ((Rotatable) projected).getRotation(),
                         "rotation " + rotation + " from " + HORIZONTAL_CLOCKWISE[fromIndex] + " to " + HORIZONTAL_CLOCKWISE[toIndex]);
                 }
@@ -49,9 +50,9 @@ final class ProjectedBlockDataTransformerRotationTest {
         Rotatable eastWestPlane = RenderTestSupport.rotatable(BlockFace.NORTH_NORTH_EAST);
 
         BlockData throughNorthFacingPortal = ProjectedBlockDataTransformer.mirror((BlockData) northSouthPlane,
-            PortalFrame.canonical(Direction.N), 0, new double[3]);
+            Frame.canonical(Face.N), 0, new double[3]);
         BlockData throughEastFacingPortal = ProjectedBlockDataTransformer.mirror((BlockData) eastWestPlane,
-            PortalFrame.canonical(Direction.E), 0, new double[3]);
+            Frame.canonical(Face.E), 0, new double[3]);
 
         assertEquals(BlockFace.SOUTH_SOUTH_EAST, ((Rotatable) throughNorthFacingPortal).getRotation());
         assertEquals(BlockFace.NORTH_NORTH_WEST, ((Rotatable) throughEastFacingPortal).getRotation());
@@ -62,7 +63,7 @@ final class ProjectedBlockDataTransformerRotationTest {
         Rotatable sign = RenderTestSupport.rotatable(BlockFace.NORTH_NORTH_EAST);
 
         BlockData projected = ProjectedBlockDataTransformer.mirror((BlockData) sign,
-            PortalFrame.canonical(Direction.N), 2, new double[3]);
+            Frame.canonical(Face.N), 2, new double[3]);
 
         assertEquals(BlockFace.SOUTH_SOUTH_WEST, ((Rotatable) projected).getRotation());
     }
@@ -72,7 +73,7 @@ final class ProjectedBlockDataTransformerRotationTest {
         Rotatable sign = RenderTestSupport.rotatable(BlockFace.NORTH_NORTH_EAST);
 
         BlockData projected = ProjectedBlockDataTransformer.transform((BlockData) sign,
-            PortalFrame.canonical(Direction.N), PortalFrame.canonical(Direction.U), new double[3]);
+            Frame.canonical(Face.N), Frame.canonical(Face.U), new double[3]);
 
         assertEquals(BlockFace.NORTH_NORTH_EAST, ((Rotatable) projected).getRotation());
     }

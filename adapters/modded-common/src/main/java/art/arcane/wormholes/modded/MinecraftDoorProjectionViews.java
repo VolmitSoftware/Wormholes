@@ -7,14 +7,14 @@ import art.arcane.wormholes.door.DoorwayPlane;
 import art.arcane.wormholes.door.view.DoorApertureFrames;
 import art.arcane.wormholes.door.view.DoorProjectionDestination;
 import art.arcane.wormholes.door.view.DoorProjectionProfile;
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.Portal;
-import art.arcane.wormholes.portal.PortalFrame;
-import art.arcane.wormholes.portal.PortalGeometry;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
-import art.arcane.wormholes.render.ProjectorPassRevision;
+import art.arcane.optics.scan.ProjectorPassRevision;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.ArrayList;
@@ -99,11 +99,11 @@ public final class MinecraftDoorProjectionViews {
     private static Aperture create(MinecraftDoorService.DoorView door, DoorProjectionDestination destination, DoorsConfig settings) {
         DoorwayPlane plane = door.plane();
         DoorVec3 center = plane.center();
-        PortalGeometry geometry = new PortalGeometry();
-        GeometryVector lower = new GeometryVector(plane.blockX(), plane.blockY(), plane.blockZ());
-        geometry.setBlocks(plane.form() == DoorForm.TRAPDOOR ? List.of(lower) : List.of(lower, lower.add(new GeometryVector(0, 1, 0))));
+        ApertureCells geometry = new ApertureCells();
+        Vec3 lower = new Vec3(plane.blockX(), plane.blockY(), plane.blockZ());
+        geometry.setBlocks(plane.form() == DoorForm.TRAPDOOR ? List.of(lower) : List.of(lower, lower.add(new Vec3(0, 1, 0))));
         MinecraftPortal source = descriptor(door.endpoint().identity().itemId(),
-            new GeometryVector(center.x(), center.y(), center.z()), DoorApertureFrames.of(plane), geometry,
+            new Vec3(center.x(), center.y(), center.z()), DoorApertureFrames.of(plane), geometry,
             door.level().dimension().identifier().toString());
         source.setActivationRange(settings.projectionRange);
         source.setNetworkViewDepth(settings.projectionDepthBlocks);
@@ -115,13 +115,13 @@ public final class MinecraftDoorProjectionViews {
         source.setAmbientStyle(AmbientParticleStyle.OFF);
         source.setRenderMode(ProjectionRenderMode.VENTICULAR);
         source.setBlackoutBackground(false);
-        MinecraftPortal anchor = descriptor(destination.routeId(), destination.origin(), destination.frame(), new PortalGeometry(), destination.worldKey());
+        MinecraftPortal anchor = descriptor(destination.routeId(), destination.origin(), destination.frame(), new ApertureCells(), destination.worldKey());
         UUID route = UUID.nameUUIDFromBytes(destination.signature().getBytes(StandardCharsets.UTF_8));
         long identity = ProjectorPassRevision.mix(route.getMostSignificantBits(), route.getLeastSignificantBits());
         return new Aperture(plane, destination, source, anchor, identity == 0L ? 1L : identity);
     }
 
-    private static MinecraftPortal descriptor(UUID id, GeometryVector origin, PortalFrame frame, PortalGeometry geometry, String worldKey) {
+    private static MinecraftPortal descriptor(UUID id, Vec3 origin, Frame frame, ApertureCells geometry, String worldKey) {
         return new MinecraftPortal(new MinecraftPortal.Definition(new Portal.State(id, origin, id.toString(), frame, true), geometry, worldKey,
             Map.of("type", PortalType.PORTAL.name())));
     }

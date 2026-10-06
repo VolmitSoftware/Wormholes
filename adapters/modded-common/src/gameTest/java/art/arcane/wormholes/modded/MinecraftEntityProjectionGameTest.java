@@ -1,13 +1,12 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.portal.PortalType;
-import art.arcane.wormholes.render.Frustum4D;
-import art.arcane.wormholes.render.ProjectedEntityEvent;
-import art.arcane.wormholes.render.PortalCoordMap;
-import art.arcane.wormholes.render.ProjectedEntityOcclusion;
-import art.arcane.wormholes.render.ProjectorViewOcclusion;
-import art.arcane.wormholes.render.view.ProjectionContentView;
+import art.arcane.optics.volume.ViewVolume;
+import art.arcane.optics.entity.ProjectedEntityEvent;
+import art.arcane.optics.frame.PortalCoordMap;
+import art.arcane.optics.occlusion.ProjectedEntityOcclusion;
+import art.arcane.optics.occlusion.ProjectorViewOcclusion;
+import art.arcane.optics.view.ContentView;
 import io.netty.channel.embedded.EmbeddedChannel;
 import com.mojang.authlib.GameProfile;
 import net.minecraft.network.Connection;
@@ -87,10 +86,10 @@ public final class MinecraftEntityProjectionGameTest {
         source = runtime.portals().create(player.getUUID(), level, cells(2), PortalType.PORTAL, new Vec3(0, 0, -1));
         destination = runtime.portals().create(player.getUUID(), level, cells(18), PortalType.PORTAL, new Vec3(0, 0, -1));
         helper.assertTrue(runtime.portals().link(player, source.getId(), destination.getId()), "Entity projection portal link failed");
-        GeometryVector origin = source.getOrigin();
-        GeometryVector target = destination.getOrigin();
-        GeometryVector normal = source.getFrame().getNormal().toVector();
-        GeometryVector eye = origin.add(normal.multiply(3.0D));
+        art.arcane.optics.math.Vec3 origin = source.getOrigin();
+        art.arcane.optics.math.Vec3 target = destination.getOrigin();
+        art.arcane.optics.math.Vec3 normal = source.getFrame().getNormal().toVector();
+        art.arcane.optics.math.Vec3 eye = origin.add(normal.multiply(3.0D));
         player.setPos(eye.x(), eye.y() - player.getEyeHeight(), eye.z());
         Vec3 display = new Vec3(origin.x() - normal.x() * 3.0D, origin.y() - 0.5D, origin.z() - normal.z() * 3.0D);
         double[] transformed = new double[3];
@@ -107,8 +106,8 @@ public final class MinecraftEntityProjectionGameTest {
         level.addFreshEntity(local);
         MinecraftProjectorPortalAccess portals = new MinecraftProjectorPortalAccess(runtime);
         renderer = new MinecraftProjectedEntities(runtime, new MinecraftProjectedEntities.Context(player, source, portals.createRecursiveIndex()));
-        Frustum4D frustum = new Frustum4D(eye, source.getGeometry(), new Frustum4D.Options(16, 16, 0.1D, 1.0D, 0.0D));
-        ProjectedEntityOcclusion<BlockState, ProjectionContentView<BlockState, BlockState>> occlusion = new ProjectedEntityOcclusion<>(
+        ViewVolume frustum = new ViewVolume(eye, source.getGeometry(), new ViewVolume.Options(16, 16, 0.1D, 1.0D, 0.0D));
+        ProjectedEntityOcclusion<BlockState, ContentView<BlockState, BlockState>> occlusion = new ProjectedEntityOcclusion<>(
             new ProjectorViewOcclusion<>(MinecraftProjectorBlocks.INSTANCE::isOccluding, ProjectedEntityOcclusion.MAX_VOXEL_STEPS_PER_BATCH));
         view = new MinecraftProjectedEntities.View(destination, destination, level, runtime.projections().scene(level, destination, 16),
             source.getFrame(), destination.getFrame(), frustum, eye, false, 0, occlusion, 16);

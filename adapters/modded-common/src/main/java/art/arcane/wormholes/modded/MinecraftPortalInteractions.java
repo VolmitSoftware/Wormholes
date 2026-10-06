@@ -1,6 +1,5 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.geometry.GeometryVector;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -56,12 +55,12 @@ final class MinecraftPortalInteractions {
         double closest = obstacle.getType() == HitResult.Type.MISS ? 256.0 : eye.distanceToSqr(obstacle.getLocation()) + 0.0001;
         MinecraftPortal selected = null;
         for (MinecraftPortal portal : runtime.portals().snapshot()) {
-            GeometryVector center = portal.getGeometry().getApertureCenter();
+            art.arcane.optics.math.Vec3 center = portal.getGeometry().getApertureCenter();
             if (runtime.portals().resolveLevel(portal) != player.level()
                 || player.position().distanceToSqr(center.x(), center.y(), center.z()) >= 64) {
                 continue;
             }
-            for (GeometryVector cell : portal.getGeometry().getBlockPositions()) {
+            for (art.arcane.optics.math.Vec3 cell : portal.getGeometry().getBlockPositions()) {
                 AABB bounds = new AABB(cell.getBlockX(), cell.getBlockY(), cell.getBlockZ(),
                     cell.getBlockX() + 1, cell.getBlockY() + 1, cell.getBlockZ() + 1);
                 Optional<Vec3> hit = bounds.clip(eye, end);

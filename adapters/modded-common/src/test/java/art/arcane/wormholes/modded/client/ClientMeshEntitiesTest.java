@@ -1,16 +1,16 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.wormholes.network.client.Brick;
-import art.arcane.wormholes.network.client.BrickCodec;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.stream.Brick;
+import art.arcane.optics.stream.BrickCodec;
+import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Face;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
-import art.arcane.wormholes.network.client.SectionBiomes;
+import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.view.EntityVisual;
-import art.arcane.wormholes.render.plate.PlateBox;
+import art.arcane.optics.entity.EntitySnapshot;
+import art.arcane.optics.plate.PlateBox;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
@@ -159,13 +159,13 @@ public class ClientMeshEntitiesTest extends MinecraftTestBase {
 
     @Test
     public void nestedFeatureCameraFollowsRotatedAndReflectedAncestorSpaces() {
-        ClientViewEnvironment.Transform root = new ClientViewEnvironment.Transform(Direction.S, Direction.U, Direction.W,
-            new GeometryVector(100, 20, -50));
-        ClientViewEnvironment.Transform child = new ClientViewEnvironment.Transform(Direction.W, Direction.U, Direction.S,
-            new GeometryVector(6, 0, 0));
-        assertEquals(new GeometryVector(2, 3, 4), ClientMeshEntities.contentPoint(List.of(root, child), 96, 23, -46));
-        assertEquals(new GeometryVector(4, 3, 4), ClientMeshEntities.contentPoint(List.of(root), 96, 23, -46));
-        assertEquals(new GeometryVector(96, 23, -46), ClientMeshEntities.contentPoint(List.of(), 96, 23, -46));
+        ProjectionEnvironment.Transform root = new ProjectionEnvironment.Transform(Face.S, Face.U, Face.W,
+            new Vec3(100, 20, -50));
+        ProjectionEnvironment.Transform child = new ProjectionEnvironment.Transform(Face.W, Face.U, Face.S,
+            new Vec3(6, 0, 0));
+        assertEquals(new Vec3(2, 3, 4), ClientMeshEntities.contentPoint(List.of(root, child), 96, 23, -46));
+        assertEquals(new Vec3(4, 3, 4), ClientMeshEntities.contentPoint(List.of(root), 96, 23, -46));
+        assertEquals(new Vec3(96, 23, -46), ClientMeshEntities.contentPoint(List.of(), 96, 23, -46));
     }
 
     @Test
@@ -178,9 +178,9 @@ public class ClientMeshEntitiesTest extends MinecraftTestBase {
         light[0] = 7;
         store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 0, oneBlock(3).withLight(light, new byte[2048]), SectionBiomes.NONE));
         ClientMeshEntities scene = new ClientMeshEntities(store.view(7), mock(ClientLevel.class));
-        for (Direction[] axes : new Direction[][] {{Direction.E, Direction.U, Direction.S}, {Direction.W, Direction.D, Direction.N},
-            {Direction.U, Direction.W, Direction.S}}) {
-            scene.synchronize(new ClientViewEnvironment.Transform(axes[0], axes[1], axes[2], new GeometryVector(0.5D, 0.5D, 0.5D)));
+        for (Face[] axes : new Face[][] {{Face.E, Face.U, Face.S}, {Face.W, Face.D, Face.N},
+            {Face.U, Face.W, Face.S}}) {
+            scene.synchronize(new ProjectionEnvironment.Transform(axes[0], axes[1], axes[2], new Vec3(0.5D, 0.5D, 0.5D)));
             BlockEntity chest = scene.blockEntity(BlockPos.ZERO);
             assertNotNull(chest);
             assertEquals(BlockPos.ZERO, chest.getBlockPos());
@@ -205,8 +205,8 @@ public class ClientMeshEntitiesTest extends MinecraftTestBase {
         store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 0, oneBlock(3), SectionBiomes.NONE));
         ClientLevel level = mock(ClientLevel.class);
         ClientMeshEntities scene = new ClientMeshEntities(store.view(7), level);
-        ClientViewEnvironment.Transform transform = new ClientViewEnvironment.Transform(Direction.W, Direction.U, Direction.S,
-            new GeometryVector(101, 0, 0));
+        ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(Face.W, Face.U, Face.S,
+            new Vec3(101, 0, 0));
         Entity entity = mock(Entity.class);
         doAnswer(ignored -> {
             assertSame(scene, ClientMeshEntities.active(level));
@@ -248,8 +248,8 @@ public class ClientMeshEntitiesTest extends MinecraftTestBase {
         store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 0, BrickCodec.pack(0, cells).withLight(light, new byte[2048]), SectionBiomes.NONE));
         ClientLevel level = mock(ClientLevel.class);
         ClientMeshEntities scene = new ClientMeshEntities(store.view(7), level);
-        ClientViewEnvironment.Transform transform = new ClientViewEnvironment.Transform(Direction.U, Direction.W, Direction.S,
-            new GeometryVector(100, 50, 200));
+        ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(Face.U, Face.W, Face.S,
+            new Vec3(100, 50, 200));
         scene.synchronize(transform);
         BlockEntity chest = scene.blockEntity(display);
         BlockPos nativePosition = new BlockPos(-42, 91, -192);
@@ -412,9 +412,9 @@ public class ClientMeshEntitiesTest extends MinecraftTestBase {
         when(world.spawn(anyInt(), any(), any())).thenReturn(true);
         ClientProjectedEntities entities = new ClientProjectedEntities(world);
         UUID id = UUID.randomUUID();
-        EntityVisual stand = EntityVisual.full(id, "minecraft:armor_stand", -20.5D, 64.0D, -40.5D, 1.975D,
+        EntitySnapshot stand = EntitySnapshot.full(id, "minecraft:armor_stand", -20.5D, 64.0D, -40.5D, 1.975D,
             0.0D, 0.0D, -1.0D, 180.0F, 0.0F, 0.0D, 0.0D, 0.0D, true, "", "", "", null, null,
-            EntityVisual.EMPTY, EntityVisual.EMPTY, 1);
+            EntitySnapshot.EMPTY, EntitySnapshot.EMPTY, 1);
         entities.apply(new ClientViewMessage.EntityFrame(7, 1, List.of(stand), List.of(id), true));
         ClientPortal portal = mock(ClientPortal.class);
         entities.tick(key -> portal, key -> true);

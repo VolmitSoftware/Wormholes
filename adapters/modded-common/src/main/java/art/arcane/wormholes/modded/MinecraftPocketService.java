@@ -8,7 +8,7 @@ import art.arcane.wormholes.door.PairEndpoint;
 import art.arcane.wormholes.door.PocketRoom;
 import art.arcane.wormholes.door.PocketRooms;
 import art.arcane.wormholes.door.PocketBlockPosition;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import art.arcane.wormholes.door.DoorItemIdentity;
 import art.arcane.wormholes.door.PocketBinding;
 import art.arcane.wormholes.door.PocketDoorDestination;
@@ -323,7 +323,7 @@ public final class MinecraftPocketService implements AutoCloseable {
             return CompletableFuture.failedFuture(new IllegalArgumentException("A room door must be placed inside a pocket"));
         }
         PocketRoom parent = PocketRooms.roomAt(space, placed.position().x(), placed.position().z()).orElse(null);
-        Direction wall = PocketRooms.wallBehind(space, parent, placed.position(), plane).orElse(null);
+        Face wall = PocketRooms.wallBehind(space, parent, placed.position(), plane).orElse(null);
         if (wall == null || !roster.roleOf(space, player.getUUID()).atLeast(PocketRole.BUILDER)) {
             player.sendSystemMessage(MinecraftMenuText.text(player, wall == null ? PocketsMessages.ROOM_BLOCKED : PocketsMessages.DENIED_BUILD, Map.of()));
             return CompletableFuture.completedFuture(null);

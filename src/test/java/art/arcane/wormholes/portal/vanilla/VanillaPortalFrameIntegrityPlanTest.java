@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.bukkit.Material;
 
 import art.arcane.wormholes.portal.DimensionalPortalKind;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 
 public final class VanillaPortalFrameIntegrityPlanTest
 {
@@ -37,7 +37,7 @@ public final class VanillaPortalFrameIntegrityPlanTest
 				new VanillaPortalFrameIntegrity.FramePosition(0, 64, 0),
 				new VanillaPortalFrameIntegrity.FramePosition(0, 65, 0));
 
-		Set<VanillaPortalFrameIntegrity.FramePosition> frame = VanillaPortalFrameIntegrity.expectedFramePositions(cells, Direction.E);
+		Set<VanillaPortalFrameIntegrity.FramePosition> frame = VanillaPortalFrameIntegrity.expectedFramePositions(cells, Face.E);
 
 		assertEquals(6, frame.size());
 		assertTrue(frame.contains(new VanillaPortalFrameIntegrity.FramePosition(0, 64, -1)));
@@ -53,7 +53,7 @@ public final class VanillaPortalFrameIntegrityPlanTest
 				new VanillaPortalFrameIntegrity.FramePosition(0, 65, 0),
 				new VanillaPortalFrameIntegrity.FramePosition(1, 64, 0));
 
-		Set<VanillaPortalFrameIntegrity.FramePosition> frame = VanillaPortalFrameIntegrity.expectedFramePositions(cells, Direction.N);
+		Set<VanillaPortalFrameIntegrity.FramePosition> frame = VanillaPortalFrameIntegrity.expectedFramePositions(cells, Face.N);
 
 		assertEquals(7, frame.size());
 		assertTrue(frame.contains(new VanillaPortalFrameIntegrity.FramePosition(1, 65, 0)));
@@ -73,7 +73,7 @@ public final class VanillaPortalFrameIntegrityPlanTest
 			}
 		}
 
-		Set<VanillaPortalFrameIntegrity.FramePosition> frame = VanillaPortalFrameIntegrity.expectedFramePositions(cells, Direction.N);
+		Set<VanillaPortalFrameIntegrity.FramePosition> frame = VanillaPortalFrameIntegrity.expectedFramePositions(cells, Face.N);
 
 		assertEquals(10, frame.size());
 		assertTrue(frame.contains(new VanillaPortalFrameIntegrity.FramePosition(-1, 1, 0)));
@@ -93,7 +93,7 @@ public final class VanillaPortalFrameIntegrityPlanTest
 			}
 		}
 
-		Set<VanillaPortalFrameIntegrity.FramePosition> frame = VanillaPortalFrameIntegrity.expectedFramePositions(cells, Direction.U);
+		Set<VanillaPortalFrameIntegrity.FramePosition> frame = VanillaPortalFrameIntegrity.expectedFramePositions(cells, Face.U);
 
 		assertEquals(12, frame.size());
 		assertTrue(frame.contains(new VanillaPortalFrameIntegrity.FramePosition(0, 64, -2)));

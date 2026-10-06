@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
-import art.arcane.wormholes.render.ProjectionCellKey;
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.fidelity.BlockEntitySample;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -48,7 +48,7 @@ public final class ProjectionOverlay {
         if (overlay == null || overlay.level != level || overlay.writing || overlay.entries.isEmpty()) {
             return incoming;
         }
-        return overlay.serverState(ProjectionCellKey.pack(position.getX(), position.getY(), position.getZ()), incoming);
+        return overlay.serverState(CellKeys.pack(position.getX(), position.getY(), position.getZ()), incoming);
     }
 
     public static ProjectionOverlay forLevel(Object level) {
@@ -111,7 +111,7 @@ public final class ProjectionOverlay {
         }
         long chunk = chunkKey(key);
         Int2ObjectOpenHashMap<LongArrayList> sections = byChunk.get(chunk);
-        int sectionY = ProjectionCellKey.unpackY(key) >> 4;
+        int sectionY = CellKeys.unpackY(key) >> 4;
         LongArrayList keys = sections.get(sectionY);
         long last = keys.removeLong(keys.size() - 1);
         if (last != key) {
@@ -234,9 +234,9 @@ public final class ProjectionOverlay {
             if (entry == null) {
                 continue;
             }
-            int x = ProjectionCellKey.unpackX(key);
-            int y = ProjectionCellKey.unpackY(key);
-            int z = ProjectionCellKey.unpackZ(key);
+            int x = CellKeys.unpackX(key);
+            int y = CellKeys.unpackY(key);
+            int z = CellKeys.unpackZ(key);
             BlockState real = sections.state(x, y, z);
             if (real == null) {
                 continue;
@@ -262,7 +262,7 @@ public final class ProjectionOverlay {
             if (entry == null || entry.pending || !entry.projected.hasBlockEntity()) {
                 continue;
             }
-            sections.blockEntity(ProjectionCellKey.unpackX(key), ProjectionCellKey.unpackY(key), ProjectionCellKey.unpackZ(key), entry.blockEntity);
+            sections.blockEntity(CellKeys.unpackX(key), CellKeys.unpackY(key), CellKeys.unpackZ(key), entry.blockEntity);
             rebuilt++;
         }
         return rebuilt;
@@ -275,7 +275,7 @@ public final class ProjectionOverlay {
             sections = new Int2ObjectOpenHashMap<>(4);
             byChunk.put(chunk, sections);
         }
-        int sectionY = ProjectionCellKey.unpackY(key) >> 4;
+        int sectionY = CellKeys.unpackY(key) >> 4;
         LongArrayList keys = sections.get(sectionY);
         if (keys == null) {
             keys = new LongArrayList(64);
@@ -285,7 +285,7 @@ public final class ProjectionOverlay {
     }
 
     private static long chunkKey(long key) {
-        return ChunkPos.pack(ProjectionCellKey.unpackX(key) >> 4, ProjectionCellKey.unpackZ(key) >> 4);
+        return ChunkPos.pack(CellKeys.unpackX(key) >> 4, CellKeys.unpackZ(key) >> 4);
     }
 
     public static final class Entry {

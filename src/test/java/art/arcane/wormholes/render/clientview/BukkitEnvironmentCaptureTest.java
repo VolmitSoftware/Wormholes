@@ -1,13 +1,13 @@
 package art.arcane.wormholes.render.clientview;
 
 import art.arcane.wormholes.chunk.BukkitChunkLeaseProvider;
-import art.arcane.wormholes.chunk.ChunkLease;
-import art.arcane.wormholes.chunk.ChunkLeaseRegistry;
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
+import art.arcane.optics.plate.ChunkLease;
+import art.arcane.optics.plate.ChunkLeaseRegistry;
+import art.arcane.optics.math.Vec3;
+import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.wormholes.platform.BukkitRegionTaskProvider;
 import art.arcane.wormholes.platform.WormholesPlatform;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import org.bukkit.World;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
@@ -42,12 +42,12 @@ class BukkitEnvironmentCaptureTest {
         CompletableFuture<Boolean> ready = new CompletableFuture<Boolean>();
         when(lease.ready()).thenReturn(ready);
         when(registry.retain(eq(world), eq(worldId), anyInt(), anyInt())).thenReturn(lease);
-        ClientViewEnvironment.Transform transform = new ClientViewEnvironment.Transform(Direction.E, Direction.U, Direction.S,
-            new GeometryVector(-128, 0, 0));
-        ClientViewEnvironment environment = mock(ClientViewEnvironment.class);
+        ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(Face.E, Face.U, Face.S,
+            new Vec3(-128, 0, 0));
+        ProjectionEnvironment environment = mock(ProjectionEnvironment.class);
         when(environment.transform()).thenReturn(transform);
         BukkitEnvironmentCapture.Request request = new BukkitEnvironmentCapture.Request(UUID.randomUUID(), null, UUID.randomUUID(), world,
-            new GeometryVector(-32.5D, 92, 128), transform, 1);
+            new Vec3(-32.5D, 92, 128), transform, 1);
         try (MockedStatic<BukkitChunkLeaseProvider> provider = mockStatic(BukkitChunkLeaseProvider.class);
              MockedStatic<WormholesPlatform> ownership = mockStatic(WormholesPlatform.class);
              MockedStatic<BukkitPortalEnvironment> nativeCapture = mockStatic(BukkitPortalEnvironment.class)) {
@@ -74,10 +74,10 @@ class BukkitEnvironmentCaptureTest {
         ChunkLease lease = mock(ChunkLease.class);
         when(lease.ready()).thenReturn(CompletableFuture.completedFuture(false));
         when(registry.retain(any(), any(), anyInt(), anyInt())).thenReturn(lease);
-        ClientViewEnvironment.Transform transform = new ClientViewEnvironment.Transform(Direction.E, Direction.U, Direction.S,
-            new GeometryVector(0, 0, 0));
+        ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(Face.E, Face.U, Face.S,
+            new Vec3(0, 0, 0));
         BukkitEnvironmentCapture.Request request = new BukkitEnvironmentCapture.Request(UUID.randomUUID(), null, UUID.randomUUID(), world,
-            new GeometryVector(0, 0, 0), transform, 1);
+            new Vec3(0, 0, 0), transform, 1);
         try (MockedStatic<BukkitChunkLeaseProvider> provider = mockStatic(BukkitChunkLeaseProvider.class);
              MockedStatic<BukkitPortalEnvironment> nativeCapture = mockStatic(BukkitPortalEnvironment.class)) {
             provider.when(BukkitChunkLeaseProvider::registry).thenReturn(registry);
@@ -137,10 +137,10 @@ class BukkitEnvironmentCaptureTest {
         CompletableFuture<Boolean> secondReady = new CompletableFuture<>();
         when(secondLease.ready()).thenReturn(secondReady);
         when(fixture.registry().retain(any(), any(), eq(2), eq(0))).thenReturn(secondLease);
-        ClientViewEnvironment environment = mock(ClientViewEnvironment.class);
+        ProjectionEnvironment environment = mock(ProjectionEnvironment.class);
         BukkitEnvironmentCapture.Request first = fixture.request();
         BukkitEnvironmentCapture.Request second = new BukkitEnvironmentCapture.Request(first.observer(), null, first.portal(), first.world(),
-            new GeometryVector(32, 80, 0), first.transform(), 2L);
+            new Vec3(32, 80, 0), first.transform(), 2L);
         try (MockedStatic<BukkitChunkLeaseProvider> provider = mockStatic(BukkitChunkLeaseProvider.class);
              MockedStatic<WormholesPlatform> ownership = mockStatic(WormholesPlatform.class);
              MockedStatic<BukkitPortalEnvironment> sampler = mockStatic(BukkitPortalEnvironment.class)) {
@@ -220,10 +220,10 @@ class BukkitEnvironmentCaptureTest {
         CompletableFuture<Boolean> ready = new CompletableFuture<>();
         when(lease.ready()).thenReturn(ready);
         when(registry.retain(any(), any(), anyInt(), anyInt())).thenReturn(lease);
-        ClientViewEnvironment.Transform transform = new ClientViewEnvironment.Transform(Direction.E, Direction.U, Direction.S,
-            new GeometryVector(0, 0, 0));
+        ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(Face.E, Face.U, Face.S,
+            new Vec3(0, 0, 0));
         BukkitEnvironmentCapture.Request request = new BukkitEnvironmentCapture.Request(UUID.randomUUID(), null, UUID.randomUUID(), world,
-            new GeometryVector(0, 80, 0), transform, 1L);
+            new Vec3(0, 80, 0), transform, 1L);
         return new Fixture(new BukkitEnvironmentCapture(), request, registry, lease, ready);
     }
 

@@ -9,7 +9,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.Settings;
-import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.optics.math.Box;
 import art.arcane.wormholes.util.Cuboid;
 
 public final class PortalActivationViewTest
@@ -20,8 +20,8 @@ public final class PortalActivationViewTest
 		LocalPortal portal = localPortal();
 		portal.setActivationRange(96);
 
-		AxisAlignedBB area = portal.getStructure().getArea();
-		AxisAlignedBB view = portal.getView();
+		Box area = portal.getStructure().getArea();
+		Box view = portal.getView();
 
 		assertEquals(area.getXa() - 96.0D, view.getXa(), 1.0E-9D);
 		assertEquals(area.getXb() + 96.0D, view.getXb(), 1.0E-9D);
@@ -39,14 +39,14 @@ public final class PortalActivationViewTest
 		{
 			Settings.PROJECTION_RANGE = 48.0D;
 			LocalPortal portal = localPortal();
-			AxisAlignedBB area = portal.getStructure().getArea();
+			Box area = portal.getStructure().getArea();
 
-			AxisAlignedBB view = portal.getView();
+			Box view = portal.getView();
 			assertEquals(area.getXa() - 48.0D, view.getXa(), 1.0E-9D);
 			assertEquals(area.getXb() + 48.0D, view.getXb(), 1.0E-9D);
 
 			Settings.PROJECTION_RANGE = 80.0D;
-			AxisAlignedBB recomputed = portal.getView();
+			Box recomputed = portal.getView();
 			assertEquals(area.getXa() - 80.0D, recomputed.getXa(), 1.0E-9D);
 			assertEquals(area.getXb() + 80.0D, recomputed.getXb(), 1.0E-9D);
 		}
@@ -65,13 +65,13 @@ public final class PortalActivationViewTest
 			Settings.PROJECTION_RANGE = 32.0D;
 			LocalPortal portal = localPortal();
 			portal.setActivationRange(64);
-			AxisAlignedBB area = portal.getStructure().getArea();
+			Box area = portal.getStructure().getArea();
 
-			AxisAlignedBB view = portal.getView();
+			Box view = portal.getView();
 			assertEquals(area.getXa() - 64.0D, view.getXa(), 1.0E-9D);
 
 			Settings.PROJECTION_RANGE = 200.0D;
-			AxisAlignedBB unchanged = portal.getView();
+			Box unchanged = portal.getView();
 			assertEquals(area.getXa() - 64.0D, unchanged.getXa(), 1.0E-9D);
 			assertEquals(area.getXb() + 64.0D, unchanged.getXb(), 1.0E-9D);
 		}

@@ -8,6 +8,7 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 
 import art.arcane.wormholes.platform.WormholesPlatform;
+import art.arcane.optics.entity.EntityRelationship;
 
 final class BukkitEntityRelationships {
     private BukkitEntityRelationships() {

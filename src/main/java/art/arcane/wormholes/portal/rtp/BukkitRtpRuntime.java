@@ -25,10 +25,10 @@ import org.bukkit.util.BoundingBox;
 import art.arcane.wormholes.ProjectionManager;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.LocalPortal;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.Traversive;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 
 public final class BukkitRtpRuntime implements ProjectionManager.RtpProjectionProvider, AutoCloseable
 {
@@ -507,7 +507,7 @@ public final class BukkitRtpRuntime implements ProjectionManager.RtpProjectionPr
 
 		CompletionStage<Boolean> teleport(Entity entity, Location target);
 
-		void completeSuccess(LocalPortal portal, Entity entity, Traversive traversive, PortalFrame targetFrame, Location target);
+		void completeSuccess(LocalPortal portal, Entity entity, Traversive traversive, Frame targetFrame, Location target);
 
 		void dispatchRim(LocalPortal portal, Player observer, RtpRimRenderer.Sample sample);
 

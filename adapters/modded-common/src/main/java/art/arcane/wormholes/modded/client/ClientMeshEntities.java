@@ -1,10 +1,9 @@
 package art.arcane.wormholes.modded.client;
 
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
-import art.arcane.wormholes.render.client.ClientViewBlockTransform;
+import art.arcane.optics.fidelity.BlockEntitySample;
+import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.client.ClientViewBlockTransform;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.AABB;
 import com.mojang.logging.LogUtils;
@@ -64,7 +63,7 @@ public final class ClientMeshEntities {
     private final ArrayList<BlockEntity> activeBlockEntities = new ArrayList<>();
     private final IdentityHashMap<EntityRenderState, EntitySource> entitySources = new IdentityHashMap<>();
     private SceneCamera sceneCamera;
-    private ClientViewEnvironment.Transform transform;
+    private ProjectionEnvironment.Transform transform;
     private ClientViewBlockTransform cells;
     private boolean destinationQueries;
     private final BlockPos.MutableBlockPos queryPosition = new BlockPos.MutableBlockPos();
@@ -135,7 +134,7 @@ public final class ClientMeshEntities {
         return EntitySelector.CAN_BE_PICKED.test(entity) && !hiddenFromWorld(entity);
     }
 
-    public void extract(int portalKey, Camera camera, float partialTick, ClientViewEnvironment.Transform transform) {
+    public void extract(int portalKey, Camera camera, float partialTick, ProjectionEnvironment.Transform transform) {
         entitySources.clear();
         synchronize(transform);
         ArrayList<BlockEntityRenderState> blocks = new ArrayList<>(activeBlockEntities.size());
@@ -179,12 +178,12 @@ public final class ClientMeshEntities {
     }
 
     public Predicate<EntityRenderState> entityVisibility(CameraRenderState camera, Frustum frustum,
-                                                       ClientViewEnvironment.Transform transform) {
+                                                       ProjectionEnvironment.Transform transform) {
         if (frustum == null || transform == null) {
             return state -> true;
         }
         DestinationFrustum destinationFrustum = new DestinationFrustum(frustum, transform);
-        GeometryVector eye = transform.destinationPoint(camera.pos.x, camera.pos.y, camera.pos.z);
+        art.arcane.optics.math.Vec3 eye = transform.destinationPoint(camera.pos.x, camera.pos.y, camera.pos.z);
         EntityRenderDispatcher renderer = Minecraft.getInstance().getEntityRenderDispatcher();
         return state -> entityVisible(state, renderer, destinationFrustum, eye);
     }
@@ -212,7 +211,7 @@ public final class ClientMeshEntities {
         return Math.max(brightness(LightLayer.BLOCK, position), brightness(LightLayer.SKY, position) - skyDarken);
     }
 
-    void synchronize(ClientViewEnvironment.Transform transform) {
+    void synchronize(ProjectionEnvironment.Transform transform) {
         if (!transform.equals(this.transform)) {
             this.transform = transform;
             cells = new ClientViewBlockTransform(transform);
@@ -288,7 +287,7 @@ public final class ClientMeshEntities {
         }
     }
 
-    public void tickEntity(Entity entity, ClientViewEnvironment.Transform transform) {
+    public void tickEntity(Entity entity, ProjectionEnvironment.Transform transform) {
         synchronize(transform);
         ClientMeshEntities previous = ACTIVE.get();
         boolean previousQueries = destinationQueries;
@@ -325,7 +324,7 @@ public final class ClientMeshEntities {
     }
 
     private boolean entityVisible(EntityRenderState state, EntityRenderDispatcher renderer, DestinationFrustum frustum,
-                                  GeometryVector eye) {
+                                  art.arcane.optics.math.Vec3 eye) {
         EntitySource source = entitySources.get(state);
         if (source == null || state.nameTag != null || state.scoreText != null || state.appearsGlowing()) {
             return true;
@@ -419,7 +418,7 @@ public final class ClientMeshEntities {
     private LocalPlayer localSelf(int portalKey, ClientViewSession session, ClientProjectedEntities projected, LocalPlayer player) {
         UUID id = session.selfEntityId();
         ClientPortal portal = session.portal(portalKey);
-        ClientViewEnvironment environment = session.environment(portalKey);
+        ProjectionEnvironment environment = session.environment(portalKey);
         if (id == null || player == null || portal == null || portal.geometry().mirror()
             || environment == null || !environment.world().dimensionKey().equals(level.dimension().identifier().toString())
             || !projected.presentPlayer(portalKey, id) || player.level() != level) {
@@ -471,17 +470,17 @@ public final class ClientMeshEntities {
         }
     }
 
-    private static List<ClientViewEnvironment.Transform> space(int portalKey) {
+    private static List<ProjectionEnvironment.Transform> space(int portalKey) {
         WormholesClient client = WormholesClient.instance();
         if (client == null) {
             return List.of();
         }
-        List<ClientViewEnvironment.Transform> ancestors = new ArrayList<>();
+        List<ProjectionEnvironment.Transform> ancestors = new ArrayList<>();
         ClientPortal portal = client.session().portal(portalKey);
-        for (int depth = 0; depth < ClientViewProtocol.MAX_GEOMETRY_DEPTH && portal != null
+        for (int depth = 0; depth < ViewStreamLimits.MAX_GEOMETRY_DEPTH && portal != null
             && portal.geometry().parentPortalKey() != 0; depth++) {
             int parent = portal.geometry().parentPortalKey();
-            ClientViewEnvironment environment = client.session().environment(parent);
+            ProjectionEnvironment environment = client.session().environment(parent);
             if (environment == null) {
                 return List.of();
             }
@@ -491,9 +490,9 @@ public final class ClientMeshEntities {
         return ancestors;
     }
 
-    static GeometryVector contentPoint(List<ClientViewEnvironment.Transform> ancestors, double x, double y, double z) {
-        GeometryVector point = new GeometryVector(x, y, z);
-        for (ClientViewEnvironment.Transform transform : ancestors) {
+    static art.arcane.optics.math.Vec3 contentPoint(List<ProjectionEnvironment.Transform> ancestors, double x, double y, double z) {
+        art.arcane.optics.math.Vec3 point = new art.arcane.optics.math.Vec3(x, y, z);
+        for (ProjectionEnvironment.Transform transform : ancestors) {
             point = transform.destinationPoint(point.x(), point.y(), point.z());
         }
         return point;
@@ -508,11 +507,11 @@ public final class ClientMeshEntities {
 
     static final class DestinationFrustum extends Frustum {
         private final Frustum display;
-        private final ClientViewEnvironment.Transform transform;
+        private final ProjectionEnvironment.Transform transform;
         private boolean tested;
         private boolean visible;
 
-        DestinationFrustum(Frustum display, ClientViewEnvironment.Transform transform) {
+        DestinationFrustum(Frustum display, ProjectionEnvironment.Transform transform) {
             super(display);
             this.display = display;
             this.transform = transform;
@@ -550,11 +549,11 @@ public final class ClientMeshEntities {
         private final Vector3f left = new Vector3f();
         private Camera source;
 
-        void update(Camera source, List<ClientViewEnvironment.Transform> space, ClientViewEnvironment.Transform destination) {
+        void update(Camera source, List<ProjectionEnvironment.Transform> space, ProjectionEnvironment.Transform destination) {
             this.source = source;
             Vec3 eye = source.position();
-            GeometryVector point = contentPoint(space, eye.x, eye.y, eye.z);
-            GeometryVector nativeEye = destination.destinationPoint(point.x(), point.y(), point.z());
+            art.arcane.optics.math.Vec3 point = contentPoint(space, eye.x, eye.y, eye.z);
+            art.arcane.optics.math.Vec3 nativeEye = destination.destinationPoint(point.x(), point.y(), point.z());
             setPosition(nativeEye.x(), nativeEye.y(), nativeEye.z());
             transform(space, destination, eye, source.forwardVector(), forward);
             transform(space, destination, eye, source.upVector(), up);
@@ -591,9 +590,9 @@ public final class ClientMeshEntities {
             return left;
         }
 
-        private void transform(List<ClientViewEnvironment.Transform> space, ClientViewEnvironment.Transform destination, Vec3 eye, Vector3fc direction, Vector3f result) {
-            GeometryVector point = contentPoint(space, eye.x + direction.x(), eye.y + direction.y(), eye.z + direction.z());
-            GeometryVector nativePoint = destination.destinationPoint(point.x(), point.y(), point.z());
+        private void transform(List<ProjectionEnvironment.Transform> space, ProjectionEnvironment.Transform destination, Vec3 eye, Vector3fc direction, Vector3f result) {
+            art.arcane.optics.math.Vec3 point = contentPoint(space, eye.x + direction.x(), eye.y + direction.y(), eye.z + direction.z());
+            art.arcane.optics.math.Vec3 nativePoint = destination.destinationPoint(point.x(), point.y(), point.z());
             result.set((float) (nativePoint.x() - position().x), (float) (nativePoint.y() - position().y), (float) (nativePoint.z() - position().z)).normalize();
         }
     }

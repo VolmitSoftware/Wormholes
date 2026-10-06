@@ -1,7 +1,7 @@
 package art.arcane.wormholes.door;
 
 import java.util.Objects;
-import art.arcane.wormholes.portal.PortalCrossing;
+import art.arcane.optics.crossing.PlaneCrossing;
 
 public record DoorTransit(
 	DoorwayPlane sourcePlane,
@@ -12,7 +12,7 @@ public record DoorTransit(
 	double height,
 	DoorTravelerClass travelerClass,
 	DoorVec3 velocity,
-	PortalCrossing preparedCrossing)
+	PlaneCrossing preparedCrossing)
 {
     public DoorTransit(DoorwayPlane sourcePlane, DoorwayCrossing crossing, float yaw, float pitch,
                        double halfWidth, double height, DoorTravelerClass travelerClass, DoorVec3 velocity) {

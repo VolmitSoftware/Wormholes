@@ -4,11 +4,10 @@ import art.arcane.wormholes.api.traversal.TraversalKind;
 import art.arcane.wormholes.api.traversal.TraversalRefundReason;
 import art.arcane.wormholes.chunk.presend.ChunkPreSendTicket;
 import art.arcane.wormholes.config.toml.TransitConfig;
-import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.MinecraftMenuText;
 import art.arcane.wormholes.localization.WormholesMessages;
-import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.optics.math.Box;
 import net.minecraft.core.particles.DustParticleOptions;
 import art.arcane.wormholes.modded.MinecraftTravelCosts;
 import art.arcane.wormholes.modded.MinecraftTraversalCues;
@@ -16,9 +15,9 @@ import art.arcane.wormholes.modded.MinecraftTransit;
 import art.arcane.wormholes.modded.MinecraftTraversalContext;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.portal.Portal;
-import art.arcane.wormholes.portal.PortalCrossing;
-import art.arcane.wormholes.portal.PortalFrame;
-import art.arcane.wormholes.portal.PortalGeometry;
+import art.arcane.optics.crossing.PlaneCrossing;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.wormholes.portal.PortalStateCodec;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.render.FidelitySettings;
@@ -191,7 +190,7 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
         return traversals.containsKey(entity);
     }
 
-    public boolean begin(Entity entity, MinecraftPortal portal, PortalCrossing crossing) {
+    public boolean begin(Entity entity, MinecraftPortal portal, PlaneCrossing crossing) {
         runtime.requireServerThread();
         if (closed || traversals.containsKey(entity.getUUID()) || !eligible(entity, portal)) {
             return false;
@@ -322,13 +321,13 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
     }
 
     private MinecraftPortal descriptor(MinecraftPortal source, RtpProjectionView.ReadyData ready) {
-        PortalFrame frame = RtpProjectionGeometry.targetFrameFor(source.getFrame());
+        Frame frame = RtpProjectionGeometry.targetFrameFor(source.getFrame());
         RtpProjectionView.Point3 point = ready.target().safeFeet();
-        GeometryVector origin = new GeometryVector(point.x(), point.y(), point.z());
-        PortalGeometry geometry = new PortalGeometry();
-        List<GeometryVector> cells = new ArrayList<>();
-        for (GeometryVector block : source.getGeometry().getBlockPositions()) {
-            cells.add(source.getFrame().transformPoint(block.add(new GeometryVector(0.5, 0.5, 0.5)), source.getOrigin(), origin, frame));
+        art.arcane.optics.math.Vec3 origin = new art.arcane.optics.math.Vec3(point.x(), point.y(), point.z());
+        ApertureCells geometry = new ApertureCells();
+        List<art.arcane.optics.math.Vec3> cells = new ArrayList<>();
+        for (art.arcane.optics.math.Vec3 block : source.getGeometry().getBlockPositions()) {
+            cells.add(source.getFrame().transformPoint(block.add(new art.arcane.optics.math.Vec3(0.5, 0.5, 0.5)), source.getOrigin(), origin, frame));
         }
         geometry.setBlocks(cells);
         return new MinecraftPortal(new MinecraftPortal.Definition(new Portal.State(ready.routeId(), origin, source.getName(), frame, true),
@@ -373,7 +372,7 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
         }
         RtpRimRenderer.Color color = sample.color();
         DustParticleOptions particle = new DustParticleOptions(color.red() << 16 | color.green() << 8 | color.blue(), 1F);
-        AxisAlignedBB area = portal.getGeometry().getArea();
+        Box area = portal.getGeometry().getArea();
         for (int corner = 0; corner < 8; corner++) {
             viewer.level().sendParticles(viewer, particle, false, false, (corner & 1) == 0 ? area.getXa() : area.getXb(),
                 (corner & 2) == 0 ? area.getYa() : area.getYb(), (corner & 4) == 0 ? area.getZa() : area.getZb(), 1, 0, 0, 0, 0);
@@ -427,7 +426,7 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
             }
             Vec3 target = new Vec3(destination.blockX() + 0.5D - (envelope.minimumXOffset() + envelope.maximumXOffset()) / 2D,
                 destination.feetY() - envelope.minimumYOffset(), destination.blockZ() + 0.5D - (envelope.minimumZOffset() + envelope.maximumZOffset()) / 2D);
-            PortalFrame frame = RtpProjectionGeometry.targetFrameFor(active.portal.getFrame());
+            Frame frame = RtpProjectionGeometry.targetFrameFor(active.portal.getFrame());
             TransitConfig config = runtime.configuration().settings().getTransit();
             MomentumPolicy momentum = MomentumPolicy.decode((String) active.portal.setting("transit.momentum"));
             if (momentum == null) {
@@ -435,7 +434,7 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
             }
             OrientationPolicy orientation = OrientationPolicy.parse((String) active.portal.setting("transit.orientation"),
                 OrientationPolicy.parse(config.orientationDefault, OrientationPolicy.FRAME));
-            GeometryVector velocity = MomentumTransform.apply(active.crossing.outVelocity(frame), momentum, config.momentumMaxSpeed);
+            art.arcane.optics.math.Vec3 velocity = MomentumTransform.apply(active.crossing.outVelocity(frame), momentum, config.momentumMaxSpeed);
             OrientationTransform.Look look = OrientationTransform.apply(active.crossing, frame, orientation, config.gravityFlipEnabled);
             for (Entity member : active.entity.getSelfAndPassengers().toList()) {
                 if (member instanceof ServerPlayer player) {
@@ -554,11 +553,11 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
             box.minY - position.y, box.maxY - position.y, box.minZ - position.z, box.maxZ - position.z);
     }
 
-    private static GeometryVector geometry(Vec3 vector) {
-        return new GeometryVector(vector.x, vector.y, vector.z);
+    private static art.arcane.optics.math.Vec3 geometry(Vec3 vector) {
+        return new art.arcane.optics.math.Vec3(vector.x, vector.y, vector.z);
     }
 
-    private static Vec3 vector(GeometryVector vector) {
+    private static Vec3 vector(art.arcane.optics.math.Vec3 vector) {
         return new Vec3(vector.x(), vector.y(), vector.z());
     }
 
@@ -607,7 +606,7 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
     private static final class Active {
         private final Entity entity;
         private final MinecraftPortal portal;
-        private final PortalCrossing crossing;
+        private final PlaneCrossing crossing;
         private final Registration registration;
         private final ServerLevel level;
         private final Vec3 position;
@@ -617,7 +616,7 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
         private RtpService.TraversalPreparation preparation;
         private boolean finished;
 
-        private Active(Entity entity, MinecraftPortal portal, PortalCrossing crossing, Registration registration) {
+        private Active(Entity entity, MinecraftPortal portal, PlaneCrossing crossing, Registration registration) {
             this.entity = entity;
             this.portal = portal;
             this.crossing = crossing;

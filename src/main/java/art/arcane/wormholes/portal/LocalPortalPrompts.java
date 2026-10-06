@@ -24,9 +24,10 @@ import art.arcane.wormholes.service.WormholesAudience;
 import art.arcane.wormholes.service.WormholesHud;
 import art.arcane.volmlib.util.scheduling.AR;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import art.arcane.wormholes.util.FinalBoolean;
 import art.arcane.wormholes.util.PhantomSpinner;
+import art.arcane.optics.frame.Frame;
 
 final class LocalPortalPrompts
 {
@@ -41,7 +42,7 @@ final class LocalPortalPrompts
 	private boolean progressing = false;
 	private String progress = "Idle";
 	private Player directionChanger = null;
-	private Direction chosenDirection = null;
+	private Face chosenDirection = null;
 	private Vector chosenLook = null;
 
 	LocalPortalPrompts(LocalPortal portal)
@@ -131,7 +132,7 @@ final class LocalPortalPrompts
 		{
 			WormholesAudience.sendMessage(p, line);
 		}
-		chosenDirection = Direction.closest(BukkitGeometry.vector(p.getLocation().getDirection()));
+		chosenDirection = Face.closest(BukkitGeometry.vector(p.getLocation().getDirection()));
 		chosenLook = p.getLocation().getDirection();
 		directionChanger = p;
 
@@ -161,7 +162,7 @@ final class LocalPortalPrompts
 						return;
 					}
 
-					chosenDirection = Direction.closest(BukkitGeometry.vector(p.getLocation().getDirection()));
+					chosenDirection = Face.closest(BukkitGeometry.vector(p.getLocation().getDirection()));
 					chosenLook = p.getLocation().getDirection();
 					sendDirectionTitle(p, ChatColor.GRAY + "" + ChatColor.BOLD + LocalPortalText.directionLabel(chosenDirection));
 				});
@@ -187,10 +188,10 @@ final class LocalPortalPrompts
 				{
 					if(chosenDirection == null)
 					{
-						chosenDirection = Direction.closest(BukkitGeometry.vector(e.getPlayer().getLocation().getDirection()));
+						chosenDirection = Face.closest(BukkitGeometry.vector(e.getPlayer().getLocation().getDirection()));
 						chosenLook = e.getPlayer().getLocation().getDirection();
 					}
-					portal.setFrame(PortalFrame.fromDirectionAndLook(chosenDirection, BukkitGeometry.vector(chosenLook)));
+					portal.setFrame(Frame.fromDirectionAndLook(chosenDirection, BukkitGeometry.vector(chosenLook)));
 					Wormholes.effectManager.playNotificationSuccess(Wormholes.text().legacy(
 							WormholesMessages.PORTAL_DIRECTION_CHANGED,
 							LocalPortalText.arguments("portal", portal.getName(), "direction", LocalPortalText.directionLabel(portal.getDirection()))), portal.getStructure().getCenter());

@@ -5,9 +5,9 @@ import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.portal.DimensionalPortalKind;
 import art.arcane.wormholes.portal.ILocalPortal;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalType;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -122,7 +122,7 @@ final class VanillaPortalEndExit {
             existing.destroy();
         }
         if (!cells.isEmpty()) {
-            PortalFactory.createFromCells(cells, PortalFrame.canonical(Direction.U), PortalType.PORTAL,
+            PortalFactory.createFromCells(cells, Frame.canonical(Face.U), PortalType.PORTAL,
                 "End return", DimensionalPortalKind.END_EXIT);
         }
     }

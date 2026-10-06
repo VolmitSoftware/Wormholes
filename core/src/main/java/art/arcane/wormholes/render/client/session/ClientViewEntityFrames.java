@@ -12,13 +12,13 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
-import art.arcane.wormholes.render.ProjectedEntityEvent;
+import art.arcane.optics.entity.ProjectedEntityEvent;
 import java.util.function.Predicate;
 
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
-import art.arcane.wormholes.network.view.EntityDeltaCodec;
-import art.arcane.wormholes.network.view.EntityVisual;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.entity.EntityDeltaCodec;
+import art.arcane.optics.entity.EntitySnapshot;
 
 public final class ClientViewEntityFrames<P> implements ClientViewEntitySource<P> {
     static final long STATE_IDLE_TICKS = 200L;
@@ -47,7 +47,7 @@ public final class ClientViewEntityFrames<P> implements ClientViewEntitySource<P
             }
             return new ClientViewMessage.EntityFrame(portalKey, previous.sequence + 1, List.of(), List.of(), true);
         }
-        List<EntityVisual> visuals = scene(sceneKey, observer, portal, tick);
+        List<EntitySnapshot> visuals = scene(sceneKey, observer, portal, tick);
         ObserverState state = states.get(stateKey);
         if (state == null || state.portalKey != portalKey || full && !state.empty()) {
             boolean stale = state != null && state.portalKey == portalKey && !state.empty();
@@ -78,7 +78,7 @@ public final class ClientViewEntityFrames<P> implements ClientViewEntitySource<P
             if (!state.present.contains(id)) {
                 continue;
             }
-            if (state.pendingEvents.incrementAndGet() <= ClientViewProtocol.MAX_ENTITIES_PER_FRAME) {
+            if (state.pendingEvents.incrementAndGet() <= ViewStreamLimits.MAX_ENTITIES_PER_FRAME) {
                 state.events.add(event);
             } else {
                 state.pendingEvents.decrementAndGet();
@@ -97,7 +97,7 @@ public final class ClientViewEntityFrames<P> implements ClientViewEntitySource<P
         while ((event = state.events.poll()) != null) {
             state.pendingEvents.decrementAndGet();
             UUID id = scenes.projectedId(event.entityId());
-            EntityVisual visual = state.sent.get(id);
+            EntitySnapshot visual = state.sent.get(id);
             if (visual != null && state.present.contains(id) && scenes.visible(observer, visual)) {
                 outbound.add(new ClientViewMessage.EntityEvent(portalKey, ++state.eventSequence, id, event.hurt(), event.animation(), event.yaw()));
             }
@@ -117,13 +117,13 @@ public final class ClientViewEntityFrames<P> implements ClientViewEntitySource<P
         states.keySet().removeIf(key -> key.observer() == observer);
     }
 
-    private List<EntityVisual> scene(Object sceneKey, P observer, UUID portal, long tick) {
+    private List<EntitySnapshot> scene(Object sceneKey, P observer, UUID portal, long tick) {
         Scene scene = captured.get(sceneKey);
         if (scene != null && scene.tick == tick) {
             return scene.visuals;
         }
-        List<EntityVisual> visuals = scenes.capture(observer, portal, tick);
-        List<EntityVisual> owned = visuals == null ? List.of() : List.copyOf(visuals);
+        List<EntitySnapshot> visuals = scenes.capture(observer, portal, tick);
+        List<EntitySnapshot> owned = visuals == null ? List.of() : List.copyOf(visuals);
         captured.put(sceneKey, new Scene(tick, owned));
         return owned;
     }
@@ -140,22 +140,22 @@ public final class ClientViewEntityFrames<P> implements ClientViewEntitySource<P
     public interface Scenes<P> {
         Object sceneKey(P observer, UUID portal);
 
-        List<EntityVisual> capture(P observer, UUID portal, long tick);
+        List<EntitySnapshot> capture(P observer, UUID portal, long tick);
 
         default UUID projectedId(UUID sourceId) {
             return sourceId;
         }
 
-        default boolean visible(P observer, EntityVisual visual) {
+        default boolean visible(P observer, EntitySnapshot visual) {
             return true;
         }
 
-        default boolean isObserver(P observer, EntityVisual visual) {
+        default boolean isObserver(P observer, EntitySnapshot visual) {
             return false;
         }
     }
 
-    private record Scene(long tick, List<EntityVisual> visuals) {
+    private record Scene(long tick, List<EntitySnapshot> visuals) {
     }
 
     private record StateKey(Object observer, UUID portal) {
@@ -172,7 +172,7 @@ public final class ClientViewEntityFrames<P> implements ClientViewEntitySource<P
 
     static final class ObserverState {
         final int portalKey;
-        final HashMap<UUID, EntityVisual> sent;
+        final HashMap<UUID, EntitySnapshot> sent;
         volatile Set<UUID> present;
         boolean forcePresence;
         int sequence;
@@ -183,7 +183,7 @@ public final class ClientViewEntityFrames<P> implements ClientViewEntitySource<P
 
         ObserverState(int portalKey) {
             this.portalKey = portalKey;
-            this.sent = new HashMap<UUID, EntityVisual>();
+            this.sent = new HashMap<UUID, EntitySnapshot>();
             this.present = Set.of();
         }
 
@@ -191,18 +191,18 @@ public final class ClientViewEntityFrames<P> implements ClientViewEntitySource<P
             return sent.isEmpty() && present.isEmpty();
         }
 
-        ClientViewMessage.EntityFrame next(List<EntityVisual> visuals, Predicate<EntityVisual> visible) {
-            int count = Math.min(visuals.size(), ClientViewProtocol.MAX_PRESENT_IDS_PER_FRAME);
+        ClientViewMessage.EntityFrame next(List<EntitySnapshot> visuals, Predicate<EntitySnapshot> visible) {
+            int count = Math.min(visuals.size(), ViewStreamLimits.MAX_PRESENT_IDS_PER_FRAME);
             HashSet<UUID> current = new HashSet<UUID>(Math.max(4, count * 2));
             List<UUID> presentIds = new ArrayList<UUID>(count);
-            List<EntityVisual> outbound = new ArrayList<EntityVisual>(Math.min(count, ClientViewProtocol.MAX_ENTITIES_PER_FRAME));
+            List<EntitySnapshot> outbound = new ArrayList<EntitySnapshot>(Math.min(count, ViewStreamLimits.MAX_ENTITIES_PER_FRAME));
             for (int i = 0; i < count; i++) {
-                EntityVisual visual = visuals.get(i);
+                EntitySnapshot visual = visuals.get(i);
                 if (!visible.test(visual) || !current.add(visual.id())) {
                     continue;
                 }
-                EntityVisual previous = sent.get(visual.id());
-                if (outbound.size() >= ClientViewProtocol.MAX_ENTITIES_PER_FRAME) {
+                EntitySnapshot previous = sent.get(visual.id());
+                if (outbound.size() >= ViewStreamLimits.MAX_ENTITIES_PER_FRAME) {
                     if (previous != null) {
                         presentIds.add(visual.id());
                     } else {
@@ -212,7 +212,7 @@ public final class ClientViewEntityFrames<P> implements ClientViewEntitySource<P
                 }
                 presentIds.add(visual.id());
                 if (previous == null) {
-                    outbound.add(sequenced(visual, EntityVisual.MODE_FULL));
+                    outbound.add(sequenced(visual, EntitySnapshot.MODE_FULL));
                     sent.put(visual.id(), visual);
                     continue;
                 }
@@ -220,12 +220,12 @@ public final class ClientViewEntityFrames<P> implements ClientViewEntitySource<P
                 if (mask == 0) {
                     continue;
                 }
-                outbound.add((mask & EntityVisual.FIELD_MAP_DATA) != 0
-                    ? sequenced(visual, EntityVisual.MODE_FULL)
+                outbound.add((mask & EntitySnapshot.FIELD_MAP_DATA) != 0
+                    ? sequenced(visual, EntitySnapshot.MODE_FULL)
                     : EntityDeltaCodec.buildDelta(visual, previous, ++sequence & 0xFFFF, mask));
                 sent.put(visual.id(), visual);
             }
-            Iterator<Map.Entry<UUID, EntityVisual>> iterator = sent.entrySet().iterator();
+            Iterator<Map.Entry<UUID, EntitySnapshot>> iterator = sent.entrySet().iterator();
             while (iterator.hasNext()) {
                 if (!current.contains(iterator.next().getKey())) {
                     iterator.remove();
@@ -241,9 +241,9 @@ public final class ClientViewEntityFrames<P> implements ClientViewEntitySource<P
             return new ClientViewMessage.EntityFrame(portalKey, sequence, outbound, presenceChanged ? presentIds : List.of(), presenceChanged);
         }
 
-        private EntityVisual sequenced(EntityVisual visual, byte mode) {
+        private EntitySnapshot sequenced(EntitySnapshot visual, byte mode) {
             sequence++;
-            return new EntityVisual(mode, sequence & 0xFFFF, visual.presentMask(), visual.id(), visual.typeKey(), visual.x(), visual.y(),
+            return new EntitySnapshot(mode, sequence & 0xFFFF, visual.presentMask(), visual.id(), visual.typeKey(), visual.x(), visual.y(),
                 visual.z(), visual.height(), visual.lookX(), visual.lookY(), visual.lookZ(), visual.yaw(), visual.pitch(), visual.velocityX(),
                 visual.velocityY(), visual.velocityZ(), visual.onGround(), visual.playerName(), visual.textureValue(), visual.textureSignature(),
                 visual.passengerOf(), visual.leashHolder(), visual.metadata(), visual.equipment(), visual.mapData());

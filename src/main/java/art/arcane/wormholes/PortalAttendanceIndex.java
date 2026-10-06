@@ -12,7 +12,7 @@ import org.bukkit.Location;
 
 import art.arcane.wormholes.papi.PortalProximityIndex;
 import art.arcane.wormholes.portal.ILocalPortal;
-import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.optics.math.Box;
 
 final class PortalAttendanceIndex
 {
@@ -90,7 +90,7 @@ final class PortalAttendanceIndex
 
 	static double threshold(ILocalPortal portal)
 	{
-		AxisAlignedBB area = portal.getArea();
+		Box area = portal.getArea();
 		if(area == null)
 		{
 			return BASE_RANGE;

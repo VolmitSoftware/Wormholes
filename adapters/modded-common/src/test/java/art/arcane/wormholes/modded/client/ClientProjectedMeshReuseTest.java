@@ -4,13 +4,13 @@ import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.wormholes.modded.client.render.PortalScene;
-import art.arcane.wormholes.network.client.Brick;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
+import art.arcane.optics.stream.Brick;
+import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.SectionBiomes;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
-import art.arcane.wormholes.render.plate.PlateBox;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.stream.SectionBiomes;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.Face;
 import com.mojang.renderpearl.api.buffers.GpuBuffer;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongSet;
@@ -277,7 +277,7 @@ public class ClientProjectedMeshReuseTest extends MinecraftTestBase {
     private static final class Fixture implements AutoCloseable {
         private final ClientPortalRenderer renderer = ClientPortalRenderer.instance();
         private final ClientMeshSections store;
-        private final ClientViewEnvironment environment = PortalEnvironmentTest.environment(ClientViewEnvironment.Transform.IDENTITY);
+        private final ProjectionEnvironment environment = PortalEnvironmentTest.environment(ProjectionEnvironment.Transform.IDENTITY);
         private final RegistryAccess registry = mock(RegistryAccess.class);
         private PortalScene scene;
         private Object gpuSection;
@@ -314,8 +314,8 @@ public class ClientProjectedMeshReuseTest extends MinecraftTestBase {
 
         private Object portal(int key, ClientMeshSections.View view) throws Exception {
             scene = mock(PortalScene.class);
-            ClientPortalGeometry geometry = new ClientPortalGeometry(0, 64, 0, Direction.S.ordinal(), true, 0, true,
-                1, 2, new long[]{3}, 0, 0, 1, 64, 3, 0, 0, 0, 0, 0, ClientPortalGeometry.KIND_FRAME, 0.0D, 0, 77, List.of());
+            ApertureDescriptor geometry = new ApertureDescriptor(0, 64, 0, Face.S.ordinal(), true, 0, true,
+                1, 2, new long[]{3}, 0, 0, 1, 64, 3, 0, 0, 0, 0, 0, ApertureDescriptor.KIND_FRAME, 0.0D, 0, 77, List.of());
             when(scene.geometry()).thenReturn(geometry);
             when(scene.sectionKeys()).thenReturn(new LongArrayList());
             when(scene.revision(anyLong())).thenAnswer(call -> {

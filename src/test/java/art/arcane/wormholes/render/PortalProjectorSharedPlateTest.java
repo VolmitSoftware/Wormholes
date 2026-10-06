@@ -30,15 +30,16 @@ import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.portal.ILocalPortal;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalStructure;
-import art.arcane.wormholes.render.lod.LodPolicy;
-import art.arcane.wormholes.render.plate.ViewPlate;
-import art.arcane.wormholes.render.plate.ViewPlateBuilder;
-import art.arcane.wormholes.render.plate.ViewPlateCache;
+import art.arcane.optics.volume.LodPolicy;
+import art.arcane.optics.plate.ViewPlate;
+import art.arcane.optics.plate.ViewPlateBuilder;
+import art.arcane.optics.plate.ViewPlateCache;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.util.Cuboid;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
+import art.arcane.optics.occlusion.LocalOcclusionArbiter;
 
 /**
  * The plate is shared per portal, so its revision may only carry portal-scoped inputs. Two observers
@@ -65,7 +66,7 @@ public final class PortalProjectorSharedPlateTest {
 
     private void twoObserversShareOnePlate() throws Exception {
         PortalStructure structure = structure();
-        PortalFrame frame = PortalFrame.canonical(Direction.S);
+        Frame frame = Frame.canonical(Face.S);
         ILocalPortal portal = portal(structure, frame);
         StoneView destinationView = new StoneView();
 
@@ -95,16 +96,16 @@ public final class PortalProjectorSharedPlateTest {
     @Test
     public void observersOfOneRtpRouteShareOnePlateAndAnotherRouteGetsItsOwn() throws Exception {
         PortalStructure structure = structure();
-        PortalFrame frame = PortalFrame.canonical(Direction.S);
+        Frame frame = Frame.canonical(Face.S);
         ILocalPortal portal = portal(structure, frame);
         StoneView destinationView = new StoneView();
         World targetWorld = world(UUID.fromString("00000000-0000-0000-0000-0000000000e1"));
         PortalProjector.RtpProjectionTarget route = new PortalProjector.RtpProjectionTarget(targetWorld, 900.5D, 70.0D, -1200.5D,
-            PortalFrame.canonical(Direction.N), 3L);
+            Frame.canonical(Face.N), 3L);
         PortalProjector.RtpProjectionTarget sameRoute = new PortalProjector.RtpProjectionTarget(targetWorld, 900.5D, 70.0D, -1200.5D,
-            PortalFrame.canonical(Direction.N), 3L);
+            Frame.canonical(Face.N), 3L);
         PortalProjector.RtpProjectionTarget nextRoute = new PortalProjector.RtpProjectionTarget(targetWorld, 1400.5D, 64.0D, 300.5D,
-            PortalFrame.canonical(Direction.E), 4L);
+            Frame.canonical(Face.E), 4L);
 
         List<ViewPlateBuilder.Job<BlockData, World>> scheduled = new ArrayList<>();
         ViewPlateCache<BlockData, World> cache = new ViewPlateCache<BlockData, World>(4_000_000L, scheduled::add);
@@ -130,11 +131,11 @@ public final class PortalProjectorSharedPlateTest {
     @Test
     public void losingTheRtpRouteRetiresThatRoutesPlates() throws Exception {
         PortalStructure structure = structure();
-        ILocalPortal portal = portal(structure, PortalFrame.canonical(Direction.S));
+        ILocalPortal portal = portal(structure, Frame.canonical(Face.S));
         StoneView destinationView = new StoneView();
         PortalProjector.RtpProjectionTarget route = new PortalProjector.RtpProjectionTarget(
             world(UUID.fromString("00000000-0000-0000-0000-0000000000e3")), 30.5D, 70.0D, 30.5D,
-            PortalFrame.canonical(Direction.N), 2L);
+            Frame.canonical(Face.N), 2L);
         List<ViewPlateBuilder.Job<BlockData, World>> scheduled = new ArrayList<>();
         ViewPlateCache<BlockData, World> cache = new ViewPlateCache<BlockData, World>(4_000_000L, scheduled::add);
         PortalProjector projector = rtpProjector(portal, destinationView, cache, route);
@@ -154,11 +155,11 @@ public final class PortalProjectorSharedPlateTest {
         FidelitySettings.rtpPlates = false;
         try {
             PortalStructure structure = structure();
-            ILocalPortal portal = portal(structure, PortalFrame.canonical(Direction.S));
+            ILocalPortal portal = portal(structure, Frame.canonical(Face.S));
             StoneView destinationView = new StoneView();
             PortalProjector.RtpProjectionTarget route = new PortalProjector.RtpProjectionTarget(
                 world(UUID.fromString("00000000-0000-0000-0000-0000000000e2")), 10.5D, 70.0D, 10.5D,
-                PortalFrame.canonical(Direction.N), 1L);
+                Frame.canonical(Face.N), 1L);
             List<ViewPlateBuilder.Job<BlockData, World>> scheduled = new ArrayList<>();
             ViewPlateCache<BlockData, World> cache = new ViewPlateCache<BlockData, World>(4_000_000L, scheduled::add);
             PortalProjector projector = rtpProjector(portal, destinationView, cache, route);
@@ -175,7 +176,7 @@ public final class PortalProjectorSharedPlateTest {
         int clamp = FidelitySettings.plateLateralClampBlocks;
         try {
             PortalStructure structure = structure();
-            ILocalPortal portal = portal(structure, PortalFrame.canonical(Direction.S));
+            ILocalPortal portal = portal(structure, Frame.canonical(Face.S));
             StoneView destinationView = new StoneView();
             FidelitySettings.plateLateralClampBlocks = 64;
             long wide = predictedPlateBytes(portal, structure, destinationView);
@@ -203,7 +204,7 @@ public final class PortalProjectorSharedPlateTest {
                                                 ViewPlateCache<BlockData, World> cache,
                                                 PortalProjector.RtpProjectionTarget target) throws Exception {
         PortalProjector projector = withBukkitServer(() -> new PortalProjector(portal, viewer(8), null,
-            world -> destinationView, () -> true, new EntityRenderLocalOcclusionArbiter<>(BukkitEntityVisibility.create()), cache));
+            world -> destinationView, () -> true, new LocalOcclusionArbiter<>(BukkitEntityVisibility.create()), cache));
         Field field = PortalProjector.class.getDeclaredField("destination");
         field.setAccessible(true);
         ProjectorDestination destination = (ProjectorDestination) field.get(projector);
@@ -249,7 +250,7 @@ public final class PortalProjectorSharedPlateTest {
     }
 
     /** Runs this projector's own frustum fit the way a projection pass does, and reports its coarsening. */
-    private static boolean fitCoarse(PortalProjector projector, PortalStructure structure, PortalFrame frame, Location eye)
+    private static boolean fitCoarse(PortalProjector projector, PortalStructure structure, Frame frame, Location eye)
         throws Exception {
         Field frustumField = PortalProjector.class.getDeclaredField("viewFrustum");
         frustumField.setAccessible(true);
@@ -267,7 +268,7 @@ public final class PortalProjectorSharedPlateTest {
                                              ProjectionWorldView destinationView, ViewPlateCache<BlockData, World> cache,
                                              int clientViewDistance) throws Exception {
         PortalProjector projector = withBukkitServer(() -> new PortalProjector(portal, viewer(clientViewDistance), null,
-            world -> destinationView, () -> true, new EntityRenderLocalOcclusionArbiter<>(BukkitEntityVisibility.create()), cache));
+            world -> destinationView, () -> true, new LocalOcclusionArbiter<>(BukkitEntityVisibility.create()), cache));
         Field field = PortalProjector.class.getDeclaredField("destination");
         field.setAccessible(true);
         ProjectorDestination destination = (ProjectorDestination) field.get(projector);
@@ -311,7 +312,7 @@ public final class PortalProjectorSharedPlateTest {
         return structure;
     }
 
-    private static ILocalPortal portal(PortalStructure structure, PortalFrame frame) {
+    private static ILocalPortal portal(PortalStructure structure, Frame frame) {
         Vector origin = structure.getCenter().toVector();
         return (ILocalPortal) Proxy.newProxyInstance(
             ILocalPortal.class.getClassLoader(), new Class<?>[] {ILocalPortal.class},

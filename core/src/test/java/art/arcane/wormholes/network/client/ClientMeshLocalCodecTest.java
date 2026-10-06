@@ -11,6 +11,9 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamCapability;
+import art.arcane.optics.stream.ViewStreamLimits;
 
 final class ClientMeshLocalCodecTest {
     @Test
@@ -41,7 +44,7 @@ final class ClientMeshLocalCodecTest {
         }
         ClientViewMessage.MeshLocal message = new ClientViewMessage.MeshLocal(7, 3, 11, true, sections, entities);
         byte[] frame = ClientViewCodec.encodeC2S(message);
-        assertTrue(frame.length <= ClientViewProtocol.MAX_C2S_BYTES);
+        assertTrue(frame.length <= ViewStreamLimits.MAX_C2S_BYTES);
         assertEquals(message, ClientViewCodec.decodeC2S(frame));
     }
 
@@ -110,7 +113,7 @@ final class ClientMeshLocalCodecTest {
         ClientViewMessage.MeshLocal message = new ClientViewMessage.MeshLocal(7, 3, 11, true, List.of(), List.of());
         assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.encodeS2C(message, 0, 0));
         byte[] frame = ClientViewCodec.encodeC2S(message);
-        assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.decodeS2C(frame, ClientViewCapability.ALL));
+        assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.decodeS2C(frame, ViewStreamCapability.ALL));
     }
 
     private static byte[] emptyFrame() throws ClientViewProtocolException {

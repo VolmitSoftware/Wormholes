@@ -1,11 +1,11 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.render.ProjectionCellKey;
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
-import art.arcane.wormholes.render.plate.PlateCaptureJob;
-import art.arcane.wormholes.render.plate.ViewPlateBuilder;
-import art.arcane.wormholes.render.plate.PlateBox;
-import art.arcane.wormholes.render.view.ProjectionContentView;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.fidelity.BlockEntitySample;
+import art.arcane.optics.plate.PlateCaptureJob;
+import art.arcane.optics.plate.ViewPlateBuilder;
+import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.view.ContentView;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.PalettedContainer;
@@ -13,7 +13,7 @@ import net.minecraft.world.level.chunk.PalettedContainer;
 import java.util.Objects;
 import java.util.UUID;
 
-final class MinecraftCapturedChunkView implements ProjectionContentView<BlockState, BlockState> {
+final class MinecraftCapturedChunkView implements ContentView<BlockState, BlockState> {
     private final UUID worldId;
     private final int minHeight;
     private final int maxHeight;
@@ -110,7 +110,7 @@ final class MinecraftCapturedChunkView implements ProjectionContentView<BlockSta
         if (chunk == null || chunk.blockEntities().isEmpty()) {
             return null;
         }
-        return chunk.blockEntities().get(Long.valueOf(ProjectionCellKey.pack(x, y, z)));
+        return chunk.blockEntities().get(Long.valueOf(CellKeys.pack(x, y, z)));
     }
 
     @Override

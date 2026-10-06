@@ -3,7 +3,7 @@ package art.arcane.wormholes.render.client.session;
 import java.util.UUID;
 import java.util.List;
 
-import art.arcane.wormholes.render.ProjectedEntityEvent;
+import art.arcane.optics.entity.ProjectedEntityEvent;
 
 import art.arcane.wormholes.network.client.ClientViewMessage;
 

@@ -1,15 +1,15 @@
 package art.arcane.wormholes.door.view;
 
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import art.arcane.wormholes.door.DoorAccessPolicy;
 import art.arcane.volmlib.util.bukkit.WorldIdentity;
 import art.arcane.wormholes.ProjectionManager;
 import art.arcane.wormholes.portal.ILocalPortal;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.rtp.RtpProjectionView;
 import art.arcane.wormholes.portal.rtp.RtpRimRenderer;
 import art.arcane.wormholes.portal.rtp.RtpRotationMode;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
@@ -108,8 +108,8 @@ public final class DoorProjectionProvider implements ProjectionManager.RtpProjec
     }
 
     private static RtpProjectionView.SourceFrame sourceFrame(DoorProjectionAdapter adapter, long revision) {
-        GeometryVector origin = adapter.getOrigin();
-        PortalFrame frame = adapter.getFrame();
+        Vec3 origin = adapter.getOrigin();
+        Frame frame = adapter.getFrame();
         return new RtpProjectionView.SourceFrame(
             WorldIdentity.serialize(adapter.getWorld()),
             new RtpProjectionView.Point3(origin.getX(), origin.getY(), origin.getZ()),
@@ -122,8 +122,8 @@ public final class DoorProjectionProvider implements ProjectionManager.RtpProjec
     }
 
     private static RtpProjectionView.Target target(DoorProjectionDestination destination) {
-        GeometryVector origin = destination.origin();
-        PortalFrame frame = destination.frame();
+        Vec3 origin = destination.origin();
+        Frame frame = destination.frame();
         return new RtpProjectionView.Target(
             destination.worldKey(),
             new RtpProjectionView.Point3(origin.getX(), origin.getY(), origin.getZ()),
@@ -132,7 +132,7 @@ public final class DoorProjectionProvider implements ProjectionManager.RtpProjec
             vector(frame.getNormal().reverse()));
     }
 
-    private static RtpProjectionView.Vector3 vector(Direction direction) {
+    private static RtpProjectionView.Vector3 vector(Face direction) {
         return new RtpProjectionView.Vector3(direction.x(), direction.y(), direction.z());
     }
 

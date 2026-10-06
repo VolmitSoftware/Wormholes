@@ -1,6 +1,6 @@
 package art.arcane.wormholes.render.clientview;
 
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 
 import java.lang.reflect.Constructor;
 import java.security.SecureRandom;
@@ -11,7 +11,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import art.arcane.wormholes.render.ProjectedEntityEvent;
+import art.arcane.optics.entity.ProjectedEntityEvent;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.function.BiConsumer;
@@ -40,7 +40,7 @@ import art.arcane.volmlib.nativelib.NativeAdapters;
 import art.arcane.volmlib.nativelib.chunk.ChunkPacketAccess;
 
 import art.arcane.wormholes.Wormholes;
-import art.arcane.wormholes.network.client.ClientViewCapability;
+import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewChannel;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.portal.ArrivalWarmer;
@@ -48,22 +48,22 @@ import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.rtp.RtpRimRenderer;
 import art.arcane.wormholes.render.PortalProjector;
 import art.arcane.wormholes.render.client.session.ClientViewEntityFrames;
-import art.arcane.wormholes.render.client.session.ClientViewInbound;
+import art.arcane.optics.stream.ClientViewInbound;
 import art.arcane.wormholes.render.client.session.ClientViewOptions;
 import art.arcane.wormholes.render.client.session.ClientViewPlatform;
 import art.arcane.wormholes.render.client.session.ClientViewSceneFx;
 import art.arcane.wormholes.render.client.session.ClientViewServerSession;
 import art.arcane.wormholes.render.client.session.ClientPreparedTravelServer;
 import art.arcane.wormholes.render.client.session.ClientViewSessionRegistry;
-import art.arcane.wormholes.render.client.session.ClientViewSessionState;
-import art.arcane.wormholes.render.plate.ViewPlateCache;
+import art.arcane.optics.stream.ClientViewSessionState;
+import art.arcane.optics.plate.ViewPlateCache;
 import art.arcane.wormholes.render.view.ProjectionWorldViewProvider;
 
 public final class BukkitClientView implements ClientViewRouting {
-    public static final long PLATFORM_CAPS = ClientViewCapability.of(ClientViewCapability.PLATES, ClientViewCapability.BRICK_CACHE,
-        ClientViewCapability.DEST_LIGHT, ClientViewCapability.ENTITY_FRAMES, ClientViewCapability.ENTITY_SELF, ClientViewCapability.ENTITY_EVENTS, ClientViewCapability.FX_EMITTERS, ClientViewCapability.ATMOSPHERE,
-        ClientViewCapability.CONFIG_PHASE, ClientViewCapability.LINK_UNCOMPRESSED, ClientViewCapability.VIEW_STATS,
-        ClientViewCapability.CLIENT_MIRROR, ClientViewCapability.CLIENT_RECURSION, ClientViewCapability.MESH_RENDER, ClientViewCapability.LOCAL_MESH, ClientViewCapability.MESH_REUSE);
+    public static final long PLATFORM_CAPS = ViewStreamCapability.of(ViewStreamCapability.PLATES, ViewStreamCapability.BRICK_CACHE,
+        ViewStreamCapability.DEST_LIGHT, ViewStreamCapability.ENTITY_FRAMES, ViewStreamCapability.ENTITY_SELF, ViewStreamCapability.ENTITY_EVENTS, ViewStreamCapability.FX_EMITTERS, ViewStreamCapability.ATMOSPHERE,
+        ViewStreamCapability.CONFIG_PHASE, ViewStreamCapability.LINK_UNCOMPRESSED, ViewStreamCapability.VIEW_STATS,
+        ViewStreamCapability.CLIENT_MIRROR, ViewStreamCapability.CLIENT_RECURSION, ViewStreamCapability.MESH_RENDER, ViewStreamCapability.LOCAL_MESH, ViewStreamCapability.MESH_REUSE);
     private static final long SOURCE_STALE_TICKS = 40L;
     private static final double PARTICLE_RANGE_SQUARED = 32.0D * 32.0D;
     private static final String CONFIGURE_EVENT_CLASS = "io.papermc.paper.event.connection.configuration.AsyncPlayerConnectionConfigureEvent";
@@ -96,7 +96,7 @@ public final class BukkitClientView implements ClientViewRouting {
         this.scene = portals.scene();
         this.travelPackets = NativeAdapters.find(ChunkPacketAccess.class).orElse(null);
         long platformCaps = PLATFORM_CAPS | (travelPackets != null && travelPackets.snapshotSupported()
-            ? ClientViewCapability.PREPARED_TRAVEL.mask() | ClientViewCapability.PREPARED_TRAVEL_CACHE.mask() : 0L);
+            ? ViewStreamCapability.PREPARED_TRAVEL.mask() | ViewStreamCapability.PREPARED_TRAVEL_CACHE.mask() : 0L);
         ClientViewPlatform<ClientViewObserver, BlockData> platform = new ClientViewPlatform<ClientViewObserver, BlockData>(transport, portals,
             new ClientViewEntityFrames<ClientViewObserver>(portals.scene()), new ClientViewSceneFx<ClientViewObserver>(portals.scene()), null, lanes,
             BlockData::getAsString, options.mcDataVersion(), platformCaps, null, this::warn);
@@ -183,7 +183,7 @@ public final class BukkitClientView implements ClientViewRouting {
         return FoliaScheduler.runEntity(owner, player, () -> session.reset(ClientViewMessage.ResetReason.TELEPORT));
     }
 
-    public ClientViewMessage.TravelCommit commitTravel(Player player, UUID source, Location destination, GeometryVector velocity) {
+    public ClientViewMessage.TravelCommit commitTravel(Player player, UUID source, Location destination, Vec3 velocity) {
         ClientViewServerSession<ClientViewObserver, BlockData> session = registry.session(player.getUniqueId());
         BukkitPreparedTravel current = prepared;
         ClientViewMessage.TravelCommit commit = session == null || current == null || !session.preparedTravelSelected()
@@ -467,7 +467,7 @@ public final class BukkitClientView implements ClientViewRouting {
             }
             return;
         }
-        observer.meshDepth(ClientViewCapability.MESH_RENDER.in(session.caps())
+        observer.meshDepth(ViewStreamCapability.MESH_RENDER.in(session.caps())
             ? Math.clamp(player.getClientViewDistance(), 2, 32) * 16 : 0);
         observer.beginFrame(player, eye, interested, projectable, rtpTargets, frameTick);
         ArrivalWarmer warmer = Wormholes.arrivalWarmer;

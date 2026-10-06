@@ -7,12 +7,12 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import art.arcane.wormholes.network.client.ClientViewCodec;
-import art.arcane.wormholes.network.client.ClientViewCapability;
-import art.arcane.wormholes.network.client.BrickLightSource;
+import art.arcane.optics.stream.ViewStreamCapability;
+import art.arcane.optics.stream.BrickLightSource;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewMessageType;
-import art.arcane.wormholes.network.client.ClientViewProtocolException;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
+import art.arcane.optics.stream.ViewStreamMessageType;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamLimits;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -24,14 +24,17 @@ import java.util.Set;
 import java.util.HashSet;
 import java.util.ArrayList;
 import java.util.ArrayDeque;
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
+import art.arcane.optics.math.Vec3;
+import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.wormholes.network.client.SessionPalette;
-import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
-import art.arcane.wormholes.render.plate.PlateBox;
+import art.arcane.optics.view.WorldChangeTracker;
+import art.arcane.optics.plate.PlateBox;
 import art.arcane.wormholes.render.plate.PlateTestFixtures;
-import art.arcane.wormholes.render.plate.ViewPlate;
+import art.arcane.optics.plate.ViewPlate;
 import java.util.UUID;
+import art.arcane.optics.client.MeshPlan;
+import art.arcane.optics.stream.ClientViewInbound;
+import art.arcane.optics.stream.ClientViewSessionState;
 
 final class ClientMeshStreamTest {
     @Test
@@ -48,7 +51,7 @@ final class ClientMeshStreamTest {
             slots.add(slot);
         }
         ClientMeshStream<String> stream = new ClientMeshStream<String>();
-        GeometryVector eye = new GeometryVector(11, 67, 15);
+        Vec3 eye = new Vec3(11, 67, 15);
         int[] received = new int[3];
         for (int tick = 1; tick <= 11; tick++) {
             int calls = access.meshCalls;
@@ -85,7 +88,7 @@ final class ClientMeshStreamTest {
         root.sentGeometry = root.geometry;
         root.laneAttached = true;
         root.announced = true;
-        GeometryVector eye = new GeometryVector(11, 67, 15);
+        Vec3 eye = new Vec3(11, 67, 15);
         ClientMeshStream<String> stream = new ClientMeshStream<String>();
         stream.beginTick();
         stream.refresh(blocked, access, "observer", 1, SessionHarness.TICK_NANOS, false, eye);
@@ -96,7 +99,7 @@ final class ClientMeshStreamTest {
         ClientMeshStream.Ready<String> first = stream.poll(SessionHarness.TICK_NANOS * 2);
         assertTrue(first != null);
         assertEquals(root.key, first.slot().key);
-        assertEquals(ClientMeshPlan.visible(root.geometry, eye).getFirst().coordinate(), first.coordinate());
+        assertEquals(MeshPlan.visible(root.geometry, eye).getFirst().coordinate(), first.coordinate());
         acknowledge(stream, first);
         ClientMeshStream.Ready<String> next;
         while ((next = stream.poll(SessionHarness.TICK_NANOS * 2)) != null) {
@@ -119,26 +122,26 @@ final class ClientMeshStreamTest {
         SessionPortal mirror = harness.access.add(new SessionPortal("native-mirror", 0));
         mirror.mirror = true;
         mirror.refused = true;
-        harness.handshake(SessionHarness.NATIVE_CAPS & ~ClientViewCapability.CLIENT_MIRROR.mask());
+        harness.handshake(SessionHarness.NATIVE_CAPS & ~ViewStreamCapability.CLIENT_MIRROR.mask());
         for (int tick = 0; tick < 8; tick++) {
             harness.tick();
         }
         assertTrue(harness.session.owns(mirror.id));
-        ClientViewMessage.Portal portal = (ClientViewMessage.Portal) harness.last(ClientViewMessageType.PORTAL);
+        ClientViewMessage.Portal portal = (ClientViewMessage.Portal) harness.last(ViewStreamMessageType.PORTAL);
         assertTrue(portal.geometry().mirror());
         assertEquals(208, portal.geometry().depthBlocks());
-        assertEquals(ClientMeshStream.MAX_IN_FLIGHT, harness.sent(ClientViewMessageType.MESH_SECTION));
+        assertEquals(ClientMeshStream.MAX_IN_FLIGHT, harness.sent(ViewStreamMessageType.MESH_SECTION));
         assertTrue(harness.access.plateRequested.isEmpty());
         assertTrue(harness.access.refusalChecked.isEmpty());
-        ClientViewMessage.MeshSection section = (ClientViewMessage.MeshSection) harness.last(ClientViewMessageType.MESH_SECTION);
+        ClientViewMessage.MeshSection section = (ClientViewMessage.MeshSection) harness.last(ViewStreamMessageType.MESH_SECTION);
         assertEquals(ClientViewInbound.HANDLED, harness.c2s(ClientViewCodec.encodeC2S(ack(section))));
         harness.tick();
-        assertEquals(ClientMeshStream.MAX_IN_FLIGHT + 1, harness.sent(ClientViewMessageType.MESH_SECTION));
+        assertEquals(ClientMeshStream.MAX_IN_FLIGHT + 1, harness.sent(ViewStreamMessageType.MESH_SECTION));
     }
 
     @Test
     void fullSpeedMeshAndFrameAcknowledgementsKeepTheSessionActive() throws ClientViewProtocolException {
-        SessionHarness harness = new SessionHarness(SessionHarness.options(false, ClientViewProtocol.DEFAULT_ACK_WINDOW_FRAMES));
+        SessionHarness harness = new SessionHarness(SessionHarness.options(false, ViewStreamLimits.DEFAULT_ACK_WINDOW_FRAMES));
         harness.c2sSpacingNanos = 0L;
         harness.client.autoAck = true;
         harness.access.meshDistance = 512;
@@ -168,16 +171,16 @@ final class ClientMeshStreamTest {
     @CsvSource({"false, 0", "true, 0", "false, 128", "true, 128"})
     void dirtyResidentRefreshesDuringInitialCoverageAndWaitsForReplacement(boolean reclaimed, int targetIndex) throws ReflectiveOperationException {
         FakePortalAccess access = new FakePortalAccess(new ArrayList<String>());
-        access.meshChanges = new ProjectionWorldChangeTracker();
+        access.meshChanges = new WorldChangeTracker();
         SessionPortal portal = access.add(new SessionPortal("dirty-refresh", 0));
         ClientViewPortalSlot<String> slot = new ClientViewPortalSlot<String>(portal.id, 1, false);
         slot.geometry = portal.geometry(new SessionPalette()).withDepth(512);
         slot.sentGeometry = slot.geometry;
         slot.announced = true;
         slot.laneAttached = true;
-        GeometryVector eye = new GeometryVector(11, 67, 15);
-        List<ClientMeshPlan.Section> visible = ClientMeshPlan.visible(slot.geometry, eye);
-        ClientMeshPlan.Section target = visible.get(targetIndex);
+        Vec3 eye = new Vec3(11, 67, 15);
+        List<MeshPlan.Section> visible = MeshPlan.visible(slot.geometry, eye);
+        MeshPlan.Section target = visible.get(targetIndex);
         PlateBox clip = target.clip();
         UUID world = UUID.randomUUID();
         UUID unchangedWorld = targetIndex == 0 ? world : UUID.randomUUID();
@@ -188,7 +191,7 @@ final class ClientMeshStreamTest {
         ViewPlate<String> previous = PlateTestFixtures.tracked(portal.id, clip, world, 0);
         access.meshPlates.put(clip, previous);
         ClientMeshStream<String> stream = new ClientMeshStream<String>();
-        Set<ClientMeshPlan.Coordinate> received = new HashSet<ClientMeshPlan.Coordinate>();
+        Set<MeshPlan.Coordinate> received = new HashSet<MeshPlan.Coordinate>();
         int tick = 1;
         for (; tick <= 40; tick++) {
             ClientMeshStream.Ready<String> section = capture(stream, slot, access, eye, tick);
@@ -272,8 +275,8 @@ final class ClientMeshStreamTest {
         slot.announced = true;
         slot.laneAttached = true;
         ClientMeshStream<String> stream = new ClientMeshStream<String>();
-        GeometryVector eye = new GeometryVector(11, 67, 15);
-        int sectionCount = ClientMeshPlan.visible(slot.geometry, eye).size();
+        Vec3 eye = new Vec3(11, 67, 15);
+        int sectionCount = MeshPlan.visible(slot.geometry, eye).size();
         assertTrue(sectionCount > ClientMeshStream.MAX_PENDING_CAPTURES);
 
         for (int step = 1; step <= sectionCount * 3; step++) {
@@ -299,11 +302,11 @@ final class ClientMeshStreamTest {
         slot.announced = true;
         slot.laneAttached = true;
         ClientMeshStream<String> stream = new ClientMeshStream<String>();
-        GeometryVector eye = new GeometryVector(11, 67, 15);
-        GeometryVector moved = new GeometryVector(12, 67, 15);
-        ArrayList<ClientMeshPlan.Coordinate> residents = new ArrayList<ClientMeshPlan.Coordinate>();
-        Set<ClientMeshPlan.Coordinate> movedVisible = new HashSet<ClientMeshPlan.Coordinate>();
-        for (ClientMeshPlan.Section section : ClientMeshPlan.visible(slot.geometry, moved)) {
+        Vec3 eye = new Vec3(11, 67, 15);
+        Vec3 moved = new Vec3(12, 67, 15);
+        ArrayList<MeshPlan.Coordinate> residents = new ArrayList<MeshPlan.Coordinate>();
+        Set<MeshPlan.Coordinate> movedVisible = new HashSet<MeshPlan.Coordinate>();
+        for (MeshPlan.Section section : MeshPlan.visible(slot.geometry, moved)) {
             movedVisible.add(section.coordinate());
         }
         for (int step = 1; step <= 64; step++) {
@@ -316,7 +319,7 @@ final class ClientMeshStreamTest {
             }
         }
         assertTrue(residents.size() > 128);
-        ClientMeshPlan.Coordinate changed = null;
+        MeshPlan.Coordinate changed = null;
         for (int index = residents.size() - 1; index >= 128; index--) {
             if (movedVisible.contains(residents.get(index))) {
                 changed = residents.get(index);
@@ -324,7 +327,7 @@ final class ClientMeshStreamTest {
             }
         }
         assertTrue(changed != null);
-        access.meshPlates.remove(new ClientMeshPlan.Section(changed.x(), changed.y(), changed.z(), 0).clip());
+        access.meshPlates.remove(new MeshPlan.Section(changed.x(), changed.y(), changed.z(), 0).clip());
         boolean refreshed = false;
         for (int step = 65; step <= 320 && !refreshed; step++) {
             int tick = step * 20;
@@ -348,15 +351,15 @@ final class ClientMeshStreamTest {
         slot.announced = true;
         slot.laneAttached = true;
         ClientMeshStream<String> stream = new ClientMeshStream<String>();
-        Set<ClientMeshPlan.Coordinate> received = new HashSet<ClientMeshPlan.Coordinate>();
+        Set<MeshPlan.Coordinate> received = new HashSet<MeshPlan.Coordinate>();
         for (int tick = 1; tick <= 100; tick++) {
-            GeometryVector eye = new GeometryVector(11 + (tick / 8 % 2), 67, 15);
+            Vec3 eye = new Vec3(11 + (tick / 8 % 2), 67, 15);
             stream.beginTick();
             stream.refresh(slot, access, "observer", tick, tick * SessionHarness.TICK_NANOS, false, eye);
             ClientViewMessage control;
             while ((control = stream.pollControl(key -> true)) != null) {
                 if (control instanceof ClientViewMessage.MeshDrop drop) {
-                    received.remove(new ClientMeshPlan.Coordinate(drop.sectionX(), drop.sectionY(), drop.sectionZ()));
+                    received.remove(new MeshPlan.Coordinate(drop.sectionX(), drop.sectionY(), drop.sectionZ()));
                 }
             }
             ClientMeshStream.Ready<String> section;
@@ -376,18 +379,18 @@ final class ClientMeshStreamTest {
         for (int tick = 0; tick < 8; tick++) {
             harness.tick();
         }
-        assertEquals(ClientMeshStream.MAX_IN_FLIGHT, harness.sent(ClientViewMessageType.MESH_SECTION));
-        assertEquals(0, harness.sent(ClientViewMessageType.PLATE_BEGIN));
+        assertEquals(ClientMeshStream.MAX_IN_FLIGHT, harness.sent(ViewStreamMessageType.MESH_SECTION));
+        assertEquals(0, harness.sent(ViewStreamMessageType.PLATE_BEGIN));
         assertTrue(harness.access.plateRequested.isEmpty());
-        ClientViewMessage.Portal portal = (ClientViewMessage.Portal) harness.last(ClientViewMessageType.PORTAL);
+        ClientViewMessage.Portal portal = (ClientViewMessage.Portal) harness.last(ViewStreamMessageType.PORTAL);
         assertEquals(512, portal.geometry().depthBlocks());
-        ClientViewMessage.MeshBegin begin = (ClientViewMessage.MeshBegin) harness.last(ClientViewMessageType.MESH_BEGIN);
+        ClientViewMessage.MeshBegin begin = (ClientViewMessage.MeshBegin) harness.last(ViewStreamMessageType.MESH_BEGIN);
         assertEquals(513, begin.bounds().sizeZ());
-        assertEquals(ClientMeshPlan.capacity(portal.geometry()), begin.maxResidentSections());
-        ClientViewMessage.MeshSection section = (ClientViewMessage.MeshSection) harness.last(ClientViewMessageType.MESH_SECTION);
+        assertEquals(MeshPlan.capacity(portal.geometry()), begin.maxResidentSections());
+        ClientViewMessage.MeshSection section = (ClientViewMessage.MeshSection) harness.last(ViewStreamMessageType.MESH_SECTION);
         assertEquals(ClientViewInbound.HANDLED, harness.c2s(ClientViewCodec.encodeC2S(ack(section))));
         harness.tick();
-        assertEquals(ClientMeshStream.MAX_IN_FLIGHT + 1, harness.sent(ClientViewMessageType.MESH_SECTION));
+        assertEquals(ClientMeshStream.MAX_IN_FLIGHT + 1, harness.sent(ViewStreamMessageType.MESH_SECTION));
         assertTrue(harness.warnings.isEmpty(), harness.warnings.toString());
     }
 
@@ -395,10 +398,10 @@ final class ClientMeshStreamTest {
     void retargetDropsOldGenerationCreditsAndIgnoresLateAcks() throws ClientViewProtocolException {
         SessionHarness harness = meshHarness();
         harness.tick();
-        ClientViewMessage.MeshSection old = (ClientViewMessage.MeshSection) harness.last(ClientViewMessageType.MESH_SECTION);
+        ClientViewMessage.MeshSection old = (ClientViewMessage.MeshSection) harness.last(ViewStreamMessageType.MESH_SECTION);
         harness.access.meshDistance = 256;
         harness.tick();
-        ClientViewMessage.MeshSection replacement = (ClientViewMessage.MeshSection) harness.last(ClientViewMessageType.MESH_SECTION);
+        ClientViewMessage.MeshSection replacement = (ClientViewMessage.MeshSection) harness.last(ViewStreamMessageType.MESH_SECTION);
         assertTrue(replacement.generation() > old.generation());
         assertEquals(ClientViewInbound.IGNORED, harness.c2s(ClientViewCodec.encodeC2S(ack(old))));
         assertEquals(ClientViewInbound.HANDLED, harness.c2s(ClientViewCodec.encodeC2S(ack(replacement))));
@@ -420,7 +423,7 @@ final class ClientMeshStreamTest {
         assertEquals(ClientViewSessionState.CLIENT_VIEW, harness.session.state());
         assertTrue(harness.session.owns(harness.access.portals.keySet().iterator().next()));
         assertTrue(harness.warnings.isEmpty(), harness.warnings.toString());
-        ClientViewMessage.MeshSection replacement = (ClientViewMessage.MeshSection) harness.last(ClientViewMessageType.MESH_SECTION);
+        ClientViewMessage.MeshSection replacement = (ClientViewMessage.MeshSection) harness.last(ViewStreamMessageType.MESH_SECTION);
         assertTrue(replacement.generation() > 1);
     }
 
@@ -431,11 +434,11 @@ final class ClientMeshStreamTest {
         for (int tick = 0; tick < 5; tick++) {
             harness.tick();
         }
-        assertEquals(0, harness.sent(ClientViewMessageType.MESH_SECTION));
+        assertEquals(0, harness.sent(ViewStreamMessageType.MESH_SECTION));
         assertTrue(harness.access.meshCalls <= 5 * ClientMeshStream.SECTION_CHECKS_PER_TICK);
         harness.access.meshReady = true;
         harness.tick();
-        assertEquals(ClientMeshStream.MAX_PENDING_CAPTURES, harness.sent(ClientViewMessageType.MESH_SECTION));
+        assertEquals(ClientMeshStream.MAX_PENDING_CAPTURES, harness.sent(ViewStreamMessageType.MESH_SECTION));
         assertFalse(harness.access.meshPlates.isEmpty());
     }
 
@@ -443,7 +446,7 @@ final class ClientMeshStreamTest {
     void stalledNearCapturesDoNotBlockOtherVisibleSections() throws ClientViewProtocolException {
         SessionHarness harness = meshHarness();
         SessionPortal portal = harness.access.portals.values().iterator().next();
-        List<ClientMeshPlan.Section> order = ClientMeshPlan.visible(portal.geometry(new SessionPalette()).withDepth(512), harness.access.eye);
+        List<MeshPlan.Section> order = MeshPlan.visible(portal.geometry(new SessionPalette()).withDepth(512), harness.access.eye);
         harness.access.unavailableMesh.add(order.get(0).clip());
         harness.access.unavailableMesh.add(order.get(1).clip());
         for (int tick = 0; tick < 8; tick++) {
@@ -451,7 +454,7 @@ final class ClientMeshStreamTest {
             harness.tick();
             assertTrue(harness.access.meshCalls - before <= ClientMeshStream.SECTION_CHECKS_PER_TICK);
         }
-        assertTrue(harness.sent(ClientViewMessageType.MESH_SECTION) > 4);
+        assertTrue(harness.sent(ViewStreamMessageType.MESH_SECTION) > 4);
         assertTrue(harness.warnings.isEmpty(), harness.warnings.toString());
     }
 
@@ -465,7 +468,7 @@ final class ClientMeshStreamTest {
         slot.announced = true;
         slot.laneAttached = true;
         ClientMeshStream<String> stream = new ClientMeshStream<String>();
-        GeometryVector eye = new GeometryVector(11, 67, 15);
+        Vec3 eye = new Vec3(11, 67, 15);
         ClientMeshStream.Ready<String> first = capture(stream, slot, access, eye, 1);
         acknowledge(stream, first);
         ClientMeshStream.Ready<String> next;
@@ -486,7 +489,7 @@ final class ClientMeshStreamTest {
             }
         }
         assertTrue(refreshed);
-        assertTrue(access.meshPlates.size() < ClientMeshPlan.visible(slot.geometry, eye).size());
+        assertTrue(access.meshPlates.size() < MeshPlan.visible(slot.geometry, eye).size());
     }
 
     @Test
@@ -506,7 +509,7 @@ final class ClientMeshStreamTest {
         for (int tick = 0; tick < 80; tick++) {
             harness.tick();
         }
-        assertEquals(0, harness.sent(ClientViewMessageType.MESH_SECTION));
+        assertEquals(0, harness.sent(ViewStreamMessageType.MESH_SECTION));
         assertTrue(harness.warnings.isEmpty(), harness.warnings.toString());
     }
 
@@ -531,7 +534,7 @@ final class ClientMeshStreamTest {
         }
         assertEquals(2, streamed.size());
         assertEquals(2, harness.client.portals.size());
-        assertEquals(0, harness.sent(ClientViewMessageType.PLATE_BEGIN));
+        assertEquals(0, harness.sent(ViewStreamMessageType.PLATE_BEGIN));
         assertTrue(harness.warnings.isEmpty(), harness.warnings.toString());
     }
 
@@ -540,16 +543,16 @@ final class ClientMeshStreamTest {
         FakePortalAccess access = new FakePortalAccess(new ArrayList<String>());
         SessionPortal portal = access.add(new SessionPortal("stable parent", 0));
         ClientViewPortalSlot<String> slot = new ClientViewPortalSlot<String>(portal.id, 1, false);
-        ClientPortalGeometry base = portal.geometry(new SessionPalette()).withDepth(512);
+        ApertureDescriptor base = portal.geometry(new SessionPalette()).withDepth(512);
         slot.geometry = base;
         slot.sentGeometry = slot.geometry;
         slot.announced = true;
         slot.laneAttached = true;
         ClientMeshStream<String> stream = new ClientMeshStream<String>();
         ClientMeshStream.Ready<String> retained = removableCapture(stream, slot, access);
-        ClientPortalGeometry first = base.withParent(1);
-        ClientPortalGeometry second = base.withParent(2);
-        List<ClientPortalGeometry> changes = List.of(base.withNested(List.of(first)),
+        ApertureDescriptor first = base.withParent(1);
+        ApertureDescriptor second = base.withParent(2);
+        List<ApertureDescriptor> changes = List.of(base.withNested(List.of(first)),
             base.withNested(List.of(first.withNested(List.of(second)), second)),
             base.withNested(List.of(second, first)), base);
         for (int index = 0; index < changes.size(); index++) {
@@ -557,7 +560,7 @@ final class ClientMeshStreamTest {
             slot.sentGeometry = slot.geometry;
             stream.beginTick();
             stream.refresh(slot, access, "observer", 1000 + index, (1000 + index) * SessionHarness.TICK_NANOS,
-                false, new GeometryVector(11, 67, 15));
+                false, new Vec3(11, 67, 15));
             assertTrue(stream.current(retained));
             ClientViewMessage control;
             while ((control = stream.pollControl(key -> true)) != null) {
@@ -569,7 +572,7 @@ final class ClientMeshStreamTest {
         slot.sentGeometry = slot.geometry;
         stream.beginTick();
         stream.refresh(slot, access, "observer", 1004, 1004 * SessionHarness.TICK_NANOS,
-            false, new GeometryVector(11, 67, 15));
+            false, new Vec3(11, 67, 15));
         assertFalse(stream.current(retained));
         assertTrue(stream.pollControl(key -> true) instanceof ClientViewMessage.MeshBegin begin
             && begin.generation() > retained.generation());
@@ -589,7 +592,7 @@ final class ClientMeshStreamTest {
         assertTrue(stream.current(retained));
         stream.beginTick();
         stream.refresh(slot, access, "observer", 1000, 1000 * SessionHarness.TICK_NANOS,
-            false, new GeometryVector(150, 67, 15));
+            false, new Vec3(150, 67, 15));
         ClientViewMessage control;
         while ((control = stream.pollControl(key -> true)) != null) {
             assertFalse(control instanceof ClientViewMessage.MeshDrop);
@@ -615,7 +618,7 @@ final class ClientMeshStreamTest {
             tasks.remove().run();
         }
         harness.pump();
-        ClientViewMessage.MeshBegin old = (ClientViewMessage.MeshBegin) harness.last(ClientViewMessageType.MESH_BEGIN);
+        ClientViewMessage.MeshBegin old = (ClientViewMessage.MeshBegin) harness.last(ViewStreamMessageType.MESH_BEGIN);
         harness.c2s(ClientViewCodec.encodeC2S(new ClientViewMessage.PlateRefused(old.portalKey(), old.generation())));
         harness.access.meshDistance = 256;
         harness.tick();
@@ -625,7 +628,7 @@ final class ClientMeshStreamTest {
         harness.pump();
         harness.tick();
         assertTrue(harness.session.owns(portal.id));
-        assertEquals(0, harness.sent(ClientViewMessageType.PORTAL_DROP));
+        assertEquals(0, harness.sent(ViewStreamMessageType.PORTAL_DROP));
         assertTrue(harness.warnings.isEmpty(), harness.warnings.toString());
     }
 
@@ -638,7 +641,7 @@ final class ClientMeshStreamTest {
         slot.sentGeometry = slot.geometry;
         slot.announced = true;
         slot.laneAttached = true;
-        GeometryVector eye = new GeometryVector(11, 67, 15);
+        Vec3 eye = new Vec3(11, 67, 15);
         ClientMeshStream<String> stream = new ClientMeshStream<String>();
         stream.beginTick();
         stream.refresh(slot, access, "observer", 1, 0, false, eye);
@@ -659,22 +662,22 @@ final class ClientMeshStreamTest {
         SessionPortal second = harness.access.add(new SessionPortal("second", 32));
         harness.handshake(SessionHarness.NATIVE_CAPS);
         harness.tick();
-        ClientViewMessage.MeshBegin begin = (ClientViewMessage.MeshBegin) harness.last(ClientViewMessageType.MESH_BEGIN);
+        ClientViewMessage.MeshBegin begin = (ClientViewMessage.MeshBegin) harness.last(ViewStreamMessageType.MESH_BEGIN);
         int refusedOrigin = harness.client.portals.get(begin.portalKey()).originX();
         SessionPortal refused = refusedOrigin == first.offsetX + 10 ? first : second;
         SessionPortal retained = refused == first ? second : first;
         harness.c2s(ClientViewCodec.encodeC2S(new ClientViewMessage.PlateRefused(begin.portalKey(), begin.generation())));
         harness.pump();
-        assertEquals(1, harness.sent(ClientViewMessageType.PORTAL_DROP));
+        assertEquals(1, harness.sent(ViewStreamMessageType.PORTAL_DROP));
         assertTrue(harness.session.owns(refused.id));
         harness.tick();
         assertTrue(harness.session.owns(refused.id));
         assertTrue(harness.session.owns(retained.id));
-        int before = harness.sent(ClientViewMessageType.MESH_BEGIN);
+        int before = harness.sent(ViewStreamMessageType.MESH_BEGIN);
         for (int tick = 0; tick <= ClientViewServerSession.NATIVE_RETRY_TICKS; tick++) {
             harness.tick();
         }
-        assertTrue(harness.sent(ClientViewMessageType.MESH_BEGIN) > before);
+        assertTrue(harness.sent(ViewStreamMessageType.MESH_BEGIN) > before);
         assertTrue(harness.session.owns(refused.id));
         assertEquals(ClientViewSessionState.CLIENT_VIEW, harness.session.state());
         assertTrue(harness.warnings.isEmpty(), harness.warnings.toString());
@@ -684,11 +687,11 @@ final class ClientMeshStreamTest {
     void teleportResetDiscardsOldCreditsAndStartsFreshPortalKeys() throws ClientViewProtocolException {
         SessionHarness harness = meshHarness();
         harness.tick();
-        ClientViewMessage.MeshSection old = (ClientViewMessage.MeshSection) harness.last(ClientViewMessageType.MESH_SECTION);
+        ClientViewMessage.MeshSection old = (ClientViewMessage.MeshSection) harness.last(ViewStreamMessageType.MESH_SECTION);
         harness.session.reset(ClientViewMessage.ResetReason.TELEPORT);
         harness.pump();
         harness.tick();
-        ClientViewMessage.MeshSection next = (ClientViewMessage.MeshSection) harness.last(ClientViewMessageType.MESH_SECTION);
+        ClientViewMessage.MeshSection next = (ClientViewMessage.MeshSection) harness.last(ViewStreamMessageType.MESH_SECTION);
         assertTrue(next.portalKey() != old.portalKey());
         assertTrue(next.generation() > old.generation());
         assertEquals(ClientViewInbound.IGNORED, harness.c2s(ClientViewCodec.encodeC2S(ack(old))));
@@ -704,8 +707,8 @@ final class ClientMeshStreamTest {
         harness.clock.addAndGet(ClientMeshStream.TIMEOUT_NANOS);
         harness.tick();
         assertEquals(ClientViewSessionState.CLIENT_VIEW, harness.session.state());
-        assertEquals(1, harness.sent(ClientViewMessageType.PORTAL_DROP));
-        assertEquals(0, harness.sent(ClientViewMessageType.MESH_SECTION));
+        assertEquals(1, harness.sent(ViewStreamMessageType.PORTAL_DROP));
+        assertEquals(0, harness.sent(ViewStreamMessageType.MESH_SECTION));
         assertEquals(1, harness.warnings.size());
         assertTrue(harness.warnings.getFirst().getCause().getMessage().contains("capture timeout"));
     }
@@ -719,23 +722,23 @@ final class ClientMeshStreamTest {
         for (int tick = 0; tick < 32; tick++) {
             harness.clock.addAndGet(ClientMeshStream.TIMEOUT_NANOS);
             harness.tick();
-            assertEquals(0, harness.sent(ClientViewMessageType.PORTAL_DROP));
+            assertEquals(0, harness.sent(ViewStreamMessageType.PORTAL_DROP));
         }
         harness.access.meshQueued = false;
         harness.clock.addAndGet(ClientMeshStream.TIMEOUT_NANOS);
         harness.tick();
-        assertEquals(1, harness.sent(ClientViewMessageType.PORTAL_DROP));
+        assertEquals(1, harness.sent(ViewStreamMessageType.PORTAL_DROP));
         assertTrue(harness.warnings.getFirst().getCause().getMessage().contains("capture timeout"));
     }
 
     private static ClientMeshStream.Ready<String> removableCapture(ClientMeshStream<String> stream,
         ClientViewPortalSlot<String> slot, FakePortalAccess access) {
-        Set<ClientMeshPlan.Coordinate> moved = new HashSet<ClientMeshPlan.Coordinate>();
-        for (ClientMeshPlan.Section section : ClientMeshPlan.visible(slot.geometry, new GeometryVector(150, 67, 15))) {
+        Set<MeshPlan.Coordinate> moved = new HashSet<MeshPlan.Coordinate>();
+        for (MeshPlan.Section section : MeshPlan.visible(slot.geometry, new Vec3(150, 67, 15))) {
             moved.add(section.coordinate());
         }
         for (int tick = 1; tick < 1000; tick++) {
-            ClientMeshStream.Ready<String> next = capture(stream, slot, access, new GeometryVector(11, 67, 15), tick);
+            ClientMeshStream.Ready<String> next = capture(stream, slot, access, new Vec3(11, 67, 15), tick);
             ClientMeshStream.Ready<String> selected = null;
             while (next != null) {
                 if (selected == null && !moved.contains(next.coordinate())) {
@@ -758,7 +761,7 @@ final class ClientMeshStreamTest {
     }
 
     private static ClientMeshStream.Ready<String> capture(ClientMeshStream<String> stream, ClientViewPortalSlot<String> slot,
-                                                          FakePortalAccess access, GeometryVector eye, int tick) {
+                                                          FakePortalAccess access, Vec3 eye, int tick) {
         stream.beginTick();
         stream.refresh(slot, access, "observer", tick, tick * SessionHarness.TICK_NANOS, false, eye);
         while (stream.pollControl(key -> true) != null) {

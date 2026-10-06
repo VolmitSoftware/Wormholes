@@ -3,9 +3,9 @@ package art.arcane.wormholes.modded.client.render;
 import art.arcane.wormholes.modded.client.ClientMeshWorld;
 import art.arcane.wormholes.modded.client.WormholesClient;
 
-import art.arcane.wormholes.render.client.ClientPortalAperture;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
+import art.arcane.optics.aperture.AperturePolygon;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import com.mojang.blaze3d.ProjectionType;
 import com.mojang.blaze3d.pipeline.RenderTarget;
@@ -110,7 +110,7 @@ public final class ClientPortalRenderer {
     private Portal travel;
     private Portal arrival;
     private Portal travelSource;
-    private ClientViewEnvironment travelSourceEnvironment;
+    private ProjectionEnvironment travelSourceEnvironment;
     private PortalShaderRenderer.Session travelSourceShaders;
     private CameraRenderState travelCamera;
     private final CameraRenderState travelDisplayCamera = new CameraRenderState();
@@ -172,7 +172,7 @@ public final class ClientPortalRenderer {
     }
 
     public void prepareTravelSource(ClientTravelScene scene) {
-        ClientViewEnvironment environment = scene.environment();
+        ProjectionEnvironment environment = scene.environment();
         if (environment != null && environment.equals(travelSourceEnvironment)) {
             Portal previous = portals.remove(-3);
             if (previous != null) {
@@ -194,7 +194,7 @@ public final class ClientPortalRenderer {
         travelSourceShaders = null;
     }
 
-    public void prepareTravelSourceEnvironment(ClientViewEnvironment environment) {
+    public void prepareTravelSourceEnvironment(ProjectionEnvironment environment) {
         if (!Objects.equals(travelSourceEnvironment, environment)) {
             if (shaderRenderer != null) {
                 shaderRenderer.remove(-3);
@@ -208,7 +208,7 @@ public final class ClientPortalRenderer {
         return !PortalShaderScope.shaders() || travelSourceShaders != null && travelSourceShaders.ready();
     }
 
-    public void updateTravelCamera(Camera source, ClientViewEnvironment.Transform destinationToSource) {
+    public void updateTravelCamera(Camera source, ProjectionEnvironment.Transform destinationToSource) {
         if (travel == null || travelTransition || !source.isInitialized()) {
             return;
         }
@@ -402,9 +402,9 @@ public final class ClientPortalRenderer {
 
     public boolean coversEndPortalSurface(BlockPos position) {
         for (Portal portal : portals.values()) {
-            ClientPortalGeometry geometry = portal.scene.geometry();
+            ApertureDescriptor geometry = portal.scene.geometry();
             if (portal.active && portal.rendered && geometry.parentPortalKey() == 0
-                && geometry.kind() == ClientPortalGeometry.KIND_VANILLA_REPLACEMENT
+                && geometry.kind() == ApertureDescriptor.KIND_VANILLA_REPLACEMENT
                 && geometry.facingDirection().y() != 0
                 && geometry.containsCell(position.getX(), position.getY(), position.getZ())) {
                 return true;
@@ -706,7 +706,7 @@ public final class ClientPortalRenderer {
         return targets.travel(-4, main.width, main.height);
     }
 
-    void prepareNativeSky(ClientViewEnvironment environment, CameraRenderState camera) {
+    void prepareNativeSky(ProjectionEnvironment environment, CameraRenderState camera) {
         if (nativeEnvironment == null) {
             nativeEnvironment = new PortalEnvironmentRenderer();
         }
@@ -829,7 +829,7 @@ public final class ClientPortalRenderer {
         if (travelSourceEnvironment != null) {
             shaderDemand.add(new PortalShaderRenderer.DemandView(-3, travelSourceEnvironment, 0));
         }
-        ClientPortalAperture.Point eye = new ClientPortalAperture.Point(rootCamera.pos.x, rootCamera.pos.y, rootCamera.pos.z);
+        AperturePolygon.Point eye = new AperturePolygon.Point(rootCamera.pos.x, rootCamera.pos.y, rootCamera.pos.z);
         Matrix4d viewProjection = new Matrix4d(frameProjection).mul(new Matrix4d(rootCamera.viewRotationMatrix))
             .translate(-rootCamera.pos.x, -rootCamera.pos.y, -rootCamera.pos.z);
         boolean zeroToOne = RenderSystem.getDevice().getDeviceInfo().isZZeroToOne();
@@ -1027,7 +1027,7 @@ public final class ClientPortalRenderer {
         portal.toRoot.set(toRoot);
         portal.camera = transformedCamera(rootCamera, toRoot, frameProjection);
         camera = portal.camera;
-        ClientPortalAperture.Point eye = new ClientPortalAperture.Point(camera.pos.x, camera.pos.y, camera.pos.z);
+        AperturePolygon.Point eye = new AperturePolygon.Point(camera.pos.x, camera.pos.y, camera.pos.z);
         if (!portal.aperture.servesEye(eye)) {
             return false;
         }
@@ -1106,7 +1106,7 @@ public final class ClientPortalRenderer {
                 portal.parentClipToRoot.set(parent.toRoot);
                 portal.parentClipWidth = parent.target.width;
                 portal.parentClipHeight = parent.target.height;
-                ClientPortalAperture.Plane plane = parent.aperture.plane();
+                AperturePolygon.Plane plane = parent.aperture.plane();
                 float side = parent.scene.geometry().frontSide() ? 1 : -1;
                 Matrix4d childToParent = new Matrix4d(parent.toRoot).invert().mul(portal.toRoot);
                 Vector4d transformed = childToParent.transpose().transform(new Vector4d(plane.x(), plane.y(), plane.z(), plane.offset()));
@@ -1698,10 +1698,10 @@ public final class ClientPortalRenderer {
         if (portal.scene.fullWorld()) {
             return new Vector4f(0.0f);
         }
-        ClientPortalAperture.Plane plane = portal.aperture.plane();
+        AperturePolygon.Plane plane = portal.aperture.plane();
         float side = portal.scene.geometry().frontSide() ? 1 : -1;
         return new Vector4f(side * (float) plane.x(), side * (float) plane.y(), side * (float) plane.z(),
-            side * (float) plane.signedDistance(new ClientPortalAperture.Point(camera.pos.x, camera.pos.y, camera.pos.z)));
+            side * (float) plane.signedDistance(new AperturePolygon.Point(camera.pos.x, camera.pos.y, camera.pos.z)));
     }
 
     private PortalClipScope geometryClipping(Portal portal) {
@@ -1764,7 +1764,7 @@ public final class ClientPortalRenderer {
                     continue;
                 }
                 if (portal.shader == null && section.clip == null) {
-                    ClientPortalAperture.Plane plane = portal.aperture.plane();
+                    AperturePolygon.Plane plane = portal.aperture.plane();
                     float side = portal.scene.geometry().frontSide() ? 1.0f : -1.0f;
                     section.clip = uniform(portal.scene.fullWorld() ? new Vector4f(0.0f) : new Vector4f(side * (float) plane.x(), side * (float) plane.y(), side * (float) plane.z(),
                         side * (float) (plane.offset() + plane.x() * (SectionPos.x(section.key) << 4)
@@ -1842,8 +1842,8 @@ public final class ClientPortalRenderer {
     private PortalGpuMesh apertureMesh(Portal portal) {
         try (ByteBufferBuilder allocation = new ByteBufferBuilder(1024)) {
             BufferBuilder builder = new BufferBuilder(allocation, PrimitiveTopology.QUADS, DefaultVertexFormat.POSITION);
-            for (ClientPortalAperture.Rectangle rectangle : portal.aperture.rectangles()) {
-                for (ClientPortalAperture.Point point : portal.aperture.vertices(rectangle)) {
+            for (AperturePolygon.Rectangle rectangle : portal.aperture.rectangles()) {
+                for (AperturePolygon.Point point : portal.aperture.vertices(rectangle)) {
                     builder.addVertex((float) (point.x() - portal.scene.geometry().originX()),
                         (float) (point.y() - portal.scene.geometry().originY()), (float) (point.z() - portal.scene.geometry().originZ()));
                 }
@@ -1901,7 +1901,7 @@ public final class ClientPortalRenderer {
         return x * x + y * y + z * z;
     }
 
-    private boolean visiblePortal(Portal portal, ClientPortalAperture.Point eye) {
+    private boolean visiblePortal(Portal portal, AperturePolygon.Point eye) {
         return camera.cullFrustum == null || Math.abs(portal.aperture.plane().signedDistance(eye)) < 0.2
             || camera.cullFrustum.isVisible(portal.bounds);
     }
@@ -2204,7 +2204,7 @@ public final class ClientPortalRenderer {
     private static final class Portal {
         private final int key;
         private PortalScene scene;
-        private ClientPortalGeometry geometry;
+        private ApertureDescriptor geometry;
         private final Matrix4d toRoot = new Matrix4d();
         private final List<Section> drawSections = new ArrayList<>();
         private final List<Section> sortedSections = new ArrayList<>();
@@ -2217,12 +2217,12 @@ public final class ClientPortalRenderer {
         private GpuBuffer parentClip;
         private int parentClipWidth;
         private int parentClipHeight;
-        private ClientPortalGeometry parentClipGeometry;
+        private ApertureDescriptor parentClipGeometry;
         private final Matrix4d parentClipToRoot = new Matrix4d();
         private PortalViewport viewport;
         private int uniformWidth;
         private int uniformHeight;
-        private ClientPortalAperture aperture;
+        private AperturePolygon aperture;
         private AABB bounds;
         private final Long2ObjectOpenHashMap<Section> sections = new Long2ObjectOpenHashMap<>();
         private final LongLinkedOpenHashSet dirty = new LongLinkedOpenHashSet();
@@ -2255,9 +2255,9 @@ public final class ClientPortalRenderer {
 
         private void updateGeometry() {
             geometry = scene.geometry();
-            aperture = ClientPortalAperture.from(geometry);
-            ClientPortalAperture.Point min = aperture.point(0, 0);
-            ClientPortalAperture.Point max = aperture.point(scene.geometry().apertureWidth(), scene.geometry().apertureHeight());
+            aperture = AperturePolygon.from(geometry);
+            AperturePolygon.Point min = aperture.point(0, 0);
+            AperturePolygon.Point max = aperture.point(scene.geometry().apertureWidth(), scene.geometry().apertureHeight());
             bounds = new AABB(min.x(), min.y(), min.z(), max.x(), max.y(), max.z()).inflate(0.01);
         }
     }

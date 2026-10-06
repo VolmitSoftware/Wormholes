@@ -13,16 +13,17 @@ import org.bukkit.entity.Entity;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
 import com.github.retrooper.packetevents.protocol.player.Equipment;
 
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import org.bukkit.World;
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.portal.ILocalPortal;
+import art.arcane.optics.entity.CandidateCache;
 
 final class EntityRenderCaches {
     private static final long ENTITY_STATE_REFRESH_MILLIS = 500L;
     private static final long STATIC_CACHE_EVICT_MILLIS = 10_000L;
-    private static final EntityCandidateCache<World, Entity> REMOTE_ENTITY_CACHE = new EntityCandidateCache<>(EntityRenderCaches::queryEntities);
-    private static final EntityCandidateCache<World, Entity> LOCAL_ENTITY_CACHE = new EntityCandidateCache<>(EntityRenderCaches::queryEntities);
+    private static final CandidateCache<World, Entity> REMOTE_ENTITY_CACHE = new CandidateCache<>(EntityRenderCaches::queryEntities);
+    private static final CandidateCache<World, Entity> LOCAL_ENTITY_CACHE = new CandidateCache<>(EntityRenderCaches::queryEntities);
     private static final Map<UUID, EntityStateSnapshot> ENTITY_STATE_CACHE = new ConcurrentHashMap<UUID, EntityStateSnapshot>();
     private static final AtomicLong STATIC_CACHE_SWEEP_DUE = new AtomicLong(0L);
 
@@ -37,15 +38,15 @@ final class EntityRenderCaches {
         return nearbyEntities(LOCAL_ENTITY_CACHE, portal, center, range);
     }
 
-    private static Collection<Entity> nearbyEntities(EntityCandidateCache<World, Entity> cache, ILocalPortal portal, Location center, double range) {
+    private static Collection<Entity> nearbyEntities(CandidateCache<World, Entity> cache, ILocalPortal portal, Location center, double range) {
         if (portal == null || portal.getId() == null || center == null || center.getWorld() == null) {
             return List.of();
         }
-        return cache.nearby(new EntityCandidateCache.Query<>(portal.getId(), center.getWorld(),
-            new GeometryVector(center.getX(), center.getY(), center.getZ()), range, Settings.ENTITY_CANDIDATE_CACHE_TICKS), System.currentTimeMillis());
+        return cache.nearby(new CandidateCache.Query<>(portal.getId(), center.getWorld(),
+            new Vec3(center.getX(), center.getY(), center.getZ()), range, Settings.ENTITY_CANDIDATE_CACHE_TICKS), System.currentTimeMillis());
     }
 
-    private static Collection<Entity> queryEntities(World world, GeometryVector center, int range) {
+    private static Collection<Entity> queryEntities(World world, Vec3 center, int range) {
         return world.getNearbyEntities(new Location(world, center.x(), center.y(), center.z()), range, range, range);
     }
 

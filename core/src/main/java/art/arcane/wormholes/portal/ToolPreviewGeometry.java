@@ -1,14 +1,15 @@
 package art.arcane.wormholes.portal;
 
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.util.Axis;
-import art.arcane.wormholes.render.ProjectionCellKey;
+import art.arcane.optics.math.Vec3;
+import art.arcane.optics.math.Axis;
+import art.arcane.optics.math.CellKeys;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import art.arcane.optics.aperture.BoundarySamples;
 
 public final class ToolPreviewGeometry {
     public static final double PREVIEW_RANGE = 32.0D;
@@ -20,7 +21,7 @@ public final class ToolPreviewGeometry {
     private ToolPreviewGeometry() {
     }
 
-    public static Geometry build(List<GeometryVector> blockPositions, Axis normalAxis) {
+    public static Geometry build(List<Vec3> blockPositions, Axis normalAxis) {
         Objects.requireNonNull(blockPositions, "blockPositions");
         Objects.requireNonNull(normalAxis, "normalAxis");
         LongOpenHashSet occupied = new LongOpenHashSet(Math.max(16, blockPositions.size() * 2));
@@ -31,14 +32,14 @@ public final class ToolPreviewGeometry {
         int maxX = Integer.MIN_VALUE;
         int maxY = Integer.MIN_VALUE;
         int maxZ = Integer.MIN_VALUE;
-        for (GeometryVector position : blockPositions) {
+        for (Vec3 position : blockPositions) {
             if (position == null) {
                 continue;
             }
             int x = position.getBlockX();
             int y = position.getBlockY();
             int z = position.getBlockZ();
-            if (!occupied.add(ProjectionCellKey.pack(x, y, z))) {
+            if (!occupied.add(CellKeys.pack(x, y, z))) {
                 continue;
             }
             cells.add(new Cell(x, y, z));
@@ -54,7 +55,7 @@ public final class ToolPreviewGeometry {
         }
         ArrayList<PreviewPoint> outline = new ArrayList<>(Math.max(16, cells.size() * 8));
         for (Cell cell : cells) {
-            PortalBoundarySamples.append(outline, occupied, cell.x(), cell.y(), cell.z(), normalAxis, OUTLINE_SAMPLES_PER_EDGE, PreviewPoint::new);
+            BoundarySamples.append(outline, occupied, cell.x(), cell.y(), cell.z(), normalAxis, OUTLINE_SAMPLES_PER_EDGE, PreviewPoint::new);
         }
         return new Geometry(normalAxis, List.copyOf(outline), List.copyOf(cells),
             minX, minY, minZ, maxX + 1.0D, maxY + 1.0D, maxZ + 1.0D);

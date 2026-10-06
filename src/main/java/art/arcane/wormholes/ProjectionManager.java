@@ -55,31 +55,32 @@ import art.arcane.wormholes.portal.rtp.RtpProjectionView;
 import art.arcane.wormholes.portal.rtp.RtpRimRenderer;
 import art.arcane.wormholes.portal.rtp.RtpRotationMode;
 import art.arcane.wormholes.network.view.ViewServer;
-import art.arcane.wormholes.render.EntityRenderLocalOcclusionArbiter;
+import art.arcane.optics.occlusion.LocalOcclusionArbiter;
 import art.arcane.wormholes.render.PortalProjector;
-import art.arcane.wormholes.render.ProjectedEntityEvent;
+import art.arcane.optics.entity.ProjectedEntityEvent;
 import art.arcane.wormholes.render.PortalSkinRenderer;
 import art.arcane.wormholes.render.ProjectionClaimArbiter;
 import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.wormholes.render.FidelitySubsystem;
 import art.arcane.wormholes.render.ProjectionClientChunkTracker;
-import art.arcane.wormholes.render.acoustics.AcousticsBridge;
+import art.arcane.optics.fidelity.AcousticsBridge;
 import art.arcane.wormholes.render.bedrock.ClientProfileService;
 import art.arcane.wormholes.render.client.session.ClientViewOptions;
 import art.arcane.wormholes.render.clientview.BukkitClientView;
 import art.arcane.wormholes.render.clientview.ClientViewRouting;
-import art.arcane.wormholes.render.plate.PlateCaptureJob;
-import art.arcane.wormholes.render.plate.PlateCaptureQueue;
-import art.arcane.wormholes.render.plate.PlateWorkers;
-import art.arcane.wormholes.render.plate.ViewPlate;
-import art.arcane.wormholes.render.plate.ViewPlateBuilder;
-import art.arcane.wormholes.render.plate.ViewPlateCache;
-import art.arcane.wormholes.render.plate.ViewPlateKey;
+import art.arcane.optics.plate.PlateCaptureJob;
+import art.arcane.optics.plate.PlateCaptureQueue;
+import art.arcane.optics.plate.PlateWorkers;
+import art.arcane.optics.plate.ViewPlate;
+import art.arcane.optics.plate.ViewPlateBuilder;
+import art.arcane.optics.plate.ViewPlateCache;
+import art.arcane.optics.plate.ViewPlateKey;
 import art.arcane.wormholes.render.view.ProjectionWorldViewProvider;
 import art.arcane.wormholes.render.view.RegionSnapshotWorldViewProvider;
 import art.arcane.wormholes.service.WormholesTelemetry;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import art.arcane.wormholes.util.J;
+import art.arcane.optics.aperture.ObserverGeometry;
 
 public class ProjectionManager implements Listener {
     private static final String OBSERVER_FRAME_DROPPED = "PROJECTION_OBSERVER_FRAME_DROPPED";
@@ -97,7 +98,7 @@ public class ProjectionManager implements Listener {
     private static final EntityUpdateScheduler ENTITY_UPDATE_SCHEDULER = (observer, update, retired) ->
         FoliaScheduler.runEntity(Wormholes.instance, observer, update, 0L, retired);
     private final ProjectionClaimArbiter claimArbiter;
-    private final EntityRenderLocalOcclusionArbiter<Player, Entity> localEntityOcclusion;
+    private final LocalOcclusionArbiter<Player, Entity> localEntityOcclusion;
     private final ProjectionClientChunkTracker clientChunkTracker;
     private final ProjectionWorldViewProvider viewProvider;
     private final RtpRimRenderer rtpRimRenderer;
@@ -130,7 +131,7 @@ public class ProjectionManager implements Listener {
             : ProjectionWorldViewProvider.sectionCached(Wormholes.instance, Wormholes.projectionChangeTracker);
         this.clientChunkTracker = clientChunkTracker;
         this.claimArbiter = new ProjectionClaimArbiter(viewProvider, clientChunkTracker);
-        this.localEntityOcclusion = new EntityRenderLocalOcclusionArbiter<>(BukkitEntityVisibility.create());
+        this.localEntityOcclusion = new LocalOcclusionArbiter<>(BukkitEntityVisibility.create());
         this.rtpRimRenderer = new RtpRimRenderer();
         this.skinRenderer = new PortalSkinRenderer(claimArbiter);
         BooleanSupplier alive = () -> !closed;
@@ -606,7 +607,7 @@ public class ProjectionManager implements Listener {
             return false;
         }
         Vector direction = eye.getDirection();
-        return ProjectionObserverGeometry.isLookingTowardPortal(eye.getX(), eye.getY(), eye.getZ(),
+        return ObserverGeometry.isLookingTowardPortal(eye.getX(), eye.getY(), eye.getZ(),
             center.getX(), center.getY(), center.getZ(), direction.getX(), direction.getY(), direction.getZ(), minimumDot);
     }
 
@@ -629,8 +630,8 @@ public class ProjectionManager implements Listener {
         if (minimumAbsoluteDot <= 0.0D) {
             return true;
         }
-        Direction normal = portal.getFrame().getNormal();
-        return ProjectionObserverGeometry.hasStablePortalSide(eye.getX(), eye.getY(), eye.getZ(),
+        Face normal = portal.getFrame().getNormal();
+        return ObserverGeometry.hasStablePortalSide(eye.getX(), eye.getY(), eye.getZ(),
                 portal.getOrigin().getX(), portal.getOrigin().getY(), portal.getOrigin().getZ(),
                 normal.x(), normal.y(), normal.z(), minimumAbsoluteDot);
     }

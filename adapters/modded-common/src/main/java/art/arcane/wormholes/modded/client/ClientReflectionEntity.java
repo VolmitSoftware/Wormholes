@@ -2,11 +2,11 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.mixin.client.AvatarDataAccessor;
 import art.arcane.wormholes.modded.mixin.client.ReflectionDataAccessor;
-import art.arcane.wormholes.render.EntityVisualProjection;
-import art.arcane.wormholes.render.PortalCoordMap;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
-import art.arcane.wormholes.render.client.ClientSpace;
-import art.arcane.wormholes.render.client.ClientViewSweep;
+import art.arcane.optics.entity.EntityVisualProjection;
+import art.arcane.optics.frame.PortalCoordMap;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.client.ClientSpace;
+import art.arcane.optics.client.ClientSweep;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -132,7 +132,7 @@ public final class ClientReflectionEntity {
     }
 
     private boolean visible(ClientPortal portal, ClientSpace space, LocalPlayer player) {
-        ClientViewSweep sweep = portal.sweep();
+        ClientSweep sweep = portal.sweep();
         if (sweep.eyeFrontSide() != portal.geometry().frontSide() || sweep.appliedCount() == 0) {
             return false;
         }
@@ -140,7 +140,7 @@ public final class ClientReflectionEntity {
             || sampleApplied(sweep, space, player.getX(), player.getEyeY(), player.getZ());
     }
 
-    private boolean sampleApplied(ClientViewSweep sweep, ClientSpace space, double x, double y, double z) {
+    private boolean sampleApplied(ClientSweep sweep, ClientSpace space, double x, double y, double z) {
         space.toDisplay(x, y, z, point);
         return sweep.applied((int) Math.floor(point[0]), (int) Math.floor(point[1]), (int) Math.floor(point[2]));
     }
@@ -271,7 +271,7 @@ public final class ClientReflectionEntity {
         return EntityVisualProjection.pitch(direction[0], direction[1], direction[2]);
     }
 
-    private static boolean upsideDown(ClientPortalGeometry mirror) {
+    private static boolean upsideDown(ApertureDescriptor mirror) {
         return PortalCoordMap.mirrorTransformFlipsWorldUp(mirror.frame(), mirror.mirrorQuarterTurns());
     }
 

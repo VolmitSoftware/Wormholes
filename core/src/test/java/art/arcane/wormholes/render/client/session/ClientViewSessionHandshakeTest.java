@@ -11,24 +11,27 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.Test;
 
-import art.arcane.wormholes.network.client.ClientViewCapability;
+import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewMessageType;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
-import art.arcane.wormholes.network.client.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamMessageType;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ClientViewInbound;
+import art.arcane.optics.stream.ClientViewPhase;
+import art.arcane.optics.stream.ClientViewSessionState;
 
 final class ClientViewSessionHandshakeTest {
     @Test
     void helloAcceptsWithTheCapabilityIntersection() throws ClientViewProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
-        harness.handshake(ClientViewCapability.of(ClientViewCapability.PLATES, ClientViewCapability.BRICK_CACHE,
-            ClientViewCapability.ZERO_COPY, ClientViewCapability.CLIENT_MIRROR));
+        harness.handshake(ViewStreamCapability.of(ViewStreamCapability.PLATES, ViewStreamCapability.BRICK_CACHE,
+            ViewStreamCapability.ZERO_COPY, ViewStreamCapability.CLIENT_MIRROR));
         ClientViewMessage.Accept accept = harness.client.accept;
-        assertEquals(ClientViewCapability.of(ClientViewCapability.PLATES, ClientViewCapability.BRICK_CACHE, ClientViewCapability.CLIENT_MIRROR),
+        assertEquals(ViewStreamCapability.of(ViewStreamCapability.PLATES, ViewStreamCapability.BRICK_CACHE, ViewStreamCapability.CLIENT_MIRROR),
             accept.caps(), "zero copy needs an echoed nonce");
-        assertTrue(ClientViewCapability.CLIENT_RECURSION.in(harness.client.offer.serverCaps()));
-        assertTrue(ClientViewCapability.CONFIG_PHASE.in(harness.client.offer.serverCaps()));
+        assertTrue(ViewStreamCapability.CLIENT_RECURSION.in(harness.client.offer.serverCaps()));
+        assertTrue(ViewStreamCapability.CONFIG_PHASE.in(harness.client.offer.serverCaps()));
         assertEquals(harness.registry.hashSalt(), accept.hashSalt());
         assertEquals(8, accept.ackWindowFrames());
         assertEquals(ClientViewSessionState.CLIENT_VIEW, harness.session.state());
@@ -44,7 +47,7 @@ final class ClientViewSessionHandshakeTest {
         assertEquals(ClientViewInbound.HELLO_DECLINED, harness.c2s(harness.client.hello(SessionHarness.DATA_VERSION + 1,
             SessionHarness.CLIENT_CAPS, "fabric", 0L)));
         harness.client.receive(harness.frames);
-        ClientViewMessage.Decline decline = (ClientViewMessage.Decline) harness.last(ClientViewMessageType.DECLINE);
+        ClientViewMessage.Decline decline = (ClientViewMessage.Decline) harness.last(ViewStreamMessageType.DECLINE);
         assertEquals(ClientViewMessage.DeclineReason.DATA_VERSION_MISMATCH, decline.reason());
         assertEquals(ClientViewSessionState.VANILLA, harness.session.state());
         assertEquals(ClientViewInbound.IGNORED, harness.c2s(harness.client.hello(SessionHarness.DATA_VERSION, SessionHarness.CLIENT_CAPS,
@@ -147,7 +150,7 @@ final class ClientViewSessionHandshakeTest {
 
         harness.registry.runtimeEnabled(false);
         harness.pump();
-        ClientViewMessage.SessionReset reset = (ClientViewMessage.SessionReset) harness.last(ClientViewMessageType.SESSION_RESET);
+        ClientViewMessage.SessionReset reset = (ClientViewMessage.SessionReset) harness.last(ViewStreamMessageType.SESSION_RESET);
         assertEquals(ClientViewMessage.ResetReason.DISABLED, reset.reason());
         assertEquals(ClientViewSessionState.VANILLA, harness.session.state());
         assertFalse(harness.session.owns(a.id));
@@ -190,7 +193,7 @@ final class ClientViewSessionHandshakeTest {
         harness.pump();
         assertEquals(ClientViewSessionState.VANILLA, harness.session.state());
         assertEquals(ClientViewMessage.ResetReason.DISABLED,
-            ((ClientViewMessage.SessionReset) harness.last(ClientViewMessageType.SESSION_RESET)).reason());
+            ((ClientViewMessage.SessionReset) harness.last(ViewStreamMessageType.SESSION_RESET)).reason());
     }
 
     @Test
@@ -205,7 +208,7 @@ final class ClientViewSessionHandshakeTest {
         harness.pump();
         assertEquals(ClientViewSessionState.VANILLA, harness.session.state());
         assertEquals(ClientViewMessage.ResetReason.PROTOCOL,
-            ((ClientViewMessage.SessionReset) harness.last(ClientViewMessageType.SESSION_RESET)).reason());
+            ((ClientViewMessage.SessionReset) harness.last(ViewStreamMessageType.SESSION_RESET)).reason());
         assertEquals(3L, harness.session.stats().c2sDropped());
     }
 
@@ -216,7 +219,7 @@ final class ClientViewSessionHandshakeTest {
         byte[] ack = ClientViewCodec.encodeC2S(new ClientViewMessage.Ack(0, 0, 0));
         ClientViewInbound last = ClientViewInbound.HANDLED;
         int sent = 0;
-        int cap = ClientViewProtocol.MAX_C2S_MESSAGES_PER_SECOND;
+        int cap = ViewStreamLimits.MAX_C2S_MESSAGES_PER_SECOND;
         while (last != ClientViewInbound.RESET && sent < cap + 20) {
             harness.clock.addAndGet(1_000_000L);
             last = harness.session.receive(ack, 0, ack.length);

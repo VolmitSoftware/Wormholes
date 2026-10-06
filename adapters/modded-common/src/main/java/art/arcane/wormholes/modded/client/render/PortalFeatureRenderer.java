@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded.client.render;
 
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
+import art.arcane.optics.stream.ProjectionEnvironment;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -86,11 +86,11 @@ public final class PortalFeatureRenderer implements AutoCloseable {
         }
     }
 
-    static void blockPose(PoseStack pose, BlockPos position, Vec3 eye, ClientViewEnvironment.Transform transform, Matrix4f rotation) {
+    static void blockPose(PoseStack pose, BlockPos position, Vec3 eye, ProjectionEnvironment.Transform transform, Matrix4f rotation) {
         positionPose(pose, position.getX(), position.getY(), position.getZ(), eye, transform, rotation);
     }
 
-    static void entityPose(PoseStack pose, EntityRenderState state, Vec3 eye, ClientViewEnvironment.Transform transform, Matrix4f rotation) {
+    static void entityPose(PoseStack pose, EntityRenderState state, Vec3 eye, ProjectionEnvironment.Transform transform, Matrix4f rotation) {
         positionPose(pose, state.x, state.y, state.z, eye, transform, rotation);
     }
 
@@ -148,8 +148,8 @@ public final class PortalFeatureRenderer implements AutoCloseable {
     private void submit(PortalScene scene, CameraRenderState camera, Minecraft minecraft, boolean includeEntities, boolean includeBlockEntities, Frustum frustum) {
         PoseStack pose = new PoseStack();
         Vec3 eye = camera.pos;
-        ClientViewEnvironment environment = scene.environment();
-        ClientViewEnvironment.Transform transform = environment == null ? null : environment.transform();
+        ProjectionEnvironment environment = scene.environment();
+        ProjectionEnvironment.Transform transform = environment == null ? null : environment.transform();
         Matrix4f rotation = transform == null ? null : PortalProjection.rotation(transform);
         CameraRenderState featureCamera = environment == null ? camera : ClientPortalRenderer.transformedCamera(camera,
             PortalProjection.destinationToSource(environment.transform()), camera.projectionMatrix);
@@ -182,7 +182,7 @@ public final class PortalFeatureRenderer implements AutoCloseable {
         }
     }
 
-    private static void positionPose(PoseStack pose, double x, double y, double z, Vec3 eye, ClientViewEnvironment.Transform transform, Matrix4f rotation) {
+    private static void positionPose(PoseStack pose, double x, double y, double z, Vec3 eye, ProjectionEnvironment.Transform transform, Matrix4f rotation) {
         pose.translate(x * transform.xAxis().x() + y * transform.yAxis().x() + z * transform.zAxis().x() + transform.translation().x() - eye.x,
             x * transform.xAxis().y() + y * transform.yAxis().y() + z * transform.zAxis().y() + transform.translation().y() - eye.y,
             x * transform.xAxis().z() + y * transform.yAxis().z() + z * transform.zAxis().z() + transform.translation().z() - eye.z);
@@ -192,7 +192,7 @@ public final class PortalFeatureRenderer implements AutoCloseable {
     static final class WindingScope implements AutoCloseable {
         private final StagedVertexBuffer previous;
 
-        WindingScope(StagedVertexBuffer buffer, ClientViewEnvironment.Transform transform) {
+        WindingScope(StagedVertexBuffer buffer, ProjectionEnvironment.Transform transform) {
             previous = REFLECTED_BUFFER.get();
             if (transform != null && transform.reflected()) {
                 REFLECTED_BUFFER.set(buffer);

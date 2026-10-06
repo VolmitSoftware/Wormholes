@@ -3,7 +3,7 @@ package art.arcane.wormholes.portal;
 import art.arcane.wormholes.util.BukkitGeometry;
 
 import art.arcane.wormholes.access.AccessTestPortals;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.util.Vector;
@@ -12,11 +12,12 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import art.arcane.optics.frame.Frame;
 
 class LocalPortalExitPlacementTest {
     @Test
     void fallingJumpPreservesHeightInsteadOfPlacingFeetInsideTheFloor() {
-        LocalPortal portal = portal(Direction.S);
+        LocalPortal portal = portal(Face.S);
         Vector point = BukkitGeometry.bukkit(portal.getOrigin());
         point.setY(101.42D);
         Traversive traversive = crossing(portal, point, new Vector(0.0D, -0.8D, -0.2D), true);
@@ -31,9 +32,9 @@ class LocalPortalExitPlacementTest {
 
     @Test
     void jumpingAndStrafingPreserveTheTransformedEndpointOnEveryFrame() {
-        for (Direction direction : List.of(Direction.N, Direction.S, Direction.E, Direction.W, Direction.U, Direction.D)) {
+        for (Face direction : List.of(Face.N, Face.S, Face.E, Face.W, Face.U, Face.D)) {
             LocalPortal portal = portal(direction);
-            PortalFrame frame = portal.getFrame();
+            Frame frame = portal.getFrame();
             for (boolean frontSide : List.of(Boolean.TRUE, Boolean.FALSE)) {
                 double sign = frontSide ? -1.0D : 1.0D;
                 for (double verticalSpeed : List.of(-3.0D, 3.0D)) {
@@ -57,7 +58,7 @@ class LocalPortalExitPlacementTest {
 
     @Test
     void zeroNormalVelocityDoesNotDisplaceTheArrival() {
-        LocalPortal portal = portal(Direction.S);
+        LocalPortal portal = portal(Face.S);
         Vector point = BukkitGeometry.bukkit(portal.getOrigin());
         for (boolean frontSide : List.of(Boolean.TRUE, Boolean.FALSE)) {
             Traversive traversive = crossing(portal, point, new Vector(0.0D, -0.8D, 0.0D), frontSide);
@@ -68,10 +69,10 @@ class LocalPortalExitPlacementTest {
         }
     }
 
-    private static LocalPortal portal(Direction normal) {
+    private static LocalPortal portal(Face normal) {
         World world = AccessTestPortals.world("exit-placement");
         LocalPortal portal = AccessTestPortals.portal(world);
-        portal.setFrame(PortalFrame.canonical(normal));
+        portal.setFrame(Frame.canonical(normal));
         return portal;
     }
 

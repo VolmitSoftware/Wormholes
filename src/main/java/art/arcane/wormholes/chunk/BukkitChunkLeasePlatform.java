@@ -10,6 +10,7 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.logging.Level;
+import art.arcane.optics.plate.ChunkLeasePlatform;
 
 public final class BukkitChunkLeasePlatform implements ChunkLeasePlatform<World> {
     private static final long MILLIS_PER_TICK = 50L;

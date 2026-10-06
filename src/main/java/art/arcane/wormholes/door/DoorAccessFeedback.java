@@ -11,7 +11,7 @@ import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.SoundCategory;
 import org.bukkit.World;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
@@ -143,7 +143,7 @@ final class DoorAccessFeedback
 		PortalPlaneGeometry geometry = plane == null
 			? null
 			: DoorPortalGeometry.planeGeometry(plane, DoorHinge.LEFT);
-		Direction panelFace = plane == null ? null : DoorPortalGeometry.panelFace(plane);
+		Face panelFace = plane == null ? null : DoorPortalGeometry.panelFace(plane);
 		for(int index = 0; index < DENY_DUST_COUNT; index++)
 		{
 			double u = random.nextDouble();

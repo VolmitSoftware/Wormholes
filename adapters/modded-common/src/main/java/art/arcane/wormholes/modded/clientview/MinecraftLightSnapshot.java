@@ -1,8 +1,8 @@
 package art.arcane.wormholes.modded.clientview;
 
-import art.arcane.wormholes.render.client.session.ClientViewPlateLight;
-import art.arcane.wormholes.render.plate.PlateBox;
-import art.arcane.wormholes.render.view.ProjectionContentView;
+import art.arcane.optics.client.PlateLight;
+import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.view.ContentView;
 import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.server.level.ServerLevel;
@@ -13,7 +13,7 @@ import net.minecraft.world.level.lighting.LayerLightEventListener;
 
 import java.util.Objects;
 
-public final class MinecraftLightSnapshot implements ClientViewPlateLight.Sampler {
+public final class MinecraftLightSnapshot implements PlateLight.Sampler {
     private static final DataLayer OPEN_SKY = new DataLayer(15);
     private static final DataLayer DARK = new DataLayer(0);
 
@@ -112,18 +112,18 @@ public final class MinecraftLightSnapshot implements ClientViewPlateLight.Sample
         int dy = (y >> 4) - minSectionY;
         int dz = (z >> 4) - minSectionZ;
         if (dx < 0 || dz < 0 || dx >= sizeX || dz >= sizeZ || !loaded[dx * sizeZ + dz]) {
-            return ClientViewPlateLight.UNAVAILABLE;
+            return PlateLight.UNAVAILABLE;
         }
         if (y < worldMinY || y >= worldMaxY) {
-            return ProjectionContentView.packLight(y >= worldMaxY && hasSkyLight ? 15 : 0, 0);
+            return ContentView.packLight(y >= worldMaxY && hasSkyLight ? 15 : 0, 0);
         }
         if (dy < 0 || dy >= sizeY) {
-            return ClientViewPlateLight.UNAVAILABLE;
+            return PlateLight.UNAVAILABLE;
         }
         int index = index(dx, dy, dz);
         DataLayer skyLayer = sky[index];
         int skyValue = skyFromAbove[index] ? skyLayer.get(x & 15, 0, z & 15) : skyLayer.get(x & 15, y & 15, z & 15);
-        return ProjectionContentView.packLight(skyValue, block[index].get(x & 15, y & 15, z & 15));
+        return ContentView.packLight(skyValue, block[index].get(x & 15, y & 15, z & 15));
     }
 
     private int index(int dx, int dy, int dz) {

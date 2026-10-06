@@ -1,9 +1,8 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.math.Face;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.culling.Frustum;
@@ -46,8 +45,8 @@ public class ClientMeshEntityVisibilityTest extends MinecraftTestBase {
     @Test
     public void destinationBoundsFollowSidewaysAndMirroredPortalTransforms() {
         Frustum display = new Frustum(new Matrix4f(), new Matrix4f());
-        ClientViewEnvironment.Transform transform = new ClientViewEnvironment.Transform(Direction.U, Direction.W, Direction.S,
-            new GeometryVector(10, -20, 30));
+        ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(Face.U, Face.W, Face.S,
+            new art.arcane.optics.math.Vec3(10, -20, 30));
         Frustum destination = new ClientMeshEntities.DestinationFrustum(display, transform);
         assertTrue(destination.isVisible(new AABB(19.75, 9.75, -30.25, 20.25, 10.25, -29.75)));
         assertFalse(destination.isVisible(new AABB(19.75, 3.75, -30.25, 20.25, 4.25, -29.75)));
@@ -63,7 +62,7 @@ public class ClientMeshEntityVisibilityTest extends MinecraftTestBase {
         when(context.getEntityRenderDispatcher()).thenReturn(dispatcher);
         CullingRenderer renderer = new CullingRenderer(context);
         Frustum display = new Frustum(new Matrix4f(), new Matrix4f());
-        Frustum destination = new ClientMeshEntities.DestinationFrustum(display, ClientViewEnvironment.Transform.IDENTITY);
+        Frustum destination = new ClientMeshEntities.DestinationFrustum(display, ProjectionEnvironment.Transform.IDENTITY);
         Entity source = mock(Entity.class, withSettings().extraInterfaces(Leashable.class));
         when(source.shouldRender(0, 0, 0)).thenReturn(true);
         when(source.getInterpolatedBoundingBox(0.5F)).thenReturn(new AABB(10, 0, 0, 11, 1, 1));
@@ -103,12 +102,12 @@ public class ClientMeshEntityVisibilityTest extends MinecraftTestBase {
             Frustum main = new Frustum(new Matrix4f(), new Matrix4f());
             CameraRenderState camera = new CameraRenderState();
             camera.pos = Vec3.ZERO;
-            assertFalse(features.entityVisibility(camera, main, ClientViewEnvironment.Transform.IDENTITY).test(state));
+            assertFalse(features.entityVisibility(camera, main, ProjectionEnvironment.Transform.IDENTITY).test(state));
             Frustum shadow = new Frustum(new Matrix4f(), new Matrix4f());
             shadow.prepare(500, 20, 10);
-            assertTrue(features.entityVisibility(camera, shadow, ClientViewEnvironment.Transform.IDENTITY).test(state));
+            assertTrue(features.entityVisibility(camera, shadow, ProjectionEnvironment.Transform.IDENTITY).test(state));
             verify(dispatcher, times(2)).shouldRender(eq(source), any(Frustum.class), eq(0.0), eq(0.0), eq(0.0), eq(0.5F));
-            Predicate<EntityRenderState> visible = features.entityVisibility(camera, main, ClientViewEnvironment.Transform.IDENTITY);
+            Predicate<EntityRenderState> visible = features.entityVisibility(camera, main, ProjectionEnvironment.Transform.IDENTITY);
             doReturn(false).when(dispatcher).shouldRender(any(), any(), anyDouble(), anyDouble(), anyDouble(), anyFloat());
             assertTrue(visible.test(state));
             state.nameTag = Component.literal("Visible label");

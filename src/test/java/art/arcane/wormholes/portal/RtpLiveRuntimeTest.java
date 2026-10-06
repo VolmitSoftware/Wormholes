@@ -65,6 +65,7 @@ import art.arcane.wormholes.portal.rtp.RtpSettings;
 import art.arcane.wormholes.portal.rtp.RtpValidationRequest;
 import art.arcane.wormholes.service.WormholesTelemetry;
 import art.arcane.wormholes.util.Cuboid;
+import art.arcane.optics.frame.Frame;
 
 public final class RtpLiveRuntimeTest
 {
@@ -1261,7 +1262,7 @@ public final class RtpLiveRuntimeTest
 
 		private Traversive traversive(Entity entity, boolean frontSide, Vector velocity, Vector look)
 		{
-			PortalFrame inFrame = portal.getFrame().view(frontSide);
+			Frame inFrame = portal.getFrame().view(frontSide);
 			return new Traversive(entity, inFrame, new Vector(0.5D, 65.0D, 1.0D),
 					new Vector(0.5D, 65.0D, 1.0D), velocity, look, frontSide);
 		}
@@ -1850,7 +1851,7 @@ public final class RtpLiveRuntimeTest
 		}
 
 		@Override
-		public void completeSuccess(LocalPortal portal, Entity entity, Traversive traversive, PortalFrame targetFrame, Location target)
+		public void completeSuccess(LocalPortal portal, Entity entity, Traversive traversive, Frame targetFrame, Location target)
 		{
 			successOwners.add(owner);
 			successes.incrementAndGet();

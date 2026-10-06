@@ -5,8 +5,9 @@ import org.bukkit.entity.Player;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerTeams;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import art.arcane.optics.entity.PlayerNames;
 
-final class BukkitPlayerNameTeams implements ProjectedPlayerNames.Host<Player> {
+final class BukkitPlayerNameTeams implements PlayerNames.Host<Player> {
     private final EntityRenderPacketChannel channel;
 
     BukkitPlayerNameTeams(EntityRenderPacketChannel channel) {

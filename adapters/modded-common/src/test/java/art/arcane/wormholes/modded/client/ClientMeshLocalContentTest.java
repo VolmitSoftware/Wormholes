@@ -2,14 +2,14 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
-import art.arcane.wormholes.network.client.Brick;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
+import art.arcane.optics.stream.Brick;
+import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
-import art.arcane.wormholes.network.client.ClientViewProtocolException;
-import art.arcane.wormholes.network.client.SectionBiomes;
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
-import art.arcane.wormholes.render.plate.PlateBox;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.SectionBiomes;
+import art.arcane.optics.fidelity.BlockEntitySample;
+import art.arcane.optics.plate.PlateBox;
 import net.minecraft.core.registries.BuiltInRegistries;
 import org.junit.Test;
 
@@ -23,7 +23,7 @@ import static org.junit.Assert.assertTrue;
 
 public class ClientMeshLocalContentTest extends MinecraftTestBase {
     private static final PlateBox BOUNDS = new PlateBox(-32, -32, -32, 64, 64, 64);
-    private static final ClientViewEnvironment ENVIRONMENT = PortalEnvironmentTest.environment(ClientViewEnvironment.Transform.IDENTITY);
+    private static final ProjectionEnvironment ENVIRONMENT = PortalEnvironmentTest.environment(ProjectionEnvironment.Transform.IDENTITY);
 
     @Test
     public void unchangedHaloCapturePreservesTheGpuRevisionWithoutPublishingNeighborInvalidation() throws Exception {
@@ -82,8 +82,8 @@ public class ClientMeshLocalContentTest extends MinecraftTestBase {
 
     @Test
     public void actualBlockLightSkyLightBlockEntityAndBiomeChangesPublishNewContent() throws Exception {
-        byte[] block = new byte[ClientViewProtocol.LIGHT_NIBBLE_BYTES];
-        byte[] sky = new byte[ClientViewProtocol.LIGHT_NIBBLE_BYTES];
+        byte[] block = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
+        byte[] sky = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
         byte[] changedBlock = block.clone();
         byte[] changedSky = sky.clone();
         changedBlock[17] = 3;

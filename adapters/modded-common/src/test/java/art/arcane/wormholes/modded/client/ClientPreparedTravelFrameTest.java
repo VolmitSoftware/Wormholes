@@ -20,7 +20,7 @@ import static net.minecraft.world.level.chunk.status.ChunkStatus.FULL;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
+import art.arcane.optics.aperture.ApertureDescriptor;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.renderpearl.api.textures.GpuTexture;
 import net.minecraft.client.DeltaTracker;
@@ -298,7 +298,7 @@ public class ClientPreparedTravelFrameTest extends MinecraftTestBase {
                     Object arrival = field(travel, "authoritativeArrival");
                     Class<?> type = field(arrival, "retained").getClass();
                     Constructor<?> constructor = type.getDeclaredConstructor(ClientLevel.class, ClientPacketListener.class,
-                        Object.class, ClientViewMessage.TravelWorld.class, long.class, Map.class, ClientPortalGeometry.class);
+                        Object.class, ClientViewMessage.TravelWorld.class, long.class, Map.class, ApertureDescriptor.class);
                     constructor.setAccessible(true);
                     field(arrival, "retained", constructor.newInstance(minecraft.level, minecraft.getConnection(),
                         RegistryAccess.EMPTY, null, 1L, Map.of(), null));

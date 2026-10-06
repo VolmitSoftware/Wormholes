@@ -31,7 +31,7 @@ import org.bukkit.util.BoundingBox;
 import art.arcane.volmlib.util.bukkit.WorldIdentity;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.chunk.BukkitChunkLeaseProvider;
-import art.arcane.wormholes.chunk.ChunkLease;
+import art.arcane.optics.plate.ChunkLease;
 import art.arcane.wormholes.platform.WormholesPlatform;
 
 public final class BukkitRtpCandidateLoader implements RtpService.CandidateLoader, AutoCloseable

@@ -9,10 +9,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.ArrayList;
 import java.util.List;
 
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import org.junit.jupiter.api.Test;
 
-import art.arcane.wormholes.util.Axis;
+import art.arcane.optics.math.Axis;
+import art.arcane.optics.aperture.ApertureCells;
 
 public final class AmbientOutlineGeometryTest
 {
@@ -21,12 +22,12 @@ public final class AmbientOutlineGeometryTest
 	@Test
 	public void rectangleOutlineStaysOnThePlaneAndFollowsTheBoundary()
 	{
-		List<GeometryVector> blocks = new ArrayList<GeometryVector>();
+		List<Vec3> blocks = new ArrayList<Vec3>();
 		for(int x = 0; x < 2; x++)
 		{
 			for(int y = 64; y < 67; y++)
 			{
-				blocks.add(new GeometryVector(x, y, 8));
+				blocks.add(new Vec3(x, y, 8));
 			}
 		}
 
@@ -47,7 +48,7 @@ public final class AmbientOutlineGeometryTest
 	{
 		for(Axis axis : Axis.values())
 		{
-			List<double[]> outline = AmbientOutlineGeometry.build(List.of(new GeometryVector(4, 5, 6)), axis);
+			List<double[]> outline = AmbientOutlineGeometry.build(List.of(new Vec3(4, 5, 6)), axis);
 			assertEquals(4 * AmbientOutlineGeometry.SAMPLES_PER_EDGE, outline.size());
 			for(double[] point : outline)
 			{
@@ -78,8 +79,8 @@ public final class AmbientOutlineGeometryTest
 	public void cacheReusesResultForSameRevisionAndAxisAndRebuildsOnChange()
 	{
 		AmbientOutlineGeometry geometry = new AmbientOutlineGeometry();
-		PortalGeometry structure = new PortalGeometry();
-        structure.setBlocks(List.of(new GeometryVector(0, 0, 0), new GeometryVector(1, 0, 0)));
+		ApertureCells structure = new ApertureCells();
+        structure.setBlocks(List.of(new Vec3(0, 0, 0), new Vec3(1, 0, 0)));
 
 		List<double[]> first = geometry.points(7L, Axis.Z, structure);
 		List<double[]> repeated = geometry.points(7L, Axis.Z, structure);
@@ -100,10 +101,10 @@ public final class AmbientOutlineGeometryTest
     @Test
     public void replacingGeometryWithTheSameRevisionRebuildsTheOutline() {
         AmbientOutlineGeometry cache = new AmbientOutlineGeometry();
-        PortalGeometry first = new PortalGeometry();
-        PortalGeometry second = new PortalGeometry();
-        first.setBlocks(List.of(new GeometryVector(-4, -5, -6)));
-        second.setBlocks(List.of(new GeometryVector(20, 30, 40)));
+        ApertureCells first = new ApertureCells();
+        ApertureCells second = new ApertureCells();
+        first.setBlocks(List.of(new Vec3(-4, -5, -6)));
+        second.setBlocks(List.of(new Vec3(20, 30, 40)));
         assertEquals(first.getRevision(), second.getRevision());
         List<double[]> original = cache.points(first.getRevision(), Axis.Z, first);
         List<double[]> replacement = cache.points(second.getRevision(), Axis.Z, second);
@@ -117,16 +118,16 @@ public final class AmbientOutlineGeometryTest
     @Test
     public void negativeRingsPreserveOuterAndInnerEdgesOnEveryAxis() {
         for (Axis axis : Axis.values()) {
-            List<GeometryVector> cells = new ArrayList<GeometryVector>();
+            List<Vec3> cells = new ArrayList<Vec3>();
             for (int right = -3; right < 0; right++) {
                 for (int up = -3; up < 0; up++) {
                     if (right == -2 && up == -2) {
                         continue;
                     }
                     cells.add(switch (axis) {
-                        case X -> new GeometryVector(-7, right, up);
-                        case Y -> new GeometryVector(right, -7, up);
-                        case Z -> new GeometryVector(right, up, -7);
+                        case X -> new Vec3(-7, right, up);
+                        case Y -> new Vec3(right, -7, up);
+                        case Z -> new Vec3(right, up, -7);
                     });
                 }
             }

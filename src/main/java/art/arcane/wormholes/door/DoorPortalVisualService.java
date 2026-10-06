@@ -7,7 +7,7 @@ import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.render.BukkitEntityVisibility;
-import art.arcane.wormholes.render.EntityRenderLocalOcclusionArbiter;
+import art.arcane.optics.occlusion.LocalOcclusionArbiter;
 import org.bukkit.Axis;
 import org.bukkit.Chunk;
 import org.bukkit.Color;
@@ -16,7 +16,7 @@ import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 import org.bukkit.World;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.Orientable;
 import org.bukkit.entity.BlockDisplay;
@@ -68,7 +68,7 @@ final class DoorPortalVisualService implements AutoCloseable
 	private final AtomicBoolean closed;
 	private final AtomicBoolean animationLoopRunning;
 	private final AtomicBoolean animationLoopRetryScheduled;
-	private final EntityRenderLocalOcclusionArbiter<Player, Entity> nativeVisibility;
+	private final LocalOcclusionArbiter<Player, Entity> nativeVisibility;
 
 	DoorPortalVisualService(Plugin plugin)
 	{
@@ -78,7 +78,7 @@ final class DoorPortalVisualService implements AutoCloseable
 	DoorPortalVisualService(Plugin plugin, ViewerLookup viewerLookup)
 	{
 		this.plugin = Objects.requireNonNull(plugin, "plugin");
-		nativeVisibility = new EntityRenderLocalOcclusionArbiter<>(BukkitEntityVisibility.create(new BukkitEntityVisibility.Controller()
+		nativeVisibility = new LocalOcclusionArbiter<>(BukkitEntityVisibility.create(new BukkitEntityVisibility.Controller()
 		{
 			@Override
 			public void hide(Player observer, Entity entity)
@@ -150,7 +150,7 @@ final class DoorPortalVisualService implements AutoCloseable
 			return;
 		}
 		Location anchor = new Location(world, plane.blockX() + 0.5D, plane.blockY(), plane.blockZ() + 0.5D);
-		Direction panelFace = DoorPortalGeometry.panelFace(plane);
+		Face panelFace = DoorPortalGeometry.panelFace(plane);
 		PortalPlaneGeometry geometry = DoorPortalGeometry.planeGeometry(plane, DoorHinge.valueOf(snapshot.hinge().name()));
 		if(closed.get())
 		{
@@ -207,7 +207,7 @@ final class DoorPortalVisualService implements AutoCloseable
 		Visual visual,
 		World world,
 		Location anchor,
-		Direction facing,
+		Face facing,
 		PortalPlaneGeometry overlayGeometry)
 	{
 		AnimationTarget target = new AnimationTarget(
@@ -470,7 +470,7 @@ final class DoorPortalVisualService implements AutoCloseable
 		Visual visual,
 		World world,
 		Location anchor,
-		Direction facing,
+		Face facing,
 		PortalPlaneGeometry overlayGeometry,
 		int tick)
 	{
@@ -526,7 +526,7 @@ final class DoorPortalVisualService implements AutoCloseable
 		World world,
 		Location anchor,
 		UUID doorId,
-		Direction facing,
+		Face facing,
 		PortalPlaneGeometry geometry)
 	{
 		return world.spawn(anchor, BlockDisplay.class, spawned -> configureDisplay(
@@ -558,7 +558,7 @@ final class DoorPortalVisualService implements AutoCloseable
 		display.getPersistentDataContainer().set(markerKey, PersistentDataType.STRING, doorId.toString());
 	}
 
-	private static BlockData portalOverlayData(Direction facing)
+	private static BlockData portalOverlayData(Face facing)
 	{
 		Orientable blockData = (Orientable) PORTAL_OVERLAY_MATERIAL.createBlockData();
 		blockData.setAxis(Axis.valueOf(DoorPortalGeometry.overlayAxis(facing).name()));
@@ -765,7 +765,7 @@ final class DoorPortalVisualService implements AutoCloseable
 		private final Visual visual;
 		private final World world;
 		private final Location anchor;
-		private final Direction facing;
+		private final Face facing;
 		private final PortalPlaneGeometry overlayGeometry;
 
 		private AnimationTarget(
@@ -773,7 +773,7 @@ final class DoorPortalVisualService implements AutoCloseable
 			Visual visual,
 			World world,
 			Location anchor,
-			Direction facing,
+			Face facing,
 			PortalPlaneGeometry overlayGeometry)
 		{
 			this.doorId = Objects.requireNonNull(doorId, "doorId");

@@ -1,6 +1,6 @@
 package art.arcane.wormholes.door;
 
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,12 +37,12 @@ public final class PocketRooms {
     }
 
     /** The cardinal direction from a placed door to the room shell it is built against. */
-    public static Optional<Direction> wallBehind(PocketSpace space, PocketRoom room, DoorPosition position, DoorwayPlane plane) {
+    public static Optional<Face> wallBehind(PocketSpace space, PocketRoom room, DoorPosition position, DoorwayPlane plane) {
         if (room == null || plane.form() != DoorForm.DOOR) {
             return Optional.empty();
         }
         PocketLayout layout = layout(space, room);
-        for (Direction candidate : List.of(plane.facing(), plane.facing().reverse())) {
+        for (Face candidate : List.of(plane.facing(), plane.facing().reverse())) {
             if (layout.isShellBlock(position.x() + candidate.x(), position.y(), position.z() + candidate.z())) {
                 return Optional.of(candidate);
             }
@@ -50,7 +50,7 @@ public final class PocketRooms {
         return Optional.empty();
     }
 
-    public static PocketBlockPosition matePosition(PocketLayout layout, Direction wall) {
+    public static PocketBlockPosition matePosition(PocketLayout layout, Face wall) {
         int x = layout.minX() + layout.size() / 2;
         int z = layout.minZ() + layout.size() / 2;
         switch (wall) {
@@ -70,7 +70,7 @@ public final class PocketRooms {
      * @param maxRooms the configured cap, base room included
      * @return the new room, or empty when the pocket is already at its cap or the grid is full
      */
-    public static Optional<PocketRoom> allocate(PocketSpace space, Direction wall, int maxRooms) {
+    public static Optional<PocketRoom> allocate(PocketSpace space, Face wall, int maxRooms) {
         Objects.requireNonNull(space, "space");
         int[] preferred = cellOf(Objects.requireNonNull(wall, "wall"));
         List<PocketRoom> rooms = space.rooms();
@@ -165,7 +165,7 @@ public final class PocketRooms {
         return false;
     }
 
-    private static int[] cellOf(Direction wall) {
+    private static int[] cellOf(Face wall) {
         return switch (wall) {
             case N -> new int[]{0, -1};
             case S -> new int[]{0, 1};

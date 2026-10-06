@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import art.arcane.wormholes.render.ProjectionClaimArbiter;
 
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerMultiBlockChange;
+import art.arcane.optics.fidelity.BedrockProfile;
 
 final class BedrockProfileTest {
     @AfterEach

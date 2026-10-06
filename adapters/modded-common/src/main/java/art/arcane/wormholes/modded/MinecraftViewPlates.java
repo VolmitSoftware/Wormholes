@@ -1,22 +1,22 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.math.Vec3;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.render.FidelitySettings;
-import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
-import art.arcane.wormholes.render.ProjectorPassRevision;
-import art.arcane.wormholes.render.atmosphere.AtmosphereMode;
-import art.arcane.wormholes.render.atmosphere.FogPlatePolicy;
-import art.arcane.wormholes.render.lod.LodPolicy;
-import art.arcane.wormholes.render.lod.LodProfile;
-import art.arcane.wormholes.render.plate.PlateCaptureJob;
-import art.arcane.wormholes.render.plate.PlateBox;
-import art.arcane.wormholes.render.plate.ViewPlate;
-import art.arcane.wormholes.render.plate.ViewPlateBuilder;
-import art.arcane.wormholes.render.plate.ViewPlateCache;
-import art.arcane.wormholes.render.plate.ViewPlateKey;
-import art.arcane.wormholes.render.view.ProjectionContentView;
+import art.arcane.optics.view.WorldChangeTracker;
+import art.arcane.optics.scan.ProjectorPassRevision;
+import art.arcane.optics.fidelity.AtmosphereMode;
+import art.arcane.optics.fidelity.FogPlatePolicy;
+import art.arcane.optics.volume.LodPolicy;
+import art.arcane.optics.volume.LodProfile;
+import art.arcane.optics.plate.PlateCaptureJob;
+import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.plate.ViewPlate;
+import art.arcane.optics.plate.ViewPlateBuilder;
+import art.arcane.optics.plate.ViewPlateCache;
+import art.arcane.optics.plate.ViewPlateKey;
+import art.arcane.optics.view.ContentView;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
@@ -44,8 +44,8 @@ public final class MinecraftViewPlates {
         if (rtp && targetIdentity == 0L) {
             return null;
         }
-        PortalFrame localFrame = portal.getFrame();
-        GeometryVector origin = portal.getOrigin();
+        Frame localFrame = portal.getFrame();
+        Vec3 origin = portal.getOrigin();
         LodPolicy lod = FidelitySettings.lodPolicy(LodProfile.parse(stringSetting(portal, "fidelity.lod"), LodProfile.BALANCED));
         int depth = portal.getNetworkViewDepth();
         int lateral = Math.min(portal.getNetworkViewLateralPad(), FidelitySettings.plateLateralClampBlocks);
@@ -67,11 +67,11 @@ public final class MinecraftViewPlates {
 
     public static ViewPlate<BlockState> acquire(WormholesModRuntime runtime, ViewPlateCache<BlockState, ServerLevel> plates, Target target,
                                                 Resolved resolved, boolean urgent) {
-        ProjectionWorldChangeTracker tracker = runtime.projections().changes();
+        WorldChangeTracker tracker = runtime.projections().changes();
         MinecraftPortal portal = target.portal();
-        GeometryVector origin = portal.getOrigin();
+        Vec3 origin = portal.getOrigin();
         return plates.current(resolved.key(), resolved.destinationRevision(), resolved.transformRevision(), tracker, urgent, previous -> {
-            ViewPlateBuilder.Request<BlockState, BlockState, ProjectionContentView<BlockState, BlockState>> request = new ViewPlateBuilder.Request<>(
+            ViewPlateBuilder.Request<BlockState, BlockState, ContentView<BlockState, BlockState>> request = new ViewPlateBuilder.Request<>(
                 resolved.key(), portal.getGeometry(), target.plateView().get(), portal.getFrame(), target.remoteFrame(), origin.x(), origin.y(),
                 origin.z(), target.originX(), target.originY(), target.originZ(), target.mirrorMode(), target.mirrorQuarterTurns(),
                 resolved.depth(), resolved.lateral(), resolved.padding(), target.culling(), target.air(), resolved.lod(), target.blockEntities(),
@@ -89,11 +89,11 @@ public final class MinecraftViewPlates {
         ViewPlateKey key = new ViewPlateKey(original.portalId(), new MeshSection(original.destinationViewIdentity(), clip),
             original.frontSide(), original.mirrorQuarterTurns(), original.targetIdentity());
         long transform = ProjectorPassRevision.mix(resolved.transformRevision(), boundedDistance);
-        ProjectionWorldChangeTracker tracker = runtime.projections().changes();
+        WorldChangeTracker tracker = runtime.projections().changes();
         MinecraftPortal portal = target.portal();
-        GeometryVector origin = portal.getOrigin();
+        Vec3 origin = portal.getOrigin();
         return plates.current(key, resolved.destinationRevision(), transform, tracker, false, previous -> {
-            ViewPlateBuilder.Request<BlockState, BlockState, ProjectionContentView<BlockState, BlockState>> request = new ViewPlateBuilder.Request<>(
+            ViewPlateBuilder.Request<BlockState, BlockState, ContentView<BlockState, BlockState>> request = new ViewPlateBuilder.Request<>(
                 key, portal.getGeometry(), target.plateView().get(), portal.getFrame(), target.remoteFrame(), origin.x(), origin.y(),
                 origin.z(), target.originX(), target.originY(), target.originZ(), target.mirrorMode(), target.mirrorQuarterTurns(),
                 boundedDistance, boundedDistance, resolved.padding(), false, target.air(), LodPolicy.NONE, target.blockEntities(),
@@ -125,7 +125,7 @@ public final class MinecraftViewPlates {
         return AtmosphereMode.parse(stringSetting(portal, "fidelity.atmosphere"), FidelitySettings.atmosphereModeDefault);
     }
 
-    public static BlockState blackoutState(MinecraftPortal portal, ProjectionContentView<BlockState, BlockState> destView) {
+    public static BlockState blackoutState(MinecraftPortal portal, ContentView<BlockState, BlockState> destView) {
         BlockState state = BuiltInRegistries.BLOCK.getOptional(Identifier.parse(portal.getBlackoutColor().blockState()))
             .orElse(Blocks.CONCRETE.pick(DyeColor.BLACK)).defaultBlockState();
         if (!FogPlatePolicy.applies(FidelitySettings.fogPlate, atmosphereMode(portal)) || !(destView instanceof MinecraftProjectionWorldView local)) {
@@ -145,7 +145,7 @@ public final class MinecraftViewPlates {
     }
 
     private static ViewPlateBuilder.Job<BlockState, ServerLevel> job(WormholesModRuntime runtime,
-                                                                     ViewPlateBuilder.Request<BlockState, BlockState, ProjectionContentView<BlockState, BlockState>> request,
+                                                                     ViewPlateBuilder.Request<BlockState, BlockState, ContentView<BlockState, BlockState>> request,
                                                                      boolean blockEntities, ViewPlate<BlockState> previous, LongOpenHashSet dirtyChunks) {
         if (!(request.destView() instanceof MinecraftProjectionWorldView local)) {
             return previous == null ? ViewPlateBuilder.job(request) : ViewPlateBuilder.patch(request, previous, dirtyChunks);
@@ -155,7 +155,7 @@ public final class MinecraftViewPlates {
             : ViewPlateBuilder.patchFootprint(request, dirtyChunks);
         return new PlateCaptureJob<>(new PlateCaptureJob.Plan<>(request.key(), local.getWorld(), footprint,
             new MinecraftPlateCaptureSource(runtime, MinecraftPlateCaptureSource.Options.column(local.worldId(), blockEntities)), captured -> {
-                ViewPlateBuilder.Request<BlockState, BlockState, ProjectionContentView<BlockState, BlockState>> captureRequest = request.withDestView(
+                ViewPlateBuilder.Request<BlockState, BlockState, ContentView<BlockState, BlockState>> captureRequest = request.withDestView(
                     new MinecraftCapturedChunkView(local.worldId(), local.getMinHeight(), local.getMaxHeight(), request.destinationRevision(), captured));
                 return previous == null ? ViewPlateBuilder.job(captureRequest) : ViewPlateBuilder.patch(captureRequest, previous, dirtyChunks);
             }));
@@ -166,9 +166,9 @@ public final class MinecraftViewPlates {
 
     public record Target(ServerPlayer observer,
                          MinecraftPortal portal,
-                         ProjectionContentView<BlockState, BlockState> destView,
-                         Supplier<ProjectionContentView<BlockState, BlockState>> plateView,
-                         PortalFrame remoteFrame,
+                         ContentView<BlockState, BlockState> destView,
+                         Supplier<ContentView<BlockState, BlockState>> plateView,
+                         Frame remoteFrame,
                          double originX,
                          double originY,
                          double originZ,

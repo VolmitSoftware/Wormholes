@@ -10,6 +10,9 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamCapability;
+import art.arcane.optics.stream.ViewStreamLimits;
 
 final class ClientMeshReuseCodecTest {
     @Test
@@ -37,7 +40,7 @@ final class ClientMeshReuseCodecTest {
         }
         ClientViewMessage.MeshCached message = new ClientViewMessage.MeshCached(7, 3, 11, true, claims);
         byte[] frame = ClientViewCodec.encodeC2S(message);
-        assertTrue(frame.length <= ClientViewProtocol.MAX_C2S_BYTES);
+        assertTrue(frame.length <= ViewStreamLimits.MAX_C2S_BYTES);
         assertEquals(message, ClientViewCodec.decodeC2S(frame));
         claims.clear();
         assertEquals(ClientViewMessage.MeshCached.MAX_CLAIMS, message.claims().size());
@@ -70,8 +73,8 @@ final class ClientMeshReuseCodecTest {
     @Test
     void reuseAcknowledgmentPreservesTransportRevisionCoordinatesAndHash() throws ClientViewProtocolException {
         ClientViewMessage.MeshReuse message = new ClientViewMessage.MeshReuse(7, 3, -300, -64, 300, 19, Long.MIN_VALUE);
-        byte[] frame = ClientViewCodec.encodeS2C(message, 21, ClientViewProtocol.FLAG_LAST);
-        ClientViewCodec.S2CFrame decoded = ClientViewCodec.decodeS2C(frame, ClientViewCapability.ALL);
+        byte[] frame = ClientViewCodec.encodeS2C(message, 21, ViewStreamLimits.FLAG_LAST);
+        ClientViewCodec.S2CFrame decoded = ClientViewCodec.decodeS2C(frame, ViewStreamCapability.ALL);
         assertEquals(message, decoded.message());
         assertEquals(21, decoded.seq());
         assertTrue(decoded.last());
@@ -80,12 +83,12 @@ final class ClientMeshReuseCodecTest {
     @Test
     void reuseDecoderRejectsNonpositiveGenerationAndRevision() throws ClientViewProtocolException {
         byte[] frame = ClientViewCodec.encodeS2C(new ClientViewMessage.MeshReuse(7, 3, -300, -64, 300, 19, -1L), 0, 0);
-        int generationOffset = ClientViewProtocol.S2C_HEADER_BYTES + 1;
+        int generationOffset = ViewStreamLimits.S2C_HEADER_BYTES + 1;
         for (int offset : new int[]{generationOffset, generationOffset + 16}) {
             for (int value : new int[]{0, -1, Integer.MIN_VALUE}) {
                 byte[] invalid = frame.clone();
                 ByteBuffer.wrap(invalid).order(ByteOrder.LITTLE_ENDIAN).putInt(offset, value);
-                assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.decodeS2C(invalid, ClientViewCapability.ALL));
+                assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.decodeS2C(invalid, ViewStreamCapability.ALL));
             }
         }
     }
@@ -101,11 +104,11 @@ final class ClientMeshReuseCodecTest {
         }
         for (int length = 0; length < reuse.length; length++) {
             byte[] truncated = Arrays.copyOf(reuse, length);
-            assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.decodeS2C(truncated, ClientViewCapability.ALL));
+            assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.decodeS2C(truncated, ViewStreamCapability.ALL));
         }
         assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.decodeC2S(Arrays.copyOf(cached, cached.length + 1)));
         assertThrows(ClientViewProtocolException.class,
-            () -> ClientViewCodec.decodeS2C(Arrays.copyOf(reuse, reuse.length + 1), ClientViewCapability.ALL));
+            () -> ClientViewCodec.decodeS2C(Arrays.copyOf(reuse, reuse.length + 1), ViewStreamCapability.ALL));
     }
 
     @Test
@@ -115,7 +118,7 @@ final class ClientMeshReuseCodecTest {
         assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.encodeS2C(cached, 0, 0));
         assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.encodeC2S(reuse));
         assertThrows(ClientViewProtocolException.class,
-            () -> ClientViewCodec.decodeS2C(ClientViewCodec.encodeC2S(cached), ClientViewCapability.ALL));
+            () -> ClientViewCodec.decodeS2C(ClientViewCodec.encodeC2S(cached), ViewStreamCapability.ALL));
         assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.decodeC2S(ClientViewCodec.encodeS2C(reuse, 0, 0)));
     }
 

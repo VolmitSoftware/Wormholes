@@ -1,16 +1,16 @@
 package art.arcane.wormholes.modded.client;
 
-import art.arcane.wormholes.network.client.ClientViewProtocol;
-import art.arcane.wormholes.portal.PortalFrame;
-import art.arcane.wormholes.render.ProjectionCellKey;
-import art.arcane.wormholes.render.ProjectorFrameTransform;
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
-import art.arcane.wormholes.render.client.ClientSpace;
-import art.arcane.wormholes.render.client.ClientViewSweep;
-import art.arcane.wormholes.render.plate.PlateBox;
-import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.frame.ProjectorFrameTransform;
+import art.arcane.optics.fidelity.BlockEntitySample;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.client.ClientSpace;
+import art.arcane.optics.client.ClientSweep;
+import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Face;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -22,7 +22,7 @@ public final class ClientMirrorBuilder implements ClientPortalContent {
     public static final int MAX_LATERAL_BLOCKS = 40;
     private static final int UNKNOWN = Integer.MIN_VALUE;
 
-    private final ClientPortalGeometry geometry;
+    private final ApertureDescriptor geometry;
     private final ClientSpace space;
     private final PlateBox box;
     private final int[] ids;
@@ -38,7 +38,7 @@ public final class ClientMirrorBuilder implements ClientPortalContent {
     private long resolvedCells;
     private long missingCells;
 
-    private ClientMirrorBuilder(ClientPortalGeometry geometry, PlateBox box, ClientPalette palette, ShadowSource shadows) {
+    private ClientMirrorBuilder(ApertureDescriptor geometry, PlateBox box, ClientPalette palette, ShadowSource shadows) {
         this.geometry = geometry;
         this.space = ClientSpace.mirror(geometry);
         this.box = box;
@@ -69,7 +69,7 @@ public final class ClientMirrorBuilder implements ClientPortalContent {
         this.maxChunkZ = ((int) Math.floor(maxZ)) >> 4;
     }
 
-    public static ClientMirrorBuilder create(ClientPortalGeometry geometry, ClientPalette palette, ShadowSource shadows) {
+    public static ClientMirrorBuilder create(ApertureDescriptor geometry, ClientPalette palette, ShadowSource shadows) {
         Objects.requireNonNull(geometry, "geometry");
         Objects.requireNonNull(palette, "palette");
         Objects.requireNonNull(shadows, "shadows");
@@ -77,16 +77,16 @@ public final class ClientMirrorBuilder implements ClientPortalContent {
             return null;
         }
         PlateBox box = displayBox(geometry);
-        if (box.cells() == 0L || box.cells() > ClientViewSweep.MAX_BOUNDS_CELLS) {
+        if (box.cells() == 0L || box.cells() > ClientSweep.MAX_BOUNDS_CELLS) {
             return null;
         }
         return new ClientMirrorBuilder(geometry, box, palette, shadows);
     }
 
-    public static PlateBox displayBox(ClientPortalGeometry geometry) {
-        AxisAlignedBB area = geometry.apertureArea();
-        PortalFrame frame = geometry.frame();
-        Direction normal = frame.getNormal();
+    public static PlateBox displayBox(ApertureDescriptor geometry) {
+        Box area = geometry.apertureArea();
+        Frame frame = geometry.frame();
+        Face normal = frame.getNormal();
         int normalAxis = axisOf(normal);
         double facing = normalAxis == 0 ? normal.x() : normalAxis == 1 ? normal.y() : normal.z();
         double origin = (low(area, normalAxis) + high(area, normalAxis)) * 0.5D;
@@ -111,7 +111,7 @@ public final class ClientMirrorBuilder implements ClientPortalContent {
         return PlateBox.spanning(min[0], min[1], min[2], max[0], max[1], max[2]);
     }
 
-    public ClientPortalGeometry geometry() {
+    public ApertureDescriptor geometry() {
         return geometry;
     }
 
@@ -126,14 +126,14 @@ public final class ClientMirrorBuilder implements ClientPortalContent {
 
     @Override
     public int backingState() {
-        return ClientViewProtocol.PALETTE_AIR;
+        return ViewStreamLimits.PALETTE_AIR;
     }
 
     @Override
     public int paletteIdAt(int x, int y, int z) {
         int index = box.index(x, y, z);
         if (index < 0) {
-            return ClientViewProtocol.PALETTE_AIR;
+            return ViewStreamLimits.PALETTE_AIR;
         }
         int known = ids[index];
         if (known != UNKNOWN) {
@@ -143,7 +143,7 @@ public final class ClientMirrorBuilder implements ClientPortalContent {
         BlockState shadow = shadows.shadow(cell[0], cell[1], cell[2]);
         if (shadow == null) {
             missingCells++;
-            return ClientViewProtocol.PALETTE_AIR;
+            return ViewStreamLimits.PALETTE_AIR;
         }
         int id = palette.localId(reflector.reflect(shadow));
         ids[index] = id;
@@ -163,7 +163,7 @@ public final class ClientMirrorBuilder implements ClientPortalContent {
             return false;
         }
         ids[index] = UNKNOWN;
-        displayOut.add(ProjectionCellKey.pack(cell[0], cell[1], cell[2]));
+        displayOut.add(CellKeys.pack(cell[0], cell[1], cell[2]));
         return true;
     }
 
@@ -183,15 +183,15 @@ public final class ClientMirrorBuilder implements ClientPortalContent {
         return missingCells;
     }
 
-    private static int axisOf(Direction direction) {
+    private static int axisOf(Face direction) {
         return direction.x() != 0 ? 0 : direction.y() != 0 ? 1 : 2;
     }
 
-    private static double low(AxisAlignedBB box, int axis) {
+    private static double low(Box box, int axis) {
         return axis == 0 ? box.getXa() : axis == 1 ? box.getYa() : box.getZa();
     }
 
-    private static double high(AxisAlignedBB box, int axis) {
+    private static double high(Box box, int axis) {
         return axis == 0 ? box.getXb() : axis == 1 ? box.getYb() : box.getZb();
     }
 

@@ -1,20 +1,19 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.portal.AmbientOutlineGeometry;
 import art.arcane.wormholes.portal.AmbientSparkCadence;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.PortalSurfaceSkins;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.wormholes.render.PortalSkinGeometry;
 import art.arcane.wormholes.render.PortalSkinGeometry.SkinTransform;
-import art.arcane.wormholes.render.ProjectedBlockClaim;
-import art.arcane.wormholes.render.ProjectionCellKey;
-import art.arcane.wormholes.render.ProjectionClaimSet;
-import art.arcane.wormholes.render.view.ProjectionContentView;
-import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.claim.ProjectionClaimSet;
+import art.arcane.optics.view.ContentView;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Face;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.math.Transformation;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -79,13 +78,13 @@ final class MinecraftPortalSurfaces implements AutoCloseable {
         Vec3 eye = player.getEyePosition();
         Vec3 look = player.getLookAngle();
         for (MinecraftPortal portal : runtime.portals().snapshot()) {
-            GeometryVector center = portal.getGeometry().getApertureCenter();
+            art.arcane.optics.math.Vec3 center = portal.getGeometry().getApertureCenter();
             if (clearing && portal.getSurfaceSkin().isEmpty() || runtime.portals().resolveLevel(portal) != player.level()
                 || player.position().distanceToSqr(center.x(), center.y(), center.z()) >= 64) {
                 continue;
             }
             for (double distance = 0; distance < 16; distance += 0.25) {
-                if (portal.getGeometry().contains(new GeometryVector(eye.x + look.x * distance, eye.y + look.y * distance, eye.z + look.z * distance))) {
+                if (portal.getGeometry().contains(new art.arcane.optics.math.Vec3(eye.x + look.x * distance, eye.y + look.y * distance, eye.z + look.z * distance))) {
                     return runtime.menus().cosmetics().applySurfaceSkinFromInteraction(player, portal, skin);
                 }
             }
@@ -121,8 +120,8 @@ final class MinecraftPortalSurfaces implements AutoCloseable {
                 populate(surface, portal);
             }
             if (!surface.fluid.isEmpty()) {
-                Direction normal = portal.getDirection();
-                GeometryVector origin = portal.getOrigin();
+                Face normal = portal.getDirection();
+                art.arcane.optics.math.Vec3 origin = portal.getOrigin();
                 Vec3 eye = player.getEyePosition();
                 double distance = Math.abs((eye.x - origin.x()) * normal.x() + (eye.y - origin.y()) * normal.y() + (eye.z - origin.z()) * normal.z());
                 context.claims().stagePortalClaims(surface.owner, surface.owner.toString(), distance, surface.fluid, context.staged());
@@ -147,8 +146,8 @@ final class MinecraftPortalSurfaces implements AutoCloseable {
             throw new IllegalArgumentException("Invalid skin on portal " + portal.getId(), failure);
         }
         if (PortalSurfaceSkins.isFluid(portal.getSurfaceSkin()) || surface.withholdsDisplays) {
-            for (GeometryVector cell : portal.getGeometry().getBlockPositions()) {
-                surface.fluid.put(ProjectionCellKey.pack(cell.getBlockX(), cell.getBlockY(), cell.getBlockZ()),
+            for (art.arcane.optics.math.Vec3 cell : portal.getGeometry().getBlockPositions()) {
+                surface.fluid.put(CellKeys.pack(cell.getBlockX(), cell.getBlockY(), cell.getBlockZ()),
                     new ProjectedBlockClaim<>(block, null, ProjectedBlockClaim.NO_REMOTE_KEY, false));
             }
             return;
@@ -193,7 +192,7 @@ final class MinecraftPortalSurfaces implements AutoCloseable {
         }
         DustParticleOptions dust = new DustParticleOptions(portal.getAmbientColor(), 1.0f);
         if (style == AmbientParticleStyle.CORNERS) {
-            AxisAlignedBB area = portal.getGeometry().getArea();
+            Box area = portal.getGeometry().getArea();
             for (int offset = 0; offset < (portal.isOpen() ? 8 : 2); offset++) {
                 int corner = Math.floorMod(cursor + offset, 8);
                 particle(dust, (corner & 1) == 0 ? area.getXa() : area.getXb(),
@@ -214,7 +213,7 @@ final class MinecraftPortalSurfaces implements AutoCloseable {
         if (count == 0) {
             return;
         }
-        GeometryVector cell = portal.getGeometry().randomCellCentre();
+        art.arcane.optics.math.Vec3 cell = portal.getGeometry().randomCellCentre();
         if (cell == null) {
             return;
         }
@@ -247,17 +246,17 @@ final class MinecraftPortalSurfaces implements AutoCloseable {
         outlines.clear();
     }
 
-    record Context(ServerPlayer player, ProjectionClaimSet<ProjectedBlockClaim<BlockState, ProjectionContentView<BlockState, BlockState>>> claims,
+    record Context(ServerPlayer player, ProjectionClaimSet<ProjectedBlockClaim<BlockState, ContentView<BlockState, BlockState>>> claims,
                    LongOpenHashSet staged) { }
 
     private static final class Surface {
         private final UUID owner;
         private final String skin;
         private final long revision;
-        private final PortalFrame frame;
+        private final Frame frame;
         private final boolean withholdsDisplays;
         private final List<Integer> displays = new ArrayList<>();
-        private final Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockState, ProjectionContentView<BlockState, BlockState>>> fluid = new Long2ObjectOpenHashMap<>();
+        private final Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockState, ContentView<BlockState, BlockState>>> fluid = new Long2ObjectOpenHashMap<>();
 
         private Surface(MinecraftPortal portal, ServerPlayer viewer) {
             owner = UUID.nameUUIDFromBytes(("wormholes:surface-skin:" + portal.getId()).getBytes(StandardCharsets.UTF_8));

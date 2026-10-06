@@ -6,14 +6,14 @@ import art.arcane.wormholes.access.PortalRole;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.BlackoutColor;
-import art.arcane.wormholes.portal.MirrorRotation;
+import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.wormholes.portal.NetworkViewQuality;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalPermissionMode;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.ProjectionMode;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import com.mojang.authlib.GameProfile;
 import io.netty.channel.embedded.EmbeddedChannel;
 import net.minecraft.core.BlockPos;
@@ -55,7 +55,7 @@ public final class MinecraftPortalMenuGameTest {
     private final List<String> clicks = new ArrayList<>();
     private final CompletableFuture<Boolean> result = new CompletableFuture<>();
     private AutoCloseable permissions;
-    private PortalFrame originalFrame;
+    private Frame originalFrame;
     private String homeTitle;
     private String sortLabel;
     private int heartbeat;
@@ -439,7 +439,7 @@ public final class MinecraftPortalMenuGameTest {
             named(17, Items.COPPER_TORCH, WormholesMessages.PORTAL_MENU_MIRROR_AVAILABLE);
             named(22, Items.ARROW, WormholesMessages.PORTAL_MENU_BACK);
             chest().clicked(17, 1, ContainerInput.PICKUP, owner.player());
-            helper.assertTrue(!source.isMirrorMode() && source.getMirrorRotation() == MirrorRotation.DEGREES_0, "Mirror rotation applied before mirror mode");
+            helper.assertTrue(!source.isMirrorMode() && source.getMirrorRotation() == QuarterTurn.DEGREES_0, "Mirror rotation applied before mirror mode");
             owner.player().closeContainer();
         });
         step(() -> {
@@ -463,7 +463,7 @@ public final class MinecraftPortalMenuGameTest {
         });
         step(() -> {
             slot(17, Items.COPPER_TORCH, true);
-            MirrorRotation expected = source.getMirrorRotation().clockwiseFor(source.getFrame());
+            QuarterTurn expected = source.getMirrorRotation().clockwiseFor(source.getFrame());
             chest().clicked(17, 1, ContainerInput.PICKUP, owner.player());
             helper.assertTrue(source.getMirrorRotation() == expected, "Mirror right click did not rotate clockwise");
             click(9);
@@ -538,7 +538,7 @@ public final class MinecraftPortalMenuGameTest {
             owner.player().setYRot(90.0F);
             owner.player().setXRot(0.0F);
             Vec3 look = owner.player().getLookAngle();
-            Direction expected = Direction.closest(look.x, look.y, look.z);
+            Face expected = Face.closest(look.x, look.y, look.z);
             MinecraftPortalMenus.directionInput(owner.player(), false);
             helper.assertTrue(source.getDirection() == expected, "Direction prompt did not apply the looked direction");
             runtime.portals().update(owner.player(), source.getId(), portal -> portal.setFrame(originalFrame));

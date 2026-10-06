@@ -9,6 +9,7 @@ import org.bukkit.block.Biome;
 
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.platform.WormholesPlatform;
+import art.arcane.optics.fidelity.BiomeIdResolver;
 
 /**
  * Biome network ids taken from the server biome registry in registration order, which is the order

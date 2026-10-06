@@ -5,11 +5,11 @@ import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.LocalPortal;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.vanilla.PortalFactory;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -99,7 +99,7 @@ public final class BukkitPortalFactoryBridge implements PortalFactoryBridge {
         if (existing != null) {
             return CreateResult.refused("a portal already exists here: " + existing.getName());
         }
-        ILocalPortal created = PortalFactory.createFromCells(cells, PortalFrame.canonical(portal.facing()),
+        ILocalPortal created = PortalFactory.createFromCells(cells, Frame.canonical(portal.facing()),
             PortalType.PORTAL, portal.name());
         if (created == null) {
             return CreateResult.refused("the portal factory refused the site");
@@ -136,7 +136,7 @@ public final class BukkitPortalFactoryBridge implements PortalFactoryBridge {
     /** The aperture plane: width along the axis the facing does not use, height upward. */
     private static Set<Block> cells(World world, ImportedPortal portal) {
         Set<Block> cells = new LinkedHashSet<>();
-        boolean alongX = portal.facing() == Direction.N || portal.facing() == Direction.S;
+        boolean alongX = portal.facing() == Face.N || portal.facing() == Face.S;
         for (int across = 0; across < Math.max(1, portal.width()); across++) {
             for (int up = 0; up < Math.max(1, portal.height()); up++) {
                 int x = portal.x() + (alongX ? across : 0);

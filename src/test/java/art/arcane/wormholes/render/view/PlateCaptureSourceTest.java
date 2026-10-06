@@ -18,8 +18,8 @@ import org.bukkit.block.sign.SignSide;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.render.FidelitySettings;
-import art.arcane.wormholes.render.ProjectionCellKey;
-import art.arcane.wormholes.render.plate.PlateCaptureJob;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.plate.PlateCaptureJob;
 
 final class PlateCaptureSourceTest {
     @Test
@@ -66,7 +66,7 @@ final class PlateCaptureSourceTest {
             PlateCaptureSource source = new PlateCaptureSource(new PlateCaptureSource.Options(true, -32, -17, false));
             PlateCaptureSource.CapturedChunk captured = source.capture(world(chunk(signs)), 0, 0);
             assertEquals(1, captured.blockEntities().size());
-            assertTrue(captured.blockEntities().containsKey(ProjectionCellKey.pack(2, -17, 3)));
+            assertTrue(captured.blockEntities().containsKey(CellKeys.pack(2, -17, 3)));
             assertTrue(captured.blockEntitiesComplete());
         } finally {
             FidelitySettings.blockEntities = blockEntities;

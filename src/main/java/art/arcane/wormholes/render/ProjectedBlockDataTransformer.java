@@ -17,8 +17,10 @@ import org.bukkit.block.data.type.RedstoneWire;
 import org.bukkit.block.data.type.Stairs;
 import org.bukkit.block.data.type.Wall;
 
-import art.arcane.wormholes.portal.PortalFrame;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.math.Face;
+import art.arcane.optics.frame.DirectionMapping;
+import art.arcane.optics.frame.PortalCoordMap;
 
 public final class ProjectedBlockDataTransformer {
     private static final BlockFace[] HORIZONTAL_FACES = {
@@ -28,11 +30,11 @@ public final class ProjectedBlockDataTransformer {
     private ProjectedBlockDataTransformer() {
     }
 
-    public static BlockData transform(BlockData source, PortalFrame fromFrame, PortalFrame toFrame, double[] scratch3) {
+    public static BlockData transform(BlockData source, Frame fromFrame, Frame toFrame, double[] scratch3) {
         return transform(source, DirectionMapping.between(fromFrame, toFrame, scratch3));
     }
 
-    public static BlockData mirror(BlockData source, PortalFrame frame, int quarterTurns, double[] scratch3) {
+    public static BlockData mirror(BlockData source, Frame frame, int quarterTurns, double[] scratch3) {
         return transform(source, DirectionMapping.mirror(frame, quarterTurns, scratch3));
     }
 
@@ -64,11 +66,11 @@ public final class ProjectedBlockDataTransformer {
             return;
         }
         Directional directional = (Directional) data;
-        Direction source = fromBlockFace(directional.getFacing());
+        Face source = fromBlockFace(directional.getFacing());
         if (source == null) {
             return;
         }
-        Direction target = mapping.map(source);
+        Face target = mapping.map(source);
         BlockFace targetFace = toBlockFace(target);
         Set<BlockFace> faces = directional.getFaces();
         if (targetFace != null && faces.contains(targetFace)) {
@@ -93,8 +95,8 @@ public final class ProjectedBlockDataTransformer {
             return;
         }
         Orientable orientable = (Orientable) data;
-        Direction source = directionForAxis(orientable.getAxis());
-        Direction target = mapping.map(source);
+        Face source = directionForAxis(orientable.getAxis());
+        Face target = mapping.map(source);
         Axis axis = axisForDirection(target);
         if (orientable.getAxes().contains(axis)) {
             orientable.setAxis(axis);
@@ -111,11 +113,11 @@ public final class ProjectedBlockDataTransformer {
             multiple.setFace(face, false);
         }
         for (BlockFace face : enabled) {
-            Direction source = fromBlockFace(face);
+            Face source = fromBlockFace(face);
             if (source == null) {
                 continue;
             }
-            Direction target = mapping.map(source);
+            Face target = mapping.map(source);
             BlockFace targetFace = toBlockFace(target);
             if (targetFace != null && multiple.getAllowedFaces().contains(targetFace)) {
                 multiple.setFace(targetFace, true);
@@ -185,7 +187,7 @@ public final class ProjectedBlockDataTransformer {
     }
 
     private static BlockFace mappedHorizontalFace(BlockFace face, DirectionMapping mapping) {
-        Direction source = fromBlockFace(face);
+        Face source = fromBlockFace(face);
         if (source == null) {
             return null;
         }
@@ -205,24 +207,24 @@ public final class ProjectedBlockDataTransformer {
         }
     }
 
-    static Direction mirrorDirection(Direction source, PortalFrame frame, int quarterTurns, double[] scratch3) {
+    static Face mirrorDirection(Face source, Frame frame, int quarterTurns, double[] scratch3) {
         PortalCoordMap.mirrorSourceToDisplayVectorInto(source.x(), source.y(), source.z(), frame, quarterTurns, scratch3);
-        return Direction.closest(scratch3[0], scratch3[1], scratch3[2]);
+        return Face.closest(scratch3[0], scratch3[1], scratch3[2]);
     }
 
-    private static Direction directionForAxis(Axis axis) {
+    private static Face directionForAxis(Axis axis) {
         switch(axis) {
             case X:
-                return Direction.E;
+                return Face.E;
             case Y:
-                return Direction.U;
+                return Face.U;
             case Z:
             default:
-                return Direction.S;
+                return Face.S;
         }
     }
 
-    private static Axis axisForDirection(Direction direction) {
+    private static Axis axisForDirection(Face direction) {
         switch(direction.getAxis()) {
             case X:
                 return Axis.X;
@@ -234,26 +236,26 @@ public final class ProjectedBlockDataTransformer {
         }
     }
 
-    private static Direction fromBlockFace(BlockFace face) {
+    private static Face fromBlockFace(BlockFace face) {
         switch(face) {
             case NORTH:
-                return Direction.N;
+                return Face.N;
             case SOUTH:
-                return Direction.S;
+                return Face.S;
             case EAST:
-                return Direction.E;
+                return Face.E;
             case WEST:
-                return Direction.W;
+                return Face.W;
             case UP:
-                return Direction.U;
+                return Face.U;
             case DOWN:
-                return Direction.D;
+                return Face.D;
             default:
                 return null;
         }
     }
 
-    private static BlockFace toBlockFace(Direction direction) {
+    private static BlockFace toBlockFace(Face direction) {
         switch(direction) {
             case N:
                 return BlockFace.NORTH;

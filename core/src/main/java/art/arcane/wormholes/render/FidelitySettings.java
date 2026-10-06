@@ -1,8 +1,8 @@
 package art.arcane.wormholes.render;
 
 import art.arcane.optics.fidelity.FidelityOptions;
-import art.arcane.wormholes.render.lod.LodPolicy;
-import art.arcane.wormholes.render.lod.LodProfile;
+import art.arcane.optics.volume.LodPolicy;
+import art.arcane.optics.volume.LodProfile;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -14,8 +14,8 @@ import art.arcane.wormholes.config.toml.BedrockConfig;
 import art.arcane.wormholes.config.toml.LodConfig;
 import art.arcane.wormholes.config.toml.ProjectionConfig;
 import art.arcane.wormholes.config.toml.RenderConfig;
-import art.arcane.wormholes.render.acoustics.AcousticsProfile;
-import art.arcane.wormholes.render.atmosphere.AtmosphereMode;
+import art.arcane.optics.fidelity.AcousticsProfile;
+import art.arcane.optics.fidelity.AtmosphereMode;
 
 /**
  * Live snapshot of the view lane's configuration. Refreshed by the render subsystem on start and

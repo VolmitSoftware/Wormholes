@@ -19,9 +19,9 @@ import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.portal.DimensionalPortalKind;
 import art.arcane.wormholes.portal.ILocalPortal;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalType;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 
 final class VanillaPortalNetherPairing
 {
@@ -39,7 +39,7 @@ final class VanillaPortalNetherPairing
 		pair(sourceWorld, cells, deriveNormal(cells), DimensionalPortalKind.NETHER);
 	}
 
-	void pair(World sourceWorld, Set<Block> cells, Direction normal, DimensionalPortalKind kind)
+	void pair(World sourceWorld, Set<Block> cells, Face normal, DimensionalPortalKind kind)
 	{
 		try
 		{
@@ -70,7 +70,7 @@ final class VanillaPortalNetherPairing
 						+ " are not in the same world group");
 				return;
 			}
-			ILocalPortal sourcePortal = PortalFactory.createFromCells(cells, PortalFrame.canonical(normal), PortalType.PORTAL, VanillaPortalIndex.NETHER_TAG, kind);
+			ILocalPortal sourcePortal = PortalFactory.createFromCells(cells, Frame.canonical(normal), PortalType.PORTAL, VanillaPortalIndex.NETHER_TAG, kind);
 			if(sourcePortal == null)
 			{
 				Wormholes.w("[vanilla-portal] source portal creation returned null");
@@ -125,7 +125,7 @@ final class VanillaPortalNetherPairing
 		}
 	}
 
-	private void buildSharedFallbackCounterpart(World target, ILocalPortal sourcePortal, Set<Block> sourceCells, Direction normal,
+	private void buildSharedFallbackCounterpart(World target, ILocalPortal sourcePortal, Set<Block> sourceCells, Face normal,
 			boolean alongX, int interiorWidth, int interiorHeight, int targetX, int targetY, int targetZ, int searchRadius)
 	{
 		findPhysicalPortalAsync(target, targetX, targetY, targetZ, searchRadius).whenComplete((physicalPortal, lookupError) ->
@@ -146,7 +146,7 @@ final class VanillaPortalNetherPairing
 
 	private boolean reusePhysicalPortal(ILocalPortal sourcePortal, Set<Block> sourceCells, Set<Block> physicalPortal)
 	{
-		ILocalPortal counterpart = PortalFactory.createFromCells(physicalPortal, PortalFrame.canonical(deriveNormal(physicalPortal)), PortalType.PORTAL,
+		ILocalPortal counterpart = PortalFactory.createFromCells(physicalPortal, Frame.canonical(deriveNormal(physicalPortal)), PortalType.PORTAL,
 				VanillaPortalIndex.NETHER_TAG, DimensionalPortalKind.NETHER);
 		if(counterpart != null && PortalFactory.linkBidirectional(sourcePortal, counterpart))
 		{
@@ -159,7 +159,7 @@ final class VanillaPortalNetherPairing
 		return false;
 	}
 
-	private void buildGeneratedCounterpart(World target, ILocalPortal sourcePortal, Set<Block> sourceCells, Direction normal,
+	private void buildGeneratedCounterpart(World target, ILocalPortal sourcePortal, Set<Block> sourceCells, Face normal,
 			boolean alongX, int interiorWidth, int interiorHeight, int targetX, int targetY, int targetZ, Set<Block> forbiddenPhysicalPortal)
 	{
 		VanillaPortalNetherSites.BuildTarget buildTarget = sites.reserve(target, targetX, targetZ, interiorWidth, interiorHeight, forbiddenPhysicalPortal);
@@ -181,7 +181,7 @@ final class VanillaPortalNetherPairing
 			{
 				try
 				{
-					ILocalPortal counterpart = PortalFactory.createFromCells(built, PortalFrame.canonical(normal), PortalType.PORTAL, VanillaPortalIndex.NETHER_TAG, DimensionalPortalKind.NETHER);
+					ILocalPortal counterpart = PortalFactory.createFromCells(built, Frame.canonical(normal), PortalType.PORTAL, VanillaPortalIndex.NETHER_TAG, DimensionalPortalKind.NETHER);
 					if(counterpart == null)
 					{
 						VanillaPortalCleanup.destroyIfUnlinked(sourcePortal);
@@ -332,7 +332,7 @@ final class VanillaPortalNetherPairing
 		return ((long) (x & 0x3ffffff) << 38) | ((long) (z & 0x3ffffff) << 12) | (y & 0xfff);
 	}
 
-	private static Direction deriveNormal(Set<Block> cells)
+	private static Face deriveNormal(Set<Block> cells)
 	{
 		int minX = Integer.MAX_VALUE;
 		int maxX = Integer.MIN_VALUE;
@@ -346,7 +346,7 @@ final class VanillaPortalNetherPairing
 			maxZ = Math.max(maxZ, cell.getZ());
 		}
 		boolean flatX = minX == maxX;
-		return flatX ? Direction.E : Direction.N;
+		return flatX ? Face.E : Face.N;
 	}
 
 	private static int interiorWidth(Set<Block> cells, boolean alongX)

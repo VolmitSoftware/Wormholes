@@ -1,13 +1,13 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import art.arcane.wormholes.portal.DimensionalPortalKind;
 import art.arcane.wormholes.portal.Portal;
-import art.arcane.wormholes.portal.PortalFrame;
-import art.arcane.wormholes.portal.PortalGeometry;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.ProjectionMode;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -115,17 +115,17 @@ public class MinecraftEndPortalTest extends MinecraftTestBase {
     }
 
     static MinecraftPortal portal(String world, int x, int y, int z) {
-        List<GeometryVector> cells = new ArrayList<>(9);
+        List<Vec3> cells = new ArrayList<>(9);
         for (int dx = -1; dx <= 1; dx++) {
             for (int dz = -1; dz <= 1; dz++) {
-                cells.add(new GeometryVector(x + dx, y, z + dz));
+                cells.add(new Vec3(x + dx, y, z + dz));
             }
         }
-        PortalGeometry geometry = new PortalGeometry();
+        ApertureCells geometry = new ApertureCells();
         geometry.setBlocks(cells);
         UUID id = UUID.randomUUID();
         return new MinecraftPortal(new MinecraftPortal.Definition(new Portal.State(id, geometry.getApertureCenter(), "End portal",
-            PortalFrame.canonical(Direction.U), true), geometry, world, Map.of("owner", id.toString(), "type", "PORTAL")));
+            Frame.canonical(Face.U), true), geometry, world, Map.of("owner", id.toString(), "type", "PORTAL")));
     }
 
     private static Object shape(ServerLevel level, BlockPos anchor) throws Exception {

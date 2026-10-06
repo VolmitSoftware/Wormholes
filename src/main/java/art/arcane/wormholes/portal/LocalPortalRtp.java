@@ -23,6 +23,7 @@ import art.arcane.wormholes.survival.doors.dimension.PocketWorldService;
 import art.arcane.volmlib.util.bukkit.WorldIdentity;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.volmlib.util.json.JSONObject;
+import art.arcane.optics.frame.Frame;
 
 final class LocalPortalRtp
 {
@@ -350,11 +351,11 @@ final class LocalPortalRtp
 		}
 	}
 
-	void completeTraversal(Entity entity, Traversive traversive, PortalFrame targetFrame, Location target)
+	void completeTraversal(Entity entity, Traversive traversive, Frame targetFrame, Location target)
 	{
 		Entity requiredEntity = Objects.requireNonNull(entity, "entity");
 		Traversive requiredTraversive = Objects.requireNonNull(traversive, "traversive");
-		PortalFrame requiredTargetFrame = Objects.requireNonNull(targetFrame, "targetFrame");
+		Frame requiredTargetFrame = Objects.requireNonNull(targetFrame, "targetFrame");
 		Location requiredTarget = Objects.requireNonNull(target, "target");
 		if(!LocalPortalTransitRegistry.clearTeleportInFlight(requiredEntity.getUniqueId()))
 		{

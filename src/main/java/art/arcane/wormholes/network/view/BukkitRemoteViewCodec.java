@@ -1,7 +1,7 @@
 package art.arcane.wormholes.network.view;
 
 import art.arcane.wormholes.Wormholes;
-import art.arcane.wormholes.render.blockentity.BlockEntityMaterials;
+import art.arcane.optics.fidelity.BlockEntityMaterials;
 import art.arcane.wormholes.render.view.OccludedMarker;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
 import com.github.retrooper.packetevents.protocol.player.Equipment;

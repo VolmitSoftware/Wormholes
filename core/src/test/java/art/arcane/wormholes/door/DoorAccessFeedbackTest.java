@@ -1,7 +1,7 @@
 package art.arcane.wormholes.door;
 
 import org.junit.jupiter.api.Test;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -54,12 +54,12 @@ final class DoorAccessFeedbackTest
 				? DoorOpenState.OPEN
 				: DoorOpenState.CLOSED;
 			DoorwayPlane plane = DoorwayPlane.trapdoor(
-				2, 64, 3, Direction.N, half, openState);
-			Direction panelFace = DoorPortalGeometry.panelFace(plane);
+				2, 64, 3, Face.N, half, openState);
+			Face panelFace = DoorPortalGeometry.panelFace(plane);
 			PortalPlaneGeometry geometry =
 				DoorPortalGeometry.planeGeometry(plane, DoorHinge.LEFT);
 
-			assertEquals(Direction.U, panelFace);
+			assertEquals(Face.U, panelFace);
 			assertEquals(3, DoorPortalAnimation.scatterPoint(geometry, panelFace, 0.0D, 0.0D).length);
 			assertEquals(3, DoorPortalAnimation.scatterPoint(geometry, panelFace, 0.99D, 0.99D).length);
 		}

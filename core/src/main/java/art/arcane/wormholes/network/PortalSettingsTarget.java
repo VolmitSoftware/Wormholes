@@ -2,7 +2,7 @@ package art.arcane.wormholes.network;
 
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.BlackoutColor;
-import art.arcane.wormholes.portal.MirrorRotation;
+import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.wormholes.portal.PortalPermissionMode;
 import art.arcane.wormholes.portal.ProjectionMode;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
@@ -13,7 +13,7 @@ public interface PortalSettingsTarget extends TraversalAdmissionPolicy.InboundPo
     int getAmbientColor();
     AmbientParticleStyle getAmbientStyle();
     BlackoutColor getBlackoutColor();
-    MirrorRotation getMirrorRotation();
+    QuarterTurn getMirrorRotation();
     int getNetworkViewDepth();
     int getNetworkViewEntityIntervalTicks();
     String getNetworkViewFallbackBlock();
@@ -36,7 +36,7 @@ public interface PortalSettingsTarget extends TraversalAdmissionPolicy.InboundPo
     void setBlackoutColor(BlackoutColor color);
     void setIncomingTraversalsEnabled(boolean enabled);
     void setMirrorMode(boolean mirrorMode);
-    void setMirrorRotation(MirrorRotation rotation);
+    void setMirrorRotation(QuarterTurn rotation);
     void setNetworkViewDepth(int depth);
     void setNetworkViewEntityIntervalTicks(int ticks);
     void setNetworkViewFallbackBlock(String blockState);

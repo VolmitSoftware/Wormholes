@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
-import art.arcane.wormholes.render.ProjectionCellKey;
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.fidelity.BlockEntitySample;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import net.minecraft.world.level.block.state.BlockState;
@@ -18,8 +18,8 @@ public class ClientLightInvalidationTest {
     public void interiorChangesDoNotRebuildUnchangedBoundaryNeighbors() {
         RecordingSurface surface = new RecordingSurface();
         ClientLightPatches patches = new ClientLightPatches(surface);
-        long center = ProjectionCellKey.pack(8, 8, 8);
-        long corner = ProjectionCellKey.pack(0, 0, 15);
+        long center = CellKeys.pack(8, 8, 8);
+        long corner = CellKeys.pack(0, 0, 15);
         refresh(patches, new long[]{center, corner}, new int[]{0x75, 0x75});
         surface.changes.clear();
 
@@ -39,7 +39,7 @@ public class ClientLightInvalidationTest {
             RecordingSurface surface = new RecordingSurface();
             ClientLightPatches patches = new ClientLightPatches(surface);
             int[] cell = cells[index];
-            long[] keys = {ProjectionCellKey.pack(cell[0], cell[1], cell[2])};
+            long[] keys = {CellKeys.pack(cell[0], cell[1], cell[2])};
             refresh(patches, keys, new int[]{0});
             assertEquals(List.of(new Change(0, 0, 0, 1 << index)), surface.changes);
             surface.changes.clear();
@@ -53,7 +53,7 @@ public class ClientLightInvalidationTest {
     public void cornerRemovalInvalidatesEveryAffectedDirection() {
         RecordingSurface surface = new RecordingSurface();
         ClientLightPatches patches = new ClientLightPatches(surface);
-        refresh(patches, new long[]{ProjectionCellKey.pack(0, 0, 15)}, new int[]{0});
+        refresh(patches, new long[]{CellKeys.pack(0, 0, 15)}, new int[]{0});
         patches.tick();
         surface.changes.clear();
 
@@ -68,8 +68,8 @@ public class ClientLightInvalidationTest {
     public void removingOneBoundaryKeepsOtherUnchangedBoundariesOutOfTheRebuild() {
         RecordingSurface surface = new RecordingSurface();
         ClientLightPatches patches = new ClientLightPatches(surface);
-        long west = ProjectionCellKey.pack(0, 8, 8);
-        long east = ProjectionCellKey.pack(15, 8, 8);
+        long west = CellKeys.pack(0, 8, 8);
+        long east = CellKeys.pack(15, 8, 8);
         refresh(patches, new long[]{west, east}, new int[]{0x71, 0x71});
         surface.changes.clear();
 
@@ -82,7 +82,7 @@ public class ClientLightInvalidationTest {
     public void clearUsesTheRemovedLightMask() {
         RecordingSurface surface = new RecordingSurface();
         ClientLightPatches patches = new ClientLightPatches(surface);
-        refresh(patches, new long[]{ProjectionCellKey.pack(15, 15, 0)}, new int[]{0x71});
+        refresh(patches, new long[]{CellKeys.pack(15, 15, 0)}, new int[]{0x71});
         surface.changes.clear();
 
         patches.clear();
@@ -98,7 +98,7 @@ public class ClientLightInvalidationTest {
     public void unmappedBoundaryCellsDoNotExpandRebuildsAndZeroLightRemainsMapped() {
         RecordingSurface surface = new RecordingSurface();
         ClientLightPatches patches = new ClientLightPatches(surface);
-        refresh(patches, new long[]{ProjectionCellKey.pack(8, 8, 8), ProjectionCellKey.pack(0, 0, 0)}, new int[]{0, -1});
+        refresh(patches, new long[]{CellKeys.pack(8, 8, 8), CellKeys.pack(0, 0, 0)}, new int[]{0, -1});
         patches.tick();
 
         assertEquals(List.of(new Change(0, 0, 0, 0)), surface.changes);
@@ -110,7 +110,7 @@ public class ClientLightInvalidationTest {
     public void unchangedLightDoesNotRebuild() {
         RecordingSurface surface = new RecordingSurface();
         ClientLightPatches patches = new ClientLightPatches(surface);
-        long[] cells = {ProjectionCellKey.pack(0, 0, 0), ProjectionCellKey.pack(8, 8, 8)};
+        long[] cells = {CellKeys.pack(0, 0, 0), CellKeys.pack(8, 8, 8)};
         refresh(patches, cells, new int[]{0x71, 0x45});
         surface.changes.clear();
 
@@ -124,7 +124,7 @@ public class ClientLightInvalidationTest {
     public void skyDarkeningUsesExistingMaskBoundaries() {
         RecordingSurface surface = new RecordingSurface();
         ClientLightPatches patches = new ClientLightPatches(surface);
-        refresh(patches, new long[]{ProjectionCellKey.pack(0, 15, 8)}, new int[]{0x75});
+        refresh(patches, new long[]{CellKeys.pack(0, 15, 8)}, new int[]{0x75});
         patches.tick();
         surface.changes.clear();
 

@@ -29,7 +29,7 @@ import art.arcane.wormholes.portal.TransitBridge;
 import art.arcane.wormholes.portal.Traversive;
 import art.arcane.wormholes.portal.UniversalTunnel;
 import art.arcane.wormholes.service.WormholesHud;
-import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.optics.math.Box;
 
 /**
  * Departure checks owned by the transit lane. A bouncing portal refuses everyone and a membrane refuses
@@ -106,7 +106,7 @@ public final class TransitGate implements TraversalGate {
         if (!graph.fits(structure, portal.getFrame())) {
             return new TraversalVerdict.Deny(TransitMessages.DENIED_CONVOY_FIT, portalArgs(portal), true);
         }
-        AxisAlignedBB zone = structure == null ? null : structure.getCaptureZone();
+        Box zone = structure == null ? null : structure.getCaptureZone();
         if (!graph.allInsidePlane(structure == null ? null : structure.getWorld(), zone)) {
             noticeWaiting(traveler, portal, now);
             return new TraversalVerdict.Defer(TransitMessages.CONVOY_WAITING);

@@ -8,11 +8,11 @@ import art.arcane.wormholes.modded.client.render.ClientTravelScene;
 import art.arcane.wormholes.modded.client.render.PortalIrisMainPipelines;
 import art.arcane.wormholes.modded.mixin.client.PreparedLevelAccess;
 import art.arcane.wormholes.modded.mixin.client.PreparedLevelDataAccess;
-import art.arcane.wormholes.network.client.ClientViewCapability;
+import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientTravelWindow;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.math.Face;
 import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.client.Minecraft;
@@ -175,7 +175,7 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
         ClientViewSession session = mock(ClientViewSession.class);
         when(client.session()).thenReturn(session);
         when(session.active()).thenReturn(true);
-        when(session.has(ClientViewCapability.PREPARED_TRAVEL_CACHE)).thenReturn(true);
+        when(session.has(ViewStreamCapability.PREPARED_TRAVEL_CACHE)).thenReturn(true);
         AtomicReference<byte[]> physical = new AtomicReference<>(installed);
         ClientSodiumTerrain.Handoff nativeScope = mock(ClientSodiumTerrain.Handoff.class);
         PortalIrisMainPipelines.Handoff shaderScope = mock(PortalIrisMainPipelines.Handoff.class);
@@ -283,10 +283,10 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
     @Test
     @SuppressWarnings("unchecked")
     public void retainedManagedApertureRequiresExactWorldAuthorityAndRevokesOnDrop() throws ReflectiveOperationException {
-        for (int kind : List.of(ClientPortalGeometry.KIND_FRAME, ClientPortalGeometry.KIND_VANILLA_REPLACEMENT)) {
+        for (int kind : List.of(ApertureDescriptor.KIND_FRAME, ApertureDescriptor.KIND_VANILLA_REPLACEMENT)) {
             ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
             ClientViewMessage.TravelBegin original = begin();
-            ClientPortalGeometry aperture = new ClientPortalGeometry(0, 0, 0, Direction.N.ordinal(), true, 0, false, 2, 3,
+            ApertureDescriptor aperture = new ApertureDescriptor(0, 0, 0, Face.N.ordinal(), true, 0, false, 2, 3,
                 new long[]{1}, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, kind, 0.0D, 0, 11, List.of());
             ClientViewMessage.TravelBegin begin = new ClientViewMessage.TravelBegin(original.token(), original.generation(),
                 original.sourcePortal(), original.sourceWorld(), aperture, original.destinationToSource(), original.world(),
@@ -307,7 +307,7 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
                 access.when(Minecraft::getInstance).thenReturn(minecraft);
                 invoke(travel, "retainActualWorlds", new Class<?>[0]);
                 BlockPos open = BlockPos.ZERO;
-                boolean managed = kind == ClientPortalGeometry.KIND_VANILLA_REPLACEMENT;
+                boolean managed = kind == ApertureDescriptor.KIND_VANILLA_REPLACEMENT;
                 assertEquals(managed, travel.managesVanillaPortal(level, open));
                 assertFalse(travel.managesVanillaPortal(level, new BlockPos(1, 0, 0)));
                 assertFalse(travel.managesVanillaPortal(level, new BlockPos(0, 0, 1)));
@@ -320,14 +320,14 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
                 minecraft.level = level;
                 travel.discardManagedVanillaPortal(level, ClientTravelTestFixtures.geometry());
                 assertEquals(managed, travel.managesVanillaPortal(level, open));
-                ClientPortalGeometry reverseSide = new ClientPortalGeometry(0, 0, 0, Direction.N.ordinal(), false, 0, false, 2, 3,
+                ApertureDescriptor reverseSide = new ApertureDescriptor(0, 0, 0, Face.N.ordinal(), false, 0, false, 2, 3,
                     new long[]{1}, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, kind, 0.0D, 0, 11, List.of());
                 travel.discardManagedVanillaPortal(level, reverseSide);
                 invoke(travel, "retainActualWorlds", new Class<?>[0]);
                 assertFalse(travel.managesVanillaPortal(level, open));
                 Class<?> type = Class.forName(ClientPreparedTravel.class.getName() + "$RetainedWorld");
                 Constructor<?> row = type.getDeclaredConstructor(ClientLevel.class, ClientPacketListener.class, Object.class,
-                    ClientViewMessage.TravelWorld.class, long.class, Map.class, ClientPortalGeometry.class);
+                    ClientViewMessage.TravelWorld.class, long.class, Map.class, ApertureDescriptor.class);
                 row.setAccessible(true);
                 Map<Object, Object> retained = (Map<Object, Object>) field(travel, "retainedWorlds");
                 retained.put(level, row.newInstance(level, connection, RegistryAccess.EMPTY, begin.world(), 1L, Map.of(), aperture));
@@ -483,7 +483,7 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
         ClientViewSession session = mock(ClientViewSession.class);
         when(client.session()).thenReturn(session);
         when(session.active()).thenReturn(true);
-        when(session.has(ClientViewCapability.PREPARED_TRAVEL_CACHE)).thenReturn(true);
+        when(session.has(ViewStreamCapability.PREPARED_TRAVEL_CACHE)).thenReturn(true);
         ClientboundLevelChunkWithLightPacket packet = packet();
         byte[] bytes = MinecraftChunkPacketEncoding.encode(RegistryAccess.EMPTY, packet);
         set(travel, "begin", begin);

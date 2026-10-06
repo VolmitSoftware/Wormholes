@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded.client.render;
 
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
+import art.arcane.optics.stream.ProjectionEnvironment;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.logging.LogUtils;
 import org.slf4j.Logger;
@@ -55,7 +55,7 @@ public final class ClientSodiumTerrain {
         return prewarming > 0;
     }
 
-    public static Preparation prepare(ClientLevel level, ClientViewEnvironment environment, CameraRenderState camera) {
+    public static Preparation prepare(ClientLevel level, ProjectionEnvironment environment, CameraRenderState camera) {
         if (!AVAILABLE) {
             return Preparation.COVER;
         }
@@ -601,7 +601,7 @@ public final class ClientSodiumTerrain {
         private Viewport viewport;
         private boolean ready;
         private boolean closed;
-        private ClientViewEnvironment warmEnvironment;
+        private ProjectionEnvironment warmEnvironment;
         private CameraRenderState warmCamera;
         private Object warmPipeline;
         private WarmStage warmStage = WarmStage.SKY;
@@ -662,7 +662,7 @@ public final class ClientSodiumTerrain {
         private final EnvironmentAttributeProbe attributes;
         private final FogType medium;
 
-        private TerrainCamera(ClientViewEnvironment environment, CameraRenderState camera) {
+        private TerrainCamera(ProjectionEnvironment environment, CameraRenderState camera) {
             setPosition(camera.pos);
             setRotation(camera.yRot, camera.xRot);
             setEntity(Minecraft.getInstance().getCameraEntity());

@@ -1,20 +1,20 @@
 package art.arcane.wormholes.modded.clientview;
 
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.modded.mixin.ServerConnectionAccess;
-import art.arcane.wormholes.network.client.ClientViewCapability;
+import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.render.client.session.ClientViewEmitters;
 import art.arcane.wormholes.render.client.session.ClientPreparedTravelServer;
 import art.arcane.wormholes.render.client.session.ClientViewEntityFrames;
-import art.arcane.wormholes.render.client.session.ClientViewInbound;
+import art.arcane.optics.stream.ClientViewInbound;
 import art.arcane.wormholes.render.client.session.ClientViewOptions;
 import art.arcane.wormholes.render.client.session.ClientViewPlatform;
 import art.arcane.wormholes.render.client.session.ClientViewSceneFx;
 import art.arcane.wormholes.render.client.session.ClientViewServerSession;
-import art.arcane.wormholes.render.client.session.ClientViewSessionState;
+import art.arcane.optics.stream.ClientViewSessionState;
 import art.arcane.wormholes.render.client.session.ClientViewSessionRegistry;
 import com.mojang.authlib.GameProfile;
 import net.minecraft.SharedConstants;
@@ -39,15 +39,15 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
-import art.arcane.wormholes.render.ProjectedEntityEvent;
+import art.arcane.optics.entity.ProjectedEntityEvent;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 
 public final class MinecraftClientViewService implements AutoCloseable {
-    public static final long PLATFORM_CAPS = ClientViewCapability.of(ClientViewCapability.PLATES, ClientViewCapability.BRICK_CACHE,
-        ClientViewCapability.DEST_LIGHT, ClientViewCapability.ENTITY_FRAMES, ClientViewCapability.ENTITY_SELF, ClientViewCapability.ENTITY_EVENTS, ClientViewCapability.FX_EMITTERS, ClientViewCapability.ATMOSPHERE,
-        ClientViewCapability.ZERO_COPY, ClientViewCapability.CONFIG_PHASE, ClientViewCapability.LINK_UNCOMPRESSED,
-        ClientViewCapability.VIEW_STATS, ClientViewCapability.CLIENT_MIRROR, ClientViewCapability.CLIENT_RECURSION, ClientViewCapability.MESH_RENDER, ClientViewCapability.LOCAL_MESH, ClientViewCapability.MESH_REUSE, ClientViewCapability.PREPARED_TRAVEL, ClientViewCapability.PREPARED_TRAVEL_CACHE);
+    public static final long PLATFORM_CAPS = ViewStreamCapability.of(ViewStreamCapability.PLATES, ViewStreamCapability.BRICK_CACHE,
+        ViewStreamCapability.DEST_LIGHT, ViewStreamCapability.ENTITY_FRAMES, ViewStreamCapability.ENTITY_SELF, ViewStreamCapability.ENTITY_EVENTS, ViewStreamCapability.FX_EMITTERS, ViewStreamCapability.ATMOSPHERE,
+        ViewStreamCapability.ZERO_COPY, ViewStreamCapability.CONFIG_PHASE, ViewStreamCapability.LINK_UNCOMPRESSED,
+        ViewStreamCapability.VIEW_STATS, ViewStreamCapability.CLIENT_MIRROR, ViewStreamCapability.CLIENT_RECURSION, ViewStreamCapability.MESH_RENDER, ViewStreamCapability.LOCAL_MESH, ViewStreamCapability.MESH_REUSE, ViewStreamCapability.PREPARED_TRAVEL, ViewStreamCapability.PREPARED_TRAVEL_CACHE);
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
     private static final long HANDLE_PURGE_INTERVAL_TICKS = 20L;
     private static final double PARTICLE_RANGE_SQUARED = 32.0D * 32.0D;
@@ -116,7 +116,7 @@ public final class MinecraftClientViewService implements AutoCloseable {
             }
             try {
                 follow(session, player);
-                session.player().meshDepth(ClientViewCapability.MESH_RENDER.in(session.caps())
+                session.player().meshDepth(ViewStreamCapability.MESH_RENDER.in(session.caps())
                     ? Math.clamp(player.requestedViewDistance(), 2, 32) * 16 : 0);
                 session.tick(serverTick);
                 prepared.tick(session, player);
@@ -143,11 +143,11 @@ public final class MinecraftClientViewService implements AutoCloseable {
     public boolean nativeMesh(ServerPlayer player) {
         ClientViewSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
         ClientViewServerSession<MinecraftClientViewPeer, BlockState> session = active == null ? null : active.session(player.getUUID());
-        return session != null && session.state() == ClientViewSessionState.CLIENT_VIEW && ClientViewCapability.MESH_RENDER.in(session.caps());
+        return session != null && session.state() == ClientViewSessionState.CLIENT_VIEW && ViewStreamCapability.MESH_RENDER.in(session.caps());
     }
 
     public ClientViewMessage.TravelCommit commitTravel(ServerPlayer player, UUID source, ServerLevel destination,
-                                                       ClientViewMessage.TravelPose arrival, GeometryVector velocity) {
+                                                       ClientViewMessage.TravelPose arrival, Vec3 velocity) {
         runtime.requireServerThread();
         ClientViewSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
         ClientViewServerSession<MinecraftClientViewPeer, BlockState> session = active == null ? null : active.session(player.getUUID());

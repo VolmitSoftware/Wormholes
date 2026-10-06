@@ -2,21 +2,23 @@ package art.arcane.wormholes.render;
 
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalStructure;
-import art.arcane.wormholes.render.lod.LodPolicy;
+import art.arcane.optics.volume.LodPolicy;
 import art.arcane.wormholes.util.BukkitGeometry;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
 import java.lang.reflect.Method;
 import java.util.logging.Level;
+import art.arcane.optics.volume.FrustumFit;
+import art.arcane.optics.volume.ViewVolume;
 
 final class ProjectorViewFrustum {
     private static final Method CLIENT_VIEW_DISTANCE_METHOD = resolveClientViewDistanceMethod();
 
     private final Method clientViewDistanceMethod;
-    private final ProjectorFrustumFit fitting = new ProjectorFrustumFit(options());
+    private final FrustumFit fitting = new FrustumFit(options());
     private boolean clientViewDistanceFailed;
 
     ProjectorViewFrustum() {
@@ -27,7 +29,7 @@ final class ProjectorViewFrustum {
         this.clientViewDistanceMethod = clientViewDistanceMethod;
     }
 
-    Frustum4D fit(Player observer, PortalStructure structure, PortalFrame frame, Location eye,
+    ViewVolume fit(Player observer, PortalStructure structure, Frame frame, Location eye,
                   double portalDepth, double lateralPadBlocks) {
         fitting.setOptions(options());
         return fitting.fit(structure, frame, BukkitGeometry.vector(eye),
@@ -62,19 +64,19 @@ final class ProjectorViewFrustum {
         return fitting.fitRecalculationCount();
     }
 
-    Frustum4D frustumFor(Location eye, PortalStructure structure, double axial, double lateral) {
+    ViewVolume frustumFor(Location eye, PortalStructure structure, double axial, double lateral) {
         fitting.setOptions(options());
         return fitting.frustumFor(BukkitGeometry.vector(eye), structure, axial, lateral);
     }
 
-    long estimateCandidateWork(PortalStructure structure, PortalFrame frame, Location eye,
-                               Frustum4D frustum, double depthBlocks, long limit) {
+    long estimateCandidateWork(PortalStructure structure, Frame frame, Location eye,
+                               ViewVolume frustum, double depthBlocks, long limit) {
         fitting.setOptions(options());
         return fitting.estimateCandidateWork(structure, frame, BukkitGeometry.vector(eye), frustum, depthBlocks, limit);
     }
 
-    private static ProjectorFrustumFit.Options options() {
-        return new ProjectorFrustumFit.Options(Settings.PROJECTION_MAX_PROJECTED_CELLS,
+    private static FrustumFit.Options options() {
+        return new FrustumFit.Options(Settings.PROJECTION_MAX_PROJECTED_CELLS,
             Settings.NEAR_PLANE_PADDING, Settings.FRUSTUM_CULLING_RATIO, Settings.PROJECTION_APERTURE_PADDING_BLOCKS);
     }
 
@@ -83,7 +85,7 @@ final class ProjectorViewFrustum {
             return requestedBlocks;
         }
         int serverChunks = Wormholes.instance == null ? 8 : Wormholes.instance.getServer().getViewDistance();
-        return ProjectorFrustumFit.capDistance(requestedBlocks, serverChunks, clientViewDistance(observer));
+        return FrustumFit.capDistance(requestedBlocks, serverChunks, clientViewDistance(observer));
     }
 
     private static Method resolveClientViewDistanceMethod() {

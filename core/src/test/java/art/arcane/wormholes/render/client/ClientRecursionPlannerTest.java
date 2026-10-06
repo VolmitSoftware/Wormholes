@@ -8,42 +8,44 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import art.arcane.wormholes.door.DoorwayPlane;
 import java.util.List;
 
-import art.arcane.wormholes.portal.PortalFrame;
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
-import art.arcane.wormholes.portal.PortalGeometry;
-import art.arcane.wormholes.render.ProjectedBlockClaim;
-import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.math.Vec3;
+import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.aperture.ApertureCells;
+import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Face;
 import org.junit.jupiter.api.Test;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.recursion.ClientRecursionPlanner;
 
 final class ClientRecursionPlannerTest {
     @Test
     void nativeReachUsesRotatedDestinationSpaceAndTheFullMeshDistance() {
-        ClientPortalGeometry root = wall(0, 0, 3, List.of()).withDepth(128);
-        ClientViewEnvironment.Transform transform = new ClientViewEnvironment.Transform(Direction.S, Direction.U, Direction.W,
-            new GeometryVector(100, 0, -20));
-        assertTrue(ClientRecursionPlanner.destinationReaches(root, transform, new AxisAlignedBB(19, 21, 64, 67, 180, 181)));
-        assertFalse(ClientRecursionPlanner.destinationReaches(root, transform, new AxisAlignedBB(19, 21, 64, 67, 20, 21)));
-        assertFalse(ClientRecursionPlanner.destinationReaches(root, transform, new AxisAlignedBB(19, 21, 64, 67, 260, 261)));
-        ClientViewEnvironment.Transform reflection = new ClientViewEnvironment.Transform(Direction.W, Direction.U, Direction.S,
-            new GeometryVector(1, 0, 0));
-        assertTrue(ClientRecursionPlanner.destinationReaches(root, reflection, new AxisAlignedBB(4, 5, 64, 67, 0, 1)));
-        assertFalse(ClientRecursionPlanner.destinationReaches(root, reflection, new AxisAlignedBB(-5, -4, 64, 67, 0, 1)));
+        ApertureDescriptor root = wall(0, 0, 3, List.of()).withDepth(128);
+        ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(Face.S, Face.U, Face.W,
+            new Vec3(100, 0, -20));
+        assertTrue(ClientRecursionPlanner.destinationReaches(root, transform, new Box(19, 21, 64, 67, 180, 181)));
+        assertFalse(ClientRecursionPlanner.destinationReaches(root, transform, new Box(19, 21, 64, 67, 20, 21)));
+        assertFalse(ClientRecursionPlanner.destinationReaches(root, transform, new Box(19, 21, 64, 67, 260, 261)));
+        ProjectionEnvironment.Transform reflection = new ProjectionEnvironment.Transform(Face.W, Face.U, Face.S,
+            new Vec3(1, 0, 0));
+        assertTrue(ClientRecursionPlanner.destinationReaches(root, reflection, new Box(4, 5, 64, 67, 0, 1)));
+        assertFalse(ClientRecursionPlanner.destinationReaches(root, reflection, new Box(-5, -4, 64, 67, 0, 1)));
     }
 
     @Test
     void aRootWithoutNestedPortalsPlansNothing() {
-        ClientPortalGeometry root = wall(0, 0, 3, List.of());
+        ApertureDescriptor root = wall(0, 0, 3, List.of());
         assertTrue(new ClientRecursionPlanner(4).plan(root, 6.5D, 65.5D, 0.5D).isEmpty());
     }
 
     @Test
     void nestedConesFollowTheChainUpToTheDepthLimit() {
-        ClientPortalGeometry great = wall(-30, 0, 0, List.of());
-        ClientPortalGeometry grand = wall(-20, 0, 1, List.of(great));
-        ClientPortalGeometry child = wall(-10, 0, 2, List.of(grand));
-        ClientPortalGeometry root = wall(0, 0, 2, List.of(child));
+        ApertureDescriptor great = wall(-30, 0, 0, List.of());
+        ApertureDescriptor grand = wall(-20, 0, 1, List.of(great));
+        ApertureDescriptor child = wall(-10, 0, 2, List.of(grand));
+        ApertureDescriptor root = wall(0, 0, 2, List.of(child));
         List<ClientRecursionPlanner.NestedCone> cones = new ClientRecursionPlanner(8).plan(root, 6.5D, 65.5D, 0.5D);
         assertEquals(2, cones.size());
         assertSame(child, cones.get(0).geometry());
@@ -57,9 +59,9 @@ final class ClientRecursionPlannerTest {
 
     @Test
     void nestedPortalsOutsideTheParentWindowAreSkipped() {
-        ClientPortalGeometry hidden = wall(-10, 40, 0, List.of());
-        ClientPortalGeometry visible = wall(-10, 0, 0, List.of());
-        ClientPortalGeometry root = wall(0, 0, 2, List.of(hidden, visible));
+        ApertureDescriptor hidden = wall(-10, 40, 0, List.of());
+        ApertureDescriptor visible = wall(-10, 0, 0, List.of());
+        ApertureDescriptor root = wall(0, 0, 2, List.of(hidden, visible));
         List<ClientRecursionPlanner.NestedCone> cones = new ClientRecursionPlanner(4).plan(root, 6.5D, 65.5D, 0.5D);
         assertEquals(1, cones.size());
         assertSame(visible, cones.get(0).geometry());
@@ -72,8 +74,8 @@ final class ClientRecursionPlannerTest {
 
     @Test
     void portalsInsideAMirrorArePlannedInTheMirrorSourceSpace() {
-        ClientPortalGeometry child = wall(3, 0, 0, false, false, List.of());
-        ClientPortalGeometry mirror = wall(0, 0, 2, true, true, List.of(child));
+        ApertureDescriptor child = wall(3, 0, 0, false, false, List.of());
+        ApertureDescriptor mirror = wall(0, 0, 2, true, true, List.of(child));
         List<ClientRecursionPlanner.NestedCone> cones = new ClientRecursionPlanner(4).plan(mirror, 6.5D, 65.5D, 0.5D);
         assertEquals(1, cones.size());
         ClientRecursionPlanner.NestedCone cone = cones.get(0);
@@ -95,46 +97,46 @@ final class ClientRecursionPlannerTest {
 
     @Test
     void aMirroredChildFacingTheRealEyeIsNotPlanned() {
-        ClientPortalGeometry child = wall(3, 0, 0, true, false, List.of());
-        ClientPortalGeometry mirror = wall(0, 0, 2, true, true, List.of(child));
+        ApertureDescriptor child = wall(3, 0, 0, true, false, List.of());
+        ApertureDescriptor mirror = wall(0, 0, 2, true, true, List.of(child));
         assertTrue(new ClientRecursionPlanner(4).plan(mirror, 6.5D, 65.5D, 0.5D).isEmpty());
     }
 
     @Test
     void mirrorDestinationReachCoversTheServedSideWithinDepth() {
-        ClientPortalGeometry mirror = wall(0, 0, 2, true, true, List.of());
-        ClientViewEnvironment.Transform reflection = new ClientViewEnvironment.Transform(Direction.W, Direction.U, Direction.S,
-            new GeometryVector(1, 0, 0));
-        assertTrue(ClientRecursionPlanner.destinationReaches(mirror, reflection, new AxisAlignedBB(3, 3.999D, 64, 66.999D, -1, 1.999D)));
-        assertFalse(ClientRecursionPlanner.destinationReaches(mirror, reflection, new AxisAlignedBB(-4, -3.001D, 64, 66.999D, -1, 1.999D)));
-        assertFalse(ClientRecursionPlanner.destinationReaches(mirror, reflection, new AxisAlignedBB(40, 40.999D, 64, 66.999D, -1, 1.999D)));
-        assertFalse(ClientRecursionPlanner.destinationReaches(mirror, reflection, new AxisAlignedBB(3, 3.999D, 64, 66.999D, 60, 61.999D)));
+        ApertureDescriptor mirror = wall(0, 0, 2, true, true, List.of());
+        ProjectionEnvironment.Transform reflection = new ProjectionEnvironment.Transform(Face.W, Face.U, Face.S,
+            new Vec3(1, 0, 0));
+        assertTrue(ClientRecursionPlanner.destinationReaches(mirror, reflection, new Box(3, 3.999D, 64, 66.999D, -1, 1.999D)));
+        assertFalse(ClientRecursionPlanner.destinationReaches(mirror, reflection, new Box(-4, -3.001D, 64, 66.999D, -1, 1.999D)));
+        assertFalse(ClientRecursionPlanner.destinationReaches(mirror, reflection, new Box(40, 40.999D, 64, 66.999D, -1, 1.999D)));
+        assertFalse(ClientRecursionPlanner.destinationReaches(mirror, reflection, new Box(3, 3.999D, 64, 66.999D, 60, 61.999D)));
     }
 
     @Test
     void childRecursionDepthBoundsItsDescendants() {
-        ClientPortalGeometry great = wall(-30, 0, 0, List.of());
-        ClientPortalGeometry grand = wall(-20, 0, 3, List.of(great));
-        ClientPortalGeometry child = wall(-10, 0, 1, List.of(grand));
-        ClientPortalGeometry root = wall(0, 0, 4, List.of(child));
+        ApertureDescriptor great = wall(-30, 0, 0, List.of());
+        ApertureDescriptor grand = wall(-20, 0, 3, List.of(great));
+        ApertureDescriptor child = wall(-10, 0, 1, List.of(grand));
+        ApertureDescriptor root = wall(0, 0, 4, List.of(child));
         List<ClientRecursionPlanner.NestedCone> cones = new ClientRecursionPlanner(8).plan(root, 6.5D, 65.5D, 0.5D);
         assertEquals(2, cones.size());
         assertSame(child, cones.get(0).geometry());
         assertSame(grand, cones.get(1).geometry());
-        ClientPortalGeometry leaf = wall(-10, 0, 0, List.of(grand));
+        ApertureDescriptor leaf = wall(-10, 0, 0, List.of(grand));
         assertEquals(1, new ClientRecursionPlanner(8).plan(root.withNested(List.of(leaf)), 6.5D, 65.5D, 0.5D).size());
     }
 
     @Test
     void mixedSurfaceKindsUseTheSameReachAndNestedWindows() {
-        ClientViewEnvironment.Transform destination = new ClientViewEnvironment.Transform(Direction.E, Direction.U, Direction.S,
-            new GeometryVector(-100, 0, 0));
-        AxisAlignedBB visible = new AxisAlignedBB(89, 90, 64, 67, -1, 2);
-        AxisAlignedBB behind = new AxisAlignedBB(110, 111, 64, 67, -1, 2);
-        for (int kind : new int[]{ClientPortalGeometry.KIND_FRAME, ClientPortalGeometry.KIND_RTP,
-            ClientPortalGeometry.KIND_DOOR, ClientPortalGeometry.KIND_VANILLA_REPLACEMENT}) {
-            ClientPortalGeometry reflection = withKind(wall(-10, 0, 1, true, true, List.of()), ClientPortalGeometry.KIND_FRAME);
-            ClientPortalGeometry doorway = withKind(wall(0, 0, 3, List.of(reflection)), kind);
+        ProjectionEnvironment.Transform destination = new ProjectionEnvironment.Transform(Face.E, Face.U, Face.S,
+            new Vec3(-100, 0, 0));
+        Box visible = new Box(89, 90, 64, 67, -1, 2);
+        Box behind = new Box(110, 111, 64, 67, -1, 2);
+        for (int kind : new int[]{ApertureDescriptor.KIND_FRAME, ApertureDescriptor.KIND_RTP,
+            ApertureDescriptor.KIND_DOOR, ApertureDescriptor.KIND_VANILLA_REPLACEMENT}) {
+            ApertureDescriptor reflection = withKind(wall(-10, 0, 1, true, true, List.of()), ApertureDescriptor.KIND_FRAME);
+            ApertureDescriptor doorway = withKind(wall(0, 0, 3, List.of(reflection)), kind);
             assertTrue(ClientRecursionPlanner.destinationReaches(doorway, destination, visible));
             assertFalse(ClientRecursionPlanner.destinationReaches(doorway, destination, behind));
             List<ClientRecursionPlanner.NestedCone> cones = new ClientRecursionPlanner(8).plan(doorway, 6.5D, 65.5D, 0.5D);
@@ -142,34 +144,34 @@ final class ClientRecursionPlannerTest {
             assertSame(reflection, cones.getFirst().geometry());
             assertTrue(cones.getFirst().visible(-12.5D, 65.5D, 0.5D));
         }
-        ClientPortalGeometry door = withKind(wall(3, 0, 0, false, false, List.of()), ClientPortalGeometry.KIND_DOOR);
-        ClientPortalGeometry mirror = wall(0, 0, 2, true, true, List.of(door));
+        ApertureDescriptor door = withKind(wall(3, 0, 0, false, false, List.of()), ApertureDescriptor.KIND_DOOR);
+        ApertureDescriptor mirror = wall(0, 0, 2, true, true, List.of(door));
         List<ClientRecursionPlanner.NestedCone> reflected = new ClientRecursionPlanner(8).plan(mirror, 6.5D, 65.5D, 0.5D);
         assertEquals(1, reflected.size());
         assertSame(door, reflected.getFirst().geometry());
         assertTrue(reflected.getFirst().contentEyeX() < 0.0D);
     }
 
-    private static ClientPortalGeometry withKind(ClientPortalGeometry geometry, int kind) {
-        return new ClientPortalGeometry(geometry.originX(), geometry.originY(), geometry.originZ(), geometry.facing(),
+    private static ApertureDescriptor withKind(ApertureDescriptor geometry, int kind) {
+        return new ApertureDescriptor(geometry.originX(), geometry.originY(), geometry.originZ(), geometry.facing(),
             geometry.frontSide(), geometry.quarterTurns(), geometry.mirror(), geometry.apertureWidth(), geometry.apertureHeight(),
             geometry.apertureMask(), geometry.nearPlanePadding(), geometry.aperturePadding(), geometry.frustumCullingRatio(),
             geometry.depthBlocks(), geometry.recursionDepth(), geometry.blackoutPolicy(), geometry.blackoutState(),
             geometry.maskAirPolicy(), geometry.lightingPolicy(), geometry.fidelityFlags(), kind,
-            kind == ClientPortalGeometry.KIND_DOOR ? DoorwayPlane.planeOffset(geometry.facingDirection()) : 0.0D, geometry.parentPortalKey(),
+            kind == ApertureDescriptor.KIND_DOOR ? DoorwayPlane.planeOffset(geometry.facingDirection()) : 0.0D, geometry.parentPortalKey(),
             geometry.targetIdentity(), geometry.nested());
     }
 
-    private static ClientPortalGeometry wall(int x, int z, int recursionDepth, List<ClientPortalGeometry> nested) {
+    private static ApertureDescriptor wall(int x, int z, int recursionDepth, List<ApertureDescriptor> nested) {
         return wall(x, z, recursionDepth, true, false, nested);
     }
 
-    private static ClientPortalGeometry wall(int x, int z, int recursionDepth, boolean frontSide, boolean mirror,
-                                             List<ClientPortalGeometry> nested) {
-        PortalGeometry aperture = new PortalGeometry();
-        aperture.setArea(new AxisAlignedBB(x, x + 0.999D, 64.0D, 66.999D, z - 1.0D, z + 1.999D));
-        return ClientPortalGeometry.fromPortal(new ClientPortalGeometry.Source(aperture, PortalFrame.canonical(Direction.E), frontSide, mirror, 0,
-            2.0D, 0.75D, 0.2D, 32, recursionDepth, ClientPortalGeometry.BLACKOUT_OFF, 0, ClientPortalGeometry.MASK_AIR_PROJECT,
-            ProjectedBlockClaim.LightingPolicy.SOURCE, 0, ClientPortalGeometry.KIND_FRAME, 0.0D, 0, 0L, nested)).orElseThrow();
+    private static ApertureDescriptor wall(int x, int z, int recursionDepth, boolean frontSide, boolean mirror,
+                                             List<ApertureDescriptor> nested) {
+        ApertureCells aperture = new ApertureCells();
+        aperture.setArea(new Box(x, x + 0.999D, 64.0D, 66.999D, z - 1.0D, z + 1.999D));
+        return ApertureDescriptor.fromPortal(new ApertureDescriptor.Source(aperture, Frame.canonical(Face.E), frontSide, mirror, 0,
+            2.0D, 0.75D, 0.2D, 32, recursionDepth, ApertureDescriptor.BLACKOUT_OFF, 0, ApertureDescriptor.MASK_AIR_PROJECT,
+            ProjectedBlockClaim.LightingPolicy.SOURCE, 0, ApertureDescriptor.KIND_FRAME, 0.0D, 0, 0L, nested)).orElseThrow();
     }
 }

@@ -3,12 +3,18 @@ package art.arcane.wormholes.network.client;
 import java.util.ArrayList;
 import java.util.List;
 
-import art.arcane.wormholes.render.plate.PlateBox;
+import art.arcane.optics.plate.PlateBox;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import art.arcane.optics.stream.Brick;
+import art.arcane.optics.stream.BrickCodec;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.SectionBiomes;
+import art.arcane.optics.stream.ViewStreamCapability;
+import art.arcane.optics.stream.ViewStreamLimits;
 
 final class SectionBiomesTest {
     @Test
@@ -18,7 +24,7 @@ final class SectionBiomesTest {
             entities[i] = new Brick.BlockEntityCell(i, new byte[2040]);
         }
         Brick brick = Brick.single(0, 3).withBlockEntities(entities);
-        assertTrue(BrickCodec.encodedSize(brick) <= ClientViewProtocol.MAX_BRICK_BYTES);
+        assertTrue(BrickCodec.encodedSize(brick) <= ViewStreamLimits.MAX_BRICK_BYTES);
         ArrayList<String> keys = new ArrayList<String>();
         for (int i = 0; i < 64; i++) {
             String prefix = "test:biome_" + i + "_";
@@ -26,8 +32,8 @@ final class SectionBiomesTest {
         }
         ClientViewMessage.MeshSection section = new ClientViewMessage.MeshSection(1, 2, 0, 0, 0, 3, 3, brick,
             new SectionBiomes(keys, new byte[SectionBiomes.INDEX_BYTES]));
-        assertTrue(ClientViewCodec.encodeBody(section).length > ClientViewProtocol.MIN_MAX_FRAME_BYTES);
-        FrameSplitter splitter = new FrameSplitter(ClientViewProtocol.MIN_MAX_FRAME_BYTES, false);
+        assertTrue(ClientViewCodec.encodeBody(section).length > ViewStreamLimits.MIN_MAX_FRAME_BYTES);
+        FrameSplitter splitter = new FrameSplitter(ViewStreamLimits.MIN_MAX_FRAME_BYTES, false);
         ClientViewProtocolException error = assertThrows(ClientViewProtocolException.class, () -> splitter.split(List.of(section), () -> 0));
         assertTrue(error.getMessage().contains("MESH_SECTION"));
     }
@@ -44,13 +50,13 @@ final class SectionBiomesTest {
         assertEquals("minecraft:plains", biomes.biome(0));
         assertEquals("minecraft:swamp", biomes.biome(SectionBiomes.CELLS - 1));
         ClientViewMessage.MeshSection section = new ClientViewMessage.MeshSection(1, 2, -1, 4, 0, 3, 0, Brick.empty(0), biomes);
-        assertEquals(section, ClientViewCodec.decodeS2C(ClientViewCodec.encodeS2C(section, 1, 0), ClientViewCapability.ALL).message());
+        assertEquals(section, ClientViewCodec.decodeS2C(ClientViewCodec.encodeS2C(section, 1, 0), ViewStreamCapability.ALL).message());
     }
 
     @Test
     void fullGeometricCountCanExceedUnsignedShort() throws ClientViewProtocolException {
         ClientViewMessage.MeshBegin begin = new ClientViewMessage.MeshBegin(1, 2, new PlateBox(-512, -512, 0, 1025, 1025, 512), 135200);
-        assertEquals(begin, ClientViewCodec.decodeS2C(ClientViewCodec.encodeS2C(begin, 1, 0), ClientViewCapability.ALL).message());
+        assertEquals(begin, ClientViewCodec.decodeS2C(ClientViewCodec.encodeS2C(begin, 1, 0), ViewStreamCapability.ALL).message());
     }
 
     @Test
@@ -62,7 +68,7 @@ final class SectionBiomesTest {
         byte[] encoded = ClientViewCodec.encodeS2C(section, 1, 0);
         encoded[encoded.length - 2] = (byte) 0xFF;
         encoded[encoded.length - 1] = (byte) 0xFF;
-        assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.decodeS2C(encoded, ClientViewCapability.ALL));
+        assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.decodeS2C(encoded, ViewStreamCapability.ALL));
     }
 
     @Test
@@ -80,6 +86,6 @@ final class SectionBiomesTest {
         assertEquals(-1, SectionBiomes.cell(-9, 0, 0));
         assertEquals(-1, SectionBiomes.cell(0, 24, 0));
         ClientViewMessage.MeshSection section = new ClientViewMessage.MeshSection(1, 2, 0, 0, 0, 3, 0, Brick.empty(0), biomes);
-        assertEquals(section, ClientViewCodec.decodeS2C(ClientViewCodec.encodeS2C(section, 1, 0), ClientViewCapability.ALL).message());
+        assertEquals(section, ClientViewCodec.decodeS2C(ClientViewCodec.encodeS2C(section, 1, 0), ViewStreamCapability.ALL).message());
     }
 }

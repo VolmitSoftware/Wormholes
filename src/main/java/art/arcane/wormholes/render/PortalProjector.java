@@ -33,31 +33,47 @@ import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.IPortal;
 import art.arcane.wormholes.portal.RemotePortal;
 import art.arcane.wormholes.portal.UniversalTunnel;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
 import art.arcane.wormholes.portal.rtp.RtpProjectionGeometry;
 import art.arcane.wormholes.portal.rtp.RtpProjectionView;
-import art.arcane.wormholes.render.atmosphere.AtmosphereChannel;
-import art.arcane.wormholes.render.atmosphere.AtmosphereMode;
-import art.arcane.wormholes.render.atmosphere.WeatherRelay;
-import art.arcane.wormholes.render.acoustics.AcousticsBridge;
-import art.arcane.wormholes.render.acoustics.AcousticsProfile;
+import art.arcane.optics.fidelity.AtmosphereChannel;
+import art.arcane.optics.fidelity.AtmosphereMode;
+import art.arcane.optics.fidelity.WeatherRelay;
+import art.arcane.optics.fidelity.AcousticsBridge;
+import art.arcane.optics.fidelity.AcousticsProfile;
 import art.arcane.wormholes.render.bedrock.ClientProfileService;
 import art.arcane.wormholes.render.blockentity.BlockEntityPacketSink;
-import art.arcane.wormholes.render.blockentity.ProjectedBlockEntityLayer;
+import art.arcane.optics.fidelity.ProjectedBlockEntityLayer;
 import art.arcane.wormholes.render.lod.DissolveSchedule;
-import art.arcane.wormholes.render.lod.LodPolicy;
-import art.arcane.wormholes.render.plate.ViewPlate;
-import art.arcane.wormholes.render.plate.ViewPlateCache;
+import art.arcane.optics.volume.LodPolicy;
+import art.arcane.optics.plate.ViewPlate;
+import art.arcane.optics.plate.ViewPlateCache;
 import art.arcane.wormholes.render.view.ProjectionEntityView;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.render.view.ProjectionWorldViewProvider;
 import art.arcane.wormholes.render.view.RemoteWorldView;
-import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.Direction;
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Face;
+import art.arcane.optics.math.Vec3;
 
 import art.arcane.wormholes.portal.ProjectorViewSettings;
+import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.frame.ProjectorFrameTransform;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.occlusion.LocalOcclusionArbiter;
+import art.arcane.optics.recursion.EntityPath;
+import art.arcane.optics.recursion.RecursiveEndpoints;
+import art.arcane.optics.scan.CellScan;
+import art.arcane.optics.scan.ProjectorCommitLatency;
+import art.arcane.optics.scan.ProjectorFrustumFailures;
+import art.arcane.optics.scan.ProjectorPassRevision;
+import art.arcane.optics.scan.ProjectorResampleReasons;
+import art.arcane.optics.scan.ProjectorSampleMemo;
+import art.arcane.optics.scan.ProjectorSampler;
+import art.arcane.optics.scan.ResampleSchedule;
+import art.arcane.optics.volume.GazeScheduler;
+import art.arcane.optics.volume.ViewVolume;
 public final class PortalProjector {
     private static final long DIAG_LOG_INTERVAL_PASSES = 50L;
 
@@ -77,11 +93,11 @@ public final class PortalProjector {
     private final ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler;
     private final ProjectorBlackoutSeal blackout;
     private final ProjectorViewFrustum viewFrustum;
-    private final ProjectorResampleSchedule schedule;
-    private final ProjectorCellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> cellScan;
+    private final ResampleSchedule schedule;
+    private final CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> cellScan;
     private final ProjectorFrustumFailures frustumFailures;
     private final ProjectedEntityRenderer entityRenderer;
-    private final ProjectorRecursivePortals<World, ILocalPortal> entityRecursivePortals = BukkitProjectorPortalAccess.create();
+    private final RecursiveEndpoints<World, ILocalPortal> entityRecursivePortals = BukkitProjectorPortalAccess.create();
     private final ViewPlateCache<BlockData, World> plateCache;
     private final AtmosphereChannel<BlockData, ProjectionWorldView> atmosphere = new AtmosphereChannel<>();
     private final WeatherRelay weather = new WeatherRelay();
@@ -128,7 +144,7 @@ public final class PortalProjector {
 
     public PortalProjector(ILocalPortal portal, Player observer, ProjectionClaimArbiter claimArbiter,
                            ProjectionWorldViewProvider viewProvider, BooleanSupplier activeGuard) {
-        this(portal, observer, claimArbiter, viewProvider, activeGuard, new EntityRenderLocalOcclusionArbiter<>(BukkitEntityVisibility.create()), null);
+        this(portal, observer, claimArbiter, viewProvider, activeGuard, new LocalOcclusionArbiter<>(BukkitEntityVisibility.create()), null);
     }
 
     public PortalProjector(ILocalPortal portal,
@@ -136,7 +152,7 @@ public final class PortalProjector {
                            ProjectionClaimArbiter claimArbiter,
                            ProjectionWorldViewProvider viewProvider,
                            BooleanSupplier activeGuard,
-                           EntityRenderLocalOcclusionArbiter<Player, Entity> localEntityOcclusion,
+                           LocalOcclusionArbiter<Player, Entity> localEntityOcclusion,
                            ViewPlateCache<BlockData, World> plateCache) {
         this.plateCache = plateCache;
         this.portal = portal;
@@ -156,7 +172,7 @@ public final class PortalProjector {
         this.sampler = BukkitProjectorBlocks.sampler(sampleMemo, BukkitProjectorPortalAccess.create(), destination::liveView);
         this.blackout = new ProjectorBlackoutSeal();
         this.viewFrustum = new ProjectorViewFrustum();
-        this.schedule = new ProjectorResampleSchedule(() -> ProjectorViewSettings.viewCadence(portal), () -> Wormholes.projectionChangeTracker,
+        this.schedule = new ResampleSchedule(() -> ProjectorViewSettings.viewCadence(portal), () -> Wormholes.projectionChangeTracker,
             PortalProjector::resampleCadence);
         this.cellScan = BukkitProjectorBlocks.scan(portal, sampler, sampleMemo, blackout);
         this.frustumFailures = new ProjectorFrustumFailures(WormholesTelemetry.metrics());
@@ -441,7 +457,7 @@ public final class PortalProjector {
         FidelityPortalExtension fidelity = fidelityExtension();
         LodPolicy portalLod = portalLod(fidelity);
         viewFrustum.setLodPolicy(portalLod);
-        Frustum4D next;
+        ViewVolume next;
         try {
             next = viewFrustum.fit(observer, portal.getStructure(), portal.getFrame(), eye, portalDepth,
                 portal.getNetworkViewLateralPad());
@@ -576,7 +592,7 @@ public final class PortalProjector {
             return;
         }
         Location eye = frame.eye();
-        Frustum4D next = frame.frustum();
+        ViewVolume next = frame.frustum();
         double depthBlocks = frame.depthBlocks();
         FidelityPortalExtension fidelity = frame.fidelity();
         boolean forceFullSend = frame.forceFullSend();
@@ -590,11 +606,11 @@ public final class PortalProjector {
         if (admitted < 1.0D) {
             cellScan.invalidateOcclusionContinuation();
             double clearance = ProjectorFrameTransform.portalPlaneClearance(portal.getStructure().getArea(), portal.getFrame());
-            Direction dissolveNormal = portal.getFrame().getNormal();
+            Face dissolveNormal = portal.getFrame().getNormal();
             double originNormal = axisValueOf(portal.getOrigin().getX(), portal.getOrigin().getY(), portal.getOrigin().getZ(), dissolveNormal);
             DissolveSchedule.filter(cellScan.claims(), admitted, depthBlocks + clearance, key -> Math.abs(
-                axisValueOf(ProjectionCellKey.unpackX(key) + 0.5D, ProjectionCellKey.unpackY(key) + 0.5D,
-                    ProjectionCellKey.unpackZ(key) + 0.5D, dissolveNormal) - originNormal));
+                axisValueOf(CellKeys.unpackX(key) + 0.5D, CellKeys.unpackY(key) + 0.5D,
+                    CellKeys.unpackZ(key) + 0.5D, dissolveNormal) - originNormal));
         }
 
         if (!activeGuard.getAsBoolean()) {
@@ -716,7 +732,7 @@ public final class PortalProjector {
         }
 
         double portalDepth = portal.getNetworkViewDepth();
-        Frustum4D frustum;
+        ViewVolume frustum;
         try {
             frustum = viewFrustum.fit(observer, portal.getStructure(), portal.getFrame(), eye, portalDepth,
                 portal.getNetworkViewLateralPad());
@@ -728,8 +744,8 @@ public final class PortalProjector {
         frustumFailures.recordSuccess();
         double depthBlocks = viewFrustum.fittedDepth();
 
-        PortalFrame localFrame = portal.getFrame();
-        PortalFrame remoteFrame = destination.mirrorMode ? localFrame.flipNormal() : destination.destAnchor.getFrame();
+        Frame localFrame = portal.getFrame();
+        Frame remoteFrame = destination.mirrorMode ? localFrame.flipNormal() : destination.destAnchor.getFrame();
         double localOriginX = portal.getOrigin().getX();
         double localOriginY = portal.getOrigin().getY();
         double localOriginZ = portal.getOrigin().getZ();
@@ -740,19 +756,19 @@ public final class PortalProjector {
         double eyeRelY = eye.getY() - localOriginY;
         double eyeRelZ = eye.getZ() - localOriginZ;
         boolean eyeFrontSide = (eyeRelX * facingX + eyeRelY * facingY + eyeRelZ * facingZ) >= 0.0D;
-        PortalFrame projectionLocalFrame = viewFrame(localFrame, eyeFrontSide);
-        PortalFrame projectionRemoteFrame = viewFrame(remoteFrame, eyeFrontSide);
+        Frame projectionLocalFrame = viewFrame(localFrame, eyeFrontSide);
+        Frame projectionRemoteFrame = viewFrame(remoteFrame, eyeFrontSide);
         cellScan.updateEntityOcclusionEye(BukkitGeometry.vector(eye), destination, projectionLocalFrame, projectionRemoteFrame);
         updateProjectedEntities(frustum, depthBlocks, true, projectionLocalFrame, projectionRemoteFrame);
         lastProjectNanos = System.nanoTime() - startNanos;
         WormholesTelemetry.addRenderNanos(lastProjectNanos);
     }
 
-    private void updateProjectedEntities(Frustum4D frustum,
+    private void updateProjectedEntities(ViewVolume frustum,
                                          double depthBlocks,
                                          boolean hasVisibleProjection,
-                                         PortalFrame projectionLocalFrame,
-                                         PortalFrame projectionRemoteFrame) {
+                                         Frame projectionLocalFrame,
+                                         Frame projectionRemoteFrame) {
         IPortal destAnchor = destination.destAnchor;
         if (!hasVisibleProjection || destAnchor == null) {
             entityRenderer.close(observer);
@@ -761,7 +777,7 @@ public final class PortalProjector {
         ProjectionWorldView destView = destination.destView;
         boolean mirrorMode = destination.mirrorMode;
         int mirrorRotationQuarterTurns = destination.mirrorRotationQuarterTurns;
-        entityRenderer.prepareRecursiveProjection(destination.dest == null ? null : new EntityProjectionPath.Root<>(portal, destination.dest, projectionLocalFrame, projectionRemoteFrame, mirrorMode, mirrorRotationQuarterTurns, BukkitGeometry.vector(observer.getEyeLocation().toVector()), frustum, destination.dest.getWorld(), Settings.PROJECTION_RECURSIVE_PORTAL_DEPTH), entityRecursivePortals);
+        entityRenderer.prepareRecursiveProjection(destination.dest == null ? null : new EntityPath.Root<>(portal, destination.dest, projectionLocalFrame, projectionRemoteFrame, mirrorMode, mirrorRotationQuarterTurns, BukkitGeometry.vector(observer.getEyeLocation().toVector()), frustum, destination.dest.getWorld(), Settings.PROJECTION_RECURSIVE_PORTAL_DEPTH), entityRecursivePortals);
         if (viewProvider.usesRegionSnapshots() && destView instanceof ProjectionEntityView entityView) {
             entityRenderer.applySnapshot(observer, portal, destAnchor, mirrorMode, mirrorRotationQuarterTurns,
                 entityView, frustum, depthBlocks,
@@ -821,7 +837,7 @@ public final class PortalProjector {
 
     private void spawnWeather(WeatherRelay.Precipitation precipitation, long cell) {
         observer.spawnParticle(precipitation == WeatherRelay.Precipitation.SNOWFLAKE ? Particle.SNOWFLAKE : Particle.RAIN,
-            ProjectionCellKey.unpackX(cell) + 0.5D, ProjectionCellKey.unpackY(cell) + 0.5D, ProjectionCellKey.unpackZ(cell) + 0.5D,
+            CellKeys.unpackX(cell) + 0.5D, CellKeys.unpackY(cell) + 0.5D, CellKeys.unpackZ(cell) + 0.5D,
             1, 0.4D, 0.5D, 0.4D, 0.0D);
     }
 
@@ -879,8 +895,8 @@ public final class PortalProjector {
         return ProjectorPlates.acquire(plateCache, viewProvider, portal, destination, sampler.air(), target, destinationRevision, false);
     }
 
-    private static ProjectorResampleSchedule.Cadence resampleCadence() {
-        return new ProjectorResampleSchedule.Cadence(Settings.PROJECTION_REFRESH_INTERVAL_TICKS,
+    private static ResampleSchedule.Cadence resampleCadence() {
+        return new ResampleSchedule.Cadence(Settings.PROJECTION_REFRESH_INTERVAL_TICKS,
             Settings.PROJECTION_STABLE_CELL_RESAMPLE_INTERVAL_TICKS, Settings.LIGHTING_REFRESH_INTERVAL_TICKS,
             Settings.ENTITY_UPDATE_INTERVAL_TICKS);
     }
@@ -892,8 +908,8 @@ public final class PortalProjector {
 
     private long presentationRevision(Location eye, RtpProjectionTarget rtpTarget, boolean buriedCellCulling,
                                       LodPolicy lod, boolean blockEntities) {
-        PortalFrame localFrame = portal.getFrame();
-        PortalFrame remoteFrame = rtpTarget != null ? rtpTarget.frame()
+        Frame localFrame = portal.getFrame();
+        Frame remoteFrame = rtpTarget != null ? rtpTarget.frame()
             : destination.mirrorMode ? localFrame.flipNormal() : destination.destAnchor.getFrame();
         double localOriginX = portal.getOrigin().getX();
         double localOriginY = portal.getOrigin().getY();
@@ -901,7 +917,7 @@ public final class PortalProjector {
         double remoteOriginX = destination.mirrorMode ? localOriginX : destination.originX;
         double remoteOriginY = destination.mirrorMode ? localOriginY : destination.originY;
         double remoteOriginZ = destination.mirrorMode ? localOriginZ : destination.originZ;
-        Direction facing = localFrame.getNormal();
+        Face facing = localFrame.getNormal();
         boolean eyeFrontSide = ((eye.getX() - localOriginX) * facing.x()
             + (eye.getY() - localOriginY) * facing.y()
             + (eye.getZ() - localOriginZ) * facing.z()) >= 0.0D;
@@ -946,7 +962,7 @@ public final class PortalProjector {
 
 
 
-    static PortalFrame viewFrame(PortalFrame frame, boolean frontSide) {
+    static Frame viewFrame(Frame frame, boolean frontSide) {
         return frame.view(frontSide);
     }
 
@@ -1007,10 +1023,10 @@ public final class PortalProjector {
         double dx = eye.getX() - lastEyeX;
         double dy = eye.getY() - lastEyeY;
         double dz = eye.getZ() - lastEyeZ;
-        if ((dx * dx) + (dy * dy) + (dz * dz) >= ProjectionGazeScheduler.REUSE_EYE_EPSILON_SQUARED) {
+        if ((dx * dx) + (dy * dy) + (dz * dz) >= GazeScheduler.REUSE_EYE_EPSILON_SQUARED) {
             return true;
         }
-        Direction normal = portal.getFrame().getNormal();
+        Face normal = portal.getFrame().getNormal();
         double originNormal = axisValueOf(portal.getOrigin().getX(), portal.getOrigin().getY(), portal.getOrigin().getZ(), normal);
         return (axisValueOf(eye.getX(), eye.getY(), eye.getZ(), normal) >= originNormal)
             != (axisValueOf(lastEyeX, lastEyeY, lastEyeZ, normal) >= originNormal);
@@ -1033,7 +1049,7 @@ public final class PortalProjector {
             return false;
         }
         boolean lightingBlocked = claimArbiter.hasPendingLighting(observer) && schedule.lightingUpdatePass(firstProjectionDone);
-        Direction normal = portal.getFrame().getNormal();
+        Face normal = portal.getFrame().getNormal();
         double originNormal = axisValueOf(portal.getOrigin().getX(), portal.getOrigin().getY(), portal.getOrigin().getZ(), normal);
         boolean sideFlipped = hasCameraSnapshot
             && (axisValueOf(eye.getX(), eye.getY(), eye.getZ(), normal) >= originNormal)
@@ -1044,7 +1060,7 @@ public final class PortalProjector {
             eye.getX(), eye.getY(), eye.getZ(), lastEyeX, lastEyeY, lastEyeZ);
     }
 
-    private static double axisValueOf(double x, double y, double z, Direction normal) {
+    private static double axisValueOf(double x, double y, double z, Face normal) {
         if (normal.x() != 0) {
             return x;
         }
@@ -1082,7 +1098,7 @@ public final class PortalProjector {
         double dy = eyeY - lastEyeY;
         double dz = eyeZ - lastEyeZ;
         double movedSquared = (dx * dx) + (dy * dy) + (dz * dz);
-        return movedSquared < ProjectionGazeScheduler.REUSE_EYE_EPSILON_SQUARED;
+        return movedSquared < GazeScheduler.REUSE_EYE_EPSILON_SQUARED;
     }
 
     static boolean requiresViewCellResample(ProjectionRenderMode renderMode,
@@ -1099,7 +1115,7 @@ public final class PortalProjector {
         double dx = eyeX - lastEyeX;
         double dy = eyeY - lastEyeY;
         double dz = eyeZ - lastEyeZ;
-        return (dx * dx) + (dy * dy) + (dz * dz) >= ProjectionGazeScheduler.REUSE_EYE_EPSILON_SQUARED;
+        return (dx * dx) + (dy * dy) + (dz * dz) >= GazeScheduler.REUSE_EYE_EPSILON_SQUARED;
     }
 
     static boolean shouldForceCellResample(boolean scheduledContentResample,
@@ -1175,7 +1191,7 @@ public final class PortalProjector {
             return;
         }
         endSurfaceClaims.clear();
-        for (GeometryVector cell : portal.getStructure().geometry().getBlockPositions()) {
+        for (Vec3 cell : portal.getStructure().geometry().getBlockPositions()) {
             int x = cell.getBlockX();
             int y = cell.getBlockY();
             int z = cell.getBlockZ();
@@ -1186,7 +1202,7 @@ public final class PortalProjector {
                 endSurfaceAir = new ProjectedBlockClaim<>(Bukkit.createBlockData(Material.AIR), null,
                     ProjectedBlockClaim.NO_REMOTE_KEY, true);
             }
-            endSurfaceClaims.put(ProjectionCellKey.pack(x, y, z), endSurfaceAir);
+            endSurfaceClaims.put(CellKeys.pack(x, y, z), endSurfaceAir);
         }
         endSurfaceActive |= !endSurfaceClaims.isEmpty();
         claimArbiter.submit(observer, endSurfaceOwner, localWorld, endSurfaceClaims, priorityDistance, false);
@@ -1249,7 +1265,7 @@ public final class PortalProjector {
         discardRequested = true;
     }
 
-    private static String formatBox(AxisAlignedBB box) {
+    private static String formatBox(Box box) {
         if (box == null) {
             return "null";
         }
@@ -1257,7 +1273,7 @@ public final class PortalProjector {
             + " -> " + box.getXb() + "," + box.getYb() + "," + box.getZb() + "]";
     }
 
-    private record PendingProjection(Location eye, Frustum4D frustum, double depthBlocks, boolean coarse,
+    private record PendingProjection(Location eye, ViewVolume frustum, double depthBlocks, boolean coarse,
                                      FidelityPortalExtension fidelity, ProjectionRenderMode renderMode,
                                      boolean forceFullSend, long presentationRevision, long destinationRevision,
                                      ProjectionWorldView localView, ProjectionWorldView destinationView,
@@ -1265,7 +1281,7 @@ public final class PortalProjector {
     }
 
     public record RtpProjectionTarget(World world, double originX, double originY, double originZ,
-                                      PortalFrame frame, long routeRevision) {
+                                      Frame frame, long routeRevision) {
         public RtpProjectionTarget {
             Objects.requireNonNull(world, "world");
             Objects.requireNonNull(frame, "frame");
@@ -1280,10 +1296,10 @@ public final class PortalProjector {
         public static RtpProjectionTarget from(RtpProjectionView.ReadyData readyData, World world) {
             RtpProjectionView.ReadyData requiredReadyData = Objects.requireNonNull(readyData, "readyData");
             RtpProjectionView.Target target = requiredReadyData.target();
-            Direction normal = direction(target.forward(), "forward").reverse();
-            Direction right = direction(target.right(), "right");
-            Direction up = direction(target.up(), "up");
-            PortalFrame frame = new PortalFrame(normal, right, up);
+            Face normal = direction(target.forward(), "forward").reverse();
+            Face right = direction(target.right(), "right");
+            Face up = direction(target.up(), "up");
+            Frame frame = new Frame(normal, right, up);
             RtpProjectionView.Point3 safeFeet = target.safeFeet();
             return new RtpProjectionTarget(world, safeFeet.x(), safeFeet.y(), safeFeet.z(), frame,
                     requiredReadyData.routeRevision());
@@ -1297,7 +1313,7 @@ public final class PortalProjector {
             return RtpProjectionGeometry.plateIdentity(world.getUID(), originX, originY, originZ, frame, routeRevision);
         }
 
-        private static Direction direction(RtpProjectionView.Vector3 vector, String name) {
+        private static Face direction(RtpProjectionView.Vector3 vector, String name) {
             RtpProjectionView.Vector3 requiredVector = Objects.requireNonNull(vector, name);
             double lengthSquared = requiredVector.x() * requiredVector.x()
                     + requiredVector.y() * requiredVector.y()
@@ -1305,7 +1321,7 @@ public final class PortalProjector {
             if (lengthSquared <= 1.0E-12D) {
                 throw new IllegalArgumentException(name + " must not be zero");
             }
-            return Direction.closest(requiredVector.x(), requiredVector.y(), requiredVector.z());
+            return Face.closest(requiredVector.x(), requiredVector.y(), requiredVector.z());
         }
     }
 }

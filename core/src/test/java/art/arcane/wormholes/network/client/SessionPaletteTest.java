@@ -8,14 +8,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import art.arcane.optics.stream.ViewStreamLimits;
 
 final class SessionPaletteTest {
     @Test
     void reservedIdsAreFixedAndDenseIdsFollowFirstUse() {
         SessionPalette palette = new SessionPalette();
-        assertEquals(ClientViewProtocol.PALETTE_AIR, palette.id("minecraft:air"));
-        assertEquals(ClientViewProtocol.PALETTE_OCCLUDED, palette.id(SessionPalette.OCCLUDED));
-        assertEquals(ClientViewProtocol.PALETTE_BACKING, palette.id(SessionPalette.BACKING));
+        assertEquals(ViewStreamLimits.PALETTE_AIR, palette.id("minecraft:air"));
+        assertEquals(ViewStreamLimits.PALETTE_OCCLUDED, palette.id(SessionPalette.OCCLUDED));
+        assertEquals(ViewStreamLimits.PALETTE_BACKING, palette.id(SessionPalette.BACKING));
         assertEquals(3, palette.id("minecraft:stone"));
         assertEquals(4, palette.id("minecraft:dirt"));
         assertEquals(3, palette.id("stone"));
@@ -44,7 +45,7 @@ final class SessionPaletteTest {
         int dirt = palette.id("minecraft:dirt");
         int hidden = palette.id("minecraft:diamond_ore");
         SessionPalette.Cursor cursor = palette.cursor();
-        List<ClientViewMessage.PaletteEntry> first = cursor.pending(new int[] {ClientViewProtocol.PALETTE_OCCLUDED, stone});
+        List<ClientViewMessage.PaletteEntry> first = cursor.pending(new int[] {ViewStreamLimits.PALETTE_OCCLUDED, stone});
         assertEquals(1, first.size());
         assertEquals(stone, first.get(0).id());
         assertTrue(cursor.pending(new int[] {stone}).isEmpty());
@@ -53,7 +54,7 @@ final class SessionPaletteTest {
         assertEquals("minecraft:dirt", second.get(0).state());
         assertTrue(cursor.isSent(dirt));
         assertFalse(cursor.isSent(hidden));
-        assertEquals(ClientViewProtocol.RESERVED_PALETTE_IDS + 2, cursor.sentCount());
+        assertEquals(ViewStreamLimits.RESERVED_PALETTE_IDS + 2, cursor.sentCount());
         cursor.reset();
         assertEquals(2, cursor.pending(new int[] {stone, dirt}).size());
         SessionPalette.Cursor other = palette.cursor();

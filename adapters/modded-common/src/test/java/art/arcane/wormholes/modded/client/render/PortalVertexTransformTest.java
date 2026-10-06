@@ -1,10 +1,9 @@
 package art.arcane.wormholes.modded.client.render;
 
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
-import art.arcane.wormholes.portal.PortalFrame;
-import art.arcane.wormholes.render.DirectionMapping;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.DirectionMapping;
+import art.arcane.optics.math.Face;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
@@ -24,15 +23,15 @@ import static org.junit.Assert.assertTrue;
 public class PortalVertexTransformTest {
     @Test
     public void everyMirrorPlaneAndQuarterTurnMovesSourceFacesAndNormalsExactlyOnce() {
-        for (Direction normal : Direction.values()) {
+        for (Face normal : Face.values()) {
             for (int quarterTurns = 0; quarterTurns < 4; quarterTurns++) {
-                DirectionMapping mapping = DirectionMapping.mirror(PortalFrame.canonical(normal), quarterTurns, new double[3]);
-                Direction xAxis = mapping.map(Direction.E);
-                Direction yAxis = mapping.map(Direction.U);
-                Direction zAxis = mapping.map(Direction.S);
+                DirectionMapping mapping = DirectionMapping.mirror(Frame.canonical(normal), quarterTurns, new double[3]);
+                Face xAxis = mapping.map(Face.E);
+                Face yAxis = mapping.map(Face.U);
+                Face zAxis = mapping.map(Face.S);
                 PortalVertexTransform transform = transform(xAxis, yAxis, zAxis);
-                for (Direction face : Direction.values()) {
-                    Direction reflected = mapping.map(face);
+                for (Face face : Face.values()) {
+                    Face reflected = mapping.map(face);
                     try (ByteBufferBuilder allocation = new ByteBufferBuilder(512)) {
                         BufferBuilder builder = builder(allocation);
                         transform.target(builder).destinationBlock(BlockPos.ZERO, 0, 0, 0);
@@ -66,9 +65,9 @@ public class PortalVertexTransformTest {
     @Test
     public void oppositeQuarterTurnsProduceOppositeVerticalSlabHalvesAndNormals() {
         for (boolean clockwise : new boolean[] {false, true}) {
-            Direction sourceX = clockwise ? Direction.D : Direction.U;
-            Direction sourceY = clockwise ? Direction.E : Direction.W;
-            PortalVertexTransform transform = transform(sourceX, sourceY, Direction.S);
+            Face sourceX = clockwise ? Face.D : Face.U;
+            Face sourceY = clockwise ? Face.E : Face.W;
+            PortalVertexTransform transform = transform(sourceX, sourceY, Face.S);
             try (ByteBufferBuilder allocation = new ByteBufferBuilder(512)) {
                 BufferBuilder builder = builder(allocation);
                 transform.target(builder).destinationBlock(clockwise ? new BlockPos(-4, 2, 4) : new BlockPos(3, -3, 4), 0, 0, 0);
@@ -100,7 +99,7 @@ public class PortalVertexTransformTest {
 
     @Test
     public void fluidSectionOffsetsAndModelLocalOffsetsProduceIdenticalVertices() {
-        PortalVertexTransform transform = transform(Direction.U, Direction.W, Direction.S);
+        PortalVertexTransform transform = transform(Face.U, Face.W, Face.S);
         try (ByteBufferBuilder allocation = new ByteBufferBuilder(512)) {
             BufferBuilder builder = builder(allocation);
             transform.target(builder);
@@ -133,7 +132,7 @@ public class PortalVertexTransformTest {
 
     @Test
     public void reflectedQuadsKeepWindingUvsColorAndLightAttachedToEachVertex() {
-        PortalVertexTransform transform = transform(Direction.W, Direction.U, Direction.S);
+        PortalVertexTransform transform = transform(Face.W, Face.U, Face.S);
         try (ByteBufferBuilder allocation = new ByteBufferBuilder(512)) {
             BufferBuilder builder = builder(allocation);
             transform.target(builder).destinationBlock(new BlockPos(-1, 0, 0), 0, 0, 0);
@@ -172,8 +171,8 @@ public class PortalVertexTransformTest {
 
     @Test
     public void fractionalTranslationAtNegativeNativeCoordinatesAlignsTerrainFluidsAndBlockEntities() {
-        ClientViewEnvironment.Transform mapping = new ClientViewEnvironment.Transform(Direction.D, Direction.E, Direction.S,
-            new GeometryVector(100.5D, -31.25D, 200.75D));
+        ProjectionEnvironment.Transform mapping = new ProjectionEnvironment.Transform(Face.D, Face.E, Face.S,
+            new art.arcane.optics.math.Vec3(100.5D, -31.25D, 200.75D));
         BlockPos source = new BlockPos(-17, -33, -49);
         Vec3 sectionOrigin = new Vec3(64, -16, 144);
         PoseStack pose = new PoseStack();
@@ -207,8 +206,8 @@ public class PortalVertexTransformTest {
         }
     }
 
-    private static PortalVertexTransform transform(Direction x, Direction y, Direction z) {
-        return new PortalVertexTransform(new ClientViewEnvironment.Transform(x, y, z, new GeometryVector(0, 0, 0)));
+    private static PortalVertexTransform transform(Face x, Face y, Face z) {
+        return new PortalVertexTransform(new ProjectionEnvironment.Transform(x, y, z, new art.arcane.optics.math.Vec3(0, 0, 0)));
     }
 
     private static BufferBuilder builder(ByteBufferBuilder allocation) {

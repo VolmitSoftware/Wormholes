@@ -9,8 +9,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-import art.arcane.wormholes.render.ProjectionCellKey;
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.fidelity.BlockEntitySample;
 
 /**
  * One chunk column of a remote view. The block-entity map is keyed by world cell and is only carried
@@ -36,7 +36,7 @@ public record ViewSlice(int minX, int minY, int minZ, int sizeX, int sizeY, int 
         if (blockEntities.isEmpty()) {
             return null;
         }
-        return blockEntities.get(Long.valueOf(ProjectionCellKey.pack(x, y, z)));
+        return blockEntities.get(Long.valueOf(CellKeys.pack(x, y, z)));
     }
 
     public int cellCount() {

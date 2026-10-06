@@ -1,6 +1,6 @@
 package art.arcane.wormholes.door;
 
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -31,7 +31,7 @@ final class PocketRoomsTest {
     void wallDetectionAndMatePlacementFaceTheSharedWall() {
         PocketSpace space = space(PocketShell.defaults());
         PocketLayout base = new PocketLayout(space);
-        for (Direction wall : List.of(Direction.N, Direction.S, Direction.E, Direction.W)) {
+        for (Face wall : List.of(Face.N, Face.S, Face.E, Face.W)) {
             PocketBlockPosition point = PocketRooms.matePosition(base, wall.reverse());
             DoorPosition placed = new DoorPosition(UUID.randomUUID(), "wormholes:pockets", point.x(), point.y(), point.z());
             DoorwayPlane plane = new DoorwayPlane(point.x(), point.y(), point.z(), wall.reverse());
@@ -49,11 +49,11 @@ final class PocketRoomsTest {
     void aRoomIsAllocatedThroughTheWallTheDoorWasPlacedOn() {
         PocketSpace space = space(PocketShell.defaults());
 
-        PocketRoom north = PocketRooms.allocate(space, Direction.N, MAX_ROOMS).orElseThrow();
+        PocketRoom north = PocketRooms.allocate(space, Face.N, MAX_ROOMS).orElseThrow();
         assertEquals(0, north.offsetX());
         assertEquals(-PocketRooms.ROOM_STRIDE, north.offsetZ());
 
-        PocketRoom east = PocketRooms.allocate(space.withRooms(List.of(north)), Direction.E, MAX_ROOMS)
+        PocketRoom east = PocketRooms.allocate(space.withRooms(List.of(north)), Face.E, MAX_ROOMS)
             .orElseThrow();
         assertEquals(PocketRooms.ROOM_STRIDE, east.offsetX());
         assertEquals(0, east.offsetZ());
@@ -62,9 +62,9 @@ final class PocketRoomsTest {
     @Test
     void aTakenNeighbourFallsBackToAnotherFreeCellInsteadOfOverlapping() {
         PocketSpace space = space(PocketShell.defaults());
-        PocketRoom first = PocketRooms.allocate(space, Direction.S, MAX_ROOMS).orElseThrow();
+        PocketRoom first = PocketRooms.allocate(space, Face.S, MAX_ROOMS).orElseThrow();
 
-        PocketRoom second = PocketRooms.allocate(space.withRooms(List.of(first)), Direction.S, MAX_ROOMS)
+        PocketRoom second = PocketRooms.allocate(space.withRooms(List.of(first)), Face.S, MAX_ROOMS)
             .orElseThrow();
 
         assertFalse(first.offsetX() == second.offsetX() && first.offsetZ() == second.offsetZ());
@@ -81,7 +81,7 @@ final class PocketRoomsTest {
         indexes.add(0);
 
         for (int allocated = 1; allocated < MAX_ROOMS; allocated++) {
-            PocketRoom room = PocketRooms.allocate(space.withRooms(rooms), Direction.N, MAX_ROOMS).orElseThrow();
+            PocketRoom room = PocketRooms.allocate(space.withRooms(rooms), Face.N, MAX_ROOMS).orElseThrow();
             assertTrue(offsets.add(offsetKey(room)), "duplicate cell at room " + allocated);
             assertTrue(indexes.add(room.index()), "duplicate index at room " + allocated);
             rooms = new ArrayList<>(rooms);
@@ -89,17 +89,17 @@ final class PocketRoomsTest {
         }
 
         assertEquals(MAX_ROOMS, offsets.size());
-        assertEquals(Optional.empty(), PocketRooms.allocate(space.withRooms(rooms), Direction.N, MAX_ROOMS));
+        assertEquals(Optional.empty(), PocketRooms.allocate(space.withRooms(rooms), Face.N, MAX_ROOMS));
     }
 
     @Test
     void theConfiguredRoomCapIsHonouredEvenBelowTheGridSize() {
         PocketSpace space = space(PocketShell.defaults());
-        PocketRoom first = PocketRooms.allocate(space, Direction.W, 2).orElseThrow();
+        PocketRoom first = PocketRooms.allocate(space, Face.W, 2).orElseThrow();
 
         assertEquals(Optional.empty(),
-            PocketRooms.allocate(space.withRooms(List.of(first)), Direction.W, 2));
-        assertEquals(Optional.empty(), PocketRooms.allocate(space, Direction.W, 1),
+            PocketRooms.allocate(space.withRooms(List.of(first)), Face.W, 2));
+        assertEquals(Optional.empty(), PocketRooms.allocate(space, Face.W, 1),
             "a cap of one leaves room for the base room only");
     }
 
@@ -110,7 +110,7 @@ final class PocketRoomsTest {
         List<PocketRoom> rooms = new ArrayList<>();
 
         for (int allocated = 1; allocated < MAX_ROOMS; allocated++) {
-            PocketRoom room = PocketRooms.allocate(space.withRooms(rooms), Direction.N, MAX_ROOMS).orElseThrow();
+            PocketRoom room = PocketRooms.allocate(space.withRooms(rooms), Face.N, MAX_ROOMS).orElseThrow();
             PocketLayout layout = PocketRooms.layout(space, room);
             assertTrue(Math.abs(layout.minX() - space.centerX()) < halfSlot, "room " + room.index() + " min x");
             assertTrue(Math.abs(layout.maxX() - space.centerX()) < halfSlot, "room " + room.index() + " max x");
@@ -128,7 +128,7 @@ final class PocketRoomsTest {
         rooms.add(PocketRooms.baseRoom());
         for (int allocated = 1; allocated < MAX_ROOMS; allocated++) {
             rooms.add(PocketRooms.allocate(space.withRooms(rooms.subList(1, rooms.size())),
-                Direction.N, MAX_ROOMS).orElseThrow());
+                Face.N, MAX_ROOMS).orElseThrow());
         }
 
         for (int a = 0; a < rooms.size(); a++) {
@@ -145,7 +145,7 @@ final class PocketRoomsTest {
     @Test
     void theRoomOccupyingAColumnIsTheOneWhoseCubeContainsIt() {
         PocketSpace space = space(PocketShell.defaults());
-        PocketRoom north = PocketRooms.allocate(space, Direction.N, MAX_ROOMS).orElseThrow();
+        PocketRoom north = PocketRooms.allocate(space, Face.N, MAX_ROOMS).orElseThrow();
         PocketSpace grown = space.withRooms(List.of(north));
         PocketLayout northLayout = PocketRooms.layout(grown, north);
 
@@ -176,7 +176,7 @@ final class PocketRoomsTest {
     void onlyCardinalWallsGrowAPocket() {
         PocketSpace space = space(PocketShell.defaults());
 
-        assertThrows(IllegalArgumentException.class, () -> PocketRooms.allocate(space, Direction.U, MAX_ROOMS));
+        assertThrows(IllegalArgumentException.class, () -> PocketRooms.allocate(space, Face.U, MAX_ROOMS));
         assertThrows(NullPointerException.class, () -> PocketRooms.allocate(space, null, MAX_ROOMS));
     }
 

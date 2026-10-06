@@ -1,15 +1,15 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
-import art.arcane.wormholes.network.client.Brick;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
+import art.arcane.optics.stream.Brick;
+import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewProtocolException;
-import art.arcane.wormholes.network.client.SectionBiomes;
-import art.arcane.wormholes.render.plate.PlateBox;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.SectionBiomes;
+import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.Face;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.level.block.Blocks;
@@ -32,13 +32,13 @@ import static org.junit.Assert.assertTrue;
 
 public class ClientMeshSectionsReuseTest extends MinecraftTestBase {
     private static final PlateBox BOUNDS = new PlateBox(-32, -32, -32, 64, 64, 64);
-    private static final ClientViewEnvironment ENVIRONMENT = PortalEnvironmentTest.environment(ClientViewEnvironment.Transform.IDENTITY);
+    private static final ProjectionEnvironment ENVIRONMENT = PortalEnvironmentTest.environment(ProjectionEnvironment.Transform.IDENTITY);
 
     @Test
     public void immutableIdentityUsesValueEqualityWithoutTreatingCachedHashCollisionsAsProof() {
         ClientMeshSections.Identity original = new ClientMeshSections.Identity(ENVIRONMENT, 71, 1);
-        ClientViewEnvironment same = ENVIRONMENT.withTransform(new ClientViewEnvironment.Transform(Direction.E,
-            Direction.U, Direction.S, new GeometryVector(0, 0, 0)));
+        ProjectionEnvironment same = ENVIRONMENT.withTransform(new ProjectionEnvironment.Transform(Face.E,
+            Face.U, Face.S, new Vec3(0, 0, 0)));
         ClientMeshSections.Identity equivalent = new ClientMeshSections.Identity(same, 71, 1);
         assertEquals(original, equivalent);
         assertEquals(original.hashCode(), equivalent.hashCode());
@@ -144,14 +144,14 @@ public class ClientMeshSectionsReuseTest extends MinecraftTestBase {
         store.begin(7, 2, BOUNDS, 8);
         assertTrue(store.bind(7, new ClientMeshSections.Identity(ENVIRONMENT, 71, 12)).isEmpty());
         assertTrue(store.view(7).sectionKeys().isEmpty());
-        ClientViewEnvironment translated = ENVIRONMENT.withTransform(new ClientViewEnvironment.Transform(Direction.E,
-            Direction.U, Direction.S, new GeometryVector(16, 0, 0)));
+        ProjectionEnvironment translated = ENVIRONMENT.withTransform(new ProjectionEnvironment.Transform(Face.E,
+            Face.U, Face.S, new Vec3(16, 0, 0)));
         assertTrue(store.bind(7, new ClientMeshSections.Identity(translated, 71, 11)).isEmpty());
-        ClientViewEnvironment.World previous = ENVIRONMENT.world();
-        ClientViewEnvironment.World nether = new ClientViewEnvironment.World("minecraft:the_nether", previous.clockTime(),
+        ProjectionEnvironment.World previous = ENVIRONMENT.world();
+        ProjectionEnvironment.World nether = new ProjectionEnvironment.World("minecraft:the_nether", previous.clockTime(),
             previous.biomeKey(), previous.seaLevel(), previous.blockLight(), previous.skyLight(), previous.logicalHeight(),
             previous.hasCeiling(), previous.ambientLight(), previous.eyeMedium(), previous.hasFixedTime());
-        ClientViewEnvironment otherWorld = new ClientViewEnvironment(ENVIRONMENT.gameTime(), ENVIRONMENT.sky(), ENVIRONMENT.fog(),
+        ProjectionEnvironment otherWorld = new ProjectionEnvironment(ENVIRONMENT.gameTime(), ENVIRONMENT.sky(), ENVIRONMENT.fog(),
             ENVIRONMENT.lighting(), ENVIRONMENT.clouds(), ENVIRONMENT.transform(), ENVIRONMENT.dimension(), nether);
         assertTrue(store.bind(7, new ClientMeshSections.Identity(otherWorld, 71, 11)).isEmpty());
         assertNull(store.view(7).section(0L));

@@ -5,10 +5,10 @@ import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.api.portal.PortalMutations;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.LocalPortal;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.vanilla.PortalFactory;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Block;
@@ -28,7 +28,7 @@ public final class ApiMutations implements PortalMutations {
         Block first = cells.iterator().next();
         return onRegion(first.getLocation(), () -> {
             ILocalPortal created = PortalFactory.createFromCells(cells,
-                PortalFrame.canonical(normalOf(cells)), PortalType.PORTAL, name);
+                Frame.canonical(normalOf(cells)), PortalType.PORTAL, name);
             if (created == null) {
                 return null;
             }
@@ -73,7 +73,7 @@ public final class ApiMutations implements PortalMutations {
         });
     }
 
-    private static Direction normalOf(Set<Block> cells) {
+    private static Face normalOf(Set<Block> cells) {
         int minX = Integer.MAX_VALUE;
         int maxX = Integer.MIN_VALUE;
         int minZ = Integer.MAX_VALUE;
@@ -84,7 +84,7 @@ public final class ApiMutations implements PortalMutations {
             minZ = Math.min(minZ, cell.getZ());
             maxZ = Math.max(maxZ, cell.getZ());
         }
-        return maxX - minX >= maxZ - minZ ? Direction.N : Direction.E;
+        return maxX - minX >= maxZ - minZ ? Face.N : Face.E;
     }
 
     private static ILocalPortal portal(UUID id) {

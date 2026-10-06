@@ -21,8 +21,8 @@ import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.portal.DimensionalPortalKind;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.PortalStructure;
-import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Face;
 
 final class VanillaPortalFrameIntegrity
 {
@@ -202,7 +202,7 @@ final class VanillaPortalFrameIntegrity
 		};
 	}
 
-	private static boolean isCardinalFrameBlock(Block block, PortalStructure structure, Direction normal)
+	private static boolean isCardinalFrameBlock(Block block, PortalStructure structure, Face normal)
 	{
 		int x = block.getX();
 		int y = block.getY();
@@ -222,7 +222,7 @@ final class VanillaPortalFrameIntegrity
 		{
 			return false;
 		}
-		AxisAlignedBB area = structure.getArea();
+		Box area = structure.getArea();
 		if(area == null)
 		{
 			return false;
@@ -278,7 +278,7 @@ final class VanillaPortalFrameIntegrity
 		return false;
 	}
 
-	private static Set<FramePosition> expectedFramePositions(PortalStructure structure, Direction normal)
+	private static Set<FramePosition> expectedFramePositions(PortalStructure structure, Face normal)
 	{
 		Set<FramePosition> cells = new HashSet<FramePosition>();
 		for(Vector vector : structure.getBlockPositions())
@@ -288,7 +288,7 @@ final class VanillaPortalFrameIntegrity
 		return expectedFramePositions(cells, normal);
 	}
 
-	static Set<FramePosition> expectedFramePositions(Set<FramePosition> cells, Direction normal)
+	static Set<FramePosition> expectedFramePositions(Set<FramePosition> cells, Face normal)
 	{
 		Set<FramePosition> frame = new HashSet<FramePosition>();
 		for(FramePosition cell : cells)

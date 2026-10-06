@@ -29,6 +29,7 @@ import art.arcane.volmlib.util.inventorygui.WindowResolution;
 import art.arcane.volmlib.util.localization.LinesKey;
 import art.arcane.volmlib.util.localization.MessageArgs;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
+import art.arcane.optics.frame.QuarterTurn;
 
 final class LocalPortalMenus
 {
@@ -647,7 +648,7 @@ final class LocalPortalMenus
 		KList<String> lore = element.getLore();
 		lore.add(Wormholes.text().legacy(WormholesMessages.PORTAL_MENU_MIRROR_ROTATION,
 				LocalPortalText.arguments("degrees", mirrorRotation(viewer).getDegrees())));
-		if(nativeMirror(viewer) || MirrorRotation.supportsQuarterTurns(portal.getFrame()))
+		if(nativeMirror(viewer) || QuarterTurn.supportsQuarterTurns(portal.getFrame()))
 		{
 			lore.add(Wormholes.text().legacy(WormholesMessages.PORTAL_MENU_MIRROR_ROTATE_CLOCKWISE));
 			lore.add(Wormholes.text().legacy(WormholesMessages.PORTAL_MENU_MIRROR_ROTATE_COUNTERCLOCKWISE));
@@ -661,12 +662,12 @@ final class LocalPortalMenus
 		return Wormholes.projectionManager != null && Wormholes.projectionManager.clientView().nativeMesh(viewer);
 	}
 
-	private MirrorRotation mirrorRotation(Player viewer)
+	private QuarterTurn mirrorRotation(Player viewer)
 	{
 		return nativeMirror(viewer) ? portal.getMirrorRotation() : portal.getMirrorRotation().coherentFor(portal.getFrame());
 	}
 
-	private void rotateMirrorImage(Element element, Window window, Player viewer, MirrorRotation rotation)
+	private void rotateMirrorImage(Element element, Window window, Player viewer, QuarterTurn rotation)
 	{
 		if(!portal.isMirrorMode())
 		{

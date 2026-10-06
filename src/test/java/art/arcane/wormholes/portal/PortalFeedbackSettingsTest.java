@@ -8,12 +8,13 @@ import art.arcane.wormholes.config.toml.MainConfig;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import art.arcane.wormholes.config.toml.ProjectionConfig;
 import art.arcane.wormholes.config.toml.RenderConfig;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import org.bukkit.util.Vector;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import art.arcane.optics.frame.Frame;
 
 class PortalFeedbackSettingsTest
 {
@@ -83,7 +84,7 @@ class PortalFeedbackSettingsTest
 
 	private static Traversive traversive()
 	{
-		PortalFrame frame = PortalFrame.canonical(Direction.N).view(true);
+		Frame frame = Frame.canonical(Face.N).view(true);
 		return new Traversive(
 				new Object(),
 				TraversableType.ENTITY,

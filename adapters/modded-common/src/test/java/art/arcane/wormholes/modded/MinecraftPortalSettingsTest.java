@@ -1,19 +1,19 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import art.arcane.wormholes.portal.NetworkViewQuality;
-import art.arcane.wormholes.portal.MirrorRotation;
+import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.wormholes.portal.Portal;
-import art.arcane.wormholes.portal.PortalFrame;
-import art.arcane.wormholes.portal.PortalGeometry;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.wormholes.portal.PortalType;
-import art.arcane.wormholes.render.acoustics.AcousticsProfile;
-import art.arcane.wormholes.render.atmosphere.AtmosphereMode;
-import art.arcane.wormholes.render.lod.LodProfile;
+import art.arcane.optics.fidelity.AcousticsProfile;
+import art.arcane.optics.fidelity.AtmosphereMode;
+import art.arcane.optics.volume.LodProfile;
 import art.arcane.wormholes.transit.MomentumPolicy;
 import art.arcane.wormholes.transit.OrientationPolicy;
 import art.arcane.wormholes.transit.TransitionProfile;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import org.junit.Test;
 
 import java.util.List;
@@ -86,7 +86,7 @@ public class MinecraftPortalSettingsTest extends MinecraftTestBase {
         when(runtime.portals()).thenReturn(mock(MinecraftPortalRegistry.class));
         MinecraftPortalSyncAccess sync = new MinecraftPortalSyncAccess(runtime);
         MinecraftProjectorPortalAccess packets = new MinecraftProjectorPortalAccess(runtime);
-        for (MirrorRotation rotation : List.of(MirrorRotation.DEGREES_90, MirrorRotation.DEGREES_270)) {
+        for (QuarterTurn rotation : List.of(QuarterTurn.DEGREES_90, QuarterTurn.DEGREES_270)) {
             MinecraftPortal source = portal();
             source.setMirrorMode(true);
             source.setMirrorRotation(rotation);
@@ -117,35 +117,35 @@ public class MinecraftPortalSettingsTest extends MinecraftTestBase {
 
     @Test
     public void restoredOriginsUseExactCellGeometryForForwardAndReverseFloorTravel() {
-        PortalGeometry sourceGeometry = new PortalGeometry();
-        sourceGeometry.setBlocks(List.of(new GeometryVector(1001, 200, 0), new GeometryVector(1001, 205, 0)));
-        PortalGeometry targetGeometry = new PortalGeometry();
-        targetGeometry.setBlocks(List.of(new GeometryVector(1103, 80, 0), new GeometryVector(1103, 85, 0)));
+        ApertureCells sourceGeometry = new ApertureCells();
+        sourceGeometry.setBlocks(List.of(new Vec3(1001, 200, 0), new Vec3(1001, 205, 0)));
+        ApertureCells targetGeometry = new ApertureCells();
+        targetGeometry.setBlocks(List.of(new Vec3(1103, 80, 0), new Vec3(1103, 85, 0)));
         UUID id = UUID.randomUUID();
         Map<String, Object> values = Map.of("owner", id.toString(), "type", "PORTAL");
-        PortalFrame frame = PortalFrame.canonical(Direction.N);
+        Frame frame = Frame.canonical(Face.N);
         MinecraftPortal source = new MinecraftPortal(new MinecraftPortal.Definition(new Portal.State(id,
-            new GeometryVector(1001.4995D, 202.9995D, 0.4995D), "Source", frame, true),
+            new Vec3(1001.4995D, 202.9995D, 0.4995D), "Source", frame, true),
             sourceGeometry, "minecraft:overworld", values));
         MinecraftPortal target = new MinecraftPortal(new MinecraftPortal.Definition(new Portal.State(UUID.randomUUID(),
-            new GeometryVector(1103.4995D, 82.9995D, 0.4995D), "Target", frame, true),
+            new Vec3(1103.4995D, 82.9995D, 0.4995D), "Target", frame, true),
             targetGeometry, "minecraft:the_nether", values));
         source = MinecraftPortal.read(source.write());
         target = MinecraftPortal.read(target.write());
-        assertEquals(new GeometryVector(1001.5D, 203.0D, 0.5D), source.getOrigin());
-        assertEquals(new GeometryVector(1103.5D, 83.0D, 0.5D), target.getOrigin());
-        GeometryVector feet = new GeometryVector(1001.5D, 200.0D, 0.4785775140992615D);
-        GeometryVector mapped = frame.transformPoint(feet, source.getOrigin(), target.getOrigin(), frame);
+        assertEquals(new Vec3(1001.5D, 203.0D, 0.5D), source.getOrigin());
+        assertEquals(new Vec3(1103.5D, 83.0D, 0.5D), target.getOrigin());
+        Vec3 feet = new Vec3(1001.5D, 200.0D, 0.4785775140992615D);
+        Vec3 mapped = frame.transformPoint(feet, source.getOrigin(), target.getOrigin(), frame);
         assertEquals(80.0D, mapped.y(), 0.0D);
         assertEquals(feet, frame.transformPoint(mapped, target.getOrigin(), source.getOrigin(), frame));
         assertEquals(205.999D, source.getGeometry().getArea().getYb(), 0.0D);
     }
 
     private static MinecraftPortal portal() {
-        PortalGeometry geometry = new PortalGeometry();
-        geometry.setBlocks(List.of(new GeometryVector(0, 64, 0), new GeometryVector(0, 65, 0)));
+        ApertureCells geometry = new ApertureCells();
+        geometry.setBlocks(List.of(new Vec3(0, 64, 0), new Vec3(0, 65, 0)));
         UUID id = UUID.randomUUID();
         return new MinecraftPortal(new MinecraftPortal.Definition(new Portal.State(id, geometry.getApertureCenter(), "Settings",
-            PortalFrame.canonical(Direction.N), true), geometry, "minecraft:overworld", Map.of("owner", id.toString(), "type", "PORTAL")));
+            Frame.canonical(Face.N), true), geometry, "minecraft:overworld", Map.of("owner", id.toString(), "type", "PORTAL")));
     }
 }

@@ -3,7 +3,7 @@ package art.arcane.wormholes.door;
 import java.util.Objects;
 import java.util.Optional;
 
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 
 /**
  * The portal aperture of one placed dimensional door or trapdoor.
@@ -23,7 +23,7 @@ public record DoorwayPlane(
 	int blockX,
 	int blockY,
 	int blockZ,
-	Direction facing,
+	Face facing,
 	DoorForm form,
 	DoorHalf half,
 	DoorOpenState openState)
@@ -56,7 +56,7 @@ public record DoorwayPlane(
 		}
 	}
 
-	public DoorwayPlane(int blockX, int blockY, int blockZ, Direction facing)
+	public DoorwayPlane(int blockX, int blockY, int blockZ, Face facing)
 	{
 		this(blockX, blockY, blockZ, facing, DoorForm.DOOR, DoorHalf.BOTTOM, DoorOpenState.OPEN);
 	}
@@ -65,7 +65,7 @@ public record DoorwayPlane(
 		int blockX,
 		int blockY,
 		int blockZ,
-		Direction facing,
+		Face facing,
 		DoorHalf half,
 		DoorOpenState openState)
 	{
@@ -77,7 +77,7 @@ public record DoorwayPlane(
 		return form == DoorForm.TRAPDOOR;
 	}
 
-	public static double planeOffset(Direction normal)
+	public static double planeOffset(Face normal)
 	{
 		return Objects.requireNonNull(normal, "normal").isVertical()
 			? 0.5D - TRAPDOOR_PLATE_THICKNESS / 2.0D
@@ -421,7 +421,7 @@ public record DoorwayPlane(
 			+ ((point.z() - center.z()) * normalZ());
 	}
 
-	private static float facingYaw(Direction face)
+	private static float facingYaw(Face face)
 	{
 		return switch(face)
 		{
@@ -447,11 +447,11 @@ public record DoorwayPlane(
 		return normalized;
 	}
 
-	private static boolean isCardinal(Direction facing)
+	private static boolean isCardinal(Face facing)
 	{
-		return facing == Direction.N
-			|| facing == Direction.S
-			|| facing == Direction.E
-			|| facing == Direction.W;
+		return facing == Face.N
+			|| facing == Face.S
+			|| facing == Face.E
+			|| facing == Face.W;
 	}
 }

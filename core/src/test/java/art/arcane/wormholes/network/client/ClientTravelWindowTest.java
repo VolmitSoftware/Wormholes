@@ -15,6 +15,7 @@ import java.util.concurrent.Future;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import art.arcane.optics.stream.ViewStreamLimits;
 
 class ClientTravelWindowTest {
     @Test
@@ -24,7 +25,7 @@ class ClientTravelWindowTest {
         assertEquals(9, ClientTravelWindow.radius(8));
         assertEquals(16, ClientTravelWindow.radius(32));
         assertEquals(16, ClientTravelWindow.radius(Integer.MAX_VALUE));
-        assertEquals(ClientViewProtocol.MAX_TRAVEL_CHUNKS, ClientTravelWindow.count(16));
+        assertEquals(ViewStreamLimits.MAX_TRAVEL_CHUNKS, ClientTravelWindow.count(16));
         assertThrows(IllegalArgumentException.class, () -> ClientTravelWindow.count(0));
         assertThrows(IllegalArgumentException.class, () -> ClientTravelWindow.count(17));
     }

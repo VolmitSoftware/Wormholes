@@ -20,7 +20,7 @@ import art.arcane.wormholes.localization.WormholesLocalization;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.platform.BukkitRegionTaskProvider;
 import art.arcane.wormholes.platform.WormholesPlatform;
-import art.arcane.wormholes.portal.PortalCrossing;
+import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.wormholes.render.clientview.BukkitClientView;
 import art.arcane.wormholes.render.clientview.ClientViewEffects;
 import art.arcane.wormholes.service.WormholesAudience;
@@ -1718,7 +1718,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
         return ledger.isTraveling(travelerId);
     }
 
-	public boolean crossPrepared(Player player, UUID source, PortalCrossing crossing)
+	public boolean crossPrepared(Player player, UUID source, PlaneCrossing crossing)
 	{
 		UUID travelerId = player.getUniqueId();
 		if(guard.closed() || player.isDead() || !player.isValid() || player.isInsideVehicle() || !player.getPassengers().isEmpty()

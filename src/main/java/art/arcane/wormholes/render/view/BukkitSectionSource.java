@@ -6,6 +6,8 @@ import org.bukkit.ChunkSnapshot;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
+import art.arcane.optics.view.CachedSection;
+import art.arcane.optics.view.SectionCache;
 
 final class BukkitSectionSource implements SectionCache.Source<BlockData, Material> {
     private final World world;

@@ -3,6 +3,11 @@ package art.arcane.wormholes.network.client;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import art.arcane.optics.stream.Brick;
+import art.arcane.optics.stream.BrickCodec;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ClientViewWriter;
+import art.arcane.optics.stream.ViewStreamLimits;
 
 public final class PlatePatchEncoder {
     private PlatePatchEncoder() {
@@ -13,8 +18,8 @@ public final class PlatePatchEncoder {
             throw new IllegalArgumentException("plates with different section boxes cannot be patched");
         }
         List<ClientViewMessage.PatchOp> ops = new ArrayList<ClientViewMessage.PatchOp>();
-        int[] before = new int[ClientViewProtocol.BRICK_CELLS];
-        int[] after = new int[ClientViewProtocol.BRICK_CELLS];
+        int[] before = new int[ViewStreamLimits.BRICK_CELLS];
+        int[] after = new int[ViewStreamLimits.BRICK_CELLS];
         for (int index = 0; index < next.brickCount(); index++) {
             if (Arrays.equals(previous.body(index), next.body(index))) {
                 continue;
@@ -38,23 +43,23 @@ public final class PlatePatchEncoder {
             int changed = 0;
             int sparseBytes = 2;
             int fullBytes = 2 + next.body(index).length;
-            for (int cell = 0; cell < ClientViewProtocol.BRICK_CELLS; cell++) {
+            for (int cell = 0; cell < ViewStreamLimits.BRICK_CELLS; cell++) {
                 if (before[cell] != after[cell]) {
                     changed++;
                     sparseBytes += 2 + ClientViewWriter.varintSize(after[cell]);
-                    if (changed >= ClientViewProtocol.SPARSE_PATCH_MAX_CELLS || sparseBytes >= fullBytes) {
+                    if (changed >= ViewStreamLimits.SPARSE_PATCH_MAX_CELLS || sparseBytes >= fullBytes) {
                         break;
                     }
                 }
             }
-            if (changed >= ClientViewProtocol.SPARSE_PATCH_MAX_CELLS || sparseBytes >= fullBytes) {
+            if (changed >= ViewStreamLimits.SPARSE_PATCH_MAX_CELLS || sparseBytes >= fullBytes) {
                 ops.add(new ClientViewMessage.FullOp(target));
                 continue;
             }
             int[] cells = new int[changed];
             int[] ids = new int[changed];
             int cursor = 0;
-            for (int cell = 0; cell < ClientViewProtocol.BRICK_CELLS && cursor < changed; cell++) {
+            for (int cell = 0; cell < ViewStreamLimits.BRICK_CELLS && cursor < changed; cell++) {
                 if (before[cell] != after[cell]) {
                     cells[cursor] = cell;
                     ids[cursor] = after[cell];
@@ -68,7 +73,7 @@ public final class PlatePatchEncoder {
 
     public static Brick[] apply(Brick[] previous, ClientViewMessage.PlatePatch patch) throws ClientViewProtocolException {
         Brick[] result = previous.clone();
-        int[] cells = new int[ClientViewProtocol.BRICK_CELLS];
+        int[] cells = new int[ViewStreamLimits.BRICK_CELLS];
         for (ClientViewMessage.PatchOp op : patch.ops()) {
             int index = op.brickIndex();
             if (index < 0 || index >= result.length) {

@@ -4,14 +4,19 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.IntSupplier;
 
-import art.arcane.wormholes.network.view.EntityVisual;
+import art.arcane.optics.entity.EntitySnapshot;
+import art.arcane.optics.stream.Brick;
+import art.arcane.optics.stream.BrickCodec;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ClientViewWriter;
+import art.arcane.optics.stream.ViewStreamLimits;
 
 public final class FrameSplitter {
     private final int maxFrameBytes;
     private final boolean deflate;
 
     public FrameSplitter(int maxFrameBytes, boolean deflate) {
-        this.maxFrameBytes = ClientViewProtocol.clampMaxFrameBytes(maxFrameBytes);
+        this.maxFrameBytes = ViewStreamLimits.clampMaxFrameBytes(maxFrameBytes);
         this.deflate = deflate;
     }
 
@@ -29,13 +34,13 @@ public final class FrameSplitter {
 
     public List<byte[]> split(List<ClientViewMessage> group, IntSupplier sequence, boolean closeGroup) throws ClientViewProtocolException {
         List<ClientViewMessage> pieces = new ArrayList<ClientViewMessage>(group.size());
-        int bodyBudget = maxFrameBytes - ClientViewProtocol.S2C_HEADER_BYTES;
+        int bodyBudget = maxFrameBytes - ViewStreamLimits.S2C_HEADER_BYTES;
         for (ClientViewMessage message : group) {
             pieces.addAll(pieces(message, bodyBudget));
         }
         List<byte[]> frames = new ArrayList<byte[]>(pieces.size());
         for (int i = 0; i < pieces.size(); i++) {
-            int flags = closeGroup && i == pieces.size() - 1 ? ClientViewProtocol.FLAG_LAST : 0;
+            int flags = closeGroup && i == pieces.size() - 1 ? ViewStreamLimits.FLAG_LAST : 0;
             byte[] frame = ClientViewCodec.encodeS2C(pieces.get(i), sequence.getAsInt(), flags, deflate);
             if (frame.length > maxFrameBytes) {
                 throw new ClientViewProtocolException(pieces.get(i).type() + " frame of " + frame.length + " bytes exceeds " + maxFrameBytes);
@@ -97,9 +102,9 @@ public final class FrameSplitter {
             throw new ClientViewProtocolException("entity presence list of " + message.presentIds().size() + " ids cannot fit a frame of " + bodyBudget);
         }
         List<ClientViewMessage> out = new ArrayList<ClientViewMessage>();
-        List<EntityVisual> current = new ArrayList<EntityVisual>();
+        List<EntitySnapshot> current = new ArrayList<EntitySnapshot>();
         int used = header;
-        for (EntityVisual visual : message.entities()) {
+        for (EntitySnapshot visual : message.entities()) {
             int length = ClientViewCodec.entityBytes(visual).length;
             int size = ClientViewWriter.varintSize(length) + length;
             if (header + size + unchanged > bodyBudget) {
@@ -107,7 +112,7 @@ public final class FrameSplitter {
             }
             if (used + size + unchanged > bodyBudget && !current.isEmpty()) {
                 out.add(new ClientViewMessage.EntityFrame(message.portalKey(), message.entitySeq(), current, List.of(), false));
-                current = new ArrayList<EntityVisual>();
+                current = new ArrayList<EntitySnapshot>();
                 used = header;
             }
             current.add(visual);
@@ -131,7 +136,7 @@ public final class FrameSplitter {
             if (header + size > bodyBudget) {
                 throw new ClientViewProtocolException("palette entry " + entry.id() + " cannot fit a frame of " + bodyBudget);
             }
-            if ((used + size > bodyBudget || current.size() == ClientViewProtocol.MAX_PALETTE_ENTRIES_PER_MESSAGE) && !current.isEmpty()) {
+            if ((used + size > bodyBudget || current.size() == ViewStreamLimits.MAX_PALETTE_ENTRIES_PER_MESSAGE) && !current.isEmpty()) {
                 out.add(new ClientViewMessage.Palette(current));
                 current = new ArrayList<ClientViewMessage.PaletteEntry>();
                 used = header;

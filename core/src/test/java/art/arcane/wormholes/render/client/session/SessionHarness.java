@@ -8,18 +8,21 @@ import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicLong;
 
-import art.arcane.wormholes.network.client.ClientViewCapability;
+import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewMessageType;
-import art.arcane.wormholes.network.client.ClientViewProtocolException;
-import art.arcane.wormholes.network.client.ClientViewTransport;
-import art.arcane.wormholes.render.ProjectedEntityEvent;
+import art.arcane.optics.stream.ViewStreamMessageType;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ClientViewTransport;
+import art.arcane.optics.entity.ProjectedEntityEvent;
+import art.arcane.optics.stream.ClientViewInbound;
+import art.arcane.optics.stream.ClientViewPhase;
+import art.arcane.optics.stream.ClientViewPlateHandoff;
 
 final class SessionHarness {
     static final int DATA_VERSION = 4325;
-    static final long CLIENT_CAPS = ClientViewCapability.ALL & ~ClientViewCapability.of(ClientViewCapability.LINK_UNCOMPRESSED,
-        ClientViewCapability.ZERO_COPY, ClientViewCapability.MESH_RENDER);
-    static final long NATIVE_CAPS = CLIENT_CAPS | ClientViewCapability.MESH_RENDER.mask();
+    static final long CLIENT_CAPS = ViewStreamCapability.ALL & ~ViewStreamCapability.of(ViewStreamCapability.LINK_UNCOMPRESSED,
+        ViewStreamCapability.ZERO_COPY, ViewStreamCapability.MESH_RENDER);
+    static final long NATIVE_CAPS = CLIENT_CAPS | ViewStreamCapability.MESH_RENDER.mask();
     static final long TICK_NANOS = 50_000_000L;
     static final long C2S_SPACING_NANOS = 60_000_000L;
 
@@ -48,7 +51,7 @@ final class SessionHarness {
         ClientViewTransport<String> transport = new ClientViewTransport<String>() {
             @Override
             public void send(String player, byte[] payload) {
-                ClientViewMessageType type = ClientViewMessageType.byId(payload[0] & 0xFF);
+                ViewStreamMessageType type = ViewStreamMessageType.byId(payload[0] & 0xFF);
                 events.add("send " + type);
                 frames.add(payload);
             }
@@ -91,7 +94,7 @@ final class SessionHarness {
                 }
             },
             (key, revision, plate, light) -> handoffs.publish(key, revision, plate, light), lanes, state -> state, DATA_VERSION,
-            ClientViewCapability.ALL, clock::get, (message, error) -> warnings.add(new AssertionError(message, error)));
+            ViewStreamCapability.ALL, clock::get, (message, error) -> warnings.add(new AssertionError(message, error)));
         this.registry = new ClientViewSessionRegistry<String, String>(platform, options);
         this.session = registry.open(playerId, "observer", zeroCopyNonce);
     }
@@ -145,11 +148,11 @@ final class SessionHarness {
         pump();
     }
 
-    int sent(ClientViewMessageType type) {
+    int sent(ViewStreamMessageType type) {
         return client.count(type);
     }
 
-    ClientViewMessage last(ClientViewMessageType type) {
+    ClientViewMessage last(ViewStreamMessageType type) {
         for (int i = client.received.size() - 1; i >= 0; i--) {
             if (client.received.get(i).type() == type) {
                 return client.received.get(i);

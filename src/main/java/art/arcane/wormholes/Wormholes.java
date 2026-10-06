@@ -29,7 +29,7 @@ import art.arcane.wormholes.api.traversal.internal.TraversalCostGateway;
 import art.arcane.wormholes.api.traversal.internal.TraversalCostPolicy;
 import art.arcane.wormholes.chunk.BukkitChunkLeasePlatform;
 import art.arcane.wormholes.chunk.BukkitChunkLeaseProvider;
-import art.arcane.wormholes.chunk.ChunkLeaseRegistry;
+import art.arcane.optics.plate.ChunkLeaseRegistry;
 import art.arcane.wormholes.chunk.ChunkSendRateTuner;
 import art.arcane.wormholes.chunk.presend.BukkitChunkPreSendProvider;
 import art.arcane.wormholes.config.WormholesSettings;
@@ -97,7 +97,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
     public static volatile PortalManager portalManager;
     public static volatile TraversableManager traversableManager;
     public static volatile ProjectionManager projectionManager;
-    public static volatile art.arcane.wormholes.render.ProjectionWorldChangeTracker projectionChangeTracker;
+    public static volatile art.arcane.optics.view.WorldChangeTracker projectionChangeTracker;
     public static volatile ArrivalWarmer arrivalWarmer;
     public static volatile BukkitRtpRuntime rtpRuntime;
     public static volatile NetworkManager networkManager;
@@ -201,7 +201,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
             vanillaTravelCostCapture = new VanillaTravelCostCapture();
             portalManager = new PortalManager();
             traversableManager = new TraversableManager();
-            projectionChangeTracker = new art.arcane.wormholes.render.ProjectionWorldChangeTracker();
+            projectionChangeTracker = new art.arcane.optics.view.WorldChangeTracker();
             projectionManager = new ProjectionManager(packetEvents().projectionChunkTracker());
             arrivalWarmer = new ArrivalWarmer();
             rtpRuntime = new BukkitRtpEnvironment(this, portalManager).createRuntime();

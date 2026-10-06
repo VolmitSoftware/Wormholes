@@ -24,8 +24,9 @@ import art.arcane.wormholes.portal.UniversalTunnel;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.render.view.ProjectionWorldViewProvider;
 import art.arcane.wormholes.render.view.RemoteWorldView;
+import art.arcane.optics.scan.ScanDestination;
 
-final class ProjectorDestination implements ProjectorScanDestination<ILocalPortal, ProjectionWorldView> {
+final class ProjectorDestination implements ScanDestination<ILocalPortal, ProjectionWorldView> {
     enum Outcome {
         READY,
         CLOSE,

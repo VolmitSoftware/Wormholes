@@ -11,7 +11,7 @@ import art.arcane.wormholes.door.PlacedDoorEndpoint;
 import art.arcane.wormholes.door.PortalPlaneGeometry;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.modded.mixin.DoorDisplayDataAccess;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import com.mojang.math.Transformation;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.DustColorTransitionOptions;
@@ -236,7 +236,7 @@ final class MinecraftDoorPresentation implements AutoCloseable {
         private final ServerPlayer player;
         private final MinecraftDoorService.DoorView door;
         private final PortalPlaneGeometry geometry;
-        private final Direction facing;
+        private final Face facing;
         private final Display.BlockDisplay backing;
         private final Display.BlockDisplay overlay;
         private final PortalPlaneGeometry overlayGeometry;
@@ -250,7 +250,7 @@ final class MinecraftDoorPresentation implements AutoCloseable {
             backing = display(Blocks.CRYING_OBSIDIAN.defaultBlockState(), geometry);
             overlayGeometry = DoorPortalGeometry.overlayGeometry(geometry, facing);
             BlockState portal = Blocks.NETHER_PORTAL.defaultBlockState().setValue(NetherPortalBlock.AXIS,
-                facing == Direction.E || facing == Direction.W ? Z : X);
+                facing == Face.E || facing == Face.W ? Z : X);
             try {
                 overlay = display(portal, overlayGeometry);
             } catch (RuntimeException failure) {

@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.render.atmosphere.BiomeClaimSet;
+import art.arcane.optics.fidelity.BiomeClaimSet;
 import io.netty.buffer.Unpooled;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;

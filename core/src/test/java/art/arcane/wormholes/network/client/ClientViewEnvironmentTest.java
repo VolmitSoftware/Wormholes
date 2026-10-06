@@ -8,9 +8,9 @@ import art.arcane.wormholes.render.view.RemoteProjectionView;
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import static org.mockito.Mockito.mock;
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import art.arcane.wormholes.render.client.session.ClientViewSceneFx;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -20,6 +20,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ClientViewReader;
+import art.arcane.optics.stream.ClientViewWriter;
+import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.ProjectionEnvironmentCodec;
+import art.arcane.optics.stream.ViewStreamCapability;
 
 class ClientViewEnvironmentTest {
     @Test
@@ -36,17 +42,17 @@ class ClientViewEnvironmentTest {
         RemoteViewCache.RemoteView<String, Object, Object> remote = cache.getOrCreate("peer", portal);
         RemoteProjectionView<String, String, Object, Object> view = new RemoteProjectionView<>(remote,
             new RemoteProjectionView.Options<>("minecraft:air", value -> value));
-        assertNull(view.environment(ClientViewEnvironment.Transform.IDENTITY));
-        ClientViewEnvironment destination = ClientViewFixtures.environment();
+        assertNull(view.environment(ProjectionEnvironment.Transform.IDENTITY));
+        ProjectionEnvironment destination = ClientViewFixtures.environment();
         cache.applyEnvironment("peer", portal, destination);
-        ClientViewEnvironment projected = view.environment(ClientViewEnvironment.Transform.IDENTITY);
+        ProjectionEnvironment projected = view.environment(ProjectionEnvironment.Transform.IDENTITY);
         assertEquals(destination.sky(), projected.sky());
         assertEquals(destination.lighting(), projected.lighting());
         assertEquals(destination.fog(), projected.fog());
         assertEquals(destination.dimension(), projected.dimension());
         assertEquals(destination.gameTime(), projected.gameTime());
         assertEquals(destination.world(), projected.world());
-        assertEquals(ClientViewEnvironment.Transform.IDENTITY, projected.transform());
+        assertEquals(ProjectionEnvironment.Transform.IDENTITY, projected.transform());
         cache.remove("peer", portal);
         assertNull(cache.getOrCreate("peer", portal).environment());
     }
@@ -54,33 +60,33 @@ class ClientViewEnvironmentTest {
     @Test
     void completeSnapshotPreservesFloatColorsAndNegativeTransform() throws Exception {
         ClientViewMessage.Environment message = new ClientViewMessage.Environment(71, ClientViewFixtures.environment());
-        assertEquals(message, ClientViewCodec.decodeS2C(ClientViewCodec.encodeS2C(message, 3, 0), ClientViewCapability.ALL).message());
+        assertEquals(message, ClientViewCodec.decodeS2C(ClientViewCodec.encodeS2C(message, 3, 0), ViewStreamCapability.ALL).message());
         assertEquals(1.25F, message.environment().lighting().blockTint().blue());
-        assertEquals(new ClientViewEnvironment.World("test:destination", 72000L, "minecraft:plains", 63, 7, 15, 256, true, 0.1F, ClientViewEnvironment.EyeMedium.WATER, true), message.environment().world());
+        assertEquals(new ProjectionEnvironment.World("test:destination", 72000L, "minecraft:plains", 63, 7, 15, 256, true, 0.1F, ProjectionEnvironment.EyeMedium.WATER, true), message.environment().world());
     }
 
     @Test
     void rejectsMalformedValuesAndNonOrthogonalTransforms() throws Exception {
         ClientViewWriter out = new ClientViewWriter();
-        ClientViewEnvironmentCodec.write(out, ClientViewFixtures.environment());
+        ProjectionEnvironmentCodec.write(out, ClientViewFixtures.environment());
         byte[] invalidSky = out.toByteArray();
         invalidSky[8] = 3;
-        assertThrows(ClientViewProtocolException.class, () -> ClientViewEnvironmentCodec.read(new ClientViewReader(invalidSky)));
+        assertThrows(ClientViewProtocolException.class, () -> ProjectionEnvironmentCodec.read(new ClientViewReader(invalidSky)));
         byte[] invalidMedium = out.toByteArray();
         invalidMedium[invalidMedium.length - 2] = 4;
-        assertThrows(ClientViewProtocolException.class, () -> ClientViewEnvironmentCodec.read(new ClientViewReader(invalidMedium)));
+        assertThrows(ClientViewProtocolException.class, () -> ProjectionEnvironmentCodec.read(new ClientViewReader(invalidMedium)));
         byte[] invalidCeiling = out.toByteArray();
         invalidCeiling[invalidCeiling.length - 7] = 2;
-        assertThrows(ClientViewProtocolException.class, () -> ClientViewEnvironmentCodec.read(new ClientViewReader(invalidCeiling)));
+        assertThrows(ClientViewProtocolException.class, () -> ProjectionEnvironmentCodec.read(new ClientViewReader(invalidCeiling)));
         byte[] invalidFixedTime = out.toByteArray();
         invalidFixedTime[invalidFixedTime.length - 1] = 2;
-        assertThrows(ClientViewProtocolException.class, () -> ClientViewEnvironmentCodec.read(new ClientViewReader(invalidFixedTime)));
-        assertThrows(IllegalArgumentException.class, () -> new ClientViewEnvironment.Color(Float.NaN, 0, 0));
-        assertThrows(IllegalArgumentException.class, () -> new ClientViewEnvironment.World("test:destination", 0, "minecraft:plains", 63, 7, 15, 256, true, Float.NaN, ClientViewEnvironment.EyeMedium.NONE, false));
-        assertThrows(IllegalArgumentException.class, () -> new ClientViewEnvironment.World("missing_namespace", 0, "minecraft:plains", 63, 7, 15, 256, true, 0.1F, ClientViewEnvironment.EyeMedium.NONE, false));
-        assertThrows(IllegalArgumentException.class, () -> new ClientViewEnvironment.World("test:../ world", 0, "minecraft:plains", 63, 7, 15, 256, true, 0.1F, ClientViewEnvironment.EyeMedium.NONE, false));
-        assertThrows(IllegalArgumentException.class, () -> new ClientViewEnvironment.Transform(Direction.N, Direction.S, Direction.U,
-            new GeometryVector(0, 0, 0)));
+        assertThrows(ClientViewProtocolException.class, () -> ProjectionEnvironmentCodec.read(new ClientViewReader(invalidFixedTime)));
+        assertThrows(IllegalArgumentException.class, () -> new ProjectionEnvironment.Color(Float.NaN, 0, 0));
+        assertThrows(IllegalArgumentException.class, () -> new ProjectionEnvironment.World("test:destination", 0, "minecraft:plains", 63, 7, 15, 256, true, Float.NaN, ProjectionEnvironment.EyeMedium.NONE, false));
+        assertThrows(IllegalArgumentException.class, () -> new ProjectionEnvironment.World("missing_namespace", 0, "minecraft:plains", 63, 7, 15, 256, true, 0.1F, ProjectionEnvironment.EyeMedium.NONE, false));
+        assertThrows(IllegalArgumentException.class, () -> new ProjectionEnvironment.World("test:../ world", 0, "minecraft:plains", 63, 7, 15, 256, true, 0.1F, ProjectionEnvironment.EyeMedium.NONE, false));
+        assertThrows(IllegalArgumentException.class, () -> new ProjectionEnvironment.Transform(Face.N, Face.S, Face.U,
+            new Vec3(0, 0, 0)));
     }
 
     @Test
@@ -113,13 +119,13 @@ class ClientViewEnvironmentTest {
         }
 
         @Override
-        public ClientViewEnvironment environment(String observer, UUID portal, long tick) {
+        public ProjectionEnvironment environment(String observer, UUID portal, long tick) {
             samples++;
             return ClientViewFixtures.environment();
         }
 
         @Override
-        public ClientViewEnvironment nestedEnvironment(String observer, UUID parent, UUID portal, long tick) {
+        public ProjectionEnvironment nestedEnvironment(String observer, UUID parent, UUID portal, long tick) {
             samples++;
             return ClientViewFixtures.environment();
         }

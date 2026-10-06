@@ -1,8 +1,8 @@
 package art.arcane.wormholes.network.replication;
 
 import art.arcane.wormholes.network.view.ViewSlice;
-import art.arcane.wormholes.render.ProjectionCellKey;
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.fidelity.BlockEntitySample;
 
 import java.util.function.Predicate;
 
@@ -271,7 +271,7 @@ public final class RemoteChunkStore {
             current.indices()[cellIndex] = (short) paletteIndex;
             if (!current.blockEntities().isEmpty()) {
                 if (!blockEntityCandidate(change.state())) {
-                    current.blockEntities().remove(Long.valueOf(ProjectionCellKey.pack(worldX, worldY, worldZ)));
+                    current.blockEntities().remove(Long.valueOf(CellKeys.pack(worldX, worldY, worldZ)));
                 }
             }
         }
@@ -291,7 +291,7 @@ public final class RemoteChunkStore {
             } catch (IOException | RuntimeException unreadable) {
                 continue;
             }
-            current.blockEntities().put(Long.valueOf(ProjectionCellKey.pack(worldX, worldY, worldZ)), sample);
+            current.blockEntities().put(Long.valueOf(CellKeys.pack(worldX, worldY, worldZ)), sample);
         }
     }
 

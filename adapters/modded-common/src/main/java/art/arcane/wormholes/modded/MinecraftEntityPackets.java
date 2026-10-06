@@ -1,9 +1,9 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.optics.entity.EntityProfile;
-import art.arcane.wormholes.render.EntityRenderSpoofRegistry;
-import art.arcane.wormholes.render.EntityRenderSpoofedEntity;
-import art.arcane.wormholes.render.ProjectedPlayerNames;
+import art.arcane.optics.entity.SpoofRegistry;
+import art.arcane.optics.entity.SpoofedEntity;
+import art.arcane.optics.entity.PlayerNames;
 import art.arcane.wormholes.service.WormholesTelemetry;
 import io.netty.buffer.Unpooled;
 import net.minecraft.world.scores.TeamColor;
@@ -40,7 +40,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
-public final class MinecraftEntityPackets implements EntityRenderSpoofRegistry.Host<ServerPlayer, Vec3>, ProjectedPlayerNames.Host<ServerPlayer> {
+public final class MinecraftEntityPackets implements SpoofRegistry.Host<ServerPlayer, Vec3>, PlayerNames.Host<ServerPlayer> {
     public static final int NO_ANIMATION = -1;
     public static final int ANIMATION_SWING_MAIN_HAND = 0;
     public static final int ANIMATION_WAKE_UP = 2;
@@ -48,14 +48,14 @@ public final class MinecraftEntityPackets implements EntityRenderSpoofRegistry.H
     public static final int ANIMATION_CRITICAL_HIT = 4;
     public static final int ANIMATION_MAGIC_CRITICAL_HIT = 5;
 
-    private final ProjectedPlayerNames<ServerPlayer> names = new ProjectedPlayerNames<>(this);
+    private final PlayerNames<ServerPlayer> names = new PlayerNames<>(this);
     private final Scoreboard teams = new Scoreboard();
 
-    public void playerInfo(ServerPlayer observer, EntityRenderSpoofedEntity state, EntityProfile profile) {
+    public void playerInfo(ServerPlayer observer, SpoofedEntity state, EntityProfile profile) {
         state.playerProfile = profile;
         String sourceName = profile == null ? null : profile.name();
-        state.setPlayerIdentity(ProjectedPlayerNames.projectedProfileName(sourceName, state.fakeUuid, state.upsideDown),
-            ProjectedPlayerNames.playerLabelText(sourceName));
+        state.setPlayerIdentity(PlayerNames.projectedProfileName(sourceName, state.fakeUuid, state.upsideDown),
+            PlayerNames.playerLabelText(sourceName));
         names.retain(observer, state.playerProfileName);
         send(observer, playerInfo(observer.level().registryAccess(), state, profile));
     }
@@ -73,7 +73,7 @@ public final class MinecraftEntityPackets implements EntityRenderSpoofRegistry.H
         names.forget();
     }
 
-    public static ClientboundPlayerInfoUpdatePacket playerInfo(RegistryAccess registries, EntityRenderSpoofedEntity state, EntityProfile profile) {
+    public static ClientboundPlayerInfoUpdatePacket playerInfo(RegistryAccess registries, SpoofedEntity state, EntityProfile profile) {
         RegistryFriendlyByteBuf buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), registries);
         try {
             buffer.writeEnumSet(EnumSet.of(ClientboundPlayerInfoUpdatePacket.Action.ADD_PLAYER,
@@ -146,7 +146,7 @@ public final class MinecraftEntityPackets implements EntityRenderSpoofRegistry.H
     }
 
     @Override
-    public void motion(ServerPlayer observer, EntityRenderSpoofRegistry.Motion<Vec3> motion) {
+    public void motion(ServerPlayer observer, SpoofRegistry.Motion<Vec3> motion) {
         Packet<? super ClientGamePacketListener> packet = switch (motion.kind()) {
             case RELATIVE -> new ClientboundMoveEntityPacket.Pos(motion.entityId(), delta(motion.deltaX(), motion.deltaY(), motion.deltaZ()), motion.onGround());
             case RELATIVE_ROTATION -> new ClientboundMoveEntityPacket.PosRot(motion.entityId(), delta(motion.deltaX(), motion.deltaY(), motion.deltaZ()), Mth.packDegrees(motion.yaw()), Mth.packDegrees(motion.pitch()), motion.onGround());
@@ -223,12 +223,12 @@ public final class MinecraftEntityPackets implements EntityRenderSpoofRegistry.H
     }
 
     @Override
-    public void releaseName(ServerPlayer observer, EntityRenderSpoofedEntity state) {
+    public void releaseName(ServerPlayer observer, SpoofedEntity state) {
         names.release(observer, state.playerProfileName);
     }
 
     @Override
-    public void culled(ServerPlayer observer, UUID sourceId, EntityRenderSpoofedEntity state) {
+    public void culled(ServerPlayer observer, UUID sourceId, SpoofedEntity state) {
     }
 
     @Override

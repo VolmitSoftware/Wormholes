@@ -9,6 +9,9 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamCapability;
+import art.arcane.optics.stream.ViewStreamLimits;
 
 final class ClientPreparedTravelCacheCodecTest {
     private static final UUID TOKEN = new UUID(12, 34);
@@ -17,8 +20,8 @@ final class ClientPreparedTravelCacheCodecTest {
     void exactCoordinatesRevisionHashAndAvailabilityRoundTrip() throws ClientViewProtocolException {
         byte[] hash = hash();
         ClientViewMessage.TravelReuse reuse = new ClientViewMessage.TravelReuse(TOKEN, 3, -32, -10, 9, hash);
-        byte[] frame = ClientViewCodec.encodeS2C(reuse, 5, ClientViewProtocol.FLAG_LAST, true);
-        assertEquals(reuse, ClientViewCodec.decodeS2C(frame, ClientViewCapability.ALL).message());
+        byte[] frame = ClientViewCodec.encodeS2C(reuse, 5, ViewStreamLimits.FLAG_LAST, true);
+        assertEquals(reuse, ClientViewCodec.decodeS2C(frame, ViewStreamCapability.ALL).message());
         for (boolean available : new boolean[]{false, true}) {
             ClientViewMessage.TravelCached cached = new ClientViewMessage.TravelCached(TOKEN, 3, -32, -10, 9, hash, available);
             assertEquals(cached, ClientViewCodec.decodeC2S(ClientViewCodec.encodeC2S(cached)));
@@ -47,7 +50,7 @@ final class ClientPreparedTravelCacheCodecTest {
         byte[] cached = ClientViewCodec.encodeC2S(new ClientViewMessage.TravelCached(TOKEN, 3, 0, 0, 1, hash(), true));
         for (boolean clientbound : new boolean[]{false, true}) {
             byte[] frame = clientbound ? reuse : cached;
-            int header = clientbound ? ClientViewProtocol.S2C_HEADER_BYTES : ClientViewProtocol.C2S_HEADER_BYTES;
+            int header = clientbound ? ViewStreamLimits.S2C_HEADER_BYTES : ViewStreamLimits.C2S_HEADER_BYTES;
             for (long generation : new long[]{0, -1}) {
                 byte[] invalid = frame.clone();
                 ByteBuffer.wrap(invalid).order(ByteOrder.LITTLE_ENDIAN).putLong(header + 16, generation);
@@ -66,7 +69,7 @@ final class ClientPreparedTravelCacheCodecTest {
     }
 
     private static ClientViewMessage decode(byte[] frame, boolean clientbound) throws ClientViewProtocolException {
-        return clientbound ? ClientViewCodec.decodeS2C(frame, ClientViewCapability.ALL).message() : ClientViewCodec.decodeC2S(frame);
+        return clientbound ? ClientViewCodec.decodeS2C(frame, ViewStreamCapability.ALL).message() : ClientViewCodec.decodeC2S(frame);
     }
 
     private static byte[] hash() {

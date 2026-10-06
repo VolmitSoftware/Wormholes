@@ -1,12 +1,12 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.wormholes.network.client.Brick;
-import art.arcane.wormholes.network.client.SectionBiomes;
+import art.arcane.optics.stream.Brick;
+import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
-import art.arcane.wormholes.network.client.ClientViewProtocolException;
-import art.arcane.wormholes.render.plate.PlateBox;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.plate.PlateBox;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.level.block.Blocks;
@@ -148,7 +148,7 @@ public class ClientMeshSectionsTest extends MinecraftTestBase {
     public void nonuniformLightStillCountsAgainstTheMemoryBudget() throws Exception {
         ClientMeshSections store = store(2048);
         store.begin(7, 1, BOUNDS, 64);
-        byte[] light = new byte[ClientViewProtocol.LIGHT_NIBBLE_BYTES];
+        byte[] light = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
         light[0] = 1;
         Brick litAir = Brick.empty(0).withLight(light, light);
 
@@ -161,8 +161,8 @@ public class ClientMeshSectionsTest extends MinecraftTestBase {
     public void repeatedLightPreservesEveryNibbleWithoutFullArrays() throws Exception {
         ClientMeshSections store = store(1024);
         store.begin(7, 1, BOUNDS, 64);
-        byte[] block = new byte[ClientViewProtocol.LIGHT_NIBBLE_BYTES];
-        byte[] sky = new byte[ClientViewProtocol.LIGHT_NIBBLE_BYTES];
+        byte[] block = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
+        byte[] sky = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
         Arrays.fill(block, (byte) 0x73);
         Arrays.fill(sky, (byte) 0xFF);
         Brick brick = Brick.empty(0).withLight(block, sky);
@@ -171,7 +171,7 @@ public class ClientMeshSectionsTest extends MinecraftTestBase {
         ClientMeshSections.Section section = store.view(7).section(0L);
         Arrays.fill(brick.blockLight(), (byte) 0);
         Arrays.fill(brick.skyLight(), (byte) 0);
-        for (int cell = 0; cell < ClientViewProtocol.BRICK_CELLS; cell++) {
+        for (int cell = 0; cell < ViewStreamLimits.BRICK_CELLS; cell++) {
             assertEquals((cell & 1) == 0 ? 3 : 7, section.light(false, cell));
             assertEquals(15, section.light(true, cell));
         }
@@ -184,8 +184,8 @@ public class ClientMeshSectionsTest extends MinecraftTestBase {
     public void mixedLightChannelsRetainTheirIndependentPatterns() throws Exception {
         ClientMeshSections store = store(8192);
         store.begin(7, 1, BOUNDS, 64);
-        byte[] block = new byte[ClientViewProtocol.LIGHT_NIBBLE_BYTES];
-        byte[] sky = new byte[ClientViewProtocol.LIGHT_NIBBLE_BYTES];
+        byte[] block = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
+        byte[] sky = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
         Arrays.fill(sky, (byte) 0xFF);
         for (int index = 0; index < block.length; index++) {
             block[index] = (byte) index;
@@ -195,7 +195,7 @@ public class ClientMeshSectionsTest extends MinecraftTestBase {
         assertTrue(store.bytes() < 2500);
         ClientMeshSections.Section section = store.view(7).section(0L);
         Arrays.fill(brick.blockLight(), (byte) 0);
-        for (int cell = 0; cell < ClientViewProtocol.BRICK_CELLS; cell++) {
+        for (int cell = 0; cell < ViewStreamLimits.BRICK_CELLS; cell++) {
             assertEquals(((cell >>> 1) >>> ((cell & 1) * 4)) & 15, section.light(false, cell));
             assertEquals(15, section.light(true, cell));
         }

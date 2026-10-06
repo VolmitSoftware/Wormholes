@@ -16,15 +16,15 @@ import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
-import art.arcane.wormholes.render.ProjectionCellKey;
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.fidelity.BlockEntitySample;
 
 final class ViewSliceBlockEntityCodecTest {
     @Test
     void theNewLayoutRoundTripsBlockEntitiesAndTheOldLayoutIsByteIdentical() throws IOException {
         Map<Long, BlockEntitySample> entities = new HashMap<Long, BlockEntitySample>();
-        entities.put(Long.valueOf(ProjectionCellKey.pack(1, 62, 2)), new BlockEntitySample("minecraft:sign", new byte[] {1, 2, 3}));
-        entities.put(Long.valueOf(ProjectionCellKey.pack(5, 65, 9)), new BlockEntitySample("minecraft:skull", new byte[] {9}));
+        entities.put(Long.valueOf(CellKeys.pack(1, 62, 2)), new BlockEntitySample("minecraft:sign", new byte[] {1, 2, 3}));
+        entities.put(Long.valueOf(CellKeys.pack(5, 65, 9)), new BlockEntitySample("minecraft:skull", new byte[] {9}));
         ViewSlice withEntities = slice(entities);
         ViewSlice bare = slice(new HashMap<Long, BlockEntitySample>());
 

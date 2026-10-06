@@ -13,7 +13,7 @@ import org.bukkit.entity.Entity;
 import org.bukkit.util.BoundingBox;
 import org.junit.jupiter.api.Test;
 
-import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.optics.math.Box;
 
 public final class LocalPortalTraversalGateTest
 {
@@ -22,7 +22,7 @@ public final class LocalPortalTraversalGateTest
 	{
 		World world = LocalPortalTestSupport.world("reentry-overlap");
 		LocalPortal portal = LocalPortalTestSupport.portal(world, PortalType.PORTAL);
-		AxisAlignedBB area = portal.getArea();
+		Box area = portal.getArea();
 		for(int axis = 0; axis < 3; axis++)
 		{
 			for(boolean positive : new boolean[] {false, true})
@@ -39,7 +39,7 @@ public final class LocalPortalTraversalGateTest
 	{
 		World world = LocalPortalTestSupport.world("reentry-clearance");
 		LocalPortal portal = LocalPortalTestSupport.portal(world, PortalType.PORTAL);
-		AxisAlignedBB area = portal.getArea();
+		Box area = portal.getArea();
 		for(int axis = 0; axis < 3; axis++)
 		{
 			for(boolean positive : new boolean[] {false, true})
@@ -153,7 +153,7 @@ public final class LocalPortalTraversalGateTest
 		assertFalse(LocalPortal.isTeleportInFlight(entityId, now + 300L));
 	}
 
-	private static BoundingBox boundsAtFace(AxisAlignedBB area, int axis, boolean positive, double clearance)
+	private static BoundingBox boundsAtFace(Box area, int axis, boolean positive, double clearance)
 	{
 		double[] minimum = {area.getXa(), area.getYa(), area.getZa()};
 		double[] maximum = {area.getXb(), area.getYb(), area.getZb()};

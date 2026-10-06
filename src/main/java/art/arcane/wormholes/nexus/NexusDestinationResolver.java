@@ -1,6 +1,6 @@
 package art.arcane.wormholes.nexus;
 
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import art.arcane.volmlib.util.json.JSONObject;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.hook.DestinationResolver;
@@ -8,7 +8,7 @@ import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.ITunnel;
 import art.arcane.wormholes.portal.LocalPortal;
 import art.arcane.wormholes.portal.TunnelType;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
@@ -89,8 +89,8 @@ public final class NexusDestinationResolver implements DestinationResolver {
      * so there is no traversive yet and the side comes from the entity position.
      */
     public static boolean isFrontSide(LocalPortal portal, Vector position) {
-        Direction normal = portal.getFrame().getNormal();
-        GeometryVector origin = portal.getOrigin();
+        Face normal = portal.getFrame().getNormal();
+        Vec3 origin = portal.getOrigin();
         double dot = (position.getX() - origin.getX()) * normal.x()
                 + (position.getY() - origin.getY()) * normal.y()
                 + (position.getZ() - origin.getZ()) * normal.z();

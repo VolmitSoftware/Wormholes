@@ -29,14 +29,14 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEn
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity;
 
 import art.arcane.wormholes.portal.ILocalPortal;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.wormholes.render.PortalSkinRenderer.SkinRenderMode;
 import art.arcane.wormholes.render.PortalSkinGeometry.SkinTransform;
-import art.arcane.wormholes.util.Axis;
-import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.optics.math.Axis;
+import art.arcane.optics.math.Box;
 import art.arcane.wormholes.util.Cuboid;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 
 public final class PortalSkinRendererTest
 {
@@ -82,7 +82,7 @@ public final class PortalSkinRendererTest
     @Test
     public void zNormalPaneScalesTheApertureAndThinsAlongTheNormal()
     {
-        AxisAlignedBB area = new AxisAlignedBB(10.0D, 12.0D, 64.0D, 67.0D, 8.0D, 8.0D);
+        Box area = new Box(10.0D, 12.0D, 64.0D, 67.0D, 8.0D, 8.0D);
         SkinTransform transform = PortalSkinGeometry.skinTransforms(area, Axis.Z, 8.5D, 0.2D);
 
         assertEquals(2.0D, transform.scaleX(), EPSILON);
@@ -100,7 +100,7 @@ public final class PortalSkinRendererTest
     @Test
     public void xNormalPaneThinsAlongXAndCoversTheYzAperture()
     {
-        AxisAlignedBB area = new AxisAlignedBB(8.0D, 8.0D, 64.0D, 67.0D, 10.0D, 12.0D);
+        Box area = new Box(8.0D, 8.0D, 64.0D, 67.0D, 10.0D, 12.0D);
         SkinTransform transform = PortalSkinGeometry.skinTransforms(area, Axis.X, 8.5D, 0.4D);
 
         assertEquals(0.4D, transform.scaleX(), EPSILON);
@@ -118,7 +118,7 @@ public final class PortalSkinRendererTest
     @Test
     public void yNormalPaneThinsAlongYAndCoversTheXzAperture()
     {
-        AxisAlignedBB area = new AxisAlignedBB(10.0D, 12.0D, 64.0D, 64.0D, 8.0D, 11.0D);
+        Box area = new Box(10.0D, 12.0D, 64.0D, 64.0D, 8.0D, 11.0D);
         SkinTransform transform = PortalSkinGeometry.skinTransforms(area, Axis.Y, 64.5D, 1.0D);
 
         assertEquals(2.0D, transform.scaleX(), EPSILON);
@@ -386,7 +386,7 @@ public final class PortalSkinRendererTest
         values.put("z2", Integer.valueOf(z2));
         PortalStructure structure = new PortalStructure();
         structure.setArea(new Cuboid(values));
-        PortalFrame frame = PortalFrame.canonical(Direction.E);
+        Frame frame = Frame.canonical(Face.E);
         Vector origin = new Vector(0.0D, y1, z1);
         return (ILocalPortal) Proxy.newProxyInstance(ILocalPortal.class.getClassLoader(),
             new Class<?>[] { ILocalPortal.class }, (proxy, method, arguments) -> switch(method.getName())

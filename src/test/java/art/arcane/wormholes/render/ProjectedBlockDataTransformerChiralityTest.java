@@ -15,8 +15,8 @@ import org.bukkit.block.data.type.Stairs;
 import org.bukkit.block.data.type.Wall;
 import org.junit.jupiter.api.Test;
 
-import art.arcane.wormholes.portal.PortalFrame;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.math.Face;
 
 final class ProjectedBlockDataTransformerChiralityTest {
     @Test
@@ -105,11 +105,11 @@ final class ProjectedBlockDataTransformerChiralityTest {
     }
 
     private static BlockData mirrored(BlockData source) {
-        return ProjectedBlockDataTransformer.mirror(source, PortalFrame.canonical(Direction.N), 0, new double[3]);
+        return ProjectedBlockDataTransformer.mirror(source, Frame.canonical(Face.N), 0, new double[3]);
     }
 
     private static BlockData quarterTurned(BlockData source) {
         return ProjectedBlockDataTransformer.transform(source,
-            PortalFrame.canonical(Direction.N), PortalFrame.canonical(Direction.E), new double[3]);
+            Frame.canonical(Face.N), Frame.canonical(Face.E), new double[3]);
     }
 }

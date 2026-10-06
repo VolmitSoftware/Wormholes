@@ -17,20 +17,22 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
-import art.arcane.wormholes.network.client.Brick;
-import art.arcane.wormholes.network.client.BrickLightSource;
-import art.arcane.wormholes.network.client.ClientViewCapability;
+import art.arcane.optics.stream.Brick;
+import art.arcane.optics.stream.BrickLightSource;
+import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewMessageType;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
-import art.arcane.wormholes.network.client.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamMessageType;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.ClientViewProtocolException;
 import art.arcane.wormholes.network.client.EncodedPlate;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
-import art.arcane.wormholes.render.plate.PlateBox;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.plate.PlateBox;
 import art.arcane.wormholes.render.plate.PlateTestFixtures;
-import art.arcane.wormholes.render.plate.ViewPlate;
-import art.arcane.wormholes.render.plate.ViewPlateKey;
+import art.arcane.optics.plate.ViewPlate;
+import art.arcane.optics.plate.ViewPlateKey;
+import art.arcane.optics.stream.ClientViewInbound;
+import art.arcane.optics.stream.ClientViewSessionState;
 
 final class ClientViewSessionStreamTest {
     private static final String[] DIRT = {"minecraft:stone", "minecraft:glass", "minecraft:gold_block", "minecraft:air",
@@ -56,15 +58,15 @@ final class ClientViewSessionStreamTest {
         SessionWorld world = new SessionWorld(1L);
         SessionPortal a = harness.access.add(new SessionPortal("a", 0));
         a.plate = a.build(world);
-        harness.handshake(SessionHarness.CLIENT_CAPS & ~ClientViewCapability.PLATES.mask());
+        harness.handshake(SessionHarness.CLIENT_CAPS & ~ViewStreamCapability.PLATES.mask());
         assertEquals(ClientViewSessionState.CLIENT_VIEW, harness.session.state());
 
         harness.tick();
         harness.tick();
 
         assertFalse(harness.session.owns(a.id), "the vanilla projector keeps a portal the client never asked plates for");
-        assertEquals(0, harness.sent(ClientViewMessageType.PORTAL));
-        assertEquals(0, harness.sent(ClientViewMessageType.PLATE_BEGIN));
+        assertEquals(0, harness.sent(ViewStreamMessageType.PORTAL));
+        assertEquals(0, harness.sent(ViewStreamMessageType.PLATE_BEGIN));
         assertFalse(harness.events.contains("release " + a.id), "the vanilla projection must not be released");
         assertTrue(harness.access.plateRequested.isEmpty(), "no plate is built for a session that cannot take one");
         assertTrue(harness.warnings.isEmpty(), harness.warnings.toString());
@@ -91,8 +93,8 @@ final class ClientViewSessionStreamTest {
         assertTrue(harness.session.owns(b.id));
         List<ClientViewMessage> stream = harness.client.since(2);
         assertInstanceOf(ClientViewMessage.Palette.class, stream.get(0));
-        assertEquals(2, harness.sent(ClientViewMessageType.PLATE_BEGIN));
-        assertEquals(2, harness.sent(ClientViewMessageType.PLATE_END));
+        assertEquals(2, harness.sent(ViewStreamMessageType.PLATE_BEGIN));
+        assertEquals(2, harness.sent(ViewStreamMessageType.PLATE_END));
         assertTrue(harness.client.open.isEmpty());
         assertTrue(harness.warnings.isEmpty(), harness.warnings.toString());
 
@@ -113,21 +115,21 @@ final class ClientViewSessionStreamTest {
         SessionPortal a = harness.access.add(new SessionPortal("a", 0));
         a.plate = a.build(world);
         harness.handshake(SessionHarness.CLIENT_CAPS);
-        assertFalse(ClientViewCapability.BRICK_CACHE.in(harness.session.caps()));
+        assertFalse(ViewStreamCapability.BRICK_CACHE.in(harness.session.caps()));
 
         harness.tick();
 
-        ClientViewMessage.PlateBegin begin = (ClientViewMessage.PlateBegin) harness.last(ClientViewMessageType.PLATE_BEGIN);
+        ClientViewMessage.PlateBegin begin = (ClientViewMessage.PlateBegin) harness.last(ViewStreamMessageType.PLATE_BEGIN);
         assertNotNull(begin);
         assertFalse(begin.hasHashes());
         assertEquals(begin.brickCount(), bricksIn(harness.client.received));
-        assertEquals(0, harness.sent(ClientViewMessageType.BRICK_MISS));
+        assertEquals(0, harness.sent(ViewStreamMessageType.BRICK_MISS));
         assertHolds(harness, a.plate);
     }
 
     @Test
     void oversizedHashManifestsStreamEveryBrickWithoutGivingUpThePortal() throws ClientViewProtocolException {
-        int frameBytes = ClientViewProtocol.MIN_MAX_FRAME_BYTES;
+        int frameBytes = ViewStreamLimits.MIN_MAX_FRAME_BYTES;
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8, frameBytes));
         SessionWorld world = new SessionWorld(2L);
         SessionPortal portal = harness.access.add(new SessionPortal("large-manifest", 0));
@@ -143,23 +145,23 @@ final class ClientViewSessionStreamTest {
 
         assertTrue(harness.warnings.isEmpty(), harness.warnings.toString());
         ClientViewMessage.PlateBegin begin = assertInstanceOf(ClientViewMessage.PlateBegin.class,
-            harness.last(ClientViewMessageType.PLATE_BEGIN));
+            harness.last(ViewStreamMessageType.PLATE_BEGIN));
         assertFalse(begin.hasHashes());
         assertEquals(box, begin.cells());
         assertEquals(8192, begin.brickCount());
         assertEquals(8192, bricksIn(harness.client.received));
-        assertEquals(1, harness.sent(ClientViewMessageType.PLATE_END));
-        assertTrue(ClientViewCapability.BRICK_CACHE.in(harness.session.caps()));
+        assertEquals(1, harness.sent(ViewStreamMessageType.PLATE_END));
+        assertTrue(ViewStreamCapability.BRICK_CACHE.in(harness.session.caps()));
         assertHolds(harness, portal.plate);
         harness.tick();
         assertTrue(harness.session.owns(portal.id));
-        assertEquals(0, harness.sent(ClientViewMessageType.PORTAL_DROP));
+        assertEquals(0, harness.sent(ViewStreamMessageType.PORTAL_DROP));
 
         SessionPortal small = harness.access.add(new SessionPortal("small-manifest", 8));
         small.plate = small.build(world);
         harness.tick();
         ClientViewMessage.PlateBegin cached = assertInstanceOf(ClientViewMessage.PlateBegin.class,
-            harness.last(ClientViewMessageType.PLATE_BEGIN));
+            harness.last(ViewStreamMessageType.PLATE_BEGIN));
         assertTrue(cached.hasHashes());
         assertHolds(harness, small.plate);
     }
@@ -183,12 +185,12 @@ final class ClientViewSessionStreamTest {
                 }
                 ViewPlate<String> next = portal.build(world);
                 assertEquals(portal.plate.box(), next.box());
-                int patchesBefore = harness.sent(ClientViewMessageType.PLATE_PATCH);
-                int beginsBefore = harness.sent(ClientViewMessageType.PLATE_BEGIN);
+                int patchesBefore = harness.sent(ViewStreamMessageType.PLATE_PATCH);
+                int beginsBefore = harness.sent(ViewStreamMessageType.PLATE_BEGIN);
                 portal.plate = next;
                 harness.tick();
-                assertEquals(beginsBefore, harness.sent(ClientViewMessageType.PLATE_BEGIN), "dirt must patch, not restream");
-                patches += harness.sent(ClientViewMessageType.PLATE_PATCH) - patchesBefore;
+                assertEquals(beginsBefore, harness.sent(ViewStreamMessageType.PLATE_BEGIN), "dirt must patch, not restream");
+                patches += harness.sent(ViewStreamMessageType.PLATE_PATCH) - patchesBefore;
                 assertHolds(harness, next);
             }
             assertTrue(patches > 0, "seed " + seed + " produced no patch");
@@ -219,7 +221,7 @@ final class ClientViewSessionStreamTest {
 
     @Test
     void aPatchSplitAcrossFramesReachesTheClientAsOneRevision() throws ClientViewProtocolException {
-        SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8, ClientViewProtocol.MIN_MAX_FRAME_BYTES));
+        SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8, ViewStreamLimits.MIN_MAX_FRAME_BYTES));
         NoisyLight light = new NoisyLight();
         harness.access.light = light;
         SessionWorld world = new SessionWorld(4L);
@@ -232,13 +234,13 @@ final class ClientViewSessionStreamTest {
         assertHoldsCells(harness, portal.plate);
         int key = keyOf(harness, portal.plate);
         int revision = harness.client.plateRevisions.get(key);
-        int patchesBefore = harness.sent(ClientViewMessageType.PLATE_PATCH);
+        int patchesBefore = harness.sent(ViewStreamMessageType.PLATE_PATCH);
 
         light.seed++;
         portal.plate = portal.build(world);
         harness.tick();
 
-        int pieces = harness.sent(ClientViewMessageType.PLATE_PATCH) - patchesBefore;
+        int pieces = harness.sent(ViewStreamMessageType.PLATE_PATCH) - patchesBefore;
         assertTrue(pieces > 1, "expected the relit plate to patch across several frames, got " + pieces);
         assertEquals(revision + 1, harness.client.plateRevisions.get(key).intValue(), "the pieces form one revision step");
         assertHoldsCells(harness, portal.plate);
@@ -258,8 +260,8 @@ final class ClientViewSessionStreamTest {
         assertNotEquals(portal.plate.box(), moved.box());
         portal.plate = moved;
         harness.tick();
-        assertEquals(2, harness.sent(ClientViewMessageType.PLATE_BEGIN));
-        assertEquals(0, harness.sent(ClientViewMessageType.PLATE_PATCH));
+        assertEquals(2, harness.sent(ViewStreamMessageType.PLATE_BEGIN));
+        assertEquals(0, harness.sent(ViewStreamMessageType.PLATE_PATCH));
         assertHolds(harness, moved);
     }
 
@@ -323,7 +325,7 @@ final class ClientViewSessionStreamTest {
             assertFalse(harness.session.owns(departed.id), reason.name());
             assertEquals(1, harness.client.portals.size(), reason.name());
             assertHolds(harness, arrival.plate);
-            assertEquals(0, harness.sent(ClientViewMessageType.PORTAL_DROP), reason.name());
+            assertEquals(0, harness.sent(ViewStreamMessageType.PORTAL_DROP), reason.name());
             assertTrue(harness.warnings.isEmpty(), harness.warnings.toString());
         }
     }
@@ -341,10 +343,10 @@ final class ClientViewSessionStreamTest {
             harness.tick();
             assertTrue(harness.session.owns(a.id), "grace tick " + i);
         }
-        assertEquals(0, harness.sent(ClientViewMessageType.PORTAL_DROP));
+        assertEquals(0, harness.sent(ViewStreamMessageType.PORTAL_DROP));
         harness.tick();
         assertFalse(harness.session.owns(a.id));
-        assertEquals(1, harness.sent(ClientViewMessageType.PORTAL_DROP));
+        assertEquals(1, harness.sent(ViewStreamMessageType.PORTAL_DROP));
         assertTrue(harness.client.portals.isEmpty());
         assertTrue(harness.client.plates.isEmpty());
     }
@@ -380,7 +382,7 @@ final class ClientViewSessionStreamTest {
         normal.refused = true;
         harness.tick();
         assertFalse(harness.session.owns(normal.id), "a plate refused later hands the portal back to the vanilla path");
-        assertEquals(1, harness.sent(ClientViewMessageType.PORTAL_DROP));
+        assertEquals(1, harness.sent(ViewStreamMessageType.PORTAL_DROP));
     }
 
     @Test
@@ -403,7 +405,7 @@ final class ClientViewSessionStreamTest {
 
         assertFalse(harness.session.owns(a.id), "a refused plate hands the portal back to the vanilla path");
         assertTrue(harness.session.owns(b.id));
-        assertEquals(1, harness.sent(ClientViewMessageType.PORTAL_DROP));
+        assertEquals(1, harness.sent(ViewStreamMessageType.PORTAL_DROP));
         assertFalse(harness.client.portals.containsKey(key));
         harness.tick();
         harness.tick();
@@ -427,7 +429,7 @@ final class ClientViewSessionStreamTest {
         a.plate = a.build(world);
         harness.handshake(SessionHarness.CLIENT_CAPS);
         harness.tick();
-        ClientViewMessage.Portal first = (ClientViewMessage.Portal) harness.last(ClientViewMessageType.PORTAL);
+        ClientViewMessage.Portal first = (ClientViewMessage.Portal) harness.last(ViewStreamMessageType.PORTAL);
         a.geometryRevision++;
         a.frontSide = true;
         goldCube(world, 199, 67, 188);
@@ -455,7 +457,7 @@ final class ClientViewSessionStreamTest {
         }
         assertEquals(0, harness.access.standbyCalls);
         assertEquals(1, harness.client.plates.size());
-        assertEquals(1, harness.sent(ClientViewMessageType.PLATE_BEGIN));
+        assertEquals(1, harness.sent(ViewStreamMessageType.PLATE_BEGIN));
     }
 
     @Test
@@ -485,11 +487,11 @@ final class ClientViewSessionStreamTest {
         rtp.standby = null;
         harness.tick();
         assertEquals(0, bricksIn(harness.client.since(mark)), "the promoted standby plate is served from the client brick cache");
-        assertEquals(3, harness.sent(ClientViewMessageType.PLATE_BEGIN), "the reroll restreams with hashes instead of patching");
+        assertEquals(3, harness.sent(ViewStreamMessageType.PLATE_BEGIN), "the reroll restreams with hashes instead of patching");
 
         harness.registry.configure(SessionHarness.options(true, 8));
         harness.tick();
-        assertEquals(1, harness.sent(ClientViewMessageType.PORTAL_DROP));
+        assertEquals(1, harness.sent(ViewStreamMessageType.PORTAL_DROP));
         assertEquals(1, harness.client.plates.size());
     }
 
@@ -503,14 +505,14 @@ final class ClientViewSessionStreamTest {
         };
         SessionPortal a = harness.access.add(new SessionPortal("a", 0));
         a.plate = a.build(new SessionWorld(10L));
-        harness.handshake(SessionHarness.CLIENT_CAPS | ClientViewCapability.ZERO_COPY.mask(), 0x5EEDL);
-        assertTrue(ClientViewCapability.ZERO_COPY.in(harness.session.caps()));
+        harness.handshake(SessionHarness.CLIENT_CAPS | ViewStreamCapability.ZERO_COPY.mask(), 0x5EEDL);
+        assertTrue(ViewStreamCapability.ZERO_COPY.in(harness.session.caps()));
         long encodes = harness.registry.encodes();
         harness.tick();
         assertEquals(List.of(a.plate), published);
-        ClientViewMessage.PlateHandle handle = (ClientViewMessage.PlateHandle) harness.last(ClientViewMessageType.PLATE_HANDLE);
+        ClientViewMessage.PlateHandle handle = (ClientViewMessage.PlateHandle) harness.last(ViewStreamMessageType.PLATE_HANDLE);
         assertEquals(1001L, handle.handle());
-        assertEquals(0, harness.sent(ClientViewMessageType.PLATE_BEGIN));
+        assertEquals(0, harness.sent(ViewStreamMessageType.PLATE_BEGIN));
         assertEquals(encodes, harness.registry.encodes(), "zero copy must not encode the plate");
     }
 
@@ -531,7 +533,7 @@ final class ClientViewSessionStreamTest {
         harness.tick();
         assertEquals(List.of("2 full", "1 full"), calls);
         assertEquals(1, harness.client.portals.size(), "the one-frame window holds the second portal back");
-        assertEquals(1, harness.sent(ClientViewMessageType.ENTITY_FRAME));
+        assertEquals(1, harness.sent(ViewStreamMessageType.ENTITY_FRAME));
         calls.clear();
         harness.tick();
         assertEquals(List.of("2 full", "1 delta"), calls, "the dropped frame for the unannounced portal is requested in full again");
@@ -563,8 +565,8 @@ final class ClientViewSessionStreamTest {
         harness.handshake(SessionHarness.CLIENT_CAPS);
         harness.tick();
         assertEquals(List.of("2 fx full", "1 fx full"), calls);
-        assertEquals(1, harness.sent(ClientViewMessageType.FX));
-        assertEquals(1, harness.sent(ClientViewMessageType.ATMOSPHERE));
+        assertEquals(1, harness.sent(ViewStreamMessageType.FX));
+        assertEquals(1, harness.sent(ViewStreamMessageType.ATMOSPHERE));
         calls.clear();
         harness.tick();
         assertEquals(List.of("2 fx full", "1 fx"), calls, "the portal whose effects were dropped asks for them again");
@@ -573,7 +575,7 @@ final class ClientViewSessionStreamTest {
     }
 
     private static int keyAt(SessionHarness harness, int originX) {
-        for (Map.Entry<Integer, ClientPortalGeometry> entry : harness.client.portals.entrySet()) {
+        for (Map.Entry<Integer, ApertureDescriptor> entry : harness.client.portals.entrySet()) {
             if (entry.getValue().originX() == originX) {
                 return entry.getKey();
             }

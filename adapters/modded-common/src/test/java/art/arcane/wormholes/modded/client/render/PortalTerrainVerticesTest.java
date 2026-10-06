@@ -1,9 +1,9 @@
 package art.arcane.wormholes.modded.client.render;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Vec3;
+import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.math.Face;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
@@ -42,10 +42,10 @@ public class PortalTerrainVerticesTest extends MinecraftTestBase {
 
     @Test
     public void materialsUvsLightNormalsAndMidblockSurviveRotationAndReflection() {
-        for (Direction[] axes : new Direction[][] {{Direction.E, Direction.U, Direction.S}, {Direction.W, Direction.U, Direction.S},
-            {Direction.U, Direction.W, Direction.S}}) {
-            ClientViewEnvironment.Transform mapping = new ClientViewEnvironment.Transform(axes[0], axes[1], axes[2],
-                new GeometryVector(100.25, -31.5, 203.75));
+        for (Face[] axes : new Face[][] {{Face.E, Face.U, Face.S}, {Face.W, Face.U, Face.S},
+            {Face.U, Face.W, Face.S}}) {
+            ProjectionEnvironment.Transform mapping = new ProjectionEnvironment.Transform(axes[0], axes[1], axes[2],
+                new Vec3(100.25, -31.5, 203.75));
             PortalVertexTransform transform = new PortalVertexTransform(mapping);
             try (ByteBufferBuilder base = new ByteBufferBuilder(512); ByteBufferBuilder extended = new ByteBufferBuilder(512)) {
                 BufferBuilder builder = new BufferBuilder(base, PrimitiveTopology.QUADS, DefaultVertexFormat.BLOCK);
@@ -65,7 +65,7 @@ public class PortalTerrainVerticesTest extends MinecraftTestBase {
                     try (MeshData mesh = attributes.expand(nativeMesh, extended)) {
                         ByteBuffer vertices = mesh.vertexBuffer();
                         int stride = mesh.drawState().format().getVertexSize();
-                        boolean reflected = axes[0] == Direction.W;
+                        boolean reflected = axes[0] == Face.W;
                         for (int index = 0; index < 8; index++) {
                             int offset = index * stride;
                             assertEquals(index < 4 ? 31000 : 42, vertices.getShort(offset + 32));
@@ -137,10 +137,10 @@ public class PortalTerrainVerticesTest extends MinecraftTestBase {
 
     @Test
     public void nonplanarFluidNormalsAndTangentsUseEveryCornerAndPreserveMirrorSlope() {
-        for (Direction[] axes : new Direction[][] {{Direction.E, Direction.U, Direction.S}, {Direction.W, Direction.U, Direction.S},
-            {Direction.S, Direction.U, Direction.W}}) {
-            ClientViewEnvironment.Transform mapping = new ClientViewEnvironment.Transform(axes[0], axes[1], axes[2],
-                new GeometryVector(0, 0, 0));
+        for (Face[] axes : new Face[][] {{Face.E, Face.U, Face.S}, {Face.W, Face.U, Face.S},
+            {Face.S, Face.U, Face.W}}) {
+            ProjectionEnvironment.Transform mapping = new ProjectionEnvironment.Transform(axes[0], axes[1], axes[2],
+                new Vec3(0, 0, 0));
             PortalVertexTransform transform = new PortalVertexTransform(mapping);
             try (ByteBufferBuilder base = new ByteBufferBuilder(512); ByteBufferBuilder extended = new ByteBufferBuilder(512)) {
                 BufferBuilder builder = new BufferBuilder(base, PrimitiveTopology.QUADS, DefaultVertexFormat.BLOCK);
@@ -167,7 +167,7 @@ public class PortalTerrainVerticesTest extends MinecraftTestBase {
                             assertEquals(123 * axes[0].x() + 31 * axes[1].x(), vertices.get(offset + 44));
                             assertEquals(123 * axes[0].y() + 31 * axes[1].y(), vertices.get(offset + 45));
                             assertEquals(123 * axes[0].z() + 31 * axes[1].z(), vertices.get(offset + 46));
-                            assertEquals(axes[0] == Direction.W ? -127 : 127, vertices.get(offset + 47));
+                            assertEquals(axes[0] == Face.W ? -127 : 127, vertices.get(offset + 47));
                         }
                     }
                 }

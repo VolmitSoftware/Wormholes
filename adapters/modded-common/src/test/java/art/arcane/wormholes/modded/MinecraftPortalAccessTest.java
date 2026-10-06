@@ -1,11 +1,11 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.access.PortalRole;
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import art.arcane.wormholes.portal.Portal;
-import art.arcane.wormholes.portal.PortalFrame;
-import art.arcane.wormholes.portal.PortalGeometry;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.aperture.ApertureCells;
+import art.arcane.optics.math.Face;
 import org.junit.Test;
 
 import java.util.List;
@@ -56,9 +56,9 @@ public class MinecraftPortalAccessTest {
     }
 
     private static MinecraftPortal portal(UUID owner) {
-        PortalGeometry geometry = new PortalGeometry();
-        geometry.setBlocks(List.of(new GeometryVector(1, 64, 1), new GeometryVector(1, 65, 1)));
-        Portal.State state = new Portal.State(UUID.randomUUID(), new GeometryVector(1, 64, 1), "Access test", PortalFrame.canonical(Direction.N), true);
+        ApertureCells geometry = new ApertureCells();
+        geometry.setBlocks(List.of(new Vec3(1, 64, 1), new Vec3(1, 65, 1)));
+        Portal.State state = new Portal.State(UUID.randomUUID(), new Vec3(1, 64, 1), "Access test", Frame.canonical(Face.N), true);
         return new MinecraftPortal(new MinecraftPortal.Definition(state, geometry, "minecraft:overworld",
             Map.of("owner", owner.toString(), "type", "PORTAL")));
     }

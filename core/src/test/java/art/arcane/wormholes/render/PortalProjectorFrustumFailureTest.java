@@ -11,6 +11,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.service.WormholesTelemetry;
+import art.arcane.optics.scan.ProjectorFrustumFailures;
 
 public final class PortalProjectorFrustumFailureTest {
     @BeforeEach

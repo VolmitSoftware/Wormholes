@@ -1,10 +1,10 @@
 package art.arcane.wormholes.door;
 
 import art.arcane.wormholes.door.view.DoorApertureFrames;
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.portal.PortalCrossing;
-import art.arcane.wormholes.portal.PortalFrame;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Vec3;
+import art.arcane.optics.crossing.PlaneCrossing;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.math.Face;
 import org.junit.jupiter.api.Test;
 import java.util.UUID;
 
@@ -13,8 +13,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public final class DoorPreparedArrivalTest {
     @Test
     public void pairedWestDoorKeepsContinuousFeetLookAndMomentumInsteadOfTheOneBlockLandingOffset() {
-        DoorwayPlane source = new DoorwayPlane(1000, 200, -2, Direction.W);
-        DoorwayPlane destination = new DoorwayPlane(1102, 80, 9, Direction.W);
+        DoorwayPlane source = new DoorwayPlane(1000, 200, -2, Face.W);
+        DoorwayPlane destination = new DoorwayPlane(1102, 80, 9, Face.W);
         DoorTransit transit = prepared(source, new DoorVec3(1001.6941597887681D, 200, -1.5D), true,
             new DoorVec3(0.6474939030631504D, 0, 0), new DoorVec3(1, 0, 0));
         DoorVec3 point = DoorArrivals.destinationPoint(destination, transit, 1);
@@ -28,19 +28,19 @@ public final class DoorPreparedArrivalTest {
 
     @Test
     public void allCardinalPairingsAndBothApproachSidesUseTheAdvertisedFrameForEveryComponent() {
-        for (Direction sourceFacing : new Direction[]{Direction.N, Direction.S, Direction.E, Direction.W}) {
-            for (Direction destinationFacing : new Direction[]{Direction.N, Direction.S, Direction.E, Direction.W}) {
+        for (Face sourceFacing : new Face[]{Face.N, Face.S, Face.E, Face.W}) {
+            for (Face destinationFacing : new Face[]{Face.N, Face.S, Face.E, Face.W}) {
                 DoorwayPlane source = new DoorwayPlane(-100, 64, 9, sourceFacing);
                 DoorwayPlane destination = new DoorwayPlane(100, -64, -9, destinationFacing);
                 DoorVec3 center = source.center();
                 for (boolean front : new boolean[]{true, false}) {
                     DoorTransit transit = prepared(source, new DoorVec3(center.x() + 0.125D, 64, center.z() - 0.25D), front,
                         new DoorVec3(0.2D, -0.3D, 0.4D), new DoorVec3(0, 0, 1));
-                    PortalFrame target = DoorApertureFrames.destinationFrame(source, destination);
+                    Frame target = DoorApertureFrames.destinationFrame(source, destination);
                     DoorVec3 targetCenter = destination.center();
-                    GeometryVector expected = transit.preparedCrossing().outPoint(target, vector(targetCenter));
+                    Vec3 expected = transit.preparedCrossing().outPoint(target, vector(targetCenter));
                     assertEquals(vector(DoorArrivals.destinationPoint(destination, transit, 1)), expected);
-                    GeometryVector expectedVelocity = transit.preparedCrossing().outVelocity(target);
+                    Vec3 expectedVelocity = transit.preparedCrossing().outVelocity(target);
                     assertEquals(vector(DoorArrivals.destinationVelocity(destination, transit, 1)), expectedVelocity);
                 }
             }
@@ -49,8 +49,8 @@ public final class DoorPreparedArrivalTest {
 
     @Test
     public void fallingTrapdoorContinuationDoesNotBecomeAGroundedDoorOffset() {
-        DoorwayPlane source = DoorwayPlane.trapdoor(4, 64, 7, Direction.E, DoorHalf.TOP, DoorOpenState.OPEN);
-        DoorwayPlane destination = DoorwayPlane.trapdoor(40, 80, 70, Direction.E, DoorHalf.TOP, DoorOpenState.OPEN);
+        DoorwayPlane source = DoorwayPlane.trapdoor(4, 64, 7, Face.E, DoorHalf.TOP, DoorOpenState.OPEN);
+        DoorwayPlane destination = DoorwayPlane.trapdoor(40, 80, 70, Face.E, DoorHalf.TOP, DoorOpenState.OPEN);
         DoorVec3 center = source.center();
         DoorTransit transit = prepared(source, new DoorVec3(center.x(), center.y() - 0.2D, center.z()), true,
             new DoorVec3(0, -0.5D, 0), new DoorVec3(0, -1, 0));
@@ -60,8 +60,8 @@ public final class DoorPreparedArrivalTest {
 
     @Test
     public void ordinaryArrivalsKeepTheExistingClearanceFacingAndVelocityPolicy() {
-        DoorwayPlane source = new DoorwayPlane(4, 64, 7, Direction.N);
-        DoorwayPlane destination = new DoorwayPlane(40, 80, 70, Direction.W);
+        DoorwayPlane source = new DoorwayPlane(4, 64, 7, Face.N);
+        DoorwayPlane destination = new DoorwayPlane(40, 80, 70, Face.W);
         DoorTransit transit = new DoorTransit(source, DoorwayCrossing.Direction.FRONT_TO_BACK, 0, 15,
             0.3D, 1.8D, DoorTravelerClass.LIVING, new DoorVec3(0, 0, 0.4D));
         assertEquals(DoorArrivals.arrivalPoint(destination, transit, 1), DoorArrivals.destinationPoint(destination, transit, 1));
@@ -83,18 +83,18 @@ public final class DoorPreparedArrivalTest {
 
     private static DoorTransit prepared(DoorwayPlane source, DoorVec3 feet, boolean front, DoorVec3 velocity, DoorVec3 look) {
         DoorVec3 center = source.center();
-        PortalCrossing crossing = new PortalCrossing(DoorApertureFrames.of(source).view(front), vector(center), vector(feet),
+        PlaneCrossing crossing = new PlaneCrossing(DoorApertureFrames.of(source).view(front), vector(center), vector(feet),
             vector(velocity), vector(look), front);
         DoorwayCrossing gate = new DoorwayCrossing(vectorToDoor(crossing.point()), 1, 0, 0,
             front ? DoorwayCrossing.Direction.FRONT_TO_BACK : DoorwayCrossing.Direction.BACK_TO_FRONT);
         return new DoorTransit(source, gate, -90, 0, 0.3D, 1.8D, DoorTravelerClass.LIVING, velocity, crossing);
     }
 
-    private static GeometryVector vector(DoorVec3 point) {
-        return new GeometryVector(point.x(), point.y(), point.z());
+    private static Vec3 vector(DoorVec3 point) {
+        return new Vec3(point.x(), point.y(), point.z());
     }
 
-    private static DoorVec3 vectorToDoor(GeometryVector point) {
+    private static DoorVec3 vectorToDoor(Vec3 point) {
         return new DoorVec3(point.x(), point.y(), point.z());
     }
 }

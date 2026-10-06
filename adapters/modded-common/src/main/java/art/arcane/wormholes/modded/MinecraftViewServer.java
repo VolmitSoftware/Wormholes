@@ -1,11 +1,11 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.math.Vec3;
 import art.arcane.wormholes.modded.clientview.MinecraftPortalEnvironment;
-import art.arcane.wormholes.chunk.ChunkLease;
-import art.arcane.wormholes.render.ProjectedEntityEvent;
-import art.arcane.wormholes.render.acoustics.AcousticsBridge;
+import art.arcane.optics.plate.ChunkLease;
+import art.arcane.optics.entity.ProjectedEntityEvent;
+import art.arcane.optics.fidelity.AcousticsBridge;
 import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.wormholes.network.view.ViewEntityInterestIndex;
 import art.arcane.wormholes.network.NetworkManager;
@@ -24,7 +24,7 @@ import art.arcane.wormholes.network.view.ViewSlice;
 import art.arcane.wormholes.network.view.ViewEntityAdmission;
 import art.arcane.wormholes.network.view.ViewEntityPublisher;
 import art.arcane.wormholes.network.view.ViewEntityState;
-import art.arcane.wormholes.network.view.EntityVisual;
+import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.wormholes.network.view.EntityRateScheduler;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import net.minecraft.world.entity.Entity;
@@ -36,7 +36,7 @@ import art.arcane.wormholes.network.replication.BlockChange;
 import art.arcane.wormholes.network.replication.LightDiff;
 import art.arcane.wormholes.network.replication.capture.CaptureSettings;
 import art.arcane.wormholes.network.replication.capture.RegionalDiffAccumulator;
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
+import art.arcane.optics.fidelity.BlockEntitySample;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.LightLayer;
@@ -389,7 +389,7 @@ public final class MinecraftViewServer implements AutoCloseable {
                 double distance = entity.distanceToSqr(session.box.centerX(), session.box.centerY(), session.box.centerZ());
                 admission.admit(new ViewEntityAdmission.EntityRank(entity.getUUID(), entity instanceof ServerPlayer, distance), entity);
             }
-            Map<UUID, EntityVisual> captured = new HashMap<>();
+            Map<UUID, EntitySnapshot> captured = new HashMap<>();
             for (Entity entity : admission.selectedEntities()) {
                 captured.put(entity.getUUID(), entityCapture.capture(entity, session.entities, ticks));
             }
@@ -539,8 +539,8 @@ public final class MinecraftViewServer implements AutoCloseable {
     private void deliverTime(Session session, String peer, Peer state) {
         if (session.meshDistance > 0 && ticks >= state.nextEnvironmentTick) {
             ViewEntityState.Center center = session.entities.center();
-            ClientViewEnvironment environment = MinecraftPortalEnvironment.capture(session.level,
-                new GeometryVector(center.x(), center.y(), center.z()), ClientViewEnvironment.Transform.IDENTITY, session.level.isFlat());
+            ProjectionEnvironment environment = MinecraftPortalEnvironment.capture(session.level,
+                new Vec3(center.x(), center.y(), center.z()), ProjectionEnvironment.Transform.IDENTITY, session.level.isFlat());
             if (network.send(peer, new WireMessage.ViewEnvironment(session.portalId, environment))) {
                 state.nextEnvironmentTick = ticks + 20;
             }

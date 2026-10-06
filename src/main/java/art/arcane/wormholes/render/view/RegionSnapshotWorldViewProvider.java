@@ -2,20 +2,20 @@ package art.arcane.wormholes.render.view;
 
 import art.arcane.optics.entity.EntityProfile;
 import art.arcane.wormholes.network.view.BukkitProjectedMapData;
-import art.arcane.wormholes.render.view.ProjectionContentView;
+import art.arcane.optics.view.ContentView;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Wormholes;
-import art.arcane.wormholes.network.view.EntityVisual;
+import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.wormholes.network.view.PacketBlobs;
-import art.arcane.wormholes.network.view.ProjectedMapData;
+import art.arcane.optics.entity.MapSnapshot;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.render.FidelitySettings;
-import art.arcane.wormholes.render.ProjectionCellKey;
+import art.arcane.optics.math.CellKeys;
 import art.arcane.wormholes.render.ProjectionEntityFilter;
-import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
+import art.arcane.optics.view.WorldChangeTracker;
 import art.arcane.wormholes.render.blockentity.BlockEntityCapturer;
-import art.arcane.wormholes.render.plate.PlateCaptureJob;
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
+import art.arcane.optics.plate.PlateCaptureJob;
+import art.arcane.optics.fidelity.BlockEntitySample;
 
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
 import com.github.retrooper.packetevents.protocol.player.Equipment;
@@ -53,6 +53,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.LongSupplier;
 import java.util.logging.Level;
+import art.arcane.optics.light.SkyMath;
 
 public final class RegionSnapshotWorldViewProvider implements ProjectionWorldViewProvider {
     private static final long REFRESH_INTERVAL_MILLIS = 250L;
@@ -139,7 +140,7 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
             }
             Chunk chunk = world.getChunkAt(chunkX, chunkZ);
             long now = clock.getAsLong();
-            ProjectionWorldChangeTracker tracker = Wormholes.projectionChangeTracker;
+            WorldChangeTracker tracker = Wormholes.projectionChangeTracker;
             long trackerVersion = tracker == null ? Long.MIN_VALUE : tracker.currentVersion();
             CapturedChunk current = view.captured(key);
             boolean refreshBlocks = requiresBlockSnapshotRefresh(tracker, world.getUID(), chunkX, chunkZ,
@@ -157,7 +158,7 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
             int minHeight = current == null ? world.getMinHeight() : current.minHeight;
             int maxHeight = current == null ? world.getMaxHeight() : current.maxHeight;
             CapturedChunk captured = new CapturedChunk(snapshot, minHeight, maxHeight,
-                ProjectionSkyMath.computeSkyDarken(world.getTime(), world.hasStorm(), world.isThundering()), now, entities,
+                SkyMath.computeSkyDarken(world.getTime(), world.hasStorm(), world.isThundering()), now, entities,
                 chunkX, chunkZ, trackerVersion, refreshBlocks ? now : current.snapshotCapturedAtMillis,
                 blockEntities, refreshBlockEntities ? now : current.blockEntitiesCapturedAtMillis);
             view.publish(key, captured);
@@ -221,7 +222,7 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
         byte[] mapData = reuseState ? previous.visual.mapData() : captureMapData(entity);
         List<EntityData<?>> metadata = reuseState ? previous.metadata : List.copyOf(PacketBlobs.readMetadata(metadataBlob));
         List<Equipment> equipment = reuseState ? previous.equipment : List.copyOf(PacketBlobs.readEquipment(equipmentBlob));
-        EntityVisual visual = EntityVisual.full(entity.getUniqueId(), entity.getType().getKey().toString(),
+        EntitySnapshot visual = EntitySnapshot.full(entity.getUniqueId(), entity.getType().getKey().toString(),
             location.getX(), location.getY(), location.getZ(), entity.getHeight(),
             look.getX(), look.getY(), look.getZ(), entity instanceof LivingEntity living ? WormholesPlatform.bodyYaw(living, location.getYaw()) : location.getYaw(), location.getPitch(),
             velocity.getX(), velocity.getY(), velocity.getZ(), entity.isOnGround(),
@@ -324,7 +325,7 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
             if (chunk == null || chunk.blockEntities.isEmpty()) {
                 return null;
             }
-            return chunk.blockEntities.get(Long.valueOf(ProjectionCellKey.pack(x, y, z)));
+            return chunk.blockEntities.get(Long.valueOf(CellKeys.pack(x, y, z)));
         }
 
         @Override
@@ -342,7 +343,7 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
             if (chunk == null || y < chunk.minHeight || y >= chunk.maxHeight) {
                 return LIGHT_UNAVAILABLE;
             }
-            return ProjectionContentView.packLight(chunk.snapshot.getBlockSkyLight(x & 15, y, z & 15),
+            return ContentView.packLight(chunk.snapshot.getBlockSkyLight(x & 15, y, z & 15),
                 chunk.snapshot.getBlockEmittedLight(x & 15, y, z & 15));
         }
 
@@ -377,12 +378,12 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
         }
 
         @Override
-        public List<EntityVisual> getEntities(double centerX, double centerY, double centerZ, double range) {
+        public List<EntitySnapshot> getEntities(double centerX, double centerY, double centerZ, double range) {
             int minChunkX = ((int) Math.floor(centerX - range)) >> 4;
             int maxChunkX = ((int) Math.floor(centerX + range)) >> 4;
             int minChunkZ = ((int) Math.floor(centerZ - range)) >> 4;
             int maxChunkZ = ((int) Math.floor(centerZ + range)) >> 4;
-            List<EntityVisual> result = new ArrayList<EntityVisual>();
+            List<EntitySnapshot> result = new ArrayList<EntitySnapshot>();
             Set<UUID> seen = new HashSet<UUID>();
             for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
                 for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
@@ -394,7 +395,7 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
                     }
                     for (CapturedEntity entity : chunk.entities) {
                         EntityState state = entityStates.get(entity.visual.id());
-                        EntityVisual visual = state == null ? entity.visual : state.entity.visual;
+                        EntitySnapshot visual = state == null ? entity.visual : state.entity.visual;
                         if (!seen.add(visual.id())) {
                             continue;
                         }
@@ -557,12 +558,12 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
     }
 
     static long chunkLookupKey(int chunkX, int chunkZ) {
-        return HashCommon.mix(ProjectionWorldChangeTracker.chunkKey(chunkX, chunkZ));
+        return HashCommon.mix(WorldChangeTracker.chunkKey(chunkX, chunkZ));
     }
 
-    static boolean sameEntityState(EntityVisual previousVisual,
+    static boolean sameEntityState(EntitySnapshot previousVisual,
                                    EntityProfile previousProfile,
-                                   EntityVisual currentVisual,
+                                   EntitySnapshot currentVisual,
                                    EntityProfile currentProfile) {
         if (previousVisual == null || currentVisual == null) {
             return false;
@@ -575,11 +576,11 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
 
     private static byte[] captureMapData(Entity entity) {
         if (!(entity instanceof ItemFrame itemFrame)) {
-            return EntityVisual.EMPTY;
+            return EntitySnapshot.EMPTY;
         }
         return BukkitProjectedMapData.capture(itemFrame)
-            .map(ProjectedMapData::encode)
-            .orElse(EntityVisual.EMPTY);
+            .map(MapSnapshot::encode)
+            .orElse(EntitySnapshot.EMPTY);
     }
 
     private static MapView mapView(Entity entity) {
@@ -590,13 +591,13 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
         return mapMeta.getMapView();
     }
 
-    static boolean isChunkDirty(ProjectionWorldChangeTracker tracker, UUID worldId, int chunkX, int chunkZ,
+    static boolean isChunkDirty(WorldChangeTracker tracker, UUID worldId, int chunkX, int chunkZ,
                                 long trackerVersion) {
         return tracker != null && trackerVersion != Long.MIN_VALUE
             && tracker.dirtySince(worldId, chunkX, chunkZ, chunkX, chunkZ, trackerVersion);
     }
 
-    static boolean requiresBlockSnapshotRefresh(ProjectionWorldChangeTracker tracker,
+    static boolean requiresBlockSnapshotRefresh(WorldChangeTracker tracker,
                                                 UUID worldId,
                                                 int chunkX,
                                                 int chunkZ,
@@ -644,7 +645,7 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
 
     private static final class CapturedEntity {
         private final long chunkKey;
-        private final EntityVisual visual;
+        private final EntitySnapshot visual;
         private final EntityProfile profile;
         private final List<EntityData<?>> metadata;
         private final List<Equipment> equipment;
@@ -654,7 +655,7 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
         private final long stateCapturedAtMillis;
         private final long metadataRevision;
 
-        private CapturedEntity(long chunkKey, EntityVisual visual, EntityProfile profile,
+        private CapturedEntity(long chunkKey, EntitySnapshot visual, EntityProfile profile,
                                List<EntityData<?>> metadata, List<Equipment> equipment, MapView mapView,
                                boolean visibleByDefault, long capturedAtMillis, long stateCapturedAtMillis, long metadataRevision) {
             this.chunkKey = chunkKey;

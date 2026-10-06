@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.chunk.ChunkLease;
+import art.arcane.optics.plate.ChunkLease;
 import art.arcane.wormholes.config.toml.DimensionalConfig;
 import art.arcane.wormholes.portal.DimensionalPortalKind;
 import art.arcane.wormholes.portal.PortalType;
@@ -8,7 +8,6 @@ import art.arcane.wormholes.portal.ProjectionMode;
 import art.arcane.wormholes.portal.vanilla.DimensionalRouting;
 import art.arcane.wormholes.portal.vanilla.NetherSitePlan;
 import art.arcane.wormholes.portal.vanilla.NetherSiteSearch;
-import art.arcane.wormholes.geometry.GeometryVector;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -504,7 +503,7 @@ public final class MinecraftVanillaPortals implements AutoCloseable {
 
     private static Shape geometry(MinecraftPortal portal) {
         List<BlockPos> cells = new ArrayList<>();
-        for (GeometryVector position : portal.getGeometry().getBlockPositions()) {
+        for (art.arcane.optics.math.Vec3 position : portal.getGeometry().getBlockPositions()) {
             cells.add(new BlockPos((int) position.getX(), (int) position.getY(), (int) position.getZ()));
         }
         return bounds(cells, portal.getDimensionalKind().isManagedEndPortal(),

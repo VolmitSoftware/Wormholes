@@ -3,9 +3,9 @@ package art.arcane.wormholes.door;
 import java.util.Objects;
 import java.util.Optional;
 import art.arcane.wormholes.door.view.DoorApertureFrames;
-import art.arcane.wormholes.portal.PortalCrossing;
-import art.arcane.wormholes.portal.PortalFrame;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.crossing.PlaneCrossing;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.math.Face;
 
 public final class DoorTransitGate
 {
@@ -37,7 +37,7 @@ public final class DoorTransitGate
 		return plane.intersect(from, to, travelerHalfWidth, travelerHeight);
 	}
 
-	public static Optional<DoorwayCrossing> prepared(DoorwayPlane plane, PortalCrossing crossing,
+	public static Optional<DoorwayCrossing> prepared(DoorwayPlane plane, PlaneCrossing crossing,
 		double travelerHalfWidth, double travelerHeight)
 	{
 		Objects.requireNonNull(crossing, "crossing");
@@ -45,13 +45,13 @@ public final class DoorTransitGate
 		{
 			return Optional.empty();
 		}
-		PortalFrame frame = DoorApertureFrames.of(plane);
+		Frame frame = DoorApertureFrames.of(plane);
 		DoorVec3 origin = new DoorVec3(crossing.origin().x(), crossing.origin().y(), crossing.origin().z());
 		if(!frame.view(crossing.frontSide()).equals(crossing.frame()) || Math.abs(plane.signedDistance(origin)) > 0.00001D)
 		{
 			return Optional.empty();
 		}
-		Direction normal = frame.getNormal();
+		Face normal = frame.getNormal();
 		double side = (crossing.frontSide() ? 1.0D : -1.0D)
 			* (normal.x() * plane.normalX() + normal.y() * plane.normalY() + normal.z() * plane.normalZ());
 		DoorVec3 feet = new DoorVec3(crossing.point().x(), crossing.point().y(), crossing.point().z());

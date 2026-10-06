@@ -1,8 +1,8 @@
 package art.arcane.wormholes.modded.client.render;
 
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Vec3;
+import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.math.Face;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
@@ -37,8 +37,8 @@ public class PortalFeatureWindingTest {
         assertOrdering(portal, PrimitiveTopology.QUADS, new int[] {0, 1, 2, 3});
         try (PortalFeatureRenderer.WindingScope scope = new PortalFeatureRenderer.WindingScope(portal, reflection())) {
             assertOrdering(ordinary, PrimitiveTopology.QUADS, new int[] {0, 1, 2, 3});
-            ClientViewEnvironment.Transform rotation = new ClientViewEnvironment.Transform(Direction.U, Direction.W, Direction.S,
-                new GeometryVector(0, 0, 0));
+            ProjectionEnvironment.Transform rotation = new ProjectionEnvironment.Transform(Face.U, Face.W, Face.S,
+                new Vec3(0, 0, 0));
             try (PortalFeatureRenderer.WindingScope rotated = new PortalFeatureRenderer.WindingScope(portal, rotation)) {
                 assertOrdering(portal, PrimitiveTopology.QUADS, new int[] {0, 1, 2, 3});
             }
@@ -64,8 +64,8 @@ public class PortalFeatureWindingTest {
         assertOrdering(outer, PrimitiveTopology.QUADS, new int[] {0, 1, 2, 3});
     }
 
-    private static ClientViewEnvironment.Transform reflection() {
-        return new ClientViewEnvironment.Transform(Direction.E, Direction.U, Direction.N, new GeometryVector(0, 0, 0));
+    private static ProjectionEnvironment.Transform reflection() {
+        return new ProjectionEnvironment.Transform(Face.E, Face.U, Face.N, new Vec3(0, 0, 0));
     }
 
     private static void assertOrdering(StagedVertexBuffer buffer, PrimitiveTopology topology, int[] order) {

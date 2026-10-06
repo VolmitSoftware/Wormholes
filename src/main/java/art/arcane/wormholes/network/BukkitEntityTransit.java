@@ -1,7 +1,7 @@
 package art.arcane.wormholes.network;
 
 import art.arcane.wormholes.Wormholes;
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.LocalPortal;
 import art.arcane.wormholes.portal.Traversive;

@@ -5,30 +5,29 @@ import art.arcane.wormholes.config.toml.MainConfig;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import art.arcane.wormholes.config.toml.ProjectionConfig;
 import art.arcane.wormholes.config.toml.RenderConfig;
-import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.portal.BlackoutColor;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.rtp.MinecraftRtpRuntime;
 import art.arcane.wormholes.render.FidelitySettings;
-import art.arcane.wormholes.render.plate.PlateCaptureJob;
-import art.arcane.wormholes.render.plate.ViewPlateBuilder;
-import art.arcane.wormholes.render.plate.ViewPlateCache;
+import art.arcane.optics.plate.PlateCaptureJob;
+import art.arcane.optics.plate.ViewPlateBuilder;
+import art.arcane.optics.plate.ViewPlateCache;
 import art.arcane.wormholes.portal.RemotePortal;
 import art.arcane.wormholes.network.view.RemoteViewCache;
 import art.arcane.wormholes.network.view.ViewBox;
 import art.arcane.wormholes.network.view.ViewSubscriptionManager;
-import art.arcane.wormholes.render.ProjectedBlockClaim;
-import art.arcane.wormholes.render.view.ProjectionContentView;
+import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.view.ContentView;
 import art.arcane.wormholes.render.view.RemoteProjectionView;
 import net.minecraft.network.syncher.SynchedEntityData;
-import art.arcane.wormholes.portal.PortalFrame;
-import art.arcane.wormholes.portal.PortalGeometry;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
-import art.arcane.wormholes.render.ProjectionCellKey;
-import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
-import art.arcane.wormholes.render.ProjectorRecursivePortals;
-import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.view.WorldChangeTracker;
+import art.arcane.optics.recursion.RecursiveEndpoints;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Face;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.players.PlayerList;
 import net.minecraft.server.level.ServerLevel;
@@ -72,7 +71,7 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
         MinecraftServer server = mock(MinecraftServer.class);
         PlayerList players = mock(PlayerList.class);
         when(runtime.server()).thenReturn(server);
-        stubProjections(runtime, new ProjectionWorldChangeTracker());
+        stubProjections(runtime, new WorldChangeTracker());
         when(server.getPlayerList()).thenReturn(players);
         when(players.getViewDistance()).thenReturn(8);
         when(player.requestedViewDistance()).thenReturn(8);
@@ -94,8 +93,8 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
         when(access.world(target)).thenReturn(world);
         when(access.projectionDestination(source)).thenReturn(target);
         when(access.portals()).thenReturn(List.of());
-        when(access.createRecursiveIndex()).thenReturn(new ProjectorRecursivePortals<>(access,
-            () -> new ProjectorRecursivePortals.Options(0.75D, 64.0D)));
+        when(access.createRecursiveIndex()).thenReturn(new RecursiveEndpoints<>(access,
+            () -> new RecursiveEndpoints.Options(0.75D, 64.0D)));
         when(view.getWorld()).thenReturn(world);
         when(view.getMinHeight()).thenReturn(-64);
         when(view.getMaxHeight()).thenReturn(320);
@@ -126,7 +125,7 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
         MinecraftServer server = mock(MinecraftServer.class);
         PlayerList players = mock(PlayerList.class);
         when(runtime.server()).thenReturn(server);
-        stubProjections(runtime, new ProjectionWorldChangeTracker());
+        stubProjections(runtime, new WorldChangeTracker());
         when(server.getPlayerList()).thenReturn(players);
         when(players.getViewDistance()).thenReturn(8);
         when(player.requestedViewDistance()).thenReturn(8);
@@ -135,8 +134,8 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
         RemotePortal target = mock(RemotePortal.class);
         UUID targetId = UUID.randomUUID();
         when(target.getId()).thenReturn(targetId);
-        when(target.getFrame()).thenReturn(PortalFrame.canonical(Direction.S));
-        when(target.getOrigin()).thenReturn(new GeometryVector(11.0D, 65.0D, 0.0D));
+        when(target.getFrame()).thenReturn(Frame.canonical(Face.S));
+        when(target.getOrigin()).thenReturn(new art.arcane.optics.math.Vec3(11.0D, 65.0D, 0.0D));
         when(source.getTunnelType()).thenReturn("UNIVERSAL");
         when(source.getDestinationServer()).thenReturn("example-peer");
         when(source.getNetworkViewUnsubscribeGraceSeconds()).thenReturn(30);
@@ -155,8 +154,8 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
         when(access.current(source)).thenReturn(true);
         when(access.world(source)).thenReturn(world);
         when(access.remoteDestination(source)).thenReturn(target);
-        when(access.createRecursiveIndex()).thenReturn(new ProjectorRecursivePortals<>(access,
-            () -> new ProjectorRecursivePortals.Options(0.75D, 64.0D)));
+        when(access.createRecursiveIndex()).thenReturn(new RecursiveEndpoints<>(access,
+            () -> new RecursiveEndpoints.Options(0.75D, 64.0D)));
         when(local.getWorld()).thenReturn(world);
         when(local.getMinHeight()).thenReturn(-64);
         when(local.getMaxHeight()).thenReturn(320);
@@ -177,7 +176,7 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
             assertEquals(MinecraftPortalProjector.Result.READY, projector.update(1L, Long.MAX_VALUE));
             assertFalse(projector.claimDelta().claims().isEmpty());
             boolean remoteClaim = false;
-            for (ProjectedBlockClaim<BlockState, ProjectionContentView<BlockState, BlockState>> claim : projector.claimDelta().claims().values()) {
+            for (ProjectedBlockClaim<BlockState, ContentView<BlockState, BlockState>> claim : projector.claimDelta().claims().values()) {
                 if (claim.getData().is(Blocks.GOLD_BLOCK)) {
                     assertTrue(claim.getLightView() instanceof RemoteProjectionView<?, ?, ?, ?>);
                     remoteClaim = true;
@@ -214,8 +213,8 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
             settle(projector, 1L);
             assertEquals(0, destinationSamples(scene, projector, 2L));
             long remoteKey = projector.scan().claims().values().iterator().next().getLightRemoteKey();
-            scene.changes().markChanged(DESTINATION_WORLD, ProjectionCellKey.unpackX(remoteKey), ProjectionCellKey.unpackY(remoteKey),
-                ProjectionCellKey.unpackZ(remoteKey));
+            scene.changes().markChanged(DESTINATION_WORLD, CellKeys.unpackX(remoteKey), CellKeys.unpackY(remoteKey),
+                CellKeys.unpackZ(remoteKey));
             assertTrue(destinationSamples(scene, projector, 3L) > 0);
             settle(projector, 4L);
             for (long tick = 5L; tick <= 16L; tick++) {
@@ -242,7 +241,7 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
             assertFalse(projector.scan().hasPending());
             assertTrue(destinationSamples(scene, projector, 3L) > 0);
             assertFalse(projector.scan().claims().isEmpty());
-            for (ProjectedBlockClaim<BlockState, ProjectionContentView<BlockState, BlockState>> claim : projector.scan().claims().values()) {
+            for (ProjectedBlockClaim<BlockState, ContentView<BlockState, BlockState>> claim : projector.scan().claims().values()) {
                 assertTrue(claim.getData().is(Blocks.STONE));
             }
         }
@@ -256,9 +255,9 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
             settle(projector, 1L);
             settle(projector, 2L);
             long cell = projector.scan().claims().keySet().iterator().nextLong();
-            int x = ProjectionCellKey.unpackX(cell);
-            int y = ProjectionCellKey.unpackY(cell);
-            int z = ProjectionCellKey.unpackZ(cell);
+            int x = CellKeys.unpackX(cell);
+            int y = CellKeys.unpackY(cell);
+            int z = CellKeys.unpackZ(cell);
             when(scene.local().sampleMaterial(x, y, z)).thenReturn(air);
             when(scene.local().sampleBlockData(x, y, z)).thenReturn(air);
             scene.changes().markChanged(LOCAL_WORLD, x + 1_600, y, z + 1_600);
@@ -384,7 +383,7 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
         ServerPlayer player = mock(ServerPlayer.class);
         MinecraftServer server = mock(MinecraftServer.class);
         PlayerList players = mock(PlayerList.class);
-        ProjectionWorldChangeTracker changes = new ProjectionWorldChangeTracker();
+        WorldChangeTracker changes = new WorldChangeTracker();
         when(runtime.server()).thenReturn(server);
         stubProjections(runtime, changes);
         when(server.getPlayerList()).thenReturn(players);
@@ -410,8 +409,8 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
         when(access.world(target)).thenReturn(targetWorld);
         when(access.projectionDestination(source)).thenReturn(target);
         when(access.portals()).thenReturn(List.of());
-        when(access.createRecursiveIndex()).thenReturn(new ProjectorRecursivePortals<>(access,
-            () -> new ProjectorRecursivePortals.Options(0.75D, 64.0D)));
+        when(access.createRecursiveIndex()).thenReturn(new RecursiveEndpoints<>(access,
+            () -> new RecursiveEndpoints.Options(0.75D, 64.0D)));
         MinecraftProjectionWorldView local = view(sourceWorld, LOCAL_WORLD, Blocks.AIR.defaultBlockState());
         when(local.sampleBlockData(anyInt(), anyInt(), intThat(z -> z < 0))).thenReturn(behindSource);
         when(local.sampleMaterial(anyInt(), anyInt(), intThat(z -> z < 0))).thenReturn(behindSource);
@@ -433,7 +432,7 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
         return view;
     }
 
-    private static void stubProjections(WormholesModRuntime runtime, ProjectionWorldChangeTracker changes) {
+    private static void stubProjections(WormholesModRuntime runtime, WorldChangeTracker changes) {
         MinecraftProjectionService projections = mock(MinecraftProjectionService.class);
         when(projections.changes()).thenReturn(changes);
         when(runtime.projections()).thenReturn(projections);
@@ -474,7 +473,7 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
         when(runtime.portals()).thenReturn(registry);
         when(runtime.projections()).thenReturn(projections);
         when(runtime.rtp()).thenReturn(rtp);
-        when(projections.changes()).thenReturn(new ProjectionWorldChangeTracker());
+        when(projections.changes()).thenReturn(new WorldChangeTracker());
         when(registry.get(source.getId())).thenReturn(source);
         when(access.eligible(source)).thenReturn(true);
         when(access.current(source)).thenReturn(true);
@@ -482,8 +481,8 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
         when(access.world(target)).thenReturn(world);
         when(access.projectionDestination(source)).thenReturn(target);
         when(access.portals()).thenReturn(List.of());
-        when(access.createRecursiveIndex()).thenAnswer(ignored -> new ProjectorRecursivePortals<>(access,
-            () -> new ProjectorRecursivePortals.Options(0.75D, 64.0D)));
+        when(access.createRecursiveIndex()).thenAnswer(ignored -> new RecursiveEndpoints<>(access,
+            () -> new RecursiveEndpoints.Options(0.75D, 64.0D)));
         when(view.getWorld()).thenReturn(world);
         when(view.worldId()).thenReturn(UUID.randomUUID());
         when(view.getMinHeight()).thenReturn(-64);
@@ -513,19 +512,19 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
 
     private static MinecraftPortal portal(double x) {
         MinecraftPortal portal = mock(MinecraftPortal.class);
-        PortalGeometry geometry = new PortalGeometry();
-        geometry.setArea(new AxisAlignedBB(x, x + 2.0D, 64.0D, 67.0D, 0.0D, 1.0D));
+        ApertureCells geometry = new ApertureCells();
+        geometry.setArea(new Box(x, x + 2.0D, 64.0D, 67.0D, 0.0D, 1.0D));
         when(portal.getId()).thenReturn(UUID.randomUUID());
         when(portal.getGeometry()).thenReturn(geometry);
-        when(portal.getFrame()).thenReturn(PortalFrame.canonical(Direction.S));
-        when(portal.getOrigin()).thenReturn(new GeometryVector(x + 1.0D, 65.0D, 0.0D));
+        when(portal.getFrame()).thenReturn(Frame.canonical(Face.S));
+        when(portal.getOrigin()).thenReturn(new art.arcane.optics.math.Vec3(x + 1.0D, 65.0D, 0.0D));
         when(portal.getNetworkViewDepth()).thenReturn(8);
         when(portal.getBlackoutColor()).thenReturn(BlackoutColor.BLACK);
         when(portal.getRenderMode()).thenReturn(ProjectionRenderMode.PANOPTIC);
         return portal;
     }
 
-    private record Scene(WormholesModRuntime runtime, MinecraftPortalProjector.Context context, ProjectionWorldChangeTracker changes,
+    private record Scene(WormholesModRuntime runtime, MinecraftPortalProjector.Context context, WorldChangeTracker changes,
                          MinecraftProjectionWorldView local, MinecraftProjectionWorldView destination) {
         private MinecraftPortalProjector projector() {
             return new MinecraftPortalProjector(runtime, context);

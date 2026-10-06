@@ -1,8 +1,8 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.render.ProjectionCellKey;
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
-import art.arcane.wormholes.render.blockentity.ProjectedBlockEntityLayer;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.fidelity.BlockEntitySample;
+import art.arcane.optics.fidelity.ProjectedBlockEntityLayer;
 import io.netty.buffer.Unpooled;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.RegistryAccess;
@@ -36,8 +36,8 @@ public final class MinecraftBlockEntityPackets implements ProjectedBlockEntityLa
     @Override
     public void send(ServerPlayer observer, long key, BlockEntitySample sample) {
         runtime.requireServerThread();
-        int x = ProjectionCellKey.unpackX(key);
-        int z = ProjectionCellKey.unpackZ(key);
+        int x = CellKeys.unpackX(key);
+        int z = CellKeys.unpackZ(key);
         if (observer.hasDisconnected() || !observer.level().getChunkSource().chunkMap.isChunkTracked(observer, x >> 4, z >> 4)) {
             return;
         }
@@ -57,7 +57,7 @@ public final class MinecraftBlockEntityPackets implements ProjectedBlockEntityLa
         CompoundTag tag = NbtIo.read(new DataInputStream(new ByteArrayInputStream(sample.nbt())));
         RegistryFriendlyByteBuf buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), registries);
         try {
-            BlockPos.STREAM_CODEC.encode(buffer, new BlockPos(ProjectionCellKey.unpackX(key), ProjectionCellKey.unpackY(key), ProjectionCellKey.unpackZ(key)));
+            BlockPos.STREAM_CODEC.encode(buffer, new BlockPos(CellKeys.unpackX(key), CellKeys.unpackY(key), CellKeys.unpackZ(key)));
             ByteBufCodecs.registry(Registries.BLOCK_ENTITY_TYPE).encode(buffer, type);
             ByteBufCodecs.TRUSTED_COMPOUND_TAG.encode(buffer, tag);
             return ClientboundBlockEntityDataPacket.STREAM_CODEC.decode(buffer);

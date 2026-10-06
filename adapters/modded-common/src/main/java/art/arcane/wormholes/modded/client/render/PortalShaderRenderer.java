@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded.client.render;
 
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
+import art.arcane.optics.stream.ProjectionEnvironment;
 import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.renderpearl.api.pipeline.CompiledRenderPipeline;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
@@ -13,7 +13,7 @@ interface PortalShaderRenderer extends AutoCloseable {
         return PortalIrisRenderer.create();
     }
 
-    Session acquire(int key, ClientViewEnvironment environment, int width, int height);
+    Session acquire(int key, ProjectionEnvironment environment, int width, int height);
 
     void beginFrame();
 
@@ -37,7 +37,7 @@ interface PortalShaderRenderer extends AutoCloseable {
     record Sizing(int width, int height, List<DemandView> views) {
     }
 
-    record DemandView(int key, ClientViewEnvironment environment, int depth) {
+    record DemandView(int key, ProjectionEnvironment environment, int depth) {
     }
 
     record Resolution(int width, int height) {

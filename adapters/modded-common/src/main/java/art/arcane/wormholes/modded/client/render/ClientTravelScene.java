@@ -1,9 +1,9 @@
 package art.arcane.wormholes.modded.client.render;
 
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
+import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.math.Face;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -29,8 +29,8 @@ public final class ClientTravelScene implements PortalScene {
     private static final long SNAPSHOT_NANOS = 2_000_000L;
     private static final int MAX_SNAPSHOTS = 64;
     private ClientLevel level;
-    private ClientViewEnvironment environment;
-    private ClientPortalGeometry geometry;
+    private ProjectionEnvironment environment;
+    private ApertureDescriptor geometry;
     private final Long2ObjectOpenHashMap<RenderSectionRegion> regions = new Long2ObjectOpenHashMap<>();
     private final LongOpenHashSet sections = new LongOpenHashSet();
     private final LongOpenHashSet empty = new LongOpenHashSet();
@@ -61,16 +61,16 @@ public final class ClientTravelScene implements PortalScene {
 
     public void rebind(ClientViewMessage.TravelBegin begin) {
         if (!travelWorld.equals(begin.world()) || !chunks.equals(new HashSet<>(begin.chunks()))
-            || !ClientViewEnvironment.Transform.IDENTITY.equals(begin.environment().transform())) {
+            || !ProjectionEnvironment.Transform.IDENTITY.equals(begin.environment().transform())) {
             throw new IllegalArgumentException("Prepared return snapshot identity differs");
         }
         environment = begin.environment();
         geometry = geometry(begin.arrival());
     }
 
-    private static ClientPortalGeometry geometry(ClientViewMessage.TravelPose arrival) {
-        return new ClientPortalGeometry((int) Math.floor(arrival.x()), (int) Math.floor(arrival.y()),
-            (int) Math.floor(arrival.z()), Direction.N.ordinal(), true, 0, false, 1, 1, new long[]{1L},
+    private static ApertureDescriptor geometry(ClientViewMessage.TravelPose arrival) {
+        return new ApertureDescriptor((int) Math.floor(arrival.x()), (int) Math.floor(arrival.y()),
+            (int) Math.floor(arrival.z()), Face.N.ordinal(), true, 0, false, 1, 1, new long[]{1L},
             0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0.0D, 0, -1L, List.of());
     }
 
@@ -228,12 +228,12 @@ public final class ClientTravelScene implements PortalScene {
     }
 
     @Override
-    public ClientPortalGeometry geometry() {
+    public ApertureDescriptor geometry() {
         return geometry;
     }
 
     @Override
-    public ClientViewEnvironment environment() {
+    public ProjectionEnvironment environment() {
         return environment;
     }
 

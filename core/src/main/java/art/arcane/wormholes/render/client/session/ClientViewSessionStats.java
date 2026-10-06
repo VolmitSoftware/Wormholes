@@ -3,6 +3,7 @@ package art.arcane.wormholes.render.client.session;
 import java.util.UUID;
 
 import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ClientViewSessionState;
 
 public record ClientViewSessionStats(UUID playerId,
                                      int sessionId,

@@ -1,9 +1,9 @@
 package art.arcane.wormholes.network;
 
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
-import art.arcane.wormholes.network.client.ClientViewEnvironmentCodec;
-import art.arcane.wormholes.network.client.ClientViewReader;
-import art.arcane.wormholes.network.client.ClientViewWriter;
+import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.ProjectionEnvironmentCodec;
+import art.arcane.optics.stream.ClientViewReader;
+import art.arcane.optics.stream.ClientViewWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -25,7 +25,7 @@ import art.arcane.wormholes.network.mesh.LoadBeacon;
 import art.arcane.wormholes.network.mesh.PeerAnnounce;
 import art.arcane.wormholes.network.mesh.PeerTombstone;
 import art.arcane.wormholes.network.replication.ReplicationVarint;
-import art.arcane.wormholes.network.view.EntityVisual;
+import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.wormholes.network.view.ViewSlice;
 
 public sealed interface WireMessage {
@@ -790,7 +790,7 @@ public sealed interface WireMessage {
         }
     }
 
-    record ViewEntities(UUID portalId, List<EntityVisual> entities, List<UUID> presentIds) implements WireMessage {
+    record ViewEntities(UUID portalId, List<EntitySnapshot> entities, List<UUID> presentIds) implements WireMessage {
         private static final int MAX_ENTITIES = 64;
         private static final int MAX_PRESENT = 1024;
 
@@ -803,7 +803,7 @@ public sealed interface WireMessage {
         public void write(DataOutputStream out) throws IOException {
             writeUuid(out, portalId);
             out.writeByte(entities.size());
-            for (EntityVisual entity : entities) {
+            for (EntitySnapshot entity : entities) {
                 entity.write(out);
             }
             out.writeShort(presentIds.size());
@@ -818,9 +818,9 @@ public sealed interface WireMessage {
             if (count > MAX_ENTITIES) {
                 throw new IOException("Invalid view entity count: " + count);
             }
-            List<EntityVisual> entities = new ArrayList<>(count);
+            List<EntitySnapshot> entities = new ArrayList<>(count);
             for (int i = 0; i < count; i++) {
-                entities.add(EntityVisual.read(in));
+                entities.add(EntitySnapshot.read(in));
             }
             int presentCount = in.readUnsignedShort();
             if (presentCount > MAX_PRESENT) {
@@ -854,7 +854,7 @@ public sealed interface WireMessage {
         }
     }
 
-    record ViewEnvironment(UUID portalId, ClientViewEnvironment environment) implements WireMessage {
+    record ViewEnvironment(UUID portalId, ProjectionEnvironment environment) implements WireMessage {
         @Override
         public WireMessageType type() {
             return WireMessageType.VIEW_ENVIRONMENT;
@@ -864,14 +864,14 @@ public sealed interface WireMessage {
         public void write(DataOutputStream out) throws IOException {
             writeUuid(out, portalId);
             ClientViewWriter encoded = new ClientViewWriter();
-            ClientViewEnvironmentCodec.write(encoded, environment);
+            ProjectionEnvironmentCodec.write(encoded, environment);
             WireCodec.writeByteArray(out, encoded.toByteArray(), 1024);
         }
 
         public static ViewEnvironment read(DataInputStream in) throws IOException {
             UUID portal = readUuid(in);
             ClientViewReader encoded = new ClientViewReader(WireCodec.readByteArray(in, 1024));
-            ClientViewEnvironment environment = ClientViewEnvironmentCodec.read(encoded);
+            ProjectionEnvironment environment = ProjectionEnvironmentCodec.read(encoded);
             encoded.expectEnd();
             return new ViewEnvironment(portal, environment);
         }

@@ -1,7 +1,7 @@
 package art.arcane.wormholes.network;
 
 import art.arcane.wormholes.network.TraversalFailureLedger.Failure;
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 
 import java.util.Map;
 import java.util.Set;
@@ -12,7 +12,7 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Predicate;
 
 final class TraversalEntityTransit<E, T> {
-    record TransitState(boolean invulnerable, boolean silent, boolean gravity, GeometryVector velocity) {
+    record TransitState(boolean invulnerable, boolean silent, boolean gravity, Vec3 velocity) {
     }
 
     private record Tombstone<E>(E entity, String peerName, long expiresAtMillis) {

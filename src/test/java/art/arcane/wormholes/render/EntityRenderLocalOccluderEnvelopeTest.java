@@ -1,7 +1,7 @@
 package art.arcane.wormholes.render;
 
 import art.arcane.wormholes.util.BukkitGeometry;
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -13,21 +13,23 @@ import org.junit.jupiter.api.Test;
 
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.wormholes.Settings;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalStructure;
-import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Face;
+import art.arcane.optics.volume.LocalEntityEnvelope;
+import art.arcane.optics.volume.ViewVolume;
 
 public final class EntityRenderLocalOccluderEnvelopeTest {
     @Test
     public void translatedLabelEnvelopeFullyBehindApertureIsClaimed() {
         SettingsSnapshot settings = applyExactFrustumSettings();
         try {
-            Frustum4D frustum = frustum();
-            assertTrue(ProjectorLocalEntityEnvelope.envelopeFullyProjected(
+            ViewVolume frustum = frustum();
+            assertTrue(LocalEntityEnvelope.envelopeFullyProjected(
                 1.0D, 0.75D, 6.5D,
                 2.0D, 2.5D, 7.5D,
-                new GeometryVector(1.5D, 1.5D, 5.0D), PortalFrame.canonical(Direction.N), frustum,
+                new Vec3(1.5D, 1.5D, 5.0D), Frame.canonical(Face.N), frustum,
                 true, 0.01D, 16.0D));
         } finally {
             settings.restore();
@@ -38,11 +40,11 @@ public final class EntityRenderLocalOccluderEnvelopeTest {
     public void partiallyExposedEnvelopeIsNotClaimed() {
         SettingsSnapshot settings = applyExactFrustumSettings();
         try {
-            Frustum4D frustum = frustum();
-            assertFalse(ProjectorLocalEntityEnvelope.envelopeFullyProjected(
+            ViewVolume frustum = frustum();
+            assertFalse(LocalEntityEnvelope.envelopeFullyProjected(
                 2.5D, 0.75D, 6.5D,
                 4.0D, 2.5D, 7.5D,
-                new GeometryVector(1.5D, 1.5D, 5.0D), PortalFrame.canonical(Direction.N), frustum,
+                new Vec3(1.5D, 1.5D, 5.0D), Frame.canonical(Face.N), frustum,
                 true, 0.01D, 16.0D));
         } finally {
             settings.restore();
@@ -53,14 +55,14 @@ public final class EntityRenderLocalOccluderEnvelopeTest {
     public void envelopeCrossingPortalPlaneOrDepthLimitIsNotClaimed() {
         SettingsSnapshot settings = applyExactFrustumSettings();
         try {
-            Frustum4D frustum = frustum();
+            ViewVolume frustum = frustum();
             Vector origin = new Vector(1.5D, 1.5D, 5.0D);
-            PortalFrame frame = PortalFrame.canonical(Direction.N);
-            assertFalse(ProjectorLocalEntityEnvelope.envelopeFullyProjected(
+            Frame frame = Frame.canonical(Face.N);
+            assertFalse(LocalEntityEnvelope.envelopeFullyProjected(
                 1.0D, 0.75D, 4.9D,
                 2.0D, 2.5D, 5.5D,
                 BukkitGeometry.vector(origin), frame, frustum, true, 0.01D, 16.0D));
-            assertFalse(ProjectorLocalEntityEnvelope.envelopeFullyProjected(
+            assertFalse(LocalEntityEnvelope.envelopeFullyProjected(
                 1.0D, 0.75D, 20.5D,
                 2.0D, 2.5D, 21.5D,
                 BukkitGeometry.vector(origin), frame, frustum, true, 0.01D, 16.0D));
@@ -69,8 +71,8 @@ public final class EntityRenderLocalOccluderEnvelopeTest {
         }
     }
 
-    private static Frustum4D frustum() {
-        return new Frustum4D(BukkitGeometry.vector(new Location(null, 1.5D, 1.5D, 0.0D)), new TestStructure(), new Frustum4D.Options(16.0D, 16.0D, Settings.NEAR_PLANE_PADDING, Settings.FRUSTUM_CULLING_RATIO, Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
+    private static ViewVolume frustum() {
+        return new ViewVolume(BukkitGeometry.vector(new Location(null, 1.5D, 1.5D, 0.0D)), new TestStructure(), new ViewVolume.Options(16.0D, 16.0D, Settings.NEAR_PLANE_PADDING, Settings.FRUSTUM_CULLING_RATIO, Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
     }
 
     private static SettingsSnapshot applyExactFrustumSettings() {
@@ -96,8 +98,8 @@ public final class EntityRenderLocalOccluderEnvelopeTest {
 
     private static final class TestStructure extends PortalStructure {
         @Override
-        public AxisAlignedBB getArea() {
-            return new AxisAlignedBB(0.0D, 3.0D, 0.0D, 3.0D, 5.0D, 5.0D);
+        public Box getArea() {
+            return new Box(0.0D, 3.0D, 0.0D, 3.0D, 5.0D, 5.0D);
         }
 
         @Override
@@ -106,12 +108,12 @@ public final class EntityRenderLocalOccluderEnvelopeTest {
         }
 
         @Override
-        public List<AxisAlignedBB> getCachedApertureFaces(Direction face) {
-            if (face != Direction.N && face != Direction.S) {
+        public List<Box> getCachedApertureFaces(Face face) {
+            if (face != Face.N && face != Face.S) {
                 return List.of();
             }
-            KList<AxisAlignedBB> faces = new KList<AxisAlignedBB>();
-            faces.add(new AxisAlignedBB(0.0D, 3.0D, 0.0D, 3.0D, 5.0D, 5.0D));
+            KList<Box> faces = new KList<Box>();
+            faces.add(new Box(0.0D, 3.0D, 0.0D, 3.0D, 5.0D, 5.0D));
             return faces;
         }
     }

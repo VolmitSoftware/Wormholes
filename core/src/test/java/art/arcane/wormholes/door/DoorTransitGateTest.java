@@ -1,6 +1,6 @@
 package art.arcane.wormholes.door;
 
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
@@ -20,7 +20,7 @@ public final class DoorTransitGateTest
 		mate.observe(false);
 
 		Optional<DoorwayCrossing> crossing = DoorTransitGate.detect(
-			new DoorwayPlane(0, 64, 0, Direction.N),
+			new DoorwayPlane(0, 64, 0, Face.N),
 			new DoorVec3(0.5D, 65.0D, 1.0D),
 			new DoorVec3(0.5D, 65.0D, 0.0D));
 
@@ -35,7 +35,7 @@ public final class DoorTransitGateTest
 	{
 		DoorOpenCycle source = new DoorOpenCycle();
 		Optional<DoorwayCrossing> crossing = DoorTransitGate.detect(
-			new DoorwayPlane(0, 64, 0, Direction.N),
+			new DoorwayPlane(0, 64, 0, Face.N),
 			new DoorVec3(0.5D, 65.0D, 1.0D),
 			new DoorVec3(0.5D, 65.0D, 0.0D));
 
@@ -66,7 +66,7 @@ public final class DoorTransitGateTest
 	public void movementFarFromDoorIsNotAdmitted()
 	{
 		Optional<DoorwayCrossing> crossing = DoorTransitGate.detect(
-			new DoorwayPlane(0, 64, 0, Direction.N),
+			new DoorwayPlane(0, 64, 0, Face.N),
 			new DoorVec3(10.5D, 65.0D, 1.0D),
 			new DoorVec3(10.5D, 65.0D, 0.0D));
 
@@ -77,7 +77,7 @@ public final class DoorTransitGateTest
 	public void slowMovementJustOutsideTheFixedBandIsStillRejected()
 	{
 		Optional<DoorwayCrossing> crossing = DoorTransitGate.detect(
-			new DoorwayPlane(0, 64, 0, Direction.N),
+			new DoorwayPlane(0, 64, 0, Face.N),
 			new DoorVec3(3.5D, 65.0D, 0.2D),
 			new DoorVec3(3.5D, 65.0D, -0.2D));
 
@@ -88,7 +88,7 @@ public final class DoorTransitGateTest
 	public void fastSegmentReachingAcrossThePlaneIsAdmitted()
 	{
 		Optional<DoorwayCrossing> crossing = DoorTransitGate.detect(
-			new DoorwayPlane(0, 64, 0, Direction.N),
+			new DoorwayPlane(0, 64, 0, Face.N),
 			new DoorVec3(0.5D, 65.0D, 3.0D),
 			new DoorVec3(0.5D, 65.0D, -0.1D));
 
@@ -100,7 +100,7 @@ public final class DoorTransitGateTest
 	public void fastSegmentWideOfThePlaneStillFindsNoCrossing()
 	{
 		Optional<DoorwayCrossing> crossing = DoorTransitGate.detect(
-			new DoorwayPlane(0, 64, 0, Direction.N),
+			new DoorwayPlane(0, 64, 0, Face.N),
 			new DoorVec3(3.5D, 65.0D, 3.0D),
 			new DoorVec3(3.5D, 65.0D, -0.1D));
 
@@ -163,7 +163,7 @@ public final class DoorTransitGateTest
 		cycle.observe(true);
 		DoorTransit contact = new DoorTransit(
 			DoorwayPlane.trapdoor(
-				0, 64, 0, Direction.N, DoorHalf.BOTTOM, DoorOpenState.CLOSED),
+				0, 64, 0, Face.N, DoorHalf.BOTTOM, DoorOpenState.CLOSED),
 			DoorwayCrossing.Direction.FRONT_TO_BACK,
 			0.0F,
 			0.0F);
@@ -201,7 +201,7 @@ public final class DoorTransitGateTest
 	private static DoorTransit objectTransit()
 	{
 		return new DoorTransit(
-			new DoorwayPlane(0, 64, 0, Direction.N),
+			new DoorwayPlane(0, 64, 0, Face.N),
 			DoorwayCrossing.Direction.FRONT_TO_BACK,
 			0.0F,
 			0.0F,
@@ -214,7 +214,7 @@ public final class DoorTransitGateTest
 	private static DoorTransit livingTransit()
 	{
 		return new DoorTransit(
-			new DoorwayPlane(0, 64, 0, Direction.N),
+			new DoorwayPlane(0, 64, 0, Face.N),
 			DoorwayCrossing.Direction.FRONT_TO_BACK,
 			0.0F,
 			0.0F);

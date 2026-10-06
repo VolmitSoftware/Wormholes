@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.render.DirectionMapping;
+import art.arcane.optics.frame.DirectionMapping;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.HugeMushroomBlock;
@@ -12,12 +12,12 @@ import net.minecraft.world.level.block.state.properties.RailShape;
 
 import java.util.Optional;
 
-import static art.arcane.wormholes.util.Direction.U;
-import static art.arcane.wormholes.util.Direction.D;
-import static art.arcane.wormholes.util.Direction.N;
-import static art.arcane.wormholes.util.Direction.S;
-import static art.arcane.wormholes.util.Direction.E;
-import static art.arcane.wormholes.util.Direction.W;
+import static art.arcane.optics.math.Face.U;
+import static art.arcane.optics.math.Face.D;
+import static art.arcane.optics.math.Face.N;
+import static art.arcane.optics.math.Face.S;
+import static art.arcane.optics.math.Face.E;
+import static art.arcane.optics.math.Face.W;
 
 public final class MinecraftProjectedBlockStates {
     private MinecraftProjectedBlockStates() {
@@ -48,20 +48,20 @@ public final class MinecraftProjectedBlockStates {
     private static <T extends Comparable<T>> BlockState transformProperty(
         BlockState source, BlockState result, Property<T> property, DirectionMapping mapping) {
         T value = source.getValue(property);
-        Direction connection = connectionDirection(property.getName(), source);
+        Face connection = connectionDirection(property.getName(), source);
         if (connection != null) {
-            Direction target = map(connection, mapping);
+            Face target = map(connection, mapping);
             Property<?> targetProperty = source.getBlock().getStateDefinition().getProperty(target.getSerializedName());
             if (targetProperty != null && connectionDirection(targetProperty.getName(), source) != null) {
                 return setSerialized(result, targetProperty, property.getName(value));
             }
             return result;
         }
-        if (value instanceof Direction direction) {
+        if (value instanceof Face direction) {
             return setSerialized(result, property, map(direction, mapping).getSerializedName());
         }
-        if (value instanceof Direction.Axis axis) {
-            Direction direction = Direction.fromAxisAndDirection(axis, Direction.AxisDirection.POSITIVE);
+        if (value instanceof Face.Axis axis) {
+            Face direction = Face.fromAxisAndDirection(axis, Face.AxisDirection.POSITIVE);
             return setSerialized(result, property, map(direction, mapping).getAxis().getSerializedName());
         }
         if (value instanceof RailShape rail) {
@@ -74,14 +74,14 @@ public final class MinecraftProjectedBlockStates {
         return result;
     }
 
-    private static Direction connectionDirection(String name, BlockState state) {
+    private static Face connectionDirection(String name, BlockState state) {
         return switch (name) {
-            case "north" -> Direction.NORTH;
-            case "south" -> Direction.SOUTH;
-            case "east" -> Direction.EAST;
-            case "west" -> Direction.WEST;
-            case "up" -> state.getBlock() instanceof MultifaceBlock || state.getBlock() instanceof HugeMushroomBlock ? Direction.UP : null;
-            case "down" -> state.getBlock() instanceof MultifaceBlock || state.getBlock() instanceof HugeMushroomBlock ? Direction.DOWN : null;
+            case "north" -> Face.NORTH;
+            case "south" -> Face.SOUTH;
+            case "east" -> Face.EAST;
+            case "west" -> Face.WEST;
+            case "up" -> state.getBlock() instanceof MultifaceBlock || state.getBlock() instanceof HugeMushroomBlock ? Face.UP : null;
+            case "down" -> state.getBlock() instanceof MultifaceBlock || state.getBlock() instanceof HugeMushroomBlock ? Face.DOWN : null;
             default -> null;
         };
     }
@@ -91,7 +91,7 @@ public final class MinecraftProjectedBlockStates {
         return value.isPresent() ? state.setValue(property, value.get()) : state;
     }
 
-    private static Direction map(Direction direction, DirectionMapping mapping) {
+    private static Face map(Face direction, DirectionMapping mapping) {
         return switch (mapping.map(switch (direction) {
             case UP -> U;
             case DOWN -> D;
@@ -100,12 +100,12 @@ public final class MinecraftProjectedBlockStates {
             case EAST -> E;
             case WEST -> W;
         })) {
-            case U -> Direction.UP;
-            case D -> Direction.DOWN;
-            case N -> Direction.NORTH;
-            case S -> Direction.SOUTH;
-            case E -> Direction.EAST;
-            case W -> Direction.WEST;
+            case U -> Face.UP;
+            case D -> Face.DOWN;
+            case N -> Face.NORTH;
+            case S -> Face.SOUTH;
+            case E -> Face.EAST;
+            case W -> Face.WEST;
         };
     }
 }

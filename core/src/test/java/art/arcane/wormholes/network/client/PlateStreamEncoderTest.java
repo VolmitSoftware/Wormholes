@@ -25,27 +25,32 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
-import art.arcane.wormholes.portal.PortalFrame;
-import art.arcane.wormholes.portal.PortalGeometry;
-import art.arcane.wormholes.render.ProjectionCellKey;
-import art.arcane.wormholes.render.ProjectorFrameTransform;
-import art.arcane.wormholes.render.ProjectorSample;
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
-import art.arcane.wormholes.render.lod.LodPolicy;
-import art.arcane.wormholes.render.plate.PlateBox;
-import art.arcane.wormholes.render.plate.PlateCell;
-import art.arcane.wormholes.render.plate.PlateGrid;
-import art.arcane.wormholes.render.plate.ViewPlate;
-import art.arcane.wormholes.render.plate.ViewPlateBuilder;
-import art.arcane.wormholes.render.plate.ViewPlateKey;
-import art.arcane.wormholes.render.view.ProjectionContentView;
-import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.aperture.ApertureCells;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.frame.ProjectorFrameTransform;
+import art.arcane.optics.scan.ProjectorSample;
+import art.arcane.optics.fidelity.BlockEntitySample;
+import art.arcane.optics.volume.LodPolicy;
+import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.plate.PlateCell;
+import art.arcane.optics.plate.PlateGrid;
+import art.arcane.optics.plate.ViewPlate;
+import art.arcane.optics.plate.ViewPlateBuilder;
+import art.arcane.optics.plate.ViewPlateKey;
+import art.arcane.optics.view.ContentView;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Face;
+import art.arcane.optics.stream.Brick;
+import art.arcane.optics.stream.BrickCodec;
+import art.arcane.optics.stream.BrickLightSource;
+import art.arcane.optics.stream.PlateSectionBox;
+import art.arcane.optics.stream.ViewStreamLimits;
 
 final class PlateStreamEncoderTest {
     static int[] remoteOf(int localX, int localY, int localZ) {
         ProjectorFrameTransform transform = new ProjectorFrameTransform();
-        transform.configure(PortalFrame.canonical(Direction.S).view(false), PortalFrame.canonical(Direction.N).view(false),
+        transform.configure(Frame.canonical(Face.S).view(false), Frame.canonical(Face.N).view(false),
             11.4995D, 67.4995D, 20.5005D, 200.4995D, 67.4995D, 200.4995D);
         double[] out = new double[3];
         transform.apply(localX + 0.5D, localY + 0.5D, localZ + 0.5D, out);
@@ -62,12 +67,12 @@ final class PlateStreamEncoderTest {
     }
 
     static ViewPlate<String> smallPlate(SyntheticWorld world, boolean blockEntities) {
-        PortalGeometry geometry = new PortalGeometry();
-        geometry.setArea(new AxisAlignedBB(10, 12.999, 66, 68.999, 20, 20.999));
+        ApertureCells geometry = new ApertureCells();
+        geometry.setArea(new Box(10, 12.999, 66, 68.999, 20, 20.999));
         ViewPlateKey key = new ViewPlateKey(UUID.nameUUIDFromBytes("small".getBytes()), world, false, 0, 0L);
-        ViewPlateBuilder.Request<String, String, ProjectionContentView<String, String>> request =
-            new ViewPlateBuilder.Request<String, String, ProjectionContentView<String, String>>(key, geometry, world,
-                PortalFrame.canonical(Direction.S), PortalFrame.canonical(Direction.N), 11.4995, 67.4995, 20.5005,
+        ViewPlateBuilder.Request<String, String, ContentView<String, String>> request =
+            new ViewPlateBuilder.Request<String, String, ContentView<String, String>>(key, geometry, world,
+                Frame.canonical(Face.S), Frame.canonical(Face.N), 11.4995, 67.4995, 20.5005,
                 200.4995, 67.4995, 200.4995, false, 0, 24.0D, 8.0D, 0.75D, true, SyntheticWorld.AIR, LodPolicy.NONE, blockEntities,
                 0L, 0L, 0L, SyntheticBlocks.INSTANCE);
         return ViewPlateBuilder.build(request);
@@ -76,12 +81,12 @@ final class PlateStreamEncoderTest {
     @Test
     void sectionCaptureClipsBeforeAllocatingTheRenderDistanceVolume() {
         SyntheticWorld world = new SyntheticWorld(41L);
-        PortalGeometry geometry = new PortalGeometry();
-        geometry.setArea(new AxisAlignedBB(10, 12.999, 66, 68.999, 20, 20.999));
+        ApertureCells geometry = new ApertureCells();
+        geometry.setArea(new Box(10, 12.999, 66, 68.999, 20, 20.999));
         ViewPlateKey key = new ViewPlateKey(UUID.randomUUID(), world, false, 0, 0L);
-        ViewPlateBuilder.Request<String, String, ProjectionContentView<String, String>> request =
-            new ViewPlateBuilder.Request<String, String, ProjectionContentView<String, String>>(key, geometry, world,
-                PortalFrame.canonical(Direction.S), PortalFrame.canonical(Direction.N), 11.4995, 67.4995, 20.5005,
+        ViewPlateBuilder.Request<String, String, ContentView<String, String>> request =
+            new ViewPlateBuilder.Request<String, String, ContentView<String, String>>(key, geometry, world,
+                Frame.canonical(Face.S), Frame.canonical(Face.N), 11.4995, 67.4995, 20.5005,
                 200.4995, 67.4995, 200.4995, false, 0, 512, 512, 0, false, SyntheticWorld.AIR, LodPolicy.NONE, false,
                 0L, 0L, 0L, SyntheticBlocks.INSTANCE);
         PlateBox clip = new PlateBox(0, 64, 32, 16, 16, 16);
@@ -101,11 +106,11 @@ final class PlateStreamEncoderTest {
         assertEquals(footprint.maxChunkX(), job.result().maxChunkX());
         assertEquals(footprint.maxChunkZ(), job.result().maxChunkZ());
         assertEquals(1, new PlateStreamEncoder<String>(new SessionPalette(), state -> state).encode(job.result(), null, false).brickCount());
-        ProjectionContentView<String, String> capturedAir = mock(ProjectionContentView.class);
+        ContentView<String, String> capturedAir = mock(ContentView.class);
         when(capturedAir.isEmpty(any())).thenReturn(true);
         when(capturedAir.worldId()).thenReturn(UUID.randomUUID());
         when(capturedAir.sampleBiome(anyInt(), anyInt(), anyInt())).thenReturn("test:destination");
-        when(capturedAir.getLight(anyInt(), anyInt(), anyInt())).thenReturn(ProjectionContentView.packLight(15, 0));
+        when(capturedAir.getLight(anyInt(), anyInt(), anyInt())).thenReturn(ContentView.packLight(15, 0));
         ViewPlateBuilder.Job<String, Object> empty = ViewPlateBuilder.sectionJob(request.withDestView(capturedAir), clip);
         assertTrue(empty.step(1));
         verify(capturedAir, never()).sampleBlockData(anyInt(), anyInt(), anyInt());
@@ -135,21 +140,21 @@ final class PlateStreamEncoderTest {
             int baseY = encoded.sections().sectionY(index) << 4;
             int baseZ = encoded.sections().sectionZ(index) << 4;
             for (int cell = 0; cell < cells.length; cell++) {
-                int x = baseX + ClientViewProtocol.brickCellX(cell);
-                int y = baseY + ClientViewProtocol.brickCellY(cell);
-                int z = baseZ + ClientViewProtocol.brickCellZ(cell);
-                PlateCell<String> source = box.index(x, y, z) < 0 ? null : plate.cell(ProjectionCellKey.pack(x, y, z));
+                int x = baseX + ViewStreamLimits.brickCellX(cell);
+                int y = baseY + ViewStreamLimits.brickCellY(cell);
+                int z = baseZ + ViewStreamLimits.brickCellZ(cell);
+                PlateCell<String> source = box.index(x, y, z) < 0 ? null : plate.cell(CellKeys.pack(x, y, z));
                 int expected;
                 if (source == null) {
-                    expected = ClientViewProtocol.PALETTE_AIR;
+                    expected = ViewStreamLimits.PALETTE_AIR;
                 } else if (source.kind() == ProjectorSample.Kind.OCCLUDED) {
-                    expected = ClientViewProtocol.PALETTE_OCCLUDED;
+                    expected = ViewStreamLimits.PALETTE_OCCLUDED;
                     occluded++;
                 } else if (source.kind() == ProjectorSample.Kind.BACKING_BLOCK) {
-                    expected = ClientViewProtocol.PALETTE_BACKING;
+                    expected = ViewStreamLimits.PALETTE_BACKING;
                     backing++;
                 } else if (source.isAir()) {
-                    expected = ClientViewProtocol.PALETTE_AIR;
+                    expected = ViewStreamLimits.PALETTE_AIR;
                 } else {
                     expected = palette.lookup(source.data());
                 }
@@ -157,13 +162,13 @@ final class PlateStreamEncoderTest {
                 checked++;
             }
         }
-        assertEquals(encoded.brickCount() * ClientViewProtocol.BRICK_CELLS, checked);
+        assertEquals(encoded.brickCount() * ViewStreamLimits.BRICK_CELLS, checked);
         assertTrue(occluded > 0);
         assertTrue(backing > 0);
         int[] referenced = encoded.referencedIds();
         assertTrue(referenced.length > 1);
         for (int id : referenced) {
-            assertTrue(id >= ClientViewProtocol.RESERVED_PALETTE_IDS && id < palette.size(), "referenced id " + id);
+            assertTrue(id >= ViewStreamLimits.RESERVED_PALETTE_IDS && id < palette.size(), "referenced id " + id);
         }
     }
 
@@ -259,7 +264,7 @@ final class PlateStreamEncoderTest {
     void lightFollowsTheSourceOnEveryBrickAndBlockEntitiesRideAlong() throws IOException {
         SyntheticWorld world = new SyntheticWorld(14L);
         long visible = firstCellOfKind(smallPlate(world, false), ProjectorSample.Kind.BLOCK);
-        int[] remote = remoteOf(ProjectionCellKey.unpackX(visible), ProjectionCellKey.unpackY(visible), ProjectionCellKey.unpackZ(visible));
+        int[] remote = remoteOf(CellKeys.unpackX(visible), CellKeys.unpackY(visible), CellKeys.unpackZ(visible));
         world.setBlockEntity(remote[0], remote[1], remote[2], "minecraft:chest[facing=north,type=single,waterlogged=false]",
             new BlockEntitySample("minecraft:chest", new byte[] {10, 0, 0, 0}));
         ViewPlate<String> plate = smallPlate(world, true);

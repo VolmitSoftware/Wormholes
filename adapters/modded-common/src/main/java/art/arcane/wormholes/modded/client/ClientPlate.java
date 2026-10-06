@@ -1,15 +1,15 @@
 package art.arcane.wormholes.modded.client;
 
-import art.arcane.wormholes.network.client.Brick;
-import art.arcane.wormholes.network.client.BrickLightSource;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
+import art.arcane.optics.stream.Brick;
+import art.arcane.optics.stream.BrickLightSource;
+import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.wormholes.network.client.PlateHandoff;
-import art.arcane.wormholes.network.client.PlateSectionBox;
-import art.arcane.wormholes.render.ProjectionCellKey;
-import art.arcane.wormholes.render.ProjectorSample;
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
-import art.arcane.wormholes.render.plate.PlateBox;
-import art.arcane.wormholes.render.plate.PlateCell;
+import art.arcane.optics.stream.PlateSectionBox;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.scan.ProjectorSample;
+import art.arcane.optics.fidelity.BlockEntitySample;
+import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.plate.PlateCell;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.io.IOException;
@@ -76,7 +76,7 @@ public final class ClientPlate implements ClientPortalContent {
         }
         long total = BRICK_OVERHEAD_BYTES + ((long) brick.packedIndices().length * 8L) + ((long) brick.localPalette().length * 4L);
         if (brick.hasLight()) {
-            total += ClientViewProtocol.LIGHT_NIBBLE_BYTES * 2L;
+            total += ViewStreamLimits.LIGHT_NIBBLE_BYTES * 2L;
         }
         Brick.BlockEntityCell[] blockEntities = brick.blockEntities();
         for (int index = 0; index < blockEntities.length; index++) {
@@ -151,17 +151,17 @@ public final class ClientPlate implements ClientPortalContent {
     @Override
     public int paletteIdAt(int x, int y, int z) {
         if (!contains(x, y, z)) {
-            return ClientViewProtocol.PALETTE_AIR;
+            return ViewStreamLimits.PALETTE_AIR;
         }
         if (handoff != null) {
             return handoffIdAt(x, y, z);
         }
         int brickIndex = brickIndexOf(x, y, z);
         if (brickIndex < 0) {
-            return ClientViewProtocol.PALETTE_AIR;
+            return ViewStreamLimits.PALETTE_AIR;
         }
         Brick brick = bricks[brickIndex];
-        return brick == null ? ClientViewProtocol.PALETTE_AIR : brick.paletteIdAt(ClientViewProtocol.brickCellIndex(x, y, z));
+        return brick == null ? ViewStreamLimits.PALETTE_AIR : brick.paletteIdAt(ViewStreamLimits.brickCellIndex(x, y, z));
     }
 
     public boolean hasLight(int brickIndex) {
@@ -191,7 +191,7 @@ public final class ClientPlate implements ClientPortalContent {
     @Override
     public BlockEntitySample blockEntityAt(int x, int y, int z) {
         if (handoff != null) {
-            PlateCell<BlockState> cell = handoff.plate().cell(ProjectionCellKey.pack(x, y, z));
+            PlateCell<BlockState> cell = handoff.plate().cell(CellKeys.pack(x, y, z));
             return cell == null ? null : cell.blockEntity();
         }
         int brickIndex = brickIndexOf(x, y, z);
@@ -202,7 +202,7 @@ public final class ClientPlate implements ClientPortalContent {
         if (brick == null || !brick.hasBlockEntities()) {
             return null;
         }
-        int cellIndex = ClientViewProtocol.brickCellIndex(x, y, z);
+        int cellIndex = ViewStreamLimits.brickCellIndex(x, y, z);
         Brick.BlockEntityCell[] blockEntities = brick.blockEntities();
         for (int index = 0; index < blockEntities.length; index++) {
             if (blockEntities[index].cellIndex() == cellIndex) {
@@ -217,16 +217,16 @@ public final class ClientPlate implements ClientPortalContent {
     }
 
     private int handoffIdAt(int x, int y, int z) {
-        PlateCell<BlockState> cell = handoff.plate().cell(ProjectionCellKey.pack(x, y, z));
+        PlateCell<BlockState> cell = handoff.plate().cell(CellKeys.pack(x, y, z));
         if (cell == null) {
-            return ClientViewProtocol.PALETTE_AIR;
+            return ViewStreamLimits.PALETTE_AIR;
         }
         ProjectorSample.Kind kind = cell.kind();
         return switch (kind) {
-            case OCCLUDED -> ClientViewProtocol.PALETTE_OCCLUDED;
-            case BACKING_BLOCK -> ClientViewProtocol.PALETTE_BACKING;
+            case OCCLUDED -> ViewStreamLimits.PALETTE_OCCLUDED;
+            case BACKING_BLOCK -> ViewStreamLimits.PALETTE_BACKING;
             case BLOCK -> handoffBlockId(cell);
-            default -> ClientViewProtocol.PALETTE_AIR;
+            default -> ViewStreamLimits.PALETTE_AIR;
         };
     }
 
@@ -236,7 +236,7 @@ public final class ClientPlate implements ClientPortalContent {
             return known;
         }
         BlockState state = cell.data();
-        int id = state == null ? ClientViewProtocol.PALETTE_AIR : palette.localId(state);
+        int id = state == null ? ViewStreamLimits.PALETTE_AIR : palette.localId(state);
         handoffIds.put(cell, id);
         return id;
     }
@@ -247,8 +247,8 @@ public final class ClientPlate implements ClientPortalContent {
         }
         handoffLightKnown[brickIndex] = true;
         BrickLightSource light = handoff.light();
-        byte[] block = new byte[ClientViewProtocol.LIGHT_NIBBLE_BYTES];
-        byte[] sky = new byte[ClientViewProtocol.LIGHT_NIBBLE_BYTES];
+        byte[] block = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
+        byte[] sky = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
         if (!light.fill(sections.sectionX(brickIndex), sections.sectionY(brickIndex), sections.sectionZ(brickIndex), block, sky)) {
             return false;
         }

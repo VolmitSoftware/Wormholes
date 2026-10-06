@@ -11,9 +11,11 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
 
-import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Face;
 import art.arcane.volmlib.util.inventorygui.Window;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.QuarterTurn;
 
 public interface ILocalPortal extends IPortal, IWritable, Listener, TraversalAdmissionPolicy.InboundPortal, ProjectorViewSettings
 {
@@ -77,9 +79,9 @@ public interface ILocalPortal extends IPortal, IWritable, Listener, TraversalAdm
 
 	public boolean canArrive(Entity entity);
 
-	public void setDirection(Direction d);
+	public void setDirection(Face d);
 
-	public void setFrame(PortalFrame frame);
+	public void setFrame(Frame frame);
 
 	public ITunnel getTunnel();
 
@@ -133,9 +135,9 @@ public interface ILocalPortal extends IPortal, IWritable, Listener, TraversalAdm
 
 	public void setMirrorMode(boolean mirrorMode);
 
-	public MirrorRotation getMirrorRotation();
+	public QuarterTurn getMirrorRotation();
 
-	public void setMirrorRotation(MirrorRotation rotation);
+	public void setMirrorRotation(QuarterTurn rotation);
 
 	public PortalPermissionMode getPermissionMode();
 
@@ -217,11 +219,11 @@ public interface ILocalPortal extends IPortal, IWritable, Listener, TraversalAdm
 		return hasSurfaceSkin() && !BukkitPortalSurfaces.isTransparentSkin(getSurfaceSkin());
 	}
 
-	public AxisAlignedBB getView();
+	public Box getView();
 
 	public World getWorld();
 
 	public Location getCenter();
 
-	public AxisAlignedBB getArea();
+	public Box getArea();
 }

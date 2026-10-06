@@ -1,8 +1,7 @@
 package art.arcane.wormholes.door;
 
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 
-import art.arcane.wormholes.util.Direction;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -13,20 +12,20 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class DoorPortalAnimationTest
 {
 	private static final float EPSILON = 0.0001F;
-	private static final Direction[] CARDINALS =
-		{Direction.N, Direction.S, Direction.E, Direction.W};
+	private static final Face[] CARDINALS =
+		{Face.N, Face.S, Face.E, Face.W};
 
 	@Test
 	void frameNeverTouchesTheNormalAxis()
 	{
-		for(Direction facing : CARDINALS)
+		for(Face facing : CARDINALS)
 		{
 			PortalPlaneGeometry base = overlay(facing);
 			for(int tick = 0; tick <= 288; tick += DoorPortalAnimation.FRAME_PERIOD_TICKS)
 			{
 				PortalPlaneGeometry frame =
 					DoorPortalAnimation.frame(base, facing, tick);
-				if(facing == Direction.N || facing == Direction.S)
+				if(facing == Face.N || facing == Face.S)
 				{
 					assertEquals(base.translationZ(), frame.translationZ(), EPSILON);
 					assertEquals(base.scaleZ(), frame.scaleZ(), EPSILON);
@@ -43,7 +42,7 @@ class DoorPortalAnimationTest
 	@Test
 	void framePulsesInsideTheBaseEnvelopeAndStaysCentered()
 	{
-		for(Direction facing : CARDINALS)
+		for(Face facing : CARDINALS)
 		{
 			PortalPlaneGeometry base = overlay(facing);
 			float baseLateralScale = lateralScale(base, facing);
@@ -72,7 +71,7 @@ class DoorPortalAnimationTest
 	@Test
 	void frameActuallyAnimatesBetweenTicks()
 	{
-		for(Direction facing : CARDINALS)
+		for(Face facing : CARDINALS)
 		{
 			PortalPlaneGeometry base = overlay(facing);
 			PortalPlaneGeometry first =
@@ -93,7 +92,7 @@ class DoorPortalAnimationTest
 	@Test
 	void orbitPointsStayOnTheVisiblePanel()
 	{
-		for(Direction facing : CARDINALS)
+		for(Face facing : CARDINALS)
 		{
 			PortalPlaneGeometry base = overlay(facing);
 			for(int tick = 0; tick <= 288; tick += DoorPortalAnimation.FRAME_PERIOD_TICKS)
@@ -109,12 +108,12 @@ class DoorPortalAnimationTest
 	@Test
 	void counterRotatingArmsDiverge()
 	{
-		PortalPlaneGeometry base = overlay(Direction.N);
+		PortalPlaneGeometry base = overlay(Face.N);
 		boolean diverged = false;
 		for(int tick = 0; tick <= 44; tick += DoorPortalAnimation.FRAME_PERIOD_TICKS)
 		{
-			double[] first = DoorPortalAnimation.orbitPoint(base, Direction.N, tick, 0);
-			double[] second = DoorPortalAnimation.orbitPoint(base, Direction.N, tick, 1);
+			double[] first = DoorPortalAnimation.orbitPoint(base, Face.N, tick, 0);
+			double[] second = DoorPortalAnimation.orbitPoint(base, Face.N, tick, 1);
 			if(Math.abs(first[0] - second[0]) > 0.05D || Math.abs(first[1] - second[1]) > 0.05D)
 			{
 				diverged = true;
@@ -127,7 +126,7 @@ class DoorPortalAnimationTest
 	@Test
 	void scatterPointsCoverThePanelWithoutLeavingIt()
 	{
-		for(Direction facing : CARDINALS)
+		for(Face facing : CARDINALS)
 		{
 			PortalPlaneGeometry base = overlay(facing);
 			assertOnPanel(base, facing, DoorPortalAnimation.scatterPoint(base, facing, 0.0D, 0.0D));
@@ -145,14 +144,14 @@ class DoorPortalAnimationTest
 			0,
 			64,
 			0,
-			Direction.S,
+			Face.S,
 			DoorHalf.BOTTOM,
 			DoorOpenState.OPEN);
 		PortalPlaneGeometry base = DoorPortalGeometry.overlayGeometry(
-			DoorPortalGeometry.planeGeometry(plane, DoorHinge.LEFT), Direction.U);
+			DoorPortalGeometry.planeGeometry(plane, DoorHinge.LEFT), Face.U);
 		float baseCenterX = base.translationX() + (base.scaleX() / 2.0F);
 		float baseCenterZ = base.translationZ() + (base.scaleZ() / 2.0F);
-		for(Direction face : new Direction[] {Direction.U, Direction.D})
+		for(Face face : new Face[] {Face.U, Face.D})
 		{
 			for(int tick = 0; tick <= 288; tick += DoorPortalAnimation.FRAME_PERIOD_TICKS)
 			{
@@ -185,20 +184,20 @@ class DoorPortalAnimationTest
 	@Test
 	void invalidInputsAreRejected()
 	{
-		PortalPlaneGeometry base = overlay(Direction.N);
+		PortalPlaneGeometry base = overlay(Face.N);
 		assertThrows(NullPointerException.class,
-			() -> DoorPortalAnimation.frame(null, Direction.N, 0));
+			() -> DoorPortalAnimation.frame(null, Face.N, 0));
 		assertThrows(IllegalArgumentException.class,
-			() -> DoorPortalAnimation.orbitPoint(base, Direction.N, 0, DoorPortalAnimation.ORBIT_ARMS));
+			() -> DoorPortalAnimation.orbitPoint(base, Face.N, 0, DoorPortalAnimation.ORBIT_ARMS));
 		assertThrows(IllegalArgumentException.class,
-			() -> DoorPortalAnimation.orbitPoint(base, Direction.N, 0, -1));
+			() -> DoorPortalAnimation.orbitPoint(base, Face.N, 0, -1));
 		assertThrows(IllegalArgumentException.class,
-			() -> DoorPortalAnimation.scatterPoint(base, Direction.N, 1.0D, 0.5D));
+			() -> DoorPortalAnimation.scatterPoint(base, Face.N, 1.0D, 0.5D));
 		assertThrows(IllegalArgumentException.class,
-			() -> DoorPortalAnimation.scatterPoint(base, Direction.N, 0.5D, -0.1D));
+			() -> DoorPortalAnimation.scatterPoint(base, Face.N, 0.5D, -0.1D));
 	}
 
-	private static PortalPlaneGeometry overlay(Direction facing)
+	private static PortalPlaneGeometry overlay(Face facing)
 	{
 		return DoorPortalGeometry.overlayGeometry(
 			DoorPortalGeometry.geometry(facing, DoorHinge.LEFT), facing);
@@ -206,12 +205,12 @@ class DoorPortalAnimationTest
 
 	private static void assertOnPanel(
 		PortalPlaneGeometry base,
-		Direction facing,
+		Face facing,
 		double[] point)
 	{
 		assertTrue(point[1] >= base.translationY() - EPSILON);
 		assertTrue(point[1] <= base.translationY() + base.scaleY() + EPSILON);
-		if(facing == Direction.N || facing == Direction.S)
+		if(facing == Face.N || facing == Face.S)
 		{
 			assertTrue(point[0] >= base.translationX() - EPSILON);
 			assertTrue(point[0] <= base.translationX() + base.scaleX() + EPSILON);
@@ -227,18 +226,18 @@ class DoorPortalAnimationTest
 
 	private static float lateralScale(
 		PortalPlaneGeometry geometry,
-		Direction facing)
+		Face facing)
 	{
-		return facing == Direction.N || facing == Direction.S
+		return facing == Face.N || facing == Face.S
 			? geometry.scaleX()
 			: geometry.scaleZ();
 	}
 
 	private static float lateralTranslation(
 		PortalPlaneGeometry geometry,
-		Direction facing)
+		Face facing)
 	{
-		return facing == Direction.N || facing == Direction.S
+		return facing == Face.N || facing == Face.S
 			? geometry.translationX()
 			: geometry.translationZ();
 	}

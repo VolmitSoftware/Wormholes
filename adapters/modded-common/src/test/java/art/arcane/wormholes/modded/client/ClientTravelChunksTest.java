@@ -2,7 +2,7 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.network.client.ClientTravelHash;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
+import art.arcane.optics.stream.ViewStreamLimits;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -26,7 +26,7 @@ public class ClientTravelChunksTest {
     @Test
     public void outOfOrderFragmentsRequireCompleteExactBarrierAndPreserveBytes() {
         ClientTravelChunks chunks = chunks();
-        byte[] source = new byte[ClientViewProtocol.TRAVEL_FRAGMENT_BYTES + 7];
+        byte[] source = new byte[ViewStreamLimits.TRAVEL_FRAGMENT_BYTES + 7];
         Arrays.fill(source, (byte) 29);
         source[source.length - 1] = 91;
         chunks.end(end(1, 1));
@@ -57,7 +57,7 @@ public class ClientTravelChunksTest {
         chunks.accept(fragment(new byte[]{1}, 1, 0));
         chunks.end(end(1, 1));
         assertEquals(1, chunks.completeRevision());
-        byte[] replacement = new byte[ClientViewProtocol.TRAVEL_FRAGMENT_BYTES + 1];
+        byte[] replacement = new byte[ViewStreamLimits.TRAVEL_FRAGMENT_BYTES + 1];
         assertNull(chunks.accept(fragment(replacement, 2, 0)));
         assertEquals(0, chunks.completeRevision());
         assertArrayEquals(replacement, chunks.accept(fragment(replacement, 2, 1)));
@@ -81,7 +81,7 @@ public class ClientTravelChunksTest {
     @Test
     public void olderAssemblyCannotOverwriteNewerPendingColumn() {
         ClientTravelChunks chunks = chunks();
-        byte[] source = new byte[ClientViewProtocol.TRAVEL_FRAGMENT_BYTES + 7];
+        byte[] source = new byte[ViewStreamLimits.TRAVEL_FRAGMENT_BYTES + 7];
         assertNull(chunks.accept(fragment(source, 2, 0)));
         assertNull(chunks.accept(fragment(source, 1, 1)));
         chunks.end(end(2, 2));
@@ -127,9 +127,9 @@ public class ClientTravelChunksTest {
     }
 
     private static ClientViewMessage.TravelChunk fragment(byte[] source, int revision, int index) {
-        int offset = index * ClientViewProtocol.TRAVEL_FRAGMENT_BYTES;
+        int offset = index * ViewStreamLimits.TRAVEL_FRAGMENT_BYTES;
         return new ClientViewMessage.TravelChunk(TOKEN, GENERATION, COORDINATE.x(), COORDINATE.z(), revision, index,
-            (source.length + ClientViewProtocol.TRAVEL_FRAGMENT_BYTES - 1) / ClientViewProtocol.TRAVEL_FRAGMENT_BYTES,
-            source.length, Arrays.copyOfRange(source, offset, Math.min(source.length, offset + ClientViewProtocol.TRAVEL_FRAGMENT_BYTES)));
+            (source.length + ViewStreamLimits.TRAVEL_FRAGMENT_BYTES - 1) / ViewStreamLimits.TRAVEL_FRAGMENT_BYTES,
+            source.length, Arrays.copyOfRange(source, offset, Math.min(source.length, offset + ViewStreamLimits.TRAVEL_FRAGMENT_BYTES)));
     }
 }

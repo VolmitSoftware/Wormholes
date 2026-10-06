@@ -11,7 +11,7 @@ import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.portal.DimensionalPortalKind;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.PortalStructure;
-import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.optics.math.Box;
 
 final class VanillaPortalNetherSites
 {
@@ -131,7 +131,7 @@ final class VanillaPortalNetherSites
 				continue;
 			}
 			PortalStructure structure = portal.getStructure();
-			AxisAlignedBB area = structure == null ? null : structure.getArea();
+			Box area = structure == null ? null : structure.getArea();
 			if(area == null)
 			{
 				continue;

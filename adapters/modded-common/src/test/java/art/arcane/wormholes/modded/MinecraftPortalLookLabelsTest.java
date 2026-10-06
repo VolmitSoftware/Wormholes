@@ -1,12 +1,11 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.portal.ToolPreviewGeometry;
 import art.arcane.wormholes.portal.Portal;
-import art.arcane.wormholes.portal.PortalFrame;
-import art.arcane.wormholes.portal.PortalGeometry;
-import art.arcane.wormholes.util.Axis;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.aperture.ApertureCells;
+import art.arcane.optics.math.Axis;
+import art.arcane.optics.math.Face;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket;
@@ -36,7 +35,7 @@ import static org.mockito.Mockito.when;
 public class MinecraftPortalLookLabelsTest extends MinecraftTestBase {
     @Test
     public void lookingAtRequiresRangeFromTheCentreAndARayThroughAnApertureCell() {
-        PortalGeometry geometry = plane(0, 1, 64, 65, 4);
+        ApertureCells geometry = plane(0, 1, 64, 65, 4);
         Vec3 position = new Vec3(1.0D, 64.0D, 0.0D);
         Vec3 eye = new Vec3(1.0D, 65.62D, 0.0D);
 
@@ -49,8 +48,8 @@ public class MinecraftPortalLookLabelsTest extends MinecraftTestBase {
 
     @Test
     public void lookingAtMissesHolesInsideTheApertureBounds() {
-        PortalGeometry geometry = new PortalGeometry();
-        geometry.setBlocks(List.of(new GeometryVector(0, 64, 4), new GeometryVector(2, 64, 4)));
+        ApertureCells geometry = new ApertureCells();
+        geometry.setBlocks(List.of(new art.arcane.optics.math.Vec3(0, 64, 4), new art.arcane.optics.math.Vec3(2, 64, 4)));
 
         assertTrue(MinecraftPortalLookLabels.isLookingAt(geometry, new Vec3(0.5D, 64.0D, 0.0D),
             new Vec3(0.5D, 64.5D, 0.0D), new Vec3(0.0D, 0.0D, 1.0D)));
@@ -60,7 +59,7 @@ public class MinecraftPortalLookLabelsTest extends MinecraftTestBase {
 
     @Test
     public void lookingAtStopsSixteenBlocksFromTheEye() {
-        PortalGeometry geometry = plane(-20, 20, 64, 64, 4);
+        ApertureCells geometry = plane(-20, 20, 64, 64, 4);
         Vec3 position = new Vec3(0.5D, 64.0D, 0.0D);
         Vec3 eye = new Vec3(0.5D, 64.5D, 0.0D);
         Vec3 near = new Vec3(10.0D, 0.0D, 4.0D).normalize();
@@ -84,7 +83,7 @@ public class MinecraftPortalLookLabelsTest extends MinecraftTestBase {
         MinecraftPortal close = portal(plane(0, 1, 64, 65, 4), false);
         MinecraftPortal distant = portal(plane(1000, 1001, 64, 65, 4), false);
         MinecraftPortal nether = new MinecraftPortal(new MinecraftPortal.Definition(new Portal.State(UUID.randomUUID(),
-            new GeometryVector(0, 64, 4), "Nether", PortalFrame.canonical(Direction.N), true), plane(0, 1, 64, 65, 4),
+            new art.arcane.optics.math.Vec3(0, 64, 4), "Nether", Frame.canonical(Face.N), true), plane(0, 1, 64, 65, 4),
             "minecraft:the_nether", Map.of("type", "PORTAL")));
         MinecraftPortalCandidates candidates = MinecraftPortalCandidates.capture(List.of(close, distant, nether), 32.0D);
 
@@ -101,7 +100,7 @@ public class MinecraftPortalLookLabelsTest extends MinecraftTestBase {
         ToolPreviewGeometry.Geometry rectangle = ToolPreviewGeometry.build(
             plane(0, 1, 64, 65, 4).getBlockPositions(), Axis.Z);
         ToolPreviewGeometry.Geometry lShape = ToolPreviewGeometry.build(List.of(
-            new GeometryVector(0, 64, 4), new GeometryVector(1, 64, 4), new GeometryVector(0, 65, 4)), Axis.Z);
+            new art.arcane.optics.math.Vec3(0, 64, 4), new art.arcane.optics.math.Vec3(1, 64, 4), new art.arcane.optics.math.Vec3(0, 65, 4)), Axis.Z);
 
         assertEquals(4, rectangle.cells().size());
         assertEquals(8 * 4, rectangle.outlinePoints().size());
@@ -161,22 +160,22 @@ public class MinecraftPortalLookLabelsTest extends MinecraftTestBase {
         return packets;
     }
 
-    private static PortalGeometry plane(int minX, int maxX, int minY, int maxY, int z) {
-        List<GeometryVector> cells = new ArrayList<>();
+    private static ApertureCells plane(int minX, int maxX, int minY, int maxY, int z) {
+        List<art.arcane.optics.math.Vec3> cells = new ArrayList<>();
         for (int x = minX; x <= maxX; x++) {
             for (int y = minY; y <= maxY; y++) {
-                cells.add(new GeometryVector(x, y, z));
+                cells.add(new art.arcane.optics.math.Vec3(x, y, z));
             }
         }
-        PortalGeometry geometry = new PortalGeometry();
+        ApertureCells geometry = new ApertureCells();
         geometry.setBlocks(cells);
         return geometry;
     }
 
-    private static MinecraftPortal portal(PortalGeometry geometry, boolean publicLookLabel) {
+    private static MinecraftPortal portal(ApertureCells geometry, boolean publicLookLabel) {
         UUID id = UUID.randomUUID();
         MinecraftPortal portal = new MinecraftPortal(new MinecraftPortal.Definition(new Portal.State(id, geometry.getApertureCenter(),
-            "Look", PortalFrame.canonical(Direction.N), true), geometry, "minecraft:overworld", Map.of("owner", id.toString(), "type", "PORTAL")));
+            "Look", Frame.canonical(Face.N), true), geometry, "minecraft:overworld", Map.of("owner", id.toString(), "type", "PORTAL")));
         portal.setPublicLookLabel(publicLookLabel);
         return portal;
     }

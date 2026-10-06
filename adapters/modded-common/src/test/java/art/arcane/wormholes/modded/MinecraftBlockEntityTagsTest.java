@@ -1,8 +1,8 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
-import art.arcane.wormholes.render.blockentity.BlockEntitySanitizer;
-import art.arcane.wormholes.render.ProjectionCellKey;
+import art.arcane.optics.fidelity.BlockEntitySample;
+import art.arcane.optics.fidelity.BlockEntitySanitizer;
+import art.arcane.optics.math.CellKeys;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -64,7 +64,7 @@ public class MinecraftBlockEntityTagsTest {
         BlockEntitySample sample = BlockEntitySanitizer.sanitize("minecraft:chest", source,
             new BlockEntitySanitizer.Options<>(List.of("minecraft:chest"), true, MinecraftBlockEntityTags.INSTANCE));
         ClientboundBlockEntityDataPacket packet = MinecraftBlockEntityPackets.packet(
-            RegistryAccess.fromRegistryOfRegistries(BuiltInRegistries.REGISTRY), ProjectionCellKey.pack(-33, -12, 65), sample);
+            RegistryAccess.fromRegistryOfRegistries(BuiltInRegistries.REGISTRY), CellKeys.pack(-33, -12, 65), sample);
         assertEquals(new BlockPos(-33, -12, 65), packet.getPos());
         assertSame(BuiltInRegistries.BLOCK_ENTITY_TYPE.getOptional(Identifier.parse("minecraft:chest")).orElseThrow(), packet.getType());
         assertTrue(packet.getTag().contains("CustomName"));

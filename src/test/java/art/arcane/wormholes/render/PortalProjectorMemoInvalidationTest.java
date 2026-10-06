@@ -16,6 +16,10 @@ import java.util.function.LongUnaryOperator;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.render.view.ProjectionWorldView;
+import art.arcane.optics.scan.ProjectorRemoteFootprint;
+import art.arcane.optics.scan.ProjectorSample;
+import art.arcane.optics.scan.ProjectorSampleMemo;
+import art.arcane.optics.view.WorldChangeTracker;
 
 public final class PortalProjectorMemoInvalidationTest {
     private static final UUID DESTINATION_WORLD = UUID.fromString("00000000-0000-0000-0000-0000000000d1");
@@ -54,7 +58,7 @@ public final class PortalProjectorMemoInvalidationTest {
         ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
         memo.refreshDestination(11L);
 
-        assertFalse(memo.destinationStale(11L, false, since -> ProjectionWorldChangeTracker.AFFECTED));
+        assertFalse(memo.destinationStale(11L, false, since -> WorldChangeTracker.AFFECTED));
         assertTrue(memo.destinationStale(12L, false, since -> since));
     }
 
@@ -63,7 +67,7 @@ public final class PortalProjectorMemoInvalidationTest {
         ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
         memo.refreshDestination(0L);
 
-        assertTrue(memo.destinationStale(0L, true, since -> ProjectionWorldChangeTracker.AFFECTED));
+        assertTrue(memo.destinationStale(0L, true, since -> WorldChangeTracker.AFFECTED));
         assertFalse(memo.destinationStale(0L, true, since -> since));
     }
 
@@ -111,7 +115,7 @@ public final class PortalProjectorMemoInvalidationTest {
 
     @Test
     public void aBlockChangeInsideTheScannedFootprintDropsTheMemosOnTheVeryNextPass() {
-        ProjectionWorldChangeTracker tracker = new ProjectionWorldChangeTracker();
+        WorldChangeTracker tracker = new WorldChangeTracker();
         ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = new ProjectorSampleMemo<BlockData, Material, ProjectionWorldView>(
             BukkitProjectorBlocks.defaults(), () -> tracker);
         ProjectorRemoteFootprint footprint = new ProjectorRemoteFootprint();

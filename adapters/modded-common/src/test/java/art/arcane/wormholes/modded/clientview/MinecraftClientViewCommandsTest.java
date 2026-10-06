@@ -9,12 +9,12 @@ import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.modded.MinecraftAccessService;
 import art.arcane.wormholes.modded.MinecraftLocalization;
 import art.arcane.wormholes.modded.WormholesModRuntime;
-import art.arcane.wormholes.network.client.ClientViewCapability;
+import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.render.client.session.ClientViewOptions;
 import art.arcane.wormholes.render.client.session.ClientViewServerSession;
 import art.arcane.wormholes.render.client.session.ClientViewSessionRegistry;
-import art.arcane.wormholes.render.client.session.ClientViewSessionState;
+import art.arcane.optics.stream.ClientViewSessionState;
 import art.arcane.wormholes.render.client.session.ClientViewSessionStats;
 import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.CommandDispatcher;
@@ -95,7 +95,7 @@ public class MinecraftClientViewCommandsTest extends MinecraftTestBase {
     @Test
     public void statusPrintsTheSharedCatalogRepliesForEverySession() throws CommandSyntaxException {
         when(registry.stats()).thenReturn(List.of(new ClientViewSessionStats(ALEX, 1, ClientViewSessionState.CLIENT_VIEW,
-            ClientViewCapability.of(ClientViewCapability.PLATES), 2, 7L, 3072L, 5L, 1, 4L, 12_500L, 900L, 30L, 0L, 0L, 0L, 0L, null)));
+            ViewStreamCapability.of(ViewStreamCapability.PLATES), 2, 7L, 3072L, 5L, 1, 4L, 12_500L, 900L, 30L, 0L, 0L, 0L, 0L, null)));
         when(registry.session(ALEX)).thenReturn(session);
 
         assertEquals(1, dispatcher.execute("wormholes clientview status", admin));

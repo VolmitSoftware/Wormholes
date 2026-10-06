@@ -2,7 +2,7 @@ package art.arcane.wormholes.portal;
 
 import art.arcane.wormholes.util.BukkitJsonDocuments;
 
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 
 import art.arcane.wormholes.util.GeometryPersistence;
 
@@ -18,22 +18,24 @@ import org.bukkit.block.Block;
 import org.bukkit.util.Vector;
 
 import art.arcane.wormholes.Settings;
-import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.optics.math.Box;
 import art.arcane.wormholes.util.Cuboid;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
 import art.arcane.volmlib.util.collection.KSet;
 import art.arcane.volmlib.util.bukkit.WorldIdentity;
 import art.arcane.volmlib.util.json.JSONObject;
+import art.arcane.optics.aperture.ApertureCells;
+import art.arcane.optics.aperture.CellAperture;
 
-public class PortalStructure implements IWritable, PortalCellAperture
+public class PortalStructure implements IWritable, CellAperture
 {
-	private AxisAlignedBB captureZone;
-	private final PortalGeometry geometry = new PortalGeometry();
-	private AxisAlignedBB box;
+	private Box captureZone;
+	private final ApertureCells geometry = new ApertureCells();
+	private Box box;
 	private World world;
-	private KMap<Direction, AxisAlignedBB> faceCache = new KMap<>();
+	private KMap<Face, Box> faceCache = new KMap<>();
 
 	private KSet<Location> cornerCache;
 	private volatile Location centerCache;
@@ -73,13 +75,13 @@ public class PortalStructure implements IWritable, PortalCellAperture
 		return world;
 	}
 
-	public AxisAlignedBB getBox()
+	public Box getBox()
 	{
 		if(box == null)
 		{
-			Location min = corner(Direction.W, Direction.D, Direction.N);
-			Location max = corner(Direction.E, Direction.U, Direction.S);
-			box = new AxisAlignedBB(min.getX(), max.getX(), min.getY(), max.getY(), min.getZ(), max.getZ());
+			Location min = corner(Face.W, Face.D, Face.N);
+			Location max = corner(Face.E, Face.U, Face.S);
+			box = new Box(min.getX(), max.getX(), min.getY(), max.getY(), min.getZ(), max.getZ());
 		}
 
 		return box;
@@ -90,7 +92,7 @@ public class PortalStructure implements IWritable, PortalCellAperture
 		Location cached = centerCache;
 		if(cached == null)
 		{
-			GeometryVector center = geometry.getApertureCenter();
+			Vec3 center = geometry.getApertureCenter();
 			cached = new Location(getWorld(), center.x(), center.y(), center.z());
 			centerCache = cached;
 		}
@@ -98,14 +100,14 @@ public class PortalStructure implements IWritable, PortalCellAperture
 	}
 
 	@Override
-	public GeometryVector getApertureCenter()
+	public Vec3 getApertureCenter()
 	{
 		return geometry.getApertureCenter();
 	}
 
 	public Location randomCellCentre()
 	{
-		GeometryVector centre = geometry.randomCellCentre();
+		Vec3 centre = geometry.randomCellCentre();
 		return centre == null ? null : new Location(getWorld(), centre.x(), centre.y(), centre.z());
 	}
 
@@ -120,26 +122,26 @@ public class PortalStructure implements IWritable, PortalCellAperture
 		if(cornerCache == null)
 		{
 			cornerCache = new KSet<Location>();
-			cornerCache.add(corner(Direction.W, Direction.U, Direction.N));
-			cornerCache.add(corner(Direction.W, Direction.U, Direction.S));
-			cornerCache.add(corner(Direction.W, Direction.D, Direction.N));
-			cornerCache.add(corner(Direction.W, Direction.D, Direction.S));
-			cornerCache.add(corner(Direction.E, Direction.U, Direction.N));
-			cornerCache.add(corner(Direction.E, Direction.U, Direction.S));
-			cornerCache.add(corner(Direction.E, Direction.D, Direction.N));
-			cornerCache.add(corner(Direction.E, Direction.D, Direction.S));
+			cornerCache.add(corner(Face.W, Face.U, Face.N));
+			cornerCache.add(corner(Face.W, Face.U, Face.S));
+			cornerCache.add(corner(Face.W, Face.D, Face.N));
+			cornerCache.add(corner(Face.W, Face.D, Face.S));
+			cornerCache.add(corner(Face.E, Face.U, Face.N));
+			cornerCache.add(corner(Face.E, Face.U, Face.S));
+			cornerCache.add(corner(Face.E, Face.D, Face.N));
+			cornerCache.add(corner(Face.E, Face.D, Face.S));
 		}
 
 		return cornerCache;
 	}
 
-	private Location corner(Direction x, Direction y, Direction z)
+	private Location corner(Face x, Face y, Face z)
 	{
-		GeometryVector v = getArea().getCornerVector(x, y, z);
+		Vec3 v = getArea().getCornerVector(x, y, z);
 		return new Location(getWorld(), v.getX(), v.getY(), v.getZ());
 	}
 
-	public AxisAlignedBB getFace(Direction face)
+	public Box getFace(Face face)
 	{
 		if(!faceCache.containsKey(face))
 		{
@@ -149,7 +151,7 @@ public class PortalStructure implements IWritable, PortalCellAperture
 		return faceCache.get(face);
 	}
 
-	public AxisAlignedBB getArea()
+	public Box getArea()
 	{
 		return geometry.getArea();
 	}
@@ -169,12 +171,12 @@ public class PortalStructure implements IWritable, PortalCellAperture
 	public void setBlocks(Set<Block> blocks)
 	{
         if(blocks == null || blocks.isEmpty()) { return; }
-        ArrayList<GeometryVector> cells = new ArrayList<>(blocks.size());
+        ArrayList<Vec3> cells = new ArrayList<>(blocks.size());
         World blockWorld = null;
         for(Block block : blocks) {
             if(block == null || block.getWorld() == null) { continue; }
             blockWorld = block.getWorld();
-            cells.add(new GeometryVector(block.getX(), block.getY(), block.getZ()));
+            cells.add(new Vec3(block.getX(), block.getY(), block.getZ()));
         }
         if(cells.isEmpty()) { return; }
         setWorld(blockWorld);
@@ -211,14 +213,14 @@ public class PortalStructure implements IWritable, PortalCellAperture
 	public KList<Vector> getBlockPositions()
 	{
 		KList<Vector> copy = new KList<Vector>();
-		for(GeometryVector block : geometry.getBlockPositions())
+		for(Vec3 block : geometry.getBlockPositions())
 		{
 			copy.add(BukkitGeometry.bukkit(block));
 		}
 		return copy;
 	}
 
-	public List<AxisAlignedBB> getCachedApertureFaces(Direction face)
+	public List<Box> getCachedApertureFaces(Face face)
 	{
         return geometry.getCachedApertureFaces(face);
 	}
@@ -243,7 +245,7 @@ public class PortalStructure implements IWritable, PortalCellAperture
 		return getArea().volume();
 	}
 
-	public AxisAlignedBB getCaptureZone()
+	public Box getCaptureZone()
 	{
 		return captureZone;
 	}
@@ -253,7 +255,7 @@ public class PortalStructure implements IWritable, PortalCellAperture
 		captureZone = geometry.captureZone(Settings.CAPTURE_ZONE_RADIUS);
 	}
 
-    public PortalGeometry geometry() {
+    public ApertureCells geometry() {
         return geometry;
     }
 

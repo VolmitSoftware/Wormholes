@@ -2,7 +2,9 @@ package art.arcane.wormholes.network.client;
 
 import java.util.Objects;
 
-import art.arcane.wormholes.render.plate.ViewPlate;
+import art.arcane.optics.plate.ViewPlate;
+import art.arcane.optics.stream.BrickLightSource;
+import art.arcane.optics.stream.ViewStreamLimits;
 
 public record PlateHandoff<B>(long handle,
                               int portalKey,
@@ -18,7 +20,7 @@ public record PlateHandoff<B>(long handle,
     }
 
     public boolean expired(long nowNanos) {
-        return nowNanos - createdNanos > ClientViewProtocol.HANDOFF_EXPIRY_NANOS;
+        return nowNanos - createdNanos > ViewStreamLimits.HANDOFF_EXPIRY_NANOS;
     }
 
     public ClientViewMessage.PlateHandle message() {

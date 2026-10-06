@@ -1,6 +1,6 @@
 package art.arcane.wormholes.ops.importers;
 
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -61,7 +61,7 @@ class AdvancedPortalsImporterTest {
         assertEquals(10, created.x());
         assertEquals(64, created.y());
         assertEquals(20, created.z());
-        assertEquals(Direction.N, created.facing());
+        assertEquals(Face.N, created.facing());
         assertEquals(3, created.width());
         assertEquals(3, created.height());
         assertEquals("spawn", created.destination());
@@ -91,7 +91,7 @@ class AdvancedPortalsImporterTest {
             .importFrom(serverRoot, false, new RecordingPortalFactory());
 
         assertEquals(1, report.createdCount());
-        assertEquals(Direction.E, factoryFacing());
+        assertEquals(Face.E, factoryFacing());
         assertTrue(report.notes().stream().anyMatch(note -> note.contains("destinations.yml")), report.notes().toString());
     }
 
@@ -102,7 +102,7 @@ class AdvancedPortalsImporterTest {
         assertEquals(0, importer.importFrom(serverRoot, true, new RecordingPortalFactory()).createdCount());
     }
 
-    private Direction factoryFacing() throws IOException {
+    private Face factoryFacing() throws IOException {
         RecordingPortalFactory factory = new RecordingPortalFactory();
         new AdvancedPortalsImporter().importFrom(serverRoot, false, factory);
         return factory.created().get(0).facing();

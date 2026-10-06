@@ -32,19 +32,21 @@ import io.github.retrooper.packetevents.util.SpigotReflectionUtil;
 
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
-import art.arcane.wormholes.network.client.BrickLightSource;
-import art.arcane.wormholes.network.view.EntityVisual;
+import art.arcane.optics.stream.BrickLightSource;
+import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.wormholes.network.view.PacketBlobs;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.IPortal;
-import art.arcane.wormholes.render.client.ClientViewEntityTransform;
-import art.arcane.wormholes.render.client.session.ClientViewPlateLight;
-import art.arcane.wormholes.render.plate.PlateBox;
-import art.arcane.wormholes.render.plate.ViewPlate;
-import art.arcane.wormholes.render.view.ProjectionContentView;
+import art.arcane.optics.client.ClientViewEntityTransform;
+import art.arcane.optics.client.PlateLight;
+import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.plate.ViewPlate;
+import art.arcane.optics.view.ContentView;
 import art.arcane.wormholes.render.view.ProjectionEntityView;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
+import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.entity.ItemFrameTransform;
 
 public final class ClientViewSceneCapture {
     private static final long BLOB_RECAPTURE_TICKS = 40L;
@@ -56,7 +58,7 @@ public final class ClientViewSceneCapture {
 
     private final long secret;
     private final ClientViewEntityTransform transform;
-    private final ClientViewPlateLight.Cache<BlockData> lights;
+    private final PlateLight.Cache<BlockData> lights;
     private final Map<UUID, Blobs> blobs;
     private final Map<UUID, Patched> patched;
     private final ConcurrentHashMap<UUID, Source> sources;
@@ -65,24 +67,24 @@ public final class ClientViewSceneCapture {
     public ClientViewSceneCapture() {
         this.secret = new SecureRandom().nextLong();
         this.transform = new ClientViewEntityTransform();
-        this.lights = new ClientViewPlateLight.Cache<BlockData>();
+        this.lights = new PlateLight.Cache<BlockData>();
         this.blobs = new HashMap<UUID, Blobs>();
         this.patched = new HashMap<UUID, Patched>();
         this.sources = new ConcurrentHashMap<UUID, Source>();
     }
 
-    public synchronized List<EntityVisual> entities(ClientViewPortalSource source, ClientViewEntityTransform.Frame frame, long tick, boolean nativeMesh) {
+    public synchronized List<EntitySnapshot> entities(ClientViewPortalSource source, ClientViewEntityTransform.EntityFrame frame, long tick, boolean nativeMesh) {
         ProjectionWorldView view = source.destinationView();
         if (frame == null || view == null || !Settings.ENTITY_SPOOFING || Settings.MAX_SPOOFED_ENTITIES <= 0) {
             return List.of();
         }
         double range = Math.min(Settings.ENTITY_SPOOF_RANGE, frame.depth());
         boolean upsideDown = !nativeMesh && transform.upsideDown(frame);
-        List<EntityVisual> out = new ArrayList<EntityVisual>();
+        List<EntitySnapshot> out = new ArrayList<EntitySnapshot>();
         if (view instanceof ProjectionEntityView entityView && (source.regionSnapshots() || source.destinationWorld() == null)) {
-            List<EntityVisual> visuals = entityView.getEntities(frame.remoteOriginX(), frame.remoteOriginY(), frame.remoteOriginZ(), range);
+            List<EntitySnapshot> visuals = entityView.getEntities(frame.remoteOriginX(), frame.remoteOriginY(), frame.remoteOriginZ(), range);
             for (int i = 0; i < visuals.size() && out.size() < Settings.MAX_SPOOFED_ENTITIES; i++) {
-                EntityVisual visual = visuals.get(i);
+                EntitySnapshot visual = visuals.get(i);
                 project(withProfile(visual, entityView.getProfile(visual.id())), frame, upsideDown, tick, new Source(entityView, visual.id(), true), out, nativeMesh);
             }
         } else if (source.destinationWorld() != null) {
@@ -132,7 +134,7 @@ public final class ClientViewSceneCapture {
         if (!mesh && policy == ProjectedBlockClaim.LightingPolicy.LOCAL) {
             return BrickLightSource.NONE;
         }
-        ClientViewEntityTransform.Frame frame = source.transformFrame();
+        ClientViewEntityTransform.EntityFrame frame = source.transformFrame();
         World world = source.destinationWorld();
         ProjectionWorldView view = source.destinationView();
         if (frame == null || world == null || view == null) {
@@ -140,14 +142,14 @@ public final class ClientViewSceneCapture {
         }
         boolean fullBright = !mesh && policy == ProjectedBlockClaim.LightingPolicy.FULL_BRIGHT;
         return lights.light(plate, () -> {
-            ClientViewPlateLight.Sampler sampler = fullBright ? (x, y, z) -> ProjectionContentView.packLight(15, 15)
-                : source.regionSnapshots() ? view::getLight : snapshot(world, ClientViewPlateLight.remoteBox(plate.box(), frame));
-            return new ClientViewPlateLight<BlockData>(plate, frame, sampler, fullBright);
+            PlateLight.Sampler sampler = fullBright ? (x, y, z) -> ContentView.packLight(15, 15)
+                : source.regionSnapshots() ? view::getLight : snapshot(world, PlateLight.remoteBox(plate.box(), frame));
+            return new PlateLight<BlockData>(plate, frame, sampler, fullBright);
         });
     }
 
-    private void project(EntityVisual visual, ClientViewEntityTransform.Frame frame, boolean upsideDown, long tick, Source source,
-                         List<EntityVisual> out, boolean nativeMesh) {
+    private void project(EntitySnapshot visual, ClientViewEntityTransform.EntityFrame frame, boolean upsideDown, long tick, Source source,
+                         List<EntitySnapshot> out, boolean nativeMesh) {
         String type = visual.typeKey();
         boolean itemFrame = ITEM_FRAME.equals(type) || GLOW_ITEM_FRAME.equals(type);
         boolean hanging = itemFrame || PAINTING.equals(type);
@@ -156,17 +158,17 @@ public final class ClientViewSceneCapture {
         if (projected == null) {
             return;
         }
-        EntityVisual local = patch(projected, visual, upsideDown && !hanging, tick);
+        EntitySnapshot local = patch(projected, visual, upsideDown && !hanging, tick);
         sources.put(local.id(), source.at(tick));
         out.add(local);
     }
 
-    private EntityVisual patch(ClientViewEntityTransform.Projected projected, EntityVisual source, boolean flip, long tick) {
-        EntityVisual visual = projected.visual();
+    private EntitySnapshot patch(ClientViewEntityTransform.Projected projected, EntitySnapshot source, boolean flip, long tick) {
+        EntitySnapshot visual = projected.visual();
         int metadataTransform = projected.metadataTransform();
         byte[] raw = source.metadata();
         boolean map = source.mapData() != null && source.mapData().length > 0;
-        if (raw == null || raw.length == 0 || metadataTransform == ProjectedItemFrameTransform.NONE && !flip && !map) {
+        if (raw == null || raw.length == 0 || metadataTransform == ItemFrameTransform.NONE && !flip && !map) {
             return visual;
         }
         Patched cached = patched.get(source.id());
@@ -184,7 +186,7 @@ public final class ClientViewSceneCapture {
         return withMetadata(visual, bytes);
     }
 
-    private EntityVisual capture(Entity entity, long tick) {
+    private EntitySnapshot capture(Entity entity, long tick) {
         UUID id = entity.getUniqueId();
         Location location = entity.getLocation();
         Vector look = look(entity, location);
@@ -214,10 +216,10 @@ public final class ClientViewSceneCapture {
             }
         }
         String name = entity instanceof Player player ? player.getName() : "";
-        return EntityVisual.full(id, entity.getType().getKey().toString(), location.getX(), location.getY(), location.getZ(), entity.getHeight(),
+        return EntitySnapshot.full(id, entity.getType().getKey().toString(), location.getX(), location.getY(), location.getZ(), entity.getHeight(),
             look.getX(), look.getY(), look.getZ(), entity instanceof LivingEntity living ? WormholesPlatform.bodyYaw(living, location.getYaw()) : location.getYaw(), location.getPitch(), velocity.getX(), velocity.getY(), velocity.getZ(),
             entity.isOnGround(), name, current.textures[0], current.textures[1], vehicle, leash, current.metadata, current.equipment,
-            EntityVisual.EMPTY, 0);
+            EntitySnapshot.EMPTY, 0);
     }
 
     private void sweep(long tick) {
@@ -230,9 +232,9 @@ public final class ClientViewSceneCapture {
         sources.values().removeIf(entry -> tick - entry.tick() > IDLE_TICKS);
     }
 
-    private static ClientViewPlateLight.Sampler snapshot(World world, PlateBox box) {
+    private static PlateLight.Sampler snapshot(World world, PlateBox box) {
         if (box.cells() == 0L) {
-            return (x, y, z) -> ClientViewPlateLight.UNAVAILABLE;
+            return (x, y, z) -> PlateLight.UNAVAILABLE;
         }
         int minChunkX = box.minX() >> 4;
         int minChunkZ = box.minZ() >> 4;
@@ -252,33 +254,33 @@ public final class ClientViewSceneCapture {
             int dx = (x >> 4) - minChunkX;
             int dz = (z >> 4) - minChunkZ;
             if (dx < 0 || dz < 0 || dx >= sizeX || dz >= sizeZ || y < minHeight || y >= maxHeight) {
-                return ClientViewPlateLight.UNAVAILABLE;
+                return PlateLight.UNAVAILABLE;
             }
             ChunkSnapshot chunk = chunks[dx * sizeZ + dz];
             if (chunk == null) {
-                return ClientViewPlateLight.UNAVAILABLE;
+                return PlateLight.UNAVAILABLE;
             }
-            return ProjectionContentView.packLight(chunk.getBlockSkyLight(x & 15, y, z & 15), chunk.getBlockEmittedLight(x & 15, y, z & 15));
+            return ContentView.packLight(chunk.getBlockSkyLight(x & 15, y, z & 15), chunk.getBlockEmittedLight(x & 15, y, z & 15));
         };
     }
 
-    private static EntityVisual withProfile(EntityVisual visual, EntityProfile profile) {
+    private static EntitySnapshot withProfile(EntitySnapshot visual, EntityProfile profile) {
         if (!visual.isPlayer() || profile == null || profile.textureValue() == null || profile.textureValue().isEmpty()
             || profile.textureValue().equals(visual.textureValue())) {
             return visual;
         }
-        return new EntityVisual(visual.mode(), visual.sequence(), visual.presentMask(), visual.id(), visual.typeKey(), visual.x(), visual.y(),
+        return new EntitySnapshot(visual.mode(), visual.sequence(), visual.presentMask(), visual.id(), visual.typeKey(), visual.x(), visual.y(),
             visual.z(), visual.height(), visual.lookX(), visual.lookY(), visual.lookZ(), visual.yaw(), visual.pitch(), visual.velocityX(),
             visual.velocityY(), visual.velocityZ(), visual.onGround(), profile.name(), profile.textureValue(),
             profile.textureSignature() == null ? "" : profile.textureSignature(), visual.passengerOf(), visual.leashHolder(), visual.metadata(),
             visual.equipment(), visual.mapData());
     }
 
-    private static EntityVisual withMetadata(EntityVisual visual, byte[] metadata) {
+    private static EntitySnapshot withMetadata(EntitySnapshot visual, byte[] metadata) {
         if (Arrays.equals(visual.metadata(), metadata)) {
             return visual;
         }
-        return new EntityVisual(visual.mode(), visual.sequence(), visual.presentMask(), visual.id(), visual.typeKey(), visual.x(), visual.y(),
+        return new EntitySnapshot(visual.mode(), visual.sequence(), visual.presentMask(), visual.id(), visual.typeKey(), visual.x(), visual.y(),
             visual.z(), visual.height(), visual.lookX(), visual.lookY(), visual.lookZ(), visual.yaw(), visual.pitch(), visual.velocityX(),
             visual.velocityY(), visual.velocityZ(), visual.onGround(), visual.playerName(), visual.textureValue(), visual.textureSignature(),
             visual.passengerOf(), visual.leashHolder(), metadata, visual.equipment(), visual.mapData());

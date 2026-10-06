@@ -30,11 +30,11 @@ import art.arcane.wormholes.hook.WormholesRegistrar;
 import art.arcane.wormholes.localization.TransitMessages;
 import art.arcane.wormholes.portal.LocalPortal;
 import art.arcane.wormholes.portal.LocalTunnel;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.Traversive;
 import art.arcane.wormholes.portal.UniversalTunnel;
 import art.arcane.wormholes.transit.TransitTestSupport.Rig;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 
 final class TransitGateTest {
     private static final double EPSILON = 1e-9D;
@@ -133,7 +133,7 @@ final class TransitGateTest {
         WormholesHooks.install(new WormholesRegistrar().portalExtension(TransitPortalExtension.class, extensionPortal -> new TransitPortalExtension()));
         World world = TransitTestSupport.world("convoy-gate");
         LocalPortal portal = TransitTestSupport.portal(world);
-        portal.setFrame(PortalFrame.canonical(Direction.W));
+        portal.setFrame(Frame.canonical(Face.W));
         LocalPortal destination = TransitTestSupport.portal(world);
         Rig boat = Rig.vehicle("boat", new Location(world, 1.0D, 65.0D, 1.0D), 1.375D, 0.5625D);
         Rig driver = Rig.player("driver", new Location(world, 1.0D, 65.0D, 1.0D)).ride(boat);
@@ -169,7 +169,7 @@ final class TransitGateTest {
 
             WormholesHooks.install(new WormholesRegistrar().portalExtension(TransitPortalExtension.class, extensionPortal -> new TransitPortalExtension()));
             LocalPortal portal = TransitTestSupport.portal(world);
-            portal.setFrame(PortalFrame.canonical(Direction.W));
+            portal.setFrame(Frame.canonical(Face.W));
             TraversalVerdict.Deny tooLarge = assertInstanceOf(TraversalVerdict.Deny.class,
                 new TransitGate(ignored -> nearby).evaluate(departVia(portal, driver.entity(), destination, 1L)));
             assertSame(TransitMessages.DENIED_CONVOY_SIZE, tooLarge.reason());
@@ -197,7 +197,7 @@ final class TransitGateTest {
             };
             WormholesHooks.install(new WormholesRegistrar().portalExtension(TransitPortalExtension.class, extensionPortal -> new TransitPortalExtension()).traversalGate(refuseHorse));
             LocalPortal guarded = TransitTestSupport.portal(world);
-            guarded.setFrame(PortalFrame.canonical(Direction.W));
+            guarded.setFrame(Frame.canonical(Face.W));
             TraversalVerdict.Deny refused = assertInstanceOf(TraversalVerdict.Deny.class,
                 new TransitGate(ignored -> nearby).evaluate(departVia(guarded, driver.entity(), destination, 2_000L)));
             assertSame(TransitMessages.DENIED_CONVOY_MEMBER, refused.reason());
@@ -212,7 +212,7 @@ final class TransitGateTest {
         WormholesHooks.install(new WormholesRegistrar().portalExtension(TransitPortalExtension.class, extensionPortal -> new TransitPortalExtension()));
         World world = TransitTestSupport.world("convoy-kinds");
         LocalPortal portal = TransitTestSupport.portal(world);
-        portal.setFrame(PortalFrame.canonical(Direction.W));
+        portal.setFrame(Frame.canonical(Face.W));
         Rig boat = Rig.vehicle("boat", new Location(world, 1.0D, 65.0D, 1.0D), 1.375D, 0.5625D);
         Rig driver = Rig.player("driver", new Location(world, 1.0D, 65.0D, 1.0D)).ride(boat);
         List<Entity> nearby = List.of(boat.entity(), driver.entity());

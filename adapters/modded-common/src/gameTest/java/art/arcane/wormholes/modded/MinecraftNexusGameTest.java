@@ -1,6 +1,5 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.nexus.DestinationEntry;
 import art.arcane.wormholes.nexus.DestinationMode;
 import art.arcane.wormholes.nexus.DestinationPolicy;
@@ -9,7 +8,7 @@ import art.arcane.wormholes.nexus.NetworkMember;
 import art.arcane.wormholes.nexus.NetworkRegistry;
 import art.arcane.wormholes.nexus.PortalNetwork;
 import art.arcane.wormholes.nexus.SelectionRule;
-import art.arcane.wormholes.portal.PortalCrossing;
+import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.wormholes.portal.PortalType;
 import net.minecraft.core.BlockPos;
 import art.arcane.volmlib.util.localization.MessageArgs;
@@ -120,8 +119,8 @@ public final class MinecraftNexusGameTest {
                 assertThat(!source.getDestinationId().equals(destination.getId()), "Per-traveler route mutated projected link");
                 runtime.nexus().policy(actor.player(), destination, new DestinationPolicy(DestinationMode.RETURN,
                     List.of(new DestinationEntry(DestinationEntry.TargetKind.LOCAL, source.getId().toString(), 1, 0, 0, "")), SelectionRule.ROUND_ROBIN));
-                PortalCrossing crossing = new PortalCrossing(destination.getFrame(), destination.getOrigin(), destination.getOrigin(),
-                    new GeometryVector(0, 0, 0), new GeometryVector(0, 0, 1), true);
+                PlaneCrossing crossing = new PlaneCrossing(destination.getFrame(), destination.getOrigin(), destination.getOrigin(),
+                    new art.arcane.optics.math.Vec3(0, 0, 0), new art.arcane.optics.math.Vec3(0, 0, 1), true);
                 NetworkMember returned = runtime.nexus().destination(destination, traveler, crossing);
                 assertThat(returned != null && returned.portalId().equals(source.getId()), "Return address did not retain actual source");
                 runtime.nexus().wire(actor.player(), source, new FrameIo(0, -2, 0, FrameIo.RedstoneAction.LOCK, FrameIo.ComparatorOutput.NONE));

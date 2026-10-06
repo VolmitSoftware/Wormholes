@@ -1,6 +1,6 @@
 package art.arcane.wormholes.door.view;
 
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 
 import art.arcane.volmlib.util.inventorygui.Window;
 import art.arcane.volmlib.util.json.JSONObject;
@@ -13,16 +13,16 @@ import art.arcane.wormholes.portal.DimensionalPortalKind;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.IPortal;
 import art.arcane.wormholes.portal.ITunnel;
-import art.arcane.wormholes.portal.MirrorRotation;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.QuarterTurn;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalPermissionMode;
 import art.arcane.wormholes.portal.PortalSaveSnapshot;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.ProjectionMode;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
 import art.arcane.wormholes.portal.Traversive;
-import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Face;
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
@@ -57,10 +57,10 @@ public abstract class AbstractApertureFacade implements ILocalPortal {
     public abstract art.arcane.wormholes.portal.PortalStructure getStructure();
 
     @Override
-    public abstract PortalFrame getFrame();
+    public abstract Frame getFrame();
 
     @Override
-    public abstract GeometryVector getOrigin();
+    public abstract Vec3 getOrigin();
 
     @Override
     public abstract org.bukkit.World getWorld();
@@ -75,27 +75,27 @@ public abstract class AbstractApertureFacade implements ILocalPortal {
     public abstract boolean isOpen();
 
     @Override
-    public AxisAlignedBB getView() {
+    public Box getView() {
         double range = getEffectiveActivationRange();
-        AxisAlignedBB area = getStructure().getArea();
-        return new AxisAlignedBB(
-            area.min().add(new GeometryVector(-range, -range, -range)),
-            area.max().add(new GeometryVector(range, range, range)));
+        Box area = getStructure().getArea();
+        return new Box(
+            area.min().add(new Vec3(-range, -range, -range)),
+            area.max().add(new Vec3(range, range, range)));
     }
 
     @Override
-    public AxisAlignedBB getArea() {
+    public Box getArea() {
         return getStructure().getArea();
     }
 
     @Override
     public Location getCenter() {
-        GeometryVector origin = getOrigin();
+        Vec3 origin = getOrigin();
         return new Location(getWorld(), origin.getX(), origin.getY(), origin.getZ());
     }
 
     @Override
-    public Direction getDirection() {
+    public Face getDirection() {
         return getFrame().getNormal();
     }
 
@@ -205,8 +205,8 @@ public abstract class AbstractApertureFacade implements ILocalPortal {
     }
 
     @Override
-    public MirrorRotation getMirrorRotation() {
-        return MirrorRotation.DEGREES_0;
+    public QuarterTurn getMirrorRotation() {
+        return QuarterTurn.DEGREES_0;
     }
 
     @Override
@@ -347,11 +347,11 @@ public abstract class AbstractApertureFacade implements ILocalPortal {
     }
 
     @Override
-    public void setDirection(Direction direction) {
+    public void setDirection(Face direction) {
     }
 
     @Override
-    public void setFrame(PortalFrame frame) {
+    public void setFrame(Frame frame) {
     }
 
     @Override
@@ -367,7 +367,7 @@ public abstract class AbstractApertureFacade implements ILocalPortal {
     }
 
     @Override
-    public void setMirrorRotation(MirrorRotation rotation) {
+    public void setMirrorRotation(QuarterTurn rotation) {
     }
 
     @Override

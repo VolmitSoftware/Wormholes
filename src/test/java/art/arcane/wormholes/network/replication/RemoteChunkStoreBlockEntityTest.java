@@ -19,9 +19,9 @@ import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.network.view.ViewSlice;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
-import art.arcane.wormholes.render.ProjectionCellKey;
+import art.arcane.optics.math.CellKeys;
 import art.arcane.wormholes.render.blockentity.BlockEntityCapturer;
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
+import art.arcane.optics.fidelity.BlockEntitySample;
 
 final class RemoteChunkStoreBlockEntityTest {
     private static final ReplicationStreamKey STREAM = new ReplicationStreamKey(
@@ -32,7 +32,7 @@ final class RemoteChunkStoreBlockEntityTest {
     void bulkAndDiffBlockEntitiesLandInTheSliceAndBlockChangesEvictThem() throws IOException {
         BlockEntitySample sign = new BlockEntitySample("minecraft:sign", new byte[] {10, 0, 0, 0});
         Map<Long, BlockEntitySample> entities = new HashMap<Long, BlockEntitySample>();
-        entities.put(Long.valueOf(ProjectionCellKey.pack(3, 64, 5)), sign);
+        entities.put(Long.valueOf(CellKeys.pack(3, 64, 5)), sign);
         ViewSlice slice = slice(entities);
         RemoteChunkStore store = new RemoteChunkStore(BukkitRemoteViewCodec.INSTANCE::blockEntityCandidate, RemoteChunkStore.Options.defaults());
 
@@ -55,7 +55,7 @@ final class RemoteChunkStoreBlockEntityTest {
     @Test
     void aBaseLayoutBulkFromAPeerWithoutTheCapabilityDecodesWithNoBlockEntities() throws IOException {
         Map<Long, BlockEntitySample> entities = new HashMap<Long, BlockEntitySample>();
-        entities.put(Long.valueOf(ProjectionCellKey.pack(3, 64, 5)), new BlockEntitySample("minecraft:sign", new byte[] {1}));
+        entities.put(Long.valueOf(CellKeys.pack(3, 64, 5)), new BlockEntitySample("minecraft:sign", new byte[] {1}));
         ViewSlice slice = slice(entities);
         RemoteChunkStore store = new RemoteChunkStore(BukkitRemoteViewCodec.INSTANCE::blockEntityCandidate, RemoteChunkStore.Options.defaults());
 

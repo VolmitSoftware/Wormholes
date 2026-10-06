@@ -6,8 +6,8 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
+import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.ViewStreamLimits;
 
 public final class ClientViewSceneFx<P> implements ClientViewFxSource<P> {
     static final long ATMOSPHERE_RESYNC_TICKS = 600L;
@@ -33,8 +33,8 @@ public final class ClientViewSceneFx<P> implements ClientViewFxSource<P> {
         }
         List<ClientViewMessage.FxEmitter> emitters = effects.emitters(observer, portal, tick);
         List<ClientViewMessage.FxEmitter> current = emitters == null ? List.of() : emitters;
-        if (current.size() > ClientViewProtocol.MAX_FX_EMITTERS) {
-            current = current.subList(0, ClientViewProtocol.MAX_FX_EMITTERS);
+        if (current.size() > ViewStreamLimits.MAX_FX_EMITTERS) {
+            current = current.subList(0, ViewStreamLimits.MAX_FX_EMITTERS);
         }
         List<ClientViewMessage.FxEmitter> previous = state.emitters;
         if (previous == null ? current.isEmpty() : previous.equals(current)) {
@@ -92,7 +92,7 @@ public final class ClientViewSceneFx<P> implements ClientViewFxSource<P> {
         return environment(state, effects.nestedEnvironment(observer, parent, portal, tick), tick);
     }
 
-    private static ClientViewMessage.Environment environment(PortalState state, ClientViewEnvironment sample, long tick) {
+    private static ClientViewMessage.Environment environment(PortalState state, ProjectionEnvironment sample, long tick) {
         state.nextEnvironmentTick = tick + 5L;
         if (sample == null || sample.equals(state.environment)) {
             return null;
@@ -154,11 +154,11 @@ public final class ClientViewSceneFx<P> implements ClientViewFxSource<P> {
             return false;
         }
 
-        default ClientViewEnvironment environment(P observer, UUID portal, long tick) {
+        default ProjectionEnvironment environment(P observer, UUID portal, long tick) {
             return null;
         }
 
-        default ClientViewEnvironment nestedEnvironment(P observer, UUID parent, UUID portal, long tick) {
+        default ProjectionEnvironment nestedEnvironment(P observer, UUID parent, UUID portal, long tick) {
             return null;
         }
     }
@@ -182,7 +182,7 @@ public final class ClientViewSceneFx<P> implements ClientViewFxSource<P> {
         private final int portalKey;
         private List<ClientViewMessage.FxEmitter> emitters;
         private Sample atmosphere;
-        private ClientViewEnvironment environment;
+        private ProjectionEnvironment environment;
         private long nextEnvironmentTick;
         private long atmosphereTick;
         private long touched;

@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.render.ProjectorLighting;
+import art.arcane.optics.light.ProjectorLighting;
 import net.minecraft.network.protocol.game.ClientboundLightUpdatePacket;
 import org.junit.Test;
 

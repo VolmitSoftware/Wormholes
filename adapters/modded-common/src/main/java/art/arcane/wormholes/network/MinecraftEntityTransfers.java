@@ -1,12 +1,11 @@
 package art.arcane.wormholes.network;
 
 import art.arcane.wormholes.nexus.NetworkMember;
-import art.arcane.wormholes.chunk.ChunkLease;
+import art.arcane.optics.plate.ChunkLease;
 import art.arcane.wormholes.config.toml.TransitConfig;
-import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.WormholesModRuntime;
-import art.arcane.wormholes.portal.PortalCrossing;
+import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.wormholes.transit.MomentumPolicy;
 import art.arcane.wormholes.transit.MomentumTransform;
 import art.arcane.wormholes.transit.OrientationPolicy;
@@ -49,9 +48,9 @@ public final class MinecraftEntityTransfers implements AutoCloseable {
     private final EntityHost host = new EntityHost();
     private final ArrivalHost arrivalHost = new ArrivalHost();
     private final MinecraftConvoys convoys;
-    private final TraversalEntityTransit<Entity, PortalCrossing> transit;
-    private final OutboundEntityTransfers<Entity, PortalCrossing> outbound;
-    private final InboundEntityTransfers<Entity, MinecraftPortal, PortalCrossing, GeometryVector> inbound;
+    private final TraversalEntityTransit<Entity, PlaneCrossing> transit;
+    private final OutboundEntityTransfers<Entity, PlaneCrossing> outbound;
+    private final InboundEntityTransfers<Entity, MinecraftPortal, PlaneCrossing, art.arcane.optics.math.Vec3> inbound;
     private boolean closed;
 
     public MinecraftEntityTransfers(WormholesModRuntime runtime, NetworkManager network) {
@@ -73,7 +72,7 @@ public final class MinecraftEntityTransfers implements AutoCloseable {
         }
     }
 
-    public boolean begin(Entity entity, MinecraftPortal source, PortalCrossing crossing, NetworkMember destination) {
+    public boolean begin(Entity entity, MinecraftPortal source, PlaneCrossing crossing, NetworkMember destination) {
         runtime.requireServerThread();
         if (closed || entity instanceof ServerPlayer || !entity.isAlive() || !source.isOpen()
             || !source.isOutgoingTraversalsEnabled() || destination == null
@@ -100,7 +99,7 @@ public final class MinecraftEntityTransfers implements AutoCloseable {
         return locks.isLocked(entityId, System.currentTimeMillis()) || convoys.locked(entityId);
     }
 
-    public boolean beginConvoy(Entity entity, MinecraftPortal source, PortalCrossing crossing, NetworkMember destination) {
+    public boolean beginConvoy(Entity entity, MinecraftPortal source, PlaneCrossing crossing, NetworkMember destination) {
         return convoys.begin(entity, source, crossing, destination);
     }
 
@@ -108,7 +107,7 @@ public final class MinecraftEntityTransfers implements AutoCloseable {
         return convoys.pending(playerId);
     }
 
-    public void playerPlaced(ServerPlayer player, MinecraftPortal portal, PortalCrossing crossing) {
+    public void playerPlaced(ServerPlayer player, MinecraftPortal portal, PlaneCrossing crossing) {
         convoys.playerPlaced(player, portal, crossing);
     }
 
@@ -132,15 +131,15 @@ public final class MinecraftEntityTransfers implements AutoCloseable {
         transit.restoreRejected(entity, state, null, null);
     }
 
-    void settle(Entity entity, MinecraftPortal portal, PortalCrossing crossing) {
+    void settle(Entity entity, MinecraftPortal portal, PlaneCrossing crossing) {
         arrivalHost.settle(portal, entity, crossing);
     }
 
-    GeometryVector target(MinecraftPortal portal, WireTraversive crossing) {
+    art.arcane.optics.math.Vec3 target(MinecraftPortal portal, WireTraversive crossing) {
         return arrivalHost.target(portal, crossing).position();
     }
 
-    Entity spawn(MinecraftPortal portal, byte[] snapshot, GeometryVector point) {
+    Entity spawn(MinecraftPortal portal, byte[] snapshot, art.arcane.optics.math.Vec3 point) {
         return arrivalHost.spawn(portal, snapshot, point);
     }
 
@@ -176,7 +175,7 @@ public final class MinecraftEntityTransfers implements AutoCloseable {
             pin.entity().setDeltaMovement(Vec3.ZERO);
             pin.entity().setPos(pin.position());
         }
-        for (OutboundEntityTransfers.Pending<Entity, PortalCrossing> pending : outbound.pending().values()) {
+        for (OutboundEntityTransfers.Pending<Entity, PlaneCrossing> pending : outbound.pending().values()) {
             runtime.rules().retain(pending.entity());
         }
         outbound.prunePendingEntityTransfers();
@@ -205,7 +204,7 @@ public final class MinecraftEntityTransfers implements AutoCloseable {
         try {
             closed = true;
             convoys.close();
-            for (OutboundEntityTransfers.Pending<Entity, PortalCrossing> pending : outbound.pending().values()) {
+            for (OutboundEntityTransfers.Pending<Entity, PlaneCrossing> pending : outbound.pending().values()) {
                 transit.restoreRejectedForShutdown(pending.entity(), pending.transitState(), pending.sourcePortalId(), pending.traversive());
             }
             outbound.pending().clear();
@@ -225,7 +224,7 @@ public final class MinecraftEntityTransfers implements AutoCloseable {
         if (convoys != null && convoys.locked(entityId)) {
             return true;
         }
-        for (OutboundEntityTransfers.Pending<Entity, PortalCrossing> pending : outbound.pending().values()) {
+        for (OutboundEntityTransfers.Pending<Entity, PlaneCrossing> pending : outbound.pending().values()) {
             if (pending.entity().getUUID().equals(entityId)) {
                 return true;
             }
@@ -266,12 +265,12 @@ public final class MinecraftEntityTransfers implements AutoCloseable {
         }, task.delayTicks());
     }
 
-    private void reject(Entity entity, UUID portalId, PortalCrossing crossing) {
+    private void reject(Entity entity, UUID portalId, PlaneCrossing crossing) {
         MinecraftPortal source = portalId == null ? null : runtime.portals().get(portalId);
         if (source == null || crossing == null || entity.isRemoved() || entity.level() != runtime.portals().resolveLevel(source)) {
             return;
         }
-        GeometryVector point = crossing.rejectionPoint();
+        art.arcane.optics.math.Vec3 point = crossing.rejectionPoint();
         entity.teleportTo(point.x(), point.y(), point.z());
         double strength = 3.0D * runtime.configuration().settings().getMain().portalPushbackMultiplier;
         entity.setDeltaMovement(new Vec3(crossing.frame().getNormal().x() * strength,
@@ -279,11 +278,11 @@ public final class MinecraftEntityTransfers implements AutoCloseable {
         runtime.portals().recordArrival(entity, source);
     }
 
-    private static GeometryVector geometry(Vec3 vector) {
-        return new GeometryVector(vector.x, vector.y, vector.z);
+    private static art.arcane.optics.math.Vec3 geometry(Vec3 vector) {
+        return new art.arcane.optics.math.Vec3(vector.x, vector.y, vector.z);
     }
 
-    private static Vec3 vector(GeometryVector vector) {
+    private static Vec3 vector(art.arcane.optics.math.Vec3 vector) {
         return new Vec3(vector.x(), vector.y(), vector.z());
     }
 
@@ -302,13 +301,13 @@ public final class MinecraftEntityTransfers implements AutoCloseable {
         entity.setComponent(DataComponents.CUSTOM_DATA, CustomData.of(data));
     }
 
-    private final class EntityHost implements TraversalEntityTransit.Host<Entity, PortalCrossing>,
-        OutboundEntityTransfers.Host<Entity, PortalCrossing> {
+    private final class EntityHost implements TraversalEntityTransit.Host<Entity, PlaneCrossing>,
+        OutboundEntityTransfers.Host<Entity, PlaneCrossing> {
         public UUID id(Entity entity) { return entity.getUUID(); }
         public boolean valid(Entity entity) { return !entity.isRemoved(); }
         public boolean player(Entity entity) { return entity instanceof ServerPlayer; }
         public String description(Entity entity) { return BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).toString(); }
-        public WireTraversive wire(PortalCrossing crossing) { return WireTraversive.fromCrossing(crossing); }
+        public WireTraversive wire(PlaneCrossing crossing) { return WireTraversive.fromCrossing(crossing); }
         public void clearInFlight(UUID entityId) { locks.unlock(entityId); }
         public void remove(Entity entity) {
             MinecraftPortal source = ruleSources.remove(entity.getUUID());
@@ -319,8 +318,8 @@ public final class MinecraftEntityTransfers implements AutoCloseable {
             entity.discard();
         }
         public boolean schedule(Entity entity, TraversalEntityTransit.Task task) { return MinecraftEntityTransfers.this.schedule(entity, task); }
-        public void reject(Entity entity, UUID portalId, PortalCrossing crossing) { MinecraftEntityTransfers.this.reject(entity, portalId, crossing); }
-        public void rejectDeparture(Entity entity, TraversalEntityTransit.Rejection<PortalCrossing> rejection) {
+        public void reject(Entity entity, UUID portalId, PlaneCrossing crossing) { MinecraftEntityTransfers.this.reject(entity, portalId, crossing); }
+        public void rejectDeparture(Entity entity, TraversalEntityTransit.Rejection<PlaneCrossing> rejection) {
             reject(entity, rejection.sourcePortalId(), rejection.traversive());
         }
         public TraversalEntityTransit.TransitState capture(Entity entity) {
@@ -361,7 +360,7 @@ public final class MinecraftEntityTransfers implements AutoCloseable {
         }
     }
 
-    private final class ArrivalHost implements InboundEntityTransfers.Host<Entity, MinecraftPortal, PortalCrossing, GeometryVector> {
+    private final class ArrivalHost implements InboundEntityTransfers.Host<Entity, MinecraftPortal, PlaneCrossing, art.arcane.optics.math.Vec3> {
         public MinecraftPortal exit(UUID portalId) { return runtime.portals().get(portalId); }
         public boolean available(MinecraftPortal portal) { return portal.isOpen() && runtime.portals().resolveLevel(portal) != null; }
         public boolean acceptsPortal(MinecraftPortal portal) { return TraversalAdmissionPolicy.acceptsInbound(portal); }
@@ -373,9 +372,9 @@ public final class MinecraftEntityTransfers implements AutoCloseable {
             }
         }
         public void failure(String peer, Throwable error) { LOGGER.error("Could not receive Wormholes entity from {}", peer, error); }
-        public InboundEntityTransfers.Target<PortalCrossing, GeometryVector> target(MinecraftPortal portal, WireTraversive wire) {
-            PortalCrossing crossing = wire.crossing();
-            GeometryVector target = crossing.outPoint(portal.getFrame(), portal.getOrigin());
+        public InboundEntityTransfers.Target<PlaneCrossing, art.arcane.optics.math.Vec3> target(MinecraftPortal portal, WireTraversive wire) {
+            PlaneCrossing crossing = wire.crossing();
+            art.arcane.optics.math.Vec3 target = crossing.outPoint(portal.getFrame(), portal.getOrigin());
             ServerLevel level = runtime.portals().resolveLevel(portal);
             if (!Double.isFinite(target.x()) || !Double.isFinite(target.y()) || !Double.isFinite(target.z())
                 || target.y() < level.getMinY() || target.y() >= level.getMaxY()
@@ -384,10 +383,10 @@ public final class MinecraftEntityTransfers implements AutoCloseable {
             }
             return new InboundEntityTransfers.Target<>(crossing, target);
         }
-        public boolean schedule(InboundEntityTransfers.Arrival<MinecraftPortal, PortalCrossing, GeometryVector> arrival,
+        public boolean schedule(InboundEntityTransfers.Arrival<MinecraftPortal, PlaneCrossing, art.arcane.optics.math.Vec3> arrival,
                                 InboundEntityTransfers.Task task) {
             ServerLevel level = runtime.portals().resolveLevel(arrival.exit());
-            GeometryVector target = arrival.target().position();
+            art.arcane.optics.math.Vec3 target = arrival.target().position();
             UUID world = UUID.nameUUIDFromBytes(arrival.exit().getWorldKey().getBytes(StandardCharsets.UTF_8));
             ChunkLease lease = runtime.leases().retain(level, world, target.getBlockX() >> 4, target.getBlockZ() >> 4);
             Preparation preparation = new Preparation(arrival.transfer().transferId(), lease, task,
@@ -401,10 +400,10 @@ public final class MinecraftEntityTransfers implements AutoCloseable {
             }));
             return true;
         }
-        public Entity spawn(InboundEntityTransfers.Arrival<MinecraftPortal, PortalCrossing, GeometryVector> arrival) {
+        public Entity spawn(InboundEntityTransfers.Arrival<MinecraftPortal, PlaneCrossing, art.arcane.optics.math.Vec3> arrival) {
             return spawn(arrival.exit(), arrival.transfer().entitySnapshot(), arrival.target().position());
         }
-        private Entity spawn(MinecraftPortal portal, byte[] snapshot, GeometryVector point) {
+        private Entity spawn(MinecraftPortal portal, byte[] snapshot, art.arcane.optics.math.Vec3 point) {
             if (runtime.portals().get(portal.getId()) != portal || !available(portal) || !acceptsPortal(portal)) {
                 return null;
             }
@@ -432,13 +431,13 @@ public final class MinecraftEntityTransfers implements AutoCloseable {
             return entity != null && entity.isAlive() && runtime.portals().get(portal.getId()) == portal
                 && available(portal) && acceptsPortal(portal) && runtime.rules().arrivalAllowed(entity, portal, false);
         }
-        public void settle(MinecraftPortal portal, Entity entity, PortalCrossing crossing) {
+        public void settle(MinecraftPortal portal, Entity entity, PlaneCrossing crossing) {
             TransitConfig config = runtime.configuration().settings().getTransit();
             MomentumPolicy momentum = MomentumPolicy.decode((String) portal.setting("transit.momentum"));
             if (momentum == null) {
                 momentum = MomentumPolicy.of(MomentumPolicy.Mode.parse(config.momentumDefault, MomentumPolicy.Mode.PRESERVE));
             }
-            GeometryVector velocity = MomentumTransform.apply(crossing.outVelocity(portal.getFrame()), momentum, config.momentumMaxSpeed);
+            art.arcane.optics.math.Vec3 velocity = MomentumTransform.apply(crossing.outVelocity(portal.getFrame()), momentum, config.momentumMaxSpeed);
             OrientationTransform.Look look = OrientationTransform.apply(crossing, portal.getFrame(),
                 OrientationPolicy.parse((String) portal.setting("transit.orientation"), OrientationPolicy.parse(config.orientationDefault, OrientationPolicy.FRAME)),
                 config.gravityFlipEnabled);

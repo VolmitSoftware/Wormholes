@@ -1,6 +1,6 @@
 package art.arcane.wormholes.render.clientview;
 
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.render.ClientViewPortalSource;
 import art.arcane.wormholes.render.client.session.ClientViewServerSession;
@@ -35,7 +35,7 @@ class BukkitPreparedTravelLeadTimeTest {
         ILocalPortal destination = mock(ILocalPortal.class);
         UUID id = UUID.randomUUID();
         when(portal.getId()).thenReturn(id);
-        when(portal.getOrigin()).thenReturn(new GeometryVector(0.5D, 64.0D, 0.5D));
+        when(portal.getOrigin()).thenReturn(new Vec3(0.5D, 64.0D, 0.5D));
         when(portal.isOpen()).thenReturn(true);
         when(portal.canDepart(player)).thenReturn(true);
         ClientViewPortalSource route = mock(ClientViewPortalSource.class);

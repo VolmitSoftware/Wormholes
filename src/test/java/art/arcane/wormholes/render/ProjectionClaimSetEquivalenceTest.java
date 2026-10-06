@@ -26,6 +26,8 @@ import org.bukkit.block.data.BlockData;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.render.view.ProjectionWorldView;
+import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.claim.ProjectionClaimSet;
 
 public final class ProjectionClaimSetEquivalenceTest {
     private static final double PRIORITY_EPSILON = 1.0E-7D;

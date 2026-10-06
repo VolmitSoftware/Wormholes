@@ -8,15 +8,16 @@ import org.bukkit.util.Vector;
 
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.access.PortalAdmission;
-import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Face;
+import art.arcane.optics.frame.Frame;
 
 final class LocalPortalGate
 {
 	private final LocalPortal portal;
 	private volatile boolean open;
 	private volatile boolean ambientAttended = true;
-	private AxisAlignedBB view;
+	private Box view;
 	private double viewRange;
 
 	LocalPortalGate(LocalPortal portal)
@@ -117,7 +118,7 @@ final class LocalPortalGate
 		return PortalAdmission.allows(portal, player);
 	}
 
-	void setDirection(Direction d)
+	void setDirection(Face d)
 	{
 		portal.applyFrame(portal.getFrame().withNormal(d));
 		invalidateProjection();
@@ -126,7 +127,7 @@ final class LocalPortalGate
 		syncGatewayTickets();
 	}
 
-	void setFrame(PortalFrame frame)
+	void setFrame(Frame frame)
 	{
 		portal.applyFrame(frame);
 		invalidateProjection();
@@ -135,7 +136,7 @@ final class LocalPortalGate
 		syncGatewayTickets();
 	}
 
-	AxisAlignedBB getView()
+	Box getView()
 	{
 		if(view == null || viewRange != portal.getEffectiveActivationRange())
 		{
@@ -149,13 +150,13 @@ final class LocalPortalGate
 		view = computeView();
 	}
 
-	private AxisAlignedBB computeView()
+	private Box computeView()
 	{
 		double range = portal.getEffectiveActivationRange();
 		viewRange = range;
 		Vector pad = new Vector(-range, -range, -range);
 		Vector padPositive = new Vector(range, range, range);
-		return new AxisAlignedBB(portal.getStructure().getArea().min().add(BukkitGeometry.vector(pad)), portal.getStructure().getArea().max().add(BukkitGeometry.vector(padPositive)));
+		return new Box(portal.getStructure().getArea().min().add(BukkitGeometry.vector(pad)), portal.getStructure().getArea().max().add(BukkitGeometry.vector(padPositive)));
 	}
 
 	void syncGatewayTickets()

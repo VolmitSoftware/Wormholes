@@ -1,6 +1,6 @@
 package art.arcane.wormholes.render;
 
-import art.arcane.wormholes.render.view.ProjectionContentView;
+import art.arcane.optics.view.ContentView;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -25,6 +25,8 @@ import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
+import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.claim.ProjectionClaimSet;
 
 public final class ProjectionClaimArbiterChunkMemoTest {
     private static final UUID WORLD_ID = UUID.fromString("00000000-0000-0000-0000-0000000000d1");
@@ -358,7 +360,7 @@ public final class ProjectionClaimArbiterChunkMemoTest {
 
             @Override
             public int getLight(int x, int y, int z) {
-                return ProjectionContentView.packLight(15, 0);
+                return ContentView.packLight(15, 0);
             }
 
             @Override

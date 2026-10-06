@@ -26,7 +26,7 @@ import art.arcane.wormholes.portal.rtp.RtpRimRenderer;
 import art.arcane.wormholes.portal.rtp.RtpRotationMode;
 import art.arcane.wormholes.render.PortalProjector;
 import art.arcane.wormholes.render.clientview.ClientViewRouting;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 
 public final class RtpProjectionIntegrationTest {
     @Test
@@ -79,9 +79,9 @@ public final class RtpProjectionIntegrationTest {
         assertEquals(128.5D, resolution.target().originX());
         assertEquals(72.0D, resolution.target().originY());
         assertEquals(-32.5D, resolution.target().originZ());
-        assertEquals(Direction.N, resolution.target().frame().getNormal());
-        assertEquals(Direction.E, resolution.target().frame().getRight());
-        assertEquals(Direction.U, resolution.target().frame().getUp());
+        assertEquals(Face.N, resolution.target().frame().getNormal());
+        assertEquals(Face.E, resolution.target().frame().getRight());
+        assertEquals(Face.U, resolution.target().frame().getUp());
         assertEquals(41L, resolution.target().routeRevision());
     }
 

@@ -1,10 +1,10 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.render.FidelitySettings;
-import art.arcane.wormholes.render.atmosphere.AtmosphereChannel;
-import art.arcane.wormholes.render.atmosphere.BiomeClaimSet;
-import art.arcane.wormholes.render.atmosphere.BiomeIdResolver;
-import art.arcane.wormholes.render.view.ProjectionContentView;
+import art.arcane.optics.fidelity.AtmosphereChannel;
+import art.arcane.optics.fidelity.BiomeClaimSet;
+import art.arcane.optics.fidelity.BiomeIdResolver;
+import art.arcane.optics.view.ContentView;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -30,7 +30,7 @@ public final class MinecraftAtmosphere implements AutoCloseable {
     private final Registry<Biome> registry;
     private final BiomeIdResolver ids;
     private final BiomeClaimSet claims;
-    private final Map<UUID, AtmosphereChannel<BlockState, ProjectionContentView<BlockState, BlockState>>> channels = new HashMap<>();
+    private final Map<UUID, AtmosphereChannel<BlockState, ContentView<BlockState, BlockState>>> channels = new HashMap<>();
     private final Long2ObjectMap<BiomeClaimSet.ChunkBiomes> pending = new Long2ObjectOpenHashMap<>();
 
     public MinecraftAtmosphere(WormholesModRuntime runtime, Context context) {
@@ -46,7 +46,7 @@ public final class MinecraftAtmosphere implements AutoCloseable {
     public void update(MinecraftPortalProjector projector, boolean changed) {
         runtime.requireServerThread();
         UUID id = projector.portalId();
-        AtmosphereChannel<BlockState, ProjectionContentView<BlockState, BlockState>> channel = channels.computeIfAbsent(id,
+        AtmosphereChannel<BlockState, ContentView<BlockState, BlockState>> channel = channels.computeIfAbsent(id,
             ignored -> new AtmosphereChannel<>());
         if (!FidelitySettings.biomeTint || !projector.atmosphereMode().tintsBiomes()) {
             if (channel.disable()) {

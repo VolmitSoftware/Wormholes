@@ -16,6 +16,8 @@ import art.arcane.wormholes.render.client.session.ClientViewEmitters;
 import art.arcane.wormholes.render.clientview.BukkitClientView;
 import art.arcane.wormholes.render.clientview.ClientViewEffects;
 import art.arcane.wormholes.service.WormholesTelemetry;
+import art.arcane.optics.fidelity.AcousticsBridge;
+import art.arcane.optics.fidelity.AcousticsProfile;
 
 /** Plays relayed sounds through the sound-effect packet, positioned at the local aperture. */
 public final class SoundPacketSink implements AcousticsBridge.SoundSink<Player> {

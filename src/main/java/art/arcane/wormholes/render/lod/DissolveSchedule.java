@@ -6,7 +6,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectIterator;
 
-import art.arcane.wormholes.render.ProjectedBlockClaim;
+import art.arcane.optics.claim.ProjectedBlockClaim;
 
 /**
  * Per (portal, observer) admission ramp. A new view is admitted near-to-far over {@code dissolveTicks}

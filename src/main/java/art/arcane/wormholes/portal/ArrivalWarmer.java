@@ -12,7 +12,7 @@ import org.bukkit.entity.Player;
 
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.chunk.BukkitChunkLeaseProvider;
-import art.arcane.wormholes.chunk.ChunkLease;
+import art.arcane.optics.plate.ChunkLease;
 import art.arcane.wormholes.platform.WormholesPlatform;
 
 public final class ArrivalWarmer

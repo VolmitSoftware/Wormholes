@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded.client.render;
 
-import art.arcane.wormholes.render.client.ClientPortalAperture;
+import art.arcane.optics.aperture.AperturePolygon;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import org.joml.Matrix4dc;
@@ -10,16 +10,16 @@ import org.joml.Matrix4fc;
 record PortalViewport(int x, int y, int width, int height) {
     private static final int TILE = 64;
 
-    static PortalViewport coverage(ClientPortalAperture aperture, Matrix4dc transform, int width, int height, boolean zeroToOne) {
+    static PortalViewport coverage(AperturePolygon aperture, Matrix4dc transform, int width, int height, boolean zeroToOne) {
         double[] matrix = transform.get(new double[16]);
         double minX = width;
         double minY = height;
         double maxX = 0;
         double maxY = 0;
-        ClientPortalAperture.ClipDepth depth = zeroToOne ? ClientPortalAperture.ClipDepth.ZERO_TO_ONE
-            : ClientPortalAperture.ClipDepth.NEGATIVE_ONE_TO_ONE;
-        for (ClientPortalAperture.Rectangle rectangle : aperture.rectangles()) {
-            for (ClientPortalAperture.ClipVertex vertex : aperture.project(rectangle, matrix, depth)) {
+        AperturePolygon.ClipDepth depth = zeroToOne ? AperturePolygon.ClipDepth.ZERO_TO_ONE
+            : AperturePolygon.ClipDepth.NEGATIVE_ONE_TO_ONE;
+        for (AperturePolygon.Rectangle rectangle : aperture.rectangles()) {
+            for (AperturePolygon.ClipVertex vertex : aperture.project(rectangle, matrix, depth)) {
                 double screenX = (vertex.x() / vertex.w() + 1) * width * 0.5;
                 double screenY = (vertex.y() / vertex.w() + 1) * height * 0.5;
                 minX = Math.min(minX, screenX);

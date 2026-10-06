@@ -1,11 +1,11 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.render.ProjectionCellKey;
-import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
-import art.arcane.wormholes.render.plate.PlateCaptureJob;
-import art.arcane.wormholes.render.plate.ViewPlateBuilder;
-import art.arcane.wormholes.render.view.ProjectionContentView;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.view.WorldChangeTracker;
+import art.arcane.optics.fidelity.BlockEntitySample;
+import art.arcane.optics.plate.PlateCaptureJob;
+import art.arcane.optics.plate.ViewPlateBuilder;
+import art.arcane.optics.view.ContentView;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -31,9 +31,9 @@ public class MinecraftCapturedChunkViewTest extends MinecraftTestBase {
         sections[8].set(5, 4, 7, stone());
         BlockEntitySample sample = new BlockEntitySample("minecraft:sign", new byte[] {1, 2, 3});
         MinecraftPlateCaptureSource.CapturedChunk chunk = new MinecraftPlateCaptureSource.CapturedChunk(-4, sections,
-            Map.of(ProjectionCellKey.pack(5, 68, 7), sample), false, null, 0, new String[0][]);
+            Map.of(CellKeys.pack(5, 68, 7), sample), false, null, 0, new String[0][]);
         Long2ObjectOpenHashMap<MinecraftPlateCaptureSource.CapturedChunk> chunks = new Long2ObjectOpenHashMap<>();
-        chunks.put(ProjectionWorldChangeTracker.chunkKey(0, 0), chunk);
+        chunks.put(WorldChangeTracker.chunkKey(0, 0), chunk);
         MinecraftCapturedChunkView view = new MinecraftCapturedChunkView(worldId, -64, 320, 9L,
             new PlateCaptureJob.Captured<>(new ViewPlateBuilder.Footprint(0, 0, 0, 0, 1L), chunks));
         assertEquals(worldId, view.worldId());
@@ -54,7 +54,7 @@ public class MinecraftCapturedChunkViewTest extends MinecraftTestBase {
         assertFalse(view.blockEntitiesComplete(0, 0));
         assertTrue(view.blockEntitiesComplete(16, 0));
         assertNull(view.sampleBiome(5, 68, 7));
-        assertEquals(ProjectionContentView.LIGHT_UNAVAILABLE, view.getLight(5, 68, 7));
+        assertEquals(ContentView.LIGHT_UNAVAILABLE, view.getLight(5, 68, 7));
         assertEquals(0, view.getSkyDarken());
     }
 

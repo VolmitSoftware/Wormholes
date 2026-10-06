@@ -39,16 +39,20 @@ import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.portal.ILocalPortal;
-import art.arcane.wormholes.render.atmosphere.BiomeClaimSet;
-import art.arcane.wormholes.render.atmosphere.BiomeIdResolver;
+import art.arcane.optics.fidelity.BiomeClaimSet;
+import art.arcane.optics.fidelity.BiomeIdResolver;
 import art.arcane.wormholes.render.atmosphere.BiomeRegistryIds;
 import art.arcane.wormholes.render.atmosphere.BiomeSink;
 import art.arcane.wormholes.render.atmosphere.ChunkBiomesPacketSink;
-import art.arcane.wormholes.render.bedrock.BedrockProfile;
+import art.arcane.optics.fidelity.BedrockProfile;
 import art.arcane.wormholes.render.bedrock.ClientProfileService;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.render.view.ProjectionWorldViewProvider;
 import art.arcane.wormholes.service.WormholesTelemetry;
+import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.claim.ProjectionClaimSet;
+import art.arcane.optics.light.ProjectorLighting;
+import art.arcane.optics.math.CellKeys;
 
 public final class ProjectionClaimArbiter {
     static final String BLOCK_MAPPING_FAILURE_REASON = "RENDER_CLAIM_BLOCK_MAPPING_FAILED";
@@ -465,9 +469,9 @@ public final class ProjectionClaimArbiter {
             Long2ObjectMap.Entry<BlockData> change = changeIterator.next();
             long key = change.getLongKey();
             BlockData data = change.getValue();
-            int x = ProjectionCellKey.unpackX(key);
-            int y = ProjectionCellKey.unpackY(key);
-            int z = ProjectionCellKey.unpackZ(key);
+            int x = CellKeys.unpackX(key);
+            int y = CellKeys.unpackY(key);
+            int z = CellKeys.unpackZ(key);
             int id = blockIds.get(key);
             if (id < 0 || (id == 0 && !ProjectionWorldView.isAir(data.getMaterial()))) {
                 fallbackOut.put(key, data);
@@ -484,15 +488,15 @@ public final class ProjectionClaimArbiter {
     }
 
     static int unpackSectionX(long key) {
-        return ProjectionCellKey.unpackX(key);
+        return CellKeys.unpackX(key);
     }
 
     static int unpackSectionY(long key) {
-        return ProjectionCellKey.unpackY(key);
+        return CellKeys.unpackY(key);
     }
 
     static int unpackSectionZ(long key) {
-        return ProjectionCellKey.unpackZ(key);
+        return CellKeys.unpackZ(key);
     }
 
     private ClaimUpdateResult applyResult(Player observer,
@@ -544,9 +548,9 @@ public final class ProjectionClaimArbiter {
                 while (packetIterator.hasNext()) {
                     long key = packetIterator.nextLong();
                     ProjectedBlockClaim<BlockData, ProjectionWorldView> winner = observerClaims.claimSet.getWinningClaim(key);
-                    int x = ProjectionCellKey.unpackX(key);
-                    int y = ProjectionCellKey.unpackY(key);
-                    int z = ProjectionCellKey.unpackZ(key);
+                    int x = CellKeys.unpackX(key);
+                    int y = CellKeys.unpackY(key);
+                    int z = CellKeys.unpackZ(key);
                     int chunkX = x >> 4;
                     int chunkZ = z >> 4;
                     long chunkKey = packChunkKey(chunkX, chunkZ);
@@ -759,7 +763,7 @@ public final class ProjectionClaimArbiter {
             while (singleIterator.hasNext()) {
                 Long2ObjectMap.Entry<BlockData> change = singleIterator.next();
                 long key = change.getLongKey();
-                observer.sendBlockChange(new Location(localWorld, ProjectionCellKey.unpackX(key), ProjectionCellKey.unpackY(key), ProjectionCellKey.unpackZ(key)), change.getValue());
+                observer.sendBlockChange(new Location(localWorld, CellKeys.unpackX(key), CellKeys.unpackY(key), CellKeys.unpackZ(key)), change.getValue());
                 WormholesTelemetry.countBlockChange();
                 WormholesTelemetry.countPacket();
             }
@@ -799,7 +803,7 @@ public final class ProjectionClaimArbiter {
         }
         for (Long2ObjectMap.Entry<BlockData> change : fallback.long2ObjectEntrySet()) {
             long key = change.getLongKey();
-            observer.sendBlockChange(new Location(localWorld, ProjectionCellKey.unpackX(key), ProjectionCellKey.unpackY(key), ProjectionCellKey.unpackZ(key)), change.getValue());
+            observer.sendBlockChange(new Location(localWorld, CellKeys.unpackX(key), CellKeys.unpackY(key), CellKeys.unpackZ(key)), change.getValue());
             WormholesTelemetry.countBlockChange();
             WormholesTelemetry.countPacket();
         }
@@ -973,7 +977,7 @@ public final class ProjectionClaimArbiter {
     }
 
     private static long packSectionKey(int sectionX, int sectionY, int sectionZ) {
-        return ProjectionCellKey.pack(sectionX, sectionY, sectionZ);
+        return CellKeys.pack(sectionX, sectionY, sectionZ);
     }
 
     private static long packChunkKey(int chunkX, int chunkZ) {

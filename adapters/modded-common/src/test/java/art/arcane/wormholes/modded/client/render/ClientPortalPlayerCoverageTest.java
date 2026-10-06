@@ -1,8 +1,8 @@
 package art.arcane.wormholes.modded.client.render;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.math.Face;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import net.minecraft.client.Minecraft;
@@ -45,9 +45,9 @@ public class ClientPortalPlayerCoverageTest extends MinecraftTestBase {
         BlockPos position = new BlockPos(1103, 80, 0);
         long key = SectionPos.asLong(position);
         ClientTravelScene scene = mock(ClientTravelScene.class);
-        ClientPortalGeometry geometry = mock(ClientPortalGeometry.class);
+        ApertureDescriptor geometry = mock(ApertureDescriptor.class);
         when(geometry.valid()).thenReturn(true);
-        when(geometry.facingDirection()).thenReturn(Direction.S);
+        when(geometry.facingDirection()).thenReturn(Face.S);
         when(geometry.apertureWidth()).thenReturn(1);
         when(geometry.apertureHeight()).thenReturn(1);
         when(geometry.apertureMask()).thenReturn(new long[]{1});
@@ -115,10 +115,10 @@ public class ClientPortalPlayerCoverageTest extends MinecraftTestBase {
         LevelChunk chunk = mock(LevelChunk.class);
         LevelRenderer main = mock(LevelRenderer.class);
         ClientTravelScene scene = mock(ClientTravelScene.class);
-        ClientPortalGeometry geometry = mock(ClientPortalGeometry.class);
+        ApertureDescriptor geometry = mock(ApertureDescriptor.class);
         long key = SectionPos.asLong(68, 5, 0);
         when(geometry.valid()).thenReturn(true);
-        when(geometry.facingDirection()).thenReturn(Direction.S);
+        when(geometry.facingDirection()).thenReturn(Face.S);
         when(geometry.apertureWidth()).thenReturn(1);
         when(geometry.apertureHeight()).thenReturn(1);
         when(geometry.apertureMask()).thenReturn(new long[]{1});

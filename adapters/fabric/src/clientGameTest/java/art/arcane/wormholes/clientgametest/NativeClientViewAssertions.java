@@ -11,8 +11,8 @@ import java.util.ArrayList;
 import art.arcane.wormholes.modded.client.ClientPortal;
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.client.WormholesClient;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
-import art.arcane.wormholes.render.client.ClientViewBlockTransform;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.client.ClientViewBlockTransform;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.block.state.BlockState;
@@ -61,7 +61,7 @@ final class NativeClientViewAssertions {
 
     static int cell(int key, BlockPos destination) {
         BlockPos position = display(key, destination);
-        return ClientViewProtocol.brickCellIndex(position.getX(), position.getY(), position.getZ());
+        return ViewStreamLimits.brickCellIndex(position.getX(), position.getY(), position.getZ());
     }
 
     static BlockState state(int key, BlockPos destination) {

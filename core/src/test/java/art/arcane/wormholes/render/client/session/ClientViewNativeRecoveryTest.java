@@ -1,9 +1,9 @@
 package art.arcane.wormholes.render.client.session;
 
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewMessageType;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
-import art.arcane.wormholes.network.client.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamMessageType;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.ClientViewProtocolException;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayDeque;
@@ -12,6 +12,8 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import art.arcane.optics.stream.ClientViewInbound;
+import art.arcane.optics.stream.ClientViewSessionState;
 
 final class ClientViewNativeRecoveryTest {
     @Test
@@ -30,8 +32,8 @@ final class ClientViewNativeRecoveryTest {
             assertTrue(harness.registry.owns(harness.playerId, portal.id));
             assertFalse(harness.client.portals.containsKey(oldKey));
             assertEquals(1, harness.client.portals.size());
-            assertTrue(harness.sent(ClientViewMessageType.MESH_BEGIN) >= 2);
-            assertEquals(0, harness.sent(ClientViewMessageType.PLATE_BEGIN));
+            assertTrue(harness.sent(ViewStreamMessageType.MESH_BEGIN) >= 2);
+            assertEquals(0, harness.sent(ViewStreamMessageType.PLATE_BEGIN));
             assertTrue(harness.warnings.isEmpty(), harness.warnings.toString());
         }
     }
@@ -50,7 +52,7 @@ final class ClientViewNativeRecoveryTest {
             assertTrue(harness.session.owns(portal.id));
         }
         assertEquals(1, harness.client.portals.size());
-        assertEquals(0, harness.sent(ClientViewMessageType.PLATE_BEGIN));
+        assertEquals(0, harness.sent(ViewStreamMessageType.PLATE_BEGIN));
     }
 
     @Test
@@ -77,7 +79,7 @@ final class ClientViewNativeRecoveryTest {
         harness.tick();
         SessionPortal portal = harness.access.portals.values().iterator().next();
         ClientViewInbound result = ClientViewInbound.IGNORED;
-        for (int violation = 0; violation < ClientViewProtocol.C2S_VIOLATION_LIMIT; violation++) {
+        for (int violation = 0; violation < ViewStreamLimits.C2S_VIOLATION_LIMIT; violation++) {
             result = harness.c2s(new byte[] {(byte) 99});
         }
         assertEquals(ClientViewInbound.RESET, result);
@@ -86,7 +88,7 @@ final class ClientViewNativeRecoveryTest {
         harness.tick();
         assertEquals(1, harness.client.portals.size());
         assertEquals(ClientViewSessionState.CLIENT_VIEW, harness.session.state());
-        assertEquals(0, harness.sent(ClientViewMessageType.PLATE_BEGIN));
+        assertEquals(0, harness.sent(ViewStreamMessageType.PLATE_BEGIN));
     }
 
     @Test
@@ -99,11 +101,11 @@ final class ClientViewNativeRecoveryTest {
         drain(tasks, harness);
         harness.tick();
         drain(tasks, harness);
-        int before = harness.sent(ClientViewMessageType.MESH_BEGIN);
+        int before = harness.sent(ViewStreamMessageType.MESH_BEGIN);
         harness.session.end(ClientViewMessage.ResetReason.PROTOCOL);
         harness.tick();
         drain(tasks, harness);
-        assertTrue(harness.sent(ClientViewMessageType.MESH_BEGIN) > before);
+        assertTrue(harness.sent(ViewStreamMessageType.MESH_BEGIN) > before);
         assertEquals(1, harness.client.portals.size());
     }
 

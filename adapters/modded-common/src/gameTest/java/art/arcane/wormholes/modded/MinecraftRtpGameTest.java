@@ -1,8 +1,7 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.portal.PortalType;
-import art.arcane.wormholes.portal.PortalCrossing;
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.wormholes.portal.rtp.RtpAllocationMode;
 import art.arcane.wormholes.portal.rtp.RtpRotationMode;
 import art.arcane.wormholes.portal.rtp.RtpService;
@@ -13,7 +12,7 @@ import art.arcane.volmlib.util.localization.TextKey;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.portal.rtp.RtpSafetyMode;
 import art.arcane.wormholes.portal.rtp.RtpVerticalMode;
-import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.optics.math.Box;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.gametest.framework.GameTestSequence;
@@ -154,9 +153,9 @@ public final class MinecraftRtpGameTest {
             helper.assertTrue(runtime.rtp().snapshot(portal.getId()).orElseThrow().runtime().reservedPlayers() == 2,
                 "Private allocation did not reserve one destination for each player");
         }).thenExecute(() -> {
-            GeometryVector point = portal.getOrigin();
-            PortalCrossing crossing = new PortalCrossing(portal.getFrame(), point, point,
-                new GeometryVector(0, 0, 0), new GeometryVector(0, 0, 1), true);
+            art.arcane.optics.math.Vec3 point = portal.getOrigin();
+            PlaneCrossing crossing = new PlaneCrossing(portal.getFrame(), point, point,
+                new art.arcane.optics.math.Vec3(0, 0, 0), new art.arcane.optics.math.Vec3(0, 0, 1), true);
             helper.assertTrue(runtime.rtp().begin(connection.player(), portal, crossing), "Cancellation fixture could not begin traversal");
             runtime.rtp().disconnected(connection.player());
             helper.assertTrue(!runtime.rtp().locked(connection.player().getUUID()), "Disconnected player retained a random traversal lock");
@@ -165,9 +164,9 @@ public final class MinecraftRtpGameTest {
                 "Cancelled traversal retained a private claim");
             helper.assertTrue(connection.player().position().distanceToSqr(portal.getOrigin().x(), portal.getOrigin().y(), portal.getOrigin().z()) < 16,
                 "Cancelled traversal still teleported the player");
-            GeometryVector point = portal.getOrigin();
-            PortalCrossing crossing = new PortalCrossing(portal.getFrame(), point, point,
-                new GeometryVector(0, 0, 0), new GeometryVector(0, 0, 1), true);
+            art.arcane.optics.math.Vec3 point = portal.getOrigin();
+            PlaneCrossing crossing = new PlaneCrossing(portal.getFrame(), point, point,
+                new art.arcane.optics.math.Vec3(0, 0, 0), new art.arcane.optics.math.Vec3(0, 0, 1), true);
             helper.assertTrue(runtime.rtp().begin(second.player(), portal, crossing), "World-change fixture could not begin traversal");
             ServerLevel destination = runtime.server().getLevel(Level.NETHER);
             helper.assertTrue(destination != null, "World-change fixture has no Nether dimension");
@@ -327,7 +326,7 @@ public final class MinecraftRtpGameTest {
     }
 
     private int rimParticles(List<Object> packets) {
-        AxisAlignedBB area = portal.getGeometry().getArea();
+        Box area = portal.getGeometry().getArea();
         int count = 0;
         for (Object packet : packets) {
             if (packet instanceof ClientboundLevelParticlesPacket particles && particles.particle() instanceof DustParticleOptions

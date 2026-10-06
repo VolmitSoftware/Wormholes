@@ -26,6 +26,8 @@ import org.bukkit.event.weather.LightningStrikeEvent;
 
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.network.view.ViewServer;
+import art.arcane.optics.fidelity.AcousticsBridge;
+import art.arcane.optics.fidelity.AcousticsProfile;
 
 /**
  * Destination-side listener that turns world events into {@link AcousticsBridge.SoundEvent}s for

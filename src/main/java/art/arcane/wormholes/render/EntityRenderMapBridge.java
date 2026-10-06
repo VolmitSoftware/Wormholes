@@ -3,7 +3,7 @@ package art.arcane.wormholes.render;
 import art.arcane.wormholes.network.view.BukkitProjectedMapData;
 import java.util.Optional;
 import java.util.UUID;
-import art.arcane.wormholes.render.ProjectedEntityMaps.Projection;
+import art.arcane.optics.entity.ProjectedMaps.Projection;
 import java.util.logging.Level;
 
 import org.bukkit.entity.Entity;
@@ -15,18 +15,20 @@ import org.bukkit.inventory.meta.MapMeta;
 import org.bukkit.map.MapView;
 
 import art.arcane.wormholes.Wormholes;
-import art.arcane.wormholes.network.view.EntityVisual;
-import art.arcane.wormholes.network.view.ProjectedMapData;
+import art.arcane.optics.entity.EntitySnapshot;
+import art.arcane.optics.entity.MapSnapshot;
 import art.arcane.wormholes.render.view.ProjectionEntityView;
 import art.arcane.wormholes.service.WormholesTelemetry;
+import art.arcane.optics.entity.ItemFrameTransform;
+import art.arcane.optics.entity.SpoofedEntity;
 
 final class EntityRenderMapBridge {
-    private final ProjectedEntityMaps<Player> projected;
+    private final ProjectedMaps<Player> projected;
 
     EntityRenderMapBridge(EntityRenderPacketChannel channel) {
-        this.projected = new ProjectedEntityMaps<>(new ProjectedEntityMaps.Host<>() {
+        this.projected = new ProjectedMaps<>(new ProjectedMaps.Host<>() {
             @Override
-            public void send(Player observer, ProjectedMapData map, int virtualMapId) {
+            public void send(Player observer, MapSnapshot map, int virtualMapId) {
                 channel.send(observer, BukkitProjectedMapData.toPacket(map, virtualMapId));
             }
 
@@ -39,7 +41,7 @@ final class EntityRenderMapBridge {
 
     Projection projectLocal(Player observer,
                             Entity entity,
-                            EntityRenderSpoofedEntity state,
+                            SpoofedEntity state,
                             int metadataTransform,
                             Integer sourceMapId,
                             boolean force) {
@@ -50,11 +52,11 @@ final class EntityRenderMapBridge {
         if (mapView == null) {
             return Projection.none();
         }
-        if (!ProjectedItemFrameTransform.isReversed(metadataTransform)) {
+        if (!ItemFrameTransform.isReversed(metadataTransform)) {
             sendMap(observer, mapView);
             return Projection.none();
         }
-        Optional<ProjectedMapData> captured = BukkitProjectedMapData.capture(mapView);
+        Optional<MapSnapshot> captured = BukkitProjectedMapData.capture(mapView);
         if (captured.isEmpty()) {
             sendMap(observer, mapView);
             return Projection.none();
@@ -64,8 +66,8 @@ final class EntityRenderMapBridge {
 
     Projection projectVisual(Player observer,
                              ProjectionEntityView entityView,
-                             EntityVisual visual,
-                             EntityRenderSpoofedEntity state,
+                             EntitySnapshot visual,
+                             SpoofedEntity state,
                              int metadataTransform,
                              Integer sourceMapId,
                              boolean force) {
@@ -73,20 +75,20 @@ final class EntityRenderMapBridge {
             return Projection.none();
         }
         MapView localMapView = entityView.getMapView(visual.id());
-        boolean reversed = ProjectedItemFrameTransform.isReversed(metadataTransform);
+        boolean reversed = ItemFrameTransform.isReversed(metadataTransform);
         if (localMapView != null && !reversed) {
             sendMap(observer, localMapView);
             return Projection.none();
         }
         if (localMapView != null) {
-            Optional<ProjectedMapData> localCapture = BukkitProjectedMapData.capture(localMapView);
+            Optional<MapSnapshot> localCapture = BukkitProjectedMapData.capture(localMapView);
             if (localCapture.isPresent()) {
                 return projected.send(observer, state, localCapture.orElseThrow(), true, force);
             }
             sendMap(observer, localMapView);
             return Projection.none();
         }
-        return projected.project(observer, visual, state, new ProjectedEntityMaps.Options(sourceMapId, metadataTransform, force));
+        return projected.project(observer, visual, state, new ProjectedMaps.Options(sourceMapId, metadataTransform, force));
     }
 
     private static MapView mapView(ItemFrame itemFrame) {

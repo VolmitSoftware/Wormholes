@@ -15,6 +15,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
+import art.arcane.optics.entity.EntityDeltaCodec;
+import art.arcane.optics.entity.EntitySnapshot;
 
 public final class ViewEntityPublisher<S extends ViewEntityState<?>> {
     private final NetworkManager network;
@@ -31,12 +33,12 @@ public final class ViewEntityPublisher<S extends ViewEntityState<?>> {
     }
 
     public void publish(S session, long entityTick, EntityRateScheduler scheduler,
-                 boolean deltaEnabled, Map<UUID, EntityVisual> captured) {
+                 boolean deltaEnabled, Map<UUID, EntitySnapshot> captured) {
         if (!options.current().test(session)) {
             return;
         }
         session.captureFailureLogged.set(false);
-        List<EntityVisual> visuals = new ArrayList<>(captured.values());
+        List<EntitySnapshot> visuals = new ArrayList<>(captured.values());
         Set<UUID> presentIds = new HashSet<>(captured.keySet());
         List<UUID> presentIdList = new ArrayList<>(presentIds);
         session.sentProfiles.retainAll(presentIds);
@@ -73,8 +75,8 @@ public final class ViewEntityPublisher<S extends ViewEntityState<?>> {
                 }
             }
             int outboundCapacity = sideband ? Math.min(visuals.size(), 24) : visuals.size();
-            List<EntityVisual> outbound = new ArrayList<>(outboundCapacity);
-            for (EntityVisual currentFull : visuals) {
+            List<EntitySnapshot> outbound = new ArrayList<>(outboundCapacity);
+            for (EntitySnapshot currentFull : visuals) {
                 if (sideband && !sidebandAllowed.contains(currentFull.id())) {
                     continue;
                 }
@@ -86,7 +88,7 @@ public final class ViewEntityPublisher<S extends ViewEntityState<?>> {
                     double dz = currentFull.z() - session.portalCenterZ;
                     state.setNextEligibleTick(entityTick + scheduler.claimSendInterval((dx * dx) + (dy * dy) + (dz * dz)));
                 }
-                EntityVisual lastSent = state.getLastSentSnapshot();
+                EntitySnapshot lastSent = state.getLastSentSnapshot();
                 boolean forceFull = !deltaEnabled
                     || state.isForceFullNext()
                     || lastSent == null
@@ -96,7 +98,7 @@ public final class ViewEntityPublisher<S extends ViewEntityState<?>> {
                 }
                 if (forceFull) {
                     int sequence = state.allocateSequence();
-                    outbound.add(withSequenceAndMode(currentFull, sequence, EntityVisual.MODE_FULL));
+                    outbound.add(withSequenceAndMode(currentFull, sequence, EntitySnapshot.MODE_FULL));
                     state.recordSent(currentFull, true, entityTick);
                 } else {
                     int mask = EntityDeltaCodec.computeMask(currentFull, lastSent);
@@ -106,7 +108,7 @@ public final class ViewEntityPublisher<S extends ViewEntityState<?>> {
                     int sequence = state.allocateSequence();
                     boolean reliableFull = requiresFullSnapshot(mask);
                     outbound.add(reliableFull
-                        ? withSequenceAndMode(currentFull, sequence, EntityVisual.MODE_FULL)
+                        ? withSequenceAndMode(currentFull, sequence, EntitySnapshot.MODE_FULL)
                         : EntityDeltaCodec.buildDelta(currentFull, lastSent, sequence, mask));
                     state.recordSent(currentFull, reliableFull, entityTick);
                 }
@@ -126,9 +128,9 @@ public final class ViewEntityPublisher<S extends ViewEntityState<?>> {
             if (outbound.isEmpty() && !presentChanged) {
                 continue;
             }
-            List<List<EntityVisual>> batches = deliveryBatches(outbound);
+            List<List<EntitySnapshot>> batches = deliveryBatches(outbound);
             boolean presenceAccepted = false;
-            for (List<EntityVisual> batch : batches) {
+            for (List<EntitySnapshot> batch : batches) {
                 WireMessage.ViewEntities message = new WireMessage.ViewEntities(session.portalId, batch, peerPresentIdList);
                 boolean sent = network.send(peerName, message);
                 if (sent) {
@@ -137,7 +139,7 @@ public final class ViewEntityPublisher<S extends ViewEntityState<?>> {
                     continue;
                 }
                 retryProfilesAfterRejectedBatch(session.sentProfiles, batch);
-                for (EntityVisual failedVisual : batch) {
+                for (EntitySnapshot failedVisual : batch) {
                     EntitySendState failedState = peerStates.get(failedVisual.id());
                     if (failedState != null) {
                         failedState.requestFull();
@@ -172,8 +174,8 @@ public final class ViewEntityPublisher<S extends ViewEntityState<?>> {
         }
     }
 
-    private static EntityVisual withSequenceAndMode(EntityVisual source, int sequence, byte mode) {
-        return new EntityVisual(
+    private static EntitySnapshot withSequenceAndMode(EntitySnapshot source, int sequence, byte mode) {
+        return new EntitySnapshot(
             mode,
             sequence,
             source.presentMask(),
@@ -197,13 +199,13 @@ public final class ViewEntityPublisher<S extends ViewEntityState<?>> {
     }
 
     static boolean requiresFullSnapshot(int mask) {
-        return (mask & EntityVisual.FIELD_MAP_DATA) != 0;
+        return (mask & EntitySnapshot.FIELD_MAP_DATA) != 0;
     }
 
-    static List<List<EntityVisual>> deliveryBatches(List<EntityVisual> outbound) {
-        List<EntityVisual> reliable = new ArrayList<EntityVisual>(outbound.size());
-        List<EntityVisual> bestEffort = new ArrayList<EntityVisual>(outbound.size());
-        for (EntityVisual visual : outbound) {
+    static List<List<EntitySnapshot>> deliveryBatches(List<EntitySnapshot> outbound) {
+        List<EntitySnapshot> reliable = new ArrayList<EntitySnapshot>(outbound.size());
+        List<EntitySnapshot> bestEffort = new ArrayList<EntitySnapshot>(outbound.size());
+        for (EntitySnapshot visual : outbound) {
             if (visual.isFull()) {
                 reliable.add(visual);
             } else {
@@ -219,23 +221,23 @@ public final class ViewEntityPublisher<S extends ViewEntityState<?>> {
         return List.of(reliable, bestEffort);
     }
 
-    static void retryProfilesAfterRejectedBatch(Set<UUID> sentProfiles, List<EntityVisual> rejected) {
-        for (EntityVisual visual : rejected) {
+    static void retryProfilesAfterRejectedBatch(Set<UUID> sentProfiles, List<EntitySnapshot> rejected) {
+        for (EntitySnapshot visual : rejected) {
             if (visual.hasTextures()) {
                 sentProfiles.remove(visual.id());
             }
         }
     }
 
-    private static Set<UUID> nearestEntityIds(ViewEntityState<?> session, List<EntityVisual> visuals, int max) {
+    private static Set<UUID> nearestEntityIds(ViewEntityState<?> session, List<EntitySnapshot> visuals, int max) {
         Set<UUID> nearest = new HashSet<>(Math.min(visuals.size(), max));
         if (visuals.size() <= max) {
-            for (EntityVisual visual : visuals) {
+            for (EntitySnapshot visual : visuals) {
                 nearest.add(visual.id());
             }
             return nearest;
         }
-        List<EntityVisual> sorted = new ArrayList<>(visuals);
+        List<EntitySnapshot> sorted = new ArrayList<>(visuals);
         sorted.sort(Comparator.comparingDouble(visual -> {
             double dx = visual.x() - session.portalCenterX;
             double dy = visual.y() - session.portalCenterY;

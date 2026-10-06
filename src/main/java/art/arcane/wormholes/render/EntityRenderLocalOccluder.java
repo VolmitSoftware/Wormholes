@@ -1,6 +1,6 @@
 package art.arcane.wormholes.render;
 
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -18,25 +18,29 @@ import org.bukkit.util.Vector;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.portal.ILocalPortal;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.ProjectorFrameTransform;
+import art.arcane.optics.occlusion.LocalOcclusionArbiter;
+import art.arcane.optics.volume.LocalEntityEnvelope;
+import art.arcane.optics.volume.ViewVolume;
 
 final class EntityRenderLocalOccluder {
     private static final double LABEL_HORIZONTAL_MARGIN = 0.5D;
     private static final double LABEL_VERTICAL_MARGIN = 0.75D;
 
-    private final EntityRenderLocalOcclusionArbiter<Player, Entity> arbiter;
+    private final LocalOcclusionArbiter<Player, Entity> arbiter;
     private final UUID ownerId;
     private final double[] scratchEntityPosition;
     private boolean localHideOwnershipWarningSent;
 
-    EntityRenderLocalOccluder(EntityRenderLocalOcclusionArbiter<Player, Entity> arbiter, UUID ownerId) {
+    EntityRenderLocalOccluder(LocalOcclusionArbiter<Player, Entity> arbiter, UUID ownerId) {
         this.arbiter = arbiter;
         this.ownerId = ownerId;
         this.scratchEntityPosition = new double[5];
         this.localHideOwnershipWarningSent = false;
     }
 
-    void hideLocalEntities(Player observer, ILocalPortal localPortal, Frustum4D frustum,
+    void hideLocalEntities(Player observer, ILocalPortal localPortal, ViewVolume frustum,
                            double projectionDepth) {
         if (Wormholes.instance == null || observer == null || !observer.isOnline() || localPortal == null) {
             return;
@@ -46,13 +50,13 @@ final class EntityRenderLocalOccluder {
         if (localCenter == null || localWorld == null || !localWorld.equals(observer.getWorld())) {
             return;
         }
-        PortalFrame frame = localPortal.getFrame();
-        GeometryVector origin = localPortal.getOrigin();
+        Frame frame = localPortal.getFrame();
+        Vec3 origin = localPortal.getOrigin();
         WormholesPlatform.entityPosition(observer, scratchEntityPosition);
         double eyeX = scratchEntityPosition[0];
         double eyeY = scratchEntityPosition[1] + observer.getEyeHeight();
         double eyeZ = scratchEntityPosition[2];
-        double eyeDot = ProjectorLocalEntityEnvelope.dot(eyeX - origin.getX(), eyeY - origin.getY(), eyeZ - origin.getZ(), frame);
+        double eyeDot = LocalEntityEnvelope.dot(eyeX - origin.getX(), eyeY - origin.getY(), eyeZ - origin.getZ(), frame);
         boolean eyeFrontSide = eyeDot >= 0.0D;
         double clearance = ProjectorFrameTransform.portalPlaneClearance(localPortal.getStructure().getArea(), frame);
         double maxDepth = projectionDepth + clearance;
@@ -107,9 +111,9 @@ final class EntityRenderLocalOccluder {
 
     private boolean shouldHideLocalEntity(UUID observerId,
                                           Entity entity,
-                                          GeometryVector origin,
-                                          PortalFrame frame,
-                                          Frustum4D frustum,
+                                          Vec3 origin,
+                                          Frame frame,
+                                          ViewVolume frustum,
                                           boolean eyeFrontSide,
                                           double clearance,
                                           double maxDepth) {
@@ -120,7 +124,7 @@ final class EntityRenderLocalOccluder {
             return false;
         }
         BoundingBox box = entity.getBoundingBox();
-        return ProjectorLocalEntityEnvelope.envelopeFullyProjected(
+        return LocalEntityEnvelope.envelopeFullyProjected(
             box.getMinX() - LABEL_HORIZONTAL_MARGIN,
             box.getMinY(),
             box.getMinZ() - LABEL_HORIZONTAL_MARGIN,

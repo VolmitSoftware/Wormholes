@@ -26,24 +26,26 @@ import io.github.retrooper.packetevents.util.SpigotConversionUtil;
 import io.github.retrooper.packetevents.util.SpigotReflectionUtil;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import art.arcane.optics.entity.PlayerNames;
+import art.arcane.optics.entity.SpoofedEntity;
 
 final class EntityRenderPlayerIdentity {
     private static final long PROFILE_REFRESH_NANOS = 500_000_000L;
 
     private final EntityRenderPacketChannel channel;
-    private final ProjectedPlayerNames<Player> names;
+    private final PlayerNames<Player> names;
 
     private boolean labelsEnabled = true;
 
     EntityRenderPlayerIdentity(EntityRenderPacketChannel channel) {
         this.channel = channel;
-        this.names = new ProjectedPlayerNames<>(new BukkitPlayerNameTeams(channel));
+        this.names = new PlayerNames<>(new BukkitPlayerNameTeams(channel));
     }
 
-    void sendPlayerInfo(Player observer, Player player, EntityRenderSpoofedEntity state, boolean upsideDown) {
+    void sendPlayerInfo(Player observer, Player player, SpoofedEntity state, boolean upsideDown) {
         String sourceName = player.getName();
-        String label = ProjectedPlayerNames.playerLabelText(sourceName);
-        String name = ProjectedPlayerNames.projectedProfileName(sourceName, state.fakeUuid, upsideDown);
+        String label = PlayerNames.playerLabelText(sourceName);
+        String name = PlayerNames.projectedProfileName(sourceName, state.fakeUuid, upsideDown);
         state.setPlayerIdentity(name, label);
         names.retain(observer, name);
         UserProfile userProfile = new UserProfile(state.fakeUuid, name);
@@ -65,7 +67,7 @@ final class EntityRenderPlayerIdentity {
             info));
     }
 
-    boolean playerProfileChanged(Player player, EntityRenderSpoofedEntity state, long nowNanos) {
+    boolean playerProfileChanged(Player player, SpoofedEntity state, long nowNanos) {
         if (nowNanos - state.playerProfileCheckedAtNanos < PROFILE_REFRESH_NANOS) {
             return false;
         }
@@ -73,11 +75,11 @@ final class EntityRenderPlayerIdentity {
         return !Objects.equals(state.playerProfile, playerProfile(player));
     }
 
-    void sendRemotePlayerInfo(Player observer, EntityProfile profile, EntityRenderSpoofedEntity state, boolean upsideDown) {
+    void sendRemotePlayerInfo(Player observer, EntityProfile profile, SpoofedEntity state, boolean upsideDown) {
         state.playerProfile = profile;
         String sourceName = profile == null ? null : profile.name();
-        String label = ProjectedPlayerNames.playerLabelText(sourceName);
-        String name = ProjectedPlayerNames.projectedProfileName(sourceName, state.fakeUuid, upsideDown);
+        String label = PlayerNames.playerLabelText(sourceName);
+        String name = PlayerNames.projectedProfileName(sourceName, state.fakeUuid, upsideDown);
         state.setPlayerIdentity(name, label);
         names.retain(observer, name);
         UserProfile userProfile = new UserProfile(state.fakeUuid, name);
@@ -100,7 +102,7 @@ final class EntityRenderPlayerIdentity {
         labelsEnabled = enabled;
     }
 
-    void spawnPlayerLabel(Player observer, EntityRenderSpoofedEntity state, Vector3d playerPosition, double playerHeight) {
+    void spawnPlayerLabel(Player observer, SpoofedEntity state, Vector3d playerPosition, double playerHeight) {
         if (!state.playerEntry || !labelsEnabled) {
             return;
         }
@@ -112,12 +114,12 @@ final class EntityRenderPlayerIdentity {
         state.rememberLabelPosition(labelPosition.getX(), labelPosition.getY(), labelPosition.getZ());
     }
 
-    void updatePlayerLabelPosition(Player observer, EntityRenderSpoofedEntity state, Vector3d playerPosition, double playerHeight) {
+    void updatePlayerLabelPosition(Player observer, SpoofedEntity state, Vector3d playerPosition, double playerHeight) {
         if (!state.playerEntry || !labelsEnabled) {
             return;
         }
         Vector3d labelPosition = ProjectedEntityRenderer.playerLabelPosition(playerPosition, playerHeight);
-        EntityRenderSpoofedEntity.Move move = state.updateLabelPosition(labelPosition.getX(), labelPosition.getY(), labelPosition.getZ());
+        SpoofedEntity.Move move = state.updateLabelPosition(labelPosition.getX(), labelPosition.getY(), labelPosition.getZ());
         if (!move.moved) {
             return;
         }
@@ -129,19 +131,19 @@ final class EntityRenderPlayerIdentity {
         channel.send(observer, new WrapperPlayServerEntityTeleport(state.labelFakeId, labelPosition, 0.0F, 0.0F, false));
     }
 
-    void updatePlayerLabelText(Player observer, EntityRenderSpoofedEntity state, EntityProfile profile) {
+    void updatePlayerLabelText(Player observer, SpoofedEntity state, EntityProfile profile) {
         if (!state.playerEntry) {
             return;
         }
         String sourceName = profile == null ? null : profile.name();
-        String label = ProjectedPlayerNames.playerLabelText(sourceName);
+        String label = PlayerNames.playerLabelText(sourceName);
         if (!state.updatePlayerLabelText(label)) {
             return;
         }
         channel.send(observer, new WrapperPlayServerEntityMetadata(state.labelFakeId, ProjectedEntityRenderer.playerLabelTextMetadata(label)));
     }
 
-    void releaseVanillaNametag(Player observer, EntityRenderSpoofedEntity state) {
+    void releaseVanillaNametag(Player observer, SpoofedEntity state) {
         names.release(observer, state.playerProfileName);
     }
 

@@ -6,22 +6,24 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.UUID;
 
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 
 import art.arcane.wormholes.network.PortalInfo;
-import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Face;
 import art.arcane.wormholes.util.RemoteWorld;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.QuarterTurn;
 
 public class RemotePortal extends Portal implements IRemotePortal {
     private final RemoteWorld server;
     private final PortalType type;
     private final boolean open;
-    private final AxisAlignedBB area;
+    private final Box area;
     private final ConcurrentHashMap<String, String> mirroredExtensionSettings = new ConcurrentHashMap<>();
     private volatile ProjectionMode mirroredProjectionMode;
     private volatile boolean mirroredMirrorMode;
-    private volatile MirrorRotation mirroredProjectionRotation;
+    private volatile QuarterTurn mirroredProjectionRotation;
     private volatile PortalPermissionMode mirroredPermissionMode;
     private volatile boolean mirroredOutgoingTraversalsEnabled;
     private volatile boolean mirroredIncomingTraversalsEnabled;
@@ -39,7 +41,7 @@ public class RemotePortal extends Portal implements IRemotePortal {
     private volatile int mirroredAmbientColor;
     private volatile String mirroredSurfaceSkin;
 
-    public RemotePortal(UUID id, RemoteWorld server, GeometryVector origin, PortalType type, boolean open, AxisAlignedBB area) {
+    public RemotePortal(UUID id, RemoteWorld server, Vec3 origin, PortalType type, boolean open, Box area) {
         super(id, origin);
         this.server = server;
         this.type = type;
@@ -47,7 +49,7 @@ public class RemotePortal extends Portal implements IRemotePortal {
         this.area = area;
         this.mirroredProjectionMode = ProjectionMode.ON;
         this.mirroredMirrorMode = false;
-        this.mirroredProjectionRotation = MirrorRotation.DEGREES_0;
+        this.mirroredProjectionRotation = QuarterTurn.DEGREES_0;
         this.mirroredPermissionMode = PortalPermissionMode.BLACKLIST;
         this.mirroredOutgoingTraversalsEnabled = true;
         this.mirroredIncomingTraversalsEnabled = true;
@@ -70,13 +72,13 @@ public class RemotePortal extends Portal implements IRemotePortal {
         RemotePortal portal = new RemotePortal(
             info.id(),
             new RemoteWorld(serverName, info.worldKey()),
-            new GeometryVector(info.originX(), info.originY(), info.originZ()),
+            new Vec3(info.originX(), info.originY(), info.originZ()),
             PortalType.valueOf(info.typeName()),
             info.open(),
-            new AxisAlignedBB(info.minX(), info.maxX(), info.minY(), info.maxY(), info.minZ(), info.maxZ())
+            new Box(info.minX(), info.maxX(), info.minY(), info.maxY(), info.minZ(), info.maxZ())
         );
         portal.setName(info.name());
-        portal.applyFrame(new PortalFrame(Direction.valueOf(info.frameNormal()), Direction.valueOf(info.frameRight()), Direction.valueOf(info.frameUp())));
+        portal.applyFrame(new Frame(Face.valueOf(info.frameNormal()), Face.valueOf(info.frameRight()), Face.valueOf(info.frameUp())));
         return portal;
     }
 
@@ -98,7 +100,7 @@ public class RemotePortal extends Portal implements IRemotePortal {
         return open;
     }
 
-    public AxisAlignedBB getArea() {
+    public Box getArea() {
         return area;
     }
 
@@ -118,12 +120,12 @@ public class RemotePortal extends Portal implements IRemotePortal {
         this.mirroredMirrorMode = mirrorMode;
     }
 
-    public MirrorRotation getMirroredProjectionRotation() {
+    public QuarterTurn getMirroredProjectionRotation() {
         return mirroredProjectionRotation;
     }
 
-    public void setMirroredProjectionRotation(MirrorRotation rotation) {
-        this.mirroredProjectionRotation = rotation == null ? MirrorRotation.DEGREES_0 : rotation;
+    public void setMirroredProjectionRotation(QuarterTurn rotation) {
+        this.mirroredProjectionRotation = rotation == null ? QuarterTurn.DEGREES_0 : rotation;
     }
 
     public PortalPermissionMode getMirroredPermissionMode() {

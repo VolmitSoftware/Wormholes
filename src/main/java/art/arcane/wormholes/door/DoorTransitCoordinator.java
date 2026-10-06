@@ -7,7 +7,7 @@ import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.portal.LocalPortal;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.render.clientview.BukkitClientView;
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import art.arcane.wormholes.api.traversal.TraversalContext;
 import art.arcane.wormholes.api.traversal.TraversalDestination;
 import art.arcane.wormholes.api.traversal.TraversalRefundReason;
@@ -970,7 +970,7 @@ final class DoorTransitCoordinator
 			if(clientView != null && traveler instanceof Player player)
 			{
 				preparedCommit = clientView.commitTravel(player, source.endpoint().identity().itemId(), target,
-					new GeometryVector(arrivalVelocity.x(), arrivalVelocity.y(), arrivalVelocity.z()));
+					new Vec3(arrivalVelocity.x(), arrivalVelocity.y(), arrivalVelocity.z()));
 			}
             if(prepared.attempted() != null && preparedCommit == null)
             {

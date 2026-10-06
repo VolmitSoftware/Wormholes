@@ -2,7 +2,7 @@ package art.arcane.wormholes.door.view;
 
 import art.arcane.wormholes.door.DoorHalf;
 
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 
 import art.arcane.wormholes.door.DoorItemIdentity;
 import art.arcane.wormholes.door.DoorOpenState;
@@ -10,8 +10,8 @@ import art.arcane.wormholes.door.DoorPosition;
 import art.arcane.wormholes.door.DoorwayPlane;
 import art.arcane.wormholes.door.PlacedDoorEndpoint;
 import art.arcane.wormholes.door.RuntimeDoor;
-import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Face;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.block.BlockFace;
@@ -33,23 +33,23 @@ final class DoorProjectionAdapterTest {
 
     @Test
     void aNorthFacingDoorProjectsBothOfItsCellsThroughItsRecessedSurface() {
-        DoorwayPlane plane = new DoorwayPlane(10, 64, 10, Direction.N);
+        DoorwayPlane plane = new DoorwayPlane(10, 64, 10, Face.N);
         DoorProjectionAdapter adapter = adapter(plane, DoorItemIdentity.publicDoor(new UUID(0, 401)));
 
         assertEquals(2, adapter.getStructure().getBlockPositions().size());
         assertTrue(adapter.getStructure().containsBlock(10, 64, 10));
         assertTrue(adapter.getStructure().containsBlock(10, 65, 10));
-        assertEquals(Direction.N, adapter.getFrame().getNormal());
-        assertEquals(Direction.U, adapter.getFrame().getUp());
+        assertEquals(Face.N, adapter.getFrame().getNormal());
+        assertEquals(Face.U, adapter.getFrame().getUp());
 
-        GeometryVector origin = adapter.getOrigin();
+        Vec3 origin = adapter.getOrigin();
         assertEquals(10.5D, origin.getX(), TOLERANCE);
         assertEquals(65.0D, origin.getY(), TOLERANCE);
         assertEquals(10.92D, origin.getZ(), TOLERANCE);
         assertEquals(plane.center().z(), origin.getZ(), TOLERANCE);
 
-        AxisAlignedBB view = adapter.getView();
-        AxisAlignedBB area = adapter.getArea();
+        Box view = adapter.getView();
+        Box area = adapter.getArea();
         assertEquals(area.min().getX() - RANGE, view.min().getX(), TOLERANCE);
         assertEquals(area.max().getY() + RANGE, view.max().getY(), TOLERANCE);
         assertEquals(area.min().getZ() - RANGE, view.min().getZ(), TOLERANCE);
@@ -58,26 +58,26 @@ final class DoorProjectionAdapterTest {
 
     @Test
     void aTrapdoorProjectsOneCellThroughAVerticalNormal() {
-        DoorwayPlane bottom = DoorwayPlane.trapdoor(4, 70, -6, Direction.S, DoorHalf.BOTTOM, DoorOpenState.OPEN);
+        DoorwayPlane bottom = DoorwayPlane.trapdoor(4, 70, -6, Face.S, DoorHalf.BOTTOM, DoorOpenState.OPEN);
         DoorProjectionAdapter adapter = adapter(bottom, DoorItemIdentity.publicDoor(new UUID(0, 402), art.arcane.wormholes.door.DoorForm.TRAPDOOR));
 
         assertEquals(1, adapter.getStructure().getBlockPositions().size());
         assertTrue(adapter.getStructure().containsBlock(4, 70, -6));
-        assertEquals(Direction.D, adapter.getFrame().getNormal());
-        assertEquals(Direction.S, adapter.getFrame().getUp());
+        assertEquals(Face.D, adapter.getFrame().getNormal());
+        assertEquals(Face.S, adapter.getFrame().getUp());
         assertEquals(bottom.planeY(), adapter.getOrigin().y(), TOLERANCE);
 
-        DoorwayPlane top = DoorwayPlane.trapdoor(4, 70, -6, Direction.S, DoorHalf.TOP, DoorOpenState.OPEN);
+        DoorwayPlane top = DoorwayPlane.trapdoor(4, 70, -6, Face.S, DoorHalf.TOP, DoorOpenState.OPEN);
         adapter.refresh(top);
-        assertEquals(Direction.U, adapter.getFrame().getNormal());
-        assertEquals(Direction.N, adapter.getFrame().getUp());
+        assertEquals(Face.U, adapter.getFrame().getNormal());
+        assertEquals(Face.N, adapter.getFrame().getUp());
         assertEquals(top.planeY(), adapter.getOrigin().y(), TOLERANCE);
         assertEquals(1, adapter.getStructure().getBlockPositions().size());
     }
 
     @Test
     void anApertureIsOpenOnlyWhileItsDoorReadsPortalLive() {
-        DoorwayPlane plane = new DoorwayPlane(0, 64, 0, Direction.E);
+        DoorwayPlane plane = new DoorwayPlane(0, 64, 0, Face.E);
         PlacedDoorEndpoint endpoint = endpoint(DoorItemIdentity.publicDoor(new UUID(0, 403)));
         RuntimeDoor door = new RuntimeDoor(endpoint);
         DoorProjectionAdapter adapter = new DoorProjectionAdapter(door, plane, world());

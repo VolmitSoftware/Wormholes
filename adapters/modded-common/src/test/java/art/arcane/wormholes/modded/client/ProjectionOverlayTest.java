@@ -1,8 +1,8 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.wormholes.render.ProjectionCellKey;
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.fidelity.BlockEntitySample;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -43,7 +43,7 @@ public class ProjectionOverlayTest {
     public void interceptSubstitutesTheProjectedStateAndRecordsTheShadow() {
         Object level = new Object();
         ProjectionOverlay overlay = new ProjectionOverlay(level);
-        long key = ProjectionCellKey.pack(5, 70, -3);
+        long key = CellKeys.pack(5, 70, -3);
         overlay.enter(key, STONE, DIRT, 1, false);
         ProjectionOverlay.activate(overlay);
         BlockPos position = new BlockPos(5, 70, -3);
@@ -64,7 +64,7 @@ public class ProjectionOverlayTest {
     @Test
     public void exitReturnsTheEntryAndDropsTheChunkIndex() {
         ProjectionOverlay overlay = new ProjectionOverlay(new Object());
-        long key = ProjectionCellKey.pack(17, 64, 33);
+        long key = CellKeys.pack(17, 64, 33);
         overlay.enter(key, STONE, DIRT, 2, false);
         assertEquals(1, overlay.keysInChunk(1, 2).size());
         ProjectionOverlay.Entry removed = overlay.exit(key);
@@ -78,9 +78,9 @@ public class ProjectionOverlayTest {
     @Test
     public void pendingCellsRefreshFromTheFreshChunkAndWriteTheProjection() {
         ProjectionOverlay overlay = new ProjectionOverlay(new Object());
-        long pendingKey = ProjectionCellKey.pack(32, 70, 48);
-        long settledKey = ProjectionCellKey.pack(33, 70, 48);
-        long elsewhere = ProjectionCellKey.pack(200, 70, 48);
+        long pendingKey = CellKeys.pack(32, 70, 48);
+        long settledKey = CellKeys.pack(33, 70, 48);
+        long elsewhere = CellKeys.pack(200, 70, 48);
         overlay.enter(pendingKey, STONE, null, 1, true);
         overlay.enter(settledKey, STONE, DIRT, 1, false);
         overlay.enter(elsewhere, GOLD, DIRT, 1, false);
@@ -93,12 +93,12 @@ public class ProjectionOverlayTest {
         int touched = overlay.reapply(2, 3, new ProjectionOverlay.ChunkSections() {
             @Override
             public BlockState state(int x, int y, int z) {
-                return real.get(ProjectionCellKey.pack(x, y, z));
+                return real.get(CellKeys.pack(x, y, z));
             }
 
             @Override
             public void write(int x, int y, int z, BlockState state) {
-                long key = ProjectionCellKey.pack(x, y, z);
+                long key = CellKeys.pack(x, y, z);
                 real.put(key, state);
                 writes.add(key);
             }
@@ -120,9 +120,9 @@ public class ProjectionOverlayTest {
     @Test
     public void keysOfFiltersByPortalAndClearReportsEverything() {
         ProjectionOverlay overlay = new ProjectionOverlay(new Object());
-        long first = ProjectionCellKey.pack(1, 1, 1);
-        long second = ProjectionCellKey.pack(2, 1, 1);
-        long third = ProjectionCellKey.pack(3, 1, 1);
+        long first = CellKeys.pack(1, 1, 1);
+        long second = CellKeys.pack(2, 1, 1);
+        long third = CellKeys.pack(3, 1, 1);
         overlay.enter(first, STONE, DIRT, 1, false);
         overlay.enter(second, STONE, DIRT, 2, false);
         overlay.enter(third, STONE, DIRT, 1, true);
@@ -140,7 +140,7 @@ public class ProjectionOverlayTest {
     @Test
     public void reenteringAnExistingCellKeepsTheShadowAndReplacesTheProjection() {
         ProjectionOverlay overlay = new ProjectionOverlay(new Object());
-        long key = ProjectionCellKey.pack(9, 9, 9);
+        long key = CellKeys.pack(9, 9, 9);
         overlay.enter(key, STONE, DIRT, 1, false);
         ProjectionOverlay.Entry entry = overlay.enter(key, GOLD, DIRT, 1, false);
         assertSame(GOLD, entry.projected());
@@ -152,11 +152,11 @@ public class ProjectionOverlayTest {
     @Test
     public void sectionKeysAppendOnlyTheRequestedSectionAcrossNegativeBoundaries() {
         ProjectionOverlay overlay = new ProjectionOverlay(new Object());
-        long below = ProjectionCellKey.pack(-1, -1, -1);
-        long floor = ProjectionCellKey.pack(-16, 0, -16);
-        long ceiling = ProjectionCellKey.pack(-1, 15, -1);
-        long above = ProjectionCellKey.pack(-1, 16, -1);
-        long adjacent = ProjectionCellKey.pack(0, 0, -1);
+        long below = CellKeys.pack(-1, -1, -1);
+        long floor = CellKeys.pack(-16, 0, -16);
+        long ceiling = CellKeys.pack(-1, 15, -1);
+        long above = CellKeys.pack(-1, 16, -1);
+        long adjacent = CellKeys.pack(0, 0, -1);
         for (long key : new long[] {below, floor, ceiling, above, adjacent}) {
             overlay.enter(key, STONE, DIRT, 1, false);
         }
@@ -176,10 +176,10 @@ public class ProjectionOverlayTest {
     @Test
     public void mixedRemovalsAndReentryPreserveSectionMembershipAndPendingCount() {
         ProjectionOverlay overlay = new ProjectionOverlay(new Object());
-        long first = ProjectionCellKey.pack(1, 0, 1);
-        long middle = ProjectionCellKey.pack(2, 0, 1);
-        long last = ProjectionCellKey.pack(3, 0, 1);
-        long upper = ProjectionCellKey.pack(1, 16, 1);
+        long first = CellKeys.pack(1, 0, 1);
+        long middle = CellKeys.pack(2, 0, 1);
+        long last = CellKeys.pack(3, 0, 1);
+        long upper = CellKeys.pack(1, 16, 1);
         for (long key : new long[] {first, middle, last, upper}) {
             overlay.enter(key, STONE, null, 1, true);
         }
@@ -214,10 +214,10 @@ public class ProjectionOverlayTest {
     public void projectedBlockEntitiesAreRebuiltAfterTheChunkPacketWithTheirSamples() {
         ProjectionOverlay overlay = new ProjectionOverlay(new Object());
         BlockEntitySample sample = new BlockEntitySample("minecraft:sign", new byte[] {10, 0, 0, 0});
-        long sign = ProjectionCellKey.pack(1, 64, 1);
-        long chest = ProjectionCellKey.pack(2, 80, 1);
-        long stone = ProjectionCellKey.pack(3, 64, 1);
-        long elsewhere = ProjectionCellKey.pack(40, 64, 1);
+        long sign = CellKeys.pack(1, 64, 1);
+        long chest = CellKeys.pack(2, 80, 1);
+        long stone = CellKeys.pack(3, 64, 1);
+        long elsewhere = CellKeys.pack(40, 64, 1);
         overlay.enter(sign, SIGN, DIRT, 1, false).blockEntity(sample);
         overlay.enter(chest, CHEST, null, 1, true);
         overlay.enter(stone, STONE, DIRT, 1, false);
@@ -236,7 +236,7 @@ public class ProjectionOverlayTest {
 
             @Override
             public void blockEntity(int x, int y, int z, BlockEntitySample blockEntity) {
-                long key = ProjectionCellKey.pack(x, y, z);
+                long key = CellKeys.pack(x, y, z);
                 order.add(key);
                 rebuilt.put(key, blockEntity);
             }

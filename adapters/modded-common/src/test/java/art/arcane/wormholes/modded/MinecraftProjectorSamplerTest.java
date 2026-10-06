@@ -1,11 +1,11 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.portal.PortalFrame;
-import static art.arcane.wormholes.util.Direction.E;
-import art.arcane.wormholes.render.ProjectorRecursivePortals;
-import art.arcane.wormholes.render.ProjectorSample;
-import art.arcane.wormholes.render.ProjectorSampleMemo;
-import art.arcane.wormholes.render.ProjectorSampler;
+import art.arcane.optics.frame.Frame;
+import static art.arcane.optics.math.Face.E;
+import art.arcane.optics.recursion.RecursiveEndpoints;
+import art.arcane.optics.scan.ProjectorSample;
+import art.arcane.optics.scan.ProjectorSampleMemo;
+import art.arcane.optics.scan.ProjectorSampler;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Blocks;
@@ -56,12 +56,12 @@ public class MinecraftProjectorSamplerTest extends MinecraftTestBase {
     @Test
     public void nativeMirrorTransformUsesSharedOrientationAndMemoizedBlockState() {
         Fixture fixture = fixture();
-        PortalFrame frame = PortalFrame.canonical(E);
+        Frame frame = Frame.canonical(E);
         BlockState eastFacing = Blocks.FURNACE.defaultBlockState()
-            .setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.EAST);
+            .setValue(BlockStateProperties.HORIZONTAL_FACING, Face.EAST);
         fixture.sampler().prepareTransformCache(frame, frame, true, 0);
         BlockState mirrored = fixture.sampler().transformProjectedBlockData(eastFacing, frame, frame, true, frame, 0);
-        assertEquals(Direction.WEST, mirrored.getValue(BlockStateProperties.HORIZONTAL_FACING));
+        assertEquals(Face.WEST, mirrored.getValue(BlockStateProperties.HORIZONTAL_FACING));
         assertSame(mirrored, fixture.sampler().transformProjectedBlockData(eastFacing, frame, frame, true, frame, 0));
     }
 
@@ -86,10 +86,10 @@ public class MinecraftProjectorSamplerTest extends MinecraftTestBase {
         ServerLevel level = mock(ServerLevel.class);
         when(view.getWorld()).thenReturn(level);
         when(view.buriedDepth(anyInt(), anyInt(), anyInt())).thenReturn(-1);
-        ProjectorRecursivePortals.PortalAccess<ServerLevel, MinecraftPortal> access = mock(ProjectorRecursivePortals.PortalAccess.class);
+        RecursiveEndpoints.PortalAccess<ServerLevel, MinecraftPortal> access = mock(RecursiveEndpoints.PortalAccess.class);
         when(access.portals()).thenReturn(List.of());
-        ProjectorRecursivePortals<ServerLevel, MinecraftPortal> portals = new ProjectorRecursivePortals<>(access,
-            () -> new ProjectorRecursivePortals.Options(0.0D, 64.0D));
+        RecursiveEndpoints<ServerLevel, MinecraftPortal> portals = new RecursiveEndpoints<>(access,
+            () -> new RecursiveEndpoints.Options(0.0D, 64.0D));
         ProjectorSampleMemo<BlockState, BlockState, MinecraftProjectionWorldView> memo = new ProjectorSampleMemo<>(
             MinecraftProjectorBlocks.INSTANCE, () -> null);
         ProjectorSampler<BlockState, BlockState, ServerLevel, MinecraftPortal, MinecraftProjectionWorldView> sampler = new ProjectorSampler<>(

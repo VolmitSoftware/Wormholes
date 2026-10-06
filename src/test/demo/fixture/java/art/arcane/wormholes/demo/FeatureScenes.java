@@ -16,7 +16,7 @@ import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.ITunnel;
 import art.arcane.wormholes.portal.LocalPortal;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
 import art.arcane.wormholes.portal.UniversalTunnel;
@@ -27,7 +27,7 @@ import art.arcane.wormholes.portal.rtp.RtpPortalRuntime;
 import art.arcane.wormholes.portal.vanilla.PortalFactory;
 import art.arcane.wormholes.render.FidelityPortalExtension;
 import art.arcane.wormholes.transit.TransitPortalExtension;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import org.bukkit.Material;
@@ -301,10 +301,10 @@ public final class FeatureScenes {
                 cells.add(world.getBlockAt(x, y, z));
             }
         }
-        return register(cells, PortalFrame.canonical(Direction.S), type, name);
+        return register(cells, Frame.canonical(Face.S), type, name);
     }
 
-    private LocalPortal register(Set<Block> cells, PortalFrame frame, PortalType type, String name) {
+    private LocalPortal register(Set<Block> cells, Frame frame, PortalType type, String name) {
         ILocalPortal created = PortalFactory.createFromCells(cells, frame, type, name);
         if (!(created instanceof LocalPortal portal)) {
             throw new IllegalStateException("Failed to prepare " + name);
@@ -333,7 +333,7 @@ public final class FeatureScenes {
                 }
             }
         }
-        return register(cells, PortalFrame.canonical(Direction.E), PortalType.PORTAL, "Sun Court");
+        return register(cells, Frame.canonical(Face.E), PortalType.PORTAL, "Sun Court");
     }
 
     private FeatureScenes destinationScene(String scene) {
@@ -427,7 +427,7 @@ public final class FeatureScenes {
                 count++;
                 if (portal.getName().equals("Sun Court")) {
                     destinationWorld = portal.getWorld();
-                    destinationSideFrame = portal.getFrame().getNormal() == Direction.E || portal.getFrame().getNormal() == Direction.W;
+                    destinationSideFrame = portal.getFrame().getNormal() == Face.E || portal.getFrame().getNormal() == Face.W;
                 }
             }
         }
@@ -440,7 +440,7 @@ public final class FeatureScenes {
                 continue;
             }
             ITunnel tunnel = portal.getTunnel();
-            PortalFrame frame = portal.getFrame();
+            Frame frame = portal.getFrame();
             sender.sendMessage("portal=" + portal.getId() + ", name=" + portal.getName() + ", z=" + portal.getCenter().getBlockZ()
                     + ", world=" + portal.getWorld().getName()
                     + ", worldId=" + portal.getWorld().getUID()

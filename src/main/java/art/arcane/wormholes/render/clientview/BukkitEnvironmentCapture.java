@@ -1,9 +1,9 @@
 package art.arcane.wormholes.render.clientview;
 
 import art.arcane.wormholes.chunk.BukkitChunkLeaseProvider;
-import art.arcane.wormholes.chunk.ChunkLease;
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
+import art.arcane.optics.plate.ChunkLease;
+import art.arcane.optics.math.Vec3;
+import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.wormholes.platform.BukkitRegionTaskProvider;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import org.bukkit.World;
@@ -26,7 +26,7 @@ final class BukkitEnvironmentCapture implements AutoCloseable {
     private long nextPrune;
     private boolean closed;
 
-    synchronized ClientViewEnvironment capture(Request request) {
+    synchronized ProjectionEnvironment capture(Request request) {
         if (closed) {
             return null;
         }
@@ -81,7 +81,7 @@ final class BukkitEnvironmentCapture implements AutoCloseable {
     }
 
     private void start(Request request, State state) {
-        CompletableFuture<ClientViewEnvironment> pending = new CompletableFuture<>();
+        CompletableFuture<ProjectionEnvironment> pending = new CompletableFuture<>();
         state.pending = pending;
         ChunkLease lease;
         try {
@@ -108,7 +108,7 @@ final class BukkitEnvironmentCapture implements AutoCloseable {
         }
     }
 
-    private void dispatch(Request request, State state, CompletableFuture<ClientViewEnvironment> pending) {
+    private void dispatch(Request request, State state, CompletableFuture<ProjectionEnvironment> pending) {
         if (pending.isDone()) {
             return;
         }
@@ -124,7 +124,7 @@ final class BukkitEnvironmentCapture implements AutoCloseable {
         }
     }
 
-    private void sample(Request request, State state, CompletableFuture<ClientViewEnvironment> pending) {
+    private void sample(Request request, State state, CompletableFuture<ProjectionEnvironment> pending) {
         synchronized (state) {
             if (pending.isDone()) {
                 return;
@@ -143,8 +143,8 @@ final class BukkitEnvironmentCapture implements AutoCloseable {
         }
     }
 
-    private void finish(Request request, State state, CompletableFuture<ClientViewEnvironment> pending, ChunkLease lease,
-                        ClientViewEnvironment value, Throwable failure) {
+    private void finish(Request request, State state, CompletableFuture<ProjectionEnvironment> pending, ChunkLease lease,
+                        ProjectionEnvironment value, Throwable failure) {
         synchronized (state) {
             if (state.pending == pending) {
                 state.pending = null;
@@ -165,8 +165,8 @@ final class BukkitEnvironmentCapture implements AutoCloseable {
         }
     }
 
-    record Request(UUID observer, UUID parent, UUID portal, World world, GeometryVector eye,
-                   ClientViewEnvironment.Transform transform, long tick) {
+    record Request(UUID observer, UUID parent, UUID portal, World world, Vec3 eye,
+                   ProjectionEnvironment.Transform transform, long tick) {
     }
 
     private record Key(UUID observer, UUID parent, UUID portal) {
@@ -174,11 +174,11 @@ final class BukkitEnvironmentCapture implements AutoCloseable {
 
     private static final class State {
         private final World world;
-        private final ClientViewEnvironment.Transform transform;
+        private final ProjectionEnvironment.Transform transform;
         private final int chunkX;
         private final int chunkZ;
-        private CompletableFuture<ClientViewEnvironment> pending;
-        private ClientViewEnvironment snapshot;
+        private CompletableFuture<ProjectionEnvironment> pending;
+        private ProjectionEnvironment snapshot;
         private volatile boolean unavailable;
         private long touched;
 

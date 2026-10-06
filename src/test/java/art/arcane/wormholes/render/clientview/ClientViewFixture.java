@@ -26,37 +26,37 @@ import org.mockito.MockedStatic;
 import com.github.retrooper.packetevents.protocol.ConnectionState;
 
 import art.arcane.wormholes.config.toml.ClientViewConfig;
-import art.arcane.wormholes.network.client.ClientViewCapability;
+import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
-import art.arcane.wormholes.network.client.ClientViewProtocolException;
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.math.Vec3;
 import art.arcane.wormholes.network.client.ClientViewChannel;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.ITunnel;
-import art.arcane.wormholes.portal.MirrorRotation;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.QuarterTurn;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
 import art.arcane.wormholes.render.FidelitySettings;
-import art.arcane.wormholes.render.atmosphere.AtmosphereMode;
-import art.arcane.wormholes.render.client.session.ClientViewInbound;
+import art.arcane.optics.fidelity.AtmosphereMode;
+import art.arcane.optics.stream.ClientViewInbound;
 import art.arcane.wormholes.render.client.session.ClientViewOptions;
 import art.arcane.wormholes.render.client.session.ClientViewServerSession;
-import art.arcane.wormholes.render.plate.ViewPlateBuilder;
-import art.arcane.wormholes.render.plate.ViewPlateCache;
+import art.arcane.optics.plate.ViewPlateBuilder;
+import art.arcane.optics.plate.ViewPlateCache;
 import art.arcane.wormholes.render.view.ProjectionEntityView;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.render.view.ProjectionWorldViewProvider;
 import art.arcane.wormholes.util.BukkitGeometry;
 import art.arcane.wormholes.util.Cuboid;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 
 final class ClientViewFixture implements AutoCloseable {
     static final int DATA_VERSION = 4555;
-    static final long CLIENT_CAPS = ClientViewCapability.of(ClientViewCapability.PLATES, ClientViewCapability.DEST_LIGHT,
-        ClientViewCapability.ENTITY_FRAMES, ClientViewCapability.CONFIG_PHASE, ClientViewCapability.VIEW_STATS);
+    static final long CLIENT_CAPS = ViewStreamCapability.of(ViewStreamCapability.PLATES, ViewStreamCapability.DEST_LIGHT,
+        ViewStreamCapability.ENTITY_FRAMES, ViewStreamCapability.CONFIG_PHASE, ViewStreamCapability.VIEW_STATS);
 
     final ClientViewPacketEvents packets = new ClientViewPacketEvents();
     final MockedStatic<Bukkit> bukkit;
@@ -100,12 +100,12 @@ final class ClientViewFixture implements AutoCloseable {
         when(portal.getId()).thenReturn(UUID.randomUUID());
         when(portal.getWorld()).thenReturn(world);
         when(portal.getName()).thenReturn("clientview mirror");
-        when(portal.getFrame()).thenReturn(PortalFrame.canonical(Direction.N));
+        when(portal.getFrame()).thenReturn(Frame.canonical(Face.N));
         when(portal.getOrigin()).thenReturn(BukkitGeometry.vector(structure.getCenter()));
         when(portal.getStructure()).thenReturn(structure);
         when(portal.isOpen()).thenReturn(true);
         when(portal.isMirrorMode()).thenReturn(true);
-        when(portal.getMirrorRotation()).thenReturn(MirrorRotation.DEGREES_0);
+        when(portal.getMirrorRotation()).thenReturn(QuarterTurn.DEGREES_0);
         when(portal.getRenderMode()).thenReturn(ProjectionRenderMode.PANOPTIC);
         when(portal.getNetworkViewDepth()).thenReturn(8);
         when(portal.getNetworkViewLateralPad()).thenReturn(4);
@@ -163,7 +163,7 @@ final class ClientViewFixture implements AutoCloseable {
     }
 
     ClientViewInbound hello(long clientCaps) throws ClientViewProtocolException {
-        return c2s(new ClientViewMessage.Hello(ClientViewProtocol.WIRE_VERSION, DATA_VERSION, clientCaps, ClientViewProtocol.DEFAULT_MAX_FRAME_BYTES,
+        return c2s(new ClientViewMessage.Hello(ViewStreamLimits.WIRE_VERSION, DATA_VERSION, clientCaps, ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES,
             256, 0L, "fabric"));
     }
 
@@ -176,7 +176,7 @@ final class ClientViewFixture implements AutoCloseable {
         when(linked.getId()).thenReturn(UUID.randomUUID());
         when(linked.getWorld()).thenReturn(world);
         when(linked.getName()).thenReturn("clientview linked");
-        when(linked.getFrame()).thenReturn(PortalFrame.canonical(Direction.N));
+        when(linked.getFrame()).thenReturn(Frame.canonical(Face.N));
         when(linked.getOrigin()).thenReturn(BukkitGeometry.vector(structure.getCenter()));
         when(linked.getStructure()).thenReturn(structure);
         when(linked.isOpen()).thenReturn(true);
@@ -187,8 +187,8 @@ final class ClientViewFixture implements AutoCloseable {
         when(tunnel.getDestination()).thenReturn(destination);
         when(destination.getId()).thenReturn(UUID.randomUUID());
         when(destination.getWorld()).thenReturn(world);
-        when(destination.getFrame()).thenReturn(PortalFrame.canonical(Direction.S));
-        when(destination.getOrigin()).thenReturn(new GeometryVector(101.4995D, 65.4995D, 100.4995D));
+        when(destination.getFrame()).thenReturn(Frame.canonical(Face.S));
+        when(destination.getOrigin()).thenReturn(new Vec3(101.4995D, 65.4995D, 100.4995D));
         return linked;
     }
 
@@ -213,7 +213,7 @@ final class ClientViewFixture implements AutoCloseable {
             if (!ClientViewChannel.CHANNEL.equals(sent.channel())) {
                 continue;
             }
-            ClientViewMessage message = ClientViewCodec.decodeS2C(sent.data(), caps == 0L ? ClientViewCapability.ALL : caps).message();
+            ClientViewMessage message = ClientViewCodec.decodeS2C(sent.data(), caps == 0L ? ViewStreamCapability.ALL : caps).message();
             if (message instanceof ClientViewMessage.Accept accept) {
                 caps = accept.caps();
             }

@@ -1,13 +1,15 @@
 package art.arcane.wormholes.util;
 
 import art.arcane.volmlib.util.json.JSONObject;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Face;
 
 public final class GeometryPersistence {
     private GeometryPersistence() {
     }
 
-    public static JSONObject frame(PortalFrame frame) {
+    public static JSONObject frame(Frame frame) {
         JSONObject json = new JSONObject();
         json.put("normal", frame.getNormal().name());
         json.put("right", frame.getRight().name());
@@ -15,15 +17,15 @@ public final class GeometryPersistence {
         return json;
     }
 
-    public static PortalFrame frame(Direction fallbackNormal, JSONObject json) {
+    public static Frame frame(Face fallbackNormal, JSONObject json) {
         if (json == null) {
-            return PortalFrame.canonical(fallbackNormal);
+            return Frame.canonical(fallbackNormal);
         }
-        Direction normal = json.has("normal") ? Direction.valueOf(json.getString("normal")) : fallbackNormal;
-        return new PortalFrame(normal, Direction.valueOf(json.getString("right")), Direction.valueOf(json.getString("up")));
+        Face normal = json.has("normal") ? Face.valueOf(json.getString("normal")) : fallbackNormal;
+        return new Frame(normal, Face.valueOf(json.getString("right")), Face.valueOf(json.getString("up")));
     }
 
-    public static JSONObject bounds(AxisAlignedBB bounds) {
+    public static JSONObject bounds(Box bounds) {
         JSONObject json = new JSONObject();
         json.put("xa", bounds.getXa());
         json.put("xb", bounds.getXb());
@@ -34,7 +36,7 @@ public final class GeometryPersistence {
         return json;
     }
 
-    public static AxisAlignedBB bounds(JSONObject json) {
-        return new AxisAlignedBB(json.getDouble("xa"), json.getDouble("xb"), json.getDouble("ya"), json.getDouble("yb"), json.getDouble("za"), json.getDouble("zb"));
+    public static Box bounds(JSONObject json) {
+        return new Box(json.getDouble("xa"), json.getDouble("xb"), json.getDouble("ya"), json.getDouble("yb"), json.getDouble("za"), json.getDouble("zb"));
     }
 }

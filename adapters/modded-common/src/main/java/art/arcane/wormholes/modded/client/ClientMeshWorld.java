@@ -1,11 +1,11 @@
 package art.arcane.wormholes.modded.client;
 
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import art.arcane.wormholes.modded.client.render.PortalScene;
-import art.arcane.wormholes.render.client.ClientViewBlockTransform;
-import art.arcane.wormholes.render.plate.PlateBox;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
-import art.arcane.wormholes.network.client.SectionBiomes;
+import art.arcane.optics.client.ClientViewBlockTransform;
+import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.SectionBiomes;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
@@ -39,18 +39,18 @@ public final class ClientMeshWorld implements BlockAndTintGetter {
     private final int biomeY;
     private final int biomeZ;
     private final Map<ColorResolver, Long2IntOpenHashMap> colors = new IdentityHashMap<>();
-    private final ClientViewEnvironment.Transform transform;
+    private final ProjectionEnvironment.Transform transform;
     private final ClientViewBlockTransform cells;
     private final CardinalLighting lighting;
     private final int blendRadius;
     private final int minY;
     private final int height;
-    private final ClientViewEnvironment.Dimension dimension;
+    private final ProjectionEnvironment.Dimension dimension;
     private final PortalScene.MeshIdentity meshIdentity;
     private final DestinationWorld destination = new DestinationWorld();
 
     public ClientMeshWorld(Snapshot snapshot) {
-        ClientViewEnvironment environment = Objects.requireNonNull(snapshot.environment());
+        ProjectionEnvironment environment = Objects.requireNonNull(snapshot.environment());
         int sectionX = SectionPos.x(snapshot.center());
         int sectionY = SectionPos.y(snapshot.center());
         int sectionZ = SectionPos.z(snapshot.center());
@@ -63,7 +63,7 @@ public final class ClientMeshWorld implements BlockAndTintGetter {
         cells = new ClientViewBlockTransform(transform);
         dimension = environment.dimension();
         blendRadius = snapshot.blendRadius();
-        CardinalLighting source = environment.dimension().cardinalLighting() == ClientViewEnvironment.CardinalLighting.NETHER
+        CardinalLighting source = environment.dimension().cardinalLighting() == ProjectionEnvironment.CardinalLighting.NETHER
             ? CardinalLighting.NETHER : CardinalLighting.DEFAULT;
         lighting = new CardinalLighting(shade(source, Direction.DOWN), shade(source, Direction.UP), shade(source, Direction.NORTH),
             shade(source, Direction.SOUTH), shade(source, Direction.WEST), shade(source, Direction.EAST));
@@ -146,7 +146,7 @@ public final class ClientMeshWorld implements BlockAndTintGetter {
         return inputs;
     }
 
-    public ClientViewEnvironment.Transform transform() {
+    public ProjectionEnvironment.Transform transform() {
         return transform;
     }
 
@@ -227,7 +227,7 @@ public final class ClientMeshWorld implements BlockAndTintGetter {
         if (center == null) {
             throw new IllegalStateException("Destination biome missing at " + position);
         }
-        GeometryVector destination = transform.destinationPoint(position.getX() + 0.5D, position.getY() + 0.5D, position.getZ() + 0.5D);
+        Vec3 destination = transform.destinationPoint(position.getX() + 0.5D, position.getY() + 0.5D, position.getZ() + 0.5D);
         int red = 0;
         int green = 0;
         int blue = 0;
@@ -299,7 +299,7 @@ public final class ClientMeshWorld implements BlockAndTintGetter {
 
         @Override
         public CardinalLighting cardinalLighting() {
-            return dimension.cardinalLighting() == ClientViewEnvironment.CardinalLighting.NETHER
+            return dimension.cardinalLighting() == ProjectionEnvironment.CardinalLighting.NETHER
                 ? CardinalLighting.NETHER : CardinalLighting.DEFAULT;
         }
 
@@ -334,7 +334,7 @@ public final class ClientMeshWorld implements BlockAndTintGetter {
         }
     }
 
-    public record Snapshot(ClientMeshSections.View view, long center, RegistryAccess registry, ClientViewEnvironment environment, int blendRadius) {
+    public record Snapshot(ClientMeshSections.View view, long center, RegistryAccess registry, ProjectionEnvironment environment, int blendRadius) {
         public Snapshot {
             if (blendRadius < 0 || blendRadius > 7) {
                 throw new IllegalArgumentException("Invalid biome blend radius");
@@ -345,7 +345,7 @@ public final class ClientMeshWorld implements BlockAndTintGetter {
     private static final class MeshIdentity implements PortalScene.MeshIdentity {
         private final ClientMeshSections.Identity identity;
         private final RegistryAccess registry;
-        private final ClientViewEnvironment.Dimension dimension;
+        private final ProjectionEnvironment.Dimension dimension;
         private final PlateBox bounds;
         private final int blendRadius;
         private final ClientMeshSections.Section[] inputs;

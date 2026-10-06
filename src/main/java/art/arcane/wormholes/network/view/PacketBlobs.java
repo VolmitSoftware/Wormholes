@@ -17,6 +17,7 @@ import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;
+import art.arcane.optics.entity.EntitySnapshot;
 
 public final class PacketBlobs {
 
@@ -25,7 +26,7 @@ public final class PacketBlobs {
 
     public static byte[] writeMetadata(List<EntityData<?>> metadata) {
         if (metadata == null || metadata.isEmpty()) {
-            return EntityVisual.EMPTY;
+            return EntitySnapshot.EMPTY;
         }
         Object buffer = UnpooledByteBufAllocationHelper.buffer();
         try {
@@ -54,13 +55,13 @@ public final class PacketBlobs {
         try {
             return writeMetadata(SpigotConversionUtil.getEntityMetadata(entity));
         } catch (Throwable e) {
-            return EntityVisual.EMPTY;
+            return EntitySnapshot.EMPTY;
         }
     }
 
     public static byte[] writeEquipment(List<Equipment> equipment) {
         if (equipment == null || equipment.isEmpty()) {
-            return EntityVisual.EMPTY;
+            return EntitySnapshot.EMPTY;
         }
         Object buffer = UnpooledByteBufAllocationHelper.buffer();
         try {
@@ -103,7 +104,7 @@ public final class PacketBlobs {
         try {
             return writeEquipment(collectEquipment(entity));
         } catch (Throwable e) {
-            return EntityVisual.EMPTY;
+            return EntitySnapshot.EMPTY;
         }
     }
 

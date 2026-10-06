@@ -6,6 +6,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
+import art.arcane.optics.fidelity.FogPlatePolicy;
 
 /** Picks the blackout far-shell block from the destination dimension when the fog plate is active. */
 public final class BukkitFogPlateShells {

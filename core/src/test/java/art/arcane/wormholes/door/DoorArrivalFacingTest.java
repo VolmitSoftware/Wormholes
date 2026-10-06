@@ -1,6 +1,6 @@
 package art.arcane.wormholes.door;
 
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -9,8 +9,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class DoorArrivalFacingTest {
     @Test
     void forwardLookAndMomentumLeaveTheChosenSideForEveryVerticalDoorFrameAndApproach() {
-        for (Direction sourceFacing : new Direction[] {Direction.N, Direction.S, Direction.E, Direction.W}) {
-            for (Direction targetFacing : new Direction[] {Direction.N, Direction.S, Direction.E, Direction.W}) {
+        for (Face sourceFacing : new Face[] {Face.N, Face.S, Face.E, Face.W}) {
+            for (Face targetFacing : new Face[] {Face.N, Face.S, Face.E, Face.W}) {
                 DoorwayPlane source = new DoorwayPlane(0, 64, 0, sourceFacing);
                 DoorwayPlane target = new DoorwayPlane(10, 64, 10, targetFacing);
                 for (DoorwayCrossing.Direction direction : DoorwayCrossing.Direction.values()) {
@@ -35,8 +35,8 @@ class DoorArrivalFacingTest {
 
     @Test
     void trapdoorAndMixedFramesKeepLookAlignedWithTheExitTrajectory() {
-        for (Direction sourceFacing : new Direction[] {Direction.N, Direction.S, Direction.E, Direction.W}) {
-            for (Direction targetFacing : new Direction[] {Direction.N, Direction.S, Direction.E, Direction.W}) {
+        for (Face sourceFacing : new Face[] {Face.N, Face.S, Face.E, Face.W}) {
+            for (Face targetFacing : new Face[] {Face.N, Face.S, Face.E, Face.W}) {
                 for (DoorForm sourceForm : DoorForm.values()) {
                     for (DoorForm targetForm : DoorForm.values()) {
                         DoorwayPlane source = new DoorwayPlane(0, 64, 0, sourceFacing, sourceForm, DoorHalf.BOTTOM, DoorOpenState.OPEN);
@@ -66,8 +66,8 @@ class DoorArrivalFacingTest {
 
     @Test
     void pocketEntryFacesIntoTheRoomFromEitherSourceSide() {
-        DoorwayPlane target = new DoorwayPlane(10, 64, 10, Direction.S);
-        for (Direction facing : new Direction[] {Direction.N, Direction.S, Direction.E, Direction.W}) {
+        DoorwayPlane target = new DoorwayPlane(10, 64, 10, Face.S);
+        for (Face facing : new Face[] {Face.N, Face.S, Face.E, Face.W}) {
             DoorwayPlane source = new DoorwayPlane(0, 64, 0, facing);
             for (DoorwayCrossing.Direction direction : DoorwayCrossing.Direction.values()) {
                 float yaw = (float) Math.toDegrees(Math.atan2(-source.normalX() * direction.exitSideSign(),

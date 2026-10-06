@@ -5,11 +5,12 @@ import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
 
-import art.arcane.wormholes.render.ProjectionCellKey;
+import art.arcane.optics.math.CellKeys;
 import art.arcane.wormholes.platform.WormholesPlatform;
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
-import art.arcane.wormholes.render.plate.PlateCaptureJob;
-import art.arcane.wormholes.render.plate.ViewPlateBuilder;
+import art.arcane.optics.fidelity.BlockEntitySample;
+import art.arcane.optics.plate.PlateCaptureJob;
+import art.arcane.optics.plate.ViewPlateBuilder;
+import art.arcane.optics.view.ContentView;
 
 public final class CapturedChunkView implements ProjectionWorldView {
     private final World world;
@@ -80,7 +81,7 @@ public final class CapturedChunkView implements ProjectionWorldView {
         if (chunk == null || chunk.blockEntities().isEmpty()) {
             return null;
         }
-        return chunk.blockEntities().get(Long.valueOf(ProjectionCellKey.pack(x, y, z)));
+        return chunk.blockEntities().get(Long.valueOf(CellKeys.pack(x, y, z)));
     }
 
     @Override
@@ -103,9 +104,9 @@ public final class CapturedChunkView implements ProjectionWorldView {
             return LIGHT_UNAVAILABLE;
         }
         if (y < minHeight || y >= maxHeight) {
-            return ProjectionContentView.packLight(y >= maxHeight ? snapshot.getBlockSkyLight(x & 15, maxHeight - 1, z & 15) : 0, 0);
+            return ContentView.packLight(y >= maxHeight ? snapshot.getBlockSkyLight(x & 15, maxHeight - 1, z & 15) : 0, 0);
         }
-        return ProjectionContentView.packLight(snapshot.getBlockSkyLight(x & 15, y, z & 15), snapshot.getBlockEmittedLight(x & 15, y, z & 15));
+        return ContentView.packLight(snapshot.getBlockSkyLight(x & 15, y, z & 15), snapshot.getBlockEmittedLight(x & 15, y, z & 15));
     }
 
     @Override

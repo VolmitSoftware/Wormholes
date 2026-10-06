@@ -15,17 +15,17 @@ import org.bukkit.World;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.portal.ILocalPortal;
-import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.optics.math.Box;
 
 public final class PortalCandidateSnapshotTest {
     @Test
     public void projectionCandidatesPreserveExactAabbResultsAcrossCellBoundaries() {
         World world = world("world", UUID.fromString("7455a7a2-d6a4-4fe2-a113-7059ed841818"));
         World otherWorld = world("other", UUID.fromString("77b13a31-f21e-4ec4-9661-37e39d819b82"));
-        ILocalPortal west = portal("west", world, new AxisAlignedBB(-192.0D, 0.0D, 0.0D, 255.0D, -129.0D, 0.0D));
-        ILocalPortal center = portal("center", world, new AxisAlignedBB(-128.0D, 128.0D, 0.0D, 255.0D, -128.0D, 128.0D));
-        ILocalPortal east = portal("east", world, new AxisAlignedBB(0.0D, 256.0D, 0.0D, 255.0D, 0.0D, 256.0D));
-        ILocalPortal remote = portal("remote", otherWorld, new AxisAlignedBB(-512.0D, 512.0D, 0.0D, 255.0D, -512.0D, 512.0D));
+        ILocalPortal west = portal("west", world, new Box(-192.0D, 0.0D, 0.0D, 255.0D, -129.0D, 0.0D));
+        ILocalPortal center = portal("center", world, new Box(-128.0D, 128.0D, 0.0D, 255.0D, -128.0D, 128.0D));
+        ILocalPortal east = portal("east", world, new Box(0.0D, 256.0D, 0.0D, 255.0D, 0.0D, 256.0D));
+        ILocalPortal remote = portal("remote", otherWorld, new Box(-512.0D, 512.0D, 0.0D, 255.0D, -512.0D, 512.0D));
         List<ILocalPortal> portals = List.of(west, center, east, remote);
         PortalCandidateSnapshot snapshot = PortalCandidateSnapshot.captureProjection(portals);
         List<Location> probes = List.of(
@@ -45,7 +45,7 @@ public final class PortalCandidateSnapshotTest {
     @Test
     public void candidateOrderMatchesSourceOrderForStableDistanceTies() {
         World world = world("world", UUID.fromString("a7171e40-4391-4945-8054-07b7090125f9"));
-        AxisAlignedBB view = new AxisAlignedBB(-32.0D, 32.0D, 0.0D, 255.0D, -32.0D, 32.0D);
+        Box view = new Box(-32.0D, 32.0D, 0.0D, 255.0D, -32.0D, 32.0D);
         ILocalPortal first = portal("first", world, view);
         ILocalPortal second = portal("second", world, view);
         ILocalPortal third = portal("third", world, view);
@@ -60,10 +60,10 @@ public final class PortalCandidateSnapshotTest {
     @Test
     public void oversizedViewsFallBackWithoutFalseNegativesOrReordering() {
         World world = world("world", UUID.fromString("26100f1d-0ea6-485f-8180-7401bc5fc140"));
-        ILocalPortal first = portal("first", world, new AxisAlignedBB(-64.0D, 64.0D, 0.0D, 255.0D, -64.0D, 64.0D));
+        ILocalPortal first = portal("first", world, new Box(-64.0D, 64.0D, 0.0D, 255.0D, -64.0D, 64.0D));
         ILocalPortal oversized = portal("oversized", world,
-            new AxisAlignedBB(-100_000.0D, 100_000.0D, 0.0D, 255.0D, -100_000.0D, 100_000.0D));
-        ILocalPortal third = portal("third", world, new AxisAlignedBB(-16.0D, 16.0D, 0.0D, 255.0D, -16.0D, 16.0D));
+            new Box(-100_000.0D, 100_000.0D, 0.0D, 255.0D, -100_000.0D, 100_000.0D));
+        ILocalPortal third = portal("third", world, new Box(-16.0D, 16.0D, 0.0D, 255.0D, -16.0D, 16.0D));
         List<ILocalPortal> portals = List.of(first, oversized, third);
         PortalCandidateSnapshot snapshot = PortalCandidateSnapshot.captureProjection(portals);
         Location near = new Location(world, 0.0D, 64.0D, 0.0D);
@@ -77,7 +77,7 @@ public final class PortalCandidateSnapshotTest {
     public void skinCandidatesUsePortalWorldWhenCenterIsUnavailable() {
         World world = world("world", UUID.fromString("67c070f1-bae1-46a8-9403-f839658aa896"));
         ILocalPortal portal = portal("skin", world, null,
-            new AxisAlignedBB(-32.0D, 32.0D, 0.0D, 255.0D, -32.0D, 32.0D));
+            new Box(-32.0D, 32.0D, 0.0D, 255.0D, -32.0D, 32.0D));
 
         PortalCandidateSnapshot projection = PortalCandidateSnapshot.captureProjection(List.of(portal));
         PortalCandidateSnapshot skins = PortalCandidateSnapshot.capturePortalWorld(List.of(portal));
@@ -94,7 +94,7 @@ public final class PortalCandidateSnapshotTest {
         for (int index = 0; index < 1_000; index++) {
             double coordinate = index * 512.0D + 16.0D;
             portals.add(portal("portal-" + index, world,
-                new AxisAlignedBB(coordinate - 8.0D, coordinate + 8.0D, 0.0D, 255.0D,
+                new Box(coordinate - 8.0D, coordinate + 8.0D, 0.0D, 255.0D,
                     coordinate - 8.0D, coordinate + 8.0D)));
         }
         PortalCandidateSnapshot snapshot = PortalCandidateSnapshot.captureProjection(portals);
@@ -107,8 +107,8 @@ public final class PortalCandidateSnapshotTest {
     @Test
     public void toolCandidatesRetainPreviewRangeBeyondACustomActivationView() {
         World world = world("world", UUID.fromString("e959968b-36fb-491d-b18c-07e62828d31d"));
-        AxisAlignedBB area = new AxisAlignedBB(0.0D, 1.0D, 64.0D, 66.0D, 0.0D, 1.0D);
-        AxisAlignedBB activationView = new AxisAlignedBB(-8.0D, 9.0D, 56.0D, 74.0D, -8.0D, 9.0D);
+        Box area = new Box(0.0D, 1.0D, 64.0D, 66.0D, 0.0D, 1.0D);
+        Box activationView = new Box(-8.0D, 9.0D, 56.0D, 74.0D, -8.0D, 9.0D);
         ILocalPortal portal = portal("small-activation", world,
             new Location(world, 0.5D, 65.0D, 0.5D), activationView, area);
         PortalCandidateSnapshot snapshot = PortalCandidateSnapshot.capturePortalWorld(List.of(portal), 32.0D);
@@ -140,7 +140,7 @@ public final class PortalCandidateSnapshotTest {
         return eligible;
     }
 
-    private static ILocalPortal portal(String name, World world, AxisAlignedBB view) {
+    private static ILocalPortal portal(String name, World world, Box view) {
         Location center = view == null ? null : new Location(world,
             (view.getXa() + view.getXb()) * 0.5D,
             (view.getYa() + view.getYb()) * 0.5D,
@@ -148,11 +148,11 @@ public final class PortalCandidateSnapshotTest {
         return portal(name, world, center, view);
     }
 
-    private static ILocalPortal portal(String name, World world, Location center, AxisAlignedBB view) {
+    private static ILocalPortal portal(String name, World world, Location center, Box view) {
         return portal(name, world, center, view, view);
     }
 
-    private static ILocalPortal portal(String name, World world, Location center, AxisAlignedBB view, AxisAlignedBB area) {
+    private static ILocalPortal portal(String name, World world, Location center, Box view, Box area) {
         UUID id = UUID.nameUUIDFromBytes(name.getBytes(StandardCharsets.UTF_8));
         return (ILocalPortal) Proxy.newProxyInstance(
             PortalCandidateSnapshotTest.class.getClassLoader(),

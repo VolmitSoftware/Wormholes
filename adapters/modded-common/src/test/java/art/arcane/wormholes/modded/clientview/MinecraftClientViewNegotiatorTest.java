@@ -1,23 +1,23 @@
 package art.arcane.wormholes.modded.clientview;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.wormholes.network.client.BrickLightSource;
-import art.arcane.wormholes.network.client.ClientViewCapability;
+import art.arcane.optics.stream.BrickLightSource;
+import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.wormholes.network.client.ClientViewHandshake;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewProtocolException;
-import art.arcane.wormholes.network.client.ClientViewTransport;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ClientViewTransport;
 import art.arcane.wormholes.network.client.SessionPalette;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
-import art.arcane.wormholes.render.client.session.ClientViewInbound;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.stream.ClientViewInbound;
 import art.arcane.wormholes.render.client.session.ClientViewOptions;
 import art.arcane.wormholes.render.client.session.ClientViewPlatform;
 import art.arcane.wormholes.render.client.session.ClientViewPortalAccess;
 import art.arcane.wormholes.render.client.session.ClientViewServerSession;
 import art.arcane.wormholes.render.client.session.ClientViewSessionRegistry;
-import art.arcane.wormholes.render.client.session.ClientViewSessionState;
-import art.arcane.wormholes.render.plate.ViewPlate;
+import art.arcane.optics.stream.ClientViewSessionState;
+import art.arcane.optics.plate.ViewPlate;
 import io.netty.channel.embedded.EmbeddedChannel;
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
 import net.minecraft.network.Connection;
@@ -66,17 +66,17 @@ public class MinecraftClientViewNegotiatorTest extends MinecraftTestBase {
         ClientViewMessage.Offer offer = (ClientViewMessage.Offer) transport.message(0);
         assertEquals(DATA_VERSION, offer.mcDataVersion());
         assertEquals(0L, offer.zeroCopyNonce());
-        assertTrue(ClientViewCapability.CONFIG_PHASE.in(offer.serverCaps()));
-        assertTrue(ClientViewCapability.PLATES.in(offer.serverCaps()));
-        assertTrue(ClientViewCapability.DEST_LIGHT.in(offer.serverCaps()));
-        assertTrue(ClientViewCapability.ENTITY_FRAMES.in(offer.serverCaps()));
-        assertTrue(ClientViewCapability.FX_EMITTERS.in(offer.serverCaps()));
-        assertTrue(ClientViewCapability.ATMOSPHERE.in(offer.serverCaps()));
+        assertTrue(ViewStreamCapability.CONFIG_PHASE.in(offer.serverCaps()));
+        assertTrue(ViewStreamCapability.PLATES.in(offer.serverCaps()));
+        assertTrue(ViewStreamCapability.DEST_LIGHT.in(offer.serverCaps()));
+        assertTrue(ViewStreamCapability.ENTITY_FRAMES.in(offer.serverCaps()));
+        assertTrue(ViewStreamCapability.FX_EMITTERS.in(offer.serverCaps()));
+        assertTrue(ViewStreamCapability.ATMOSPHERE.in(offer.serverCaps()));
         assertFalse(task.tick());
         assertEquals(ClientViewInbound.HELLO_ACCEPTED, negotiator.receive(connection, hello(offer)));
         ClientViewMessage.Accept accept = (ClientViewMessage.Accept) transport.message(1);
         assertEquals(0L, accept.caps() & ~MinecraftClientViewService.PLATFORM_CAPS);
-        assertFalse(ClientViewCapability.ZERO_COPY.in(accept.caps()));
+        assertFalse(ViewStreamCapability.ZERO_COPY.in(accept.caps()));
         assertTrue(task.tick());
         ClientViewServerSession<MinecraftClientViewPeer, BlockState> session = negotiator.session(id);
         assertEquals(ClientViewSessionState.CLIENT_VIEW, session.state());
@@ -107,7 +107,7 @@ public class MinecraftClientViewNegotiatorTest extends MinecraftTestBase {
         assertNull(negotiator.configurationTask(id, "Alex", connection, () -> true));
         assertTrue(negotiator.offerPlay(id, "Alex", connection));
         ClientViewMessage.Offer offer = (ClientViewMessage.Offer) transport.message(0);
-        assertFalse(ClientViewCapability.CONFIG_PHASE.in(offer.serverCaps()));
+        assertFalse(ViewStreamCapability.CONFIG_PHASE.in(offer.serverCaps()));
     }
 
     @Test
@@ -199,7 +199,7 @@ public class MinecraftClientViewNegotiatorTest extends MinecraftTestBase {
 
     private byte[] hello(ClientViewMessage.Offer offer) throws ClientViewProtocolException {
         clock.addAndGet(60_000_000L);
-        return ClientViewCodec.encodeC2S(ClientViewHandshake.clientHello(offer, DATA_VERSION, ClientViewCapability.ALL, 512 * 1024, 256, 0L, "fabric"));
+        return ClientViewCodec.encodeC2S(ClientViewHandshake.clientHello(offer, DATA_VERSION, ViewStreamCapability.ALL, 512 * 1024, 256, 0L, "fabric"));
     }
 
     private void open(ClientViewOptions options) {
@@ -229,7 +229,7 @@ public class MinecraftClientViewNegotiatorTest extends MinecraftTestBase {
 
         private ClientViewMessage message(int index) {
             try {
-                return ClientViewCodec.decodeS2C(sent.get(index), ClientViewCapability.ALL).message();
+                return ClientViewCodec.decodeS2C(sent.get(index), ViewStreamCapability.ALL).message();
             } catch (ClientViewProtocolException failure) {
                 throw new AssertionError(failure);
             }
@@ -247,7 +247,7 @@ public class MinecraftClientViewNegotiatorTest extends MinecraftTestBase {
         }
 
         @Override
-        public ClientPortalGeometry geometry(MinecraftClientViewPeer observer, UUID portal, SessionPalette palette) {
+        public ApertureDescriptor geometry(MinecraftClientViewPeer observer, UUID portal, SessionPalette palette) {
             return null;
         }
 
@@ -276,7 +276,7 @@ public class MinecraftClientViewNegotiatorTest extends MinecraftTestBase {
         }
 
         @Override
-        public void nested(MinecraftClientViewPeer observer, UUID parent, ClientPortalGeometry parentGeometry, List<UUID> out) {
+        public void nested(MinecraftClientViewPeer observer, UUID parent, ApertureDescriptor parentGeometry, List<UUID> out) {
         }
 
         @Override
@@ -285,7 +285,7 @@ public class MinecraftClientViewNegotiatorTest extends MinecraftTestBase {
         }
 
         @Override
-        public ClientPortalGeometry nestedGeometry(MinecraftClientViewPeer observer, UUID parent, UUID child, SessionPalette palette) {
+        public ApertureDescriptor nestedGeometry(MinecraftClientViewPeer observer, UUID parent, UUID child, SessionPalette palette) {
             return null;
         }
 
@@ -304,7 +304,7 @@ public class MinecraftClientViewNegotiatorTest extends MinecraftTestBase {
         }
 
         @Override
-        public ClientPortalGeometry effectGeometry(MinecraftClientViewPeer observer, UUID portal, SessionPalette palette) {
+        public ApertureDescriptor effectGeometry(MinecraftClientViewPeer observer, UUID portal, SessionPalette palette) {
             return null;
         }
     }

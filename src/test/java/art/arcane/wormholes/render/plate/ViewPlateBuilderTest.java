@@ -27,17 +27,21 @@ import org.bukkit.block.data.BlockData;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.portal.ILocalPortal;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalStructure;
-import art.arcane.wormholes.render.ProjectionCellKey;
-import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
-import art.arcane.wormholes.render.ProjectorFrameTransform;
-import art.arcane.wormholes.render.ProjectorSample;
-import art.arcane.wormholes.render.ProjectorSampleMemo;
-import art.arcane.wormholes.render.lod.LodPolicy;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.view.WorldChangeTracker;
+import art.arcane.optics.frame.ProjectorFrameTransform;
+import art.arcane.optics.scan.ProjectorSample;
+import art.arcane.optics.scan.ProjectorSampleMemo;
+import art.arcane.optics.volume.LodPolicy;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.util.Cuboid;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
+import art.arcane.optics.plate.PlateCell;
+import art.arcane.optics.plate.ViewPlate;
+import art.arcane.optics.plate.ViewPlateBuilder;
+import art.arcane.optics.plate.ViewPlateKey;
 
 final class ViewPlateBuilderTest {
     private static final UUID PORTAL_ID = UUID.fromString("00000000-0000-0000-0000-0000000000f1");
@@ -45,7 +49,7 @@ final class ViewPlateBuilderTest {
     @Test
     void twoBuildsOfTheSameKeyAreIdenticalCellForCell() {
         PortalStructure structure = structure();
-        ILocalPortal portal = portal(structure, PortalFrame.canonical(Direction.S));
+        ILocalPortal portal = portal(structure, Frame.canonical(Face.S));
         FakeWorldView destination = new FakeWorldView(blockData(Material.STONE), 7L);
         destination.put(0, 64, -3, blockData(Material.GLASS));
         ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView> request = request(portal, structure, destination, true);
@@ -66,8 +70,8 @@ final class ViewPlateBuilderTest {
             assertNotNull(left);
             assertEquals(left.kind(), right.kind());
             assertSame(left.data(), right.data());
-            assertTrue(ProjectionCellKey.unpackZ(key) < 0, "plate cells must lie behind the far side of the plane");
-            assertTrue(ProjectionCellKey.unpackZ(key) >= -5, "plate depth must respect the requested depth");
+            assertTrue(CellKeys.unpackZ(key) < 0, "plate cells must lie behind the far side of the plane");
+            assertTrue(CellKeys.unpackZ(key) >= -5, "plate depth must respect the requested depth");
         }
         boolean sawGlass = false;
         for (long key : keys) {
@@ -81,7 +85,7 @@ final class ViewPlateBuilderTest {
     @Test
     void aChangedDestinationRevisionYieldsADifferentPlate() {
         PortalStructure structure = structure();
-        ILocalPortal portal = portal(structure, PortalFrame.canonical(Direction.S));
+        ILocalPortal portal = portal(structure, Frame.canonical(Face.S));
         FakeWorldView destination = new FakeWorldView(blockData(Material.STONE), 1L);
         ViewPlate<BlockData> before = ViewPlateBuilder.build(request(portal, structure, destination, true));
 
@@ -90,7 +94,7 @@ final class ViewPlateBuilderTest {
         ViewPlate<BlockData> after = ViewPlateBuilder.build(request(portal, structure, destination, true));
 
         assertNotEquals(before.destinationRevision(), after.destinationRevision());
-        long changedKey = ProjectionCellKey.pack(0, 64, -2);
+        long changedKey = CellKeys.pack(0, 64, -2);
         assertEquals(Material.STONE, before.cell(changedKey).data().getMaterial());
         assertEquals(Material.GLASS, after.cell(changedKey).data().getMaterial());
     }
@@ -98,37 +102,37 @@ final class ViewPlateBuilderTest {
     @Test
     void airSamplesUnavailableChunksAndOccludedCellsAreClassifiedLikeTheSampler() {
         PortalStructure structure = structure();
-        ILocalPortal portal = portal(structure, PortalFrame.canonical(Direction.S));
+        ILocalPortal portal = portal(structure, Frame.canonical(Face.S));
         FakeWorldView destination = new FakeWorldView(blockData(Material.AIR), 3L);
         destination.put(0, 64, -1, blockData(Material.STONE));
         destination.unknown(1, 64, -1);
         ViewPlate<BlockData> plate = ViewPlateBuilder.build(request(portal, structure, destination, true));
 
-        assertEquals(ProjectorSample.Kind.REMOTE_AIR, plate.cell(ProjectionCellKey.pack(0, 65, -1)).kind());
-        assertEquals(ProjectorSample.Kind.BLOCK, plate.cell(ProjectionCellKey.pack(0, 64, -1)).kind());
-        assertNull(plate.cell(ProjectionCellKey.pack(1, 64, -1)), "unavailable samples stay absent so the projector falls back");
+        assertEquals(ProjectorSample.Kind.REMOTE_AIR, plate.cell(CellKeys.pack(0, 65, -1)).kind());
+        assertEquals(ProjectorSample.Kind.BLOCK, plate.cell(CellKeys.pack(0, 64, -1)).kind());
+        assertNull(plate.cell(CellKeys.pack(1, 64, -1)), "unavailable samples stay absent so the projector falls back");
     }
 
     @Test
     void blockEntityCellsOfAnIncompleteCaptureStayAbsentSoTheScanSamplesThemLive() {
         PortalStructure structure = structure();
-        ILocalPortal portal = portal(structure, PortalFrame.canonical(Direction.S));
+        ILocalPortal portal = portal(structure, Frame.canonical(Face.S));
         FakeWorldView destination = new FakeWorldView(blockData(Material.STONE), 3L);
         destination.put(0, 64, -2, blockData(Material.OAK_SIGN));
         destination.put(0, 64, -1, blockData(Material.GLASS));
 
         ViewPlate<BlockData> complete = ViewPlateBuilder.build(blockEntityRequest(portal, structure, destination));
-        assertNotNull(complete.cell(ProjectionCellKey.pack(0, 64, -2)), "a complete capture keeps the sign cell on the plate");
+        assertNotNull(complete.cell(CellKeys.pack(0, 64, -2)), "a complete capture keeps the sign cell on the plate");
 
         destination.blockEntitiesComplete = false;
         ViewPlate<BlockData> capped = ViewPlateBuilder.build(blockEntityRequest(portal, structure, destination));
-        assertNull(capped.cell(ProjectionCellKey.pack(0, 64, -2)), "a sign whose block entity was not captured is sampled live");
-        assertNotNull(capped.cell(ProjectionCellKey.pack(0, 64, -1)), "cells without block entities stay on the plate");
+        assertNull(capped.cell(CellKeys.pack(0, 64, -2)), "a sign whose block entity was not captured is sampled live");
+        assertNotNull(capped.cell(CellKeys.pack(0, 64, -1)), "cells without block entities stay on the plate");
     }
 
     private static ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView> blockEntityRequest(ILocalPortal portal, PortalStructure structure,
                                                                                                       ProjectionWorldView destination) {
-        PortalFrame frame = portal.getFrame();
+        Frame frame = portal.getFrame();
         ViewPlateKey key = new ViewPlateKey(PORTAL_ID, destination, true, 0, 0L);
         return new ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView>(key, portal.getStructure(), destination, frame, frame,
             structure.getCenter().getX(), structure.getCenter().getY(), structure.getCenter().getZ(),
@@ -140,20 +144,20 @@ final class ViewPlateBuilderTest {
     @Test
     void theBackSideBuildsBehindTheOppositeFace() {
         PortalStructure structure = structure();
-        ILocalPortal portal = portal(structure, PortalFrame.canonical(Direction.S));
+        ILocalPortal portal = portal(structure, Frame.canonical(Face.S));
         FakeWorldView destination = new FakeWorldView(blockData(Material.STONE), 1L);
         ViewPlate<BlockData> plate = ViewPlateBuilder.build(request(portal, structure, destination, false));
 
         assertFalse(plate.isEmpty());
         for (long key : plate.cellKeys()) {
-            assertTrue(ProjectionCellKey.unpackZ(key) > 0, "back-side cells lie on the normal side of the plane");
+            assertTrue(CellKeys.unpackZ(key) > 0, "back-side cells lie on the normal side of the plane");
         }
     }
 
     @Test
     void resumableJobsProduceTheSamePlateAsASynchronousBuild() {
         PortalStructure structure = structure();
-        ILocalPortal portal = portal(structure, PortalFrame.canonical(Direction.S));
+        ILocalPortal portal = portal(structure, Frame.canonical(Face.S));
         FakeWorldView destination = new FakeWorldView(blockData(Material.STONE), 9L);
         ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView> request = request(portal, structure, destination, true);
         ViewPlateBuilder.Job<BlockData, World> job = ViewPlateBuilder.job(request);
@@ -178,7 +182,7 @@ final class ViewPlateBuilderTest {
         for (int seed = 0; seed < 48; seed++) {
             Random random = new Random(seed);
             PortalStructure structure = structure();
-            ILocalPortal portal = portal(structure, PortalFrame.canonical(Direction.S));
+            ILocalPortal portal = portal(structure, Frame.canonical(Face.S));
             NoiseWorldView destination = new NoiseWorldView(seed, 4 + random.nextInt(8), stone, glass, air);
             boolean frontSide = random.nextBoolean();
             boolean buried = random.nextBoolean();
@@ -186,7 +190,7 @@ final class ViewPlateBuilderTest {
             int quarterTurns = mirror ? random.nextInt(4) : 0;
             double depth = 1 + random.nextInt(6);
             double lateral = random.nextInt(4);
-            PortalFrame frame = portal.getFrame();
+            Frame frame = portal.getFrame();
             double originX = structure.getCenter().getX();
             double originY = structure.getCenter().getY();
             double originZ = structure.getCenter().getZ();
@@ -210,7 +214,7 @@ final class ViewPlateBuilderTest {
             for (int x = -12; x <= 12; x++) {
                 for (int y = 52; y <= 78; y++) {
                     for (int z = -12; z <= 12; z++) {
-                        long key = ProjectionCellKey.pack(x, y, z);
+                        long key = CellKeys.pack(x, y, z);
                         PlateCell<BlockData> cell = plate.cell(key);
                         if (cell == null) {
                             continue;
@@ -259,12 +263,12 @@ final class ViewPlateBuilderTest {
         for (int seed = 0; seed < 16; seed++) {
             Random random = new Random(1000L + seed);
             PortalStructure structure = structureAt(14);
-            ILocalPortal portal = portal(structure, PortalFrame.canonical(Direction.S));
+            ILocalPortal portal = portal(structure, Frame.canonical(Face.S));
             NoiseWorldView destination = new NoiseWorldView(seed, 5 + random.nextInt(7), stone, glass, air);
             boolean mirror = random.nextBoolean();
             int quarterTurns = mirror ? random.nextInt(4) : 0;
             LodPolicy lod = random.nextBoolean() ? LodPolicy.NONE : new LodPolicy(true, 4, 100);
-            PortalFrame frame = portal.getFrame();
+            Frame frame = portal.getFrame();
             double originX = structure.getCenter().getX();
             double originY = structure.getCenter().getY();
             double originZ = structure.getCenter().getZ();
@@ -280,7 +284,7 @@ final class ViewPlateBuilderTest {
                 int y = 50 + random.nextInt(30);
                 int z = -30 + random.nextInt(60);
                 destination.override(x, y, z, random.nextBoolean() ? air : stone);
-                dirty.add(ProjectionWorldChangeTracker.chunkKey(x >> 4, z >> 4));
+                dirty.add(WorldChangeTracker.chunkKey(x >> 4, z >> 4));
             }
             ViewPlate<BlockData> fresh = ViewPlateBuilder.build(request);
             ViewPlateBuilder.Job<BlockData, World> patchJob = ViewPlateBuilder.patch(request, before, dirty);
@@ -293,7 +297,7 @@ final class ViewPlateBuilderTest {
             for (long key : fresh.cellKeys()) {
                 PlateCell<BlockData> expected = fresh.cell(key);
                 PlateCell<BlockData> actual = patched.cell(key);
-                String label = "seed=" + seed + " cell=" + ProjectionCellKey.unpackX(key) + "," + ProjectionCellKey.unpackY(key) + "," + ProjectionCellKey.unpackZ(key);
+                String label = "seed=" + seed + " cell=" + CellKeys.unpackX(key) + "," + CellKeys.unpackY(key) + "," + CellKeys.unpackZ(key);
                 assertEquals(expected.kind(), actual.kind(), label);
                 assertSame(expected.data(), actual.data(), label);
             }
@@ -303,7 +307,7 @@ final class ViewPlateBuilderTest {
     @Test
     void theFootprintCoversEveryRemoteChunkTheBuildReadsIncludingBuriedProbes() {
         PortalStructure structure = structureAt(14);
-        ILocalPortal portal = portal(structure, PortalFrame.canonical(Direction.S));
+        ILocalPortal portal = portal(structure, Frame.canonical(Face.S));
         FakeWorldView destination = new FakeWorldView(blockData(Material.STONE), 1L);
         ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView> shallowRequest = footprintRequest(portal, structure, destination, false);
         ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView> buriedRequest = footprintRequest(portal, structure, destination, true);
@@ -344,7 +348,7 @@ final class ViewPlateBuilderTest {
     }
 
     static ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView> request(ILocalPortal portal, PortalStructure structure, ProjectionWorldView destination, boolean frontSide) {
-        PortalFrame frame = portal.getFrame();
+        Frame frame = portal.getFrame();
         ViewPlateKey key = new ViewPlateKey(PORTAL_ID, destination, frontSide, 0, 0L);
         return new ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView>(key, portal.getStructure(), destination, frame, frame,
             structure.getCenter().getX(), structure.getCenter().getY(), structure.getCenter().getZ(),
@@ -367,7 +371,7 @@ final class ViewPlateBuilderTest {
         return structure;
     }
 
-    static ILocalPortal portal(PortalStructure structure, PortalFrame frame) {
+    static ILocalPortal portal(PortalStructure structure, Frame frame) {
         org.bukkit.util.Vector origin = structure.getCenter().toVector();
         return (ILocalPortal) Proxy.newProxyInstance(
             ILocalPortal.class.getClassLoader(), new Class<?>[] {ILocalPortal.class},
@@ -445,12 +449,12 @@ final class ViewPlateBuilderTest {
         }
 
         void override(int x, int y, int z, BlockData data) {
-            overrides.put(Long.valueOf(ProjectionCellKey.pack(x, y, z)), data);
+            overrides.put(Long.valueOf(CellKeys.pack(x, y, z)), data);
         }
 
         @Override
         public BlockData sampleBlockData(int x, int y, int z) {
-            BlockData override = overrides.get(Long.valueOf(ProjectionCellKey.pack(x, y, z)));
+            BlockData override = overrides.get(Long.valueOf(CellKeys.pack(x, y, z)));
             if (override != null) {
                 return override;
             }

@@ -2,13 +2,14 @@ package art.arcane.wormholes.portal;
 
 import art.arcane.wormholes.util.BukkitGeometry;
 
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import org.bukkit.util.Vector;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import art.arcane.optics.frame.Frame;
 
 class LocalPortalRejectionTest {
     @Test
@@ -52,7 +53,7 @@ class LocalPortalRejectionTest {
     }
 
     private static Traversive traversive(boolean frontSide) {
-        PortalFrame frame = PortalFrame.canonical(Direction.N).view(frontSide);
+        Frame frame = Frame.canonical(Face.N).view(frontSide);
         return new Traversive(
             new Object(),
             TraversableType.ENTITY,

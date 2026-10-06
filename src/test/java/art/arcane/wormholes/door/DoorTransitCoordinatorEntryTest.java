@@ -1,7 +1,7 @@
 package art.arcane.wormholes.door;
 
 import org.bukkit.structure.Structure;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 
 import art.arcane.wormholes.survival.doors.dimension.PocketWorldService;
 import net.kyori.adventure.text.Component;
@@ -276,7 +276,7 @@ final class DoorTransitCoordinatorEntryTest
 
 		private DoorTransitAttempt attempt(Entity activeTraveler, UUID travelerId, int blockX)
 		{
-			DoorwayPlane plane = new DoorwayPlane(blockX, 64, 0, Direction.N);
+			DoorwayPlane plane = new DoorwayPlane(blockX, 64, 0, Face.N);
 			PlacedDoorEndpoint endpoint = new PlacedDoorEndpoint(
 				new DoorPosition(WORLD_ID, "minecraft:overworld", blockX, 64, 0),
 				new DoorItemIdentity(new UUID(1L, 2L), DoorKind.PUBLIC, null, null, null));

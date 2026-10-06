@@ -1,6 +1,6 @@
 package art.arcane.wormholes.door;
 
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import art.arcane.wormholes.util.Cuboid;
 import org.bukkit.World;
 import org.bukkit.block.BlockFace;
@@ -14,19 +14,19 @@ public final class BukkitDoorGeometry {
     private BukkitDoorGeometry() {
     }
 
-    public static Direction direction(BlockFace facing) {
+    public static Face direction(BlockFace facing) {
         return switch (Objects.requireNonNull(facing, "facing")) {
-            case NORTH -> Direction.N;
-            case SOUTH -> Direction.S;
-            case EAST -> Direction.E;
-            case WEST -> Direction.W;
-            case UP -> Direction.U;
-            case DOWN -> Direction.D;
+            case NORTH -> Face.N;
+            case SOUTH -> Face.S;
+            case EAST -> Face.E;
+            case WEST -> Face.W;
+            case UP -> Face.U;
+            case DOWN -> Face.D;
             default -> throw new IllegalArgumentException("Door facing must be axial: " + facing);
         };
     }
 
-    public static BlockFace facing(Direction direction) {
+    public static BlockFace facing(Face direction) {
         return switch (Objects.requireNonNull(direction, "direction")) {
             case N -> BlockFace.NORTH;
             case S -> BlockFace.SOUTH;

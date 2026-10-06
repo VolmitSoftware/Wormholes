@@ -1,7 +1,7 @@
 package art.arcane.wormholes.door;
 
 import org.bukkit.structure.Structure;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.api.traversal.TraversalContext;
@@ -69,7 +69,7 @@ final class DoorTransitCoordinatorCostIntegrationTest {
 
     @Test
     void playerArrivalWithoutCapturedMomentumProvidesAZeroPreparedTravelVector() throws ReflectiveOperationException {
-        DoorTransit transit = new DoorTransit(new DoorwayPlane(0, 200, 0, Direction.N),
+        DoorTransit transit = new DoorTransit(new DoorwayPlane(0, 200, 0, Face.N),
             DoorwayCrossing.Direction.FRONT_TO_BACK, 0.0F, 0.0F);
         Object context = transitContext(UUID.randomUUID(), transit);
         Method arrival = DoorTransitCoordinator.class.getDeclaredMethod("arrivalVelocity", transitContextType(), Location.class);
@@ -415,7 +415,7 @@ final class DoorTransitCoordinatorCostIntegrationTest {
                 pocketWorldService,
                 templateService(),
                 new DoorTransitFailures(logger));
-            DoorwayPlane plane = new DoorwayPlane(0, 64, 0, Direction.N);
+            DoorwayPlane plane = new DoorwayPlane(0, 64, 0, Face.N);
             endpoint = new PlacedDoorEndpoint(
                 new DoorPosition(WORLD_ID, "minecraft:overworld", 0, 64, 0),
                 DoorItemIdentity.publicDoor(UUID.randomUUID()));

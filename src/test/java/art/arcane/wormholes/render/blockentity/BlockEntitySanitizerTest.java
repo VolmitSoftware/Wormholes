@@ -16,6 +16,8 @@ import com.github.retrooper.packetevents.protocol.nbt.NBTList;
 import com.github.retrooper.packetevents.protocol.nbt.NBTString;
 
 import org.junit.jupiter.api.Test;
+import art.arcane.optics.fidelity.BlockEntitySample;
+import art.arcane.optics.fidelity.BlockEntitySanitizer;
 
 final class BlockEntitySanitizerTest {
     private static final List<String> WHITELIST = List.of("minecraft:sign", "minecraft:chest", "minecraft:skull");

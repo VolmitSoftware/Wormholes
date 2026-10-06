@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.papi.PortalProximityIndex;
 import art.arcane.wormholes.portal.ILocalPortal;
-import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.optics.math.Box;
 
 public final class PortalAttendanceIndexTest
 {
@@ -139,7 +139,7 @@ public final class PortalAttendanceIndexTest
 	private static ILocalPortal portal(World world, double x, double y, double z, double size)
 	{
 		Location center = new Location(world, x, y, z);
-		AxisAlignedBB area = new AxisAlignedBB(
+		Box area = new Box(
 			x - (size * 0.5D), x + (size * 0.5D),
 			y - (size * 0.5D), y + (size * 0.5D),
 			z - (size * 0.5D), z + (size * 0.5D));

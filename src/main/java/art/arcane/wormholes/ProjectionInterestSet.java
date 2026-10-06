@@ -16,16 +16,17 @@ import java.util.function.BooleanSupplier;
 import org.bukkit.entity.Player;
 
 import art.arcane.wormholes.portal.ILocalPortal;
-import art.arcane.wormholes.render.EntityRenderLocalOcclusionArbiter;
+import art.arcane.optics.occlusion.LocalOcclusionArbiter;
 import art.arcane.wormholes.render.PortalProjector;
 import art.arcane.wormholes.render.ProjectionClaimArbiter;
-import art.arcane.wormholes.render.ProjectionGazeScheduler;
-import art.arcane.wormholes.render.plate.ViewPlateCache;
+import art.arcane.optics.volume.GazeScheduler;
+import art.arcane.optics.plate.ViewPlateCache;
 import art.arcane.wormholes.render.view.ProjectionWorldViewProvider;
+import art.arcane.optics.entity.InterestIndex;
 
 final class ProjectionInterestSet {
     private final ProjectionClaimArbiter claimArbiter;
-    private final EntityRenderLocalOcclusionArbiter<Player, Entity> localEntityOcclusion;
+    private final LocalOcclusionArbiter<Player, Entity> localEntityOcclusion;
     private final ProjectionWorldViewProvider viewProvider;
     private final ProjectionInterestCloseQueue closeQueue;
     private final BooleanSupplier alive;
@@ -33,11 +34,11 @@ final class ProjectionInterestSet {
     private final Map<UUID, Map<UUID, PortalProjector>> projectors;
     private final Map<UUID, Set<UUID>> retiring;
     private final Map<UUID, Map<UUID, Long>> interestGraceUntil;
-    private final ProjectionGazeScheduler gazeScheduler;
-    private final ProjectedEntityInterestIndex<PortalProjector> projectedEntityInterests;
+    private final GazeScheduler gazeScheduler;
+    private final InterestIndex<PortalProjector> projectedEntityInterests;
 
     ProjectionInterestSet(ProjectionClaimArbiter claimArbiter,
-                          EntityRenderLocalOcclusionArbiter<Player, Entity> localEntityOcclusion,
+                          LocalOcclusionArbiter<Player, Entity> localEntityOcclusion,
                           ProjectionWorldViewProvider viewProvider,
                           ProjectionInterestCloseQueue closeQueue,
                           BooleanSupplier alive) {
@@ -45,7 +46,7 @@ final class ProjectionInterestSet {
     }
 
     ProjectionInterestSet(ProjectionClaimArbiter claimArbiter,
-                          EntityRenderLocalOcclusionArbiter<Player, Entity> localEntityOcclusion,
+                          LocalOcclusionArbiter<Player, Entity> localEntityOcclusion,
                           ProjectionWorldViewProvider viewProvider,
                           ProjectionInterestCloseQueue closeQueue,
                           BooleanSupplier alive,
@@ -59,8 +60,8 @@ final class ProjectionInterestSet {
         this.projectors = new ConcurrentHashMap<UUID, Map<UUID, PortalProjector>>();
         this.retiring = new ConcurrentHashMap<UUID, Set<UUID>>();
         this.interestGraceUntil = new ConcurrentHashMap<UUID, Map<UUID, Long>>();
-        this.gazeScheduler = new ProjectionGazeScheduler();
-        this.projectedEntityInterests = new ProjectedEntityInterestIndex<PortalProjector>();
+        this.gazeScheduler = new GazeScheduler();
+        this.projectedEntityInterests = new InterestIndex<PortalProjector>();
     }
 
     boolean isEmpty() {
@@ -411,11 +412,11 @@ final class ProjectionInterestSet {
     }
 
     List<ILocalPortal> scheduleBlocks(UUID observerId,
-                                      ProjectionGazeScheduler.Eye eye,
-                                      List<ProjectionGazeScheduler.Candidate<ILocalPortal>> candidates,
+                                      GazeScheduler.Eye eye,
+                                      List<GazeScheduler.Candidate<ILocalPortal>> candidates,
                                       int limit,
                                       long frameTick) {
-        ProjectionGazeScheduler.Options options = new ProjectionGazeScheduler.Options(Settings.PROJECTION_GAZE_FOV_DEGREES,
+        GazeScheduler.Options options = new GazeScheduler.Options(Settings.PROJECTION_GAZE_FOV_DEGREES,
             Settings.PROJECTION_GAZE_LOOKAHEAD_TICKS, Settings.PROJECTION_GAZE_MAX_STARVE_TICKS);
         return gazeScheduler.select(observerId, eye, candidates, limit, frameTick, options);
     }

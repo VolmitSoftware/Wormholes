@@ -1,9 +1,9 @@
 package art.arcane.wormholes.network;
 
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.TraversableType;
 import art.arcane.wormholes.portal.Traversive;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import org.bukkit.util.Vector;
 import org.junit.jupiter.api.Test;
 
@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class WireTraversiveTest {
     private static Traversive sampleTraversive(boolean frontSide) {
-        PortalFrame inFrame = PortalFrame.canonical(Direction.N).view(frontSide);
+        Frame inFrame = Frame.canonical(Face.N).view(frontSide);
         Vector origin = new Vector(100.5D, 64.0D, -200.5D);
         Vector point = new Vector(100.9D, 64.7D, -200.2D);
         Vector velocity = new Vector(0.3D, -0.1D, -0.6D);
@@ -46,8 +46,8 @@ class WireTraversiveTest {
             WireTraversive decoded = WireTraversive.read(new DataInputStream(new ByteArrayInputStream(buffer.toByteArray())));
 
             Traversive reconstructed = Traversive.fromWire(decoded, new Object());
-            for (Direction outDirection : new Direction[]{Direction.N, Direction.S, Direction.E, Direction.U}) {
-                PortalFrame outFrame = PortalFrame.canonical(outDirection);
+            for (Face outDirection : new Face[]{Face.N, Face.S, Face.E, Face.U}) {
+                Frame outFrame = Frame.canonical(outDirection);
                 Vector outOrigin = new Vector(-10.5D, 70.0D, 33.5D);
                 assertVectorEquals(original.getOutVelocity(outFrame), reconstructed.getOutVelocity(outFrame));
                 assertVectorEquals(original.getOutLook(outFrame), reconstructed.getOutLook(outFrame));

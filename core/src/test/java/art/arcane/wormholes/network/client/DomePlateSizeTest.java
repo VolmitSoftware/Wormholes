@@ -11,9 +11,11 @@ import java.util.zip.Deflater;
 
 import org.junit.jupiter.api.Test;
 
-import art.arcane.wormholes.render.ProjectorSample;
-import art.arcane.wormholes.render.plate.ViewPlate;
-import art.arcane.wormholes.render.plate.ViewPlateBuilder;
+import art.arcane.optics.scan.ProjectorSample;
+import art.arcane.optics.plate.ViewPlate;
+import art.arcane.optics.plate.ViewPlateBuilder;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamLimits;
 
 final class DomePlateSizeTest {
     static final long WORLD_SEED = 0x5EEDD0A3L;
@@ -84,7 +86,7 @@ final class DomePlateSizeTest {
         }
         SessionPalette palette = new SessionPalette();
         PlateStreamEncoder<String> encoder = new PlateStreamEncoder<String>(palette, state -> state);
-        FrameSplitter splitter = new FrameSplitter(ClientViewProtocol.DEFAULT_MAX_FRAME_BYTES, false);
+        FrameSplitter splitter = new FrameSplitter(ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, false);
         List<PlateReport> reports = report(plates, scenarios, palette, encoder, splitter);
 
         assertEquals(9, reports.size());

@@ -1,8 +1,8 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.PortalToolHolderPolicy;
-import art.arcane.wormholes.portal.PortalGeometry;
-import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.optics.aperture.ApertureCells;
+import art.arcane.optics.math.Box;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
@@ -91,8 +91,8 @@ final class MinecraftPortalLookLabels implements AutoCloseable {
         return false;
     }
 
-    static boolean isLookingAt(PortalGeometry geometry, Vec3 position, Vec3 eye, Vec3 look) {
-        AxisAlignedBB area = geometry.getArea();
+    static boolean isLookingAt(ApertureCells geometry, Vec3 position, Vec3 eye, Vec3 look) {
+        Box area = geometry.getArea();
         if (area == null || position.distanceToSqr((area.getXa() + area.getXb()) * 0.5D,
             (area.getYa() + area.getYb()) * 0.5D, (area.getZa() + area.getZb()) * 0.5D) >= LOOK_RANGE_SQUARED) {
             return false;

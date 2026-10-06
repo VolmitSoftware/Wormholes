@@ -2,8 +2,8 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.view.EntityDeltaCodec;
-import art.arcane.wormholes.network.view.EntityVisual;
+import art.arcane.optics.entity.EntityDeltaCodec;
+import art.arcane.optics.entity.EntitySnapshot;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.core.RegistryAccess;
@@ -37,7 +37,7 @@ public class ClientProjectedEntityIdentityTest extends MinecraftTestBase {
         scene.identities.put(42, source);
         ClientProjectedEntities entities = new ClientProjectedEntities(scene);
         ClientPortal portal = new ClientPortal(1, ClientViewHarness.geometry(), 1, 0);
-        EntityVisual initial = visual(source, "minecraft:pig", 1);
+        EntitySnapshot initial = visual(source, "minecraft:pig", 1);
         for (int key = 1; key <= 8; key++) {
             entities.apply(new ClientViewMessage.EntityFrame(key, 1, List.of(initial), List.of(source), true));
         }
@@ -51,10 +51,10 @@ public class ClientProjectedEntityIdentityTest extends MinecraftTestBase {
             projections[index] = scene.identities.get(ids[index]);
             assertNotEquals(source, projections[index]);
         }
-        EntityVisual previous = initial;
+        EntitySnapshot previous = initial;
         for (int revision = 2; revision <= 40; revision++) {
-            EntityVisual updated = visual(source, "minecraft:pig", revision);
-            EntityVisual delta = EntityDeltaCodec.buildDelta(updated, previous, revision,
+            EntitySnapshot updated = visual(source, "minecraft:pig", revision);
+            EntitySnapshot delta = EntityDeltaCodec.buildDelta(updated, previous, revision,
                 EntityDeltaCodec.computeMask(updated, previous));
             for (int key = 1; key <= 8; key++) {
                 entities.apply(new ClientViewMessage.EntityFrame(key, revision, List.of(delta), List.of(source), true));
@@ -89,7 +89,7 @@ public class ClientProjectedEntityIdentityTest extends MinecraftTestBase {
         when(level.getEntity(-100)).thenReturn(mock(Entity.class));
         ClientLevelScene scene = new ClientLevelScene(level, () -> connection);
         UUID projection = UUID.randomUUID();
-        EntityVisual player = visual(UUID.randomUUID(), "minecraft:player", 1);
+        EntitySnapshot player = visual(UUID.randomUUID(), "minecraft:player", 1);
         assertTrue(scene.spawn(-100, projection, player));
         ArgumentCaptor<ClientboundAddEntityPacket> spawn = ArgumentCaptor.forClass(ClientboundAddEntityPacket.class);
         verify(connection).handleAddEntity(spawn.capture());
@@ -136,8 +136,8 @@ public class ClientProjectedEntityIdentityTest extends MinecraftTestBase {
         assertEquals(List.of(projection), remove.getValue().profileIds());
     }
 
-    private static EntityVisual visual(UUID id, String type, int revision) {
-        return EntityVisual.full(id, type, 1.5, 64, 5.5, 1, 0, 0, 1, 0, 0, 0, 0, 0, true,
-            "Projection", "", "", null, null, new byte[] {(byte) revision}, EntityVisual.EMPTY, revision);
+    private static EntitySnapshot visual(UUID id, String type, int revision) {
+        return EntitySnapshot.full(id, type, 1.5, 64, 5.5, 1, 0, 0, 1, 0, 0, 0, 0, 0, true,
+            "Projection", "", "", null, null, new byte[] {(byte) revision}, EntitySnapshot.EMPTY, revision);
     }
 }

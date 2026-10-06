@@ -3,10 +3,10 @@ package art.arcane.wormholes.modded.client;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
-import art.arcane.wormholes.network.client.ClientViewProtocolException;
-import art.arcane.wormholes.network.view.EntityVisual;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.entity.EntitySnapshot;
+import art.arcane.optics.aperture.ApertureDescriptor;
 import com.mojang.authlib.GameProfile;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
@@ -48,7 +48,7 @@ public class ClientEntitySelfTest extends MinecraftTestBase {
         harness.stream();
         UUID id = UUID.randomUUID();
         harness.receive(new ClientViewMessage.EntitySelf(id), 0);
-        harness.receive(new ClientViewMessage.EntityFrame(1, 1, List.of(player(id)), List.of(id), true), ClientViewProtocol.FLAG_LAST);
+        harness.receive(new ClientViewMessage.EntityFrame(1, 1, List.of(player(id)), List.of(id), true), ViewStreamLimits.FLAG_LAST);
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
         assertEquals(id, harness.session.selfEntityId());
         assertTrue(harness.tick.entities().presentPlayer(1, id));
@@ -57,11 +57,11 @@ public class ClientEntitySelfTest extends MinecraftTestBase {
         harness.tick.detach();
         harness.tick.attach(new Object(), harness.surface, harness.scene);
         assertEquals(id, harness.session.selfEntityId());
-        harness.receive(new ClientViewMessage.SessionReset(ClientViewMessage.ResetReason.DIMENSION), ClientViewProtocol.FLAG_LAST);
+        harness.receive(new ClientViewMessage.SessionReset(ClientViewMessage.ResetReason.DIMENSION), ViewStreamLimits.FLAG_LAST);
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
         assertNull(harness.session.selfEntityId());
         assertEquals(0, harness.tick.entities().tracked());
-        harness.receive(new ClientViewMessage.EntitySelf(UUID.randomUUID()), ClientViewProtocol.FLAG_LAST);
+        harness.receive(new ClientViewMessage.EntitySelf(UUID.randomUUID()), ViewStreamLimits.FLAG_LAST);
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
         harness.session.abandon(harness.tick);
         assertNull(harness.session.selfEntityId());
@@ -146,9 +146,9 @@ public class ClientEntitySelfTest extends MinecraftTestBase {
         assertNull(ClientMeshEntities.active());
     }
 
-    private static EntityVisual player(UUID id) {
-        return EntityVisual.full(id, "minecraft:player", 1.5D, 64, 3, 1.8D, 0, 0, 1,
-            0, 0, 0, 0, 0, true, "Projected", "", "", null, null, EntityVisual.EMPTY, EntityVisual.EMPTY, 1);
+    private static EntitySnapshot player(UUID id) {
+        return EntitySnapshot.full(id, "minecraft:player", 1.5D, 64, 3, 1.8D, 0, 0, 1,
+            0, 0, 0, 0, 0, true, "Projected", "", "", null, null, EntitySnapshot.EMPTY, EntitySnapshot.EMPTY, 1);
     }
 
     private static final class Fixture {
@@ -159,7 +159,7 @@ public class ClientEntitySelfTest extends MinecraftTestBase {
         private final Entity selfClone = mock(Entity.class);
         private final Entity otherClone = mock(Entity.class);
         private final ClientViewSession session = mock(ClientViewSession.class);
-        private final ClientPortalGeometry geometry = mock(ClientPortalGeometry.class);
+        private final ApertureDescriptor geometry = mock(ApertureDescriptor.class);
         private final ClientMeshEntities scene = new ClientMeshEntities(mock(ClientMeshSections.View.class), level);
         private final ClientProjectedEntities projected;
 

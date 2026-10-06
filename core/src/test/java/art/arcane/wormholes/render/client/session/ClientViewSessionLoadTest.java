@@ -9,9 +9,10 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewMessageType;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
-import art.arcane.wormholes.network.client.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamMessageType;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ClientViewSessionState;
 
 final class ClientViewSessionLoadTest {
     private static final int PORTALS = 9;
@@ -22,7 +23,7 @@ final class ClientViewSessionLoadTest {
 
     @Test
     void ninePortalsAtTwentyHertzWithAFullPlateFillStayFarBelowTheInboundLimit() throws ClientViewProtocolException {
-        SessionHarness harness = new SessionHarness(SessionHarness.options(true, ClientViewProtocol.DEFAULT_ACK_WINDOW_FRAMES));
+        SessionHarness harness = new SessionHarness(SessionHarness.options(true, ViewStreamLimits.DEFAULT_ACK_WINDOW_FRAMES));
         harness.c2sSpacingNanos = 0L;
         harness.client.autoAck = true;
         harness.entities = (observer, portal, key, tick, full, hideObserver) ->
@@ -53,14 +54,14 @@ final class ClientViewSessionLoadTest {
         assertEquals(PORTALS, harness.client.plates.size(), "every plate filled");
         assertEquals(0L, stats.c2sDropped(), "no inbound message was dropped");
         assertEquals(0, stats.outstandingGroups(), "every paced group was acknowledged");
-        assertTrue(harness.sent(ClientViewMessageType.ENTITY_FRAME) >= PORTALS * (TICKS - 10), "entity frames flowed at 20 Hz");
-        assertTrue(harness.sent(ClientViewMessageType.FX) >= PORTALS * (TICKS - 10), "fx flowed at 20 Hz");
-        assertTrue(harness.sent(ClientViewMessageType.ATMOSPHERE) >= PORTALS * (TICKS - 10), "atmosphere flowed at 20 Hz");
-        assertEquals(0, harness.client.closed(ClientViewMessageType.ENTITY_FRAME), "entity frames never demand an ack");
-        assertEquals(0, harness.client.closed(ClientViewMessageType.FX), "fx never demands an ack");
-        assertEquals(0, harness.client.closed(ClientViewMessageType.ATMOSPHERE), "atmosphere never demands an ack");
+        assertTrue(harness.sent(ViewStreamMessageType.ENTITY_FRAME) >= PORTALS * (TICKS - 10), "entity frames flowed at 20 Hz");
+        assertTrue(harness.sent(ViewStreamMessageType.FX) >= PORTALS * (TICKS - 10), "fx flowed at 20 Hz");
+        assertTrue(harness.sent(ViewStreamMessageType.ATMOSPHERE) >= PORTALS * (TICKS - 10), "atmosphere flowed at 20 Hz");
+        assertEquals(0, harness.client.closed(ViewStreamMessageType.ENTITY_FRAME), "entity frames never demand an ack");
+        assertEquals(0, harness.client.closed(ViewStreamMessageType.FX), "fx never demands an ack");
+        assertEquals(0, harness.client.closed(ViewStreamMessageType.ATMOSPHERE), "atmosphere never demands an ack");
         assertTrue(peakPerTick <= C2S_ROUNDS_PER_TICK * C2S_MESSAGES_PER_ROUND, peakPerTick + " inbound messages in one tick");
-        assertTrue(peakPerSecond <= ClientViewProtocol.MAX_C2S_MESSAGES_PER_SECOND / 2, peakPerSecond + " inbound messages in one second");
+        assertTrue(peakPerSecond <= ViewStreamLimits.MAX_C2S_MESSAGES_PER_SECOND / 2, peakPerSecond + " inbound messages in one second");
         assertTrue(stats.c2sAdmitted() <= TICKS / 4, stats.c2sAdmitted() + " inbound messages over " + TICKS + " ticks of scene traffic");
         assertTrue(harness.warnings.isEmpty(), "lane warnings: " + harness.warnings);
     }

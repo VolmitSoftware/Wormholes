@@ -1,10 +1,11 @@
 package art.arcane.wormholes.network.view;
 
 import java.util.UUID;
+import art.arcane.optics.entity.EntitySnapshot;
 
 public final class EntitySendState {
     private final UUID entityId;
-    private EntityVisual lastSentSnapshot;
+    private EntitySnapshot lastSentSnapshot;
     private int nextSequence;
     private boolean forceFullNext;
     private long lastFullSentTick;
@@ -23,7 +24,7 @@ public final class EntitySendState {
         return entityId;
     }
 
-    public EntityVisual getLastSentSnapshot() {
+    public EntitySnapshot getLastSentSnapshot() {
         return lastSentSnapshot;
     }
 
@@ -53,7 +54,7 @@ public final class EntitySendState {
         return allocated;
     }
 
-    public void recordSent(EntityVisual fullSnapshot, boolean wasFullMode, long entityTick) {
+    public void recordSent(EntitySnapshot fullSnapshot, boolean wasFullMode, long entityTick) {
         this.lastSentSnapshot = fullSnapshot;
         if (wasFullMode) {
             this.forceFullNext = false;

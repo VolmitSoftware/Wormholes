@@ -15,16 +15,17 @@ import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import art.arcane.optics.entity.EntitySnapshot;
 
 class RemoteViewCacheEntityMergeTest {
     private static final String PEER = "peer-a";
 
-    private static EntityVisual fullEntity(UUID id, double x) {
+    private static EntitySnapshot fullEntity(UUID id, double x) {
         return fullEntity(id, x, new byte[0]);
     }
 
-    private static EntityVisual fullEntity(UUID id, double x, byte[] mapData) {
-        return EntityVisual.full(
+    private static EntitySnapshot fullEntity(UUID id, double x, byte[] mapData) {
+        return EntitySnapshot.full(
             id, "minecraft:zombie",
             x, 64.0D, 0.0D, 1.95D,
             0.0D, 0.0D, 1.0D,
@@ -39,7 +40,7 @@ class RemoteViewCacheEntityMergeTest {
     }
 
     private static Set<UUID> idsOf(RemoteViewCache.RemoteView<BlockData, EntityData<?>, Equipment> view) {
-        return view.getEntities().stream().map(EntityVisual::id).collect(Collectors.toSet());
+        return view.getEntities().stream().map(EntitySnapshot::id).collect(Collectors.toSet());
     }
 
     @Test

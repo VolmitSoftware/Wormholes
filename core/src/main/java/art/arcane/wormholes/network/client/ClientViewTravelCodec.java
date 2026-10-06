@@ -1,12 +1,19 @@
 package art.arcane.wormholes.network.client;
 
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Vec3;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.math.Face;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ClientViewReader;
+import art.arcane.optics.stream.ClientViewWriter;
+import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.ProjectionEnvironmentCodec;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.ViewStreamMessageType;
 
 final class ClientViewTravelCodec {
     private ClientViewTravelCodec() {
@@ -27,7 +34,7 @@ final class ClientViewTravelCodec {
                     out.i32(chunk.x());
                     out.i32(chunk.z());
                 }
-                ClientViewEnvironmentCodec.write(out, begin.environment());
+                ProjectionEnvironmentCodec.write(out, begin.environment());
                 out.i32(begin.expiresMillis());
             }
             case ClientViewMessage.TravelChunk chunk -> {
@@ -91,7 +98,7 @@ final class ClientViewTravelCodec {
         }
     }
 
-    static ClientViewMessage read(ClientViewReader in, ClientViewMessageType type) throws ClientViewProtocolException {
+    static ClientViewMessage read(ClientViewReader in, ViewStreamMessageType type) throws ClientViewProtocolException {
         try {
             UUID token = uuid(in);
             long generation = in.i64();
@@ -99,8 +106,8 @@ final class ClientViewTravelCodec {
                 case TRAVEL_BEGIN -> {
                     UUID portal = uuid(in);
                     String source = in.string();
-                    ClientPortalGeometry geometry = ClientViewCodec.readGeometry(in, 0);
-                    ClientViewEnvironment.Transform transform = transform(in);
+                    ApertureDescriptor geometry = ClientViewCodec.readGeometry(in, 0);
+                    ProjectionEnvironment.Transform transform = transform(in);
                     ClientViewMessage.TravelWorld world = world(in);
                     ClientViewMessage.TravelPose pose = pose(in);
                     int count = count(in);
@@ -109,7 +116,7 @@ final class ClientViewTravelCodec {
                         chunks.add(new ClientViewMessage.TravelCoordinate(in.i32(), in.i32()));
                     }
                     yield new ClientViewMessage.TravelBegin(token, generation, portal, source, geometry, transform, world, pose, chunks,
-                        ClientViewEnvironmentCodec.read(in), in.i32());
+                        ProjectionEnvironmentCodec.read(in), in.i32());
                 }
                 case TRAVEL_CHUNK -> {
                     int x = in.i32();
@@ -119,7 +126,7 @@ final class ClientViewTravelCodec {
                     int fragments = in.u16();
                     int total = in.i32();
                     int size = in.i32();
-                    if (size <= 0 || size > ClientViewProtocol.TRAVEL_FRAGMENT_BYTES) {
+                    if (size <= 0 || size > ViewStreamLimits.TRAVEL_FRAGMENT_BYTES) {
                         throw new ClientViewProtocolException("Travel fragment size");
                     }
                     yield new ClientViewMessage.TravelChunk(token, generation, x, z, revision, index, fragments, total, in.bytes(size));
@@ -136,8 +143,8 @@ final class ClientViewTravelCodec {
                 case TRAVEL_READY -> new ClientViewMessage.TravelReady(token, generation, in.i64());
                 case TRAVEL_COMMIT -> new ClientViewMessage.TravelCommit(token, generation, in.i64(), in.string(), in.string(), pose(in), vector(in));
                 case TRAVEL_CANCEL -> new ClientViewMessage.TravelCancel(token, generation);
-                case TRAVEL_REUSE -> new ClientViewMessage.TravelReuse(token, generation, in.i32(), in.i32(), in.i32(), in.bytes(ClientViewProtocol.TRAVEL_HASH_BYTES));
-                case TRAVEL_CACHED -> new ClientViewMessage.TravelCached(token, generation, in.i32(), in.i32(), in.i32(), in.bytes(ClientViewProtocol.TRAVEL_HASH_BYTES), bool(in));
+                case TRAVEL_REUSE -> new ClientViewMessage.TravelReuse(token, generation, in.i32(), in.i32(), in.i32(), in.bytes(ViewStreamLimits.TRAVEL_HASH_BYTES));
+                case TRAVEL_CACHED -> new ClientViewMessage.TravelCached(token, generation, in.i32(), in.i32(), in.i32(), in.bytes(ViewStreamLimits.TRAVEL_HASH_BYTES), bool(in));
                 case TRAVEL_CROSS -> new ClientViewMessage.TravelCross(token, generation, in.i64(), pose(in), vector(in), vector(in));
                 default -> throw new ClientViewProtocolException("Unexpected travel message " + type);
             };
@@ -148,7 +155,7 @@ final class ClientViewTravelCodec {
 
     private static int count(ClientViewReader in) throws ClientViewProtocolException {
         int count = in.u16();
-        if (count <= 0 || count > ClientViewProtocol.MAX_TRAVEL_CHUNKS) {
+        if (count <= 0 || count > ViewStreamLimits.MAX_TRAVEL_CHUNKS) {
             throw new ClientViewProtocolException("Travel manifest count");
         }
         return count;
@@ -191,32 +198,32 @@ final class ClientViewTravelCodec {
         return value == 1;
     }
 
-    private static void transform(ClientViewWriter out, ClientViewEnvironment.Transform transform) {
+    private static void transform(ClientViewWriter out, ProjectionEnvironment.Transform transform) {
         out.u8(transform.xAxis().ordinal());
         out.u8(transform.yAxis().ordinal());
         out.u8(transform.zAxis().ordinal());
         vector(out, transform.translation());
     }
 
-    private static ClientViewEnvironment.Transform transform(ClientViewReader in) throws ClientViewProtocolException {
-        Direction[] directions = Direction.values();
+    private static ProjectionEnvironment.Transform transform(ClientViewReader in) throws ClientViewProtocolException {
+        Face[] directions = Face.values();
         int x = in.u8();
         int y = in.u8();
         int z = in.u8();
         if (x >= directions.length || y >= directions.length || z >= directions.length) {
             throw new ClientViewProtocolException("Travel transform axis");
         }
-        return new ClientViewEnvironment.Transform(directions[x], directions[y], directions[z], vector(in));
+        return new ProjectionEnvironment.Transform(directions[x], directions[y], directions[z], vector(in));
     }
 
-    private static void vector(ClientViewWriter out, GeometryVector vector) {
+    private static void vector(ClientViewWriter out, Vec3 vector) {
         out.f64(vector.x());
         out.f64(vector.y());
         out.f64(vector.z());
     }
 
-    private static GeometryVector vector(ClientViewReader in) throws ClientViewProtocolException {
-        return new GeometryVector(in.f64(), in.f64(), in.f64());
+    private static Vec3 vector(ClientViewReader in) throws ClientViewProtocolException {
+        return new Vec3(in.f64(), in.f64(), in.f64());
     }
 
     private static void pose(ClientViewWriter out, ClientViewMessage.TravelPose pose) {

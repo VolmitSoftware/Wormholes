@@ -37,7 +37,7 @@ import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.PortalTypeAccess;
 import art.arcane.wormholes.portal.DimensionalPortalKind;
 import art.arcane.wormholes.api.portal.NetherPortalShapes;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 
 public final class VanillaPortalReplacer implements Listener, NetherPortalShapes
 {
@@ -107,7 +107,7 @@ public final class VanillaPortalReplacer implements Listener, NetherPortalShapes
 		{
 			try
 			{
-				netherPairing.pair(world, cells, axis == Axis.X ? Direction.N : Direction.E, DimensionalPortalKind.SHAPED_NETHER);
+				netherPairing.pair(world, cells, axis == Axis.X ? Face.N : Face.E, DimensionalPortalKind.SHAPED_NETHER);
 				VanillaPortalCleanup.clearCells(cells, Material.FIRE);
 				VanillaPortalCleanup.clearCells(cells, Material.SOUL_FIRE);
 			}

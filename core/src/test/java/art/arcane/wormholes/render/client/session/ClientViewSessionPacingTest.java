@@ -15,8 +15,10 @@ import com.sun.management.ThreadMXBean;
 
 import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewMessageType;
-import art.arcane.wormholes.network.client.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamMessageType;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ClientViewInbound;
+import art.arcane.optics.stream.ClientViewSessionState;
 
 final class ClientViewSessionPacingTest {
     private static final int STEADY_TICKS = 20_000;
@@ -71,7 +73,7 @@ final class ClientViewSessionPacingTest {
         harness.handshake(SessionHarness.CLIENT_CAPS);
         harness.client.autoMiss = false;
         harness.tick();
-        assertEquals(2, harness.sent(ClientViewMessageType.PLATE_BEGIN));
+        assertEquals(2, harness.sent(ViewStreamMessageType.PLATE_BEGIN));
         assertEquals(2, harness.client.open.size());
     }
 
@@ -81,26 +83,26 @@ final class ClientViewSessionPacingTest {
         harness.handshake(SessionHarness.CLIENT_CAPS);
         harness.client.autoMiss = false;
         harness.tick();
-        assertEquals(2, harness.sent(ClientViewMessageType.PLATE_BEGIN));
+        assertEquals(2, harness.sent(ViewStreamMessageType.PLATE_BEGIN));
         assertEquals(2, harness.session.stats().outstandingGroups());
 
         assertEquals(ClientViewInbound.HANDLED, harness.c2s(harness.client.ack(harness.client.lastSeq)));
         harness.pump();
         harness.tick();
-        assertEquals(2, harness.sent(ClientViewMessageType.PLATE_BEGIN), "an ack past the manifests must not open a third stream");
+        assertEquals(2, harness.sent(ViewStreamMessageType.PLATE_BEGIN), "an ack past the manifests must not open a third stream");
         assertEquals(2, harness.session.stats().outstandingGroups());
         assertEquals(0L, harness.session.stats().ackedGroups());
 
         ClientViewMessage.PlateBegin first = (ClientViewMessage.PlateBegin) harness.client.received.stream()
-            .filter(message -> message.type() == ClientViewMessageType.PLATE_BEGIN).findFirst().orElseThrow();
+            .filter(message -> message.type() == ViewStreamMessageType.PLATE_BEGIN).findFirst().orElseThrow();
         assertEquals(ClientViewInbound.HANDLED, harness.c2s(miss(first.portalKey(), first.plateRevision(), first.brickCount(), 0)));
         harness.pump();
-        assertEquals(1, harness.sent(ClientViewMessageType.PLATE_END));
+        assertEquals(1, harness.sent(ViewStreamMessageType.PLATE_END));
         assertEquals(2, harness.session.stats().outstandingGroups(), "the finished stream waits for its ack");
         harness.ack();
         assertEquals(1L, harness.session.stats().ackedGroups());
         harness.tick();
-        assertEquals(3, harness.sent(ClientViewMessageType.PLATE_BEGIN), "the freed slot admits the third stream");
+        assertEquals(3, harness.sent(ViewStreamMessageType.PLATE_BEGIN), "the freed slot admits the third stream");
         assertEquals(2, harness.session.stats().outstandingGroups());
     }
 
@@ -112,15 +114,15 @@ final class ClientViewSessionPacingTest {
         harness.handshake(SessionHarness.CLIENT_CAPS);
         harness.tick();
         harness.tick();
-        assertTrue(harness.sent(ClientViewMessageType.ENTITY_FRAME) >= 2);
-        assertEquals(0, harness.client.closed(ClientViewMessageType.ENTITY_FRAME));
-        assertEquals(1, harness.client.closed(ClientViewMessageType.PLATE_END));
+        assertTrue(harness.sent(ViewStreamMessageType.ENTITY_FRAME) >= 2);
+        assertEquals(0, harness.client.closed(ViewStreamMessageType.ENTITY_FRAME));
+        assertEquals(1, harness.client.closed(ViewStreamMessageType.PLATE_END));
         harness.access.interest.clear();
         for (int i = 0; i < ClientViewOptions.DEFAULT_INTEREST_GRACE_TICKS + 2; i++) {
             harness.tick();
         }
-        assertEquals(1, harness.sent(ClientViewMessageType.PORTAL_DROP));
-        assertEquals(0, harness.client.closed(ClientViewMessageType.PORTAL_DROP));
+        assertEquals(1, harness.sent(ViewStreamMessageType.PORTAL_DROP));
+        assertEquals(0, harness.client.closed(ViewStreamMessageType.PORTAL_DROP));
     }
 
     @Test
@@ -129,14 +131,14 @@ final class ClientViewSessionPacingTest {
         harness.handshake(SessionHarness.CLIENT_CAPS);
         harness.client.autoMiss = false;
         harness.tick();
-        assertEquals(1, harness.sent(ClientViewMessageType.PLATE_BEGIN));
+        assertEquals(1, harness.sent(ViewStreamMessageType.PLATE_BEGIN));
         assertEquals(1, harness.session.stats().outstandingGroups());
         harness.access.interest.remove(0);
         for (int i = 0; i < ClientViewOptions.DEFAULT_INTEREST_GRACE_TICKS + 2; i++) {
             harness.tick();
         }
-        assertEquals(1, harness.sent(ClientViewMessageType.PORTAL_DROP));
-        assertEquals(2, harness.sent(ClientViewMessageType.PLATE_BEGIN), "the abandoned manifest slot admits the next stream");
+        assertEquals(1, harness.sent(ViewStreamMessageType.PORTAL_DROP));
+        assertEquals(2, harness.sent(ViewStreamMessageType.PLATE_BEGIN), "the abandoned manifest slot admits the next stream");
         assertEquals(1, harness.session.stats().outstandingGroups());
     }
 
@@ -148,7 +150,7 @@ final class ClientViewSessionPacingTest {
         harness.tick();
         assertEquals(4, harness.client.plates.size());
         assertEquals(1, harness.c2sCount - before, "four manifests answered by one BRICK_MISS message");
-        assertEquals(4, harness.sent(ClientViewMessageType.PLATE_END));
+        assertEquals(4, harness.sent(ViewStreamMessageType.PLATE_END));
     }
 
     @Test
@@ -157,26 +159,26 @@ final class ClientViewSessionPacingTest {
         harness.handshake(SessionHarness.CLIENT_CAPS);
         harness.client.autoMiss = false;
         harness.tick();
-        ClientViewMessage.PlateBegin begin = (ClientViewMessage.PlateBegin) harness.last(ClientViewMessageType.PLATE_BEGIN);
+        ClientViewMessage.PlateBegin begin = (ClientViewMessage.PlateBegin) harness.last(ViewStreamMessageType.PLATE_BEGIN);
         int key = begin.portalKey();
         int revision = begin.plateRevision();
 
         assertEquals(ClientViewInbound.HANDLED, harness.c2s(miss(key, revision + 1, begin.brickCount(), 0)));
         assertEquals(ClientViewInbound.HANDLED, harness.c2s(miss(key + 40, revision, begin.brickCount(), 0)));
         harness.pump();
-        assertEquals(0, harness.sent(ClientViewMessageType.PLATE_BRICKS));
+        assertEquals(0, harness.sent(ViewStreamMessageType.PLATE_BRICKS));
         assertEquals(2L, harness.session.stats().staleBrickMisses());
 
         assertEquals(ClientViewInbound.HANDLED, harness.c2s(miss(key, revision, begin.brickCount(), 128)));
         harness.pump();
-        ClientViewMessage.PlateBricks bricks = (ClientViewMessage.PlateBricks) harness.last(ClientViewMessageType.PLATE_BRICKS);
+        ClientViewMessage.PlateBricks bricks = (ClientViewMessage.PlateBricks) harness.last(ViewStreamMessageType.PLATE_BRICKS);
         assertEquals(begin.brickCount(), bricks.bricks().size(), "bits past the advertised brick count are ignored");
-        assertEquals(1, harness.sent(ClientViewMessageType.PLATE_END));
+        assertEquals(1, harness.sent(ViewStreamMessageType.PLATE_END));
         assertTrue(harness.client.open.isEmpty());
 
         assertEquals(ClientViewInbound.HANDLED, harness.c2s(miss(key, revision, begin.brickCount(), 0)));
         harness.pump();
-        assertEquals(1, harness.sent(ClientViewMessageType.PLATE_BRICKS), "a completed stream is never answered twice");
+        assertEquals(1, harness.sent(ViewStreamMessageType.PLATE_BRICKS), "a completed stream is never answered twice");
         assertEquals(3L, harness.session.stats().staleBrickMisses());
     }
 
@@ -186,10 +188,10 @@ final class ClientViewSessionPacingTest {
         harness.handshake(SessionHarness.CLIENT_CAPS);
         harness.client.autoMiss = false;
         harness.tick();
-        ClientViewMessage.PlateBegin begin = (ClientViewMessage.PlateBegin) harness.last(ClientViewMessageType.PLATE_BEGIN);
+        ClientViewMessage.PlateBegin begin = (ClientViewMessage.PlateBegin) harness.last(ViewStreamMessageType.PLATE_BEGIN);
         harness.clock.addAndGet(ClientViewServerSession.BRICK_MISS_TIMEOUT_NANOS);
         harness.tick();
-        ClientViewMessage.PlateBricks bricks = (ClientViewMessage.PlateBricks) harness.last(ClientViewMessageType.PLATE_BRICKS);
+        ClientViewMessage.PlateBricks bricks = (ClientViewMessage.PlateBricks) harness.last(ViewStreamMessageType.PLATE_BRICKS);
         assertEquals(begin.brickCount(), bricks.bricks().size());
         assertEquals(1, harness.client.plates.size());
     }

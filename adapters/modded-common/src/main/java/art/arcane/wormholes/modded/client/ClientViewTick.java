@@ -1,15 +1,15 @@
 package art.arcane.wormholes.modded.client;
 
-import art.arcane.wormholes.network.client.BrickLightSource;
-import art.arcane.wormholes.network.client.ClientViewCapability;
+import art.arcane.optics.stream.BrickLightSource;
+import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
-import art.arcane.wormholes.network.client.ClientViewProtocolException;
-import art.arcane.wormholes.network.client.PlateSectionBox;
-import art.arcane.wormholes.render.ProjectionCellKey;
-import art.arcane.wormholes.render.client.ClientOverlapResolver;
-import art.arcane.wormholes.render.client.ClientViewSweep;
-import art.arcane.wormholes.render.plate.PlateBox;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.PlateSectionBox;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.client.ClientOverlapResolver;
+import art.arcane.optics.client.ClientSweep;
+import art.arcane.optics.plate.PlateBox;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -94,7 +94,7 @@ public final class ClientViewTick implements ClientViewSession.Sink {
         this.misses = new ArrayList<>(4);
         this.portals = session::portal;
         this.cellLight = new CellLight();
-        this.nested = new ClientNestedViews(session, ClientViewProtocol.MAX_GEOMETRY_DEPTH, touchedSections);
+        this.nested = new ClientNestedViews(session, ViewStreamLimits.MAX_GEOMETRY_DEPTH, touchedSections);
         this.mirrors = new Int2ObjectOpenHashMap<>(4);
         this.sender = message -> { };
         this.effectsResumedAtNanos = System.nanoTime();
@@ -128,7 +128,7 @@ public final class ClientViewTick implements ClientViewSession.Sink {
         ObjectIterator<ClientPortal> portals = session.portals().values().iterator();
         while (portals.hasNext()) {
             ClientPortal portal = portals.next();
-            ClientViewSweep sweep = portal.sweep();
+            ClientSweep sweep = portal.sweep();
             if (sweep != null) {
                 sweep.clear();
                 sweep.exited().clear();
@@ -250,7 +250,7 @@ public final class ClientViewTick implements ClientViewSession.Sink {
         atmosphere.tick(eyeX, eyeY, eyeZ, portals, session.meshes(), effectsActive);
         sendMisses();
         sendAck(applied);
-        if (session.has(ClientViewCapability.VIEW_STATS) && stats.reportDue(nowMillis)) {
+        if (session.has(ViewStreamCapability.VIEW_STATS) && stats.reportDue(nowMillis)) {
             sender.accept(stats.report(nowMillis, clientTick, session.portals().size(), overlay.size(), session.palette().unknownStates(),
                 session.memoryMb()));
         }
@@ -263,7 +263,7 @@ public final class ClientViewTick implements ClientViewSession.Sink {
         LongArrayList cells = overlay.keysInChunk(chunkX, chunkZ);
         for (int index = 0; index < cells.size(); index++) {
             long cell = cells.getLong(index);
-            touchedSections.add(SectionPos.asLong(chunkX, ProjectionCellKey.unpackY(cell) >> 4, chunkZ));
+            touchedSections.add(SectionPos.asLong(chunkX, CellKeys.unpackY(cell) >> 4, chunkZ));
         }
         ObjectIterator<MirrorState> states = mirrors.values().iterator();
         while (states.hasNext()) {
@@ -486,7 +486,7 @@ public final class ClientViewTick implements ClientViewSession.Sink {
         long appliedCells = 0L;
         for (int index = 0; index < order.size(); index++) {
             ClientPortal portal = order.get(index);
-            ClientViewSweep sweep = portal.sweep();
+            ClientSweep sweep = portal.sweep();
             long refreshStart = System.nanoTime();
             if (!sweep.exited().isEmpty()) {
                 processExits(portal, sweep.exited());
@@ -503,7 +503,7 @@ public final class ClientViewTick implements ClientViewSession.Sink {
             appliedCells += refreshMirror(portal);
             stats.apply((sweepStart - refreshStart) + (System.nanoTime() - applyStart));
         }
-        if (session.has(ClientViewCapability.CLIENT_RECURSION) && config.clientRecursion) {
+        if (session.has(ViewStreamCapability.CLIENT_RECURSION) && config.clientRecursion) {
             appliedCells += nested.update(order, eyeX + velocityX, eyeY + velocityY, eyeZ + velocityZ);
         }
         session.dirtyPortals().clear();
@@ -526,13 +526,13 @@ public final class ClientViewTick implements ClientViewSession.Sink {
 
     private int refreshPortal(ClientPortal portal) {
         LongArrayList keys = overlay.keysOf(portal.portalKey());
-        ClientViewSweep sweep = portal.sweep();
+        ClientSweep sweep = portal.sweep();
         int reverted = 0;
         for (int index = 0; index < keys.size(); index++) {
             long key = keys.getLong(index);
-            int x = ProjectionCellKey.unpackX(key);
-            int y = ProjectionCellKey.unpackY(key);
-            int z = ProjectionCellKey.unpackZ(key);
+            int x = CellKeys.unpackX(key);
+            int y = CellKeys.unpackY(key);
+            int z = CellKeys.unpackZ(key);
             if (!sweep.applied(x, y, z) && applier.exit(key, portal.portalKey())) {
                 touchedSections.add(SectionPos.asLong(x >> 4, y >> 4, z >> 4));
                 reverted++;
@@ -546,7 +546,7 @@ public final class ClientViewTick implements ClientViewSession.Sink {
     private void refreshBricks(ClientPortal portal) {
         ClientPlate plate = portal.plate();
         PlateSectionBox sections = plate.sections();
-        ClientViewSweep sweep = portal.sweep();
+        ClientSweep sweep = portal.sweep();
         PlateBox bounds = sweep.bounds();
         LongArrayList pending = portal.pendingEnters();
         IntIterator bricks = portal.touchedBricks().iterator();
@@ -566,7 +566,7 @@ public final class ClientViewTick implements ClientViewSession.Sink {
                 for (int y = minY; y <= maxY; y++) {
                     for (int z = minZ; z <= maxZ; z++) {
                         if (sweep.applied(x, y, z)) {
-                            pending.add(ProjectionCellKey.pack(x, y, z));
+                            pending.add(CellKeys.pack(x, y, z));
                         }
                     }
                 }
@@ -578,8 +578,8 @@ public final class ClientViewTick implements ClientViewSession.Sink {
         int reverted = 0;
         for (int index = 0; index < exited.size(); index++) {
             long key = exited.getLong(index);
-            touchedSections.add(SectionPos.asLong(ProjectionCellKey.unpackX(key) >> 4, ProjectionCellKey.unpackY(key) >> 4,
-                ProjectionCellKey.unpackZ(key) >> 4));
+            touchedSections.add(SectionPos.asLong(CellKeys.unpackX(key) >> 4, CellKeys.unpackY(key) >> 4,
+                CellKeys.unpackZ(key) >> 4));
             if (applier.exit(key, portal.portalKey())) {
                 reverted++;
                 reenterOthers(key, portal.portalKey());
@@ -605,13 +605,13 @@ public final class ClientViewTick implements ClientViewSession.Sink {
     }
 
     private int enterKeys(ClientPortal portal, LongArrayList keys, int budget) {
-        ClientViewSweep sweep = portal.sweep();
+        ClientSweep sweep = portal.sweep();
         int applied = 0;
         for (int index = 0; index < keys.size(); index++) {
             long key = keys.getLong(index);
-            int x = ProjectionCellKey.unpackX(key);
-            int y = ProjectionCellKey.unpackY(key);
-            int z = ProjectionCellKey.unpackZ(key);
+            int x = CellKeys.unpackX(key);
+            int y = CellKeys.unpackY(key);
+            int z = CellKeys.unpackZ(key);
             long section = SectionPos.asLong(x >> 4, y >> 4, z >> 4);
             if (!tickSections.contains(section) && tickSections.size() >= budget) {
                 portal.pendingEnters().add(key);
@@ -657,9 +657,9 @@ public final class ClientViewTick implements ClientViewSession.Sink {
     }
 
     private void reenterOthers(long key, int releasedBy) {
-        int x = ProjectionCellKey.unpackX(key);
-        int y = ProjectionCellKey.unpackY(key);
-        int z = ProjectionCellKey.unpackZ(key);
+        int x = CellKeys.unpackX(key);
+        int y = CellKeys.unpackY(key);
+        int z = CellKeys.unpackZ(key);
         ClientPortal best = null;
         for (int index = 0; index < order.size(); index++) {
             ClientPortal candidate = order.get(index);
@@ -687,7 +687,7 @@ public final class ClientViewTick implements ClientViewSession.Sink {
     }
 
     private ClientOverlapResolver.Contender contender(ClientPortal portal, int x, int y, int z) {
-        boolean maskAir = portal.content().paletteIdAt(x, y, z) == ClientViewProtocol.PALETTE_AIR;
+        boolean maskAir = portal.content().paletteIdAt(x, y, z) == ViewStreamLimits.PALETTE_AIR;
         return new ClientOverlapResolver.Contender(portal.portalKey(), portal.sweep().eyeDot(), maskAir);
     }
 
@@ -695,7 +695,7 @@ public final class ClientViewTick implements ClientViewSession.Sink {
         if (touchedSections.isEmpty()) {
             return;
         }
-        if (!session.has(ClientViewCapability.DEST_LIGHT)) {
+        if (!session.has(ViewStreamCapability.DEST_LIGHT)) {
             touchedSections.clear();
             return;
         }
@@ -730,7 +730,7 @@ public final class ClientViewTick implements ClientViewSession.Sink {
         if (portal.plate() == null) {
             return;
         }
-        ClientViewSweep sweep = portal.sweep();
+        ClientSweep sweep = portal.sweep();
         PlateBox bounds = sweep.bounds();
         int minX = Math.max(sectionX << 4, bounds.minX());
         int minY = Math.max(sectionY << 4, bounds.minY());
@@ -748,7 +748,7 @@ public final class ClientViewTick implements ClientViewSession.Sink {
                     if (!sweep.applied(x, y, z)) {
                         continue;
                     }
-                    long key = ProjectionCellKey.pack(x, y, z);
+                    long key = CellKeys.pack(x, y, z);
                     if (!sectionSeen.add(key)) {
                         continue;
                     }
@@ -760,7 +760,7 @@ public final class ClientViewTick implements ClientViewSession.Sink {
     }
 
     private void syncMirrors() {
-        boolean enabled = session.has(ClientViewCapability.CLIENT_MIRROR) && config.clientMirror && overlay != null;
+        boolean enabled = session.has(ViewStreamCapability.CLIENT_MIRROR) && config.clientMirror && overlay != null;
         ObjectIterator<Int2ObjectMap.Entry<MirrorState>> states = mirrors.int2ObjectEntrySet().fastIterator();
         while (states.hasNext()) {
             Int2ObjectMap.Entry<MirrorState> entry = states.next();
@@ -787,7 +787,7 @@ public final class ClientViewTick implements ClientViewSession.Sink {
                 applier.revertPortal(portal.portalKey());
             }
             portal.content(builder);
-            ClientViewSweep sweep = portal.sweep();
+            ClientSweep sweep = portal.sweep();
             sweep.clear();
             sweep.exited().clear();
         }
@@ -807,14 +807,14 @@ public final class ClientViewTick implements ClientViewSession.Sink {
         if (keys.isEmpty()) {
             return 0;
         }
-        ClientViewSweep sweep = portal.sweep();
+        ClientSweep sweep = portal.sweep();
         int refreshed = 0;
         int count = keys.size();
         for (int index = 0; index < count; index++) {
             long key = keys.getLong(index);
-            int x = ProjectionCellKey.unpackX(key);
-            int y = ProjectionCellKey.unpackY(key);
-            int z = ProjectionCellKey.unpackZ(key);
+            int x = CellKeys.unpackX(key);
+            int y = CellKeys.unpackY(key);
+            int z = CellKeys.unpackZ(key);
             if (!sweep.applied(x, y, z)) {
                 continue;
             }
@@ -833,7 +833,7 @@ public final class ClientViewTick implements ClientViewSession.Sink {
 
     private BlockState shadow(int x, int y, int z) {
         ProjectionOverlay current = overlay;
-        ProjectionOverlay.Entry entry = current == null ? null : current.get(ProjectionCellKey.pack(x, y, z));
+        ProjectionOverlay.Entry entry = current == null ? null : current.get(CellKeys.pack(x, y, z));
         if (entry != null) {
             return entry.pending() ? null : entry.shadow();
         }
@@ -857,14 +857,14 @@ public final class ClientViewTick implements ClientViewSession.Sink {
             return;
         }
         int from = 0;
-        int bytes = ClientViewProtocol.C2S_HEADER_BYTES + 1;
+        int bytes = ViewStreamLimits.C2S_HEADER_BYTES + 1;
         for (int index = 0; index < misses.size(); index++) {
             int size = misses.get(index).wireBytes();
-            if (index > from && (bytes + size > ClientViewProtocol.MAX_C2S_BYTES || index - from == ClientViewProtocol.MAX_BRICK_MISS_PLATES)) {
+            if (index > from && (bytes + size > ViewStreamLimits.MAX_C2S_BYTES || index - from == ViewStreamLimits.MAX_BRICK_MISS_PLATES)) {
                 sender.accept(new ClientViewMessage.BrickMiss(misses.subList(from, index)));
                 stats.brickMiss();
                 from = index;
-                bytes = ClientViewProtocol.C2S_HEADER_BYTES + 1;
+                bytes = ViewStreamLimits.C2S_HEADER_BYTES + 1;
             }
             bytes += size;
         }
@@ -894,13 +894,13 @@ public final class ClientViewTick implements ClientViewSession.Sink {
             if (plate == null) {
                 return ClientLightPatches.NO_LIGHT;
             }
-            nested.contentCell(portalKey, ProjectionCellKey.unpackX(cellKey), ProjectionCellKey.unpackY(cellKey),
-                ProjectionCellKey.unpackZ(cellKey), content);
+            nested.contentCell(portalKey, CellKeys.unpackX(cellKey), CellKeys.unpackY(cellKey),
+                CellKeys.unpackZ(cellKey), content);
             int brickIndex = plate.brickIndexOf(content[0], content[1], content[2]);
             if (brickIndex < 0 || !plate.hasLight(brickIndex)) {
                 return ClientLightPatches.NO_LIGHT;
             }
-            int cell = ClientViewProtocol.brickCellIndex(content[0], content[1], content[2]);
+            int cell = ViewStreamLimits.brickCellIndex(content[0], content[1], content[2]);
             int sky = Math.max(0, BrickLightSource.nibble(plate.skyLight(brickIndex), cell) - atmosphere.skyDarken(portalKey));
             return (sky << 4) | BrickLightSource.nibble(plate.blockLight(brickIndex), cell);
         }

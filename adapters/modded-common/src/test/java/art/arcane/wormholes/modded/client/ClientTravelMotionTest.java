@@ -1,8 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
-import art.arcane.wormholes.geometry.GeometryVector;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.math.Face;
 import net.minecraft.world.phys.Vec3;
 import org.junit.Test;
 
@@ -12,8 +11,8 @@ import static org.junit.Assert.assertNotSame;
 public class ClientTravelMotionTest {
     @Test
     public void continuousPositionsHistoryAndVelocityUseTheSameInverseTransform() {
-        ClientViewEnvironment.Transform transform = new ClientViewEnvironment.Transform(Direction.S, Direction.U, Direction.W,
-            new GeometryVector(100, 20, 200));
+        ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(Face.S, Face.U, Face.W,
+            new art.arcane.optics.math.Vec3(100, 20, 200));
         ClientTravelMotion source = motion(30, 28);
         ClientTravelMotion destination = source.transform(transform);
         assertEquals(new Vec3(6, 3, -2), destination.position());
@@ -28,11 +27,11 @@ public class ClientTravelMotionTest {
     @Test
     public void identityAndRotatedCrossingsPreserveYawInterpolationAcrossTheWrap() {
         ClientTravelMotion source = motion(181, 179);
-        ClientTravelMotion identity = source.transform(ClientViewEnvironment.Transform.IDENTITY);
+        ClientTravelMotion identity = source.transform(ProjectionEnvironment.Transform.IDENTITY);
         assertEquals(181, identity.rotation().yaw(), 0.00001);
         assertEquals(179, identity.previousRotation().yaw(), 0.00001);
-        ClientTravelMotion rotated = source.transform(new ClientViewEnvironment.Transform(Direction.S, Direction.U, Direction.W,
-            new GeometryVector(0, 0, 0)));
+        ClientTravelMotion rotated = source.transform(new ProjectionEnvironment.Transform(Face.S, Face.U, Face.W,
+            new art.arcane.optics.math.Vec3(0, 0, 0)));
         assertEquals(2, rotated.rotation().yaw() - rotated.previousRotation().yaw(), 0.0001);
         assertEquals(2, rotated.bodyYaw() - rotated.previousBodyYaw(), 0.0001);
         assertEquals(2, rotated.headYaw() - rotated.previousHeadYaw(), 0.0001);

@@ -8,10 +8,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import art.arcane.optics.entity.EntitySnapshot;
 
 class EntitySendStateTest {
-    private static EntityVisual snapshot(UUID id, int sequence) {
-        return EntityVisual.full(
+    private static EntitySnapshot snapshot(UUID id, int sequence) {
+        return EntitySnapshot.full(
             id,
             "minecraft:zombie",
             10.0D, 64.0D, 20.0D,

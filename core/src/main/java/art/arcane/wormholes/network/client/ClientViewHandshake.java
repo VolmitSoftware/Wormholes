@@ -4,6 +4,8 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.function.IntSupplier;
 import java.util.function.LongSupplier;
+import art.arcane.optics.stream.ViewStreamCapability;
+import art.arcane.optics.stream.ViewStreamLimits;
 
 public final class ClientViewHandshake {
     private static final String VANILLA_BRAND = "vanilla";
@@ -37,8 +39,8 @@ public final class ClientViewHandshake {
     public static ClientViewMessage.Hello clientHello(ClientViewMessage.Offer offer, int mcDataVersion, long clientCaps, int maxFrameBytes,
                                                       int plateMemoryMb, long nonceFound, String brandTag) {
         long echo = offer.zeroCopyNonce() != 0L && offer.zeroCopyNonce() == nonceFound ? nonceFound : 0L;
-        return new ClientViewMessage.Hello(ClientViewProtocol.WIRE_VERSION, mcDataVersion, clientCaps & ClientViewCapability.ALL,
-            ClientViewProtocol.clampMaxFrameBytes(maxFrameBytes), Math.max(0, Math.min(65535, plateMemoryMb)), echo,
+        return new ClientViewMessage.Hello(ViewStreamLimits.WIRE_VERSION, mcDataVersion, clientCaps & ViewStreamCapability.ALL,
+            ViewStreamLimits.clampMaxFrameBytes(maxFrameBytes), Math.max(0, Math.min(65535, plateMemoryMb)), echo,
             brandTag == null ? "" : brandTag);
     }
 
@@ -65,8 +67,8 @@ public final class ClientViewHandshake {
         state = State.OFFERED;
         offeredAt = nowMillis;
         deadline = brand == Brand.VANILLA ? nowMillis : nowMillis + policy.helloGraceMillis();
-        return new ClientViewMessage.Offer(ClientViewProtocol.WIRE_VERSION, policy.mcDataVersion(), policy.serverCaps() & ClientViewCapability.ALL,
-            ClientViewProtocol.clampMaxFrameBytes(policy.maxFrameBytes()), zeroCopyNonce);
+        return new ClientViewMessage.Offer(ViewStreamLimits.WIRE_VERSION, policy.mcDataVersion(), policy.serverCaps() & ViewStreamCapability.ALL,
+            ViewStreamLimits.clampMaxFrameBytes(policy.maxFrameBytes()), zeroCopyNonce);
     }
 
     public void brand(String brandTag, long nowMillis) {
@@ -110,18 +112,18 @@ public final class ClientViewHandshake {
             state = State.DECLINED;
             return new Result(state, new ClientViewMessage.Decline(reason), late);
         }
-        long caps = ClientViewCapability.intersection(policy.serverCaps(), hello.clientCaps());
-        if (!ClientViewCapability.PREPARED_TRAVEL.in(caps) || !ClientViewCapability.MESH_RENDER.in(caps)) {
-            caps &= ~ClientViewCapability.PREPARED_TRAVEL_CACHE.mask();
+        long caps = ViewStreamCapability.intersection(policy.serverCaps(), hello.clientCaps());
+        if (!ViewStreamCapability.PREPARED_TRAVEL.in(caps) || !ViewStreamCapability.MESH_RENDER.in(caps)) {
+            caps &= ~ViewStreamCapability.PREPARED_TRAVEL_CACHE.mask();
         }
-        if (!ClientViewCapability.ENTITY_FRAMES.in(caps)) {
-            caps &= ~ClientViewCapability.ENTITY_SELF.mask();
+        if (!ViewStreamCapability.ENTITY_FRAMES.in(caps)) {
+            caps &= ~ViewStreamCapability.ENTITY_SELF.mask();
         }
         boolean zeroCopy = policy.zeroCopy() && zeroCopyNonce != 0L && hello.zeroCopyNonceEcho() == zeroCopyNonce;
         if (!zeroCopy) {
-            caps &= ~ClientViewCapability.ZERO_COPY.mask();
+            caps &= ~ViewStreamCapability.ZERO_COPY.mask();
         }
-        int maxFrameBytes = ClientViewProtocol.clampMaxFrameBytes(Math.min(policy.maxFrameBytes(), hello.maxFrameBytes()));
+        int maxFrameBytes = ViewStreamLimits.clampMaxFrameBytes(Math.min(policy.maxFrameBytes(), hello.maxFrameBytes()));
         accepted = new ClientViewMessage.Accept(sessionIds.getAsInt(), caps, policy.tickRate(), maxFrameBytes, salts.getAsLong(),
             Math.max(0, Math.min(255, policy.ackWindowFrames())));
         state = State.CLIENT_VIEW;
@@ -133,7 +135,7 @@ public final class ClientViewHandshake {
     }
 
     private ClientViewMessage.DeclineReason declineReason(ClientViewMessage.Hello hello, boolean capacityAvailable) {
-        if (hello.wire() != ClientViewProtocol.WIRE_VERSION) {
+        if (hello.wire() != ViewStreamLimits.WIRE_VERSION) {
             return ClientViewMessage.DeclineReason.WIRE_MISMATCH;
         }
         if (hello.mcDataVersion() != policy.mcDataVersion()) {
@@ -176,9 +178,9 @@ public final class ClientViewHandshake {
         }
 
         public static Policy defaults(int mcDataVersion) {
-            return new Policy(true, mcDataVersion, ClientViewCapability.ALL, ClientViewProtocol.DEFAULT_MAX_FRAME_BYTES,
-                ClientViewProtocol.DEFAULT_HELLO_GRACE_MILLIS, ClientViewProtocol.DEFAULT_TICK_RATE,
-                ClientViewProtocol.DEFAULT_ACK_WINDOW_FRAMES, true);
+            return new Policy(true, mcDataVersion, ViewStreamCapability.ALL, ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES,
+                ViewStreamLimits.DEFAULT_HELLO_GRACE_MILLIS, ViewStreamLimits.DEFAULT_TICK_RATE,
+                ViewStreamLimits.DEFAULT_ACK_WINDOW_FRAMES, true);
         }
     }
 

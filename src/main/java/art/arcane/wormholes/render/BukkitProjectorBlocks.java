@@ -2,7 +2,7 @@ package art.arcane.wormholes.render;
 
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.Settings;
-import art.arcane.wormholes.render.blockentity.BlockEntityMaterials;
+import art.arcane.optics.fidelity.BlockEntityMaterials;
 import art.arcane.wormholes.render.view.OccludedMarker;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import org.bukkit.Material;
@@ -13,8 +13,14 @@ import java.util.function.Function;
 import org.bukkit.World;
 import art.arcane.wormholes.portal.ILocalPortal;
 import java.util.function.Predicate;
+import art.arcane.optics.frame.DirectionMapping;
+import art.arcane.optics.recursion.RecursiveEndpoints;
+import art.arcane.optics.scan.CellScan;
+import art.arcane.optics.scan.ProjectorSampleMemo;
+import art.arcane.optics.scan.ProjectorSampler;
+import art.arcane.optics.view.BlockStates;
 
-public final class BukkitProjectorBlocks implements ProjectionBlockTypes<BlockData, Material> {
+public final class BukkitProjectorBlocks implements BlockStates<BlockData, Material> {
     private final Predicate<Material> occlusion;
 
     public BukkitProjectorBlocks(Predicate<Material> occlusion) {
@@ -36,19 +42,19 @@ public final class BukkitProjectorBlocks implements ProjectionBlockTypes<BlockDa
 
     public static ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler(
         ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo,
-        ProjectorRecursivePortals<World, ILocalPortal> recursivePortals,
+        RecursiveEndpoints<World, ILocalPortal> recursivePortals,
         Function<World, ProjectionWorldView> viewLookup) {
         return new ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView>(
             new ProjectorSampler.Options<BlockData, Material, World, ILocalPortal, ProjectionWorldView>(
                 memo, recursivePortals, viewLookup, ProjectionWorldView::getWorld));
     }
 
-    static ProjectorCellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan(
+    static CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan(
         ILocalPortal portal,
         ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler,
         ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo, ProjectorBlackoutSeal blackout) {
-        return new ProjectorCellScan<>(new ProjectorCellScan.Context<>(portal, portal.getStructure(), sampler, memo, blackout,
-            OccludedMarker::isOccluding, () -> new ProjectorCellScan.ScanSettings(Settings.PROJECTION_RECURSIVE_PORTAL_DEPTH,
+        return new CellScan<>(new CellScan.Context<>(portal, portal.getStructure(), sampler, memo, blackout,
+            OccludedMarker::isOccluding, () -> new CellScan.ScanSettings(Settings.PROJECTION_RECURSIVE_PORTAL_DEPTH,
                 Settings.PROJECTION_OCCLUSION_REVEAL_MARGIN_DEGREES, Settings.PROJECTION_APERTURE_PADDING_BLOCKS, Settings.DEBUG,
                 Settings.PROJECTION_HOLD_INVISIBLE_CLAIMS, Settings.PROJECTION_MAX_HELD_CELLS_PER_PORTAL, Settings.PROJECTION_FINISH_IN_SLOT)));
     }

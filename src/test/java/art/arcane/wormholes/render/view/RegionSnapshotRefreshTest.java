@@ -2,10 +2,10 @@ package art.arcane.wormholes.render.view;
 
 import art.arcane.wormholes.Wormholes;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
-import art.arcane.wormholes.network.view.EntityVisual;
+import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.wormholes.network.view.PacketBlobs;
 import art.arcane.wormholes.platform.WormholesPlatform;
-import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
+import art.arcane.optics.view.WorldChangeTracker;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
@@ -62,7 +62,7 @@ final class RegionSnapshotRefreshTest {
             assertNull(fixture.view.sampleMaterial(-128 << 4, 64, -128 << 4));
             assertFalse(fixture.view.isChunkReady(-128 << 4, -128 << 4));
             ProjectionEntityView entities = (ProjectionEntityView) fixture.view;
-            List<EntityVisual> moved = entities.getEntities((128 << 4) + 1, 64, (128 << 4) + 8, 1);
+            List<EntitySnapshot> moved = entities.getEntities((128 << 4) + 1, 64, (128 << 4) + 8, 1);
             assertEquals(1, moved.size());
             assertEquals(fixture.entityId, moved.getFirst().id());
             fixture.tracker.markChanged(fixture.worldId, 128 << 4, 128 << 4);
@@ -151,7 +151,7 @@ final class RegionSnapshotRefreshTest {
             fixture.capture();
 
             assertEquals(1, fixture.equipmentCaptures.get());
-            List<EntityVisual> moving = ((ProjectionEntityView) fixture.view).getEntities(4.0D, 64.0D, 8.0D, 1.0D);
+            List<EntitySnapshot> moving = ((ProjectionEntityView) fixture.view).getEntities(4.0D, 64.0D, 8.0D, 1.0D);
             assertEquals(1, moving.size());
             assertEquals(4.0D, moving.getFirst().x());
 
@@ -184,7 +184,7 @@ final class RegionSnapshotRefreshTest {
                 captures.incrementAndGet();
                 return values.get();
             });
-            blobs.when(() -> PacketBlobs.captureEquipment(fixture.entities.get()[0])).thenReturn(EntityVisual.EMPTY);
+            blobs.when(() -> PacketBlobs.captureEquipment(fixture.entities.get()[0])).thenReturn(EntitySnapshot.EMPTY);
             blobs.when(() -> PacketBlobs.readMetadata(any(byte[].class))).thenReturn(List.of());
             blobs.when(() -> PacketBlobs.readEquipment(any(byte[].class))).thenReturn(List.of());
             fixture.capture();
@@ -196,7 +196,7 @@ final class RegionSnapshotRefreshTest {
                 values.set(transition);
                 fixture.now.addAndGet(250L);
                 fixture.capture();
-                EntityVisual visual = view.getEntities(1, 64, 8, 1).getFirst();
+                EntitySnapshot visual = view.getEntities(1, 64, 8, 1).getFirst();
                 assertEquals(transition[0], visual.metadata()[0]);
                 assertEquals(transition[1], visual.metadata()[1]);
                 assertEquals(transition[2], visual.metadata()[2]);
@@ -238,8 +238,8 @@ final class RegionSnapshotRefreshTest {
         private final AtomicReference<Material> material = new AtomicReference<Material>(Material.STONE);
         private final AtomicReference<Entity[]> entities = new AtomicReference<Entity[]>();
         private final AtomicBoolean itemVisible = new AtomicBoolean();
-        private final ProjectionWorldChangeTracker tracker = new ProjectionWorldChangeTracker();
-        private final ProjectionWorldChangeTracker previousTracker;
+        private final WorldChangeTracker tracker = new WorldChangeTracker();
+        private final WorldChangeTracker previousTracker;
         private final Plugin plugin;
         private final RegionSnapshotWorldViewProvider provider;
         private final ProjectionWorldView view;

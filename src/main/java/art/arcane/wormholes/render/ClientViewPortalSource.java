@@ -11,25 +11,27 @@ import org.bukkit.entity.Player;
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.door.view.AbstractApertureFacade;
 import art.arcane.wormholes.door.view.DoorApertureFrames;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
+import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.wormholes.network.client.SessionPalette;
 import art.arcane.wormholes.portal.DimensionalPortalKind;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.IPortal;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.wormholes.portal.PortalType;
-import art.arcane.wormholes.render.acoustics.AcousticsBridge;
-import art.arcane.wormholes.render.acoustics.AcousticsProfile;
-import art.arcane.wormholes.render.atmosphere.AtmosphereMode;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
-import art.arcane.wormholes.render.client.ClientViewEntityTransform;
-import art.arcane.wormholes.render.plate.ViewPlate;
-import art.arcane.wormholes.render.plate.PlateBox;
-import art.arcane.wormholes.render.plate.ViewPlateCache;
+import art.arcane.optics.fidelity.AcousticsBridge;
+import art.arcane.optics.fidelity.AcousticsProfile;
+import art.arcane.optics.fidelity.AtmosphereMode;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.client.ClientViewEntityTransform;
+import art.arcane.optics.plate.ViewPlate;
+import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.plate.ViewPlateCache;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.render.view.ProjectionWorldViewProvider;
-import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.scan.ProjectorPassRevision;
 
 public final class ClientViewPortalSource {
     private static final long REVISION_SEED = 1469598103934665603L;
@@ -171,12 +173,12 @@ public final class ClientViewPortalSource {
         return geometryRevision;
     }
 
-    public ClientViewEntityTransform.Frame transformFrame() {
+    public ClientViewEntityTransform.EntityFrame transformFrame() {
         ProjectorPlates.Target target = plateTarget;
         if (target == null || outcome != ProjectorDestination.Outcome.READY) {
             return null;
         }
-        return new ClientViewEntityTransform.Frame(target.localOriginX(), target.localOriginY(), target.localOriginZ(), target.localFrame(),
+        return new ClientViewEntityTransform.EntityFrame(target.localOriginX(), target.localOriginY(), target.localOriginZ(), target.localFrame(),
             target.remoteOriginX(), target.remoteOriginY(), target.remoteOriginZ(), target.remoteFrame(), target.mirrorMode(), target.quarterTurns(),
             frontSide, target.depth());
     }
@@ -205,21 +207,21 @@ public final class ClientViewPortalSource {
         return FidelitySettings.weather && atmosphereMode(ProjectorPlates.fidelity(portal)).relaysWeather();
     }
 
-    public ClientPortalGeometry geometry(SessionPalette palette, long identitySalt) {
+    public ApertureDescriptor geometry(SessionPalette palette, long identitySalt) {
         if (outcome == ProjectorDestination.Outcome.CLOSE) {
             return null;
         }
         PortalProjector.RtpProjectionTarget rtpTarget = target;
         boolean mirror = rtpTarget == null && portal.isMirrorMode();
-        int blackoutPolicy = blackoutState == null ? ClientPortalGeometry.BLACKOUT_OFF : ClientPortalGeometry.BLACKOUT_SHELL;
-        int blackoutId = blackoutState == null ? ClientViewProtocol.PALETTE_AIR : palette.id(blackoutState);
+        int blackoutPolicy = blackoutState == null ? ApertureDescriptor.BLACKOUT_OFF : ApertureDescriptor.BLACKOUT_SHELL;
+        int blackoutId = blackoutState == null ? ViewStreamLimits.PALETTE_AIR : palette.id(blackoutState);
         FidelityPortalExtension fidelity = ProjectorPlates.fidelity(portal);
         int kind = kind();
-        return ClientPortalGeometry.fromPortal(new ClientPortalGeometry.Source(portal.getStructure(), portal.getFrame(), frontSide,
+        return ApertureDescriptor.fromPortal(new ApertureDescriptor.Source(portal.getStructure(), portal.getFrame(), frontSide,
             mirror, mirror ? destination.mirrorRotationQuarterTurns : 0, Settings.NEAR_PLANE_PADDING,
             Settings.PROJECTION_APERTURE_PADDING_BLOCKS, Settings.FRUSTUM_CULLING_RATIO, portal.getNetworkViewDepth(),
             Settings.PROJECTION_RECURSIVE_PORTAL_DEPTH,
-            blackoutPolicy, blackoutId, ClientPortalGeometry.MASK_AIR_PROJECT, lightingPolicy(fidelity), fidelityFlags(fidelity),
+            blackoutPolicy, blackoutId, ApertureDescriptor.MASK_AIR_PROJECT, lightingPolicy(fidelity), fidelityFlags(fidelity),
             kind, DoorApertureFrames.geometryPlaneOffset(kind, portal.getFrame()), 0,
             nativeMesh ? ProjectorPassRevision.mix(identitySalt, meshTargetRevision()) : targetIdentity(rtpTarget, identitySalt), List.of())).orElse(null);
     }
@@ -239,7 +241,7 @@ public final class ClientViewPortalSource {
 
     public static long effectGeometryRevision(ILocalPortal portal, Location eye) {
         PortalStructure structure = portal.getStructure();
-        PortalFrame frame = portal.getFrame();
+        Frame frame = portal.getFrame();
         if (structure == null || frame == null || portal.getOrigin() == null || eye == null) {
             return 0L;
         }
@@ -253,30 +255,30 @@ public final class ClientViewPortalSource {
         return ProjectorPassRevision.mix(hash, effectKind(portal));
     }
 
-    public static ClientPortalGeometry effectGeometry(ILocalPortal portal, Location eye) {
+    public static ApertureDescriptor effectGeometry(ILocalPortal portal, Location eye) {
         PortalStructure structure = portal.getStructure();
-        PortalFrame frame = portal.getFrame();
+        Frame frame = portal.getFrame();
         if (structure == null || frame == null || portal.getOrigin() == null || eye == null) {
             return null;
         }
         int kind = effectKind(portal);
-        return ClientPortalGeometry.fromPortal(new ClientPortalGeometry.Source(structure, frame, ProjectorPlates.frontSide(portal, eye), false, 0,
+        return ApertureDescriptor.fromPortal(new ApertureDescriptor.Source(structure, frame, ProjectorPlates.frontSide(portal, eye), false, 0,
             Settings.NEAR_PLANE_PADDING, Settings.PROJECTION_APERTURE_PADDING_BLOCKS, Settings.FRUSTUM_CULLING_RATIO, portal.getNetworkViewDepth(), 0,
-            ClientPortalGeometry.BLACKOUT_OFF, ClientViewProtocol.PALETTE_AIR, ClientPortalGeometry.MASK_AIR_PROJECT,
+            ApertureDescriptor.BLACKOUT_OFF, ViewStreamLimits.PALETTE_AIR, ApertureDescriptor.MASK_AIR_PROJECT,
             ProjectedBlockClaim.LightingPolicy.LOCAL, 0, kind, DoorApertureFrames.geometryPlaneOffset(kind, frame), 0, 0L, List.of())).orElse(null);
     }
 
     private static int effectKind(ILocalPortal portal) {
         if (portal.getType() == PortalType.RTP) {
-            return ClientPortalGeometry.KIND_RTP;
+            return ApertureDescriptor.KIND_RTP;
         }
         if (portal instanceof AbstractApertureFacade) {
-            return ClientPortalGeometry.KIND_DOOR;
+            return ApertureDescriptor.KIND_DOOR;
         }
         DimensionalPortalKind dimensional = portal.getDimensionalPortalKind();
         return dimensional != null && dimensional.isManagedPortal()
-            ? ClientPortalGeometry.KIND_VANILLA_REPLACEMENT
-            : ClientPortalGeometry.KIND_FRAME;
+            ? ApertureDescriptor.KIND_VANILLA_REPLACEMENT
+            : ApertureDescriptor.KIND_FRAME;
     }
 
     private long meshTargetRevision() {
@@ -294,8 +296,8 @@ public final class ClientViewPortalSource {
 
     private long revision(FidelityPortalExtension fidelity) {
         PortalStructure structure = portal.getStructure();
-        PortalFrame frame = portal.getFrame();
-        AxisAlignedBB area = structure.getArea();
+        Frame frame = portal.getFrame();
+        Box area = structure.getArea();
         long hash = ProjectorPassRevision.mix(REVISION_SEED, System.identityHashCode(structure));
         if (area != null) {
             hash = ProjectorPassRevision.mix(hash, Double.doubleToLongBits(area.getXa()));
@@ -337,32 +339,32 @@ public final class ClientViewPortalSource {
     private static int fidelityFlags(FidelityPortalExtension fidelity) {
         int flags = 0;
         if (Settings.ENTITY_SPOOFING) {
-            flags |= ClientPortalGeometry.FIDELITY_DISPLAY_ENTITIES;
+            flags |= ApertureDescriptor.FIDELITY_DISPLAY_ENTITIES;
         }
         if (Settings.LIGHTING_FIDELITY) {
-            flags |= ClientPortalGeometry.FIDELITY_LIGHTING;
+            flags |= ApertureDescriptor.FIDELITY_LIGHTING;
         }
         if (FidelitySettings.weather && atmosphereMode(fidelity).relaysWeather()) {
-            flags |= ClientPortalGeometry.FIDELITY_WEATHER;
+            flags |= ApertureDescriptor.FIDELITY_WEATHER;
         }
         AcousticsProfile acoustics = fidelity == null ? FidelitySettings.acousticsProfileDefault : fidelity.effectiveAcousticsProfile();
         if (acoustics != AcousticsProfile.OFF) {
-            flags |= ClientPortalGeometry.FIDELITY_SOUNDS;
+            flags |= ApertureDescriptor.FIDELITY_SOUNDS;
         }
         return flags;
     }
 
     private int kind() {
         if (portal instanceof AbstractApertureFacade) {
-            return ClientPortalGeometry.KIND_DOOR;
+            return ApertureDescriptor.KIND_DOOR;
         }
         if (target != null) {
-            return ClientPortalGeometry.KIND_RTP;
+            return ApertureDescriptor.KIND_RTP;
         }
         DimensionalPortalKind dimensional = portal.getDimensionalPortalKind();
         return dimensional != null && dimensional.isManagedPortal()
-            ? ClientPortalGeometry.KIND_VANILLA_REPLACEMENT
-            : ClientPortalGeometry.KIND_FRAME;
+            ? ApertureDescriptor.KIND_VANILLA_REPLACEMENT
+            : ApertureDescriptor.KIND_FRAME;
     }
 
     private static AtmosphereMode atmosphereMode(FidelityPortalExtension fidelity) {

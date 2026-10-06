@@ -20,6 +20,8 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import art.arcane.optics.entity.SpoofRegistry;
+import art.arcane.optics.entity.SpoofedEntity;
 
 final class ProjectedEntityAnimationTest {
     @ParameterizedTest
@@ -31,11 +33,11 @@ final class ProjectedEntityAnimationTest {
             Player observer = ProjectedEntityPacketRecorder.player(true);
             EntityRenderPacketChannel channel = new EntityRenderPacketChannel();
             EntityRenderPlayerIdentity identity = new EntityRenderPlayerIdentity(channel);
-            EntityRenderSpoofRegistry<Player, Vector3d> registry = new EntityRenderSpoofRegistry<>(new BukkitEntityRegistryHost(channel, identity));
+            SpoofRegistry<Player, Vector3d> registry = new SpoofRegistry<>(new BukkitEntityRegistryHost(channel, identity));
             ProjectedEntityRenderer renderer = new ProjectedEntityRenderer(channel, identity, registry);
             for (boolean player : new boolean[] {true, false}) {
                 UUID sourceId = player ? observer.getUniqueId() : UUID.randomUUID();
-                EntityRenderSpoofedEntity entity = EntityRenderSpoofedEntity.create(player, false, true);
+                SpoofedEntity entity = SpoofedEntity.create(player, false, true);
                 registry.track(sourceId, entity);
                 recorder.sent().clear();
 
@@ -87,10 +89,10 @@ final class ProjectedEntityAnimationTest {
             Player observer = ProjectedEntityPacketRecorder.player(true);
             EntityRenderPacketChannel channel = new EntityRenderPacketChannel();
             EntityRenderPlayerIdentity identity = new EntityRenderPlayerIdentity(channel);
-            EntityRenderSpoofRegistry<Player, Vector3d> registry = new EntityRenderSpoofRegistry<>(new BukkitEntityRegistryHost(channel, identity));
+            SpoofRegistry<Player, Vector3d> registry = new SpoofRegistry<>(new BukkitEntityRegistryHost(channel, identity));
             ProjectedEntityRenderer renderer = new ProjectedEntityRenderer(channel, identity, registry);
             UUID sourceId = UUID.randomUUID();
-            registry.track(sourceId, EntityRenderSpoofedEntity.create(false, false, false));
+            registry.track(sourceId, SpoofedEntity.create(false, false, false));
 
             renderer.sendAnimation(observer, sourceId, EntityAnimationType.SWING_MAIN_ARM);
             renderer.sendAnimation(observer, sourceId, EntityAnimationType.SWING_OFF_HAND);

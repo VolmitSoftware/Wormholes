@@ -4,8 +4,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
-import art.arcane.wormholes.network.replication.XxHash64;
-import art.arcane.wormholes.render.plate.PlateBox;
+import art.arcane.optics.stream.XxHash64;
+import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.stream.Brick;
+import art.arcane.optics.stream.PlateSectionBox;
 
 public final class EncodedPlate {
     private final PlateSectionBox sections;

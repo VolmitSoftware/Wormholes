@@ -18,8 +18,10 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSe
 
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
+import art.arcane.optics.entity.SpoofRegistry;
+import art.arcane.optics.entity.SpoofedEntity;
 
-final class BukkitEntityRegistryHost implements EntityRenderSpoofRegistry.Host<Player, Vector3d> {
+final class BukkitEntityRegistryHost implements SpoofRegistry.Host<Player, Vector3d> {
     private final EntityRenderPacketChannel channel;
     private final EntityRenderPlayerIdentity identity;
 
@@ -29,7 +31,7 @@ final class BukkitEntityRegistryHost implements EntityRenderSpoofRegistry.Host<P
     }
 
     @Override
-    public void motion(Player observer, EntityRenderSpoofRegistry.Motion<Vector3d> motion) {
+    public void motion(Player observer, SpoofRegistry.Motion<Vector3d> motion) {
         switch (motion.kind()) {
             case RELATIVE -> channel.send(observer, new WrapperPlayServerEntityRelativeMove(
                 motion.entityId(), motion.deltaX(), motion.deltaY(), motion.deltaZ(), motion.onGround()));
@@ -68,12 +70,12 @@ final class BukkitEntityRegistryHost implements EntityRenderSpoofRegistry.Host<P
     }
 
     @Override
-    public void releaseName(Player observer, EntityRenderSpoofedEntity state) {
+    public void releaseName(Player observer, SpoofedEntity state) {
         identity.releaseVanillaNametag(observer, state);
     }
 
     @Override
-    public void culled(Player observer, UUID sourceId, EntityRenderSpoofedEntity state) {
+    public void culled(Player observer, UUID sourceId, SpoofedEntity state) {
         if (Settings.DEBUG) {
             Wormholes.v("[spoof] CULL " + (state.playerEntry ? "player" : "entity") + " src=" + sourceId + " fakeId=" + state.fakeId + " -> " + observer.getName() + " (no longer in view)");
         }

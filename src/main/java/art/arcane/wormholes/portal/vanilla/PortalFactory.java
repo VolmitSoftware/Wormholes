@@ -9,7 +9,7 @@ import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.LocalPortal;
 import art.arcane.wormholes.portal.DimensionalPortalKind;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.ProjectionMode;
 import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.wormholes.portal.PortalType;
@@ -25,27 +25,27 @@ public final class PortalFactory
 	{
 	}
 
-	public static ILocalPortal createFromCells(Set<Block> planeCells, PortalFrame frame, PortalType type, String name)
+	public static ILocalPortal createFromCells(Set<Block> planeCells, Frame frame, PortalType type, String name)
 	{
 		return createFromCells(planeCells, frame, type, name, DimensionalPortalKind.NONE);
 	}
 
-	public static ILocalPortal createFromCells(Set<Block> planeCells, PortalFrame frame, PortalType type, String name, DimensionalPortalKind kind)
+	public static ILocalPortal createFromCells(Set<Block> planeCells, Frame frame, PortalType type, String name, DimensionalPortalKind kind)
 	{
 		return create(planeCells, frame, type, name, kind, true);
 	}
 
-	public static ILocalPortal createReceiverFromCells(Set<Block> planeCells, PortalFrame frame, PortalType type, String name)
+	public static ILocalPortal createReceiverFromCells(Set<Block> planeCells, Frame frame, PortalType type, String name)
 	{
 		return createReceiverFromCells(planeCells, frame, type, name, DimensionalPortalKind.NONE);
 	}
 
-	public static ILocalPortal createReceiverFromCells(Set<Block> planeCells, PortalFrame frame, PortalType type, String name, DimensionalPortalKind kind)
+	public static ILocalPortal createReceiverFromCells(Set<Block> planeCells, Frame frame, PortalType type, String name, DimensionalPortalKind kind)
 	{
 		return create(planeCells, frame, type, name, kind, false);
 	}
 
-	private static ILocalPortal create(Set<Block> planeCells, PortalFrame frame, PortalType type, String name, DimensionalPortalKind kind, boolean active)
+	private static ILocalPortal create(Set<Block> planeCells, Frame frame, PortalType type, String name, DimensionalPortalKind kind, boolean active)
 	{
 		if(planeCells == null || planeCells.isEmpty() || frame == null || Wormholes.portalManager == null)
 		{

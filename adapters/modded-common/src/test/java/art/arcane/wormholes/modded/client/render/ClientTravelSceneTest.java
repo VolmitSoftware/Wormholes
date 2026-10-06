@@ -2,7 +2,7 @@ package art.arcane.wormholes.modded.client.render;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.network.client.ClientViewEnvironment;
+import art.arcane.optics.stream.ProjectionEnvironment;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import net.minecraft.client.multiplayer.ClientChunkCache;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -46,7 +46,7 @@ public class ClientTravelSceneTest extends MinecraftTestBase {
         ClientViewMessage.TravelWorld world = new ClientViewMessage.TravelWorld("minecraft:overworld", "minecraft:overworld",
             9, false, false, 63, 0, 256);
         when(original.world()).thenReturn(world);
-        ClientViewEnvironment initial = PortalEnvironmentTest.environment(ClientViewEnvironment.Transform.IDENTITY);
+        ProjectionEnvironment initial = PortalEnvironmentTest.environment(ProjectionEnvironment.Transform.IDENTITY);
         when(original.environment()).thenReturn(initial);
         RenderSectionRegion region = mock(RenderSectionRegion.class);
         try (MockedConstruction<RenderRegionCache> caches = mockConstruction(RenderRegionCache.class,
@@ -70,7 +70,7 @@ public class ClientTravelSceneTest extends MinecraftTestBase {
             when(next.world()).thenReturn(world);
             List<ClientViewMessage.TravelCoordinate> manifest = original.chunks();
             when(next.chunks()).thenReturn(manifest);
-            ClientViewEnvironment current = new ClientViewEnvironment(initial.gameTime() + 20, initial.sky(), initial.fog(),
+            ProjectionEnvironment current = new ProjectionEnvironment(initial.gameTime() + 20, initial.sky(), initial.fog(),
                 initial.lighting(), initial.clouds(), initial.transform(), initial.dimension(), initial.world());
             when(next.environment()).thenReturn(current);
             when(next.arrival()).thenReturn(new ClientViewMessage.TravelPose(1.5, 80, 0.5, 180, 15));

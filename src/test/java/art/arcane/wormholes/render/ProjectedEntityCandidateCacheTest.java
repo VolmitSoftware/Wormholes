@@ -15,6 +15,7 @@ import org.bukkit.World;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.portal.ILocalPortal;
+import art.arcane.optics.entity.CandidateCache;
 
 public final class ProjectedEntityCandidateCacheTest {
     @Test
@@ -35,10 +36,10 @@ public final class ProjectedEntityCandidateCacheTest {
 
     @Test
     public void candidateQueryRangeRoundsUpAndStaysPositive() {
-        assertEquals(48, EntityCandidateCache.queryRange(47.3D));
-        assertEquals(48, EntityCandidateCache.queryRange(48.0D));
-        assertEquals(1, EntityCandidateCache.queryRange(0.25D));
-        assertEquals(1, EntityCandidateCache.queryRange(Double.NaN));
+        assertEquals(48, CandidateCache.queryRange(47.3D));
+        assertEquals(48, CandidateCache.queryRange(48.0D));
+        assertEquals(1, CandidateCache.queryRange(0.25D));
+        assertEquals(1, CandidateCache.queryRange(Double.NaN));
     }
 
     private static ILocalPortal portal() {

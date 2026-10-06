@@ -34,15 +34,16 @@ import org.mockito.MockedStatic;
 
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.portal.ILocalPortal;
-import art.arcane.wormholes.portal.MirrorRotation;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.QuarterTurn;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
-import art.arcane.wormholes.render.atmosphere.AtmosphereMode;
+import art.arcane.optics.fidelity.AtmosphereMode;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.service.WormholesTelemetry;
 import art.arcane.wormholes.util.Cuboid;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
+import art.arcane.optics.view.WorldChangeTracker;
 
 final class PortalProjectorStagedScanTest {
     @Test
@@ -132,8 +133,8 @@ final class PortalProjectorStagedScanTest {
 
     @Test
     void aReusedFrameWithEntityUpdatesRecordsItsRenderTimeOnce() throws Exception {
-        ProjectionWorldChangeTracker previousTracker = Wormholes.projectionChangeTracker;
-        Wormholes.projectionChangeTracker = new ProjectionWorldChangeTracker();
+        WorldChangeTracker previousTracker = Wormholes.projectionChangeTracker;
+        Wormholes.projectionChangeTracker = new WorldChangeTracker();
         try (Fixture fixture = new Fixture()) {
             when(fixture.portal.getNetworkViewHeartbeatTicks()).thenReturn(1_200);
             fixture.projector.project(true, false);
@@ -195,12 +196,12 @@ final class PortalProjectorStagedScanTest {
             when(portal.getId()).thenReturn(UUID.randomUUID());
             when(portal.getWorld()).thenReturn(world);
             when(portal.getName()).thenReturn("staged projection");
-            when(portal.getFrame()).thenReturn(PortalFrame.canonical(Direction.N));
+            when(portal.getFrame()).thenReturn(Frame.canonical(Face.N));
             when(portal.getOrigin()).thenReturn(BukkitGeometry.vector(structure.getCenter()));
             when(portal.getStructure()).thenReturn(structure);
             when(portal.isOpen()).thenReturn(true);
             when(portal.isMirrorMode()).thenReturn(true);
-            when(portal.getMirrorRotation()).thenReturn(MirrorRotation.DEGREES_0);
+            when(portal.getMirrorRotation()).thenReturn(QuarterTurn.DEGREES_0);
             when(portal.getRenderMode()).thenReturn(ProjectionRenderMode.PANOPTIC);
             when(portal.getNetworkViewDepth()).thenReturn(8);
             when(portal.getNetworkViewLateralPad()).thenReturn(4);

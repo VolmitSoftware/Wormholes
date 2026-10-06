@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.bukkit.World;
 import org.bukkit.entity.Player;
+import art.arcane.optics.fidelity.BiomeClaimSet;
 
 /** Delivers rebuilt chunk-column biome grids to one observer. */
 @FunctionalInterface

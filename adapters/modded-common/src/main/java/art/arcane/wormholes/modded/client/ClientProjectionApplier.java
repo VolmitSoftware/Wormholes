@@ -1,9 +1,9 @@
 package art.arcane.wormholes.modded.client;
 
-import art.arcane.wormholes.network.client.ClientViewProtocol;
-import art.arcane.wormholes.render.ProjectionCellKey;
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
-import art.arcane.wormholes.render.client.ClientCellRules;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.fidelity.BlockEntitySample;
+import art.arcane.optics.client.ClientCellRules;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.Objects;
@@ -25,16 +25,16 @@ public final class ClientProjectionApplier {
     }
 
     public boolean enter(long key, int portalKey, ClientPortalContent plate, ClientCellRules.Policy policy, boolean shell) {
-        int x = ProjectionCellKey.unpackX(key);
-        int y = ProjectionCellKey.unpackY(key);
-        int z = ProjectionCellKey.unpackZ(key);
+        int x = CellKeys.unpackX(key);
+        int y = CellKeys.unpackY(key);
+        int z = CellKeys.unpackZ(key);
         ProjectionOverlay.Entry entry = overlay.get(key);
         if (entry != null && entry.portalKey() != portalKey) {
             return false;
         }
         BlockState shadow = entry != null && !entry.pending() ? entry.shadow() : surface.state(x, y, z);
         int paletteId = plate.paletteIdAt(x, y, z);
-        boolean contentOccluding = paletteId >= ClientViewProtocol.RESERVED_PALETTE_IDS && palette.state(paletteId).canOcclude();
+        boolean contentOccluding = paletteId >= ViewStreamLimits.RESERVED_PALETTE_IDS && palette.state(paletteId).canOcclude();
         boolean shadowAir = shadow != null && shadow.isAir();
         int resolved = ClientCellRules.evaluate(shell, paletteId, contentOccluding, shadowAir, policy);
         if (resolved == ClientCellRules.KEEP_REAL) {
@@ -43,7 +43,7 @@ public final class ClientProjectionApplier {
             }
             return false;
         }
-        if (resolved >= ClientViewProtocol.RESERVED_PALETTE_IDS && !palette.known(resolved)) {
+        if (resolved >= ViewStreamLimits.RESERVED_PALETTE_IDS && !palette.known(resolved)) {
             unknownCells++;
         }
         BlockState projected = palette.state(resolved);
@@ -76,7 +76,7 @@ public final class ClientProjectionApplier {
             return true;
         }
         if (shadow != entry.projected()) {
-            write(ProjectionCellKey.unpackX(key), ProjectionCellKey.unpackY(key), ProjectionCellKey.unpackZ(key), shadow);
+            write(CellKeys.unpackX(key), CellKeys.unpackY(key), CellKeys.unpackZ(key), shadow);
         }
         revertedCells++;
         return true;

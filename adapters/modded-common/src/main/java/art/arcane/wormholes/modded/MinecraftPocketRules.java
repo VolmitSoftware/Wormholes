@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.chunk.ChunkLease;
+import art.arcane.optics.plate.ChunkLease;
 import art.arcane.wormholes.door.DoorArrivals;
 import art.arcane.wormholes.door.DoorVec3;
 import art.arcane.wormholes.door.PocketEscapePolicy;

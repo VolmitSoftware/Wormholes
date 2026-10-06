@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client.render;
 
 import com.mojang.blaze3d.pipeline.TextureTarget;
-import art.arcane.wormholes.network.client.ClientViewProtocol;
+import art.arcane.optics.stream.ViewStreamLimits;
 import com.mojang.renderpearl.api.GpuFormat;
 import net.minecraft.client.renderer.ProjectionMatrixBuffer;
 import net.minecraft.client.renderer.SkyRenderer;
@@ -10,7 +10,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 final class PortalRenderTargets implements AutoCloseable {
-    static final int DEPTHS = ClientViewProtocol.MAX_GEOMETRY_DEPTH;
+    static final int DEPTHS = ViewStreamLimits.MAX_GEOMETRY_DEPTH;
 
     private final Target[] scratch = new Target[DEPTHS];
     private final PortalFeatureRenderer[] features = new PortalFeatureRenderer[DEPTHS];

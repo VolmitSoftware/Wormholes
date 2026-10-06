@@ -12,6 +12,7 @@ import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.network.PortalSyncService;
 import art.arcane.volmlib.util.json.JSONObject;
+import art.arcane.optics.frame.QuarterTurn;
 
 final class LocalPortalSettings
 {
@@ -33,7 +34,7 @@ final class LocalPortalSettings
 	private final LocalPortal portal;
 	private ProjectionMode projectionMode;
 	private boolean mirrorMode;
-	private MirrorRotation mirrorRotation;
+	private QuarterTurn mirrorRotation;
 	private PortalPermissionMode permissionMode;
 	private boolean outgoingTraversalsEnabled;
 	private boolean incomingTraversalsEnabled;
@@ -60,7 +61,7 @@ final class LocalPortalSettings
 		this.portal = portal;
 		projectionMode = ProjectionMode.ON;
 		mirrorMode = false;
-		mirrorRotation = MirrorRotation.DEGREES_0;
+		mirrorRotation = QuarterTurn.DEGREES_0;
 		permissionMode = PortalPermissionMode.BLACKLIST;
 		outgoingTraversalsEnabled = true;
 		incomingTraversalsEnabled = true;
@@ -241,14 +242,14 @@ final class LocalPortalSettings
 		this.mirrorMode = mirrorMode;
 	}
 
-	MirrorRotation getMirrorRotation()
+	QuarterTurn getMirrorRotation()
 	{
 		return mirrorRotation;
 	}
 
-	void setMirrorRotation(MirrorRotation rotation)
+	void setMirrorRotation(QuarterTurn rotation)
 	{
-		MirrorRotation normalized = rotation == null ? MirrorRotation.DEGREES_0 : rotation;
+		QuarterTurn normalized = rotation == null ? QuarterTurn.DEGREES_0 : rotation;
 		if(mirrorRotation == normalized)
 		{
 			return;
@@ -275,9 +276,9 @@ final class LocalPortalSettings
 		return "MIRROR".equalsIgnoreCase(j.optString("projectionMode", ""));
 	}
 
-	static MirrorRotation resolveMirrorRotation(JSONObject j)
+	static QuarterTurn resolveMirrorRotation(JSONObject j)
 	{
-		return MirrorRotation.fromDegrees(j.optInt("mirrorRotationDegrees", 0));
+		return QuarterTurn.fromDegrees(j.optInt("mirrorRotationDegrees", 0));
 	}
 
 	private static PortalPermissionMode resolvePermissionMode(JSONObject j)

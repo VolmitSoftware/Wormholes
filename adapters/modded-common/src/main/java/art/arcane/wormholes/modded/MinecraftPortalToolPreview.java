@@ -5,7 +5,7 @@ import art.arcane.wormholes.portal.ToolPreviewGeometry.Cell;
 import art.arcane.wormholes.portal.ToolPreviewGeometry.Geometry;
 import art.arcane.wormholes.portal.ToolPreviewGeometry.PreviewPoint;
 
-import art.arcane.wormholes.util.Axis;
+import art.arcane.optics.math.Axis;
 import net.minecraft.core.particles.DustColorTransitionOptions;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleOptions;

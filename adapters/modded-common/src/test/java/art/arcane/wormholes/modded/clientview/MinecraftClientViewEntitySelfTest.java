@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.clientview;
 
 import art.arcane.wormholes.modded.WormholesModRuntime;
-import art.arcane.wormholes.network.view.EntityVisual;
+import art.arcane.optics.entity.EntitySnapshot;
 import org.junit.Test;
 
 import java.util.UUID;
@@ -22,8 +22,8 @@ public class MinecraftClientViewEntitySelfTest {
         when(observer.id()).thenReturn(source);
         UUID projected = scene.projectedId(source);
         assertNotEquals(source, projected);
-        EntityVisual self = EntityVisual.full(projected, "minecraft:player", 0, 64, 0, 1.8, 0, 0, 1, 0, 0,
-            0, 0, 0, true, "", "", "", null, null, EntityVisual.EMPTY, EntityVisual.EMPTY, 0);
+        EntitySnapshot self = EntitySnapshot.full(projected, "minecraft:player", 0, 64, 0, 1.8, 0, 0, 1, 0, 0,
+            0, 0, 0, true, "", "", "", null, null, EntitySnapshot.EMPTY, EntitySnapshot.EMPTY, 0);
         assertTrue(scene.isObserver(observer, self));
         when(observer.id()).thenReturn(UUID.randomUUID());
         assertFalse(scene.isObserver(observer, self));

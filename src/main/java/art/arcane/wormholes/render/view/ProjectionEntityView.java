@@ -1,6 +1,6 @@
 package art.arcane.wormholes.render.view;
 
-import art.arcane.wormholes.network.view.EntityVisual;
+import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.wormholes.network.view.RemoteViewCache;
 
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
@@ -11,7 +11,7 @@ import org.bukkit.map.MapView;
 import java.util.List;
 import java.util.UUID;
 
-public interface ProjectionEntityView extends ProjectionEntityData<EntityData<?>, Equipment> {
+public interface ProjectionEntityView extends art.arcane.optics.view.EntityData<EntityData<?>, Equipment> {
     boolean isVisibleTo(Player observer, UUID entityId);
 
     default MapView getMapView(UUID entityId) {

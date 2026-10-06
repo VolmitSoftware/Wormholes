@@ -1,7 +1,7 @@
 package art.arcane.wormholes.portal;
 
 import art.arcane.wormholes.access.PortalAdmission;
-import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.optics.math.Vec3;
 import art.arcane.wormholes.util.BukkitGeometry;
 
 import java.util.Objects;
@@ -60,8 +60,10 @@ import art.arcane.wormholes.transit.OrientationTransform;
 import art.arcane.wormholes.transit.TransitPortalExtension;
 import art.arcane.wormholes.transit.TransitSubsystem;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
-import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Face;
+import art.arcane.optics.crossing.PlaneCrossing;
+import art.arcane.optics.frame.Frame;
 
 final class LocalPortalTraversal
 {
@@ -294,7 +296,7 @@ final class LocalPortalTraversal
         if(traversive == null && deferred != null
             && deferred.continuous(Wormholes.traversableManager.movement(entityId), portal, activeTunnel, now))
         {
-            GeometryVector current = BukkitGeometry.vector(i.getLocation());
+            Vec3 current = BukkitGeometry.vector(i.getLocation());
             double side = (current.x() - portal.getOrigin().x()) * portal.getFrame().getNormal().x()
                 + (current.y() - portal.getOrigin().y()) * portal.getFrame().getNormal().y()
                 + (current.z() - portal.getOrigin().z()) * portal.getFrame().getNormal().z();
@@ -324,7 +326,7 @@ final class LocalPortalTraversal
         admitCrossing(i, activeTunnel, now, rtp, traversive);
     }
 
-    boolean crossPrepared(Player player, PortalCrossing crossing)
+    boolean crossPrepared(Player player, PlaneCrossing crossing)
     {
         long now = System.currentTimeMillis();
         if(!player.isValid() || !portal.isOpen() || portal.isMirrorMode() || portal.getType() == PortalType.RTP
@@ -769,7 +771,7 @@ final class LocalPortalTraversal
 		{
 			return false;
 		}
-		AxisAlignedBB area = portalStructure.getArea();
+		Box area = portalStructure.getArea();
 		BoundingBox bounds = entity.getBoundingBox();
 		return bounds.getMaxX() > area.getXa() && bounds.getMinX() < area.getXb()
 			&& bounds.getMaxY() > area.getYa() && bounds.getMinY() < area.getYb()
@@ -787,7 +789,7 @@ final class LocalPortalTraversal
 		Location start = sweepStart == null ? end.clone().subtract(velocity) : sweepStart;
 		start.setYaw(end.getYaw());
 		start.setPitch(end.getPitch());
-        GeometryVector intersection = PortalCrossing.intersection(portal.getFrame(), portal.getOrigin(),
+        Vec3 intersection = PlaneCrossing.intersection(portal.getFrame(), portal.getOrigin(),
             BukkitGeometry.vector(start), BukkitGeometry.vector(end));
         if(intersection == null || !portal.getStructure().contains(BukkitGeometry.location(intersection, start.getWorld()))) {
             return null;
@@ -797,8 +799,8 @@ final class LocalPortalTraversal
 
 	private Traversive buildCrossing(Entity i, Location start, Vector inPoint, Vector velocity)
 	{
-        PortalCrossing crossing = PortalCrossing.create(portal.getFrame(), portal.getOrigin(),
-            new PortalCrossing.Motion(BukkitGeometry.vector(start), BukkitGeometry.vector(inPoint),
+        PlaneCrossing crossing = PlaneCrossing.create(portal.getFrame(), portal.getOrigin(),
+            new PlaneCrossing.Motion(BukkitGeometry.vector(start), BukkitGeometry.vector(inPoint),
                 BukkitGeometry.vector(velocity), BukkitGeometry.vector(start.getDirection())));
         return new Traversive(i, crossing.frame(), BukkitGeometry.bukkit(crossing.origin()), inPoint, velocity,
             start.getDirection(), crossing.frontSide(), portal.getId());
@@ -831,7 +833,7 @@ final class LocalPortalTraversal
 
 	private ExitPlacement exitPlacement(Traversive t)
 	{
-		PortalFrame frame = portal.getFrame();
+		Frame frame = portal.getFrame();
 		TransitConfig transit = TransitSubsystem.config();
 		TransitPortalExtension source = TransitPortalExtension.of(t.getSourcePortalId());
 		MomentumPolicy momentum = source == null ? TransitPortalExtension.defaultMomentum(transit) : source.effectiveMomentum(transit);

@@ -4,9 +4,9 @@ import art.arcane.wormholes.door.DoorForm;
 import art.arcane.wormholes.door.DoorHalf;
 import art.arcane.wormholes.door.DoorPlanePairing;
 import art.arcane.wormholes.door.DoorwayPlane;
-import art.arcane.wormholes.portal.PortalFrame;
-import art.arcane.wormholes.render.client.ClientPortalGeometry;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.math.Face;
 
 import java.util.Objects;
 
@@ -19,12 +19,12 @@ public final class DoorApertureFrames {
      * A hinged door looks out along its facing with world up; a trapdoor looks out of the face its
      * plate covers, so a bottom-half plate opens downward and a top-half one upward.
      */
-    public static PortalFrame of(DoorwayPlane plane) {
+    public static Frame of(DoorwayPlane plane) {
         Objects.requireNonNull(plane, "plane");
         if (plane.form() == DoorForm.TRAPDOOR) {
-            return horizontalFrame(plane.half() == DoorHalf.TOP ? Direction.U : Direction.D, plane.facing());
+            return horizontalFrame(plane.half() == DoorHalf.TOP ? Face.U : Face.D, plane.facing());
         }
-        return PortalFrame.fromNormalUp(plane.facing(), Direction.U);
+        return Frame.fromNormalUp(plane.facing(), Face.U);
     }
 
     /**
@@ -34,8 +34,8 @@ public final class DoorApertureFrames {
      * near one, turned around, so the camera looks back out of the mate. Anything involving a
      * trapdoor is a straight-through route, so the camera keeps the mate's own facing.</p>
      */
-    public static PortalFrame destinationFrame(DoorwayPlane source, DoorwayPlane mate) {
-        PortalFrame frame = of(Objects.requireNonNull(mate, "mate"));
+    public static Frame destinationFrame(DoorwayPlane source, DoorwayPlane mate) {
+        Frame frame = of(Objects.requireNonNull(mate, "mate"));
         Objects.requireNonNull(source, "source");
         if (source.horizontal() && mate.horizontal()) {
             return horizontalFrame(of(source).getNormal(), mate.facing());
@@ -50,12 +50,12 @@ public final class DoorApertureFrames {
         return Objects.requireNonNull(plane, "plane").form() == DoorForm.TRAPDOOR ? 1.0D : 2.0D;
     }
 
-    public static double geometryPlaneOffset(int kind, PortalFrame frame) {
-        return kind == ClientPortalGeometry.KIND_DOOR ? DoorwayPlane.planeOffset(frame.getNormal()) : 0.0D;
+    public static double geometryPlaneOffset(int kind, Frame frame) {
+        return kind == ApertureDescriptor.KIND_DOOR ? DoorwayPlane.planeOffset(frame.getNormal()) : 0.0D;
     }
 
-    private static PortalFrame horizontalFrame(Direction normal, Direction facing) {
-        return PortalFrame.fromNormalUp(normal, normal == Direction.U ? facing.reverse() : facing);
+    private static Frame horizontalFrame(Face normal, Face facing) {
+        return Frame.fromNormalUp(normal, normal == Face.U ? facing.reverse() : facing);
     }
 
 }
