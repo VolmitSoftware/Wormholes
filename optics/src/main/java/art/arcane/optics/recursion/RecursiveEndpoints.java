@@ -11,7 +11,7 @@ import java.util.function.Supplier;
 
 import art.arcane.optics.math.Vec3;
 import art.arcane.optics.frame.Frame;
-import art.arcane.wormholes.portal.IPortal;
+import art.arcane.optics.aperture.Endpoint;
 import art.arcane.optics.aperture.CellAperture;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.frame.PortalCoordMap;
@@ -20,7 +20,7 @@ import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.scan.ProjectorPassRevision;
 import art.arcane.optics.volume.PlaneWindow;
 
-public final class RecursiveEndpoints<W, P extends IPortal> {
+public final class RecursiveEndpoints<W, P extends Endpoint> {
     private static final int BUCKET_SHIFT = 4;
     private static final int MAX_INDEXES_PER_PASS = 256;
     private static final int MAX_RETAINED_INDEXES = 16;
@@ -100,17 +100,17 @@ public final class RecursiveEndpoints<W, P extends IPortal> {
         return ProjectorPassRevision.mix(mixed, destinationWorld == null ? 0L : System.identityHashCode(destinationWorld));
     }
 
-    private static long mixIdentity(long hash, IPortal portal) {
-        UUID id = portal.getId();
+    private static long mixIdentity(long hash, Endpoint portal) {
+        UUID id = portal.id();
         long mixed = ProjectorPassRevision.mix(hash, id == null ? 0L : id.getMostSignificantBits());
         mixed = ProjectorPassRevision.mix(mixed, id == null ? 0L : id.getLeastSignificantBits());
-        Vec3 origin = portal.getOrigin();
+        Vec3 origin = portal.origin();
         if (origin != null) {
             mixed = ProjectorPassRevision.mix(mixed, Double.doubleToLongBits(origin.getX()));
             mixed = ProjectorPassRevision.mix(mixed, Double.doubleToLongBits(origin.getY()));
             mixed = ProjectorPassRevision.mix(mixed, Double.doubleToLongBits(origin.getZ()));
         }
-        Frame frame = portal.getFrame();
+        Frame frame = portal.frame();
         return ProjectorPassRevision.mix(mixed, frame == null ? -1L
             : frame.getNormal().ordinal() | (frame.getRight().ordinal() << 3) | (frame.getUp().ordinal() << 6));
     }
@@ -200,8 +200,8 @@ public final class RecursiveEndpoints<W, P extends IPortal> {
     private boolean isExcluded(P candidate, P excludedPortal) {
         return candidate != null
             && excludedPortal != null
-            && candidate.getId() != null
-            && candidate.getId().equals(excludedPortal.getId());
+            && candidate.id() != null
+            && candidate.id().equals(excludedPortal.id());
     }
 
     private static boolean overlaps(Box view, double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
@@ -257,7 +257,7 @@ public final class RecursiveEndpoints<W, P extends IPortal> {
 
         private Index(W world, double eyeX, double eyeY, double eyeZ, P excludedPortal) {
             this.world = world;
-            this.excludedPortalId = excludedPortal == null ? null : excludedPortal.getId();
+            this.excludedPortalId = excludedPortal == null ? null : excludedPortal.id();
             this.eyeX = eyeX;
             this.eyeY = eyeY;
             this.eyeZ = eyeZ;
@@ -275,7 +275,7 @@ public final class RecursiveEndpoints<W, P extends IPortal> {
         }
 
         private boolean matches(W world, double eyeX, double eyeY, double eyeZ, P excludedPortal) {
-            UUID candidateExcludedId = excludedPortal == null ? null : excludedPortal.getId();
+            UUID candidateExcludedId = excludedPortal == null ? null : excludedPortal.id();
             if (this.world == null ? world != null : !this.world.equals(world)) {
                 return false;
             }
@@ -429,8 +429,8 @@ public final class RecursiveEndpoints<W, P extends IPortal> {
             this.eyeX = eyeX;
             this.eyeY = eyeY;
             this.eyeZ = eyeZ;
-            this.portalId = candidate == null ? null : candidate.getId();
-            if (candidate == null || candidate.getOrigin() == null || candidate.getFrame() == null || portalAccess.structure(candidate) == null) {
+            this.portalId = candidate == null ? null : candidate.id();
+            if (candidate == null || candidate.origin() == null || candidate.frame() == null || portalAccess.structure(candidate) == null) {
                 this.view = null;
                 this.localFrame = null;
                 this.remoteFrame = null;
@@ -474,10 +474,10 @@ public final class RecursiveEndpoints<W, P extends IPortal> {
             }
 
             Box candidateView = portalAccess.view(candidate);
-            Frame frame = candidate.getFrame();
-            double candidateOriginX = candidate.getOrigin().getX();
-            double candidateOriginY = candidate.getOrigin().getY();
-            double candidateOriginZ = candidate.getOrigin().getZ();
+            Frame frame = candidate.frame();
+            double candidateOriginX = candidate.origin().getX();
+            double candidateOriginY = candidate.origin().getY();
+            double candidateOriginZ = candidate.origin().getZ();
             double frameNormalX = frame.getNormal().x();
             double frameNormalY = frame.getNormal().y();
             double frameNormalZ = frame.getNormal().z();
@@ -515,11 +515,11 @@ public final class RecursiveEndpoints<W, P extends IPortal> {
             } else if (linkedDestination != null) {
                 destination = linkedDestination;
                 destinationWorld = portalAccess.world(linkedDestination);
-                destinationFrame = linkedDestination.getFrame() == null ? null : linkedDestination.getFrame().view(frontSide);
-                destinationOriginX = linkedDestination.getOrigin() == null ? 0.0D : linkedDestination.getOrigin().getX();
-                destinationOriginY = linkedDestination.getOrigin() == null ? 0.0D : linkedDestination.getOrigin().getY();
-                destinationOriginZ = linkedDestination.getOrigin() == null ? 0.0D : linkedDestination.getOrigin().getZ();
-                canTraverse = destinationWorld != null && destinationFrame != null && linkedDestination.getOrigin() != null;
+                destinationFrame = linkedDestination.frame() == null ? null : linkedDestination.frame().view(frontSide);
+                destinationOriginX = linkedDestination.origin() == null ? 0.0D : linkedDestination.origin().getX();
+                destinationOriginY = linkedDestination.origin() == null ? 0.0D : linkedDestination.origin().getY();
+                destinationOriginZ = linkedDestination.origin() == null ? 0.0D : linkedDestination.origin().getZ();
+                canTraverse = destinationWorld != null && destinationFrame != null && linkedDestination.origin() != null;
                 mirrors = false;
                 mirrorQuarterTurns = 0;
             } else {
@@ -838,7 +838,7 @@ public final class RecursiveEndpoints<W, P extends IPortal> {
         RECURSIVE
     }
 
-    public interface PortalAccess<W, P extends IPortal> {
+    public interface PortalAccess<W, P extends Endpoint> {
         List<P> portals();
         W world(P portal);
         CellAperture structure(P portal);

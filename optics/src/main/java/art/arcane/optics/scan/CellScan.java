@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.function.Supplier;
 import art.arcane.optics.math.Vec3;
-import art.arcane.wormholes.portal.IPortal;
+import art.arcane.optics.aperture.Endpoint;
 import art.arcane.optics.aperture.CellAperture;
 import art.arcane.optics.view.ContentView;
 
@@ -43,7 +43,7 @@ import art.arcane.optics.volume.PlaneWindow;
 import art.arcane.optics.volume.ProjectorFrustumRow;
 import art.arcane.optics.volume.ViewVolume;
 
-public final class CellScan<B, M, W, P extends IPortal, V extends ContentView<B, M>> {
+public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B, M>> {
     private static final int FINISH_SEAL = 0;
     private static final int FINISH_UNRESOLVED_TARGETS = 1;
     private static final int FINISH_OBSERVER_TARGETS = 2;
@@ -759,14 +759,14 @@ public final class CellScan<B, M, W, P extends IPortal, V extends ContentView<B,
                                   ScanDestination<P, V> destination,
                                   Frame localViewFrame,
                                   Frame remoteViewFrame) {
-        double localOriginX = portal.getOrigin().getX();
-        double localOriginY = portal.getOrigin().getY();
-        double localOriginZ = portal.getOrigin().getZ();
+        double localOriginX = portal.origin().getX();
+        double localOriginY = portal.origin().getY();
+        double localOriginZ = portal.origin().getZ();
         if (destination.mirrorMode()) {
             PortalCoordMap.mirrorDisplayToSourcePointInto(
                 eye.getX(), eye.getY(), eye.getZ(),
                 localOriginX, localOriginY, localOriginZ,
-                portal.getFrame(), destination.mirrorRotationQuarterTurns(), scratchRemoteEye);
+                portal.frame(), destination.mirrorRotationQuarterTurns(), scratchRemoteEye);
         } else {
             localViewFrame.transformPointInto(
                 eye.getX(), eye.getY(), eye.getZ(),
@@ -1152,7 +1152,7 @@ public final class CellScan<B, M, W, P extends IPortal, V extends ContentView<B,
         exitCount = projected.size() - retainedKeys;
     }
 
-    private record ScanRequest<B, P extends IPortal, V>(ScanDestination<P, V> destination,
+    private record ScanRequest<B, P extends Endpoint, V>(ScanDestination<P, V> destination,
                                Frame rtpTarget,
                                Vec3 eye,
                                ViewVolume frustum,
@@ -1347,13 +1347,13 @@ public final class CellScan<B, M, W, P extends IPortal, V extends ContentView<B,
             int yb = Math.min(ProjectorFrameTransform.maxBlockForCenter(area.getYb()), localMaxY);
             int zb = ProjectorFrameTransform.maxBlockForCenter(area.getZb());
 
-            localFrame = portal.getFrame();
+            localFrame = portal.frame();
             Frame remoteFrame = rtpTarget != null
                 ? rtpTarget
-                : mirrorMode ? localFrame.flipNormal() : destination.destAnchor().getFrame();
-            double localOriginX = portal.getOrigin().getX();
-            double localOriginY = portal.getOrigin().getY();
-            double localOriginZ = portal.getOrigin().getZ();
+                : mirrorMode ? localFrame.flipNormal() : destination.destAnchor().frame();
+            double localOriginX = portal.origin().getX();
+            double localOriginY = portal.origin().getY();
+            double localOriginZ = portal.origin().getZ();
             remoteOriginX = mirrorMode ? localOriginX : destination.originX();
             remoteOriginY = mirrorMode ? localOriginY : destination.originY();
             remoteOriginZ = mirrorMode ? localOriginZ : destination.originZ();
@@ -2067,7 +2067,7 @@ public final class CellScan<B, M, W, P extends IPortal, V extends ContentView<B,
                                boolean holdInvisibleClaims, int maxHeldClaims, boolean finishInSlot) {
     }
 
-    public record Context<B, M, W, P extends IPortal, V extends ContentView<B, M>>(
+    public record Context<B, M, W, P extends Endpoint, V extends ContentView<B, M>>(
         P portal, CellAperture aperture, ProjectorSampler<B, M, W, P, V> sampler,
         ProjectorSampleMemo<B, M, V> memo, ProjectionBlackout<B> blackout,
         ProjectorViewOcclusion.BlockOcclusion<B> occlusion, Supplier<ScanSettings> settings) {

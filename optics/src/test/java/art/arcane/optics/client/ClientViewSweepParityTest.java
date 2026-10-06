@@ -10,7 +10,7 @@ import java.util.Random;
 import art.arcane.optics.math.Vec3;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.aperture.ApertureCells;
-import art.arcane.wormholes.portal.ProjectionRenderMode;
+import art.arcane.optics.scan.ScanMode;
 import art.arcane.optics.volume.ViewVolume;
 import art.arcane.optics.claim.ProjectedBlockClaim;
 import art.arcane.optics.math.CellKeys;
@@ -29,7 +29,7 @@ import art.arcane.optics.aperture.ApertureDescriptor;
 final class ClientViewSweepParityTest {
     private static final int EYES = 200;
     private static final double HYSTERESIS = ClientSweep.DEFAULT_HYSTERESIS_BLOCKS;
-    private static final ProjectionRenderMode[] MODES = {ProjectionRenderMode.PANOPTIC, ProjectionRenderMode.VENTICULAR};
+    private static final ScanMode[] MODES = {ClientSweepScene.OPEN_SCAN, ClientSweepScene.CULLED_SCAN};
 
     @Test
     void irregularAperturesMatchPerCellRaysAcrossFramesPaddingAndHysteresis() {
@@ -147,7 +147,7 @@ final class ClientViewSweepParityTest {
                     scene.bounds(frontSide), HYSTERESIS);
                 sweep.sweep(eye.getX(), eye.getY(), eye.getZ(), 0.0D, 0.0D, 0.0D);
                 applied += sweep.appliedCount();
-                for (ProjectionRenderMode mode : MODES) {
+                for (ScanMode mode : MODES) {
                     Long2ObjectOpenHashMap<ProjectedBlockClaim<String, ClientSweepScene.SceneView>> server = scene.serverClaims(eye, mode, false);
                     claims += server.size();
                     collectMissing(server, sweep, eye, mode, failures);
@@ -177,9 +177,9 @@ final class ClientViewSweepParityTest {
             sweep.sweep(eye.getX(), eye.getY(), eye.getZ(), velocityX, velocityY, velocityZ);
             Vec3 lookahead = quantized(eye.getX() + velocityX, eye.getY() + velocityY, eye.getZ() + velocityZ);
             Long2ObjectOpenHashMap<ProjectedBlockClaim<String, ClientSweepScene.SceneView>> server =
-                scene.serverClaims(lookahead, ProjectionRenderMode.PANOPTIC, false);
+                scene.serverClaims(lookahead, ClientSweepScene.OPEN_SCAN, false);
             claims += server.size();
-            collectMissing(server, sweep, lookahead, ProjectionRenderMode.PANOPTIC, failures);
+            collectMissing(server, sweep, lookahead, ClientSweepScene.OPEN_SCAN, failures);
         }
         assertTrue(claims > 0L);
         assertTrue(failures.isEmpty(), failures.size() + " walk failures, first: " + failures.subList(0, Math.min(8, failures.size())));
@@ -203,7 +203,7 @@ final class ClientViewSweepParityTest {
     }
 
     private static void collectMissing(Long2ObjectOpenHashMap<ProjectedBlockClaim<String, ClientSweepScene.SceneView>> server,
-                                       ClientSweep sweep, Vec3 eye, ProjectionRenderMode mode, List<String> failures) {
+                                       ClientSweep sweep, Vec3 eye, ScanMode mode, List<String> failures) {
         for (Long2ObjectMap.Entry<ProjectedBlockClaim<String, ClientSweepScene.SceneView>> entry : server.long2ObjectEntrySet()) {
             long key = entry.getLongKey();
             int x = CellKeys.unpackX(key);

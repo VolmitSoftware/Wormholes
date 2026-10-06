@@ -1,4 +1,4 @@
-package art.arcane.optics.aperture;
+package art.arcane.optics.client;
 
 import java.util.ArrayList;
 import java.util.List;

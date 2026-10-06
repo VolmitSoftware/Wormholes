@@ -6,7 +6,7 @@ import java.util.UUID;
 import java.util.List;
 import art.arcane.optics.math.Vec3;
 import art.arcane.optics.view.BlockView;
-import art.arcane.wormholes.portal.IPortal;
+import art.arcane.optics.aperture.Endpoint;
 import art.arcane.optics.frame.Frame;
 
 import java.util.function.Supplier;
@@ -14,7 +14,7 @@ import art.arcane.optics.frame.PortalCoordMap;
 import art.arcane.optics.occlusion.ProjectedEntityOcclusion;
 import art.arcane.optics.recursion.EntityPath;
 import art.arcane.optics.volume.ViewVolume;
-public final class SnapshotProjector<O, W, P extends IPortal, R, T, V> {
+public final class SnapshotProjector<O, W, P extends Endpoint, R, T, V> {
     private final SpoofRegistry<O, R> registry;
     private final Host<O, R, T, V> host;
     private final EntityVisualProjection<W, P, R> projection;
@@ -114,10 +114,10 @@ public final class SnapshotProjector<O, W, P extends IPortal, R, T, V> {
     }
 
     public <B, BV extends BlockView<B>> void apply(O observer, Pass<W, P, V, B, BV> pass) {
-        Vec3 origin = pass.remote().getOrigin();
+        Vec3 origin = pass.remote().origin();
         EntityPath<W, P> path = pass.path();
         boolean upsideDown = pass.mirror()
-            ? PortalCoordMap.mirrorTransformFlipsWorldUp(pass.local().getFrame(), pass.quarterTurns())
+            ? PortalCoordMap.mirrorTransformFlipsWorldUp(pass.local().frame(), pass.quarterTurns())
             : PortalCoordMap.transformFlipsWorldUp(pass.remoteFrame(), pass.localFrame());
         if (path != null) {
             upsideDown = path.upsideDown();
@@ -147,7 +147,7 @@ public final class SnapshotProjector<O, W, P extends IPortal, R, T, V> {
         registry.applyRelationships(observer, visuals);
     }
 
-    public static <W, P extends IPortal, B, BV extends BlockView<B>> boolean fullyHidden(
+    public static <W, P extends Endpoint, B, BV extends BlockView<B>> boolean fullyHidden(
             ProjectedEntityOcclusion<B, BV> occlusion, EntitySnapshot visual, EntityPath<W, P> path) {
         if (path == null || !path.nested() || visual == null) {
             return occlusion.fullyHidden(visual);
@@ -158,8 +158,8 @@ public final class SnapshotProjector<O, W, P extends IPortal, R, T, V> {
             visual.z() + ProjectedEntityOcclusion.VISUAL_HALF_WIDTH);
     }
 
-    public record Pass<W, P extends IPortal, V, B, BV extends BlockView<B>>(
-        P local, IPortal remote, V view, Frame localFrame, Frame remoteFrame, ViewVolume frustum,
+    public record Pass<W, P extends Endpoint, V, B, BV extends BlockView<B>>(
+        P local, Endpoint remote, V view, Frame localFrame, Frame remoteFrame, ViewVolume frustum,
         boolean mirror, int quarterTurns, EntityPath<W, P> path, ProjectedEntityOcclusion<B, BV> occlusion,
         double range, int limit) {
     }

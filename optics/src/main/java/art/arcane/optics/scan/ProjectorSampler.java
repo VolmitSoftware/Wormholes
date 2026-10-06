@@ -4,7 +4,7 @@ import java.util.function.Function;
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 
-import art.arcane.wormholes.portal.IPortal;
+import art.arcane.optics.aperture.Endpoint;
 import art.arcane.optics.view.MaterialView;
 
 import art.arcane.optics.frame.Frame;
@@ -14,7 +14,7 @@ import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.recursion.RecursiveEndpoints;
 import art.arcane.optics.view.BlockStates;
 
-public final class ProjectorSampler<B, M, W, P extends IPortal, V extends MaterialView<B, M>> {
+public final class ProjectorSampler<B, M, W, P extends Endpoint, V extends MaterialView<B, M>> {
     private static final int TRANSFORM_CACHE_LIMIT = 4096;
 
     private final ProjectorSampleMemo<B, M, V> memo;
@@ -277,7 +277,7 @@ public final class ProjectorSampler<B, M, W, P extends IPortal, V extends Materi
         return !traversable || cycle || remainingDepth <= 0;
     }
 
-    public record Options<B, M, W, P extends IPortal, V extends MaterialView<B, M>>(
+    public record Options<B, M, W, P extends Endpoint, V extends MaterialView<B, M>>(
         ProjectorSampleMemo<B, M, V> memo,
         RecursiveEndpoints<W, P> recursivePortals,
         Function<W, V> viewLookup,

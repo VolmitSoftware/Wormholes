@@ -9,7 +9,6 @@ import java.util.Random;
 
 import art.arcane.optics.math.Vec3;
 import art.arcane.optics.frame.Frame;
-import art.arcane.wormholes.portal.ProjectionRenderMode;
 import art.arcane.optics.claim.ProjectedBlockClaim;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.scan.CellScan;
@@ -19,7 +18,6 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import org.junit.jupiter.api.Test;
 import art.arcane.optics.aperture.ApertureDescriptor;
-import art.arcane.optics.aperture.ClientSweepPalette;
 
 final class ClientCellRulesTest {
     private static final int BLACKOUT = 3;
@@ -90,7 +88,7 @@ final class ClientCellRulesTest {
                     ClientCellRules.Policy policy = ClientCellRules.Policy.of(geometry, ClientSweepPalette.BACKING_STATE_ID);
                     ClientSweepPalette palette = new ClientSweepPalette();
                     Long2ObjectOpenHashMap<ProjectedBlockClaim<String, ClientSweepScene.SceneView>> server =
-                        scene.serverClaims(eye, ProjectionRenderMode.PANOPTIC, blackout);
+                        scene.serverClaims(eye, ClientSweepScene.OPEN_SCAN, blackout);
                     for (Long2ObjectMap.Entry<ProjectedBlockClaim<String, ClientSweepScene.SceneView>> entry : server.long2ObjectEntrySet()) {
                         long key = entry.getLongKey();
                         int x = CellKeys.unpackX(key);

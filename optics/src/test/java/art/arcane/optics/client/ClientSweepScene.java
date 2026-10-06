@@ -6,11 +6,11 @@ import java.util.Set;
 import java.util.UUID;
 
 import art.arcane.optics.math.Vec3;
-import art.arcane.wormholes.portal.IPortal;
+import art.arcane.optics.aperture.Endpoint;
 import art.arcane.optics.aperture.CellAperture;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.aperture.ApertureCells;
-import art.arcane.wormholes.portal.ProjectionRenderMode;
+import art.arcane.optics.scan.ScanMode;
 import art.arcane.optics.frame.DirectionMapping;
 import art.arcane.optics.volume.ViewVolume;
 import art.arcane.optics.claim.ProjectedBlockClaim;
@@ -32,7 +32,6 @@ import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import art.arcane.optics.aperture.ApertureDescriptor;
-import art.arcane.optics.aperture.ClientSweepPalette;
 
 public final class ClientSweepScene {
     static final String AIR = "minecraft:air";
@@ -48,6 +47,8 @@ public final class ClientSweepScene {
     static final double CULLING_RATIO = 0.2D;
     static final int WORLD_MIN_Y = -64;
     static final int WORLD_MAX_Y = 319;
+    static final ScanMode OPEN_SCAN = new ScanMode(false, false);
+    static final ScanMode CULLED_SCAN = new ScanMode(true, true);
     private static final Set<String> OCCLUDING = Set.of(STONE, GRASS, ORE, LOCAL_WALL, BLACKOUT);
 
     final ApertureCells aperture;
@@ -112,7 +113,7 @@ public final class ClientSweepScene {
             + ((eye.getZ() - localOrigin.getZ()) * normal.z()) >= 0.0D;
     }
 
-    Long2ObjectOpenHashMap<ProjectedBlockClaim<String, SceneView>> serverClaims(Vec3 eye, ProjectionRenderMode mode,
+    Long2ObjectOpenHashMap<ProjectedBlockClaim<String, SceneView>> serverClaims(Vec3 eye, ScanMode mode,
                                                                                boolean blackout) {
         StringBlocks blocks = new StringBlocks();
         ProjectorSampleMemo<String, String, SceneView> memo = new ProjectorSampleMemo<String, String, SceneView>(blocks, () -> null);
@@ -128,7 +129,7 @@ public final class ClientSweepScene {
                 occlusion, () -> settings));
         FrustumFit fit = new FrustumFit(new FrustumFit.Options(0, NEAR_PLANE_PADDING, CULLING_RATIO, APERTURE_PADDING));
         ViewVolume frustum = fit.fit(aperture, localFrame, eye, depth, lateral);
-        scan.run(new Destination(), null, eye, frustum, depth, true, false, true, mode.scanMode(), null, false,
+        scan.run(new Destination(), null, eye, frustum, depth, true, false, true, mode, null, false,
             LodPolicy.NONE);
         return new Long2ObjectOpenHashMap<ProjectedBlockClaim<String, SceneView>>(scan.claims());
     }
@@ -391,51 +392,29 @@ public final class ClientSweepScene {
         }
     }
 
-    static final class ScanPortal implements IPortal {
+    static final class ScanPortal implements Endpoint {
         private final UUID id;
         private final Vec3 origin;
         private final Frame frame;
-        private String name;
 
         private ScanPortal(UUID id, Vec3 origin, Frame frame) {
             this.id = id;
             this.origin = origin;
             this.frame = frame;
-            this.name = id.toString();
         }
 
         @Override
-        public Face getDirection() {
-            return frame.getNormal();
-        }
-
-        @Override
-        public Frame getFrame() {
-            return frame;
-        }
-
-        @Override
-        public UUID getId() {
+        public UUID id() {
             return id;
         }
 
         @Override
-        public String getName() {
-            return name;
+        public Frame frame() {
+            return frame;
         }
 
         @Override
-        public void setName(String name) {
-            this.name = name;
-        }
-
-        @Override
-        public boolean isRemote() {
-            return false;
-        }
-
-        @Override
-        public Vec3 getOrigin() {
+        public Vec3 origin() {
             return origin;
         }
     }
@@ -499,7 +478,7 @@ public final class ClientSweepScene {
         }
 
         @Override
-        public IPortal destAnchor() {
+        public Endpoint destAnchor() {
             return remotePortal;
         }
 

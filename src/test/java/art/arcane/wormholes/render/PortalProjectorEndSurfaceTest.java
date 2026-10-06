@@ -173,6 +173,9 @@ class PortalProjectorEndSurfaceTest {
                 when(portal.getDimensionalPortalKind()).thenReturn(kind);
                 when(portal.getFrame()).thenReturn(Frame.canonical(Face.U));
                 when(portal.getOrigin()).thenReturn(BukkitGeometry.vector(structure.getCenter()));
+                when(portal.frame()).thenCallRealMethod();
+                when(portal.origin()).thenCallRealMethod();
+                when(portal.id()).thenCallRealMethod();
                 when(portal.getStructure()).thenReturn(structure);
                 when(portal.isOpen()).thenReturn(true);
                 when(portal.getRenderMode()).thenReturn(ProjectionRenderMode.PANOPTIC);

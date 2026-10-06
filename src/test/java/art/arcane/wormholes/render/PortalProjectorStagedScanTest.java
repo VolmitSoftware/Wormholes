@@ -198,6 +198,9 @@ final class PortalProjectorStagedScanTest {
             when(portal.getName()).thenReturn("staged projection");
             when(portal.getFrame()).thenReturn(Frame.canonical(Face.N));
             when(portal.getOrigin()).thenReturn(BukkitGeometry.vector(structure.getCenter()));
+            when(portal.frame()).thenCallRealMethod();
+            when(portal.origin()).thenCallRealMethod();
+            when(portal.id()).thenCallRealMethod();
             when(portal.getStructure()).thenReturn(structure);
             when(portal.isOpen()).thenReturn(true);
             when(portal.isMirrorMode()).thenReturn(true);

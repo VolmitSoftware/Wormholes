@@ -1,12 +1,12 @@
 package art.arcane.optics.scan;
 
-import art.arcane.wormholes.portal.IPortal;
+import art.arcane.optics.aperture.Endpoint;
 
-public interface ScanDestination<P extends IPortal, V> {
+public interface ScanDestination<P extends Endpoint, V> {
     V localView();
     V destView();
     P dest();
-    IPortal destAnchor();
+    Endpoint destAnchor();
     double originX();
     double originY();
     double originZ();

@@ -136,6 +136,9 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
         when(target.getId()).thenReturn(targetId);
         when(target.getFrame()).thenReturn(Frame.canonical(Face.S));
         when(target.getOrigin()).thenReturn(new art.arcane.optics.math.Vec3(11.0D, 65.0D, 0.0D));
+        when(target.frame()).thenCallRealMethod();
+        when(target.origin()).thenCallRealMethod();
+        when(target.id()).thenCallRealMethod();
         when(source.getTunnelType()).thenReturn("UNIVERSAL");
         when(source.getDestinationServer()).thenReturn("example-peer");
         when(source.getNetworkViewUnsubscribeGraceSeconds()).thenReturn(30);
@@ -518,6 +521,9 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
         when(portal.getGeometry()).thenReturn(geometry);
         when(portal.getFrame()).thenReturn(Frame.canonical(Face.S));
         when(portal.getOrigin()).thenReturn(new art.arcane.optics.math.Vec3(x + 1.0D, 65.0D, 0.0D));
+        when(portal.frame()).thenCallRealMethod();
+        when(portal.origin()).thenCallRealMethod();
+        when(portal.id()).thenCallRealMethod();
         when(portal.getNetworkViewDepth()).thenReturn(8);
         when(portal.getBlackoutColor()).thenReturn(BlackoutColor.BLACK);
         when(portal.getRenderMode()).thenReturn(ProjectionRenderMode.PANOPTIC);

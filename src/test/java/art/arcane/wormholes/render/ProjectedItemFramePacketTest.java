@@ -191,13 +191,13 @@ public final class ProjectedItemFramePacketTest {
         UUID id = UUID.randomUUID();
         InvocationHandler handler = (proxy, method, args) -> {
             String name = method.getName();
-            if ("getOrigin".equals(name)) {
+            if ("getOrigin".equals(name) || "origin".equals(name)) {
                 return BukkitGeometry.vector(origin);
             }
-            if ("getFrame".equals(name)) {
+            if ("getFrame".equals(name) || "frame".equals(name)) {
                 return frame;
             }
-            if ("getId".equals(name)) {
+            if ("getId".equals(name) || "id".equals(name)) {
                 return id;
             }
             if ("getName".equals(name)) {

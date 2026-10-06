@@ -262,10 +262,10 @@ public final class ProjectedEntityRendererTeardownTest {
         UUID id = UUID.randomUUID();
         InvocationHandler handler = (proxy, method, args) -> {
             String name = method.getName();
-            if ("getOrigin".equals(name)) {
+            if ("getOrigin".equals(name) || "origin".equals(name)) {
                 return new Vec3(x, y, z);
             }
-            if ("getId".equals(name)) {
+            if ("getId".equals(name) || "id".equals(name)) {
                 return id;
             }
             if ("getName".equals(name)) {

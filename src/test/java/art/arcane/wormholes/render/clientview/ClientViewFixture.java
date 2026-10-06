@@ -102,6 +102,9 @@ final class ClientViewFixture implements AutoCloseable {
         when(portal.getName()).thenReturn("clientview mirror");
         when(portal.getFrame()).thenReturn(Frame.canonical(Face.N));
         when(portal.getOrigin()).thenReturn(BukkitGeometry.vector(structure.getCenter()));
+        when(portal.frame()).thenCallRealMethod();
+        when(portal.origin()).thenCallRealMethod();
+        when(portal.id()).thenCallRealMethod();
         when(portal.getStructure()).thenReturn(structure);
         when(portal.isOpen()).thenReturn(true);
         when(portal.isMirrorMode()).thenReturn(true);
@@ -178,6 +181,9 @@ final class ClientViewFixture implements AutoCloseable {
         when(linked.getName()).thenReturn("clientview linked");
         when(linked.getFrame()).thenReturn(Frame.canonical(Face.N));
         when(linked.getOrigin()).thenReturn(BukkitGeometry.vector(structure.getCenter()));
+        when(linked.frame()).thenCallRealMethod();
+        when(linked.origin()).thenCallRealMethod();
+        when(linked.id()).thenCallRealMethod();
         when(linked.getStructure()).thenReturn(structure);
         when(linked.isOpen()).thenReturn(true);
         when(linked.getTunnel()).thenReturn(tunnel);
@@ -189,6 +195,9 @@ final class ClientViewFixture implements AutoCloseable {
         when(destination.getWorld()).thenReturn(world);
         when(destination.getFrame()).thenReturn(Frame.canonical(Face.S));
         when(destination.getOrigin()).thenReturn(new Vec3(101.4995D, 65.4995D, 100.4995D));
+        when(destination.frame()).thenCallRealMethod();
+        when(destination.origin()).thenCallRealMethod();
+        when(destination.id()).thenCallRealMethod();
         return linked;
     }
 

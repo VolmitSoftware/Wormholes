@@ -653,6 +653,9 @@ public class MinecraftClientViewPortalAccessTest extends MinecraftTestBase {
         when(portal.getGeometry()).thenReturn(geometry);
         when(portal.getFrame()).thenReturn(Frame.canonical(Face.S));
         when(portal.getOrigin()).thenReturn(new art.arcane.optics.math.Vec3(x + 1.5D, 65.5D, 0.5D));
+        when(portal.frame()).thenCallRealMethod();
+        when(portal.origin()).thenCallRealMethod();
+        when(portal.id()).thenCallRealMethod();
         when(portal.getNetworkViewDepth()).thenReturn(8);
         when(portal.getBlackoutColor()).thenReturn(BlackoutColor.BLACK);
         when(portal.getMirrorRotation()).thenReturn(QuarterTurn.DEGREES_0);

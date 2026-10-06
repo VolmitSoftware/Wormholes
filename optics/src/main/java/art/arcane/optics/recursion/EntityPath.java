@@ -2,7 +2,7 @@ package art.arcane.optics.recursion;
 
 
 import art.arcane.optics.math.Vec3;
-import art.arcane.wormholes.portal.IPortal;
+import art.arcane.optics.aperture.Endpoint;
 import art.arcane.optics.view.BlockView;
 
 import art.arcane.optics.entity.EntitySnapshot;
@@ -17,7 +17,7 @@ import art.arcane.optics.frame.ProjectorFrameTransform;
 import art.arcane.optics.occlusion.ProjectedEntityOcclusion;
 import art.arcane.optics.volume.ViewVolume;
 
-public final class EntityPath<W, P extends IPortal> {
+public final class EntityPath<W, P extends Endpoint> {
     private final EntityPath<W, P> parent;
     private final RecursiveEndpoints<W, P>.Candidate entrance;
     private final Root<W, P> root;
@@ -30,12 +30,12 @@ public final class EntityPath<W, P extends IPortal> {
         this.entrance = null;
         this.root = root;
         this.remainingDepth = root.recursiveDepth();
-        Vec3 source = root.remote().getOrigin();
-        Vec3 target = root.local().getOrigin();
+        Vec3 source = root.remote().origin();
+        Vec3 target = root.local().origin();
         Vec3 eye = root.eye();
         if (root.mirror()) {
             PortalCoordMap.mirrorDisplayToSourcePointInto(eye.getX(), eye.getY(), eye.getZ(),
-                target.getX(), target.getY(), target.getZ(), root.local().getFrame(), root.quarterTurns(), scratch);
+                target.getX(), target.getY(), target.getZ(), root.local().frame(), root.quarterTurns(), scratch);
         } else {
             PortalCoordMap.transformPointInto(eye.getX(), eye.getY(), eye.getZ(),
                 target.getX(), target.getY(), target.getZ(), source.getX(), source.getY(), source.getZ(),
@@ -146,7 +146,7 @@ public final class EntityPath<W, P extends IPortal> {
             step.entrance.sourceToDisplayVector(out[0], out[1], out[2], out);
         }
         if (root.mirror()) {
-            PortalCoordMap.mirrorSourceToDisplayVectorInto(out[0], out[1], out[2], root.local().getFrame(),
+            PortalCoordMap.mirrorSourceToDisplayVectorInto(out[0], out[1], out[2], root.local().frame(),
                 root.quarterTurns(), out);
         } else {
             root.remoteFrame().transformVectorInto(out[0], out[1], out[2], root.localFrame(), out);
@@ -181,11 +181,11 @@ public final class EntityPath<W, P extends IPortal> {
     }
 
     private void rootPoint(double x, double y, double z, double[] out) {
-        Vec3 source = root.remote().getOrigin();
-        Vec3 target = root.local().getOrigin();
+        Vec3 source = root.remote().origin();
+        Vec3 target = root.local().origin();
         if (root.mirror()) {
             PortalCoordMap.mirrorSourceToDisplayPointInto(x, y, z, target.getX(), target.getY(), target.getZ(),
-                root.local().getFrame(), root.quarterTurns(), out);
+                root.local().frame(), root.quarterTurns(), out);
         } else {
             PortalCoordMap.transformPointInto(x, y, z, source.getX(), source.getY(), source.getZ(),
                 target.getX(), target.getY(), target.getZ(), root.remoteFrame(), root.localFrame(), out);
@@ -204,7 +204,7 @@ public final class EntityPath<W, P extends IPortal> {
             && Math.min(z, scratch[2]) <= region.getZb() && Math.max(z, scratch[2]) >= region.getZa();
     }
 
-    public record Root<W, P extends IPortal>(P local, P remote, Frame localFrame, Frame remoteFrame,
+    public record Root<W, P extends Endpoint>(P local, P remote, Frame localFrame, Frame remoteFrame,
                 boolean mirror, int quarterTurns, Vec3 eye, ViewVolume frustum, W world, int recursiveDepth) {
     }
 }

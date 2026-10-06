@@ -2430,8 +2430,8 @@ public final class ProjectorCellScanLightingRetentionTest {
             ILocalPortal.class.getClassLoader(), new Class<?>[] { ILocalPortal.class },
             (proxy, method, args) -> switch (method.getName()) {
                 case "getStructure" -> structure;
-                case "getFrame" -> frame;
-                case "getOrigin" -> BukkitGeometry.vector(origin);
+                case "getFrame", "frame" -> frame;
+                case "getOrigin", "origin" -> BukkitGeometry.vector(origin);
                 case "getWorld" -> null;
                 default -> primitiveDefault(method.getReturnType());
             });

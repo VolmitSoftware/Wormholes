@@ -232,9 +232,9 @@ public final class PortalProjectorPlateFallbackTest {
             ILocalPortal.class.getClassLoader(), new Class<?>[] {ILocalPortal.class},
             (proxy, method, args) -> switch (method.getName()) {
                 case "getStructure" -> structure;
-                case "getFrame" -> frame;
-                case "getOrigin" -> BukkitGeometry.vector(origin);
-                case "getId" -> PORTAL_ID;
+                case "getFrame", "frame" -> frame;
+                case "getOrigin", "origin" -> BukkitGeometry.vector(origin);
+                case "getId", "id" -> PORTAL_ID;
                 case "getWorld" -> null;
                 case "getName", "toString" -> "fallback-portal";
                 case "hashCode" -> Integer.valueOf(System.identityHashCode(proxy));

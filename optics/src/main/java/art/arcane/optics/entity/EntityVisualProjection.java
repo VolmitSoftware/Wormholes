@@ -1,14 +1,14 @@
 package art.arcane.optics.entity;
 
 import art.arcane.optics.math.Vec3;
-import art.arcane.wormholes.portal.IPortal;
+import art.arcane.optics.aperture.Endpoint;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.frame.PortalCoordMap;
 import art.arcane.optics.recursion.EntityPath;
 import art.arcane.optics.volume.ViewVolume;
 
-public final class EntityVisualProjection<W, P extends IPortal, R> {
+public final class EntityVisualProjection<W, P extends Endpoint, R> {
     private final ItemFrameTransform.PositionFactory<R> positions;
     private final double[] scratchVisiblePoint = new double[3];
     private final double[] scratchDirection = new double[3];
@@ -22,12 +22,12 @@ public final class EntityVisualProjection<W, P extends IPortal, R> {
         this.positions = positions;
     }
 
-    public boolean project(IPortal localPortal,
+    public boolean project(Endpoint localPortal,
                            double remoteOriginX, double remoteOriginY, double remoteOriginZ,
                            Frame localViewFrame, Frame remoteViewFrame, ViewVolume frustum,
                            EntitySnapshot visual, boolean mirror, int mirrorRotationQuarterTurns,
                            EntityPath<W, P> projectionPath, boolean itemFrame, boolean hanging) {
-        Vec3 localOrigin = localPortal.getOrigin();
+        Vec3 localOrigin = localPortal.origin();
         double visibleY = hanging ? visual.y() : visual.y() + (visual.height() * 0.5D);
         if (projectionPath != null) {
             if (!projectionPath.visible(visual, visibleY, scratchVisiblePoint)) {
@@ -35,7 +35,7 @@ public final class EntityVisualProjection<W, P extends IPortal, R> {
             }
         } else if (mirror) {
             PortalCoordMap.mirrorSourceToDisplayPointInto(visual.x(), visibleY, visual.z(),
-                remoteOriginX, remoteOriginY, remoteOriginZ, localPortal.getFrame(), mirrorRotationQuarterTurns,
+                remoteOriginX, remoteOriginY, remoteOriginZ, localPortal.frame(), mirrorRotationQuarterTurns,
                 scratchVisiblePoint);
         } else {
             PortalCoordMap.transformPointInto(visual.x(), visibleY, visual.z(),
@@ -51,7 +51,7 @@ public final class EntityVisualProjection<W, P extends IPortal, R> {
             projectionPath.vector(visual.lookX(), visual.lookY(), visual.lookZ(), scratchDirection);
         } else if (mirror) {
             PortalCoordMap.mirrorSourceToDisplayVectorInto(visual.lookX(), visual.lookY(), visual.lookZ(),
-                localPortal.getFrame(), mirrorRotationQuarterTurns, scratchDirection);
+                localPortal.frame(), mirrorRotationQuarterTurns, scratchDirection);
         } else {
             remoteViewFrame.transformVectorInto(visual.lookX(), visual.lookY(), visual.lookZ(), localViewFrame, scratchDirection);
         }
@@ -61,7 +61,7 @@ public final class EntityVisualProjection<W, P extends IPortal, R> {
         metadataTransform = ItemFrameTransform.NONE;
         if (itemFrame) {
             metadataTransform = projectionPath != null ? projectionPath.itemFrameTransform(sourceFacing) : mirror
-                ? ItemFrameTransform.mirror(sourceFacing, localPortal.getFrame(),
+                ? ItemFrameTransform.mirror(sourceFacing, localPortal.frame(),
                     mirrorRotationQuarterTurns, scratchDirection)
                 : ItemFrameTransform.between(sourceFacing, remoteViewFrame, localViewFrame,
                     scratchDirection);
@@ -72,7 +72,7 @@ public final class EntityVisualProjection<W, P extends IPortal, R> {
             position = ItemFrameTransform.mirrorAnchor(
                 visual.x(), visual.y(), visual.z(),
                 remoteOriginX, remoteOriginY, remoteOriginZ,
-                localPortal.getFrame(), mirrorRotationQuarterTurns, scratchVisiblePoint, positions);
+                localPortal.frame(), mirrorRotationQuarterTurns, scratchVisiblePoint, positions);
         } else if (hanging) {
             position = ItemFrameTransform.betweenAnchor(
                 visual.x(), visual.y(), visual.z(),
@@ -87,7 +87,7 @@ public final class EntityVisualProjection<W, P extends IPortal, R> {
             projectionPath.vector(visual.velocityX(), visual.velocityY(), visual.velocityZ(), scratchDirection);
         } else if (mirror) {
             PortalCoordMap.mirrorSourceToDisplayVectorInto(visual.velocityX(), visual.velocityY(), visual.velocityZ(),
-                localPortal.getFrame(), mirrorRotationQuarterTurns, scratchDirection);
+                localPortal.frame(), mirrorRotationQuarterTurns, scratchDirection);
         } else {
             remoteViewFrame.transformVectorInto(visual.velocityX(), visual.velocityY(), visual.velocityZ(), localViewFrame, scratchDirection);
         }

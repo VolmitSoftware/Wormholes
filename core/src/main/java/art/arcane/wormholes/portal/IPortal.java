@@ -27,4 +27,14 @@ public interface IPortal extends Endpoint {
     default UUID id() {
         return getId();
     }
+
+    @Override
+    default Frame frame() {
+        return getFrame();
+    }
+
+    @Override
+    default Vec3 origin() {
+        return getOrigin();
+    }
 }
