@@ -2,6 +2,7 @@ package art.arcane.wormholes.modded.clientview;
 
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.frame.OpticTransform;
 import net.minecraft.world.level.Level;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.attribute.EnvironmentAttributeReader;
@@ -19,7 +20,7 @@ public final class MinecraftPortalEnvironment {
     private MinecraftPortalEnvironment() {
     }
 
-    public static ProjectionEnvironment capture(Level world, Vec3d destinationEye, ProjectionEnvironment.Transform transform, boolean flat) {
+    public static ProjectionEnvironment capture(Level world, Vec3d destinationEye, OpticTransform transform, boolean flat) {
         Vec3 eye = new Vec3(destinationEye.x(), destinationEye.y(), destinationEye.z());
         BlockPos eyeBlock = BlockPos.containing(eye);
         EnvironmentAttributeReader attributes = world.environmentAttributes();

@@ -10,6 +10,7 @@ import art.arcane.wormholes.modded.client.ClientMeshWorld;
 import art.arcane.wormholes.modded.client.ClientPalette;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.frame.OpticTransform;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -688,7 +689,7 @@ public class ClientTravelMeshReuseTest extends MinecraftTestBase {
     private static final class BulkFixture implements AutoCloseable {
         private static final PlateBox BOUNDS = new PlateBox(-32, -32, -32, 96, 96, 96);
         private final ClientPortalRenderer renderer = ClientPortalRenderer.instance();
-        private final ProjectionEnvironment environment = PortalEnvironmentTest.environment(ProjectionEnvironment.Transform.IDENTITY);
+        private final ProjectionEnvironment environment = PortalEnvironmentTest.environment(OpticTransform.IDENTITY);
         private final RegistryAccess registry = mock(RegistryAccess.class);
         private final ClientMeshSections store;
         private final Long2ObjectOpenHashMap<PortalGpuMesh> meshes = new Long2ObjectOpenHashMap<>();

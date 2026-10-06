@@ -19,6 +19,8 @@ import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.AxisPermutation;
 
 final class ClientViewFixtures {
     record Vector(String name, ClientViewMessage message, long caps, int seq, int flags) {
@@ -111,12 +113,12 @@ final class ClientViewFixtures {
         ProjectionEnvironment base = environment();
         ProjectionEnvironment.World world = base.world();
         ProjectionEnvironment environment = new ProjectionEnvironment(base.gameTime(), base.sky(), base.fog(), base.lighting(),
-            base.clouds(), ProjectionEnvironment.Transform.IDENTITY, base.dimension(),
+            base.clouds(), OpticTransform.IDENTITY, base.dimension(),
             new ProjectionEnvironment.World("minecraft:overworld", world.clockTime(), world.biomeKey(), world.seaLevel(),
                 world.blockLight(), world.skyLight(), world.logicalHeight(), world.hasCeiling(), world.ambientLight(),
                 world.eyeMedium(), world.hasFixedTime()));
         return new ClientViewMessage.TravelBegin(new UUID(12, 34), 3L, new UUID(56, 78), "minecraft:the_nether",
-            geometry(List.of()), new ProjectionEnvironment.Transform(Face.S, Face.U, Face.E, new Vec3d(4, 0, 6)),
+            geometry(List.of()), OpticTransform.of(AxisPermutation.of(Face.S, Face.U, Face.E), 4, 0, 6),
             new ClientViewMessage.TravelWorld("minecraft:overworld", "minecraft:overworld", 123456789L, false, true, 63, -64, 384),
             new ClientViewMessage.TravelPose(-511.5D, 81.0D, -159.5D, 90.0F, -12.0F),
             List.of(new ClientViewMessage.TravelCoordinate(-32, -10)), environment, 30_000);
@@ -140,7 +142,7 @@ final class ClientViewFixtures {
             new ProjectionEnvironment.Sky(ProjectionEnvironment.Skybox.OVERWORLD, 1.5F, 2.5F, 3.5F, 0.8F, alpha, color, 5, 0.25F, 0.5F),
             new ProjectionEnvironment.Fog(color, -8.0F, 96.0F, 512.0F, 256.0F, color, 0.0F, 32.0F),
             new ProjectionEnvironment.Lighting(color, 0.75F, color, color), new ProjectionEnvironment.Clouds(alpha, 192.0F),
-            new ProjectionEnvironment.Transform(Face.N, Face.U, Face.E, new Vec3d(-128.5D, 96.0D, 33.25D)),
+            OpticTransform.of(AxisPermutation.of(Face.N, Face.U, Face.E), -128.5D, 96.0D, 33.25D),
             new ProjectionEnvironment.Dimension(-64, 384, true, ProjectionEnvironment.CardinalLighting.DEFAULT, 63.0D, false),
             new ProjectionEnvironment.World("test:destination", 72000L, "minecraft:plains", 63, 7, 15, 256, true, 0.1F, ProjectionEnvironment.EyeMedium.WATER, true));
     }

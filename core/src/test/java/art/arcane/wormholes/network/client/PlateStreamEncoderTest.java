@@ -26,9 +26,9 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.optics.math.CellKeys;
-import art.arcane.optics.frame.ProjectorFrameTransform;
 import art.arcane.optics.scan.ProjectorSample;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.volume.LodPolicy;
@@ -49,11 +49,10 @@ import art.arcane.optics.stream.ViewStreamLimits;
 
 final class PlateStreamEncoderTest {
     static int[] remoteOf(int localX, int localY, int localZ) {
-        ProjectorFrameTransform transform = new ProjectorFrameTransform();
-        transform.configure(Frame.canonical(Face.S).view(false), Frame.canonical(Face.N).view(false),
-            11.4995D, 67.4995D, 20.5005D, 200.4995D, 67.4995D, 200.4995D);
+        OpticTransform transform = OpticTransform.between(Frame.canonical(Face.S).view(false), 11.4995D, 67.4995D, 20.5005D,
+            Frame.canonical(Face.N).view(false), 200.4995D, 67.4995D, 200.4995D);
         double[] out = new double[3];
-        transform.apply(localX + 0.5D, localY + 0.5D, localZ + 0.5D, out);
+        transform.snappedPointInto(localX + 0.5D, localY + 0.5D, localZ + 0.5D, out);
         return new int[] {(int) Math.floor(out[0]), (int) Math.floor(out[1]), (int) Math.floor(out[2])};
     }
 

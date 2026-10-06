@@ -14,7 +14,8 @@ import art.arcane.optics.plate.PlateBox;
 import art.arcane.optics.state.TrackShape;
 
 public final class OpticTransform {
-    private static final int ENCODED_BYTES = 1 + 3 * Double.BYTES;
+    public static final int ENCODED_BYTES = 1 + 3 * Double.BYTES;
+    private static final double INTEGRAL_LIMIT = 1 << 30;
     public static final OpticTransform IDENTITY = new OpticTransform(AxisPermutation.IDENTITY, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D);
 
     private final AxisPermutation permutation;
@@ -31,6 +32,7 @@ public final class OpticTransform {
     private final double signY;
     private final double signZ;
     private final double snapTolerance;
+    private final boolean integral;
 
     private OpticTransform(AxisPermutation permutation, double fromX, double fromY, double fromZ, double toX, double toY, double toZ) {
         this.permutation = Objects.requireNonNull(permutation, "permutation");
@@ -56,6 +58,7 @@ public final class OpticTransform {
         signY = signs[1];
         signZ = signs[2];
         snapTolerance = coordinateSnapTolerance(fromX, fromY, fromZ, toX, toY, toZ);
+        integral = integral(fromX) && integral(fromY) && integral(fromZ) && integral(toX) && integral(toY) && integral(toZ);
     }
 
     public static OpticTransform of(AxisPermutation permutation, double tx, double ty, double tz) {
@@ -144,6 +147,15 @@ public final class OpticTransform {
         return new OpticTransform(permutation.inverse(), toX, toY, toZ, fromX, fromY, fromZ);
     }
 
+    public OpticTransform normalized() {
+        return of(permutation, translationX(), translationY(), translationZ());
+    }
+
+    public OpticTransform cellAligned() {
+        return of(permutation, alignedTranslation(translationX(), signX), alignedTranslation(translationY(), signY),
+            alignedTranslation(translationZ(), signZ));
+    }
+
     public Vec3d point(Vec3d point) {
         double[] out = new double[3];
         pointInto(point.x(), point.y(), point.z(), out);
@@ -191,6 +203,14 @@ public final class OpticTransform {
         int x = CellKeys.unpackX(cellKey);
         int y = CellKeys.unpackY(cellKey);
         int z = CellKeys.unpackZ(cellKey);
+        if (integral) {
+            int offsetX = x - (int) fromX;
+            int offsetY = y - (int) fromY;
+            int offsetZ = z - (int) fromZ;
+            return CellKeys.pack(integralCell(toX, signX, sourceX, offsetX, offsetY, offsetZ),
+                integralCell(toY, signY, sourceY, offsetX, offsetY, offsetZ),
+                integralCell(toZ, signZ, sourceZ, offsetX, offsetY, offsetZ));
+        }
         double offsetX = x + 0.5D - fromX;
         double offsetY = y + 0.5D - fromY;
         double offsetZ = z + 0.5D - fromZ;
@@ -200,6 +220,18 @@ public final class OpticTransform {
     }
 
     public void cellInto(int x, int y, int z, int[] out3) {
+        if (integral) {
+            int offsetX = x - (int) fromX;
+            int offsetY = y - (int) fromY;
+            int offsetZ = z - (int) fromZ;
+            int outX = integralCell(toX, signX, sourceX, offsetX, offsetY, offsetZ);
+            int outY = integralCell(toY, signY, sourceY, offsetX, offsetY, offsetZ);
+            int outZ = integralCell(toZ, signZ, sourceZ, offsetX, offsetY, offsetZ);
+            out3[0] = outX;
+            out3[1] = outY;
+            out3[2] = outZ;
+            return;
+        }
         double offsetX = x + 0.5D - fromX;
         double offsetY = y + 0.5D - fromY;
         double offsetZ = z + 0.5D - fromZ;
@@ -316,12 +348,25 @@ public final class OpticTransform {
         return snapNearInteger(target + sign * component(source, x, y, z), snapTolerance);
     }
 
+    private static int integralCell(double target, double sign, int source, int x, int y, int z) {
+        int offset = source == 0 ? x : source == 1 ? y : z;
+        return (int) target + (sign > 0.0D ? offset : -offset - 1);
+    }
+
     private int snappedCell(double target, double sign, int source, double x, double y, double z) {
         return (int) Math.floor(snapped(target, sign, source, x, y, z));
     }
 
     private static double component(int axis, double x, double y, double z) {
         return axis == 0 ? x : axis == 1 ? y : z;
+    }
+
+    private static boolean integral(double value) {
+        return value == Math.rint(value) && Math.abs(value) <= INTEGRAL_LIMIT;
+    }
+
+    private static double alignedTranslation(double translation, double sign) {
+        return sign > 0.0D ? Math.ceil(translation - 0.5D) : Math.floor(translation + 0.5D);
     }
 
     private static double coordinateSnapTolerance(double fromX, double fromY, double fromZ, double toX, double toY, double toZ) {

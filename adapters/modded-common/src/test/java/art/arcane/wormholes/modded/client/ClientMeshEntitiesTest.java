@@ -3,7 +3,6 @@ package art.arcane.wormholes.modded.client;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.BrickCodec;
-import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.math.Face;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
@@ -11,6 +10,8 @@ import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.AxisPermutation;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
@@ -159,10 +160,8 @@ public class ClientMeshEntitiesTest extends MinecraftTestBase {
 
     @Test
     public void nestedFeatureCameraFollowsRotatedAndReflectedAncestorSpaces() {
-        ProjectionEnvironment.Transform root = new ProjectionEnvironment.Transform(Face.S, Face.U, Face.W,
-            new Vec3d(100, 20, -50));
-        ProjectionEnvironment.Transform child = new ProjectionEnvironment.Transform(Face.W, Face.U, Face.S,
-            new Vec3d(6, 0, 0));
+        OpticTransform root = OpticTransform.of(AxisPermutation.of(Face.S, Face.U, Face.W), 100, 20, -50);
+        OpticTransform child = OpticTransform.of(AxisPermutation.of(Face.W, Face.U, Face.S), 6, 0, 0);
         assertEquals(new Vec3d(2, 3, 4), ClientMeshEntities.contentPoint(List.of(root, child), 96, 23, -46));
         assertEquals(new Vec3d(4, 3, 4), ClientMeshEntities.contentPoint(List.of(root), 96, 23, -46));
         assertEquals(new Vec3d(96, 23, -46), ClientMeshEntities.contentPoint(List.of(), 96, 23, -46));
@@ -180,7 +179,7 @@ public class ClientMeshEntitiesTest extends MinecraftTestBase {
         ClientMeshEntities scene = new ClientMeshEntities(store.view(7), mock(ClientLevel.class));
         for (Face[] axes : new Face[][] {{Face.E, Face.U, Face.S}, {Face.W, Face.D, Face.N},
             {Face.U, Face.W, Face.S}}) {
-            scene.synchronize(new ProjectionEnvironment.Transform(axes[0], axes[1], axes[2], new Vec3d(0.5D, 0.5D, 0.5D)));
+            scene.synchronize(OpticTransform.of(AxisPermutation.of(axes[0], axes[1], axes[2]), 0.5D, 0.5D, 0.5D));
             BlockEntity chest = scene.blockEntity(BlockPos.ZERO);
             assertNotNull(chest);
             assertEquals(BlockPos.ZERO, chest.getBlockPos());
@@ -205,8 +204,7 @@ public class ClientMeshEntitiesTest extends MinecraftTestBase {
         store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 0, oneBlock(3), SectionBiomes.NONE));
         ClientLevel level = mock(ClientLevel.class);
         ClientMeshEntities scene = new ClientMeshEntities(store.view(7), level);
-        ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(Face.W, Face.U, Face.S,
-            new Vec3d(101, 0, 0));
+        OpticTransform transform = OpticTransform.of(AxisPermutation.of(Face.W, Face.U, Face.S), 101, 0, 0);
         Entity entity = mock(Entity.class);
         doAnswer(ignored -> {
             assertSame(scene, ClientMeshEntities.active(level));
@@ -248,8 +246,7 @@ public class ClientMeshEntitiesTest extends MinecraftTestBase {
         store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 0, BrickCodec.pack(0, cells).withLight(light, new byte[2048]), SectionBiomes.NONE));
         ClientLevel level = mock(ClientLevel.class);
         ClientMeshEntities scene = new ClientMeshEntities(store.view(7), level);
-        ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(Face.U, Face.W, Face.S,
-            new Vec3d(100, 50, 200));
+        OpticTransform transform = OpticTransform.of(AxisPermutation.of(Face.U, Face.W, Face.S), 100, 50, 200);
         scene.synchronize(transform);
         BlockEntity chest = scene.blockEntity(display);
         BlockPos nativePosition = new BlockPos(-42, 91, -192);

@@ -26,13 +26,6 @@ final class BukkitEntityOcclusion {
             ProjectedEntityOcclusion.MAX_VOXEL_STEPS_PER_BATCH));
     }
 
-    static boolean visible(EntityPath<World, ILocalPortal> path,
-                           double x, double y, double z, BoundingBox bounds, double[] out) {
-        return bounds == null ? path.visible(x, y, z, out)
-            : path.visibleBounds(x, y, z, bounds.getMinX(), bounds.getMinY(), bounds.getMinZ(),
-                bounds.getMaxX(), bounds.getMaxY(), bounds.getMaxZ(), out);
-    }
-
     static boolean fullyHidden(ProjectedEntityOcclusion<BlockData, ProjectionWorldView> occlusion, BoundingBox box) {
         if (box == null) {
             return false;

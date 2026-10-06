@@ -20,8 +20,9 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.objects.ObjectIterator;
 
-
 import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.volume.LodPolicy;
 import art.arcane.optics.plate.PlateCell;
@@ -31,8 +32,6 @@ import art.arcane.optics.math.Face;
 import art.arcane.optics.claim.ProjectedBlockClaim;
 import art.arcane.optics.claim.ProjectionBlackout;
 import art.arcane.optics.claim.ProjectionClaimSet;
-import art.arcane.optics.frame.PortalCoordMap;
-import art.arcane.optics.frame.ProjectorFrameTransform;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.occlusion.ProjectedEntityOcclusion;
 import art.arcane.optics.occlusion.ProjectorBlackoutBoundary;
@@ -42,6 +41,7 @@ import art.arcane.optics.recursion.RecursiveEndpoints;
 import art.arcane.optics.volume.PlaneWindow;
 import art.arcane.optics.volume.ProjectorFrustumRow;
 import art.arcane.optics.volume.ViewVolume;
+import art.arcane.optics.volume.ProjectionVolume;
 
 public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B, M>> {
     private static final int FINISH_SEAL = 0;
@@ -59,7 +59,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
     private ProjectedEntityOcclusion<B, V> entityOcclusion;
     private ProjectedEntityOcclusion<B, V> projectedEntityOcclusion;
     private final ProjectorBlackoutBoundary blackoutBoundary;
-    private final ProjectorFrameTransform cellTransform;
+    private OpticTransform cellTransform;
     private final double[] scratchRemotePoint;
     private final double[] scratchRemoteEye;
     private final double[] scratchRemoteBounds;
@@ -175,7 +175,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
         this.entityOcclusion = new ProjectedEntityOcclusion<B, V>(new ProjectorViewOcclusion<B>(context.occlusion(), ProjectedEntityOcclusion.MAX_VOXEL_STEPS_PER_BATCH));
         this.projectedEntityOcclusion = new ProjectedEntityOcclusion<B, V>(new ProjectorViewOcclusion<B>(context.occlusion(), ProjectedEntityOcclusion.MAX_VOXEL_STEPS_PER_BATCH));
         this.blackoutBoundary = new ProjectorBlackoutBoundary();
-        this.cellTransform = new ProjectorFrameTransform();
+        this.cellTransform = OpticTransform.IDENTITY;
         this.scratchRemotePoint = new double[3];
         this.scratchRemoteEye = new double[3];
         this.scratchRemoteBounds = new double[6];
@@ -728,7 +728,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
         bounds[4] = Double.NEGATIVE_INFINITY;
         bounds[5] = Double.NEGATIVE_INFINITY;
         for (int corner = 0; corner < 8; corner++) {
-            cellTransform.apply((corner & 1) == 0 ? area.getXa() - 1.0D : area.getXb() + 1.0D,
+            cellTransform.snappedPointInto((corner & 1) == 0 ? area.getXa() - 1.0D : area.getXb() + 1.0D,
                 (corner & 2) == 0 ? area.getYa() - 1.0D : area.getYb() + 1.0D,
                 (corner & 4) == 0 ? area.getZa() - 1.0D : area.getZb() + 1.0D, scratchRemotePoint);
             bounds[0] = Math.min(bounds[0], scratchRemotePoint[0]);
@@ -762,18 +762,11 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
         double localOriginX = portal.origin().getX();
         double localOriginY = portal.origin().getY();
         double localOriginZ = portal.origin().getZ();
-        if (destination.mirrorMode()) {
-            PortalCoordMap.mirrorDisplayToSourcePointInto(
-                eye.getX(), eye.getY(), eye.getZ(),
-                localOriginX, localOriginY, localOriginZ,
-                portal.frame(), destination.mirrorRotationQuarterTurns(), scratchRemoteEye);
-        } else {
-            localViewFrame.transformPointInto(
-                eye.getX(), eye.getY(), eye.getZ(),
-                localOriginX, localOriginY, localOriginZ,
-                destination.originX(), destination.originY(), destination.originZ(),
-                remoteViewFrame, scratchRemoteEye);
-        }
+        OpticTransform toward = destination.mirrorMode()
+            ? OpticTransform.mirror(portal.frame(), portal.origin(), QuarterTurn.of(destination.mirrorRotationQuarterTurns())).inverse()
+            : OpticTransform.between(localViewFrame, localOriginX, localOriginY, localOriginZ, remoteViewFrame,
+                destination.originX(), destination.originY(), destination.originZ());
+        toward.pointInto(eye.getX(), eye.getY(), eye.getZ(), scratchRemoteEye);
         projectedEntityOcclusion.updateEye(scratchRemoteEye[0], scratchRemoteEye[1], scratchRemoteEye[2]);
     }
 
@@ -1340,12 +1333,12 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
             localMinY = localView.getMinHeight();
             localMaxY = localView.getMaxHeight() - 1;
             Box area = frustum.getRegion();
-            int xa = ProjectorFrameTransform.minBlockForCenter(area.getXa());
-            int ya = Math.max(ProjectorFrameTransform.minBlockForCenter(area.getYa()), localMinY);
-            int za = ProjectorFrameTransform.minBlockForCenter(area.getZa());
-            int xb = ProjectorFrameTransform.maxBlockForCenter(area.getXb());
-            int yb = Math.min(ProjectorFrameTransform.maxBlockForCenter(area.getYb()), localMaxY);
-            int zb = ProjectorFrameTransform.maxBlockForCenter(area.getZb());
+            int xa = ProjectionVolume.minBlockForCenter(area.getXa());
+            int ya = Math.max(ProjectionVolume.minBlockForCenter(area.getYa()), localMinY);
+            int za = ProjectionVolume.minBlockForCenter(area.getZa());
+            int xb = ProjectionVolume.maxBlockForCenter(area.getXb());
+            int yb = Math.min(ProjectionVolume.maxBlockForCenter(area.getYb()), localMaxY);
+            int zb = ProjectionVolume.maxBlockForCenter(area.getZb());
 
             localFrame = portal.frame();
             Frame remoteFrame = rtpTarget != null
@@ -1370,20 +1363,11 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
             eyeFrontSide = (eyeRelX * facingX + eyeRelY * facingY + eyeRelZ * facingZ) >= 0.0D;
             projectionLocalFrame = localFrame.view(eyeFrontSide);
             projectionRemoteFrame = remoteFrame.view(eyeFrontSide);
-            if (mirrorMode) {
-                PortalCoordMap.mirrorDisplayToSourcePointInto(eyeX, eyeY, eyeZ,
-                    localOriginX, localOriginY, localOriginZ, localFrame, mirrorRotationQuarterTurns, scratchRemoteEye);
-                cellTransform.configureMirror(localFrame, mirrorRotationQuarterTurns,
-                    localOriginX, localOriginY, localOriginZ);
-            } else {
-                projectionLocalFrame.transformPointInto(eyeX, eyeY, eyeZ,
-                    localOriginX, localOriginY, localOriginZ,
-                    remoteOriginX, remoteOriginY, remoteOriginZ,
-                    projectionRemoteFrame, scratchRemoteEye);
-                cellTransform.configure(projectionLocalFrame, projectionRemoteFrame,
-                    localOriginX, localOriginY, localOriginZ,
+            cellTransform = mirrorMode
+                ? OpticTransform.mirror(localFrame, portal.origin(), QuarterTurn.of(mirrorRotationQuarterTurns)).inverse()
+                : OpticTransform.between(projectionLocalFrame, localOriginX, localOriginY, localOriginZ, projectionRemoteFrame,
                     remoteOriginX, remoteOriginY, remoteOriginZ);
-            }
+            cellTransform.pointInto(eyeX, eyeY, eyeZ, scratchRemoteEye);
             sampler.prepareTransformCache(projectionRemoteFrame, projectionLocalFrame, mirrorMode, mirrorRotationQuarterTurns);
             scannedRemoteEyeX = scratchRemoteEye[0];
             scannedRemoteEyeY = scratchRemoteEye[1];
@@ -1402,7 +1386,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
             double projectionFacingZ = projectionLocalFrame.getNormal().z();
             projectionEyeDot = (eyeRelX * projectionFacingX) + (eyeRelY * projectionFacingY) + (eyeRelZ * projectionFacingZ);
             blackoutEnabled = blackout.isEnabled() && blackoutData != null;
-            portalPlaneClearance = ProjectorFrameTransform.portalPlaneClearance(aperture.getArea(), localFrame);
+            portalPlaneClearance = ProjectionVolume.portalPlaneClearance(aperture.getArea(), localFrame);
             maxProjectionDepth = depthBlocks + portalPlaneClearance;
             double signedMinDistance = eyeFrontSide ? -maxProjectionDepth : portalPlaneClearance;
             double signedMaxDistance = eyeFrontSide ? -portalPlaneClearance : maxProjectionDepth;
@@ -1429,18 +1413,18 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
             if (facingX != 0.0D) {
                 double centerA = localOriginX + (signedMinDistance / facingX);
                 double centerB = localOriginX + (signedMaxDistance / facingX);
-                xa = Math.max(xa, ProjectorFrameTransform.minBlockForCenter(Math.min(centerA, centerB)));
-                xb = Math.min(xb, ProjectorFrameTransform.maxBlockForCenter(Math.max(centerA, centerB)));
+                xa = Math.max(xa, ProjectionVolume.minBlockForCenter(Math.min(centerA, centerB)));
+                xb = Math.min(xb, ProjectionVolume.maxBlockForCenter(Math.max(centerA, centerB)));
             } else if (facingY != 0.0D) {
                 double centerA = localOriginY + (signedMinDistance / facingY);
                 double centerB = localOriginY + (signedMaxDistance / facingY);
-                ya = Math.max(ya, ProjectorFrameTransform.minBlockForCenter(Math.min(centerA, centerB)));
-                yb = Math.min(yb, ProjectorFrameTransform.maxBlockForCenter(Math.max(centerA, centerB)));
+                ya = Math.max(ya, ProjectionVolume.minBlockForCenter(Math.min(centerA, centerB)));
+                yb = Math.min(yb, ProjectionVolume.maxBlockForCenter(Math.max(centerA, centerB)));
             } else {
                 double centerA = localOriginZ + (signedMinDistance / facingZ);
                 double centerB = localOriginZ + (signedMaxDistance / facingZ);
-                za = Math.max(za, ProjectorFrameTransform.minBlockForCenter(Math.min(centerA, centerB)));
-                zb = Math.min(zb, ProjectorFrameTransform.maxBlockForCenter(Math.max(centerA, centerB)));
+                za = Math.max(za, ProjectionVolume.minBlockForCenter(Math.min(centerA, centerB)));
+                zb = Math.min(zb, ProjectionVolume.maxBlockForCenter(Math.max(centerA, centerB)));
             }
 
             Face projectionNormalDirection = projectionLocalFrame.getNormal();
@@ -1557,7 +1541,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
             double normalCenter = sampleNormalCenter;
             double rightCenter = r + 0.5D;
             double upCenter = upCoordinate + 0.5D;
-            cellTransform.apply(normalAxis == 0 ? normalCenter : rightAxis == 0 ? rightCenter : upCenter,
+            cellTransform.snappedPointInto(normalAxis == 0 ? normalCenter : rightAxis == 0 ? rightCenter : upCenter,
                 normalAxis == 1 ? normalCenter : rightAxis == 1 ? rightCenter : upCenter,
                 normalAxis == 2 ? normalCenter : rightAxis == 2 ? rightCenter : upCenter, out);
         }
@@ -1584,11 +1568,11 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
 
         private void applyRemotePoint(double cx, double cy, double cz) {
             if (mergedSlab) {
-                cellTransform.apply(normalAxis == 0 ? sampleNormalCenter : cx,
+                cellTransform.snappedPointInto(normalAxis == 0 ? sampleNormalCenter : cx,
                     normalAxis == 1 ? sampleNormalCenter : cy,
                     normalAxis == 2 ? sampleNormalCenter : cz, scratchRemotePoint);
             } else {
-                cellTransform.apply(cx, cy, cz, scratchRemotePoint);
+                cellTransform.snappedPointInto(cx, cy, cz, scratchRemotePoint);
             }
         }
 
@@ -1604,7 +1588,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
                     upBlockMin = PlaneWindow.slabBlockMin(slabWindowBounds[2], slabWindowBounds[3], upSign, axisOrigin[upAxis], axisMin[upAxis]);
                     upBlockMax = PlaneWindow.slabBlockMax(slabWindowBounds[2], slabWindowBounds[3], upSign, axisOrigin[upAxis], axisMax[upAxis]);
                     cellDot = localFacingNormal * ((n + 0.5D) - axisOrigin[normalAxis]);
-                    if (!ProjectorFrameTransform.projectsBehindPortalPlane(cellDot, eyeFrontSide, portalPlaneClearance)
+                    if (!ProjectionVolume.projectsBehindPortalPlane(cellDot, eyeFrontSide, portalPlaneClearance)
                         || Math.abs(cellDot) > maxProjectionDepth) {
                         planeRejected = addRejectedCells(
                             planeRejected, rightBlockMin, rightBlockMax, upBlockMin, upBlockMax);

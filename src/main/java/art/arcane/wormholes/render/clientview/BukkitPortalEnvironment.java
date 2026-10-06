@@ -5,6 +5,7 @@ import art.arcane.volmlib.nativelib.environment.WorldEnvironment;
 import art.arcane.volmlib.nativelib.environment.WorldEnvironmentAccess;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.frame.OpticTransform;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 
@@ -14,7 +15,7 @@ public final class BukkitPortalEnvironment {
     private BukkitPortalEnvironment() {
     }
 
-    public static ProjectionEnvironment capture(World world, Vec3d eye, ProjectionEnvironment.Transform transform) {
+    public static ProjectionEnvironment capture(World world, Vec3d eye, OpticTransform transform) {
         WorldEnvironmentAccess current = access;
         if (current == null) {
             current = NativeAdapters.require(WorldEnvironmentAccess.class);
@@ -28,7 +29,7 @@ public final class BukkitPortalEnvironment {
                 environment.dimension().hasCeiling(), environment.dimension().ambientLight(), ProjectionEnvironment.EyeMedium.valueOf(environment.eyeMedium().name()), environment.dimension().hasFixedTime()));
     }
 
-    static ProjectionEnvironment convert(WorldEnvironment environment, ProjectionEnvironment.Transform transform,
+    static ProjectionEnvironment convert(WorldEnvironment environment, OpticTransform transform,
                                          ProjectionEnvironment.World world) {
         WorldEnvironment.Sky sourceSky = environment.sky();
         ProjectionEnvironment.Sky sky = new ProjectionEnvironment.Sky(ProjectionEnvironment.Skybox.valueOf(sourceSky.skybox().name()),

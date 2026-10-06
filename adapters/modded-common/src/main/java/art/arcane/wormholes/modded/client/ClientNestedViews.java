@@ -29,7 +29,6 @@ public final class ClientNestedViews {
     private final LongOpenHashSet touchedSections;
     private final LongArrayList scratch;
     private final int[] cell;
-    private final double[] point;
     private ClientProjectionApplier applier;
     private ProjectionOverlay overlay;
 
@@ -43,7 +42,6 @@ public final class ClientNestedViews {
         this.next = new LongOpenHashSet(256);
         this.scratch = new LongArrayList(256);
         this.cell = new int[3];
-        this.point = new double[3];
     }
 
     public void bind(ClientProjectionApplier activeApplier, ProjectionOverlay activeOverlay) {
@@ -88,7 +86,7 @@ public final class ClientNestedViews {
             out[2] = z;
             return;
         }
-        view.nestedContent.space().contentCell(x, y, z, out, point);
+        view.nestedContent.content().cellInto(x, y, z, out);
     }
 
     public long update(List<ClientPortal> roots, double eyeX, double eyeY, double eyeZ) {
@@ -210,7 +208,7 @@ public final class ClientNestedViews {
             boolean contentChanged = nestedContent == null || nestedContent.plate() != child.plate() || rootGeometry != root
                 || child.contentDirty();
             if (contentChanged) {
-                nestedContent = new ClientNestedContent(child.plate(), cone.space(), session.palette());
+                nestedContent = new ClientNestedContent(child.plate(), cone.transform(), cone.reflections(), session.palette());
                 policy = ClientCellRules.Policy.of(child.geometry(), nestedContent.backingState());
                 rootGeometry = root;
                 child.contentClean();
@@ -227,7 +225,7 @@ public final class ClientNestedViews {
             LongIterator cells = content.iterator();
             while (cells.hasNext()) {
                 long key = cells.nextLong();
-                cone.space().displayCell(CellKeys.unpackX(key), CellKeys.unpackY(key), CellKeys.unpackZ(key), cell, point);
+                cone.transform().cellInto(CellKeys.unpackX(key), CellKeys.unpackY(key), CellKeys.unpackZ(key), cell);
                 if (insideParent(parent, cell[0], cell[1], cell[2]) && cone.visible(cell[0] + 0.5D, cell[1] + 0.5D, cell[2] + 0.5D)) {
                     next.add(CellKeys.pack(cell[0], cell[1], cell[2]));
                 }

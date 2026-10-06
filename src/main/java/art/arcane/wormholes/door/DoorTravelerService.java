@@ -9,6 +9,7 @@ import art.arcane.wormholes.localization.WormholesLocalization;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.service.WormholesAudience;
+import art.arcane.optics.math.Vec3d;
 import org.bukkit.SoundCategory;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
@@ -56,12 +57,12 @@ final class DoorTravelerService
 	 * traveler at rest, which is what a player or mob expects; an object traveler
 	 * supplies its rotated momentum so it keeps flying out of the far door.
 	 */
-	void settle(Entity traveler, DoorVec3 velocity)
+	void settle(Entity traveler, Vec3d velocity)
 	{
 		settle(traveler, velocity, false);
 	}
 
-	void settle(Entity traveler, DoorVec3 velocity, boolean seamless)
+	void settle(Entity traveler, Vec3d velocity, boolean seamless)
 	{
 		try
 		{

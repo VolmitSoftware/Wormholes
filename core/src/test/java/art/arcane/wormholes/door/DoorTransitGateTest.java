@@ -1,6 +1,8 @@
 package art.arcane.wormholes.door;
 
 import art.arcane.optics.math.Face;
+import art.arcane.optics.math.Vec3d;
+import art.arcane.optics.crossing.PlaneCrossing;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
@@ -19,10 +21,10 @@ public final class DoorTransitGateTest
 		source.observe(false);
 		mate.observe(false);
 
-		Optional<DoorwayCrossing> crossing = DoorTransitGate.detect(
+		Optional<PlaneCrossing> crossing = DoorTransitGate.detect(
 			new DoorwayPlane(0, 64, 0, Face.N),
-			new DoorVec3(0.5D, 65.0D, 1.0D),
-			new DoorVec3(0.5D, 65.0D, 0.0D));
+			new Vec3d(0.5D, 65.0D, 1.0D),
+			new Vec3d(0.5D, 65.0D, 0.0D));
 
 		assertTrue(crossing.isPresent());
 		assertTrue(DoorTransitGate.claim(source, true, true));
@@ -34,10 +36,10 @@ public final class DoorTransitGateTest
 	public void closedSourceCannotClaimDetectedCrossing()
 	{
 		DoorOpenCycle source = new DoorOpenCycle();
-		Optional<DoorwayCrossing> crossing = DoorTransitGate.detect(
+		Optional<PlaneCrossing> crossing = DoorTransitGate.detect(
 			new DoorwayPlane(0, 64, 0, Face.N),
-			new DoorVec3(0.5D, 65.0D, 1.0D),
-			new DoorVec3(0.5D, 65.0D, 0.0D));
+			new Vec3d(0.5D, 65.0D, 1.0D),
+			new Vec3d(0.5D, 65.0D, 0.0D));
 
 		assertTrue(crossing.isPresent());
 		assertFalse(DoorTransitGate.claim(source, false, false));
@@ -65,10 +67,10 @@ public final class DoorTransitGateTest
 	@Test
 	public void movementFarFromDoorIsNotAdmitted()
 	{
-		Optional<DoorwayCrossing> crossing = DoorTransitGate.detect(
+		Optional<PlaneCrossing> crossing = DoorTransitGate.detect(
 			new DoorwayPlane(0, 64, 0, Face.N),
-			new DoorVec3(10.5D, 65.0D, 1.0D),
-			new DoorVec3(10.5D, 65.0D, 0.0D));
+			new Vec3d(10.5D, 65.0D, 1.0D),
+			new Vec3d(10.5D, 65.0D, 0.0D));
 
 		assertTrue(crossing.isEmpty());
 	}
@@ -76,10 +78,10 @@ public final class DoorTransitGateTest
 	@Test
 	public void slowMovementJustOutsideTheFixedBandIsStillRejected()
 	{
-		Optional<DoorwayCrossing> crossing = DoorTransitGate.detect(
+		Optional<PlaneCrossing> crossing = DoorTransitGate.detect(
 			new DoorwayPlane(0, 64, 0, Face.N),
-			new DoorVec3(3.5D, 65.0D, 0.2D),
-			new DoorVec3(3.5D, 65.0D, -0.2D));
+			new Vec3d(3.5D, 65.0D, 0.2D),
+			new Vec3d(3.5D, 65.0D, -0.2D));
 
 		assertTrue(crossing.isEmpty());
 	}
@@ -87,22 +89,22 @@ public final class DoorTransitGateTest
 	@Test
 	public void fastSegmentReachingAcrossThePlaneIsAdmitted()
 	{
-		Optional<DoorwayCrossing> crossing = DoorTransitGate.detect(
+		Optional<PlaneCrossing> crossing = DoorTransitGate.detect(
 			new DoorwayPlane(0, 64, 0, Face.N),
-			new DoorVec3(0.5D, 65.0D, 3.0D),
-			new DoorVec3(0.5D, 65.0D, -0.1D));
+			new Vec3d(0.5D, 65.0D, 3.0D),
+			new Vec3d(0.5D, 65.0D, -0.1D));
 
 		assertTrue(crossing.isPresent());
-		assertEquals(DoorwayCrossing.Direction.BACK_TO_FRONT, crossing.get().direction());
+		assertFalse(crossing.get().frontSide());
 	}
 
 	@Test
 	public void fastSegmentWideOfThePlaneStillFindsNoCrossing()
 	{
-		Optional<DoorwayCrossing> crossing = DoorTransitGate.detect(
+		Optional<PlaneCrossing> crossing = DoorTransitGate.detect(
 			new DoorwayPlane(0, 64, 0, Face.N),
-			new DoorVec3(3.5D, 65.0D, 3.0D),
-			new DoorVec3(3.5D, 65.0D, -0.1D));
+			new Vec3d(3.5D, 65.0D, 3.0D),
+			new Vec3d(3.5D, 65.0D, -0.1D));
 
 		assertTrue(crossing.isEmpty());
 	}
@@ -164,7 +166,7 @@ public final class DoorTransitGateTest
 		DoorTransit contact = new DoorTransit(
 			DoorwayPlane.trapdoor(
 				0, 64, 0, Face.N, DoorHalf.BOTTOM, DoorOpenState.CLOSED),
-			DoorwayCrossing.Direction.FRONT_TO_BACK,
+			true,
 			0.0F,
 			0.0F);
 
@@ -202,20 +204,20 @@ public final class DoorTransitGateTest
 	{
 		return new DoorTransit(
 			new DoorwayPlane(0, 64, 0, Face.N),
-			DoorwayCrossing.Direction.FRONT_TO_BACK,
+			true,
 			0.0F,
 			0.0F,
 			0.25D,
 			0.25D,
 			DoorTravelerClass.OBJECT,
-			new DoorVec3(0.0D, 0.0D, -3.0D));
+			new Vec3d(0.0D, 0.0D, -3.0D));
 	}
 
 	private static DoorTransit livingTransit()
 	{
 		return new DoorTransit(
 			new DoorwayPlane(0, 64, 0, Face.N),
-			DoorwayCrossing.Direction.FRONT_TO_BACK,
+			true,
 			0.0F,
 			0.0F);
 	}

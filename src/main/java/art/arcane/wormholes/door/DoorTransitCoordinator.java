@@ -8,6 +8,7 @@ import art.arcane.wormholes.portal.LocalPortal;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.render.clientview.BukkitClientView;
 import art.arcane.optics.math.Vec3d;
+import art.arcane.optics.math.Angles;
 import art.arcane.wormholes.api.traversal.TraversalContext;
 import art.arcane.wormholes.api.traversal.TraversalDestination;
 import art.arcane.wormholes.api.traversal.TraversalRefundReason;
@@ -801,7 +802,7 @@ final class DoorTransitCoordinator
 		{
 			return context;
 		}
-		DoorVec3 crossing = context.transit().crossing().point();
+		Vec3d crossing = context.transit().crossing().point();
 		Location origin = new Location(sourceWorld, crossing.x(), crossing.y(), crossing.z());
 		TraversalDestination destination = TraversalDestination.portal(null, "", target);
 		TraversalCostGateway.Admission admission = gateway.open(TraversalContext.dimensionalDoor(
@@ -957,7 +958,7 @@ final class DoorTransitCoordinator
 		CompletableFuture<Boolean> teleportFuture;
 		BukkitClientView clientView = Wormholes.projectionManager == null ? null : Wormholes.projectionManager.clientView();
 		UUID travelerId = traveler.getUniqueId();
-		DoorVec3 arrivalVelocity = arrivalVelocity(prepared, target);
+		Vec3d arrivalVelocity = arrivalVelocity(prepared, target);
 		ClientViewMessage.TravelCommit preparedCommit = null;
         if(prepared.attempted() != null && (clientView == null || !clientView.crossing(travelerId, prepared.attempted())))
         {
@@ -1427,22 +1428,23 @@ final class DoorTransitCoordinator
 			: DoorTransitGate.claim(cycle, liveAtCrossing, stillLive);
 	}
 
-	private static DoorVec3 arrivalVelocity(TransitContext context, Location target)
+	private static Vec3d arrivalVelocity(TransitContext context, Location target)
 	{
 		DoorTransit transit = context.transit();
 		if(transit.velocity() == null)
 		{
-			return new DoorVec3(0.0D, 0.0D, 0.0D);
+			return new Vec3d(0.0D, 0.0D, 0.0D);
 		}
 		DoorwayPlane destination = context.destinationPlane();
 		if(destination != null)
 		{
-			int side = destination.signedDistance(new DoorVec3(target.getX(), target.getY(), target.getZ())) < 0 ? -1 : 1;
+			int side = destination.signedDistance(new Vec3d(target.getX(), target.getY(), target.getZ())) < 0 ? -1 : 1;
 			return DoorArrivals.destinationVelocity(destination, transit, side);
 		}
 		// The arrival yaw already encodes the source-to-destination rotation, so the
 		// same delta turns the momentum with it.
-		return DoorVelocityTransform.rotateYaw(transit.velocity(), target.getYaw() - transit.yaw());
+		Vec3d velocity = transit.velocity();
+		return velocity == null ? null : Angles.rotateYaw(velocity, target.getYaw() - transit.yaw());
 	}
 
 	private enum TicketAction

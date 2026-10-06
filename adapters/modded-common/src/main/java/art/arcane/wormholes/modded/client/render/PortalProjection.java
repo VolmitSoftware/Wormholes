@@ -1,27 +1,27 @@
 package art.arcane.wormholes.modded.client.render;
 
 import org.joml.Matrix4f;
-import art.arcane.optics.stream.ProjectionEnvironment;
 import org.joml.Matrix4d;
 import org.joml.Matrix4fc;
 import org.joml.Vector4f;
 import org.joml.Vector4fc;
+import art.arcane.optics.frame.OpticTransform;
 
 final class PortalProjection {
     private PortalProjection() {
     }
 
-    static Matrix4f rotation(ProjectionEnvironment.Transform transform) {
-        return new Matrix4f().m00(transform.xAxis().x()).m01(transform.xAxis().y()).m02(transform.xAxis().z())
-            .m10(transform.yAxis().x()).m11(transform.yAxis().y()).m12(transform.yAxis().z())
-            .m20(transform.zAxis().x()).m21(transform.zAxis().y()).m22(transform.zAxis().z());
+    static Matrix4f rotation(OpticTransform transform) {
+        return new Matrix4f().m00(transform.permutation().x().x()).m01(transform.permutation().x().y()).m02(transform.permutation().x().z())
+            .m10(transform.permutation().y().x()).m11(transform.permutation().y().y()).m12(transform.permutation().y().z())
+            .m20(transform.permutation().z().x()).m21(transform.permutation().z().y()).m22(transform.permutation().z().z());
     }
 
-    static Matrix4d destinationToSource(ProjectionEnvironment.Transform transform) {
-        return new Matrix4d().m00(transform.xAxis().x()).m01(transform.xAxis().y()).m02(transform.xAxis().z())
-            .m10(transform.yAxis().x()).m11(transform.yAxis().y()).m12(transform.yAxis().z())
-            .m20(transform.zAxis().x()).m21(transform.zAxis().y()).m22(transform.zAxis().z())
-            .m30(transform.translation().x()).m31(transform.translation().y()).m32(transform.translation().z());
+    static Matrix4d destinationToSource(OpticTransform transform) {
+        return new Matrix4d().m00(transform.permutation().x().x()).m01(transform.permutation().x().y()).m02(transform.permutation().x().z())
+            .m10(transform.permutation().y().x()).m11(transform.permutation().y().y()).m12(transform.permutation().y().z())
+            .m20(transform.permutation().z().x()).m21(transform.permutation().z().y()).m22(transform.permutation().z().z())
+            .m30(transform.translationX()).m31(transform.translationY()).m32(transform.translationZ());
     }
 
     static Vector4f clipDistance(Matrix4fc projection, Matrix4fc viewRotation, Vector4fc cameraPlane) {

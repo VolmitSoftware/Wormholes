@@ -1,8 +1,8 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftProjectedBlockStates;
-import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.frame.DirectionMapping;
+import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
 import net.minecraft.world.level.block.state.BlockState;
@@ -22,8 +22,8 @@ public final class ClientStateReflector {
         this.cache = new Reference2ObjectOpenHashMap<>(64);
     }
 
-    public ClientStateReflector(ProjectionEnvironment.Transform transform) {
-        this.mappings = new DirectionMapping[] {DirectionMapping.axes(transform.xAxis(), transform.yAxis(), transform.zAxis())};
+    public ClientStateReflector(OpticTransform transform) {
+        this.mappings = new DirectionMapping[] {DirectionMapping.axes(transform.permutation().x(), transform.permutation().y(), transform.permutation().z())};
         this.cache = new Reference2ObjectOpenHashMap<>(64);
     }
 

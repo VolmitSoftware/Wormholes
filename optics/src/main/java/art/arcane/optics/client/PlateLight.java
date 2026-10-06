@@ -9,16 +9,16 @@ import java.util.function.Supplier;
 
 import art.arcane.optics.stream.BrickLightSource;
 import art.arcane.optics.stream.ViewStreamLimits;
-import art.arcane.optics.frame.Frame;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.view.WorldChangeTracker;
-import art.arcane.optics.frame.ProjectorFrameTransform;
 import art.arcane.optics.scan.ProjectorSample;
 import art.arcane.optics.plate.PlateBox;
 import art.arcane.optics.plate.PlateCell;
 import art.arcane.optics.plate.ViewPlate;
 import art.arcane.optics.plate.ViewPlateKey;
 import art.arcane.optics.view.ContentView;
+import art.arcane.optics.frame.ViewWindow;
+import art.arcane.optics.frame.OpticTransform;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.longs.LongSets;
@@ -34,9 +34,9 @@ public final class PlateLight<B> implements BrickLightSource {
 
     private final WeakReference<ViewPlate<B>> plate;
     private final PlateBox box;
-    private final ClientViewEntityTransform.EntityFrame frame;
+    private final ViewWindow frame;
     private final Sampler sampler;
-    private final ProjectorFrameTransform transform;
+    private final OpticTransform transform;
     private final double[] remote;
     private final boolean fullBright;
     private final long createdNanos;
@@ -45,12 +45,12 @@ public final class PlateLight<B> implements BrickLightSource {
     private volatile LongSet dirtyChunks;
     private long reusedSections;
 
-    public PlateLight(ViewPlate<B> plate, ClientViewEntityTransform.EntityFrame frame, Sampler sampler, boolean fullBright) {
+    public PlateLight(ViewPlate<B> plate, ViewWindow frame, Sampler sampler, boolean fullBright) {
         this.plate = new WeakReference<ViewPlate<B>>(Objects.requireNonNull(plate, "plate"));
         this.box = plate.box();
         this.frame = Objects.requireNonNull(frame, "frame");
         this.sampler = Objects.requireNonNull(sampler, "sampler");
-        this.transform = configure(frame);
+        this.transform = frame.transform().inverse();
         this.remote = new double[3];
         this.fullBright = fullBright;
         this.createdNanos = System.nanoTime();
@@ -58,8 +58,8 @@ public final class PlateLight<B> implements BrickLightSource {
         this.dirtyChunks = LongSets.EMPTY_SET;
     }
 
-    public static PlateBox remoteBox(PlateBox box, ClientViewEntityTransform.EntityFrame frame) {
-        return configure(frame).transformBox(box, 0);
+    public static PlateBox remoteBox(PlateBox box, ViewWindow frame) {
+        return frame.transform().inverse().box(box, 0);
     }
 
     public synchronized long reusedSections() {
@@ -180,12 +180,12 @@ public final class PlateLight<B> implements BrickLightSource {
     }
 
     private int sample(int x, int y, int z) {
-        transform.apply(x + 0.5D, y + 0.5D, z + 0.5D, remote);
+        transform.snappedPointInto(x + 0.5D, y + 0.5D, z + 0.5D, remote);
         return sampler.light((int) Math.floor(remote[0]), (int) Math.floor(remote[1]), (int) Math.floor(remote[2]));
     }
 
-    private static void include(ProjectorFrameTransform transform, double x, double y, double z, double[] out, int[] bounds) {
-        transform.apply(x, y, z, out);
+    private static void include(OpticTransform transform, double x, double y, double z, double[] out, int[] bounds) {
+        transform.snappedPointInto(x, y, z, out);
         for (int axis = 0; axis < 3; axis++) {
             int value = (int) Math.floor(out[axis]);
             bounds[axis] = Math.min(bounds[axis], value);
@@ -197,26 +197,10 @@ public final class PlateLight<B> implements BrickLightSource {
         return kind == ProjectorSample.Kind.BLOCK || kind == ProjectorSample.Kind.REMOTE_AIR || kind == ProjectorSample.Kind.MASK_AIR;
     }
 
-    private static boolean sameFrame(ClientViewEntityTransform.EntityFrame left, ClientViewEntityTransform.EntityFrame right) {
-        return left.localOriginX() == right.localOriginX() && left.localOriginY() == right.localOriginY() && left.localOriginZ() == right.localOriginZ()
-            && left.remoteOriginX() == right.remoteOriginX() && left.remoteOriginY() == right.remoteOriginY()
-            && left.remoteOriginZ() == right.remoteOriginZ() && left.mirror() == right.mirror() && left.quarterTurns() == right.quarterTurns()
-            && left.frontSide() == right.frontSide() && sameFrame(left.localFrame(), right.localFrame()) && sameFrame(left.remoteFrame(), right.remoteFrame());
-    }
-
-    private static boolean sameFrame(Frame left, Frame right) {
-        return left.getNormal() == right.getNormal() && left.getRight() == right.getRight() && left.getUp() == right.getUp();
-    }
-
-    private static ProjectorFrameTransform configure(ClientViewEntityTransform.EntityFrame frame) {
-        ProjectorFrameTransform transform = new ProjectorFrameTransform();
-        if (frame.mirror()) {
-            transform.configureMirror(frame.localFrame(), frame.quarterTurns(), frame.localOriginX(), frame.localOriginY(), frame.localOriginZ());
-        } else {
-            transform.configure(frame.localViewFrame(), frame.remoteViewFrame(), frame.localOriginX(), frame.localOriginY(), frame.localOriginZ(),
-                frame.remoteOriginX(), frame.remoteOriginY(), frame.remoteOriginZ());
-        }
-        return transform;
+    private static boolean sameFrame(ViewWindow left, ViewWindow right) {
+        return left.transform().equals(right.transform()) && left.mirror() == right.mirror() && left.frontSide() == right.frontSide()
+            && left.localOrigin().equals(right.localOrigin()) && left.remoteOrigin().equals(right.remoteOrigin())
+            && left.localFrame().equals(right.localFrame()) && left.remoteFrame().equals(right.remoteFrame());
     }
 
     @FunctionalInterface

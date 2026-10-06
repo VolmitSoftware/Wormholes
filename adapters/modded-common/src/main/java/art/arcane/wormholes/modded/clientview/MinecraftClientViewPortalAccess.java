@@ -14,16 +14,15 @@ import art.arcane.wormholes.modded.MinecraftProjectorPortalAccess;
 import art.arcane.wormholes.modded.MinecraftViewPlates;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.optics.stream.BrickLightSource;
-import art.arcane.optics.stream.ProjectionEnvironment;
-import art.arcane.optics.client.ClientViewEnvironmentTransform;
 import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.wormholes.network.client.SessionPalette;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.render.FidelitySettings;
-import art.arcane.optics.frame.PortalCoordMap;
 import art.arcane.optics.claim.ProjectedBlockClaim;
 import art.arcane.optics.scan.ProjectorPassRevision;
 import art.arcane.optics.fidelity.AcousticsProfile;
@@ -212,9 +211,9 @@ public final class MinecraftClientViewPortalAccess implements ClientViewPortalAc
             peer.nestedContext(context, null);
             return;
         }
-        ProjectionEnvironment.Transform affine = ClientViewEnvironmentTransform.of(destination.frame());
+        OpticTransform affine = destination.frame().transform().normalized();
         peer.nestedContext(context, new MinecraftClientViewPeer.NestedContext(portalId, eye,
-            affine.destinationPoint(eye.x(), eye.y(), eye.z()), destination.world(), affine));
+            affine.inverse().point(new Vec3d(eye.x(), eye.y(), eye.z())), destination.world(), affine));
     }
 
     @Override
@@ -244,7 +243,7 @@ public final class MinecraftClientViewPortalAccess implements ClientViewPortalAc
         if (destination == null) {
             return;
         }
-        ProjectionEnvironment.Transform transform = ClientViewEnvironmentTransform.of(destination.frame());
+        OpticTransform transform = destination.frame().transform().normalized();
         List<MinecraftPortal> frame = candidates(peer);
         for (int i = 0; i < frame.size(); i++) {
             MinecraftPortal portal = frame.get(i);
@@ -538,8 +537,8 @@ public final class MinecraftClientViewPortalAccess implements ClientViewPortalAc
         }
         Vec3d origin = mirror.getOrigin();
         double[] reflected = new double[3];
-        PortalCoordMap.mirrorDisplayToSourcePointInto(eye.x, eye.y, eye.z, origin.x(), origin.y(), origin.z(), mirror.getFrame(),
-            mirrorQuarterTurns(peer, mirror), reflected);
+        OpticTransform.mirror(mirror.getFrame(), origin, QuarterTurn.of(mirrorQuarterTurns(peer, mirror))).inverse()
+            .pointInto(eye.x, eye.y, eye.z, reflected);
         return front(reflected[0], reflected[1], reflected[2], portal);
     }
 

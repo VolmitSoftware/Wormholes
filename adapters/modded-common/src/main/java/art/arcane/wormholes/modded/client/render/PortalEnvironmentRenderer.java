@@ -55,7 +55,7 @@ final class PortalEnvironmentRenderer implements AutoCloseable {
         if (changed || local.needsUpdate) {
             lightmap.render(PortalEnvironment.light(environment, local));
         }
-        Vec3d eye = environment.transform().destinationPoint(camera.pos.x, camera.pos.y, camera.pos.z);
+        Vec3d eye = environment.transform().inverse().point(new Vec3d(camera.pos.x, camera.pos.y, camera.pos.z));
         sky = PortalEnvironment.sky(environment, eye);
         float blend = blendTicks == 0 ? 1 : Math.clamp((now - receivedTime + camera.cameraEntityPartialTicks) / blendTicks, 0.0f, 1.0f);
         sky.sunAngle = PortalEnvironment.angle(previousSun, sky.sunAngle, blend);

@@ -3,20 +3,18 @@ package art.arcane.wormholes.door.view;
 import art.arcane.wormholes.door.DoorHalf;
 import art.arcane.wormholes.door.DoorOpenState;
 import art.arcane.wormholes.door.DoorPlanePairing;
-import art.arcane.wormholes.door.DoorVec3;
-import art.arcane.wormholes.door.DoorwayCrossing;
 import art.arcane.wormholes.door.DoorwayPlane;
 import art.arcane.optics.math.Vec3d;
-import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.ViewWindow;
 import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.optics.claim.ProjectedBlockClaim;
 import art.arcane.optics.aperture.AperturePolygon;
 import art.arcane.optics.aperture.ApertureDescriptor;
-import art.arcane.optics.client.ClientViewEntityTransform;
-import art.arcane.optics.client.ClientViewEnvironmentTransform;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Box;
+import art.arcane.optics.crossing.PlaneCrossing;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -59,7 +57,7 @@ class DoorApertureFramesTest {
                         assertEquals(frame, geometry.frame());
                         assertEquals(plane.planeY(), geometry.planeCoordinate(), 0.0D);
                         AperturePolygon aperture = AperturePolygon.from(geometry);
-                        assertEquals(new AperturePolygon.Point(-3.5, plane.planeY(), 12.5), aperture.point(0.5, 0.5));
+                        assertEquals(new Vec3d(-3.5, plane.planeY(), 12.5), aperture.point(0.5, 0.5));
                     }
                 }
             }
@@ -81,30 +79,28 @@ class DoorApertureFramesTest {
     }
 
     private static void assertPair(DoorwayPlane source, DoorwayPlane target, boolean front) {
-        DoorVec3 a = source.center();
-        DoorVec3 b = target.center();
+        Vec3d a = source.center();
+        Vec3d b = target.center();
         Frame local = DoorApertureFrames.of(source);
         Frame remote = DoorApertureFrames.destinationFrame(source, target);
-        ProjectionEnvironment.Transform transform = ClientViewEnvironmentTransform.of(new ClientViewEntityTransform.EntityFrame(
-            a.x(), a.y(), a.z(), local, b.x(), b.y(), b.z(), remote, false, 0, front, 128));
-        assertEquals(Face.U, transform.yAxis());
-        Vec3d center = transform.destinationPoint(a.x(), a.y(), a.z());
+        OpticTransform transform = ViewWindow.between(a, local, b, remote, front, 128).transform().normalized();
+        assertEquals(Face.U, transform.permutation().y());
+        Vec3d center = transform.inverse().point(new Vec3d(a.x(), a.y(), a.z()));
         assertPoint(b, center);
         for (double vertical : new double[]{-2, 2}) {
-            Vec3d eye = transform.destinationPoint(a.x() + source.facing().x() * 0.25,
-                a.y() + vertical, a.z() + source.facing().z() * 0.25);
-            assertPoint(new DoorVec3(b.x() + target.facing().x() * 0.25, b.y() + vertical,
+            Vec3d eye = transform.inverse().point(new Vec3d(a.x() + source.facing().x() * 0.25, a.y() + vertical, a.z() + source.facing().z() * 0.25));
+            assertPoint(new Vec3d(b.x() + target.facing().x() * 0.25, b.y() + vertical,
                 b.z() + target.facing().z() * 0.25), eye);
         }
-        DoorVec3 crossingPoint = new DoorVec3(a.x() + source.facing().x() * 0.2 - source.facing().z() * 0.3,
+        Vec3d crossingPoint = new Vec3d(a.x() + source.facing().x() * 0.2 - source.facing().z() * 0.3,
             a.y(), a.z() + source.facing().z() * 0.2 + source.facing().x() * 0.3);
-        DoorwayCrossing crossing = source.crossing(new DoorVec3(crossingPoint.x(), a.y() + 1, crossingPoint.z()),
-            new DoorVec3(crossingPoint.x(), a.y() - 1, crossingPoint.z())).orElseThrow();
+        PlaneCrossing crossing = source.crossing(new Vec3d(crossingPoint.x(), a.y() + 1, crossingPoint.z()),
+            new Vec3d(crossingPoint.x(), a.y() - 1, crossingPoint.z())).orElseThrow();
         assertPoint(DoorPlanePairing.mapAperturePoint(source, target, crossing),
-            transform.destinationPoint(crossingPoint.x(), crossingPoint.y(), crossingPoint.z()));
+            transform.inverse().point(new Vec3d(crossingPoint.x(), crossingPoint.y(), crossingPoint.z())));
     }
 
-    private static void assertPoint(DoorVec3 expected, Vec3d actual) {
+    private static void assertPoint(Vec3d expected, Vec3d actual) {
         assertEquals(expected.x(), actual.x(), 1.0E-10);
         assertEquals(expected.y(), actual.y(), 1.0E-10);
         assertEquals(expected.z(), actual.z(), 1.0E-10);

@@ -17,6 +17,7 @@ import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.ViewStreamMessageType;
+import art.arcane.optics.frame.OpticTransform;
 
 public sealed interface ClientViewMessage {
     ViewStreamMessageType type();
@@ -54,7 +55,7 @@ public sealed interface ClientViewMessage {
     }
 
     record TravelBegin(UUID token, long generation, UUID sourcePortal, String sourceWorld, ApertureDescriptor sourceGeometry,
-                       ProjectionEnvironment.Transform destinationToSource, TravelWorld world, TravelPose arrival, List<TravelCoordinate> chunks, ProjectionEnvironment environment,
+                       OpticTransform destinationToSource, TravelWorld world, TravelPose arrival, List<TravelCoordinate> chunks, ProjectionEnvironment environment,
                        int expiresMillis) implements ClientViewMessage {
         public TravelBegin {
             travelIdentity(token, generation);
@@ -73,7 +74,7 @@ public sealed interface ClientViewMessage {
                 || new HashSet<>(chunks).size() != chunks.size()
                 || expiresMillis <= 0 || expiresMillis > ViewStreamLimits.MAX_TRAVEL_EXPIRY_MILLIS
                 || !world.dimension().equals(environment.world().dimensionKey())
-                || !ProjectionEnvironment.Transform.IDENTITY.equals(environment.transform())) {
+                || !environment.transform().isIdentity()) {
                 throw new IllegalArgumentException("Travel preparation");
             }
         }

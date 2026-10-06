@@ -4,10 +4,10 @@ import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.optics.volume.ViewVolume;
 import art.arcane.optics.entity.ProjectedEntityEvent;
-import art.arcane.optics.frame.PortalCoordMap;
 import art.arcane.optics.occlusion.ProjectedEntityOcclusion;
 import art.arcane.optics.occlusion.ProjectorViewOcclusion;
 import art.arcane.optics.view.ContentView;
+import art.arcane.optics.frame.OpticTransform;
 import io.netty.channel.embedded.EmbeddedChannel;
 import com.mojang.authlib.GameProfile;
 import net.minecraft.network.Connection;
@@ -94,8 +94,7 @@ public final class MinecraftEntityProjectionGameTest {
         player.setPos(eye.x(), eye.y() - player.getEyeHeight(), eye.z());
         Vec3 display = new Vec3(origin.x() - normal.x() * 3.0D, origin.y() - 0.5D, origin.z() - normal.z() * 3.0D);
         double[] transformed = new double[3];
-        PortalCoordMap.transformPointInto(display.x, display.y, display.z, origin.x(), origin.y(), origin.z(), target.x(), target.y(), target.z(),
-            source.getFrame(), destination.getFrame(), transformed);
+        OpticTransform.between(source.getFrame(), origin, destination.getFrame(), target).pointInto(display.x, display.y, display.z, transformed);
         remote = EntityTypes.ARMOR_STAND.create(level, EntitySpawnReason.COMMAND);
         local = EntityTypes.ARMOR_STAND.create(level, EntitySpawnReason.COMMAND);
         helper.assertTrue(remote != null && local != null, "Entity projection fixtures were not created");
@@ -111,7 +110,7 @@ public final class MinecraftEntityProjectionGameTest {
         ProjectedEntityOcclusion<BlockState, ContentView<BlockState, BlockState>> occlusion = new ProjectedEntityOcclusion<>(
             new ProjectorViewOcclusion<>(MinecraftProjectorBlocks.INSTANCE::isOccluding, ProjectedEntityOcclusion.MAX_VOXEL_STEPS_PER_BATCH));
         view = new MinecraftProjectedEntities.View(destination, destination, level, runtime.projections().scene(level, destination, 16),
-            source.getFrame(), destination.getFrame(), frustum, eye, false, 0, occlusion, 16);
+            OpticTransform.between(destination.getFrame(), target, source.getFrame(), origin), frustum, eye, occlusion, 16);
         clearPackets();
         renderer.apply(view);
         options.channel().runPendingTasks();

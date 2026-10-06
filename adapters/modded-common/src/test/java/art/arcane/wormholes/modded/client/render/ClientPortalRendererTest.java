@@ -1,8 +1,9 @@
 package art.arcane.wormholes.modded.client.render;
 
-import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.AxisPermutation;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongSet;
@@ -342,7 +343,7 @@ public class ClientPortalRendererTest extends MinecraftTestBase {
         PortalShaderRenderer shaders = mock(PortalShaderRenderer.class);
         PortalShaderRenderer.Session lease = mock(PortalShaderRenderer.Session.class);
         when(lease.ready()).thenReturn(true);
-        ProjectionEnvironment environment = PortalEnvironmentTest.environment(ProjectionEnvironment.Transform.IDENTITY);
+        ProjectionEnvironment environment = PortalEnvironmentTest.environment(OpticTransform.IDENTITY);
         ClientTravelScene initial = mock(ClientTravelScene.class);
         ClientTravelScene replacement = mock(ClientTravelScene.class);
         ApertureDescriptor geometry = scene().geometry();
@@ -379,9 +380,8 @@ public class ClientPortalRendererTest extends MinecraftTestBase {
         renderer.clear();
         PortalShaderRenderer shaders = mock(PortalShaderRenderer.class);
         PortalShaderRenderer.Session lease = mock(PortalShaderRenderer.Session.class);
-        ProjectionEnvironment environment = PortalEnvironmentTest.environment(ProjectionEnvironment.Transform.IDENTITY);
-        ProjectionEnvironment changed = environment.withTransform(new ProjectionEnvironment.Transform(Face.E, Face.U, Face.S,
-            new Vec3d(16, 0, 0)));
+        ProjectionEnvironment environment = PortalEnvironmentTest.environment(OpticTransform.IDENTITY);
+        ProjectionEnvironment changed = environment.withTransform(OpticTransform.of(AxisPermutation.of(Face.E, Face.U, Face.S), 16, 0, 0));
         ClientTravelScene replacement = mock(ClientTravelScene.class);
         ApertureDescriptor geometry = scene().geometry();
         when(replacement.geometry()).thenReturn(geometry);
@@ -405,7 +405,7 @@ public class ClientPortalRendererTest extends MinecraftTestBase {
     public void returnShadersWarmWithoutSourceSnapshotsAndReleaseForDimensionReuse() throws ReflectiveOperationException {
         ClientPortalRenderer renderer = ClientPortalRenderer.instance();
         renderer.clear();
-        ProjectionEnvironment environment = PortalEnvironmentTest.environment(ProjectionEnvironment.Transform.IDENTITY);
+        ProjectionEnvironment environment = PortalEnvironmentTest.environment(OpticTransform.IDENTITY);
         PortalShaderRenderer shaders = mock(PortalShaderRenderer.class);
         PortalShaderRenderer.Session session = mock(PortalShaderRenderer.Session.class);
         TextureTarget target = mock(TextureTarget.class);
@@ -515,7 +515,7 @@ public class ClientPortalRendererTest extends MinecraftTestBase {
         ClientPortalRenderer renderer = ClientPortalRenderer.instance();
         renderer.clear();
         PortalScene scene = scene();
-        when(scene.environment()).thenReturn(PortalEnvironmentTest.environment(ProjectionEnvironment.Transform.IDENTITY));
+        when(scene.environment()).thenReturn(PortalEnvironmentTest.environment(OpticTransform.IDENTITY));
         renderer.replaceScene(1, scene);
         CameraRenderState camera = new CameraRenderState();
         camera.pos = new Vec3(1, 1, 3);
@@ -910,7 +910,7 @@ public class ClientPortalRendererTest extends MinecraftTestBase {
         when(source.getViewRotationMatrix(any())).thenAnswer(call -> ((Matrix4f) call.getArgument(0)).identity());
         when(source.getViewRotationProjectionMatrix(any())).thenAnswer(call -> ((Matrix4f) call.getArgument(0)).set(projection));
         try {
-            renderer.updateTravelCamera(source, new ProjectionEnvironment.Transform(Face.S, Face.U, Face.W, new Vec3d(100, 0, 0)));
+            renderer.updateTravelCamera(source, OpticTransform.of(AxisPermutation.of(Face.S, Face.U, Face.W), 100, 0, 0));
             CameraRenderState destination = (CameraRenderState) get(renderer, "travelCamera");
             assertEquals(new Vec3(0, 88, 0), destination.pos);
             assertEquals(projection, destination.projectionMatrix);
@@ -1195,7 +1195,7 @@ public class ClientPortalRendererTest extends MinecraftTestBase {
         ClientPortalRenderer renderer = ClientPortalRenderer.instance();
         renderer.clear();
         PortalScene scene = scene();
-        when(scene.environment()).thenReturn(PortalEnvironmentTest.environment(ProjectionEnvironment.Transform.IDENTITY));
+        when(scene.environment()).thenReturn(PortalEnvironmentTest.environment(OpticTransform.IDENTITY));
         renderer.replaceScene(1, scene);
         Object portal = ((Map<?, ?>) get(renderer, "portals")).get(1);
         long key = SectionPos.asLong(0, 0, 0);
@@ -1419,7 +1419,7 @@ public class ClientPortalRendererTest extends MinecraftTestBase {
         ClientPortalRenderer renderer = ClientPortalRenderer.instance();
         renderer.clear();
         PortalScene scene = scene();
-        when(scene.environment()).thenReturn(PortalEnvironmentTest.environment(ProjectionEnvironment.Transform.IDENTITY));
+        when(scene.environment()).thenReturn(PortalEnvironmentTest.environment(OpticTransform.IDENTITY));
         long behindCamera = SectionPos.asLong(0, 0, 1000);
         when(scene.sectionKeys()).thenReturn(LongArrayList.of(behindCamera));
         PortalShaderRenderer shaders = mock(PortalShaderRenderer.class);
@@ -1461,7 +1461,7 @@ public class ClientPortalRendererTest extends MinecraftTestBase {
         ClientPortalRenderer renderer = ClientPortalRenderer.instance();
         renderer.clear();
         PortalScene scene = scene();
-        ProjectionEnvironment viewEnvironment = PortalEnvironmentTest.environment(ProjectionEnvironment.Transform.IDENTITY);
+        ProjectionEnvironment viewEnvironment = PortalEnvironmentTest.environment(OpticTransform.IDENTITY);
         when(scene.environment()).thenReturn(viewEnvironment);
         renderer.replaceScene(1, scene);
         PortalScene childScene = scene(1);
@@ -1618,7 +1618,7 @@ public class ClientPortalRendererTest extends MinecraftTestBase {
     public void pendingRootAndNestedShaderViewsReturnWithoutMarkingCapturesComposable() throws ReflectiveOperationException {
         ClientPortalRenderer renderer = ClientPortalRenderer.instance();
         renderer.clear();
-        ProjectionEnvironment environment = PortalEnvironmentTest.environment(ProjectionEnvironment.Transform.IDENTITY);
+        ProjectionEnvironment environment = PortalEnvironmentTest.environment(OpticTransform.IDENTITY);
         PortalShaderRenderer shaders = mock(PortalShaderRenderer.class);
         PortalShaderRenderer.Session session = mock(PortalShaderRenderer.Session.class);
         when(shaders.acquire(anyInt(), any(), anyInt(), anyInt())).thenReturn(session);

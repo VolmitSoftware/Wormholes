@@ -32,6 +32,7 @@ import art.arcane.wormholes.modded.client.render.PortalIrisMainPipelines;
 import art.arcane.wormholes.modded.clientview.MinecraftPortalEnvironment;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.frame.OpticTransform;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.phys.Vec3;
 import org.mockito.MockedStatic;
@@ -244,7 +245,7 @@ public class ClientPreparedTravelCachedTest {
             access.when(Minecraft::getInstance).thenReturn(minecraft);
             renderers.when(ClientPortalRenderer::instance).thenReturn(renderer);
             environments.when(() -> MinecraftPortalEnvironment.capture(level, new Vec3d(eye.x, eye.y, eye.z),
-                ProjectionEnvironment.Transform.IDENTITY, begin.world().flat())).thenReturn(begin.environment());
+                OpticTransform.IDENTITY, begin.world().flat())).thenReturn(begin.environment());
             encoder.when(() -> MinecraftChunkPacketEncoding.encode(any(), any())).thenReturn(fresh);
             if (mismatch == 1) {
                 travel.sectionChanged(level, coordinate.x(), 4, coordinate.z());
@@ -523,7 +524,7 @@ public class ClientPreparedTravelCachedTest {
         when(player.getZ()).thenReturn(-3.4);
         when(player.getEyePosition()).thenReturn(new Vec3(12.25, 87.12, -3.4));
         Vec3d eye = new Vec3d(12.25, 87.12, -3.4);
-        ProjectionEnvironment template = PortalEnvironmentTest.environment(ProjectionEnvironment.Transform.IDENTITY);
+        ProjectionEnvironment template = PortalEnvironmentTest.environment(OpticTransform.IDENTITY);
         ProjectionEnvironment environment = new ProjectionEnvironment(template.gameTime(), template.sky(), template.fog(),
             template.lighting(), template.clouds(), template.transform(),
             new ProjectionEnvironment.Dimension(world.minY(), world.height(), false,
@@ -548,7 +549,7 @@ public class ClientPreparedTravelCachedTest {
              MockedStatic<ClientSodiumTerrain> terrain = mockStatic(ClientSodiumTerrain.class)) {
             access.when(Minecraft::getInstance).thenReturn(minecraft);
             renderers.when(ClientPortalRenderer::instance).thenReturn(renderer);
-            environments.when(() -> MinecraftPortalEnvironment.capture(level, eye, ProjectionEnvironment.Transform.IDENTITY, true))
+            environments.when(() -> MinecraftPortalEnvironment.capture(level, eye, OpticTransform.IDENTITY, true))
                 .thenReturn(environment);
             ClientViewMessage.TravelBegin source = (ClientViewMessage.TravelBegin) capture.invoke(travel, level, player);
             assertSame(world, source.world());
@@ -559,14 +560,14 @@ public class ClientPreparedTravelCachedTest {
             assertTrue(source.chunks().contains(new ClientViewMessage.TravelCoordinate(-3, -3)));
             assertTrue(source.chunks().contains(new ClientViewMessage.TravelCoordinate(3, 3)));
             assertEquals(85.5, source.arrival().y(), 0.0);
-            assertEquals(ProjectionEnvironment.Transform.IDENTITY, source.destinationToSource());
+            assertEquals(OpticTransform.IDENTITY, source.destinationToSource());
             Method initialize = ClientPreparedTravel.class.getDeclaredMethod("captureSource");
             initialize.setAccessible(true);
             initialize.invoke(travel);
             verify(renderer).prepareTravelSourceEnvironment(environment);
             assertTrue(((Map<?, ?>) get(get(travel, "sourcePreparation"), "payloads")).isEmpty());
             assertEquals(0, get(travel, "sourceCapture"));
-            environments.verify(() -> MinecraftPortalEnvironment.capture(level, eye, ProjectionEnvironment.Transform.IDENTITY, true), times(2));
+            environments.verify(() -> MinecraftPortalEnvironment.capture(level, eye, OpticTransform.IDENTITY, true), times(2));
         }
     }
 

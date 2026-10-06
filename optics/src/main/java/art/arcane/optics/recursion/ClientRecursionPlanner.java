@@ -4,15 +4,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 import art.arcane.optics.math.Vec3d;
-import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.aperture.ApertureCells;
-import art.arcane.optics.frame.ProjectorFrameTransform;
 import art.arcane.optics.volume.PlaneWindow;
+import art.arcane.optics.volume.ProjectionVolume;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.aperture.ApertureDescriptor;
-import art.arcane.optics.client.ClientSpace;
 
 public final class ClientRecursionPlanner {
     private final int depthCap;
@@ -27,8 +26,8 @@ public final class ClientRecursionPlanner {
             return List.of();
         }
         List<NestedCone> cones = new ArrayList<NestedCone>(root.nested().size());
-        List<Window> chain = List.of(new Window(root, ClientSpace.IDENTITY, eyeX, eyeY, eyeZ));
-        descend(root, ClientSpace.IDENTITY, chain, 1, limit, eyeX, eyeY, eyeZ, cones);
+        List<Window> chain = List.of(new Window(root, OpticTransform.IDENTITY, List.of(), eyeX, eyeY, eyeZ));
+        descend(root, OpticTransform.IDENTITY, List.of(), chain, 1, limit, eyeX, eyeY, eyeZ, cones);
         return cones;
     }
 
@@ -36,31 +35,24 @@ public final class ClientRecursionPlanner {
         return depthCap;
     }
 
-    public static boolean destinationReaches(ApertureDescriptor parent, ProjectionEnvironment.Transform transform,
-                                             Box destinationArea) {
+    public static boolean destinationReaches(ApertureDescriptor parent, OpticTransform transform, Box destinationArea) {
         if (destinationArea == null || transform == null) {
             return false;
         }
-        Vec3d center = destinationArea.center();
-        double ex = (destinationArea.getXb() - destinationArea.getXa()) * 0.5D;
-        double ey = (destinationArea.getYb() - destinationArea.getYa()) * 0.5D;
-        double ez = (destinationArea.getZb() - destinationArea.getZa()) * 0.5D;
-        Face x = transform.xAxis();
-        Face y = transform.yAxis();
-        Face z = transform.zAxis();
-        double cx = center.x() * x.x() + center.y() * y.x() + center.z() * z.x() + transform.translation().x();
-        double cy = center.x() * x.y() + center.y() * y.y() + center.z() * z.y() + transform.translation().y();
-        double cz = center.x() * x.z() + center.y() * y.z() + center.z() * z.z() + transform.translation().z();
-        double dx = ex * Math.abs(x.x()) + ey * Math.abs(y.x()) + ez * Math.abs(z.x());
-        double dy = ex * Math.abs(x.y()) + ey * Math.abs(y.y()) + ez * Math.abs(z.y());
-        double dz = ex * Math.abs(x.z()) + ey * Math.abs(y.z()) + ez * Math.abs(z.z());
-        Box area = new Box(cx - dx, cx + dx, cy - dy, cy + dy, cz - dz, cz + dz);
+        Vec3d center = transform.point(destinationArea.center());
+        double[] extent = new double[3];
+        transform.vectorInto((destinationArea.getXb() - destinationArea.getXa()) * 0.5D, (destinationArea.getYb() - destinationArea.getYa()) * 0.5D,
+            (destinationArea.getZb() - destinationArea.getZa()) * 0.5D, extent);
+        double dx = Math.abs(extent[0]);
+        double dy = Math.abs(extent[1]);
+        double dz = Math.abs(extent[2]);
+        Box area = new Box(center.x() - dx, center.x() + dx, center.y() - dy, center.y() + dy, center.z() - dz, center.z() + dz);
         Box aperture = parent.apertureArea();
         Face normal = parent.frame().getNormal();
         int normalAxis = ApertureDescriptor.axisOf(normal);
         double facing = normalAxis == 0 ? normal.x() : normalAxis == 1 ? normal.y() : normal.z();
         double origin = parent.planeCoordinate();
-        double clearance = ProjectorFrameTransform.portalPlaneClearance(aperture, parent.frame());
+        double clearance = ProjectionVolume.portalPlaneClearance(aperture, parent.frame());
         double distance = parent.depthBlocks() + clearance;
         double signedA = (low(area, normalAxis) - origin) * facing;
         double signedB = (high(area, normalAxis) - origin) * facing;
@@ -78,19 +70,16 @@ public final class ClientRecursionPlanner {
         return true;
     }
 
-    public static ClientSpace childSpace(ApertureDescriptor parent, ClientSpace parentSpace) {
-        return parent.mirror() ? parentSpace.throughMirror(parent) : parentSpace;
-    }
-
-    private static void descend(ApertureDescriptor parent, ClientSpace parentSpace, List<Window> chain, int depth, int limit,
-                                double eyeX, double eyeY, double eyeZ, List<NestedCone> out) {
-        ClientSpace space = childSpace(parent, parentSpace);
+    private static void descend(ApertureDescriptor parent, OpticTransform parentTransform, List<ApertureDescriptor> parentReflections,
+                                List<Window> chain, int depth, int limit, double eyeX, double eyeY, double eyeZ, List<NestedCone> out) {
+        OpticTransform transform = parent.mirror() ? parentTransform.compose(parent.mirrorTransform()) : parentTransform;
+        List<ApertureDescriptor> reflections = parent.mirror() ? reflections(parent, parentReflections) : parentReflections;
         double[] scratch = new double[3];
         for (ApertureDescriptor child : parent.nested()) {
             if (!child.valid()) {
                 continue;
             }
-            Window window = new Window(child, space, eyeX, eyeY, eyeZ);
+            Window window = new Window(child, transform, reflections, eyeX, eyeY, eyeZ);
             if (!window.servesEye() || !anyCornerVisible(chain, window, scratch)) {
                 continue;
             }
@@ -100,15 +89,22 @@ public final class ClientRecursionPlanner {
                 List<Window> childChain = new ArrayList<Window>(chain.size() + 1);
                 childChain.addAll(chain);
                 childChain.add(window);
-                descend(child, space, List.copyOf(childChain), depth + 1, childLimit, eyeX, eyeY, eyeZ, out);
+                descend(child, transform, reflections, List.copyOf(childChain), depth + 1, childLimit, eyeX, eyeY, eyeZ, out);
             }
         }
+    }
+
+    private static List<ApertureDescriptor> reflections(ApertureDescriptor mirror, List<ApertureDescriptor> parentReflections) {
+        List<ApertureDescriptor> chain = new ArrayList<ApertureDescriptor>(parentReflections.size() + 1);
+        chain.add(mirror);
+        chain.addAll(parentReflections);
+        return List.copyOf(chain);
     }
 
     private static boolean anyCornerVisible(List<Window> chain, Window window, double[] scratch) {
         Box area = window.area;
         Vec3d center = area.center();
-        window.space.toDisplay(center.getX(), center.getY(), center.getZ(), scratch);
+        window.transform.pointInto(center.getX(), center.getY(), center.getZ(), scratch);
         if (visible(chain, scratch[0], scratch[1], scratch[2])) {
             return true;
         }
@@ -116,7 +112,7 @@ public final class ClientRecursionPlanner {
             double x = (corner & 1) == 0 ? area.getXa() : area.getXb();
             double y = (corner & 2) == 0 ? area.getYa() : area.getYb();
             double z = (corner & 4) == 0 ? area.getZa() : area.getZb();
-            window.space.toDisplay(x, y, z, scratch);
+            window.transform.pointInto(x, y, z, scratch);
             if (visible(chain, scratch[0], scratch[1], scratch[2])) {
                 return true;
             }
@@ -162,8 +158,12 @@ public final class ClientRecursionPlanner {
             return depth;
         }
 
-        public ClientSpace space() {
-            return window.space;
+        public OpticTransform transform() {
+            return window.transform;
+        }
+
+        public List<ApertureDescriptor> reflections() {
+            return window.reflections;
         }
 
         public double contentEyeX() {
@@ -193,7 +193,9 @@ public final class ClientRecursionPlanner {
 
     private static final class Window {
         private final ApertureDescriptor geometry;
-        private final ClientSpace space;
+        private final OpticTransform transform;
+        private final OpticTransform content;
+        private final List<ApertureDescriptor> reflections;
         private final Box area;
         private final double originX;
         private final double originY;
@@ -206,9 +208,12 @@ public final class ClientRecursionPlanner {
         private final PlaneWindow plane;
         private final double[] scratch;
 
-        private Window(ApertureDescriptor geometry, ClientSpace space, double displayEyeX, double displayEyeY, double displayEyeZ) {
+        private Window(ApertureDescriptor geometry, OpticTransform transform, List<ApertureDescriptor> reflections, double displayEyeX,
+                       double displayEyeY, double displayEyeZ) {
             this.geometry = geometry;
-            this.space = space;
+            this.transform = transform;
+            this.content = transform.inverse();
+            this.reflections = reflections;
             ApertureCells aperture = geometry.aperture();
             this.area = aperture.getArea();
             Frame frame = geometry.frame();
@@ -217,7 +222,7 @@ public final class ClientRecursionPlanner {
             this.originY = frame.getNormal().y() != 0 ? geometry.planeCoordinate() : center.getY();
             this.originZ = frame.getNormal().z() != 0 ? geometry.planeCoordinate() : center.getZ();
             this.scratch = new double[3];
-            space.toContent(displayEyeX, displayEyeY, displayEyeZ, scratch);
+            content.pointInto(displayEyeX, displayEyeY, displayEyeZ, scratch);
             this.eyeX = scratch[0];
             this.eyeY = scratch[1];
             this.eyeZ = scratch[2];
@@ -234,7 +239,7 @@ public final class ClientRecursionPlanner {
         }
 
         private boolean passes(double displayX, double displayY, double displayZ) {
-            space.toContent(displayX, displayY, displayZ, scratch);
+            content.pointInto(displayX, displayY, displayZ, scratch);
             double pointDot = signed(scratch[0], scratch[1], scratch[2], normal);
             return plane.containsRayIntersection(eyeX, eyeY, eyeZ, scratch[0], scratch[1], scratch[2], pointDot);
         }

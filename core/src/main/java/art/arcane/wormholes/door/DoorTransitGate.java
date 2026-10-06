@@ -6,6 +6,7 @@ import art.arcane.wormholes.door.view.DoorApertureFrames;
 import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.math.Vec3d;
 
 public final class DoorTransitGate
 {
@@ -16,15 +17,15 @@ public final class DoorTransitGate
 	{
 	}
 
-	public static Optional<DoorwayCrossing> detect(DoorwayPlane plane, DoorVec3 from, DoorVec3 to)
+	public static Optional<PlaneCrossing> detect(DoorwayPlane plane, Vec3d from, Vec3d to)
 	{
 		return detect(plane, from, to, 0.0D, 0.0D);
 	}
 
-	public static Optional<DoorwayCrossing> detect(
+	public static Optional<PlaneCrossing> detect(
 		DoorwayPlane plane,
-		DoorVec3 from,
-		DoorVec3 to,
+		Vec3d from,
+		Vec3d to,
 		double travelerHalfWidth,
 		double travelerHeight)
 	{
@@ -37,7 +38,7 @@ public final class DoorTransitGate
 		return plane.intersect(from, to, travelerHalfWidth, travelerHeight);
 	}
 
-	public static Optional<DoorwayCrossing> prepared(DoorwayPlane plane, PlaneCrossing crossing,
+	public static Optional<PlaneCrossing> prepared(DoorwayPlane plane, PlaneCrossing crossing,
 		double travelerHalfWidth, double travelerHeight)
 	{
 		Objects.requireNonNull(crossing, "crossing");
@@ -46,22 +47,21 @@ public final class DoorTransitGate
 			return Optional.empty();
 		}
 		Frame frame = DoorApertureFrames.of(plane);
-		DoorVec3 origin = new DoorVec3(crossing.origin().x(), crossing.origin().y(), crossing.origin().z());
-		if(!frame.view(crossing.frontSide()).equals(crossing.frame()) || Math.abs(plane.signedDistance(origin)) > 0.00001D)
+		if(!frame.view(crossing.frontSide()).equals(crossing.frame()) || Math.abs(plane.signedDistance(crossing.origin())) > 0.00001D)
 		{
 			return Optional.empty();
 		}
 		Face normal = frame.getNormal();
 		double side = (crossing.frontSide() ? 1.0D : -1.0D)
 			* (normal.x() * plane.normalX() + normal.y() * plane.normalY() + normal.z() * plane.normalZ());
-		DoorVec3 feet = new DoorVec3(crossing.point().x(), crossing.point().y(), crossing.point().z());
+		Vec3d feet = crossing.point();
 		double distance = plane.signedDistance(feet);
-		DoorVec3 surface = new DoorVec3(feet.x() - plane.normalX() * distance,
+		Vec3d surface = new Vec3d(feet.x() - plane.normalX() * distance,
 			feet.y() - plane.normalY() * distance, feet.z() - plane.normalZ() * distance);
 		double reach = Math.max(travelerHalfWidth, travelerHeight) + 0.01D;
-		DoorVec3 from = new DoorVec3(surface.x() + plane.normalX() * side * reach,
+		Vec3d from = new Vec3d(surface.x() + plane.normalX() * side * reach,
 			surface.y() + plane.normalY() * side * reach, surface.z() + plane.normalZ() * side * reach);
-		DoorVec3 to = new DoorVec3(surface.x() - plane.normalX() * side * 0.01D,
+		Vec3d to = new Vec3d(surface.x() - plane.normalX() * side * 0.01D,
 			surface.y() - plane.normalY() * side * 0.01D, surface.z() - plane.normalZ() * side * 0.01D);
 		return detect(plane, from, to, travelerHalfWidth, travelerHeight);
 	}
@@ -122,9 +122,9 @@ public final class DoorTransitGate
 	 * segment that crosses the plane. The admitted band grows with the segment so
 	 * the swept-segment crossing math stays the decision maker.
 	 */
-	private static boolean nearThreshold(DoorwayPlane plane, DoorVec3 from, DoorVec3 to)
+	private static boolean nearThreshold(DoorwayPlane plane, Vec3d from, Vec3d to)
 	{
-		DoorVec3 center = plane.center();
+		Vec3d center = plane.center();
 		double threshold = Math.max(MOVEMENT_PROXIMITY, segmentLength(from, to) + SWEPT_MARGIN);
 		return Math.abs(from.x() - center.x()) <= threshold
 			&& Math.abs(from.z() - center.z()) <= threshold
@@ -132,7 +132,7 @@ public final class DoorTransitGate
 			&& Math.abs(to.z() - center.z()) <= threshold;
 	}
 
-	private static double segmentLength(DoorVec3 from, DoorVec3 to)
+	private static double segmentLength(Vec3d from, Vec3d to)
 	{
 		double deltaX = to.x() - from.x();
 		double deltaY = to.y() - from.y();

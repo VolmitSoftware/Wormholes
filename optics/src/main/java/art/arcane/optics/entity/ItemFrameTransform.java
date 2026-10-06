@@ -1,11 +1,8 @@
 package art.arcane.optics.entity;
 
-
-
-import art.arcane.optics.frame.Frame;
 import art.arcane.optics.math.Face;
-import art.arcane.optics.frame.PortalCoordMap;
-import art.arcane.optics.frame.ProjectorFrameTransform;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.AxisPermutation;
 
 public final class ItemFrameTransform {
     public static final int NONE = -1;
@@ -18,28 +15,10 @@ public final class ItemFrameTransform {
     private ItemFrameTransform() {
     }
 
-    public static int between(Face sourceFacing,
-                       Frame sourceFrame,
-                       Frame targetFrame,
-                       double[] scratch3) {
+    public static int of(Face sourceFacing, OpticTransform transform) {
         Face sourceTop = canonicalTop(sourceFacing);
         Face sourceRight = cross(sourceFacing, sourceTop);
-        Face targetFacing = sourceFrame.transformDirection(sourceFacing, targetFrame, scratch3);
-        Face mappedTop = sourceFrame.transformDirection(sourceTop, targetFrame, scratch3);
-        Face mappedRight = sourceFrame.transformDirection(sourceRight, targetFrame, scratch3);
-        return encode(targetFacing, mappedTop, mappedRight);
-    }
-
-    public static int mirror(Face sourceFacing,
-                      Frame frame,
-                      int quarterTurns,
-                      double[] scratch3) {
-        Face sourceTop = canonicalTop(sourceFacing);
-        Face sourceRight = cross(sourceFacing, sourceTop);
-        Face targetFacing = mirrorDirection(sourceFacing, frame, quarterTurns, scratch3);
-        Face mappedTop = mirrorDirection(sourceTop, frame, quarterTurns, scratch3);
-        Face mappedRight = mirrorDirection(sourceRight, frame, quarterTurns, scratch3);
-        return encode(targetFacing, mappedTop, mappedRight);
+        return encode(transform.face(sourceFacing), transform.face(sourceTop), transform.face(sourceRight));
     }
 
     public static int spawnData(int transform) {
@@ -67,71 +46,20 @@ public final class ItemFrameTransform {
         return Math.floorMod((quarterTurns * 2) + (sign * normalized), 8);
     }
 
-
-
-
-
-
-
     public static boolean isReversed(int transform) {
         return transform != NONE && (transform & REVERSED_ROTATION_FLAG) != 0;
     }
 
-    public static <R> R betweenAnchor(double sourceX,
-                                  double sourceY,
-                                  double sourceZ,
-                                  double sourceOriginX,
-                                  double sourceOriginY,
-                                  double sourceOriginZ,
-                                  double targetOriginX,
-                                  double targetOriginY,
-                                  double targetOriginZ,
-                                  Frame sourceFrame,
-                                  Frame targetFrame,
-                                  double[] scratch3, PositionFactory<R> positions) {
-        PortalCoordMap.transformPointInto(blockCenter(sourceX), blockCenter(sourceY), blockCenter(sourceZ),
-            sourceOriginX, sourceOriginY, sourceOriginZ,
-            targetOriginX, targetOriginY, targetOriginZ,
-            sourceFrame, targetFrame, scratch3);
-        double targetX = scratch3[0];
-        double targetY = scratch3[1];
-        double targetZ = scratch3[2];
-        sourceFrame.transformVectorInto(1.0D, 1.0D, 1.0D, targetFrame, scratch3);
-        double snapTolerance = ProjectorFrameTransform.coordinateSnapTolerance(
-            sourceOriginX, sourceOriginY, sourceOriginZ, targetOriginX, targetOriginY, targetOriginZ);
-        return anchorPosition(targetX, targetY, targetZ,
-            scratch3[0], scratch3[1], scratch3[2], snapTolerance, positions);
+    public static void anchorInto(double sourceX, double sourceY, double sourceZ, OpticTransform transform, double[] out3) {
+        transform.pointInto(blockCenter(sourceX), blockCenter(sourceY), blockCenter(sourceZ), out3);
+        double tolerance = transform.snapTolerance();
+        AxisPermutation permutation = transform.permutation();
+        out3[0] = anchorCoordinate(out3[0], positive(permutation.x(), permutation.y(), permutation.z(), 0), tolerance);
+        out3[1] = anchorCoordinate(out3[1], positive(permutation.x(), permutation.y(), permutation.z(), 1), tolerance);
+        out3[2] = anchorCoordinate(out3[2], positive(permutation.x(), permutation.y(), permutation.z(), 2), tolerance);
     }
 
-    public static <R> R mirrorAnchor(double sourceX,
-                                 double sourceY,
-                                 double sourceZ,
-                                 double originX,
-                                 double originY,
-                                 double originZ,
-                                 Frame frame,
-                                 int quarterTurns,
-                                 double[] scratch3, PositionFactory<R> positions) {
-        PortalCoordMap.mirrorSourceToDisplayPointInto(
-            blockCenter(sourceX), blockCenter(sourceY), blockCenter(sourceZ),
-            originX, originY, originZ, frame, quarterTurns, scratch3);
-        double targetX = scratch3[0];
-        double targetY = scratch3[1];
-        double targetZ = scratch3[2];
-        PortalCoordMap.mirrorSourceToDisplayVectorInto(
-            1.0D, 1.0D, 1.0D, frame, quarterTurns, scratch3);
-        double snapTolerance = ProjectorFrameTransform.coordinateSnapTolerance(
-            originX, originY, originZ, originX, originY, originZ);
-        return anchorPosition(targetX, targetY, targetZ,
-            scratch3[0], scratch3[1], scratch3[2], snapTolerance, positions);
-    }
-
-
-
-    /** Every entity the client anchors to a block face rather than to its own centre. */
-
-
-    public static int encode(Face targetFacing, Face mappedTop, Face mappedRight) {
+    private static int encode(Face targetFacing, Face mappedTop, Face mappedRight) {
         int quarterTurns = quarterTurns(targetFacing, mappedTop);
         Face expectedRight = rotatedRight(targetFacing, quarterTurns);
         boolean reversed;
@@ -175,7 +103,7 @@ public final class ItemFrameTransform {
         };
     }
 
-    public static Face canonicalTop(Face facing) {
+    private static Face canonicalTop(Face facing) {
         return switch (facing) {
             case U -> Face.N;
             case D -> Face.S;
@@ -183,51 +111,29 @@ public final class ItemFrameTransform {
         };
     }
 
-    public static Face cross(Face left, Face right) {
+    private static Face cross(Face left, Face right) {
         return Face.closest(
             (left.y() * right.z()) - (left.z() * right.y()),
             (left.z() * right.x()) - (left.x() * right.z()),
             (left.x() * right.y()) - (left.y() * right.x()));
     }
 
-    private static Face mirrorDirection(Face source,
-                                             Frame frame,
-                                             int quarterTurns,
-                                             double[] scratch3) {
-        PortalCoordMap.mirrorSourceToDisplayVectorInto(
-            source.x(), source.y(), source.z(), frame, quarterTurns, scratch3);
-        return Face.closest(scratch3[0], scratch3[1], scratch3[2]);
-    }
-
-
-
-
-
     private static double blockCenter(double coordinate) {
         return Math.floor(coordinate) + 0.5D;
     }
 
-    public static <R> R anchorPosition(double x,
-                                           double y,
-                                           double z,
-                                           double xScale,
-                                           double yScale,
-                                           double zScale,
-                                           double snapTolerance, PositionFactory<R> positions) {
-        return positions.create(
-            anchorCoordinate(x, xScale, snapTolerance),
-            anchorCoordinate(y, yScale, snapTolerance),
-            anchorCoordinate(z, zScale, snapTolerance));
+    private static double anchorCoordinate(double coordinate, boolean positive, double snapTolerance) {
+        double nearest = Math.rint(coordinate);
+        double snapped = Math.abs(coordinate - nearest) <= snapTolerance ? nearest : coordinate;
+        return positive ? Math.ceil(snapped) - 1.0D : Math.floor(snapped);
     }
 
-    private static double anchorCoordinate(double coordinate, double scale, double snapTolerance) {
-        double snapped = ProjectorFrameTransform.snapNearInteger(coordinate, snapTolerance);
-        return scale > 0.0D ? Math.ceil(snapped) - 1.0D : Math.floor(snapped);
+    private static boolean positive(Face imageX, Face imageY, Face imageZ, int axis) {
+        int sum = component(imageX, axis) + component(imageY, axis) + component(imageZ, axis);
+        return sum > 0;
     }
 
-
-    @FunctionalInterface
-    public interface PositionFactory<R> {
-        R create(double x, double y, double z);
+    private static int component(Face face, int axis) {
+        return axis == 0 ? face.x() : axis == 1 ? face.y() : face.z();
     }
 }

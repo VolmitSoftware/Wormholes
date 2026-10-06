@@ -1,9 +1,8 @@
 package art.arcane.wormholes.modded.client.render;
 
 import art.arcane.wormholes.modded.mixin.client.PreparedLevelAccess;
-import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ProjectionEnvironment;
-import art.arcane.optics.math.Face;
+import art.arcane.optics.frame.OpticTransform;
 import com.mojang.blaze3d.ProjectionType;
 import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
@@ -17,7 +16,6 @@ import net.caffeinemc.mods.sodium.client.util.FogParameters;
 import net.irisshaders.iris.pipeline.WorldRenderingPhase;
 import net.minecraft.client.TextureFilteringMethod;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
-import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import java.util.Optional;
 import java.util.OptionalDouble;
@@ -140,8 +138,7 @@ public final class PortalIrisMainPipelines {
         }
         ClientPortalRenderer renderer = ClientPortalRenderer.instance();
         TextureTarget target = renderer.nativeTravelTarget();
-        ProjectionEnvironment environment = draw.environment().withTransform(new ProjectionEnvironment.Transform(
-            Face.E, Face.U, Face.S, new Vec3d(0, 0, 0)));
+        ProjectionEnvironment environment = draw.environment().withTransform(OpticTransform.IDENTITY);
         PortalShaderCamera camera = new PortalShaderCamera(environment, draw.camera());
         PortalShaderContext.View view = new PortalShaderContext.View(environment, camera, target,
             draw.camera().viewRotationMatrix, projection);

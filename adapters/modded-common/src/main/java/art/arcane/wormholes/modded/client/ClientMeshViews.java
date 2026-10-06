@@ -5,6 +5,7 @@ import art.arcane.wormholes.modded.client.render.PortalScene;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.plate.PlateBox;
 import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.frame.OpticTransform;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntIterator;
 import it.unimi.dsi.fastutil.longs.LongIterable;
@@ -47,7 +48,7 @@ public final class ClientMeshViews {
             }
             Scene scene = scenes.get(portal.portalKey());
             ProjectionEnvironment environment = session.environment(portal.portalKey());
-            ProjectionEnvironment.Transform transform = environment == null ? null : environment.transform();
+            OpticTransform transform = environment == null ? null : environment.transform();
             ProjectionEnvironment.Dimension dimension = environment == null ? null : environment.dimension();
             ClientMeshSections.Identity identity = view.identity();
             int blendRadius = Minecraft.getInstance().options.biomeBlendRadius().get();
@@ -143,7 +144,7 @@ public final class ClientMeshViews {
     }
 
     private record Scene(int portalKey, ApertureDescriptor surfaceGeometry, ClientMeshSections.View view, ClientLevel level,
-                         ClientMeshEntities features, ClientViewSession session, ProjectionEnvironment.Transform transform,
+                         ClientMeshEntities features, ClientViewSession session, OpticTransform transform,
                          ProjectionEnvironment.Dimension dimension, ClientMeshSections.Identity identity, int blendRadius,
                          PlateBox bounds, PortalScene.MeshIdentity meshContext) implements PortalScene {
         @Override

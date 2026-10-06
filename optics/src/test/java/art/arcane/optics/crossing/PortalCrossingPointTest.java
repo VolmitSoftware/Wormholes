@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.OpticTransform;
 
 class PortalCrossingPointTest {
     @Test
@@ -49,10 +50,10 @@ class PortalCrossingPointTest {
                 Vec3d mapped = crossing.outPoint(destination, arrival);
                 assertEquals(80.0D, mapped.y(), 0.0D);
                 double[] primitive = new double[3];
-                source.view(front).transformPointInto(crossing.point().x(), crossing.point().y(), crossing.point().z(),
-                    origin.x(), origin.y(), origin.z(), arrival.x(), arrival.y(), arrival.z(), destination.view(front), primitive);
+                OpticTransform.between(source.view(front), origin.x(), origin.y(), origin.z(), destination.view(front), arrival.x(),
+                    arrival.y(), arrival.z()).pointInto(crossing.point().x(), crossing.point().y(), crossing.point().z(), primitive);
                 assertEquals(mapped.y(), primitive[1], 0.0D);
-                assertEquals(200.0D, destination.view(front).transformPoint(mapped, arrival, origin, source.view(front)).x(), 0.0D);
+                assertEquals(200.0D, OpticTransform.between(destination.view(front), arrival, source.view(front), origin).point(mapped).x(), 0.0D);
             }
         }
     }
@@ -64,8 +65,8 @@ class PortalCrossingPointTest {
         Vec3d origin = new Vec3d(11.5D, 200.5D, 20.5D);
         Vec3d arrival = new Vec3d(50.5D, 80.5D, -30.5D);
         Vec3d point = new Vec3d(12.125D, 200.25D, 19.875D);
-        Vec3d transformed = source.transformPoint(point, origin, arrival, destination);
-        assertEquals(point, destination.transformPoint(transformed, arrival, origin, source));
+        Vec3d transformed = OpticTransform.between(source, origin, destination, arrival).point(point);
+        assertEquals(point, OpticTransform.between(destination, arrival, source, origin).point(transformed));
         assertEquals(0.625D, Math.abs(transformed.y() - arrival.y()), 0.0D);
     }
 
@@ -80,10 +81,10 @@ class PortalCrossingPointTest {
                 Vec3d target = center(new Vec3d(20000000, targetFloor, -20000000),
                     new Vec3d(20000006, targetFloor + 5, -20000000));
                 Vec3d point = new Vec3d(-19999998.375D, sourceFloor, 20000000.25D);
-                Vec3d mapped = frame.transformPoint(point, source, target, frame);
+                Vec3d mapped = OpticTransform.between(frame, source, frame, target).point(point);
                 assertEquals(targetFloor, mapped.y(), 0.0D);
                 assertEquals(targetFloor, mapped.getBlockY());
-                assertEquals(point, frame.transformPoint(mapped, target, source, frame));
+                assertEquals(point, OpticTransform.between(frame, target, frame, source).point(mapped));
             }
         }
     }
@@ -107,8 +108,8 @@ class PortalCrossingPointTest {
                             continue;
                         }
                         Frame targetFrame = Frame.fromNormalUp(targetNormal, targetUp);
-                        Vec3d mapped = sourceFrame.transformPoint(point, source, target, targetFrame);
-                        assertEquals(point, targetFrame.transformPoint(mapped, target, source, sourceFrame));
+                        Vec3d mapped = OpticTransform.between(sourceFrame, source, targetFrame, target).point(point);
+                        assertEquals(point, OpticTransform.between(targetFrame, target, sourceFrame, source).point(mapped));
                     }
                 }
             }
@@ -128,11 +129,11 @@ class PortalCrossingPointTest {
                     source.getRight().z() * 2.5D + source.getUp().z() * 1.25D);
                 Vec3d crossing = origin.add(lateral);
                 for (int side : new int[]{-1, 1}) {
-                    Vec3d expected = source.view(side > 0).transformPoint(crossing, origin, arrival, destination);
+                    Vec3d expected = OpticTransform.between(source.view(side > 0), origin, destination, arrival).point(crossing);
                     for (double distance : new double[]{96.0D, 32.0D, 13.0D, 1.0D, 0.001D}) {
                         Vec3d feet = crossing.add(new Vec3d(direction.x() * side * distance,
                             direction.y() * side * distance, direction.z() * side * distance));
-                        Vec3d actual = source.transformCrossingPoint(feet, origin, arrival, destination);
+                        Vec3d actual = PlaneCrossing.planePoint(source, origin, feet, destination, arrival);
                         assertEquals(expected, actual);
                         assertEquals(expected.getBlockX() >> 4, actual.getBlockX() >> 4);
                         assertEquals(expected.getBlockZ() >> 4, actual.getBlockZ() >> 4);
@@ -148,12 +149,12 @@ class PortalCrossingPointTest {
         Frame destination = Frame.canonical(Face.E);
         Vec3d origin = new Vec3d(0.5D, 64.0D, 0.5D);
         Vec3d arrival = new Vec3d(100.5D, 80.0D, 100.5D);
-        Vec3d front = source.transformCrossingPoint(new Vec3d(3.0D, 65.5D, 96.5D), origin, arrival, destination);
-        Vec3d back = source.transformCrossingPoint(new Vec3d(3.0D, 65.5D, -95.5D), origin, arrival, destination);
+        Vec3d front = PlaneCrossing.planePoint(source, origin, new Vec3d(3.0D, 65.5D, 96.5D), destination, arrival);
+        Vec3d back = PlaneCrossing.planePoint(source, origin, new Vec3d(3.0D, 65.5D, -95.5D), destination, arrival);
         assertNotEquals(front, back);
         assertEquals(81.5D, front.y());
         assertEquals(81.5D, back.y());
-        assertNotEquals(front, source.transformCrossingPoint(new Vec3d(4.0D, 65.5D, 96.5D), origin, arrival, destination));
+        assertNotEquals(front, PlaneCrossing.planePoint(source, origin, new Vec3d(4.0D, 65.5D, 96.5D), destination, arrival));
     }
 
     private static Vec3d center(Vec3d min, Vec3d max) {

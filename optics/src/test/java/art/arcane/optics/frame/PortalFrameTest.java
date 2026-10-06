@@ -46,12 +46,12 @@ public final class PortalFrameTest {
 			Frame fromFrame = Frame.canonical(fromNormal);
 			for (Face toNormal : Face.values()) {
 				Frame toFrame = Frame.canonical(toNormal);
-				Vec3d projectedPoint = fromFrame.transformPoint(point, fromOrigin, toOrigin, toFrame);
-				Vec3d restoredPoint = toFrame.transformPoint(projectedPoint, toOrigin, fromOrigin, fromFrame);
+				Vec3d projectedPoint = OpticTransform.between(fromFrame, fromOrigin, toFrame, toOrigin).point(point);
+				Vec3d restoredPoint = OpticTransform.between(toFrame, toOrigin, fromFrame, fromOrigin).point(projectedPoint);
 				assertVector(point, restoredPoint);
 
-				Vec3d projectedVector = fromFrame.transformVector(vector, toFrame);
-				Vec3d restoredVector = toFrame.transformVector(projectedVector, fromFrame);
+				Vec3d projectedVector = OpticTransform.of(AxisPermutation.between(fromFrame, toFrame), 0.0D, 0.0D, 0.0D).vector(vector);
+				Vec3d restoredVector = OpticTransform.of(AxisPermutation.between(toFrame, fromFrame), 0.0D, 0.0D, 0.0D).vector(projectedVector);
 				assertVector(vector, restoredVector);
 			}
 		}
@@ -64,9 +64,9 @@ public final class PortalFrameTest {
 
 		for (Face normal : new Face[] { Face.N, Face.E, Face.S, Face.W }) {
 			Frame uprightFrame = Frame.canonical(normal);
-			assertEquals(downFrame.getRight(), uprightFrame.transformDirection(uprightFrame.getRight(), downFrame, scratch));
-			assertEquals(downFrame.getUp(), uprightFrame.transformDirection(uprightFrame.getUp(), downFrame, scratch));
-			assertEquals(downFrame.getNormal(), uprightFrame.transformDirection(uprightFrame.getNormal(), downFrame, scratch));
+			assertEquals(downFrame.getRight(), AxisPermutation.between(uprightFrame, downFrame).face(uprightFrame.getRight()));
+			assertEquals(downFrame.getUp(), AxisPermutation.between(uprightFrame, downFrame).face(uprightFrame.getUp()));
+			assertEquals(downFrame.getNormal(), AxisPermutation.between(uprightFrame, downFrame).face(uprightFrame.getNormal()));
 		}
 	}
 
@@ -79,12 +79,12 @@ public final class PortalFrameTest {
 		Vec3d point = new Vec3d(23.0D, 61.0D, -14.0D);
 		Vec3d vector = new Vec3d(1.0D, -2.0D, -3.0D);
 
-		Vec3d throughPortal = downFrame.transformPoint(point, downOrigin, uprightOrigin, uprightFrame);
-		Vec3d backThroughPortal = uprightFrame.transformPoint(throughPortal, uprightOrigin, downOrigin, downFrame);
+		Vec3d throughPortal = OpticTransform.between(downFrame, downOrigin, uprightFrame, uprightOrigin).point(point);
+		Vec3d backThroughPortal = OpticTransform.between(uprightFrame, uprightOrigin, downFrame, downOrigin).point(throughPortal);
 		assertVector(point, backThroughPortal);
 
-		Vec3d throughVector = downFrame.transformVector(vector, uprightFrame);
-		Vec3d backVector = uprightFrame.transformVector(throughVector, downFrame);
+		Vec3d throughVector = OpticTransform.of(AxisPermutation.between(downFrame, uprightFrame), 0.0D, 0.0D, 0.0D).vector(vector);
+		Vec3d backVector = OpticTransform.of(AxisPermutation.between(uprightFrame, downFrame), 0.0D, 0.0D, 0.0D).vector(throughVector);
 		assertVector(vector, backVector);
 	}
 
@@ -116,10 +116,10 @@ public final class PortalFrameTest {
 		Frame localNorth = Frame.canonical(Face.N);
 		double[] scratch = new double[3];
 
-		assertEquals(Face.E, remoteDown.transformDirection(Face.E, localNorth, scratch));
-		assertEquals(Face.U, remoteDown.transformDirection(Face.N, localNorth, scratch));
-		assertEquals(Face.N, remoteDown.transformDirection(Face.D, localNorth, scratch));
-		assertEquals(Face.D, remoteDown.transformDirection(Face.S, localNorth, scratch));
+		assertEquals(Face.E, AxisPermutation.between(remoteDown, localNorth).face(Face.E));
+		assertEquals(Face.U, AxisPermutation.between(remoteDown, localNorth).face(Face.N));
+		assertEquals(Face.N, AxisPermutation.between(remoteDown, localNorth).face(Face.D));
+		assertEquals(Face.D, AxisPermutation.between(remoteDown, localNorth).face(Face.S));
 	}
 
 	@Test

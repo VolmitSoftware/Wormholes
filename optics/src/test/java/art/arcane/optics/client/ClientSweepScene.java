@@ -12,12 +12,12 @@ import art.arcane.optics.frame.Frame;
 import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.optics.scan.ScanMode;
 import art.arcane.optics.frame.DirectionMapping;
+import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.volume.ViewVolume;
 import art.arcane.optics.claim.ProjectedBlockClaim;
 import art.arcane.optics.claim.ProjectionBlackout;
 import art.arcane.optics.view.BlockStates;
 import art.arcane.optics.scan.CellScan;
-import art.arcane.optics.frame.ProjectorFrameTransform;
 import art.arcane.optics.volume.FrustumFit;
 import art.arcane.optics.recursion.RecursiveEndpoints;
 import art.arcane.optics.scan.ProjectorSampleMemo;
@@ -26,6 +26,7 @@ import art.arcane.optics.scan.ScanDestination;
 import art.arcane.optics.occlusion.ProjectorViewOcclusion;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.volume.LodPolicy;
+import art.arcane.optics.volume.ProjectionVolume;
 import art.arcane.optics.plate.PlateBox;
 import art.arcane.optics.view.ContentView;
 import art.arcane.optics.math.Box;
@@ -150,12 +151,9 @@ public final class ClientSweepScene {
     }
 
     String destinationAt(boolean frontSide, int x, int y, int z) {
-        ProjectorFrameTransform transform = new ProjectorFrameTransform();
-        transform.configure(localFrame.view(frontSide), remoteFrame.view(frontSide),
-            localOrigin.getX(), localOrigin.getY(), localOrigin.getZ(),
-            remoteOrigin.getX(), remoteOrigin.getY(), remoteOrigin.getZ());
+        OpticTransform transform = OpticTransform.between(localFrame.view(frontSide), localOrigin, remoteFrame.view(frontSide), remoteOrigin);
         double[] remote = new double[3];
-        transform.apply(x + 0.5D, y + 0.5D, z + 0.5D, remote);
+        transform.snappedPointInto(x + 0.5D, y + 0.5D, z + 0.5D, remote);
         return destinationContent((int) Math.floor(remote[0]), (int) Math.floor(remote[1]), (int) Math.floor(remote[2]));
     }
 
@@ -172,7 +170,7 @@ public final class ClientSweepScene {
         int[] axisMin = new int[3];
         int[] axisMax = new int[3];
         Frame projectionFrame = localFrame.view(frontSide);
-        double clearance = ProjectorFrameTransform.portalPlaneClearance(area, localFrame);
+        double clearance = ProjectionVolume.portalPlaneClearance(area, localFrame);
         double maxDepth = depthBlocks + clearance;
         Face normal = localFrame.getNormal();
         int normalAxis = ApertureDescriptor.axisOf(normal);
@@ -182,15 +180,15 @@ public final class ClientSweepScene {
         double signedMax = frontSide ? -clearance : maxDepth;
         double centerA = originNormal + (signedMin / facing);
         double centerB = originNormal + (signedMax / facing);
-        axisMin[normalAxis] = ProjectorFrameTransform.minBlockForCenter(Math.min(centerA, centerB));
-        axisMax[normalAxis] = ProjectorFrameTransform.maxBlockForCenter(Math.max(centerA, centerB));
+        axisMin[normalAxis] = ProjectionVolume.minBlockForCenter(Math.min(centerA, centerB));
+        axisMax[normalAxis] = ProjectionVolume.maxBlockForCenter(Math.max(centerA, centerB));
         double pad = Math.max(0.0D, lateralBlocks) + Math.max(0.0D, aperturePadding);
         for (Face lateralDirection : new Face[] {projectionFrame.getRight(), projectionFrame.getUp()}) {
             int axis = ApertureDescriptor.axisOf(lateralDirection);
             double areaMin = axis == 0 ? area.getXa() : axis == 1 ? area.getYa() : area.getZa();
             double areaMax = axis == 0 ? area.getXb() : axis == 1 ? area.getYb() : area.getZb();
-            axisMin[axis] = ProjectorFrameTransform.minBlockForCenter(areaMin - pad);
-            axisMax[axis] = ProjectorFrameTransform.maxBlockForCenter(areaMax + pad);
+            axisMin[axis] = ProjectionVolume.minBlockForCenter(areaMin - pad);
+            axisMax[axis] = ProjectionVolume.maxBlockForCenter(areaMax + pad);
         }
         return PlateBox.spanning(axisMin[0], axisMin[1], axisMin[2], axisMax[0], axisMax[1], axisMax[2]);
     }

@@ -1,6 +1,7 @@
 package art.arcane.wormholes.door;
 
 import art.arcane.optics.math.Face;
+import art.arcane.optics.math.Vec3d;
 
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.type.Door;
@@ -40,7 +41,7 @@ final class DoorEntitySweepTest
 		DoorOpenCycle cycle = new DoorOpenCycle();
 		cycle.observe(true);
 
-		DoorTransitGate.complete(cycle, new DoorTransit(new DoorwayPlane(0, 64, 0, Face.N), DoorwayCrossing.Direction.FRONT_TO_BACK, 0.0F, 0.0F, 0.25D, 0.25D, DoorTravelerClass.OBJECT, new DoorVec3(0.0D, 0.0D, -3.0D)), true, false);
+		DoorTransitGate.complete(cycle, new DoorTransit(new DoorwayPlane(0, 64, 0, Face.N), true, 0.0F, 0.0F, 0.25D, 0.25D, DoorTravelerClass.OBJECT, new Vec3d(0.0D, 0.0D, -3.0D)), true, false);
 
 		// the object sweep reads exactly this to decide whether arrows 2..n are fed
 		assertTrue(cycle.portalActive());
@@ -131,7 +132,7 @@ final class DoorEntitySweepTest
 	@Test
 	void theReachBoxIsResolvedToTheChunksItActuallyCovers()
 	{
-		DoorEntitySweep.ChunkSpan middle = DoorEntitySweep.span(new DoorVec3(8.5D, 70.0D, 8.5D));
+		DoorEntitySweep.ChunkSpan middle = DoorEntitySweep.span(new Vec3d(8.5D, 70.0D, 8.5D));
 
 		assertEquals(0, middle.minChunkX());
 		assertEquals(0, middle.minChunkZ());
@@ -139,7 +140,7 @@ final class DoorEntitySweepTest
 		assertEquals(0, middle.maxChunkZ());
 
 		// a door on a chunk corner reaches into the neighbours a single box query would refuse
-		DoorEntitySweep.ChunkSpan corner = DoorEntitySweep.span(new DoorVec3(0.5D, 70.0D, 0.5D));
+		DoorEntitySweep.ChunkSpan corner = DoorEntitySweep.span(new Vec3d(0.5D, 70.0D, 0.5D));
 
 		assertEquals(-1, corner.minChunkX());
 		assertEquals(-1, corner.minChunkZ());
@@ -150,7 +151,7 @@ final class DoorEntitySweepTest
 	@Test
 	void onlyCandidatesInsideTheReachBoxSurviveAWholeChunkOfEntities()
 	{
-		DoorVec3 center = new DoorVec3(8.5D, 70.0D, 8.5D);
+		Vec3d center = new Vec3d(8.5D, 70.0D, 8.5D);
 
 		assertTrue(DoorEntitySweep.withinReach(center, 8.5D, 70.0D, 8.5D));
 		assertTrue(DoorEntitySweep.withinReach(center, 12.9D, 72.9D, 4.1D));

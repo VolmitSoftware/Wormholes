@@ -522,7 +522,7 @@ public class MinecraftClientViewPortalAccessTest extends MinecraftTestBase {
         ApertureDescriptor rootGeometry = portals.geometry(fixture.peer(), root, new SessionPalette()).withDepth(128);
         assertEquals(ApertureDescriptor.KIND_DOOR, rootGeometry.kind());
         assertEquals(fixture.runtime().configuration().settings().getProjection().recursivePortalDepth, rootGeometry.recursionDepth());
-        Vec3d childOrigin = fixture.peer().nestedContext(root).transform().destinationPoint(2.5D, 65.0D, -4.5D);
+        Vec3d childOrigin = fixture.peer().nestedContext(root).transform().inverse().point(new Vec3d(2.5D, 65.0D, -4.5D));
         MinecraftPortal mirror = portal(childOrigin.x() - 1.5D);
         MinecraftPortal frame = portal(childOrigin.x() + 2.5D);
         MinecraftPortal linked = portal(childOrigin.x() + 12.5D);

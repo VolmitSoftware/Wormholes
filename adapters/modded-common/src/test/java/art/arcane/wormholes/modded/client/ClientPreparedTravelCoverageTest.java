@@ -2,8 +2,8 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
-import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.frame.OpticTransform;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientChunkCache;
 import net.minecraft.world.level.chunk.LevelChunk;
@@ -34,9 +34,9 @@ public class ClientPreparedTravelCoverageTest extends MinecraftTestBase {
             }
         }
         ClientViewMessage.TravelBegin begin = new ClientViewMessage.TravelBegin(new UUID(4, 17), 8, new UUID(2, 9),
-            "minecraft:the_nether", ClientTravelTestFixtures.geometry(), ProjectionEnvironment.Transform.IDENTITY, new ClientViewMessage.TravelWorld("minecraft:overworld", "minecraft:overworld",
+            "minecraft:the_nether", ClientTravelTestFixtures.geometry(), OpticTransform.IDENTITY, new ClientViewMessage.TravelWorld("minecraft:overworld", "minecraft:overworld",
             7, false, false, 63, -64, 384), new ClientViewMessage.TravelPose(0, 80, 0, 0, 0), coordinates,
-            PortalEnvironmentTest.environment(ProjectionEnvironment.Transform.IDENTITY), 30_000);
+            PortalEnvironmentTest.environment(OpticTransform.IDENTITY), 30_000);
         ClientLevel level = mock(ClientLevel.class);
         ClientChunkCache cache = mock(ClientChunkCache.class);
         LevelChunk chunk = mock(LevelChunk.class);

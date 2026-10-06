@@ -21,6 +21,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.AxisPermutation;
 
 class LocalPortalCrossingTest {
     private TraversableManager previousManager;
@@ -59,9 +61,9 @@ class LocalPortalCrossingTest {
                 assertVector(end, crossing.getInPoint());
                 assertVector(velocity, crossing.getInVelocity());
                 LocalPortal destination = portal(world, direction.reverse());
-                Vector expected = BukkitGeometry.bukkit(source.getFrame().transformPoint(BukkitGeometry.vector(end), source.getOrigin(), destination.getOrigin(), destination.getFrame()));
+                Vector expected = BukkitGeometry.bukkit(OpticTransform.between(source.getFrame(), source.getOrigin(), destination.getFrame(), destination.getOrigin()).point(BukkitGeometry.vector(end)));
                 assertVector(expected, destination.computeExitTarget(crossing).toVector());
-                assertVector(BukkitGeometry.bukkit(source.getFrame().transformVector(BukkitGeometry.vector(velocity), destination.getFrame())), crossing.getOutVelocity(destination.getFrame()));
+                assertVector(BukkitGeometry.bukkit(OpticTransform.of(AxisPermutation.between(source.getFrame(), destination.getFrame()), 0.0D, 0.0D, 0.0D).vector(BukkitGeometry.vector(velocity))), crossing.getOutVelocity(destination.getFrame()));
             }
         }
     }

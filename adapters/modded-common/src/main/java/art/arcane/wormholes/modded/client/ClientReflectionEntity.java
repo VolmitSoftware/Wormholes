@@ -2,11 +2,11 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.mixin.client.AvatarDataAccessor;
 import art.arcane.wormholes.modded.mixin.client.ReflectionDataAccessor;
-import art.arcane.optics.entity.EntityVisualProjection;
-import art.arcane.optics.frame.PortalCoordMap;
 import art.arcane.optics.aperture.ApertureDescriptor;
-import art.arcane.optics.client.ClientSpace;
 import art.arcane.optics.client.ClientSweep;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.entity.EntityProjection;
+import art.arcane.optics.math.Angles.Look;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -46,14 +46,12 @@ public final class ClientReflectionEntity {
     private final IntOpenHashSet meshIds = new IntOpenHashSet();
     private final IntArrayList keys;
     private final double[] point;
-    private final double[] direction;
 
     public ClientReflectionEntity() {
         this.reflections = new Int2ObjectOpenHashMap<>(2);
         this.seen = new IntOpenHashSet(2);
         this.keys = new IntArrayList(2);
         this.point = new double[3];
-        this.direction = new double[3];
     }
 
     public int size() {
@@ -93,10 +91,10 @@ public final class ClientReflectionEntity {
             ClientPortal portal = session.portal(portalKey);
             ClientMirrorBuilder mirror = tick.mirror(portalKey);
             boolean mesh = session.meshes().view(portalKey) != null;
-            if (portal == null || !mesh && (mirror == null || !portal.ready() || !visible(portal, mirror.space(), player))) {
+            if (portal == null || !mesh && (mirror == null || !portal.ready() || !visible(portal, mirror.transform(), player))) {
                 continue;
             }
-            ClientSpace space = mesh ? ClientSpace.mirror(portal.geometry()) : mirror.space();
+            OpticTransform space = mesh ? portal.geometry().mirrorTransform() : mirror.transform();
             Reflection reflection = reflections.get(portalKey);
             if (reflection == null || reflection.entity.isRemoved() || reflection.entity.level() != level) {
                 reflections.remove(portalKey);
@@ -110,7 +108,7 @@ public final class ClientReflectionEntity {
             if (mesh) {
                 meshIds.add(reflection.entity.getId());
             }
-            follow(reflection, player, mesh ? ClientSpace.IDENTITY : space, !mesh && upsideDown(portal.geometry()), mesh);
+            follow(reflection, player, mesh ? OpticTransform.IDENTITY : space, !mesh && upsideDown(portal.geometry()), mesh);
         }
         ObjectIterator<Int2ObjectMap.Entry<Reflection>> iterator = reflections.int2ObjectEntrySet().fastIterator();
         while (iterator.hasNext()) {
@@ -131,7 +129,7 @@ public final class ClientReflectionEntity {
         reflections.clear();
     }
 
-    private boolean visible(ClientPortal portal, ClientSpace space, LocalPlayer player) {
+    private boolean visible(ClientPortal portal, OpticTransform space, LocalPlayer player) {
         ClientSweep sweep = portal.sweep();
         if (sweep.eyeFrontSide() != portal.geometry().frontSide() || sweep.appliedCount() == 0) {
             return false;
@@ -140,17 +138,17 @@ public final class ClientReflectionEntity {
             || sampleApplied(sweep, space, player.getX(), player.getEyeY(), player.getZ());
     }
 
-    private boolean sampleApplied(ClientSweep sweep, ClientSpace space, double x, double y, double z) {
-        space.toDisplay(x, y, z, point);
+    private boolean sampleApplied(ClientSweep sweep, OpticTransform space, double x, double y, double z) {
+        space.pointInto(x, y, z, point);
         return sweep.applied((int) Math.floor(point[0]), (int) Math.floor(point[1]), (int) Math.floor(point[2]));
     }
 
-    private Reflection spawn(ClientLevel level, LocalPlayer player, ClientPacketListener connection, ClientSpace space) {
+    private Reflection spawn(ClientLevel level, LocalPlayer player, ClientPacketListener connection, OpticTransform space) {
         int id = ClientEntityIds.freeReflection(this::taken);
         if (id == ClientEntityIds.NONE) {
             return null;
         }
-        space.entityToDisplay(player.getX(), player.getY(), player.getZ(), player.getBbHeight(), point);
+        EntityProjection.feetInto(space, player.getX(), player.getY(), player.getZ(), player.getBbHeight(), point);
         float yaw = mirroredYaw(space, player.getYRot(), player.getXRot());
         float pitch = mirroredPitch(space, player.getYRot(), player.getXRot());
         float headYaw = mirroredYaw(space, player.getYHeadRot(), 0.0F);
@@ -168,7 +166,7 @@ public final class ClientReflectionEntity {
         return new Reflection(mannequin);
     }
 
-    private void follow(Reflection reflection, LocalPlayer player, ClientSpace space, boolean upsideDown, boolean nativeMesh) {
+    private void follow(Reflection reflection, LocalPlayer player, OpticTransform space, boolean upsideDown, boolean nativeMesh) {
         Mannequin entity = reflection.entity;
         if (nativeMesh) {
             entity.commonTick();
@@ -176,10 +174,10 @@ public final class ClientReflectionEntity {
             followNativePose(entity, player);
         } else {
             float height = player.getBbHeight();
-            space.entityToDisplay(player.xOld, player.yOld, player.zOld, height, point);
+            EntityProjection.feetInto(space, player.xOld, player.yOld, player.zOld, height, point);
             Vec3 previous = new Vec3(point[0], point[1], point[2]);
             entity.setOldPosAndRot(previous, mirroredYaw(space, player.yRotO, player.xRotO), mirroredPitch(space, player.yRotO, player.xRotO));
-            space.entityToDisplay(player.getX(), player.getY(), player.getZ(), height, point);
+            EntityProjection.feetInto(space, player.getX(), player.getY(), player.getZ(), height, point);
             entity.setPos(point[0], point[1], point[2]);
             entity.setYRot(mirroredYaw(space, player.getYRot(), player.getXRot()));
             entity.setXRot(mirroredPitch(space, player.getYRot(), player.getXRot()));
@@ -259,20 +257,16 @@ public final class ClientReflectionEntity {
         return false;
     }
 
-    private float mirroredYaw(ClientSpace space, float yaw, float pitch) {
-        EntityVisualProjection.lookDirectionInto(yaw, pitch, direction);
-        space.vectorToDisplay(direction[0], direction[1], direction[2], direction);
-        return EntityVisualProjection.yaw(direction[0], direction[2]);
+    private static float mirroredYaw(OpticTransform space, float yaw, float pitch) {
+        return space.look(new Look(yaw, pitch)).yaw();
     }
 
-    private float mirroredPitch(ClientSpace space, float yaw, float pitch) {
-        EntityVisualProjection.lookDirectionInto(yaw, pitch, direction);
-        space.vectorToDisplay(direction[0], direction[1], direction[2], direction);
-        return EntityVisualProjection.pitch(direction[0], direction[1], direction[2]);
+    private static float mirroredPitch(OpticTransform space, float yaw, float pitch) {
+        return space.look(new Look(yaw, pitch)).pitch();
     }
 
     private static boolean upsideDown(ApertureDescriptor mirror) {
-        return PortalCoordMap.mirrorTransformFlipsWorldUp(mirror.frame(), mirror.mirrorQuarterTurns());
+        return mirror.mirrorTransform().flipsWorldUp();
     }
 
     private static void remove(ClientLevel level, ClientPacketListener connection, Reflection reflection) {

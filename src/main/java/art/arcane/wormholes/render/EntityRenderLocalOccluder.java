@@ -19,10 +19,10 @@ import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.optics.frame.Frame;
-import art.arcane.optics.frame.ProjectorFrameTransform;
 import art.arcane.optics.occlusion.LocalOcclusionArbiter;
 import art.arcane.optics.volume.LocalEntityEnvelope;
 import art.arcane.optics.volume.ViewVolume;
+import art.arcane.optics.volume.ProjectionVolume;
 
 final class EntityRenderLocalOccluder {
     private static final double LABEL_HORIZONTAL_MARGIN = 0.5D;
@@ -58,7 +58,7 @@ final class EntityRenderLocalOccluder {
         double eyeZ = scratchEntityPosition[2];
         double eyeDot = LocalEntityEnvelope.dot(eyeX - origin.getX(), eyeY - origin.getY(), eyeZ - origin.getZ(), frame);
         boolean eyeFrontSide = eyeDot >= 0.0D;
-        double clearance = ProjectorFrameTransform.portalPlaneClearance(localPortal.getStructure().getArea(), frame);
+        double clearance = ProjectionVolume.portalPlaneClearance(localPortal.getStructure().getArea(), frame);
         double maxDepth = projectionDepth + clearance;
         double ownedRange = largestOwnedLocalEntityRange(localWorld, localCenter, maxDepth);
         if (ownedRange <= 0.0D) {

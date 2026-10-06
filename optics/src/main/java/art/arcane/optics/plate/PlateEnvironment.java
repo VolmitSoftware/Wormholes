@@ -5,8 +5,8 @@ import java.util.Arrays;
 
 import art.arcane.optics.stream.BrickLightSource;
 import art.arcane.optics.stream.SectionBiomes;
-import art.arcane.optics.frame.ProjectorFrameTransform;
 import art.arcane.optics.view.ContentView;
+import art.arcane.optics.frame.OpticTransform;
 
 public final class PlateEnvironment implements BrickLightSource {
     private final byte[] block;
@@ -25,7 +25,7 @@ public final class PlateEnvironment implements BrickLightSource {
         bytes = memory;
     }
 
-    public static PlateEnvironment capture(PlateBox box, ProjectorFrameTransform transform, ContentView<?, ?> view) {
+    public static PlateEnvironment capture(PlateBox box, OpticTransform transform, ContentView<?, ?> view) {
         if (box.sizeX() != 16 || box.sizeY() != 16 || box.sizeZ() != 16) {
             return null;
         }
@@ -33,7 +33,7 @@ public final class PlateEnvironment implements BrickLightSource {
         ArrayList<String> palette = new ArrayList<String>();
         byte[] indices = new byte[SectionBiomes.INDEX_BYTES];
         for (int cell = 0; cell < SectionBiomes.CELLS; cell++) {
-            transform.apply(box.minX() + (cell % SectionBiomes.WIDTH) * 4 - SectionBiomes.PADDING + 2.0D,
+            transform.snappedPointInto(box.minX() + (cell % SectionBiomes.WIDTH) * 4 - SectionBiomes.PADDING + 2.0D,
                 box.minY() + (cell / (SectionBiomes.WIDTH * SectionBiomes.WIDTH)) * 4 - SectionBiomes.PADDING + 2.0D,
                 box.minZ() + (cell / SectionBiomes.WIDTH % SectionBiomes.WIDTH) * 4 - SectionBiomes.PADDING + 2.0D, remote);
             String biome = view.sampleBiome((int) Math.floor(remote[0]), (int) Math.floor(remote[1]), (int) Math.floor(remote[2]));
@@ -51,7 +51,7 @@ public final class PlateEnvironment implements BrickLightSource {
         byte[] block = new byte[2048];
         byte[] sky = new byte[2048];
         for (int cell = 0; cell < 4096; cell++) {
-            transform.apply(box.minX() + (cell & 15) + 0.5D, box.minY() + (cell >> 8) + 0.5D,
+            transform.snappedPointInto(box.minX() + (cell & 15) + 0.5D, box.minY() + (cell >> 8) + 0.5D,
                 box.minZ() + (cell >> 4 & 15) + 0.5D, remote);
             int light = view.getLight((int) Math.floor(remote[0]), (int) Math.floor(remote[1]), (int) Math.floor(remote[2]));
             if (light == ContentView.LIGHT_UNAVAILABLE) {

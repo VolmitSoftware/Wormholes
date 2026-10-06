@@ -5,9 +5,10 @@ import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.wormholes.network.view.PacketBlobs;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.optics.frame.Frame;
-import art.arcane.optics.client.ClientViewEntityTransform;
+import art.arcane.optics.frame.ViewWindow;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.math.Vec3d;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.EntityType;
@@ -47,8 +48,7 @@ class ClientViewSceneCaptureTest {
         when(source.destinationWorld()).thenReturn(world);
         when(source.portal()).thenReturn(anchor);
         Frame portalFrame = Frame.canonical(Face.S);
-        ClientViewEntityTransform.EntityFrame frame = new ClientViewEntityTransform.EntityFrame(0, 64, 0, portalFrame,
-            0, 64, 0, portalFrame, false, 0, true, 32);
+        ViewWindow frame = ViewWindow.between(new Vec3d(0, 64, 0), portalFrame, new Vec3d(0, 64, 0), portalFrame, true, 32);
         try (MockedStatic<EntityRenderCaches> nearby = mockStatic(EntityRenderCaches.class);
              MockedStatic<PacketBlobs> blobs = mockStatic(PacketBlobs.class)) {
             nearby.when(() -> EntityRenderCaches.nearbyRemoteEntities(any(), any(), anyDouble())).thenReturn(List.of(animal));

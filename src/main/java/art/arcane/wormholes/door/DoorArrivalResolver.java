@@ -1,6 +1,7 @@
 package art.arcane.wormholes.door;
 
 import art.arcane.wormholes.platform.WormholesPlatform;
+import art.arcane.optics.math.Vec3d;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -68,8 +69,8 @@ final class DoorArrivalResolver
 	Optional<Location> safeSourceDoorReturn(World world, DoorTransit transit)
 	{
 		DoorwayPlane plane = transit.sourcePlane();
-		int sideSign = transit.direction().entrySideSign();
-		DoorVec3 point = DoorArrivals.arrivalPoint(plane, transit, sideSign);
+		int sideSign = transit.entrySideSign();
+		Vec3d point = DoorArrivals.arrivalPoint(plane, transit, sideSign);
 		DoorArrivals.Facing facing = DoorArrivals.arrivalFacing(plane, transit, sideSign);
 		return safeArrivalLocation(world, point, facing, transit, plane, sideSign);
 	}
@@ -80,15 +81,15 @@ final class DoorArrivalResolver
 		DoorTransit transit)
 	{
 		int sideSign = DoorPlanePairing.arrivalSideSign(
-			transit.sourcePlane(), destinationPlane, transit.direction());
-		DoorVec3 point = DoorArrivals.destinationPoint(destinationPlane, transit, sideSign);
+			transit.sourcePlane(), destinationPlane, transit.entrySideSign());
+		Vec3d point = DoorArrivals.destinationPoint(destinationPlane, transit, sideSign);
 		DoorArrivals.Facing facing = DoorArrivals.destinationFacing(destinationPlane, transit, sideSign);
 		return safeArrivalLocation(world, point, facing, transit, destinationPlane, sideSign);
 	}
 
 	Optional<Location> findSafeNear(Location stored, int radius)
 	{
-        return DoorArrivals.findSafeNear(new DoorVec3(stored.getX(), stored.getY(), stored.getZ()), radius,
+        return DoorArrivals.findSafeNear(new Vec3d(stored.getX(), stored.getY(), stored.getZ()), radius,
             point -> isSafeStanding(new Location(stored.getWorld(), point.x(), point.y(), point.z())))
             .map(point -> new Location(stored.getWorld(), point.x(), point.y(), point.z(), stored.getYaw(), stored.getPitch()));
 	}
@@ -126,7 +127,7 @@ final class DoorArrivalResolver
 
 	private Optional<Location> safeArrivalLocation(
 		World world,
-		DoorVec3 nominal,
+		Vec3d nominal,
 		DoorArrivals.Facing facing,
 		DoorTransit transit,
 		DoorwayPlane destination,

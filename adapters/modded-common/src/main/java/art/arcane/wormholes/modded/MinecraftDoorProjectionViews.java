@@ -2,7 +2,6 @@ package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.config.toml.DoorsConfig;
 import art.arcane.wormholes.door.DoorForm;
-import art.arcane.wormholes.door.DoorVec3;
 import art.arcane.wormholes.door.DoorwayPlane;
 import art.arcane.wormholes.door.view.DoorApertureFrames;
 import art.arcane.wormholes.door.view.DoorProjectionDestination;
@@ -98,7 +97,7 @@ public final class MinecraftDoorProjectionViews {
 
     private static Aperture create(MinecraftDoorService.DoorView door, DoorProjectionDestination destination, DoorsConfig settings) {
         DoorwayPlane plane = door.plane();
-        DoorVec3 center = plane.center();
+        Vec3d center = plane.center();
         ApertureCells geometry = new ApertureCells();
         Vec3d lower = new Vec3d(plane.blockX(), plane.blockY(), plane.blockZ());
         geometry.setBlocks(plane.form() == DoorForm.TRAPDOOR ? List.of(lower) : List.of(lower, lower.add(new Vec3d(0, 1, 0))));

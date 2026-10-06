@@ -106,7 +106,7 @@ public final class ClientViewMirrorClientGameTest implements FabricClientGameTes
         assertTrue(failure == null, "ceiling mirror: " + failure);
         boolean flipped = context.computeOnClient(client -> {
             Entity entity = WormholesClient.instance().reflections().entity(mirrorKey());
-            return WormholesClient.instance().session().environment(mirrorKey()).transform().yAxis() == Face.D
+            return WormholesClient.instance().session().environment(mirrorKey()).transform().permutation().y() == Face.D
                 && WormholesClient.instance().reflections().meshEntity(entity.getId());
         });
         assertTrue(flipped, "the ceiling reflection is not drawn upside down");
@@ -138,7 +138,7 @@ public final class ClientViewMirrorClientGameTest implements FabricClientGameTes
         context.waitFor(client -> NativeClientViewAssertions.state(mirrorKey(), GOLD_MARKER) == Blocks.GOLD_BLOCK.defaultBlockState(), STREAM_TIMEOUT_TICKS);
         boolean reflected = context.computeOnClient(client -> {
             NativeClientViewAssertions.assertIsolated();
-            return WormholesClient.instance().session().environment(mirrorKey()).transform().reflected()
+            return WormholesClient.instance().session().environment(mirrorKey()).transform().reflects()
                 && client.level.getBlockState(GOLD_MARKER).is(Blocks.GOLD_BLOCK);
         });
         assertTrue(reflected, "native mirror lost its reflection transform or changed the physical gold marker");

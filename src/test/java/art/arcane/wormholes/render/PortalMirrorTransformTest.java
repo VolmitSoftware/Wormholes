@@ -11,15 +11,16 @@ import org.junit.jupiter.api.Test;
 
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.QuarterTurn;
+import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.math.Face;
-import art.arcane.optics.frame.PortalCoordMap;
+import art.arcane.optics.math.Vec3d;
 
 public final class PortalMirrorTransformTest {
     private static final double EPSILON = 1.0E-12D;
+    private static final Vec3d ORIGIN = new Vec3d(13.25D, -7.5D, 42.75D);
 
     @Test
     public void sourceAndDisplayTransformsRoundTripForEveryFrameAndRotation() {
-        Vector origin = new Vector(13.25D, -7.5D, 42.75D);
         Vector point = new Vector(18.5D, 4.25D, 31.125D);
         Vector vector = new Vector(2.5D, -3.75D, 7.125D);
         double[] displayed = new double[3];
@@ -28,17 +29,14 @@ public final class PortalMirrorTransformTest {
         for(Face normal : Face.values()) {
             Frame frame = Frame.canonical(normal);
             for(int roll = 0; roll < 4; roll++) {
-                for(int rotation = 0; rotation < 4; rotation++) {
-                    PortalCoordMap.mirrorSourceToDisplayPointInto(point.getX(), point.getY(), point.getZ(),
-                        origin.getX(), origin.getY(), origin.getZ(), frame, rotation, displayed);
-                    PortalCoordMap.mirrorDisplayToSourcePointInto(displayed[0], displayed[1], displayed[2],
-                        origin.getX(), origin.getY(), origin.getZ(), frame, rotation, restored);
+                for(QuarterTurn rotation : QuarterTurn.values()) {
+                    OpticTransform mirror = OpticTransform.mirror(frame, ORIGIN, rotation);
+                    mirror.pointInto(point.getX(), point.getY(), point.getZ(), displayed);
+                    mirror.inverse().pointInto(displayed[0], displayed[1], displayed[2], restored);
                     assertVector(point, restored);
 
-                    PortalCoordMap.mirrorSourceToDisplayVectorInto(vector.getX(), vector.getY(), vector.getZ(),
-                        frame, rotation, displayed);
-                    PortalCoordMap.mirrorDisplayToSourceVectorInto(displayed[0], displayed[1], displayed[2],
-                        frame, rotation, restored);
+                    mirror.vectorInto(vector.getX(), vector.getY(), vector.getZ(), displayed);
+                    mirror.inverse().vectorInto(displayed[0], displayed[1], displayed[2], restored);
                     assertVector(vector, restored);
                 }
                 frame = frame.rotateClockwise();
@@ -48,18 +46,30 @@ public final class PortalMirrorTransformTest {
 
     @Test
     public void quarterTurnsRotateImageClockwiseAndReflectOnlyNormal() {
+        Frame frame = Frame.canonical(Face.U);
+        Vector source = compose(frame, 2.0D, 3.0D, 4.0D);
+        double[] out = new double[3];
+
+        OpticTransform.mirror(frame, ORIGIN, QuarterTurn.DEGREES_0).vectorInto(source.getX(), source.getY(), source.getZ(), out);
+        assertComponents(frame, out, 2.0D, 3.0D, -4.0D);
+        OpticTransform.mirror(frame, ORIGIN, QuarterTurn.DEGREES_90).vectorInto(source.getX(), source.getY(), source.getZ(), out);
+        assertComponents(frame, out, 3.0D, -2.0D, -4.0D);
+        OpticTransform.mirror(frame, ORIGIN, QuarterTurn.DEGREES_180).vectorInto(source.getX(), source.getY(), source.getZ(), out);
+        assertComponents(frame, out, -2.0D, -3.0D, -4.0D);
+        OpticTransform.mirror(frame, ORIGIN, QuarterTurn.DEGREES_270).vectorInto(source.getX(), source.getY(), source.getZ(), out);
+        assertComponents(frame, out, -3.0D, 2.0D, -4.0D);
+    }
+
+    @Test
+    public void wallQuarterTurnsCollapseOntoTheUprightImage() {
         Frame frame = Frame.canonical(Face.N);
         Vector source = compose(frame, 2.0D, 3.0D, 4.0D);
         double[] out = new double[3];
 
-        PortalCoordMap.mirrorSourceToDisplayVectorInto(source.getX(), source.getY(), source.getZ(), frame, 0, out);
+        OpticTransform.mirror(frame, ORIGIN, QuarterTurn.DEGREES_90).vectorInto(source.getX(), source.getY(), source.getZ(), out);
         assertComponents(frame, out, 2.0D, 3.0D, -4.0D);
-        PortalCoordMap.mirrorSourceToDisplayVectorInto(source.getX(), source.getY(), source.getZ(), frame, 1, out);
-        assertComponents(frame, out, 3.0D, -2.0D, -4.0D);
-        PortalCoordMap.mirrorSourceToDisplayVectorInto(source.getX(), source.getY(), source.getZ(), frame, 2, out);
+        OpticTransform.mirror(frame, ORIGIN, QuarterTurn.DEGREES_270).vectorInto(source.getX(), source.getY(), source.getZ(), out);
         assertComponents(frame, out, -2.0D, -3.0D, -4.0D);
-        PortalCoordMap.mirrorSourceToDisplayVectorInto(source.getX(), source.getY(), source.getZ(), frame, 3, out);
-        assertComponents(frame, out, -3.0D, 2.0D, -4.0D);
     }
 
     @Test
@@ -67,10 +77,10 @@ public final class PortalMirrorTransformTest {
         Frame frame = Frame.canonical(Face.N);
         double[] expected = new double[3];
         double[] actual = new double[3];
-        PortalCoordMap.mirrorSourceToDisplayVectorInto(2.25D, -4.5D, 8.75D, frame, 0, expected);
+        OpticTransform.mirror(frame, ORIGIN, QuarterTurn.DEGREES_0).vectorInto(2.25D, -4.5D, 8.75D, expected);
 
         for(int roll = 0; roll < 4; roll++) {
-            PortalCoordMap.mirrorSourceToDisplayVectorInto(2.25D, -4.5D, 8.75D, frame, 0, actual);
+            OpticTransform.mirror(frame, ORIGIN, QuarterTurn.DEGREES_0).vectorInto(2.25D, -4.5D, 8.75D, actual);
             assertVector(new Vector(expected[0], expected[1], expected[2]), actual);
             frame = frame.rotateClockwise();
         }
@@ -78,35 +88,38 @@ public final class PortalMirrorTransformTest {
 
     @Test
     public void mirroredBlockDirectionsFollowImageRotation() {
-        Frame frame = Frame.canonical(Face.N);
+        Frame wall = Frame.canonical(Face.N);
+        Frame floor = Frame.canonical(Face.U);
         double[] scratch = new double[3];
 
-        assertEquals(Face.E, ProjectedBlockDataTransformer.mirrorDirection(Face.E, frame, 0, scratch));
-        assertEquals(Face.S, ProjectedBlockDataTransformer.mirrorDirection(Face.N, frame, 0, scratch));
-        assertEquals(Face.N, ProjectedBlockDataTransformer.mirrorDirection(Face.S, frame, 0, scratch));
-        assertEquals(Face.E, ProjectedBlockDataTransformer.mirrorDirection(Face.U, frame, 1, scratch));
-        assertEquals(Face.D, ProjectedBlockDataTransformer.mirrorDirection(Face.E, frame, 1, scratch));
+        assertEquals(Face.E, ProjectedBlockDataTransformer.mirrorDirection(Face.E, wall, 0, scratch));
+        assertEquals(Face.S, ProjectedBlockDataTransformer.mirrorDirection(Face.N, wall, 0, scratch));
+        assertEquals(Face.N, ProjectedBlockDataTransformer.mirrorDirection(Face.S, wall, 0, scratch));
+        assertEquals(Face.E, ProjectedBlockDataTransformer.mirrorDirection(Face.E, wall, 1, scratch));
+        assertEquals(Face.D, ProjectedBlockDataTransformer.mirrorDirection(Face.U, floor, 1, scratch));
+        assertEquals(OpticTransform.mirror(floor, ORIGIN, QuarterTurn.DEGREES_90).face(Face.E),
+            ProjectedBlockDataTransformer.mirrorDirection(Face.E, floor, 1, scratch));
     }
 
     @Test
     public void imageHalfTurnControlsUpsideDownEntityState() {
         Frame wall = Frame.canonical(Face.N);
-        assertFalse(PortalCoordMap.mirrorTransformFlipsWorldUp(wall, 0));
-        assertTrue(PortalCoordMap.mirrorTransformFlipsWorldUp(wall, 2));
-        assertTrue(PortalCoordMap.mirrorTransformFlipsWorldUp(Frame.canonical(Face.U), 0));
+        assertFalse(OpticTransform.mirror(wall, ORIGIN, QuarterTurn.DEGREES_0).flipsWorldUp());
+        assertTrue(OpticTransform.mirror(wall, ORIGIN, QuarterTurn.DEGREES_180).flipsWorldUp());
+        assertTrue(OpticTransform.mirror(Frame.canonical(Face.U), ORIGIN, QuarterTurn.DEGREES_0).flipsWorldUp());
     }
 
     @Test
-    public void coherentRotationPolicyOnlyOffersWorldUpRepresentableEntityStates() {
+    public void everyRotationKeepsWorldUpRepresentableEntityStates() {
         Frame wall = Frame.canonical(Face.N);
         Frame floor = Frame.canonical(Face.U);
         double[] out = new double[3];
         for(QuarterTurn rotation : QuarterTurn.values()) {
-            PortalCoordMap.mirrorSourceToDisplayVectorInto(0.0D, 1.0D, 0.0D, wall, rotation.getQuarterTurns(), out);
-            boolean wallRepresentable = Math.abs(out[1]) > 0.5D;
-            assertEquals(wallRepresentable, rotation == rotation.coherentFor(wall));
+            OpticTransform.mirror(wall, ORIGIN, rotation).vectorInto(0.0D, 1.0D, 0.0D, out);
+            assertTrue(Math.abs(out[1]) > 0.5D);
+            assertEquals(OpticTransform.mirror(wall, ORIGIN, rotation.coherentFor(wall)), OpticTransform.mirror(wall, ORIGIN, rotation));
 
-            PortalCoordMap.mirrorSourceToDisplayVectorInto(0.0D, 1.0D, 0.0D, floor, rotation.getQuarterTurns(), out);
+            OpticTransform.mirror(floor, ORIGIN, rotation).vectorInto(0.0D, 1.0D, 0.0D, out);
             assertTrue(Math.abs(out[1]) > 0.5D);
             assertEquals(rotation, rotation.coherentFor(floor));
         }

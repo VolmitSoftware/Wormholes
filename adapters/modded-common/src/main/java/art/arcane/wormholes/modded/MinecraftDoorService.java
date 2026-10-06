@@ -44,9 +44,6 @@ import art.arcane.wormholes.door.DoorTransit;
 import art.arcane.wormholes.door.DoorTransitGate;
 import art.arcane.wormholes.door.DoorTravelerClass;
 import art.arcane.wormholes.door.DoorTravelerPolicy;
-import art.arcane.wormholes.door.DoorVec3;
-import art.arcane.wormholes.door.DoorVelocityTransform;
-import art.arcane.wormholes.door.DoorwayCrossing;
 import art.arcane.wormholes.door.DoorwayPlane;
 import art.arcane.wormholes.door.PairEndpoint;
 import art.arcane.wormholes.door.PlacedDoorEndpoint;
@@ -78,6 +75,7 @@ import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.math.Angles;
 import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -581,7 +579,7 @@ public final class MinecraftDoorService implements AutoCloseable {
                 Position previous = positions.get(entity.getUUID());
                 Vec3 start = previous != null && previous.level() == snapshot.level()
                     ? previous.point() : new Vec3(entity.xo, entity.yo, entity.zo);
-                Optional<DoorwayCrossing> crossing = DoorTransitGate.detect(plane, vector(start), vector(entity.position()),
+                Optional<PlaneCrossing> crossing = DoorTransitGate.detect(plane, vector(start), vector(entity.position()),
                     entity.getBbWidth() * 0.5D, entity.getBbHeight());
                 if (crossing.isEmpty()) {
                     continue;
@@ -615,7 +613,7 @@ public final class MinecraftDoorService implements AutoCloseable {
         if (snapshot == null || !snapshot.active() || snapshot.level() != player.level() || !canEnter(player, door.endpoint)) {
             return false;
         }
-        Optional<DoorwayCrossing> entry = DoorTransitGate.prepared(snapshot.plane(), crossing, player.getBbWidth() * 0.5D, player.getBbHeight());
+        Optional<PlaneCrossing> entry = DoorTransitGate.prepared(snapshot.plane(), crossing, player.getBbWidth() * 0.5D, player.getBbHeight());
         if (entry.isEmpty()) {
             return false;
         }
@@ -623,7 +621,7 @@ public final class MinecraftDoorService implements AutoCloseable {
         door.cycle.observe(snapshot.active());
         DoorTransit transit = new DoorTransit(snapshot.plane(), entry.get(), player.getYRot(), player.getXRot(),
             player.getBbWidth() * 0.5D, player.getBbHeight(), DoorTravelerClass.LIVING,
-            new DoorVec3(crossing.velocity().x(), crossing.velocity().y(), crossing.velocity().z()), crossing);
+            new Vec3d(crossing.velocity().x(), crossing.velocity().y(), crossing.velocity().z()), crossing);
         depart(player, door, snapshot, transit);
         return travelling(player.getUUID());
     }
@@ -863,14 +861,14 @@ public final class MinecraftDoorService implements AutoCloseable {
     private void enterPocket(Entity entity, ActiveDoor source, Snapshot snapshot, DoorTransit transit) {
         ReturnTicket ticket = null;
         if (transit.travelerClass() != DoorTravelerClass.OBJECT) {
-            int side = transit.direction().entrySideSign();
-            Optional<DoorVec3> point = DoorArrivals.findSafeVerticalDoorStanding(
+            int side = transit.entrySideSign();
+            Optional<Vec3d> point = DoorArrivals.findSafeVerticalDoorStanding(
                 DoorArrivals.arrivalPoint(snapshot.plane(), transit, side), DoorPlanePairing.arrivalYOffsets(snapshot.plane(), side),
                 candidate -> safe(entity, snapshot.level(), candidate, !snapshot.plane().horizontal()));
             if (point.isEmpty()) {
                 return;
             }
-            DoorVec3 returnPoint = point.get();
+            Vec3d returnPoint = point.get();
             DoorArrivals.Facing facing = DoorArrivals.arrivalFacing(snapshot.plane(), transit, side);
             ticket = new ReturnTicket(entity.getUUID(), source.endpoint.identity().itemId(), worldId(snapshot.level()),
                 snapshot.level().dimension().identifier().toString(), returnPoint.x(), returnPoint.y(), returnPoint.z(),
@@ -1021,12 +1019,12 @@ public final class MinecraftDoorService implements AutoCloseable {
                 doors.put(endpoint.identity().itemId(), new ActiveDoor(endpoint));
                 if (valid(entity, trip)) {
                     PocketEntryCoordinates entry = room.layout().entry();
-                    DoorVec3 point = new DoorVec3(entry.x(), entry.y(), entry.z());
+                    Vec3d point = new Vec3d(entry.x(), entry.y(), entry.z());
                     if (safe(entity, room.level(), point, trip.transit().travelerClass() == DoorTravelerClass.LIVING)) {
                         DoorwayPlane pocketPlane = room.layout().returnDoorPlane();
                         DoorArrivals.Facing facing = DoorArrivals.arrivalFacing(pocketPlane, trip.transit(), -1);
                         success = transitTeleport(entity, trip.source().endpoint, endpoint.identity().itemId(), room.level(), point, facing.yaw(), facing.pitch(),
-                            trip.transit().carriesMomentum() ? DoorVelocityTransform.mapToSide(pocketPlane, trip.transit(), trip.transit().velocity(), -1) : new DoorVec3(0, 0, 0));
+                            trip.transit().carriesMomentum() ? DoorPlanePairing.mapVectorToSide(pocketPlane, trip.transit(), trip.transit().velocity(), -1) : new Vec3d(0, 0, 0));
                     }
                 }
             } catch (RuntimeException exception) {
@@ -1072,10 +1070,10 @@ public final class MinecraftDoorService implements AutoCloseable {
                     LOGGER.error("Could not load pocket return for {}", entity.getUUID(), error);
                 }
                 if (Boolean.TRUE.equals(ready) && valid(entity, trip)) {
-                    Optional<DoorVec3> point = DoorArrivals.findSafeNear(new DoorVec3(ticket.x(), ticket.y(), ticket.z()), 3,
+                    Optional<Vec3d> point = DoorArrivals.findSafeNear(new Vec3d(ticket.x(), ticket.y(), ticket.z()), 3,
                         candidate -> safe(entity, destination, candidate, true));
                     success = point.isPresent() && transitTeleport(entity, source.endpoint, ticket.sourceEndpointId(), destination, point.get(), ticket.yaw(), ticket.pitch(), trip.transit().carriesMomentum()
-                        ? DoorVelocityTransform.rotateYaw(trip.transit().velocity(), ticket.yaw() - trip.transit().yaw()) : new DoorVec3(0, 0, 0));
+                        ? rotated(trip.transit().velocity(), ticket.yaw() - trip.transit().yaw()) : new Vec3d(0, 0, 0));
                     if (success) {
                         removeTicket(entity, ticket);
                     }
@@ -1141,12 +1139,12 @@ public final class MinecraftDoorService implements AutoCloseable {
             ? activeState.removeReturnTicket(actor.getUUID()) : Optional.empty(), ignored -> { }, () -> { });
     }
 
-    boolean teleport(Entity entity, ServerLevel level, DoorVec3 point, float yaw, float pitch, DoorVec3 velocity) {
+    boolean teleport(Entity entity, ServerLevel level, Vec3d point, float yaw, float pitch, Vec3d velocity) {
         return teleport(entity, new Arrival(level, point, yaw, pitch, velocity, Optional.empty()));
     }
 
     private boolean transitTeleport(Entity entity, PlacedDoorEndpoint source, UUID destinationId, ServerLevel level,
-                                    DoorVec3 point, float yaw, float pitch, DoorVec3 velocity) {
+                                    Vec3d point, float yaw, float pitch, Vec3d velocity) {
         Optional<MinecraftTraversalContext> context = entity instanceof ServerPlayer player
             ? Optional.of(new MinecraftTraversalContext(UUID.randomUUID(), TraversalKind.DIMENSIONAL_DOOR, player,
                 source.identity().itemId(), source.identity().kind().name(), MinecraftTraversalContext.Location.of(player),
@@ -1221,8 +1219,8 @@ public final class MinecraftDoorService implements AutoCloseable {
 
     private boolean arrive(Entity entity, ActiveDoor source, DoorTransit transit, Snapshot destination) {
         DoorwayPlane plane = destination.plane();
-        int side = DoorPlanePairing.arrivalSideSign(transit.sourcePlane(), plane, transit.direction());
-        DoorVec3 nominal = DoorArrivals.destinationPoint(plane, transit, side);
+        int side = DoorPlanePairing.arrivalSideSign(transit.sourcePlane(), plane, transit.entrySideSign());
+        Vec3d nominal = DoorArrivals.destinationPoint(plane, transit, side);
         boolean standing = transit.travelerClass() == DoorTravelerClass.LIVING && !plane.horizontal();
         DoorAutoCloseBook.Arrival open = autoClose.decideArrival(destination.endpoint().identity().itemId(), destination.active());
         boolean changedOpen = false;
@@ -1232,7 +1230,7 @@ public final class MinecraftDoorService implements AutoCloseable {
                 setOpen(destination, destination.endpoint().openState() == DoorOpenState.OPEN);
                 changedOpen = true;
             }
-            Optional<DoorVec3> safe = transit.preparedCrossing() == null
+            Optional<Vec3d> safe = transit.preparedCrossing() == null
                 ? DoorArrivals.findSafeVerticalDoorStanding(nominal, DoorPlanePairing.arrivalYOffsets(plane, side),
                     point -> safe(entity, destination.level(), point, standing))
                 : safe(entity, destination.level(), nominal, standing) ? Optional.of(nominal) : Optional.empty();
@@ -1243,10 +1241,10 @@ public final class MinecraftDoorService implements AutoCloseable {
                 setOpen(destination, destination.endpoint().openState() == DoorOpenState.OPEN);
                 changedOpen = true;
             }
-            DoorVec3 point = safe.get();
-            DoorVec3 velocity = !transit.carriesMomentum() ? new DoorVec3(0, 0, 0)
+            Vec3d point = safe.get();
+            Vec3d velocity = !transit.carriesMomentum() ? new Vec3d(0, 0, 0)
                 : transit.preparedCrossing() != null ? DoorArrivals.destinationVelocity(plane, transit, side)
-                    : DoorVelocityTransform.map(transit.sourcePlane(), plane, transit.velocity());
+                    : DoorPlanePairing.mapVector(transit.sourcePlane(), plane, transit.velocity());
             DoorArrivals.Facing facing = DoorArrivals.destinationFacing(plane, transit, side);
             moved = transitTeleport(entity, source.endpoint, destination.endpoint().identity().itemId(), destination.level(), point,
                 facing.yaw(), facing.pitch(), velocity);
@@ -1422,7 +1420,7 @@ public final class MinecraftDoorService implements AutoCloseable {
                 if (mate == null) {
                     return Optional.empty();
                 }
-                DoorVec3 center = mate.plane().center();
+                Vec3d center = mate.plane().center();
                 return Optional.of(new ProjectionDestination(endpoint.identity().itemId(), mate.level(),
                     new Vec3d(center.x(), center.y(), center.z()), DoorApertureFrames.destinationFrame(source.plane(), mate.plane())));
             });
@@ -1519,7 +1517,7 @@ public final class MinecraftDoorService implements AutoCloseable {
         if (target == null) {
             return Optional.empty();
         }
-        DoorVec3 center = target.plane().center();
+        Vec3d center = target.plane().center();
         return Optional.of(new ProjectionDestination(endpoint.identity().itemId(), target.level(),
             new Vec3d(center.x(), center.y(), center.z()), DoorApertureFrames.destinationFrame(source.plane(), target.plane())));
     }
@@ -1757,7 +1755,7 @@ public final class MinecraftDoorService implements AutoCloseable {
         }
     }
 
-    static boolean safe(Entity entity, ServerLevel level, DoorVec3 point, boolean standing) {
+    static boolean safe(Entity entity, ServerLevel level, Vec3d point, boolean standing) {
         AABB bounds = entity.getBoundingBox().move(point.x() - entity.getX(), point.y() - entity.getY(), point.z() - entity.getZ());
         for (int x = (int) Math.floor(bounds.minX) >> 4; x <= (int) Math.floor(bounds.maxX) >> 4; x++) {
             for (int z = (int) Math.floor(bounds.minZ) >> 4; z <= (int) Math.floor(bounds.maxZ) >> 4; z++) {
@@ -1823,11 +1821,15 @@ public final class MinecraftDoorService implements AutoCloseable {
         return UUID.nameUUIDFromBytes(level.dimension().identifier().toString().getBytes(StandardCharsets.UTF_8));
     }
 
-    private static DoorVec3 vector(Vec3 value) {
-        return new DoorVec3(value.x, value.y, value.z);
+    private static Vec3d rotated(Vec3d velocity, float yawDelta) {
+        return velocity == null ? null : Angles.rotateYaw(velocity, yawDelta);
     }
 
-    private static Vec3 vector(DoorVec3 value) {
+    private static Vec3d vector(Vec3 value) {
+        return new Vec3d(value.x, value.y, value.z);
+    }
+
+    private static Vec3 vector(Vec3d value) {
         return new Vec3(value.x(), value.y(), value.z());
     }
 
@@ -1893,7 +1895,7 @@ public final class MinecraftDoorService implements AutoCloseable {
         }
     }
 
-    private record Arrival(ServerLevel level, DoorVec3 point, float yaw, float pitch, DoorVec3 velocity,
+    private record Arrival(ServerLevel level, Vec3d point, float yaw, float pitch, Vec3d velocity,
                            Optional<MinecraftTraversalContext> context) {
     }
 

@@ -15,7 +15,9 @@ import com.github.retrooper.packetevents.protocol.world.BlockFace;
 import com.github.retrooper.packetevents.util.Vector3d;
 
 import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.entity.ItemFrameTransform;
 
 public final class ProjectedItemFrameMetadataTest {
@@ -23,9 +25,8 @@ public final class ProjectedItemFrameMetadataTest {
     public void metadataTransformsDirectionWithoutMutatingTheCapturedList() {
         Frame sourceFrame = Frame.canonical(Face.N);
         Frame targetFrame = Frame.canonical(Face.U);
-        double[] scratch = new double[3];
-        int transform = ItemFrameTransform.between(
-            Face.N, sourceFrame, targetFrame, scratch);
+        int transform = ItemFrameTransform.of(Face.N,
+            OpticTransform.between(sourceFrame, new Vec3d(0.0D, 0.0D, 0.0D), targetFrame, new Vec3d(0.0D, 0.0D, 0.0D)));
         EntityData<String> retained = new EntityData<String>(11, null, "retained");
         List<EntityData<?>> source = List.of(
             new EntityData<BlockFace>(8, null, BlockFace.NORTH),

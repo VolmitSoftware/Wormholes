@@ -1,6 +1,8 @@
 package art.arcane.wormholes.door;
 
 import art.arcane.optics.math.Face;
+import art.arcane.optics.math.Vec3d;
+import art.arcane.optics.crossing.PlaneCrossing;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -17,29 +19,24 @@ final class DoorTransitTravelerClassTest
 	@Test
 	void theShorthandConstructorsProduceALivingTransitWithoutMomentum()
 	{
-		DoorTransit defaults = new DoorTransit(PLANE, DoorwayCrossing.Direction.FRONT_TO_BACK, 0.0F, 0.0F);
+		DoorTransit defaults = new DoorTransit(PLANE, true, 0.0F, 0.0F);
 		DoorTransit sized = new DoorTransit(
-			PLANE, DoorwayCrossing.Direction.FRONT_TO_BACK, 0.0F, 0.0F, 0.25D, 0.5D);
+			PLANE, true, 0.0F, 0.0F, 0.25D, 0.5D);
 
 		assertEquals(DoorTravelerClass.LIVING, defaults.travelerClass());
 		assertEquals(DoorTravelerClass.LIVING, sized.travelerClass());
 		assertNull(defaults.velocity());
 		assertNull(sized.velocity());
 		assertFalse(defaults.carriesMomentum());
-		assertEquals(DoorwayCrossing.Direction.FRONT_TO_BACK, defaults.direction());
+		assertTrue(defaults.crossing().frontSide());
 		assertEquals(PLANE.center(), defaults.crossing().point());
-		assertEquals(1.0D, defaults.crossing().verticalOffset());
+		assertEquals(1.0D, PLANE.secondaryOffset(defaults.crossing().point()));
 	}
 
 	@Test
 	void anObjectTransitCarriesItsMomentum()
 	{
-		DoorwayCrossing crossing = new DoorwayCrossing(
-			PLANE.center(),
-			0.5D,
-			0.2D,
-			1.75D,
-			DoorwayCrossing.Direction.BACK_TO_FRONT);
+		PlaneCrossing crossing = PLANE.crossingAt(PLANE.center(), new Vec3d(0.0D, 0.0D, -3.0D), false);
 		DoorTransit transit = new DoorTransit(
 			PLANE,
 			crossing,
@@ -48,12 +45,12 @@ final class DoorTransitTravelerClassTest
 			0.25D,
 			0.5D,
 			DoorTravelerClass.OBJECT,
-			new DoorVec3(0.0D, 0.0D, -3.0D));
+			new Vec3d(0.0D, 0.0D, -3.0D));
 
 		assertTrue(transit.carriesMomentum());
 		assertEquals(-3.0D, transit.velocity().z());
 		assertSame(crossing, transit.crossing());
-		assertEquals(crossing.direction(), transit.direction());
+		assertEquals(crossing.frontSide(), transit.crossing().frontSide());
 	}
 
 	@Test
@@ -61,7 +58,7 @@ final class DoorTransitTravelerClassTest
 	{
 		DoorTransit transit = new DoorTransit(
 			PLANE,
-			DoorwayCrossing.Direction.BACK_TO_FRONT,
+			false,
 			0.0F,
 			0.0F,
 			0.25D,
@@ -76,12 +73,12 @@ final class DoorTransitTravelerClassTest
 	@Test
 	void aPreparedLivingTransitCarriesValidatedMomentum()
 	{
-		DoorVec3 velocity = new DoorVec3(1.0D, -0.2D, 0.5D);
-		DoorTransit transit = new DoorTransit(PLANE, DoorwayCrossing.Direction.FRONT_TO_BACK,
+		Vec3d velocity = new Vec3d(1.0D, -0.2D, 0.5D);
+		DoorTransit transit = new DoorTransit(PLANE, true,
 			0.0F, 0.0F, 0.3D, 1.8D, DoorTravelerClass.LIVING, velocity);
 		assertTrue(transit.carriesMomentum());
 		assertSame(velocity, transit.velocity());
-		DoorVec3 mapped = DoorVelocityTransform.map(PLANE, new DoorwayPlane(0, 64, 0, Face.E), velocity);
+		Vec3d mapped = DoorPlanePairing.mapVector(PLANE, new DoorwayPlane(0, 64, 0, Face.E), velocity);
 		assertEquals(velocity.y(), mapped.y());
 		assertEquals(velocity.x() * velocity.x() + velocity.z() * velocity.z(),
 			mapped.x() * mapped.x() + mapped.z() * mapped.z(), 0.000001D);
@@ -91,7 +88,7 @@ final class DoorTransitTravelerClassTest
 	void aTransitAlwaysNeedsATravelerClass()
 	{
 		assertThrows(NullPointerException.class, () -> new DoorTransit(
-			PLANE, DoorwayCrossing.Direction.FRONT_TO_BACK, 0.0F, 0.0F, 0.3D, 1.8D, null, null));
+			PLANE, true, 0.0F, 0.0F, 0.3D, 1.8D, null, null));
 	}
 
 	@Test
@@ -99,7 +96,7 @@ final class DoorTransitTravelerClassTest
 	{
 		assertThrows(NullPointerException.class, () -> new DoorTransit(
 			PLANE,
-			(DoorwayCrossing) null,
+			(PlaneCrossing) null,
 			0.0F,
 			0.0F,
 			0.3D,

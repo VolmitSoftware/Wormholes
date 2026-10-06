@@ -5,6 +5,7 @@ import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftProjectionWorldView;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.frame.OpticTransform;
 import net.minecraft.server.level.ServerLevel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -159,7 +160,7 @@ final class MinecraftEnvironmentCapture implements AutoCloseable {
     }
 
     record Request(UUID observer, UUID parent, UUID portal, ServerLevel world, Vec3d eye,
-                   ProjectionEnvironment.Transform transform, long tick) {
+                   OpticTransform transform, long tick) {
     }
 
     private record Key(UUID observer, UUID parent, UUID portal) {
@@ -167,7 +168,7 @@ final class MinecraftEnvironmentCapture implements AutoCloseable {
 
     private static final class State {
         private final ServerLevel world;
-        private final ProjectionEnvironment.Transform transform;
+        private final OpticTransform transform;
         private final int chunkX;
         private final int chunkZ;
         private CompletableFuture<ProjectionEnvironment> pending;

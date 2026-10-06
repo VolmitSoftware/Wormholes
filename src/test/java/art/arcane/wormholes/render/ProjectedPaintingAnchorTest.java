@@ -28,6 +28,7 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSp
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.entity.SpoofRegistry;
 import art.arcane.optics.volume.ViewVolume;
@@ -77,7 +78,8 @@ final class ProjectedPaintingAnchorTest {
         ProjectedEntityRenderer renderer = new ProjectedEntityRenderer(channel, identity, registry);
         Player observer = ProjectedEntityPacketRecorder.player(true);
 
-        RenderTestSupport.withBukkitServer(() -> renderer.apply(observer, localPortal, remotePortal, frustum, 32.0D,
-            localFrame, remoteFrame, 0, BukkitEntityOcclusion.create()));
+        OpticTransform transform = OpticTransform.between(remoteFrame, remotePortal.getOrigin(), localFrame, localPortal.getOrigin());
+        RenderTestSupport.withBukkitServer(() -> renderer.apply(observer, localPortal, remotePortal, frustum, 32.0D, transform,
+            BukkitEntityOcclusion.create()));
     }
 }

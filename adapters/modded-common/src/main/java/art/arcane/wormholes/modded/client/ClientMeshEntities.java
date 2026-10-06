@@ -4,7 +4,7 @@ import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.stream.ViewStreamLimits;
-import art.arcane.optics.client.ClientViewBlockTransform;
+import art.arcane.optics.frame.OpticTransform;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.AABB;
 import com.mojang.logging.LogUtils;
@@ -64,8 +64,10 @@ public final class ClientMeshEntities {
     private final ArrayList<BlockEntity> activeBlockEntities = new ArrayList<>();
     private final IdentityHashMap<EntityRenderState, EntitySource> entitySources = new IdentityHashMap<>();
     private SceneCamera sceneCamera;
-    private ProjectionEnvironment.Transform transform;
-    private ClientViewBlockTransform cells;
+    private OpticTransform transform;
+    private OpticTransform cells;
+    private OpticTransform destinationCells;
+    private final int[] cellScratch = new int[3];
     private boolean destinationQueries;
     private final BlockPos.MutableBlockPos queryPosition = new BlockPos.MutableBlockPos();
     private long synchronizedRevision = -1;
@@ -135,7 +137,7 @@ public final class ClientMeshEntities {
         return EntitySelector.CAN_BE_PICKED.test(entity) && !hiddenFromWorld(entity);
     }
 
-    public void extract(int portalKey, Camera camera, float partialTick, ProjectionEnvironment.Transform transform) {
+    public void extract(int portalKey, Camera camera, float partialTick, OpticTransform transform) {
         entitySources.clear();
         synchronize(transform);
         ArrayList<BlockEntityRenderState> blocks = new ArrayList<>(activeBlockEntities.size());
@@ -179,12 +181,12 @@ public final class ClientMeshEntities {
     }
 
     public Predicate<EntityRenderState> entityVisibility(CameraRenderState camera, Frustum frustum,
-                                                       ProjectionEnvironment.Transform transform) {
+                                                       OpticTransform transform) {
         if (frustum == null || transform == null) {
             return state -> true;
         }
         DestinationFrustum destinationFrustum = new DestinationFrustum(frustum, transform);
-        Vec3d eye = transform.destinationPoint(camera.pos.x, camera.pos.y, camera.pos.z);
+        Vec3d eye = transform.inverse().point(new Vec3d(camera.pos.x, camera.pos.y, camera.pos.z));
         EntityRenderDispatcher renderer = Minecraft.getInstance().getEntityRenderDispatcher();
         return state -> entityVisible(state, renderer, destinationFrustum, eye);
     }
@@ -212,10 +214,11 @@ public final class ClientMeshEntities {
         return Math.max(brightness(LightLayer.BLOCK, position), brightness(LightLayer.SKY, position) - skyDarken);
     }
 
-    void synchronize(ProjectionEnvironment.Transform transform) {
+    void synchronize(OpticTransform transform) {
         if (!transform.equals(this.transform)) {
             this.transform = transform;
-            cells = new ClientViewBlockTransform(transform);
+            cells = transform.cellAligned();
+            destinationCells = cells.inverse();
             sections.clear();
             synchronizedRevision = -1;
             animationTick = Long.MIN_VALUE;
@@ -245,8 +248,8 @@ public final class ClientMeshEntities {
                     }
                     BlockPos position = new BlockPos((SectionPos.x(key) << 4) + (cell & 15),
                         (SectionPos.y(key) << 4) + (cell >> 8), (SectionPos.z(key) << 4) + ((cell >> 4) & 15));
-                    BlockPos nativePosition = new BlockPos(cells.destinationX(position.getX(), position.getY(), position.getZ()),
-                        cells.destinationY(position.getX(), position.getY(), position.getZ()), cells.destinationZ(position.getX(), position.getY(), position.getZ()));
+                    destinationCells.cellInto(position.getX(), position.getY(), position.getZ(), cellScratch);
+                    BlockPos nativePosition = new BlockPos(cellScratch[0], cellScratch[1], cellScratch[2]);
                     BlockEntity entity = block.newBlockEntity(nativePosition, state);
                     if (entity == null) {
                         continue;
@@ -288,7 +291,7 @@ public final class ClientMeshEntities {
         }
     }
 
-    public void tickEntity(Entity entity, ProjectionEnvironment.Transform transform) {
+    public void tickEntity(Entity entity, OpticTransform transform) {
         synchronize(transform);
         ClientMeshEntities previous = ACTIVE.get();
         boolean previousQueries = destinationQueries;
@@ -360,7 +363,8 @@ public final class ClientMeshEntities {
         int x = position.getX();
         int y = position.getY();
         int z = position.getZ();
-        return queryPosition.set(cells.displayX(x, y, z), cells.displayY(x, y, z), cells.displayZ(x, y, z));
+        cells.cellInto(x, y, z, cellScratch);
+        return queryPosition.set(cellScratch[0], cellScratch[1], cellScratch[2]);
     }
 
     private void extractBlocks(BlockEntityRenderDispatcher dispatcher, float partialTick, List<BlockEntityRenderState> states) {
@@ -471,12 +475,12 @@ public final class ClientMeshEntities {
         }
     }
 
-    private static List<ProjectionEnvironment.Transform> space(int portalKey) {
+    private static List<OpticTransform> space(int portalKey) {
         WormholesClient client = WormholesClient.instance();
         if (client == null) {
             return List.of();
         }
-        List<ProjectionEnvironment.Transform> ancestors = new ArrayList<>();
+        List<OpticTransform> ancestors = new ArrayList<>();
         ClientPortal portal = client.session().portal(portalKey);
         for (int depth = 0; depth < ViewStreamLimits.MAX_GEOMETRY_DEPTH && portal != null
             && portal.geometry().parentPortalKey() != 0; depth++) {
@@ -491,10 +495,10 @@ public final class ClientMeshEntities {
         return ancestors;
     }
 
-    static Vec3d contentPoint(List<ProjectionEnvironment.Transform> ancestors, double x, double y, double z) {
+    static Vec3d contentPoint(List<OpticTransform> ancestors, double x, double y, double z) {
         Vec3d point = new Vec3d(x, y, z);
-        for (ProjectionEnvironment.Transform transform : ancestors) {
-            point = transform.destinationPoint(point.x(), point.y(), point.z());
+        for (OpticTransform transform : ancestors) {
+            point = transform.inverse().point(point);
         }
         return point;
     }
@@ -508,11 +512,11 @@ public final class ClientMeshEntities {
 
     static final class DestinationFrustum extends Frustum {
         private final Frustum display;
-        private final ProjectionEnvironment.Transform transform;
+        private final OpticTransform transform;
         private boolean tested;
         private boolean visible;
 
-        DestinationFrustum(Frustum display, ProjectionEnvironment.Transform transform) {
+        DestinationFrustum(Frustum display, OpticTransform transform) {
             super(display);
             this.display = display;
             this.transform = transform;
@@ -525,18 +529,18 @@ public final class ClientMeshEntities {
                 visible = true;
                 return true;
             }
-            double minX = bounds.minX * transform.xAxis().x() + bounds.minY * transform.yAxis().x()
-                + bounds.minZ * transform.zAxis().x() + transform.translation().x();
-            double minY = bounds.minX * transform.xAxis().y() + bounds.minY * transform.yAxis().y()
-                + bounds.minZ * transform.zAxis().y() + transform.translation().y();
-            double minZ = bounds.minX * transform.xAxis().z() + bounds.minY * transform.yAxis().z()
-                + bounds.minZ * transform.zAxis().z() + transform.translation().z();
-            double maxX = bounds.maxX * transform.xAxis().x() + bounds.maxY * transform.yAxis().x()
-                + bounds.maxZ * transform.zAxis().x() + transform.translation().x();
-            double maxY = bounds.maxX * transform.xAxis().y() + bounds.maxY * transform.yAxis().y()
-                + bounds.maxZ * transform.zAxis().y() + transform.translation().y();
-            double maxZ = bounds.maxX * transform.xAxis().z() + bounds.maxY * transform.yAxis().z()
-                + bounds.maxZ * transform.zAxis().z() + transform.translation().z();
+            double minX = bounds.minX * transform.permutation().x().x() + bounds.minY * transform.permutation().y().x()
+                + bounds.minZ * transform.permutation().z().x() + transform.translationX();
+            double minY = bounds.minX * transform.permutation().x().y() + bounds.minY * transform.permutation().y().y()
+                + bounds.minZ * transform.permutation().z().y() + transform.translationY();
+            double minZ = bounds.minX * transform.permutation().x().z() + bounds.minY * transform.permutation().y().z()
+                + bounds.minZ * transform.permutation().z().z() + transform.translationZ();
+            double maxX = bounds.maxX * transform.permutation().x().x() + bounds.maxY * transform.permutation().y().x()
+                + bounds.maxZ * transform.permutation().z().x() + transform.translationX();
+            double maxY = bounds.maxX * transform.permutation().x().y() + bounds.maxY * transform.permutation().y().y()
+                + bounds.maxZ * transform.permutation().z().y() + transform.translationY();
+            double maxZ = bounds.maxX * transform.permutation().x().z() + bounds.maxY * transform.permutation().y().z()
+                + bounds.maxZ * transform.permutation().z().z() + transform.translationZ();
             boolean result = display.isVisible(new AABB(Math.min(minX, maxX), Math.min(minY, maxY), Math.min(minZ, maxZ),
                 Math.max(minX, maxX), Math.max(minY, maxY), Math.max(minZ, maxZ)));
             visible |= result;
@@ -550,11 +554,11 @@ public final class ClientMeshEntities {
         private final Vector3f left = new Vector3f();
         private Camera source;
 
-        void update(Camera source, List<ProjectionEnvironment.Transform> space, ProjectionEnvironment.Transform destination) {
+        void update(Camera source, List<OpticTransform> space, OpticTransform destination) {
             this.source = source;
             Vec3 eye = source.position();
             Vec3d point = contentPoint(space, eye.x, eye.y, eye.z);
-            Vec3d nativeEye = destination.destinationPoint(point.x(), point.y(), point.z());
+            Vec3d nativeEye = destination.inverse().point(point);
             setPosition(nativeEye.x(), nativeEye.y(), nativeEye.z());
             transform(space, destination, eye, source.forwardVector(), forward);
             transform(space, destination, eye, source.upVector(), up);
@@ -591,9 +595,9 @@ public final class ClientMeshEntities {
             return left;
         }
 
-        private void transform(List<ProjectionEnvironment.Transform> space, ProjectionEnvironment.Transform destination, Vec3 eye, Vector3fc direction, Vector3f result) {
+        private void transform(List<OpticTransform> space, OpticTransform destination, Vec3 eye, Vector3fc direction, Vector3f result) {
             Vec3d point = contentPoint(space, eye.x + direction.x(), eye.y + direction.y(), eye.z + direction.z());
-            Vec3d nativePoint = destination.destinationPoint(point.x(), point.y(), point.z());
+            Vec3d nativePoint = destination.inverse().point(point);
             result.set((float) (nativePoint.x() - position().x), (float) (nativePoint.y() - position().y), (float) (nativePoint.z() - position().z)).normalize();
         }
     }

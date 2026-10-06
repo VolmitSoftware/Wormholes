@@ -1,13 +1,13 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.optics.math.Vec3d;
+import art.arcane.optics.math.Angles;
 import art.arcane.wormholes.modded.MinecraftAcoustics;
 import art.arcane.wormholes.modded.MinecraftEntityPackets;
 import art.arcane.optics.entity.ProjectedEntityEvent;
 import art.arcane.wormholes.modded.MinecraftAnimationParticles;
 import art.arcane.wormholes.modded.MinecraftPacketBlobs;
 import art.arcane.optics.entity.EntitySnapshot;
-import art.arcane.optics.entity.EntityVisualProjection;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import art.arcane.wormholes.portal.effects.PortalAnimation;
 import art.arcane.optics.fidelity.AcousticsProfile;
@@ -161,7 +161,7 @@ public final class ClientLevelScene implements ClientSceneWorld {
 
     static float headYaw(EntitySnapshot visual) {
         return visual.lookX() * visual.lookX() + visual.lookZ() * visual.lookZ() < 1.0E-12D
-            ? visual.yaw() : EntityVisualProjection.yaw(visual.lookX(), visual.lookZ());
+            ? visual.yaw() : Angles.yaw(visual.lookX(), visual.lookZ());
     }
 
     @Override

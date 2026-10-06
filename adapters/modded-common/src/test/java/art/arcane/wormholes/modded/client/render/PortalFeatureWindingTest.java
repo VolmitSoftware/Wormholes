@@ -1,8 +1,8 @@
 package art.arcane.wormholes.modded.client.render;
 
-import art.arcane.optics.math.Vec3d;
-import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.AxisPermutation;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
@@ -37,8 +37,7 @@ public class PortalFeatureWindingTest {
         assertOrdering(portal, PrimitiveTopology.QUADS, new int[] {0, 1, 2, 3});
         try (PortalFeatureRenderer.WindingScope scope = new PortalFeatureRenderer.WindingScope(portal, reflection())) {
             assertOrdering(ordinary, PrimitiveTopology.QUADS, new int[] {0, 1, 2, 3});
-            ProjectionEnvironment.Transform rotation = new ProjectionEnvironment.Transform(Face.U, Face.W, Face.S,
-                new Vec3d(0, 0, 0));
+            OpticTransform rotation = OpticTransform.of(AxisPermutation.of(Face.U, Face.W, Face.S), 0, 0, 0);
             try (PortalFeatureRenderer.WindingScope rotated = new PortalFeatureRenderer.WindingScope(portal, rotation)) {
                 assertOrdering(portal, PrimitiveTopology.QUADS, new int[] {0, 1, 2, 3});
             }
@@ -64,8 +63,8 @@ public class PortalFeatureWindingTest {
         assertOrdering(outer, PrimitiveTopology.QUADS, new int[] {0, 1, 2, 3});
     }
 
-    private static ProjectionEnvironment.Transform reflection() {
-        return new ProjectionEnvironment.Transform(Face.E, Face.U, Face.N, new Vec3d(0, 0, 0));
+    private static OpticTransform reflection() {
+        return OpticTransform.of(AxisPermutation.of(Face.E, Face.U, Face.N), 0, 0, 0);
     }
 
     private static void assertOrdering(StagedVertexBuffer buffer, PrimitiveTopology topology, int[] order) {

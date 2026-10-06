@@ -67,6 +67,11 @@ public enum QuarterTurn
 		return frame != null && frame.getNormal().isVertical();
 	}
 
+	public static QuarterTurn of(int quarterTurns)
+	{
+		return CYCLE[Math.floorMod(quarterTurns, CYCLE.length)];
+	}
+
 	public static QuarterTurn fromDegrees(int degrees)
 	{
 		int normalized = Math.floorMod(degrees, 360);

@@ -14,9 +14,9 @@ import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.fidelity.BlockEntitySanitizer;
-import art.arcane.optics.client.ClientViewBlockTransform;
 import art.arcane.optics.client.MeshPlan;
 import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.frame.OpticTransform;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -89,9 +89,8 @@ public final class ClientLocalMeshSources {
             if (!route.world.equals(name)) {
                 continue;
             }
-            long display = SectionPos.asLong(route.cells.displayX(position.getX(), position.getY(), position.getZ()) >> 4,
-                route.cells.displayY(position.getX(), position.getY(), position.getZ()) >> 4,
-                route.cells.displayZ(position.getX(), position.getY(), position.getZ()) >> 4);
+            route.display.cellInto(position.getX(), position.getY(), position.getZ(), route.cell);
+            long display = SectionPos.asLong(route.cell[0] >> 4, route.cell[1] >> 4, route.cell[2] >> 4);
             if (route.derived.containsKey(display)) {
                 route.refreshing.add(display);
                 route.dirty.addAndMoveToFirst(display);
@@ -307,7 +306,7 @@ public final class ClientLocalMeshSources {
     }
 
     static Vec3d sourceEye(ClientViewSession session, ClientPortal portal, Vec3d eye) {
-        List<ProjectionEnvironment.Transform> ancestors = new ArrayList<>();
+        List<OpticTransform> ancestors = new ArrayList<>();
         int parent = portal.geometry().parentPortalKey();
         Set<Integer> visited = new HashSet<>();
         visited.add(portal.portalKey());
@@ -324,7 +323,7 @@ public final class ClientLocalMeshSources {
             parent = ancestor.geometry().parentPortalKey();
         }
         for (int index = ancestors.size() - 1; index >= 0; index--) {
-            eye = ancestors.get(index).destinationPoint(eye.x(), eye.y(), eye.z());
+            eye = ancestors.get(index).inverse().point(eye);
         }
         return eye;
     }
@@ -386,9 +385,8 @@ public final class ClientLocalMeshSources {
             for (int dx : new int[] {-8, 23}) {
                 for (int dy : new int[] {-8, 23}) {
                     for (int dz : new int[] {-8, 23}) {
-                        int sx = route.cells.destinationX(x + dx, y + dy, z + dz);
-                        int sz = route.cells.destinationZ(x + dx, y + dy, z + dz);
-                        if (chunk(sx >> 4, sz >> 4) == null) {
+                        route.destination.cellInto(x + dx, y + dy, z + dz, route.cell);
+                        if (chunk(route.cell[0] >> 4, route.cell[2] >> 4) == null) {
                             return null;
                         }
                     }
@@ -402,9 +400,8 @@ public final class ClientLocalMeshSources {
         List<Brick.BlockEntityCell> entities = new ArrayList<>();
         BlockPos.MutableBlockPos position = new BlockPos.MutableBlockPos();
         for (int cell = 0; cell < ids.length; cell++) {
-            position.set(route.cells.destinationX(x + (cell & 15), y + (cell >> 8), z + (cell >> 4 & 15)),
-                route.cells.destinationY(x + (cell & 15), y + (cell >> 8), z + (cell >> 4 & 15)),
-                route.cells.destinationZ(x + (cell & 15), y + (cell >> 8), z + (cell >> 4 & 15)));
+            route.destination.cellInto(x + (cell & 15), y + (cell >> 8), z + (cell >> 4 & 15), route.cell);
+            position.set(route.cell[0], route.cell[1], route.cell[2]);
             Snapshot snapshot = snapshot(route, position, dependencies, sourceSamples);
             if (snapshot == null) {
                 return null;
@@ -429,7 +426,8 @@ public final class ClientLocalMeshSources {
             int px = x - SectionBiomes.PADDING + (cell & 7) * 4;
             int py = y - SectionBiomes.PADDING + (cell >> 6) * 4;
             int pz = z - SectionBiomes.PADDING + (cell >> 3 & 7) * 4;
-            position.set(route.cells.destinationX(px, py, pz), route.cells.destinationY(px, py, pz), route.cells.destinationZ(px, py, pz));
+            route.destination.cellInto(px, py, pz, route.cell);
+            position.set(route.cell[0], route.cell[1], route.cell[2]);
             Snapshot snapshot = snapshot(route, position, dependencies, sourceSamples);
             if (snapshot == null) {
                 return null;
@@ -523,8 +521,10 @@ public final class ClientLocalMeshSources {
         private final int key;
         private final int generation;
         private final ClientMeshSections.View view;
-        private final ProjectionEnvironment.Transform transform;
-        private final ClientViewBlockTransform cells;
+        private final OpticTransform transform;
+        private final OpticTransform display;
+        private final OpticTransform destination;
+        private final int[] cell = new int[3];
         private final String world;
         private final boolean local;
         private final List<ClientViewMessage.MeshClaim> cached = new ArrayList<>();
@@ -590,14 +590,15 @@ public final class ClientLocalMeshSources {
             }
         }
 
-        private Route(ClientPortal portal, ClientMeshSections.View view, ProjectionEnvironment.Transform transform, Vec3d eye, long tick, String world, boolean local) {
+        private Route(ClientPortal portal, ClientMeshSections.View view, OpticTransform transform, Vec3d eye, long tick, String world, boolean local) {
             this.world = world;
             this.local = local;
             this.key = portal.portalKey();
             this.view = view;
             this.generation = view.generation();
             this.transform = transform;
-            this.cells = new ClientViewBlockTransform(transform);
+            this.display = transform.cellAligned();
+            this.destination = display.inverse();
             plan(portal.geometry(), eye, tick);
         }
 

@@ -5,7 +5,7 @@ import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamMessageType;
 import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.optics.entity.ProjectedEntityEvent;
-import art.arcane.optics.client.ClientViewEntityTransform;
+import art.arcane.optics.entity.EntityProjection;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -82,8 +82,8 @@ final class ClientMeshLocalEntityIdentityTest {
         private final SessionHarness harness = new SessionHarness(SessionHarness.options(true, 32));
         private final UUID localReal = UUID.randomUUID();
         private final UUID remoteReal = UUID.randomUUID();
-        private final UUID localOpaque = ClientViewEntityTransform.opaque(123, localReal);
-        private final UUID remoteOpaque = ClientViewEntityTransform.opaque(123, remoteReal);
+        private final UUID localOpaque = EntityProjection.opaque(123, localReal);
+        private final UUID remoteOpaque = EntityProjection.opaque(123, remoteReal);
         private final ClientViewEntityFrames<String> source;
         private final ClientViewMessage.MeshBegin begin;
 
@@ -102,7 +102,7 @@ final class ClientMeshLocalEntityIdentityTest {
 
                 @Override
                 public UUID projectedId(UUID sourceId) {
-                    return ClientViewEntityTransform.opaque(123, sourceId);
+                    return EntityProjection.opaque(123, sourceId);
                 }
             });
             harness.entities = source;

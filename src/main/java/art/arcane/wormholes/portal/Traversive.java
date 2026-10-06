@@ -12,6 +12,8 @@ import org.bukkit.util.Vector;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.AxisPermutation;
 
 public class Traversive
 {
@@ -109,7 +111,7 @@ public class Traversive
 
 	public Vector getOutVelocity(Frame outFrame)
 	{
-		return BukkitGeometry.bukkit(inFrame.transformVector(BukkitGeometry.vector(getInVelocity()), outFrame.view(frontSide)));
+		return BukkitGeometry.bukkit(toward(outFrame).vector(BukkitGeometry.vector(getInVelocity())));
 	}
 
 	public Vector getOutLook(Face outDirection)
@@ -119,7 +121,7 @@ public class Traversive
 
 	public Vector getOutLook(Frame outFrame)
 	{
-		return BukkitGeometry.bukkit(inFrame.transformVector(BukkitGeometry.vector(getInLook()), outFrame.view(frontSide)));
+		return BukkitGeometry.bukkit(toward(outFrame).vector(BukkitGeometry.vector(getInLook())));
 	}
 
 	public Vector getOutOffset(Face outDirection)
@@ -129,12 +131,13 @@ public class Traversive
 
 	public Vector getOutOffset(Frame outFrame)
 	{
-		return BukkitGeometry.bukkit(inFrame.transformVector(BukkitGeometry.vector(getInOffset()), outFrame.view(frontSide)));
+		return BukkitGeometry.bukkit(toward(outFrame).vector(BukkitGeometry.vector(getInOffset())));
 	}
 
 	public Vector getOutPoint(Frame outFrame, Vector outOrigin)
 	{
-		return BukkitGeometry.bukkit(inFrame.transformPoint(BukkitGeometry.vector(inPoint), BukkitGeometry.vector(inOrigin), BukkitGeometry.vector(outOrigin), outFrame.view(frontSide)));
+		return BukkitGeometry.bukkit(OpticTransform.between(inFrame, BukkitGeometry.vector(inOrigin), outFrame.view(frontSide),
+			BukkitGeometry.vector(outOrigin)).point(BukkitGeometry.vector(inPoint)));
 	}
 
 	public Frame getInFrame()
@@ -186,5 +189,10 @@ public class Traversive
 	public TraversableType getType()
 	{
 		return type;
+	}
+
+	private OpticTransform toward(Frame outFrame)
+	{
+		return OpticTransform.of(AxisPermutation.between(inFrame, outFrame.view(frontSide)), 0.0D, 0.0D, 0.0D);
 	}
 }

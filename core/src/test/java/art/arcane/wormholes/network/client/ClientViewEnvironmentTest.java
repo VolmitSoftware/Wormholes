@@ -8,7 +8,6 @@ import art.arcane.wormholes.render.view.RemoteProjectionView;
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import static org.mockito.Mockito.mock;
-import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.render.client.session.ClientViewSceneFx;
 import art.arcane.optics.math.Face;
 import org.junit.jupiter.api.Test;
@@ -26,6 +25,8 @@ import art.arcane.optics.stream.ClientViewWriter;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.stream.ProjectionEnvironmentCodec;
 import art.arcane.optics.stream.ViewStreamCapability;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.AxisPermutation;
 
 class ClientViewEnvironmentTest {
     @Test
@@ -42,17 +43,17 @@ class ClientViewEnvironmentTest {
         RemoteViewCache.RemoteView<String, Object, Object> remote = cache.getOrCreate("peer", portal);
         RemoteProjectionView<String, String, Object, Object> view = new RemoteProjectionView<>(remote,
             new RemoteProjectionView.Options<>("minecraft:air", value -> value));
-        assertNull(view.environment(ProjectionEnvironment.Transform.IDENTITY));
+        assertNull(view.environment(OpticTransform.IDENTITY));
         ProjectionEnvironment destination = ClientViewFixtures.environment();
         cache.applyEnvironment("peer", portal, destination);
-        ProjectionEnvironment projected = view.environment(ProjectionEnvironment.Transform.IDENTITY);
+        ProjectionEnvironment projected = view.environment(OpticTransform.IDENTITY);
         assertEquals(destination.sky(), projected.sky());
         assertEquals(destination.lighting(), projected.lighting());
         assertEquals(destination.fog(), projected.fog());
         assertEquals(destination.dimension(), projected.dimension());
         assertEquals(destination.gameTime(), projected.gameTime());
         assertEquals(destination.world(), projected.world());
-        assertEquals(ProjectionEnvironment.Transform.IDENTITY, projected.transform());
+        assertEquals(OpticTransform.IDENTITY, projected.transform());
         cache.remove("peer", portal);
         assertNull(cache.getOrCreate("peer", portal).environment());
     }
@@ -85,8 +86,7 @@ class ClientViewEnvironmentTest {
         assertThrows(IllegalArgumentException.class, () -> new ProjectionEnvironment.World("test:destination", 0, "minecraft:plains", 63, 7, 15, 256, true, Float.NaN, ProjectionEnvironment.EyeMedium.NONE, false));
         assertThrows(IllegalArgumentException.class, () -> new ProjectionEnvironment.World("missing_namespace", 0, "minecraft:plains", 63, 7, 15, 256, true, 0.1F, ProjectionEnvironment.EyeMedium.NONE, false));
         assertThrows(IllegalArgumentException.class, () -> new ProjectionEnvironment.World("test:../ world", 0, "minecraft:plains", 63, 7, 15, 256, true, 0.1F, ProjectionEnvironment.EyeMedium.NONE, false));
-        assertThrows(IllegalArgumentException.class, () -> new ProjectionEnvironment.Transform(Face.N, Face.S, Face.U,
-            new Vec3d(0, 0, 0)));
+        assertThrows(IllegalArgumentException.class, () -> OpticTransform.of(AxisPermutation.of(Face.N, Face.S, Face.U), 0, 0, 0));
     }
 
     @Test

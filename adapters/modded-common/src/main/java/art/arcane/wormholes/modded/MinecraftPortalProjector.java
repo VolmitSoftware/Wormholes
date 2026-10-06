@@ -33,6 +33,8 @@ import art.arcane.optics.volume.FrustumFit;
 import art.arcane.optics.scan.ProjectorPassRevision;
 import art.arcane.optics.scan.ResampleSchedule;
 import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.wormholes.portal.ProjectorViewSettings;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.scan.ProjectorSampleMemo;
@@ -159,9 +161,12 @@ public final class MinecraftPortalProjector implements AutoCloseable {
         if (entities == null) {
             entities = new MinecraftProjectedEntities(runtime, new MinecraftProjectedEntities.Context(observer, portal, portals.createRecursiveIndex()));
         }
+        OpticTransform transform = destination.mirrorMode()
+            ? OpticTransform.mirror(portal.getFrame(), origin, QuarterTurn.of(destination.mirrorRotationQuarterTurns()))
+            : OpticTransform.between(remoteFrame, destination.destAnchor().getOrigin(), localFrame, origin);
         entities.apply(new MinecraftProjectedEntities.View(destination.dest(), destination.destAnchor(),
-            destination.dest() == null ? null : portals.world(destination.dest()), data, localFrame, remoteFrame, frustum, eye,
-            destination.mirrorMode(), destination.mirrorRotationQuarterTurns(), scan.entityOcclusion(), fit.fittedDepth()));
+            destination.dest() == null ? null : portals.world(destination.dest()), data, transform, frustum, eye, scan.entityOcclusion(),
+            fit.fittedDepth()));
     }
 
     public void noteAcoustics(AcousticsBridge<ServerPlayer> bridge) {

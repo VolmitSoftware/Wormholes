@@ -1,9 +1,9 @@
 package art.arcane.wormholes.render.client;
 
 import art.arcane.optics.math.Face;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.door.DoorHalf;
 import art.arcane.wormholes.door.DoorOpenState;
-import art.arcane.wormholes.door.DoorVec3;
 import art.arcane.wormholes.door.DoorwayPlane;
 import org.junit.jupiter.api.Test;
 
@@ -28,17 +28,17 @@ class ClientPortalApertureTest {
                 ApertureDescriptor geometry = new ApertureDescriptor(-4, 16, -8, normal.ordinal(), front, 0, false, 1, height,
                     new long[]{height == 1 ? 1 : 3}, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, ApertureDescriptor.KIND_DOOR, DoorwayPlane.planeOffset(normal), 0, 0, List.of());
                 AperturePolygon aperture = AperturePolygon.from(geometry);
-                DoorVec3 center = doorway.center();
-                AperturePolygon.Point physicalCenter = new AperturePolygon.Point(center.x(), center.y(), center.z());
+                Vec3d center = doorway.center();
+                Vec3d physicalCenter = new Vec3d(center.x(), center.y(), center.z());
                 assertEquals(0, aperture.plane().signedDistance(physicalCenter), 1.0E-12);
                 assertEquals(0, geometry.signedDistance(center.x(), center.y(), center.z()), 1.0E-12);
                 assertEquals(physicalCenter, aperture.point(0.5D, height * 0.5D));
                 int sign = front ? 1 : -1;
-                AperturePolygon.Point eye = new AperturePolygon.Point(center.x() + normal.x() * sign * 0.01,
+                Vec3d eye = new Vec3d(center.x() + normal.x() * sign * 0.01,
                     center.y() + normal.y() * sign * 0.01, center.z() + normal.z() * sign * 0.01);
                 assertTrue(aperture.servesEye(eye));
                 assertEquals(0.01 * sign, geometry.signedDistance(eye.x(), eye.y(), eye.z()), 1.0E-12);
-                for (AperturePolygon.Point vertex : aperture.vertices(aperture.rectangles().getFirst())) {
+                for (Vec3d vertex : aperture.vertices(aperture.rectangles().getFirst())) {
                     assertEquals(0, aperture.plane().signedDistance(vertex), 1.0E-12);
                 }
             }
@@ -49,8 +49,8 @@ class ClientPortalApertureTest {
     void fullOpeningMergesIntoOneExactRectangle() {
         AperturePolygon aperture = aperture("111", "111");
         assertEquals(List.of(new AperturePolygon.Rectangle(0, 0, 3, 2)), aperture.rectangles());
-        assertEquals(new AperturePolygon.Point(-4, 16, -7.5), aperture.point(0, 0));
-        assertEquals(new AperturePolygon.Point(-1, 18, -7.5), aperture.point(3, 2));
+        assertEquals(new Vec3d(-4, 16, -7.5), aperture.point(0, 0));
+        assertEquals(new Vec3d(-1, 18, -7.5), aperture.point(3, 2));
     }
 
     @Test
@@ -81,24 +81,24 @@ class ClientPortalApertureTest {
             for (int turns = 0; turns < 4; turns++) {
                 for (boolean front : new boolean[]{true, false}) {
                     AperturePolygon aperture = AperturePolygon.from(geometry(facing, front, turns, "11", "11"));
-                    AperturePolygon.Point corner = switch (facing) {
-                        case N, S -> new AperturePolygon.Point(-2, 18, -7.5);
-                        case E, W -> new AperturePolygon.Point(-3.5, 18, -6);
-                        case U, D -> new AperturePolygon.Point(-2, 16.5, -6);
+                    Vec3d corner = switch (facing) {
+                        case N, S -> new Vec3d(-2, 18, -7.5);
+                        case E, W -> new Vec3d(-3.5, 18, -6);
+                        case U, D -> new Vec3d(-2, 16.5, -6);
                     };
                     assertEquals(corner, aperture.point(2, 2));
                     assertEquals(0, aperture.plane().signedDistance(corner), 0);
                     int sign = front ? 1 : -1;
-                    AperturePolygon.Point eye = new AperturePolygon.Point(corner.x() + facing.x() * sign,
+                    Vec3d eye = new Vec3d(corner.x() + facing.x() * sign,
                         corner.y() + facing.y() * sign, corner.z() + facing.z() * sign);
                     assertTrue(aperture.servesEye(eye));
                     assertFalse(aperture.servesEye(corner));
-                    assertFalse(aperture.servesEye(new AperturePolygon.Point(corner.x() - facing.x() * sign,
+                    assertFalse(aperture.servesEye(new Vec3d(corner.x() - facing.x() * sign,
                         corner.y() - facing.y() * sign, corner.z() - facing.z() * sign)));
-                    List<AperturePolygon.Point> vertices = aperture.vertices(aperture.rectangles().getFirst());
-                    AperturePolygon.Point a = vertices.get(0);
-                    AperturePolygon.Point b = vertices.get(1);
-                    AperturePolygon.Point c = vertices.get(2);
+                    List<Vec3d> vertices = aperture.vertices(aperture.rectangles().getFirst());
+                    Vec3d a = vertices.get(0);
+                    Vec3d b = vertices.get(1);
+                    Vec3d c = vertices.get(2);
                     double normalX = (b.y() - a.y()) * (c.z() - a.z()) - (b.z() - a.z()) * (c.y() - a.y());
                     double normalY = (b.z() - a.z()) * (c.x() - a.x()) - (b.x() - a.x()) * (c.z() - a.z());
                     double normalZ = (b.x() - a.x()) * (c.y() - a.y()) - (b.y() - a.y()) * (c.x() - a.x());

@@ -14,8 +14,8 @@ import art.arcane.optics.scan.ScanMode;
 import art.arcane.optics.volume.ViewVolume;
 import art.arcane.optics.claim.ProjectedBlockClaim;
 import art.arcane.optics.math.CellKeys;
-import art.arcane.optics.frame.ProjectorFrameTransform;
 import art.arcane.optics.volume.PlaneWindow;
+import art.arcane.optics.volume.ProjectionVolume;
 import art.arcane.optics.plate.PlateBox;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
@@ -101,24 +101,24 @@ final class ClientViewSweepParityTest {
         Frame projectionFrame = frame.view(geometry.frontSide());
         Face normal = projectionFrame.getNormal();
         double eyeDot = dot(eye.getX() - origin.getX(), eye.getY() - origin.getY(), eye.getZ() - origin.getZ(), normal);
-        double clearance = ProjectorFrameTransform.portalPlaneClearance(area, frame);
+        double clearance = ProjectionVolume.portalPlaneClearance(area, frame);
         PlaneWindow window = PlaneWindow.create(aperture, area, projectionFrame,
             origin.getX(), origin.getY(), origin.getZ(), padding, eyeDot);
         ViewVolume frustum = new ViewVolume(eye, aperture, new ViewVolume.Options(geometry.depthBlocks(), geometry.depthBlocks(),
             geometry.nearPlanePadding(), geometry.frustumCullingRatio(), padding));
         Box region = frustum.getRegion();
-        int minX = Math.max(bounds.minX(), ProjectorFrameTransform.minBlockForCenter(region.getXa()));
-        int minY = Math.max(bounds.minY(), ProjectorFrameTransform.minBlockForCenter(region.getYa()));
-        int minZ = Math.max(bounds.minZ(), ProjectorFrameTransform.minBlockForCenter(region.getZa()));
-        int maxX = Math.min(bounds.minX() + bounds.sizeX() - 1, ProjectorFrameTransform.maxBlockForCenter(region.getXb()));
-        int maxY = Math.min(bounds.minY() + bounds.sizeY() - 1, ProjectorFrameTransform.maxBlockForCenter(region.getYb()));
-        int maxZ = Math.min(bounds.minZ() + bounds.sizeZ() - 1, ProjectorFrameTransform.maxBlockForCenter(region.getZb()));
+        int minX = Math.max(bounds.minX(), ProjectionVolume.minBlockForCenter(region.getXa()));
+        int minY = Math.max(bounds.minY(), ProjectionVolume.minBlockForCenter(region.getYa()));
+        int minZ = Math.max(bounds.minZ(), ProjectionVolume.minBlockForCenter(region.getZa()));
+        int maxX = Math.min(bounds.minX() + bounds.sizeX() - 1, ProjectionVolume.maxBlockForCenter(region.getXb()));
+        int maxY = Math.min(bounds.minY() + bounds.sizeY() - 1, ProjectionVolume.maxBlockForCenter(region.getYb()));
+        int maxZ = Math.min(bounds.minZ() + bounds.sizeZ() - 1, ProjectionVolume.maxBlockForCenter(region.getZb()));
         LongOpenHashSet expected = new LongOpenHashSet();
         for (int x = minX; x <= maxX; x++) {
             for (int y = minY; y <= maxY; y++) {
                 for (int z = minZ; z <= maxZ; z++) {
                     double cellDot = dot(x + 0.5D - origin.getX(), y + 0.5D - origin.getY(), z + 0.5D - origin.getZ(), localNormal);
-                    if (!ProjectorFrameTransform.projectsBehindPortalPlane(cellDot, geometry.frontSide(), clearance)
+                    if (!ProjectionVolume.projectsBehindPortalPlane(cellDot, geometry.frontSide(), clearance)
                         || Math.abs(cellDot) > geometry.depthBlocks() + clearance) {
                         continue;
                     }
@@ -229,7 +229,7 @@ final class ClientViewSweepParityTest {
         double eyeDot = dot(eye.getX() - origin.getX(), eye.getY() - origin.getY(), eye.getZ() - origin.getZ(), projectionNormal);
         PlaneWindow window = PlaneWindow.create(scene.aperture, area, projectionFrame,
             origin.getX(), origin.getY(), origin.getZ(), padding, eyeDot);
-        double clearance = ProjectorFrameTransform.portalPlaneClearance(area, scene.localFrame);
+        double clearance = ProjectionVolume.portalPlaneClearance(area, scene.localFrame);
         for (int index = 0; index < cells.size(); index++) {
             long key = cells.getLong(index);
             double x = CellKeys.unpackX(key) + 0.5D;
@@ -240,7 +240,7 @@ final class ClientViewSweepParityTest {
             boolean inRegion = x >= region.getXa() - 0.5D && x <= region.getXb() + 0.5D
                 && y >= region.getYa() - 0.5D && y <= region.getYb() + 0.5D
                 && z >= region.getZa() - 0.5D && z <= region.getZb() + 0.5D;
-            boolean inDepth = ProjectorFrameTransform.projectsBehindPortalPlane(cellDot, frontSide, clearance)
+            boolean inDepth = ProjectionVolume.projectsBehindPortalPlane(cellDot, frontSide, clearance)
                 && Math.abs(cellDot) <= scene.depth + clearance;
             boolean inWindow = window.containsRayIntersection(eye.getX(), eye.getY(), eye.getZ(), x, y, z, signed);
             if (!inRegion || !inDepth || !inWindow) {

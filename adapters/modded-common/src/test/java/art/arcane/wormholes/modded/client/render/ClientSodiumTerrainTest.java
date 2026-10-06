@@ -84,6 +84,7 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.frame.OpticTransform;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import java.util.Map;
 
@@ -343,7 +344,7 @@ public class ClientSodiumTerrainTest extends MinecraftTestBase {
         Map<ClientLevel, ClientSodiumTerrain.State> states = states();
         states.put(level, state);
         set(state, "viewport", viewport);
-        set(state, "warmEnvironment", PortalEnvironmentTest.environment(ProjectionEnvironment.Transform.IDENTITY));
+        set(state, "warmEnvironment", PortalEnvironmentTest.environment(OpticTransform.IDENTITY));
         set(state, "warmCamera", new CameraRenderState());
         Method prepare = ClientSodiumTerrain.class.getDeclaredMethod("prepareTerrain", ClientSodiumTerrain.State.class,
             Camera.class, FogParameters.class, Matrix4f.class);

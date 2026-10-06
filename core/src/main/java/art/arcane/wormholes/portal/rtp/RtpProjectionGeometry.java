@@ -61,8 +61,8 @@ public final class RtpProjectionGeometry {
         return new RtpProjectionView.Point3(x, y, z);
     }
 
-    private static RtpProjectionView.Vector3 vector(Face direction) {
-        return new RtpProjectionView.Vector3(direction.x(), direction.y(), direction.z());
+    private static Vec3d vector(Face direction) {
+        return new Vec3d(direction.x(), direction.y(), direction.z());
     }
 
     private static double axisSpan(Box area, Face direction) {

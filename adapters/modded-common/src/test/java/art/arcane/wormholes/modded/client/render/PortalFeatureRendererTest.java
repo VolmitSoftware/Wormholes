@@ -1,8 +1,8 @@
 package art.arcane.wormholes.modded.client.render;
 
-import art.arcane.optics.math.Vec3d;
-import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.AxisPermutation;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
@@ -16,8 +16,7 @@ import static org.junit.Assert.assertEquals;
 public class PortalFeatureRendererTest {
     @Test
     public void entitiesAndBlockEntitiesReuseTheSameUnchangedRotation() {
-        ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(Face.U, Face.W, Face.S,
-            new Vec3d(100, 50, -20));
+        OpticTransform transform = OpticTransform.of(AxisPermutation.of(Face.U, Face.W, Face.S), 100, 50, -20);
         Matrix4f rotation = PortalProjection.rotation(transform);
         Matrix4f original = new Matrix4f(rotation);
         EntityRenderState entity = new EntityRenderState();
@@ -42,8 +41,7 @@ public class PortalFeatureRendererTest {
         state.z = 30.5D;
         for (Face[] axes : new Face[][] {{Face.U, Face.W, Face.S}, {Face.D, Face.E, Face.S},
             {Face.D, Face.W, Face.N}, {Face.U, Face.E, Face.N}}) {
-            ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(axes[0], axes[1], axes[2],
-                new Vec3d(100.5D, -20.25D, 50));
+            OpticTransform transform = OpticTransform.of(AxisPermutation.of(axes[0], axes[1], axes[2]), 100.5D, -20.25D, 50);
             PoseStack pose = new PoseStack();
             PortalFeatureRenderer.entityPose(pose, state, new Vec3(1, 2, 3), transform, PortalProjection.rotation(transform));
             Vector3f feet = pose.last().pose().transformPosition(new Vector3f());
@@ -64,8 +62,7 @@ public class PortalFeatureRendererTest {
             new BlockPose(Face.W, Face.U, new Vector3f(85, 76, 15), new Vector3f(84, 76.5F, 15.25F))
         }) {
             PoseStack pose = new PoseStack();
-            ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(example.xAxis(), example.yAxis(), Face.S,
-                new Vec3d(100, 50, -20));
+            OpticTransform transform = OpticTransform.of(AxisPermutation.of(example.xAxis(), example.yAxis(), Face.S), 100, 50, -20);
             PortalFeatureRenderer.blockPose(pose, new BlockPos(12, 30, 40), new Vec3(3, 4, 5), transform, PortalProjection.rotation(transform));
             assertEquals(example.origin(), pose.last().pose().transformPosition(new Vector3f()));
             assertEquals(example.vertex(), pose.last().pose().transformPosition(new Vector3f(1, 0.5F, 0.25F)));

@@ -12,7 +12,6 @@ import art.arcane.wormholes.modded.client.ClientPortal;
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.client.WormholesClient;
 import art.arcane.optics.stream.ViewStreamLimits;
-import art.arcane.optics.client.ClientViewBlockTransform;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.block.state.BlockState;
@@ -45,10 +44,10 @@ final class NativeClientViewAssertions {
     }
 
     static BlockPos display(int key, BlockPos destination) {
-        ClientViewBlockTransform transform = new ClientViewBlockTransform(WormholesClient.instance().session().environment(key).transform());
-        return new BlockPos(transform.displayX(destination.getX(), destination.getY(), destination.getZ()),
-            transform.displayY(destination.getX(), destination.getY(), destination.getZ()),
-            transform.displayZ(destination.getX(), destination.getY(), destination.getZ()));
+        int[] display = new int[3];
+        WormholesClient.instance().session().environment(key).transform().cellAligned()
+            .cellInto(destination.getX(), destination.getY(), destination.getZ(), display);
+        return new BlockPos(display[0], display[1], display[2]);
     }
 
     static ClientMeshSections.Section section(int key, BlockPos destination) {

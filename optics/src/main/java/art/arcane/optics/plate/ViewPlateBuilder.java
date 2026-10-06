@@ -12,15 +12,17 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 
-
 import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.optics.math.CellKeys;
-import art.arcane.optics.frame.ProjectorFrameTransform;
 import art.arcane.optics.scan.ProjectorSample;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.volume.LodPolicy;
+import art.arcane.optics.volume.ProjectionVolume;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.occlusion.PlateOcclusionField;
 
 /**
@@ -182,7 +184,7 @@ public final class ViewPlateBuilder {
     }
 
     private static final class Geometry {
-        private final ProjectorFrameTransform transform;
+        private final OpticTransform transform;
         private final Frame projectionLocalFrame;
         private final Frame projectionRemoteFrame;
         private final int[] axisMin;
@@ -200,23 +202,19 @@ public final class ViewPlateBuilder {
         private final PlateBox box;
 
         private Geometry(Request<?, ?, ?> request, PlateBox clip) {
-            this.transform = new ProjectorFrameTransform();
             this.axisMin = new int[3];
             this.axisMax = new int[3];
             boolean frontSide = request.key().frontSide();
             Frame localFrame = request.localFrame();
             this.projectionLocalFrame = localFrame.view(frontSide);
             this.projectionRemoteFrame = request.remoteFrame().view(frontSide);
-            if (request.mirrorMode()) {
-                transform.configureMirror(localFrame, request.mirrorRotationQuarterTurns(),
-                    request.localOriginX(), request.localOriginY(), request.localOriginZ());
-            } else {
-                transform.configure(projectionLocalFrame, projectionRemoteFrame,
-                    request.localOriginX(), request.localOriginY(), request.localOriginZ(),
-                    request.remoteOriginX(), request.remoteOriginY(), request.remoteOriginZ());
-            }
+            this.transform = request.mirrorMode()
+                ? OpticTransform.mirror(localFrame, new Vec3d(request.localOriginX(), request.localOriginY(), request.localOriginZ()),
+                    QuarterTurn.of(request.mirrorRotationQuarterTurns())).inverse()
+                : OpticTransform.between(projectionLocalFrame, request.localOriginX(), request.localOriginY(), request.localOriginZ(),
+                    projectionRemoteFrame, request.remoteOriginX(), request.remoteOriginY(), request.remoteOriginZ());
             Box area = request.aperture().getArea();
-            this.clearance = ProjectorFrameTransform.portalPlaneClearance(area, localFrame);
+            this.clearance = ProjectionVolume.portalPlaneClearance(area, localFrame);
             this.maxDepth = request.depthBlocks() + clearance;
             Face normal = localFrame.getNormal();
             this.normalAxis = axisOf(normal);
@@ -228,8 +226,8 @@ public final class ViewPlateBuilder {
             double signedMax = frontSide ? -clearance : maxDepth;
             double centerA = originNormal + (signedMin / facingNormal);
             double centerB = originNormal + (signedMax / facingNormal);
-            axisMin[normalAxis] = ProjectorFrameTransform.minBlockForCenter(Math.min(centerA, centerB));
-            axisMax[normalAxis] = ProjectorFrameTransform.maxBlockForCenter(Math.max(centerA, centerB));
+            axisMin[normalAxis] = ProjectionVolume.minBlockForCenter(Math.min(centerA, centerB));
+            axisMax[normalAxis] = ProjectionVolume.maxBlockForCenter(Math.max(centerA, centerB));
             double pad = Math.max(0.0D, request.lateralBlocks()) + Math.max(0.0D, request.aperturePadding());
             lateralBounds(area, rightAxis, pad);
             lateralBounds(area, upAxis, pad);
@@ -273,14 +271,14 @@ public final class ViewPlateBuilder {
         }
 
         private PlateBox remoteBox(PlateBox source, int margin) {
-            return transform.transformBox(source, margin);
+            return transform.box(source, margin);
         }
 
         private void lateralBounds(Box area, int axis, double pad) {
             double areaMin = axis == 0 ? area.getXa() : axis == 1 ? area.getYa() : area.getZa();
             double areaMax = axis == 0 ? area.getXb() : axis == 1 ? area.getYb() : area.getZb();
-            axisMin[axis] = ProjectorFrameTransform.minBlockForCenter(areaMin - pad);
-            axisMax[axis] = ProjectorFrameTransform.maxBlockForCenter(areaMax + pad);
+            axisMin[axis] = ProjectionVolume.minBlockForCenter(areaMin - pad);
+            axisMax[axis] = ProjectionVolume.maxBlockForCenter(areaMax + pad);
         }
 
         private static int axisOf(Face direction) {
@@ -405,7 +403,7 @@ public final class ViewPlateBuilder {
 
         private boolean includesCell(double distance) {
             return Math.abs(distance) <= geometry.maxDepth && (section != null
-                || ProjectorFrameTransform.projectsBehindPortalPlane(distance, request.key().frontSide(), geometry.clearance));
+                || ProjectionVolume.projectsBehindPortalPlane(distance, request.key().frontSide(), geometry.clearance));
         }
 
         private boolean advance() {
@@ -442,7 +440,7 @@ public final class ViewPlateBuilder {
             if (merged && copyPreviousSlab(index, localKey)) {
                 return;
             }
-            geometry.transform.apply(x + 0.5D, y + 0.5D, z + 0.5D, scratchRemote);
+            geometry.transform.snappedPointInto(x + 0.5D, y + 0.5D, z + 0.5D, scratchRemote);
             int rx = (int) Math.floor(scratchRemote[0]);
             int ry = (int) Math.floor(scratchRemote[1]);
             int rz = (int) Math.floor(scratchRemote[2]);

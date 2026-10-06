@@ -2,6 +2,7 @@ package art.arcane.optics.aperture;
 
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.math.Vec3d;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 
 import java.util.ArrayList;
@@ -55,15 +56,15 @@ public final class AperturePolygon {
         return rectangles;
     }
 
-    public Point point(double column, double row) {
-        return new Point(coordinate(0, column, row), coordinate(1, column, row), coordinate(2, column, row));
+    public Vec3d point(double column, double row) {
+        return new Vec3d(coordinate(0, column, row), coordinate(1, column, row), coordinate(2, column, row));
     }
 
     public Plane plane() {
         return plane;
     }
 
-    public boolean servesEye(Point eye) {
+    public boolean servesEye(Vec3d eye) {
         double distance = plane.signedDistance(Objects.requireNonNull(eye, "eye"));
         return frontSide ? distance > 0 : distance < 0;
     }
@@ -73,12 +74,12 @@ public final class AperturePolygon {
             && open((int) column, (int) row);
     }
 
-    public List<Point> vertices(Rectangle rectangle) {
+    public List<Vec3d> vertices(Rectangle rectangle) {
         Objects.requireNonNull(rectangle, "rectangle");
-        Point a = point(rectangle.minColumn(), rectangle.minRow());
-        Point b = point(rectangle.maxColumn(), rectangle.minRow());
-        Point c = point(rectangle.maxColumn(), rectangle.maxRow());
-        Point d = point(rectangle.minColumn(), rectangle.maxRow());
+        Vec3d a = point(rectangle.minColumn(), rectangle.minRow());
+        Vec3d b = point(rectangle.maxColumn(), rectangle.minRow());
+        Vec3d c = point(rectangle.maxColumn(), rectangle.maxRow());
+        Vec3d d = point(rectangle.minColumn(), rectangle.maxRow());
         return reverseWinding ? List.of(a, d, c, b) : List.of(a, b, c, d);
     }
 
@@ -94,7 +95,7 @@ public final class AperturePolygon {
             }
         }
         List<ClipVertex> polygon = new ArrayList<>(4);
-        for (Point point : vertices(rectangle)) {
+        for (Vec3d point : vertices(rectangle)) {
             polygon.add(transform(point, matrix));
         }
         for (int boundary = 0; boundary < 6 && !polygon.isEmpty(); boundary++) {
@@ -160,7 +161,7 @@ public final class AperturePolygon {
         return axis == normalAxis ? planeCoordinate : origin[axis] + (axis == columnAxis ? column : row);
     }
 
-    private static ClipVertex transform(Point point, double[] matrix) {
+    private static ClipVertex transform(Vec3d point, double[] matrix) {
         return new ClipVertex(matrix[0] * point.x() + matrix[4] * point.y() + matrix[8] * point.z() + matrix[12],
             matrix[1] * point.x() + matrix[5] * point.y() + matrix[9] * point.z() + matrix[13],
             matrix[2] * point.x() + matrix[6] * point.y() + matrix[10] * point.z() + matrix[14],
@@ -216,11 +217,8 @@ public final class AperturePolygon {
         return area;
     }
 
-    public record Point(double x, double y, double z) {
-    }
-
     public record Plane(double x, double y, double z, double offset) {
-        public double signedDistance(Point point) {
+        public double signedDistance(Vec3d point) {
             return x * point.x() + y * point.y() + z * point.z() + offset;
         }
     }

@@ -1,9 +1,9 @@
 package art.arcane.wormholes.modded.client.render;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.optics.math.Vec3d;
-import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.AxisPermutation;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
@@ -44,8 +44,7 @@ public class PortalTerrainVerticesTest extends MinecraftTestBase {
     public void materialsUvsLightNormalsAndMidblockSurviveRotationAndReflection() {
         for (Face[] axes : new Face[][] {{Face.E, Face.U, Face.S}, {Face.W, Face.U, Face.S},
             {Face.U, Face.W, Face.S}}) {
-            ProjectionEnvironment.Transform mapping = new ProjectionEnvironment.Transform(axes[0], axes[1], axes[2],
-                new Vec3d(100.25, -31.5, 203.75));
+            OpticTransform mapping = OpticTransform.of(AxisPermutation.of(axes[0], axes[1], axes[2]), 100.25, -31.5, 203.75);
             PortalVertexTransform transform = new PortalVertexTransform(mapping);
             try (ByteBufferBuilder base = new ByteBufferBuilder(512); ByteBufferBuilder extended = new ByteBufferBuilder(512)) {
                 BufferBuilder builder = new BufferBuilder(base, PrimitiveTopology.QUADS, DefaultVertexFormat.BLOCK);
@@ -139,8 +138,7 @@ public class PortalTerrainVerticesTest extends MinecraftTestBase {
     public void nonplanarFluidNormalsAndTangentsUseEveryCornerAndPreserveMirrorSlope() {
         for (Face[] axes : new Face[][] {{Face.E, Face.U, Face.S}, {Face.W, Face.U, Face.S},
             {Face.S, Face.U, Face.W}}) {
-            ProjectionEnvironment.Transform mapping = new ProjectionEnvironment.Transform(axes[0], axes[1], axes[2],
-                new Vec3d(0, 0, 0));
+            OpticTransform mapping = OpticTransform.of(AxisPermutation.of(axes[0], axes[1], axes[2]), 0, 0, 0);
             PortalVertexTransform transform = new PortalVertexTransform(mapping);
             try (ByteBufferBuilder base = new ByteBufferBuilder(512); ByteBufferBuilder extended = new ByteBufferBuilder(512)) {
                 BufferBuilder builder = new BufferBuilder(base, PrimitiveTopology.QUADS, DefaultVertexFormat.BLOCK);

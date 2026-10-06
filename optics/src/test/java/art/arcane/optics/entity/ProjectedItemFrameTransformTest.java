@@ -11,15 +11,16 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-
 import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.AxisPermutation;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.optics.math.Face;
-import art.arcane.optics.frame.PortalCoordMap;
-import art.arcane.optics.frame.ProjectorFrameTransform;
 
 public final class ProjectedItemFrameTransformTest {
     private static final double EPSILON = 1.0E-12D;
     private static final Face[] DIRECTIONS = Face.values();
+    private static final Vec3d ZERO = new Vec3d(0.0D, 0.0D, 0.0D);
 
     @Test
     public void linkedFramesPreserveEveryGenericItemOrientation() {
@@ -38,20 +39,17 @@ public final class ProjectedItemFrameTransformTest {
         double[] expectedTop = new double[3];
         double[] sourceTop = new double[3];
         double[] actualTop = new double[3];
-        double[] scratch = new double[3];
         for (Frame frame : frames) {
             for (int mirrorTurns = 0; mirrorTurns < 4; mirrorTurns++) {
+                OpticTransform mirror = OpticTransform.mirror(frame, ZERO, QuarterTurn.of(mirrorTurns));
                 for (Face sourceFacing : DIRECTIONS) {
-                    int transform = ItemFrameTransform.mirror(
-                        sourceFacing, frame, mirrorTurns, scratch);
-                    PortalCoordMap.mirrorSourceToDisplayVectorInto(
-                        sourceFacing.x(), sourceFacing.y(), sourceFacing.z(), frame, mirrorTurns, expectedNormal);
+                    int transform = ItemFrameTransform.of(sourceFacing, mirror);
+                    mirror.vectorInto(sourceFacing.x(), sourceFacing.y(), sourceFacing.z(), expectedNormal);
                     assertDirection(expectedNormal, ItemFrameTransform.targetFacing(transform));
                     for (boolean filledMap : new boolean[] {false, true}) {
                         for (int sourceRotation = 0; sourceRotation < 8; sourceRotation++) {
                             orientedTop(sourceFacing, sourceRotation, filledMap, sourceTop);
-                            PortalCoordMap.mirrorSourceToDisplayVectorInto(
-                                sourceTop[0], sourceTop[1], sourceTop[2], frame, mirrorTurns, expectedTop);
+                            mirror.vectorInto(sourceTop[0], sourceTop[1], sourceTop[2], expectedTop);
                             int targetRotation = ItemFrameTransform.transformRotation(
                                 transform, sourceRotation, filledMap);
                             orientedTop(ItemFrameTransform.targetFacing(transform),
@@ -69,20 +67,17 @@ public final class ProjectedItemFrameTransformTest {
     @Test
     public void handednessDistinguishesLinkedFramesFromMirrorsForEveryFace() {
         List<Frame> frames = frames();
-        double[] scratch = new double[3];
         for (Frame sourceFrame : frames) {
             for (Frame targetFrame : frames) {
+                OpticTransform between = OpticTransform.between(sourceFrame, ZERO, targetFrame, ZERO);
                 for (Face sourceFacing : DIRECTIONS) {
-                    int linked = ItemFrameTransform.between(
-                        sourceFacing, sourceFrame, targetFrame, scratch);
-                    assertFalse(ItemFrameTransform.isReversed(linked));
+                    assertFalse(ItemFrameTransform.isReversed(ItemFrameTransform.of(sourceFacing, between)));
                 }
             }
             for (int quarterTurns = 0; quarterTurns < 4; quarterTurns++) {
+                OpticTransform mirror = OpticTransform.mirror(sourceFrame, ZERO, QuarterTurn.of(quarterTurns));
                 for (Face sourceFacing : DIRECTIONS) {
-                    int mirrored = ItemFrameTransform.mirror(
-                        sourceFacing, sourceFrame, quarterTurns, scratch);
-                    assertTrue(ItemFrameTransform.isReversed(mirrored));
+                    assertTrue(ItemFrameTransform.isReversed(ItemFrameTransform.of(sourceFacing, mirror)));
                 }
             }
         }
@@ -91,11 +86,9 @@ public final class ProjectedItemFrameTransformTest {
     @Test
     public void spawnDataUsesTheTransformedMinecraftDirectionId() {
         Frame frame = Frame.canonical(Face.N);
-        double[] scratch = new double[3];
+        OpticTransform between = OpticTransform.between(frame, ZERO, frame, ZERO);
         for (Face facing : DIRECTIONS) {
-            int transform = ItemFrameTransform.between(
-                facing, frame, frame, scratch);
-            assertEquals(facing.byteValue(), ItemFrameTransform.spawnData(transform));
+            assertEquals(facing.byteValue(), ItemFrameTransform.spawnData(ItemFrameTransform.of(facing, between)));
         }
         assertEquals(0, ItemFrameTransform.spawnData(ItemFrameTransform.NONE));
     }
@@ -104,9 +97,7 @@ public final class ProjectedItemFrameTransformTest {
     public void filledMapsUseOneMetadataStepPerQuarterTurn() {
         Frame sourceFrame = Frame.canonical(Face.N);
         Frame targetFrame = Frame.canonical(Face.U);
-        double[] scratch = new double[3];
-        int transform = ItemFrameTransform.between(
-            Face.N, sourceFrame, targetFrame, scratch);
+        int transform = ItemFrameTransform.of(Face.N, OpticTransform.between(sourceFrame, ZERO, targetFrame, ZERO));
 
         assertEquals(3, ItemFrameTransform.transformRotation(transform, 1, true));
         assertEquals(5, ItemFrameTransform.transformRotation(transform, 1, false));
@@ -124,28 +115,20 @@ public final class ProjectedItemFrameTransformTest {
     @Test
     public void linkedAttachmentAnchorsMatchProjectedBlockCells() {
         List<Frame> frames = frames();
-        double[] scratch = new double[3];
+        double[] projected = new double[3];
         double[] expected = new double[3];
-        ProjectorFrameTransform cellTransform = new ProjectorFrameTransform();
+        Vec3d sourceOrigin = new Vec3d(1.9995D, -4.5005D, 8.9995D);
+        Vec3d targetOrigin = new Vec3d(0.4995D, 22.4995D, -15.5005D);
         double[] anchors = new double[] {-31.96875D, -1.03125D, -0.03125D, 0.03125D, 7.96875D, 64.03125D};
         for (Frame sourceFrame : frames) {
             for (Frame targetFrame : frames) {
-                cellTransform.configure(targetFrame, sourceFrame,
-                    0.4995D, 22.4995D, -15.5005D,
-                    1.9995D, -4.5005D, 8.9995D);
+                OpticTransform cellTransform = OpticTransform.between(targetFrame, targetOrigin, sourceFrame, sourceOrigin);
+                OpticTransform anchorTransform = OpticTransform.between(sourceFrame, sourceOrigin, targetFrame, targetOrigin);
                 for (double x : anchors) {
                     for (double y : anchors) {
                         for (double z : anchors) {
-                            Vec3d projected = ItemFrameTransform.betweenAnchor(
-                                x, y, z,
-                                1.9995D, -4.5005D, 8.9995D,
-                                0.4995D, 22.4995D, -15.5005D,
-                                sourceFrame, targetFrame, scratch, Vec3d::new);
-                            cellTransform.apply(
-                                projected.getX() + 0.5D,
-                                projected.getY() + 0.5D,
-                                projected.getZ() + 0.5D,
-                                expected);
+                            ItemFrameTransform.anchorInto(x, y, z, anchorTransform, projected);
+                            cellTransform.snappedPointInto(projected[0] + 0.5D, projected[1] + 0.5D, projected[2] + 0.5D, expected);
                             assertEquals(Math.floor(x), Math.floor(expected[0]), 0.0D);
                             assertEquals(Math.floor(y), Math.floor(expected[1]), 0.0D);
                             assertEquals(Math.floor(z), Math.floor(expected[2]), 0.0D);
@@ -159,26 +142,19 @@ public final class ProjectedItemFrameTransformTest {
     @Test
     public void mirroredAttachmentAnchorsMatchProjectedBlockCells() {
         List<Frame> frames = frames();
-        double[] scratch = new double[3];
+        double[] projected = new double[3];
         double[] expected = new double[3];
-        ProjectorFrameTransform cellTransform = new ProjectorFrameTransform();
+        Vec3d origin = new Vec3d(0.4995D, -2.5005D, 7.4995D);
         double[] anchors = new double[] {-31.96875D, -1.03125D, -0.03125D, 0.03125D, 7.96875D, 64.03125D};
         for (Frame frame : frames) {
             for (int quarterTurns = 0; quarterTurns < 4; quarterTurns++) {
-                cellTransform.configureMirror(frame, quarterTurns,
-                    0.4995D, -2.5005D, 7.4995D);
+                OpticTransform mirror = OpticTransform.mirror(frame, origin, QuarterTurn.of(quarterTurns));
+                OpticTransform cellTransform = mirror.inverse();
                 for (double x : anchors) {
                     for (double y : anchors) {
                         for (double z : anchors) {
-                            Vec3d projected = ItemFrameTransform.mirrorAnchor(
-                                x, y, z,
-                                0.4995D, -2.5005D, 7.4995D,
-                                frame, quarterTurns, scratch, Vec3d::new);
-                            cellTransform.apply(
-                                projected.getX() + 0.5D,
-                                projected.getY() + 0.5D,
-                                projected.getZ() + 0.5D,
-                                expected);
+                            ItemFrameTransform.anchorInto(x, y, z, mirror, projected);
+                            cellTransform.snappedPointInto(projected[0] + 0.5D, projected[1] + 0.5D, projected[2] + 0.5D, expected);
                             assertEquals(Math.floor(x), Math.floor(expected[0]), 0.0D);
                             assertEquals(Math.floor(y), Math.floor(expected[1]), 0.0D);
                             assertEquals(Math.floor(z), Math.floor(expected[2]), 0.0D);
@@ -192,20 +168,16 @@ public final class ProjectedItemFrameTransformTest {
     @Test
     public void fractionalOriginsUseAnchorBlockCenters() {
         Frame frame = Frame.canonical(Face.N);
-        double[] scratch = new double[3];
+        double[] linked = new double[3];
+        double[] mirrored = new double[3];
 
-        Vec3d linked = ItemFrameTransform.betweenAnchor(
-            4.03125D, 0.03125D, 0.03125D,
-            1.9995D, 0.4995D, 0.4995D,
-            0.4995D, 0.4995D, 0.4995D,
-            frame, frame, scratch, Vec3d::new);
-        Vec3d mirrored = ItemFrameTransform.mirrorAnchor(
-            0.03125D, 0.03125D, 2.03125D,
-            0.4995D, 0.4995D, 0.5D,
-            frame, 0, scratch, Vec3d::new);
+        ItemFrameTransform.anchorInto(4.03125D, 0.03125D, 0.03125D,
+            OpticTransform.between(frame, new Vec3d(1.9995D, 0.4995D, 0.4995D), frame, new Vec3d(0.4995D, 0.4995D, 0.4995D)), linked);
+        ItemFrameTransform.anchorInto(0.03125D, 0.03125D, 2.03125D,
+            OpticTransform.mirror(frame, new Vec3d(0.4995D, 0.4995D, 0.5D), QuarterTurn.DEGREES_0), mirrored);
 
-        assertEquals(2.0D, linked.getX(), 0.0D);
-        assertEquals(-2.0D, mirrored.getZ(), 0.0D);
+        assertEquals(2.0D, linked[0], 0.0D);
+        assertEquals(-2.0D, mirrored[2], 0.0D);
     }
 
     private static void assertLinkedOrientations(boolean filledMap) {
@@ -214,19 +186,17 @@ public final class ProjectedItemFrameTransformTest {
         double[] expectedTop = new double[3];
         double[] sourceTop = new double[3];
         double[] actualTop = new double[3];
-        double[] scratch = new double[3];
         for (Frame sourceFrame : frames) {
             for (Frame targetFrame : frames) {
+                AxisPermutation permutation = AxisPermutation.between(sourceFrame, targetFrame);
+                OpticTransform between = OpticTransform.of(permutation, 0.0D, 0.0D, 0.0D);
                 for (Face sourceFacing : DIRECTIONS) {
-                    int transform = ItemFrameTransform.between(
-                        sourceFacing, sourceFrame, targetFrame, scratch);
-                    sourceFrame.transformVectorInto(
-                        sourceFacing.x(), sourceFacing.y(), sourceFacing.z(), targetFrame, expectedNormal);
+                    int transform = ItemFrameTransform.of(sourceFacing, between);
+                    permutation.vectorInto(sourceFacing.x(), sourceFacing.y(), sourceFacing.z(), expectedNormal);
                     assertDirection(expectedNormal, ItemFrameTransform.targetFacing(transform));
                     for (int sourceRotation = 0; sourceRotation < 8; sourceRotation++) {
                         orientedTop(sourceFacing, sourceRotation, filledMap, sourceTop);
-                        sourceFrame.transformVectorInto(
-                            sourceTop[0], sourceTop[1], sourceTop[2], targetFrame, expectedTop);
+                        permutation.vectorInto(sourceTop[0], sourceTop[1], sourceTop[2], expectedTop);
                         int targetRotation = ItemFrameTransform.transformRotation(
                             transform, sourceRotation, filledMap);
                         orientedTop(ItemFrameTransform.targetFacing(transform),

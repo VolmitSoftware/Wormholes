@@ -2,6 +2,8 @@ package art.arcane.wormholes.door;
 
 import org.bukkit.structure.Structure;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.math.Vec3d;
+import art.arcane.optics.crossing.PlaneCrossing;
 
 import art.arcane.wormholes.survival.doors.dimension.PocketWorldService;
 import net.kyori.adventure.text.Component;
@@ -284,12 +286,7 @@ final class DoorTransitCoordinatorEntryTest
 				WORLD_ID, plane, Door.Hinge.LEFT, true, false);
 			RuntimeDoor runtime = new RuntimeDoor(endpoint);
 			runtime.update(snapshot);
-			DoorwayCrossing crossing = new DoorwayCrossing(
-				plane.center(),
-				1.0D,
-				0.0D,
-				1.0D,
-				DoorwayCrossing.Direction.FRONT_TO_BACK);
+			PlaneCrossing crossing = plane.crossingAt(plane.center(), new Vec3d(0.0D, 0.0D, 0.0D), true);
 			DoorTransit transit = new DoorTransit(
 				plane,
 				crossing,

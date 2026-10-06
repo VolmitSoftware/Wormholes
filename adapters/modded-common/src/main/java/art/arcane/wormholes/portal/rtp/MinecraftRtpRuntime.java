@@ -21,6 +21,7 @@ import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.portal.Portal;
 import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.wormholes.portal.PortalStateCodec;
 import art.arcane.wormholes.portal.PortalType;
@@ -328,8 +329,9 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
         Vec3d origin = new Vec3d(point.x(), point.y(), point.z());
         ApertureCells geometry = new ApertureCells();
         List<Vec3d> cells = new ArrayList<>();
+        OpticTransform transform = OpticTransform.between(source.getFrame(), source.getOrigin(), frame, origin);
         for (Vec3d block : source.getGeometry().getBlockPositions()) {
-            cells.add(source.getFrame().transformPoint(block.add(new Vec3d(0.5, 0.5, 0.5)), source.getOrigin(), origin, frame));
+            cells.add(transform.point(block.add(new Vec3d(0.5, 0.5, 0.5))));
         }
         geometry.setBlocks(cells);
         return new MinecraftPortal(new MinecraftPortal.Definition(new Portal.State(ready.routeId(), origin, source.getName(), frame, true),

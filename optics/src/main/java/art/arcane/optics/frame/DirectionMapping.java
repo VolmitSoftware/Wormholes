@@ -3,108 +3,43 @@ package art.arcane.optics.frame;
 import art.arcane.optics.math.Face;
 
 public final class DirectionMapping {
-    private static final int HANDEDNESS_UNCOMPUTED = Integer.MIN_VALUE;
+    private final AxisPermutation permutation;
 
-    private final Frame fromFrame;
-    private final Frame toFrame;
-    private final Frame mirrorFrame;
-    private final int quarterTurns;
-    private final double[] scratch3;
-    private final Face[] axes;
-    private int imageQuarterTurns;
-    private boolean reflects;
-
-    private DirectionMapping(Frame fromFrame, Frame toFrame, Frame mirrorFrame, int quarterTurns, double[] scratch3) {
-        this.axes = null;
-        this.fromFrame = fromFrame;
-        this.toFrame = toFrame;
-        this.mirrorFrame = mirrorFrame;
-        this.quarterTurns = quarterTurns;
-        this.scratch3 = scratch3;
-        this.imageQuarterTurns = HANDEDNESS_UNCOMPUTED;
-        this.reflects = false;
-    }
-
-    private DirectionMapping(Face[] axes) {
-        this.axes = axes;
-        this.fromFrame = null;
-        this.toFrame = null;
-        this.mirrorFrame = null;
-        this.quarterTurns = 0;
-        this.scratch3 = null;
-        this.imageQuarterTurns = HANDEDNESS_UNCOMPUTED;
+    private DirectionMapping(AxisPermutation permutation) {
+        this.permutation = permutation;
     }
 
     public static DirectionMapping axes(Face x, Face y, Face z) {
         if (x.getAxis() == y.getAxis() || x.getAxis() == z.getAxis() || y.getAxis() == z.getAxis()) {
             throw new IllegalArgumentException("Mapped axes must be perpendicular");
         }
-        return new DirectionMapping(new Face[] {x, y, z});
-    }
-
-    /** Quarter turns clockwise from above that this mapping applies to the horizontal plane. */
-    public int quarterTurnsClockwise() {
-        if (imageQuarterTurns == HANDEDNESS_UNCOMPUTED) {
-            computeHandedness();
-        }
-        return imageQuarterTurns;
-    }
-
-    /** True when the mapping mirrors the horizontal plane, so handed block states must swap sides. */
-    public boolean reflects() {
-        if (imageQuarterTurns == HANDEDNESS_UNCOMPUTED) {
-            computeHandedness();
-        }
-        return reflects;
-    }
-
-    /** Maps a 16-step rotation index through the mapping, reflecting first and then turning. */
-    public int mapRotation(int index) {
-        int reflected = reflects() ? Rotation16.reflect(index, Face.E) : index;
-        return Rotation16.rotate(reflected, quarterTurnsClockwise());
-    }
-
-    private void computeHandedness() {
-        int southIndex = rotationIndex(map(Face.S));
-        int eastIndex = rotationIndex(map(Face.E));
-        if (southIndex < 0 || eastIndex < 0) {
-            imageQuarterTurns = 0;
-            reflects = false;
-            return;
-        }
-        imageQuarterTurns = southIndex / 4;
-        reflects = eastIndex != Rotation16.rotate(12, imageQuarterTurns);
+        return new DirectionMapping(AxisPermutation.of(x, y, z));
     }
 
     public static DirectionMapping between(Frame fromFrame, Frame toFrame, double[] scratch3) {
-        return new DirectionMapping(fromFrame, toFrame, null, 0, scratch3);
+        return new DirectionMapping(AxisPermutation.between(fromFrame, toFrame));
     }
 
     public static DirectionMapping mirror(Frame frame, int quarterTurns, double[] scratch3) {
-        return new DirectionMapping(null, null, frame, quarterTurns, scratch3);
+        return new DirectionMapping(AxisPermutation.mirror(frame, QuarterTurn.of(quarterTurns)));
+    }
+
+    public int quarterTurnsClockwise() {
+        return permutation.quarterTurnsClockwise();
+    }
+
+    public boolean reflects() {
+        return permutation.reflectsHorizontally();
+    }
+
+    public int mapRotation(int index) {
+        return permutation.rotation16(index);
     }
 
     public Face map(Face source) {
-        if (axes != null) {
-            return Face.closest(source.x() * axes[0].x() + source.y() * axes[1].x() + source.z() * axes[2].x(),
-                source.x() * axes[0].y() + source.y() * axes[1].y() + source.z() * axes[2].y(),
-                source.x() * axes[0].z() + source.y() * axes[1].z() + source.z() * axes[2].z());
-        }
-        if(mirrorFrame != null) {
-            PortalCoordMap.mirrorSourceToDisplayVectorInto(source.x(), source.y(), source.z(), mirrorFrame, quarterTurns, scratch3);
-            return Face.closest(scratch3[0], scratch3[1], scratch3[2]);
-        }
-        return fromFrame.transformDirection(source, toFrame, scratch3);
+        return permutation.face(source);
     }
-    private static int rotationIndex(Face direction) {
-        return switch (direction) {
-            case S -> 0;
-            case W -> 4;
-            case N -> 8;
-            case E -> 12;
-            default -> -1;
-        };
-    }
+
     public RailShape mapRailShape(RailShape shape) {
         switch(shape) {
             case NORTH_SOUTH:

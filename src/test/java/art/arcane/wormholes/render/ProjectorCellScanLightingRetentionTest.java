@@ -41,7 +41,6 @@ import art.arcane.wormholes.util.Cuboid;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.claim.ProjectedBlockClaim;
 import art.arcane.optics.claim.ProjectionClaimSet;
-import art.arcane.optics.frame.ProjectorFrameTransform;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.occlusion.ProjectedEntityOcclusion;
 import art.arcane.optics.occlusion.ProjectorHoldProof;
@@ -54,6 +53,7 @@ import art.arcane.optics.scan.ProjectorSampler;
 import art.arcane.optics.view.WorldChangeTracker;
 import art.arcane.optics.volume.PlaneWindow;
 import art.arcane.optics.volume.ViewVolume;
+import art.arcane.optics.volume.ProjectionVolume;
 
 public final class ProjectorCellScanLightingRetentionTest {
     @Test
@@ -1731,7 +1731,7 @@ public final class ProjectorCellScanLightingRetentionTest {
         ILocalPortal portal = portal(structure, frame);
         Location eye = structure.getCenter().add(0.0D, 0.0D, 1.5D);
         ViewVolume frustum = new ViewVolume(BukkitGeometry.vector(eye), structure, new ViewVolume.Options(4.0D, 2.0D, Settings.NEAR_PLANE_PADDING, Settings.FRUSTUM_CULLING_RATIO, Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
-        int expectedFarZ = ProjectorFrameTransform.minBlockForCenter(frustum.getRegion().getZa());
+        int expectedFarZ = ProjectionVolume.minBlockForCenter(frustum.getRegion().getZa());
 
         for (ProjectionRenderMode renderMode : ProjectionRenderMode.values()) {
             MutableWorldView localView = new MutableWorldView(blockData(Material.STONE));
@@ -1912,7 +1912,7 @@ public final class ProjectorCellScanLightingRetentionTest {
         assertFalse(initialMask.isEmpty());
         assertEquals(initialMask, scan.claims().keySet(), "every claim is a shell cell over air");
         assertAllBlackout(scan);
-        assertEquals(ProjectorFrameTransform.minBlockForCenter(frustum.getRegion().getZa()),
+        assertEquals(ProjectionVolume.minBlockForCenter(frustum.getRegion().getZa()),
             minimumBlackoutGeometryZ(scan));
         scan.commit();
 
@@ -2031,8 +2031,8 @@ public final class ProjectorCellScanLightingRetentionTest {
         Location eye = structure.getCenter().add(0.0D, 0.0D, 1.5D);
         ViewVolume shallow = new ViewVolume(BukkitGeometry.vector(eye), structure, new ViewVolume.Options(4.0D, 2.0D, Settings.NEAR_PLANE_PADDING, Settings.FRUSTUM_CULLING_RATIO, Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
         ViewVolume deep = new ViewVolume(BukkitGeometry.vector(eye), structure, new ViewVolume.Options(6.0D, 2.0D, Settings.NEAR_PLANE_PADDING, Settings.FRUSTUM_CULLING_RATIO, Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
-        int shallowFarZ = ProjectorFrameTransform.minBlockForCenter(shallow.getRegion().getZa());
-        int deepFarZ = ProjectorFrameTransform.minBlockForCenter(deep.getRegion().getZa());
+        int shallowFarZ = ProjectionVolume.minBlockForCenter(shallow.getRegion().getZa());
+        int deepFarZ = ProjectionVolume.minBlockForCenter(deep.getRegion().getZa());
         assertTrue(deepFarZ < shallowFarZ);
 
         scan.run(destination, null, BukkitGeometry.vector(eye), shallow, 4.0D, true, false, false,
@@ -2075,7 +2075,7 @@ public final class ProjectorCellScanLightingRetentionTest {
         ViewVolume shallow = new ViewVolume(BukkitGeometry.vector(eye), structure, new ViewVolume.Options(4.0D, 2.0D, Settings.NEAR_PLANE_PADDING, Settings.FRUSTUM_CULLING_RATIO, Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
         ViewVolume deep = new ViewVolume(BukkitGeometry.vector(eye), structure, new ViewVolume.Options(6.0D, 2.0D, Settings.NEAR_PLANE_PADDING, Settings.FRUSTUM_CULLING_RATIO, Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
         long oldCap = CellKeys.pack(structure.getCenter().getBlockX(),
-            structure.getCenter().getBlockY(), ProjectorFrameTransform.minBlockForCenter(shallow.getRegion().getZa()));
+            structure.getCenter().getBlockY(), ProjectionVolume.minBlockForCenter(shallow.getRegion().getZa()));
         for (boolean localUnavailable : new boolean[] {true, false}) {
             MutableWorldView local = new MutableWorldView(blockData(Material.AIR));
             MutableWorldView remote = new MutableWorldView(blockData(Material.AIR));
@@ -2315,20 +2315,20 @@ public final class ProjectorCellScanLightingRetentionTest {
 
     private static int farFrustumCoordinate(ViewVolume frustum, Face normal) {
         if (normal.x() > 0) {
-            return ProjectorFrameTransform.minBlockForCenter(frustum.getRegion().getXa());
+            return ProjectionVolume.minBlockForCenter(frustum.getRegion().getXa());
         }
         if (normal.x() < 0) {
-            return ProjectorFrameTransform.maxBlockForCenter(frustum.getRegion().getXb());
+            return ProjectionVolume.maxBlockForCenter(frustum.getRegion().getXb());
         }
         if (normal.y() > 0) {
-            return ProjectorFrameTransform.minBlockForCenter(frustum.getRegion().getYa());
+            return ProjectionVolume.minBlockForCenter(frustum.getRegion().getYa());
         }
         if (normal.y() < 0) {
-            return ProjectorFrameTransform.maxBlockForCenter(frustum.getRegion().getYb());
+            return ProjectionVolume.maxBlockForCenter(frustum.getRegion().getYb());
         }
         return normal.z() > 0
-            ? ProjectorFrameTransform.minBlockForCenter(frustum.getRegion().getZa())
-            : ProjectorFrameTransform.maxBlockForCenter(frustum.getRegion().getZb());
+            ? ProjectionVolume.minBlockForCenter(frustum.getRegion().getZa())
+            : ProjectionVolume.maxBlockForCenter(frustum.getRegion().getZb());
     }
 
     private static int coordinate(long key, Face direction) {

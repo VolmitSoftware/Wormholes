@@ -28,16 +28,18 @@ import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.view.WorldChangeTracker;
-import art.arcane.optics.frame.ProjectorFrameTransform;
 import art.arcane.optics.scan.ProjectorSample;
 import art.arcane.optics.scan.ProjectorSampleMemo;
 import art.arcane.optics.volume.LodPolicy;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.util.Cuboid;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.plate.PlateCell;
 import art.arcane.optics.plate.ViewPlate;
 import art.arcane.optics.plate.ViewPlateBuilder;
@@ -198,12 +200,9 @@ final class ViewPlateBuilderTest {
                 new ViewPlateKey(PORTAL_ID, destination, frontSide, quarterTurns, 0L), portal.getStructure(), destination,
                 frame, mirror ? frame.flipNormal() : frame, originX, originY, originZ, originX, originY, originZ,
                 mirror, quarterTurns, depth, lateral, 0.75D, buried, air, LodPolicy.NONE, false, 1L, 2L, 0L, blocks);
-            ProjectorFrameTransform transform = new ProjectorFrameTransform();
-            if (mirror) {
-                transform.configureMirror(frame, quarterTurns, originX, originY, originZ);
-            } else {
-                transform.configure(frame.view(frontSide), frame.view(frontSide), originX, originY, originZ, originX, originY, originZ);
-            }
+            OpticTransform transform = mirror
+                ? OpticTransform.mirror(frame, new Vec3d(originX, originY, originZ), QuarterTurn.of(quarterTurns)).inverse()
+                : OpticTransform.between(frame.view(frontSide), originX, originY, originZ, frame.view(frontSide), originX, originY, originZ);
             double[] remotePoint = new double[3];
 
             ViewPlate<BlockData> plate = ViewPlateBuilder.build(request);
@@ -219,7 +218,7 @@ final class ViewPlateBuilderTest {
                         if (cell == null) {
                             continue;
                         }
-                        transform.apply(x + 0.5D, y + 0.5D, z + 0.5D, remotePoint);
+                        transform.snappedPointInto(x + 0.5D, y + 0.5D, z + 0.5D, remotePoint);
                         int rx = (int) Math.floor(remotePoint[0]);
                         int ry = (int) Math.floor(remotePoint[1]);
                         int rz = (int) Math.floor(remotePoint[2]);

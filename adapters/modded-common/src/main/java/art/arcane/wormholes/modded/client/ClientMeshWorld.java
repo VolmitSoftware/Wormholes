@@ -2,10 +2,10 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.client.render.PortalScene;
-import art.arcane.optics.client.ClientViewBlockTransform;
 import art.arcane.optics.plate.PlateBox;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.stream.SectionBiomes;
+import art.arcane.optics.frame.OpticTransform;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
@@ -39,8 +39,11 @@ public final class ClientMeshWorld implements BlockAndTintGetter {
     private final int biomeY;
     private final int biomeZ;
     private final Map<ColorResolver, Long2IntOpenHashMap> colors = new IdentityHashMap<>();
-    private final ProjectionEnvironment.Transform transform;
-    private final ClientViewBlockTransform cells;
+    private final OpticTransform transform;
+    private final OpticTransform inverse;
+    private final OpticTransform cells;
+    private final OpticTransform destinationCells;
+    private final int[] cell = new int[3];
     private final CardinalLighting lighting;
     private final int blendRadius;
     private final int minY;
@@ -60,7 +63,9 @@ public final class ClientMeshWorld implements BlockAndTintGetter {
         minY = snapshot.view().bounds().minY();
         height = snapshot.view().bounds().sizeY();
         transform = environment.transform();
-        cells = new ClientViewBlockTransform(transform);
+        inverse = transform.inverse();
+        cells = transform.cellAligned();
+        destinationCells = cells.inverse();
         dimension = environment.dimension();
         blendRadius = snapshot.blendRadius();
         CardinalLighting source = environment.dimension().cardinalLighting() == ProjectionEnvironment.CardinalLighting.NETHER
@@ -146,7 +151,7 @@ public final class ClientMeshWorld implements BlockAndTintGetter {
         return inputs;
     }
 
-    public ProjectionEnvironment.Transform transform() {
+    public OpticTransform transform() {
         return transform;
     }
 
@@ -155,7 +160,8 @@ public final class ClientMeshWorld implements BlockAndTintGetter {
     }
 
     public void destinationBlock(int x, int y, int z, BlockPos.MutableBlockPos output) {
-        output.set(cells.destinationX(x, y, z), cells.destinationY(x, y, z), cells.destinationZ(x, y, z));
+        destinationCells.cellInto(x, y, z, cell);
+        output.set(cell[0], cell[1], cell[2]);
     }
 
     @Override
@@ -227,15 +233,15 @@ public final class ClientMeshWorld implements BlockAndTintGetter {
         if (center == null) {
             throw new IllegalStateException("Destination biome missing at " + position);
         }
-        Vec3d destination = transform.destinationPoint(position.getX() + 0.5D, position.getY() + 0.5D, position.getZ() + 0.5D);
+        Vec3d destination = inverse.point(new Vec3d(position.getX() + 0.5D, position.getY() + 0.5D, position.getZ() + 0.5D));
         int red = 0;
         int green = 0;
         int blue = 0;
         for (int z = -blendRadius; z <= blendRadius; z++) {
             for (int x = -blendRadius; x <= blendRadius; x++) {
-                Biome biome = biome(position.getX() + x * transform.xAxis().x() + z * transform.zAxis().x(),
-                    position.getY() + x * transform.xAxis().y() + z * transform.zAxis().y(),
-                    position.getZ() + x * transform.xAxis().z() + z * transform.zAxis().z());
+                Biome biome = biome(position.getX() + x * transform.permutation().x().x() + z * transform.permutation().z().x(),
+                    position.getY() + x * transform.permutation().x().y() + z * transform.permutation().z().y(),
+                    position.getZ() + x * transform.permutation().x().z() + z * transform.permutation().z().z());
                 if (biome == null) {
                     throw new IllegalStateException("Destination biome blend exceeds captured halo at " + position);
                 }
@@ -259,12 +265,12 @@ public final class ClientMeshWorld implements BlockAndTintGetter {
     }
 
     private float shade(CardinalLighting source, Direction direction) {
-        int x = direction.getStepX() * transform.xAxis().x() + direction.getStepY() * transform.xAxis().y()
-            + direction.getStepZ() * transform.xAxis().z();
-        int y = direction.getStepX() * transform.yAxis().x() + direction.getStepY() * transform.yAxis().y()
-            + direction.getStepZ() * transform.yAxis().z();
-        int z = direction.getStepX() * transform.zAxis().x() + direction.getStepY() * transform.zAxis().y()
-            + direction.getStepZ() * transform.zAxis().z();
+        int x = direction.getStepX() * transform.permutation().x().x() + direction.getStepY() * transform.permutation().x().y()
+            + direction.getStepZ() * transform.permutation().x().z();
+        int y = direction.getStepX() * transform.permutation().y().x() + direction.getStepY() * transform.permutation().y().y()
+            + direction.getStepZ() * transform.permutation().y().z();
+        int z = direction.getStepX() * transform.permutation().z().x() + direction.getStepY() * transform.permutation().z().y()
+            + direction.getStepZ() * transform.permutation().z().z();
         return source.byFace(Direction.getNearest(x, y, z, Direction.UP));
     }
 
@@ -279,7 +285,8 @@ public final class ClientMeshWorld implements BlockAndTintGetter {
             int x = position.getX();
             int y = position.getY();
             int z = position.getZ();
-            return display.set(cells.displayX(x, y, z), cells.displayY(x, y, z), cells.displayZ(x, y, z));
+            cells.cellInto(x, y, z, cell);
+            return display.set(cell[0], cell[1], cell[2]);
         }
 
         @Override

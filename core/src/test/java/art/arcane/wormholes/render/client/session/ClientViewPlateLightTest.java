@@ -18,15 +18,16 @@ import org.junit.jupiter.api.Test;
 import art.arcane.optics.stream.BrickLightSource;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.ViewWindow;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.view.WorldChangeTracker;
 import art.arcane.optics.scan.ProjectorSample;
-import art.arcane.optics.client.ClientViewEntityTransform;
 import art.arcane.optics.plate.PlateBox;
 import art.arcane.optics.plate.PlateCell;
 import art.arcane.optics.plate.ViewPlate;
 import art.arcane.optics.view.ContentView;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.math.Vec3d;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import art.arcane.optics.client.PlateLight;
 
@@ -320,8 +321,7 @@ class ClientViewPlateLightTest {
         throw new AssertionError(state + " is not part of the plate");
     }
 
-    private static ClientViewEntityTransform.EntityFrame frame() {
-        return new ClientViewEntityTransform.EntityFrame(11.4995D, 67.4995D, 20.5005D, Frame.canonical(Face.S), 200.4995D, 67.4995D,
-            200.4995D, Frame.canonical(Face.N), false, 0, false, 24.0D);
+    private static ViewWindow frame() {
+        return ViewWindow.between(new Vec3d(11.4995D, 67.4995D, 20.5005D), Frame.canonical(Face.S), new Vec3d(200.4995D, 67.4995D, 200.4995D), Frame.canonical(Face.N), false, 24.0D);
     }
 }

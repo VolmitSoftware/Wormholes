@@ -4,6 +4,8 @@ import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.AxisPermutation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
@@ -71,8 +73,7 @@ public class MinecraftPortalEnvironmentTest extends MinecraftTestBase {
         Vec3 point = new Vec3(128.5D, 92.0D, -32.25D);
         when(attributes.getValue(eq(EnvironmentAttributes.SKY_COLOR), eq(point))).thenReturn(new Vector3f(1.25F, 0.4F, 0.8F));
         when(attributes.getValue(eq(EnvironmentAttributes.SUN_ANGLE), eq(point))).thenReturn(90.0F);
-        ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(Face.E, Face.U, Face.S,
-            new Vec3d(-128, 0, 0));
+        OpticTransform transform = OpticTransform.of(AxisPermutation.of(Face.E, Face.U, Face.S), -128, 0, 0);
         ProjectionEnvironment result = MinecraftPortalEnvironment.capture(world, new Vec3d(point.x, point.y, point.z), transform, world.isFlat());
         assertEquals(ProjectionEnvironment.Skybox.END, result.sky().skybox());
         assertEquals(1.25F, result.sky().color().red(), 0.0001F);
@@ -111,7 +112,7 @@ public class MinecraftPortalEnvironmentTest extends MinecraftTestBase {
     }
 
     private static ProjectionEnvironment sample(ServerLevel world, double y) {
-        return MinecraftPortalEnvironment.capture(world, new Vec3d(3.5, y, -4.5), ProjectionEnvironment.Transform.IDENTITY, world.isFlat());
+        return MinecraftPortalEnvironment.capture(world, new Vec3d(3.5, y, -4.5), OpticTransform.IDENTITY, world.isFlat());
     }
 
     @SuppressWarnings("unchecked")

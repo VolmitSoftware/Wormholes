@@ -3,8 +3,7 @@ package art.arcane.optics.occlusion;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
-import art.arcane.optics.frame.ProjectorFrameTransform;
-
+import art.arcane.optics.volume.ProjectionVolume;
 public final class ProjectorHoldProof {
     private static final double EPSILON = 1.0E-7D;
     private static final double MIN_PROOF_PADDING = 0.5D;
@@ -124,7 +123,7 @@ public final class ProjectorHoldProof {
         return new ProjectorHoldProof(normalAxis, normalSign, (int) Math.floor(normalOrigin),
             originX, originY, originZ, right, up,
             rightMin - proofPadding, rightMax + proofPadding, upMin - proofPadding, upMax + proofPadding,
-            ProjectorFrameTransform.portalPlaneClearance(apertureArea, projectionFrame),
+            ProjectionVolume.portalPlaneClearance(apertureArea, projectionFrame),
             Math.min(proofPadding, 1.0D - EPSILON));
     }
 

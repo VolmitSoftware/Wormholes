@@ -1,8 +1,8 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.optics.plate.ChunkLease;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.door.DoorArrivals;
-import art.arcane.wormholes.door.DoorVec3;
 import art.arcane.wormholes.door.PocketEscapePolicy;
 import art.arcane.wormholes.door.PocketLayout;
 import art.arcane.wormholes.door.PocketRescuePolicy;
@@ -35,7 +35,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public final class MinecraftPocketRules implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
-    private static final DoorVec3 ZERO = new DoorVec3(0, 0, 0);
+    private static final Vec3d ZERO = new Vec3d(0, 0, 0);
 
     private final WormholesModRuntime runtime;
     private final MinecraftDoorService doors;
@@ -223,14 +223,14 @@ public final class MinecraftPocketRules implements AutoCloseable {
             fallback(player, rescue);
             return;
         }
-        load(player, rescue, new Target(level, new DoorVec3(ticket.x(), ticket.y(), ticket.z()), ticket.yaw(), ticket.pitch()), false);
+        load(player, rescue, new Target(level, new Vec3d(ticket.x(), ticket.y(), ticket.z()), ticket.yaw(), ticket.pitch()), false);
     }
 
     private void fallback(ServerPlayer player, Rescue rescue) {
         ServerLevel level = server.overworld();
         LevelData.RespawnData spawn = level.getRespawnData();
         BlockPos point = spawn.pos();
-        load(player, rescue, new Target(level, new DoorVec3(point.getX() + 0.5D, point.getY(), point.getZ() + 0.5D),
+        load(player, rescue, new Target(level, new Vec3d(point.getX() + 0.5D, point.getY(), point.getZ() + 0.5D),
             spawn.yaw(), spawn.pitch()), true);
     }
 
@@ -258,7 +258,7 @@ public final class MinecraftPocketRules implements AutoCloseable {
                     return;
                 }
                 if (Boolean.TRUE.equals(ready)) {
-                    Optional<DoorVec3> point = DoorArrivals.findSafeNear(target.point(), 3,
+                    Optional<Vec3d> point = DoorArrivals.findSafeNear(target.point(), 3,
                         candidate -> MinecraftDoorService.safe(player, target.level(), candidate, true));
                     if (point.isPresent()) {
                         success = doors.teleport(player, target.level(), point.get(), target.yaw(), target.pitch(), ZERO);
@@ -323,7 +323,7 @@ public final class MinecraftPocketRules implements AutoCloseable {
     }
 
     private record ClockOverride(Holder<WorldClock> clock, long time) { }
-    private record Target(ServerLevel level, DoorVec3 point, float yaw, float pitch) { }
+    private record Target(ServerLevel level, Vec3d point, float yaw, float pitch) { }
 
     private static final class Rescue {
         private final ReturnTicket ticket;

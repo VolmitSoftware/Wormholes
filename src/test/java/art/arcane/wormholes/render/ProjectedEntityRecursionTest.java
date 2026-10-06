@@ -36,6 +36,7 @@ import art.arcane.wormholes.render.view.ProjectionEntityView;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.OpticTransform;
 import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
@@ -181,9 +182,11 @@ final class ProjectedEntityRecursionTest {
             when(entities.getEntities(anyDouble(), anyDouble(), anyDouble(), anyDouble())).thenReturn(List.of(visual));
             when(entities.isVisibleTo(any(), any())).thenReturn(true);
             fixture.finalEntities.clear();
-            fixture.renderer.prepareRecursiveProjection(new EntityPath.Root<>(fixture.local, fixture.remote, fixture.frame, fixture.frame, false, 0, BukkitGeometry.vector(fixture.eye.toVector()), fixture.frustum, fixture.remote.getWorld(), Settings.PROJECTION_RECURSIVE_PORTAL_DEPTH), fixture.recursive);
+            fixture.renderer.prepareRecursiveProjection(new EntityPath.Root<>(fixture.local, fixture.remote, fixture.transform(),
+                BukkitGeometry.vector(fixture.eye.toVector()), fixture.frustum, fixture.remote.getWorld(), Settings.PROJECTION_RECURSIVE_PORTAL_DEPTH),
+                fixture.recursive);
             fixture.renderer.applyRecursive(fixture.observer, new ProjectedEntityRenderer.RecursiveRender(
-                fixture.local, fixture.frame, fixture.frustum, 32.0D, true, ignored -> snapshot, fixture.occlusion));
+                fixture.local, fixture.frustum, 32.0D, true, ignored -> snapshot, fixture.occlusion));
             assertEquals(1, fixture.renderer.getSpoofedCount());
             assertEquals(11.0D, fixture.recorder.sentOfType(WrapperPlayServerSpawnEntity.class)
                 .getFirst().getPosition().getZ(), 1.0E-9D);
@@ -265,10 +268,15 @@ final class ProjectedEntityRecursionTest {
         }
 
         private void render() {
-            renderer.prepareRecursiveProjection(new EntityPath.Root<>(local, remote, frame, frame, false, 0, BukkitGeometry.vector(eye.toVector()), frustum, remote.getWorld(), Settings.PROJECTION_RECURSIVE_PORTAL_DEPTH), recursive);
-            renderer.apply(observer, local, remote, frustum, 32.0D, frame, frame, 0, occlusion);
-            renderer.applyRecursive(observer, new ProjectedEntityRenderer.RecursiveRender(local, frame, frustum,
+            renderer.prepareRecursiveProjection(new EntityPath.Root<>(local, remote, transform(), BukkitGeometry.vector(eye.toVector()), frustum,
+                remote.getWorld(), Settings.PROJECTION_RECURSIVE_PORTAL_DEPTH), recursive);
+            renderer.apply(observer, local, remote, frustum, 32.0D, transform(), occlusion);
+            renderer.applyRecursive(observer, new ProjectedEntityRenderer.RecursiveRender(local, frustum,
                 32.0D, false, ignored -> null, occlusion));
+        }
+
+        private OpticTransform transform() {
+            return OpticTransform.between(frame, remote.getOrigin(), frame, local.getOrigin());
         }
 
         private void close() {

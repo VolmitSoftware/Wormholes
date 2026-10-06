@@ -1,7 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.wormholes.modded.client.render.PortalScene;
 import art.arcane.optics.stream.Brick;
@@ -10,6 +9,8 @@ import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.optics.plate.PlateBox;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.AxisPermutation;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.SectionPos;
@@ -28,7 +29,7 @@ import static org.mockito.Mockito.mock;
 
 public class ClientMeshProofTest extends MinecraftTestBase {
     private static final PlateBox BOUNDS = new PlateBox(-32, -32, -32, 64, 64, 64);
-    private static final ProjectionEnvironment ENVIRONMENT = PortalEnvironmentTest.environment(ProjectionEnvironment.Transform.IDENTITY);
+    private static final ProjectionEnvironment ENVIRONMENT = PortalEnvironmentTest.environment(OpticTransform.IDENTITY);
     private static final Options OPTIONS = new Options(ENVIRONMENT, 71, 11);
 
     @Test
@@ -128,8 +129,7 @@ public class ClientMeshProofTest extends MinecraftTestBase {
             new ProjectionEnvironment.World("minecraft:the_nether", world.clockTime(), world.biomeKey(), world.seaLevel(),
                 world.blockLight(), world.skyLight(), world.logicalHeight(), world.hasCeiling(), world.ambientLight(),
                 world.eyeMedium(), world.hasFixedTime()));
-        ProjectionEnvironment translated = ENVIRONMENT.withTransform(new ProjectionEnvironment.Transform(Face.E,
-            Face.U, Face.S, new Vec3d(16, 0, 0)));
+        ProjectionEnvironment translated = ENVIRONMENT.withTransform(OpticTransform.of(AxisPermutation.of(Face.E, Face.U, Face.S), 16, 0, 0));
         for (Options options : List.of(new Options(otherWorld, 71, 11), new Options(translated, 71, 11),
             new Options(ENVIRONMENT, 72, 11), new Options(ENVIRONMENT, 71, 12),
             new Options(ENVIRONMENT, 71L << 32, 11), new Options(ENVIRONMENT, 71, 11L << 32))) {

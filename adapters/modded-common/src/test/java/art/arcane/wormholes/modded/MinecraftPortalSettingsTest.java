@@ -5,6 +5,7 @@ import art.arcane.wormholes.portal.NetworkViewQuality;
 import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.wormholes.portal.Portal;
 import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.optics.fidelity.AcousticsProfile;
@@ -135,9 +136,9 @@ public class MinecraftPortalSettingsTest extends MinecraftTestBase {
         assertEquals(new Vec3d(1001.5D, 203.0D, 0.5D), source.getOrigin());
         assertEquals(new Vec3d(1103.5D, 83.0D, 0.5D), target.getOrigin());
         Vec3d feet = new Vec3d(1001.5D, 200.0D, 0.4785775140992615D);
-        Vec3d mapped = frame.transformPoint(feet, source.getOrigin(), target.getOrigin(), frame);
+        Vec3d mapped = OpticTransform.between(frame, source.getOrigin(), frame, target.getOrigin()).point(feet);
         assertEquals(80.0D, mapped.y(), 0.0D);
-        assertEquals(feet, frame.transformPoint(mapped, target.getOrigin(), source.getOrigin(), frame));
+        assertEquals(feet, OpticTransform.between(frame, target.getOrigin(), frame, source.getOrigin()).point(mapped));
         assertEquals(205.999D, source.getGeometry().getArea().getYb(), 0.0D);
     }
 

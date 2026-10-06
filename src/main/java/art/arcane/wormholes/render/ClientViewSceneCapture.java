@@ -38,7 +38,6 @@ import art.arcane.wormholes.network.view.PacketBlobs;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.IPortal;
-import art.arcane.optics.client.ClientViewEntityTransform;
 import art.arcane.optics.client.PlateLight;
 import art.arcane.optics.plate.PlateBox;
 import art.arcane.optics.plate.ViewPlate;
@@ -47,6 +46,8 @@ import art.arcane.wormholes.render.view.ProjectionEntityView;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.optics.claim.ProjectedBlockClaim;
 import art.arcane.optics.entity.ItemFrameTransform;
+import art.arcane.optics.entity.EntityProjection;
+import art.arcane.optics.frame.ViewWindow;
 
 public final class ClientViewSceneCapture {
     private static final long BLOB_RECAPTURE_TICKS = 40L;
@@ -57,7 +58,7 @@ public final class ClientViewSceneCapture {
     private static final String PAINTING = "minecraft:painting";
 
     private final long secret;
-    private final ClientViewEntityTransform transform;
+    private final EntityProjection transform;
     private final PlateLight.Cache<BlockData> lights;
     private final Map<UUID, Blobs> blobs;
     private final Map<UUID, Patched> patched;
@@ -66,30 +67,30 @@ public final class ClientViewSceneCapture {
 
     public ClientViewSceneCapture() {
         this.secret = new SecureRandom().nextLong();
-        this.transform = new ClientViewEntityTransform();
+        this.transform = new EntityProjection();
         this.lights = new PlateLight.Cache<BlockData>();
         this.blobs = new HashMap<UUID, Blobs>();
         this.patched = new HashMap<UUID, Patched>();
         this.sources = new ConcurrentHashMap<UUID, Source>();
     }
 
-    public synchronized List<EntitySnapshot> entities(ClientViewPortalSource source, ClientViewEntityTransform.EntityFrame frame, long tick, boolean nativeMesh) {
+    public synchronized List<EntitySnapshot> entities(ClientViewPortalSource source, ViewWindow frame, long tick, boolean nativeMesh) {
         ProjectionWorldView view = source.destinationView();
         if (frame == null || view == null || !Settings.ENTITY_SPOOFING || Settings.MAX_SPOOFED_ENTITIES <= 0) {
             return List.of();
         }
         double range = Math.min(Settings.ENTITY_SPOOF_RANGE, frame.depth());
-        boolean upsideDown = !nativeMesh && transform.upsideDown(frame);
+        boolean upsideDown = !nativeMesh && frame.transform().flipsWorldUp();
         List<EntitySnapshot> out = new ArrayList<EntitySnapshot>();
         if (view instanceof ProjectionEntityView entityView && (source.regionSnapshots() || source.destinationWorld() == null)) {
-            List<EntitySnapshot> visuals = entityView.getEntities(frame.remoteOriginX(), frame.remoteOriginY(), frame.remoteOriginZ(), range);
+            List<EntitySnapshot> visuals = entityView.getEntities(frame.remoteOrigin().x(), frame.remoteOrigin().y(), frame.remoteOrigin().z(), range);
             for (int i = 0; i < visuals.size() && out.size() < Settings.MAX_SPOOFED_ENTITIES; i++) {
                 EntitySnapshot visual = visuals.get(i);
                 project(withProfile(visual, entityView.getProfile(visual.id())), frame, upsideDown, tick, new Source(entityView, visual.id(), true), out, nativeMesh);
             }
         } else if (source.destinationWorld() != null) {
             World world = source.destinationWorld();
-            Location center = new Location(world, frame.remoteOriginX(), frame.remoteOriginY(), frame.remoteOriginZ());
+            Location center = new Location(world, frame.remoteOrigin().x(), frame.remoteOrigin().y(), frame.remoteOrigin().z());
             IPortal anchor = source.destinationAnchor();
             ILocalPortal key = anchor instanceof ILocalPortal local ? local : source.portal();
             Collection<Entity> nearby = EntityRenderCaches.nearbyRemoteEntities(key, center, range);
@@ -108,7 +109,7 @@ public final class ClientViewSceneCapture {
     }
 
     public UUID projectedId(UUID sourceId) {
-        return ClientViewEntityTransform.opaque(secret, sourceId);
+        return EntityProjection.opaque(secret, sourceId);
     }
 
     public boolean visible(Player observer, UUID opaqueId) {
@@ -123,7 +124,7 @@ public final class ClientViewSceneCapture {
     }
 
     public boolean isObserver(Player observer, UUID opaqueId) {
-        return observer != null && ClientViewEntityTransform.opaque(secret, observer.getUniqueId()).equals(opaqueId);
+        return observer != null && EntityProjection.opaque(secret, observer.getUniqueId()).equals(opaqueId);
     }
 
     public BrickLightSource light(ClientViewPortalSource source, ViewPlate<BlockData> plate, boolean mesh) {
@@ -134,7 +135,7 @@ public final class ClientViewSceneCapture {
         if (!mesh && policy == ProjectedBlockClaim.LightingPolicy.LOCAL) {
             return BrickLightSource.NONE;
         }
-        ClientViewEntityTransform.EntityFrame frame = source.transformFrame();
+        ViewWindow frame = source.transformFrame();
         World world = source.destinationWorld();
         ProjectionWorldView view = source.destinationView();
         if (frame == null || world == null || view == null) {
@@ -148,12 +149,12 @@ public final class ClientViewSceneCapture {
         });
     }
 
-    private void project(EntitySnapshot visual, ClientViewEntityTransform.EntityFrame frame, boolean upsideDown, long tick, Source source,
+    private void project(EntitySnapshot visual, ViewWindow frame, boolean upsideDown, long tick, Source source,
                          List<EntitySnapshot> out, boolean nativeMesh) {
         String type = visual.typeKey();
         boolean itemFrame = ITEM_FRAME.equals(type) || GLOW_ITEM_FRAME.equals(type);
         boolean hanging = itemFrame || PAINTING.equals(type);
-        ClientViewEntityTransform.Projected projected = nativeMesh ? transform.nativeModel(visual, frame, hanging, secret)
+        EntityProjection.Projected projected = nativeMesh ? transform.nativeModel(visual, frame, hanging, secret)
             : transform.project(visual, frame, hanging, itemFrame, secret);
         if (projected == null) {
             return;
@@ -163,7 +164,7 @@ public final class ClientViewSceneCapture {
         out.add(local);
     }
 
-    private EntitySnapshot patch(ClientViewEntityTransform.Projected projected, EntitySnapshot source, boolean flip, long tick) {
+    private EntitySnapshot patch(EntityProjection.Projected projected, EntitySnapshot source, boolean flip, long tick) {
         EntitySnapshot visual = projected.visual();
         int metadataTransform = projected.metadataTransform();
         byte[] raw = source.metadata();

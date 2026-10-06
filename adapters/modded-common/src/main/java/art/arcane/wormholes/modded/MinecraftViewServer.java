@@ -37,6 +37,7 @@ import art.arcane.wormholes.network.replication.LightDiff;
 import art.arcane.wormholes.network.replication.capture.CaptureSettings;
 import art.arcane.wormholes.network.replication.capture.RegionalDiffAccumulator;
 import art.arcane.optics.fidelity.BlockEntitySample;
+import art.arcane.optics.frame.OpticTransform;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.LightLayer;
@@ -540,7 +541,7 @@ public final class MinecraftViewServer implements AutoCloseable {
         if (session.meshDistance > 0 && ticks >= state.nextEnvironmentTick) {
             ViewEntityState.Center center = session.entities.center();
             ProjectionEnvironment environment = MinecraftPortalEnvironment.capture(session.level,
-                new Vec3d(center.x(), center.y(), center.z()), ProjectionEnvironment.Transform.IDENTITY, session.level.isFlat());
+                new Vec3d(center.x(), center.y(), center.z()), OpticTransform.IDENTITY, session.level.isFlat());
             if (network.send(peer, new WireMessage.ViewEnvironment(session.portalId, environment))) {
                 state.nextEnvironmentTick = ticks + 20;
             }

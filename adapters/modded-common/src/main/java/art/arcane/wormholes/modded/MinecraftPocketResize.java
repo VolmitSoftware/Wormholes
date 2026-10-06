@@ -1,6 +1,5 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.door.DoorVec3;
 import art.arcane.wormholes.door.PocketBlockPosition;
 import art.arcane.wormholes.door.PocketEntryCoordinates;
 import art.arcane.wormholes.door.PocketLayout;
@@ -8,6 +7,7 @@ import art.arcane.wormholes.door.PocketResizeGeometry;
 import art.arcane.wormholes.door.PocketResizeImpact;
 import art.arcane.wormholes.door.PocketShell;
 import art.arcane.wormholes.door.PocketSpace;
+import art.arcane.optics.math.Vec3d;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
@@ -120,7 +120,7 @@ final class MinecraftPocketResize {
                 material(target.space().shell().shellMaterial()).defaultBlockState(), Block.UPDATE_CLIENTS);
         }
         for (Entity entity : entities) {
-            if (!doors.teleport(entity, level, new DoorVec3(entry.x(), entry.y(), entry.z()), entity.getYRot(), entity.getXRot(), new DoorVec3(0, 0, 0))) {
+            if (!doors.teleport(entity, level, new Vec3d(entry.x(), entry.y(), entry.z()), entity.getYRot(), entity.getXRot(), new Vec3d(0, 0, 0))) {
                 throw new IllegalStateException("Could not relocate pocket entity " + entity.getUUID());
             }
         }

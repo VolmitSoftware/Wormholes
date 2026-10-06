@@ -9,6 +9,7 @@ import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.optics.stream.ClientViewProtocolException;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.frame.OpticTransform;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
@@ -462,7 +463,7 @@ public final class ClientMeshSections {
 
     static final class Identity {
         private final String world;
-        private final ProjectionEnvironment.Transform transform;
+        private final OpticTransform transform;
         private final long epoch;
         private final long targetIdentity;
         private final int hash;

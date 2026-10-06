@@ -1,6 +1,7 @@
 package art.arcane.wormholes.door;
 
 import art.arcane.optics.math.Face;
+import art.arcane.optics.math.Vec3d;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -33,7 +34,7 @@ public final class BukkitDoorwayPlaneTest
 		assertFalse(snapshot.powered());
 	}
 
-	private static double physicalNormalOffset(DoorwayPlane plane, DoorVec3 point)
+	private static double physicalNormalOffset(DoorwayPlane plane, Vec3d point)
 	{
 		return ((point.x() - (plane.blockX() + 0.5D)) * plane.facing().x())
 			+ ((point.z() - (plane.blockZ() + 0.5D)) * plane.facing().z());
@@ -57,23 +58,23 @@ public final class BukkitDoorwayPlaneTest
 							70,
 							100,
 							doorData(destinationFacing, Bisected.Half.BOTTOM, destinationHinge, true, false));
-						for(DoorwayCrossing.Direction direction : DoorwayCrossing.Direction.values())
+						for (boolean frontSide : new boolean[] {true, false})
 						{
 							float sourceYaw = vectorYaw(
-								sourceFacing.getModX() * direction.exitSideSign(),
-								sourceFacing.getModZ() * direction.exitSideSign());
+								sourceFacing.getModX() * (frontSide ? -1 : 1),
+								sourceFacing.getModZ() * (frontSide ? -1 : 1));
 							float expectedYaw = vectorYaw(
-								destinationFacing.getModX() * direction.entrySideSign(),
-								destinationFacing.getModZ() * direction.entrySideSign());
-							DoorTransit transit = new DoorTransit(source, direction, sourceYaw, 0.0F);
-							DoorVec3 arrival = DoorArrivals.arrivalPoint(destination, transit);
+								destinationFacing.getModX() * (frontSide ? 1 : -1),
+								destinationFacing.getModZ() * (frontSide ? 1 : -1));
+							DoorTransit transit = new DoorTransit(source, frontSide, sourceYaw, 0.0F);
+							Vec3d arrival = DoorArrivals.arrivalPoint(destination, transit);
 							String scenario = sourceFacing + " " + sourceHinge + " -> "
-								+ destinationFacing + " " + destinationHinge + " " + direction;
+								+ destinationFacing + " " + destinationHinge + " " + frontSide;
 
-							assertEquals(destination.entrySidePoint(direction, 1.0D), arrival, scenario);
-							assertEquals(direction.entrySideSign(), physicalNormalOffset(destination, arrival), 1.0E-9D, scenario);
-							assertTrue(destination.signedDistance(arrival) * direction.entrySideSign() > 0.0D, scenario);
-							assertEquals(expectedYaw, DoorArrivals.arrivalFacing(destination, transit, DoorPlanePairing.arrivalSideSign(source, destination, direction)).yaw(), 1.0E-6F, scenario);
+							assertEquals(destination.sidePoint((frontSide ? 1 : -1), 1.0D), arrival, scenario);
+							assertEquals((frontSide ? 1 : -1), physicalNormalOffset(destination, arrival), 1.0E-9D, scenario);
+							assertTrue(destination.signedDistance(arrival) * (frontSide ? 1 : -1) > 0.0D, scenario);
+							assertEquals(expectedYaw, DoorArrivals.arrivalFacing(destination, transit, DoorPlanePairing.arrivalSideSign(source, destination, (frontSide ? 1 : -1))).yaw(), 1.0E-6F, scenario);
 						}
 					}
 				}
@@ -85,8 +86,8 @@ public final class BukkitDoorwayPlaneTest
 	public void destinationArrivalCanStepDownWithoutChangingDoorSide()
 	{
 		DoorwayPlane plane = new DoorwayPlane(-132, 68, 56, Face.E);
-		DoorVec3 nominal = plane.entrySidePoint(DoorwayCrossing.Direction.BACK_TO_FRONT, 1.0D);
-		DoorVec3 selected = DoorArrivals.findSafeVerticalDoorStanding(
+		Vec3d nominal = plane.sidePoint(-1, 1.0D);
+		Vec3d selected = DoorArrivals.findSafeVerticalDoorStanding(
 			nominal,
 			candidate -> candidate.y() == 67.0D).orElseThrow();
 
@@ -99,9 +100,9 @@ public final class BukkitDoorwayPlaneTest
 	@Test
 	public void destinationArrivalPrefersTheDoorBaseHeight()
 	{
-		DoorVec3 nominal = new DoorVec3(4.5D, 70.0D, -2.5D);
+		Vec3d nominal = new Vec3d(4.5D, 70.0D, -2.5D);
 
-		DoorVec3 selected = DoorArrivals.findSafeVerticalDoorStanding(
+		Vec3d selected = DoorArrivals.findSafeVerticalDoorStanding(
 			nominal,
 			candidate -> candidate.y() == 70.0D || candidate.y() == 69.0D).orElseThrow();
 

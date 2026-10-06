@@ -6,6 +6,8 @@ import art.arcane.wormholes.modded.client.WormholesClient;
 import art.arcane.optics.aperture.AperturePolygon;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import com.mojang.blaze3d.ProjectionType;
 import com.mojang.blaze3d.pipeline.RenderTarget;
@@ -208,7 +210,7 @@ public final class ClientPortalRenderer {
         return !PortalShaderScope.shaders() || travelSourceShaders != null && travelSourceShaders.ready();
     }
 
-    public void updateTravelCamera(Camera source, ProjectionEnvironment.Transform destinationToSource) {
+    public void updateTravelCamera(Camera source, OpticTransform destinationToSource) {
         if (travel == null || travelTransition || !source.isInitialized()) {
             return;
         }
@@ -829,7 +831,7 @@ public final class ClientPortalRenderer {
         if (travelSourceEnvironment != null) {
             shaderDemand.add(new PortalShaderRenderer.DemandView(-3, travelSourceEnvironment, 0));
         }
-        AperturePolygon.Point eye = new AperturePolygon.Point(rootCamera.pos.x, rootCamera.pos.y, rootCamera.pos.z);
+        Vec3d eye = new Vec3d(rootCamera.pos.x, rootCamera.pos.y, rootCamera.pos.z);
         Matrix4d viewProjection = new Matrix4d(frameProjection).mul(new Matrix4d(rootCamera.viewRotationMatrix))
             .translate(-rootCamera.pos.x, -rootCamera.pos.y, -rootCamera.pos.z);
         boolean zeroToOne = RenderSystem.getDevice().getDeviceInfo().isZZeroToOne();
@@ -1027,7 +1029,7 @@ public final class ClientPortalRenderer {
         portal.toRoot.set(toRoot);
         portal.camera = transformedCamera(rootCamera, toRoot, frameProjection);
         camera = portal.camera;
-        AperturePolygon.Point eye = new AperturePolygon.Point(camera.pos.x, camera.pos.y, camera.pos.z);
+        Vec3d eye = new Vec3d(camera.pos.x, camera.pos.y, camera.pos.z);
         if (!portal.aperture.servesEye(eye)) {
             return false;
         }
@@ -1701,7 +1703,7 @@ public final class ClientPortalRenderer {
         AperturePolygon.Plane plane = portal.aperture.plane();
         float side = portal.scene.geometry().frontSide() ? 1 : -1;
         return new Vector4f(side * (float) plane.x(), side * (float) plane.y(), side * (float) plane.z(),
-            side * (float) plane.signedDistance(new AperturePolygon.Point(camera.pos.x, camera.pos.y, camera.pos.z)));
+            side * (float) plane.signedDistance(new Vec3d(camera.pos.x, camera.pos.y, camera.pos.z)));
     }
 
     private PortalClipScope geometryClipping(Portal portal) {
@@ -1843,7 +1845,7 @@ public final class ClientPortalRenderer {
         try (ByteBufferBuilder allocation = new ByteBufferBuilder(1024)) {
             BufferBuilder builder = new BufferBuilder(allocation, PrimitiveTopology.QUADS, DefaultVertexFormat.POSITION);
             for (AperturePolygon.Rectangle rectangle : portal.aperture.rectangles()) {
-                for (AperturePolygon.Point point : portal.aperture.vertices(rectangle)) {
+                for (Vec3d point : portal.aperture.vertices(rectangle)) {
                     builder.addVertex((float) (point.x() - portal.scene.geometry().originX()),
                         (float) (point.y() - portal.scene.geometry().originY()), (float) (point.z() - portal.scene.geometry().originZ()));
                 }
@@ -1901,7 +1903,7 @@ public final class ClientPortalRenderer {
         return x * x + y * y + z * z;
     }
 
-    private boolean visiblePortal(Portal portal, AperturePolygon.Point eye) {
+    private boolean visiblePortal(Portal portal, Vec3d eye) {
         return camera.cullFrustum == null || Math.abs(portal.aperture.plane().signedDistance(eye)) < 0.2
             || camera.cullFrustum.isVisible(portal.bounds);
     }
@@ -2256,8 +2258,8 @@ public final class ClientPortalRenderer {
         private void updateGeometry() {
             geometry = scene.geometry();
             aperture = AperturePolygon.from(geometry);
-            AperturePolygon.Point min = aperture.point(0, 0);
-            AperturePolygon.Point max = aperture.point(scene.geometry().apertureWidth(), scene.geometry().apertureHeight());
+            Vec3d min = aperture.point(0, 0);
+            Vec3d max = aperture.point(scene.geometry().apertureWidth(), scene.geometry().apertureHeight());
             bounds = new AABB(min.x(), min.y(), min.z(), max.x(), max.y(), max.z()).inflate(0.01);
         }
     }

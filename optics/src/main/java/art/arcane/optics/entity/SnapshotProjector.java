@@ -7,60 +7,46 @@ import java.util.List;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.view.BlockView;
 import art.arcane.optics.aperture.Endpoint;
-import art.arcane.optics.frame.Frame;
 
 import java.util.function.Supplier;
-import art.arcane.optics.frame.PortalCoordMap;
 import art.arcane.optics.occlusion.ProjectedEntityOcclusion;
 import art.arcane.optics.recursion.EntityPath;
 import art.arcane.optics.volume.ViewVolume;
+import art.arcane.optics.frame.OpticTransform;
 public final class SnapshotProjector<O, W, P extends Endpoint, R, T, V> {
     private final SpoofRegistry<O, R> registry;
     private final Host<O, R, T, V> host;
-    private final EntityVisualProjection<W, P, R> projection;
+    private final EntityProjection projection;
     private final Supplier<FidelityOptions> fidelity;
 
     public SnapshotProjector(SpoofRegistry<O, R> registry, Host<O, R, T, V> host, Supplier<FidelityOptions> fidelity) {
         this.registry = registry;
         this.host = host;
-        this.projection = new EntityVisualProjection<>(host::position);
+        this.projection = new EntityProjection();
         this.fidelity = fidelity;
     }
 
-    public boolean projectRemoteVisual(O observer, P localPortal,
-                                       double remoteOriginX, double remoteOriginY, double remoteOriginZ,
-                                       Frame localViewFrame, Frame remoteViewFrame, ViewVolume frustum,
-                                       V entityView, EntitySnapshot visual, boolean upsideDown) {
-        return projectSnapshotVisual(observer, localPortal, remoteOriginX, remoteOriginY, remoteOriginZ,
-            localViewFrame, remoteViewFrame, frustum, entityView, visual, upsideDown, false, 0, null);
+    public boolean projectRemoteVisual(O observer, OpticTransform transform, ViewVolume frustum, V entityView, EntitySnapshot visual,
+                                       boolean upsideDown) {
+        return projectSnapshotVisual(observer, transform, frustum, entityView, visual, upsideDown, null);
     }
 
-    public boolean projectSnapshotVisual(O observer,
-                                  P localPortal,
-                                  double remoteOriginX,
-                                  double remoteOriginY,
-                                  double remoteOriginZ,
-                                  Frame localViewFrame,
-                                  Frame remoteViewFrame,
-                                  ViewVolume frustum,
-                                  V entityView,
-                                  EntitySnapshot visual,
-                                  boolean upsideDown,
-                                  boolean mirror,
-                                  int mirrorRotationQuarterTurns,
-                                  EntityPath<W, P> projectionPath) {
+    public boolean projectSnapshotVisual(O observer, OpticTransform transform, ViewVolume frustum, V entityView, EntitySnapshot visual,
+                                         boolean upsideDown, EntityPath<W, P> projectionPath) {
         T packetType = host.packetType(visual.typeKey());
         if (packetType == null) {
             return false;
         }
 
         boolean itemFrame = host.isItemFrame(packetType);
-        if (!projection.project(localPortal, remoteOriginX, remoteOriginY, remoteOriginZ, localViewFrame, remoteViewFrame,
-            frustum, visual, mirror, mirrorRotationQuarterTurns, projectionPath, itemFrame, host.isHanging(packetType))) {
+        boolean hanging = host.isHanging(packetType);
+        boolean projected = projectionPath == null ? projection.project(visual, transform, frustum, itemFrame, hanging)
+            : projection.project(visual, projectionPath, itemFrame, hanging);
+        if (!projected) {
             return false;
         }
-        R position = projection.position();
-        R velocity = projection.velocity();
+        R position = host.position(projection.x(), projection.y(), projection.z());
+        R velocity = host.position(projection.velocityX(), projection.velocityY(), projection.velocityZ());
         float yaw = projection.yaw();
         float pitch = projection.pitch();
         int metadataTransform = projection.metadataTransform();
@@ -116,12 +102,7 @@ public final class SnapshotProjector<O, W, P extends Endpoint, R, T, V> {
     public <B, BV extends BlockView<B>> void apply(O observer, Pass<W, P, V, B, BV> pass) {
         Vec3d origin = pass.remote().origin();
         EntityPath<W, P> path = pass.path();
-        boolean upsideDown = pass.mirror()
-            ? PortalCoordMap.mirrorTransformFlipsWorldUp(pass.local().frame(), pass.quarterTurns())
-            : PortalCoordMap.transformFlipsWorldUp(pass.remoteFrame(), pass.localFrame());
-        if (path != null) {
-            upsideDown = path.upsideDown();
-        }
+        boolean upsideDown = path == null ? pass.transform().flipsWorldUp() : path.transform().flipsWorldUp();
         registry.clearVisible();
         int count = 0;
         List<EntitySnapshot> visuals = host.entities(pass.view(), new EntityRange(origin.getX(), origin.getY(), origin.getZ(), pass.range()));
@@ -135,9 +116,7 @@ public final class SnapshotProjector<O, W, P extends Endpoint, R, T, V> {
             if (fullyHidden(pass.occlusion(), visual, path)) {
                 continue;
             }
-            if (!projectSnapshotVisual(observer, pass.local(), origin.getX(), origin.getY(), origin.getZ(),
-                pass.localFrame(), pass.remoteFrame(), pass.frustum(), pass.view(), visual, upsideDown,
-                pass.mirror(), pass.quarterTurns(), path)) {
+            if (!projectSnapshotVisual(observer, pass.transform(), pass.frustum(), pass.view(), visual, upsideDown, path)) {
                 continue;
             }
             registry.markVisible(visual.id());
@@ -159,9 +138,8 @@ public final class SnapshotProjector<O, W, P extends Endpoint, R, T, V> {
     }
 
     public record Pass<W, P extends Endpoint, V, B, BV extends BlockView<B>>(
-        P local, Endpoint remote, V view, Frame localFrame, Frame remoteFrame, ViewVolume frustum,
-        boolean mirror, int quarterTurns, EntityPath<W, P> path, ProjectedEntityOcclusion<B, BV> occlusion,
-        double range, int limit) {
+        P local, Endpoint remote, V view, OpticTransform transform, ViewVolume frustum, EntityPath<W, P> path,
+        ProjectedEntityOcclusion<B, BV> occlusion, double range, int limit) {
     }
 
     public record EntityRange(double x, double y, double z, double range) {

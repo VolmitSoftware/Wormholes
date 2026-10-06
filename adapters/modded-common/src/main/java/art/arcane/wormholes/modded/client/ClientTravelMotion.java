@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.optics.math.Vec3d;
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.frame.OpticTransform;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.phys.Vec3;
 
@@ -15,7 +15,7 @@ record ClientTravelMotion(Vec3 position, Vec3 previous, Vec3 oldPosition, Vec3 v
             player.yHeadRot, player.yHeadRotO);
     }
 
-    ClientTravelMotion transform(ProjectionEnvironment.Transform transform) {
+    ClientTravelMotion transform(OpticTransform transform) {
         Rotation current = rotation.transform(transform);
         current = new Rotation(unwrap(current.yaw(), rotation.yaw()), current.pitch());
         Rotation previousLook = previousRotation.transform(transform);
@@ -55,15 +55,15 @@ record ClientTravelMotion(Vec3 position, Vec3 previous, Vec3 oldPosition, Vec3 v
         player.yHeadRotO = previousHeadYaw;
     }
 
-    static Vec3 point(ProjectionEnvironment.Transform transform, Vec3 position) {
-        Vec3d point = transform.destinationPoint(position.x, position.y, position.z);
+    static Vec3 point(OpticTransform transform, Vec3 position) {
+        Vec3d point = transform.inverse().point(new Vec3d(position.x, position.y, position.z));
         return new Vec3(point.x(), point.y(), point.z());
     }
 
-    static Vec3 direction(ProjectionEnvironment.Transform transform, Vec3 direction) {
-        return new Vec3(direction.x * transform.xAxis().x() + direction.y * transform.xAxis().y() + direction.z * transform.xAxis().z(),
-            direction.x * transform.yAxis().x() + direction.y * transform.yAxis().y() + direction.z * transform.yAxis().z(),
-            direction.x * transform.zAxis().x() + direction.y * transform.zAxis().y() + direction.z * transform.zAxis().z());
+    static Vec3 direction(OpticTransform transform, Vec3 direction) {
+        return new Vec3(direction.x * transform.permutation().x().x() + direction.y * transform.permutation().x().y() + direction.z * transform.permutation().x().z(),
+            direction.x * transform.permutation().y().x() + direction.y * transform.permutation().y().y() + direction.z * transform.permutation().y().z(),
+            direction.x * transform.permutation().z().x() + direction.y * transform.permutation().z().y() + direction.z * transform.permutation().z().z());
     }
 
     private static float unwrap(float angle, float reference) {
@@ -71,7 +71,7 @@ record ClientTravelMotion(Vec3 position, Vec3 previous, Vec3 oldPosition, Vec3 v
     }
 
     record Rotation(float yaw, float pitch) {
-        Rotation transform(ProjectionEnvironment.Transform transform) {
+        Rotation transform(OpticTransform transform) {
             double yawRadians = Math.toRadians(yaw);
             double pitchRadians = Math.toRadians(pitch);
             double horizontal = Math.cos(pitchRadians);

@@ -9,14 +9,15 @@ import org.slf4j.LoggerFactory;
 import art.arcane.wormholes.config.toml.RenderConfig;
 import art.arcane.wormholes.portal.IPortal;
 import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.recursion.EntityPath;
 import art.arcane.optics.entity.SpoofRegistry;
 import art.arcane.optics.entity.SnapshotProjector;
 import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.optics.volume.ViewVolume;
 import art.arcane.optics.occlusion.ProjectedEntityOcclusion;
-import art.arcane.optics.frame.ProjectorFrameTransform;
 import art.arcane.optics.volume.LocalEntityEnvelope;
+import art.arcane.optics.volume.ProjectionVolume;
 import art.arcane.optics.recursion.RecursiveEndpoints;
 import art.arcane.optics.view.ContentView;
 import art.arcane.optics.view.EntityData;
@@ -77,8 +78,7 @@ public final class MinecraftProjectedEntities implements AutoCloseable {
         }
         recursive.revalidate();
         EntityPath<ServerLevel, MinecraftPortal> path = view.destination() == null ? null
-            : new EntityPath<>(new EntityPath.Root<>(source, view.destination(), view.localFrame(), view.remoteFrame(),
-                view.mirror(), view.quarterTurns(), view.eye(), view.frustum(), view.world(),
+            : new EntityPath<>(new EntityPath.Root<>(source, view.destination(), view.transform(), view.eye(), view.frustum(), view.world(),
                 runtime.configuration().settings().getProjection().recursivePortalDepth), recursive);
         try {
             view.occlusion().startBatch();
@@ -121,8 +121,8 @@ public final class MinecraftProjectedEntities implements AutoCloseable {
 
     private void render(View view, EntityPath<ServerLevel, MinecraftPortal> path, int limit) {
         double range = Math.min(runtime.configuration().settings().getRender().entitySpoofRange, view.depth());
-        projector.apply(observer, new SnapshotProjector.Pass<>(source, view.anchor(), view.entities(),
-            view.localFrame(), view.remoteFrame(), view.frustum(), view.mirror(), view.quarterTurns(), path, view.occlusion(), range, limit));
+        projector.apply(observer, new SnapshotProjector.Pass<>(source, view.anchor(), view.entities(), view.transform(), view.frustum(), path,
+            view.occlusion(), range, limit));
         registry.commitDestroyed();
     }
 
@@ -144,8 +144,8 @@ public final class MinecraftProjectedEntities implements AutoCloseable {
                 MinecraftProjectedEntities child = nested.computeIfAbsent(candidate.portalId,
                     ignored -> new MinecraftProjectedEntities(runtime, new Context(observer, source, recursive)));
                 visible.add(candidate.portalId);
-                View childView = new View(destination, destination, candidate.nestedWorld, entities, view.localFrame(), destination.getFrame(),
-                    view.frustum(), view.eye(), false, 0, view.occlusion(), view.depth());
+                View childView = new View(destination, destination, candidate.nestedWorld, entities, childPath.transform(), view.frustum(),
+                    view.eye(), view.occlusion(), view.depth());
                 child.render(childView, childPath, budget[0]);
                 budget[0] -= child.registry.size();
                 child.renderRecursive(childView, childPath, budget);
@@ -165,7 +165,7 @@ public final class MinecraftProjectedEntities implements AutoCloseable {
         Vec3d origin = source.getOrigin();
         Frame frame = source.getFrame();
         double eyeDot = LocalEntityEnvelope.dot(view.eye().x() - origin.x(), view.eye().y() - origin.y(), view.eye().z() - origin.z(), frame);
-        double clearance = ProjectorFrameTransform.portalPlaneClearance(source.getGeometry().getArea(), frame);
+        double clearance = ProjectionVolume.portalPlaneClearance(source.getGeometry().getArea(), frame);
         double maxDepth = view.depth() + clearance;
         Collection<Entity> candidates = runtime.projections().localEntities(observer.level(), source, maxDepth);
         Map<UUID, Entity> desired = new HashMap<>(Math.max(4, candidates.size()));
@@ -216,8 +216,7 @@ public final class MinecraftProjectedEntities implements AutoCloseable {
 
     public record View(MinecraftPortal destination, IPortal anchor, ServerLevel world,
                        EntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment> entities,
-                       Frame localFrame, Frame remoteFrame, ViewVolume frustum, Vec3d eye,
-                       boolean mirror, int quarterTurns, ProjectedEntityOcclusion<BlockState, ContentView<BlockState, BlockState>> occlusion,
-                       double depth) {
+                       OpticTransform transform, ViewVolume frustum, Vec3d eye,
+                       ProjectedEntityOcclusion<BlockState, ContentView<BlockState, BlockState>> occlusion, double depth) {
     }
 }

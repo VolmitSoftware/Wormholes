@@ -2,6 +2,8 @@ package art.arcane.wormholes.door;
 
 import org.bukkit.structure.Structure;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.math.Vec3d;
+import art.arcane.optics.crossing.PlaneCrossing;
 
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.api.traversal.TraversalContext;
@@ -262,13 +264,7 @@ final class DoorChunkPreSendOwnershipTest {
     }
 
     private static DoorTransit transit(DoorwayPlane plane) {
-        DoorwayCrossing crossing = new DoorwayCrossing(
-            new DoorVec3(0.5D, 65.25D, 0.5D),
-            1.0D,
-            0.0D,
-            1.0D,
-            DoorwayCrossing.Direction.FRONT_TO_BACK
-        );
+        PlaneCrossing crossing = plane.crossingAt(new Vec3d(0.5D, 65.25D, 0.5D), new Vec3d(0.0D, 0.0D, 0.0D), true);
         return new DoorTransit(
             plane,
             crossing,

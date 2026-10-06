@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client.render;
 
-import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.frame.OpticTransform;
 import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.core.BlockPos;
@@ -13,7 +13,7 @@ final class PortalVertexTransform implements VertexConsumer {
     private final Face yAxis;
     private final Face zAxis;
     private final boolean reflected;
-    private final ProjectionEnvironment.Transform transform;
+    private final OpticTransform transform;
     private VertexConsumer target;
     private float x;
     private float y;
@@ -22,21 +22,21 @@ final class PortalVertexTransform implements VertexConsumer {
     private float inputY;
     private float inputZ;
 
-    PortalVertexTransform(ProjectionEnvironment.Transform transform) {
+    PortalVertexTransform(OpticTransform transform) {
         this.transform = transform;
-        xAxis = transform.xAxis();
-        yAxis = transform.yAxis();
-        zAxis = transform.zAxis();
-        reflected = transform.reflected();
+        xAxis = transform.permutation().x();
+        yAxis = transform.permutation().y();
+        zAxis = transform.permutation().z();
+        reflected = transform.reflects();
     }
 
     void destinationBlock(BlockPos position, int sectionX, int sectionY, int sectionZ) {
         double sx = position.getX() + 0.5D;
         double sy = position.getY() + 0.5D;
         double sz = position.getZ() + 0.5D;
-        x = (float) (sx * xAxis.x() + sy * yAxis.x() + sz * zAxis.x() + transform.translation().x() - sectionX);
-        y = (float) (sx * xAxis.y() + sy * yAxis.y() + sz * zAxis.y() + transform.translation().y() - sectionY);
-        z = (float) (sx * xAxis.z() + sy * yAxis.z() + sz * zAxis.z() + transform.translation().z() - sectionZ);
+        x = (float) (sx * xAxis.x() + sy * yAxis.x() + sz * zAxis.x() + transform.translationX() - sectionX);
+        y = (float) (sx * xAxis.y() + sy * yAxis.y() + sz * zAxis.y() + transform.translationY() - sectionY);
+        z = (float) (sx * xAxis.z() + sy * yAxis.z() + sz * zAxis.z() + transform.translationZ() - sectionZ);
     }
 
     float centerX() {

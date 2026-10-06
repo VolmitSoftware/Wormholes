@@ -3,8 +3,6 @@ package art.arcane.wormholes.render;
 import art.arcane.optics.entity.EntityProfile;
 import com.github.retrooper.packetevents.util.Vector3d;
 
-import art.arcane.wormholes.render.view.ProjectionWorldView;
-import org.bukkit.block.data.BlockData;
 import art.arcane.optics.math.Vec3d;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -20,7 +18,6 @@ import java.util.List;
 import java.util.UUID;
 
 import org.bukkit.entity.Player;
-import org.bukkit.util.Vector;
 import org.junit.jupiter.api.Test;
 
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
@@ -32,11 +29,10 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerTe
 import art.arcane.wormholes.Settings;
 import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.wormholes.portal.IPortal;
-import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.render.view.ProjectionEntityView;
-import art.arcane.optics.math.Face;
 import art.arcane.optics.entity.SpoofRegistry;
 import art.arcane.optics.entity.SpoofedEntity;
+import art.arcane.optics.frame.OpticTransform;
 
 public final class ProjectedEntityRendererTeardownTest {
     @Test
@@ -180,10 +176,9 @@ public final class ProjectedEntityRendererTeardownTest {
             ProjectionEntityView view = mock(ProjectionEntityView.class);
             when(view.getEntities(anyDouble(), anyDouble(), anyDouble(), anyDouble())).thenReturn(List.of(visual));
             when(view.isVisibleTo(observer, sourceId)).thenReturn(false);
-            Frame frame = Frame.canonical(Face.N);
 
-            renderer.applySnapshot(observer, null, portalAt(0.0D, 64.0D, 0.0D), false, 0, view,
-                null, 32.0D, frame, frame, BukkitEntityOcclusion.create());
+            renderer.applySnapshot(observer, null, portalAt(0.0D, 64.0D, 0.0D), view, null, 32.0D, OpticTransform.IDENTITY,
+                BukkitEntityOcclusion.create());
 
             assertFalse(renderer.hasProjectedEntity(sourceId));
             assertArrayEquals(new int[] {item.fakeId},
@@ -208,11 +203,10 @@ public final class ProjectedEntityRendererTeardownTest {
             vehicle.lastPassengers = new int[] { vehicle.fakeId + 1 };
             registry.track(UUID.randomUUID(), vehicle);
             ProjectedEntityRenderer renderer = new ProjectedEntityRenderer(channel, identity, registry);
-            Frame frame = Frame.canonical(Face.N);
             Player observer = ProjectedEntityPacketRecorder.player(true);
 
-            renderer.applySnapshot(observer, null, portalAt(0.0D, 64.0D, 0.0D), false, 0, emptyEntityView(),
-                null, 32.0D, frame, frame, BukkitEntityOcclusion.create());
+            renderer.applySnapshot(observer, null, portalAt(0.0D, 64.0D, 0.0D), emptyEntityView(), null, 32.0D, OpticTransform.IDENTITY,
+                BukkitEntityOcclusion.create());
 
             assertTrue(recorder.sentOfType(WrapperPlayServerSetPassengers.class).isEmpty());
             assertEquals(1, recorder.sentOfType(WrapperPlayServerDestroyEntities.class).size());

@@ -7,13 +7,12 @@ import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.MinecraftChunkPacketEncoding;
 import art.arcane.wormholes.modded.MinecraftProjectionWorldView;
 import art.arcane.wormholes.modded.WormholesModRuntime;
-import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.wormholes.network.client.ClientTravelWindow;
 import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.frame.OpticTransform;
 import art.arcane.wormholes.render.client.session.ClientPreparedTravelServer;
-import art.arcane.optics.client.ClientViewEnvironmentTransform;
 import art.arcane.wormholes.render.client.session.ClientViewServerSession;
 import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
 import net.minecraft.server.level.ServerLevel;
@@ -301,9 +300,9 @@ final class MinecraftPreparedTravel {
             BiomeManager.obfuscateSeed(world.getSeed()), world.isDebug(), world.isFlat(), world.getSeaLevel(), world.getMinY(), world.getHeight());
         Vec3d eye = feet.add(new Vec3d(0, player.getEyeHeight(), 0));
         ClientViewMessage.TravelBegin begin = new ClientViewMessage.TravelBegin(UUID.randomUUID(), ++generation, source.getId(),
-            player.level().dimension().identifier().toString(), geometry, ClientViewEnvironmentTransform.of(mapped.frame()), metadata,
+            player.level().dimension().identifier().toString(), geometry, mapped.frame().transform(), metadata,
             new ClientViewMessage.TravelPose(feet.x(), feet.y(), feet.z(), player.getYRot(), player.getXRot()), coordinates,
-            MinecraftPortalEnvironment.capture(world, eye, ProjectionEnvironment.Transform.IDENTITY, world.isFlat()),
+            MinecraftPortalEnvironment.capture(world, eye, OpticTransform.IDENTITY, world.isFlat()),
             ViewStreamLimits.MAX_TRAVEL_EXPIRY_MILLIS);
         session.travel().begin(begin, System.currentTimeMillis());
         session.travel().reuseSelected(session.preparedTravelCacheSelected());
@@ -374,8 +373,8 @@ final class MinecraftPreparedTravel {
     }
 
     private static Vec3d mappedCrossing(ServerPlayer player, MinecraftPortal source, MinecraftPortal destination) {
-        return source.getFrame().transformCrossingPoint(new Vec3d(player.getX(), player.getY(), player.getZ()), source.getOrigin(),
-            destination.getOrigin(), destination.getFrame());
+        return PlaneCrossing.planePoint(source.getFrame(), source.getOrigin(), new Vec3d(player.getX(), player.getY(), player.getZ()),
+            destination.getFrame(), destination.getOrigin());
     }
 
     private static byte[] encode(ServerLevel world, LevelChunk chunk) {

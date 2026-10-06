@@ -76,7 +76,7 @@ final class DoorApertureDestinationService implements DoorApertureDestinations {
         if (plane == null || world == null) {
             return Optional.empty();
         }
-        DoorVec3 center = plane.center();
+        Vec3d center = plane.center();
         return Optional.of(new DoorProjectionDestination(placed.identity().itemId(), WorldIdentity.serialize(world),
             new Vec3d(center.x(), center.y(), center.z()), DoorApertureFrames.destinationFrame(adapter.plane(), plane)));
     }

@@ -8,6 +8,8 @@ import java.util.Optional;
 
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.optics.claim.ProjectedBlockClaim;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
@@ -231,6 +233,10 @@ public record ApertureDescriptor(int originX,
             frame = frame.rotateClockwise();
         }
         return frame;
+    }
+
+    public OpticTransform mirrorTransform() {
+        return OpticTransform.mirror(frame(), apertureArea().center(), QuarterTurn.of(mirrorQuarterTurns()));
     }
 
     public ProjectedBlockClaim.LightingPolicy lightingPolicyType() {

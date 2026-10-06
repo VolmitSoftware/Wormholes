@@ -4,6 +4,7 @@ import art.arcane.wormholes.chunk.BukkitChunkLeaseProvider;
 import art.arcane.optics.plate.ChunkLease;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.frame.OpticTransform;
 import art.arcane.wormholes.platform.BukkitRegionTaskProvider;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import org.bukkit.World;
@@ -166,7 +167,7 @@ final class BukkitEnvironmentCapture implements AutoCloseable {
     }
 
     record Request(UUID observer, UUID parent, UUID portal, World world, Vec3d eye,
-                   ProjectionEnvironment.Transform transform, long tick) {
+                   OpticTransform transform, long tick) {
     }
 
     private record Key(UUID observer, UUID parent, UUID portal) {
@@ -174,7 +175,7 @@ final class BukkitEnvironmentCapture implements AutoCloseable {
 
     private static final class State {
         private final World world;
-        private final ProjectionEnvironment.Transform transform;
+        private final OpticTransform transform;
         private final int chunkX;
         private final int chunkZ;
         private CompletableFuture<ProjectionEnvironment> pending;

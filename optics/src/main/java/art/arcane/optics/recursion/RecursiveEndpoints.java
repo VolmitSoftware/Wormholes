@@ -8,17 +8,17 @@ import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
 
-
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.optics.aperture.Endpoint;
 import art.arcane.optics.aperture.CellAperture;
 import art.arcane.optics.math.Box;
-import art.arcane.optics.frame.PortalCoordMap;
-import art.arcane.optics.frame.ProjectorFrameTransform;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.scan.ProjectorPassRevision;
 import art.arcane.optics.volume.PlaneWindow;
+import art.arcane.optics.volume.ProjectionVolume;
 
 public final class RecursiveEndpoints<W, P extends Endpoint> {
     private static final int BUCKET_SHIFT = 4;
@@ -383,32 +383,20 @@ public final class RecursiveEndpoints<W, P extends Endpoint> {
     public final class Candidate {
         public final UUID portalId;
         public final Box view;
-        private final Frame localFrame;
-        private final Frame remoteFrame;
         public final W nestedWorld;
         public final P nestedDestination;
         private final PlaneWindow planeWindow;
         private final double originX;
         private final double originY;
         private final double originZ;
-        private final double remoteOriginX;
-        private final double remoteOriginY;
-        private final double remoteOriginZ;
         private final double normalX;
         private final double normalY;
         private final double normalZ;
         private final double projectionNormalX;
         private final double projectionNormalY;
         private final double projectionNormalZ;
-        private final double transformXX;
-        private final double transformXY;
-        private final double transformXZ;
-        private final double transformYX;
-        private final double transformYY;
-        private final double transformYZ;
-        private final double transformZX;
-        private final double transformZY;
-        private final double transformZZ;
+        private final OpticTransform toward;
+        private final OpticTransform transform;
         public final double transformedEyeX;
         public final double transformedEyeY;
         public final double transformedEyeZ;
@@ -420,9 +408,6 @@ public final class RecursiveEndpoints<W, P extends Endpoint> {
         private final double maxDepth;
         private final boolean eyeFrontSide;
         public final boolean traversable;
-        private final boolean mirrorProjection;
-        private final int mirrorRotationQuarterTurns;
-        private final Frame mirrorFrame;
         private final boolean valid;
 
         private Candidate(P candidate, double eyeX, double eyeY, double eyeZ) {
@@ -432,32 +417,20 @@ public final class RecursiveEndpoints<W, P extends Endpoint> {
             this.portalId = candidate == null ? null : candidate.id();
             if (candidate == null || candidate.origin() == null || candidate.frame() == null || portalAccess.structure(candidate) == null) {
                 this.view = null;
-                this.localFrame = null;
-                this.remoteFrame = null;
                 this.nestedWorld = null;
                 this.nestedDestination = null;
                 this.planeWindow = null;
                 this.originX = 0.0D;
                 this.originY = 0.0D;
                 this.originZ = 0.0D;
-                this.remoteOriginX = 0.0D;
-                this.remoteOriginY = 0.0D;
-                this.remoteOriginZ = 0.0D;
                 this.normalX = 0.0D;
                 this.normalY = 0.0D;
                 this.normalZ = 0.0D;
                 this.projectionNormalX = 0.0D;
                 this.projectionNormalY = 0.0D;
                 this.projectionNormalZ = 0.0D;
-                this.transformXX = 0.0D;
-                this.transformXY = 0.0D;
-                this.transformXZ = 0.0D;
-                this.transformYX = 0.0D;
-                this.transformYY = 0.0D;
-                this.transformYZ = 0.0D;
-                this.transformZX = 0.0D;
-                this.transformZY = 0.0D;
-                this.transformZZ = 0.0D;
+                this.toward = null;
+                this.transform = null;
                 this.transformedEyeX = 0.0D;
                 this.transformedEyeY = 0.0D;
                 this.transformedEyeZ = 0.0D;
@@ -466,9 +439,6 @@ public final class RecursiveEndpoints<W, P extends Endpoint> {
                 this.maxDepth = 0.0D;
                 this.eyeFrontSide = false;
                 this.traversable = false;
-                this.mirrorProjection = false;
-                this.mirrorRotationQuarterTurns = 0;
-                this.mirrorFrame = null;
                 this.valid = false;
                 return;
             }
@@ -490,115 +460,41 @@ public final class RecursiveEndpoints<W, P extends Endpoint> {
             double localProjectionNormalY = candidateLocalFrame.getNormal().y();
             double localProjectionNormalZ = candidateLocalFrame.getNormal().z();
             double signedEyeDistance = (eyeRelX * localProjectionNormalX) + (eyeRelY * localProjectionNormalY) + (eyeRelZ * localProjectionNormalZ);
-            double candidateClearance = ProjectorFrameTransform.portalPlaneClearance(portalAccess.structure(candidate).getArea(), frame);
+            double candidateClearance = ProjectionVolume.portalPlaneClearance(portalAccess.structure(candidate).getArea(), frame);
 
             P destination;
             W destinationWorld;
-            Frame destinationFrame;
-            double destinationOriginX;
-            double destinationOriginY;
-            double destinationOriginZ;
-            boolean canTraverse;
-            boolean mirrors;
-            int mirrorQuarterTurns;
+            OpticTransform stepToward;
             P linkedDestination = portalAccess.destination(candidate);
             if (portalAccess.mirror(candidate)) {
                 destination = candidate;
                 destinationWorld = portalAccess.world(candidate);
-                destinationFrame = frame.flipNormal().view(frontSide);
-                destinationOriginX = candidateOriginX;
-                destinationOriginY = candidateOriginY;
-                destinationOriginZ = candidateOriginZ;
-                canTraverse = destinationWorld != null;
-                mirrors = true;
-                mirrorQuarterTurns = portalAccess.mirrorQuarterTurns(candidate);
+                stepToward = destinationWorld == null ? null
+                    : OpticTransform.mirror(frame, candidate.origin(), QuarterTurn.of(portalAccess.mirrorQuarterTurns(candidate)))
+                        .inverse();
             } else if (linkedDestination != null) {
                 destination = linkedDestination;
                 destinationWorld = portalAccess.world(linkedDestination);
-                destinationFrame = linkedDestination.frame() == null ? null : linkedDestination.frame().view(frontSide);
-                destinationOriginX = linkedDestination.origin() == null ? 0.0D : linkedDestination.origin().getX();
-                destinationOriginY = linkedDestination.origin() == null ? 0.0D : linkedDestination.origin().getY();
-                destinationOriginZ = linkedDestination.origin() == null ? 0.0D : linkedDestination.origin().getZ();
-                canTraverse = destinationWorld != null && destinationFrame != null && linkedDestination.origin() != null;
-                mirrors = false;
-                mirrorQuarterTurns = 0;
+                stepToward = destinationWorld == null || linkedDestination.frame() == null || linkedDestination.origin() == null ? null
+                    : OpticTransform.between(candidateLocalFrame, candidate.origin(), linkedDestination.frame().view(frontSide),
+                        linkedDestination.origin());
             } else {
                 destination = null;
                 destinationWorld = null;
-                destinationFrame = null;
-                destinationOriginX = 0.0D;
-                destinationOriginY = 0.0D;
-                destinationOriginZ = 0.0D;
-                canTraverse = false;
-                mirrors = false;
-                mirrorQuarterTurns = 0;
+                stepToward = null;
             }
-
-            double matrixXX = 0.0D;
-            double matrixXY = 0.0D;
-            double matrixXZ = 0.0D;
-            double matrixYX = 0.0D;
-            double matrixYY = 0.0D;
-            double matrixYZ = 0.0D;
-            double matrixZX = 0.0D;
-            double matrixZY = 0.0D;
-            double matrixZZ = 0.0D;
+            boolean canTraverse = stepToward != null;
             double nestedEyeX = 0.0D;
             double nestedEyeY = 0.0D;
             double nestedEyeZ = 0.0D;
             if (canTraverse) {
-                if (mirrors) {
-                    double[] matrixScratch = scratchRot;
-                    PortalCoordMap.mirrorDisplayToSourceVectorInto(1.0D, 0.0D, 0.0D, frame, mirrorQuarterTurns, matrixScratch);
-                    matrixXX = matrixScratch[0];
-                    matrixYX = matrixScratch[1];
-                    matrixZX = matrixScratch[2];
-                    PortalCoordMap.mirrorDisplayToSourceVectorInto(0.0D, 1.0D, 0.0D, frame, mirrorQuarterTurns, matrixScratch);
-                    matrixXY = matrixScratch[0];
-                    matrixYY = matrixScratch[1];
-                    matrixZY = matrixScratch[2];
-                    PortalCoordMap.mirrorDisplayToSourceVectorInto(0.0D, 0.0D, 1.0D, frame, mirrorQuarterTurns, matrixScratch);
-                    matrixXZ = matrixScratch[0];
-                    matrixYZ = matrixScratch[1];
-                    matrixZZ = matrixScratch[2];
-                } else {
-                    int fromRightX = candidateLocalFrame.getRight().x();
-                    int fromRightY = candidateLocalFrame.getRight().y();
-                    int fromRightZ = candidateLocalFrame.getRight().z();
-                    int fromUpX = candidateLocalFrame.getUp().x();
-                    int fromUpY = candidateLocalFrame.getUp().y();
-                    int fromUpZ = candidateLocalFrame.getUp().z();
-                    int fromNormalX = candidateLocalFrame.getNormal().x();
-                    int fromNormalY = candidateLocalFrame.getNormal().y();
-                    int fromNormalZ = candidateLocalFrame.getNormal().z();
-                    int toRightX = destinationFrame.getRight().x();
-                    int toRightY = destinationFrame.getRight().y();
-                    int toRightZ = destinationFrame.getRight().z();
-                    int toUpX = destinationFrame.getUp().x();
-                    int toUpY = destinationFrame.getUp().y();
-                    int toUpZ = destinationFrame.getUp().z();
-                    int toNormalX = destinationFrame.getNormal().x();
-                    int toNormalY = destinationFrame.getNormal().y();
-                    int toNormalZ = destinationFrame.getNormal().z();
-
-                    matrixXX = (fromRightX * toRightX) + (fromUpX * toUpX) + (fromNormalX * toNormalX);
-                    matrixXY = (fromRightY * toRightX) + (fromUpY * toUpX) + (fromNormalY * toNormalX);
-                    matrixXZ = (fromRightZ * toRightX) + (fromUpZ * toUpX) + (fromNormalZ * toNormalX);
-                    matrixYX = (fromRightX * toRightY) + (fromUpX * toUpY) + (fromNormalX * toNormalY);
-                    matrixYY = (fromRightY * toRightY) + (fromUpY * toUpY) + (fromNormalY * toNormalY);
-                    matrixYZ = (fromRightZ * toRightY) + (fromUpZ * toUpY) + (fromNormalZ * toNormalY);
-                    matrixZX = (fromRightX * toRightZ) + (fromUpX * toUpZ) + (fromNormalX * toNormalZ);
-                    matrixZY = (fromRightY * toRightZ) + (fromUpY * toUpZ) + (fromNormalY * toNormalZ);
-                    matrixZZ = (fromRightZ * toRightZ) + (fromUpZ * toUpZ) + (fromNormalZ * toNormalZ);
-                }
-                nestedEyeX = destinationOriginX + (eyeRelX * matrixXX) + (eyeRelY * matrixXY) + (eyeRelZ * matrixXZ);
-                nestedEyeY = destinationOriginY + (eyeRelX * matrixYX) + (eyeRelY * matrixYY) + (eyeRelZ * matrixYZ);
-                nestedEyeZ = destinationOriginZ + (eyeRelX * matrixZX) + (eyeRelY * matrixZY) + (eyeRelZ * matrixZZ);
+                stepToward.pointInto(eyeX, eyeY, eyeZ, scratchRot);
+                nestedEyeX = scratchRot[0];
+                nestedEyeY = scratchRot[1];
+                nestedEyeZ = scratchRot[2];
             }
 
             this.view = candidateView;
-            this.localFrame = candidateLocalFrame;
-            this.remoteFrame = destinationFrame;
             this.nestedWorld = destinationWorld;
             this.nestedDestination = destination;
             this.planeWindow = candidateView == null ? null : PlaneWindow.create(portalAccess.structure(candidate), portalAccess.structure(candidate).getArea(), candidateLocalFrame,
@@ -607,24 +503,14 @@ public final class RecursiveEndpoints<W, P extends Endpoint> {
             this.originX = candidateOriginX;
             this.originY = candidateOriginY;
             this.originZ = candidateOriginZ;
-            this.remoteOriginX = destinationOriginX;
-            this.remoteOriginY = destinationOriginY;
-            this.remoteOriginZ = destinationOriginZ;
             this.normalX = frameNormalX;
             this.normalY = frameNormalY;
             this.normalZ = frameNormalZ;
             this.projectionNormalX = localProjectionNormalX;
             this.projectionNormalY = localProjectionNormalY;
             this.projectionNormalZ = localProjectionNormalZ;
-            this.transformXX = matrixXX;
-            this.transformXY = matrixXY;
-            this.transformXZ = matrixXZ;
-            this.transformYX = matrixYX;
-            this.transformYY = matrixYY;
-            this.transformYZ = matrixYZ;
-            this.transformZX = matrixZX;
-            this.transformZY = matrixZY;
-            this.transformZZ = matrixZZ;
+            this.toward = stepToward;
+            this.transform = stepToward == null ? null : stepToward.inverse();
             this.transformedEyeX = nestedEyeX;
             this.transformedEyeY = nestedEyeY;
             this.transformedEyeZ = nestedEyeZ;
@@ -633,23 +519,11 @@ public final class RecursiveEndpoints<W, P extends Endpoint> {
             this.maxDepth = options.get().depthBlocks() + candidateClearance;
             this.eyeFrontSide = frontSide;
             this.traversable = canTraverse;
-            this.mirrorProjection = mirrors;
-            this.mirrorRotationQuarterTurns = mirrorQuarterTurns;
-            this.mirrorFrame = mirrors ? frame : null;
             this.valid = candidateView != null && planeWindow != null;
         }
 
-        public void sourceToDisplayPoint(double x, double y, double z, double[] out) {
-            sourceToDisplayVector(x - remoteOriginX, y - remoteOriginY, z - remoteOriginZ, out);
-            out[0] += originX;
-            out[1] += originY;
-            out[2] += originZ;
-        }
-
-        public void sourceToDisplayVector(double x, double y, double z, double[] out) {
-            out[0] = x * transformXX + y * transformYX + z * transformZX;
-            out[1] = x * transformXY + y * transformYY + z * transformZY;
-            out[2] = x * transformXZ + y * transformYZ + z * transformZZ;
+        public OpticTransform transform() {
+            return transform;
         }
 
         public boolean covers(double pointX, double pointY, double pointZ) {
@@ -681,7 +555,7 @@ public final class RecursiveEndpoints<W, P extends Endpoint> {
             double pointRelY = pointY - originY;
             double pointRelZ = pointZ - originZ;
             double pointDot = (pointRelX * normalX) + (pointRelY * normalY) + (pointRelZ * normalZ);
-            if (!ProjectorFrameTransform.projectsBehindPortalPlane(pointDot, eyeFrontSide, clearance)) {
+            if (!ProjectionVolume.projectsBehindPortalPlane(pointDot, eyeFrontSide, clearance)) {
                 return -1.0D;
             }
             if (Math.abs(pointDot) > maxDepth) {
@@ -710,16 +584,10 @@ public final class RecursiveEndpoints<W, P extends Endpoint> {
                 return Hit.mask(rayT, false);
             }
 
-            double pointRelX = pointX - originX;
-            double pointRelY = pointY - originY;
-            double pointRelZ = pointZ - originZ;
-            double nextPointX = remoteOriginX + (pointRelX * transformXX) + (pointRelY * transformXY) + (pointRelZ * transformXZ);
-            double nextPointY = remoteOriginY + (pointRelX * transformYX) + (pointRelY * transformYY) + (pointRelZ * transformYZ);
-            double nextPointZ = remoteOriginZ + (pointRelX * transformZX) + (pointRelY * transformZY) + (pointRelZ * transformZZ);
-            return new Hit<>(portalId, nestedWorld, nestedDestination, localFrame, remoteFrame,
-                nextPointX, nextPointY, nextPointZ,
-                transformedEyeX, transformedEyeY, transformedEyeZ,
-                rayT, true, false, mirrorProjection, mirrorRotationQuarterTurns, mirrorFrame);
+            double[] next = new double[3];
+            toward.pointInto(pointX, pointY, pointZ, next);
+            return new Hit<>(portalId, nestedWorld, nestedDestination, transform, next[0], next[1], next[2],
+                transformedEyeX, transformedEyeY, transformedEyeZ, rayT, true, false);
         }
     }
 
@@ -771,8 +639,7 @@ public final class RecursiveEndpoints<W, P extends Endpoint> {
         public final UUID portalId;
         public final W world;
         public final P destinationPortal;
-        public final Frame localFrame;
-        public final Frame remoteFrame;
+        public final OpticTransform transform;
         public final double pointX;
         public final double pointY;
         public final double pointZ;
@@ -782,15 +649,11 @@ public final class RecursiveEndpoints<W, P extends Endpoint> {
         private final double rayT;
         public final boolean traversable;
         public final boolean cycle;
-        public final boolean mirrorProjection;
-        public final int mirrorRotationQuarterTurns;
-        public final Frame mirrorFrame;
 
         private Hit(UUID portalId,
                     W world,
                     P destinationPortal,
-                    Frame localFrame,
-                    Frame remoteFrame,
+                    OpticTransform transform,
                     double pointX,
                     double pointY,
                     double pointZ,
@@ -799,15 +662,11 @@ public final class RecursiveEndpoints<W, P extends Endpoint> {
                     double eyeZ,
                     double rayT,
                     boolean traversable,
-                    boolean cycle,
-                    boolean mirrorProjection,
-                    int mirrorRotationQuarterTurns,
-                    Frame mirrorFrame) {
+                    boolean cycle) {
             this.portalId = portalId;
             this.world = world;
             this.destinationPortal = destinationPortal;
-            this.localFrame = localFrame;
-            this.remoteFrame = remoteFrame;
+            this.transform = transform;
             this.pointX = pointX;
             this.pointY = pointY;
             this.pointZ = pointZ;
@@ -817,18 +676,13 @@ public final class RecursiveEndpoints<W, P extends Endpoint> {
             this.rayT = rayT;
             this.traversable = traversable;
             this.cycle = cycle;
-            this.mirrorProjection = mirrorProjection;
-            this.mirrorRotationQuarterTurns = mirrorRotationQuarterTurns;
-            this.mirrorFrame = mirrorFrame;
         }
 
         private static <W, P> Hit<W, P> mask(double rayT, boolean cycle) {
-            return new Hit<>(null, null, null, null, null,
-                0.0D, 0.0D, 0.0D,
-                0.0D, 0.0D, 0.0D,
-                rayT, false, cycle, false, 0, null);
+            return new Hit<>(null, null, null, null, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D, rayT, false, cycle);
         }
     }
+
     public record Options(double aperturePadding, double depthBlocks) {
     }
 

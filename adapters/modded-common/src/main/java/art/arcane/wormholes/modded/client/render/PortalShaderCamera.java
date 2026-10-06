@@ -22,7 +22,7 @@ final class PortalShaderCamera extends Camera {
 
     PortalShaderCamera(ProjectionEnvironment environment, CameraRenderState display) {
         setEntity(Minecraft.getInstance().getCameraEntity());
-        Vec3d eye = environment.transform().destinationPoint(display.pos.x, display.pos.y, display.pos.z);
+        Vec3d eye = environment.transform().inverse().point(new Vec3d(display.pos.x, display.pos.y, display.pos.z));
         setPosition(eye.x(), eye.y(), eye.z());
         viewRotation = new Matrix4f(display.viewRotationMatrix).mul(PortalProjection.rotation(environment.transform()));
         medium = FogType.valueOf(environment.world().eyeMedium().name());

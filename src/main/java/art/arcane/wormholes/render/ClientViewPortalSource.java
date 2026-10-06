@@ -17,19 +17,21 @@ import art.arcane.wormholes.portal.DimensionalPortalKind;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.IPortal;
 import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.ViewWindow;
+import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.optics.fidelity.AcousticsBridge;
 import art.arcane.optics.fidelity.AcousticsProfile;
 import art.arcane.optics.fidelity.AtmosphereMode;
 import art.arcane.optics.aperture.ApertureDescriptor;
-import art.arcane.optics.client.ClientViewEntityTransform;
 import art.arcane.optics.plate.ViewPlate;
 import art.arcane.optics.plate.PlateBox;
 import art.arcane.optics.plate.ViewPlateCache;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.render.view.ProjectionWorldViewProvider;
 import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.claim.ProjectedBlockClaim;
 import art.arcane.optics.scan.ProjectorPassRevision;
 
@@ -173,14 +175,15 @@ public final class ClientViewPortalSource {
         return geometryRevision;
     }
 
-    public ClientViewEntityTransform.EntityFrame transformFrame() {
+    public ViewWindow transformFrame() {
         ProjectorPlates.Target target = plateTarget;
         if (target == null || outcome != ProjectorDestination.Outcome.READY) {
             return null;
         }
-        return new ClientViewEntityTransform.EntityFrame(target.localOriginX(), target.localOriginY(), target.localOriginZ(), target.localFrame(),
-            target.remoteOriginX(), target.remoteOriginY(), target.remoteOriginZ(), target.remoteFrame(), target.mirrorMode(), target.quarterTurns(),
-            frontSide, target.depth());
+        Vec3d localOrigin = new Vec3d(target.localOriginX(), target.localOriginY(), target.localOriginZ());
+        return target.mirrorMode() ? ViewWindow.mirror(localOrigin, target.localFrame(), QuarterTurn.of(target.quarterTurns()), frontSide, target.depth())
+            : ViewWindow.between(localOrigin, target.localFrame(), new Vec3d(target.remoteOriginX(), target.remoteOriginY(), target.remoteOriginZ()),
+                target.remoteFrame(), frontSide, target.depth());
     }
 
     public World destinationWorld() {

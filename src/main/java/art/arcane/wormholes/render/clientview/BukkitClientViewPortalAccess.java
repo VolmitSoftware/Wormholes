@@ -19,8 +19,6 @@ import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.view.WorldChangeTracker;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.ProjectionManager;
-import art.arcane.optics.stream.ProjectionEnvironment;
-import art.arcane.optics.client.ClientViewEnvironmentTransform;
 import art.arcane.optics.plate.PlateBox;
 import art.arcane.optics.stream.BrickLightSource;
 import art.arcane.optics.stream.SectionBiomes;
@@ -29,12 +27,12 @@ import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.render.ClientViewPortalSource;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.recursion.ClientRecursionPlanner;
-import art.arcane.optics.client.ClientSpace;
 import art.arcane.wormholes.render.client.session.ClientViewPortalAccess;
 import art.arcane.optics.plate.ViewPlate;
 import art.arcane.optics.plate.ViewPlateCache;
 import art.arcane.wormholes.render.view.ProjectionWorldViewProvider;
 import art.arcane.optics.math.Box;
+import art.arcane.optics.frame.OpticTransform;
 
 public final class BukkitClientViewPortalAccess implements ClientViewPortalAccess<ClientViewObserver, BlockData> {
     private final ProjectionWorldViewProvider views;
@@ -159,9 +157,9 @@ public final class BukkitClientViewPortalAccess implements ClientViewPortalAcces
         if (mirror == null || eye == null || mirror.transformFrame() == null) {
             return;
         }
-        ProjectionEnvironment.Transform transform = ClientViewEnvironmentTransform.of(mirror.transformFrame());
+        OpticTransform transform = mirror.transformFrame().transform().normalized();
         double[] reflected = new double[3];
-        ClientSpace.mirror(parentGeometry).toContent(eye.getX(), eye.getY(), eye.getZ(), reflected);
+        parentGeometry.mirrorTransform().inverse().pointInto(eye.getX(), eye.getY(), eye.getZ(), reflected);
         observer.reflectedEye(parent, new Location(eye.getWorld(), reflected[0], reflected[1], reflected[2]));
         List<ILocalPortal> candidates = observer.candidates();
         for (int i = 0; i < candidates.size(); i++) {
@@ -185,8 +183,8 @@ public final class BukkitClientViewPortalAccess implements ClientViewPortalAcces
             return;
         }
         observer.nestedContext(context, source, eye);
-        ProjectionEnvironment.Transform transform = ClientViewEnvironmentTransform.of(source.transformFrame());
-        Vec3d destinationEye = transform.destinationPoint(eye.getX(), eye.getY(), eye.getZ());
+        OpticTransform transform = source.transformFrame().transform().normalized();
+        Vec3d destinationEye = transform.inverse().point(new Vec3d(eye.getX(), eye.getY(), eye.getZ()));
         observer.reflectedEye(context, new Location(source.destinationWorld(), destinationEye.x(), destinationEye.y(), destinationEye.z()));
     }
 
@@ -207,7 +205,7 @@ public final class BukkitClientViewPortalAccess implements ClientViewPortalAcces
             return;
         }
         ClientViewPortalSource source = context.source();
-        ProjectionEnvironment.Transform transform = ClientViewEnvironmentTransform.of(source.transformFrame());
+        OpticTransform transform = source.transformFrame().transform().normalized();
         List<ILocalPortal> candidates = new ArrayList<>(observer.candidates());
         if (Wormholes.portalManager != null) {
             candidates.addAll(Wormholes.portalManager.getLocalPortals());

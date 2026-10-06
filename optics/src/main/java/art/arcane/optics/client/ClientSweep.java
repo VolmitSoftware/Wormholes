@@ -8,8 +8,8 @@ import art.arcane.optics.frame.Frame;
 import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.optics.volume.ViewVolume;
 import art.arcane.optics.math.CellKeys;
-import art.arcane.optics.frame.ProjectorFrameTransform;
 import art.arcane.optics.volume.PlaneWindow;
+import art.arcane.optics.volume.ProjectionVolume;
 import art.arcane.optics.plate.PlateBox;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
@@ -96,7 +96,7 @@ public final class ClientSweep {
         this.originX = center.getX();
         this.originY = center.getY();
         this.originZ = center.getZ();
-        this.clearance = ProjectorFrameTransform.portalPlaneClearance(area, frame);
+        this.clearance = ProjectionVolume.portalPlaneClearance(area, frame);
         this.maxDepth = geometry.depthBlocks() + clearance;
         this.blackout = geometry.blackoutPolicy() != ApertureDescriptor.BLACKOUT_OFF;
         Layout nextLayout = new Layout(bounds, ApertureDescriptor.axisOf(frame.getNormal()),
@@ -286,7 +286,7 @@ public final class ClientSweep {
         farDepth = Double.NEGATIVE_INFINITY;
         for (int n = axisMin[normalAxis]; n <= axisMax[normalAxis]; n++) {
             double cellDot = localFacing * ((n + 0.5D) - normalOrigin);
-            if (!ProjectorFrameTransform.projectsBehindPortalPlane(cellDot, eyeFrontSide, clearance)
+            if (!ProjectionVolume.projectsBehindPortalPlane(cellDot, eyeFrontSide, clearance)
                 || Math.abs(cellDot) > maxDepth) {
                 continue;
             }
@@ -322,12 +322,12 @@ public final class ClientSweep {
         ViewVolume frustum = new ViewVolume(new Vec3d(eyeX, eyeY, eyeZ), aperture,
             new ViewVolume.Options(depth, depth, geometry.nearPlanePadding(), geometry.frustumCullingRatio(), padding));
         Box region = frustum.getRegion();
-        axisMin[0] = ProjectorFrameTransform.minBlockForCenter(region.getXa());
-        axisMin[1] = ProjectorFrameTransform.minBlockForCenter(region.getYa());
-        axisMin[2] = ProjectorFrameTransform.minBlockForCenter(region.getZa());
-        axisMax[0] = ProjectorFrameTransform.maxBlockForCenter(region.getXb());
-        axisMax[1] = ProjectorFrameTransform.maxBlockForCenter(region.getYb());
-        axisMax[2] = ProjectorFrameTransform.maxBlockForCenter(region.getZb());
+        axisMin[0] = ProjectionVolume.minBlockForCenter(region.getXa());
+        axisMin[1] = ProjectionVolume.minBlockForCenter(region.getYa());
+        axisMin[2] = ProjectionVolume.minBlockForCenter(region.getZa());
+        axisMax[0] = ProjectionVolume.maxBlockForCenter(region.getXb());
+        axisMax[1] = ProjectionVolume.maxBlockForCenter(region.getYb());
+        axisMax[2] = ProjectionVolume.maxBlockForCenter(region.getZb());
         int normalAxis = layout.normalAxis;
         double facing = axisComponent(frame.getNormal(), normalAxis);
         double normalOrigin = component(normalAxis);
@@ -335,8 +335,8 @@ public final class ClientSweep {
         double signedMax = eyeFrontSide ? -clearance : maxDepth;
         double centerA = normalOrigin + (signedMin / facing);
         double centerB = normalOrigin + (signedMax / facing);
-        axisMin[normalAxis] = Math.max(axisMin[normalAxis], ProjectorFrameTransform.minBlockForCenter(Math.min(centerA, centerB)));
-        axisMax[normalAxis] = Math.min(axisMax[normalAxis], ProjectorFrameTransform.maxBlockForCenter(Math.max(centerA, centerB)));
+        axisMin[normalAxis] = Math.max(axisMin[normalAxis], ProjectionVolume.minBlockForCenter(Math.min(centerA, centerB)));
+        axisMax[normalAxis] = Math.min(axisMax[normalAxis], ProjectionVolume.maxBlockForCenter(Math.max(centerA, centerB)));
         for (int axis = 0; axis < 3; axis++) {
             axisMin[axis] = Math.max(axisMin[axis], layout.min[axis]);
             axisMax[axis] = Math.min(axisMax[axis], layout.max[axis]);

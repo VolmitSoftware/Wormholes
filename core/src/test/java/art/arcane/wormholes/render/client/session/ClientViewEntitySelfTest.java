@@ -4,7 +4,7 @@ import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamMessageType;
 import art.arcane.optics.entity.EntitySnapshot;
-import art.arcane.optics.client.ClientViewEntityTransform;
+import art.arcane.optics.entity.EntityProjection;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -73,7 +73,7 @@ final class ClientViewEntitySelfTest {
 
             @Override
             public UUID projectedId(UUID sourceId) {
-                return ClientViewEntityTransform.opaque(123L, sourceId);
+                return EntityProjection.opaque(123L, sourceId);
             }
         };
         return harness;

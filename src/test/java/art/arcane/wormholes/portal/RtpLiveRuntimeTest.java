@@ -66,6 +66,7 @@ import art.arcane.wormholes.portal.rtp.RtpValidationRequest;
 import art.arcane.wormholes.service.WormholesTelemetry;
 import art.arcane.wormholes.util.Cuboid;
 import art.arcane.optics.frame.Frame;
+import art.arcane.optics.math.Vec3d;
 
 public final class RtpLiveRuntimeTest
 {
@@ -1510,9 +1511,9 @@ public final class RtpLiveRuntimeTest
 
 	private static RtpProjectionView.ReadyData readyData(UUID portalId, RtpDestination destination, long routeRevision)
 	{
-		RtpProjectionView.Vector3 right = new RtpProjectionView.Vector3(1.0D, 0.0D, 0.0D);
-		RtpProjectionView.Vector3 up = new RtpProjectionView.Vector3(0.0D, 1.0D, 0.0D);
-		RtpProjectionView.Vector3 forward = new RtpProjectionView.Vector3(0.0D, 0.0D, 1.0D);
+		Vec3d right = new Vec3d(1.0D, 0.0D, 0.0D);
+		Vec3d up = new Vec3d(0.0D, 1.0D, 0.0D);
+		Vec3d forward = new Vec3d(0.0D, 0.0D, 1.0D);
 		RtpProjectionView.SourceFrame source = new RtpProjectionView.SourceFrame(
 				"minecraft:runtime", new RtpProjectionView.Point3(0.5D, 65.0D, 1.0D), right, up, forward, 3.0D, 3.0D, 1L);
 		RtpProjectionView.Target target = new RtpProjectionView.Target(destination.worldKey(),

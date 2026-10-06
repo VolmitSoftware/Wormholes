@@ -12,12 +12,12 @@ import art.arcane.wormholes.modded.MinecraftProjectionWorldView;
 import art.arcane.wormholes.modded.MinecraftProjectorPortalAccess;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
-import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.ViewWindow;
 import art.arcane.optics.view.WorldChangeTracker;
 import art.arcane.optics.aperture.ApertureDescriptor;
-import art.arcane.optics.client.ClientViewEntityTransform;
 import art.arcane.wormholes.render.client.session.ClientPreparedTravelServer;
 import art.arcane.wormholes.render.client.session.ClientViewServerSession;
 import art.arcane.optics.math.Face;
@@ -172,7 +172,7 @@ public class MinecraftPreparedTravelWarmupTest extends MinecraftTestBase {
     private static MockedStatic<MinecraftPortalEnvironment> environment(Fixture fixture) {
         MockedStatic<MinecraftPortalEnvironment> environment = mockStatic(MinecraftPortalEnvironment.class);
         environment.when(() -> MinecraftPortalEnvironment.capture(eq(fixture.level), any(), any(), anyBoolean()))
-            .thenReturn(PortalEnvironmentTest.environment(ProjectionEnvironment.Transform.IDENTITY));
+            .thenReturn(PortalEnvironmentTest.environment(OpticTransform.IDENTITY));
         return environment;
     }
 
@@ -237,7 +237,7 @@ public class MinecraftPreparedTravelWarmupTest extends MinecraftTestBase {
             when(portals.portal(peer, source.getId())).thenReturn(source);
             when(portals.scene()).thenReturn(scene);
             when(scene.destination(peer, source.getId(), true)).thenReturn(new MinecraftClientViewScene.Destination(level,
-                destination, new ClientViewEntityTransform.EntityFrame(0, 64, 0, frame, 0, 64, 0, frame, false, 0, true, 64)));
+                destination, ViewWindow.between(new Vec3d(0, 64, 0), frame, new Vec3d(0, 64, 0), frame, true, 64)));
             when(registry.get(source.getId())).thenReturn(source);
             when(registry.resolveLevel(destination)).thenReturn(level);
             when(registry.canDepart(player, source)).thenReturn(true);

@@ -2,52 +2,53 @@ package art.arcane.wormholes.door;
 
 import java.util.Objects;
 import art.arcane.optics.crossing.PlaneCrossing;
+import art.arcane.optics.math.Vec3d;
 
 public record DoorTransit(
 	DoorwayPlane sourcePlane,
-	DoorwayCrossing crossing,
+	PlaneCrossing crossing,
 	float yaw,
 	float pitch,
 	double halfWidth,
 	double height,
 	DoorTravelerClass travelerClass,
-	DoorVec3 velocity,
+	Vec3d velocity,
 	PlaneCrossing preparedCrossing)
 {
-    public DoorTransit(DoorwayPlane sourcePlane, DoorwayCrossing crossing, float yaw, float pitch,
-                       double halfWidth, double height, DoorTravelerClass travelerClass, DoorVec3 velocity) {
+    public DoorTransit(DoorwayPlane sourcePlane, PlaneCrossing crossing, float yaw, float pitch,
+                       double halfWidth, double height, DoorTravelerClass travelerClass, Vec3d velocity) {
         this(sourcePlane, crossing, yaw, pitch, halfWidth, height, travelerClass, velocity, null);
     }
 
-	public DoorTransit(DoorwayPlane sourcePlane, DoorwayCrossing.Direction direction, float yaw, float pitch)
+	public DoorTransit(DoorwayPlane sourcePlane, boolean frontSide, float yaw, float pitch)
 	{
-		this(sourcePlane, direction, yaw, pitch, 0.3D, 1.8D);
+		this(sourcePlane, frontSide, yaw, pitch, 0.3D, 1.8D);
 	}
 
 	public DoorTransit(
 		DoorwayPlane sourcePlane,
-		DoorwayCrossing.Direction direction,
+		boolean frontSide,
 		float yaw,
 		float pitch,
 		double halfWidth,
 		double height)
 	{
-		this(sourcePlane, direction, yaw, pitch, halfWidth, height, DoorTravelerClass.LIVING, null);
+		this(sourcePlane, frontSide, yaw, pitch, halfWidth, height, DoorTravelerClass.LIVING, null);
 	}
 
 	public DoorTransit(
 		DoorwayPlane sourcePlane,
-		DoorwayCrossing.Direction direction,
+		boolean frontSide,
 		float yaw,
 		float pitch,
 		double halfWidth,
 		double height,
 		DoorTravelerClass travelerClass,
-		DoorVec3 velocity)
+		Vec3d velocity)
 	{
 		this(
 			sourcePlane,
-			centeredCrossing(sourcePlane, direction),
+			centeredCrossing(sourcePlane, frontSide),
 			yaw,
 			pitch,
 			halfWidth,
@@ -72,9 +73,14 @@ public record DoorTransit(
 		}
 	}
 
-	public DoorwayCrossing.Direction direction()
+	public int entrySideSign()
 	{
-		return crossing.direction();
+		return crossing.frontSide() ? 1 : -1;
+	}
+
+	public int exitSideSign()
+	{
+		return -entrySideSign();
 	}
 
 	public boolean carriesMomentum()
@@ -93,18 +99,9 @@ public record DoorTransit(
 		return travelerClass != DoorTravelerClass.OBJECT && sourcePlane.openState() == DoorOpenState.OPEN;
 	}
 
-	private static DoorwayCrossing centeredCrossing(
-		DoorwayPlane sourcePlane,
-		DoorwayCrossing.Direction direction)
+	private static PlaneCrossing centeredCrossing(DoorwayPlane sourcePlane, boolean frontSide)
 	{
-		DoorwayPlane requiredPlane = Objects.requireNonNull(sourcePlane, "sourcePlane");
-		DoorwayCrossing.Direction requiredDirection = Objects.requireNonNull(direction, "direction");
-		double secondaryOffset = requiredPlane.horizontal() ? 0.0D : 1.0D;
-		return new DoorwayCrossing(
-			requiredPlane.center(),
-			1.0D,
-			0.0D,
-			secondaryOffset,
-			requiredDirection);
+		Vec3d center = Objects.requireNonNull(sourcePlane, "sourcePlane").center();
+		return sourcePlane.crossingAt(center, new Vec3d(0.0D, 0.0D, 0.0D), frontSide);
 	}
 }

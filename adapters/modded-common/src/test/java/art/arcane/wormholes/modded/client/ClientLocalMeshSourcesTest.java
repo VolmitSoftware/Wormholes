@@ -13,6 +13,8 @@ import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.client.MeshPlan;
 import art.arcane.optics.plate.PlateBox;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.AxisPermutation;
 import it.unimi.dsi.fastutil.longs.LongLinkedOpenHashSet;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.LongSet;
@@ -378,8 +380,7 @@ public class ClientLocalMeshSourcesTest extends MinecraftTestBase {
     public void rotatedTranslatedMirrorUsesCellCentersForContentAndDirtyUpdates() throws Exception {
         Fixture fixture = new Fixture();
         fixture.marker.set(Blocks.DIRT.defaultBlockState());
-        ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(Face.S, Face.U, Face.E,
-            new Vec3d(4, 0, 6));
+        OpticTransform transform = OpticTransform.of(AxisPermutation.of(Face.S, Face.U, Face.E), 4, 0, 6);
         fixture.session.handle(new ClientViewMessage.Environment(1, PortalEnvironmentTest.environment(transform)), fixture.sink);
         fixture.awaitSection();
         ClientMeshSections.Section original = fixture.session.meshes().view(1).section(0L);

@@ -7,6 +7,8 @@ import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.AxisPermutation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerChunkCache;
 import net.minecraft.server.level.ServerLevel;
@@ -166,7 +168,7 @@ public class MinecraftEnvironmentCaptureTest extends MinecraftTestBase {
 
     private static MinecraftEnvironmentCapture.Request request(Fixture fixture, Vec3d eye) {
         return new MinecraftEnvironmentCapture.Request(UUID.randomUUID(), null, UUID.randomUUID(), fixture.world(), eye,
-            new ProjectionEnvironment.Transform(Face.E, Face.U, Face.S, new Vec3d(-128, 0, 0)), 1L);
+            OpticTransform.of(AxisPermutation.of(Face.E, Face.U, Face.S), -128, 0, 0), 1L);
     }
 
     @SuppressWarnings("unchecked")

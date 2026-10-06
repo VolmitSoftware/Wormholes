@@ -5,8 +5,6 @@ import art.arcane.optics.aperture.CellAperture;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
-import art.arcane.optics.frame.ProjectorFrameTransform;
-
 public final class FrustumFit {
     private static final int CELL_BUDGET_SEARCH_ATTEMPTS = 24;
 
@@ -290,13 +288,13 @@ public final class FrustumFit {
                                long limit) {
         Box region = frustum.getRegion();
         int[] axisMin = scratchAxisMin;
-        axisMin[0] = ProjectorFrameTransform.minBlockForCenter(region.getXa());
-        axisMin[1] = ProjectorFrameTransform.minBlockForCenter(region.getYa());
-        axisMin[2] = ProjectorFrameTransform.minBlockForCenter(region.getZa());
+        axisMin[0] = ProjectionVolume.minBlockForCenter(region.getXa());
+        axisMin[1] = ProjectionVolume.minBlockForCenter(region.getYa());
+        axisMin[2] = ProjectionVolume.minBlockForCenter(region.getZa());
         int[] axisMax = scratchAxisMax;
-        axisMax[0] = ProjectorFrameTransform.maxBlockForCenter(region.getXb());
-        axisMax[1] = ProjectorFrameTransform.maxBlockForCenter(region.getYb());
-        axisMax[2] = ProjectorFrameTransform.maxBlockForCenter(region.getZb());
+        axisMax[0] = ProjectionVolume.maxBlockForCenter(region.getXb());
+        axisMax[1] = ProjectionVolume.maxBlockForCenter(region.getYb());
+        axisMax[2] = ProjectionVolume.maxBlockForCenter(region.getZb());
 
         Vec3d center = structure.getArea().center();
         double originX = center.getX();
@@ -309,7 +307,7 @@ public final class FrustumFit {
         boolean eyeFrontSide = dot(eyeRelX, eyeRelY, eyeRelZ, normal) >= 0.0D;
         Frame projectionFrame = frame.view(eyeFrontSide);
         double projectionEyeDot = dot(eyeRelX, eyeRelY, eyeRelZ, projectionFrame.getNormal());
-        double portalPlaneClearance = ProjectorFrameTransform.portalPlaneClearance(structure.getArea(), frame);
+        double portalPlaneClearance = ProjectionVolume.portalPlaneClearance(structure.getArea(), frame);
         double maxProjectionDepth = depthBlocks + portalPlaneClearance;
         double signedMinDistance = eyeFrontSide ? -maxProjectionDepth : portalPlaneClearance;
         double signedMaxDistance = eyeFrontSide ? -portalPlaneClearance : maxProjectionDepth;
@@ -377,8 +375,8 @@ public final class FrustumFit {
         double normalOrigin = coordinate(normalAxis, originX, originY, originZ);
         double centerA = normalOrigin + (signedMinDistance / normalComponent);
         double centerB = normalOrigin + (signedMaxDistance / normalComponent);
-        axisMin[normalAxis] = Math.max(axisMin[normalAxis], ProjectorFrameTransform.minBlockForCenter(Math.min(centerA, centerB)));
-        axisMax[normalAxis] = Math.min(axisMax[normalAxis], ProjectorFrameTransform.maxBlockForCenter(Math.max(centerA, centerB)));
+        axisMin[normalAxis] = Math.max(axisMin[normalAxis], ProjectionVolume.minBlockForCenter(Math.min(centerA, centerB)));
+        axisMax[normalAxis] = Math.min(axisMax[normalAxis], ProjectionVolume.maxBlockForCenter(Math.max(centerA, centerB)));
     }
 
     private static double lateralCeiling(double axial, double lateralPadBlocks) {

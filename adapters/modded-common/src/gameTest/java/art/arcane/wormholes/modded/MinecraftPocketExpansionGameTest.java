@@ -2,7 +2,6 @@ package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.door.DoorPairIdentity;
 import art.arcane.wormholes.door.DoorTransitGate;
-import art.arcane.wormholes.door.DoorVec3;
 import art.arcane.wormholes.door.DoorStateService;
 import art.arcane.wormholes.door.PairEndpoint;
 import art.arcane.wormholes.door.PlacedDoorEndpoint;
@@ -16,6 +15,7 @@ import art.arcane.wormholes.door.PocketRooms;
 import art.arcane.wormholes.door.PocketSpace;
 import art.arcane.wormholes.door.PocketCreationDefaults;
 import art.arcane.wormholes.door.DoorItemIdentity;
+import art.arcane.optics.math.Vec3d;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -115,8 +115,8 @@ public final class MinecraftPocketExpansionGameTest {
                     .filter(candidate -> candidate.endpoint().equals(source)).findFirst().orElseThrow();
                 options.helper().assertTrue(view.active(), "Room source is not active");
                 options.helper().assertTrue(DoorTransitGate.detect(view.plane(),
-                    new DoorVec3(traveler.getX(), traveler.getY(), traveler.getZ()),
-                    new DoorVec3(near.getX() + 0.5, near.getY(), near.getZ() + 0.5), traveler.getBbWidth() * 0.5, traveler.getBbHeight()).isPresent(),
+                    new Vec3d(traveler.getX(), traveler.getY(), traveler.getZ()),
+                    new Vec3d(near.getX() + 0.5, near.getY(), near.getZ() + 0.5), traveler.getBbWidth() * 0.5, traveler.getBbHeight()).isPresent(),
                     "Room movement does not cross its aperture");
                 traveler.setDeltaMovement(0, 0, -0.35);
                 PocketLayout destination = PocketRooms.layout(expanded, room);

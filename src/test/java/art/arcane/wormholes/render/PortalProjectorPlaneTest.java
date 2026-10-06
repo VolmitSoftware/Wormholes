@@ -10,46 +10,46 @@ import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
-import art.arcane.optics.frame.ProjectorFrameTransform;
 import art.arcane.optics.volume.PlaneWindow;
+import art.arcane.optics.volume.ProjectionVolume;
 
 public final class PortalProjectorPlaneTest {
 	@Test
 	public void onlyOppositeSideCellsPastThePortalSlabAreProjected() {
 		double clearance = 0.5001D;
 
-		assertFalse(ProjectorFrameTransform.projectsBehindPortalPlane(2.0D, true, clearance));
-		assertFalse(ProjectorFrameTransform.projectsBehindPortalPlane(0.25D, true, clearance));
-		assertFalse(ProjectorFrameTransform.projectsBehindPortalPlane(-0.25D, true, clearance));
-		assertTrue(ProjectorFrameTransform.projectsBehindPortalPlane(-1.0D, true, clearance));
+		assertFalse(ProjectionVolume.projectsBehindPortalPlane(2.0D, true, clearance));
+		assertFalse(ProjectionVolume.projectsBehindPortalPlane(0.25D, true, clearance));
+		assertFalse(ProjectionVolume.projectsBehindPortalPlane(-0.25D, true, clearance));
+		assertTrue(ProjectionVolume.projectsBehindPortalPlane(-1.0D, true, clearance));
 
-		assertFalse(ProjectorFrameTransform.projectsBehindPortalPlane(-2.0D, false, clearance));
-		assertFalse(ProjectorFrameTransform.projectsBehindPortalPlane(-0.25D, false, clearance));
-		assertFalse(ProjectorFrameTransform.projectsBehindPortalPlane(0.25D, false, clearance));
-		assertTrue(ProjectorFrameTransform.projectsBehindPortalPlane(1.0D, false, clearance));
+		assertFalse(ProjectionVolume.projectsBehindPortalPlane(-2.0D, false, clearance));
+		assertFalse(ProjectionVolume.projectsBehindPortalPlane(-0.25D, false, clearance));
+		assertFalse(ProjectionVolume.projectsBehindPortalPlane(0.25D, false, clearance));
+		assertTrue(ProjectionVolume.projectsBehindPortalPlane(1.0D, false, clearance));
 	}
 
 	@Test
 	public void planeClearanceTracksPortalNormalThickness() {
 		Box northPortal = new Box(0.0D, 4.999D, 64.0D, 68.999D, 10.0D, 10.999D);
-		double northClearance = ProjectorFrameTransform.portalPlaneClearance(northPortal, Frame.canonical(Face.N));
+		double northClearance = ProjectionVolume.portalPlaneClearance(northPortal, Frame.canonical(Face.N));
 		assertTrue(northClearance > 0.5D);
 		assertTrue(northClearance < 0.502D);
 
 		Box thickDownPortal = new Box(0.0D, 4.999D, 63.0D, 64.999D, 10.0D, 14.999D);
-		double downClearance = ProjectorFrameTransform.portalPlaneClearance(thickDownPortal, Frame.canonical(Face.D));
+		double downClearance = ProjectionVolume.portalPlaneClearance(thickDownPortal, Frame.canonical(Face.D));
 		assertTrue(downClearance > 0.999D);
 		assertTrue(downClearance < 1.002D);
 	}
 
 	@Test
 	public void scanBoundsIncludeBlockCentersAtTheProjectionEdges() {
-		assertEquals(4, ProjectorFrameTransform.minBlockForCenter(4.5D));
-		assertEquals(8, ProjectorFrameTransform.maxBlockForCenter(8.5D));
-		assertEquals(4, ProjectorFrameTransform.minBlockForCenter(4.5000003D));
-		assertEquals(8, ProjectorFrameTransform.maxBlockForCenter(8.4999997D));
-		assertEquals(5, ProjectorFrameTransform.minBlockForCenter(4.500002D));
-		assertEquals(7, ProjectorFrameTransform.maxBlockForCenter(8.499998D));
+		assertEquals(4, ProjectionVolume.minBlockForCenter(4.5D));
+		assertEquals(8, ProjectionVolume.maxBlockForCenter(8.5D));
+		assertEquals(4, ProjectionVolume.minBlockForCenter(4.5000003D));
+		assertEquals(8, ProjectionVolume.maxBlockForCenter(8.4999997D));
+		assertEquals(5, ProjectionVolume.minBlockForCenter(4.500002D));
+		assertEquals(7, ProjectionVolume.maxBlockForCenter(8.499998D));
 	}
 
 	@Test

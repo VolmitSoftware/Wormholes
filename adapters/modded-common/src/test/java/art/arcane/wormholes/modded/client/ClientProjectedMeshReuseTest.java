@@ -11,6 +11,7 @@ import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.plate.PlateBox;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.frame.OpticTransform;
 import com.mojang.renderpearl.api.buffers.GpuBuffer;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongSet;
@@ -277,7 +278,7 @@ public class ClientProjectedMeshReuseTest extends MinecraftTestBase {
     private static final class Fixture implements AutoCloseable {
         private final ClientPortalRenderer renderer = ClientPortalRenderer.instance();
         private final ClientMeshSections store;
-        private final ProjectionEnvironment environment = PortalEnvironmentTest.environment(ProjectionEnvironment.Transform.IDENTITY);
+        private final ProjectionEnvironment environment = PortalEnvironmentTest.environment(OpticTransform.IDENTITY);
         private final RegistryAccess registry = mock(RegistryAccess.class);
         private PortalScene scene;
         private Object gpuSection;

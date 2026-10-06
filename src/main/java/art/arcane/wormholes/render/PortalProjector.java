@@ -34,6 +34,8 @@ import art.arcane.wormholes.portal.IPortal;
 import art.arcane.wormholes.portal.RemotePortal;
 import art.arcane.wormholes.portal.UniversalTunnel;
 import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
 import art.arcane.wormholes.portal.rtp.RtpProjectionGeometry;
 import art.arcane.wormholes.portal.rtp.RtpProjectionView;
@@ -59,7 +61,6 @@ import art.arcane.optics.math.Vec3d;
 
 import art.arcane.wormholes.portal.ProjectorViewSettings;
 import art.arcane.optics.claim.ProjectedBlockClaim;
-import art.arcane.optics.frame.ProjectorFrameTransform;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.occlusion.LocalOcclusionArbiter;
 import art.arcane.optics.recursion.EntityPath;
@@ -74,6 +75,7 @@ import art.arcane.optics.scan.ProjectorSampler;
 import art.arcane.optics.scan.ResampleSchedule;
 import art.arcane.optics.volume.GazeScheduler;
 import art.arcane.optics.volume.ViewVolume;
+import art.arcane.optics.volume.ProjectionVolume;
 public final class PortalProjector {
     private static final long DIAG_LOG_INTERVAL_PASSES = 50L;
 
@@ -605,7 +607,7 @@ public final class PortalProjector {
         double admitted = dissolve.admittedFraction(blockPasses);
         if (admitted < 1.0D) {
             cellScan.invalidateOcclusionContinuation();
-            double clearance = ProjectorFrameTransform.portalPlaneClearance(portal.getStructure().getArea(), portal.getFrame());
+            double clearance = ProjectionVolume.portalPlaneClearance(portal.getStructure().getArea(), portal.getFrame());
             Face dissolveNormal = portal.getFrame().getNormal();
             double originNormal = axisValueOf(portal.getOrigin().getX(), portal.getOrigin().getY(), portal.getOrigin().getZ(), dissolveNormal);
             DissolveSchedule.filter(cellScan.claims(), admitted, depthBlocks + clearance, key -> Math.abs(
@@ -775,26 +777,21 @@ public final class PortalProjector {
             return;
         }
         ProjectionWorldView destView = destination.destView;
-        boolean mirrorMode = destination.mirrorMode;
-        int mirrorRotationQuarterTurns = destination.mirrorRotationQuarterTurns;
-        entityRenderer.prepareRecursiveProjection(destination.dest == null ? null : new EntityPath.Root<>(portal, destination.dest, projectionLocalFrame, projectionRemoteFrame, mirrorMode, mirrorRotationQuarterTurns, BukkitGeometry.vector(observer.getEyeLocation().toVector()), frustum, destination.dest.getWorld(), Settings.PROJECTION_RECURSIVE_PORTAL_DEPTH), entityRecursivePortals);
+        OpticTransform transform = destination.mirrorMode
+            ? OpticTransform.mirror(portal.getFrame(), portal.getOrigin(), QuarterTurn.of(destination.mirrorRotationQuarterTurns))
+            : OpticTransform.between(projectionRemoteFrame, destAnchor.getOrigin(), projectionLocalFrame, portal.getOrigin());
+        entityRenderer.prepareRecursiveProjection(destination.dest == null ? null : new EntityPath.Root<>(portal, destination.dest, transform,
+            BukkitGeometry.vector(observer.getEyeLocation().toVector()), frustum, destination.dest.getWorld(),
+            Settings.PROJECTION_RECURSIVE_PORTAL_DEPTH), entityRecursivePortals);
         if (viewProvider.usesRegionSnapshots() && destView instanceof ProjectionEntityView entityView) {
-            entityRenderer.applySnapshot(observer, portal, destAnchor, mirrorMode, mirrorRotationQuarterTurns,
-                entityView, frustum, depthBlocks,
-                projectionLocalFrame, projectionRemoteFrame, cellScan.entityOcclusion());
+            entityRenderer.applySnapshot(observer, portal, destAnchor, entityView, frustum, depthBlocks, transform, cellScan.entityOcclusion());
         } else if (destination.dest != null) {
-            entityRenderer.apply(observer, portal, destination.dest, frustum, depthBlocks, projectionLocalFrame,
-                projectionRemoteFrame, mirrorRotationQuarterTurns, cellScan.entityOcclusion());
+            entityRenderer.apply(observer, portal, destination.dest, frustum, depthBlocks, transform, cellScan.entityOcclusion());
         } else if (destView instanceof RemoteWorldView remoteWorldView) {
-            double remoteOriginX = destAnchor.getOrigin().getX();
-            double remoteOriginY = destAnchor.getOrigin().getY();
-            double remoteOriginZ = destAnchor.getOrigin().getZ();
-            entityRenderer.applyRemote(observer, portal, remoteOriginX, remoteOriginY, remoteOriginZ,
-                remoteWorldView, frustum, depthBlocks, projectionLocalFrame, projectionRemoteFrame,
-                cellScan.entityOcclusion());
+            entityRenderer.applyRemote(observer, portal, remoteWorldView, frustum, depthBlocks, transform, cellScan.entityOcclusion());
         }
-        entityRenderer.applyRecursive(observer, new ProjectedEntityRenderer.RecursiveRender(portal,
-            projectionLocalFrame, frustum, depthBlocks, viewProvider.usesRegionSnapshots(), destination::liveView, cellScan.entityOcclusion()));
+        entityRenderer.applyRecursive(observer, new ProjectedEntityRenderer.RecursiveRender(portal, frustum, depthBlocks,
+            viewProvider.usesRegionSnapshots(), destination::liveView, cellScan.entityOcclusion()));
     }
 
     private void maybeForceRemoteResend(RemoteWorldView remoteView) {
@@ -1313,8 +1310,8 @@ public final class PortalProjector {
             return RtpProjectionGeometry.plateIdentity(world.getUID(), originX, originY, originZ, frame, routeRevision);
         }
 
-        private static Face direction(RtpProjectionView.Vector3 vector, String name) {
-            RtpProjectionView.Vector3 requiredVector = Objects.requireNonNull(vector, name);
+        private static Face direction(Vec3d vector, String name) {
+            Vec3d requiredVector = Objects.requireNonNull(vector, name);
             double lengthSquared = requiredVector.x() * requiredVector.x()
                     + requiredVector.y() * requiredVector.y()
                     + requiredVector.z() * requiredVector.z();

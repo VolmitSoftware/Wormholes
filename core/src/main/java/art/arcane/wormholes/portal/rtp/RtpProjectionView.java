@@ -3,6 +3,7 @@ package art.arcane.wormholes.portal.rtp;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import art.arcane.optics.math.Vec3d;
 
 public final class RtpProjectionView
 {
@@ -95,22 +96,12 @@ public final class RtpProjectionView
 		}
 	}
 
-	public record Vector3(double x, double y, double z)
-	{
-		public Vector3
-		{
-			requireFinite(x, "x");
-			requireFinite(y, "y");
-			requireFinite(z, "z");
-		}
-	}
-
 	public record SourceFrame(
 			String worldKey,
 			Point3 center,
-			Vector3 right,
-			Vector3 up,
-			Vector3 forward,
+			Vec3d right,
+			Vec3d up,
+			Vec3d forward,
 			double width,
 			double height,
 			long revision)
@@ -119,9 +110,9 @@ public final class RtpProjectionView
 		{
 			worldKey = requireWorldKey(worldKey);
 			Objects.requireNonNull(center, "center");
-			Objects.requireNonNull(right, "right");
-			Objects.requireNonNull(up, "up");
-			Objects.requireNonNull(forward, "forward");
+			requireFinite(right, "right");
+			requireFinite(up, "up");
+			requireFinite(forward, "forward");
 			requirePositiveFinite(width, "width");
 			requirePositiveFinite(height, "height");
 			if(revision < 0L)
@@ -134,17 +125,17 @@ public final class RtpProjectionView
 	public record Target(
 			String worldKey,
 			Point3 safeFeet,
-			Vector3 right,
-			Vector3 up,
-			Vector3 forward)
+			Vec3d right,
+			Vec3d up,
+			Vec3d forward)
 	{
 		public Target
 		{
 			worldKey = requireWorldKey(worldKey);
 			Objects.requireNonNull(safeFeet, "safeFeet");
-			Objects.requireNonNull(right, "right");
-			Objects.requireNonNull(up, "up");
-			Objects.requireNonNull(forward, "forward");
+			requireFinite(right, "right");
+			requireFinite(up, "up");
+			requireFinite(forward, "forward");
 		}
 	}
 
@@ -170,6 +161,14 @@ public final class RtpProjectionView
 			throw new IllegalArgumentException("worldKey must not be blank");
 		}
 		return requiredWorldKey;
+	}
+
+	private static void requireFinite(Vec3d vector, String name)
+	{
+		Objects.requireNonNull(vector, name);
+		requireFinite(vector.x(), name + ".x");
+		requireFinite(vector.y(), name + ".y");
+		requireFinite(vector.z(), name + ".z");
 	}
 
 	private static void requireFinite(double value, String name)

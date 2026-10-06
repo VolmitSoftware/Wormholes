@@ -2,11 +2,12 @@ package art.arcane.wormholes.modded.client.render;
 
 import org.joml.Matrix4f;
 import art.arcane.optics.math.Vec3d;
-import art.arcane.optics.stream.ProjectionEnvironment;
 import org.joml.Matrix4d;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.AxisPermutation;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -28,16 +29,16 @@ public class PortalProjectionTest {
                         continue;
                     }
                     Vec3d translation = new Vec3d(30_000_000.5, -50.5, -30_000_000.5);
-                    ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(x, y, z, translation);
+                    OpticTransform transform = OpticTransform.of(AxisPermutation.of(x, y, z), translation.x(), translation.y(), translation.z());
                     Matrix4d matrix = PortalProjection.destinationToSource(transform);
-                    assertEquals(matrix.determinant3x3() < 0, transform.reflected());
+                    assertEquals(matrix.determinant3x3() < 0, transform.reflects());
                     Vector3f direction = PortalProjection.rotation(transform).transformDirection(new Vector3f(2, 3, 4));
                     Vector3d point = matrix.transformPosition(new Vector3d(2, 3, 4));
                     assertEquals(direction.x, point.x - translation.x(), 0);
                     assertEquals(direction.y, point.y - translation.y(), 0);
                     assertEquals(direction.z, point.z - translation.z(), 0);
-                    assertEquals(new Vec3d(2, 3, 4), transform.destinationPoint(point.x, point.y, point.z));
-                    if (transform.reflected()) {
+                    assertEquals(new Vec3d(2, 3, 4), transform.inverse().point(new Vec3d(point.x, point.y, point.z)));
+                    if (transform.reflects()) {
                         reflections++;
                     } else {
                         rotations++;
@@ -51,10 +52,8 @@ public class PortalProjectionTest {
 
     @Test
     public void nestedDestinationsComposeRotationsTranslationsAndReflectionsInBranchOrder() {
-        ProjectionEnvironment.Transform root = new ProjectionEnvironment.Transform(Face.S, Face.U, Face.W,
-            new Vec3d(100, 20, -50));
-        ProjectionEnvironment.Transform child = new ProjectionEnvironment.Transform(Face.W, Face.U, Face.S,
-            new Vec3d(6, 0, 0));
+        OpticTransform root = OpticTransform.of(AxisPermutation.of(Face.S, Face.U, Face.W), 100, 20, -50);
+        OpticTransform child = OpticTransform.of(AxisPermutation.of(Face.W, Face.U, Face.S), 6, 0, 0);
         Matrix4d rootMatrix = PortalProjection.destinationToSource(root);
         Matrix4d composed = new Matrix4d(rootMatrix).mul(PortalProjection.destinationToSource(child));
         Vector3d displayed = composed.transformPosition(new Vector3d(2, 3, 4));
@@ -62,8 +61,8 @@ public class PortalProjectionTest {
         assertEquals(23, displayed.y, 0.000000001);
         assertEquals(-46, displayed.z, 0.000000001);
         assertEquals(-1, composed.determinant3x3(), 0.000000001);
-        Vec3d rootDestination = root.destinationPoint(displayed.x, displayed.y, displayed.z);
-        Vec3d original = child.destinationPoint(rootDestination.x(), rootDestination.y(), rootDestination.z());
+        Vec3d rootDestination = root.inverse().point(new Vec3d(displayed.x, displayed.y, displayed.z));
+        Vec3d original = child.inverse().point(new Vec3d(rootDestination.x(), rootDestination.y(), rootDestination.z()));
         assertEquals(new Vec3d(2, 3, 4), original);
         assertEquals(1, rootMatrix.determinant3x3(), 0.000000001);
         assertEquals(100, rootMatrix.m30(), 0.000000001);
@@ -125,10 +124,8 @@ public class PortalProjectionTest {
 
     @Test
     public void nestedMirrorsComposeAtExactHalfBlockPlanes() {
-        Matrix4d wall = PortalProjection.destinationToSource(new ProjectionEnvironment.Transform(Face.E, Face.U, Face.N,
-            new Vec3d(0, 0, 41)));
-        Matrix4d floor = PortalProjection.destinationToSource(new ProjectionEnvironment.Transform(Face.E, Face.D, Face.S,
-            new Vec3d(0, 17, 0)));
+        Matrix4d wall = PortalProjection.destinationToSource(OpticTransform.of(AxisPermutation.of(Face.E, Face.U, Face.N), 0, 0, 41));
+        Matrix4d floor = PortalProjection.destinationToSource(OpticTransform.of(AxisPermutation.of(Face.E, Face.D, Face.S), 0, 17, 0));
         Vector3d once = wall.transformPosition(new Vector3d(1, 11, 23));
         assertEquals(18.0, once.z, 0.000000001);
         assertEquals(-1.0, wall.determinant3x3(), 0.000000001);

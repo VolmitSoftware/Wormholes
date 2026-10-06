@@ -15,12 +15,12 @@ import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.optics.entity.ProjectedEntityEvent;
-import art.arcane.optics.client.ClientViewEntityTransform;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.ClientViewProtocolException;
 import art.arcane.optics.entity.EntityDeltaCodec;
 import art.arcane.optics.entity.EntitySnapshot;
+import art.arcane.optics.entity.EntityProjection;
 
 class ClientViewEntityFramesTest {
     private static final UUID PORTAL = UUID.nameUUIDFromBytes("portal".getBytes());
@@ -62,7 +62,7 @@ class ClientViewEntityFramesTest {
     @Test
     void eventsUseOpaqueIdentityAndOnlyCurrentVisibleEntitiesReceiveThemOnce() {
         UUID source = UUID.randomUUID();
-        UUID opaque = ClientViewEntityTransform.opaque(123, source);
+        UUID opaque = EntityProjection.opaque(123, source);
         List<EntitySnapshot> scene = new ArrayList<>(List.of(visual(opaque, 10.5D, 0)));
         boolean[] visible = {true};
         ClientViewEntityFrames<String> frames = new ClientViewEntityFrames<>(new ClientViewEntityFrames.Scenes<String>() {
@@ -78,7 +78,7 @@ class ClientViewEntityFramesTest {
 
             @Override
             public UUID projectedId(UUID id) {
-                return ClientViewEntityTransform.opaque(123, id);
+                return EntityProjection.opaque(123, id);
             }
 
             @Override

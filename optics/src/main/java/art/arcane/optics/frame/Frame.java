@@ -1,5 +1,6 @@
 package art.arcane.optics.frame;
 
+
 import art.arcane.optics.math.Vec3d;
 
 import art.arcane.optics.math.Box;
@@ -101,54 +102,6 @@ public final class Frame {
 			return fromNormalUp(nextNormal, normal);
 		}
 		return canonical(nextNormal);
-	}
-
-	public Vec3d transformPoint(Vec3d point, Vec3d fromOrigin, Vec3d toOrigin, Frame to) {
-		double[] out = new double[3];
-		transformPointInto(point.getX(), point.getY(), point.getZ(),
-			fromOrigin.getX(), fromOrigin.getY(), fromOrigin.getZ(),
-			toOrigin.getX(), toOrigin.getY(), toOrigin.getZ(), to, out);
-		return new Vec3d(out[0], out[1], out[2]);
-	}
-
-	public Vec3d transformCrossingPoint(Vec3d point, Vec3d fromOrigin, Vec3d toOrigin, Frame to) {
-		double distance = dot(point.x() - fromOrigin.x(), point.y() - fromOrigin.y(), point.z() - fromOrigin.z(), normal);
-		Vec3d crossing = new Vec3d(point.x() - distance * normal.x(), point.y() - distance * normal.y(),
-			point.z() - distance * normal.z());
-		return view(distance >= 0.0D).transformPoint(crossing, fromOrigin, toOrigin, to);
-	}
-
-	public void transformPointInto(double x, double y, double z,
-								   double fromOriginX, double fromOriginY, double fromOriginZ,
-								   double toOriginX, double toOriginY, double toOriginZ,
-								   Frame to, double[] out3) {
-		double offsetX = x - fromOriginX;
-		double offsetY = y - fromOriginY;
-		double offsetZ = z - fromOriginZ;
-		transformVectorInto(offsetX, offsetY, offsetZ, to, out3);
-		out3[0] = toOriginX + out3[0];
-		out3[1] = toOriginY + out3[1];
-		out3[2] = toOriginZ + out3[2];
-	}
-
-	public Vec3d transformVector(Vec3d vector, Frame to) {
-		double[] out = new double[3];
-		transformVectorInto(vector.getX(), vector.getY(), vector.getZ(), to, out);
-		return new Vec3d(out[0], out[1], out[2]);
-	}
-
-	public void transformVectorInto(double x, double y, double z, Frame to, double[] out3) {
-		double frameRight = dot(x, y, z, right);
-		double frameUp = dot(x, y, z, up);
-		double frameNormal = dot(x, y, z, normal);
-		out3[0] = frameRight * to.right.x() + frameUp * to.up.x() + frameNormal * to.normal.x();
-		out3[1] = frameRight * to.right.y() + frameUp * to.up.y() + frameNormal * to.normal.y();
-		out3[2] = frameRight * to.right.z() + frameUp * to.up.z() + frameNormal * to.normal.z();
-	}
-
-	public Face transformDirection(Face direction, Frame to, double[] scratch3) {
-		transformVectorInto(direction.x(), direction.y(), direction.z(), to, scratch3);
-		return Face.closest(scratch3[0], scratch3[1], scratch3[2]);
 	}
 
 	@Override

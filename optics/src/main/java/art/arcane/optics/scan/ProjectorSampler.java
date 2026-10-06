@@ -10,6 +10,7 @@ import art.arcane.optics.view.MaterialView;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.frame.DirectionMapping;
+import art.arcane.optics.frame.AxisPermutation;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.recursion.RecursiveEndpoints;
 import art.arcane.optics.view.BlockStates;
@@ -179,9 +180,8 @@ public final class ProjectorSampler<B, M, W, P extends Endpoint, V extends Mater
             if (nested.kind != ProjectorSample.Kind.BLOCK || !blocks.requiresTransform(nested.data)) {
                 return nested;
             }
-            B transformed = hit.mirrorProjection
-                ? blocks.transform(nested.data, DirectionMapping.mirror(hit.mirrorFrame, hit.mirrorRotationQuarterTurns, scratchRot))
-                : blocks.transform(nested.data, DirectionMapping.between(hit.remoteFrame, hit.localFrame, scratchRot));
+            AxisPermutation permutation = hit.transform.permutation();
+            B transformed = blocks.transform(nested.data, DirectionMapping.axes(permutation.x(), permutation.y(), permutation.z()));
             return nested.withData(transformed);
         }
 

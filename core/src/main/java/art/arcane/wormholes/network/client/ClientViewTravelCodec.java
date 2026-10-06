@@ -2,7 +2,6 @@ package art.arcane.wormholes.network.client;
 
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.aperture.ApertureDescriptor;
-import art.arcane.optics.math.Face;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -10,10 +9,10 @@ import java.util.UUID;
 import art.arcane.optics.stream.ClientViewProtocolException;
 import art.arcane.optics.stream.ClientViewReader;
 import art.arcane.optics.stream.ClientViewWriter;
-import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.stream.ProjectionEnvironmentCodec;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.ViewStreamMessageType;
+import art.arcane.optics.frame.OpticTransform;
 
 final class ClientViewTravelCodec {
     private ClientViewTravelCodec() {
@@ -26,7 +25,7 @@ final class ClientViewTravelCodec {
                 uuid(out, begin.sourcePortal());
                 out.string(begin.sourceWorld());
                 ClientViewCodec.writeGeometry(out, begin.sourceGeometry(), 0);
-                transform(out, begin.destinationToSource());
+                ProjectionEnvironmentCodec.writeTransform(out, begin.destinationToSource());
                 world(out, begin.world());
                 pose(out, begin.arrival());
                 out.u16(begin.chunks().size());
@@ -107,7 +106,7 @@ final class ClientViewTravelCodec {
                     UUID portal = uuid(in);
                     String source = in.string();
                     ApertureDescriptor geometry = ClientViewCodec.readGeometry(in, 0);
-                    ProjectionEnvironment.Transform transform = transform(in);
+                    OpticTransform transform = ProjectionEnvironmentCodec.readTransform(in);
                     ClientViewMessage.TravelWorld world = world(in);
                     ClientViewMessage.TravelPose pose = pose(in);
                     int count = count(in);
@@ -196,24 +195,6 @@ final class ClientViewTravelCodec {
             throw new ClientViewProtocolException("Travel boolean");
         }
         return value == 1;
-    }
-
-    private static void transform(ClientViewWriter out, ProjectionEnvironment.Transform transform) {
-        out.u8(transform.xAxis().ordinal());
-        out.u8(transform.yAxis().ordinal());
-        out.u8(transform.zAxis().ordinal());
-        vector(out, transform.translation());
-    }
-
-    private static ProjectionEnvironment.Transform transform(ClientViewReader in) throws ClientViewProtocolException {
-        Face[] directions = Face.values();
-        int x = in.u8();
-        int y = in.u8();
-        int z = in.u8();
-        if (x >= directions.length || y >= directions.length || z >= directions.length) {
-            throw new ClientViewProtocolException("Travel transform axis");
-        }
-        return new ProjectionEnvironment.Transform(directions[x], directions[y], directions[z], vector(in));
     }
 
     private static void vector(ClientViewWriter out, Vec3d vector) {

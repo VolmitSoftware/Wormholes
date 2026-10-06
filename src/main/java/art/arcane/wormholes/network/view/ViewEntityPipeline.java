@@ -41,6 +41,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.optics.entity.MapSnapshot;
+import art.arcane.optics.frame.OpticTransform;
 
 final class ViewEntityPipeline {
     private static final class EntityCaptureContext {
@@ -181,7 +182,7 @@ final class ViewEntityPipeline {
             if (session.meshDistance > 0 && tickCounter >= session.nextEnvironmentTick) {
                 ViewEntityState.Center center = session.center();
                 ProjectionEnvironment environment = BukkitPortalEnvironment.capture(session.world,
-                    new Vec3d(center.x(), center.y(), center.z()), ProjectionEnvironment.Transform.IDENTITY);
+                    new Vec3d(center.x(), center.y(), center.z()), OpticTransform.IDENTITY);
                 timeDelivery.queueEnvironment(session, environment);
                 session.nextEnvironmentTick = tickCounter + 20;
             }

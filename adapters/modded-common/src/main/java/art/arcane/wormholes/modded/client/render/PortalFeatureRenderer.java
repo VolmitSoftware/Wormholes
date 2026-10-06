@@ -1,6 +1,7 @@
 package art.arcane.wormholes.modded.client.render;
 
 import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.frame.OpticTransform;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -86,11 +87,11 @@ public final class PortalFeatureRenderer implements AutoCloseable {
         }
     }
 
-    static void blockPose(PoseStack pose, BlockPos position, Vec3 eye, ProjectionEnvironment.Transform transform, Matrix4f rotation) {
+    static void blockPose(PoseStack pose, BlockPos position, Vec3 eye, OpticTransform transform, Matrix4f rotation) {
         positionPose(pose, position.getX(), position.getY(), position.getZ(), eye, transform, rotation);
     }
 
-    static void entityPose(PoseStack pose, EntityRenderState state, Vec3 eye, ProjectionEnvironment.Transform transform, Matrix4f rotation) {
+    static void entityPose(PoseStack pose, EntityRenderState state, Vec3 eye, OpticTransform transform, Matrix4f rotation) {
         positionPose(pose, state.x, state.y, state.z, eye, transform, rotation);
     }
 
@@ -149,7 +150,7 @@ public final class PortalFeatureRenderer implements AutoCloseable {
         PoseStack pose = new PoseStack();
         Vec3 eye = camera.pos;
         ProjectionEnvironment environment = scene.environment();
-        ProjectionEnvironment.Transform transform = environment == null ? null : environment.transform();
+        OpticTransform transform = environment == null ? null : environment.transform();
         Matrix4f rotation = transform == null ? null : PortalProjection.rotation(transform);
         CameraRenderState featureCamera = environment == null ? camera : ClientPortalRenderer.transformedCamera(camera,
             PortalProjection.destinationToSource(environment.transform()), camera.projectionMatrix);
@@ -182,19 +183,19 @@ public final class PortalFeatureRenderer implements AutoCloseable {
         }
     }
 
-    private static void positionPose(PoseStack pose, double x, double y, double z, Vec3 eye, ProjectionEnvironment.Transform transform, Matrix4f rotation) {
-        pose.translate(x * transform.xAxis().x() + y * transform.yAxis().x() + z * transform.zAxis().x() + transform.translation().x() - eye.x,
-            x * transform.xAxis().y() + y * transform.yAxis().y() + z * transform.zAxis().y() + transform.translation().y() - eye.y,
-            x * transform.xAxis().z() + y * transform.yAxis().z() + z * transform.zAxis().z() + transform.translation().z() - eye.z);
+    private static void positionPose(PoseStack pose, double x, double y, double z, Vec3 eye, OpticTransform transform, Matrix4f rotation) {
+        pose.translate(x * transform.permutation().x().x() + y * transform.permutation().y().x() + z * transform.permutation().z().x() + transform.translationX() - eye.x,
+            x * transform.permutation().x().y() + y * transform.permutation().y().y() + z * transform.permutation().z().y() + transform.translationY() - eye.y,
+            x * transform.permutation().x().z() + y * transform.permutation().y().z() + z * transform.permutation().z().z() + transform.translationZ() - eye.z);
         pose.mulPose(rotation);
     }
 
     static final class WindingScope implements AutoCloseable {
         private final StagedVertexBuffer previous;
 
-        WindingScope(StagedVertexBuffer buffer, ProjectionEnvironment.Transform transform) {
+        WindingScope(StagedVertexBuffer buffer, OpticTransform transform) {
             previous = REFLECTED_BUFFER.get();
-            if (transform != null && transform.reflected()) {
+            if (transform != null && transform.reflects()) {
                 REFLECTED_BUFFER.set(buffer);
             } else {
                 REFLECTED_BUFFER.remove();

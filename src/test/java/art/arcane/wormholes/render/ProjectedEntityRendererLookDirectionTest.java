@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.bukkit.Location;
 import org.bukkit.util.Vector;
 import org.junit.jupiter.api.Test;
-import art.arcane.optics.entity.EntityVisualProjection;
+import art.arcane.optics.math.Angles;
 
 public final class ProjectedEntityRendererLookDirectionTest {
 	@Test
@@ -15,7 +15,7 @@ public final class ProjectedEntityRendererLookDirectionTest {
 			for(float pitch = -90.0F; pitch <= 90.0F; pitch += 15.0F) {
 				Location location = new Location(null, 0.0D, 0.0D, 0.0D, yaw, pitch);
 				Vector expected = location.getDirection();
-				EntityVisualProjection.lookDirectionInto(yaw, pitch, out);
+				Angles.directionInto(yaw, pitch, out);
 				assertEquals(expected.getX(), out[0], 1.0E-12D, "x yaw=" + yaw + " pitch=" + pitch);
 				assertEquals(expected.getY(), out[1], 1.0E-12D, "y yaw=" + yaw + " pitch=" + pitch);
 				assertEquals(expected.getZ(), out[2], 1.0E-12D, "z yaw=" + yaw + " pitch=" + pitch);
@@ -26,16 +26,16 @@ public final class ProjectedEntityRendererLookDirectionTest {
 	@Test
 	public void lookDirectionCardinalAxes() {
 		double[] out = new double[3];
-		EntityVisualProjection.lookDirectionInto(0.0F, 0.0F, out);
+		Angles.directionInto(0.0F, 0.0F, out);
 		assertEquals(0.0D, out[0], 1.0E-12D);
 		assertEquals(0.0D, out[1], 1.0E-12D);
 		assertEquals(1.0D, out[2], 1.0E-12D);
-		EntityVisualProjection.lookDirectionInto(90.0F, 0.0F, out);
+		Angles.directionInto(90.0F, 0.0F, out);
 		assertEquals(-1.0D, out[0], 1.0E-12D);
 		assertEquals(0.0D, out[1], 1.0E-12D);
-		EntityVisualProjection.lookDirectionInto(0.0F, -90.0F, out);
+		Angles.directionInto(0.0F, -90.0F, out);
 		assertEquals(1.0D, out[1], 1.0E-12D);
-		EntityVisualProjection.lookDirectionInto(0.0F, 90.0F, out);
+		Angles.directionInto(0.0F, 90.0F, out);
 		assertEquals(-1.0D, out[1], 1.0E-12D);
 	}
 }

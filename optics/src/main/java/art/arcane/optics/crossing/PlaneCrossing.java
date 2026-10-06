@@ -1,7 +1,10 @@
 package art.arcane.optics.crossing;
 
 import art.arcane.optics.math.Vec3d;
+import art.arcane.optics.math.Face;
 import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.AxisPermutation;
 
 public record PlaneCrossing(Frame frame, Vec3d origin, Vec3d point,
                              Vec3d velocity, Vec3d look, boolean frontSide) {
@@ -35,16 +38,27 @@ public record PlaneCrossing(Frame frame, Vec3d origin, Vec3d point,
         return distance(frame, point, current);
     }
 
+    public static Vec3d planePoint(Frame frame, Vec3d origin, Vec3d point, Frame destination, Vec3d destinationOrigin) {
+        double distance = distance(frame, origin, point);
+        Face normal = frame.getNormal();
+        Vec3d onPlane = new Vec3d(point.x() - distance * normal.x(), point.y() - distance * normal.y(), point.z() - distance * normal.z());
+        return OpticTransform.between(frame.view(distance >= 0.0D), origin, destination, destinationOrigin).point(onPlane);
+    }
+
     public Vec3d outPoint(Frame destination, Vec3d destinationOrigin) {
-        return frame.transformPoint(point, origin, destinationOrigin, destination.view(frontSide));
+        return OpticTransform.between(frame, origin, destination.view(frontSide), destinationOrigin).point(point);
     }
 
     public Vec3d outVelocity(Frame destination) {
-        return frame.transformVector(velocity, destination.view(frontSide));
+        return toward(destination).vector(velocity);
     }
 
     public Vec3d outLook(Frame destination) {
-        return frame.transformVector(look, destination.view(frontSide));
+        return toward(destination).vector(look);
+    }
+
+    private OpticTransform toward(Frame destination) {
+        return OpticTransform.of(AxisPermutation.between(frame, destination.view(frontSide)), 0.0D, 0.0D, 0.0D);
     }
 
     private static double distance(Frame frame, Vec3d origin, Vec3d point) {

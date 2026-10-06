@@ -1,7 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.client.render.PortalScene;
 import art.arcane.optics.stream.ProjectionEnvironment;
@@ -11,6 +10,8 @@ import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.plate.PlateBox;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.AxisPermutation;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongLinkedOpenHashSet;
@@ -106,8 +107,7 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
         portals.put(7, portal);
         when(session.portals()).thenReturn(portals);
         when(session.environment(7)).thenReturn(environment);
-        when(environment.transform()).thenReturn(new ProjectionEnvironment.Transform(Face.E, Face.U, Face.S,
-            new Vec3d(0, 0, 0)));
+        when(environment.transform()).thenReturn(OpticTransform.of(AxisPermutation.of(Face.E, Face.U, Face.S), 0, 0, 0));
         when(renderer.available(7)).thenReturn(true);
         IllegalStateException failure = new IllegalStateException("Feature renderer unavailable");
         try (MockedStatic<ClientPortalRenderer> renderers = mockStatic(ClientPortalRenderer.class);
@@ -199,16 +199,14 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
         portals.put(7, portal);
         when(session.portals()).thenReturn(portals);
         when(session.environment(7)).thenReturn(environment);
-        when(environment.transform()).thenReturn(new ProjectionEnvironment.Transform(Face.E, Face.U, Face.S,
-            new Vec3d(0, 0, 0)));
+        when(environment.transform()).thenReturn(OpticTransform.of(AxisPermutation.of(Face.E, Face.U, Face.S), 0, 0, 0));
         try (MockedStatic<ClientPortalRenderer> renderers = mockStatic(ClientPortalRenderer.class)) {
             renderers.when(ClientPortalRenderer::instance).thenReturn(renderer);
             ClientMeshViews views = new ClientMeshViews();
             views.update(session, level);
             views.update(session, level);
             verify(renderer, times(1)).replaceScene(eq(7), any(PortalScene.class));
-            when(environment.transform()).thenReturn(new ProjectionEnvironment.Transform(Face.U, Face.W, Face.S,
-                new Vec3d(0, 0, 0)));
+            when(environment.transform()).thenReturn(OpticTransform.of(AxisPermutation.of(Face.U, Face.W, Face.S), 0, 0, 0));
             views.update(session, level);
             views.update(session, level);
             verify(renderer, times(2)).replaceScene(eq(7), any(PortalScene.class));
@@ -239,7 +237,7 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
             assertEquals(List.of(fixture.level, destination), featureLevels);
             Camera camera = mock(Camera.class);
             fixture.views.extract(camera, 0.5F);
-            verify(features.constructed().get(1)).extract(7, camera, 0.5F, ProjectionEnvironment.Transform.IDENTITY);
+            verify(features.constructed().get(1)).extract(7, camera, 0.5F, OpticTransform.IDENTITY);
             fixture.views.detach();
             verify(fixture.renderer).remove(7);
         }
@@ -385,8 +383,7 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
             verify(fixture.renderer, times(4)).replaceScene(eq(7), captured.capture());
             PortalScene fourth = captured.getValue();
             assertNotNull(fourth.meshContext());
-            when(fixture.environment.transform()).thenReturn(new ProjectionEnvironment.Transform(Face.E, Face.U, Face.S,
-                new Vec3d(16, 0, 0)));
+            when(fixture.environment.transform()).thenReturn(OpticTransform.of(AxisPermutation.of(Face.E, Face.U, Face.S), 16, 0, 0));
             assertNull(fourth.meshContext());
             assertFalse(fourth.matchesMeshIdentity(0L, firstProof));
             fixture.views.update(fixture.session, fixture.level);
@@ -617,7 +614,7 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
             portals.put(7, portal);
             when(session.portals()).thenReturn(portals);
             when(session.environment(7)).thenReturn(environment);
-            when(environment.transform()).thenReturn(ProjectionEnvironment.Transform.IDENTITY);
+            when(environment.transform()).thenReturn(OpticTransform.IDENTITY);
             when(world.dimensionKey()).thenReturn("minecraft:overworld");
             when(environment.world()).thenReturn(world);
             ClientMeshSections.Identity identity = new ClientMeshSections.Identity(environment, 1, 1);

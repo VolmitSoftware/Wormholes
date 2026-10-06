@@ -2,6 +2,8 @@ package art.arcane.wormholes.door;
 
 import org.bukkit.structure.Structure;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.math.Vec3d;
+import art.arcane.optics.crossing.PlaneCrossing;
 
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.api.traversal.TraversalContext;
@@ -70,12 +72,12 @@ final class DoorTransitCoordinatorCostIntegrationTest {
     @Test
     void playerArrivalWithoutCapturedMomentumProvidesAZeroPreparedTravelVector() throws ReflectiveOperationException {
         DoorTransit transit = new DoorTransit(new DoorwayPlane(0, 200, 0, Face.N),
-            DoorwayCrossing.Direction.FRONT_TO_BACK, 0.0F, 0.0F);
+            true, 0.0F, 0.0F);
         Object context = transitContext(UUID.randomUUID(), transit);
         Method arrival = DoorTransitCoordinator.class.getDeclaredMethod("arrivalVelocity", transitContextType(), Location.class);
         arrival.setAccessible(true);
-        DoorVec3 velocity = (DoorVec3) arrival.invoke(null, context, new Location(null, 24.5D, 200.0D, 0.5D));
-        assertEquals(new DoorVec3(0.0D, 0.0D, 0.0D), velocity);
+        Vec3d velocity = (Vec3d) arrival.invoke(null, context, new Location(null, 24.5D, 200.0D, 0.5D));
+        assertEquals(new Vec3d(0.0D, 0.0D, 0.0D), velocity);
     }
 
     @Test
@@ -425,14 +427,9 @@ final class DoorTransitCoordinatorCostIntegrationTest {
 
         private DoorTransit transit(DoorTravelerClass travelerClass) {
             DoorwayPlane plane = runtime.plane();
-            DoorwayCrossing crossing = new DoorwayCrossing(
-                new DoorVec3(0.5D, 65.25D, 0.5D),
-                1.0D,
-                0.0D,
-                1.0D,
-                DoorwayCrossing.Direction.FRONT_TO_BACK);
-            DoorVec3 velocity = travelerClass == DoorTravelerClass.OBJECT
-                ? new DoorVec3(0.0D, 0.0D, 0.4D)
+            PlaneCrossing crossing = plane.crossingAt(new Vec3d(0.5D, 65.25D, 0.5D), new Vec3d(0.0D, 0.0D, 0.0D), true);
+            Vec3d velocity = travelerClass == DoorTravelerClass.OBJECT
+                ? new Vec3d(0.0D, 0.0D, 0.4D)
                 : null;
             return new DoorTransit(
                 plane, crossing, 0.0F, 0.0F, 0.3D, 1.8D, travelerClass, velocity);

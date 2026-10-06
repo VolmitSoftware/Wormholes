@@ -2,15 +2,15 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.math.CellKeys;
-import art.arcane.optics.frame.ProjectorFrameTransform;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.aperture.ApertureDescriptor;
-import art.arcane.optics.client.ClientSpace;
 import art.arcane.optics.client.ClientSweep;
 import art.arcane.optics.plate.PlateBox;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.volume.ProjectionVolume;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -23,7 +23,8 @@ public final class ClientMirrorBuilder implements ClientPortalContent {
     private static final int UNKNOWN = Integer.MIN_VALUE;
 
     private final ApertureDescriptor geometry;
-    private final ClientSpace space;
+    private final OpticTransform transform;
+    private final OpticTransform content;
     private final PlateBox box;
     private final int[] ids;
     private final ClientPalette palette;
@@ -40,7 +41,8 @@ public final class ClientMirrorBuilder implements ClientPortalContent {
 
     private ClientMirrorBuilder(ApertureDescriptor geometry, PlateBox box, ClientPalette palette, ShadowSource shadows) {
         this.geometry = geometry;
-        this.space = ClientSpace.mirror(geometry);
+        this.transform = geometry.mirrorTransform();
+        this.content = transform.inverse();
         this.box = box;
         this.ids = new int[(int) box.cells()];
         this.palette = palette;
@@ -57,7 +59,7 @@ public final class ClientMirrorBuilder implements ClientPortalContent {
             double x = (corner & 1) == 0 ? box.minX() : box.minX() + box.sizeX();
             double y = (corner & 2) == 0 ? box.minY() : box.minY() + box.sizeY();
             double z = (corner & 4) == 0 ? box.minZ() : box.minZ() + box.sizeZ();
-            space.toContent(x, y, z, scratch);
+            content.pointInto(x, y, z, scratch);
             minX = Math.min(minX, scratch[0]);
             minZ = Math.min(minZ, scratch[2]);
             maxX = Math.max(maxX, scratch[0]);
@@ -90,7 +92,7 @@ public final class ClientMirrorBuilder implements ClientPortalContent {
         int normalAxis = axisOf(normal);
         double facing = normalAxis == 0 ? normal.x() : normalAxis == 1 ? normal.y() : normal.z();
         double origin = (low(area, normalAxis) + high(area, normalAxis)) * 0.5D;
-        double clearance = ProjectorFrameTransform.portalPlaneClearance(area, frame);
+        double clearance = ProjectionVolume.portalPlaneClearance(area, frame);
         double maxDepth = geometry.depthBlocks() + clearance;
         double signedMin = geometry.frontSide() ? -maxDepth : clearance;
         double signedMax = geometry.frontSide() ? -clearance : maxDepth;
@@ -98,15 +100,15 @@ public final class ClientMirrorBuilder implements ClientPortalContent {
         double centerB = origin + (signedMax / facing);
         int[] min = new int[3];
         int[] max = new int[3];
-        min[normalAxis] = ProjectorFrameTransform.minBlockForCenter(Math.min(centerA, centerB));
-        max[normalAxis] = ProjectorFrameTransform.maxBlockForCenter(Math.max(centerA, centerB));
+        min[normalAxis] = ProjectionVolume.minBlockForCenter(Math.min(centerA, centerB));
+        max[normalAxis] = ProjectionVolume.maxBlockForCenter(Math.max(centerA, centerB));
         double pad = Math.min(geometry.depthBlocks(), MAX_LATERAL_BLOCKS) + Math.max(0.0D, geometry.aperturePadding());
         for (int axis = 0; axis < 3; axis++) {
             if (axis == normalAxis) {
                 continue;
             }
-            min[axis] = ProjectorFrameTransform.minBlockForCenter(low(area, axis) - pad);
-            max[axis] = ProjectorFrameTransform.maxBlockForCenter(high(area, axis) + pad);
+            min[axis] = ProjectionVolume.minBlockForCenter(low(area, axis) - pad);
+            max[axis] = ProjectionVolume.maxBlockForCenter(high(area, axis) + pad);
         }
         return PlateBox.spanning(min[0], min[1], min[2], max[0], max[1], max[2]);
     }
@@ -115,8 +117,8 @@ public final class ClientMirrorBuilder implements ClientPortalContent {
         return geometry;
     }
 
-    public ClientSpace space() {
-        return space;
+    public OpticTransform transform() {
+        return transform;
     }
 
     @Override
@@ -139,7 +141,7 @@ public final class ClientMirrorBuilder implements ClientPortalContent {
         if (known != UNKNOWN) {
             return known;
         }
-        space.contentCell(x, y, z, cell, scratch);
+        content.cellInto(x, y, z, cell);
         BlockState shadow = shadows.shadow(cell[0], cell[1], cell[2]);
         if (shadow == null) {
             missingCells++;
@@ -157,7 +159,7 @@ public final class ClientMirrorBuilder implements ClientPortalContent {
     }
 
     public boolean sourceChanged(int x, int y, int z, LongArrayList displayOut) {
-        space.displayCell(x, y, z, cell, scratch);
+        transform.cellInto(x, y, z, cell);
         int index = box.index(cell[0], cell[1], cell[2]);
         if (index < 0) {
             return false;

@@ -17,14 +17,14 @@ public final class DoorArrivals
 	{
 	}
 
-	public static DoorVec3 arrivalPoint(DoorwayPlane plane, DoorTransit transit)
+	public static Vec3d arrivalPoint(DoorwayPlane plane, DoorTransit transit)
 	{
 		Objects.requireNonNull(plane, "plane");
 		Objects.requireNonNull(transit, "transit");
 		return arrivalPoint(
 			plane,
 			transit,
-			DoorPlanePairing.arrivalSideSign(transit.sourcePlane(), plane, transit.direction()));
+			DoorPlanePairing.arrivalSideSign(transit.sourcePlane(), plane, transit.entrySideSign()));
 	}
 
 	/**
@@ -33,22 +33,22 @@ public final class DoorArrivals
 	 * the plate for an upward exit and a full body below it for a downward one, so
 	 * a fall keeps falling.
 	 */
-	public static DoorVec3 arrivalPoint(DoorwayPlane plane, DoorTransit transit, int sideSign)
+	public static Vec3d arrivalPoint(DoorwayPlane plane, DoorTransit transit, int sideSign)
 	{
 		Objects.requireNonNull(plane, "plane");
 		Objects.requireNonNull(transit, "transit");
 		if(transit.travelerClass() == DoorTravelerClass.OBJECT)
 		{
-			DoorVec3 aperturePoint = plane.equals(transit.sourcePlane())
+			Vec3d aperturePoint = plane.equals(transit.sourcePlane())
 				? transit.crossing().point()
 				: DoorPlanePairing.mapAperturePoint(transit.sourcePlane(), plane, transit.crossing());
 			if(plane.horizontal())
 			{
 				double y = horizontalArrivalY(plane, transit, sideSign);
-				return new DoorVec3(aperturePoint.x(), y, aperturePoint.z());
+				return new Vec3d(aperturePoint.x(), y, aperturePoint.z());
 			}
 			double offset = arrivalOffset(transit) * sideSign;
-			return new DoorVec3(
+			return new Vec3d(
 				aperturePoint.x() + (plane.normalX() * offset),
 				aperturePoint.y(),
 				aperturePoint.z() + (plane.normalZ() * offset));
@@ -56,19 +56,17 @@ public final class DoorArrivals
 		if(plane.horizontal())
 		{
 			double y = horizontalArrivalY(plane, transit, sideSign);
-			return new DoorVec3(plane.blockX() + 0.5D, y, plane.blockZ() + 0.5D);
+			return new Vec3d(plane.blockX() + 0.5D, y, plane.blockZ() + 0.5D);
 		}
 		return plane.sidePoint(sideSign, arrivalOffset(transit));
 	}
 
-    public static DoorVec3 destinationPoint(DoorwayPlane destination, DoorTransit transit, int sideSign) {
+    public static Vec3d destinationPoint(DoorwayPlane destination, DoorTransit transit, int sideSign) {
         if (transit.preparedCrossing() == null) {
             return arrivalPoint(destination, transit, sideSign);
         }
-        DoorVec3 center = destination.center();
-        Vec3d point = transit.preparedCrossing().outPoint(DoorApertureFrames.destinationFrame(transit.sourcePlane(), destination),
-            new Vec3d(center.x(), center.y(), center.z()));
-        return new DoorVec3(point.x(), point.y(), point.z());
+        return transit.preparedCrossing().outPoint(DoorApertureFrames.destinationFrame(transit.sourcePlane(), destination),
+            destination.center());
     }
 
     public static Facing destinationFacing(DoorwayPlane destination, DoorTransit transit, int sideSign) {
@@ -84,12 +82,11 @@ public final class DoorArrivals
         return new Facing(yaw, (float) Math.toDegrees(Math.atan2(-look.y(), horizontal)));
     }
 
-    public static DoorVec3 destinationVelocity(DoorwayPlane destination, DoorTransit transit, int sideSign) {
+    public static Vec3d destinationVelocity(DoorwayPlane destination, DoorTransit transit, int sideSign) {
         if (transit.preparedCrossing() == null) {
-            return DoorVelocityTransform.mapToSide(destination, transit, transit.velocity(), sideSign);
+            return DoorPlanePairing.mapVectorToSide(destination, transit, transit.velocity(), sideSign);
         }
-        Vec3d velocity = transit.preparedCrossing().outVelocity(DoorApertureFrames.destinationFrame(transit.sourcePlane(), destination));
-        return new DoorVec3(velocity.x(), velocity.y(), velocity.z());
+        return transit.preparedCrossing().outVelocity(DoorApertureFrames.destinationFrame(transit.sourcePlane(), destination));
     }
 
 	private static double horizontalArrivalY(DoorwayPlane plane, DoorTransit transit, int sideSign)
@@ -112,8 +109,8 @@ public final class DoorArrivals
         double yaw = Math.toRadians(transit.yaw());
         double pitch = Math.toRadians(transit.pitch());
         double horizontal = Math.cos(pitch);
-        DoorVec3 look = DoorVelocityTransform.mapToSide(destination, transit,
-            new DoorVec3(-Math.sin(yaw) * horizontal, -Math.sin(pitch), Math.cos(yaw) * horizontal), sideSign);
+        Vec3d look = DoorPlanePairing.mapVectorToSide(destination, transit,
+            new Vec3d(-Math.sin(yaw) * horizontal, -Math.sin(pitch), Math.cos(yaw) * horizontal), sideSign);
         double projectedHorizontal = Math.hypot(look.x(), look.z());
         float targetYaw = projectedHorizontal < 1.0E-10D
             ? source.rotateYawTo(destination, transit.yaw())
@@ -127,24 +124,24 @@ public final class DoorArrivals
     public record Facing(float yaw, float pitch) {
     }
 
-	public static Optional<DoorVec3> findSafeVerticalDoorStanding(
-		DoorVec3 nominal,
-		Predicate<DoorVec3> isSafe)
+	public static Optional<Vec3d> findSafeVerticalDoorStanding(
+		Vec3d nominal,
+		Predicate<Vec3d> isSafe)
 	{
 		return findSafeVerticalDoorStanding(nominal, DoorPlanePairing.DOOR_ARRIVAL_Y_OFFSETS, isSafe);
 	}
 
-	public static Optional<DoorVec3> findSafeVerticalDoorStanding(
-		DoorVec3 nominal,
+	public static Optional<Vec3d> findSafeVerticalDoorStanding(
+		Vec3d nominal,
 		int[] verticalOffsets,
-		Predicate<DoorVec3> isSafe)
+		Predicate<Vec3d> isSafe)
 	{
 		Objects.requireNonNull(nominal, "nominal");
 		Objects.requireNonNull(verticalOffsets, "verticalOffsets");
 		Objects.requireNonNull(isSafe, "isSafe");
 		for(int yOffset : verticalOffsets)
 		{
-			DoorVec3 candidate = new DoorVec3(nominal.x(), nominal.y() + yOffset, nominal.z());
+			Vec3d candidate = new Vec3d(nominal.x(), nominal.y() + yOffset, nominal.z());
 			if(isSafe.test(candidate))
 			{
 				return Optional.of(candidate);
@@ -158,7 +155,7 @@ public final class DoorArrivals
 		return Math.max(ARRIVAL_OFFSET, 0.5D + transit.halfWidth() + DoorwayPlane.PORTAL_RECESS);
 	}
 
-    public static Optional<DoorVec3> findSafeNear(DoorVec3 stored, int radius, Predicate<DoorVec3> safe) {
+    public static Optional<Vec3d> findSafeNear(Vec3d stored, int radius, Predicate<Vec3d> safe) {
         if (safe.test(stored)) {
             return Optional.of(stored);
         }
@@ -172,7 +169,7 @@ public final class DoorArrivals
                         continue;
                     }
                     for (int yOffset : NEAR_Y_OFFSETS) {
-                        DoorVec3 candidate = new DoorVec3(originX + x + 0.5D, originY + yOffset, originZ + z + 0.5D);
+                        Vec3d candidate = new Vec3d(originX + x + 0.5D, originY + yOffset, originZ + z + 0.5D);
                         if (safe.test(candidate)) {
                             return Optional.of(candidate);
                         }

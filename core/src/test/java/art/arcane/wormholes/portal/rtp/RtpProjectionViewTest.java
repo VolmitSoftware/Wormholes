@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+import art.arcane.optics.math.Vec3d;
 
 public final class RtpProjectionViewTest
 {
@@ -89,12 +90,15 @@ public final class RtpProjectionViewTest
 	public void payloadsRejectInvalidWorldGeometryAndCoordinates()
 	{
 		RtpProjectionView.Point3 origin = new RtpProjectionView.Point3(0.0D, 64.0D, 0.0D);
-		RtpProjectionView.Vector3 right = new RtpProjectionView.Vector3(1.0D, 0.0D, 0.0D);
-		RtpProjectionView.Vector3 up = new RtpProjectionView.Vector3(0.0D, 1.0D, 0.0D);
-		RtpProjectionView.Vector3 forward = new RtpProjectionView.Vector3(0.0D, 0.0D, 1.0D);
+		Vec3d right = new Vec3d(1.0D, 0.0D, 0.0D);
+		Vec3d up = new Vec3d(0.0D, 1.0D, 0.0D);
+		Vec3d forward = new Vec3d(0.0D, 0.0D, 1.0D);
 
 		assertThrows(IllegalArgumentException.class, () -> new RtpProjectionView.Point3(Double.NaN, 0.0D, 0.0D));
-		assertThrows(IllegalArgumentException.class, () -> new RtpProjectionView.Vector3(0.0D, Double.POSITIVE_INFINITY, 0.0D));
+		Vec3d infinite = new Vec3d(0.0D, Double.POSITIVE_INFINITY, 0.0D);
+		assertThrows(IllegalArgumentException.class, () -> new RtpProjectionView.SourceFrame("minecraft:overworld", origin, right, infinite,
+				forward, 3.0D, 4.0D, 1L));
+		assertThrows(IllegalArgumentException.class, () -> new RtpProjectionView.Target("minecraft:overworld", origin, infinite, up, forward));
 		assertThrows(IllegalArgumentException.class, () -> new RtpProjectionView.SourceFrame(" ", origin, right, up, forward, 3.0D, 4.0D, 1L));
 		assertThrows(IllegalArgumentException.class, () -> new RtpProjectionView.SourceFrame("minecraft:overworld", origin, right, up, forward, 0.0D, 4.0D, 1L));
 		assertThrows(IllegalArgumentException.class, () -> new RtpProjectionView.Target("", origin, right, up, forward));
@@ -107,9 +111,9 @@ public final class RtpProjectionViewTest
 	private RtpProjectionView.ReadyData readyData(String routeName, long routeRevision, double x, double y, double z)
 	{
 		RtpProjectionView.Point3 sourceCenter = new RtpProjectionView.Point3(8.5D, 65.5D, -2.5D);
-		RtpProjectionView.Vector3 right = new RtpProjectionView.Vector3(1.0D, 0.0D, 0.0D);
-		RtpProjectionView.Vector3 up = new RtpProjectionView.Vector3(0.0D, 1.0D, 0.0D);
-		RtpProjectionView.Vector3 forward = new RtpProjectionView.Vector3(0.0D, 0.0D, 1.0D);
+		Vec3d right = new Vec3d(1.0D, 0.0D, 0.0D);
+		Vec3d up = new Vec3d(0.0D, 1.0D, 0.0D);
+		Vec3d forward = new Vec3d(0.0D, 0.0D, 1.0D);
 		RtpProjectionView.SourceFrame sourceFrame = new RtpProjectionView.SourceFrame(
 				"minecraft:overworld", sourceCenter, right, up, forward, 3.0D, 4.0D, 6L);
 		RtpProjectionView.Target target = new RtpProjectionView.Target(

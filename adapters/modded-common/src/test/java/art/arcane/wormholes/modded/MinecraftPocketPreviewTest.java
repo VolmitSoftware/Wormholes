@@ -13,9 +13,9 @@ import art.arcane.wormholes.door.PocketLayout;
 import art.arcane.wormholes.door.PocketSpace;
 import art.arcane.wormholes.door.PocketCreationDefaults;
 import art.arcane.wormholes.door.PocketRules;
-import art.arcane.wormholes.door.DoorVec3;
 import art.arcane.wormholes.door.ReturnTicket;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.math.Vec3d;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
@@ -190,7 +190,7 @@ public class MinecraftPocketPreviewTest extends MinecraftTestBase {
             MinecraftDoorService.DoorView returnView = new MinecraftDoorService.DoorView(exit, fixture.pocketLevel,
                 new DoorwayPlane(0, 64, 0, Face.S), true);
             MinecraftDoorService.ProjectionDestination destination = fixture.doors.projectionDestination(returnView, observer).orElseThrow();
-            DoorVec3 current = new DoorwayPlane(80, 72, 90, Face.N).center();
+            Vec3d current = new DoorwayPlane(80, 72, 90, Face.N).center();
             assertEquals(current.x(), destination.origin().x(), 0);
             assertEquals(current.y(), destination.origin().y(), 0);
             assertEquals(current.z(), destination.origin().z(), 0);

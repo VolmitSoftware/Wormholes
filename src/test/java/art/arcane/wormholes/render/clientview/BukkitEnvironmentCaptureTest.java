@@ -8,6 +8,8 @@ import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.wormholes.platform.BukkitRegionTaskProvider;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.AxisPermutation;
 import org.bukkit.World;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
@@ -42,8 +44,7 @@ class BukkitEnvironmentCaptureTest {
         CompletableFuture<Boolean> ready = new CompletableFuture<Boolean>();
         when(lease.ready()).thenReturn(ready);
         when(registry.retain(eq(world), eq(worldId), anyInt(), anyInt())).thenReturn(lease);
-        ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(Face.E, Face.U, Face.S,
-            new Vec3d(-128, 0, 0));
+        OpticTransform transform = OpticTransform.of(AxisPermutation.of(Face.E, Face.U, Face.S), -128, 0, 0);
         ProjectionEnvironment environment = mock(ProjectionEnvironment.class);
         when(environment.transform()).thenReturn(transform);
         BukkitEnvironmentCapture.Request request = new BukkitEnvironmentCapture.Request(UUID.randomUUID(), null, UUID.randomUUID(), world,
@@ -74,8 +75,7 @@ class BukkitEnvironmentCaptureTest {
         ChunkLease lease = mock(ChunkLease.class);
         when(lease.ready()).thenReturn(CompletableFuture.completedFuture(false));
         when(registry.retain(any(), any(), anyInt(), anyInt())).thenReturn(lease);
-        ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(Face.E, Face.U, Face.S,
-            new Vec3d(0, 0, 0));
+        OpticTransform transform = OpticTransform.of(AxisPermutation.of(Face.E, Face.U, Face.S), 0, 0, 0);
         BukkitEnvironmentCapture.Request request = new BukkitEnvironmentCapture.Request(UUID.randomUUID(), null, UUID.randomUUID(), world,
             new Vec3d(0, 0, 0), transform, 1);
         try (MockedStatic<BukkitChunkLeaseProvider> provider = mockStatic(BukkitChunkLeaseProvider.class);
@@ -220,8 +220,7 @@ class BukkitEnvironmentCaptureTest {
         CompletableFuture<Boolean> ready = new CompletableFuture<>();
         when(lease.ready()).thenReturn(ready);
         when(registry.retain(any(), any(), anyInt(), anyInt())).thenReturn(lease);
-        ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(Face.E, Face.U, Face.S,
-            new Vec3d(0, 0, 0));
+        OpticTransform transform = OpticTransform.of(AxisPermutation.of(Face.E, Face.U, Face.S), 0, 0, 0);
         BukkitEnvironmentCapture.Request request = new BukkitEnvironmentCapture.Request(UUID.randomUUID(), null, UUID.randomUUID(), world,
             new Vec3d(0, 80, 0), transform, 1L);
         return new Fixture(new BukkitEnvironmentCapture(), request, registry, lease, ready);

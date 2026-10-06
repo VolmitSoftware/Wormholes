@@ -3,6 +3,7 @@ package art.arcane.wormholes.modded.client.render;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.frame.OpticTransform;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import net.minecraft.client.multiplayer.ClientChunkCache;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -46,7 +47,7 @@ public class ClientTravelSceneTest extends MinecraftTestBase {
         ClientViewMessage.TravelWorld world = new ClientViewMessage.TravelWorld("minecraft:overworld", "minecraft:overworld",
             9, false, false, 63, 0, 256);
         when(original.world()).thenReturn(world);
-        ProjectionEnvironment initial = PortalEnvironmentTest.environment(ProjectionEnvironment.Transform.IDENTITY);
+        ProjectionEnvironment initial = PortalEnvironmentTest.environment(OpticTransform.IDENTITY);
         when(original.environment()).thenReturn(initial);
         RenderSectionRegion region = mock(RenderSectionRegion.class);
         try (MockedConstruction<RenderRegionCache> caches = mockConstruction(RenderRegionCache.class,

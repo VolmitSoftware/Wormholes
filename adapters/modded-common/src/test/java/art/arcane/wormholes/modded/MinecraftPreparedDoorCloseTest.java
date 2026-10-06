@@ -3,11 +3,9 @@ package art.arcane.wormholes.modded;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.plate.ChunkLease;
 import art.arcane.wormholes.door.DoorTransit;
-import art.arcane.wormholes.door.DoorwayCrossing;
 import art.arcane.wormholes.door.DoorOpenCycle;
 import art.arcane.wormholes.door.DoorAutoCloseBook;
 import art.arcane.wormholes.door.DoorTravelerClass;
-import art.arcane.wormholes.door.DoorVec3;
 import art.arcane.wormholes.door.view.DoorApertureFrames;
 import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.wormholes.door.DoorItemIdentity;
@@ -90,14 +88,14 @@ public class MinecraftPreparedDoorCloseTest extends MinecraftTestBase {
             DoorItemIdentity.paired(UUID.randomUUID(), UUID.randomUUID(), PairEndpoint.A));
         DoorwayPlane source = new DoorwayPlane(4, 80, 7, Face.W);
         DoorwayPlane destination = new DoorwayPlane(10, 80, 7, Face.W);
-        DoorVec3 center = source.center();
+        Vec3d center = source.center();
         PlaneCrossing crossing = new PlaneCrossing(
             DoorApertureFrames.of(source),
             new Vec3d(center.x(), center.y(), center.z()),
             new Vec3d(center.x() + 0.1D, 80, center.z()),
             new Vec3d(0.2D, 0, 0),
             new Vec3d(1, 0, 0), true);
-        DoorTransit transit = new DoorTransit(source, new DoorwayCrossing(center, 1, 0, 0, DoorwayCrossing.Direction.FRONT_TO_BACK),
+        DoorTransit transit = new DoorTransit(source, source.crossingAt(center, new Vec3d(0.0D, 0.0D, 0.0D), true),
             -90, 0, 0.3D, 1.8D, DoorTravelerClass.LIVING, null, crossing);
         Class<?> activeType = Class.forName(MinecraftDoorService.class.getName() + "$ActiveDoor");
         Constructor<?> activeConstructor = activeType.getDeclaredConstructor(PlacedDoorEndpoint.class);
@@ -126,7 +124,7 @@ public class MinecraftPreparedDoorCloseTest extends MinecraftTestBase {
         PlacedDoorEndpoint endpoint = new PlacedDoorEndpoint(new DoorPosition(UUID.randomUUID(), "minecraft:overworld", 4, 80, 7),
             DoorItemIdentity.paired(UUID.randomUUID(), UUID.randomUUID(), PairEndpoint.A));
         DoorwayPlane plane = new DoorwayPlane(4, 80, 7, Face.W);
-        DoorTransit transit = new DoorTransit(plane, DoorwayCrossing.Direction.FRONT_TO_BACK, 0, 0);
+        DoorTransit transit = new DoorTransit(plane, true, 0, 0);
         Class<?> activeType = Class.forName(MinecraftDoorService.class.getName() + "$ActiveDoor");
         Constructor<?> activeConstructor = activeType.getDeclaredConstructor(PlacedDoorEndpoint.class);
         activeConstructor.setAccessible(true);

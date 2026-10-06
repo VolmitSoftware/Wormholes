@@ -4,6 +4,7 @@ import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.platform.BukkitRegionTaskProvider;
 import art.arcane.wormholes.platform.WormholesPlatform;
+import art.arcane.optics.math.Vec3d;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
@@ -393,7 +394,7 @@ final class DoorEntitySweep implements AutoCloseable
 
 	private Routes routes(ChunkSweep chunkSweep)
 	{
-		List<DoorVec3> centers = new ArrayList<>(chunkSweep.doors().size());
+		List<Vec3d> centers = new ArrayList<>(chunkSweep.doors().size());
 		Map<ChunkKey, Boolean> ownership = new HashMap<>();
 		ownership.put(chunkSweep.key(), Boolean.TRUE);
 		DoorwayPlane clipped = null;
@@ -424,7 +425,7 @@ final class DoorEntitySweep implements AutoCloseable
 				}
 				continue;
 			}
-			DoorVec3 center = currentPlane.equals(door.plane())
+			Vec3d center = currentPlane.equals(door.plane())
 				? door.center()
 				: currentPlane.center();
 			if(contains(span(center), chunkSweep.key()))
@@ -447,7 +448,7 @@ final class DoorEntitySweep implements AutoCloseable
 		return null;
 	}
 
-	private void feed(MovementSink movementSink, List<DoorVec3> centers, Entity candidate)
+	private void feed(MovementSink movementSink, List<Vec3d> centers, Entity candidate)
 	{
 		try
 		{
@@ -549,7 +550,7 @@ final class DoorEntitySweep implements AutoCloseable
 		return plane != null && cycle != null && chunkLoaded && cycle.portalActive();
 	}
 
-	static ChunkSpan span(DoorVec3 center)
+	static ChunkSpan span(Vec3d center)
 	{
 		return new ChunkSpan(
 			chunkOf(center.x() - HORIZONTAL_REACH),
@@ -558,7 +559,7 @@ final class DoorEntitySweep implements AutoCloseable
 			chunkOf(center.z() + HORIZONTAL_REACH));
 	}
 
-	static boolean withinReach(DoorVec3 center, double x, double y, double z)
+	static boolean withinReach(Vec3d center, double x, double y, double z)
 	{
 		return Math.abs(x - center.x()) <= HORIZONTAL_REACH
 			&& Math.abs(y - center.y()) <= VERTICAL_REACH
@@ -609,9 +610,9 @@ final class DoorEntitySweep implements AutoCloseable
 			+ "; objects approaching from the far side are not swept");
 	}
 
-	private static boolean withinReach(List<DoorVec3> centers, double x, double y, double z)
+	private static boolean withinReach(List<Vec3d> centers, double x, double y, double z)
 	{
-		for(DoorVec3 center : centers)
+		for(Vec3d center : centers)
 		{
 			if(withinReach(center, x, y, z))
 			{
@@ -651,7 +652,7 @@ final class DoorEntitySweep implements AutoCloseable
 		RuntimeDoor runtime,
 		World world,
 		DoorwayPlane plane,
-		DoorVec3 center,
+		Vec3d center,
 		ChunkKey origin,
 		List<ChunkKey> targets)
 	{
@@ -668,7 +669,7 @@ final class DoorEntitySweep implements AutoCloseable
 
 		private static ActiveDoor create(UUID doorId, RuntimeDoor runtime, World world, DoorwayPlane plane)
 		{
-			DoorVec3 center = plane.center();
+			Vec3d center = plane.center();
 			ChunkSpan span = span(center);
 			UUID worldId = world.getUID();
 			List<ChunkKey> targets = new ArrayList<>(
@@ -717,7 +718,7 @@ final class DoorEntitySweep implements AutoCloseable
 		}
 	}
 
-	private record Routes(List<DoorVec3> centers, DoorwayPlane clipped)
+	private record Routes(List<Vec3d> centers, DoorwayPlane clipped)
 	{
 		private Routes
 		{

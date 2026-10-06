@@ -1,8 +1,8 @@
 package art.arcane.wormholes.modded.client;
 
-import art.arcane.optics.math.Vec3d;
-import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.AxisPermutation;
 import net.minecraft.world.phys.Vec3;
 import org.junit.Test;
 
@@ -12,8 +12,7 @@ import static org.junit.Assert.assertNotSame;
 public class ClientTravelMotionTest {
     @Test
     public void continuousPositionsHistoryAndVelocityUseTheSameInverseTransform() {
-        ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(Face.S, Face.U, Face.W,
-            new Vec3d(100, 20, 200));
+        OpticTransform transform = OpticTransform.of(AxisPermutation.of(Face.S, Face.U, Face.W), 100, 20, 200);
         ClientTravelMotion source = motion(30, 28);
         ClientTravelMotion destination = source.transform(transform);
         assertEquals(new Vec3(6, 3, -2), destination.position());
@@ -28,11 +27,10 @@ public class ClientTravelMotionTest {
     @Test
     public void identityAndRotatedCrossingsPreserveYawInterpolationAcrossTheWrap() {
         ClientTravelMotion source = motion(181, 179);
-        ClientTravelMotion identity = source.transform(ProjectionEnvironment.Transform.IDENTITY);
+        ClientTravelMotion identity = source.transform(OpticTransform.IDENTITY);
         assertEquals(181, identity.rotation().yaw(), 0.00001);
         assertEquals(179, identity.previousRotation().yaw(), 0.00001);
-        ClientTravelMotion rotated = source.transform(new ProjectionEnvironment.Transform(Face.S, Face.U, Face.W,
-            new Vec3d(0, 0, 0)));
+        ClientTravelMotion rotated = source.transform(OpticTransform.of(AxisPermutation.of(Face.S, Face.U, Face.W), 0, 0, 0));
         assertEquals(2, rotated.rotation().yaw() - rotated.previousRotation().yaw(), 0.0001);
         assertEquals(2, rotated.bodyYaw() - rotated.previousBodyYaw(), 0.0001);
         assertEquals(2, rotated.headYaw() - rotated.previousHeadYaw(), 0.0001);

@@ -4,6 +4,7 @@ import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.frame.OpticTransform;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -61,7 +62,7 @@ public final class ClientTravelScene implements PortalScene {
 
     public void rebind(ClientViewMessage.TravelBegin begin) {
         if (!travelWorld.equals(begin.world()) || !chunks.equals(new HashSet<>(begin.chunks()))
-            || !ProjectionEnvironment.Transform.IDENTITY.equals(begin.environment().transform())) {
+            || !OpticTransform.IDENTITY.equals(begin.environment().transform())) {
             throw new IllegalArgumentException("Prepared return snapshot identity differs");
         }
         environment = begin.environment();

@@ -132,8 +132,8 @@ public final class DoorProjectionProvider implements ProjectionManager.RtpProjec
             vector(frame.getNormal().reverse()));
     }
 
-    private static RtpProjectionView.Vector3 vector(Face direction) {
-        return new RtpProjectionView.Vector3(direction.x(), direction.y(), direction.z());
+    private static Vec3d vector(Face direction) {
+        return new Vec3d(direction.x(), direction.y(), direction.z());
     }
 
     private static ProjectionManager.RtpProjectionResult suppressed(UUID observerId) {

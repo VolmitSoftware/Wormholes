@@ -8,6 +8,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.optics.math.Face;
+import art.arcane.optics.math.Vec3d;
 
 public final class PortalProjectorFrameTransformTest {
     private static final Face[] NORMALS = new Face[] {
@@ -49,25 +50,47 @@ public final class PortalProjectorFrameTransformTest {
                                              double y,
                                              double z,
                                              double[] out3) {
+        int coherent = QuarterTurn.of(quarterTurns).coherentFor(frame).getQuarterTurns();
         double[] scratch = new double[3];
         double offsetX = x - originX;
         double offsetY = y - originY;
         double offsetZ = z - originZ;
-        PortalCoordMap.mirrorDisplayToSourceVectorInto(1.0D, 0.0D, 0.0D, frame, quarterTurns, scratch);
+        reflect(1.0D, 0.0D, 0.0D, frame, -coherent, scratch);
         double xx = scratch[0];
         double yx = scratch[1];
         double zx = scratch[2];
-        PortalCoordMap.mirrorDisplayToSourceVectorInto(0.0D, 1.0D, 0.0D, frame, quarterTurns, scratch);
+        reflect(0.0D, 1.0D, 0.0D, frame, -coherent, scratch);
         double xy = scratch[0];
         double yy = scratch[1];
         double zy = scratch[2];
-        PortalCoordMap.mirrorDisplayToSourceVectorInto(0.0D, 0.0D, 1.0D, frame, quarterTurns, scratch);
+        reflect(0.0D, 0.0D, 1.0D, frame, -coherent, scratch);
         double xz = scratch[0];
         double yz = scratch[1];
         double zz = scratch[2];
         out3[0] = originX + (offsetX * xx) + (offsetY * xy) + (offsetZ * xz);
         out3[1] = originY + (offsetX * yx) + (offsetY * yy) + (offsetZ * yz);
         out3[2] = originZ + (offsetX * zx) + (offsetY * zy) + (offsetZ * zz);
+    }
+
+    private static void reflect(double x, double y, double z, Frame frame, int quarterTurns, double[] out3) {
+        double right = (x * frame.getRight().x()) + (y * frame.getRight().y()) + (z * frame.getRight().z());
+        double up = (x * frame.getUp().x()) + (y * frame.getUp().y()) + (z * frame.getUp().z());
+        double normal = (x * frame.getNormal().x()) + (y * frame.getNormal().y()) + (z * frame.getNormal().z());
+        double rotatedRight = switch (Math.floorMod(quarterTurns, 4)) {
+            case 1 -> up;
+            case 2 -> -right;
+            case 3 -> -up;
+            default -> right;
+        };
+        double rotatedUp = switch (Math.floorMod(quarterTurns, 4)) {
+            case 1 -> -right;
+            case 2 -> -up;
+            case 3 -> right;
+            default -> up;
+        };
+        out3[0] = (rotatedRight * frame.getRight().x()) + (rotatedUp * frame.getUp().x()) - (normal * frame.getNormal().x());
+        out3[1] = (rotatedRight * frame.getRight().y()) + (rotatedUp * frame.getUp().y()) - (normal * frame.getNormal().y());
+        out3[2] = (rotatedRight * frame.getRight().z()) + (rotatedUp * frame.getUp().z()) - (normal * frame.getNormal().z());
     }
 
     private static void assertSameBlock(double[] expected, double[] actual, String context) {
@@ -82,15 +105,14 @@ public final class PortalProjectorFrameTransformTest {
     public void hoistedTransformMatchesTheFrameProjectionForEveryCardinalFramePair() {
         double[] expected = new double[3];
         double[] actual = new double[3];
-        ProjectorFrameTransform transform = new ProjectorFrameTransform();
         for (Frame from : frames()) {
             for (Frame to : frames()) {
-                transform.configure(from, to, 12.5D, 64.5D, -3.5D, -220.5D, 71.5D, 811.5D);
+                OpticTransform transform = OpticTransform.between(from, 12.5D, 64.5D, -3.5D, to, -220.5D, 71.5D, 811.5D);
                 for (double x : SAMPLE_COORDS) {
                     for (double y : SAMPLE_COORDS) {
                         for (double z : SAMPLE_COORDS) {
                             referenceApply(from, to, 12.5D, 64.5D, -3.5D, -220.5D, 71.5D, 811.5D, x, y, z, expected);
-                            transform.apply(x, y, z, actual);
+                            transform.snappedPointInto(x, y, z, actual);
                             assertSameBlock(expected, actual, from + "->" + to + " at " + x + "," + y + "," + z);
                         }
                     }
@@ -103,15 +125,14 @@ public final class PortalProjectorFrameTransformTest {
     public void hoistedMirrorTransformMatchesTheMirrorProjectionForEveryRotation() {
         double[] expected = new double[3];
         double[] actual = new double[3];
-        ProjectorFrameTransform transform = new ProjectorFrameTransform();
         for (Frame frame : frames()) {
             for (int quarterTurns = -4; quarterTurns < 8; quarterTurns++) {
-                transform.configureMirror(frame, quarterTurns, 12.5D, 64.5D, -3.5D);
+                OpticTransform transform = OpticTransform.mirror(frame, new Vec3d(12.5D, 64.5D, -3.5D), QuarterTurn.of(quarterTurns)).inverse();
                 for (double x : SAMPLE_COORDS) {
                     for (double y : SAMPLE_COORDS) {
                         for (double z : SAMPLE_COORDS) {
                             referenceMirrorApply(frame, quarterTurns, 12.5D, 64.5D, -3.5D, x, y, z, expected);
-                            transform.apply(x, y, z, actual);
+                            transform.snappedPointInto(x, y, z, actual);
                             assertSameBlock(expected, actual, frame + " turns=" + quarterTurns + " at " + x + "," + y + "," + z);
                         }
                     }
@@ -121,50 +142,42 @@ public final class PortalProjectorFrameTransformTest {
     }
 
     @Test
-    public void reconfiguringSwitchesBetweenMirrorAndFrameTransformsCleanly() {
+    public void mirrorAndFrameTransformsMapTheSameSampleIndependently() {
         double[] expected = new double[3];
         double[] actual = new double[3];
         Frame from = Frame.canonical(Face.N);
         Frame to = Frame.canonical(Face.E);
-        ProjectorFrameTransform transform = new ProjectorFrameTransform();
 
-        transform.configureMirror(from, 1, 4.5D, 70.5D, 9.5D);
+        OpticTransform mirror = OpticTransform.mirror(from, new Vec3d(4.5D, 70.5D, 9.5D), QuarterTurn.DEGREES_90).inverse();
         referenceMirrorApply(from, 1, 4.5D, 70.5D, 9.5D, 11.5D, 74.5D, 2.5D, expected);
-        transform.apply(11.5D, 74.5D, 2.5D, actual);
+        mirror.snappedPointInto(11.5D, 74.5D, 2.5D, actual);
         assertSameBlock(expected, actual, "mirror pass");
 
-        transform.configure(from, to, 4.5D, 70.5D, 9.5D, -60.5D, 12.5D, 300.5D);
+        OpticTransform frame = OpticTransform.between(from, 4.5D, 70.5D, 9.5D, to, -60.5D, 12.5D, 300.5D);
         referenceApply(from, to, 4.5D, 70.5D, 9.5D, -60.5D, 12.5D, 300.5D, 11.5D, 74.5D, 2.5D, expected);
-        transform.apply(11.5D, 74.5D, 2.5D, actual);
+        frame.snappedPointInto(11.5D, 74.5D, 2.5D, actual);
         assertSameBlock(expected, actual, "frame pass after mirror");
     }
 
     @Test
     public void realPortalCenterOffsetsDoNotFloorAnExactBoundaryIntoThePreviousBlock() {
         Frame frame = Frame.canonical(Face.N);
-        ProjectorFrameTransform transform = new ProjectorFrameTransform();
         double[] actual = new double[3];
-        transform.configure(frame, frame,
-            1.9995D, 66.4995D, 0.9995D,
-            0.4995D, 66.4995D, 0.9995D);
+        OpticTransform transform = OpticTransform.between(frame, 1.9995D, 66.4995D, 0.9995D, frame, 0.4995D, 66.4995D, 0.9995D);
 
-        transform.apply(4.5D, 70.5D, -3.5D, actual);
+        transform.snappedPointInto(4.5D, 70.5D, -3.5D, actual);
 
         assertEquals(3.0D, actual[0], 0.0D);
         assertEquals(3, (int) Math.floor(actual[0]));
 
-        transform.configure(frame, frame,
-            -1.0005D, 66.4995D, 0.9995D,
-            -2.5005D, 66.4995D, 0.9995D);
-        transform.apply(1.5D, 70.5D, -3.5D, actual);
+        transform = OpticTransform.between(frame, -1.0005D, 66.4995D, 0.9995D, frame, -2.5005D, 66.4995D, 0.9995D);
+        transform.snappedPointInto(1.5D, 70.5D, -3.5D, actual);
 
         assertEquals(0.0D, actual[0], 0.0D);
         assertEquals(0, (int) Math.floor(actual[0]));
 
-        transform.configure(frame, frame,
-            9_349_874.9995D, 64.4995D, 0.4995D,
-            -16_777_220.5005D, 64.4995D, 0.4995D);
-        transform.apply(9_349_898.5D, 64.5D, 0.5D, actual);
+        transform = OpticTransform.between(frame, 9_349_874.9995D, 64.4995D, 0.4995D, frame, -16_777_220.5005D, 64.4995D, 0.4995D);
+        transform.snappedPointInto(9_349_898.5D, 64.5D, 0.5D, actual);
 
         assertEquals(-16_777_197.0D, actual[0], 0.0D);
         assertEquals(-16_777_197, (int) Math.floor(actual[0]));
@@ -172,14 +185,18 @@ public final class PortalProjectorFrameTransformTest {
 
     @Test
     public void snappingPreservesCoordinatesOutsideTheBoundaryTolerance() {
-        double tolerance = ProjectorFrameTransform.coordinateSnapTolerance(0.0D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D);
+        OpticTransform transform = OpticTransform.IDENTITY;
+        double tolerance = transform.snapTolerance();
+        double[] actual = new double[3];
         for (double boundary : new double[] {-12.0D, 0.0D, 12.0D}) {
-            assertEquals(boundary, ProjectorFrameTransform.snapNearInteger(boundary - tolerance * 0.5D, tolerance), 0.0D);
-            assertEquals(boundary, ProjectorFrameTransform.snapNearInteger(boundary + tolerance * 0.5D, tolerance), 0.0D);
+            transform.snappedPointInto(boundary - tolerance * 0.5D, boundary + tolerance * 0.5D, boundary, actual);
+            assertEquals(boundary, actual[0], 0.0D);
+            assertEquals(boundary, actual[1], 0.0D);
             double below = boundary - tolerance * 2.0D;
             double above = boundary + tolerance * 2.0D;
-            assertEquals(below, ProjectorFrameTransform.snapNearInteger(below, tolerance), 0.0D);
-            assertEquals(above, ProjectorFrameTransform.snapNearInteger(above, tolerance), 0.0D);
+            transform.snappedPointInto(below, above, boundary, actual);
+            assertEquals(below, actual[0], 0.0D);
+            assertEquals(above, actual[1], 0.0D);
         }
     }
 

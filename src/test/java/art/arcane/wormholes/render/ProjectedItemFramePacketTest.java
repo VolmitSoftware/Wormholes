@@ -37,10 +37,12 @@ import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.optics.entity.MapSnapshot;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.OpticTransform;
 import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.wormholes.render.view.ProjectionEntityView;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.entity.SnapshotProjector;
 import art.arcane.optics.entity.SpoofRegistry;
 import art.arcane.optics.volume.ViewVolume;
@@ -124,18 +126,8 @@ public final class ProjectedItemFramePacketTest {
             EntitySnapshot.EMPTY, EntitySnapshot.EMPTY, mapData,
             0);
         ProjectionEntityView view = entityView(entityId, filledMap);
-        return projector.projectSnapshotVisual(
-            observer,
-            localPortal,
-            0.0D, 0.0D, 0.0D,
-            localFrame,
-            remoteFrame,
-            frustum,
-            view,
-            visual,
-            false,
-            false,
-            0, null);
+        OpticTransform transform = OpticTransform.between(remoteFrame, new Vec3d(0.0D, 0.0D, 0.0D), localFrame, localPortal.getOrigin());
+        return projector.projectSnapshotVisual(observer, transform, frustum, view, visual, false, null);
     }
 
     private static ProjectionEntityView entityView(UUID entityId, boolean filledMap) {

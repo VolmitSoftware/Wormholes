@@ -20,7 +20,8 @@ import org.bukkit.block.data.type.Wall;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.frame.DirectionMapping;
-import art.arcane.optics.frame.PortalCoordMap;
+import art.arcane.optics.frame.AxisPermutation;
+import art.arcane.optics.frame.QuarterTurn;
 
 public final class ProjectedBlockDataTransformer {
     private static final BlockFace[] HORIZONTAL_FACES = {
@@ -208,8 +209,7 @@ public final class ProjectedBlockDataTransformer {
     }
 
     static Face mirrorDirection(Face source, Frame frame, int quarterTurns, double[] scratch3) {
-        PortalCoordMap.mirrorSourceToDisplayVectorInto(source.x(), source.y(), source.z(), frame, quarterTurns, scratch3);
-        return Face.closest(scratch3[0], scratch3[1], scratch3[2]);
+        return AxisPermutation.mirror(frame, QuarterTurn.of(quarterTurns)).face(source);
     }
 
     private static Face directionForAxis(Axis axis) {

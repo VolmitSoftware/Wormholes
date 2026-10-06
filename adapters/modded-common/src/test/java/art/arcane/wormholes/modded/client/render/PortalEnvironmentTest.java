@@ -3,6 +3,8 @@ package art.arcane.wormholes.modded.client.render;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.AxisPermutation;
 import net.minecraft.client.renderer.fog.FogData;
 import net.minecraft.client.renderer.state.LightmapRenderState;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
@@ -65,18 +67,17 @@ public class PortalEnvironmentTest {
 
     @Test
     public void skyDirectionUsesTheSameSignedAxesAsDestinationGeometry() {
-        ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(Face.U, Face.E, Face.S,
-            new Vec3d(100, 200, 300));
+        OpticTransform transform = OpticTransform.of(AxisPermutation.of(Face.U, Face.E, Face.S), 100, 200, 300);
         Vector3f mapped = PortalProjection.rotation(transform).transformDirection(new Vector3f(2, 3, 4));
         assertEquals(new Vector3f(3, 2, 4), mapped);
-        assertEquals(new Vec3d(2, 3, 4), transform.destinationPoint(103, 202, 304));
+        assertEquals(new Vec3d(2, 3, 4), transform.inverse().point(new Vec3d(103, 202, 304)));
     }
 
-    public static ProjectionEnvironment.Transform identity() {
-        return new ProjectionEnvironment.Transform(Face.E, Face.U, Face.S, new Vec3d(0, 0, 0));
+    public static OpticTransform identity() {
+        return OpticTransform.of(AxisPermutation.of(Face.E, Face.U, Face.S), 0, 0, 0);
     }
 
-    public static ProjectionEnvironment environment(ProjectionEnvironment.Transform transform) {
+    public static ProjectionEnvironment environment(OpticTransform transform) {
         ProjectionEnvironment.Color sky = new ProjectionEnvironment.Color(0.2f, 0.4f, 0.8f);
         ProjectionEnvironment.Color white = new ProjectionEnvironment.Color(1, 1, 1);
         return new ProjectionEnvironment(6000,

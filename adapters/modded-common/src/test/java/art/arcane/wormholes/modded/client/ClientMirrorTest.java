@@ -14,7 +14,8 @@ import art.arcane.optics.stream.ClientViewProtocolException;
 import art.arcane.optics.stream.PlateSectionBox;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.DirectionMapping;
-import art.arcane.optics.frame.PortalCoordMap;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.aperture.ApertureDescriptor;
@@ -224,8 +225,7 @@ public class ClientMirrorTest {
         Frame frame = geometry.frame();
         double[] out = new double[3];
         Vec3d origin = geometry.apertureArea().center();
-        PortalCoordMap.mirrorDisplayToSourcePointInto(x + 0.5D, y + 0.5D, z + 0.5D, origin.getX(), origin.getY(), origin.getZ(), frame,
-            geometry.mirrorQuarterTurns(), out);
+        OpticTransform.mirror(frame, origin, QuarterTurn.of(geometry.mirrorQuarterTurns())).inverse().pointInto(x + 0.5D, y + 0.5D, z + 0.5D, out);
         return new int[] {(int) Math.floor(out[0]), (int) Math.floor(out[1]), (int) Math.floor(out[2])};
     }
 

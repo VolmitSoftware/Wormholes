@@ -3,7 +3,7 @@ package art.arcane.optics.plate;
 import art.arcane.optics.stream.BrickLightSource;
 import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.optics.frame.Frame;
-import art.arcane.optics.frame.ProjectorFrameTransform;
+import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.view.ContentView;
 import art.arcane.optics.math.Face;
 import org.junit.jupiter.api.Test;
@@ -22,9 +22,8 @@ final class PlateEnvironmentTest {
         ContentView<String, String> view = mock(ContentView.class);
         when(view.sampleBiome(anyInt(), anyInt(), anyInt())).thenAnswer(call -> (int) call.getArgument(0) < 0 ? "test:west" : "test:east");
         when(view.getLight(anyInt(), anyInt(), anyInt())).thenAnswer(call -> ContentView.packLight(13, (int) call.getArgument(1) & 15));
-        ProjectorFrameTransform transform = new ProjectorFrameTransform();
         Frame frame = Frame.canonical(Face.N);
-        transform.configure(frame, frame, 0, 0, 0, -8, 0, 0);
+        OpticTransform transform = OpticTransform.between(frame, 0, 0, 0, frame, -8, 0, 0);
         PlateEnvironment environment = PlateEnvironment.capture(new PlateBox(0, -16, 0, 16, 16, 16), transform, view);
         assertNotNull(environment);
         assertTrue(environment.bytes() < 4096, "uniform sky must not retain a full light channel");
@@ -47,9 +46,8 @@ final class PlateEnvironmentTest {
         ContentView<String, String> view = mock(ContentView.class);
         when(view.sampleBiome(anyInt(), anyInt(), anyInt())).thenAnswer(call -> (int) call.getArgument(1) < 0 ? "test:below" : "test:above");
         when(view.getLight(anyInt(), anyInt(), anyInt())).thenReturn(ContentView.packLight(15, 0));
-        ProjectorFrameTransform transform = new ProjectorFrameTransform();
         Frame frame = Frame.canonical(Face.N);
-        transform.configure(frame, frame, 0, 0, 0, 0, 0, 0);
+        OpticTransform transform = OpticTransform.between(frame, 0, 0, 0, frame, 0, 0, 0);
         PlateEnvironment environment = PlateEnvironment.capture(new PlateBox(0, 0, 0, 16, 16, 16), transform, view);
         assertNotNull(environment);
         when(view.sampleBiome(anyInt(), anyInt(), anyInt())).thenThrow(new IllegalStateException("unloaded"));
@@ -64,9 +62,8 @@ final class PlateEnvironmentTest {
     @Test
     void missingDestinationSamplesCannotCreatePartialEnvironment() {
         ContentView<String, String> view = mock(ContentView.class);
-        ProjectorFrameTransform transform = new ProjectorFrameTransform();
         Frame frame = Frame.canonical(Face.N);
-        transform.configure(frame, frame, 0, 0, 0, 0, 0, 0);
+        OpticTransform transform = OpticTransform.between(frame, 0, 0, 0, frame, 0, 0, 0);
         PlateBox box = new PlateBox(0, 0, 0, 16, 16, 16);
         assertNull(PlateEnvironment.capture(box, transform, view));
         when(view.sampleBiome(anyInt(), anyInt(), anyInt())).thenReturn("test:plains");

@@ -21,6 +21,7 @@ import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.platform.BukkitRegionTaskProvider;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.optics.crossing.PlaneCrossing;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.render.clientview.BukkitClientView;
 import art.arcane.wormholes.render.clientview.ClientViewEffects;
 import art.arcane.wormholes.service.WormholesAudience;
@@ -1742,7 +1743,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		}
 		VanillaDoorSnapshot snapshot = captured.get();
 		runtime.update(snapshot);
-		Optional<DoorwayCrossing> entry = DoorTransitGate.prepared(snapshot.plane(), crossing, player.getWidth() / 2.0D, player.getHeight());
+		Optional<PlaneCrossing> entry = DoorTransitGate.prepared(snapshot.plane(), crossing, player.getWidth() / 2.0D, player.getHeight());
 		if(entry.isEmpty())
 		{
 			return false;
@@ -1750,7 +1751,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		Location location = player.getLocation();
 		DoorTransit transit = new DoorTransit(snapshot.plane(), entry.get(), location.getYaw(), location.getPitch(),
 			player.getWidth() / 2.0D, player.getHeight(), DoorTravelerClass.LIVING,
-			new DoorVec3(crossing.velocity().x(), crossing.velocity().y(), crossing.velocity().z()), crossing);
+			new Vec3d(crossing.velocity().x(), crossing.velocity().y(), crossing.velocity().z()), crossing);
 		deferredCrossings.remove(travelerId);
 		dispatchCrossing(new DoorTransitAttempt(player, travelerId, world, runtime, snapshot, transit));
 		return true;
@@ -1805,16 +1806,16 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		Location toLocation,
 		List<DoorSpatialIndex.Entry<RuntimeDoor>> candidates)
 	{
-		DoorVec3 from = vector(fromLocation);
-		DoorVec3 to = vector(toLocation);
+		Vec3d from = vector(fromLocation);
+		Vec3d to = vector(toLocation);
 		double travelerHalfWidth = traveler.getWidth() / 2.0D;
 		double travelerHeight = traveler.getHeight();
 		DoorTravelerClass travelerClass = travelerClass(traveler);
-		DoorVec3 velocity = travelerClass == DoorTravelerClass.OBJECT ? momentum(traveler) : null;
+		Vec3d velocity = travelerClass == DoorTravelerClass.OBJECT ? momentum(traveler) : null;
 		for(DoorSpatialIndex.Entry<RuntimeDoor> indexed : candidates)
 		{
 			RuntimeDoor runtime = indexed.value();
-			Optional<DoorwayCrossing> crossing = DoorTransitGate.detect(
+			Optional<PlaneCrossing> crossing = DoorTransitGate.detect(
 				runtime.plane(), from, to, travelerHalfWidth, travelerHeight);
 			if(crossing.isEmpty())
 			{
@@ -1839,7 +1840,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 			}
 			VanillaDoorSnapshot crossingSnapshot = captured.get();
 			runtime.update(crossingSnapshot);
-			Optional<DoorwayCrossing> liveCrossing = DoorTransitGate.detect(
+			Optional<PlaneCrossing> liveCrossing = DoorTransitGate.detect(
 				crossingSnapshot.plane(), from, to, travelerHalfWidth, travelerHeight);
 			if(liveCrossing.isEmpty() || !crossingSnapshot.portalLive())
 			{
@@ -1960,9 +1961,9 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		return held == null || held.getType() == Material.AIR || held.getAmount() <= 0;
 	}
 
-	private static DoorVec3 vector(Location location)
+	private static Vec3d vector(Location location)
 	{
-		return new DoorVec3(location.getX(), location.getY(), location.getZ());
+		return new Vec3d(location.getX(), location.getY(), location.getZ());
 	}
 
 	private static DoorTravelerClass travelerClass(Entity traveler)
@@ -1972,7 +1973,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 			: DoorTravelerClass.OBJECT;
 	}
 
-	private static DoorVec3 momentum(Entity traveler)
+	private static Vec3d momentum(Entity traveler)
 	{
 		Vector velocity;
 		try
@@ -1990,7 +1991,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		{
 			return null;
 		}
-		return new DoorVec3(velocity.getX(), velocity.getY(), velocity.getZ());
+		return new Vec3d(velocity.getX(), velocity.getY(), velocity.getZ());
 	}
 
 	private static boolean hasChangedPosition(Location from, Location to)

@@ -1,8 +1,10 @@
 package art.arcane.optics.stream;
 
-import art.arcane.optics.math.Vec3d;
-import art.arcane.optics.math.Face;
 
+
+
+
+import art.arcane.optics.frame.OpticTransform;
 public final class ProjectionEnvironmentCodec {
     private ProjectionEnvironmentCodec() {
     }
@@ -36,13 +38,7 @@ public final class ProjectionEnvironmentCodec {
         rgb(out, light.ambient());
         rgba(out, value.clouds().color());
         out.f32(value.clouds().height());
-        ProjectionEnvironment.Transform transform = value.transform();
-        out.u8(transform.xAxis().ordinal());
-        out.u8(transform.yAxis().ordinal());
-        out.u8(transform.zAxis().ordinal());
-        out.f64(transform.translation().x());
-        out.f64(transform.translation().y());
-        out.f64(transform.translation().z());
+        writeTransform(out, value.transform());
         ProjectionEnvironment.Dimension dimension = value.dimension();
         out.i32(dimension.minY());
         out.i32(dimension.height());
@@ -72,9 +68,7 @@ public final class ProjectionEnvironmentCodec {
                 in.f32(), in.f32());
             ProjectionEnvironment.Lighting lighting = new ProjectionEnvironment.Lighting(rgb(in), in.f32(), rgb(in), rgb(in));
             ProjectionEnvironment.Clouds clouds = new ProjectionEnvironment.Clouds(rgba(in), in.f32());
-            ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(enumValue(Face.values(), in.u8()),
-                enumValue(Face.values(), in.u8()), enumValue(Face.values(), in.u8()),
-                new Vec3d(in.f64(), in.f64(), in.f64()));
+            OpticTransform transform = readTransform(in);
             ProjectionEnvironment.Dimension dimension = new ProjectionEnvironment.Dimension(in.i32(), in.i32(), bool(in),
                 enumValue(ProjectionEnvironment.CardinalLighting.values(), in.u8()), in.f64(), bool(in));
             ProjectionEnvironment.World world = new ProjectionEnvironment.World(in.string(), in.i64(), in.string(), in.i32(), in.u8(), in.u8(), in.i32(), bool(in), in.f32(),
@@ -82,6 +76,19 @@ public final class ProjectionEnvironmentCodec {
             return new ProjectionEnvironment(gameTime, sky, fog, lighting, clouds, transform, dimension, world);
         } catch (IllegalArgumentException exception) {
             throw new ClientViewProtocolException("Invalid destination environment", exception);
+        }
+    }
+
+    public static void writeTransform(ClientViewWriter out, OpticTransform transform) {
+        out.bytes(transform.encode());
+    }
+
+    public static OpticTransform readTransform(ClientViewReader in) throws ClientViewProtocolException {
+        byte[] encoded = in.bytes(OpticTransform.ENCODED_BYTES);
+        try {
+            return OpticTransform.decode(encoded);
+        } catch (IllegalArgumentException exception) {
+            throw new ClientViewProtocolException("Invalid environment transform", exception);
         }
     }
 

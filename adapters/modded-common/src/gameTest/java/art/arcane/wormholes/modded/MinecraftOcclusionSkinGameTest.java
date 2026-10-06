@@ -4,12 +4,12 @@ import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.mixin.DoorDisplayDataAccess;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
-import art.arcane.optics.frame.PortalCoordMap;
 import art.arcane.optics.claim.ProjectedBlockClaim;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.claim.ProjectionClaimSet;
 import art.arcane.optics.view.ContentView;
 import art.arcane.optics.math.Box;
+import art.arcane.optics.frame.OpticTransform;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -167,8 +167,8 @@ public final class MinecraftOcclusionSkinGameTest {
         Vec3d from = source.getOrigin();
         Vec3d to = destination.getOrigin();
         double[] transformed = new double[3];
-        PortalCoordMap.transformPointInto(local.getX() + 0.5D, local.getY() + 0.5D, local.getZ() + 0.5D, from.x(), from.y(), from.z(),
-            to.x(), to.y(), to.z(), source.getFrame(), destination.getFrame(), transformed);
+        OpticTransform.between(source.getFrame(), from, destination.getFrame(), to)
+            .pointInto(local.getX() + 0.5D, local.getY() + 0.5D, local.getZ() + 0.5D, transformed);
         return BlockPos.containing(transformed[0], transformed[1], transformed[2]);
     }
 

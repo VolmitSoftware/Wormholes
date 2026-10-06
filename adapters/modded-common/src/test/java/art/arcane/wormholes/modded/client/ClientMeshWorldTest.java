@@ -1,16 +1,16 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.BrickCodec;
-import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.optics.plate.PlateBox;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.AxisPermutation;
 import com.mojang.blaze3d.vertex.QuadInstance;
 import net.minecraft.client.color.block.BlockColors;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
@@ -71,8 +71,7 @@ public class ClientMeshWorldTest extends MinecraftTestBase {
         }
         for (Face[] axes : new Face[][] {{Face.U, Face.W, Face.S},
             {Face.D, Face.E, Face.S}, {Face.W, Face.U, Face.S}, {Face.S, Face.U, Face.W}}) {
-            ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(axes[0], axes[1], axes[2],
-                new Vec3d(100, -31, 200));
+            OpticTransform transform = OpticTransform.of(AxisPermutation.of(axes[0], axes[1], axes[2]), 100, -31, 200);
             ClientMeshWorld snapshot = snapshot(store, 0L, transform, 0);
             BlockAndTintGetter destination = snapshot.destination();
             BlockPos.MutableBlockPos center = new BlockPos.MutableBlockPos();
@@ -127,8 +126,7 @@ public class ClientMeshWorldTest extends MinecraftTestBase {
         indices[SectionBiomes.cell(15, 15, 15) * 2] = 1;
         store.put(new ClientViewMessage.MeshSection(7, 1, -1, -1, -1, 1, 3, Brick.single(0, 3),
             new SectionBiomes(List.of("minecraft:plains", "minecraft:desert"), indices)));
-        ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(Face.E, Face.U, Face.S,
-            new Vec3d(100, 0, 200));
+        OpticTransform transform = OpticTransform.of(AxisPermutation.of(Face.E, Face.U, Face.S), 100, 0, 200);
         ClientMeshWorld snapshot = snapshot(store, SectionPos.asLong(-1, -1, -1), transform, 0);
         assertEquals(0xFF112233, snapshot.getBlockTint(new BlockPos(-16, -16, -16), (biome, x, z) -> biome.getWaterColor()));
         assertEquals(0xFF445566, snapshot.getBlockTint(new BlockPos(-1, -1, -1), (biome, x, z) -> biome.getWaterColor()));
@@ -152,8 +150,7 @@ public class ClientMeshWorldTest extends MinecraftTestBase {
         }
         store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 3, Brick.single(0, 3),
             new SectionBiomes(List.of("minecraft:plains", "minecraft:desert"), indices)));
-        ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(Face.U, Face.E, Face.S,
-            new Vec3d(0, 0, 0));
+        OpticTransform transform = OpticTransform.of(AxisPermutation.of(Face.U, Face.E, Face.S), 0, 0, 0);
         ClientMeshWorld snapshot = snapshot(store, 0L, transform, 1);
         ColorResolver resolver = (biome, x, z) -> biome.getWaterColor() == 0x112233 ? 0 : 0xFFFFFF;
         assertEquals(0xFF555555, snapshot.getBlockTint(new BlockPos(8, 3, 8), resolver));
@@ -180,8 +177,7 @@ public class ClientMeshWorldTest extends MinecraftTestBase {
         for (Face[] axes : new Face[][] {{Face.E, Face.U, Face.S},
             {Face.U, Face.W, Face.S}, {Face.D, Face.E, Face.S},
             {Face.W, Face.D, Face.S}, {Face.E, Face.N, Face.U}}) {
-            ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(axes[0], axes[1], axes[2],
-                new Vec3d(-100.5, 63.5, -200.5));
+            OpticTransform transform = OpticTransform.of(AxisPermutation.of(axes[0], axes[1], axes[2]), -100.5, 63.5, -200.5);
             ClientMeshWorld snapshot = snapshot(store, 0L, transform, 7);
             int x = axes[1].x() < 0 ? 15 : 0;
             int y = axes[1].y() < 0 ? 15 : 0;
@@ -221,7 +217,7 @@ public class ClientMeshWorldTest extends MinecraftTestBase {
     }
 
     @SuppressWarnings("unchecked")
-    private static ClientMeshWorld snapshot(ClientMeshSections store, long center, ProjectionEnvironment.Transform transform, int blend) {
+    private static ClientMeshWorld snapshot(ClientMeshSections store, long center, OpticTransform transform, int blend) {
         Registry<Biome> registry = mock(Registry.class);
         Biome plains = mock(Biome.class);
         Biome desert = mock(Biome.class);

@@ -3,8 +3,9 @@ package art.arcane.wormholes.modded.client;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.AxisPermutation;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
@@ -82,9 +83,9 @@ public class ClientPreparedTravelCameraTest {
         method.setAccessible(true);
         try (MockedStatic<Minecraft> access = mockStatic(Minecraft.class)) {
             access.when(Minecraft::getInstance).thenReturn(minecraft);
-            for (ProjectionEnvironment.Transform transform : new ProjectionEnvironment.Transform[]{
-                new ProjectionEnvironment.Transform(Face.S, Face.U, Face.W, new Vec3d(100, 20, 200)),
-                new ProjectionEnvironment.Transform(Face.E, Face.S, Face.D, new Vec3d(100, 20, 200))}) {
+            for (OpticTransform transform : new OpticTransform[]{
+                OpticTransform.of(AxisPermutation.of(Face.S, Face.U, Face.W), 100, 20, 200),
+                OpticTransform.of(AxisPermutation.of(Face.E, Face.S, Face.D), 100, 20, 200)}) {
                 ClientViewMessage.TravelBegin begin = new ClientViewMessage.TravelBegin(original.token(), original.generation(),
                     original.sourcePortal(), original.sourceWorld(), original.sourceGeometry(), transform,
                     original.world(), original.arrival(), original.chunks(), original.environment(), original.expiresMillis());
@@ -92,7 +93,7 @@ public class ClientPreparedTravelCameraTest {
                     float height = player.getDefaultDimensions(pose).eyeHeight();
                     when(player.getEyeHeight()).thenReturn(height);
                     CameraRenderState camera = (CameraRenderState) method.invoke(null, begin);
-                    Vec3d feet = transform.destinationPoint(102, 23, 206);
+                    Vec3d feet = transform.inverse().point(new Vec3d(102, 23, 206));
                     ClientTravelMotion.Rotation look = new ClientTravelMotion.Rotation(30, 20).transform(transform);
                     assertEquals(new Vec3(feet.x(), feet.y() + height, feet.z()), camera.pos);
                     assertEquals(look.yaw(), camera.yRot, 0.0F);

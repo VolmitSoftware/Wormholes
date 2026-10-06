@@ -3,7 +3,6 @@ package art.arcane.wormholes.modded.client;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.ProjectionEnvironment;
-import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.plate.PlateBox;
@@ -11,6 +10,8 @@ import art.arcane.optics.math.Face;
 import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.AxisPermutation;
 import art.arcane.wormholes.render.client.session.ClientViewEmitters;
 import net.minecraft.client.Minecraft;
 import org.junit.Rule;
@@ -40,13 +41,12 @@ public class WormholesClientSessionTest extends MinecraftTestBase {
             ClientViewSession session = harness.session;
             ClientViewSession.Sink sink = mock(ClientViewSession.Sink.class);
             ApertureDescriptor geometry = ClientViewHarness.geometry();
-            ProjectionEnvironment environment = PortalEnvironmentTest.environment(ProjectionEnvironment.Transform.IDENTITY);
+            ProjectionEnvironment environment = PortalEnvironmentTest.environment(OpticTransform.IDENTITY);
             session.handle(new ClientViewMessage.Portal(1, 1, geometry), sink);
             session.handle(new ClientViewMessage.MeshBegin(1, 1, new PlateBox(-32, -32, -32, 64, 64, 64), 8), sink);
             session.handle(new ClientViewMessage.Environment(1, environment), sink);
             session.cacheClaims(1, List.of(new ClientViewMessage.MeshClaim(0, 0, 0, 77)));
-            ProjectionEnvironment next = environment.withTransform(new ProjectionEnvironment.Transform(Face.E,
-                Face.U, Face.S, new Vec3d(0, 0, 0)));
+            ProjectionEnvironment next = environment.withTransform(OpticTransform.of(AxisPermutation.of(Face.E, Face.U, Face.S), 0, 0, 0));
             if (change == 1) {
                 ProjectionEnvironment.World world = environment.world();
                 next = new ProjectionEnvironment(environment.gameTime(), environment.sky(), environment.fog(),
@@ -55,8 +55,7 @@ public class WormholesClientSessionTest extends MinecraftTestBase {
                         world.seaLevel(), world.blockLight(), world.skyLight(), world.logicalHeight(), world.hasCeiling(),
                         world.ambientLight(), world.eyeMedium(), world.hasFixedTime()));
             } else if (change == 2) {
-                next = environment.withTransform(new ProjectionEnvironment.Transform(Face.E, Face.U,
-                    Face.S, new Vec3d(16, 0, 0)));
+                next = environment.withTransform(OpticTransform.of(AxisPermutation.of(Face.E, Face.U, Face.S), 16, 0, 0));
             } else if (change == 3) {
                 ApertureDescriptor changed = new ApertureDescriptor(geometry.originX(), geometry.originY(), geometry.originZ(),
                     geometry.facing(), geometry.frontSide(), geometry.quarterTurns(), geometry.mirror(), geometry.apertureWidth(),

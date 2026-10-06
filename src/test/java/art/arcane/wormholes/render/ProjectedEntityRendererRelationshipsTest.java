@@ -31,6 +31,7 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSp
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.entity.EntityRelationship;
 import art.arcane.optics.entity.SpoofRegistry;
@@ -151,7 +152,8 @@ final class ProjectedEntityRendererRelationshipsTest {
         ProjectedEntityRenderer renderer = new ProjectedEntityRenderer(channel, identity, registry);
         Player observer = ProjectedEntityPacketRecorder.player(true);
 
-        RenderTestSupport.withBukkitServer(() -> renderer.apply(observer, localPortal, remotePortal, frustum, 32.0D,
-            frame, frame, 0, BukkitEntityOcclusion.create()));
+        OpticTransform transform = OpticTransform.between(frame, remotePortal.getOrigin(), frame, localPortal.getOrigin());
+        RenderTestSupport.withBukkitServer(() -> renderer.apply(observer, localPortal, remotePortal, frustum, 32.0D, transform,
+            BukkitEntityOcclusion.create()));
     }
 }

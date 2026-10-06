@@ -15,9 +15,9 @@ import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.network.client.ClientTravelWindow;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.ViewStreamLimits;
-import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.OpticTransform;
 import io.netty.buffer.Unpooled;
 import io.netty.buffer.ByteBuf;
 import it.unimi.dsi.fastutil.longs.LongIterator;
@@ -1400,9 +1400,9 @@ public final class ClientPreparedTravel {
         List<ClientViewMessage.TravelCoordinate> manifest = ClientTravelWindow.coordinates(centerX, centerZ, radius);
         Vec3 eye = player.getEyePosition();
         return new ClientViewMessage.TravelBegin(begin.token(), begin.generation(), begin.sourcePortal(), begin.sourceWorld(),
-            begin.sourceGeometry(), ProjectionEnvironment.Transform.IDENTITY, world,
+            begin.sourceGeometry(), OpticTransform.IDENTITY, world,
             new ClientViewMessage.TravelPose(player.getX(), player.getY(), player.getZ(), player.getYRot(), player.getXRot()), manifest,
-            MinecraftPortalEnvironment.capture(level, vector(eye), ProjectionEnvironment.Transform.IDENTITY, world.flat()), begin.expiresMillis());
+            MinecraftPortalEnvironment.capture(level, vector(eye), OpticTransform.IDENTITY, world.flat()), begin.expiresMillis());
     }
 
     private void advanceSourcePreparation() {
@@ -2034,7 +2034,7 @@ public final class ClientPreparedTravel {
         LocalPlayer player = minecraft.player;
         if (player != null && minecraft.level != null
             && value.sourceWorld().equals(minecraft.level.dimension().identifier().toString())) {
-            Vec3d feet = value.destinationToSource().destinationPoint(player.getX(), player.getY(), player.getZ());
+            Vec3d feet = value.destinationToSource().inverse().point(new Vec3d(player.getX(), player.getY(), player.getZ()));
             ClientTravelMotion.Rotation look = new ClientTravelMotion.Rotation(player.getYRot(), player.getXRot())
                 .transform(value.destinationToSource());
             return arrivalCamera(new ClientViewMessage.TravelPose(feet.x(), feet.y(), feet.z(), look.yaw(), look.pitch()), eyeHeight(player));

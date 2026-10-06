@@ -9,6 +9,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+import art.arcane.optics.math.Vec3d;
 
 public final class RtpRimRendererTest
 {
@@ -267,9 +268,9 @@ public final class RtpRimRendererTest
 	{
 		RtpProjectionView.Point3 sourceCenter = new RtpProjectionView.Point3(0.5D, 65.5D, 0.5D);
 		RtpProjectionView.Point3 safeFeet = new RtpProjectionView.Point3(100.5D, 72.0D, -40.5D);
-		RtpProjectionView.Vector3 right = new RtpProjectionView.Vector3(1.0D, 0.0D, 0.0D);
-		RtpProjectionView.Vector3 up = new RtpProjectionView.Vector3(0.0D, 1.0D, 0.0D);
-		RtpProjectionView.Vector3 forward = new RtpProjectionView.Vector3(0.0D, 0.0D, 1.0D);
+		Vec3d right = new Vec3d(1.0D, 0.0D, 0.0D);
+		Vec3d up = new Vec3d(0.0D, 1.0D, 0.0D);
+		Vec3d forward = new Vec3d(0.0D, 0.0D, 1.0D);
 		RtpProjectionView.SourceFrame sourceFrame = new RtpProjectionView.SourceFrame(
 				"minecraft:overworld", sourceCenter, right, up, forward, 3.0D, 4.0D, 1L);
 		RtpProjectionView.Target target = new RtpProjectionView.Target(

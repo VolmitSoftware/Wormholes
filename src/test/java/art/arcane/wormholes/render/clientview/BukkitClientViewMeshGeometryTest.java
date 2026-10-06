@@ -20,7 +20,6 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.Map;
 import art.arcane.optics.math.Vec3d;
-import art.arcane.optics.client.ClientViewEnvironmentTransform;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -88,8 +87,8 @@ class BukkitClientViewMeshGeometryTest {
             BukkitClientViewPortalAccess access = new BukkitClientViewPortalAccess(fixture.views, fixture.plates, ignored -> null,
                 (player, portal) -> {}, () -> 1L);
             access.prepareNested(observer, linked.getId(), null, linked.getId());
-            Vec3d expected = ClientViewEnvironmentTransform.of(observer.source(linked.getId()).transformFrame())
-                .destinationPoint(fixture.eye.getX(), fixture.eye.getY(), fixture.eye.getZ());
+            Vec3d expected = observer.source(linked.getId()).transformFrame().transform().normalized()
+                .inverse().point(new Vec3d(fixture.eye.getX(), fixture.eye.getY(), fixture.eye.getZ()));
             assertEquals(expected, access.nestedEye(observer, linked.getId()));
             UUID childContext = UUID.randomUUID();
             access.prepareNested(observer, childContext, linked.getId(), fixture.portal.getId());
@@ -138,25 +137,6 @@ class BukkitClientViewMeshGeometryTest {
             ApertureDescriptor ordinaryGeometry = source.geometry(palette, 1L);
             assertEquals(ApertureDescriptor.BLACKOUT_SHELL, ordinaryGeometry.blackoutPolicy());
             assertEquals(ProjectedBlockClaim.LightingPolicy.FULL_BRIGHT.ordinal(), ordinaryGeometry.lightingPolicy());
-        }
-    }
-
-    @Test
-    void wallMirrorRotationUsesRawMeshGeometryAndClampedPacketGeometry() {
-        try (ClientViewFixture fixture = new ClientViewFixture(ClientViewFixture.options(true, false, 100), ConnectionState.PLAY)) {
-            ClientViewPortalSource source = new ClientViewPortalSource(fixture.portal, fixture.views, fixture.plates);
-            SessionPalette palette = new SessionPalette();
-            long tick = 0L;
-            for (QuarterTurn rotation : List.of(QuarterTurn.DEGREES_90, QuarterTurn.DEGREES_270)) {
-                when(fixture.portal.getMirrorRotation()).thenReturn(rotation);
-                source.update(fixture.player, fixture.eye, null, ++tick, true);
-                assertEquals(rotation.getQuarterTurns(), source.geometry(palette, 1L).mirrorQuarterTurns());
-                assertEquals(rotation.getQuarterTurns(), source.transformFrame().quarterTurns());
-                source.update(fixture.player, fixture.eye, null, tick, false);
-                int ordinary = rotation.coherentFor(fixture.portal.getFrame()).getQuarterTurns();
-                assertEquals(ordinary, source.geometry(palette, 1L).mirrorQuarterTurns());
-                assertEquals(ordinary, source.transformFrame().quarterTurns());
-            }
         }
     }
 

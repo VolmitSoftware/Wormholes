@@ -27,6 +27,7 @@ import art.arcane.wormholes.portal.rtp.RtpRotationMode;
 import art.arcane.wormholes.render.PortalProjector;
 import art.arcane.wormholes.render.clientview.ClientViewRouting;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.math.Vec3d;
 
 public final class RtpProjectionIntegrationTest {
     @Test
@@ -219,9 +220,9 @@ public final class RtpProjectionIntegrationTest {
     }
 
     private static RtpProjectionView.ReadyData readyData(long routeRevision) {
-        RtpProjectionView.Vector3 right = new RtpProjectionView.Vector3(1.0D, 0.0D, 0.0D);
-        RtpProjectionView.Vector3 up = new RtpProjectionView.Vector3(0.0D, 1.0D, 0.0D);
-        RtpProjectionView.Vector3 forward = new RtpProjectionView.Vector3(0.0D, 0.0D, 1.0D);
+        Vec3d right = new Vec3d(1.0D, 0.0D, 0.0D);
+        Vec3d up = new Vec3d(0.0D, 1.0D, 0.0D);
+        Vec3d forward = new Vec3d(0.0D, 0.0D, 1.0D);
         RtpProjectionView.SourceFrame source = new RtpProjectionView.SourceFrame(
                 "source", new RtpProjectionView.Point3(0.5D, 64.5D, 0.5D), right, up, forward, 3.0D, 4.0D, 5L);
         RtpProjectionView.Target target = new RtpProjectionView.Target(

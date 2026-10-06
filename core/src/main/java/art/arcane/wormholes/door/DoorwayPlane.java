@@ -4,6 +4,9 @@ import java.util.Objects;
 import java.util.Optional;
 
 import art.arcane.optics.math.Face;
+import art.arcane.optics.math.Vec3d;
+import art.arcane.optics.crossing.PlaneCrossing;
+import art.arcane.optics.frame.Frame;
 
 /**
  * The portal aperture of one placed dimensional door or trapdoor.
@@ -149,13 +152,18 @@ public record DoorwayPlane(
 		return form == DoorForm.TRAPDOOR ? 0.0D : facing.z();
 	}
 
-	public DoorVec3 center()
+	public Frame frame()
+	{
+		return form == DoorForm.TRAPDOOR ? Frame.fromNormalUp(Face.U, facing.reverse()) : Frame.fromNormalUp(facing, Face.U);
+	}
+
+	public Vec3d center()
 	{
 		if(form == DoorForm.TRAPDOOR)
 		{
-			return new DoorVec3(blockX + 0.5D, planeY(), blockZ + 0.5D);
+			return new Vec3d(blockX + 0.5D, planeY(), blockZ + 0.5D);
 		}
-		return new DoorVec3(
+		return new Vec3d(
 			blockX + 0.5D + (facing.x() * PORTAL_THRESHOLD_OFFSET),
 			blockY + 1.0D,
 			blockZ + 0.5D + (facing.z() * PORTAL_THRESHOLD_OFFSET));
@@ -166,14 +174,14 @@ public record DoorwayPlane(
 	 * rule the plane carries: a swept crossing of the open aperture, or contact
 	 * with the closed physical surface.
 	 */
-	public Optional<DoorwayCrossing> intersect(DoorVec3 from, DoorVec3 to)
+	public Optional<PlaneCrossing> intersect(Vec3d from, Vec3d to)
 	{
 		return openState == DoorOpenState.OPEN ? crossing(from, to) : contact(from, to);
 	}
 
-	public Optional<DoorwayCrossing> intersect(
-		DoorVec3 from,
-		DoorVec3 to,
+	public Optional<PlaneCrossing> intersect(
+		Vec3d from,
+		Vec3d to,
 		double travelerHalfWidth,
 		double travelerHeight)
 	{
@@ -195,12 +203,11 @@ public record DoorwayPlane(
 	 * plane is the crossing event, which prevents stationary travelers from being
 	 * pulled through when a door opens around them.</p>
 	 */
-	public Optional<DoorwayCrossing> crossing(DoorVec3 from, DoorVec3 to)
+	public Optional<PlaneCrossing> crossing(Vec3d from, Vec3d to)
 	{
-		Objects.requireNonNull(from, "from");
-		Objects.requireNonNull(to, "to");
+		requireFinite(from, to);
 
-		DoorVec3 center = center();
+		Vec3d center = center();
 		double fromDistance = signedDistance(from, center);
 		double toDistance = signedDistance(to, center);
 		double normalTravel = toDistance - fromDistance;
@@ -217,20 +224,14 @@ public record DoorwayPlane(
 		}
 
 		fraction = Math.min(1.0D, fraction);
-		DoorVec3 point = from.interpolate(to, fraction);
-		double lateralOffset = lateralOffset(point, center);
-		double secondaryOffset = secondaryOffset(point, center);
-
-		if(!withinAperture(lateralOffset, secondaryOffset))
+		Vec3d motion = to.subtract(from);
+		Vec3d point = from.add(motion.multiply(fraction));
+		if(!withinAperture(lateralOffset(point, center), secondaryOffset(point, center)))
 		{
 			return Optional.empty();
 		}
 
-		DoorwayCrossing.Direction direction = fromDistance > 0.0D
-			? DoorwayCrossing.Direction.FRONT_TO_BACK
-			: DoorwayCrossing.Direction.BACK_TO_FRONT;
-		return Optional.of(new DoorwayCrossing(
-			point, fraction, lateralOffset, secondaryOffset, direction));
+		return Optional.of(crossingAt(point, motion, fromDistance > 0.0D));
 	}
 
 	/**
@@ -240,21 +241,20 @@ public record DoorwayPlane(
 	 * only has to reach the surface while still moving toward it. A traveler that
 	 * was already touching at the start of the segment is ignored.</p>
 	 */
-	public Optional<DoorwayCrossing> contact(DoorVec3 from, DoorVec3 to)
+	public Optional<PlaneCrossing> contact(Vec3d from, Vec3d to)
 	{
 		return contact(from, to, 0.0D, 0.0D);
 	}
 
-	public Optional<DoorwayCrossing> contact(
-		DoorVec3 from,
-		DoorVec3 to,
+	public Optional<PlaneCrossing> contact(
+		Vec3d from,
+		Vec3d to,
 		double travelerHalfWidth,
 		double travelerHeight)
 	{
-		Objects.requireNonNull(from, "from");
-		Objects.requireNonNull(to, "to");
+		requireFinite(from, to);
 
-		DoorVec3 center = center();
+		Vec3d center = center();
 		double fromDistance = signedDistance(from, center);
 		double toDistance = signedDistance(to, center);
 		double lateralOffset = lateralOffset(to, center);
@@ -282,32 +282,32 @@ public record DoorwayPlane(
 		// Walking on from a neighbouring block leaves both distances at zero; that is
 		// the exposed face, so it counts as arriving from the positive side.
 		double reference = fromDistance == 0.0D ? toDistance : fromDistance;
-		DoorwayCrossing.Direction direction = reference < 0.0D
-			? DoorwayCrossing.Direction.BACK_TO_FRONT
-			: DoorwayCrossing.Direction.FRONT_TO_BACK;
-		return Optional.of(new DoorwayCrossing(to, 1.0D, lateralOffset, secondaryOffset, direction));
+		return Optional.of(crossingAt(to, to.subtract(from), !(reference < 0.0D)));
 	}
 
-	public double signedDistance(DoorVec3 point)
+	public PlaneCrossing crossingAt(Vec3d point, Vec3d motion, boolean frontSide)
+	{
+		return new PlaneCrossing(frame().view(frontSide), center(), point, motion, motion, frontSide);
+	}
+
+	public double signedDistance(Vec3d point)
 	{
 		Objects.requireNonNull(point, "point");
 		return signedDistance(point, center());
 	}
 
-	public DoorVec3 entrySidePoint(DoorwayCrossing.Direction direction, double offset)
+	public double lateralOffset(Vec3d point)
 	{
-		Objects.requireNonNull(direction, "direction");
-		return sidePoint(direction.entrySideSign(), offset);
+		return lateralOffset(point, center());
 	}
 
-	public DoorVec3 exitSidePoint(DoorwayCrossing.Direction direction, double offset)
+	public double secondaryOffset(Vec3d point)
 	{
-		Objects.requireNonNull(direction, "direction");
-		return sidePoint(direction.exitSideSign(), offset);
+		return secondaryOffset(point, center());
 	}
 
 	/** A point one {@code offset} off the plane on the requested side. */
-	public DoorVec3 sidePoint(int sign, double offset)
+	public Vec3d sidePoint(int sign, double offset)
 	{
 		if(!Double.isFinite(offset) || offset <= 0.0D)
 		{
@@ -315,9 +315,9 @@ public record DoorwayPlane(
 		}
 		if(form == DoorForm.TRAPDOOR)
 		{
-			return new DoorVec3(blockX + 0.5D, planeY() + (offset * sign), blockZ + 0.5D);
+			return new Vec3d(blockX + 0.5D, planeY() + (offset * sign), blockZ + 0.5D);
 		}
-		return new DoorVec3(
+		return new Vec3d(
 			blockX + 0.5D + (facing.x() * offset * sign),
 			blockY,
 			blockZ + 0.5D + (facing.z() * offset * sign));
@@ -396,7 +396,7 @@ public record DoorwayPlane(
 	}
 
 	/** Offset along the horizontal axis perpendicular to the facing, for either form. */
-	private double lateralOffset(DoorVec3 point, DoorVec3 center)
+	private double lateralOffset(Vec3d point, Vec3d center)
 	{
 		return ((point.x() - center.x()) * -facing.z()) + ((point.z() - center.z()) * facing.x());
 	}
@@ -405,7 +405,7 @@ public record DoorwayPlane(
 	 * The second in-plane axis: height above the door base for a vertical plane,
 	 * depth along the facing for a horizontal one.
 	 */
-	private double secondaryOffset(DoorVec3 point, DoorVec3 center)
+	private double secondaryOffset(Vec3d point, Vec3d center)
 	{
 		if(form == DoorForm.TRAPDOOR)
 		{
@@ -414,7 +414,7 @@ public record DoorwayPlane(
 		return point.y() - blockY;
 	}
 
-	private double signedDistance(DoorVec3 point, DoorVec3 center)
+	private double signedDistance(Vec3d point, Vec3d center)
 	{
 		return ((point.x() - center.x()) * normalX())
 			+ ((point.y() - center.y()) * normalY())
@@ -445,6 +445,21 @@ public record DoorwayPlane(
 			normalized += 360.0F;
 		}
 		return normalized;
+	}
+
+	private static void requireFinite(Vec3d from, Vec3d to)
+	{
+		Objects.requireNonNull(from, "from");
+		Objects.requireNonNull(to, "to");
+		if(!finite(from) || !finite(to))
+		{
+			throw new IllegalArgumentException("Door coordinates must be finite");
+		}
+	}
+
+	private static boolean finite(Vec3d point)
+	{
+		return Double.isFinite(point.x()) && Double.isFinite(point.y()) && Double.isFinite(point.z());
 	}
 
 	private static boolean isCardinal(Face facing)

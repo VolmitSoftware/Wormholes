@@ -12,6 +12,7 @@ import java.util.UUID;
 import java.util.function.Function;
 import art.arcane.optics.view.ContentView;
 import art.arcane.optics.view.EntityData;
+import art.arcane.optics.frame.OpticTransform;
 
 public class RemoteProjectionView<B, T, M, E> implements ContentView<B, T>, EntityData<M, E> {
     private final RemoteViewCache.RemoteView<B, M, E> view;
@@ -29,7 +30,7 @@ public class RemoteProjectionView<B, T, M, E> implements ContentView<B, T>, Enti
         this.materials = options.materials();
     }
 
-    public ProjectionEnvironment environment(ProjectionEnvironment.Transform transform) {
+    public ProjectionEnvironment environment(OpticTransform transform) {
         ProjectionEnvironment captured = view.environment();
         return captured == null ? null : captured.withTransform(transform);
     }

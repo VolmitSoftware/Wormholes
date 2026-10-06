@@ -1,13 +1,12 @@
 package art.arcane.optics.stream;
 
-import art.arcane.optics.math.Vec3d;
-import art.arcane.optics.math.Face;
 
 import java.util.Objects;
 import java.util.regex.Pattern;
+import art.arcane.optics.frame.OpticTransform;
 
 public record ProjectionEnvironment(long gameTime, Sky sky, Fog fog, Lighting lighting, Clouds clouds,
-                                    Transform transform, Dimension dimension, World world) {
+                                    OpticTransform transform, Dimension dimension, World world) {
     private static final Pattern DIMENSION_KEY = Pattern.compile("[a-z0-9_.-]+:[a-z0-9_./-]+");
 
     public ProjectionEnvironment {
@@ -20,7 +19,7 @@ public record ProjectionEnvironment(long gameTime, Sky sky, Fog fog, Lighting li
         Objects.requireNonNull(world, "world");
     }
 
-    public ProjectionEnvironment withTransform(Transform value) {
+    public ProjectionEnvironment withTransform(OpticTransform value) {
         return new ProjectionEnvironment(gameTime, sky, fog, lighting, clouds, value, dimension, world);
     }
 
@@ -79,34 +78,6 @@ public record ProjectionEnvironment(long gameTime, Sky sky, Fog fog, Lighting li
         public Clouds {
             Objects.requireNonNull(color, "color");
             finite(height);
-        }
-    }
-
-    public record Transform(Face xAxis, Face yAxis, Face zAxis, Vec3d translation) {
-        public static final Transform IDENTITY = new Transform(Face.E, Face.U, Face.S, new Vec3d(0, 0, 0));
-        public Transform {
-            Objects.requireNonNull(xAxis, "xAxis");
-            Objects.requireNonNull(yAxis, "yAxis");
-            Objects.requireNonNull(zAxis, "zAxis");
-            Objects.requireNonNull(translation, "translation");
-            if (xAxis.getAxis() == yAxis.getAxis() || xAxis.getAxis() == zAxis.getAxis() || yAxis.getAxis() == zAxis.getAxis()
-                || !Double.isFinite(translation.x()) || !Double.isFinite(translation.y()) || !Double.isFinite(translation.z())) {
-                throw new IllegalArgumentException("Invalid environment transform");
-            }
-        }
-
-        public boolean reflected() {
-            return xAxis.x() * (yAxis.y() * zAxis.z() - yAxis.z() * zAxis.y())
-                - yAxis.x() * (xAxis.y() * zAxis.z() - xAxis.z() * zAxis.y())
-                + zAxis.x() * (xAxis.y() * yAxis.z() - xAxis.z() * yAxis.y()) < 0;
-        }
-
-        public Vec3d destinationPoint(double x, double y, double z) {
-            double dx = x - translation.x();
-            double dy = y - translation.y();
-            double dz = z - translation.z();
-            return new Vec3d(dx * xAxis.x() + dy * xAxis.y() + dz * xAxis.z(),
-                dx * yAxis.x() + dy * yAxis.y() + dz * yAxis.z(), dx * zAxis.x() + dy * zAxis.y() + dz * zAxis.z());
         }
     }
 

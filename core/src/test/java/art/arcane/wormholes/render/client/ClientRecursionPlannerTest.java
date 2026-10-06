@@ -9,8 +9,8 @@ import art.arcane.wormholes.door.DoorwayPlane;
 import java.util.List;
 
 import art.arcane.optics.frame.Frame;
-import art.arcane.optics.math.Vec3d;
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.AxisPermutation;
 import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.optics.claim.ProjectedBlockClaim;
 import art.arcane.optics.math.Box;
@@ -23,13 +23,11 @@ final class ClientRecursionPlannerTest {
     @Test
     void nativeReachUsesRotatedDestinationSpaceAndTheFullMeshDistance() {
         ApertureDescriptor root = wall(0, 0, 3, List.of()).withDepth(128);
-        ProjectionEnvironment.Transform transform = new ProjectionEnvironment.Transform(Face.S, Face.U, Face.W,
-            new Vec3d(100, 0, -20));
+        OpticTransform transform = OpticTransform.of(AxisPermutation.of(Face.S, Face.U, Face.W), 100, 0, -20);
         assertTrue(ClientRecursionPlanner.destinationReaches(root, transform, new Box(19, 21, 64, 67, 180, 181)));
         assertFalse(ClientRecursionPlanner.destinationReaches(root, transform, new Box(19, 21, 64, 67, 20, 21)));
         assertFalse(ClientRecursionPlanner.destinationReaches(root, transform, new Box(19, 21, 64, 67, 260, 261)));
-        ProjectionEnvironment.Transform reflection = new ProjectionEnvironment.Transform(Face.W, Face.U, Face.S,
-            new Vec3d(1, 0, 0));
+        OpticTransform reflection = OpticTransform.of(AxisPermutation.of(Face.W, Face.U, Face.S), 1, 0, 0);
         assertTrue(ClientRecursionPlanner.destinationReaches(root, reflection, new Box(4, 5, 64, 67, 0, 1)));
         assertFalse(ClientRecursionPlanner.destinationReaches(root, reflection, new Box(-5, -4, 64, 67, 0, 1)));
     }
@@ -68,7 +66,8 @@ final class ClientRecursionPlannerTest {
         ClientRecursionPlanner.NestedCone cone = cones.get(0);
         assertTrue(cone.visible(-12.5D, 65.5D, 0.5D));
         assertFalse(cone.visible(-12.5D, 65.5D, 30.5D));
-        assertTrue(cone.space().identity());
+        assertTrue(cone.reflections().isEmpty());
+        assertTrue(cone.transform().isIdentity());
         assertEquals(6.5D, cone.contentEyeX());
     }
 
@@ -80,18 +79,17 @@ final class ClientRecursionPlannerTest {
         assertEquals(1, cones.size());
         ClientRecursionPlanner.NestedCone cone = cones.get(0);
         assertSame(child, cone.geometry());
-        assertEquals(List.of(mirror), cone.space().reflections());
+        assertEquals(List.of(mirror), cone.reflections());
         assertTrue(cone.contentEyeX() < 0.0D, "the eye is reflected behind the mirror");
         assertEquals(65.5D, cone.contentEyeY(), 1.0E-9D);
         assertTrue(cone.visible(-6.5D, 65.5D, 0.5D));
         assertFalse(cone.visible(-6.5D, 65.5D, 30.5D));
         int[] cell = new int[3];
-        double[] scratch = new double[3];
-        cone.space().contentCell(-6, 65, 0, cell, scratch);
+        cone.transform().inverse().cellInto(-6, 65, 0, cell);
         assertEquals(6, cell[0]);
         assertEquals(65, cell[1]);
         assertEquals(0, cell[2]);
-        cone.space().displayCell(6, 65, 0, cell, scratch);
+        cone.transform().cellInto(6, 65, 0, cell);
         assertEquals(-6, cell[0]);
     }
 
@@ -105,8 +103,7 @@ final class ClientRecursionPlannerTest {
     @Test
     void mirrorDestinationReachCoversTheServedSideWithinDepth() {
         ApertureDescriptor mirror = wall(0, 0, 2, true, true, List.of());
-        ProjectionEnvironment.Transform reflection = new ProjectionEnvironment.Transform(Face.W, Face.U, Face.S,
-            new Vec3d(1, 0, 0));
+        OpticTransform reflection = OpticTransform.of(AxisPermutation.of(Face.W, Face.U, Face.S), 1, 0, 0);
         assertTrue(ClientRecursionPlanner.destinationReaches(mirror, reflection, new Box(3, 3.999D, 64, 66.999D, -1, 1.999D)));
         assertFalse(ClientRecursionPlanner.destinationReaches(mirror, reflection, new Box(-4, -3.001D, 64, 66.999D, -1, 1.999D)));
         assertFalse(ClientRecursionPlanner.destinationReaches(mirror, reflection, new Box(40, 40.999D, 64, 66.999D, -1, 1.999D)));
@@ -129,8 +126,7 @@ final class ClientRecursionPlannerTest {
 
     @Test
     void mixedSurfaceKindsUseTheSameReachAndNestedWindows() {
-        ProjectionEnvironment.Transform destination = new ProjectionEnvironment.Transform(Face.E, Face.U, Face.S,
-            new Vec3d(-100, 0, 0));
+        OpticTransform destination = OpticTransform.of(AxisPermutation.of(Face.E, Face.U, Face.S), -100, 0, 0);
         Box visible = new Box(89, 90, 64, 67, -1, 2);
         Box behind = new Box(110, 111, 64, 67, -1, 2);
         for (int kind : new int[]{ApertureDescriptor.KIND_FRAME, ApertureDescriptor.KIND_RTP,

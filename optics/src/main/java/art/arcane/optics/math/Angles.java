@@ -39,6 +39,16 @@ public final class Angles {
         return yaw + 90.0F * quarterTurnsClockwise;
     }
 
+    public static Vec3d rotateYaw(Vec3d vector, float yawDelta) {
+        if (!Float.isFinite(yawDelta)) {
+            throw new IllegalArgumentException("Yaw delta must be finite");
+        }
+        double radians = Math.toRadians(yawDelta);
+        double cos = Math.cos(radians);
+        double sin = Math.sin(radians);
+        return new Vec3d((vector.x() * cos) - (vector.z() * sin), vector.y(), (vector.z() * cos) + (vector.x() * sin));
+    }
+
     public static float unwrap(float angle, float reference) {
         return (float) (angle + FULL_TURN * Math.floor((reference - angle) / FULL_TURN + 0.5D));
     }
