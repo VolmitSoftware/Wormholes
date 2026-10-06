@@ -133,17 +133,23 @@ final class AxisPermutationGroupTest {
     }
 
     @Test
-    void horizontalHandednessMatchesTheAxisDirectionMapping() {
+    void horizontalHandednessFollowsTheImagesOfSouthAndEast() {
         for (int index = 0; index < COUNT; index++) {
             AxisPermutation permutation = AxisPermutation.ofIndex(index);
-            DirectionMapping mapping = DirectionMapping.axes(permutation.x(), permutation.y(), permutation.z());
-            for (Face face : Face.values()) {
-                assertEquals(mapping.map(face), permutation.face(face));
+            int turns = permutation.quarterTurnsClockwise();
+            boolean reflects = permutation.reflectsHorizontally();
+            Face south = permutation.face(Face.S);
+            Face east = permutation.face(Face.E);
+            if (south.isVertical() || east.isVertical()) {
+                assertEquals(0, turns, permutation.toString());
+                assertFalse(reflects, permutation.toString());
+            } else {
+                assertEquals(Math.floorMod(4 * turns, 16), rotationIndex(south), permutation.toString());
+                assertEquals(Math.floorMod((reflects ? 4 : 12) + 4 * turns, 16), rotationIndex(east), permutation.toString());
             }
-            assertEquals(mapping.quarterTurnsClockwise(), permutation.quarterTurnsClockwise(), permutation.toString());
-            assertEquals(mapping.reflects(), permutation.reflectsHorizontally(), permutation.toString());
             for (int rotation = -20; rotation < 36; rotation++) {
-                assertEquals(mapping.mapRotation(rotation), permutation.rotation16(rotation), permutation + " rotation " + rotation);
+                assertEquals(Math.floorMod((reflects ? -rotation : rotation) + 4 * turns, 16), permutation.rotation16(rotation),
+                    permutation + " rotation " + rotation);
             }
         }
     }
@@ -190,5 +196,15 @@ final class AxisPermutationGroupTest {
         return x.x() * (y.y() * z.z() - y.z() * z.y())
             - y.x() * (x.y() * z.z() - x.z() * z.y())
             + z.x() * (x.y() * y.z() - x.z() * y.y());
+    }
+
+    private static int rotationIndex(Face face) {
+        return switch (face) {
+            case S -> 0;
+            case W -> 4;
+            case N -> 8;
+            case E -> 12;
+            default -> -1;
+        };
     }
 }

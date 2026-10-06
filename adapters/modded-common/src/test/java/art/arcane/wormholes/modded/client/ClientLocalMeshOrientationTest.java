@@ -5,9 +5,9 @@ import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.frame.Frame;
-import art.arcane.optics.frame.DirectionMapping;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.AxisPermutation;
+import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.optics.math.Face;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.HugeMushroomBlock;
@@ -28,10 +28,10 @@ public class ClientLocalMeshOrientationTest extends MinecraftTestBase {
             .setValue(HugeMushroomBlock.WEST, false);
         for (Face normal : Face.values()) {
             for (int quarterTurns = 0; quarterTurns < 4; quarterTurns++) {
-                DirectionMapping mapping = DirectionMapping.mirror(Frame.canonical(normal), quarterTurns, new double[3]);
-                Face x = mapping.map(Face.E);
-                Face y = mapping.map(Face.U);
-                Face z = mapping.map(Face.S);
+                AxisPermutation mapping = AxisPermutation.mirror(Frame.canonical(normal), QuarterTurn.of(quarterTurns));
+                Face x = mapping.face(Face.E);
+                Face y = mapping.face(Face.U);
+                Face z = mapping.face(Face.S);
                 Vec3d translation = new Vec3d(
                     x.x() < 0 || y.x() < 0 || z.x() < 0 ? 16 : 0,
                     x.y() < 0 || y.y() < 0 || z.y() < 0 ? 16 : 0,

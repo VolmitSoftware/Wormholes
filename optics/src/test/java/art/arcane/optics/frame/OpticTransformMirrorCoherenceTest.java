@@ -47,15 +47,14 @@ final class OpticTransformMirrorCoherenceTest {
     }
 
     @Test
-    void viewWindowsDirectionMappingsAndApertureMirrorsShareTheNormalizedMirror() {
-        double[] scratch = new double[3];
+    void viewWindowsPermutationsAndApertureMirrorsShareTheNormalizedMirror() {
         for (Frame plane : FrameFixtures.all()) {
             for (QuarterTurn turns : QuarterTurn.values()) {
                 OpticTransform expected = OpticTransform.mirror(plane, ORIGIN, turns.coherentFor(plane));
                 assertEquals(expected, ViewWindow.mirror(ORIGIN, plane, turns, true, 16.0D).transform());
-                DirectionMapping mapping = DirectionMapping.mirror(plane, turns.getQuarterTurns(), scratch);
+                AxisPermutation permutation = AxisPermutation.mirror(plane, QuarterTurn.of(turns.getQuarterTurns()));
                 for (Face face : Face.values()) {
-                    assertEquals(expected.face(face), mapping.map(face), plane + " " + turns + " " + face);
+                    assertEquals(expected.face(face), permutation.face(face), plane + " " + turns + " " + face);
                 }
             }
         }

@@ -1,9 +1,9 @@
 package art.arcane.wormholes.modded.client.render;
 
 import art.arcane.optics.frame.Frame;
-import art.arcane.optics.frame.DirectionMapping;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.AxisPermutation;
+import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.optics.math.Face;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
@@ -26,13 +26,13 @@ public class PortalVertexTransformTest {
     public void everyMirrorPlaneAndQuarterTurnMovesSourceFacesAndNormalsExactlyOnce() {
         for (Face normal : Face.values()) {
             for (int quarterTurns = 0; quarterTurns < 4; quarterTurns++) {
-                DirectionMapping mapping = DirectionMapping.mirror(Frame.canonical(normal), quarterTurns, new double[3]);
-                Face xAxis = mapping.map(Face.E);
-                Face yAxis = mapping.map(Face.U);
-                Face zAxis = mapping.map(Face.S);
+                AxisPermutation mapping = AxisPermutation.mirror(Frame.canonical(normal), QuarterTurn.of(quarterTurns));
+                Face xAxis = mapping.face(Face.E);
+                Face yAxis = mapping.face(Face.U);
+                Face zAxis = mapping.face(Face.S);
                 PortalVertexTransform transform = transform(xAxis, yAxis, zAxis);
                 for (Face face : Face.values()) {
-                    Face reflected = mapping.map(face);
+                    Face reflected = mapping.face(face);
                     try (ByteBufferBuilder allocation = new ByteBufferBuilder(512)) {
                         BufferBuilder builder = builder(allocation);
                         transform.target(builder).destinationBlock(BlockPos.ZERO, 0, 0, 0);
