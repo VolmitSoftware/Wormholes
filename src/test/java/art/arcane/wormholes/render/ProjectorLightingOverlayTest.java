@@ -12,6 +12,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import java.lang.reflect.Proxy;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.bukkit.World;
@@ -198,9 +199,7 @@ public final class ProjectorLightingOverlayTest {
         Settings.ADAPTIVE_LIGHTING = false;
         try {
             Map<Long, LightData> packets = new HashMap<Long, LightData>();
-            ProjectorLighting<Player, BlockData, ProjectionWorldView> lighting = BukkitProjectorLighting.create(
-                (observer, chunkX, chunkZ) -> true,
-                (observer, chunkX, chunkZ, data) -> packets.put(chunkKey(chunkX, chunkZ), data));
+            ProjectorLighting<Player, BlockData, ProjectionWorldView> lighting = new BukkitProjectionOutput((observer, chunkX, chunkZ) -> true, portalId -> List.of(), (observer, chunkX, chunkZ, data) -> packets.put(chunkKey(chunkX, chunkZ), data)).lighting();
             Player observer = (Player) Proxy.newProxyInstance(Player.class.getClassLoader(), new Class<?>[] {Player.class},
                 (proxy, method, arguments) -> "isOnline".equals(method.getName()) ? Boolean.TRUE : null);
             lighting.apply(observer, localView, claims, null, sourceLightingEnabled);

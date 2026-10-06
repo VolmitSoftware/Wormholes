@@ -1,9 +1,7 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.modded.clientview.MinecraftClientViewService;
 import art.arcane.optics.fidelity.AcousticsBridge;
 import art.arcane.optics.fidelity.AcousticsProfile;
-import art.arcane.wormholes.render.client.session.ClientViewEmitters;
 import net.minecraft.core.Holder;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientboundSoundPacket;
@@ -69,27 +67,5 @@ public final class MinecraftAcoustics {
             case AMBIENT, WEATHER -> AcousticsProfile.SoundClass.AMBIENT;
             default -> null;
         };
-    }
-
-    public static final class Sink implements AcousticsBridge.SoundSink<ServerPlayer> {
-        private final MinecraftClientViewService clientViews;
-
-        public Sink(MinecraftClientViewService clientViews) {
-            this.clientViews = clientViews;
-        }
-
-        @Override
-        public void play(ServerPlayer observer, AcousticsBridge.Playback sound) {
-            if (clientViews.receiver(observer)) {
-                clientViews.oneShot(observer, ClientViewEmitters.sound(sound, 0));
-                return;
-            }
-            MinecraftAcoustics.play(observer, sound);
-        }
-
-        @Override
-        public boolean clientAmbient(ServerPlayer observer) {
-            return clientViews.receiver(observer);
-        }
     }
 }

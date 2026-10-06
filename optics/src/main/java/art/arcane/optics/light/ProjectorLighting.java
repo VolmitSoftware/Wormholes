@@ -13,9 +13,11 @@ import it.unimi.dsi.fastutil.objects.ObjectIterator;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Iterator;
+import java.util.function.Supplier;
 import art.arcane.optics.spi.OpticsMetrics;
 import art.arcane.optics.view.ContentView;
 import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.claim.ProjectionOutput;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.view.WorldChangeTracker;
 
@@ -29,15 +31,17 @@ public final class ProjectorLighting<P, B, V extends ContentView<?, ?>> {
     private final Long2ObjectOpenHashMap<SectionBaseline[]> baselineCache = new Long2ObjectOpenHashMap<SectionBaseline[]>(8);
     private final Long2ObjectOpenHashMap<SectionClaims> sectionClaims = new Long2ObjectOpenHashMap<SectionClaims>(16);
     private final Long2ObjectOpenHashMap<IntOpenHashSet> currentChunkSections = new Long2ObjectOpenHashMap<IntOpenHashSet>(8);
-    private final Host<P> host;
+    private final ProjectionOutput<P> output;
+    private final Supplier<WorldChangeTracker> changes;
     private final OpticsMetrics metrics;
     private V indexedLocalView;
     private int indexedMinHeight;
     private int indexedMaxHeight;
     private boolean indexedSourceLighting;
 
-    public ProjectorLighting(Host<P> host, OpticsMetrics metrics) {
-        this.host = host;
+    public ProjectorLighting(ProjectionOutput<P> output, Supplier<WorldChangeTracker> changes, OpticsMetrics metrics) {
+        this.output = output;
+        this.changes = changes;
         this.metrics = metrics;
     }
 
@@ -53,7 +57,7 @@ public final class ProjectorLighting<P, B, V extends ContentView<?, ?>> {
                Long2ObjectMap<ProjectedBlockClaim<B, V>> projectedClaims,
                LongSet dirtyLocalKeys,
                boolean sourceLightingEnabled) {
-        if (observer == null || !host.isOnline(observer)) {
+        if (observer == null || !output.online(observer)) {
             return;
         }
         Long2ObjectOpenHashMap<IntOpenHashSet> currentSections = updateCurrentSections(
@@ -217,7 +221,7 @@ public final class ProjectorLighting<P, B, V extends ContentView<?, ?>> {
             }
             int chunkX = (int) (key >> 32);
             int chunkZ = (int) key;
-            if (!host.isChunkSent(observer, chunkX, chunkZ)) {
+            if (!output.chunkSent(observer, chunkX, chunkZ)) {
                 entry.getValue().removeAll(stale);
             } else if (!sendLocalChunkLight(observer, localView, chunkX, chunkZ, stale)) {
                 continue;
@@ -240,7 +244,7 @@ public final class ProjectorLighting<P, B, V extends ContentView<?, ?>> {
             baselineCache.clear();
             return;
         }
-        if (observer == null || !host.isOnline(observer)) {
+        if (observer == null || !output.online(observer)) {
             return;
         }
         if (localView == null) {
@@ -253,7 +257,7 @@ public final class ProjectorLighting<P, B, V extends ContentView<?, ?>> {
             long key = entry.getLongKey();
             int chunkX = (int) (key >> 32);
             int chunkZ = (int) key;
-            if (!host.isChunkSent(observer, chunkX, chunkZ)
+            if (!output.chunkSent(observer, chunkX, chunkZ)
                 || sendLocalChunkLight(observer, localView, chunkX, chunkZ, entry.getValue())) {
                 baselineCache.remove(key);
                 iterator.remove();
@@ -289,7 +293,7 @@ public final class ProjectorLighting<P, B, V extends ContentView<?, ?>> {
             long chunkKey = entry.getLongKey();
             int chunkX = (int) (chunkKey >> 32);
             int chunkZ = (int) chunkKey;
-            if (host.isChunkSent(observer, chunkX, chunkZ)) {
+            if (output.chunkSent(observer, chunkX, chunkZ)) {
                 continue;
             }
             baselineCache.remove(chunkKey);
@@ -340,7 +344,7 @@ public final class ProjectorLighting<P, B, V extends ContentView<?, ?>> {
     }
 
     private int lightingSectionBudget() {
-        return host.sectionBudget();
+        return output.lightSectionBudget();
     }
 
     public static int lightingSectionBudget(boolean adaptiveLighting, int configuredMaxSections) {
@@ -380,7 +384,7 @@ public final class ProjectorLighting<P, B, V extends ContentView<?, ?>> {
                                 int chunkX,
                                 int chunkZ,
                                 IntSet dirtySections) {
-        if (!host.isChunkSent(observer, chunkX, chunkZ)) {
+        if (!output.chunkSent(observer, chunkX, chunkZ)) {
             return false;
         }
         int minSec = localView.getMinHeight() >> 4;
@@ -421,7 +425,7 @@ public final class ProjectorLighting<P, B, V extends ContentView<?, ?>> {
             arrIdx++;
         }
 
-        host.send(observer, new ChunkLight(chunkX, chunkZ, blockMask, skyMask,
+        output.light(observer, new ChunkLight(chunkX, chunkZ, blockMask, skyMask,
             emptyBlockMask, emptySkyMask, skyArrays, blockArrays));
         metrics.packet();
         return true;
@@ -486,7 +490,7 @@ public final class ProjectorLighting<P, B, V extends ContentView<?, ?>> {
         int index = section - minSection;
         SectionBaseline cached = sections[index];
         long now = System.currentTimeMillis();
-        WorldChangeTracker tracker = host.tracker();
+        WorldChangeTracker tracker = changes.get();
         if (cached != null
             && tracker != null
             && now - cached.readMillis <= BASELINE_MAX_AGE_MILLIS
@@ -536,7 +540,7 @@ public final class ProjectorLighting<P, B, V extends ContentView<?, ?>> {
     }
 
     private boolean sendLocalChunkLight(P observer, V localView, int chunkX, int chunkZ, IntSet sections) {
-        if (!host.isChunkSent(observer, chunkX, chunkZ)) {
+        if (!output.chunkSent(observer, chunkX, chunkZ)) {
             return true;
         }
         int minSec = localView.getMinHeight() >> 4;
@@ -587,7 +591,7 @@ public final class ProjectorLighting<P, B, V extends ContentView<?, ?>> {
             arrIdx++;
         }
 
-        host.send(observer, new ChunkLight(chunkX, chunkZ, blockMask, skyMask,
+        output.light(observer, new ChunkLight(chunkX, chunkZ, blockMask, skyMask,
             emptyBlockMask, emptySkyMask, skyArrays, blockArrays));
         metrics.packet();
         return true;
@@ -673,14 +677,6 @@ public final class ProjectorLighting<P, B, V extends ContentView<?, ?>> {
             this.trackerVersion = trackerVersion;
             this.readMillis = readMillis;
         }
-    }
-
-    public interface Host<P> {
-        boolean isOnline(P observer);
-        boolean isChunkSent(P observer, int chunkX, int chunkZ);
-        void send(P observer, ChunkLight light);
-        int sectionBudget();
-        WorldChangeTracker tracker();
     }
 
     public record ChunkLight(int chunkX, int chunkZ, BitSet blockMask, BitSet skyMask,

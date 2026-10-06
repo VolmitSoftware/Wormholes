@@ -204,7 +204,7 @@ class PortalProjectorEndSurfaceTest {
                 remoteView = view(remote, stone);
                 when(remoteView.isChunkReady(anyInt(), anyInt())).thenAnswer(call -> ready.get());
                 arbiter = new ProjectionClaimArbiter(target -> target == world ? localView : remoteView,
-                    (player, chunkX, chunkZ) -> true);
+                    new BukkitProjectionOutput((player, chunkX, chunkZ) -> true, portalId -> List.of()));
                 projector = new PortalProjector(portal, observer, arbiter, target -> target == world ? localView : remoteView, () -> true);
                 projector.setRtpProjectionTarget(new PortalProjector.RtpProjectionTarget(remote, 10, 70, 10,
                     Frame.canonical(Face.U), 1));

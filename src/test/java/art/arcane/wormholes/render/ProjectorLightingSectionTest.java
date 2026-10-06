@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Test;
 import com.github.retrooper.packetevents.protocol.world.chunk.LightData;
 
 import art.arcane.wormholes.Settings;
+import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.optics.claim.ProjectedBlockClaim;
 import art.arcane.optics.light.ProjectorLighting;
@@ -97,10 +98,7 @@ public final class ProjectorLightingSectionTest {
         AtomicBoolean chunkSent = new AtomicBoolean(false);
         AtomicInteger localSamples = new AtomicInteger();
         List<LightData> packets = new ArrayList<LightData>();
-        ProjectorLighting<Player, BlockData, ProjectionWorldView> lighting = BukkitProjectorLighting.create(
-            (observer, chunkX, chunkZ) -> chunkSent.get(),
-            (observer, chunkX, chunkZ, data) -> packets.add(data)
-        );
+        ProjectorLighting<Player, BlockData, ProjectionWorldView> lighting = new BukkitProjectionOutput((observer, chunkX, chunkZ) -> chunkSent.get(), portalId -> List.of(), (observer, chunkX, chunkZ, data) -> packets.add(data)).lighting();
         Player observer = onlinePlayer();
         ProjectionWorldView localView = lightView(localSamples, 15, 0);
         ProjectionWorldView remoteView = lightView(new AtomicInteger(), 9, 6);
@@ -134,9 +132,7 @@ public final class ProjectorLightingSectionTest {
         Settings.LIGHTING_MAX_SECTIONS_PER_PASS = 1;
         try {
             List<LightData> packets = new ArrayList<LightData>();
-            ProjectorLighting<Player, BlockData, ProjectionWorldView> lighting = BukkitProjectorLighting.create(
-                (observer, chunkX, chunkZ) -> true,
-                (observer, chunkX, chunkZ, data) -> packets.add(data));
+            ProjectorLighting<Player, BlockData, ProjectionWorldView> lighting = new BukkitProjectionOutput((observer, chunkX, chunkZ) -> true, portalId -> List.of(), (observer, chunkX, chunkZ, data) -> packets.add(data)).lighting();
             Player observer = onlinePlayer();
             ProjectionWorldView localView = lightView(new AtomicInteger(), 3, 4);
             ProjectionWorldView sourceView = lightView(new AtomicInteger(), 8, 7);
@@ -180,10 +176,7 @@ public final class ProjectorLightingSectionTest {
         Settings.ADAPTIVE_LIGHTING = false;
         try {
             List<LightData> packets = new ArrayList<LightData>();
-            ProjectorLighting<Player, BlockData, ProjectionWorldView> lighting = BukkitProjectorLighting.create(
-                (observer, chunkX, chunkZ) -> true,
-                (observer, chunkX, chunkZ, data) -> packets.add(data)
-            );
+            ProjectorLighting<Player, BlockData, ProjectionWorldView> lighting = new BukkitProjectionOutput((observer, chunkX, chunkZ) -> true, portalId -> List.of(), (observer, chunkX, chunkZ, data) -> packets.add(data)).lighting();
             Player observer = onlinePlayer();
             ProjectionWorldView localView = lightView(new AtomicInteger(), 15, 0);
             ProjectionWorldView remoteView = lightView(new AtomicInteger(), 8, 7);
@@ -223,10 +216,7 @@ public final class ProjectorLightingSectionTest {
     @Test
     public void fullBrightLightingRestoresTheLocalBaselineAfterRelease() {
         List<LightData> packets = new ArrayList<LightData>();
-        ProjectorLighting<Player, BlockData, ProjectionWorldView> lighting = BukkitProjectorLighting.create(
-            (observer, chunkX, chunkZ) -> true,
-            (observer, chunkX, chunkZ, data) -> packets.add(data)
-        );
+        ProjectorLighting<Player, BlockData, ProjectionWorldView> lighting = new BukkitProjectionOutput((observer, chunkX, chunkZ) -> true, portalId -> List.of(), (observer, chunkX, chunkZ, data) -> packets.add(data)).lighting();
         Player observer = onlinePlayer();
         ProjectionWorldView localView = lightView(new AtomicInteger(), 2, 3);
         long localKey = packKey(1, 64, 1);
@@ -255,7 +245,7 @@ public final class ProjectorLightingSectionTest {
 
     @Test
     public void sentLightingKeepsTheRendererNonIdleUntilReverted() throws Exception {
-        ProjectorLighting<Player, BlockData, ProjectionWorldView> lighting = BukkitProjectorLighting.create();
+        ProjectorLighting<Player, BlockData, ProjectionWorldView> lighting = new BukkitProjectionOutput(WormholesPlatform::isChunkSent, portalId -> List.of()).lighting();
         assertTrue(lighting.isIdle());
 
         Field field = ProjectorLighting.class.getDeclaredField("sentChunkSections");
@@ -269,7 +259,7 @@ public final class ProjectorLightingSectionTest {
 
     @Test
     public void pendingSectionsDrainWithoutFreshDirtyKeys() throws Exception {
-        ProjectorLighting<Player, BlockData, ProjectionWorldView> lighting = BukkitProjectorLighting.create();
+        ProjectorLighting<Player, BlockData, ProjectionWorldView> lighting = new BukkitProjectionOutput(WormholesPlatform::isChunkSent, portalId -> List.of()).lighting();
         Field field = ProjectorLighting.class.getDeclaredField("pendingChunkSections");
         field.setAccessible(true);
         @SuppressWarnings("unchecked")

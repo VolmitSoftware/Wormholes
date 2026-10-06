@@ -31,6 +31,7 @@ import org.bukkit.entity.Player;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.Settings;
+import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.optics.claim.ProjectedBlockClaim;
@@ -280,7 +281,7 @@ public final class ProjectionClaimArbiterConcurrencyTest {
         };
         ProjectionClaimArbiter arbiter = new ProjectionClaimArbiter(
             ProjectionClaimArbiterConcurrencyTest::availableView,
-            visibility
+            new BukkitProjectionOutput(visibility, portalId -> List.of())
         );
         ILocalPortal portal = portal(UUID.fromString("00000000-0000-0000-0000-000000000068"));
         long cell = packKey(1, 64, 1);
@@ -323,7 +324,8 @@ public final class ProjectionClaimArbiterConcurrencyTest {
     @Test
     public void unresolvedLightingRevertKeepsObserverStateAlive() throws Exception {
         ProjectionWorldView unavailableView = unavailableLightView();
-        ProjectionClaimArbiter arbiter = new ProjectionClaimArbiter(ignored -> unavailableView);
+        ProjectionClaimArbiter arbiter = new ProjectionClaimArbiter(ignored -> unavailableView,
+            new BukkitProjectionOutput(WormholesPlatform::isChunkSent, portalId -> List.of()));
         UUID observerId = UUID.fromString("00000000-0000-0000-0000-000000000015");
         World world = world();
         AtomicReference<World> playerWorld = new AtomicReference<World>();
@@ -469,7 +471,7 @@ public final class ProjectionClaimArbiterConcurrencyTest {
         Player observer = player(UUID.fromString("00000000-0000-0000-0000-000000000051"), playerWorld, online, sentLocations);
         ProjectionClaimArbiter arbiter = new ProjectionClaimArbiter(
             ProjectionClaimArbiterConcurrencyTest::availableView,
-            (player, chunkX, chunkZ) -> true
+            new BukkitProjectionOutput((player, chunkX, chunkZ) -> true, portalId -> List.of())
         );
         ILocalPortal portal = portal(UUID.fromString("00000000-0000-0000-0000-000000000061"));
 
@@ -496,7 +498,7 @@ public final class ProjectionClaimArbiterConcurrencyTest {
         Player observer = player(UUID.fromString("00000000-0000-0000-0000-000000000052"), playerWorld, online, sentLocations);
         ProjectionClaimArbiter arbiter = new ProjectionClaimArbiter(
             ProjectionClaimArbiterConcurrencyTest::availableView,
-            (player, chunkX, chunkZ) -> true
+            new BukkitProjectionOutput((player, chunkX, chunkZ) -> true, portalId -> List.of())
         );
         ILocalPortal portalA = portal(UUID.fromString("00000000-0000-0000-0000-000000000062"));
         ILocalPortal portalB = portal(UUID.fromString("00000000-0000-0000-0000-000000000063"));
@@ -529,7 +531,7 @@ public final class ProjectionClaimArbiterConcurrencyTest {
         Player observer = player(UUID.fromString("00000000-0000-0000-0000-000000000053"), playerWorld, online, sentLocations);
         ProjectionClaimArbiter arbiter = new ProjectionClaimArbiter(
             ProjectionClaimArbiterConcurrencyTest::availableView,
-            (player, chunkX, chunkZ) -> chunkSent.get()
+            new BukkitProjectionOutput((player, chunkX, chunkZ) -> chunkSent.get(), portalId -> List.of())
         );
         ILocalPortal portal = portal(UUID.fromString("00000000-0000-0000-0000-000000000064"));
         long cell = packKey(1, 64, 1);
@@ -579,7 +581,7 @@ public final class ProjectionClaimArbiterConcurrencyTest {
         };
         ProjectionClaimArbiter arbiter = new ProjectionClaimArbiter(
             ProjectionClaimArbiterConcurrencyTest::availableView,
-            visibility
+            new BukkitProjectionOutput(visibility, portalId -> List.of())
         );
         ILocalPortal portal = portal(UUID.fromString("00000000-0000-0000-0000-000000000065"));
         long cell = packKey(1, 64, 1);
@@ -614,9 +616,7 @@ public final class ProjectionClaimArbiterConcurrencyTest {
             ProjectionWorldView sourceView = availableView(world);
             ProjectionClaimArbiter arbiter = new ProjectionClaimArbiter(
                 ignored -> localView,
-                visibility,
-                () -> BukkitProjectorLighting.create(visibility,
-                    (player, chunkX, chunkZ, data) -> lightPackets.incrementAndGet()));
+                new BukkitProjectionOutput(visibility, portalId -> List.of(), (player, chunkX, chunkZ, data) -> lightPackets.incrementAndGet()));
             UUID sourcePortal = UUID.fromString("00000000-0000-0000-0000-000000000066");
             UUID blackoutPortal = UUID.fromString("00000000-0000-0000-0000-000000000067");
             BlockData data = blockData("shared");
@@ -649,7 +649,8 @@ public final class ProjectionClaimArbiterConcurrencyTest {
     }
 
     private static ProjectionClaimArbiter arbiter() {
-        return new ProjectionClaimArbiter(ProjectionClaimArbiterConcurrencyTest::availableView);
+        return new ProjectionClaimArbiter(ProjectionClaimArbiterConcurrencyTest::availableView,
+            new BukkitProjectionOutput(WormholesPlatform::isChunkSent, portalId -> List.of()));
     }
 
     @SuppressWarnings("unchecked")

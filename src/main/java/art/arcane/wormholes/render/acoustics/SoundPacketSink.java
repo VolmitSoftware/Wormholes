@@ -20,12 +20,11 @@ import art.arcane.optics.fidelity.AcousticsBridge;
 import art.arcane.optics.fidelity.AcousticsProfile;
 
 /** Plays relayed sounds through the sound-effect packet, positioned at the local aperture. */
-public final class SoundPacketSink implements AcousticsBridge.SoundSink<Player> {
+public final class SoundPacketSink {
     private static final String FAILURE_REASON = "ACOUSTICS_SOUND_PACKET_FAILED";
 
     private volatile boolean failureLogged;
 
-    @Override
     public void play(Player observer, AcousticsBridge.Playback playback) {
         if (observer == null || playback.soundKey() == null) {
             return;
@@ -53,7 +52,6 @@ public final class SoundPacketSink implements AcousticsBridge.SoundSink<Player> 
         }
     }
 
-    @Override
     public boolean clientAmbient(Player observer) {
         BukkitClientView clientView = ClientViewEffects.active();
         return clientView != null && observer != null && clientView.receiver(observer);

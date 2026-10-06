@@ -2,6 +2,7 @@ package art.arcane.optics.fidelity;
 
 import art.arcane.optics.light.SkyMath;
 import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.claim.RecordingProjectionOutput;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import java.util.ArrayList;
 import java.util.List;
@@ -13,7 +14,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
-
 final class WeatherRelayTest {
     @Test
     void precipitationSamplesOnlyProjectedAirAndMaskCells() {
@@ -22,12 +22,15 @@ final class WeatherRelayTest {
         claims.put(1L, new ProjectedBlockClaim<>("stone", null, 0L, false));
         claims.put(2L, new ProjectedBlockClaim<>("air", null, 0L, false));
         claims.put(3L, new ProjectedBlockClaim<>("stone", null, 0L, true));
-        List<Long> emitted = new ArrayList<>();
+        RecordingProjectionOutput<String> output = new RecordingProjectionOutput<String>();
         relay.spawn(new WeatherRelay.Emission<>(claims, relay.plan(true, true, "minecraft:snowy_plains", 0L),
-            new Random(37L), "air"::equals), (particle, cell) -> {
-                assertEquals(WeatherRelay.Precipitation.SNOWFLAKE, particle);
-                emitted.add(cell);
-            });
+            new Random(37L), "air"::equals), output, "observer");
+        List<Long> emitted = new ArrayList<>();
+        for (RecordingProjectionOutput.Emitted<String, RecordingProjectionOutput.WeatherSend> sent : output.weather) {
+            assertEquals("observer", sent.observer());
+            assertEquals(WeatherRelay.Precipitation.SNOWFLAKE, sent.value().particle());
+            emitted.add(sent.value().cellKey());
+        }
         assertEquals(2, emitted.size());
         assertTrue(emitted.stream().allMatch(cell -> cell == 2L || cell == 3L));
     }

@@ -528,10 +528,9 @@ public final class MinecraftProjectionService implements AutoCloseable {
         private final LongOpenHashSet restoredClaimKeys = new LongOpenHashSet();
         private final LongOpenHashSet pending = new LongOpenHashSet();
         private final Long2ObjectMap<LongOpenHashSet> sentChunks = new Long2ObjectOpenHashMap<>();
-        private final ProjectedBlockEntityLayer<ServerPlayer> blockEntities =
-            new ProjectedBlockEntityLayer<>(new MinecraftBlockEntityPackets(runtime));
-        private final ProjectorLighting<ServerPlayer, BlockState, ContentView<BlockState, BlockState>> lighting =
-            new ProjectorLighting<>(new MinecraftProjectorLighting(runtime), WormholesTelemetry.metrics());
+        private final ProjectedBlockEntityLayer<ServerPlayer> blockEntities = new ProjectedBlockEntityLayer<>(WormholesTelemetry.metrics());
+        private final MinecraftProjectionOutput output;
+        private final ProjectorLighting<ServerPlayer, BlockState, ContentView<BlockState, BlockState>> lighting;
         private final LongOpenHashSet dirtyLight = new LongOpenHashSet();
         private final MinecraftAtmosphere atmosphere;
         private final MinecraftPortalSurfaces surfaces;
@@ -541,11 +540,12 @@ public final class MinecraftProjectionService implements AutoCloseable {
         private Observer(ServerPlayer player) {
             this.player = player;
             this.world = player.level();
-            this.acoustics = new AcousticsBridge<>(new AcousticsBridge.Options<>(new MinecraftAcoustics.Sink(runtime.clientViews()),
-                ignored -> List.of(player), ServerPlayer::getUUID, FidelitySettings::snapshot));
+            this.output = new MinecraftProjectionOutput(runtime, player);
+            this.lighting = new ProjectorLighting<>(output, () -> changes, WormholesTelemetry.metrics());
+            this.acoustics = new AcousticsBridge<>(new AcousticsBridge.Options<>(output, ServerPlayer::getUUID, FidelitySettings::snapshot));
             this.portals.setDoorViews(doorwayViews);
             this.portals.observer(player);
-            this.atmosphere = new MinecraftAtmosphere(runtime, new MinecraftAtmosphere.Context(player, view(world)));
+            this.atmosphere = new MinecraftAtmosphere(runtime, new MinecraftAtmosphere.Context(player, view(world), output));
             this.surfaces = new MinecraftPortalSurfaces(runtime, new MinecraftPortalSurfaces.Context(player, claims, staged));
         }
 
@@ -625,7 +625,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
                 staged.clear();
             }
             for (MinecraftPortalProjector projector : projectors.values()) {
-                projector.updateWeather(tick);
+                projector.updateWeather(tick, output);
                 projector.noteAcoustics(acoustics);
             }
             acoustics.tickAmbient(System.currentTimeMillis());
@@ -753,7 +753,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
                 }
             }
             blockEntities.update(desired, this::localBlockEntity);
-            blockEntities.flush(player, FidelitySettings.blockEntityBudgetPerTick);
+            blockEntities.flush(player, FidelitySettings.blockEntityBudgetPerTick, output);
         }
 
         private BlockEntitySample localBlockEntity(int x, int y, int z) {
@@ -769,7 +769,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
                 if (!player.hasDisconnected() && player.level() == world) {
                     packets.restoreBlocks(player, world, claims.getWinningClaims().keySet());
                     blockEntities.retireAll(view(world)::sampleBlockEntity);
-                    blockEntities.flush(player, Integer.MAX_VALUE);
+                    blockEntities.flush(player, Integer.MAX_VALUE, output);
                     lighting.revert(player, view(world));
                 }
                 atmosphere.close();

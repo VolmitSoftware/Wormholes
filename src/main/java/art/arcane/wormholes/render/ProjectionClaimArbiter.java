@@ -37,11 +37,8 @@ import io.github.retrooper.packetevents.util.SpigotConversionUtil;
 
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
-import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.optics.fidelity.BiomeClaimSet;
-import art.arcane.wormholes.render.atmosphere.BiomeSink;
-import art.arcane.wormholes.render.atmosphere.ChunkBiomesPacketSink;
 import art.arcane.optics.fidelity.BedrockProfile;
 import art.arcane.wormholes.render.bedrock.ClientProfileService;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
@@ -62,34 +59,19 @@ public final class ProjectionClaimArbiter {
     private final ConcurrentHashMap<UUID, ObserverClaims> observers;
     private final ConcurrentHashMap<BlockData, Integer> blockGlobalIds;
     private final ProjectionWorldViewProvider viewProvider;
+    private final BukkitProjectionOutput output;
     private final ProjectionChunkVisibility chunkVisibility;
-    private final LightingFactory lightingFactory;
-    private final BiomeSink biomeSink;
 
-    public ProjectionClaimArbiter(ProjectionWorldViewProvider viewProvider) {
-        this(viewProvider, WormholesPlatform::isChunkSent);
-    }
-
-    public ProjectionClaimArbiter(ProjectionWorldViewProvider viewProvider, ProjectionChunkVisibility chunkVisibility) {
-        this(viewProvider, chunkVisibility, () -> BukkitProjectorLighting.create(chunkVisibility));
-    }
-
-    ProjectionClaimArbiter(ProjectionWorldViewProvider viewProvider,
-                           ProjectionChunkVisibility chunkVisibility,
-                           LightingFactory lightingFactory) {
-        this(viewProvider, chunkVisibility, lightingFactory, new ChunkBiomesPacketSink());
-    }
-
-    ProjectionClaimArbiter(ProjectionWorldViewProvider viewProvider,
-                           ProjectionChunkVisibility chunkVisibility,
-                           LightingFactory lightingFactory,
-                           BiomeSink biomeSink) {
+    public ProjectionClaimArbiter(ProjectionWorldViewProvider viewProvider, BukkitProjectionOutput output) {
         this.observers = new ConcurrentHashMap<UUID, ObserverClaims>();
         this.blockGlobalIds = new ConcurrentHashMap<BlockData, Integer>();
         this.viewProvider = viewProvider;
-        this.chunkVisibility = chunkVisibility;
-        this.lightingFactory = lightingFactory;
-        this.biomeSink = biomeSink;
+        this.output = output;
+        this.chunkVisibility = output.visibility();
+    }
+
+    public BukkitProjectionOutput output() {
+        return output;
     }
 
     public void beginFrame(Player observer, World localWorld, boolean allowLightingUpdate) {
@@ -269,7 +251,7 @@ public final class ProjectionClaimArbiter {
                     state.biomes = new BiomeClaimSet(localView.getMinHeight(), localView.getMaxHeight(), localView);
                 }
                 List<BiomeClaimSet.ChunkBiomes> changed = state.biomes.apply(portalId, overrides);
-                sendBiomes(observer, localWorld, state, changed);
+                sendBiomes(observer, state, changed);
                 return;
             }
         }
@@ -288,24 +270,24 @@ public final class ProjectionClaimArbiter {
         }
     }
 
-    private void sendBiomes(Player observer, World localWorld, ObserverClaims state, List<BiomeClaimSet.ChunkBiomes> chunks) {
+    private void sendBiomes(Player observer, ObserverClaims state, List<BiomeClaimSet.ChunkBiomes> chunks) {
         if (chunks.isEmpty()) {
             return;
         }
         if (isObserverInWorld(observer, state.worldId)) {
-            biomeSink.send(observer, localWorld, chunks);
+            output.biomes(observer, chunks);
         }
         if (state.biomes != null && state.biomes.isEmpty()) {
             state.biomes = null;
         }
     }
 
-    private void restoreBiomes(Player observer, World localWorld, ObserverClaims state, UUID claimOwnerId) {
+    private void restoreBiomes(Player observer, ObserverClaims state, UUID claimOwnerId) {
         state.sourceLightingPortals.remove(claimOwnerId);
         if (state.biomes == null) {
             return;
         }
-        sendBiomes(observer, localWorld, state, state.biomes.release(claimOwnerId));
+        sendBiomes(observer, state, state.biomes.release(claimOwnerId));
     }
 
     public ClaimUpdateResult release(Player observer, ILocalPortal portal, World localWorld, boolean allowLightingUpdate) {
@@ -337,7 +319,7 @@ public final class ProjectionClaimArbiter {
                 observers.remove(observerId, state);
                 return ClaimUpdateResult.empty();
             }
-            restoreBiomes(observer, localWorld, state, claimOwnerId);
+            restoreBiomes(observer, state, claimOwnerId);
             ObserverFrame frame = state.frame;
             if (frame != null) {
                 state.claimSet.stagePortalRelease(claimOwnerId, frame.affectedKeys);
@@ -918,7 +900,7 @@ public final class ProjectionClaimArbiter {
         while (true) {
             ObserverClaims state = observers.get(observerId);
             if (state == null) {
-                ObserverClaims created = new ObserverClaims(worldId, lightingFactory.create());
+                ObserverClaims created = new ObserverClaims(worldId, output.lighting());
                 ObserverClaims raced = observers.putIfAbsent(observerId, created);
                 state = raced == null ? created : raced;
             }
@@ -1077,10 +1059,5 @@ public final class ProjectionClaimArbiter {
             this.allowLightingUpdate = allowLightingUpdate;
             this.affectedKeys = new LongOpenHashSet(256);
         }
-    }
-
-    @FunctionalInterface
-    interface LightingFactory {
-        ProjectorLighting<Player, BlockData, ProjectionWorldView> create();
     }
 }

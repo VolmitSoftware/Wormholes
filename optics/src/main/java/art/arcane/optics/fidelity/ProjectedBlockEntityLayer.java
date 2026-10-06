@@ -1,15 +1,14 @@
 package art.arcane.optics.fidelity;
 
-import java.util.concurrent.atomic.AtomicLong;
-
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 
-
+import art.arcane.optics.claim.ProjectionOutput;
 import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.spi.OpticsMetrics;
 
 /**
  * Per-observer block-entity delivery: remembers what each projected cell was last told, queues the
@@ -18,35 +17,26 @@ import art.arcane.optics.math.CellKeys;
  */
 public final class ProjectedBlockEntityLayer<P> {
     @FunctionalInterface
-    public interface PacketSink<P> {
-        void send(P observer, long key, BlockEntitySample sample);
-    }
-
-    @FunctionalInterface
     public interface LocalLookup {
         BlockEntitySample sample(int x, int y, int z);
     }
 
-    private static final AtomicLong SENT_TOTAL = new AtomicLong();
+    public static final String SENT_METRIC = "projection.block-entities.sent";
 
-    private final PacketSink<P> sink;
+    private final OpticsMetrics metrics;
     private final Long2ObjectOpenHashMap<BlockEntitySample> sent;
     private final Long2ObjectOpenHashMap<BlockEntitySample> pending;
     private final LongArrayList pendingOrder;
     private final LongOpenHashSet pendingKeys;
     private final LongOpenHashSet restoring;
 
-    public ProjectedBlockEntityLayer(PacketSink<P> sink) {
-        this.sink = sink;
+    public ProjectedBlockEntityLayer(OpticsMetrics metrics) {
+        this.metrics = metrics;
         this.sent = new Long2ObjectOpenHashMap<BlockEntitySample>(64);
         this.pending = new Long2ObjectOpenHashMap<BlockEntitySample>(64);
         this.pendingOrder = new LongArrayList(64);
         this.pendingKeys = new LongOpenHashSet(64);
         this.restoring = new LongOpenHashSet(64);
-    }
-
-    public static long sentTotal() {
-        return SENT_TOTAL.get();
     }
 
     public void update(Long2ObjectMap<BlockEntitySample> desired, LocalLookup local) {
@@ -90,7 +80,7 @@ public final class ProjectedBlockEntityLayer<P> {
         }
     }
 
-    public int flush(P observer, int budget) {
+    public int flush(P observer, int budget, ProjectionOutput<P> output) {
         int sentNow = 0;
         while (sentNow < budget && !pendingOrder.isEmpty()) {
             long key = pendingOrder.removeLong(0);
@@ -101,12 +91,14 @@ public final class ProjectedBlockEntityLayer<P> {
             if (sample == null) {
                 continue;
             }
-            sink.send(observer, key, sample);
+            output.blockEntity(observer, key, sample);
             if (!restoring.remove(key)) {
                 sent.put(key, sample);
             }
             sentNow++;
-            SENT_TOTAL.incrementAndGet();
+        }
+        if (sentNow > 0) {
+            metrics.count(SENT_METRIC, sentNow);
         }
         return sentNow;
     }

@@ -5,8 +5,6 @@ import art.arcane.optics.entity.ProjectedEntityEvent;
 import art.arcane.optics.fidelity.WeatherRelay;
 import art.arcane.optics.fidelity.AcousticsBridge;
 import art.arcane.optics.fidelity.AcousticsProfile;
-import art.arcane.optics.math.CellKeys;
-import net.minecraft.core.particles.ParticleTypes;
 import java.util.Random;
 
 import art.arcane.wormholes.config.toml.ProjectionConfig;
@@ -28,6 +26,7 @@ import art.arcane.optics.volume.ViewVolume;
 import art.arcane.optics.claim.ProjectedBlockClaim;
 import art.arcane.optics.claim.ProjectionBlackout;
 import art.arcane.optics.claim.ProjectionClaimSet;
+import art.arcane.optics.claim.ProjectionOutput;
 import art.arcane.optics.scan.CellScan;
 import art.arcane.optics.volume.FrustumFit;
 import art.arcane.optics.scan.ProjectorPassRevision;
@@ -189,7 +188,7 @@ public final class MinecraftPortalProjector implements AutoCloseable {
         }
     }
 
-    public void updateWeather(long tick) {
+    public void updateWeather(long tick, ProjectionOutput<ServerPlayer> output) {
         if (closed || pendingDestination == null || !scan.hasProjection() || !FidelitySettings.weather || !atmosphereMode().relaysWeather()) {
             return;
         }
@@ -201,14 +200,8 @@ public final class MinecraftPortalProjector implements AutoCloseable {
             (int) Math.floor(destination.originY()), (int) Math.floor(destination.originZ()));
         WeatherRelay.Burst burst = weather.plan(storm, thunder, biome, tick);
         if (burst != null) {
-            weather.spawn(new WeatherRelay.Emission<>(scan.claims(), burst, weatherRandom, BlockState::isAir), this::spawnWeather);
+            weather.spawn(new WeatherRelay.Emission<>(scan.claims(), burst, weatherRandom, BlockState::isAir), output, observer);
         }
-    }
-
-    private void spawnWeather(WeatherRelay.Precipitation particle, long cell) {
-        observer.level().sendParticles(observer, particle == WeatherRelay.Precipitation.SNOWFLAKE ? ParticleTypes.SNOWFLAKE : ParticleTypes.RAIN,
-            false, false, CellKeys.unpackX(cell) + 0.5D, CellKeys.unpackY(cell) + 0.5D, CellKeys.unpackZ(cell) + 0.5D,
-            1, 0.4D, 0.5D, 0.4D, 0.0D);
     }
 
     public AtmosphereMode atmosphereMode() {

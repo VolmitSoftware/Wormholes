@@ -43,7 +43,6 @@ import art.arcane.optics.fidelity.AtmosphereMode;
 import art.arcane.optics.fidelity.AcousticsBridge;
 import art.arcane.optics.fidelity.AcousticsProfile;
 import art.arcane.wormholes.render.bedrock.ClientProfileService;
-import art.arcane.wormholes.render.blockentity.BlockEntityPacketSink;
 import art.arcane.optics.fidelity.ProjectedBlockEntityLayer;
 import art.arcane.wormholes.render.lod.DissolveSchedule;
 import art.arcane.optics.volume.LodPolicy;
@@ -101,7 +100,7 @@ public final class PortalProjector {
     private final ViewPlateCache<BlockData, World> plateCache;
     private final AtmosphereChannel<BlockData, ProjectionWorldView> atmosphere = new AtmosphereChannel<>();
     private final ProjectorWeather weather = new ProjectorWeather();
-    private final ProjectedBlockEntityLayer<Player> blockEntityLayer = new ProjectedBlockEntityLayer<Player>(new BlockEntityPacketSink());
+    private final ProjectedBlockEntityLayer<Player> blockEntityLayer = new ProjectedBlockEntityLayer<Player>(WormholesTelemetry.metrics());
     private final DissolveSchedule dissolve = new DissolveSchedule();
     private final ProjectorCommitLatency commitLatency = new ProjectorCommitLatency();
     private final ProjectorResampleReasons resampleReasons = new ProjectorResampleReasons();
@@ -720,7 +719,7 @@ public final class PortalProjector {
         if (closed || budget <= 0 || !blockEntityLayer.hasPending()) {
             return 0;
         }
-        return blockEntityLayer.flush(observer, budget);
+        return blockEntityLayer.flush(observer, budget, claimArbiter.output());
     }
 
     private void updateEntitiesOnly(long startNanos, Location eye) {
@@ -860,7 +859,7 @@ public final class PortalProjector {
         }
         String biome = destination.destView.sampleBiome((int) Math.floor(destination.originX),
             (int) Math.floor(destination.originY), (int) Math.floor(destination.originZ));
-        weather.relay(scheduler, observer, new ProjectorWeather.Conditions(storm, thunder, biome), cellScan.claims());
+        weather.relay(scheduler, claimArbiter.output(), observer, new ProjectorWeather.Conditions(storm, thunder, biome), cellScan.claims());
     }
 
     /**
@@ -1164,9 +1163,9 @@ public final class PortalProjector {
         }
         Wormholes plugin = Wormholes.instance;
         boolean scheduled = plugin != null && FoliaScheduler.runEntity(plugin, observer,
-            () -> blockEntityLayer.flush(observer, Integer.MAX_VALUE), 1L);
+            () -> blockEntityLayer.flush(observer, Integer.MAX_VALUE, claimArbiter.output()), 1L);
         if (!scheduled) {
-            blockEntityLayer.flush(observer, Integer.MAX_VALUE);
+            blockEntityLayer.flush(observer, Integer.MAX_VALUE, claimArbiter.output());
         }
     }
 

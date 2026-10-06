@@ -10,6 +10,8 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
+import art.arcane.optics.claim.RecordingProjectionOutput;
+
 final class AcousticsBridgeTest {
     private static final UUID PORTAL = UUID.fromString("00000000-0000-0000-0000-0000000000a1");
     private static final UUID OTHER_PORTAL = UUID.fromString("00000000-0000-0000-0000-0000000000a2");
@@ -18,7 +20,7 @@ final class AcousticsBridgeTest {
     private static final UUID OBSERVER = UUID.fromString("00000000-0000-0000-0000-0000000000b1");
     private static final FidelityOptions FIDELITY = new FidelityOptions(0.005D, 0.6D, true, false, false, 8, 24.0D, 8);
 
-    private final List<Played> played = new ArrayList<Played>();
+    private final RecordingProjectionOutput<UUID> output = new RecordingProjectionOutput<UUID>();
     private final UUID observer = OBSERVER;
 
     @Test
@@ -34,8 +36,8 @@ final class AcousticsBridgeTest {
         note(bridge, AcousticsProfile.AMBIENT, AcousticsBridge.Environment.NETHER, 20_000L);
         assertEquals(0, bridge.onEvent(block, 20_000L));
         assertEquals(1, bridge.tickAmbient(20_000L));
-        assertEquals("minecraft:ambient.nether_wastes.loop", played.get(0).key());
-        assertEquals(AcousticsProfile.SoundClass.AMBIENT, played.get(0).soundClass());
+        assertEquals("minecraft:ambient.nether_wastes.loop", played().get(0).soundKey());
+        assertEquals(AcousticsProfile.SoundClass.AMBIENT, played().get(0).soundClass());
         assertEquals(0, bridge.tickAmbient(21_000L), "the ambient bed repeats every four seconds, not every tick");
         assertEquals(1, bridge.tickAmbient(24_100L));
 
@@ -53,7 +55,7 @@ final class AcousticsBridgeTest {
         note(bridge, AcousticsProfile.FULL, AcousticsBridge.Environment.NORMAL, 0L);
 
         assertEquals(1, bridge.onEvent(event(DEST_WORLD, 106.0D, 64.0D, 100.0D, "minecraft:block.stone.break", AcousticsProfile.SoundClass.WORLD), 0L));
-        Played near = played.get(0);
+        AcousticsBridge.Playback near = played().get(0);
         assertEquals(10.5D, near.x(), 1.0E-9D, "sounds are positioned at the local aperture centre");
         assertEquals(65.0D, near.y(), 1.0E-9D);
         assertEquals(10.5D, near.z(), 1.0E-9D);
@@ -61,7 +63,7 @@ final class AcousticsBridgeTest {
             "volume follows the event's distance from the destination anchor");
 
         assertEquals(1, bridge.onEvent(event(DEST_WORLD, 120.0D, 64.0D, 100.0D, "minecraft:block.stone.break", AcousticsProfile.SoundClass.WORLD), 0L));
-        assertTrue(played.get(1).volume() < near.volume(), "farther destination events arrive quieter");
+        assertTrue(played().get(1).volume() < near.volume(), "farther destination events arrive quieter");
 
         assertEquals(0, bridge.onEvent(event(DEST_WORLD, 140.0D, 64.0D, 100.0D, "minecraft:block.stone.break", AcousticsProfile.SoundClass.WORLD), 0L),
             "events past the destination radius are ignored");
@@ -113,22 +115,13 @@ final class AcousticsBridgeTest {
 
     @Test
     void clientRunBedsSkipThePacketBedAndExposeTheBedToTheSession() {
-        AcousticsBridge<UUID> bridge = new AcousticsBridge<>(new AcousticsBridge.Options<>(new AcousticsBridge.SoundSink<UUID>() {
-            @Override
-            public void play(UUID viewer, AcousticsBridge.Playback sound) {
-                played.add(new Played(viewer, sound.soundKey(), sound.soundClass(), sound.x(), sound.y(), sound.z(), sound.volume(), sound.pitch()));
-            }
-
-            @Override
-            public boolean clientAmbient(UUID viewer) {
-                return true;
-            }
-        }, portalId -> List.of(observer), viewer -> viewer, () -> FIDELITY));
+        output.ambientClients.add(observer);
+        AcousticsBridge<UUID> bridge = bridge();
         assertEquals(null, bridge.ambientBed(PORTAL));
         note(bridge, AcousticsProfile.AMBIENT, AcousticsBridge.Environment.THE_END, 0L);
 
         assertEquals(0, bridge.tickAmbient(5_000L), "clients that run the bed get no packet bed");
-        assertTrue(played.isEmpty());
+        assertTrue(played().isEmpty());
         AcousticsBridge.Playback bed = bridge.ambientBed(PORTAL);
         assertEquals("minecraft:ambient.cave", bed.soundKey());
         assertEquals(AcousticsProfile.SoundClass.AMBIENT, bed.soundClass());
@@ -142,9 +135,17 @@ final class AcousticsBridgeTest {
     }
 
     private AcousticsBridge<UUID> bridge() {
-        return new AcousticsBridge<>(new AcousticsBridge.Options<>((viewer, sound) ->
-            played.add(new Played(viewer, sound.soundKey(), sound.soundClass(), sound.x(), sound.y(), sound.z(), sound.volume(), sound.pitch())),
-            portalId -> List.of(observer), viewer -> viewer, () -> FIDELITY));
+        output.everyone = List.of(observer);
+        return new AcousticsBridge<>(new AcousticsBridge.Options<>(output, viewer -> viewer, () -> FIDELITY));
+    }
+
+    private List<AcousticsBridge.Playback> played() {
+        List<AcousticsBridge.Playback> played = new ArrayList<AcousticsBridge.Playback>(output.sounds.size());
+        for (RecordingProjectionOutput.Emitted<UUID, AcousticsBridge.Playback> sent : output.sounds) {
+            assertEquals(observer, sent.observer());
+            played.add(sent.value());
+        }
+        return played;
     }
 
     private static void note(AcousticsBridge<UUID> bridge, AcousticsProfile profile, AcousticsBridge.Environment environment, long now) {
@@ -153,8 +154,5 @@ final class AcousticsBridgeTest {
 
     private static AcousticsBridge.SoundEvent event(UUID world, double x, double y, double z, String key, AcousticsProfile.SoundClass soundClass) {
         return new AcousticsBridge.SoundEvent(world, x, y, z, key, 1.0F, 1.0F, soundClass);
-    }
-
-    private record Played(UUID observer, String key, AcousticsProfile.SoundClass soundClass, double x, double y, double z, float volume, float pitch) {
     }
 }

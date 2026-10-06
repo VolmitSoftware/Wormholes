@@ -13,8 +13,8 @@ import art.arcane.wormholes.network.WireMessage;
 import art.arcane.wormholes.network.WireMessageType;
 import art.arcane.optics.fidelity.AcousticsBridge;
 import art.arcane.optics.fidelity.AcousticsProfile;
+import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.render.acoustics.SoundEventSource;
-import art.arcane.wormholes.render.acoustics.SoundPacketSink;
 import art.arcane.wormholes.render.bedrock.ClientProfileService;
 
 /** Lifecycle entry point for the view lane: per-portal fidelity extension, menu, channels and wire handlers. */
@@ -69,8 +69,8 @@ public final class FidelitySubsystem implements WormholesSubsystem {
             projection.onFidelitySettingsReloaded();
         }
         ClientProfileService.install(ClientProfileService.detectFloodgateAndBrand(plugin));
-        acoustics = new AcousticsBridge<>(new AcousticsBridge.Options<>(new SoundPacketSink(), FidelitySubsystem::observersOf, Player::getUniqueId,
-            FidelitySettings::snapshot));
+        acoustics = new AcousticsBridge<>(new AcousticsBridge.Options<>(new BukkitProjectionOutput(WormholesPlatform::isChunkSent,
+            FidelitySubsystem::observersOf), Player::getUniqueId, FidelitySettings::snapshot));
         soundSource = new SoundEventSource(FidelitySubsystem::acoustics);
         plugin.registerListener(soundSource);
     }

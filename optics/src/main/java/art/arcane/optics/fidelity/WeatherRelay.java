@@ -8,6 +8,7 @@ import it.unimi.dsi.fastutil.longs.LongArrayList;
 import java.util.function.Predicate;
 
 import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.claim.ProjectionOutput;
 
 /**
  * Relays destination precipitation into the projected volume as short particle bursts, rate-capped
@@ -36,7 +37,7 @@ public final class WeatherRelay {
         return new Burst(particle, thunder ? MAX_PARTICLES_PER_BURST : RAIN_PARTICLES_PER_BURST);
     }
 
-    public <B, V> void spawn(Emission<B, V> emission, Sink sink) {
+    public <O, B, V> void spawn(Emission<B, V> emission, ProjectionOutput<O> output, O observer) {
         Long2ObjectMap<ProjectedBlockClaim<B, V>> claims = emission.claims();
         Burst burst = emission.burst();
         Random random = emission.random();
@@ -56,7 +57,7 @@ public final class WeatherRelay {
         int count = Math.min(burst.count(), airCells.size());
         for (int index = 0; index < count; index++) {
             long key = airCells.getLong(random.nextInt(airCells.size()));
-            sink.spawn(burst.particle(), key);
+            output.weather(observer, burst.particle(), key);
         }
     }
 
@@ -66,10 +67,6 @@ public final class WeatherRelay {
     }
 
     public record Emission<B, V>(Long2ObjectMap<ProjectedBlockClaim<B, V>> claims, Burst burst, Random random, Predicate<B> air) {
-    }
-
-    public interface Sink {
-        void spawn(Precipitation particle, long cell);
     }
 
     static boolean isCold(String biomeKey) {

@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 
-import org.bukkit.World;
 import org.bukkit.entity.Player;
 
 import com.github.retrooper.packetevents.PacketEvents;
@@ -23,15 +22,14 @@ import art.arcane.optics.fidelity.BiomeClaimSet;
  * Sends chunk-column biome grids through the chunk-biomes packet. The packet replaces every section's
  * biome container, so callers always hand over full columns (local biomes plus overrides).
  */
-public final class ChunkBiomesPacketSink implements BiomeSink {
+public final class ChunkBiomesPacketSink {
     private static final String FAILURE_REASON = "ATMOSPHERE_BIOME_PACKET_FAILED";
 
     private volatile Constructor<WrapperPlayServerChunkBiomes.ChunkBiomeData> dataConstructor;
     private volatile boolean unavailable;
     private volatile boolean failureLogged;
 
-    @Override
-    public void send(Player observer, World world, List<BiomeClaimSet.ChunkBiomes> chunks) {
+    public void send(Player observer, List<BiomeClaimSet.ChunkBiomes> chunks) {
         if (unavailable || observer == null || chunks == null || chunks.isEmpty()) {
             return;
         }

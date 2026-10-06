@@ -21,9 +21,8 @@ import art.arcane.optics.fidelity.BlockEntitySample;
 import org.junit.jupiter.api.Test;
 import art.arcane.optics.claim.ProjectedBlockClaim;
 import art.arcane.optics.claim.ProjectionClaimSet;
+import art.arcane.optics.claim.RecordingProjectionOutput;
 import art.arcane.optics.math.CellKeys;
-import art.arcane.optics.view.WorldChangeTracker;
-
 
 public final class ProjectorLightingIncrementalTest {
     private static final Object OBSERVER = new Object();
@@ -239,32 +238,10 @@ public final class ProjectorLightingIncrementalTest {
     }
 
     private ProjectorLighting<Object, String, MutableLightView> lighting(MutableLightView local, Map<Long, SectionLight> client) {
-        return new ProjectorLighting<>(new ProjectorLighting.Host<>() {
-            @Override
-            public boolean isOnline(Object observer) {
-                return true;
-            }
-
-            @Override
-            public boolean isChunkSent(Object observer, int chunkX, int chunkZ) {
-                return true;
-            }
-
-            @Override
-            public void send(Object observer, ProjectorLighting.ChunkLight light) {
-                receive(client, local, light);
-            }
-
-            @Override
-            public int sectionBudget() {
-                return sectionBudget;
-            }
-
-            @Override
-            public WorldChangeTracker tracker() {
-                return null;
-            }
-        }, OpticsMetrics.none());
+        RecordingProjectionOutput<Object> output = new RecordingProjectionOutput<Object>();
+        output.lightSectionBudget = sectionBudget;
+        output.lightListener = light -> receive(client, local, light);
+        return new ProjectorLighting<>(output, () -> null, OpticsMetrics.none());
     }
 
     private static void receive(Map<Long, SectionLight> client, MutableLightView local,

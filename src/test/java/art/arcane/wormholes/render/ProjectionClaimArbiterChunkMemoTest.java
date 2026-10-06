@@ -41,7 +41,7 @@ public final class ProjectionClaimArbiterChunkMemoTest {
         World world = world();
         ILocalPortal portal = portal();
         ProjectionClaimArbiter arbiter = new ProjectionClaimArbiter(ignored -> availableView(world),
-            countingVisibility(new AtomicInteger(), new AtomicBoolean(true), revision, chunkRevision));
+            new BukkitProjectionOutput(countingVisibility(new AtomicInteger(), new AtomicBoolean(true), revision, chunkRevision), portalId -> List.of()));
         Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> first = claims(blockData("stable"));
         Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> next = new Long2ObjectOpenHashMap<>(first);
         assertEquals(1, arbiter.submit(observer, portal, world, first, 2.0D, false).getBlockChanges());
@@ -63,7 +63,7 @@ public final class ProjectionClaimArbiterChunkMemoTest {
         ILocalPortal portal = portal();
         ProjectionClaimArbiter arbiter = new ProjectionClaimArbiter(
             ignored -> availableView(world),
-            countingVisibility(sentQueries, new AtomicBoolean(true), revision, new AtomicLong(1L))
+            new BukkitProjectionOutput(countingVisibility(sentQueries, new AtomicBoolean(true), revision, new AtomicLong(1L)), portalId -> List.of())
         );
 
         assertEquals(1, arbiter.submit(observer, portal, world, claims(blockData("a")), 2.0D, false).getBlockChanges());
@@ -88,7 +88,7 @@ public final class ProjectionClaimArbiterChunkMemoTest {
         ILocalPortal portal = portal();
         ProjectionClaimArbiter arbiter = new ProjectionClaimArbiter(
             ignored -> availableView(world),
-            countingVisibility(sentQueries, chunkSent, revision, chunkRevision)
+            new BukkitProjectionOutput(countingVisibility(sentQueries, chunkSent, revision, chunkRevision), portalId -> List.of())
         );
 
         assertEquals(1, arbiter.submit(observer, portal, world, claims(blockData("a")), 2.0D, false).getBlockChanges());
@@ -120,10 +120,10 @@ public final class ProjectionClaimArbiterChunkMemoTest {
         ILocalPortal portal = portal();
         ProjectionClaimArbiter arbiter = new ProjectionClaimArbiter(
             ignored -> availableView(world),
-            (player, chunkX, chunkZ) -> {
+            new BukkitProjectionOutput((player, chunkX, chunkZ) -> {
                 sentQueries.incrementAndGet();
                 return chunkSent.get();
-            }
+            }, portalId -> List.of())
         );
 
         assertEquals(1, arbiter.submit(observer, portal, world, claims(blockData("a")), 2.0D, false).getBlockChanges());
@@ -162,7 +162,7 @@ public final class ProjectionClaimArbiterChunkMemoTest {
             }
         };
         ProjectionClaimArbiter arbiter = new ProjectionClaimArbiter(
-            ignored -> availableView(world, localSamples), visibility);
+            ignored -> availableView(world, localSamples), new BukkitProjectionOutput(visibility, portalId -> List.of()));
         ProjectedBlockClaim<BlockData, ProjectionWorldView> projected = new ProjectedBlockClaim<BlockData, ProjectionWorldView>(
             blockData("projected"), null, ProjectedBlockClaim.NO_REMOTE_KEY, false);
         projected.setGlobalId(-1);
@@ -198,7 +198,7 @@ public final class ProjectionClaimArbiterChunkMemoTest {
         ILocalPortal portal = portal();
         ProjectionClaimArbiter arbiter = new ProjectionClaimArbiter(
             ignored -> availableView(world, localSamples),
-            countingVisibility(new AtomicInteger(), new AtomicBoolean(true), revision, chunkRevision));
+            new BukkitProjectionOutput(countingVisibility(new AtomicInteger(), new AtomicBoolean(true), revision, chunkRevision), portalId -> List.of()));
         ProjectedBlockClaim<BlockData, ProjectionWorldView> projected = new ProjectedBlockClaim<BlockData, ProjectionWorldView>(
             blockData("projected"), null, ProjectedBlockClaim.NO_REMOTE_KEY, false);
         projected.setGlobalId(-1);
@@ -235,7 +235,7 @@ public final class ProjectionClaimArbiterChunkMemoTest {
         ILocalPortal portal = portal();
         ProjectionClaimArbiter arbiter = new ProjectionClaimArbiter(
             ignored -> availableView(world, localSamples),
-            countingVisibility(new AtomicInteger(), chunkSent, revision, new AtomicLong(1L)));
+            new BukkitProjectionOutput(countingVisibility(new AtomicInteger(), chunkSent, revision, new AtomicLong(1L)), portalId -> List.of()));
         assertEquals(1, arbiter.submit(observer, portal, world, claims(blockData("projected")), 2.0D, false)
             .getBlockChanges());
 

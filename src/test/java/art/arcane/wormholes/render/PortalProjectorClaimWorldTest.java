@@ -46,7 +46,7 @@ public final class PortalProjectorClaimWorldTest {
         ILocalPortal portal = portal(PORTAL_ID, portalWorld);
         ProjectionClaimArbiter arbiter = new ProjectionClaimArbiter(
             PortalProjectorClaimWorldTest::view,
-            (player, chunkX, chunkZ) -> true);
+            new BukkitProjectionOutput((player, chunkX, chunkZ) -> true, portalId -> List.of()));
 
         PortalProjector projector = withBukkitServer(() -> new PortalProjector(portal, observer, arbiter,
             PortalProjectorClaimWorldTest::view, () -> true));
@@ -75,7 +75,7 @@ public final class PortalProjectorClaimWorldTest {
         ILocalPortal portal = portal(PORTAL_ID, portalWorld);
         ProjectionClaimArbiter arbiter = new ProjectionClaimArbiter(
             PortalProjectorClaimWorldTest::view,
-            (player, chunkX, chunkZ) -> true);
+            new BukkitProjectionOutput((player, chunkX, chunkZ) -> true, portalId -> List.of()));
 
         PortalProjector projector = withBukkitServer(() -> new PortalProjector(portal, observer, arbiter,
             PortalProjectorClaimWorldTest::view, () -> true));

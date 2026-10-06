@@ -1,6 +1,5 @@
 package art.arcane.optics.fidelity;
 
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -8,6 +7,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 import java.util.function.Supplier;
+
+import art.arcane.optics.claim.ProjectionOutput;
+
 /**
  * Routes destination-side sound events to the observers of every portal that looks at that place,
  * positioned at the local aperture centre and attenuated by the event's distance from the far side.
@@ -21,20 +23,6 @@ public final class AcousticsBridge<O> {
     static final float AMBIENT_VOLUME = 0.25F;
     private static final long RATE_WINDOW_MILLIS = 1_000L;
 
-    @FunctionalInterface
-    public interface SoundSink<O> {
-        void play(O observer, Playback sound);
-
-        default boolean clientAmbient(O observer) {
-            return false;
-        }
-    }
-
-    @FunctionalInterface
-    public interface ObserverLookup<O> {
-        List<O> observersOf(UUID portalId);
-    }
-
     public record SoundEvent(UUID worldId, double x, double y, double z, String soundKey, float volume, float pitch,
                              AcousticsProfile.SoundClass soundClass) {
     }
@@ -42,8 +30,7 @@ public final class AcousticsBridge<O> {
     public record Playback(String soundKey, AcousticsProfile.SoundClass soundClass, double x, double y, double z, float volume, float pitch) {
     }
 
-    public record Options<O>(SoundSink<O> sink, ObserverLookup<O> observers, Function<O, UUID> observerId,
-                             Supplier<FidelityOptions> fidelity) {
+    public record Options<O>(ProjectionOutput<O> output, Function<O, UUID> observerId, Supplier<FidelityOptions> fidelity) {
     }
 
     public enum Environment {
@@ -96,16 +83,14 @@ public final class AcousticsBridge<O> {
         private int count;
     }
 
-    private final SoundSink<O> sink;
-    private final ObserverLookup<O> observers;
+    private final ProjectionOutput<O> output;
     private final Function<O, UUID> observerId;
     private final Supplier<FidelityOptions> fidelity;
     private final Map<UUID, Aperture> apertures;
     private final Map<UUID, RateState> rates;
 
     public AcousticsBridge(Options<O> options) {
-        this.sink = options.sink();
-        this.observers = options.observers();
+        this.output = options.output();
         this.observerId = options.observerId();
         this.fidelity = options.fidelity();
         this.apertures = new ConcurrentHashMap<UUID, Aperture>();
@@ -204,11 +189,11 @@ public final class AcousticsBridge<O> {
             if (key == null) {
                 continue;
             }
-            for (O observer : observers.observersOf(entry.getKey())) {
-                if (sink.clientAmbient(observer) || !admit(observer, nowMillis)) {
+            for (O observer : output.observersOf(entry.getKey())) {
+                if (output.clientAmbient(observer) || !admit(observer, nowMillis)) {
                     continue;
                 }
-                sink.play(observer, new Playback(key, AcousticsProfile.SoundClass.AMBIENT,
+                output.sound(observer, new Playback(key, AcousticsProfile.SoundClass.AMBIENT,
                     aperture.apertureX, aperture.apertureY, aperture.apertureZ, AMBIENT_VOLUME, 1.0F));
                 played++;
             }
@@ -253,11 +238,11 @@ public final class AcousticsBridge<O> {
         float attenuatedVolume = SoundAttenuation.volume(volume, distance, radius);
         float attenuatedPitch = SoundAttenuation.pitch(pitch, distance, radius);
         int played = 0;
-        for (O observer : observers.observersOf(portalId)) {
+        for (O observer : output.observersOf(portalId)) {
             if (observer == null || !admit(observer, nowMillis)) {
                 continue;
             }
-            sink.play(observer, new Playback(soundKey, soundClass, aperture.apertureX, aperture.apertureY, aperture.apertureZ,
+            output.sound(observer, new Playback(soundKey, soundClass, aperture.apertureX, aperture.apertureY, aperture.apertureZ,
                 attenuatedVolume, attenuatedPitch));
             played++;
         }

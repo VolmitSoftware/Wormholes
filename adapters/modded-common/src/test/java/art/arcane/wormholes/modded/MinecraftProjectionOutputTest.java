@@ -9,7 +9,7 @@ import java.util.BitSet;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
-public class MinecraftProjectorLightingTest {
+public class MinecraftProjectionOutputTest {
     @Test
     public void nativeLightPacketPreservesNegativeChunkMasksAndNibbleArrays() {
         BitSet skyMask = new BitSet();
@@ -30,7 +30,7 @@ public class MinecraftProjectorLightingTest {
         ProjectorLighting.ChunkLight light = new ProjectorLighting.ChunkLight(-17, 65, blockMask, skyMask,
             emptyBlock, emptySky, new byte[][] {sky, secondSky}, new byte[][] {block});
 
-        ClientboundLightUpdatePacket packet = MinecraftProjectorLighting.packet(light);
+        ClientboundLightUpdatePacket packet = MinecraftProjectionOutput.lightPacket(light);
 
         assertEquals(-17, packet.x());
         assertEquals(65, packet.z());

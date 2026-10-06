@@ -16,15 +16,13 @@ import art.arcane.wormholes.Wormholes;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.wormholes.service.WormholesTelemetry;
 import art.arcane.optics.fidelity.BlockEntitySample;
-import art.arcane.optics.fidelity.ProjectedBlockEntityLayer;
 
 /** Sends a sanitized sample as a block-entity data packet. */
-public final class BlockEntityPacketSink implements ProjectedBlockEntityLayer.PacketSink<Player> {
+public final class BlockEntityPacketSink {
     private static final String FAILURE_REASON = "PROJECTION_BLOCK_ENTITY_PACKET_FAILED";
 
     private volatile boolean failureLogged;
 
-    @Override
     public void send(Player observer, long key, BlockEntitySample sample) {
         if (observer == null || sample == null) {
             return;

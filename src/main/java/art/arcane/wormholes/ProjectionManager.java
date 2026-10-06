@@ -1,5 +1,6 @@
 package art.arcane.wormholes;
 
+import art.arcane.wormholes.render.BukkitProjectionOutput;
 import org.bukkit.block.data.BlockData;
 import art.arcane.wormholes.hook.ProjectionSource;
 import art.arcane.wormholes.hook.WormholesHooks;
@@ -127,7 +128,7 @@ public class ProjectionManager implements Listener {
             ? new RegionSnapshotWorldViewProvider(Wormholes.instance)
             : ProjectionWorldViewProvider.sectionCached(Wormholes.instance, Wormholes.projectionChangeTracker);
         this.clientChunkTracker = clientChunkTracker;
-        this.claimArbiter = new ProjectionClaimArbiter(viewProvider, clientChunkTracker);
+        this.claimArbiter = new ProjectionClaimArbiter(viewProvider, new BukkitProjectionOutput(clientChunkTracker, this::observersOf));
         this.localEntityOcclusion = BukkitEntityRegistryHost.occlusion(BukkitEntityRegistryHost.PLUGIN_VISIBILITY);
         this.rtpRimRenderer = new RtpRimRenderer();
         this.skinRenderer = new PortalSkinRenderer(claimArbiter);

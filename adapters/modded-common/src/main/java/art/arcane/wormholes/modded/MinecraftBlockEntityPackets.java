@@ -2,7 +2,6 @@ package art.arcane.wormholes.modded;
 
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.fidelity.BlockEntitySample;
-import art.arcane.optics.fidelity.ProjectedBlockEntityLayer;
 import io.netty.buffer.Unpooled;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.RegistryAccess;
@@ -23,7 +22,7 @@ import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 
-public final class MinecraftBlockEntityPackets implements ProjectedBlockEntityLayer.PacketSink<ServerPlayer> {
+public final class MinecraftBlockEntityPackets {
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
 
     private final WormholesModRuntime runtime;
@@ -33,7 +32,6 @@ public final class MinecraftBlockEntityPackets implements ProjectedBlockEntityLa
         this.runtime = runtime;
     }
 
-    @Override
     public void send(ServerPlayer observer, long key, BlockEntitySample sample) {
         runtime.requireServerThread();
         int x = CellKeys.unpackX(key);

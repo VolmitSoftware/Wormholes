@@ -11,6 +11,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.List;
 import java.util.logging.Logger;
 
 import org.bukkit.Material;
@@ -44,27 +45,28 @@ final class BukkitWeatherClockTest {
         BukkitOpticsScheduler scheduler = new BukkitOpticsScheduler(plugin, workers);
         Player observer = mock(Player.class);
         ProjectorWeather weather = new ProjectorWeather();
+        BukkitProjectionOutput output = new BukkitProjectionOutput((player, chunkX, chunkZ) -> true, portalId -> List.of());
         Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims = airClaims(40);
 
-        weather.relay(scheduler, observer, new ProjectorWeather.Conditions(true, false, "minecraft:plains"), claims);
+        weather.relay(scheduler, output, observer, new ProjectorWeather.Conditions(true, false, "minecraft:plains"), claims);
         verify(observer, times(12)).spawnParticle(eq(Particle.RAIN), anyDouble(), anyDouble(), anyDouble(), anyInt(),
             anyDouble(), anyDouble(), anyDouble(), anyDouble());
         clearInvocations(observer);
 
         Thread.sleep(400L);
-        weather.relay(scheduler, observer, new ProjectorWeather.Conditions(true, false, "minecraft:plains"), claims);
+        weather.relay(scheduler, output, observer, new ProjectorWeather.Conditions(true, false, "minecraft:plains"), claims);
         verify(observer, never()).spawnParticle(eq(Particle.RAIN), anyDouble(), anyDouble(), anyDouble(), anyInt(),
             anyDouble(), anyDouble(), anyDouble(), anyDouble());
 
         for (int tick = 0; tick < WeatherRelay.BURST_INTERVAL_TICKS - 1; tick++) {
             scheduler.advanceTick();
         }
-        weather.relay(scheduler, observer, new ProjectorWeather.Conditions(true, false, "minecraft:plains"), claims);
+        weather.relay(scheduler, output, observer, new ProjectorWeather.Conditions(true, false, "minecraft:plains"), claims);
         verify(observer, never()).spawnParticle(eq(Particle.RAIN), anyDouble(), anyDouble(), anyDouble(), anyInt(),
             anyDouble(), anyDouble(), anyDouble(), anyDouble());
 
         scheduler.advanceTick();
-        weather.relay(scheduler, observer, new ProjectorWeather.Conditions(true, true, "minecraft:snowy_plains"), claims);
+        weather.relay(scheduler, output, observer, new ProjectorWeather.Conditions(true, true, "minecraft:snowy_plains"), claims);
         verify(observer, times(WeatherRelay.MAX_PARTICLES_PER_BURST)).spawnParticle(eq(Particle.SNOWFLAKE), anyDouble(), anyDouble(),
             anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble(), anyDouble());
         assertEquals(WeatherRelay.BURST_INTERVAL_TICKS, scheduler.tick());
