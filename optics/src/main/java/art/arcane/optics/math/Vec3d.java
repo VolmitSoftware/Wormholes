@@ -37,6 +37,14 @@ public record Vec3d(double x, double y, double z) {
         return new Vec3d(x * scalar, y * scalar, z * scalar);
     }
 
+    public double dot(Vec3d other) {
+        return x * other.x + y * other.y + z * other.z;
+    }
+
+    public double lengthSquared() {
+        return x * x + y * y + z * z;
+    }
+
     public Vec3d normalize() {
         return multiply(1.0D / Math.sqrt(x * x + y * y + z * z));
     }
