@@ -16,17 +16,19 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class PlateWorkersTest {
+    private static final String THREAD_PREFIX = "Plate-Test-";
+
     @Test
     void jobsRunToCompletionOnThePlatePoolAndPublishOnce() throws InterruptedException {
         Host host = new Host();
-        PlateWorkers<String, String> workers = new PlateWorkers<>(1, host);
+        PlateWorkers<String, String> workers = new PlateWorkers<>(THREAD_PREFIX, 1, host);
         Job job = new Job(3);
         try {
             workers.submitAsync(job);
             assertTrue(host.done.await(5L, TimeUnit.SECONDS), "the pool must finish the build");
             assertEquals(3, job.steps.get());
             assertEquals(1, host.published.size());
-            assertTrue(host.threads.get(0).startsWith("Wormholes-Plate-"), host.threads.get(0));
+            assertTrue(host.threads.get(0).startsWith(THREAD_PREFIX), host.threads.get(0));
             assertEquals(0, host.failed.get());
         } finally {
             workers.shutdown();
@@ -36,7 +38,7 @@ final class PlateWorkersTest {
     @Test
     void shutdownRejectsNewJobsWithoutABuild() {
         Host host = new Host();
-        PlateWorkers<String, String> workers = new PlateWorkers<>(1, host);
+        PlateWorkers<String, String> workers = new PlateWorkers<>(THREAD_PREFIX, 1, host);
         workers.shutdown();
         Job job = new Job(1);
         workers.submitAsync(job);
@@ -47,7 +49,7 @@ final class PlateWorkersTest {
 
     @Test
     void lanesRunOnThePlatePoolAndAreRejectedAfterShutdown() throws InterruptedException {
-        PlateWorkers<String, String> workers = new PlateWorkers<>(1, new Host());
+        PlateWorkers<String, String> workers = new PlateWorkers<>(THREAD_PREFIX, 1, new Host());
         CountDownLatch ran = new CountDownLatch(1);
         List<String> threads = new CopyOnWriteArrayList<>();
         workers.execute(() -> {
@@ -55,7 +57,7 @@ final class PlateWorkersTest {
             ran.countDown();
         });
         assertTrue(ran.await(5L, TimeUnit.SECONDS));
-        assertTrue(threads.get(0).startsWith("Wormholes-Plate-"), threads.get(0));
+        assertTrue(threads.get(0).startsWith(THREAD_PREFIX), threads.get(0));
         workers.shutdown();
         assertThrows(RejectedExecutionException.class, () -> workers.execute(() -> { }));
     }

@@ -8,7 +8,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Runs plate builds on the bounded {@code Wormholes-Plate-N} pool. Every view a build reads is safe
+ * Runs plate builds on a bounded pool of host-named threads. Every view a build reads is safe
  * off-thread: region snapshots, remote views and chunk snapshots captured for the plate.
  */
 public final class PlateWorkers<B, W> {
@@ -22,12 +22,14 @@ public final class PlateWorkers<B, W> {
 
     static final int ASYNC_CELLS_PER_STEP = 8192;
     private static final int QUEUE_CAPACITY = 256;
-    private static final AtomicInteger THREAD_SEQUENCE = new AtomicInteger();
 
+    private final String threadPrefix;
+    private final AtomicInteger threadSequence = new AtomicInteger();
     private final Host<B, W> host;
     private volatile ThreadPoolExecutor executor;
 
-    public PlateWorkers(int threads, Host<B, W> host) {
+    public PlateWorkers(String threadPrefix, int threads, Host<B, W> host) {
+        this.threadPrefix = threadPrefix;
         this.host = host;
         this.executor = createExecutor(threads);
     }
@@ -96,10 +98,10 @@ public final class PlateWorkers<B, W> {
         }
     }
 
-    private static ThreadPoolExecutor createExecutor(int threads) {
+    private ThreadPoolExecutor createExecutor(int threads) {
         int size = Math.max(1, threads);
         ThreadFactory factory = runnable -> {
-            Thread thread = new Thread(runnable, "Wormholes-Plate-" + THREAD_SEQUENCE.incrementAndGet());
+            Thread thread = new Thread(runnable, threadPrefix + threadSequence.incrementAndGet());
             thread.setDaemon(true);
             return thread;
         };

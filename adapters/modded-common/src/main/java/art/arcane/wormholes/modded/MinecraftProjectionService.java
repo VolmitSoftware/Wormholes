@@ -204,7 +204,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
         sections.configure(limits);
         changes.addListener(eviction);
         long startedGeneration = ++generation;
-        plateWorkers = new PlateWorkers<>(FidelitySettings.plateWorkers, new PlateWorkers.Host<>() {
+        plateWorkers = new PlateWorkers<>("Wormholes-Plate-", FidelitySettings.plateWorkers, new PlateWorkers.Host<>() {
             @Override
             public void publish(ViewPlateBuilder.Job<BlockState, ServerLevel> job, ViewPlate<BlockState> plate) {
                 if (!closed && generation == startedGeneration) {

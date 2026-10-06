@@ -137,7 +137,7 @@ public class ProjectionManager implements Listener {
         BooleanSupplier alive = () -> !closed;
         this.closeQueue = new ProjectionInterestCloseQueue(alive);
         this.plateCache = new ViewPlateCache<BlockData, World>(FidelitySettings.plateMaxBytes, this::schedulePlateBuild);
-        this.plateWorkers = new PlateWorkers<>(FidelitySettings.plateWorkers, new PlateWorkers.Host<>() {
+        this.plateWorkers = new PlateWorkers<>("Wormholes-Plate-", FidelitySettings.plateWorkers, new PlateWorkers.Host<>() {
             @Override
             public void publish(ViewPlateBuilder.Job<BlockData, World> job, ViewPlate<BlockData> plate) {
                 if (!closed) {
