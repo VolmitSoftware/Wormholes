@@ -70,7 +70,7 @@ public final class CapturedChunkView implements ProjectionWorldView {
     }
 
     @Override
-    public Material sampleMaterial(int x, int y, int z) {
+    public Material material(int x, int y, int z) {
         ChunkSnapshot snapshot = snapshot(x, y, z);
         return snapshot == null ? null : snapshot.getBlockType(x & 15, y, z & 15);
     }

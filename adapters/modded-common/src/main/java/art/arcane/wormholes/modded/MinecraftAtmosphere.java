@@ -5,14 +5,12 @@ import art.arcane.optics.math.CellKeys;
 import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.optics.fidelity.AtmosphereChannel;
 import art.arcane.optics.fidelity.BiomeClaimSet;
-import art.arcane.optics.fidelity.BiomeIdResolver;
 import art.arcane.optics.view.ContentView;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.biome.Biome;
@@ -30,7 +28,6 @@ public final class MinecraftAtmosphere implements AutoCloseable {
     private final ServerPlayer observer;
     private final ServerLevel world;
     private final Registry<Biome> registry;
-    private final BiomeIdResolver ids;
     private final BiomeClaimSet claims;
     private final Map<UUID, AtmosphereChannel<BlockState, ContentView<BlockState, BlockState>>> channels = new HashMap<>();
     private final Long2ObjectMap<BiomeClaimSet.ChunkBiomes> pending = new Long2ObjectOpenHashMap<>();
@@ -40,9 +37,7 @@ public final class MinecraftAtmosphere implements AutoCloseable {
         this.observer = context.observer();
         this.world = observer.level();
         this.registry = world.registryAccess().lookupOrThrow(Registries.BIOME);
-        this.ids = this::biomeId;
-        this.claims = new BiomeClaimSet(context.local().getMinHeight(), context.local().getMaxHeight(),
-            (x, y, z) -> biomeId(context.local().sampleBiome(x, y, z)));
+        this.claims = new BiomeClaimSet(context.local().getMinHeight(), context.local().getMaxHeight(), context.local());
     }
 
     public void update(MinecraftPortalProjector projector, boolean changed) {
@@ -57,7 +52,7 @@ public final class MinecraftAtmosphere implements AutoCloseable {
             return;
         }
         Long2IntOpenHashMap overrides = channel.update(new AtmosphereChannel.Scan<>(projector.scan().claims(),
-            projector.destinationView(), changed), ids, FidelitySettings.snapshot());
+            projector.destinationView(), changed), FidelitySettings.snapshot());
         if (overrides != null) {
             enqueue(claims.apply(id, overrides));
         }
@@ -103,12 +98,6 @@ public final class MinecraftAtmosphere implements AutoCloseable {
         channels.clear();
         claims.clear();
         pending.clear();
-    }
-
-    private int biomeId(String key) {
-        Identifier id = key == null ? null : Identifier.tryParse(key);
-        Biome biome = id == null ? null : registry.getOptional(id).orElse(null);
-        return biome == null ? -1 : registry.getId(biome);
     }
 
     private void enqueue(List<BiomeClaimSet.ChunkBiomes> chunks) {

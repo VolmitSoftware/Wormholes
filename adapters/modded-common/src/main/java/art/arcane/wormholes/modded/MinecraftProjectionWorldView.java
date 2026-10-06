@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.ToIntFunction;
 
 public final class MinecraftProjectionWorldView implements ContentView<BlockState, BlockState>, AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
@@ -43,6 +44,7 @@ public final class MinecraftProjectionWorldView implements ContentView<BlockStat
     private final LongOpenHashSet wantedSections = new LongOpenHashSet(16);
     private final Map<Long, ChunkLease> leases = new HashMap<>();
     private final BlockPos.MutableBlockPos position = new BlockPos.MutableBlockPos();
+    private final MinecraftBiomeIds biomeIds;
     private boolean closed;
 
     public MinecraftProjectionWorldView(WormholesModRuntime runtime, ServerLevel level, SectionCache<BlockState, BlockState>.WorldSections sections) {
@@ -53,6 +55,7 @@ public final class MinecraftProjectionWorldView implements ContentView<BlockStat
         minimumHeight = level.getMinY();
         maximumHeight = level.getMaxY();
         worldId = worldId(level);
+        biomeIds = new MinecraftBiomeIds(level);
     }
 
     public static MinecraftProjectionWorldView uncached(WormholesModRuntime runtime, ServerLevel level) {
@@ -76,6 +79,10 @@ public final class MinecraftProjectionWorldView implements ContentView<BlockStat
 
     public SectionCache<BlockState, BlockState>.WorldSections sections() {
         return sections;
+    }
+
+    public ToIntFunction<String> biomeIds() {
+        return biomeIds;
     }
 
     @Override
@@ -108,7 +115,7 @@ public final class MinecraftProjectionWorldView implements ContentView<BlockStat
     }
 
     @Override
-    public BlockState sampleMaterial(int x, int y, int z) {
+    public BlockState material(int x, int y, int z) {
         return sampleBlockData(x, y, z);
     }
 
@@ -151,6 +158,11 @@ public final class MinecraftProjectionWorldView implements ContentView<BlockStat
         }
         return level.getBiome(position.set(x, y, z)).unwrapKey()
             .map(key -> key.identifier().toString()).orElse(null);
+    }
+
+    @Override
+    public int biomeId(int x, int y, int z) {
+        return biomeIds.applyAsInt(sampleBiome(x, y, z));
     }
 
     public int getLight(int x, int y, int z) {

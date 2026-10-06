@@ -48,7 +48,8 @@ final class MinecraftPlateCaptureGameTest {
         AtomicReference<MinecraftCapturedChunkView> capturedView = new AtomicReference<>();
         PlateCaptureJob<BlockState, ServerLevel, MinecraftPlateCaptureSource.CapturedChunk> job = new PlateCaptureJob<>(new PlateCaptureJob.Plan<>(
             key, level, ViewPlateBuilder.footprint(request), new MinecraftPlateCaptureSource(runtime, MinecraftPlateCaptureSource.Options.column(view.worldId(), true)), captured -> {
-                MinecraftCapturedChunkView built = new MinecraftCapturedChunkView(view.worldId(), view.getMinHeight(), view.getMaxHeight(), 0L, captured);
+                MinecraftCapturedChunkView built = new MinecraftCapturedChunkView(view.worldId(), view.getMinHeight(), view.getMaxHeight(), 0L, captured,
+                    view.biomeIds());
                 capturedView.set(built);
                 return ViewPlateBuilder.job(request.withDestView(built));
             }));

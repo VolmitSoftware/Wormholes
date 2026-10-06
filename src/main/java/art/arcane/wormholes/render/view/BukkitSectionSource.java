@@ -9,9 +9,9 @@ import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
 import art.arcane.optics.view.CachedSection;
-import art.arcane.optics.view.SectionCache;
+import art.arcane.optics.view.SectionSource;
 
-final class BukkitSectionSource implements SectionCache.Source<BlockData, Material> {
+final class BukkitSectionSource implements SectionSource<BlockData, Material> {
     private final World world;
     private final BlockData air;
     private final Long2ObjectOpenHashMap<ChunkSnapshot> snapshots;

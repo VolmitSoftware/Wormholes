@@ -52,7 +52,7 @@ public class MinecraftViewPlateTest extends MinecraftTestBase {
         BlockState source = Blocks.OAK_STAIRS.defaultBlockState();
         ContentView<BlockState, BlockState> view = mock(ContentView.class);
         when(view.sampleBlockData(anyInt(), anyInt(), anyInt())).thenReturn(source);
-        when(view.sampleMaterial(anyInt(), anyInt(), anyInt())).thenReturn(source);
+        when(view.material(anyInt(), anyInt(), anyInt())).thenReturn(source);
         when(view.worldId()).thenReturn(UUID.randomUUID());
         when(view.sampleBiome(anyInt(), anyInt(), anyInt())).thenReturn("minecraft:plains");
         when(view.getLight(anyInt(), anyInt(), anyInt())).thenReturn(ContentView.packLight(15, 0));
@@ -109,7 +109,7 @@ public class MinecraftViewPlateTest extends MinecraftTestBase {
         when(view.getMinHeight()).thenReturn(-64);
         when(view.getMaxHeight()).thenReturn(320);
         when(view.sampleBlockData(anyInt(), anyInt(), anyInt())).thenReturn(stone);
-        when(view.sampleMaterial(anyInt(), anyInt(), anyInt())).thenReturn(stone);
+        when(view.material(anyInt(), anyInt(), anyInt())).thenReturn(stone);
         ApertureCells geometry = new ApertureCells();
         geometry.setArea(new Box(0, 2, 64, 67, 0, 1));
         Frame frame = Frame.canonical(Face.S);
@@ -128,7 +128,7 @@ public class MinecraftViewPlateTest extends MinecraftTestBase {
         try {
             PlateCaptureJob<BlockState, ServerLevel, MinecraftPlateCaptureSource.CapturedChunk> job = new PlateCaptureJob<>(new PlateCaptureJob.Plan<>(
                 key, level, ViewPlateBuilder.footprint(request), new MinecraftPlateCaptureSource(runtime, MinecraftPlateCaptureSource.Options.column(worldId, false)),
-                captured -> ViewPlateBuilder.job(request.withDestView(new MinecraftCapturedChunkView(worldId, -64, 320, 7L, captured)))));
+                captured -> ViewPlateBuilder.job(request.withDestView(new MinecraftCapturedChunkView(worldId, -64, 320, 7L, captured, biome -> -1)))));
             assertNull(service.plates().current(key, 7L, 3L, new WorldChangeTracker(), false, previous -> job));
             assertEquals(1, service.plateCaptureQueueSize());
             assertTrue(service.plates().isBuilding(job));

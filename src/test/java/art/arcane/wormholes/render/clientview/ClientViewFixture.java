@@ -125,7 +125,7 @@ final class ClientViewFixture implements AutoCloseable {
         when(view.isChunkReady(anyInt(), anyInt())).thenReturn(true);
         when(view.getRevision()).thenReturn(1L);
         when(view.sampleBlockData(anyInt(), anyInt(), anyInt())).thenAnswer(call -> ((Integer) call.getArgument(1)) < 64 ? stone : air);
-        when(view.sampleMaterial(anyInt(), anyInt(), anyInt())).thenAnswer(call -> ((Integer) call.getArgument(1)) < 64 ? Material.STONE : Material.AIR);
+        when(view.material(anyInt(), anyInt(), anyInt())).thenAnswer(call -> ((Integer) call.getArgument(1)) < 64 ? Material.STONE : Material.AIR);
         views = new ProjectionWorldViewProvider() {
             @Override
             public ProjectionWorldView view(World ignored) {

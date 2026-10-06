@@ -9,18 +9,19 @@ import org.bukkit.block.Biome;
 
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.platform.WormholesPlatform;
-import art.arcane.optics.fidelity.BiomeIdResolver;
 
 /**
  * Biome network ids taken from the server biome registry in registration order, which is the order
  * the client receives in the registry sync. Resolved once; a registry that cannot be read leaves every
  * biome unknown so no retint is ever sent with a guessed id.
  */
-public final class BiomeRegistryIds implements BiomeIdResolver {
-    private volatile Map<String, Integer> ids;
+public final class BiomeRegistryIds {
+    private static volatile Map<String, Integer> ids;
 
-    @Override
-    public int id(String biomeKey) {
+    private BiomeRegistryIds() {
+    }
+
+    public static int id(String biomeKey) {
         if (biomeKey == null) {
             return -1;
         }
@@ -28,12 +29,12 @@ public final class BiomeRegistryIds implements BiomeIdResolver {
         return id == null ? -1 : id.intValue();
     }
 
-    private Map<String, Integer> ids() {
+    private static Map<String, Integer> ids() {
         Map<String, Integer> resolved = ids;
         if (resolved != null) {
             return resolved;
         }
-        synchronized (this) {
+        synchronized (BiomeRegistryIds.class) {
             if (ids == null) {
                 ids = load();
             }

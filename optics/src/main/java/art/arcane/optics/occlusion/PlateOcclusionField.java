@@ -1,7 +1,7 @@
 package art.arcane.optics.occlusion;
 
 import art.arcane.optics.view.BlockStates;
-import art.arcane.optics.view.MaterialView;
+import art.arcane.optics.view.ContentView;
 import art.arcane.optics.math.BlockBox;
 
 public final class PlateOcclusionField<B, M> {
@@ -10,12 +10,12 @@ public final class PlateOcclusionField<B, M> {
     private static final byte OPEN = 2;
     private static final long MAX_CELLS = 16L * 1024L * 1024L;
 
-    private final MaterialView<B, M> view;
+    private final ContentView<B, M> view;
     private final BlockStates<B, M> blocks;
     private final BlockBox box;
     private final byte[] states;
 
-    public PlateOcclusionField(MaterialView<B, M> view, BlockStates<B, M> blocks, BlockBox box) {
+    public PlateOcclusionField(ContentView<B, M> view, BlockStates<B, M> blocks, BlockBox box) {
         this.view = view;
         this.blocks = blocks;
         this.box = box.cells() > MAX_CELLS ? BlockBox.EMPTY : box;
@@ -68,13 +68,13 @@ public final class PlateOcclusionField<B, M> {
     private boolean occluding(int x, int y, int z) {
         int index = box.index(x, y, z);
         if (index < 0) {
-            return blocks.isOccluding(view.sampleMaterial(x, y, z));
+            return blocks.isOccluding(view.material(x, y, z));
         }
         byte state = states[index];
         if (state != UNKNOWN) {
             return state == OCCLUDING;
         }
-        boolean occluding = blocks.isOccluding(view.sampleMaterial(x, y, z));
+        boolean occluding = blocks.isOccluding(view.material(x, y, z));
         states[index] = occluding ? OCCLUDING : OPEN;
         return occluding;
     }

@@ -102,7 +102,7 @@ public class MinecraftProjectionWorldViewTest extends MinecraftTestBase {
             assertSame(stone, view.sampleBlockData(8, 8, 8));
             clearInvocations(fixture.chunks());
             assertSame(stone, view.sampleBlockData(9, 9, 9));
-            assertSame(stone, view.sampleMaterial(8, 8, 8));
+            assertSame(stone, view.material(8, 8, 8));
             verify(fixture.chunks(), never()).getChunkNow(anyInt(), anyInt());
             assertEquals(1, view.sections().size());
         }

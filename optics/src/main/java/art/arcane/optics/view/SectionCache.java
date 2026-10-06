@@ -33,7 +33,7 @@ public final class SectionCache<B, M> {
         this.columnsOpened = 0;
     }
 
-    public WorldSections world(Source<B, M> source, int minSectionY, int maxSectionY) {
+    public WorldSections world(SectionSource<B, M> source, int minSectionY, int maxSectionY) {
         WorldSections sections = new WorldSections(source, minSectionY, maxSectionY);
         worlds.add(sections);
         return sections;
@@ -111,16 +111,6 @@ public final class SectionCache<B, M> {
         }
     }
 
-    public interface Source<B, M> {
-        boolean columnAvailable(int chunkX, int chunkZ);
-
-        boolean capture(int sectionX, int sectionY, int sectionZ, CachedSection.Builder<B, M> builder);
-
-        void discardColumn(int chunkX, int chunkZ);
-
-        void endTick();
-    }
-
     private final class Victim {
         private final WorldSections sections;
         private final CachedSection<B, M> section;
@@ -136,7 +126,7 @@ public final class SectionCache<B, M> {
     }
 
     public final class WorldSections {
-        private final Source<B, M> source;
+        private final SectionSource<B, M> source;
         private final int minSectionY;
         private final int maxSectionY;
         private final Long2ObjectOpenHashMap<CachedSection<B, M>> sections;
@@ -145,7 +135,7 @@ public final class SectionCache<B, M> {
         private final CachedSection<B, M>[] recent;
 
         @SuppressWarnings("unchecked")
-        private WorldSections(Source<B, M> source, int minSectionY, int maxSectionY) {
+        private WorldSections(SectionSource<B, M> source, int minSectionY, int maxSectionY) {
             this.source = Objects.requireNonNull(source);
             this.minSectionY = minSectionY;
             this.maxSectionY = maxSectionY;

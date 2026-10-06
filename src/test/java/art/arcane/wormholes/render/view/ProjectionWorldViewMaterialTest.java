@@ -74,15 +74,15 @@ public final class ProjectionWorldViewMaterialTest {
         view.put(1, 2, 3, Material.STONE);
         view.put(1, 3, 3, Material.CAVE_AIR);
 
-        assertEquals(Material.STONE, view.sampleMaterial(1, 2, 3));
-        assertEquals(Material.CAVE_AIR, view.sampleMaterial(1, 3, 3));
+        assertEquals(Material.STONE, view.material(1, 2, 3));
+        assertEquals(Material.CAVE_AIR, view.material(1, 3, 3));
     }
 
     @Test
     public void defaultMaterialSamplingReportsMissingBlocksAsNull() {
         StubView view = new StubView();
 
-        assertNull(view.sampleMaterial(9, 9, 9));
+        assertNull(view.material(9, 9, 9));
         assertNull(view.sampleBlockData(9, 9, 9));
     }
 }

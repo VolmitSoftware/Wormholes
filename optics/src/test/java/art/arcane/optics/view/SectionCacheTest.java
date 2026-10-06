@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.frame.AxisPermutation;
 import art.arcane.optics.state.StateProperties;
 import art.arcane.optics.scan.ProjectorSampleMemo;
@@ -14,6 +15,7 @@ import art.arcane.optics.scan.ProjectorSampleMemo;
 import java.util.HashSet;
 import java.util.Random;
 import java.util.Set;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
@@ -416,7 +418,7 @@ public final class SectionCacheTest {
     private record Block(Kind kind, int state) {
     }
 
-    private static final class FakeWorld implements SectionCache.Source<Block, Kind>, MaterialView<Block, Kind> {
+    private static final class FakeWorld implements SectionSource<Block, Kind>, ContentView<Block, Kind> {
         private static final int ORIGIN = 48;
         private static final int SPAN = 192;
 
@@ -486,7 +488,7 @@ public final class SectionCacheTest {
         }
 
         @Override
-        public Kind sampleMaterial(int x, int y, int z) {
+        public Kind material(int x, int y, int z) {
             if (y < (MIN_SECTION_Y << 4) || y > (MAX_SECTION_Y << 4) + 15) {
                 return null;
             }
@@ -520,6 +522,36 @@ public final class SectionCacheTest {
         @Override
         public long getRevision() {
             return 0L;
+        }
+
+        @Override
+        public UUID worldId() {
+            return null;
+        }
+
+        @Override
+        public String sampleBiome(int x, int y, int z) {
+            return null;
+        }
+
+        @Override
+        public int biomeId(int x, int y, int z) {
+            return -1;
+        }
+
+        @Override
+        public BlockEntitySample sampleBlockEntity(int x, int y, int z) {
+            return null;
+        }
+
+        @Override
+        public int getLight(int x, int y, int z) {
+            return LIGHT_UNAVAILABLE;
+        }
+
+        @Override
+        public int getSkyDarken() {
+            return 0;
         }
 
         private static int slot(int x, int y, int z) {

@@ -12,6 +12,7 @@ import net.minecraft.world.level.chunk.PalettedContainer;
 
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.ToIntFunction;
 
 final class MinecraftCapturedChunkView implements ContentView<BlockState, BlockState> {
     private final UUID worldId;
@@ -24,9 +25,10 @@ final class MinecraftCapturedChunkView implements ContentView<BlockState, BlockS
     private final int depth;
     private final MinecraftPlateCaptureSource.CapturedChunk[] chunks;
     private final BlockState air;
+    private final ToIntFunction<String> biomeIds;
 
     MinecraftCapturedChunkView(UUID worldId, int minHeight, int maxHeight, long revision,
-                               PlateCaptureJob.Captured<MinecraftPlateCaptureSource.CapturedChunk> captured) {
+                               PlateCaptureJob.Captured<MinecraftPlateCaptureSource.CapturedChunk> captured, ToIntFunction<String> biomeIds) {
         ViewPlateBuilder.Footprint footprint = captured.footprint();
         this.worldId = Objects.requireNonNull(worldId);
         this.minHeight = minHeight;
@@ -43,6 +45,7 @@ final class MinecraftCapturedChunkView implements ContentView<BlockState, BlockS
             }
         }
         this.air = Blocks.AIR.defaultBlockState();
+        this.biomeIds = Objects.requireNonNull(biomeIds);
     }
 
     @Override
@@ -100,7 +103,7 @@ final class MinecraftCapturedChunkView implements ContentView<BlockState, BlockS
     }
 
     @Override
-    public BlockState sampleMaterial(int x, int y, int z) {
+    public BlockState material(int x, int y, int z) {
         return sampleBlockData(x, y, z);
     }
 
@@ -128,6 +131,11 @@ final class MinecraftCapturedChunkView implements ContentView<BlockState, BlockS
         int section = Math.clamp((y >> 4) - chunk.minBiomeSection(), 0, chunk.biomes().length - 1);
         int sampledY = Math.clamp(y, minHeight, maxHeight - 1);
         return chunk.biomes()[section][((sampledY & 15) >> 2) << 4 | ((z & 15) >> 2) << 2 | (x & 15) >> 2];
+    }
+
+    @Override
+    public int biomeId(int x, int y, int z) {
+        return biomeIds.applyAsInt(sampleBiome(x, y, z));
     }
 
     @Override

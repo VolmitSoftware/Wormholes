@@ -3,14 +3,14 @@ package art.arcane.optics.scan;
 import java.util.function.Function;
 
 import art.arcane.optics.aperture.Endpoint;
-import art.arcane.optics.view.MaterialView;
 
 import art.arcane.optics.frame.AxisPermutation;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.recursion.RecursiveEndpoints;
 import art.arcane.optics.view.BlockStates;
+import art.arcane.optics.view.ContentView;
 
-public final class ProjectorSampler<B, M, W, P extends Endpoint, V extends MaterialView<B, M>> {
+public final class ProjectorSampler<B, M, W, P extends Endpoint, V extends ContentView<B, M>> {
     private final ProjectorSampleMemo<B, M, V> memo;
     private final RecursiveEndpoints<W, P> recursivePortals;
     private final Function<W, V> viewLookup;
@@ -214,7 +214,7 @@ public final class ProjectorSampler<B, M, W, P extends Endpoint, V extends Mater
         return !traversable || cycle || remainingDepth <= 0;
     }
 
-    public record Options<B, M, W, P extends Endpoint, V extends MaterialView<B, M>>(
+    public record Options<B, M, W, P extends Endpoint, V extends ContentView<B, M>>(
         ProjectorSampleMemo<B, M, V> memo,
         RecursiveEndpoints<W, P> recursivePortals,
         Function<W, V> viewLookup,

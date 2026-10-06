@@ -55,6 +55,7 @@ import net.minecraft.world.phys.Vec3;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Function;
+import java.util.function.ToIntFunction;
 
 public final class MinecraftPortalProjector implements AutoCloseable {
     private final WormholesModRuntime runtime;
@@ -81,6 +82,7 @@ public final class MinecraftPortalProjector implements AutoCloseable {
     private RemoteViewCache.RemoteView<BlockState, SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment> remoteSource;
     private RemoteProjectionView<BlockState, BlockState, SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment> remoteView;
     private String remoteFallbackState;
+    private ToIntFunction<String> remoteBiomeIds;
     private MinecraftProjectedEntities entities;
     private final WeatherRelay weather = new WeatherRelay();
     private final Random weatherRandom = new Random();
@@ -346,7 +348,8 @@ public final class MinecraftPortalProjector implements AutoCloseable {
         if (plateView instanceof MinecraftProjectionWorldView) {
             return plateView;
         }
-        return new RemoteProjectionView<>(remoteSource, new RemoteProjectionView.Options<>(parseFallback(remoteFallbackState), state -> state));
+        return new RemoteProjectionView<>(remoteSource, new RemoteProjectionView.Options<>(parseFallback(remoteFallbackState), state -> state,
+            remoteBiomeIds));
     }
 
     private boolean samePendingDestination(Destination destination, Vec3d eye) {
@@ -405,14 +408,16 @@ public final class MinecraftPortalProjector implements AutoCloseable {
             RemoteViewCache.RemoteView<BlockState, SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment> source =
                 runtime.network().subscriptions().touch(portal.getDestinationServer(), target.getId(), new ViewSubscriptionManager.Request(portal.getNetworkViewUnsubscribeGraceSeconds(), 0));
             String fallback = portal.getNetworkViewFallbackBlock();
+            MinecraftProjectionWorldView local = views.apply(sourceWorld);
             if (source != remoteSource || !Objects.equals(remoteFallbackState, fallback)) {
                 remoteSource = source;
                 remoteFallbackState = fallback;
+                remoteBiomeIds = local.biomeIds();
                 remoteView = new RemoteProjectionView<>(source,
-                    new RemoteProjectionView.Options<>(parseFallback(fallback), state -> state));
+                    new RemoteProjectionView.Options<>(parseFallback(fallback), state -> state, remoteBiomeIds));
             }
             Vec3d origin = target.getOrigin();
-            return new Destination(views.apply(sourceWorld), remoteView, null, target,
+            return new Destination(local, remoteView, null, target,
                 origin.x(), origin.y(), origin.z(), false, 0);
         }
         MinecraftPortal target = portal.isMirrorMode() ? portal : portals.projectionDestination(portal);

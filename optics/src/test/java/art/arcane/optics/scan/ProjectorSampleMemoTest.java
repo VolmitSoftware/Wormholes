@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Proxy;
 import java.util.function.Predicate;
-import art.arcane.optics.view.MaterialView;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -19,12 +18,13 @@ import art.arcane.optics.math.Box;
 
 import org.junit.jupiter.api.Test;
 import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.frame.AxisPermutation;
 import art.arcane.optics.state.StateProperties;
 import art.arcane.optics.occlusion.ProjectorHoldProof;
 import art.arcane.optics.view.BlockStates;
+import art.arcane.optics.view.ContentView;
 import art.arcane.optics.view.WorldChangeTracker;
-
 
 public final class ProjectorSampleMemoTest {
     private static final UUID LOCAL_WORLD = UUID.fromString("00000000-0000-0000-0000-0000000000c1");
@@ -519,8 +519,8 @@ public final class ProjectorSampleMemoTest {
         TestMaterial getMaterial();
     }
 
-    private interface TestView extends MaterialView<TestBlock, TestMaterial> {
-        default TestMaterial sampleMaterial(int x, int y, int z) {
+    private interface TestView extends ContentView<TestBlock, TestMaterial> {
+        default TestMaterial material(int x, int y, int z) {
             TestBlock block = sampleBlockData(x, y, z);
             return block == null ? null : block.getMaterial();
         }
@@ -534,6 +534,30 @@ public final class ProjectorSampleMemoTest {
 
         default long getRevision() {
             return 0L;
+        }
+
+        default UUID worldId() {
+            return null;
+        }
+
+        default String sampleBiome(int x, int y, int z) {
+            return null;
+        }
+
+        default int biomeId(int x, int y, int z) {
+            return -1;
+        }
+
+        default BlockEntitySample sampleBlockEntity(int x, int y, int z) {
+            return null;
+        }
+
+        default int getLight(int x, int y, int z) {
+            return LIGHT_UNAVAILABLE;
+        }
+
+        default int getSkyDarken() {
+            return 0;
         }
     }
 

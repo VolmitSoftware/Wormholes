@@ -46,7 +46,7 @@ public final class LiveWorldView implements ProjectionWorldView {
     }
 
     @Override
-    public Material sampleMaterial(int x, int y, int z) {
+    public Material material(int x, int y, int z) {
         if (y < world.getMinHeight() || y > world.getMaxHeight() - 1) {
             return null;
         }

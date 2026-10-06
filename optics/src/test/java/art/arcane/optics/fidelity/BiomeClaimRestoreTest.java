@@ -12,6 +12,7 @@ import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.view.ContentView;
 
 final class BiomeClaimRestoreTest {
     private static final UUID PORTAL_A = UUID.fromString("00000000-0000-0000-0000-00000000000a");
@@ -22,7 +23,7 @@ final class BiomeClaimRestoreTest {
 
     @Test
     void releaseRestoresEveryRetintedSectionExactlyOnce() {
-        BiomeClaimSet set = new BiomeClaimSet(-64, 320, (x, y, z) -> LOCAL);
+        BiomeClaimSet set = new BiomeClaimSet(-64, 320, new UniformBiomes(LOCAL));
         Long2IntOpenHashMap overrides = new Long2IntOpenHashMap();
         overrides.put(quart(0, 64, 0), DESTINATION);
         overrides.put(quart(4, 68, 8), DESTINATION);
@@ -55,7 +56,7 @@ final class BiomeClaimRestoreTest {
 
     @Test
     void anUnchangedApplySendsNothingAndAnOverlappingPortalKeepsItsCells() {
-        BiomeClaimSet set = new BiomeClaimSet(-64, 320, (x, y, z) -> LOCAL);
+        BiomeClaimSet set = new BiomeClaimSet(-64, 320, new UniformBiomes(LOCAL));
         Long2IntOpenHashMap first = new Long2IntOpenHashMap();
         first.put(quart(0, 64, 0), DESTINATION);
         Long2IntOpenHashMap second = new Long2IntOpenHashMap();
@@ -81,5 +82,71 @@ final class BiomeClaimRestoreTest {
 
     private static int cellIndex(int qx, int qy, int qz) {
         return (qy << 4) | (qz << 2) | qx;
+    }
+
+    private record UniformBiomes(int biomeId) implements ContentView<Object, Object> {
+        @Override
+        public UUID worldId() {
+            return null;
+        }
+
+        @Override
+        public Object material(int x, int y, int z) {
+            return null;
+        }
+
+        @Override
+        public String sampleBiome(int x, int y, int z) {
+            return null;
+        }
+
+        @Override
+        public int biomeId(int x, int y, int z) {
+            return biomeId;
+        }
+
+        @Override
+        public BlockEntitySample sampleBlockEntity(int x, int y, int z) {
+            return null;
+        }
+
+        @Override
+        public int getLight(int x, int y, int z) {
+            return LIGHT_UNAVAILABLE;
+        }
+
+        @Override
+        public int getSkyDarken() {
+            return 0;
+        }
+
+        @Override
+        public int getMinHeight() {
+            return -64;
+        }
+
+        @Override
+        public int getMaxHeight() {
+            return 320;
+        }
+
+        @Override
+        public Object sampleBlockData(int x, int y, int z) {
+            return null;
+        }
+
+        @Override
+        public boolean isChunkReady(int x, int z) {
+            return true;
+        }
+
+        @Override
+        public void requestChunk(int x, int z) {
+        }
+
+        @Override
+        public long getRevision() {
+            return 0L;
+        }
     }
 }

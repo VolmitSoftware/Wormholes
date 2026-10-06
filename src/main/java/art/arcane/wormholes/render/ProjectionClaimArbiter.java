@@ -40,8 +40,6 @@ import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.optics.fidelity.BiomeClaimSet;
-import art.arcane.optics.fidelity.BiomeIdResolver;
-import art.arcane.wormholes.render.atmosphere.BiomeRegistryIds;
 import art.arcane.wormholes.render.atmosphere.BiomeSink;
 import art.arcane.wormholes.render.atmosphere.ChunkBiomesPacketSink;
 import art.arcane.optics.fidelity.BedrockProfile;
@@ -67,7 +65,6 @@ public final class ProjectionClaimArbiter {
     private final ProjectionChunkVisibility chunkVisibility;
     private final LightingFactory lightingFactory;
     private final BiomeSink biomeSink;
-    private final BiomeIdResolver biomeIds;
 
     public ProjectionClaimArbiter(ProjectionWorldViewProvider viewProvider) {
         this(viewProvider, WormholesPlatform::isChunkSent);
@@ -80,25 +77,19 @@ public final class ProjectionClaimArbiter {
     ProjectionClaimArbiter(ProjectionWorldViewProvider viewProvider,
                            ProjectionChunkVisibility chunkVisibility,
                            LightingFactory lightingFactory) {
-        this(viewProvider, chunkVisibility, lightingFactory, new ChunkBiomesPacketSink(), new BiomeRegistryIds());
+        this(viewProvider, chunkVisibility, lightingFactory, new ChunkBiomesPacketSink());
     }
 
     ProjectionClaimArbiter(ProjectionWorldViewProvider viewProvider,
                            ProjectionChunkVisibility chunkVisibility,
                            LightingFactory lightingFactory,
-                           BiomeSink biomeSink,
-                           BiomeIdResolver biomeIds) {
+                           BiomeSink biomeSink) {
         this.observers = new ConcurrentHashMap<UUID, ObserverClaims>();
         this.blockGlobalIds = new ConcurrentHashMap<BlockData, Integer>();
         this.viewProvider = viewProvider;
         this.chunkVisibility = chunkVisibility;
         this.lightingFactory = lightingFactory;
         this.biomeSink = biomeSink;
-        this.biomeIds = biomeIds;
-    }
-
-    public BiomeIdResolver biomeIds() {
-        return biomeIds;
     }
 
     public void beginFrame(Player observer, World localWorld, boolean allowLightingUpdate) {
@@ -275,8 +266,7 @@ public final class ProjectionClaimArbiter {
                     if (localView == null) {
                         return;
                     }
-                    state.biomes = new BiomeClaimSet(localView.getMinHeight(), localView.getMaxHeight(),
-                        (x, y, z) -> biomeIds.id(localView.sampleBiome(x, y, z)));
+                    state.biomes = new BiomeClaimSet(localView.getMinHeight(), localView.getMaxHeight(), localView);
                 }
                 List<BiomeClaimSet.ChunkBiomes> changed = state.biomes.apply(portalId, overrides);
                 sendBiomes(observer, localWorld, state, changed);

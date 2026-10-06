@@ -104,7 +104,7 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
         when(view.isChunkReady(anyInt(), anyInt())).thenReturn(true);
         BlockState stone = Blocks.STONE.defaultBlockState();
         when(view.sampleBlockData(anyInt(), anyInt(), anyInt())).thenReturn(stone);
-        when(view.sampleMaterial(anyInt(), anyInt(), anyInt())).thenReturn(stone);
+        when(view.material(anyInt(), anyInt(), anyInt())).thenReturn(stone);
         try (MinecraftPortalProjector projector = new MinecraftPortalProjector(runtime,
             new MinecraftPortalProjector.Context(player, source, ignored -> view, access, null))) {
             assertEquals(MinecraftPortalProjector.Result.READY, projector.update(1L, Long.MAX_VALUE));
@@ -168,7 +168,7 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
         when(local.getMaxHeight()).thenReturn(320);
         when(local.isChunkReady(anyInt(), anyInt())).thenReturn(true);
         when(local.sampleBlockData(anyInt(), anyInt(), anyInt())).thenReturn(Blocks.AIR.defaultBlockState());
-        when(local.sampleMaterial(anyInt(), anyInt(), anyInt())).thenReturn(Blocks.AIR.defaultBlockState());
+        when(local.material(anyInt(), anyInt(), anyInt())).thenReturn(Blocks.AIR.defaultBlockState());
         ViewSubscriptionManager<BlockState, SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment> subscriptions = mock(ViewSubscriptionManager.class);
         RemoteViewCache.RemoteView<BlockState, SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment> remote = mock(RemoteViewCache.RemoteView.class);
         RemoteViewCache.DecodedSlice<BlockState> slice = mock(RemoteViewCache.DecodedSlice.class);
@@ -236,7 +236,7 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
         BlockState stone = Blocks.STONE.defaultBlockState();
         Scene scene = scene(air, air);
         when(scene.destination().sampleBlockData(intThat(x -> x >= 100), anyInt(), anyInt())).thenReturn(stone);
-        when(scene.destination().sampleMaterial(intThat(x -> x >= 100), anyInt(), anyInt())).thenReturn(stone);
+        when(scene.destination().material(intThat(x -> x >= 100), anyInt(), anyInt())).thenReturn(stone);
         try (MinecraftPortalProjector projector = scene.projector()) {
             settle(projector, 1L);
             assertEquals(0, destinationSamples(scene, projector, 2L));
@@ -265,7 +265,7 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
             int x = CellKeys.unpackX(cell);
             int y = CellKeys.unpackY(cell);
             int z = CellKeys.unpackZ(cell);
-            when(scene.local().sampleMaterial(x, y, z)).thenReturn(air);
+            when(scene.local().material(x, y, z)).thenReturn(air);
             when(scene.local().sampleBlockData(x, y, z)).thenReturn(air);
             scene.changes().markChanged(LOCAL_WORLD, x + 1_600, y, z + 1_600);
             settle(projector, 3L);
@@ -421,7 +421,7 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
             () -> new RecursiveEndpoints.Options(0.75D, 64.0D)));
         MinecraftProjectionWorldView local = view(sourceWorld, LOCAL_WORLD, Blocks.AIR.defaultBlockState());
         when(local.sampleBlockData(anyInt(), anyInt(), intThat(z -> z < 0))).thenReturn(behindSource);
-        when(local.sampleMaterial(anyInt(), anyInt(), intThat(z -> z < 0))).thenReturn(behindSource);
+        when(local.material(anyInt(), anyInt(), intThat(z -> z < 0))).thenReturn(behindSource);
         MinecraftProjectionWorldView destination = view(targetWorld, DESTINATION_WORLD, destinationBlock);
         MinecraftPortalProjector.Context context = new MinecraftPortalProjector.Context(player, source,
             world -> world == sourceWorld ? local : destination, access, null);
@@ -436,7 +436,7 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
         when(view.getMaxHeight()).thenReturn(320);
         when(view.isChunkReady(anyInt(), anyInt())).thenReturn(true);
         when(view.sampleBlockData(anyInt(), anyInt(), anyInt())).thenReturn(block);
-        when(view.sampleMaterial(anyInt(), anyInt(), anyInt())).thenReturn(block);
+        when(view.material(anyInt(), anyInt(), anyInt())).thenReturn(block);
         return view;
     }
 
@@ -499,7 +499,7 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
         when(view.isChunkReady(anyInt(), anyInt())).thenReturn(true);
         BlockState stone = Blocks.STONE.defaultBlockState();
         when(view.sampleBlockData(anyInt(), anyInt(), anyInt())).thenReturn(stone);
-        when(view.sampleMaterial(anyInt(), anyInt(), anyInt())).thenReturn(stone);
+        when(view.material(anyInt(), anyInt(), anyInt())).thenReturn(stone);
         return new PlateFixture(runtime, access, viewer(world), viewer(world), source, view, rtp);
     }
 

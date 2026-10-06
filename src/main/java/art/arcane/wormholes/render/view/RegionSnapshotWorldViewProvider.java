@@ -311,7 +311,7 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
         }
 
         @Override
-        public Material sampleMaterial(int x, int y, int z) {
+        public Material material(int x, int y, int z) {
             CapturedChunk chunk = capturedChunk(x, z);
             if (chunk == null || y < chunk.minHeight || y >= chunk.maxHeight) {
                 return null;

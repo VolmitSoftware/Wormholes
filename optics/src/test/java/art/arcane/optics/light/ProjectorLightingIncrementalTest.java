@@ -364,12 +364,17 @@ public final class ProjectorLightingIncrementalTest {
         }
 
         @Override
+        public int biomeId(int x, int y, int z) {
+            return -1;
+        }
+
+        @Override
         public int getLight(int x, int y, int z) {
             return sky < 0 || block < 0 ? LIGHT_UNAVAILABLE : ContentView.packLight(sky, block);
         }
 
         @Override
-        public String sampleMaterial(int x, int y, int z) {
+        public String material(int x, int y, int z) {
             return null;
         }
 

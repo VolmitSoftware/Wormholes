@@ -10,6 +10,7 @@ import art.arcane.optics.fidelity.BlockEntitySample;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Function;
+import java.util.function.ToIntFunction;
 import art.arcane.optics.view.ContentView;
 import art.arcane.optics.view.EntityData;
 import art.arcane.optics.frame.OpticTransform;
@@ -18,6 +19,7 @@ public class RemoteProjectionView<B, T, M, E> implements ContentView<B, T>, Enti
     private final RemoteViewCache.RemoteView<B, M, E> view;
     private final B fallback;
     private final Function<B, T> materials;
+    private final ToIntFunction<String> biomeIds;
     private int cachedChunkX = Integer.MIN_VALUE;
     private int cachedChunkZ = Integer.MIN_VALUE;
     private RemoteViewCache.DecodedSlice<B> cachedSlice;
@@ -28,6 +30,7 @@ public class RemoteProjectionView<B, T, M, E> implements ContentView<B, T>, Enti
         this.view = view;
         this.fallback = options.fallback();
         this.materials = options.materials();
+        this.biomeIds = options.biomeIds();
     }
 
     public ProjectionEnvironment environment(OpticTransform transform) {
@@ -105,6 +108,12 @@ public class RemoteProjectionView<B, T, M, E> implements ContentView<B, T>, Enti
     }
 
     @Override
+    public int biomeId(int x, int y, int z) {
+        String biome = sampleBiome(x, y, z);
+        return biome == null ? -1 : biomeIds.applyAsInt(biome);
+    }
+
+    @Override
     public int getLight(int x, int y, int z) {
         BlockBox box = view.getBox();
         if (box == null || x < box.minX() || x > box.maxX() || z < box.minZ() || z > box.maxZ()) {
@@ -179,7 +188,7 @@ public class RemoteProjectionView<B, T, M, E> implements ContentView<B, T>, Enti
         return view.hashCode();
     }
     @Override
-    public T sampleMaterial(int x, int y, int z) {
+    public T material(int x, int y, int z) {
         B block = sampleBlockData(x, y, z);
         return block == null ? null : materials.apply(block);
     }
@@ -193,6 +202,6 @@ public class RemoteProjectionView<B, T, M, E> implements ContentView<B, T>, Enti
     public void requestChunk(int x, int z) {
     }
 
-    public record Options<B, T>(B fallback, Function<B, T> materials) {
+    public record Options<B, T>(B fallback, Function<B, T> materials, ToIntFunction<String> biomeIds) {
     }
 }

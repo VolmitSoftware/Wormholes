@@ -42,7 +42,7 @@ class ClientViewEnvironmentTest {
         UUID portal = UUID.randomUUID();
         RemoteViewCache.RemoteView<String, Object, Object> remote = cache.getOrCreate("peer", portal);
         RemoteProjectionView<String, String, Object, Object> view = new RemoteProjectionView<>(remote,
-            new RemoteProjectionView.Options<>("minecraft:air", value -> value));
+            new RemoteProjectionView.Options<>("minecraft:air", value -> value, biome -> -1));
         assertNull(view.environment(OpticTransform.IDENTITY));
         ProjectionEnvironment destination = ClientViewFixtures.environment();
         cache.applyEnvironment("peer", portal, destination);

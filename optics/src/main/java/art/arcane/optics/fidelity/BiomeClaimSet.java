@@ -13,6 +13,7 @@ import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 
 import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.view.ContentView;
 
 /**
  * Per-observer record of every quart cell whose biome was replaced, which portal owns the override,
@@ -21,23 +22,18 @@ import art.arcane.optics.math.CellKeys;
  * resent so a restore never leaves a stale retint behind.
  */
 public final class BiomeClaimSet {
-    @FunctionalInterface
-    public interface LocalBiomeSource {
-        int biomeId(int x, int y, int z);
-    }
-
     public record ChunkBiomes(int chunkX, int chunkZ, int[][] sections) {
     }
 
     private final int minHeight;
     private final int sectionCount;
-    private final LocalBiomeSource local;
+    private final ContentView<?, ?> local;
     private final Map<UUID, Long2IntOpenHashMap> portals;
     private final Long2ObjectOpenHashMap<UUID> owners;
     private final Long2IntOpenHashMap sent;
     private final Long2ObjectOpenHashMap<int[]> localColumns;
 
-    public BiomeClaimSet(int minHeight, int maxHeight, LocalBiomeSource local) {
+    public BiomeClaimSet(int minHeight, int maxHeight, ContentView<?, ?> local) {
         this.minHeight = minHeight;
         this.sectionCount = Math.max(1, (maxHeight - minHeight) >> 4);
         this.local = local;

@@ -632,7 +632,7 @@ public class MinecraftClientViewPortalAccessTest extends MinecraftTestBase {
         when(view.isChunkReady(anyInt(), anyInt())).thenReturn(true);
         BlockState stone = Blocks.STONE.defaultBlockState();
         when(view.sampleBlockData(anyInt(), anyInt(), anyInt())).thenReturn(stone);
-        when(view.sampleMaterial(anyInt(), anyInt(), anyInt())).thenReturn(stone);
+        when(view.material(anyInt(), anyInt(), anyInt())).thenReturn(stone);
         ServerPlayer player = viewer(world);
         MinecraftClientViewPeer peer = new MinecraftClientViewPeer(player.getUUID(), "Viewer", new Connection(PacketFlow.SERVERBOUND));
         peer.attach(player, access);

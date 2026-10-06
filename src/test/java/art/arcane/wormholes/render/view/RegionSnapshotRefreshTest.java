@@ -57,20 +57,20 @@ final class RegionSnapshotRefreshTest {
                 fixture.entityX.set((column << 4) + 1);
                 fixture.entityZ.set((column << 4) + 8);
                 fixture.capture(column, column);
-                assertEquals(Material.STONE, fixture.view.sampleMaterial(column << 4, 64, column << 4));
+                assertEquals(Material.STONE, fixture.view.material(column << 4, 64, column << 4));
             }
-            assertNull(fixture.view.sampleMaterial(-128 << 4, 64, -128 << 4));
+            assertNull(fixture.view.material(-128 << 4, 64, -128 << 4));
             assertFalse(fixture.view.isChunkReady(-128 << 4, -128 << 4));
             ProjectionEntityView entities = (ProjectionEntityView) fixture.view;
             List<EntitySnapshot> moved = entities.getEntities((128 << 4) + 1, 64, (128 << 4) + 8, 1);
             assertEquals(1, moved.size());
             assertEquals(fixture.entityId, moved.getFirst().id());
             fixture.tracker.markChanged(fixture.worldId, 128 << 4, 128 << 4);
-            assertNull(fixture.view.sampleMaterial(128 << 4, 64, 128 << 4));
+            assertNull(fixture.view.material(128 << 4, 64, 128 << 4));
             assertFalse(fixture.view.isChunkReady(128 << 4, 128 << 4));
             fixture.capture(128, 128);
             assertTrue(fixture.view.isChunkReady(128 << 4, 128 << 4));
-            assertEquals(Material.STONE, fixture.view.sampleMaterial(128 << 4, 64, 128 << 4));
+            assertEquals(Material.STONE, fixture.view.material(128 << 4, 64, 128 << 4));
         }
     }
 
@@ -119,7 +119,7 @@ final class RegionSnapshotRefreshTest {
         try (Fixture fixture = new Fixture()) {
             fixture.capture();
             assertEquals(1, fixture.snapshotCaptures.get());
-            assertEquals(Material.STONE, fixture.view.sampleMaterial(0, 64, 0));
+            assertEquals(Material.STONE, fixture.view.material(0, 64, 0));
             long initialRevision = fixture.view.getRevision();
             fixture.material.set(Material.DIRT);
 
@@ -130,14 +130,14 @@ final class RegionSnapshotRefreshTest {
 
             assertEquals(1, fixture.snapshotCaptures.get());
             assertEquals(initialRevision, fixture.view.getRevision());
-            assertEquals(Material.STONE, fixture.view.sampleMaterial(0, 64, 0));
+            assertEquals(Material.STONE, fixture.view.material(0, 64, 0));
 
             fixture.now.set(61_000L);
             fixture.capture();
 
             assertEquals(2, fixture.snapshotCaptures.get());
             assertTrue(fixture.view.getRevision() > initialRevision);
-            assertEquals(Material.DIRT, fixture.view.sampleMaterial(0, 64, 0));
+            assertEquals(Material.DIRT, fixture.view.material(0, 64, 0));
         }
     }
 
@@ -223,7 +223,7 @@ final class RegionSnapshotRefreshTest {
 
             assertEquals(2, fixture.snapshotCaptures.get());
             assertTrue(fixture.view.getRevision() > initialRevision);
-            assertEquals(Material.DIRT, fixture.view.sampleMaterial(0, 64, 0));
+            assertEquals(Material.DIRT, fixture.view.material(0, 64, 0));
         }
     }
 

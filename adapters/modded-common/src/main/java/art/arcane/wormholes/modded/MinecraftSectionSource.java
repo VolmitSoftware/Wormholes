@@ -3,7 +3,7 @@ package art.arcane.wormholes.modded;
 import art.arcane.optics.math.CellKeys;
 
 import art.arcane.optics.view.CachedSection;
-import art.arcane.optics.view.SectionCache;
+import art.arcane.optics.view.SectionSource;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.state.BlockState;
@@ -12,7 +12,7 @@ import net.minecraft.world.level.chunk.LevelChunkSection;
 
 import java.util.Objects;
 
-final class MinecraftSectionSource implements SectionCache.Source<BlockState, BlockState> {
+final class MinecraftSectionSource implements SectionSource<BlockState, BlockState> {
     private final ServerLevel level;
     private final BlockState air;
     private final Long2ObjectOpenHashMap<LevelChunk> chunks = new Long2ObjectOpenHashMap<>(16);

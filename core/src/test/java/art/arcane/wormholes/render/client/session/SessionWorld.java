@@ -47,6 +47,11 @@ final class SessionWorld implements ContentView<String, String> {
     }
 
     @Override
+    public int biomeId(int x, int y, int z) {
+        return -1;
+    }
+
+    @Override
     public BlockEntitySample sampleBlockEntity(int x, int y, int z) {
         return null;
     }
@@ -62,7 +67,7 @@ final class SessionWorld implements ContentView<String, String> {
     }
 
     @Override
-    public String sampleMaterial(int x, int y, int z) {
+    public String material(int x, int y, int z) {
         return materialOf(sampleBlockData(x, y, z));
     }
 

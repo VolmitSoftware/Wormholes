@@ -80,9 +80,9 @@ public final class SectionCachedWorldView implements ProjectionWorldView {
     }
 
     @Override
-    public Material sampleMaterial(int x, int y, int z) {
+    public Material material(int x, int y, int z) {
         if (!cached()) {
-            return live.sampleMaterial(x, y, z);
+            return live.material(x, y, z);
         }
         if (y < minHeight || y >= maxHeight) {
             return null;
@@ -95,7 +95,7 @@ public final class SectionCachedWorldView implements ProjectionWorldView {
             want(x, y, z);
             return null;
         }
-        return live.sampleMaterial(x, y, z);
+        return live.material(x, y, z);
     }
 
     @Override

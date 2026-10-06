@@ -225,7 +225,7 @@ final class PortalProjectorStagedScanTest {
                 samples.incrementAndGet();
                 return stone;
             });
-            when(view.sampleMaterial(anyInt(), anyInt(), anyInt())).thenReturn(Material.STONE);
+            when(view.material(anyInt(), anyInt(), anyInt())).thenReturn(Material.STONE);
             ProjectionClaimArbiter.ClaimUpdateResult result = mock(ProjectionClaimArbiter.ClaimUpdateResult.class);
             when(arbiter.submitDelta(any(), any(), any(), any(), anyDouble(), anyBoolean(), anyBoolean())).thenReturn(result);
             when(arbiter.release(any(Player.class), any(ILocalPortal.class), any(World.class), anyBoolean())).thenReturn(result);

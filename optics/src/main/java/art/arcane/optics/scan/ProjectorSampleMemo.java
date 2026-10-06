@@ -8,16 +8,16 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.function.LongUnaryOperator;
 
-import art.arcane.optics.view.MaterialView;
 import java.util.function.Supplier;
 
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.occlusion.ProjectorHoldProof;
 import art.arcane.optics.view.BlockStates;
+import art.arcane.optics.view.ContentView;
 import art.arcane.optics.view.WorldChangeTracker;
 
-public final class ProjectorSampleMemo<B, M, V extends MaterialView<B, M>> {
+public final class ProjectorSampleMemo<B, M, V extends ContentView<B, M>> {
 
     private static final int MIN_BUDGET = 4096;
     private static final int BUDGET_FACTOR = 3;
@@ -99,7 +99,7 @@ public final class ProjectorSampleMemo<B, M, V extends MaterialView<B, M>> {
         if (known != 0) {
             return known == 1;
         }
-        M material = view.sampleMaterial(x, y, z);
+        M material = view.material(x, y, z);
         boolean air = material != null && blocks.isAir(material);
         localAir.put(key, air ? (byte) 1 : (byte) 2);
         return air;
@@ -111,7 +111,7 @@ public final class ProjectorSampleMemo<B, M, V extends MaterialView<B, M>> {
         if (known != 0) {
             return known == 1 ? ProjectorHoldProof.Occupancy.OCCLUDING : ProjectorHoldProof.Occupancy.OPEN;
         }
-        M material = view.sampleMaterial(x, y, z);
+        M material = view.material(x, y, z);
         if (material == null) {
             return ProjectorHoldProof.Occupancy.UNKNOWN;
         }
@@ -195,7 +195,7 @@ public final class ProjectorSampleMemo<B, M, V extends MaterialView<B, M>> {
         if (known != 0) {
             return known == 1;
         }
-        boolean occluding = blocks.isOccluding(view.sampleMaterial(x, y, z));
+        boolean occluding = blocks.isOccluding(view.material(x, y, z));
         memo.put(key, occluding ? (byte) 1 : (byte) 2);
         return occluding;
     }
@@ -329,7 +329,7 @@ public final class ProjectorSampleMemo<B, M, V extends MaterialView<B, M>> {
             if (!view.isChunkReady(x, z)) {
                 return true;
             }
-            M material = view.sampleMaterial(x, y, z);
+            M material = view.material(x, y, z);
             if (material == null) {
                 return true;
             }

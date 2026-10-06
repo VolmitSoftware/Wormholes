@@ -24,6 +24,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import art.arcane.optics.view.CachedSection;
 import art.arcane.optics.view.SectionCache;
+import art.arcane.optics.view.SectionSource;
 
 class SectionCachedWorldViewTest {
     private static final SectionCache.Limits LIMITS = new SectionCache.Limits(true, 1L << 30, 16, 600);
@@ -34,10 +35,10 @@ class SectionCachedWorldViewTest {
         fixture.source.fill = fixture.stone;
 
         assertSame(fixture.stone, fixture.view.sampleBlockData(3, 70, -5));
-        assertEquals(Material.STONE, fixture.view.sampleMaterial(3, 70, -5));
+        assertEquals(Material.STONE, fixture.view.material(3, 70, -5));
         assertEquals(2, fixture.view.buriedDepth(8, 72, -8));
         verify(fixture.live, never()).sampleBlockData(anyInt(), anyInt(), anyInt());
-        verify(fixture.live, never()).sampleMaterial(anyInt(), anyInt(), anyInt());
+        verify(fixture.live, never()).material(anyInt(), anyInt(), anyInt());
     }
 
     @Test
@@ -46,10 +47,10 @@ class SectionCachedWorldViewTest {
         fixture.source.fill = null;
         BlockData liveData = mock(BlockData.class);
         when(fixture.live.sampleBlockData(3, 70, -5)).thenReturn(liveData);
-        when(fixture.live.sampleMaterial(3, 70, -5)).thenReturn(Material.DIRT);
+        when(fixture.live.material(3, 70, -5)).thenReturn(Material.DIRT);
 
         assertSame(liveData, fixture.view.sampleBlockData(3, 70, -5));
-        assertEquals(Material.DIRT, fixture.view.sampleMaterial(3, 70, -5));
+        assertEquals(Material.DIRT, fixture.view.material(3, 70, -5));
         assertEquals(-1, fixture.view.buriedDepth(3, 70, -5));
         assertTrue(fixture.view.isChunkReady(3, -5));
         assertTrue(fixture.requests.isEmpty());
@@ -77,7 +78,7 @@ class SectionCachedWorldViewTest {
         fixture.source.fill = fixture.stone;
         when(fixture.world.isChunkLoaded(0, -1)).thenReturn(false);
         assertNull(fixture.view.sampleBlockData(3, 70, -5));
-        assertNull(fixture.view.sampleMaterial(3, 90, -5));
+        assertNull(fixture.view.material(3, 90, -5));
         assertFalse(fixture.view.isChunkReady(3, -5));
 
         when(fixture.world.isChunkLoaded(0, -1)).thenReturn(true);
@@ -86,7 +87,7 @@ class SectionCachedWorldViewTest {
 
         assertTrue(fixture.view.isChunkReady(3, -5));
         assertSame(fixture.stone, fixture.view.sampleBlockData(3, 70, -5));
-        assertEquals(Material.STONE, fixture.view.sampleMaterial(3, 90, -5));
+        assertEquals(Material.STONE, fixture.view.material(3, 90, -5));
         assertNull(fixture.view.sampleBlockData(3, 20, -5));
         verify(fixture.live, never()).sampleBlockData(anyInt(), anyInt(), anyInt());
     }
@@ -155,7 +156,7 @@ class SectionCachedWorldViewTest {
         }
     }
 
-    private static final class UniformSource implements SectionCache.Source<BlockData, Material> {
+    private static final class UniformSource implements SectionSource<BlockData, Material> {
         private final World world;
         private BlockData fill;
 

@@ -30,7 +30,7 @@ public final class AtmosphereChannel<B, V extends ContentView<?, ?>> {
         this.passesSinceRefresh = REFRESH_INTERVAL_PASSES;
     }
 
-    public Long2IntOpenHashMap update(Scan<B, V> scan, BiomeIdResolver ids, FidelityOptions fidelity) {
+    public Long2IntOpenHashMap update(Scan<B, V> scan, FidelityOptions fidelity) {
         V destView = scan.destination();
         boolean claimsChanged = scan.claimsChanged();
         if (destView != cachedView || destView.getRevision() != cachedRevision) {
@@ -45,7 +45,7 @@ public final class AtmosphereChannel<B, V extends ContentView<?, ?>> {
         }
         passesSinceRefresh = 0;
         Long2IntOpenHashMap overrides = AtmosphereDominance.compute(scan.claims(), fidelity.biomeDominance(),
-            remoteKey -> resolve(destView, ids, remoteKey));
+            remoteKey -> resolve(destView, remoteKey));
         if (overrides.isEmpty() && !active) {
             return null;
         }
@@ -65,7 +65,7 @@ public final class AtmosphereChannel<B, V extends ContentView<?, ?>> {
         return active;
     }
 
-    private int resolve(V destView, BiomeIdResolver ids, long remoteKey) {
+    private int resolve(V destView, long remoteKey) {
         int rx = CellKeys.unpackX(remoteKey);
         int ry = CellKeys.unpackY(remoteKey);
         int rz = CellKeys.unpackZ(remoteKey);
@@ -74,8 +74,7 @@ public final class AtmosphereChannel<B, V extends ContentView<?, ?>> {
         if (cached != Integer.MIN_VALUE) {
             return cached;
         }
-        String biome = destView.sampleBiome(rx, ry, rz);
-        int id = biome == null ? -1 : ids.id(biome);
+        int id = destView.biomeId(rx, ry, rz);
         remoteBiomeIds.put(quart, id);
         return id;
     }

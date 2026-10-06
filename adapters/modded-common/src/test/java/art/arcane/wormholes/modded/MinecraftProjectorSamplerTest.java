@@ -32,16 +32,16 @@ public class MinecraftProjectorSamplerTest extends MinecraftTestBase {
         Fixture fixture = fixture();
         BlockState stone = Blocks.STONE.defaultBlockState();
         when(fixture.view().sampleBlockData(anyInt(), anyInt(), anyInt())).thenReturn(stone);
-        when(fixture.view().sampleMaterial(anyInt(), anyInt(), anyInt())).thenReturn(stone);
+        when(fixture.view().material(anyInt(), anyInt(), anyInt())).thenReturn(stone);
         fixture.sampler().setBuriedCellCullingPass(true);
         assertEquals(ProjectorSample.Kind.OCCLUDED, sample(fixture, true).kind());
 
         fixture.memo().clearDestinationSamples();
-        when(fixture.view().sampleMaterial(2, 64, 0)).thenReturn(Blocks.AIR.defaultBlockState());
+        when(fixture.view().material(2, 64, 0)).thenReturn(Blocks.AIR.defaultBlockState());
         assertEquals(ProjectorSample.Kind.BACKING_BLOCK, sample(fixture, true).kind());
 
         fixture.memo().clearDestinationSamples();
-        when(fixture.view().sampleMaterial(1, 64, 0)).thenReturn(Blocks.AIR.defaultBlockState());
+        when(fixture.view().material(1, 64, 0)).thenReturn(Blocks.AIR.defaultBlockState());
         assertEquals(ProjectorSample.Kind.BLOCK, sample(fixture, true).kind());
 
         fixture.memo().clearDestinationSamples();

@@ -128,9 +128,12 @@ public class MinecraftPlateCaptureSourceTest extends MinecraftTestBase {
         Long2ObjectOpenHashMap<MinecraftPlateCaptureSource.CapturedChunk> chunks = new Long2ObjectOpenHashMap<>();
         chunks.put(0L, captured);
         MinecraftCapturedChunkView view = new MinecraftCapturedChunkView(fixture.worldId(), 0, 16, 1,
-            new PlateCaptureJob.Captured<>(new ViewPlateBuilder.Footprint(0, 0, 0, 0, 0), chunks));
+            new PlateCaptureJob.Captured<>(new ViewPlateBuilder.Footprint(0, 0, 0, 0, 0), chunks),
+            key -> "minecraft:plains".equals(key) ? 7 : 9);
         assertEquals("minecraft:plains", view.sampleBiome(1, -8, 3));
         assertEquals("minecraft:desert", view.sampleBiome(1, 23, 3));
+        assertEquals(7, view.biomeId(1, -8, 3));
+        assertEquals(9, view.biomeId(1, 23, 3));
         verify(fixture.runtime()).requireServerThread();
     }
 

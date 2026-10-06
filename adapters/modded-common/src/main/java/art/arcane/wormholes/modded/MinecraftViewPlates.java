@@ -107,7 +107,7 @@ public final class MinecraftViewPlates {
             return new PlateCaptureJob<>(new PlateCaptureJob.Plan<>(key, local.getWorld(), ViewPlateBuilder.sectionFootprint(request, clip),
                 new MinecraftPlateCaptureSource(runtime, capture), captured -> ViewPlateBuilder.sectionJob(
                     request.withDestView(new MinecraftCapturedChunkView(local.worldId(), local.getMinHeight(), local.getWorld().getMaxY() + 1,
-                        request.destinationRevision(), captured)), clip)));
+                        request.destinationRevision(), captured, local.biomeIds())), clip)));
         });
     }
 
@@ -156,7 +156,8 @@ public final class MinecraftViewPlates {
         return new PlateCaptureJob<>(new PlateCaptureJob.Plan<>(request.key(), local.getWorld(), footprint,
             new MinecraftPlateCaptureSource(runtime, MinecraftPlateCaptureSource.Options.column(local.worldId(), blockEntities)), captured -> {
                 ViewPlateBuilder.Request<BlockState, BlockState, ContentView<BlockState, BlockState>> captureRequest = request.withDestView(
-                    new MinecraftCapturedChunkView(local.worldId(), local.getMinHeight(), local.getMaxHeight(), request.destinationRevision(), captured));
+                    new MinecraftCapturedChunkView(local.worldId(), local.getMinHeight(), local.getMaxHeight(), request.destinationRevision(), captured,
+                        local.biomeIds()));
                 return previous == null ? ViewPlateBuilder.job(captureRequest) : ViewPlateBuilder.patch(captureRequest, previous, dirtyChunks);
             }));
     }

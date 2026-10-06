@@ -7,6 +7,7 @@ import org.bukkit.block.data.BlockData;
 
 import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.view.ContentView;
+import art.arcane.wormholes.render.atmosphere.BiomeRegistryIds;
 
 public interface ProjectionWorldView extends ContentView<BlockData, Material> {
 
@@ -23,12 +24,16 @@ public interface ProjectionWorldView extends ContentView<BlockData, Material> {
 
     BlockData sampleBlockData(int x, int y, int z);
 
-    default Material sampleMaterial(int x, int y, int z) {
+    default Material material(int x, int y, int z) {
         BlockData data = sampleBlockData(x, y, z);
         return data == null ? null : data.getMaterial();
     }
 
     String sampleBiome(int x, int y, int z);
+
+    default int biomeId(int x, int y, int z) {
+        return BiomeRegistryIds.id(sampleBiome(x, y, z));
+    }
 
     default BlockEntitySample sampleBlockEntity(int x, int y, int z) {
         return null;

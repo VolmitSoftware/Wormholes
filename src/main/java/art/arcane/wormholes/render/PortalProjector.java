@@ -835,8 +835,7 @@ public final class PortalProjector {
         }
         if (FidelitySettings.biomeTint && mode.tintsBiomes()) {
             Long2IntOpenHashMap overrides = atmosphere.update(
-                new AtmosphereChannel.Scan<>(cellScan.claims(), destination.destView, claimsChanged), claimArbiter.biomeIds(),
-                FidelitySettings.snapshot());
+                new AtmosphereChannel.Scan<>(cellScan.claims(), destination.destView, claimsChanged), FidelitySettings.snapshot());
             if (overrides != null) {
                 claimArbiter.submitBiomes(observer, portal.getId(), submitWorld, overrides);
             }
@@ -1180,7 +1179,7 @@ public final class PortalProjector {
             int x = cell.getBlockX();
             int y = cell.getBlockY();
             int z = cell.getBlockZ();
-            if (!localView.isChunkReady(x, z) || localView.sampleMaterial(x, y, z) != Material.END_PORTAL) {
+            if (!localView.isChunkReady(x, z) || localView.material(x, y, z) != Material.END_PORTAL) {
                 continue;
             }
             if (endSurfaceAir == null) {

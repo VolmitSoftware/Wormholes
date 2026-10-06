@@ -97,7 +97,7 @@ class PortalProjectorEndSurfaceTest {
         try (Fixture fixture = new Fixture(DimensionalPortalKind.END_EXIT)) {
             fixture.projector.project(true, false);
             fixture.sent.clear();
-            when(fixture.localView.sampleMaterial(anyInt(), anyInt(), anyInt())).thenThrow(new IllegalStateException("Source unavailable"));
+            when(fixture.localView.material(anyInt(), anyInt(), anyInt())).thenThrow(new IllegalStateException("Source unavailable"));
             fixture.projector.invalidateProjectionReuse();
             assertThrows(IllegalStateException.class, () -> fixture.projector.project(true, false));
             assertEquals(fixture.aperture, fixture.keys(Material.END_PORTAL));
@@ -221,7 +221,7 @@ class PortalProjectorEndSurfaceTest {
                 int y = call.getArgument(1);
                 int z = call.getArgument(2);
                 return aperture.contains(CellKeys.pack(x, y, z)) ? Material.END_PORTAL : Material.STONE;
-            }).when(localView).sampleMaterial(anyInt(), anyInt(), anyInt());
+            }).when(localView).material(anyInt(), anyInt(), anyInt());
         }
 
         private Set<Long> keys(Material material) {
@@ -259,7 +259,7 @@ class PortalProjectorEndSurfaceTest {
         when(view.isChunkReady(anyInt(), anyInt())).thenReturn(true);
         when(view.sampleBlockData(anyInt(), anyInt(), anyInt())).thenReturn(data);
         Material material = data.getMaterial();
-        when(view.sampleMaterial(anyInt(), anyInt(), anyInt())).thenReturn(material);
+        when(view.material(anyInt(), anyInt(), anyInt())).thenReturn(material);
         return view;
     }
 
