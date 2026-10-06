@@ -45,7 +45,7 @@ public final class AtmosphereDominance {
             int x = CellKeys.unpackX(localKey);
             int y = CellKeys.unpackY(localKey);
             int z = CellKeys.unpackZ(localKey);
-            long sectionKey = CellKeys.pack(x >> 4, y >> 4, z >> 4);
+            long sectionKey = CellKeys.sectionKey(x >> 4, y >> 4, z >> 4);
             long quartKey = CellKeys.pack(x >> 2, y >> 2, z >> 2);
             Long2LongOpenHashMap cells = sections.get(sectionKey);
             if (cells == null) {

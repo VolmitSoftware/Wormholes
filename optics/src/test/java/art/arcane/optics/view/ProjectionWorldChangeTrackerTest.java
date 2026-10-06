@@ -30,7 +30,7 @@ public final class ProjectionWorldChangeTrackerTest {
                 assertFalse(tracker.dirtySince(OTHER_WORLD, x, z, x, z, before));
                 LongArrayList dirty = new LongArrayList();
                 assertTrue(tracker.collectDirtySince(WORLD, x, z, x, z, before, dirty));
-                assertEquals(List.of(Long.valueOf(WorldChangeTracker.chunkKey(x, z))), dirty);
+                assertEquals(List.of(Long.valueOf(CellKeys.chunkKey(x, z))), dirty);
             }
         }
         tracker.clearWorld(WORLD);
@@ -115,7 +115,7 @@ public final class ProjectionWorldChangeTrackerTest {
 
         assertTrue(tracker.collectDirtySince(WORLD, -2, -2, 4, 4, since, collected));
 
-        assertEquals(List.of(Long.valueOf(WorldChangeTracker.chunkKey(1, 0))), collected);
+        assertEquals(List.of(Long.valueOf(CellKeys.chunkKey(1, 0))), collected);
     }
 
     @Test

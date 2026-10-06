@@ -16,7 +16,7 @@ import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.fidelity.AcousticsProfile;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.aperture.ApertureDescriptor;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.math.Face;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
@@ -45,7 +45,7 @@ final class ClientViewHarness {
     static final BlockState AIR = Blocks.AIR.defaultBlockState();
     static final int STONE_ID = 3;
     static final int PORTAL_KEY = 1;
-    static final PlateBox PLATE = new PlateBox(-8, 56, 0, 18, 18, 10);
+    static final BlockBox PLATE = new BlockBox(-8, 56, 0, 18, 18, 10);
     static final PlateSectionBox SECTIONS = PlateSectionBox.snap(PLATE);
     static final int AIR_COLUMN_X = 1;
     static final int REAL_AIR_Z = 3;

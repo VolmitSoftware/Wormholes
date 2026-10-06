@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network.replication.capture;
 
+import art.arcane.optics.math.CellKeys;
+
 import art.arcane.wormholes.network.replication.BlockChange;
 import art.arcane.wormholes.network.replication.BlockChangeFeed;
 import art.arcane.wormholes.network.replication.BlockEntityDiff;
@@ -8,7 +10,6 @@ import art.arcane.wormholes.network.replication.ReplicationTestStream;
 import art.arcane.wormholes.network.replication.LightDiff;
 import art.arcane.wormholes.network.replication.StubWorld;
 import art.arcane.wormholes.network.replication.TestNetworkSink;
-import art.arcane.wormholes.network.view.ViewSlice;
 
 import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
@@ -33,7 +34,7 @@ class BlockChangeCaptureTest {
         TestNetworkSink sink = new TestNetworkSink(dir);
         ChunkReplicationManager replication = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
-        long chunkKey = ViewSlice.columnKey(0, 0);
+        long chunkKey = CellKeys.chunkKey(0, 0);
         replication.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
 
         CapturingFeed feed = new CapturingFeed();
@@ -65,7 +66,7 @@ class BlockChangeCaptureTest {
         TestNetworkSink sink = new TestNetworkSink(dir);
         ChunkReplicationManager replication = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
-        long chunkKey = ViewSlice.columnKey(0, 0);
+        long chunkKey = CellKeys.chunkKey(0, 0);
         replication.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         assertTrue(replication.sendBulk(PEER, world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey), new byte[]{1}, 1L));
         List<Long> retries = new ArrayList<>();

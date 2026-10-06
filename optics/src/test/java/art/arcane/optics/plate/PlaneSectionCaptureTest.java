@@ -1,5 +1,7 @@
 package art.arcane.optics.plate;
 
+import art.arcane.optics.math.BlockBox;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -43,7 +45,7 @@ final class PlaneSectionCaptureTest {
                         key, aperture, view, frame, Frame.canonical(Face.N), origin.x(), origin.y(), origin.z(),
                         200.4995D, 70.4995D, 90.4995D, false, 0, 2, 2, 0, false, "minecraft:air", LodPolicy.NONE,
                         false, 0L, 0L, 0L, new ClientSweepScene.StringBlocks());
-                    PlateBox clip = new PlateBox((coordinate >> 4) << 4, (coordinate >> 4) << 4, (coordinate >> 4) << 4, 16, 16, 16);
+                    BlockBox clip = new BlockBox((coordinate >> 4) << 4, (coordinate >> 4) << 4, (coordinate >> 4) << 4, 16, 16, 16);
                     ViewPlateBuilder.Job<String, Object> job = ViewPlateBuilder.sectionJob(request, clip);
                     assertTrue(job.step(Integer.MAX_VALUE));
                     String context = facing + " front=" + front + " coordinate=" + coordinate;
@@ -72,7 +74,7 @@ final class PlaneSectionCaptureTest {
             key, aperture, view, frame, frame, 0.5D, 0.5D, 0.5D, 200.5D, 70.5D, 90.5D,
             false, 0, 32, 32, 0, false, "minecraft:air", LodPolicy.NONE, false, 0L, 0L, 0L,
             new ClientSweepScene.StringBlocks());
-        ViewPlateBuilder.Job<String, Object> job = ViewPlateBuilder.sectionJob(request, new PlateBox(0, 0, 0, 16, 16, 16));
+        ViewPlateBuilder.Job<String, Object> job = ViewPlateBuilder.sectionJob(request, new BlockBox(0, 0, 0, 16, 16, 16));
         assertFalse(job.step(4096));
         assertNull(job.result());
         verify(view, never()).sampleBlockData(anyInt(), anyInt(), anyInt());

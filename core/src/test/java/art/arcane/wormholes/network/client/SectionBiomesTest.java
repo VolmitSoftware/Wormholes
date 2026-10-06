@@ -3,7 +3,7 @@ package art.arcane.wormholes.network.client;
 import java.util.ArrayList;
 import java.util.List;
 
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -55,7 +55,7 @@ final class SectionBiomesTest {
 
     @Test
     void fullGeometricCountCanExceedUnsignedShort() throws ClientViewProtocolException {
-        ClientViewMessage.MeshBegin begin = new ClientViewMessage.MeshBegin(1, 2, new PlateBox(-512, -512, 0, 1025, 1025, 512), 135200);
+        ClientViewMessage.MeshBegin begin = new ClientViewMessage.MeshBegin(1, 2, new BlockBox(-512, -512, 0, 1025, 1025, 512), 135200);
         assertEquals(begin, ClientViewCodec.decodeS2C(ClientViewCodec.encodeS2C(begin, 1, 0), ViewStreamCapability.ALL).message());
     }
 

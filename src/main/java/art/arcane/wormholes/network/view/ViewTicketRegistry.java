@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network.view;
 
+import art.arcane.optics.math.BlockBox;
+
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.portal.ILocalPortal;
 
@@ -34,7 +36,7 @@ final class ViewTicketRegistry {
 
     void retainGatewayTickets(ILocalPortal portal) {
         World world = portal.getStructure().getWorld();
-        ViewBox box = ViewServer.computeBox(portal, portal.getNetworkViewDepth());
+        BlockBox box = ViewServer.computeBox(portal, portal.getNetworkViewDepth());
         ViewServer.TicketLease previous;
         ViewServer.TicketLease next;
         synchronized (gatewayTickets) {

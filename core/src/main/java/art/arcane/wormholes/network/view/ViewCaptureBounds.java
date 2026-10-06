@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network.view;
 
+import art.arcane.optics.math.BlockBox;
+
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 
@@ -7,7 +9,7 @@ public final class ViewCaptureBounds {
     private ViewCaptureBounds() {
     }
 
-    public static ViewBox compute(Box area, Face normal, Options options) {
+    public static BlockBox compute(Box area, Face normal, Options options) {
         int depth = Math.max(0, options.depth());
         int lateral = Math.max(0, options.lateralPad()) + (int) Math.ceil(Math.max(0.0D, options.aperturePadding()));
         int expandX = normal.x() == 0 ? lateral : depth;
@@ -19,11 +21,11 @@ public final class ViewCaptureBounds {
         int maxX = (int) Math.floor(Math.max(area.getXa(), area.getXb())) + expandX;
         int maxY = (int) Math.floor(Math.max(area.getYa(), area.getYb())) + expandY;
         int maxZ = (int) Math.floor(Math.max(area.getZa(), area.getZb())) + expandZ;
-        return new ViewBox(minX, Math.max(minY, options.minHeight()), minZ,
+        return BlockBox.spanning(minX, Math.max(minY, options.minHeight()), minZ,
             maxX, Math.min(maxY, options.maxHeight() - 1), maxZ);
     }
 
-    public static ViewBox computeMesh(Box area, int distance, int minHeight, int maxHeight) {
+    public static BlockBox computeMesh(Box area, int distance, int minHeight, int maxHeight) {
         int radius = Math.clamp(distance, 32, 512) + 32;
         return compute(area, Face.N, new Options(radius, radius, 0.0D, minHeight, maxHeight));
     }

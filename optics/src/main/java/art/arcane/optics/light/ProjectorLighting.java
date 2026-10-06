@@ -145,8 +145,8 @@ public final class ProjectorLighting<P, B, V extends ContentView<?, ?>> {
         }
         int worldX = CellKeys.unpackX(key);
         int worldZ = CellKeys.unpackZ(key);
-        long chunkKey = internalChunkKey(worldX >> 4, worldZ >> 4);
-        long sectionKey = CellKeys.pack(worldX >> 4, worldY >> 4, worldZ >> 4);
+        long chunkKey = CellKeys.chunkKey(worldX >> 4, worldZ >> 4);
+        long sectionKey = CellKeys.sectionKey(worldX >> 4, worldY >> 4, worldZ >> 4);
         SectionClaims claims = sectionClaims.get(sectionKey);
         int nibbleIndex = ((worldY & 0xF) << 8) | ((worldZ & 0xF) << 4) | (worldX & 0xF);
         if (claim == null || !claim.requiresLightOverlay(sourceLightingEnabled)) {
@@ -188,7 +188,7 @@ public final class ProjectorLighting<P, B, V extends ContentView<?, ?>> {
             if (!isWorldYInsideWorld(localView, worldY)) {
                 continue;
             }
-            long chunkKey = (((long) (worldX >> 4)) << 32) | (((long) (worldZ >> 4)) & 0xFFFFFFFFL);
+            long chunkKey = CellKeys.chunkKey(worldX >> 4, worldZ >> 4);
             IntOpenHashSet set = chunkToSections.get(chunkKey);
             if (set == null) {
                 set = new IntOpenHashSet(4);
@@ -275,7 +275,7 @@ public final class ProjectorLighting<P, B, V extends ContentView<?, ?>> {
     }
 
     public void discardChunk(int chunkX, int chunkZ) {
-        long chunkKey = internalChunkKey(chunkX, chunkZ);
+        long chunkKey = CellKeys.chunkKey(chunkX, chunkZ);
         sentChunkSections.remove(chunkKey);
         pendingChunkSections.remove(chunkKey);
         chunkToSections.remove(chunkKey);
@@ -476,7 +476,7 @@ public final class ProjectorLighting<P, B, V extends ContentView<?, ?>> {
     }
 
     private SectionBaseline localBaseline(V localView, int chunkX, int chunkZ, int section, int minSection, int maxSection) {
-        long chunkKey = (((long) chunkX) << 32) | (((long) chunkZ) & 0xFFFFFFFFL);
+        long chunkKey = CellKeys.chunkKey(chunkX, chunkZ);
         int sectionCount = maxSection - minSection + 1;
         SectionBaseline[] sections = baselineCache.get(chunkKey);
         if (sections == null || sections.length != sectionCount) {
@@ -605,10 +605,6 @@ public final class ProjectorLighting<P, B, V extends ContentView<?, ?>> {
         }
         Arrays.sort(ordered);
         return ordered;
-    }
-
-    private static long internalChunkKey(int chunkX, int chunkZ) {
-        return (((long) chunkX) << 32) | (((long) chunkZ) & 0xFFFFFFFFL);
     }
 
     private boolean isWorldYInsideWorld(V view, int y) {

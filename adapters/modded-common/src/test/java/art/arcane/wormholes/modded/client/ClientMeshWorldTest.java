@@ -7,7 +7,7 @@ import art.arcane.optics.stream.BrickCodec;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.SectionBiomes;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.AxisPermutation;
@@ -49,7 +49,7 @@ public class ClientMeshWorldTest extends MinecraftTestBase {
             new ClientViewMessage.PaletteEntry(4, "minecraft:water[level=0]"),
             new ClientViewMessage.PaletteEntry(5, "minecraft:oak_stairs[facing=north,half=bottom,shape=straight,waterlogged=false]"))));
         ClientMeshSections store = new ClientMeshSections(palette, 65536);
-        store.begin(7, 1, new PlateBox(-16, -16, -16, 32, 32, 32), 8);
+        store.begin(7, 1, new BlockBox(-16, -16, -16, 32, 32, 32), 8);
         int[] cells = new int[4096];
         byte[] block = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
         byte[] sky = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
@@ -238,7 +238,7 @@ public class ClientMeshWorldTest extends MinecraftTestBase {
         ClientPalette palette = new ClientPalette(BuiltInRegistries.BLOCK);
         palette.apply(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(3, "minecraft:stone"))));
         ClientMeshSections store = new ClientMeshSections(palette, 65536);
-        store.begin(7, 1, new PlateBox(-16, -16, -16, 32, 32, 32), 8);
+        store.begin(7, 1, new BlockBox(-16, -16, -16, 32, 32, 32), 8);
         return store;
     }
 }

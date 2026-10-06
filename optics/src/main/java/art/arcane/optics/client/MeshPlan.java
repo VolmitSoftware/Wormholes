@@ -6,7 +6,7 @@ import java.util.List;
 
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.aperture.ApertureDescriptor;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 
@@ -14,7 +14,7 @@ public final class MeshPlan {
     private MeshPlan() {
     }
 
-    public static PlateBox bounds(ApertureDescriptor geometry) {
+    public static BlockBox bounds(ApertureDescriptor geometry) {
         Box area = geometry.apertureArea();
         int[] min = {(int) Math.floor(area.getXa()), (int) Math.floor(area.getYa()), (int) Math.floor(area.getZa())};
         int[] max = {(int) Math.floor(area.getXb()), (int) Math.floor(area.getYb()), (int) Math.floor(area.getZb())};
@@ -31,11 +31,11 @@ public final class MeshPlan {
                 min[i] -= geometry.depthBlocks();
             }
         }
-        return PlateBox.spanning(min[0], min[1], min[2], max[0], max[1], max[2]);
+        return BlockBox.spanning(min[0], min[1], min[2], max[0], max[1], max[2]);
     }
 
     public static int capacity(ApertureDescriptor geometry) {
-        PlateBox box = bounds(geometry);
+        BlockBox box = bounds(geometry);
         long x = (((long) box.minX() + box.sizeX() - 1) >> 4) - (box.minX() >> 4) + 1;
         long y = (((long) box.minY() + box.sizeY() - 1) >> 4) - (box.minY() >> 4) + 1;
         long z = (((long) box.minZ() + box.sizeZ() - 1) >> 4) - (box.minZ() >> 4) + 1;
@@ -43,7 +43,7 @@ public final class MeshPlan {
     }
 
     public static List<Section> visible(ApertureDescriptor geometry, Vec3d eye) {
-        PlateBox bounds = bounds(geometry);
+        BlockBox bounds = bounds(geometry);
         Box area = geometry.apertureArea();
         double[] eyeAt = {eye.x(), eye.y(), eye.z()};
         double[] apertureMin = {area.getXa(), area.getYa(), area.getZa()};
@@ -123,8 +123,8 @@ public final class MeshPlan {
     }
 
     public record Section(int x, int y, int z, double distance) {
-        public PlateBox clip() {
-            return new PlateBox(x << 4, y << 4, z << 4, 16, 16, 16);
+        public BlockBox clip() {
+            return new BlockBox(x << 4, y << 4, z << 4, 16, 16, 16);
         }
 
         public Coordinate coordinate() {

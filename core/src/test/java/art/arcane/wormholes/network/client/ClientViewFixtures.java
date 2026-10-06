@@ -10,7 +10,7 @@ import java.util.UUID;
 
 import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.optics.aperture.ApertureDescriptor;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.BrickCodec;
 import art.arcane.optics.stream.BrickLightSource;
@@ -67,7 +67,7 @@ final class ClientViewFixtures {
         out.add(new Vector("ack", new ClientViewMessage.Ack(13, 400, 12345), ViewStreamCapability.NONE, 0, 0));
         out.add(new Vector("view_stats", new ClientViewMessage.ViewStats(500, 3, 250000, 2, 640, 1900, 96), ViewStreamCapability.NONE, 0, 0));
         out.add(new Vector("plate_refused", new ClientViewMessage.PlateRefused(7, 3), ViewStreamCapability.NONE, 0, 0));
-        out.add(new Vector("mesh_begin", new ClientViewMessage.MeshBegin(7, 12, new PlateBox(-512, -64, -512, 1024, 512, 512), 1024), ViewStreamCapability.ALL, 14, 0));
+        out.add(new Vector("mesh_begin", new ClientViewMessage.MeshBegin(7, 12, new BlockBox(-512, -64, -512, 1024, 512, 512), 1024), ViewStreamCapability.ALL, 14, 0));
         out.add(new Vector("mesh_section", new ClientViewMessage.MeshSection(7, 12, -32, 4, -10, 1, 3, litBrick(0), new SectionBiomes(List.of("minecraft:plains"), new byte[0])), ViewStreamCapability.ALL, 15, 0));
         out.add(new Vector("mesh_section_biomes", new ClientViewMessage.MeshSection(7, 12, -32, 4, -10, 1, 3,
             Brick.empty(0), biomeHalo()), ViewStreamCapability.ALL, 15, 0));
@@ -194,7 +194,7 @@ final class ClientViewFixtures {
 
     static ClientViewMessage.PlateBegin plateBegin(boolean hashes) {
         PlateSectionBox sections = new PlateSectionBox(37, 1, -294, 2, 1, 2);
-        PlateBox cells = new PlateBox(595, 22, -4700, 25, 16, 20);
+        BlockBox cells = new BlockBox(595, 22, -4700, 25, 16, 20);
         long[] manifest = hashes ? new long[] {1L, 2L, 3L, 0xFFFFFFFFFFFFFFFFL} : null;
         return new ClientViewMessage.PlateBegin(7, 3, sections, cells, 3, 4, manifest);
     }

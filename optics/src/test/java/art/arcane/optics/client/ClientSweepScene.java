@@ -28,7 +28,7 @@ import art.arcane.optics.occlusion.ProjectorViewOcclusion;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.volume.LodPolicy;
 import art.arcane.optics.volume.ProjectionVolume;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.view.ContentView;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
@@ -143,11 +143,11 @@ public final class ClientSweepScene {
             List.of())).orElseThrow();
     }
 
-    PlateBox bounds(boolean frontSide) {
-        PlateBox plate = plateBox(aperture.getArea(), localFrame, localOrigin, frontSide, depth, lateral, APERTURE_PADDING);
+    BlockBox bounds(boolean frontSide) {
+        BlockBox plate = plateBox(aperture.getArea(), localFrame, localOrigin, frontSide, depth, lateral, APERTURE_PADDING);
         int minY = Math.max(plate.minY(), WORLD_MIN_Y);
         int maxY = Math.min(plate.minY() + plate.sizeY() - 1, WORLD_MAX_Y);
-        return PlateBox.spanning(plate.minX(), minY, plate.minZ(), plate.minX() + plate.sizeX() - 1, maxY,
+        return BlockBox.spanning(plate.minX(), minY, plate.minZ(), plate.minX() + plate.sizeX() - 1, maxY,
             plate.minZ() + plate.sizeZ() - 1);
     }
 
@@ -166,7 +166,7 @@ public final class ClientSweepScene {
         return OCCLUDING.contains(state);
     }
 
-    public static PlateBox plateBox(Box area, Frame localFrame, Vec3d origin, boolean frontSide,
+    public static BlockBox plateBox(Box area, Frame localFrame, Vec3d origin, boolean frontSide,
                              double depthBlocks, double lateralBlocks, double aperturePadding) {
         int[] axisMin = new int[3];
         int[] axisMax = new int[3];
@@ -191,7 +191,7 @@ public final class ClientSweepScene {
             axisMin[axis] = ProjectionVolume.minBlockForCenter(areaMin - pad);
             axisMax[axis] = ProjectionVolume.maxBlockForCenter(areaMax + pad);
         }
-        return PlateBox.spanning(axisMin[0], axisMin[1], axisMin[2], axisMax[0], axisMax[1], axisMax[2]);
+        return BlockBox.spanning(axisMin[0], axisMin[1], axisMin[2], axisMax[0], axisMax[1], axisMax[2]);
     }
 
     private static ApertureCells cuboid(Box area) {

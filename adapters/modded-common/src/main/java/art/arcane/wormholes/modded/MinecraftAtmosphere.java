@@ -1,5 +1,7 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.math.CellKeys;
+
 import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.optics.fidelity.AtmosphereChannel;
 import art.arcane.optics.fidelity.BiomeClaimSet;
@@ -111,7 +113,7 @@ public final class MinecraftAtmosphere implements AutoCloseable {
 
     private void enqueue(List<BiomeClaimSet.ChunkBiomes> chunks) {
         for (BiomeClaimSet.ChunkBiomes chunk : chunks) {
-            pending.put(((long) chunk.chunkX() << 32) | (chunk.chunkZ() & 0xFFFFFFFFL), chunk);
+            pending.put(CellKeys.chunkKey(chunk.chunkX(), chunk.chunkZ()), chunk);
         }
     }
 

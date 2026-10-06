@@ -1,9 +1,10 @@
 package art.arcane.wormholes.network.replication.capture;
 
+import art.arcane.optics.math.CellKeys;
+
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.network.replication.BlockChange;
-import art.arcane.wormholes.network.view.ViewSlice;
 
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -63,7 +64,7 @@ public final class BlockChangeCapture implements Listener {
             return;
         }
         World world = block.getWorld();
-        long chunkKey = ViewSlice.columnKey(block.getX() >> 4, block.getZ() >> 4);
+        long chunkKey = CellKeys.chunkKey(block.getX() >> 4, block.getZ() >> 4);
         if (!accumulator.isRelevant(world, chunkKey)) {
             return;
         }

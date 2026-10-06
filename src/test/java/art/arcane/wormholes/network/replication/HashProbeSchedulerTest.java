@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network.replication;
 
+import art.arcane.optics.math.CellKeys;
+
 import art.arcane.wormholes.network.view.BukkitRemoteViewCodec;
 
 import art.arcane.wormholes.network.WireMessage;
@@ -46,7 +48,7 @@ class HashProbeSchedulerTest {
         sink.registerFakePeer(PEER);
         ChunkReplicationManager manager = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
-        long chunkKey = ViewSlice.columnKey(2, 4);
+        long chunkKey = CellKeys.chunkKey(2, 4);
         manager.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         byte[] payload = synthesizeBulkPayload(2, 4);
         manager.sendBulk(PEER, world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey), payload, contentHashOf(payload));
@@ -79,7 +81,7 @@ class HashProbeSchedulerTest {
         TestNetworkSink sink = new TestNetworkSink(dir);
         ChunkReplicationManager manager = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
-        long chunkKey = ViewSlice.columnKey(0, 0);
+        long chunkKey = CellKeys.chunkKey(0, 0);
         manager.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         byte[] payload = synthesizeBulkPayload(0, 0);
         manager.sendBulk(PEER, world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey), payload, contentHashOf(payload));
@@ -102,7 +104,7 @@ class HashProbeSchedulerTest {
         TestNetworkSink sink = new TestNetworkSink(dir);
         ChunkReplicationManager manager = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
-        long chunkKey = ViewSlice.columnKey(0, 0);
+        long chunkKey = CellKeys.chunkKey(0, 0);
         manager.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         byte[] payload = synthesizeBulkPayload(0, 0);
         manager.sendBulk(PEER, world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey), payload, contentHashOf(payload));
@@ -126,7 +128,7 @@ class HashProbeSchedulerTest {
         sink.registerFakePeer(PEER);
         ChunkReplicationManager manager = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
-        long chunkKey = ViewSlice.columnKey(6, 6);
+        long chunkKey = CellKeys.chunkKey(6, 6);
         manager.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         byte[] payload = synthesizeBulkPayload(6, 6);
         manager.sendBulk(PEER, world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey), payload, contentHashOf(payload));

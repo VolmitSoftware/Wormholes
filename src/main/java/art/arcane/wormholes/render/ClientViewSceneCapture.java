@@ -39,7 +39,7 @@ import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.IPortal;
 import art.arcane.optics.client.PlateLight;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.plate.ViewPlate;
 import art.arcane.optics.view.ContentView;
 import art.arcane.wormholes.render.view.ProjectionEntityView;
@@ -233,7 +233,7 @@ public final class ClientViewSceneCapture {
         sources.values().removeIf(entry -> tick - entry.tick() > IDLE_TICKS);
     }
 
-    private static PlateLight.Sampler snapshot(World world, PlateBox box) {
+    private static PlateLight.Sampler snapshot(World world, BlockBox box) {
         if (box.cells() == 0L) {
             return (x, y, z) -> PlateLight.UNAVAILABLE;
         }

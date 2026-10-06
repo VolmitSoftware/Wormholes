@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Vec3d;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.state.TrackShape;
 
 final class OpticTransformGoldenTest {
@@ -107,7 +107,7 @@ final class OpticTransformGoldenTest {
             Vec3d fromOrigin = vector(row, 3);
             Vec3d toOrigin = vector(row, 6);
             Vec3d point = vector(row, 9);
-            PlateBox box = new PlateBox(Integer.parseInt(row[12]), Integer.parseInt(row[13]), Integer.parseInt(row[14]),
+            BlockBox box = new BlockBox(Integer.parseInt(row[12]), Integer.parseInt(row[13]), Integer.parseInt(row[14]),
                 Integer.parseInt(row[15]), Integer.parseInt(row[16]), Integer.parseInt(row[17]));
             int margin = Integer.parseInt(row[18]);
             digest.reset();
@@ -126,7 +126,7 @@ final class OpticTransformGoldenTest {
             QuarterTurn turns = QuarterTurn.fromDegrees(Integer.parseInt(row[2]));
             Vec3d origin = vector(row, 3);
             Vec3d point = vector(row, 6);
-            PlateBox box = new PlateBox(Integer.parseInt(row[9]), Integer.parseInt(row[10]), Integer.parseInt(row[11]),
+            BlockBox box = new BlockBox(Integer.parseInt(row[9]), Integer.parseInt(row[10]), Integer.parseInt(row[11]),
                 Integer.parseInt(row[12]), Integer.parseInt(row[13]), Integer.parseInt(row[14]));
             int margin = Integer.parseInt(row[15]);
             digest.reset();
@@ -177,7 +177,7 @@ final class OpticTransformGoldenTest {
         int[] cell = new int[3];
         transform.cellInto(10, 70, 3, cell);
         assertEquals(10, cell[0]);
-        assertEquals(new PlateBox(10, 70, 3, 1, 1, 1), transform.box(new PlateBox(10, 70, 3, 1, 1, 1), 0));
+        assertEquals(new BlockBox(10, 70, 3, 1, 1, 1), transform.box(new BlockBox(10, 70, 3, 1, 1, 1), 0));
         transform.cellAligned().cellInto(10, 70, 3, cell);
         assertEquals(9, cell[0]);
         transform.inverse().cellInto(9, 70, 3, cell);
@@ -196,7 +196,7 @@ final class OpticTransformGoldenTest {
                     double x = coordinate(random, fromOrigin.x());
                     double y = coordinate(random, fromOrigin.y());
                     double z = coordinate(random, fromOrigin.z());
-                    PlateBox box = box(random, x, y, z);
+                    BlockBox box = box(random, x, y, z);
                     int margin = random.nextInt(4);
                     probe.sample(from, fromOrigin, to, toOrigin, x, y, z, box, margin, digest);
                 }
@@ -215,7 +215,7 @@ final class OpticTransformGoldenTest {
                     double x = coordinate(random, origin.x());
                     double y = coordinate(random, origin.y());
                     double z = coordinate(random, origin.z());
-                    PlateBox box = box(random, x, y, z);
+                    BlockBox box = box(random, x, y, z);
                     int margin = random.nextInt(4);
                     probe.sample(plane, turns, origin, x, y, z, box, margin, digest);
                 }
@@ -262,7 +262,7 @@ final class OpticTransformGoldenTest {
     }
 
     private static void frameSample(Frame from, Vec3d fromOrigin, Frame to, Vec3d toOrigin, double x, double y, double z,
-                                    PlateBox box, int margin, Digest digest) {
+                                    BlockBox box, int margin, Digest digest) {
         OpticTransform transform = OpticTransform.between(from, fromOrigin, to, toOrigin);
         double[] out = new double[3];
         int[] cell = new int[3];
@@ -284,7 +284,7 @@ final class OpticTransformGoldenTest {
     }
 
     private static void mirrorSample(Frame plane, QuarterTurn turns, Vec3d origin, double x, double y, double z,
-                                     PlateBox box, int margin, Digest digest) {
+                                     BlockBox box, int margin, Digest digest) {
         OpticTransform mirror = OpticTransform.mirror(plane, origin, turns);
         OpticTransform displayToSource = mirror.inverse();
         double[] out = new double[3];
@@ -340,8 +340,8 @@ final class OpticTransformGoldenTest {
         };
     }
 
-    private static PlateBox box(Random random, double x, double y, double z) {
-        return new PlateBox((int) Math.floor(x), (int) Math.floor(y), (int) Math.floor(z),
+    private static BlockBox box(Random random, double x, double y, double z) {
+        return new BlockBox((int) Math.floor(x), (int) Math.floor(y), (int) Math.floor(z),
             1 + random.nextInt(48), 1 + random.nextInt(48), 1 + random.nextInt(48));
     }
 
@@ -374,12 +374,12 @@ final class OpticTransformGoldenTest {
     }
 
     interface FrameProbe {
-        void sample(Frame from, Vec3d fromOrigin, Frame to, Vec3d toOrigin, double x, double y, double z, PlateBox box, int margin,
+        void sample(Frame from, Vec3d fromOrigin, Frame to, Vec3d toOrigin, double x, double y, double z, BlockBox box, int margin,
                     Digest digest);
     }
 
     interface MirrorProbe {
-        void sample(Frame plane, QuarterTurn turns, Vec3d origin, double x, double y, double z, PlateBox box, int margin, Digest digest);
+        void sample(Frame plane, QuarterTurn turns, Vec3d origin, double x, double y, double z, BlockBox box, int margin, Digest digest);
     }
 
     interface WireProbe {
@@ -409,7 +409,7 @@ final class OpticTransformGoldenTest {
             add(cell[2]);
         }
 
-        void add(PlateBox box) {
+        void add(BlockBox box) {
             add(box.minX());
             add(box.minY());
             add(box.minZ());

@@ -1,5 +1,7 @@
 package art.arcane.optics.plate;
 
+import art.arcane.optics.math.BlockBox;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -40,7 +42,7 @@ final class PlateSectionSpanTest {
                             Frame.canonical(Face.S), origin.getX(), origin.getY(), origin.getZ(), 200.5D, 70.5D, 90.5D,
                             false, 0, 24, 12, APERTURE_PADDING, false, "minecraft:air", LodPolicy.NONE, false, 0L, 0L, 0L,
                             new ClientSweepScene.StringBlocks());
-                    PlateBox built = ViewPlateBuilder.build(request).grid().box();
+                    BlockBox built = ViewPlateBuilder.build(request).grid().box();
                     assertEquals(built, ClientSweepScene.plateBox(area, frame, origin, frontSide, 24, 12, APERTURE_PADDING),
                         facing + " size=" + size + " front=" + frontSide);
                 }
@@ -57,7 +59,7 @@ final class PlateSectionSpanTest {
             for (int offsetY = 0; offsetY < 16; offsetY++) {
                 Box area = area(Face.E, 1, offsetX, 64 + offsetY, offsetY);
                 Vec3d origin = area.center();
-                PlateBox box = ClientSweepScene.plateBox(area, Frame.canonical(Face.E), origin, true, DEPTH, LATERAL_CLAMP,
+                BlockBox box = ClientSweepScene.plateBox(area, Frame.canonical(Face.E), origin, true, DEPTH, LATERAL_CLAMP,
                     APERTURE_PADDING);
                 int sectionsX = sections(box.minX(), box.sizeX());
                 int sectionsY = sections(box.minY(), box.sizeY());

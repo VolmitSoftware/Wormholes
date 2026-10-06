@@ -1,5 +1,7 @@
 package art.arcane.optics.plate;
 
+import art.arcane.optics.math.BlockBox;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 
@@ -25,7 +27,7 @@ public final class PlateEnvironment implements BrickLightSource {
         bytes = memory;
     }
 
-    public static PlateEnvironment capture(PlateBox box, OpticTransform transform, ContentView<?, ?> view) {
+    public static PlateEnvironment capture(BlockBox box, OpticTransform transform, ContentView<?, ?> view) {
         if (box.sizeX() != 16 || box.sizeY() != 16 || box.sizeZ() != 16) {
             return null;
         }

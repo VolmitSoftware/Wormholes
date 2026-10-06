@@ -1,7 +1,7 @@
 package art.arcane.wormholes.render.view;
 
 import art.arcane.wormholes.network.view.RemoteViewCache;
-import art.arcane.wormholes.network.view.ViewBox;
+import art.arcane.optics.math.BlockBox;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -15,7 +15,7 @@ final class RemoteProjectionMetadataTest {
     void worldHeightHaloUsesRealBoundaryBiomesAndExteriorLight() {
         RemoteViewCache.RemoteView<String, Object, Object> remote = mock(RemoteViewCache.RemoteView.class);
         RemoteViewCache.DecodedSlice<String> slice = mock(RemoteViewCache.DecodedSlice.class);
-        when(remote.getBox()).thenReturn(new ViewBox(-16, -64, -16, 31, 319, 31));
+        when(remote.getBox()).thenReturn(BlockBox.spanning(-16, -64, -16, 31, 319, 31));
         when(remote.sliceAt(anyInt(), anyInt())).thenReturn(slice);
         when(slice.biomeAt(anyInt(), anyInt(), anyInt())).thenAnswer(call -> (int) call.getArgument(1) == -64 ? "test:bottom" : "test:top");
         when(slice.lightAt(anyInt(), anyInt(), anyInt())).thenReturn(ContentView.packLight(13, 9));

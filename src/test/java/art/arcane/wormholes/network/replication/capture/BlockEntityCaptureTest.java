@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network.replication.capture;
 
+import art.arcane.optics.math.CellKeys;
+
 import org.bukkit.block.data.BlockData;
 import art.arcane.wormholes.network.replication.BlockChange;
 import art.arcane.wormholes.network.replication.BlockChangeFeed;
@@ -9,7 +11,6 @@ import art.arcane.wormholes.network.replication.ReplicationTestStream;
 import art.arcane.wormholes.network.replication.LightDiff;
 import art.arcane.wormholes.network.replication.StubWorld;
 import art.arcane.wormholes.network.replication.TestNetworkSink;
-import art.arcane.wormholes.network.view.ViewSlice;
 
 import org.bukkit.World;
 import org.bukkit.block.Block;
@@ -41,7 +42,7 @@ class BlockEntityCaptureTest {
         TestNetworkSink sink = new TestNetworkSink(dir);
         ChunkReplicationManager replication = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
-        long chunkKey = ViewSlice.columnKey(0, 0);
+        long chunkKey = CellKeys.chunkKey(0, 0);
         replication.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         CapturingFeed feed = new CapturingFeed();
         RegionalDiffAccumulator<World, BlockData> accumulator = new RegionalDiffAccumulator<>(replication, new RegionalDiffAccumulator.Options<>(feed, blockEntitySettings(), BukkitCaptureAccess.INSTANCE));
@@ -61,7 +62,7 @@ class BlockEntityCaptureTest {
         TestNetworkSink sink = new TestNetworkSink(dir);
         ChunkReplicationManager replication = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
-        long chunkKey = ViewSlice.columnKey(0, 0);
+        long chunkKey = CellKeys.chunkKey(0, 0);
         replication.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         CapturingFeed feed = new CapturingFeed();
         CaptureSettings disabled = new CaptureSettings(100, 256, true, false);
@@ -77,7 +78,7 @@ class BlockEntityCaptureTest {
         TestNetworkSink sink = new TestNetworkSink(dir);
         ChunkReplicationManager replication = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
-        long chunkKey = ViewSlice.columnKey(0, 0);
+        long chunkKey = CellKeys.chunkKey(0, 0);
         replication.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         CapturingFeed feed = new CapturingFeed();
         RegionalDiffAccumulator<World, BlockData> accumulator = new RegionalDiffAccumulator<>(replication, new RegionalDiffAccumulator.Options<>(feed, blockEntitySettings(), BukkitCaptureAccess.INSTANCE));
@@ -109,7 +110,7 @@ class BlockEntityCaptureTest {
         TestNetworkSink sink = new TestNetworkSink(dir);
         ChunkReplicationManager replication = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
-        long chunkKey = ViewSlice.columnKey(0, 0);
+        long chunkKey = CellKeys.chunkKey(0, 0);
         replication.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         CapturingFeed feed = new CapturingFeed();
         RegionalDiffAccumulator<World, BlockData> accumulator = new RegionalDiffAccumulator<>(replication, new RegionalDiffAccumulator.Options<>(feed, blockEntitySettings(), BukkitCaptureAccess.INSTANCE));
@@ -127,7 +128,7 @@ class BlockEntityCaptureTest {
         TestNetworkSink sink = new TestNetworkSink(dir);
         ChunkReplicationManager replication = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
-        long chunkKey = ViewSlice.columnKey(0, 0);
+        long chunkKey = CellKeys.chunkKey(0, 0);
         replication.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         CapturingFeed feed = new CapturingFeed();
         CaptureSettings disabled = new CaptureSettings(100, 256, true, false);

@@ -4,7 +4,7 @@ import art.arcane.wormholes.modded.MinecraftProjectorBlocks;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.frame.AxisPermutation;
 import art.arcane.optics.fidelity.BlockEntitySample;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
@@ -41,7 +41,7 @@ public final class ClientNestedContent implements ClientPortalContent {
     }
 
     @Override
-    public PlateBox cells() {
+    public BlockBox cells() {
         return plate.cells();
     }
 

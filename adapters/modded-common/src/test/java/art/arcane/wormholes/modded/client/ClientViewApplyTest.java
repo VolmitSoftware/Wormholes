@@ -8,7 +8,7 @@ import art.arcane.optics.stream.ClientViewProtocolException;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.client.ClientCellRules;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
@@ -98,8 +98,8 @@ public class ClientViewApplyTest {
         BlockEntitySample sample = new BlockEntitySample("minecraft:sign", new byte[] {10, 0, 0, 0});
         ClientPortalContent content = new ClientPortalContent() {
             @Override
-            public PlateBox cells() {
-                return new PlateBox(0, 64, 0, 200, 4, 200);
+            public BlockBox cells() {
+                return new BlockBox(0, 64, 0, 200, 4, 200);
             }
 
             @Override

@@ -32,7 +32,6 @@ import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.optics.math.CellKeys;
-import art.arcane.optics.view.WorldChangeTracker;
 import art.arcane.optics.scan.ProjectorSample;
 import art.arcane.optics.scan.ProjectorSampleMemo;
 import art.arcane.optics.volume.LodPolicy;
@@ -283,7 +282,7 @@ final class ViewPlateBuilderTest {
                 int y = 50 + random.nextInt(30);
                 int z = -30 + random.nextInt(60);
                 destination.override(x, y, z, random.nextBoolean() ? air : stone);
-                dirty.add(WorldChangeTracker.chunkKey(x >> 4, z >> 4));
+                dirty.add(CellKeys.chunkKey(x >> 4, z >> 4));
             }
             ViewPlate<BlockData> fresh = ViewPlateBuilder.build(request);
             ViewPlateBuilder.Job<BlockData, World> patchJob = ViewPlateBuilder.patch(request, before, dirty);

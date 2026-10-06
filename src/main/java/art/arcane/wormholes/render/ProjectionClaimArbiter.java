@@ -477,7 +477,7 @@ public final class ProjectionClaimArbiter {
                 fallbackOut.put(key, data);
                 continue;
             }
-            long sectionKey = packSectionKey(x >> 4, y >> 4, z >> 4);
+            long sectionKey = CellKeys.sectionKey(x >> 4, y >> 4, z >> 4);
             List<WrapperPlayServerMultiBlockChange.EncodedBlock> entries = sectionsOut.get(sectionKey);
             if (entries == null) {
                 entries = new ArrayList<WrapperPlayServerMultiBlockChange.EncodedBlock>(8);
@@ -553,7 +553,7 @@ public final class ProjectionClaimArbiter {
                     int z = CellKeys.unpackZ(key);
                     int chunkX = x >> 4;
                     int chunkZ = z >> 4;
-                    long chunkKey = packChunkKey(chunkX, chunkZ);
+                    long chunkKey = CellKeys.chunkKey(chunkX, chunkZ);
                     byte sentState = chunkSentMemo.get(chunkKey);
                     if (sentState == 0) {
                         sentState = chunkVisibility.isChunkSent(observer, chunkX, chunkZ) ? (byte) 1 : (byte) 2;
@@ -974,14 +974,6 @@ public final class ProjectionClaimArbiter {
 
     private static UUID worldId(World world) {
         return world == null ? null : world.getUID();
-    }
-
-    private static long packSectionKey(int sectionX, int sectionY, int sectionZ) {
-        return CellKeys.pack(sectionX, sectionY, sectionZ);
-    }
-
-    private static long packChunkKey(int chunkX, int chunkZ) {
-        return (((long) chunkX) << 32) | (((long) chunkZ) & 0xFFFFFFFFL);
     }
 
     public static final class ClaimUpdateResult {

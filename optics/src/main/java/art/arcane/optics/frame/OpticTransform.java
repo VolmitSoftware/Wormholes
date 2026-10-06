@@ -10,7 +10,7 @@ import art.arcane.optics.math.Box;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Vec3d;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.state.TrackShape;
 
 public final class OpticTransform {
@@ -243,9 +243,9 @@ public final class OpticTransform {
         out3[2] = outZ;
     }
 
-    public PlateBox box(PlateBox box, int margin) {
+    public BlockBox box(BlockBox box, int margin) {
         if (box.cells() == 0L) {
-            return PlateBox.EMPTY;
+            return BlockBox.EMPTY;
         }
         double minX = box.minX() + 0.5D - fromX;
         double minY = box.minY() + 0.5D - fromY;
@@ -259,7 +259,7 @@ public final class OpticTransform {
         double lastX = snapped(toX, signX, sourceX, maxX, maxY, maxZ);
         double lastY = snapped(toY, signY, sourceY, maxX, maxY, maxZ);
         double lastZ = snapped(toZ, signZ, sourceZ, maxX, maxY, maxZ);
-        return PlateBox.spanning(
+        return BlockBox.spanning(
             (int) Math.floor(Math.min(firstX, lastX)) - margin,
             (int) Math.floor(Math.min(firstY, lastY)) - margin,
             (int) Math.floor(Math.min(firstZ, lastZ)) - margin,

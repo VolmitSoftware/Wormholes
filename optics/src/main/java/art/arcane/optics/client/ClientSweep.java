@@ -10,7 +10,7 @@ import art.arcane.optics.volume.ViewVolume;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.volume.PlaneWindow;
 import art.arcane.optics.volume.ProjectionVolume;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
@@ -61,7 +61,7 @@ public final class ClientSweep {
     private int farUpMax;
     private double farDepth;
 
-    public ClientSweep(ApertureDescriptor geometry, PlateBox bounds, double hysteresis) {
+    public ClientSweep(ApertureDescriptor geometry, BlockBox bounds, double hysteresis) {
         if (!Double.isFinite(hysteresis) || hysteresis < 0.0D) {
             throw new IllegalArgumentException("hysteresis must be a finite non-negative block distance");
         }
@@ -78,7 +78,7 @@ public final class ClientSweep {
         reconfigure(geometry, bounds);
     }
 
-    public void reconfigure(ApertureDescriptor geometry, PlateBox bounds) {
+    public void reconfigure(ApertureDescriptor geometry, BlockBox bounds) {
         Objects.requireNonNull(geometry, "geometry");
         Objects.requireNonNull(bounds, "bounds");
         if (!geometry.valid()) {
@@ -187,7 +187,7 @@ public final class ClientSweep {
         return geometry;
     }
 
-    public PlateBox bounds() {
+    public BlockBox bounds() {
         return layout.bounds;
     }
 
@@ -501,7 +501,7 @@ public final class ClientSweep {
     }
 
     private static final class Layout {
-        private final PlateBox bounds;
+        private final BlockBox bounds;
         private final int normalAxis;
         private final int rightAxis;
         private final int upAxis;
@@ -515,7 +515,7 @@ public final class ClientSweep {
         private int cursorR;
         private int cursorU;
 
-        private Layout(PlateBox bounds, int normalAxis, int rightAxis, int upAxis) {
+        private Layout(BlockBox bounds, int normalAxis, int rightAxis, int upAxis) {
             this.bounds = bounds;
             this.normalAxis = normalAxis;
             this.rightAxis = rightAxis;

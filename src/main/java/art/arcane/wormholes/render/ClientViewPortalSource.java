@@ -26,7 +26,7 @@ import art.arcane.optics.fidelity.AcousticsProfile;
 import art.arcane.optics.fidelity.AtmosphereMode;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.plate.ViewPlate;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.plate.ViewPlateCache;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.render.view.ProjectionWorldViewProvider;
@@ -164,7 +164,7 @@ public final class ClientViewPortalSource {
     }
 
 
-    public ViewPlate<BlockData> meshSection(PlateBox clip, int distance) {
+    public ViewPlate<BlockData> meshSection(BlockBox clip, int distance) {
         if (plateTarget == null || !ProjectorPlates.enabled(plates, portal, target)) {
             return null;
         }

@@ -742,7 +742,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
     }
 
     private boolean localChunkReady(V view, int x, int z) {
-        long key = ((long) (x >> 4) << 32) | ((z >> 4) & 0xFFFFFFFFL);
+        long key = CellKeys.chunkKey(x >> 4, z >> 4);
         byte cached = localChunkReadiness.get(key);
         if (cached != 0) {
             return cached == 1;

@@ -7,7 +7,7 @@ import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.stream.Brick;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import net.minecraft.core.SectionPos;
 import org.junit.Test;
 
@@ -69,8 +69,8 @@ public class ClientViewMeshTest extends MinecraftTestBase {
         ClientViewHarness harness = new ClientViewHarness(ViewStreamCapability.ALL);
         begin(harness);
         harness.receive(new ClientViewMessage.Portal(2, 1, ClientViewHarness.geometry()), 0);
-        harness.receive(new ClientViewMessage.MeshBegin(2, 1, new PlateBox(-16, 48, -16, 48, 48, 48), 27), 0);
-        harness.receive(new ClientViewMessage.MeshBegin(1, 2, new PlateBox(-16, 48, -16, 48, 48, 48), 27), 0);
+        harness.receive(new ClientViewMessage.MeshBegin(2, 1, new BlockBox(-16, 48, -16, 48, 48, 48), 27), 0);
+        harness.receive(new ClientViewMessage.MeshBegin(1, 2, new BlockBox(-16, 48, -16, 48, 48, 48), 27), 0);
         harness.tick(1.5, 65.5, 15.5);
         harness.session.refuseMesh(1, 1, harness.tick);
         assertNotNull(harness.session.meshes().view(1));
@@ -100,7 +100,7 @@ public class ClientViewMeshTest extends MinecraftTestBase {
         assertEquals(distance, harness.session.portal(1).geometry().depthBlocks(), 0);
         assertEquals(0, harness.surface.changedCells());
         harness.session.meshes().otherMemory(() -> 0L);
-        harness.receive(new ClientViewMessage.MeshBegin(1, 2, new PlateBox(-16, 48, -16, 48, 48, 48), 27), 0);
+        harness.receive(new ClientViewMessage.MeshBegin(1, 2, new BlockBox(-16, 48, -16, 48, 48, 48), 27), 0);
         harness.receive(new ClientViewMessage.MeshSection(1, 2, 0, 4, 0, 1, 3, Brick.single(0, 3), SectionBiomes.NONE), 0);
         harness.tick(1.5, 65.5, 15.5);
         assertNull(harness.session.meshFailure(1));
@@ -132,7 +132,7 @@ public class ClientViewMeshTest extends MinecraftTestBase {
             assertNull(portal.content());
             assertNull(portal.sweep());
         }
-        harness.receive(new ClientViewMessage.MeshBegin(1, 1, new PlateBox(-16, 48, -16, 48, 48, 48), 27), 0);
+        harness.receive(new ClientViewMessage.MeshBegin(1, 1, new BlockBox(-16, 48, -16, 48, 48, 48), 27), 0);
         harness.receive(new ClientViewMessage.MeshSection(1, 1, 0, 4, 0, 1, 3, Brick.single(0, 0), SectionBiomes.NONE), 0);
         harness.tick(1.5, 65.5, 15.5);
         assertNotNull(harness.session.meshes().view(1).section(SectionPos.asLong(0, 4, 0)));
@@ -193,6 +193,6 @@ public class ClientViewMeshTest extends MinecraftTestBase {
     private static void begin(ClientViewHarness harness) throws Exception {
         harness.receive(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(3, "minecraft:stone"))), 0);
         harness.receive(new ClientViewMessage.Portal(1, 1, ClientViewHarness.geometry()), 0);
-        harness.receive(new ClientViewMessage.MeshBegin(1, 1, new PlateBox(-16, 48, -16, 48, 48, 48), 27), 0);
+        harness.receive(new ClientViewMessage.MeshBegin(1, 1, new BlockBox(-16, 48, -16, 48, 48, 48), 27), 0);
     }
 }

@@ -4,7 +4,7 @@ import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.plate.PlateCaptureJob;
 import art.arcane.optics.plate.ViewPlateBuilder;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.view.ContentView;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -46,7 +46,7 @@ final class MinecraftCapturedChunkView implements ContentView<BlockState, BlockS
     }
 
     @Override
-    public boolean isEmpty(PlateBox box) {
+    public boolean isEmpty(BlockBox box) {
         for (int x = box.minX() >> 4; x <= (box.minX() + box.sizeX() - 1) >> 4; x++) {
             for (int z = box.minZ() >> 4; z <= (box.minZ() + box.sizeZ() - 1) >> 4; z++) {
                 MinecraftPlateCaptureSource.CapturedChunk captured = chunk(x << 4, z << 4);

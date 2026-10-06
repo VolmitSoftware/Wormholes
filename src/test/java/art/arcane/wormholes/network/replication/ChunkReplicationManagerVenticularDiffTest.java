@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network.replication;
 
+import art.arcane.optics.math.CellKeys;
+
 import art.arcane.wormholes.network.WireMessage;
 import art.arcane.wormholes.network.view.ViewSlice;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
@@ -28,7 +30,7 @@ class ChunkReplicationManagerVenticularDiffTest {
         ChunkReplicationManager manager = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         UUID portalId = UUID.randomUUID();
-        long chunkKey = ViewSlice.columnKey(0, 0);
+        long chunkKey = CellKeys.chunkKey(0, 0);
         ReplicationStreamKey stream = ReplicationTestStream.stream(portalId, world, chunkKey, renderMode);
         manager.subscribe(PEER, portalId, world.getUID(), stream);
         byte[] payload = bulkPayload();
@@ -54,7 +56,7 @@ class ChunkReplicationManagerVenticularDiffTest {
         ChunkReplicationManager manager = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         UUID portalId = UUID.randomUUID();
-        long chunkKey = ViewSlice.columnKey(0, 0);
+        long chunkKey = CellKeys.chunkKey(0, 0);
         ReplicationStreamKey stream = ReplicationTestStream.stream(portalId, world, chunkKey);
         manager.subscribe(PEER, portalId, world.getUID(), stream);
         byte[] payload = bulkPayload();

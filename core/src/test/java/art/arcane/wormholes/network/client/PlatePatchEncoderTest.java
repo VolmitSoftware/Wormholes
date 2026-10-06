@@ -11,7 +11,7 @@ import java.util.Random;
 
 import org.junit.jupiter.api.Test;
 
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.plate.ViewPlate;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.BrickCodec;
@@ -182,7 +182,7 @@ final class PlatePatchEncoderTest {
     }
 
     private static EncodedPlate singleBrick(Brick brick) throws ClientViewProtocolException {
-        PlateBox cells = new PlateBox(0, 0, 0, 16, 16, 16);
+        BlockBox cells = new BlockBox(0, 0, 0, 16, 16, 16);
         return new EncodedPlate(PlateSectionBox.snap(cells), cells, 3, new Brick[] {brick},
             new byte[][] {BrickCodec.body(brick)}, new int[] {3, 4, 5, 6, 7}, new int[0]);
     }

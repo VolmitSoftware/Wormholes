@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.clientview;
 
 import art.arcane.optics.client.PlateLight;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.view.ContentView;
 import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.Level;
@@ -45,7 +45,7 @@ public final class MinecraftLightSnapshot implements PlateLight.Sampler {
         this.loaded = new boolean[sizeX * sizeZ];
     }
 
-    public static MinecraftLightSnapshot capture(Level level, PlateBox box) {
+    public static MinecraftLightSnapshot capture(Level level, BlockBox box) {
         Objects.requireNonNull(level, "level");
         Objects.requireNonNull(box, "box");
         if (box.cells() == 0L) {

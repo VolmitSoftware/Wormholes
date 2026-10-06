@@ -1,6 +1,5 @@
 package art.arcane.wormholes.network;
 
-import art.arcane.wormholes.network.view.ViewBox;
 import art.arcane.wormholes.network.view.ViewSlice;
 import org.junit.jupiter.api.Test;
 
@@ -237,19 +236,5 @@ class ViewSliceTest {
         assertEquals(visual.playerName(), roundTripped.playerName());
         assertEquals(visual.textureValue(), roundTripped.textureValue());
         assertEquals(visual.textureSignature(), roundTripped.textureSignature());
-    }
-
-    @Test
-    void boxContainsAndRoundTrip() throws IOException {
-        ViewBox box = new ViewBox(-10, 5, -10, 10, 25, 10);
-        assertTrue(box.contains(0, 10, 0));
-        assertTrue(box.contains(-10, 5, -10));
-        assertTrue(box.contains(10, 25, 10));
-        assertFalse(box.contains(11, 10, 0));
-        assertFalse(box.contains(0, 26, 0));
-
-        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-        box.write(new DataOutputStream(buffer));
-        assertEquals(box, ViewBox.read(new DataInputStream(new ByteArrayInputStream(buffer.toByteArray()))));
     }
 }

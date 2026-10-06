@@ -22,7 +22,7 @@ import art.arcane.optics.frame.ViewWindow;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.view.WorldChangeTracker;
 import art.arcane.optics.scan.ProjectorSample;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.plate.PlateCell;
 import art.arcane.optics.plate.ViewPlate;
 import art.arcane.optics.view.ContentView;
@@ -59,7 +59,7 @@ class ClientViewPlateLightTest {
             assertEquals(13, BrickLightSource.nibble(sky, neighbour));
         }
         int dark = 0;
-        PlateBox box = plate.box();
+        BlockBox box = plate.box();
         for (int cy = y & ~15; cy < (y & ~15) + 16; cy++) {
             for (int cz = z & ~15; cz < (z & ~15) + 16; cz++) {
                 for (int cx = x & ~15; cx < (x & ~15) + 16; cx++) {
@@ -79,7 +79,7 @@ class ClientViewPlateLightTest {
         SessionWorld world = new SessionWorld(22L);
         world.set(MARKER_X, MARKER_Y, MARKER_Z, MARKER);
         ViewPlate<String> plate = new SessionPortal("light", 0).build(world);
-        PlateBox remote = PlateLight.remoteBox(plate.box(), frame());
+        BlockBox remote = PlateLight.remoteBox(plate.box(), frame());
         assertTrue(remote.index(MARKER_X, MARKER_Y, MARKER_Z) >= 0);
         assertEquals(plate.box().cells(), remote.cells());
         AtomicInteger outside = new AtomicInteger();
@@ -89,7 +89,7 @@ class ClientViewPlateLightTest {
             }
             return ContentView.packLight(15, 0);
         }, false);
-        PlateBox box = plate.box();
+        BlockBox box = plate.box();
         for (int sx = box.minX() >> 4; sx <= (box.minX() + box.sizeX() - 1) >> 4; sx++) {
             for (int sy = box.minY() >> 4; sy <= (box.minY() + box.sizeY() - 1) >> 4; sy++) {
                 for (int sz = box.minZ() >> 4; sz <= (box.minZ() + box.sizeZ() - 1) >> 4; sz++) {
@@ -285,7 +285,7 @@ class ClientViewPlateLightTest {
     }
 
     private static void lightEverySection(PlateLight.Cache<String> cache, ViewPlate<String> plate) {
-        PlateBox box = plate.box();
+        BlockBox box = plate.box();
         BrickLightSource light = cache.light(plate, () -> new PlateLight<String>(plate, frame(), ClientViewPlateLightTest::glow, false));
         for (int sx = box.minX() >> 4; sx <= (box.minX() + box.sizeX() - 1) >> 4; sx++) {
             for (int sy = box.minY() >> 4; sy <= (box.minY() + box.sizeY() - 1) >> 4; sy++) {

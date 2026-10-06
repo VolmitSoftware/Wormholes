@@ -1,10 +1,10 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.optics.fidelity.BlockEntitySample;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 
 public interface ClientPortalContent {
-    PlateBox cells();
+    BlockBox cells();
 
     int backingState();
 

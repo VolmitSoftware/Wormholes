@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network.view;
 
+import art.arcane.optics.math.BlockBox;
+
 import art.arcane.wormholes.chunk.BukkitChunkLeaseProvider;
 import art.arcane.optics.plate.ChunkLease;
 import art.arcane.optics.plate.ChunkLeasePlatform;
@@ -36,7 +38,7 @@ class ViewServerChunkLeaseTest {
         );
         BukkitChunkLeaseProvider.install(registry);
         ChunkLease arrival = registry.retain(WORLD, WORLD_ID, 4, -7);
-        ViewBox box = new ViewBox(64, 0, -112, 64, 15, -112);
+        BlockBox box = BlockBox.spanning(64, 0, -112, 64, 15, -112);
         ViewServer.TicketLease view = new ViewServer.TicketLease(UUID.randomUUID(), WORLD, box);
 
         view.close();

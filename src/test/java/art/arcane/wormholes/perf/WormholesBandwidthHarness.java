@@ -1,5 +1,7 @@
 package art.arcane.wormholes.perf;
 
+import art.arcane.optics.math.CellKeys;
+
 import art.arcane.wormholes.network.CompressionDictionary;
 import art.arcane.wormholes.network.DictionarySampleCollector;
 import art.arcane.wormholes.network.WireCodec;
@@ -235,7 +237,7 @@ public final class WormholesBandwidthHarness {
             for (SubscriberState subscriber : subscriberStates) {
                 List<ChunkDiffBatch> batches = new ArrayList<>(chunksPerPeer);
                 for (int c = 0; c < chunksPerPeer; c++) {
-                    long chunkKey = ViewSlice.columnKey(c, subscriber.id);
+                    long chunkKey = CellKeys.chunkKey(c, subscriber.id);
                     List<BlockChange> blocks = new ArrayList<>(blocksPerTickPerChunk);
                     for (int b = 0; b < blocksPerTickPerChunk; b++) {
                         int lx = subscriber.random.nextInt(16);
@@ -352,7 +354,7 @@ public final class WormholesBandwidthHarness {
     private static WireMessage.ChunkBulkBatch buildLegacySingleSlice(SubscriberState subscriber, int tick, int columnIndex) throws IOException {
         ViewSlice slice = synthesizeSlice(subscriber.random, tick, subscriber.id, columnIndex);
         byte[] payload = ChunkBulkBuilder.encodeSliceBytes(slice);
-        long chunkKey = ViewSlice.columnKey(columnIndex, subscriber.id);
+        long chunkKey = CellKeys.chunkKey(columnIndex, subscriber.id);
         ChunkBulk bulk = new ChunkBulk(ReplicationTestStream.stream(chunkKey), tick, payload);
         return new WireMessage.ChunkBulkBatch(List.of(bulk));
     }

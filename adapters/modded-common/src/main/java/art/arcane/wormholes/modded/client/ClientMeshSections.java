@@ -8,7 +8,7 @@ import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.optics.stream.ClientViewProtocolException;
 import art.arcane.optics.fidelity.BlockEntitySample;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.frame.OpticTransform;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -56,7 +56,7 @@ public final class ClientMeshSections {
         otherMemory = Objects.requireNonNull(usage);
     }
 
-    public boolean begin(int portalKey, int generation, PlateBox bounds, int maxSections) throws ClientViewProtocolException {
+    public boolean begin(int portalKey, int generation, BlockBox bounds, int maxSections) throws ClientViewProtocolException {
         if (generation <= 0 || maxSections <= 0 || bounds.cells() <= 0) {
             throw new ClientViewProtocolException("Invalid mesh view bounds, generation or resident limit");
         }
@@ -72,7 +72,7 @@ public final class ClientMeshSections {
         return true;
     }
 
-    public boolean retainLocal(int portalKey, int generation, PlateBox bounds, int maxSections) throws ClientViewProtocolException {
+    public boolean retainLocal(int portalKey, int generation, BlockBox bounds, int maxSections) throws ClientViewProtocolException {
         View view = views.get(portalKey);
         if (view == null || generation <= view.generation || view.localSections.isEmpty() && view.sections.isEmpty()) {
             return begin(portalKey, generation, bounds, maxSections);
@@ -530,7 +530,7 @@ public final class ClientMeshSections {
 
     public static final class View {
         private int generation;
-        private PlateBox bounds;
+        private BlockBox bounds;
         private int maxSections;
         private final Long2ObjectOpenHashMap<Section> sections = new Long2ObjectOpenHashMap<>();
         private final Long2ObjectOpenHashMap<Section> localSections = new Long2ObjectOpenHashMap<>();
@@ -543,7 +543,7 @@ public final class ClientMeshSections {
         private final Long2IntOpenHashMap wireRevisions = new Long2IntOpenHashMap();
         private final Long2ObjectOpenHashMap<Long> claimed = new Long2ObjectOpenHashMap<>();
 
-        private View(int generation, PlateBox bounds, int maxSections) {
+        private View(int generation, BlockBox bounds, int maxSections) {
             this.generation = generation;
             this.bounds = bounds;
             this.maxSections = maxSections;
@@ -565,7 +565,7 @@ public final class ClientMeshSections {
             return generation;
         }
 
-        public PlateBox bounds() {
+        public BlockBox bounds() {
             return bounds;
         }
 

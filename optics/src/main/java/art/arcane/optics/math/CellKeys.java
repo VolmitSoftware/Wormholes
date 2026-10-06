@@ -8,6 +8,14 @@ public final class CellKeys {
         return (((long) x & 0x3FFFFFFL) << 38) | ((((long) y) & 0xFFFL) << 26) | (((long) z) & 0x3FFFFFFL);
     }
 
+    public static long chunkKey(int chunkX, int chunkZ) {
+        return (((long) chunkX) << 32) | (chunkZ & 0xFFFFFFFFL);
+    }
+
+    public static long sectionKey(int sectionX, int sectionY, int sectionZ) {
+        return pack(sectionX, sectionY, sectionZ);
+    }
+
     public static int unpackX(long key) {
         long raw = (key >> 38) & 0x3FFFFFFL;
         return (int) ((raw << 38) >> 38);

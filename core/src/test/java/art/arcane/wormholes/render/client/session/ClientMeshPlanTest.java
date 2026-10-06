@@ -10,7 +10,7 @@ import java.util.Set;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.network.client.SessionPalette;
 import art.arcane.optics.aperture.ApertureDescriptor;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 import org.junit.jupiter.api.Test;
@@ -39,7 +39,7 @@ final class ClientMeshPlanTest {
                         assertTrue(section.distance() >= previous);
                         previous = section.distance();
                     }
-                    PlateBox bounds = MeshPlan.bounds(geometry);
+                    BlockBox bounds = MeshPlan.bounds(geometry);
                     for (int x = Math.max(bounds.minX() >> 4, ((int) Math.floor(area.getXa()) - 32) >> 4);
                          x <= Math.min((bounds.minX() + bounds.sizeX() - 1) >> 4, ((int) Math.floor(area.getXb()) + 32) >> 4); x++) {
                         for (int y = Math.max(bounds.minY() >> 4, ((int) Math.floor(area.getYa()) - 32) >> 4);
@@ -63,7 +63,7 @@ final class ClientMeshPlanTest {
                     ApertureDescriptor geometry = new ApertureDescriptor(origin, origin, origin, direction.ordinal(), front,
                         0, false, 1, 1, new long[] {1}, 0, 0.75F, 1, 32, 0, 0, 0, 0, 0, 0, 0, 0.0D, 0, 1, List.of());
                     String context = direction + " front=" + front + " origin=" + origin;
-                    PlateBox bounds = MeshPlan.bounds(geometry);
+                    BlockBox bounds = MeshPlan.bounds(geometry);
                     assertTrue(bounds.index(origin, origin, origin) >= 0, context);
                     int eyeSide = front ? 1 : -1;
                     assertEquals(-1, bounds.index(origin + direction.x() * eyeSide,

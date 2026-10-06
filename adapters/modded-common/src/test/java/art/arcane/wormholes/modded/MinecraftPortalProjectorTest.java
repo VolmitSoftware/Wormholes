@@ -15,7 +15,7 @@ import art.arcane.optics.plate.ViewPlateBuilder;
 import art.arcane.optics.plate.ViewPlateCache;
 import art.arcane.wormholes.portal.RemotePortal;
 import art.arcane.wormholes.network.view.RemoteViewCache;
-import art.arcane.wormholes.network.view.ViewBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.wormholes.network.view.ViewSubscriptionManager;
 import art.arcane.optics.claim.ProjectedBlockClaim;
 import art.arcane.optics.view.ContentView;
@@ -171,7 +171,7 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
         RemoteViewCache.DecodedSlice<BlockState> slice = mock(RemoteViewCache.DecodedSlice.class);
         when(network.subscriptions()).thenReturn(subscriptions);
         when(subscriptions.touch("example-peer", targetId, new ViewSubscriptionManager.Request(30, 0))).thenReturn(remote);
-        when(remote.getBox()).thenReturn(new ViewBox(-128, -64, -128, 128, 319, 128));
+        when(remote.getBox()).thenReturn(BlockBox.spanning(-128, -64, -128, 128, 319, 128));
         when(remote.getRevision()).thenReturn(1L);
         when(remote.sliceAt(anyInt(), anyInt())).thenReturn(slice);
         when(slice.blockAt(anyInt(), anyInt(), anyInt())).thenReturn(Blocks.GOLD_BLOCK.defaultBlockState());

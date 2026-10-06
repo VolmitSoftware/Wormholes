@@ -6,7 +6,7 @@ import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.ClientViewProtocolException;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.level.block.Blocks;
@@ -23,7 +23,7 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 public class ClientMeshSectionsTest extends MinecraftTestBase {
-    private static final PlateBox BOUNDS = new PlateBox(-512, -64, -512, 1024, 384, 1024);
+    private static final BlockBox BOUNDS = new BlockBox(-512, -64, -512, 1024, 384, 1024);
 
     @Test
     public void largeViewBoundsAllocateOnlyReceivedSections() throws Exception {

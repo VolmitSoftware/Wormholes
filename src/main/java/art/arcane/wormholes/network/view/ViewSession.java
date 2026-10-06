@@ -1,5 +1,9 @@
 package art.arcane.wormholes.network.view;
 
+import art.arcane.optics.math.CellKeys;
+
+import art.arcane.optics.math.BlockBox;
+
 import art.arcane.wormholes.network.replication.ReplicationStreamKey;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
 
@@ -19,7 +23,7 @@ import java.util.concurrent.atomic.AtomicLong;
 final class ViewSession extends ViewEntityState<Pose> {
     final UUID subscriptionId;
     final World world;
-    final ViewBox box;
+    final BlockBox box;
     int meshDistance;
     long nextEnvironmentTick;
     final Map<String, Integer> peerMeshDistances = new ConcurrentHashMap<>();
@@ -39,7 +43,7 @@ final class ViewSession extends ViewEntityState<Pose> {
     volatile int lastSkyDarken = -1;
     volatile int lastWeather = -1;
 
-    ViewSession(UUID portalId, World world, ViewBox box, ProjectionRenderMode renderMode, int centerChunkX, int centerChunkZ,
+    ViewSession(UUID portalId, World world, BlockBox box, ProjectionRenderMode renderMode, int centerChunkX, int centerChunkZ,
                 double portalCenterX, double portalCenterY, double portalCenterZ) {
         super(portalId, new Center(portalCenterX, portalCenterY, portalCenterZ));
         this.subscriptionId = UUID.randomUUID();
@@ -68,7 +72,7 @@ final class ViewSession extends ViewEntityState<Pose> {
         return new ReplicationStreamKey(portalId, world.getUID(), chunkKey, renderMode);
     }
 
-    static List<long[]> columnsFor(ViewBox box) {
+    static List<long[]> columnsFor(BlockBox box) {
         List<long[]> columns = new ArrayList<>();
         for (int cx = box.minX() >> 4; cx <= box.maxX() >> 4; cx++) {
             for (int cz = box.minZ() >> 4; cz <= box.maxZ() >> 4; cz++) {
@@ -81,7 +85,7 @@ final class ViewSession extends ViewEntityState<Pose> {
     static List<Long> chunkKeysFor(List<long[]> columns) {
         List<Long> chunkKeys = new ArrayList<>(columns.size());
         for (long[] column : columns) {
-            chunkKeys.add(ViewSlice.columnKey((int) column[0], (int) column[1]));
+            chunkKeys.add(CellKeys.chunkKey((int) column[0], (int) column[1]));
         }
         return List.copyOf(chunkKeys);
     }

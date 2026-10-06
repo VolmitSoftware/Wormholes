@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network.view;
 
+import art.arcane.optics.math.BlockBox;
+
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.network.NetworkManager;
@@ -85,7 +87,7 @@ class ViewBulkPipelineFailureTest {
         Wormholes.instance = plugin;
         World world = mock(World.class);
         when(world.getUID()).thenReturn(UUID.randomUUID());
-        ViewSession session = new ViewSession(UUID.randomUUID(), world, new ViewBox(0, 64, 0, 0, 64, 0),
+        ViewSession session = new ViewSession(UUID.randomUUID(), world, BlockBox.spanning(0, 64, 0, 0, 64, 0),
             ProjectionRenderMode.PANOPTIC, 0, 0, 0, 64, 0);
         ViewSessionRegistry registry = mock(ViewSessionRegistry.class);
         NetworkManager network = mock(NetworkManager.class);
@@ -104,7 +106,7 @@ class ViewBulkPipelineFailureTest {
              MockedStatic<BlockEntityCapturer> entities = mockStatic(BlockEntityCapturer.class);
              MockedStatic<?> encoder = mockStatic(ChunkBulkBuilder.class);
              MockedConstruction<?> builders = mockConstruction(ChunkBulkBuilder.class, (builder, context) ->
-                 when(builder.buildSlice(any(ViewBox.class), eq(0), eq(0), any(), any(ProjectionRenderMode.class), any(Map.class)))
+                 when(builder.buildSlice(any(BlockBox.class), eq(0), eq(0), any(), any(ProjectionRenderMode.class), any(Map.class)))
                      .thenReturn(slice))) {
             platform.when(() -> WormholesPlatform.loadChunk(plugin, world, 0, 0))
                 .thenReturn(CompletableFuture.completedFuture(chunk));

@@ -182,7 +182,7 @@ public final class MinecraftProjectionWorldView implements ContentView<BlockStat
         }
         int chunkX = x >> 4;
         int chunkZ = z >> 4;
-        long key = ((long) chunkX << 32) | (chunkZ & 0xFFFFFFFFL);
+        long key = CellKeys.chunkKey(chunkX, chunkZ);
         if (leases.containsKey(key)) {
             return;
         }
@@ -243,7 +243,7 @@ public final class MinecraftProjectionWorldView implements ContentView<BlockStat
         if (wantedSections.size() >= MAX_WANTED_SECTIONS) {
             wantedSections.clear();
         }
-        wantedSections.add(CellKeys.pack(x >> 4, y >> 4, z >> 4));
+        wantedSections.add(CellKeys.sectionKey(x >> 4, y >> 4, z >> 4));
     }
 
     private void release(long key, ChunkLease lease) {

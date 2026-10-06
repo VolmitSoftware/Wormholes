@@ -48,7 +48,7 @@ public final class WorldChangeTracker {
         if (worldId == null) {
             return;
         }
-        stamp(worldId, blockX, blockZ, chunkKey(blockX >> 4, blockZ >> 4), true);
+        stamp(worldId, blockX, blockZ, CellKeys.chunkKey(blockX >> 4, blockZ >> 4), true);
         for (ChangeListener listener : listeners) {
             listener.columnChanged(worldId, blockX >> 4, blockZ >> 4);
         }
@@ -72,7 +72,7 @@ public final class WorldChangeTracker {
         }
         for (int cx = minChunkX; cx <= maxChunkX; cx++) {
             for (int cz = minChunkZ; cz <= maxChunkZ; cz++) {
-                Long stamp = chunks.get(Long.valueOf(HashCommon.mix(chunkKey(cx, cz))));
+                Long stamp = chunks.get(Long.valueOf(HashCommon.mix(CellKeys.chunkKey(cx, cz))));
                 if (stamp != null && stamp.longValue() > sinceVersion) {
                     return true;
                 }
@@ -100,7 +100,7 @@ public final class WorldChangeTracker {
         }
         for (int cx = minChunkX; cx <= maxChunkX; cx++) {
             for (int cz = minChunkZ; cz <= maxChunkZ; cz++) {
-                long key = chunkKey(cx, cz);
+                long key = CellKeys.chunkKey(cx, cz);
                 Long stamp = chunks.get(Long.valueOf(HashCommon.mix(key)));
                 if (stamp != null && stamp.longValue() > sinceVersion) {
                     out.add(key);
@@ -155,7 +155,7 @@ public final class WorldChangeTracker {
                 log.append(stamp, entryKey, column);
                 Long boxed = Long.valueOf(stamp);
                 worldMaxStamp.computeIfAbsent(worldId, ignored -> new AtomicLong()).accumulateAndGet(stamp, Math::max);
-                chunks.put(Long.valueOf(HashCommon.mix(chunkKey(blockX >> 4, blockZ >> 4))), boxed);
+                chunks.put(Long.valueOf(HashCommon.mix(CellKeys.chunkKey(blockX >> 4, blockZ >> 4))), boxed);
                 if (chunks.size() > MAX_TRACKED_CHUNKS_PER_WORLD) {
                     chunks.clear();
                     clearFloor.put(worldId, boxed);
@@ -163,10 +163,6 @@ public final class WorldChangeTracker {
                 return;
             }
         }
-    }
-
-    public static long chunkKey(int chunkX, int chunkZ) {
-        return (((long) chunkX) << 32) | (chunkZ & 0xFFFFFFFFL);
     }
 
     public interface ChangeFilter {

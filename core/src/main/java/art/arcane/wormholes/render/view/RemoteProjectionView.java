@@ -4,7 +4,7 @@ import art.arcane.optics.entity.EntityProfile;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.wormholes.network.view.RemoteViewCache;
-import art.arcane.wormholes.network.view.ViewBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.fidelity.BlockEntitySample;
 
 import java.util.List;
@@ -58,19 +58,19 @@ public class RemoteProjectionView<B, T, M, E> implements ContentView<B, T>, Enti
 
     @Override
     public int getMinHeight() {
-        ViewBox box = view.getBox();
+        BlockBox box = view.getBox();
         return box == null ? 0 : box.minY();
     }
 
     @Override
     public int getMaxHeight() {
-        ViewBox box = view.getBox();
+        BlockBox box = view.getBox();
         return box == null ? 0 : box.maxY() + 1;
     }
 
     @Override
     public B sampleBlockData(int x, int y, int z) {
-        ViewBox box = view.getBox();
+        BlockBox box = view.getBox();
         if (box == null) {
             return null;
         }
@@ -86,7 +86,7 @@ public class RemoteProjectionView<B, T, M, E> implements ContentView<B, T>, Enti
 
     @Override
     public BlockEntitySample sampleBlockEntity(int x, int y, int z) {
-        ViewBox box = view.getBox();
+        BlockBox box = view.getBox();
         if (box == null || !box.contains(x, y, z)) {
             return null;
         }
@@ -96,7 +96,7 @@ public class RemoteProjectionView<B, T, M, E> implements ContentView<B, T>, Enti
 
     @Override
     public String sampleBiome(int x, int y, int z) {
-        ViewBox box = view.getBox();
+        BlockBox box = view.getBox();
         if (box == null || x < box.minX() || x > box.maxX() || z < box.minZ() || z > box.maxZ()) {
             return null;
         }
@@ -106,7 +106,7 @@ public class RemoteProjectionView<B, T, M, E> implements ContentView<B, T>, Enti
 
     @Override
     public int getLight(int x, int y, int z) {
-        ViewBox box = view.getBox();
+        BlockBox box = view.getBox();
         if (box == null || x < box.minX() || x > box.maxX() || z < box.minZ() || z > box.maxZ()) {
             return LIGHT_UNAVAILABLE;
         }

@@ -7,7 +7,7 @@ import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.SectionBiomes;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.AxisPermutation;
@@ -28,7 +28,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
 public class ClientMeshProofTest extends MinecraftTestBase {
-    private static final PlateBox BOUNDS = new PlateBox(-32, -32, -32, 64, 64, 64);
+    private static final BlockBox BOUNDS = new BlockBox(-32, -32, -32, 64, 64, 64);
     private static final ProjectionEnvironment ENVIRONMENT = PortalEnvironmentTest.environment(OpticTransform.IDENTITY);
     private static final Options OPTIONS = new Options(ENVIRONMENT, 71, 11);
 
@@ -115,7 +115,7 @@ public class ClientMeshProofTest extends MinecraftTestBase {
                 ProjectionEnvironment.CardinalLighting.NETHER, dimension.horizonHeight(), dimension.endFlashes()), ENVIRONMENT.world());
         assertMismatch(original, ClientMeshWorld.meshIdentity(new ClientMeshWorld.Snapshot(fixture.store.view(7), 0L,
             fixture.registry, changed, 0)));
-        assertTrue(fixture.store.retainLocal(7, 2, new PlateBox(-32, -48, -32, 64, 80, 64), 64));
+        assertTrue(fixture.store.retainLocal(7, 2, new BlockBox(-32, -48, -32, 64, 80, 64), 64));
         assertMismatch(original, fixture.proof());
     }
 

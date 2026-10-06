@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network.replication.capture;
 
+import art.arcane.optics.math.CellKeys;
+
 import art.arcane.wormholes.network.replication.BlockChange;
 import art.arcane.wormholes.network.replication.BlockChangeFeed;
 import art.arcane.wormholes.network.replication.BlockEntityDiff;
@@ -8,7 +10,6 @@ import art.arcane.wormholes.network.replication.ReplicationTestStream;
 import art.arcane.wormholes.network.replication.LightDiff;
 import art.arcane.wormholes.network.replication.StubWorld;
 import art.arcane.wormholes.network.replication.TestNetworkSink;
-import art.arcane.wormholes.network.view.ViewSlice;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
 
 import org.bukkit.ChunkSnapshot;
@@ -37,7 +38,7 @@ class ChunkSnapshotComparatorTest {
         TestNetworkSink sink = new TestNetworkSink(dir);
         ChunkReplicationManager replication = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
-        long chunkKey = ViewSlice.columnKey(0, 0);
+        long chunkKey = CellKeys.chunkKey(0, 0);
         replication.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         CapturingFeed feed = new CapturingFeed();
         RegionalDiffAccumulator<World, BlockData> accumulator = new RegionalDiffAccumulator<>(replication, new RegionalDiffAccumulator.Options<>(feed, CaptureSettings.defaults(), BukkitCaptureAccess.INSTANCE));
@@ -52,7 +53,7 @@ class ChunkSnapshotComparatorTest {
         TestNetworkSink sink = new TestNetworkSink(dir);
         ChunkReplicationManager replication = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
-        long chunkKey = ViewSlice.columnKey(0, 0);
+        long chunkKey = CellKeys.chunkKey(0, 0);
         replication.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         CapturingFeed feed = new CapturingFeed();
         RegionalDiffAccumulator<World, BlockData> accumulator = new RegionalDiffAccumulator<>(replication, new RegionalDiffAccumulator.Options<>(feed, CaptureSettings.defaults(), BukkitCaptureAccess.INSTANCE));
@@ -77,7 +78,7 @@ class ChunkSnapshotComparatorTest {
         TestNetworkSink sink = new TestNetworkSink(dir);
         ChunkReplicationManager replication = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
-        long chunkKey = ViewSlice.columnKey(0, 0);
+        long chunkKey = CellKeys.chunkKey(0, 0);
         replication.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         CapturingFeed feed = new CapturingFeed();
         RegionalDiffAccumulator<World, BlockData> accumulator = new RegionalDiffAccumulator<>(replication, new RegionalDiffAccumulator.Options<>(feed, CaptureSettings.defaults(), BukkitCaptureAccess.INSTANCE));
@@ -99,7 +100,7 @@ class ChunkSnapshotComparatorTest {
         TestNetworkSink sink = new TestNetworkSink(dir);
         ChunkReplicationManager replication = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
-        long chunkKey = ViewSlice.columnKey(0, 0);
+        long chunkKey = CellKeys.chunkKey(0, 0);
         replication.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         CapturingFeed feed = new CapturingFeed();
         RegionalDiffAccumulator<World, BlockData> accumulator = new RegionalDiffAccumulator<>(replication, new RegionalDiffAccumulator.Options<>(feed, CaptureSettings.defaults(), BukkitCaptureAccess.INSTANCE));
@@ -125,7 +126,7 @@ class ChunkSnapshotComparatorTest {
         TestNetworkSink sink = new TestNetworkSink(dir);
         ChunkReplicationManager replication = sink.getReplicationManager();
         World world = fakeWorld(UUID.randomUUID());
-        long chunkKey = ViewSlice.columnKey(0, 0);
+        long chunkKey = CellKeys.chunkKey(0, 0);
         replication.subscribe(PEER, world.getUID(), world.getUID(),
             ReplicationTestStream.stream(world.getUID(), world, chunkKey, ProjectionRenderMode.VENTICULAR));
         CapturingFeed feed = new CapturingFeed();
@@ -157,7 +158,7 @@ class ChunkSnapshotComparatorTest {
         TestNetworkSink sink = new TestNetworkSink(dir);
         ChunkReplicationManager replication = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
-        long chunkKey = ViewSlice.columnKey(0, 0);
+        long chunkKey = CellKeys.chunkKey(0, 0);
         replication.subscribe(PEER, world.getUID(), world.getUID(),
             ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         RegionalDiffAccumulator<World, BlockData> accumulator =
@@ -180,7 +181,7 @@ class ChunkSnapshotComparatorTest {
         TestNetworkSink sink = new TestNetworkSink(dir);
         ChunkReplicationManager replication = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
-        long chunkKey = ViewSlice.columnKey(0, 0);
+        long chunkKey = CellKeys.chunkKey(0, 0);
         replication.subscribe(PEER, world.getUID(), world.getUID(),
             ReplicationTestStream.stream(world.getUID(), world, chunkKey, ProjectionRenderMode.VENTICULAR));
         CapturingFeed feed = new CapturingFeed();
@@ -212,7 +213,7 @@ class ChunkSnapshotComparatorTest {
         ChunkSnapshotComparator comparator =
             new ChunkSnapshotComparator(null, replication, accumulator, CaptureSettings.defaults(), null);
         UUID worldId = UUID.randomUUID();
-        long chunkKey = ViewSlice.columnKey(3, -7);
+        long chunkKey = CellKeys.chunkKey(3, -7);
 
         assertTrue(comparator.shouldCaptureSnapshot(worldId, chunkKey));
         for (int sweep = 1; sweep < ChunkSnapshotComparator.INTEGRITY_BACKSTOP_SWEEPS; sweep++) {

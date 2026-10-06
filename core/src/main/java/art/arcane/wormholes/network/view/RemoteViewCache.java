@@ -1,5 +1,9 @@
 package art.arcane.wormholes.network.view;
 
+import art.arcane.optics.math.CellKeys;
+
+import art.arcane.optics.math.BlockBox;
+
 import art.arcane.optics.entity.EntityProfile;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.light.SkyMath;
@@ -102,7 +106,7 @@ public final class RemoteViewCache<B, M, E> {
     public static final class RemoteView<B, M, E> {
         private final String peerName;
         private final UUID portalId;
-        private volatile ViewBox box;
+        private volatile BlockBox box;
         private volatile long lastUpdateMillis;
         private volatile long revision;
         private volatile int skyDarken;
@@ -136,7 +140,7 @@ public final class RemoteViewCache<B, M, E> {
             return portalId;
         }
 
-        public ViewBox getBox() {
+        public BlockBox getBox() {
             return box;
         }
 
@@ -145,7 +149,7 @@ public final class RemoteViewCache<B, M, E> {
         }
 
         public DecodedSlice<B> sliceAt(int x, int z) {
-            return slices.get(ViewSlice.columnKey(x >> 4, z >> 4));
+            return slices.get(CellKeys.chunkKey(x >> 4, z >> 4));
         }
 
         public boolean hasData() {
@@ -336,13 +340,13 @@ public final class RemoteViewCache<B, M, E> {
                     view.sourceWorldId = stream.sourceWorldId();
                     view.renderMode = stream.renderMode();
                 }
-                ViewBox existing = view.box;
-                ViewBox sliceBox = new ViewBox(slice.minX(), slice.minY(), slice.minZ(),
+                BlockBox existing = view.box;
+                BlockBox sliceBox = BlockBox.spanning(slice.minX(), slice.minY(), slice.minZ(),
                     slice.minX() + slice.sizeX() - 1, slice.minY() + slice.sizeY() - 1, slice.minZ() + slice.sizeZ() - 1);
                 if (existing == null) {
                     view.box = sliceBox;
                 } else if (!columnIntersectsBox(columnKey, existing)) {
-                    view.box = unionBoxes(existing, sliceBox);
+                    view.box = existing.union(sliceBox);
                 }
                 view.slices.put(columnKey, decoded);
                 view.revision++;
@@ -358,18 +362,7 @@ public final class RemoteViewCache<B, M, E> {
         }
     }
 
-    private static ViewBox unionBoxes(ViewBox a, ViewBox b) {
-        return new ViewBox(
-            Math.min(a.minX(), b.minX()),
-            Math.min(a.minY(), b.minY()),
-            Math.min(a.minZ(), b.minZ()),
-            Math.max(a.maxX(), b.maxX()),
-            Math.max(a.maxY(), b.maxY()),
-            Math.max(a.maxZ(), b.maxZ())
-        );
-    }
-
-    private static boolean columnIntersectsBox(long columnKey, ViewBox box) {
+    private static boolean columnIntersectsBox(long columnKey, BlockBox box) {
         int chunkX = (int) (columnKey >> 32);
         int chunkZ = (int) columnKey;
         int minChunkX = box.minX() >> 4;

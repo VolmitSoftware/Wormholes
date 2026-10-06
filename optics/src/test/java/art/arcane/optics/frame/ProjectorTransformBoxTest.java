@@ -7,7 +7,7 @@ import java.util.Random;
 
 import org.junit.jupiter.api.Test;
 
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Vec3d;
 
@@ -40,15 +40,15 @@ public final class ProjectorTransformBoxTest {
     public void integerEndpointWrappingAndEmptyBoxesKeepTheirExistingSemantics() {
         Frame frame = Frame.canonical(Face.N);
         OpticTransform transform = OpticTransform.between(frame, 0, 0, 0, frame, 0, 0, 0);
-        assertEquals(PlateBox.EMPTY, transform.box(PlateBox.EMPTY, 4));
-        PlateBox wrapped = new PlateBox(Integer.MAX_VALUE - 2, -3, -4, 5, 2, 3);
+        assertEquals(BlockBox.EMPTY, transform.box(BlockBox.EMPTY, 4));
+        BlockBox wrapped = new BlockBox(Integer.MAX_VALUE - 2, -3, -4, 5, 2, 3);
         assertThrows(IllegalArgumentException.class, () -> reference(transform, wrapped, 1));
         assertThrows(IllegalArgumentException.class, () -> transform.box(wrapped, 1));
     }
 
     private static void assertBoxes(OpticTransform transform, Random random) {
         for (int sample = 0; sample < 20; sample++) {
-            PlateBox box = new PlateBox(random.nextInt(60_000_000) - 30_000_000,
+            BlockBox box = new BlockBox(random.nextInt(60_000_000) - 30_000_000,
                 random.nextInt(768) - 384, random.nextInt(60_000_000) - 30_000_000,
                 1 + random.nextInt(64), 1 + random.nextInt(64), 1 + random.nextInt(64));
             int margin = random.nextInt(4);
@@ -56,7 +56,7 @@ public final class ProjectorTransformBoxTest {
         }
     }
 
-    private static PlateBox reference(OpticTransform transform, PlateBox box, int margin) {
+    private static BlockBox reference(OpticTransform transform, BlockBox box, int margin) {
         double[] transformed = new double[3];
         double[] minimum = {Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY};
         double[] maximum = {Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY};
@@ -70,7 +70,7 @@ public final class ProjectorTransformBoxTest {
                 maximum[axis] = Math.max(maximum[axis], transformed[axis]);
             }
         }
-        return PlateBox.spanning((int) Math.floor(minimum[0]) - margin,
+        return BlockBox.spanning((int) Math.floor(minimum[0]) - margin,
             (int) Math.floor(minimum[1]) - margin, (int) Math.floor(minimum[2]) - margin,
             (int) Math.floor(maximum[0]) + margin, (int) Math.floor(maximum[1]) + margin,
             (int) Math.floor(maximum[2]) + margin);

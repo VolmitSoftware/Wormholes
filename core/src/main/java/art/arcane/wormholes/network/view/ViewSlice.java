@@ -52,11 +52,7 @@ public record ViewSlice(int minX, int minY, int minZ, int sizeX, int sizeY, int 
     }
 
     public long columnKey() {
-        return columnKey(minX >> 4, minZ >> 4);
-    }
-
-    public static long columnKey(int chunkX, int chunkZ) {
-        return (((long) chunkX) << 32) | (((long) chunkZ) & 0xFFFFFFFFL);
+        return CellKeys.chunkKey(minX >> 4, minZ >> 4);
     }
 
     public static int biomeGridSpan(int min, int size) {

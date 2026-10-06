@@ -11,7 +11,7 @@ import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.client.MeshPlan;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.AxisPermutation;
@@ -68,7 +68,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class ClientLocalMeshSourcesTest extends MinecraftTestBase {
-    private static final PlateBox BOUNDS = new PlateBox(0, 0, 0, 16, 16, 16);
+    private static final BlockBox BOUNDS = new BlockBox(0, 0, 0, 16, 16, 16);
 
     @Test
     public void populatedServerAndHistorySectionsSkipCaptureWhileMissingPreviewsAndLocalRefreshStillWork() throws Exception {

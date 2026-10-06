@@ -11,7 +11,7 @@ import art.arcane.optics.fidelity.FogPlatePolicy;
 import art.arcane.optics.volume.LodPolicy;
 import art.arcane.optics.volume.LodProfile;
 import art.arcane.optics.plate.PlateCaptureJob;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.plate.ViewPlate;
 import art.arcane.optics.plate.ViewPlateBuilder;
 import art.arcane.optics.plate.ViewPlateCache;
@@ -83,7 +83,7 @@ public final class MinecraftViewPlates {
     }
 
     public static ViewPlate<BlockState> acquireSection(WormholesModRuntime runtime, ViewPlateCache<BlockState, ServerLevel> plates,
-                                                       Target target, Resolved resolved, PlateBox clip, int distance) {
+                                                       Target target, Resolved resolved, BlockBox clip, int distance) {
         int boundedDistance = Math.clamp(distance, 32, 512);
         ViewPlateKey original = resolved.key();
         ViewPlateKey key = new ViewPlateKey(original.portalId(), new MeshSection(original.destinationViewIdentity(), clip),
@@ -101,7 +101,7 @@ public final class MinecraftViewPlates {
             if (!(request.destView() instanceof MinecraftProjectionWorldView local)) {
                 return ViewPlateBuilder.sectionJob(request, clip);
             }
-            PlateBox remote = ViewPlateBuilder.sectionDestinationBox(request, clip);
+            BlockBox remote = ViewPlateBuilder.sectionDestinationBox(request, clip);
             MinecraftPlateCaptureSource.Options capture = new MinecraftPlateCaptureSource.Options(local.worldId(), target.blockEntities(),
                 remote.minY(), remote.minY() + remote.sizeY() - 1, true);
             return new PlateCaptureJob<>(new PlateCaptureJob.Plan<>(key, local.getWorld(), ViewPlateBuilder.sectionFootprint(request, clip),
@@ -115,7 +115,7 @@ public final class MinecraftViewPlates {
         return FidelitySettings.blockEntities && (!(portal.setting("fidelity.block_entities") instanceof Boolean enabled) || enabled);
     }
 
-    public static boolean sectionQueued(ViewPlateCache<BlockState, ServerLevel> plates, Resolved resolved, PlateBox clip) {
+    public static boolean sectionQueued(ViewPlateCache<BlockState, ServerLevel> plates, Resolved resolved, BlockBox clip) {
         ViewPlateKey original = resolved.key();
         return plates.captureQueued(new ViewPlateKey(original.portalId(), new MeshSection(original.destinationViewIdentity(), clip),
             original.frontSide(), original.mirrorQuarterTurns(), original.targetIdentity()));
@@ -161,7 +161,7 @@ public final class MinecraftViewPlates {
             }));
     }
 
-    private record MeshSection(Object destination, PlateBox clip) {
+    private record MeshSection(Object destination, BlockBox clip) {
     }
 
     public record Target(ServerPlayer observer,

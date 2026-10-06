@@ -6,7 +6,7 @@ import art.arcane.optics.client.ClientSweep;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.frame.Frame;
 import net.minecraft.core.SectionPos;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
@@ -188,7 +188,7 @@ public final class ClientAtmosphere {
         }
         ClientSweep sweep = portal.sweep();
         ClientPortalContent content = portal.content();
-        PlateBox bounds = sweep.bounds();
+        BlockBox bounds = sweep.bounds();
         if (bounds.cells() == 0L || sweep.appliedCount() == 0) {
             return;
         }

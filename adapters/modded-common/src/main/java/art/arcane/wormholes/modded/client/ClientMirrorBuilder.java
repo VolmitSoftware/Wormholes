@@ -9,7 +9,7 @@ import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.client.ClientSweep;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.volume.ProjectionVolume;
@@ -26,7 +26,7 @@ public final class ClientMirrorBuilder implements ClientPortalContent {
     private final ApertureDescriptor geometry;
     private final OpticTransform transform;
     private final OpticTransform content;
-    private final PlateBox box;
+    private final BlockBox box;
     private final int[] ids;
     private final ClientPalette palette;
     private final AxisPermutation permutation;
@@ -40,7 +40,7 @@ public final class ClientMirrorBuilder implements ClientPortalContent {
     private long resolvedCells;
     private long missingCells;
 
-    private ClientMirrorBuilder(ApertureDescriptor geometry, PlateBox box, ClientPalette palette, ShadowSource shadows) {
+    private ClientMirrorBuilder(ApertureDescriptor geometry, BlockBox box, ClientPalette palette, ShadowSource shadows) {
         this.geometry = geometry;
         this.transform = geometry.mirrorTransform();
         this.content = transform.inverse();
@@ -79,14 +79,14 @@ public final class ClientMirrorBuilder implements ClientPortalContent {
         if (!geometry.mirror() || !geometry.valid()) {
             return null;
         }
-        PlateBox box = displayBox(geometry);
+        BlockBox box = displayBox(geometry);
         if (box.cells() == 0L || box.cells() > ClientSweep.MAX_BOUNDS_CELLS) {
             return null;
         }
         return new ClientMirrorBuilder(geometry, box, palette, shadows);
     }
 
-    public static PlateBox displayBox(ApertureDescriptor geometry) {
+    public static BlockBox displayBox(ApertureDescriptor geometry) {
         Box area = geometry.apertureArea();
         Frame frame = geometry.frame();
         Face normal = frame.getNormal();
@@ -111,7 +111,7 @@ public final class ClientMirrorBuilder implements ClientPortalContent {
             min[axis] = ProjectionVolume.minBlockForCenter(low(area, axis) - pad);
             max[axis] = ProjectionVolume.maxBlockForCenter(high(area, axis) + pad);
         }
-        return PlateBox.spanning(min[0], min[1], min[2], max[0], max[1], max[2]);
+        return BlockBox.spanning(min[0], min[1], min[2], max[0], max[1], max[2]);
     }
 
     public ApertureDescriptor geometry() {
@@ -123,7 +123,7 @@ public final class ClientMirrorBuilder implements ClientPortalContent {
     }
 
     @Override
-    public PlateBox cells() {
+    public BlockBox cells() {
         return box;
     }
 

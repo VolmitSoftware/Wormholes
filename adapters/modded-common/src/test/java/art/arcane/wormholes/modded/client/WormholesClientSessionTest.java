@@ -5,7 +5,7 @@ import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.optics.aperture.ApertureDescriptor;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.math.Face;
 import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.wormholes.network.client.ClientViewMessage;
@@ -43,7 +43,7 @@ public class WormholesClientSessionTest extends MinecraftTestBase {
             ApertureDescriptor geometry = ClientViewHarness.geometry();
             ProjectionEnvironment environment = PortalEnvironmentTest.environment(OpticTransform.IDENTITY);
             session.handle(new ClientViewMessage.Portal(1, 1, geometry), sink);
-            session.handle(new ClientViewMessage.MeshBegin(1, 1, new PlateBox(-32, -32, -32, 64, 64, 64), 8), sink);
+            session.handle(new ClientViewMessage.MeshBegin(1, 1, new BlockBox(-32, -32, -32, 64, 64, 64), 8), sink);
             session.handle(new ClientViewMessage.Environment(1, environment), sink);
             session.cacheClaims(1, List.of(new ClientViewMessage.MeshClaim(0, 0, 0, 77)));
             ProjectionEnvironment next = environment.withTransform(OpticTransform.of(AxisPermutation.of(Face.E, Face.U, Face.S), 0, 0, 0));

@@ -13,7 +13,7 @@ import org.bukkit.Material;
 import org.bukkit.block.data.BlockData;
 import org.junit.jupiter.api.Test;
 import art.arcane.wormholes.network.view.RemoteViewCache;
-import art.arcane.wormholes.network.view.ViewBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.wormholes.render.view.RemoteWorldView;
 import art.arcane.wormholes.render.view.OccludedMarker;
 import art.arcane.optics.math.Face;
@@ -27,7 +27,7 @@ public final class ProjectorRemoteViewOcclusionTest {
         RemoteViewCache.RemoteView<BlockData, EntityData<?>, Equipment> cached = cache.getOrCreate("peer", UUID.randomUUID());
         Field box = RemoteViewCache.RemoteView.class.getDeclaredField("box");
         box.setAccessible(true);
-        box.set(cached, new ViewBox(0, -64, 0, 15, 319, 15));
+        box.set(cached, BlockBox.spanning(0, -64, 0, 15, 319, 15));
         RemoteWorldView remoteView = new RemoteWorldView(cached, blockData(Material.AIR));
         ProjectorViewOcclusion<BlockData> occlusion = new ProjectorViewOcclusion<BlockData>(OccludedMarker::isOccluding);
         occlusion.beginPass(0.5D, 0.5D, 0.5D, Face.W);

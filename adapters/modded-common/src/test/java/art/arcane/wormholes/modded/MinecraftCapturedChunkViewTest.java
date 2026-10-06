@@ -1,7 +1,6 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.optics.math.CellKeys;
-import art.arcane.optics.view.WorldChangeTracker;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.plate.PlateCaptureJob;
 import art.arcane.optics.plate.ViewPlateBuilder;
@@ -33,7 +32,7 @@ public class MinecraftCapturedChunkViewTest extends MinecraftTestBase {
         MinecraftPlateCaptureSource.CapturedChunk chunk = new MinecraftPlateCaptureSource.CapturedChunk(-4, sections,
             Map.of(CellKeys.pack(5, 68, 7), sample), false, null, 0, new String[0][]);
         Long2ObjectOpenHashMap<MinecraftPlateCaptureSource.CapturedChunk> chunks = new Long2ObjectOpenHashMap<>();
-        chunks.put(WorldChangeTracker.chunkKey(0, 0), chunk);
+        chunks.put(CellKeys.chunkKey(0, 0), chunk);
         MinecraftCapturedChunkView view = new MinecraftCapturedChunkView(worldId, -64, 320, 9L,
             new PlateCaptureJob.Captured<>(new ViewPlateBuilder.Footprint(0, 0, 0, 0, 1L), chunks));
         assertEquals(worldId, view.worldId());

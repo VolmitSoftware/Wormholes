@@ -558,7 +558,7 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
     }
 
     static long chunkLookupKey(int chunkX, int chunkZ) {
-        return HashCommon.mix(WorldChangeTracker.chunkKey(chunkX, chunkZ));
+        return HashCommon.mix(CellKeys.chunkKey(chunkX, chunkZ));
     }
 
     static boolean sameEntityState(EntitySnapshot previousVisual,

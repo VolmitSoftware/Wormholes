@@ -2,7 +2,7 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.client.render.PortalScene;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.optics.frame.OpticTransform;
@@ -353,7 +353,7 @@ public final class ClientMeshWorld implements BlockAndTintGetter {
         private final ClientMeshSections.Identity identity;
         private final RegistryAccess registry;
         private final ProjectionEnvironment.Dimension dimension;
-        private final PlateBox bounds;
+        private final BlockBox bounds;
         private final int blendRadius;
         private final ClientMeshSections.Section[] inputs;
         private final int contextHash;

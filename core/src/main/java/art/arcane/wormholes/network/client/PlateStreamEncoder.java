@@ -14,7 +14,7 @@ import java.util.function.Function;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.scan.ProjectorSample;
 import art.arcane.optics.fidelity.BlockEntitySample;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.plate.PlateCell;
 import art.arcane.optics.plate.PlateGrid;
 import art.arcane.optics.plate.ViewPlate;
@@ -83,7 +83,7 @@ public final class PlateStreamEncoder<B> {
         synchronized (this) {
             encodes++;
         }
-        PlateBox box = plate.box();
+        BlockBox box = plate.box();
         PlateSectionBox sections = PlateSectionBox.snap(box);
         int brickCount = sections.brickCount();
         Brick[] bricks = new Brick[brickCount];

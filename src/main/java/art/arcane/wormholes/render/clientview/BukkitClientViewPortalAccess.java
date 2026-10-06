@@ -19,7 +19,7 @@ import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.view.WorldChangeTracker;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.ProjectionManager;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.stream.BrickLightSource;
 import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.wormholes.network.client.SessionPalette;
@@ -138,7 +138,7 @@ public final class BukkitClientViewPortalAccess implements ClientViewPortalAcces
     }
 
     @Override
-    public ViewPlate<BlockData> meshSection(ClientViewObserver observer, UUID portal, PlateBox clip, int distance) {
+    public ViewPlate<BlockData> meshSection(ClientViewObserver observer, UUID portal, BlockBox clip, int distance) {
         ClientViewPortalSource source = source(observer, portal);
         return source == null ? null : source.meshSection(clip, distance);
     }
@@ -251,7 +251,7 @@ public final class BukkitClientViewPortalAccess implements ClientViewPortalAcces
     }
 
     @Override
-    public ViewPlate<BlockData> nestedMeshSection(ClientViewObserver observer, UUID parent, UUID child, PlateBox clip, int distance) {
+    public ViewPlate<BlockData> nestedMeshSection(ClientViewObserver observer, UUID parent, UUID child, BlockBox clip, int distance) {
         ClientViewPortalSource source = nestedSource(observer, parent, child);
         return source == null ? null : source.meshSection(clip, distance);
     }

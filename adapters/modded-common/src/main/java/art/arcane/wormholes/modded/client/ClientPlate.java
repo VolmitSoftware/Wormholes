@@ -8,7 +8,7 @@ import art.arcane.optics.stream.PlateSectionBox;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.scan.ProjectorSample;
 import art.arcane.optics.fidelity.BlockEntitySample;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.plate.PlateCell;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -24,7 +24,7 @@ public final class ClientPlate implements ClientPortalContent {
     private final int portalKey;
     private final int revision;
     private final PlateSectionBox sections;
-    private final PlateBox cells;
+    private final BlockBox cells;
     private final int backingState;
     private final Brick[] bricks;
     private final PlateHandoff<BlockState> handoff;
@@ -35,7 +35,7 @@ public final class ClientPlate implements ClientPortalContent {
     private final boolean[] handoffLightKnown;
     private final long bytes;
 
-    private ClientPlate(int portalKey, int revision, PlateSectionBox sections, PlateBox cells, int backingState, Brick[] bricks,
+    private ClientPlate(int portalKey, int revision, PlateSectionBox sections, BlockBox cells, int backingState, Brick[] bricks,
                         PlateHandoff<BlockState> handoff, ClientPalette palette) {
         this.portalKey = portalKey;
         this.revision = revision;
@@ -53,7 +53,7 @@ public final class ClientPlate implements ClientPortalContent {
         this.bytes = (handoff == null ? brickBytes(bricks) : handoff.plate().bytes()) + sweepBytes(cells);
     }
 
-    public static ClientPlate fromBricks(int portalKey, int revision, PlateSectionBox sections, PlateBox cells, int backingState, Brick[] bricks) {
+    public static ClientPlate fromBricks(int portalKey, int revision, PlateSectionBox sections, BlockBox cells, int backingState, Brick[] bricks) {
         Objects.requireNonNull(bricks, "bricks");
         if (bricks.length != sections.brickCount()) {
             throw new IllegalArgumentException("plate of " + bricks.length + " bricks for " + sections.brickCount() + " sections");
@@ -64,7 +64,7 @@ public final class ClientPlate implements ClientPortalContent {
     public static ClientPlate fromHandoff(PlateHandoff<BlockState> handoff, ClientPalette palette) {
         Objects.requireNonNull(handoff, "handoff");
         Objects.requireNonNull(palette, "palette");
-        PlateBox box = handoff.plate().box();
+        BlockBox box = handoff.plate().box();
         PlateSectionBox sections = PlateSectionBox.snap(box);
         int backingState = palette.localId(handoff.backingState());
         return new ClientPlate(handoff.portalKey(), handoff.plateRevision(), sections, box, backingState, null, handoff, palette);
@@ -85,7 +85,7 @@ public final class ClientPlate implements ClientPortalContent {
         return total;
     }
 
-    public static long sweepBytes(PlateBox cells) {
+    public static long sweepBytes(BlockBox cells) {
         return SWEEP_BITMASKS * Long.BYTES * ((cells.cells() + 63L) >>> 6);
     }
 
@@ -110,7 +110,7 @@ public final class ClientPlate implements ClientPortalContent {
     }
 
     @Override
-    public PlateBox cells() {
+    public BlockBox cells() {
         return cells;
     }
 

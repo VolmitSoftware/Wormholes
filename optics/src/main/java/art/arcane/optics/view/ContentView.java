@@ -1,13 +1,13 @@
 package art.arcane.optics.view;
 
 import art.arcane.optics.fidelity.BlockEntitySample;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import java.util.UUID;
 
 public interface ContentView<B, M> extends MaterialView<B, M> {
     int LIGHT_UNAVAILABLE = -1;
 
-    default boolean isEmpty(PlateBox box) {
+    default boolean isEmpty(BlockBox box) {
         return false;
     }
 

@@ -1,5 +1,7 @@
 package art.arcane.optics.plate;
 
+import art.arcane.optics.math.CellKeys;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -109,7 +111,7 @@ final class ViewPlateCacheTest {
         cache.refreshDirt(tracker);
         assertSame(plate, cache.peek(key), "a dirty plate keeps serving its clean chunks");
         assertTrue(plate.dirty());
-        assertTrue(plate.dirtyChunks().contains(WorldChangeTracker.chunkKey(1, 1)));
+        assertTrue(plate.dirtyChunks().contains(CellKeys.chunkKey(1, 1)));
         assertTrue(ViewPlate.touches(plate.dirtyChunks(), 16, 16));
         assertTrue(ViewPlate.touches(plate.dirtyChunks(), 14, 20), "buried probes two blocks away see the change");
         assertFalse(ViewPlate.touches(plate.dirtyChunks(), 3, 3));
@@ -127,7 +129,7 @@ final class ViewPlateCacheTest {
 
         tracker.markChanged(WORLD, 40, 40);
         cache.refreshDirt(tracker);
-        assertTrue(plate.dirtyChunks().contains(WorldChangeTracker.chunkKey(2, 2)),
+        assertTrue(plate.dirtyChunks().contains(CellKeys.chunkKey(2, 2)),
             "the neighbouring chunk ring is watched because buried probes reach into it");
     }
 

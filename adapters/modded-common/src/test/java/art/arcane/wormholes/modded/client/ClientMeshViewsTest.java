@@ -8,7 +8,7 @@ import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.optics.aperture.ApertureDescriptor;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.AxisPermutation;
@@ -358,7 +358,7 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
             PortalScene.MeshIdentity firstContext = first.meshContext();
             PortalScene.MeshIdentity firstProof = first.meshIdentity(0L);
             assertTrue(first.matchesMeshIdentity(0L, firstProof));
-            when(fixture.view.bounds()).thenReturn(new PlateBox(-16, -32, -16, 48, 256, 48));
+            when(fixture.view.bounds()).thenReturn(new BlockBox(-16, -32, -16, 48, 256, 48));
             assertNull(first.meshContext());
             assertFalse(first.matchesMeshIdentity(0L, firstProof));
             fixture.views.update(fixture.session, fixture.level);
@@ -460,7 +460,7 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
         palette.apply(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(3, "minecraft:stone"),
             new ClientViewMessage.PaletteEntry(4, "minecraft:dirt"))));
         ClientMeshSections store = new ClientMeshSections(palette, 1024 * 1024);
-        PlateBox bounds = fixture.view.bounds();
+        BlockBox bounds = fixture.view.bounds();
         ClientMeshSections.Identity identity = new ClientMeshSections.Identity(fixture.environment, 1, 1);
         store.begin(7, 1, bounds, 64);
         store.bind(7, identity);
@@ -538,7 +538,7 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
         when(fixture.view.changed()).thenReturn(new LongLinkedOpenHashSet());
         ClientMeshSections.View otherView = mock(ClientMeshSections.View.class);
         ClientPortal otherPortal = mock(ClientPortal.class);
-        PlateBox bounds = fixture.view.bounds();
+        BlockBox bounds = fixture.view.bounds();
         ClientMeshSections.Identity identity = fixture.view.identity();
         ApertureDescriptor geometry = fixture.portal.geometry();
         when(otherView.changed()).thenReturn(new LongLinkedOpenHashSet());
@@ -603,7 +603,7 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
             when(session.meshes()).thenReturn(meshes);
             when(meshes.view(7)).thenReturn(view);
             when(view.changed()).thenReturn(new LongOpenHashSet());
-            when(view.bounds()).thenReturn(new PlateBox(-16, -64, -16, 48, 384, 48));
+            when(view.bounds()).thenReturn(new BlockBox(-16, -64, -16, 48, 384, 48));
             when(level.registryAccess()).thenReturn(RegistryAccess.EMPTY);
             ApertureDescriptor geometry = new ApertureDescriptor(0, 64, 0, Face.S.ordinal(), true, 0, true,
                 1, 2, new long[]{3}, 0, 0, 1, 64, 3, 0, 0, 0, 0, 0, ApertureDescriptor.KIND_FRAME, 0.0D, 0, 1, List.of());

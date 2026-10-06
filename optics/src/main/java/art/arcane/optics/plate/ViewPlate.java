@@ -1,5 +1,9 @@
 package art.arcane.optics.plate;
 
+import art.arcane.optics.math.CellKeys;
+
+import art.arcane.optics.math.BlockBox;
+
 import java.util.UUID;
 
 import art.arcane.optics.view.WorldChangeTracker;
@@ -64,7 +68,7 @@ public final class ViewPlate<B> {
         this.dirtCheckedVersion = trackerVersion;
     }
 
-    public static long predictBytes(PlateBox box) {
+    public static long predictBytes(BlockBox box) {
         return BASE_BYTES + PlateGrid.predictBytes(box);
     }
 
@@ -80,7 +84,7 @@ public final class ViewPlate<B> {
         return key;
     }
 
-    public PlateBox box() {
+    public BlockBox box() {
         return grid.box();
     }
 
@@ -238,7 +242,7 @@ public final class ViewPlate<B> {
         int maxChunkZ = (remoteZ + DIRTY_MARGIN) >> 4;
         for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
             for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
-                if (dirty.contains(WorldChangeTracker.chunkKey(chunkX, chunkZ))) {
+                if (dirty.contains(CellKeys.chunkKey(chunkX, chunkZ))) {
                     return true;
                 }
             }

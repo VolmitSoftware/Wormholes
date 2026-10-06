@@ -9,7 +9,7 @@ import java.util.UUID;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.optics.aperture.ApertureDescriptor;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.ClientViewWriter;
 import art.arcane.optics.stream.PlateSectionBox;
@@ -366,7 +366,7 @@ public sealed interface ClientViewMessage {
         }
     }
 
-    record MeshBegin(int portalKey, int generation, PlateBox bounds, int maxResidentSections) implements ClientViewMessage {
+    record MeshBegin(int portalKey, int generation, BlockBox bounds, int maxResidentSections) implements ClientViewMessage {
         public MeshBegin {
             Objects.requireNonNull(bounds, "bounds");
             if (bounds.cells() == 0 || bounds.sizeX() > 65535 || bounds.sizeY() > 65535 || bounds.sizeZ() > 65535) {
@@ -464,7 +464,7 @@ public sealed interface ClientViewMessage {
     record MeshCoordinate(int x, int y, int z) {
     }
 
-    record PlateBegin(int portalKey, int plateRevision, PlateSectionBox sections, PlateBox cells, int backingState, int brickCount,
+    record PlateBegin(int portalKey, int plateRevision, PlateSectionBox sections, BlockBox cells, int backingState, int brickCount,
                       long[] brickHashes) implements ClientViewMessage {
         public PlateBegin {
             Objects.requireNonNull(sections, "sections");

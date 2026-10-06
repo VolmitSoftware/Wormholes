@@ -1,9 +1,10 @@
 package art.arcane.wormholes.network.replication.capture;
 
+import art.arcane.optics.math.CellKeys;
+
 import org.bukkit.block.data.BlockData;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Wormholes;
-import art.arcane.wormholes.network.view.ViewSlice;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.render.blockentity.BlockEntityCapturer;
 import art.arcane.optics.fidelity.BlockEntityMaterials;
@@ -95,7 +96,7 @@ public final class BlockEntityCapture implements Listener {
         int worldY = block.getY();
         int worldZ = block.getZ();
         World world = block.getWorld();
-        long chunkKey = ViewSlice.columnKey(worldX >> 4, worldZ >> 4);
+        long chunkKey = CellKeys.chunkKey(worldX >> 4, worldZ >> 4);
         if (!accumulator.isRelevant(world, chunkKey)) {
             return;
         }

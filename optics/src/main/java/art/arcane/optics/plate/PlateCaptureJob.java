@@ -1,9 +1,10 @@
 package art.arcane.optics.plate;
 
+import art.arcane.optics.math.CellKeys;
+
 import java.util.Objects;
 import java.util.function.Function;
 
-import art.arcane.optics.view.WorldChangeTracker;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 
@@ -47,7 +48,7 @@ public final class PlateCaptureJob<B, W, S> extends ViewPlateBuilder.Job<B, W> {
 
     public record Captured<S>(ViewPlateBuilder.Footprint footprint, Long2ObjectOpenHashMap<S> chunks) {
         public S chunk(int chunkX, int chunkZ) {
-            return chunks.get(WorldChangeTracker.chunkKey(chunkX, chunkZ));
+            return chunks.get(CellKeys.chunkKey(chunkX, chunkZ));
         }
     }
 
@@ -76,7 +77,7 @@ public final class PlateCaptureJob<B, W, S> extends ViewPlateBuilder.Job<B, W> {
         this.pending = new LongArrayList(chunkCount);
         for (int chunkX = footprint.minChunkX(); chunkX <= footprint.maxChunkX(); chunkX++) {
             for (int chunkZ = footprint.minChunkZ(); chunkZ <= footprint.maxChunkZ(); chunkZ++) {
-                pending.add(WorldChangeTracker.chunkKey(chunkX, chunkZ));
+                pending.add(CellKeys.chunkKey(chunkX, chunkZ));
             }
         }
         this.phase = Phase.CAPTURING;

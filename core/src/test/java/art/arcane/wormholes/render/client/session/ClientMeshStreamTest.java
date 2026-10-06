@@ -28,7 +28,7 @@ import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.wormholes.network.client.SessionPalette;
 import art.arcane.optics.view.WorldChangeTracker;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.wormholes.render.plate.PlateTestFixtures;
 import art.arcane.optics.plate.ViewPlate;
 import java.util.UUID;
@@ -181,11 +181,11 @@ final class ClientMeshStreamTest {
         Vec3d eye = new Vec3d(11, 67, 15);
         List<MeshPlan.Section> visible = MeshPlan.visible(slot.geometry, eye);
         MeshPlan.Section target = visible.get(targetIndex);
-        PlateBox clip = target.clip();
+        BlockBox clip = target.clip();
         UUID world = UUID.randomUUID();
         UUID unchangedWorld = targetIndex == 0 ? world : UUID.randomUUID();
         for (int index = 0; index < Math.min(512, visible.size()); index++) {
-            PlateBox resident = visible.get(index).clip();
+            BlockBox resident = visible.get(index).clip();
             access.meshPlates.put(resident, PlateTestFixtures.tracked(portal.id, resident, unchangedWorld, 0));
         }
         ViewPlate<String> previous = PlateTestFixtures.tracked(portal.id, clip, world, 0);
@@ -230,7 +230,7 @@ final class ClientMeshStreamTest {
         access.meshRequests.clear();
         access.meshChanges.markChanged(world, clip.minX(), clip.minY(), clip.minZ());
         if (targetIndex == 0) {
-            for (PlateBox resident : access.meshPlates.keySet()) {
+            for (BlockBox resident : access.meshPlates.keySet()) {
                 access.meshChanges.markChanged(world, resident.minX(), resident.minY(), resident.minZ());
             }
         }

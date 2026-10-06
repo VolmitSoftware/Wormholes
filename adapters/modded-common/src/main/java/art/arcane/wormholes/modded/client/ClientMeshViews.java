@@ -3,7 +3,7 @@ package art.arcane.wormholes.modded.client;
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.client.render.PortalScene;
 import art.arcane.optics.aperture.ApertureDescriptor;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.frame.OpticTransform;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
@@ -146,7 +146,7 @@ public final class ClientMeshViews {
     private record Scene(int portalKey, ApertureDescriptor surfaceGeometry, ClientMeshSections.View view, ClientLevel level,
                          ClientMeshEntities features, ClientViewSession session, OpticTransform transform,
                          ProjectionEnvironment.Dimension dimension, ClientMeshSections.Identity identity, int blendRadius,
-                         PlateBox bounds, PortalScene.MeshIdentity meshContext) implements PortalScene {
+                         BlockBox bounds, PortalScene.MeshIdentity meshContext) implements PortalScene {
         @Override
         public ApertureDescriptor geometry() {
             return session.portal(portalKey).geometry();

@@ -1,6 +1,6 @@
 package art.arcane.wormholes.network.replication;
 
-import art.arcane.wormholes.network.view.ViewBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.wormholes.network.view.ViewSlice;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
 import art.arcane.optics.math.CellKeys;
@@ -27,11 +27,11 @@ public final class ChunkBulkBuilder<S, B, T> {
         this.reader = reader;
     }
 
-    public ViewSlice buildSlice(ViewBox box, int chunkX, int chunkZ, S snapshot, ProjectionRenderMode mode) {
+    public ViewSlice buildSlice(BlockBox box, int chunkX, int chunkZ, S snapshot, ProjectionRenderMode mode) {
         return buildSlice(box, chunkX, chunkZ, snapshot, mode, Map.of());
     }
 
-    public ViewSlice buildSlice(ViewBox box, int chunkX, int chunkZ, S snapshot, ProjectionRenderMode mode,
+    public ViewSlice buildSlice(BlockBox box, int chunkX, int chunkZ, S snapshot, ProjectionRenderMode mode,
                                 Map<Long, BlockEntitySample> blockEntities) {
         int minX = Math.max(box.minX(), chunkX << 4);
         int maxX = Math.min(box.maxX(), (chunkX << 4) + 15);

@@ -9,7 +9,7 @@ import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.ClientViewProtocolException;
 import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.optics.fidelity.BlockEntitySample;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.frame.OpticTransform;
 import net.minecraft.core.registries.BuiltInRegistries;
 import org.junit.Test;
@@ -23,7 +23,7 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
 public class ClientMeshLocalContentTest extends MinecraftTestBase {
-    private static final PlateBox BOUNDS = new PlateBox(-32, -32, -32, 64, 64, 64);
+    private static final BlockBox BOUNDS = new BlockBox(-32, -32, -32, 64, 64, 64);
     private static final ProjectionEnvironment ENVIRONMENT = PortalEnvironmentTest.environment(OpticTransform.IDENTITY);
 
     @Test

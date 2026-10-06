@@ -1,11 +1,12 @@
 package art.arcane.wormholes.network.replication.capture;
 
+import art.arcane.optics.math.CellKeys;
+
 import art.arcane.wormholes.network.replication.BlockChange;
 import art.arcane.wormholes.network.replication.BlockChangeFeed;
 import art.arcane.wormholes.network.replication.BlockEntityDiff;
 import art.arcane.wormholes.network.replication.ChunkReplicationManager;
 import art.arcane.wormholes.network.replication.LightDiff;
-import art.arcane.wormholes.network.view.ViewSlice;
 
 
 import java.util.Arrays;
@@ -136,7 +137,7 @@ public final class RegionalDiffAccumulator<W, B> {
                                    BlockCaptureRevision snapshotRevision) {
         int chunkX = worldX >> 4;
         int chunkZ = worldZ >> 4;
-        long chunkKey = ViewSlice.columnKey(chunkX, chunkZ);
+        long chunkKey = CellKeys.chunkKey(chunkX, chunkZ);
         if (!replication.hasSubscribers(access.worldId(world), chunkKey)) {
             if (access.debugEnabled()) {
                 access.debug("[block] DROP " + worldX + "," + worldY + "," + worldZ + " chunk=" + chunkX + "," + chunkZ + " - no view subscriber for that chunk (not inside any viewed gateway's capture box)");
@@ -392,7 +393,7 @@ public final class RegionalDiffAccumulator<W, B> {
         }
         int chunkX = worldX >> 4;
         int chunkZ = worldZ >> 4;
-        long chunkKey = ViewSlice.columnKey(chunkX, chunkZ);
+        long chunkKey = CellKeys.chunkKey(chunkX, chunkZ);
         if (!replication.hasSubscribers(access.worldId(world), chunkKey)) {
             return;
         }

@@ -10,9 +10,8 @@ import java.util.function.Supplier;
 import art.arcane.optics.stream.BrickLightSource;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.math.CellKeys;
-import art.arcane.optics.view.WorldChangeTracker;
 import art.arcane.optics.scan.ProjectorSample;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.plate.PlateCell;
 import art.arcane.optics.plate.ViewPlate;
 import art.arcane.optics.plate.ViewPlateKey;
@@ -33,7 +32,7 @@ public final class PlateLight<B> implements BrickLightSource {
     private static final int SECTION_INCOMPLETE = 2;
 
     private final WeakReference<ViewPlate<B>> plate;
-    private final PlateBox box;
+    private final BlockBox box;
     private final ViewWindow frame;
     private final Sampler sampler;
     private final OpticTransform transform;
@@ -58,7 +57,7 @@ public final class PlateLight<B> implements BrickLightSource {
         this.dirtyChunks = LongSets.EMPTY_SET;
     }
 
-    public static PlateBox remoteBox(PlateBox box, ViewWindow frame) {
+    public static BlockBox remoteBox(BlockBox box, ViewWindow frame) {
         return frame.transform().inverse().box(box, 0);
     }
 
@@ -167,7 +166,7 @@ public final class PlateLight<B> implements BrickLightSource {
         int maxChunkZ = (bounds[5] >> 4) + DIRTY_CHUNK_MARGIN;
         for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
             for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
-                if (dirty.contains(WorldChangeTracker.chunkKey(chunkX, chunkZ))) {
+                if (dirty.contains(CellKeys.chunkKey(chunkX, chunkZ))) {
                     return true;
                 }
             }

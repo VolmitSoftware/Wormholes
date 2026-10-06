@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.network.replication.ChunkBulkBuilder;
-import art.arcane.wormholes.network.view.ViewBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.wormholes.network.view.ViewSlice;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
 import art.arcane.optics.math.CellKeys;
@@ -29,7 +29,7 @@ public final class MinecraftChunkSnapshot {
     private final String[] biomes;
     private final Map<Long, BlockEntitySample> blockEntities;
 
-    private MinecraftChunkSnapshot(LevelChunk chunk, ViewBox box) {
+    private MinecraftChunkSnapshot(LevelChunk chunk, BlockBox box) {
         chunkX = chunk.getPos().x();
         chunkZ = chunk.getPos().z();
         minY = box.minY();
@@ -41,7 +41,7 @@ public final class MinecraftChunkSnapshot {
     }
 
     public static MinecraftChunkSnapshot capture(WormholesModRuntime runtime, MinecraftProjectionWorldView view,
-                                                  LevelChunk chunk, ViewBox box) {
+                                                  LevelChunk chunk, BlockBox box) {
         runtime.requireServerThread();
         MinecraftChunkSnapshot snapshot = new MinecraftChunkSnapshot(chunk, box);
         ServerLevel level = view.getWorld();
@@ -79,7 +79,7 @@ public final class MinecraftChunkSnapshot {
         return snapshot;
     }
 
-    public ViewSlice build(ViewBox box, ProjectionRenderMode mode) {
+    public ViewSlice build(BlockBox box, ProjectionRenderMode mode) {
         return BUILDER.buildSlice(box, chunkX, chunkZ, this, mode, blockEntities);
     }
 

@@ -12,7 +12,7 @@ import art.arcane.wormholes.portal.LocalPortal;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.volume.LodPolicy;
 import art.arcane.optics.plate.PlateCaptureJob;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.plate.ViewPlate;
 import art.arcane.optics.plate.ViewPlateBuilder;
 import art.arcane.optics.plate.ViewPlateCache;
@@ -99,7 +99,7 @@ final class ProjectorPlates {
 
     static ViewPlate<BlockData> acquireSection(ViewPlateCache<BlockData, World> cache, ProjectionWorldViewProvider viewProvider,
                                                ILocalPortal portal, ProjectorDestination destination, BlockData air, Target target,
-                                               PlateBox clip, int distance) {
+                                               BlockBox clip, int distance) {
         int boundedDistance = Math.clamp(distance, 32, 512);
         ViewPlateKey original = target.key();
         ViewPlateKey key = new ViewPlateKey(original.portalId(), new MeshSection(original.destinationViewIdentity(), clip),
@@ -119,7 +119,7 @@ final class ProjectorPlates {
             if (world == null || viewProvider.usesRegionSnapshots()) {
                 return ViewPlateBuilder.sectionJob(request, clip);
             }
-            PlateBox remote = ViewPlateBuilder.sectionDestinationBox(request, clip);
+            BlockBox remote = ViewPlateBuilder.sectionDestinationBox(request, clip);
             PlateCaptureSource.Options capture = new PlateCaptureSource.Options(target.blockEntities(), remote.minY(),
                 remote.minY() + remote.sizeY() - 1, true);
             return new PlateCaptureJob<>(new PlateCaptureJob.Plan<>(key, world, ViewPlateBuilder.sectionFootprint(request, clip),
@@ -157,7 +157,7 @@ final class ProjectorPlates {
             }));
     }
 
-    private record MeshSection(Object destination, PlateBox clip) {
+    private record MeshSection(Object destination, BlockBox clip) {
     }
 
     record Target(ViewPlateKey key,

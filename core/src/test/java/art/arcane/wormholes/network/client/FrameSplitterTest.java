@@ -14,7 +14,7 @@ import java.util.function.IntSupplier;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.optics.entity.EntitySnapshot;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.BrickCodec;
 import art.arcane.optics.stream.ClientViewProtocolException;
@@ -47,7 +47,7 @@ final class FrameSplitterTest {
         int[] next = {100};
         IntSupplier sequence = () -> next[0]++;
         List<ClientViewMessage> group = List.of(new ClientViewMessage.PlateBegin(2, 9, new PlateSectionBox(0, 0, 0, 5, 2, 4),
-            new PlateBox(0, 0, 0, 80, 32, 64), 3, 40, null), message, new ClientViewMessage.PlateEnd(2, 9));
+            new BlockBox(0, 0, 0, 80, 32, 64), 3, 40, null), message, new ClientViewMessage.PlateEnd(2, 9));
         List<byte[]> frames = splitter.split(group, sequence);
         assertTrue(frames.size() > 3, "expected the bricks to split into several frames, got " + frames.size());
         List<Brick> reassembled = new ArrayList<Brick>();
@@ -71,7 +71,7 @@ final class FrameSplitterTest {
         FrameSplitter splitter = new FrameSplitter(ViewStreamLimits.MIN_MAX_FRAME_BYTES, false);
         int[] next = {7};
         List<ClientViewMessage> group = List.of(new ClientViewMessage.PlateBegin(2, 9, new PlateSectionBox(0, 0, 0, 5, 2, 4),
-            new PlateBox(0, 0, 0, 80, 32, 64), 3, 40, null), new ClientViewMessage.PlateBricks(2, 9, heavyBricks(40, random)));
+            new BlockBox(0, 0, 0, 80, 32, 64), 3, 40, null), new ClientViewMessage.PlateBricks(2, 9, heavyBricks(40, random)));
         List<byte[]> open = splitter.split(group, () -> next[0]++, false);
         assertTrue(open.size() > 2);
         for (byte[] frame : open) {

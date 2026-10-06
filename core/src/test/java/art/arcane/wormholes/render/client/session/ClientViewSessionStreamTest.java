@@ -27,7 +27,7 @@ import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.ClientViewProtocolException;
 import art.arcane.wormholes.network.client.EncodedPlate;
 import art.arcane.optics.aperture.ApertureDescriptor;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.wormholes.render.plate.PlateTestFixtures;
 import art.arcane.optics.plate.ViewPlate;
 import art.arcane.optics.plate.ViewPlateKey;
@@ -133,7 +133,7 @@ final class ClientViewSessionStreamTest {
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8, frameBytes));
         SessionWorld world = new SessionWorld(2L);
         SessionPortal portal = harness.access.add(new SessionPortal("large-manifest", 0));
-        PlateBox box = new PlateBox(0, 0, 0, 1, 1024, 2048);
+        BlockBox box = new BlockBox(0, 0, 0, 1, 1024, 2048);
         portal.plate = PlateTestFixtures.empty(new ViewPlateKey(portal.id, world, false, 0, 0L), box);
         harness.handshake(SessionHarness.CLIENT_CAPS);
 

@@ -26,7 +26,7 @@ import art.arcane.optics.fidelity.BlockEntitySample;
 final class RemoteChunkStoreBlockEntityTest {
     private static final ReplicationStreamKey STREAM = new ReplicationStreamKey(
         UUID.fromString("00000000-0000-0000-0000-0000000000e1"), UUID.fromString("00000000-0000-0000-0000-0000000000e2"),
-        ViewSlice.columnKey(0, 0), ProjectionRenderMode.PANOPTIC);
+        CellKeys.chunkKey(0, 0), ProjectionRenderMode.PANOPTIC);
 
     @Test
     void bulkAndDiffBlockEntitiesLandInTheSliceAndBlockChangesEvictThem() throws IOException {

@@ -7,7 +7,7 @@ import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ClientViewProtocolException;
 import art.arcane.optics.stream.SectionBiomes;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.AxisPermutation;
@@ -32,7 +32,7 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
 public class ClientMeshSectionsReuseTest extends MinecraftTestBase {
-    private static final PlateBox BOUNDS = new PlateBox(-32, -32, -32, 64, 64, 64);
+    private static final BlockBox BOUNDS = new BlockBox(-32, -32, -32, 64, 64, 64);
     private static final ProjectionEnvironment ENVIRONMENT = PortalEnvironmentTest.environment(OpticTransform.IDENTITY);
 
     @Test
@@ -199,7 +199,7 @@ public class ClientMeshSectionsReuseTest extends MinecraftTestBase {
         ClientMeshSections store = populated();
         store.put(new ClientViewMessage.MeshSection(7, 1, 1, 0, 0, 1, 3, Brick.single(0, 3), SectionBiomes.NONE));
         store.clear();
-        store.begin(7, 2, new PlateBox(0, 0, 0, 16, 16, 16), 1);
+        store.begin(7, 2, new BlockBox(0, 0, 0, 16, 16, 16), 1);
         List<ClientViewMessage.MeshClaim> claims = store.bind(7, new ClientMeshSections.Identity(ENVIRONMENT, 71, 11));
         assertEquals(1, claims.size());
         assertEquals(0, claims.getFirst().x());
@@ -231,7 +231,7 @@ public class ClientMeshSectionsReuseTest extends MinecraftTestBase {
     @Test
     public void interleavedHistoryRestoresMatchingContextInGlobalOrderAndRefreshesExistingEntries() throws Exception {
         ClientMeshSections store = store();
-        PlateBox bounds = new PlateBox(0, 0, 0, 64, 16, 16);
+        BlockBox bounds = new BlockBox(0, 0, 0, 64, 16, 16);
         ClientMeshSections.Identity first = new ClientMeshSections.Identity(ENVIRONMENT, 71, 11);
         ClientMeshSections.Identity second = new ClientMeshSections.Identity(ENVIRONMENT, 71, 12);
         store.begin(7, 1, bounds, 4);
@@ -266,7 +266,7 @@ public class ClientMeshSectionsReuseTest extends MinecraftTestBase {
         ClientMeshSections sample = store();
         long sectionBytes = sample.localSection(at(7, 0, 1, 3)).bytes();
         ClientMeshSections store = store(sectionBytes * 9);
-        PlateBox bounds = new PlateBox(0, 0, 0, 64, 16, 16);
+        BlockBox bounds = new BlockBox(0, 0, 0, 64, 16, 16);
         for (int key : new int[]{7, 8, 9}) {
             store.begin(key, 1, bounds, 4);
             store.bind(key, new ClientMeshSections.Identity(ENVIRONMENT, 71, key));
@@ -306,7 +306,7 @@ public class ClientMeshSectionsReuseTest extends MinecraftTestBase {
     public void recreatedContextAdoptsItsCanonicalIdentityWhileOlderActiveViewsRemainUsable() throws Exception {
         long sectionBytes = store().localSection(at(7, 0, 1, 3)).bytes();
         ClientMeshSections store = store(sectionBytes * 3);
-        PlateBox bounds = new PlateBox(0, 0, 0, 64, 16, 16);
+        BlockBox bounds = new BlockBox(0, 0, 0, 64, 16, 16);
         ClientMeshSections.Identity original = new ClientMeshSections.Identity(ENVIRONMENT, 71, 11);
         store.begin(7, 1, bounds, 4);
         store.bind(7, original);

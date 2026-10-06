@@ -5,13 +5,13 @@ import java.util.List;
 import java.util.Objects;
 
 import art.arcane.optics.stream.XxHash64;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.PlateSectionBox;
 
 public final class EncodedPlate {
     private final PlateSectionBox sections;
-    private final PlateBox cells;
+    private final BlockBox cells;
     private final int backingState;
     private final Brick[] bricks;
     private final byte[][] bodies;
@@ -21,7 +21,7 @@ public final class EncodedPlate {
     private volatile long saltedFor;
     private volatile long[] saltedHashes;
 
-    EncodedPlate(PlateSectionBox sections, PlateBox cells, int backingState, Brick[] bricks, byte[][] bodies, int[] referencedIds,
+    EncodedPlate(PlateSectionBox sections, BlockBox cells, int backingState, Brick[] bricks, byte[][] bodies, int[] referencedIds,
                  int[] kindCounts) {
         this.sections = Objects.requireNonNull(sections, "sections");
         this.cells = Objects.requireNonNull(cells, "cells");
@@ -41,7 +41,7 @@ public final class EncodedPlate {
         return sections;
     }
 
-    public PlateBox cells() {
+    public BlockBox cells() {
         return cells;
     }
 

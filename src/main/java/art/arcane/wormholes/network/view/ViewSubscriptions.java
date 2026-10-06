@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network.view;
 
+import art.arcane.optics.math.CellKeys;
+
 import art.arcane.optics.light.SkyMath;
 
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
@@ -124,7 +126,7 @@ final class ViewSubscriptions {
         session.timeDeliveryStates.put(peerName, new ViewServer.TimeDeliveryState(initialSkyDarken));
         timeDelivery.queue(session, peerName, initialSkyDarken, session.world.hasStorm(), session.world.isThundering());
         for (long[] column : session.columns) {
-            long chunkKey = ViewSlice.columnKey((int) column[0], (int) column[1]);
+            long chunkKey = CellKeys.chunkKey((int) column[0], (int) column[1]);
             replication.subscribe(peerName, session.subscriptionId, session.world.getUID(), session.streamFor(chunkKey));
         }
         if (!isCurrent(session, peerName, progress)) {

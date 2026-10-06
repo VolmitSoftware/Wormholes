@@ -9,7 +9,7 @@ import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.ClientViewProtocolException;
 import art.arcane.optics.stream.PlateSectionBox;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import net.minecraft.core.registries.BuiltInRegistries;
 import org.junit.Test;
@@ -36,7 +36,7 @@ public class ClientPlateStoreTest extends MinecraftTestBase {
     public void beginBricksEndCommitsAPlate() throws ClientViewProtocolException {
         ClientPlateStore store = new ClientPlateStore(new ClientPalette(BuiltInRegistries.BLOCK), GENEROUS_BUDGET);
         PlateSectionBox sections = new PlateSectionBox(0, 4, 0, 1, 1, 1);
-        PlateBox cells = new PlateBox(0, 64, 0, 16, 16, 16);
+        BlockBox cells = new BlockBox(0, 64, 0, 16, 16, 16);
         ClientViewMessage.PlateBegin begin = new ClientViewMessage.PlateBegin(7, 1, sections, cells, 3, 1, null);
         begin = (ClientViewMessage.PlateBegin) ClientViewCodec.decodeS2C(
             ClientViewCodec.encodeS2C(begin, 1, 0), ViewStreamCapability.ALL).message();
@@ -59,7 +59,7 @@ public class ClientPlateStoreTest extends MinecraftTestBase {
     @Test
     public void staleBricksAndEndsAreIgnored() throws ClientViewProtocolException {
         ClientPlateStore store = new ClientPlateStore(new ClientPalette(BuiltInRegistries.BLOCK), GENEROUS_BUDGET);
-        store.begin(new ClientViewMessage.PlateBegin(7, 2, new PlateSectionBox(0, 0, 0, 1, 1, 1), new PlateBox(0, 0, 0, 16, 16, 16), 3, 1, null));
+        store.begin(new ClientViewMessage.PlateBegin(7, 2, new PlateSectionBox(0, 0, 0, 1, 1, 1), new BlockBox(0, 0, 0, 16, 16, 16), 3, 1, null));
         assertEquals(0, store.bricks(new ClientViewMessage.PlateBricks(7, 1, List.of(brick(0, 3, 3)))));
         assertNull(store.end(new ClientViewMessage.PlateEnd(7, 1)));
         assertNull(store.end(new ClientViewMessage.PlateEnd(8, 2)));
@@ -71,7 +71,7 @@ public class ClientPlateStoreTest extends MinecraftTestBase {
     public void brickMissOnlyAsksForHashesTheCacheDoesNotHold() throws ClientViewProtocolException {
         ClientPlateStore store = new ClientPlateStore(new ClientPalette(BuiltInRegistries.BLOCK), GENEROUS_BUDGET);
         PlateSectionBox sections = new PlateSectionBox(0, 0, 0, 2, 1, 1);
-        PlateBox cells = new PlateBox(0, 0, 0, 32, 16, 16);
+        BlockBox cells = new BlockBox(0, 0, 0, 32, 16, 16);
         long[] hashes = {0x1111L, 0x2222L};
         ClientViewMessage.BrickMiss.Plate first = store.begin(new ClientViewMessage.PlateBegin(1, 1, sections, cells, 3, 2, hashes));
         assertNotNull(first);
@@ -98,7 +98,7 @@ public class ClientPlateStoreTest extends MinecraftTestBase {
     public void patchesRewriteBricksAndRejectRevisionGaps() throws ClientViewProtocolException {
         ClientPlateStore store = new ClientPlateStore(new ClientPalette(BuiltInRegistries.BLOCK), GENEROUS_BUDGET);
         PlateSectionBox sections = new PlateSectionBox(0, 0, 0, 2, 1, 1);
-        PlateBox cells = new PlateBox(0, 0, 0, 32, 16, 16);
+        BlockBox cells = new BlockBox(0, 0, 0, 32, 16, 16);
         store.begin(new ClientViewMessage.PlateBegin(3, 1, sections, cells, 3, 2, null));
         store.bricks(new ClientViewMessage.PlateBricks(3, 1, List.of(brick(0, 3, 3), brick(1, 4, 4))));
         assertNotNull(store.end(new ClientViewMessage.PlateEnd(3, 1)));
@@ -125,7 +125,7 @@ public class ClientPlateStoreTest extends MinecraftTestBase {
         long budget = 96L * 1024L;
         ClientPlateStore store = new ClientPlateStore(new ClientPalette(BuiltInRegistries.BLOCK), budget);
         PlateSectionBox big = new PlateSectionBox(0, 0, 0, 4, 4, 4);
-        PlateBox bigCells = new PlateBox(0, 0, 0, 64, 64, 64);
+        BlockBox bigCells = new BlockBox(0, 0, 0, 64, 64, 64);
         store.begin(new ClientViewMessage.PlateBegin(1, 1, big, bigCells, 3, 64, null));
         Brick[] noisy = new Brick[64];
         for (int index = 0; index < noisy.length; index++) {
@@ -137,13 +137,13 @@ public class ClientPlateStoreTest extends MinecraftTestBase {
         assertEquals(0, store.size());
         assertTrue(store.bytes() <= budget);
         PlateSectionBox small = new PlateSectionBox(0, 0, 0, 1, 1, 1);
-        store.begin(new ClientViewMessage.PlateBegin(2, 1, small, new PlateBox(0, 0, 0, 16, 16, 16), 3, 1, new long[] {42L}));
+        store.begin(new ClientViewMessage.PlateBegin(2, 1, small, new BlockBox(0, 0, 0, 16, 16, 16), 3, 1, new long[] {42L}));
         store.bricks(new ClientViewMessage.PlateBricks(2, 1, List.of(noisyBrick(0))));
         assertNotNull(store.end(new ClientViewMessage.PlateEnd(2, 1)));
         assertTrue(store.bytes() <= budget);
         for (int round = 0; round < 40; round++) {
             long hash = 1000L + round;
-            store.begin(new ClientViewMessage.PlateBegin(2, 2 + round, small, new PlateBox(0, 0, 0, 16, 16, 16), 3, 1, new long[] {hash}));
+            store.begin(new ClientViewMessage.PlateBegin(2, 2 + round, small, new BlockBox(0, 0, 0, 16, 16, 16), 3, 1, new long[] {hash}));
             store.bricks(new ClientViewMessage.PlateBricks(2, 2 + round, List.of(noisyBrick(0, round))));
             assertNotNull(store.end(new ClientViewMessage.PlateEnd(2, 2 + round)));
             assertTrue("round " + round + " bytes " + store.bytes(), store.bytes() <= budget);
@@ -158,7 +158,7 @@ public class ClientPlateStoreTest extends MinecraftTestBase {
     public void aPlateOverTheBudgetIsRefusedAndReportedOnce() throws ClientViewProtocolException {
         ClientPlateStore store = new ClientPlateStore(new ClientPalette(BuiltInRegistries.BLOCK), 1024L * 1024L);
         PlateSectionBox sections = new PlateSectionBox(0, 0, 0, 16, 16, 16);
-        PlateBox cells = new PlateBox(0, 0, 0, 256, 256, 256);
+        BlockBox cells = new BlockBox(0, 0, 0, 256, 256, 256);
         store.begin(new ClientViewMessage.PlateBegin(4, 2, sections, cells, 3, sections.brickCount(), null));
         assertNull(store.end(new ClientViewMessage.PlateEnd(4, 2)));
         assertEquals(1, store.refusedPlates());
@@ -170,7 +170,7 @@ public class ClientPlateStoreTest extends MinecraftTestBase {
     @Test
     public void aPlateBoxTheSweepCannotHoldIsRefusedAtBegin() throws ClientViewProtocolException {
         ClientPlateStore store = new ClientPlateStore(new ClientPalette(BuiltInRegistries.BLOCK), GENEROUS_BUDGET);
-        PlateBox cells = new PlateBox(0, 0, 0, 300, 200, 300);
+        BlockBox cells = new BlockBox(0, 0, 0, 300, 200, 300);
         PlateSectionBox sections = PlateSectionBox.snap(cells);
         long[] hashes = new long[sections.brickCount()];
         assertNull(store.begin(new ClientViewMessage.PlateBegin(5, 1, sections, cells, 3, sections.brickCount(), hashes)));
@@ -186,7 +186,7 @@ public class ClientPlateStoreTest extends MinecraftTestBase {
         long budget = 256L * 1024L;
         ClientPlateStore store = new ClientPlateStore(new ClientPalette(BuiltInRegistries.BLOCK), budget);
         PlateSectionBox big = new PlateSectionBox(0, 0, 0, 4, 4, 4);
-        store.begin(new ClientViewMessage.PlateBegin(1, 1, big, new PlateBox(0, 0, 0, 64, 64, 64), 3, 64, null));
+        store.begin(new ClientViewMessage.PlateBegin(1, 1, big, new BlockBox(0, 0, 0, 64, 64, 64), 3, 64, null));
         int accepted = 0;
         for (int index = 0; index < 64 && store.pending(1); index++) {
             accepted += store.bricks(new ClientViewMessage.PlateBricks(1, 1, List.of(noisyBrick(index))));

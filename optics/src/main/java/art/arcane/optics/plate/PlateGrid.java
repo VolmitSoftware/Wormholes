@@ -1,5 +1,7 @@
 package art.arcane.optics.plate;
 
+import art.arcane.optics.math.BlockBox;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -19,17 +21,17 @@ public final class PlateGrid<B> {
     static final int MAX_PALETTE = Character.MAX_VALUE - 1;
     private static final long PALETTE_ENTRY_BYTES = 8L + PlateCell.BYTES;
     private static final long BLOCK_ENTITY_ENTRY_BYTES = 24L;
-    private static final PlateGrid<?> EMPTY = new PlateGrid<Object>(PlateBox.EMPTY, new char[0], List.of(),
+    private static final PlateGrid<?> EMPTY = new PlateGrid<Object>(BlockBox.EMPTY, new char[0], List.of(),
         new Long2ObjectOpenHashMap<PlateCell<Object>>(), 0);
 
-    private final PlateBox box;
+    private final BlockBox box;
     private final char[] cells;
     private final List<PlateCell<B>> palette;
     private final Long2ObjectOpenHashMap<PlateCell<B>> blockEntityCells;
     private final int cellCount;
     private final long bytes;
 
-    private PlateGrid(PlateBox box, char[] cells, List<PlateCell<B>> palette,
+    private PlateGrid(BlockBox box, char[] cells, List<PlateCell<B>> palette,
                       Long2ObjectOpenHashMap<PlateCell<B>> blockEntityCells, int cellCount) {
         this.box = box;
         this.cells = cells;
@@ -44,11 +46,11 @@ public final class PlateGrid<B> {
         return (PlateGrid<B>) EMPTY;
     }
 
-    public static long predictBytes(PlateBox box) {
+    public static long predictBytes(BlockBox box) {
         return box.cells() * Character.BYTES;
     }
 
-    public PlateBox box() {
+    public BlockBox box() {
         return box;
     }
 
@@ -117,7 +119,7 @@ public final class PlateGrid<B> {
     }
 
     public static final class Writer<B> {
-        private final PlateBox box;
+        private final BlockBox box;
         private final char[] cells;
         private final ArrayList<PlateCell<B>> palette;
         private final Object2IntOpenHashMap<B> blockEntries;
@@ -127,7 +129,7 @@ public final class PlateGrid<B> {
         private char airEntry;
         private int cellCount;
 
-        public Writer(PlateBox box) {
+        public Writer(BlockBox box) {
             long size = box.cells();
             if (size > Integer.MAX_VALUE - 8) {
                 throw new IllegalArgumentException("plate box of " + size + " cells exceeds the dense grid limit");

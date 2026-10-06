@@ -9,7 +9,7 @@ import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.optics.aperture.ApertureDescriptor;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.frame.OpticTransform;
 import com.mojang.renderpearl.api.buffers.GpuBuffer;
@@ -50,7 +50,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.ArgumentMatchers.any;
 
 public class ClientProjectedMeshReuseTest extends MinecraftTestBase {
-    private static final PlateBox BOUNDS = new PlateBox(-32, -32, -32, 96, 96, 96);
+    private static final BlockBox BOUNDS = new BlockBox(-32, -32, -32, 96, 96, 96);
 
     @Test
     public void droppedPortalReopensWithHistorySectionsAndTransfersExactGpuOwnershipToNewKey() throws Exception {

@@ -20,7 +20,7 @@ import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.client.ClientSweep;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.math.Face;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
@@ -53,7 +53,7 @@ public class ClientMirrorTest {
     private static final double EYE_X = 1.5D;
     private static final double EYE_Y = 65.5D;
     private static final double EYE_Z = 15.5D;
-    private static final PlateBox CHILD_PLATE = new PlateBox(-8, 56, 14, 19, 19, 8);
+    private static final BlockBox CHILD_PLATE = new BlockBox(-8, 56, 14, 19, 19, 8);
     private static final PlateSectionBox CHILD_SECTIONS = PlateSectionBox.snap(CHILD_PLATE);
     private static BlockState STONE;
     private static BlockState AIR;
@@ -214,7 +214,7 @@ public class ClientMirrorTest {
     @Test
     public void theMirrorBoxCoversTheDisplaySideOnly() {
         ApertureDescriptor geometry = mirror(0, List.of());
-        PlateBox box = ClientMirrorBuilder.displayBox(geometry);
+        BlockBox box = ClientMirrorBuilder.displayBox(geometry);
         assertTrue(box.minZ() + box.sizeZ() - 1 < MIRROR_Z);
         assertTrue(box.minZ() >= MIRROR_Z - 1 - geometry.depthBlocks());
         assertFalse(box.cells() == 0L);

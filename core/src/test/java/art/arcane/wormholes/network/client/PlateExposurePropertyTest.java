@@ -16,7 +16,7 @@ import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.scan.ProjectorSample;
 import art.arcane.optics.volume.LodPolicy;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.plate.PlateCell;
 import art.arcane.optics.plate.ViewPlate;
 import art.arcane.optics.plate.ViewPlateBuilder;
@@ -35,7 +35,7 @@ final class PlateExposurePropertyTest {
     }
 
     static Exposure check(ViewPlate<String> plate, EncodedPlate encoded, SessionPalette palette) {
-        PlateBox box = plate.box();
+        BlockBox box = plate.box();
         Set<String> visibleStates = new HashSet<String>();
         Set<String> hiddenStates = new HashSet<String>();
         int occluded = 0;

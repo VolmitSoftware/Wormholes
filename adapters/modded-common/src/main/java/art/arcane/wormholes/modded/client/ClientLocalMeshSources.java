@@ -15,7 +15,7 @@ import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.fidelity.BlockEntitySanitizer;
 import art.arcane.optics.client.MeshPlan;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.frame.OpticTransform;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
@@ -546,7 +546,7 @@ public final class ClientLocalMeshSources {
         private boolean replanned;
 
         private boolean inBounds(long section) {
-            PlateBox bounds = view.bounds();
+            BlockBox bounds = view.bounds();
             long x = (long) SectionPos.x(section) << 4;
             long y = (long) SectionPos.y(section) << 4;
             long z = (long) SectionPos.z(section) << 4;
@@ -713,7 +713,7 @@ public final class ClientLocalMeshSources {
                 biomes[cell] = section.getNoiseBiome(cell & 3, cell >> 4, cell >> 2 & 3).unwrapKey().orElseThrow().identifier().toString();
             }
             MinecraftLightSnapshot light = MinecraftLightSnapshot.capture(level,
-                new PlateBox(chunk.getPos().x() << 4, sectionY << 4, chunk.getPos().z() << 4, 16, 16, 16));
+                new BlockBox(chunk.getPos().x() << 4, sectionY << 4, chunk.getPos().z() << 4, 16, 16, 16));
             long bytes = 32_768L;
             for (BlockEntitySample sample : entities.values()) {
                 bytes += sample.bytes() + 48L;

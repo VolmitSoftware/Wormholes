@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network;
 
+import art.arcane.optics.math.CellKeys;
+
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import art.arcane.wormholes.modded.MinecraftJsonDocuments;
 import art.arcane.wormholes.modded.MinecraftPacketBlobs;
@@ -10,7 +12,6 @@ import art.arcane.wormholes.network.replication.ChunkResyncRequest;
 import art.arcane.wormholes.network.replication.RemoteChunkStore;
 import art.arcane.wormholes.network.replication.ReplicationStreamKey;
 import art.arcane.wormholes.network.view.RemoteViewCache;
-import art.arcane.wormholes.network.view.ViewSlice;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
 import net.minecraft.SharedConstants;
@@ -172,7 +173,7 @@ public final class NativeViewProbe {
             int previousBulks = bulks[0];
             outgoing.add(new WireMessage.ChunkResyncRequestMessage(new ChunkResyncRequest(
                 new ReplicationStreamKey(probe.portal(), view.getSourceWorldId(),
-                    ViewSlice.columnKey(probe.sample().getX() >> 4, probe.sample().getZ() >> 4), view.getRenderMode()), 0L)));
+                    CellKeys.chunkKey(probe.sample().getX() >> 4, probe.sample().getZ() >> 4), view.getRenderMode()), 0L)));
             await(() -> bulks[0] > previousBulks, () -> poll(source, route, outgoing), "canonical resync bulk");
             outgoing.add(new WireMessage.ViewUnsubscribe(probe.portal()));
             await(outgoing::isEmpty, () -> poll(source, route, outgoing), "unsubscribe acknowledgement");

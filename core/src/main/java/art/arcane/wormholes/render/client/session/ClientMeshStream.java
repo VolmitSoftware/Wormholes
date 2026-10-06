@@ -19,7 +19,7 @@ import art.arcane.optics.stream.BrickLightSource;
 import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.plate.ViewPlate;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.client.MeshPlan;
 
 final class ClientMeshStream<B> {
@@ -252,7 +252,7 @@ final class ClientMeshStream<B> {
             || message.sequence() <= state.localSequence) {
             return false;
         }
-        PlateBox bounds = MeshPlan.bounds(state.geometry);
+        BlockBox bounds = MeshPlan.bounds(state.geometry);
         for (ClientViewMessage.MeshCoordinate section : message.sections()) {
             MeshPlan.Section target = new MeshPlan.Section(section.x(), section.y(), section.z(), 0);
             if (!inside(bounds, target)) {
@@ -301,7 +301,7 @@ final class ClientMeshStream<B> {
         return true;
     }
 
-    private static boolean inside(PlateBox bounds, MeshPlan.Section section) {
+    private static boolean inside(BlockBox bounds, MeshPlan.Section section) {
         long x = (long) section.x() * 16;
         long y = (long) section.y() * 16;
         long z = (long) section.z() * 16;
@@ -341,7 +341,7 @@ final class ClientMeshStream<B> {
         if (state == null || state.generation != message.generation() || message.sequence() <= state.cacheSequence) {
             return false;
         }
-        PlateBox bounds = MeshPlan.bounds(state.geometry);
+        BlockBox bounds = MeshPlan.bounds(state.geometry);
         HashSet<MeshPlan.Coordinate> added = new HashSet<>(state.cached.keySet());
         for (ClientViewMessage.MeshClaim claim : message.claims()) {
             MeshPlan.Section section = new MeshPlan.Section(claim.x(), claim.y(), claim.z(), 0);

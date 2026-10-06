@@ -1,6 +1,6 @@
 package art.arcane.optics.stream;
 
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 
 public record PlateSectionBox(int minSectionX, int minSectionY, int minSectionZ, int sizeX, int sizeY, int sizeZ) {
     public static final PlateSectionBox EMPTY = new PlateSectionBox(0, 0, 0, 0, 0, 0);
@@ -18,7 +18,7 @@ public record PlateSectionBox(int minSectionX, int minSectionY, int minSectionZ,
         }
     }
 
-    public static PlateSectionBox snap(PlateBox cells) {
+    public static PlateSectionBox snap(BlockBox cells) {
         if (cells.cells() == 0L) {
             return EMPTY;
         }

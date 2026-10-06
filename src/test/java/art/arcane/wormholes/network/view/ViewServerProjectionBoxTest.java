@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network.view;
 
+import art.arcane.optics.math.BlockBox;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.lang.reflect.Proxy;
@@ -27,7 +29,7 @@ public final class ViewServerProjectionBoxTest {
         try {
             ILocalPortal portal = portal(Face.E, 12);
 
-            assertEquals(new ViewBox(-54, 51, 7, 74, 79, 37), ViewServer.computeBox(portal, 64));
+            assertEquals(BlockBox.spanning(-54, 51, 7, 74, 79, 37), ViewServer.computeBox(portal, 64));
         } finally {
             Settings.PROJECTION_APERTURE_PADDING_BLOCKS = previousPadding;
         }
@@ -40,7 +42,7 @@ public final class ViewServerProjectionBoxTest {
         try {
             ILocalPortal portal = portal(Face.U, 12);
 
-            assertEquals(new ViewBox(-3, 0, 7, 27, 127, 35), ViewServer.computeBox(portal, 64));
+            assertEquals(BlockBox.spanning(-3, 0, 7, 27, 127, 35), ViewServer.computeBox(portal, 64));
         } finally {
             Settings.PROJECTION_APERTURE_PADDING_BLOCKS = previousPadding;
         }
@@ -53,7 +55,7 @@ public final class ViewServerProjectionBoxTest {
         try {
             ILocalPortal portal = portal(Face.E, 12);
 
-            assertEquals(new ViewBox(-54, 50, 6, 74, 80, 38), ViewServer.computeBox(portal, 64));
+            assertEquals(BlockBox.spanning(-54, 50, 6, 74, 80, 38), ViewServer.computeBox(portal, 64));
         } finally {
             Settings.PROJECTION_APERTURE_PADDING_BLOCKS = previousPadding;
         }
@@ -66,7 +68,7 @@ public final class ViewServerProjectionBoxTest {
         try {
             assertEquals(ViewServer.computeBox(portal(Face.E, 12), 64),
                 ViewServer.computeBox(portal(Face.W, 12), 64));
-            assertEquals(new ViewBox(-3, 51, -44, 27, 79, 84),
+            assertEquals(BlockBox.spanning(-3, 51, -44, 27, 79, 84),
                 ViewServer.computeBox(portal(Face.N, 12), 64));
             assertEquals(ViewServer.computeBox(portal(Face.N, 12), 64),
                 ViewServer.computeBox(portal(Face.S, 12), 64));

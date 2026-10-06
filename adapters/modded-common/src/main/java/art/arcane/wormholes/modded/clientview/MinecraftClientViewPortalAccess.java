@@ -30,7 +30,7 @@ import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.recursion.ClientRecursionPlanner;
 import art.arcane.wormholes.render.client.session.ClientViewPortalAccess;
 import art.arcane.optics.plate.ViewPlate;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.view.ContentView;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
@@ -169,7 +169,7 @@ public final class MinecraftClientViewPortalAccess implements ClientViewPortalAc
     }
 
     @Override
-    public ViewPlate<BlockState> meshSection(MinecraftClientViewPeer peer, UUID portalId, PlateBox clip, int distance) {
+    public ViewPlate<BlockState> meshSection(MinecraftClientViewPeer peer, UUID portalId, BlockBox clip, int distance) {
         MinecraftPortal portal = portal(peer, portalId);
         ServerPlayer player = peer.player();
         MinecraftViewPlates.Target target = portal == null || player == null ? null : target(peer, portal, front(player, portal));
@@ -178,20 +178,20 @@ public final class MinecraftClientViewPortalAccess implements ClientViewPortalAc
     }
 
     @Override
-    public boolean meshSectionQueued(MinecraftClientViewPeer peer, UUID portalId, PlateBox clip) {
+    public boolean meshSectionQueued(MinecraftClientViewPeer peer, UUID portalId, BlockBox clip) {
         MinecraftPortal portal = portal(peer, portalId);
         ServerPlayer player = peer.player();
         return portal != null && player != null && sectionQueued(peer, portal, clip, front(player, portal));
     }
 
     @Override
-    public boolean nestedMeshSectionQueued(MinecraftClientViewPeer peer, UUID parent, UUID child, PlateBox clip) {
+    public boolean nestedMeshSectionQueued(MinecraftClientViewPeer peer, UUID parent, UUID child, BlockBox clip) {
         MinecraftPortal portal = portal(peer, child);
         ServerPlayer player = peer.player();
         return portal != null && player != null && sectionQueued(peer, portal, clip, reflectedFront(peer, player, parent, portal));
     }
 
-    private boolean sectionQueued(MinecraftClientViewPeer peer, MinecraftPortal portal, PlateBox clip, boolean front) {
+    private boolean sectionQueued(MinecraftClientViewPeer peer, MinecraftPortal portal, BlockBox clip, boolean front) {
         MinecraftViewPlates.Target target = target(peer, portal, front);
         MinecraftViewPlates.Resolved resolved = target == null ? null : MinecraftViewPlates.resolve(runtime, target);
         return resolved != null && MinecraftViewPlates.sectionQueued(runtime.projections().plates(), resolved, clip);
@@ -309,7 +309,7 @@ public final class MinecraftClientViewPortalAccess implements ClientViewPortalAc
     }
 
     @Override
-    public ViewPlate<BlockState> nestedMeshSection(MinecraftClientViewPeer peer, UUID parent, UUID child, PlateBox clip, int distance) {
+    public ViewPlate<BlockState> nestedMeshSection(MinecraftClientViewPeer peer, UUID parent, UUID child, BlockBox clip, int distance) {
         MinecraftPortal portal = portal(peer, child);
         ServerPlayer player = peer.player();
         MinecraftViewPlates.Target target = portal == null || player == null ? null

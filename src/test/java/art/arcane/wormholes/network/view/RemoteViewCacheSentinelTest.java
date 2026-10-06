@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network.view;
 
+import art.arcane.optics.math.CellKeys;
+
 import com.github.retrooper.packetevents.protocol.player.Equipment;
 
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
@@ -42,7 +44,7 @@ class RemoteViewCacheSentinelTest {
         ViewSlice slice = new ViewSlice(0, 0, 0, 1, 1, 1, palette, indices, new byte[1], List.of("minecraft:plains"), new short[gridLength]);
         byte[] payload = ChunkBulkBuilder.encodeSliceBytes(slice);
         ReplicationStreamKey stream = new ReplicationStreamKey(portalId, UUID.randomUUID(),
-            ViewSlice.columnKey(0, 0), ProjectionRenderMode.PANOPTIC);
+            CellKeys.chunkKey(0, 0), ProjectionRenderMode.PANOPTIC);
         ChunkBulk bulk = new ChunkBulk(stream, 1L, payload);
 
         BlockData decoded = withBukkitServer(() -> {
@@ -68,7 +70,7 @@ class RemoteViewCacheSentinelTest {
         UUID secondWorld = UUID.randomUUID();
         cache.getOrCreate(PEER, firstPortal);
         cache.getOrCreate(PEER, secondPortal);
-        long chunkKey = ViewSlice.columnKey(0, 0);
+        long chunkKey = CellKeys.chunkKey(0, 0);
         ReplicationStreamKey firstStream = new ReplicationStreamKey(
             firstPortal,
             firstWorld,

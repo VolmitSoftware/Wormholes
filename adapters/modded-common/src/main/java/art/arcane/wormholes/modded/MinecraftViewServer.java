@@ -1,5 +1,7 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.math.CellKeys;
+
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.clientview.MinecraftPortalEnvironment;
@@ -18,7 +20,7 @@ import art.arcane.wormholes.network.replication.ReplicationStreamKey;
 import art.arcane.wormholes.network.view.BulkRetryCoordinator;
 import art.arcane.wormholes.network.view.InitialBulkWorkPump;
 import art.arcane.wormholes.network.view.InitialSubscriptionProgress;
-import art.arcane.wormholes.network.view.ViewBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.wormholes.network.view.ViewCaptureBounds;
 import art.arcane.wormholes.network.view.ViewSlice;
 import art.arcane.wormholes.network.view.ViewEntityAdmission;
@@ -253,7 +255,7 @@ public final class MinecraftViewServer implements AutoCloseable {
 
     public void blockChanged(ServerLevel level, BlockPos position) {
         runtime.requireServerThread();
-        long chunk = ViewSlice.columnKey(position.getX() >> 4, position.getZ() >> 4);
+        long chunk = CellKeys.chunkKey(position.getX() >> 4, position.getZ() >> 4);
         if (closed || !capture.isRelevant(level, chunk)) {
             return;
         }
@@ -288,13 +290,13 @@ public final class MinecraftViewServer implements AutoCloseable {
     public void biomesChanged(ServerLevel level, int chunkX, int chunkZ) {
         runtime.requireServerThread();
         if (!closed) {
-            replication.forceResync(captureAccess.worldId(level), ViewSlice.columnKey(chunkX, chunkZ));
+            replication.forceResync(captureAccess.worldId(level), CellKeys.chunkKey(chunkX, chunkZ));
         }
     }
 
     public void lightChanged(ServerLevel level, LightLayer layer, SectionPos section) {
         runtime.requireServerThread();
-        long chunk = ViewSlice.columnKey(section.x(), section.z());
+        long chunk = CellKeys.chunkKey(section.x(), section.z());
         if (closed || !capture.isRelevant(level, chunk)) {
             return;
         }
@@ -578,7 +580,7 @@ public final class MinecraftViewServer implements AutoCloseable {
         private final UUID portalId;
         private final ServerLevel level;
         private final MinecraftProjectionWorldView view;
-        private final ViewBox box;
+        private final BlockBox box;
         private final int meshDistance;
         private final Map<String, Integer> peerMeshDistances = new HashMap<>();
         private final ProjectionRenderMode mode;
@@ -605,7 +607,7 @@ public final class MinecraftViewServer implements AutoCloseable {
             bounds = new AABB(box.minX(), box.minY(), box.minZ(), box.maxX() + 1, box.maxY() + 1, box.maxZ() + 1);
             for (int x = box.minX() >> 4; x <= box.maxX() >> 4; x++) {
                 for (int z = box.minZ() >> 4; z <= box.maxZ() >> 4; z++) {
-                    streams.add(new ReplicationStreamKey(portalId, view.worldId(), ViewSlice.columnKey(x, z), mode));
+                    streams.add(new ReplicationStreamKey(portalId, view.worldId(), CellKeys.chunkKey(x, z), mode));
                 }
             }
         }

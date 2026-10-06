@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.ClientViewProtocolException;
 import art.arcane.optics.stream.SectionBiomes;
@@ -55,7 +55,7 @@ final class ClientViewCodecRoundTripTest {
     @Test
     void malformedMeshControlsThrowProtocolErrors() throws ClientViewProtocolException {
         ClientViewMessage.MeshBegin begin = new ClientViewMessage.MeshBegin(7, 1,
-            new PlateBox(0, 0, 0, 16, 16, 16), 1);
+            new BlockBox(0, 0, 0, 16, 16, 16), 1);
         byte[] badBudget = ClientViewCodec.encodeS2C(begin, 0, 0);
         badBudget[badBudget.length - 1] = 0;
         assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.decodeS2C(badBudget, ViewStreamCapability.ALL));

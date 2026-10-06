@@ -14,7 +14,7 @@ import java.util.zip.Inflater;
 
 import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.optics.aperture.ApertureDescriptor;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.BrickCodec;
 import art.arcane.optics.stream.ClientViewProtocolException;
@@ -290,7 +290,7 @@ public final class ClientViewCodec {
                 out.u8(sections.sizeX());
                 out.u8(sections.sizeY());
                 out.u8(sections.sizeZ());
-                PlateBox cells = m.cells();
+                BlockBox cells = m.cells();
                 if (cells.sizeX() > MAX_CELL_BOX_EDGE || cells.sizeY() > MAX_CELL_BOX_EDGE || cells.sizeZ() > MAX_CELL_BOX_EDGE) {
                     throw new ClientViewProtocolException("cell box edge exceeds " + MAX_CELL_BOX_EDGE);
                 }
@@ -459,7 +459,7 @@ public final class ClientViewCodec {
             case MESH_BEGIN -> {
                 int portalKey = in.varint();
                 int generation = in.i32();
-                PlateBox bounds = new PlateBox(in.i32(), in.i32(), in.i32(), in.u16(), in.u16(), in.u16());
+                BlockBox bounds = new BlockBox(in.i32(), in.i32(), in.i32(), in.u16(), in.u16(), in.u16());
                 int limit = in.varint(Integer.MAX_VALUE);
                 if (limit == 0 || bounds.cells() == 0) {
                     throw new ClientViewProtocolException("mesh view requires nonempty bounds and a resident budget");
@@ -553,7 +553,7 @@ public final class ClientViewCodec {
                 int minX = in.i32();
                 int minY = in.i32();
                 int minZ = in.i32();
-                PlateBox cells = new PlateBox(minX, minY, minZ, in.u16(), in.u16(), in.u16());
+                BlockBox cells = new BlockBox(minX, minY, minZ, in.u16(), in.u16(), in.u16());
                 int backingState = in.varint(ViewStreamLimits.MAX_SESSION_PALETTE_SIZE - 1);
                 int brickCount = in.u16();
                 if (brickCount != sections.brickCount()) {

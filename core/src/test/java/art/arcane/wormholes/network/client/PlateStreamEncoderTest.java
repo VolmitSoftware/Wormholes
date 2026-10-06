@@ -32,7 +32,7 @@ import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.scan.ProjectorSample;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.volume.LodPolicy;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.plate.PlateCell;
 import art.arcane.optics.plate.PlateGrid;
 import art.arcane.optics.plate.ViewPlate;
@@ -88,7 +88,7 @@ final class PlateStreamEncoderTest {
                 Frame.canonical(Face.S), Frame.canonical(Face.N), 11.4995, 67.4995, 20.5005,
                 200.4995, 67.4995, 200.4995, false, 0, 512, 512, 0, false, SyntheticWorld.AIR, LodPolicy.NONE, false,
                 0L, 0L, 0L, SyntheticBlocks.INSTANCE);
-        PlateBox clip = new PlateBox(0, 64, 32, 16, 16, 16);
+        BlockBox clip = new BlockBox(0, 64, 32, 16, 16, 16);
         ViewPlateBuilder.Job<String, Object> job = ViewPlateBuilder.sectionJob(request, clip);
         assertTrue(job.predictedBytes() < 32 * 1024);
         while (!job.step(128)) {
@@ -96,7 +96,7 @@ final class PlateStreamEncoderTest {
         assertEquals(clip, job.result().box());
         ViewPlateBuilder.Footprint footprint = ViewPlateBuilder.sectionFootprint(request, clip);
         assertTrue(footprint.chunkCount() <= 9);
-        PlateBox metadata = ViewPlateBuilder.sectionDestinationBox(request, clip);
+        BlockBox metadata = ViewPlateBuilder.sectionDestinationBox(request, clip);
         assertEquals(32, metadata.sizeX());
         assertEquals(32, metadata.sizeY());
         assertEquals(32, metadata.sizeZ());
@@ -125,7 +125,7 @@ final class PlateStreamEncoderTest {
         PlateStreamEncoder<String> encoder = new PlateStreamEncoder<String>(palette, state -> state);
         EncodedPlate encoded = encoder.encode(plate, null, false);
 
-        PlateBox box = plate.box();
+        BlockBox box = plate.box();
         assertEquals(box, encoded.cells());
         assertEquals(PlateSectionBox.snap(box), encoded.sections());
         assertEquals(encoded.sections().brickCount(), encoded.brickCount());
@@ -200,7 +200,7 @@ final class PlateStreamEncoderTest {
     @Test
     void aPlateWithoutBackingCellsNeverAdvertisesABuriedStateAsItsBackingState() {
         SyntheticWorld world = new SyntheticWorld(15L);
-        PlateBox box = smallPlate(world, false).box();
+        BlockBox box = smallPlate(world, false).box();
         int[] min = {Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE};
         int[] max = {Integer.MIN_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE};
         for (int corner = 0; corner < 8; corner++) {

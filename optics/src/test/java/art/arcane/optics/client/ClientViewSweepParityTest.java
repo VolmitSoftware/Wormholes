@@ -16,7 +16,7 @@ import art.arcane.optics.claim.ProjectedBlockClaim;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.volume.PlaneWindow;
 import art.arcane.optics.volume.ProjectionVolume;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
@@ -45,7 +45,7 @@ final class ClientViewSweepParityTest {
                                 frame, front, false, 0, 2.0D, padding, 0.2D, 8, 0, ApertureDescriptor.BLACKOUT_OFF, 0,
                                 ApertureDescriptor.MASK_AIR_PROJECT, ProjectedBlockClaim.LightingPolicy.LOCAL, 0,
                                 ApertureDescriptor.KIND_FRAME, 0.0D, 0, 0L, List.of())).orElseThrow();
-                            PlateBox bounds = new PlateBox(-31, -34, -29, 25, 25, 25);
+                            BlockBox bounds = new BlockBox(-31, -34, -29, 25, 25, 25);
                             ClientSweep sweep = new ClientSweep(geometry, bounds, hysteresis);
                             LongOpenHashSet previous = new LongOpenHashSet();
                             for (int step = 0; step < 3; step++) {
@@ -92,7 +92,7 @@ final class ClientViewSweepParityTest {
         return aperture;
     }
 
-    private static LongOpenHashSet perCellMask(ApertureDescriptor geometry, PlateBox bounds, Vec3d eye, double padding) {
+    private static LongOpenHashSet perCellMask(ApertureDescriptor geometry, BlockBox bounds, Vec3d eye, double padding) {
         ApertureCells aperture = geometry.aperture();
         Box area = aperture.getArea();
         Vec3d origin = area.center();

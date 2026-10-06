@@ -16,7 +16,7 @@ import art.arcane.optics.frame.Frame;
 import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.optics.claim.ProjectedBlockClaim;
 import art.arcane.optics.math.CellKeys;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
@@ -31,7 +31,7 @@ final class ClientViewSweepTest {
     void entersStayInsideTheInnerConeAndExitsStayOutsideTheOuterCone() {
         ClientSweepScene scene = ClientSweepScene.rtpWall(32, 24);
         ApertureDescriptor geometry = scene.geometry(true, ApertureDescriptor.BLACKOUT_OFF);
-        PlateBox bounds = scene.bounds(true);
+        BlockBox bounds = scene.bounds(true);
         ClientSweep sweep = new ClientSweep(geometry, bounds, HYSTERESIS);
         LongOpenHashSet mirror = new LongOpenHashSet();
         Random random = new Random(0x4157L);
@@ -153,11 +153,11 @@ final class ClientViewSweepTest {
     void reconfiguringTheBoundsKeepsSharedCellsAndExitsTheRest() {
         ClientSweepScene scene = ClientSweepScene.rtpWall(32, 24);
         ApertureDescriptor geometry = scene.geometry(true, ApertureDescriptor.BLACKOUT_OFF);
-        PlateBox bounds = scene.bounds(true);
+        BlockBox bounds = scene.bounds(true);
         ClientSweep sweep = new ClientSweep(geometry, bounds, HYSTERESIS);
         sweep.sweep(4.0D, 65.5D, 0.5D, 0.0D, 0.0D, 0.0D);
         LongOpenHashSet before = new LongOpenHashSet(sweep.entered());
-        PlateBox shallow = PlateBox.spanning(-16, bounds.minY(), bounds.minZ(), -1, bounds.minY() + bounds.sizeY() - 1,
+        BlockBox shallow = BlockBox.spanning(-16, bounds.minY(), bounds.minZ(), -1, bounds.minY() + bounds.sizeY() - 1,
             bounds.minZ() + bounds.sizeZ() - 1);
         sweep.reconfigure(geometry, shallow);
         LongOpenHashSet dropped = new LongOpenHashSet(sweep.exited());
@@ -320,11 +320,11 @@ final class ClientViewSweepTest {
             ClientSweepScene.NEAR_PLANE_PADDING, ClientSweepScene.APERTURE_PADDING, ClientSweepScene.CULLING_RATIO, 64, 0,
             ApertureDescriptor.BLACKOUT_OFF, 0, ApertureDescriptor.MASK_AIR_PROJECT, ProjectedBlockClaim.LightingPolicy.SOURCE, 0,
             mirror ? ApertureDescriptor.KIND_FRAME : ApertureDescriptor.KIND_RTP, 0.0D, 0, 0L, List.of())).orElseThrow();
-        PlateBox bounds = ClientSweepScene.plateBox(area, frame, origin, frontSide, 64, 40, ClientSweepScene.APERTURE_PADDING);
+        BlockBox bounds = ClientSweepScene.plateBox(area, frame, origin, frontSide, 64, 40, ClientSweepScene.APERTURE_PADDING);
         return new ClientSweep(geometry, bounds, HYSTERESIS);
     }
 
-    private static LongOpenHashSet fresh(ApertureDescriptor geometry, PlateBox bounds, double hysteresis, double x, double y, double z) {
+    private static LongOpenHashSet fresh(ApertureDescriptor geometry, BlockBox bounds, double hysteresis, double x, double y, double z) {
         ClientSweep sweep = new ClientSweep(geometry, bounds, hysteresis);
         sweep.sweep(x, y, z, 0.0D, 0.0D, 0.0D);
         LongArrayList entered = sweep.entered();

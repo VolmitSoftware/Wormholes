@@ -9,7 +9,7 @@ import art.arcane.optics.stream.PlateSectionBox;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.client.ClientOverlapResolver;
 import art.arcane.optics.client.ClientSweep;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -547,7 +547,7 @@ public final class ClientViewTick implements ClientViewSession.Sink {
         ClientPlate plate = portal.plate();
         PlateSectionBox sections = plate.sections();
         ClientSweep sweep = portal.sweep();
-        PlateBox bounds = sweep.bounds();
+        BlockBox bounds = sweep.bounds();
         LongArrayList pending = portal.pendingEnters();
         IntIterator bricks = portal.touchedBricks().iterator();
         while (bricks.hasNext()) {
@@ -731,7 +731,7 @@ public final class ClientViewTick implements ClientViewSession.Sink {
             return;
         }
         ClientSweep sweep = portal.sweep();
-        PlateBox bounds = sweep.bounds();
+        BlockBox bounds = sweep.bounds();
         int minX = Math.max(sectionX << 4, bounds.minX());
         int minY = Math.max(sectionY << 4, bounds.minY());
         int minZ = Math.max(sectionZ << 4, bounds.minZ());

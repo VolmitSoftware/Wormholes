@@ -2,7 +2,7 @@ package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.wormholes.modded.clientview.MinecraftLightSnapshot;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.fidelity.BlockEntityMaterials;
 import art.arcane.optics.fidelity.BlockEntitySample;
@@ -98,7 +98,7 @@ final class MinecraftPlateCaptureSource implements PlateCaptureJob.Source<Server
             }
         }
         MinecraftLightSnapshot light = environment ? MinecraftLightSnapshot.capture(world,
-            new PlateBox(chunkX << 4, minY, chunkZ << 4, 16, maxY - minY + 1, 16)) : null;
+            new BlockBox(chunkX << 4, minY, chunkZ << 4, 16, maxY - minY + 1, 16)) : null;
         CapturedChunk captured = new CapturedChunk(minSection, sections, samples, samples.size() < PlateCaptureJob.MAX_BLOCK_ENTITIES_PER_CHUNK,
             light, biomeMin, biomes);
         runtime.projections().plateSnapshots().put(new MinecraftPlateSnapshotCache.Key(chunkX, chunkZ, options), chunk, world.getGameTime(), captured);

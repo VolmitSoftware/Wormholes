@@ -1,5 +1,7 @@
 package art.arcane.optics.plate;
 
+import art.arcane.optics.math.BlockBox;
+
 import java.util.Objects;
 import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.optics.aperture.CellAperture;
@@ -139,24 +141,24 @@ public final class ViewPlateBuilder {
         return geometry.footprint(request.buriedCellCulling() ? BURIED_PROBE_MARGIN : 0);
     }
 
-    public static <B, M, W, V extends ContentView<B, M>> Job<B, W> sectionJob(Request<B, M, V> request, PlateBox clip) {
+    public static <B, M, W, V extends ContentView<B, M>> Job<B, W> sectionJob(Request<B, M, V> request, BlockBox clip) {
         requireSection(clip);
         return new BuildJob<B, M, W, V>(request, null, null, clip);
     }
 
-    public static <B, M, V extends ContentView<B, M>> Footprint sectionFootprint(Request<B, M, V> request, PlateBox clip) {
+    public static <B, M, V extends ContentView<B, M>> Footprint sectionFootprint(Request<B, M, V> request, BlockBox clip) {
         requireSection(clip);
-        PlateBox remote = sectionDestinationBox(request, clip);
+        BlockBox remote = sectionDestinationBox(request, clip);
         return new Footprint(remote.minX() >> 4, remote.minZ() >> 4, (remote.minX() + remote.sizeX() - 1) >> 4,
             (remote.minZ() + remote.sizeZ() - 1) >> 4, ViewPlate.predictBytes(clip) + 8192);
     }
 
-    public static <B, M, V extends ContentView<B, M>> PlateBox sectionDestinationBox(Request<B, M, V> request, PlateBox clip) {
+    public static <B, M, V extends ContentView<B, M>> BlockBox sectionDestinationBox(Request<B, M, V> request, BlockBox clip) {
         requireSection(clip);
         return new Geometry(request, clip).remoteBox(clip, SectionBiomes.PADDING);
     }
 
-    private static void requireSection(PlateBox clip) {
+    private static void requireSection(BlockBox clip) {
         Objects.requireNonNull(clip, "clip");
         if (clip.sizeX() > 16 || clip.sizeY() > 16 || clip.sizeZ() > 16) {
             throw new IllegalArgumentException("section clip exceeds 16 blocks: " + clip);
@@ -197,9 +199,9 @@ public final class ViewPlateBuilder {
         private final double maxDepth;
         private final double facingNormal;
         private final double originNormal;
-        private final PlateBox box;
+        private final BlockBox box;
 
-        private Geometry(Request<?, ?, ?> request, PlateBox clip) {
+        private Geometry(Request<?, ?, ?> request, BlockBox clip) {
             this.axisMin = new int[3];
             this.axisMax = new int[3];
             boolean frontSide = request.key().frontSide();
@@ -247,7 +249,7 @@ public final class ViewPlateBuilder {
             this.normalStep = towardPositive ? 1 : -1;
             this.normalStart = towardPositive ? axisMin[normalAxis] : axisMax[normalAxis];
             this.normalEnd = towardPositive ? axisMax[normalAxis] : axisMin[normalAxis];
-            this.box = PlateBox.spanning(axisMin[0], axisMin[1], axisMin[2], axisMax[0], axisMax[1], axisMax[2]);
+            this.box = BlockBox.spanning(axisMin[0], axisMin[1], axisMin[2], axisMax[0], axisMax[1], axisMax[2]);
         }
 
         private boolean empty() {
@@ -255,7 +257,7 @@ public final class ViewPlateBuilder {
         }
 
         private Footprint footprint(int margin) {
-            PlateBox remote = remoteBox(margin);
+            BlockBox remote = remoteBox(margin);
             if (remote.cells() == 0L) {
                 return new Footprint(0, 0, -1, -1, ViewPlate.predictBytes(box));
             }
@@ -264,11 +266,11 @@ public final class ViewPlateBuilder {
                 ViewPlate.predictBytes(box));
         }
 
-        private PlateBox remoteBox(int margin) {
+        private BlockBox remoteBox(int margin) {
             return remoteBox(box, margin);
         }
 
-        private PlateBox remoteBox(PlateBox source, int margin) {
+        private BlockBox remoteBox(BlockBox source, int margin) {
             return transform.box(source, margin);
         }
 
@@ -299,7 +301,7 @@ public final class ViewPlateBuilder {
         private final PlateOcclusionField<B, M> occlusion;
         private final AxisPermutation permutation;
         private final PlateGrid.Writer<B> grid;
-        private final PlateBox section;
+        private final BlockBox section;
         private final LongOpenHashSet dirtyChunks;
         private final double[] scratchRemote;
         private final int[] cellCoords;
@@ -316,14 +318,14 @@ public final class ViewPlateBuilder {
         private ViewPlate<B> result;
         private PlateEnvironment environment;
 
-        private BuildJob(Request<B, M, V> request, ViewPlate<B> previous, LongOpenHashSet dirtyChunks, PlateBox clip) {
+        private BuildJob(Request<B, M, V> request, ViewPlate<B> previous, LongOpenHashSet dirtyChunks, BlockBox clip) {
             super(request.key());
             this.request = request;
             this.section = clip;
             this.view = request.destView();
             this.geometry = new Geometry(request, clip);
             this.occlusion = new PlateOcclusionField<B, M>(view, request.blocks(),
-                request.buriedCellCulling() ? geometry.remoteBox(BURIED_PROBE_MARGIN) : PlateBox.EMPTY);
+                request.buriedCellCulling() ? geometry.remoteBox(BURIED_PROBE_MARGIN) : BlockBox.EMPTY);
             this.permutation = geometry.transform.permutation().inverse();
             boolean patching = previous != null && previous.grid().box().equals(geometry.box);
             this.grid = patching ? new PlateGrid.Writer<B>(previous.grid()) : new PlateGrid.Writer<B>(geometry.box);
@@ -513,7 +515,7 @@ public final class ViewPlateBuilder {
             done = true;
             UUID worldId = view.worldId();
             if (section != null) {
-                PlateBox metadata = geometry.remoteBox(section, SectionBiomes.PADDING);
+                BlockBox metadata = geometry.remoteBox(section, SectionBiomes.PADDING);
                 noteChunk(metadata.minX() >> 4, metadata.minZ() >> 4);
                 noteChunk((metadata.minX() + metadata.sizeX() - 1) >> 4, (metadata.minZ() + metadata.sizeZ() - 1) >> 4);
             }

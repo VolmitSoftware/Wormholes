@@ -1,5 +1,7 @@
 package art.arcane.optics.plate;
 
+import art.arcane.optics.math.BlockBox;
+
 import art.arcane.optics.stream.BrickLightSource;
 import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.optics.frame.Frame;
@@ -24,7 +26,7 @@ final class PlateEnvironmentTest {
         when(view.getLight(anyInt(), anyInt(), anyInt())).thenAnswer(call -> ContentView.packLight(13, (int) call.getArgument(1) & 15));
         Frame frame = Frame.canonical(Face.N);
         OpticTransform transform = OpticTransform.between(frame, 0, 0, 0, frame, -8, 0, 0);
-        PlateEnvironment environment = PlateEnvironment.capture(new PlateBox(0, -16, 0, 16, 16, 16), transform, view);
+        PlateEnvironment environment = PlateEnvironment.capture(new BlockBox(0, -16, 0, 16, 16, 16), transform, view);
         assertNotNull(environment);
         assertTrue(environment.bytes() < 4096, "uniform sky must not retain a full light channel");
         when(view.sampleBiome(anyInt(), anyInt(), anyInt())).thenThrow(new IllegalStateException("unloaded"));
@@ -48,7 +50,7 @@ final class PlateEnvironmentTest {
         when(view.getLight(anyInt(), anyInt(), anyInt())).thenReturn(ContentView.packLight(15, 0));
         Frame frame = Frame.canonical(Face.N);
         OpticTransform transform = OpticTransform.between(frame, 0, 0, 0, frame, 0, 0, 0);
-        PlateEnvironment environment = PlateEnvironment.capture(new PlateBox(0, 0, 0, 16, 16, 16), transform, view);
+        PlateEnvironment environment = PlateEnvironment.capture(new BlockBox(0, 0, 0, 16, 16, 16), transform, view);
         assertNotNull(environment);
         when(view.sampleBiome(anyInt(), anyInt(), anyInt())).thenThrow(new IllegalStateException("unloaded"));
         for (int x = -7; x <= 7; x++) {
@@ -64,7 +66,7 @@ final class PlateEnvironmentTest {
         ContentView<String, String> view = mock(ContentView.class);
         Frame frame = Frame.canonical(Face.N);
         OpticTransform transform = OpticTransform.between(frame, 0, 0, 0, frame, 0, 0, 0);
-        PlateBox box = new PlateBox(0, 0, 0, 16, 16, 16);
+        BlockBox box = new BlockBox(0, 0, 0, 16, 16, 16);
         assertNull(PlateEnvironment.capture(box, transform, view));
         when(view.sampleBiome(anyInt(), anyInt(), anyInt())).thenReturn("test:plains");
         when(view.getLight(anyInt(), anyInt(), anyInt())).thenReturn(ContentView.LIGHT_UNAVAILABLE);

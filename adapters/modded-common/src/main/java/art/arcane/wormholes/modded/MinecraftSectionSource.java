@@ -1,5 +1,7 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.math.CellKeys;
+
 import art.arcane.optics.view.CachedSection;
 import art.arcane.optics.view.SectionCache;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -55,7 +57,7 @@ final class MinecraftSectionSource implements SectionCache.Source<BlockState, Bl
 
     @Override
     public void discardColumn(int chunkX, int chunkZ) {
-        chunks.remove(columnKey(chunkX, chunkZ));
+        chunks.remove(CellKeys.chunkKey(chunkX, chunkZ));
     }
 
     @Override
@@ -64,7 +66,7 @@ final class MinecraftSectionSource implements SectionCache.Source<BlockState, Bl
     }
 
     private LevelChunk chunk(int chunkX, int chunkZ) {
-        long key = columnKey(chunkX, chunkZ);
+        long key = CellKeys.chunkKey(chunkX, chunkZ);
         LevelChunk cached = chunks.get(key);
         if (cached != null) {
             return cached;
@@ -74,9 +76,5 @@ final class MinecraftSectionSource implements SectionCache.Source<BlockState, Bl
             chunks.put(key, chunk);
         }
         return chunk;
-    }
-
-    private static long columnKey(int chunkX, int chunkZ) {
-        return (((long) chunkX) << 32) | (chunkZ & 0xFFFFFFFFL);
     }
 }

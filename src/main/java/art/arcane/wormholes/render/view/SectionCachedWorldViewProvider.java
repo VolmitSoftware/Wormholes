@@ -152,7 +152,7 @@ final class SectionCachedWorldViewProvider implements ProjectionWorldViewProvide
     }
 
     private void requestChunk(World world, int chunkX, int chunkZ, Set<Long> inFlight) {
-        Long key = Long.valueOf((((long) chunkX) << 32) | (chunkZ & 0xFFFFFFFFL));
+        Long key = Long.valueOf(CellKeys.chunkKey(chunkX, chunkZ));
         if (!inFlight.add(key)) {
             return;
         }

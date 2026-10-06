@@ -735,7 +735,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
                     block = claim.getData();
                 }
                 changed.put(key, block);
-                long chunkKey = ((long) (x >> 4) << 32) | ((z >> 4) & 0xFFFFFFFFL);
+                long chunkKey = CellKeys.chunkKey(x >> 4, z >> 4);
                 if (claim == null) {
                     LongOpenHashSet sent = sentChunks.get(chunkKey);
                     if (sent != null) {

@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network.view;
 
+import art.arcane.optics.math.BlockBox;
+
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 
@@ -180,12 +182,12 @@ public final class ViewServer implements Listener {
     static final class TicketLease implements AutoCloseable {
         final UUID portalId;
         private final World world;
-        private final ViewBox box;
+        private final BlockBox box;
         private final List<long[]> columns;
         private final List<ChunkLease> leases;
         private final AtomicBoolean released = new AtomicBoolean(false);
 
-        TicketLease(UUID portalId, World world, ViewBox box) {
+        TicketLease(UUID portalId, World world, BlockBox box) {
             this.portalId = portalId;
             this.world = world;
             this.box = box;
@@ -197,7 +199,7 @@ public final class ViewServer implements Listener {
             }
         }
 
-        boolean matches(World candidateWorld, ViewBox candidateBox) {
+        boolean matches(World candidateWorld, BlockBox candidateBox) {
             return world.equals(candidateWorld) && box.equals(candidateBox);
         }
 
@@ -254,7 +256,7 @@ public final class ViewServer implements Listener {
         network.getReplicationManager().setBulkRetryListener(bulkPipeline::retryCanonicalBulk);
     }
 
-    public static ViewBox computeBox(ILocalPortal portal, int radius) {
+    public static BlockBox computeBox(ILocalPortal portal, int radius) {
         World world = portal.getStructure().getWorld();
         return ViewCaptureBounds.compute(portal.getStructure().getArea(), portal.getFrame().getNormal(),
             new ViewCaptureBounds.Options(radius, portal.getNetworkViewLateralPad(),

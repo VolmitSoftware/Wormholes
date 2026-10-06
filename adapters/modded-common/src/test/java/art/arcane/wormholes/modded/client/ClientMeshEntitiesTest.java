@@ -9,7 +9,7 @@ import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.entity.EntitySnapshot;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.AxisPermutation;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -172,7 +172,7 @@ public class ClientMeshEntitiesTest extends MinecraftTestBase {
         ClientPalette palette = new ClientPalette(BuiltInRegistries.BLOCK);
         palette.apply(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(3, "minecraft:chest[facing=north]"))));
         ClientMeshSections store = new ClientMeshSections(palette, 1_048_576);
-        store.begin(7, 1, new PlateBox(0, 0, 0, 16, 16, 16), 1);
+        store.begin(7, 1, new BlockBox(0, 0, 0, 16, 16, 16), 1);
         byte[] light = new byte[2048];
         light[0] = 7;
         store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 0, oneBlock(3).withLight(light, new byte[2048]), SectionBiomes.NONE));
@@ -200,7 +200,7 @@ public class ClientMeshEntitiesTest extends MinecraftTestBase {
         water.initCache();
         assertFalse(water.getFluidState().isEmpty());
         ClientMeshSections store = new ClientMeshSections(palette, 1_048_576);
-        store.begin(7, 1, new PlateBox(0, 0, 0, 16, 16, 16), 1);
+        store.begin(7, 1, new BlockBox(0, 0, 0, 16, 16, 16), 1);
         store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 0, oneBlock(3), SectionBiomes.NONE));
         ClientLevel level = mock(ClientLevel.class);
         ClientMeshEntities scene = new ClientMeshEntities(store.view(7), level);
@@ -230,7 +230,7 @@ public class ClientMeshEntitiesTest extends MinecraftTestBase {
             new ClientViewMessage.PaletteEntry(3, "minecraft:chest[facing=north,type=left,waterlogged=false]"),
             new ClientViewMessage.PaletteEntry(4, "minecraft:chest[facing=north,type=right,waterlogged=false]"))));
         ClientMeshSections store = new ClientMeshSections(palette, 1_048_576);
-        store.begin(7, 1, new PlateBox(0, 0, 0, 16, 16, 16), 1);
+        store.begin(7, 1, new BlockBox(0, 0, 0, 16, 16, 16), 1);
         BlockState left = Blocks.CHEST.defaultBlockState().setValue(ChestBlock.TYPE, ChestType.LEFT);
         BlockPos connected = ChestBlock.getConnectedBlockPos(BlockPos.ZERO, left);
         BlockPos display = new BlockPos(8, 8, 8);
@@ -279,7 +279,7 @@ public class ClientMeshEntitiesTest extends MinecraftTestBase {
         palette.apply(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(3, "minecraft:chest[facing=east]"),
             new ClientViewMessage.PaletteEntry(4, "minecraft:oak_sign[rotation=8]"))));
         ClientMeshSections store = new ClientMeshSections(palette, 1_048_576);
-        store.begin(7, 1, new PlateBox(-16, -16, -16, 16, 16, 16), 1);
+        store.begin(7, 1, new BlockBox(-16, -16, -16, 16, 16, 16), 1);
         store.put(new ClientViewMessage.MeshSection(7, 1, -1, -1, -1, 1, 0, oneBlock(3), SectionBiomes.NONE));
         ClientLevel level = mock(ClientLevel.class);
         ClientMeshEntities scene = new ClientMeshEntities(store.view(7), level);
@@ -309,7 +309,7 @@ public class ClientMeshEntitiesTest extends MinecraftTestBase {
         palette.apply(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(3, "minecraft:chest"),
             new ClientViewMessage.PaletteEntry(4, "minecraft:stone"))));
         ClientMeshSections store = new ClientMeshSections(palette, 1_048_576);
-        store.begin(7, 1, new PlateBox(0, 0, 0, 32, 16, 16), 2);
+        store.begin(7, 1, new BlockBox(0, 0, 0, 32, 16, 16), 2);
         store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 0, oneBlock(4), SectionBiomes.NONE));
         store.put(new ClientViewMessage.MeshSection(7, 1, 1, 0, 0, 1, 0, oneBlock(3), SectionBiomes.NONE));
         long chestKey = SectionPos.asLong(1, 0, 0);
@@ -341,7 +341,7 @@ public class ClientMeshEntitiesTest extends MinecraftTestBase {
         ClientPalette palette = new ClientPalette(BuiltInRegistries.BLOCK);
         palette.apply(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(3, "minecraft:dragon_head[powered=true]"))));
         ClientMeshSections store = new ClientMeshSections(palette, 1_048_576);
-        store.begin(7, 1, new PlateBox(0, 0, 0, 16, 16, 16), 1);
+        store.begin(7, 1, new BlockBox(0, 0, 0, 16, 16, 16), 1);
         store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 0, oneBlock(3), SectionBiomes.NONE));
         ClientLevel level = mock(ClientLevel.class);
         ClientMeshEntities scene = new ClientMeshEntities(store.view(7), level);
@@ -361,7 +361,7 @@ public class ClientMeshEntitiesTest extends MinecraftTestBase {
         ClientPalette palette = new ClientPalette(BuiltInRegistries.BLOCK);
         palette.apply(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(3, "minecraft:dragon_head[powered=true]"))));
         ClientMeshSections store = new ClientMeshSections(palette, 1_048_576);
-        store.begin(7, 1, new PlateBox(0, 0, 0, 32, 16, 16), 2);
+        store.begin(7, 1, new BlockBox(0, 0, 0, 32, 16, 16), 2);
         store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 0, Brick.empty(0), SectionBiomes.NONE));
         store.put(new ClientViewMessage.MeshSection(7, 1, 1, 0, 0, 1, 0, oneBlock(3), SectionBiomes.NONE));
         ClientMeshSections.View view = mock(ClientMeshSections.View.class, delegatesTo(store.view(7)));

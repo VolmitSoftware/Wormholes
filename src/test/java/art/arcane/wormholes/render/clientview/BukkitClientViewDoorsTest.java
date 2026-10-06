@@ -14,7 +14,7 @@ import art.arcane.wormholes.portal.ProjectionRenderMode;
 import art.arcane.wormholes.render.ClientViewPortalSource;
 import art.arcane.wormholes.render.PortalProjector;
 import art.arcane.optics.aperture.ApertureDescriptor;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.math.Face;
 import com.github.retrooper.packetevents.protocol.ConnectionState;
 import org.bukkit.Location;
@@ -220,7 +220,7 @@ final class BukkitClientViewDoorsTest {
             assertEquals(ApertureDescriptor.BLACKOUT_OFF, geometry.blackoutPolicy());
             assertNotEquals(0L, geometry.targetIdentity());
             long revision = access.geometryRevision(observer, door.getId());
-            PlateBox clip = new PlateBox(0, 64, 0, 16, 16, 16);
+            BlockBox clip = new BlockBox(0, 64, 0, 16, 16, 16);
             assertNull(access.meshSection(observer, door.getId(), clip, 208));
             assertEquals(1, fixture.jobs.size());
             long firstIdentity = fixture.jobs.getFirst().key().targetIdentity();

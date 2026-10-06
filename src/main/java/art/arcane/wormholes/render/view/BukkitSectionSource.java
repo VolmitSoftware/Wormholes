@@ -1,5 +1,7 @@
 package art.arcane.wormholes.render.view;
 
+import art.arcane.optics.math.CellKeys;
+
 import art.arcane.wormholes.platform.WormholesPlatform;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import org.bukkit.ChunkSnapshot;
@@ -27,7 +29,7 @@ final class BukkitSectionSource implements SectionCache.Source<BlockData, Materi
 
     @Override
     public boolean columnAvailable(int chunkX, int chunkZ) {
-        return snapshots.containsKey(columnKey(chunkX, chunkZ)) || world.isChunkLoaded(chunkX, chunkZ);
+        return snapshots.containsKey(CellKeys.chunkKey(chunkX, chunkZ)) || world.isChunkLoaded(chunkX, chunkZ);
     }
 
     @Override
@@ -52,7 +54,7 @@ final class BukkitSectionSource implements SectionCache.Source<BlockData, Materi
 
     @Override
     public void discardColumn(int chunkX, int chunkZ) {
-        snapshots.remove(columnKey(chunkX, chunkZ));
+        snapshots.remove(CellKeys.chunkKey(chunkX, chunkZ));
     }
 
     @Override
@@ -61,7 +63,7 @@ final class BukkitSectionSource implements SectionCache.Source<BlockData, Materi
     }
 
     private ChunkSnapshot snapshot(int chunkX, int chunkZ) {
-        long key = columnKey(chunkX, chunkZ);
+        long key = CellKeys.chunkKey(chunkX, chunkZ);
         ChunkSnapshot snapshot = snapshots.get(key);
         if (snapshot != null) {
             return snapshot;
@@ -91,9 +93,5 @@ final class BukkitSectionSource implements SectionCache.Source<BlockData, Materi
         } catch (IllegalArgumentException unsupported) {
             return null;
         }
-    }
-
-    private static long columnKey(int chunkX, int chunkZ) {
-        return (((long) chunkX) << 32) | (chunkZ & 0xFFFFFFFFL);
     }
 }

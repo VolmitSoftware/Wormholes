@@ -9,7 +9,7 @@ import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.ClientViewProtocolException;
 import art.arcane.optics.stream.PlateSectionBox;
 import art.arcane.optics.client.ClientSweep;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import org.junit.After;
 import org.junit.Test;
 
@@ -37,7 +37,7 @@ public class ClientViewFailureTest extends MinecraftTestBase {
     public void aPlateBoxTheSweepCannotHoldIsRefusedInsteadOfCrashingTheTick() throws ClientViewProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.receive(new ClientViewMessage.Portal(ClientViewHarness.PORTAL_KEY, 1, ClientViewHarness.geometry()), 0);
-        PlateBox cells = new PlateBox(-8, 56, 0, 300, 200, 300);
+        BlockBox cells = new BlockBox(-8, 56, 0, 300, 200, 300);
         assertTrue(cells.cells() > ClientSweep.MAX_BOUNDS_CELLS);
         PlateSectionBox sections = PlateSectionBox.snap(cells);
         long[] hashes = new long[sections.brickCount()];
@@ -178,7 +178,7 @@ public class ClientViewFailureTest extends MinecraftTestBase {
         assertEquals(2L, harness.sent.stream().filter(message -> message instanceof ClientViewMessage.Hello).count());
         harness.receive(new ClientViewMessage.SessionReset(ClientViewMessage.ResetReason.PROTOCOL), 0);
         harness.receive(new ClientViewMessage.Portal(ClientViewHarness.PORTAL_KEY, 2, ClientViewHarness.geometry()), 0);
-        harness.receive(new ClientViewMessage.MeshBegin(ClientViewHarness.PORTAL_KEY, 2, new PlateBox(-16, 48, -16, 48, 48, 48), 27), 0);
+        harness.receive(new ClientViewMessage.MeshBegin(ClientViewHarness.PORTAL_KEY, 2, new BlockBox(-16, 48, -16, 48, 48, 48), 27), 0);
         harness.tick(EYE_X, EYE_Y, EYE_Z);
         assertEquals(ClientViewSession.State.CLIENT_VIEW, harness.session.state());
         assertTrue(harness.session.meshes().view(ClientViewHarness.PORTAL_KEY) != null);

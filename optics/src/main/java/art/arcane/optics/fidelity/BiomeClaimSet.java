@@ -179,7 +179,7 @@ public final class BiomeClaimSet {
     }
 
     private int[] localColumn(int chunkX, int chunkZ) {
-        long chunkKey = (((long) chunkX) << 32) | (chunkZ & 0xFFFFFFFFL);
+        long chunkKey = CellKeys.chunkKey(chunkX, chunkZ);
         int[] cached = localColumns.get(chunkKey);
         if (cached != null) {
             return cached;
@@ -204,7 +204,7 @@ public final class BiomeClaimSet {
     static long chunkKeyOf(long quartCell) {
         int chunkX = CellKeys.unpackX(quartCell) >> 2;
         int chunkZ = CellKeys.unpackZ(quartCell) >> 2;
-        return (((long) chunkX) << 32) | (chunkZ & 0xFFFFFFFFL);
+        return CellKeys.chunkKey(chunkX, chunkZ);
     }
 
     static int cellIndex(int qx, int qy, int qz) {

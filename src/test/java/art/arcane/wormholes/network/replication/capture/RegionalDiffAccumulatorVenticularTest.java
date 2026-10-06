@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network.replication.capture;
 
+import art.arcane.optics.math.CellKeys;
+
 import art.arcane.wormholes.network.replication.BlockChange;
 import art.arcane.wormholes.network.replication.BlockChangeFeed;
 import art.arcane.wormholes.network.replication.BlockEntityDiff;
@@ -7,7 +9,6 @@ import art.arcane.wormholes.network.replication.ChunkReplicationManager;
 import art.arcane.wormholes.network.replication.LightDiff;
 import art.arcane.wormholes.network.replication.ReplicationTestStream;
 import art.arcane.wormholes.network.replication.TestNetworkSink;
-import art.arcane.wormholes.network.view.ViewSlice;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
 
 import org.bukkit.World;
@@ -87,7 +88,7 @@ class RegionalDiffAccumulatorVenticularTest {
             ChunkReplicationManager replication = sink.getReplicationManager();
             this.world = fakeWorld(UUID.randomUUID());
             UUID portalId = UUID.randomUUID();
-            this.chunkKey = ViewSlice.columnKey(0, 0);
+            this.chunkKey = CellKeys.chunkKey(0, 0);
             replication.subscribe(PEER, portalId, world.getUID(),
                 ReplicationTestStream.stream(portalId, world, chunkKey, ProjectionRenderMode.VENTICULAR));
             this.feed = new CapturingFeed();

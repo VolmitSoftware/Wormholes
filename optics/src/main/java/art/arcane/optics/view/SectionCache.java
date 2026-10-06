@@ -183,7 +183,7 @@ public final class SectionCache<B, M> {
             if (!limits.enabled() || sectionY < minSectionY || sectionY > maxSectionY) {
                 return;
             }
-            long column = columnKey(sectionX, sectionZ);
+            long column = CellKeys.chunkKey(sectionX, sectionZ);
             if (!openedColumns.contains(column)) {
                 if (!source.columnAvailable(sectionX, sectionZ)) {
                     return;
@@ -191,7 +191,7 @@ public final class SectionCache<B, M> {
                 columnsOpened++;
                 openedColumns.add(column);
             }
-            long key = key(sectionX, sectionY, sectionZ);
+            long key = CellKeys.sectionKey(sectionX, sectionY, sectionZ);
             builder.reset();
             if (!source.capture(sectionX, sectionY, sectionZ, builder)) {
                 return;
@@ -201,7 +201,7 @@ public final class SectionCache<B, M> {
         }
 
         public boolean hasColumn(int chunkX, int chunkZ) {
-            return columns.containsKey(columnKey(chunkX, chunkZ));
+            return columns.containsKey(CellKeys.chunkKey(chunkX, chunkZ));
         }
 
         public int size() {
@@ -212,7 +212,7 @@ public final class SectionCache<B, M> {
             int chunkX = x >> 4;
             int chunkZ = z >> 4;
             source.discardColumn(chunkX, chunkZ);
-            CachedSection<B, M> section = sections.get(key(chunkX, y >> 4, chunkZ));
+            CachedSection<B, M> section = sections.get(CellKeys.sectionKey(chunkX, y >> 4, chunkZ));
             if (section != null) {
                 remove(section);
             }
@@ -220,11 +220,11 @@ public final class SectionCache<B, M> {
 
         public void columnChanged(int chunkX, int chunkZ) {
             source.discardColumn(chunkX, chunkZ);
-            if (!columns.containsKey(columnKey(chunkX, chunkZ))) {
+            if (!columns.containsKey(CellKeys.chunkKey(chunkX, chunkZ))) {
                 return;
             }
             for (int sectionY = minSectionY; sectionY <= maxSectionY; sectionY++) {
-                CachedSection<B, M> section = sections.get(key(chunkX, sectionY, chunkZ));
+                CachedSection<B, M> section = sections.get(CellKeys.sectionKey(chunkX, sectionY, chunkZ));
                 if (section != null) {
                     remove(section);
                 }
@@ -251,7 +251,7 @@ public final class SectionCache<B, M> {
             if (!limits.enabled() || sectionY < minSectionY || sectionY > maxSectionY) {
                 return null;
             }
-            long key = key(sectionX, sectionY, sectionZ);
+            long key = CellKeys.sectionKey(sectionX, sectionY, sectionZ);
             CachedSection<B, M> cached = sections.get(key);
             if (cached != null && tick - cached.filledTick() < limits.ttlTicks()) {
                 cached.touch(tick);
@@ -268,7 +268,7 @@ public final class SectionCache<B, M> {
         }
 
         private CachedSection<B, M> fill(int sectionX, int sectionY, int sectionZ, long key, CachedSection<B, M> previous) {
-            long column = columnKey(sectionX, sectionZ);
+            long column = CellKeys.chunkKey(sectionX, sectionZ);
             if (!openedColumns.contains(column)) {
                 if (columnsOpened >= limits.chunksPerTick() || !source.columnAvailable(sectionX, sectionZ)) {
                     return null;
@@ -294,7 +294,7 @@ public final class SectionCache<B, M> {
                     clearNeighbourBuriedDepth(section.sectionX(), section.sectionY(), section.sectionZ());
                 }
             } else {
-                columns.addTo(columnKey(section.sectionX(), section.sectionZ()), 1);
+                columns.addTo(CellKeys.chunkKey(section.sectionX(), section.sectionZ()), 1);
                 clearPartialNeighbourBuriedDepth(section.sectionX(), section.sectionY(), section.sectionZ());
             }
             sections.put(key, section);
@@ -308,13 +308,13 @@ public final class SectionCache<B, M> {
             int sectionX = removed.sectionX();
             int sectionY = removed.sectionY();
             int sectionZ = removed.sectionZ();
-            long key = key(sectionX, sectionY, sectionZ);
+            long key = CellKeys.sectionKey(sectionX, sectionY, sectionZ);
             if (sections.get(key) != removed) {
                 return;
             }
             sections.remove(key);
             bytes -= removed.bytes();
-            long column = columnKey(sectionX, sectionZ);
+            long column = CellKeys.chunkKey(sectionX, sectionZ);
             if (columns.addTo(column, -1) <= 1) {
                 columns.remove(column);
             }
@@ -332,7 +332,7 @@ public final class SectionCache<B, M> {
                         if (!CachedSection.haloNeighbour(dx, dy, dz)) {
                             continue;
                         }
-                        CachedSection<B, M> neighbour = sections.get(key(sectionX + dx, sectionY + dy, sectionZ + dz));
+                        CachedSection<B, M> neighbour = sections.get(CellKeys.sectionKey(sectionX + dx, sectionY + dy, sectionZ + dz));
                         if (neighbour != null && neighbour.partialBuriedDepth()) {
                             neighbour.clearBuriedDepth();
                         }
@@ -348,7 +348,7 @@ public final class SectionCache<B, M> {
                         if (!CachedSection.haloNeighbour(dx, dy, dz)) {
                             continue;
                         }
-                        CachedSection<B, M> neighbour = sections.get(key(sectionX + dx, sectionY + dy, sectionZ + dz));
+                        CachedSection<B, M> neighbour = sections.get(CellKeys.sectionKey(sectionX + dx, sectionY + dy, sectionZ + dz));
                         if (neighbour != null) {
                             neighbour.clearBuriedDepth();
                         }
@@ -379,7 +379,7 @@ public final class SectionCache<B, M> {
                     }
                 }
             }
-            if (sections.get(key(sectionX, sectionY, sectionZ)) != center) {
+            if (sections.get(CellKeys.sectionKey(sectionX, sectionY, sectionZ)) != center) {
                 return false;
             }
             neighbours[CachedSection.neighbour(0, 0, 0)] = center.occludingBits();
@@ -390,14 +390,6 @@ public final class SectionCache<B, M> {
 
         private static int slot(int sectionX, int sectionY, int sectionZ) {
             return ((sectionX * 73) ^ (sectionY * 19) ^ (sectionZ * 151)) & RECENT_MASK;
-        }
-
-        private static long key(int sectionX, int sectionY, int sectionZ) {
-            return CellKeys.pack(sectionX, sectionY, sectionZ);
-        }
-
-        private static long columnKey(int chunkX, int chunkZ) {
-            return (((long) chunkX) << 32) | (chunkZ & 0xFFFFFFFFL);
         }
     }
 }

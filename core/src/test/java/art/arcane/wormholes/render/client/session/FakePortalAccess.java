@@ -11,7 +11,7 @@ import java.util.UUID;
 
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.view.WorldChangeTracker;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.wormholes.render.plate.PlateTestFixtures;
 import art.arcane.optics.plate.ViewPlateKey;
 import art.arcane.optics.stream.BrickLightSource;
@@ -33,13 +33,13 @@ final class FakePortalAccess implements ClientViewPortalAccess<String, String> {
     int meshDistance;
     WorldChangeTracker meshChanges;
     int meshCalls;
-    final List<PlateBox> meshRequests = new ArrayList<PlateBox>();
+    final List<BlockBox> meshRequests = new ArrayList<BlockBox>();
     boolean meshReady = true;
     boolean meshQueued;
     boolean localWorld;
-    final Set<PlateBox> unavailableMesh = new HashSet<PlateBox>();
+    final Set<BlockBox> unavailableMesh = new HashSet<BlockBox>();
     Vec3d eye = new Vec3d(11, 67, 15);
-    final Map<PlateBox, ViewPlate<String>> meshPlates = new HashMap<PlateBox, ViewPlate<String>>();
+    final Map<BlockBox, ViewPlate<String>> meshPlates = new HashMap<BlockBox, ViewPlate<String>>();
     int standbyCalls;
     int geometryCalls;
     int nestedCalls;
@@ -104,7 +104,7 @@ final class FakePortalAccess implements ClientViewPortalAccess<String, String> {
     }
 
     @Override
-    public ViewPlate<String> meshSection(String observer, UUID portal, PlateBox clip, int distance) {
+    public ViewPlate<String> meshSection(String observer, UUID portal, BlockBox clip, int distance) {
         meshCalls++;
         meshRequests.add(clip);
         if (!meshReady || unavailableMesh.contains(clip)) {
@@ -114,12 +114,12 @@ final class FakePortalAccess implements ClientViewPortalAccess<String, String> {
     }
 
     @Override
-    public ViewPlate<String> nestedMeshSection(String observer, UUID parent, UUID child, PlateBox clip, int distance) {
+    public ViewPlate<String> nestedMeshSection(String observer, UUID parent, UUID child, BlockBox clip, int distance) {
         return meshSection(observer, child, clip, distance);
     }
 
     @Override
-    public boolean meshSectionQueued(String observer, UUID portal, PlateBox clip) {
+    public boolean meshSectionQueued(String observer, UUID portal, BlockBox clip) {
         return meshQueued;
     }
 

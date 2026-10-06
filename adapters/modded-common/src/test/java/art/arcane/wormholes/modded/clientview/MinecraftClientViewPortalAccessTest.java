@@ -39,7 +39,7 @@ import art.arcane.optics.view.WorldChangeTracker;
 import art.arcane.optics.recursion.RecursiveEndpoints;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.plate.ViewPlateBuilder;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.plate.PlateCaptureJob;
 import art.arcane.optics.plate.ViewPlateCache;
 import art.arcane.optics.math.Box;
@@ -189,7 +189,7 @@ public class MinecraftClientViewPortalAccessTest extends MinecraftTestBase {
         long revision = portals.geometryRevision(fixture.peer(), identity.itemId());
         Object scene = portals.scene().sceneKey(fixture.peer(), identity.itemId());
         assertNotNull(scene);
-        PlateBox clip = new PlateBox(0, 64, 0, 16, 16, 16);
+        BlockBox clip = new BlockBox(0, 64, 0, 16, 16, 16);
         assertNull(portals.meshSection(fixture.peer(), identity.itemId(), clip, 208));
         assertEquals(1, fixture.scheduled().size());
         long routeIdentity = fixture.scheduled().getFirst().key().targetIdentity();
@@ -239,7 +239,7 @@ public class MinecraftClientViewPortalAccessTest extends MinecraftTestBase {
     public void meshCaptureIsBoundedAndDoesNotShareTheVanillaPlateOrAdjacentSections() {
         Fixture fixture = fixture(PortalType.PORTAL);
         MinecraftClientViewPortalAccess portals = new MinecraftClientViewPortalAccess(fixture.runtime());
-        PlateBox first = new PlateBox(-16, 64, -16, 16, 16, 16);
+        BlockBox first = new BlockBox(-16, 64, -16, 16, 16, 16);
         assertNull(portals.meshSection(fixture.peer(), fixture.source().getId(), first, 512));
         assertEquals(1, fixture.scheduled().size());
         ViewPlateBuilder.Job<BlockState, ServerLevel> firstJob = fixture.scheduled().get(0);
@@ -248,7 +248,7 @@ public class MinecraftClientViewPortalAccessTest extends MinecraftTestBase {
         assertTrue(firstJob.predictedBytes() < 32_768L);
         assertNull(portals.meshSection(fixture.peer(), fixture.source().getId(), first, 512));
         assertEquals(1, fixture.scheduled().size());
-        assertNull(portals.meshSection(fixture.peer(), fixture.source().getId(), new PlateBox(0, 64, -16, 16, 16, 16), 512));
+        assertNull(portals.meshSection(fixture.peer(), fixture.source().getId(), new BlockBox(0, 64, -16, 16, 16, 16), 512));
         assertEquals(2, fixture.scheduled().size());
         assertNotEquals(firstJob.key(), fixture.scheduled().get(1).key());
         assertNull(portals.plate(fixture.peer(), fixture.source().getId(), false));
@@ -260,7 +260,7 @@ public class MinecraftClientViewPortalAccessTest extends MinecraftTestBase {
     public void meshCapturePreservesRtpRouteIdentity() {
         Fixture fixture = fixture(PortalType.RTP);
         MinecraftClientViewPortalAccess portals = new MinecraftClientViewPortalAccess(fixture.runtime());
-        PlateBox clip = new PlateBox(0, 64, -16, 16, 16, 16);
+        BlockBox clip = new BlockBox(0, 64, -16, 16, 16, 16);
         when(fixture.rtp().plateIdentity(any(), any())).thenReturn(91L);
         assertNull(portals.meshSection(fixture.peer(), fixture.source().getId(), clip, 128));
         assertEquals(91L, fixture.scheduled().get(0).key().targetIdentity());

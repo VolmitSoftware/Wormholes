@@ -8,7 +8,7 @@ import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.volume.LodPolicy;
 import art.arcane.optics.plate.PlateCaptureJob;
 import art.arcane.optics.plate.PlateCell;
-import art.arcane.optics.plate.PlateBox;
+import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.plate.ViewPlate;
 import art.arcane.optics.plate.ViewPlateBuilder;
 import art.arcane.optics.plate.ViewPlateKey;
@@ -63,7 +63,7 @@ public class MinecraftViewPlateTest extends MinecraftTestBase {
             key, geometry, view, Frame.canonical(Face.E), Frame.canonical(Face.S),
             0.4995D, 64.4995D, 0.4995D, 20.4995D, 64.4995D, 20.4995D, false, 0,
             4, 0, 0, false, Blocks.AIR.defaultBlockState(), LodPolicy.NONE, false, 0L, 0L, 0L, MinecraftProjectorBlocks.INSTANCE);
-        ViewPlateBuilder.Job<BlockState, Object> section = ViewPlateBuilder.sectionJob(request, new PlateBox(-16, 64, 0, 16, 16, 16));
+        ViewPlateBuilder.Job<BlockState, Object> section = ViewPlateBuilder.sectionJob(request, new BlockBox(-16, 64, 0, 16, 16, 16));
         assertTrue(section.step(Integer.MAX_VALUE));
         long cell = CellKeys.pack(-1, 64, 0);
         assertSame(source, section.result().cell(cell).data());

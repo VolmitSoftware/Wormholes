@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network.view;
 
+import art.arcane.optics.math.CellKeys;
+
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.volmlib.util.scheduling.SlidingWindowRateLimiter;
 import art.arcane.wormholes.Wormholes;
@@ -102,7 +104,7 @@ final class ViewBulkPipeline {
             return;
         }
         ChunkReplicationManager replication = registry.replication();
-        long chunkKey = ViewSlice.columnKey(chunkX, chunkZ);
+        long chunkKey = CellKeys.chunkKey(chunkX, chunkZ);
         ReplicationStreamKey stream = session.streamFor(chunkKey);
         if (!registry.isSessionChunkActive(session, peerName, chunkKey)) {
             result.complete(false);
@@ -149,7 +151,7 @@ final class ViewBulkPipeline {
 
     private CompletableFuture<Boolean> sendInitialBulk(ViewSession session, String peerName, int chunkX, int chunkZ, long bulkGeneration) {
         ChunkReplicationManager replication = registry.replication();
-        long chunkKey = ViewSlice.columnKey(chunkX, chunkZ);
+        long chunkKey = CellKeys.chunkKey(chunkX, chunkZ);
         ReplicationStreamKey stream = session.streamFor(chunkKey);
         CompletableFuture<Boolean> done = new CompletableFuture<>();
         if (!registry.isSessionChunkActive(session, peerName, chunkKey)

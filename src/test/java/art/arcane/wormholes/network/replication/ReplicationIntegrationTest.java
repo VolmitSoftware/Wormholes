@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network.replication;
 
+import art.arcane.optics.math.CellKeys;
+
 import art.arcane.wormholes.network.view.BukkitRemoteViewCodec;
 
 import art.arcane.wormholes.network.WireMessage;
@@ -29,7 +31,7 @@ class ReplicationIntegrationTest {
         TestNetworkSink source = new TestNetworkSink(dir);
         ChunkReplicationManager manager = source.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
-        long chunkKey = ViewSlice.columnKey(0, 0);
+        long chunkKey = CellKeys.chunkKey(0, 0);
         manager.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         byte[] bulkPayload = synthesizeBulkPayload(0, 0, 17L);
         manager.sendBulk(PEER, world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey), bulkPayload, contentHashOf(bulkPayload));
@@ -68,7 +70,7 @@ class ReplicationIntegrationTest {
         TestNetworkSink source = new TestNetworkSink(dir);
         ChunkReplicationManager manager = source.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
-        long chunkKey = ViewSlice.columnKey(0, 0);
+        long chunkKey = CellKeys.chunkKey(0, 0);
         manager.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         byte[] bulkPayload = synthesizeBulkPayload(0, 0, 17L);
         manager.sendBulk(PEER, world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey), bulkPayload, contentHashOf(bulkPayload));
@@ -88,7 +90,7 @@ class ReplicationIntegrationTest {
     @Test
     void sequenceGapTriggersResyncRequest(@TempDir Path dir) throws IOException {
         RemoteChunkStore sink = new RemoteChunkStore(BukkitRemoteViewCodec.INSTANCE::blockEntityCandidate, new RemoteChunkStore.Options(4, 50L));
-        long chunkKey = ViewSlice.columnKey(0, 0);
+        long chunkKey = CellKeys.chunkKey(0, 0);
         ReplicationStreamKey stream = ReplicationTestStream.stream(chunkKey);
         sink.applyBulk(new ChunkBulk(stream, 1L, synthesizeBulkPayload(0, 0, 1L)));
 
@@ -112,7 +114,7 @@ class ReplicationIntegrationTest {
         TestNetworkSink source = new TestNetworkSink(dir);
         ChunkReplicationManager manager = source.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
-        long chunkKey = ViewSlice.columnKey(1, 1);
+        long chunkKey = CellKeys.chunkKey(1, 1);
         manager.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         byte[] bulkPayload = synthesizeBulkPayload(1, 1, 5L);
         manager.sendBulk(PEER, world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey), bulkPayload, contentHashOf(bulkPayload));
