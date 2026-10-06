@@ -9,20 +9,6 @@ import art.arcane.optics.math.Face;
 
 public final class PortalCoordMapFlipTest {
 	@Test
-	public void mirrorOnVerticalNormalFlipsWorldUp() {
-		assertTrue(PortalCoordMap.reflectionFlipsWorldUp(Frame.canonical(Face.U)));
-		assertTrue(PortalCoordMap.reflectionFlipsWorldUp(Frame.canonical(Face.D)));
-	}
-
-	@Test
-	public void mirrorOnWallNormalKeepsWorldUp() {
-		assertFalse(PortalCoordMap.reflectionFlipsWorldUp(Frame.canonical(Face.N)));
-		assertFalse(PortalCoordMap.reflectionFlipsWorldUp(Frame.canonical(Face.S)));
-		assertFalse(PortalCoordMap.reflectionFlipsWorldUp(Frame.canonical(Face.E)));
-		assertFalse(PortalCoordMap.reflectionFlipsWorldUp(Frame.canonical(Face.W)));
-	}
-
-	@Test
 	public void floorToCeilingTunnelFlipsWorldUp() {
 		Frame floor = Frame.canonical(Face.U);
 		Frame ceiling = Frame.canonical(Face.D);

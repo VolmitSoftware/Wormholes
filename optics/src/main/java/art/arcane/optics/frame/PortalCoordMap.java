@@ -48,10 +48,6 @@ public final class PortalCoordMap {
         mirrorVectorInto(x, y, z, frame, -quarterTurns, out3);
     }
 
-    public static boolean reflectionFlipsWorldUp(Frame planeFrame) {
-        return mirrorTransformFlipsWorldUp(planeFrame, 0);
-    }
-
     public static boolean mirrorTransformFlipsWorldUp(Frame planeFrame, int quarterTurns) {
         double right = planeFrame.getRight().y();
         double up = planeFrame.getUp().y();

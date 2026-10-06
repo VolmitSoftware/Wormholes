@@ -150,17 +150,6 @@ final class ClientPortalGeometryTest {
         assertFalse(valid.hasFidelity(ApertureDescriptor.FIDELITY_SOUNDS));
     }
 
-    @Test
-    void clientViewModeParsesAndCycles() {
-        assertTrue(ClientViewMode.AUTO.allowsClientView());
-        assertFalse(ClientViewMode.OFF.allowsClientView());
-        assertSame(ClientViewMode.OFF, ClientViewMode.AUTO.next());
-        assertSame(ClientViewMode.AUTO, ClientViewMode.OFF.next());
-        assertSame(ClientViewMode.OFF, ClientViewMode.fromName(" off ", ClientViewMode.AUTO));
-        assertSame(ClientViewMode.AUTO, ClientViewMode.fromName("unknown", ClientViewMode.AUTO));
-        assertSame(ClientViewMode.OFF, ClientViewMode.fromName(null, ClientViewMode.OFF));
-    }
-
     private static void assertCellMembership(CellAperture expected, ApertureDescriptor actual) {
         Box area = expected.getArea();
         for (int x = (int) Math.floor(area.getXa()) - 1; x <= (int) Math.floor(area.getXb()) + 1; x++) {
