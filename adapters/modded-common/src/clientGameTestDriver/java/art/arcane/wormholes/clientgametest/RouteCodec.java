@@ -25,16 +25,16 @@ final class RouteCodec {
 
     static String spec(SeamlessScenario.RouteSpec spec) {
         return level(spec.sourceLevel()) + " " + position(spec.sourceMin()) + " " + level(spec.destinationLevel()) + " "
-            + position(spec.destinationMin()) + " " + spec.orientation().name();
+            + position(spec.destinationMin()) + " " + spec.orientation().name() + " " + spec.churn();
     }
 
     static SeamlessScenario.RouteSpec spec(String text) {
         String[] fields = text.trim().split(" ");
-        if (fields.length != 5) {
-            throw new IllegalArgumentException("route spec needs 5 fields: " + text);
+        if (fields.length != 6) {
+            throw new IllegalArgumentException("route spec needs 6 fields: " + text);
         }
         return new SeamlessScenario.RouteSpec(level(fields[0]), position(fields[1]), level(fields[2]), position(fields[3]),
-            OrientationPolicy.valueOf(fields[4]));
+            OrientationPolicy.valueOf(fields[4]), Boolean.parseBoolean(fields[5]));
     }
 
     static String approach(SeamlessScenario.Route route) {

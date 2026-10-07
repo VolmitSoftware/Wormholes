@@ -28,6 +28,7 @@ import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.decoration.ItemFrame;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.ObserverBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
@@ -39,6 +40,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 import static art.arcane.wormholes.clientgametest.NativeClientViewAssertions.cells;
 import static art.arcane.wormholes.clientgametest.NativeClientViewAssertions.runtime;
@@ -50,7 +52,8 @@ final class SeamlessScenario {
     private static final int CROSSING_TIMEOUT_TICKS = 120;
     private static final int ACCEPT_TIMEOUT_TICKS = 100;
     private static final int SETTLE_TICKS = 60;
-    private static final int RETURN_VIEW_TICKS = 20;
+    static final int RETURN_VIEW_TICKS = 20;
+    static final int LOADED_RETURN_VIEW_TICKS = 100;
     private static final double CROSSING_JUMP = 4.0D;
     private static final double POSE_TOLERANCE = 1.0E-3D;
     private static final int STEP_AWAY_TICKS = 8;
@@ -71,6 +74,7 @@ final class SeamlessScenario {
         BlockPos destinationMin = spec.destinationMin();
         fill(sourceLevel, sourceMin.offset(-4, 0, -6), 11, 6, 16, Blocks.AIR.defaultBlockState());
         fill(sourceLevel, sourceMin.offset(-4, -1, -6), 11, 1, 16, Blocks.STONE.defaultBlockState());
+        fill(destinationLevel, destinationMin.offset(-7, -1, -13), 17, 8, 24, Blocks.STONE.defaultBlockState());
         fill(destinationLevel, destinationMin.offset(-6, 0, -12), 15, 6, 22, Blocks.AIR.defaultBlockState());
         fill(destinationLevel, destinationMin.offset(-6, -1, -12), 15, 1, 22, Blocks.STONE.defaultBlockState());
         BlockPos standPosition = destinationMin.offset(4, 0, -3);
@@ -83,6 +87,10 @@ final class SeamlessScenario {
         destinationLevel.setBlockAndUpdate(wall, Blocks.STONE.defaultBlockState());
         ItemFrame frame = new ItemFrame(destinationLevel, wall.relative(Direction.EAST), Direction.EAST);
         assertTrue(destinationLevel.addFreshEntity(frame), "item frame could not be placed");
+        if (spec.churn()) {
+            churn(sourceLevel, sourceMin.offset(4, 0, 2));
+            churn(destinationLevel, destinationMin.offset(4, 0, 0));
+        }
         MinecraftPortal source = runtime.portals().create(actor.getUUID(), sourceLevel, cells(sourceMin), PortalType.PORTAL, new Vec3(0, 0, -1));
         MinecraftPortal destination = runtime.portals().create(actor.getUUID(), destinationLevel, cells(destinationMin), PortalType.PORTAL, new Vec3(0, 0, -1));
         assertTrue(source != null && destination != null, "portal creation rejected");
@@ -118,6 +126,19 @@ final class SeamlessScenario {
         client.lookAt((float) Math.toDegrees(Math.atan2(-(portal.x() - feet.x), portal.z() - feet.z)), 0.0F);
         client.waitTicks(SETTLE_TICKS);
         awaitPrepared(client);
+    }
+
+    static void awaitReady(SeamlessClient client) {
+        client.waitFor(minecraft -> WormholesClient.instance().preparedTravel().readyRevision() > 0
+            && !WormholesClient.instance().preparedTravel().adopted() && !WormholesClient.instance().preparedTravel().pendingCrossing(),
+            PREPARATION_TIMEOUT_TICKS);
+    }
+
+    static void turnAround(SeamlessClient client, Vec3d portal) {
+        client.holdForwardFor(STEP_AWAY_TICKS);
+        Vec3 feet = client.computeOnClient(minecraft -> minecraft.player.position());
+        client.lookAt((float) Math.toDegrees(Math.atan2(-(portal.x() - feet.x), portal.z() - feet.z)), 0.0F);
+        awaitReady(client);
     }
 
     static void awaitPrepared(SeamlessClient client) {
@@ -182,20 +203,20 @@ final class SeamlessScenario {
         assertSamePlayer(client, crossing);
     }
 
-    static void assertSeamlessTravel(SeamlessClient client, Route route, Crossing crossing) {
+    static void assertSeamlessTravel(SeamlessClient client, Route route, Crossing crossing, int returnViewTicks) {
         boolean present = client.computeOnClient(minecraft -> minecraft.level.getEntity(route.stand()) != null
             && minecraft.level.getEntity(route.frame()) != null);
         if (!present) {
             throw new AssertionError(crossing.label() + ": destination entities were not resident on the first tick after the crossing; "
                 + client.computeOnClient(minecraft -> arrivalState(minecraft, route, crossing)));
         }
-        assertSeamless(client, crossing, route.outbound(), route.destinationMin());
+        assertSeamless(client, crossing, route.outbound(), route.destinationMin(), returnViewTicks);
         assertTrue(!TravelTap.addedAny(route.stand(), route.frame()),
             crossing.label() + ": destination entities were added again after the crossing");
     }
 
-    static void assertSeamlessReturn(SeamlessClient client, Route route, Crossing crossing) {
-        assertSeamless(client, crossing, route.inbound(), route.sourceMin());
+    static void assertSeamlessReturn(SeamlessClient client, Route route, Crossing crossing, int returnViewTicks) {
+        assertSeamless(client, crossing, route.inbound(), route.sourceMin(), returnViewTicks);
     }
 
     static void finish(SeamlessClient client, SeamlessServer server, Route route) {
@@ -209,13 +230,15 @@ final class SeamlessScenario {
         }
     }
 
-    private static void assertSeamless(SeamlessClient client, Crossing crossing, Leg leg, BlockPos returnPortal) {
+    private static void assertSeamless(SeamlessClient client, Crossing crossing, Leg leg, BlockPos returnPortal, int returnViewTicks) {
         client.waitFor(minecraft -> !WormholesClient.instance().preparedTravel().pendingCrossing(), ACCEPT_TIMEOUT_TICKS);
         boolean levelChanged = client.computeOnClient(minecraft -> minecraft.level != crossing.source());
         if (levelChanged) {
-            client.waitFor(minecraft -> WormholesClient.instance().preparedTravel().residents().handle(crossing.source()) > 0, RETURN_VIEW_TICKS);
+            client.waitFor(minecraft -> WormholesClient.instance().preparedTravel().residents().handle(crossing.source()) > 0, returnViewTicks);
         }
-        client.waitFor(minecraft -> NativeClientViewAssertions.sections(NativeClientViewAssertions.portalKey(returnPortal)) > 0, RETURN_VIEW_TICKS);
+        int returnView = ticksUntil(client, minecraft -> NativeClientViewAssertions.sections(NativeClientViewAssertions.portalKey(returnPortal)) > 0,
+            returnViewTicks, crossing.label() + ": the return view had no sections");
+        LOGGER.info("[{}] return view present {} ticks after the crossing was accepted", crossing.label(), returnView);
         client.waitTicks(SETTLE_TICKS);
         assertTrue(client.computeOnClient(minecraft -> !minecraft.levelRenderer.visibleSections().isEmpty()),
             crossing.label() + ": the main renderer draws nothing of the arrival level");
@@ -227,6 +250,16 @@ final class SeamlessScenario {
         assertTrue(!TravelTap.clientUnloaded(), crossing.label() + ": the client left the loaded state");
         assertSamePlayer(client, crossing);
         assertPoseContinuity(leg, crossing);
+    }
+
+    private static int ticksUntil(SeamlessClient client, Predicate<Minecraft> condition, int timeoutTicks, String failure) {
+        for (int tick = 0; tick <= timeoutTicks; tick++) {
+            if (client.computeOnClient(condition::test)) {
+                return tick;
+            }
+            client.waitTicks(1);
+        }
+        throw new AssertionError(failure + " within " + timeoutTicks + " ticks");
     }
 
     private static void assertPoseContinuity(Leg leg, Crossing crossing) {
@@ -280,6 +313,11 @@ final class SeamlessScenario {
         LOGGER.info("[{}] frame time median {} ms over {} frames before the crossing; worst {} ms at crossing+{}; {} of 40 frames above 2x median; crossing frame {}; {}; frames {}",
             crossing.label(), String.format("%.2f", median / 1_000_000.0D), before.length, String.format("%.2f", worst / 1_000_000.0D),
             worstFrame, slow, crossing.index(), TravelTap.events(), after);
+    }
+
+    private static void churn(ServerLevel level, BlockPos origin) {
+        level.setBlockAndUpdate(origin, Blocks.OBSERVER.defaultBlockState().setValue(ObserverBlock.FACING, Direction.EAST));
+        level.setBlockAndUpdate(origin.east(), Blocks.OBSERVER.defaultBlockState().setValue(ObserverBlock.FACING, Direction.WEST));
     }
 
     private static void fill(ServerLevel level, BlockPos min, int sizeX, int sizeY, int sizeZ, BlockState state) {
@@ -346,7 +384,7 @@ final class SeamlessScenario {
     }
 
     record RouteSpec(ResourceKey<Level> sourceLevel, BlockPos sourceMin, ResourceKey<Level> destinationLevel, BlockPos destinationMin,
-                     OrientationPolicy orientation) {
+                     OrientationPolicy orientation, boolean churn) {
     }
 
     record Route(UUID source, UUID destination, ResourceKey<Level> sourceLevel, BlockPos sourceMin, BlockPos destinationMin,

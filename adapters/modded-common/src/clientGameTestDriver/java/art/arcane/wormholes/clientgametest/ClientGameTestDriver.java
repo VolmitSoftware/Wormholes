@@ -95,13 +95,15 @@ public final class ClientGameTestDriver {
                 new Pass("cross-dimension-prepared-singleplayer", false, label -> SeamlessCrossDimension.prepared(client, server, label)),
                 new Pass("same-dimension-singleplayer", true, label -> SeamlessSameDimension.seamless(client, server, label)),
                 new Pass("cross-dimension-singleplayer-frame", true,
-                    label -> SeamlessCrossDimension.seamless(client, server, label, OrientationPolicy.FRAME)));
+                    label -> SeamlessCrossDimension.seamless(client, server, label, OrientationPolicy.FRAME)),
+                new Pass("cross-dimension-stress-singleplayer", true, label -> SeamlessCrossDimension.stress(client, server, label)));
         }
         if (Boolean.parseBoolean(System.getProperty(SERVER_SEAMLESS, "true"))) {
             return List.of(
                 new Pass("same-dimension-dedicated", true, label -> SeamlessSameDimension.seamless(client, server, label)),
                 new Pass("cross-dimension-dedicated-mirror", true,
-                    label -> SeamlessCrossDimension.seamless(client, server, label, OrientationPolicy.MIRROR)));
+                    label -> SeamlessCrossDimension.seamless(client, server, label, OrientationPolicy.MIRROR)),
+                new Pass("cross-dimension-stress-dedicated", true, label -> SeamlessCrossDimension.stress(client, server, label)));
         }
         return List.of(
             new Pass("same-dimension-prepared-dedicated", false, label -> SeamlessSameDimension.prepared(client, server, label)),

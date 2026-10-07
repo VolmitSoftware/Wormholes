@@ -39,12 +39,12 @@ final class SeamlessSameDimension {
         SeamlessScenario.awaitPrepared(client);
         SeamlessScenario.Crossing crossing = pass.turning() ? SeamlessScenario.walkThroughTurning(client, pass.label())
             : SeamlessScenario.walkThrough(client, pass.label());
-        SeamlessScenario.assertSeamlessTravel(client, route, crossing);
+        SeamlessScenario.assertSeamlessTravel(client, route, crossing, SeamlessScenario.RETURN_VIEW_TICKS);
         SeamlessScenario.finish(client, server, route);
     }
 
     private static SeamlessScenario.RouteSpec spec(BlockPos source, BlockPos destination) {
-        return new SeamlessScenario.RouteSpec(Level.OVERWORLD, source, Level.OVERWORLD, destination, OrientationPolicy.FRAME);
+        return new SeamlessScenario.RouteSpec(Level.OVERWORLD, source, Level.OVERWORLD, destination, OrientationPolicy.FRAME, false);
     }
 
     private record Pass(BlockPos source, BlockPos destination, String label, boolean turning) {

@@ -22,10 +22,19 @@ public final class SeamlessCrossDimensionClientGameTest implements FabricClientG
                 new FabricSeamlessServer(singleplayer.getServer(), singleplayer.getConnection()), "cross-dimension-singleplayer-frame",
                 OrientationPolicy.FRAME);
         }
+        try (TestSingleplayerContext singleplayer = context.worldBuilder().create()) {
+            SeamlessCrossDimension.stress(new FabricSeamlessClient(context, singleplayer.getConnection()),
+                new FabricSeamlessServer(singleplayer.getServer(), singleplayer.getConnection()), "cross-dimension-stress-singleplayer");
+        }
         try (TestDedicatedServerContext server = context.worldBuilder().createServer(ClientViewTestConfig.serverProperties());
              TestDedicatedServerConnection connection = server.connect()) {
             SeamlessCrossDimension.seamless(new FabricSeamlessClient(context, connection), new FabricSeamlessServer(server, connection),
                 "cross-dimension-dedicated-mirror", OrientationPolicy.MIRROR);
+        }
+        try (TestDedicatedServerContext server = context.worldBuilder().createServer(ClientViewTestConfig.serverProperties());
+             TestDedicatedServerConnection connection = server.connect()) {
+            SeamlessCrossDimension.stress(new FabricSeamlessClient(context, connection), new FabricSeamlessServer(server, connection),
+                "cross-dimension-stress-dedicated");
         }
     }
 }
