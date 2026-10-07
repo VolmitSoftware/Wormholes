@@ -113,11 +113,11 @@ public final class MinecraftEntityPackets implements EntityOutput<ServerPlayer, 
     }
 
     public void playerInfo(ServerPlayer observer, SpoofedEntity state, EntityProfile profile) {
-        state.playerProfile = profile;
+        state.setPlayerProfile(profile);
         String sourceName = profile == null ? null : profile.name();
-        state.setPlayerIdentity(ProjectedEntityIdentity.NAMING.projectedProfileName(sourceName, state.fakeUuid, state.upsideDown),
+        state.setPlayerIdentity(ProjectedEntityIdentity.NAMING.projectedProfileName(sourceName, state.fakeUuid(), state.upsideDown()),
             ProjectedEntityIdentity.NAMING.labelText(sourceName));
-        names.retain(observer, state.playerProfileName);
+        names.retain(observer, state.playerProfileName());
         send(observer, playerInfo(observer.level().registryAccess(), state, profile));
     }
 
@@ -142,8 +142,8 @@ public final class MinecraftEntityPackets implements EntityOutput<ServerPlayer, 
                 ClientboundPlayerInfoUpdatePacket.Action.UPDATE_LATENCY, ClientboundPlayerInfoUpdatePacket.Action.UPDATE_HAT),
                 ClientboundPlayerInfoUpdatePacket.Action.class);
             buffer.writeVarInt(1);
-            buffer.writeUUID(state.fakeUuid);
-            buffer.writeUtf(state.playerProfileName, 16);
+            buffer.writeUUID(state.fakeUuid());
+            buffer.writeUtf(state.playerProfileName(), 16);
             boolean texture = profile != null && profile.textureValue() != null && !profile.textureValue().isEmpty();
             buffer.writeVarInt(texture ? 1 : 0);
             if (texture) {
@@ -285,7 +285,7 @@ public final class MinecraftEntityPackets implements EntityOutput<ServerPlayer, 
 
     @Override
     public void releaseName(ServerPlayer observer, SpoofedEntity state) {
-        names.release(observer, state.playerProfileName);
+        names.release(observer, state.playerProfileName());
     }
 
     @Override
@@ -356,7 +356,7 @@ public final class MinecraftEntityPackets implements EntityOutput<ServerPlayer, 
     @Override
     public void spawn(ServerPlayer observer, SpoofedEntity state, SnapshotProjector.Spawn<Vec3, EntityType<?>> spawn) {
         Vec3 position = spawn.position();
-        send(observer, new ClientboundAddEntityPacket(state.fakeId, state.fakeUuid,
+        send(observer, new ClientboundAddEntityPacket(state.fakeId(), state.fakeUuid(),
             position.x, position.y, position.z, spawn.pitch(), spawn.yaw(), spawn.type(), spawn.data(), spawn.velocity(), spawn.yaw()));
     }
 
@@ -369,26 +369,26 @@ public final class MinecraftEntityPackets implements EntityOutput<ServerPlayer, 
             ProjectedMaps.Projection map = maps.project(observer, update.visual(), state,
                 new ProjectedMaps.Options(sourceMapId, update.metadataTransform(), update.initial()));
             metadata = MinecraftEntityMetadata.FRAMES.transformMetadata(metadata, update.metadataTransform(), map.mapId(), map.stripMapId());
-            if (state.upsideDown) {
+            if (state.upsideDown()) {
                 metadata = update.visual().isPlayer() ? MinecraftEntityMetadata.ENTITIES.upsideDownPlayer(metadata)
                     : MinecraftEntityMetadata.ENTITIES.upsideDownEntity(metadata, false);
             }
             byte[] payload = blobs(observer).writeMetadata(metadata);
-            if (update.initial() || !Arrays.equals(payload, state.lastMetadataPayload)) {
-                state.lastMetadataPayload = payload;
-                send(observer, new ClientboundSetEntityDataPacket(state.fakeId, metadata));
+            if (update.initial() || !Arrays.equals(payload, state.lastMetadataPayload())) {
+                state.setLastMetadataPayload(payload);
+                send(observer, new ClientboundSetEntityDataPacket(state.fakeId(), metadata));
             }
         }
         List<MinecraftPacketBlobs.Equipment> equipment = update.view().getEquipment(update.visual().id());
         if (equipment != null && !equipment.isEmpty()) {
             byte[] payload = blobs(observer).writeEquipment(equipment);
-            if (update.initial() || !Arrays.equals(payload, state.lastEquipmentPayload)) {
-                state.lastEquipmentPayload = payload;
+            if (update.initial() || !Arrays.equals(payload, state.lastEquipmentPayload())) {
+                state.setLastEquipmentPayload(payload);
                 List<Pair<EquipmentSlot, ItemStack>> items = new ArrayList<>(equipment.size());
                 for (MinecraftPacketBlobs.Equipment item : equipment) {
                     items.add(Pair.of(item.slot(), item.item()));
                 }
-                send(observer, new ClientboundSetEquipmentPacket(state.fakeId, items));
+                send(observer, new ClientboundSetEquipmentPacket(state.fakeId(), items));
             }
         }
     }
@@ -400,26 +400,26 @@ public final class MinecraftEntityPackets implements EntityOutput<ServerPlayer, 
 
     @Override
     public void label(ServerPlayer observer, SpoofedEntity state, SnapshotProjector.Label<Vec3> label, boolean initial) {
-        if (!state.playerEntry) {
+        if (!state.playerEntry()) {
             return;
         }
         Vec3 position = labelPosition(label);
         if (initial) {
-            send(observer, new ClientboundAddEntityPacket(state.labelFakeId, state.labelFakeUuid,
+            send(observer, new ClientboundAddEntityPacket(state.labelFakeId(), state.labelFakeUuid(),
                 position.x, position.y, position.z, 0, 0, EntityTypes.TEXT_DISPLAY, 0, Vec3.ZERO, 0));
-            send(observer, new ClientboundSetEntityDataPacket(state.labelFakeId, labelMetadata(state.playerLabelText)));
+            send(observer, new ClientboundSetEntityDataPacket(state.labelFakeId(), labelMetadata(state.playerLabelText())));
             state.rememberLabelPosition(position.x, position.y, position.z);
             return;
         }
         SpoofedEntity.Move move = state.updateLabelPosition(position.x, position.y, position.z);
         if (move.moved) {
             send(observer, move.relative
-                ? new ClientboundMoveEntityPacket.Pos(state.labelFakeId, delta(move.deltaX, move.deltaY, move.deltaZ), false)
-                : teleport(state.labelFakeId, position, 0, 0, false));
+                ? new ClientboundMoveEntityPacket.Pos(state.labelFakeId(), delta(move.deltaX, move.deltaY, move.deltaZ), false)
+                : teleport(state.labelFakeId(), position, 0, 0, false));
         }
         String text = ProjectedEntityIdentity.NAMING.labelText(label.profile() == null ? null : label.profile().name());
         if (state.updatePlayerLabelText(text)) {
-            send(observer, new ClientboundSetEntityDataPacket(state.labelFakeId,
+            send(observer, new ClientboundSetEntityDataPacket(state.labelFakeId(),
                 List.of(new SynchedEntityData.DataValue<>(23, EntityDataSerializers.COMPONENT, labelText(text)))));
         }
     }

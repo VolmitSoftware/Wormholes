@@ -9,27 +9,27 @@ public final class SpoofedEntity {
     private static final double MIN_POSITION_DELTA_SQUARED = 1.0E-6D;
     private static final double MAX_RELATIVE_MOVE_DELTA = 7.75D;
 
-    public final int fakeId;
-    public final UUID fakeUuid;
-    public final boolean playerEntry;
-    public final int labelFakeId;
-    public final UUID labelFakeUuid;
-    public final boolean upsideDown;
-    public final boolean living;
-    public int leashedToFakeId = Integer.MIN_VALUE;
-    public int[] lastPassengers;
-    public int remoteStateVersion = -1;
-    public int metadataTransformKey = Integer.MIN_VALUE;
+    private final int fakeId;
+    private final UUID fakeUuid;
+    private final boolean playerEntry;
+    private final int labelFakeId;
+    private final UUID labelFakeUuid;
+    private final boolean upsideDown;
+    private final boolean living;
+    private int leashedToFakeId = Integer.MIN_VALUE;
+    private int[] lastPassengers;
+    private int remoteStateVersion = -1;
+    private int metadataTransformKey = Integer.MIN_VALUE;
     private MapSnapshot lastMapData;
     private boolean lastMapReversed;
-    public String lastMetadataSignature;
-    public String lastEquipmentSignature;
-    public byte[] lastMetadataPayload;
-    public byte[] lastEquipmentPayload;
-    public EntityProfile playerProfile;
-    public long playerProfileCheckedAtNanos;
-    public String playerProfileName;
-    public String playerLabelText;
+    private String lastMetadataSignature;
+    private String lastEquipmentSignature;
+    private byte[] lastMetadataPayload;
+    private byte[] lastEquipmentPayload;
+    private EntityProfile playerProfile;
+    private long playerProfileCheckedAtNanos;
+    private String playerProfileName;
+    private String playerLabelText;
     private float yaw;
     private float pitch;
     private double velocityX;
@@ -79,6 +79,114 @@ public final class SpoofedEntity {
         this.mapPayloadFailureReported = false;
         this.metadataRefreshPasses = METADATA_REFRESH_PASSES;
         this.mapRefreshPasses = MAP_REFRESH_PASSES;
+    }
+
+    public int fakeId() {
+        return fakeId;
+    }
+
+    public UUID fakeUuid() {
+        return fakeUuid;
+    }
+
+    public boolean playerEntry() {
+        return playerEntry;
+    }
+
+    public int labelFakeId() {
+        return labelFakeId;
+    }
+
+    public UUID labelFakeUuid() {
+        return labelFakeUuid;
+    }
+
+    public boolean upsideDown() {
+        return upsideDown;
+    }
+
+    public boolean living() {
+        return living;
+    }
+
+    public int leashedToFakeId() {
+        return leashedToFakeId;
+    }
+
+    public void setLeashedToFakeId(int leashedToFakeId) {
+        this.leashedToFakeId = leashedToFakeId;
+    }
+
+    public int[] lastPassengers() {
+        return lastPassengers;
+    }
+
+    public void setLastPassengers(int[] lastPassengers) {
+        this.lastPassengers = lastPassengers;
+    }
+
+    public int remoteStateVersion() {
+        return remoteStateVersion;
+    }
+
+    public void setRemoteStateVersion(int remoteStateVersion) {
+        this.remoteStateVersion = remoteStateVersion;
+    }
+
+    public String lastMetadataSignature() {
+        return lastMetadataSignature;
+    }
+
+    public void setLastMetadataSignature(String lastMetadataSignature) {
+        this.lastMetadataSignature = lastMetadataSignature;
+    }
+
+    public String lastEquipmentSignature() {
+        return lastEquipmentSignature;
+    }
+
+    public void setLastEquipmentSignature(String lastEquipmentSignature) {
+        this.lastEquipmentSignature = lastEquipmentSignature;
+    }
+
+    public byte[] lastMetadataPayload() {
+        return lastMetadataPayload;
+    }
+
+    public void setLastMetadataPayload(byte[] lastMetadataPayload) {
+        this.lastMetadataPayload = lastMetadataPayload;
+    }
+
+    public byte[] lastEquipmentPayload() {
+        return lastEquipmentPayload;
+    }
+
+    public void setLastEquipmentPayload(byte[] lastEquipmentPayload) {
+        this.lastEquipmentPayload = lastEquipmentPayload;
+    }
+
+    public EntityProfile playerProfile() {
+        return playerProfile;
+    }
+
+    public void setPlayerProfile(EntityProfile playerProfile) {
+        this.playerProfile = playerProfile;
+    }
+
+    public long playerProfileCheckedAtNanos() {
+        return playerProfileCheckedAtNanos;
+    }
+
+    public void setPlayerProfileCheckedAtNanos(long playerProfileCheckedAtNanos) {
+        this.playerProfileCheckedAtNanos = playerProfileCheckedAtNanos;
+    }
+
+    public String playerProfileName() {
+        return playerProfileName;
+    }
+
+    public String playerLabelText() {
+        return playerLabelText;
     }
 
     public void setPlayerIdentity(String profileName, String labelText) {

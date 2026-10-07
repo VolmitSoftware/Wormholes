@@ -52,7 +52,7 @@ public final class SpoofRegistry<O, R> {
 
     public int livingId(UUID sourceId) {
         SpoofedEntity state = spoofed.get(sourceId);
-        return state == null || !state.living ? -1 : state.fakeId;
+        return state == null || !state.living() ? -1 : state.fakeId();
     }
 
     public void track(UUID sourceId, SpoofedEntity state) {
@@ -91,7 +91,7 @@ public final class SpoofRegistry<O, R> {
         motion.kind = move.moved
             ? (move.relative ? (rotationChanged ? MotionKind.RELATIVE_ROTATION : MotionKind.RELATIVE) : MotionKind.TELEPORT)
             : MotionKind.ROTATION;
-        motion.entityId = state.fakeId;
+        motion.entityId = state.fakeId();
         motion.deltaX = move.deltaX;
         motion.deltaY = move.deltaY;
         motion.deltaZ = move.deltaZ;
@@ -103,7 +103,7 @@ public final class SpoofRegistry<O, R> {
     }
 
     public void syncHeadLook(O observer, SpoofedEntity state, float yaw) {
-        output.headLook(observer, state.fakeId, yaw);
+        output.headLook(observer, state.fakeId(), yaw);
     }
 
     public void applyRelationships(O observer, List<EntitySnapshot> visuals) {
@@ -136,7 +136,7 @@ public final class SpoofRegistry<O, R> {
             if (rider == null) {
                 continue;
             }
-            inferredRiders.computeIfAbsent(vehicle, ignored -> new ArrayList<Integer>()).add(Integer.valueOf(rider.fakeId));
+            inferredRiders.computeIfAbsent(vehicle, ignored -> new ArrayList<Integer>()).add(Integer.valueOf(rider.fakeId()));
         }
         for (Map.Entry<UUID, SpoofedEntity> entry : spoofed.entrySet()) {
             SpoofedEntity vehicleState = entry.getValue();
@@ -145,9 +145,9 @@ public final class SpoofRegistry<O, R> {
                 riders = inferredRiders.get(entry.getKey());
             }
             if (riders == null) {
-                if (vehicleState.lastPassengers != null && vehicleState.lastPassengers.length > 0) {
-                    vehicleState.lastPassengers = NO_PASSENGERS;
-                    output.passengers(observer, vehicleState.fakeId, NO_PASSENGERS);
+                if (vehicleState.lastPassengers() != null && vehicleState.lastPassengers().length > 0) {
+                    vehicleState.setLastPassengers(NO_PASSENGERS);
+                    output.passengers(observer, vehicleState.fakeId(), NO_PASSENGERS);
                 }
                 continue;
             }
@@ -155,9 +155,9 @@ public final class SpoofRegistry<O, R> {
             for (int i = 0; i < passengers.length; i++) {
                 passengers[i] = riders.get(i).intValue();
             }
-            if (!Arrays.equals(passengers, vehicleState.lastPassengers)) {
-                vehicleState.lastPassengers = passengers;
-                output.passengers(observer, vehicleState.fakeId, passengers);
+            if (!Arrays.equals(passengers, vehicleState.lastPassengers())) {
+                vehicleState.setLastPassengers(passengers);
+                output.passengers(observer, vehicleState.fakeId(), passengers);
             }
         }
         for (EntityRelationship relationship : relationships) {
@@ -170,18 +170,18 @@ public final class SpoofRegistry<O, R> {
             if (holderUuid != null) {
                 SpoofedEntity holder = spoofed.get(holderUuid);
                 if (holder != null) {
-                    holderFakeId = holder.fakeId;
+                    holderFakeId = holder.fakeId();
                 }
             }
-            int previousHolderFakeId = mob.leashedToFakeId;
+            int previousHolderFakeId = mob.leashedToFakeId();
             if (previousHolderFakeId == holderFakeId) {
                 continue;
             }
-            mob.leashedToFakeId = holderFakeId;
+            mob.setLeashedToFakeId(holderFakeId);
             if (previousHolderFakeId == NEVER_LEASHED && holderFakeId == NO_LEASH_HOLDER) {
                 continue;
             }
-            output.leash(observer, mob.fakeId, holderFakeId);
+            output.leash(observer, mob.fakeId(), holderFakeId);
         }
     }
 
@@ -193,7 +193,7 @@ public final class SpoofRegistry<O, R> {
         for (UUID sourceId : sourceIds) {
             SpoofedEntity state = spoofed.get(sourceId);
             if (state != null) {
-                fakeIds.add(Integer.valueOf(state.fakeId));
+                fakeIds.add(Integer.valueOf(state.fakeId()));
             }
         }
         return fakeIds;
@@ -221,10 +221,10 @@ public final class SpoofRegistry<O, R> {
 
     private boolean hasTrackedRelationshipState() {
         for (SpoofedEntity state : spoofed.values()) {
-            if (state.leashedToFakeId >= 0) {
+            if (state.leashedToFakeId() >= 0) {
                 return true;
             }
-            int[] lastPassengers = state.lastPassengers;
+            int[] lastPassengers = state.lastPassengers();
             if (lastPassengers != null && lastPassengers.length > 0) {
                 return true;
             }
@@ -245,7 +245,7 @@ public final class SpoofRegistry<O, R> {
             }
             SpoofedEntity state = entry.getValue();
             iterator.remove();
-            pendingDestroy.put(Integer.valueOf(state.fakeId), state);
+            pendingDestroy.put(Integer.valueOf(state.fakeId()), state);
             hiddenStates.add(state);
         }
         if (hiddenStates.isEmpty()) {
@@ -256,7 +256,7 @@ public final class SpoofRegistry<O, R> {
 
     public void destroyAll(O observer) {
         for (SpoofedEntity state : spoofed.values()) {
-            pendingDestroy.put(Integer.valueOf(state.fakeId), state);
+            pendingDestroy.put(Integer.valueOf(state.fakeId()), state);
         }
         spoofed.clear();
         if (pendingDestroy.isEmpty()) {
@@ -269,7 +269,7 @@ public final class SpoofRegistry<O, R> {
         if (sourceId == null || state == null || !spoofed.remove(sourceId, state)) {
             return;
         }
-        pendingDestroy.put(Integer.valueOf(state.fakeId), state);
+        pendingDestroy.put(Integer.valueOf(state.fakeId()), state);
         sendDestroyStates(observer, List.of(state));
     }
 
@@ -279,14 +279,14 @@ public final class SpoofRegistry<O, R> {
         List<UUID> playerInfos = new ArrayList<UUID>(Math.min(4, states.size()));
         int count = 0;
         for (SpoofedEntity state : states) {
-            ids[count] = state.fakeId;
+            ids[count] = state.fakeId();
             count++;
-            if (!state.playerEntry) {
+            if (!state.playerEntry()) {
                 continue;
             }
-            ids[count] = state.labelFakeId;
+            ids[count] = state.labelFakeId();
             count++;
-            playerInfos.add(state.fakeUuid);
+            playerInfos.add(state.fakeUuid());
         }
         int[] trimmed = count == ids.length ? ids : Arrays.copyOf(ids, count);
         output.destroy(observer, trimmed);
@@ -295,7 +295,7 @@ public final class SpoofRegistry<O, R> {
         }
         output.removePlayerInfo(observer, playerInfos);
         for (SpoofedEntity state : states) {
-            if (state.playerEntry) {
+            if (state.playerEntry()) {
                 output.releaseName(observer, state);
             }
         }

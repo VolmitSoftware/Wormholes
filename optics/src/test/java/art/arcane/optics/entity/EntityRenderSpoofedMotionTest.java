@@ -32,7 +32,7 @@ final class EntityRenderSpoofedMotionTest {
         assertTrue(state.updateVelocity(0.1D, 0.2D, 0.3D, 0.001D));
         assertFalse(state.updateVelocity(0.1001D, 0.2D, 0.3D, 0.001D));
         assertTrue(state.updateVelocity(0.2D, 0.2D, 0.3D, 0.001D));
-        assertTrue(state.labelFakeId != state.fakeId);
+        assertTrue(state.labelFakeId() != state.fakeId());
     }
 
     @Test

@@ -36,7 +36,7 @@ public final class ProjectedMaps<O> {
                                      MapSnapshot source,
                                      boolean reversed,
                                      boolean force) {
-        int virtualMapId = virtualMapId(state.fakeId);
+        int virtualMapId = virtualMapId(state.fakeId());
         boolean mapChanged = state.updateMapData(source, reversed);
         if (force || mapChanged) {
             MapSnapshot projected = reversed ? source.mirrorHorizontally() : source;

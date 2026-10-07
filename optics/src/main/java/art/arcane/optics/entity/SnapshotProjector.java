@@ -54,8 +54,8 @@ public final class SnapshotProjector<O, W, P extends Endpoint, R, T, V> {
         int metadataTransform = projection.metadataTransform();
 
         SpoofedEntity state = registry.get(visual.id());
-        if (state != null && (state.upsideDown != upsideDown
-            || visual.isPlayer() && !Objects.equals(state.playerProfile, feed.profile(entityView, visual.id())))) {
+        if (state != null && (state.upsideDown() != upsideDown
+            || visual.isPlayer() && !Objects.equals(state.playerProfile(), feed.profile(entityView, visual.id())))) {
             registry.destroySingle(observer, visual.id(), state);
             state = null;
         }
@@ -73,7 +73,7 @@ public final class SnapshotProjector<O, W, P extends Endpoint, R, T, V> {
             state.updateMetadataTransform(metadataTransform);
             state.rememberPosition(output.x(position), output.y(position), output.z(position));
             registry.syncHeadLook(observer, state, yaw);
-            state.remoteStateVersion = feed.stateVersion(entityView, visual.id());
+            state.setRemoteStateVersion(feed.stateVersion(entityView, visual.id()));
             output.entityState(observer, state, new State<>(entityView, visual, metadataTransform, true));
             state.resetMapCooldown();
             return true;
@@ -89,12 +89,12 @@ public final class SnapshotProjector<O, W, P extends Endpoint, R, T, V> {
         }
         if (state.updateVelocity(output.x(velocity), output.y(velocity), output.z(velocity),
             fidelity.get().entityVelocityEpsilon())) {
-            output.velocity(observer, state.fakeId, velocity);
+            output.velocity(observer, state.fakeId(), velocity);
         }
         int stateVersion = feed.stateVersion(entityView, visual.id());
         boolean mapRefreshDue = itemFrame && feed.hasMap(entityView, visual.id()) && state.shouldRefreshMap();
-        if (stateVersion != state.remoteStateVersion || metadataTransformChanged || mapRefreshDue) {
-            state.remoteStateVersion = stateVersion;
+        if (stateVersion != state.remoteStateVersion() || metadataTransformChanged || mapRefreshDue) {
+            state.setRemoteStateVersion(stateVersion);
             output.entityState(observer, state, new State<>(entityView, visual, metadataTransform, false));
             state.resetMapCooldown();
         }

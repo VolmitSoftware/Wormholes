@@ -58,7 +58,7 @@ final class ProjectedEntityAnimationTest {
                     try {
                         packet.setBuffer(buffer);
                         packet.write();
-                        assertEquals(entity.fakeId, packet.readVarInt());
+                        assertEquals(entity.fakeId(), packet.readVarInt());
                         if (index < 2 && version == ServerVersion.V_26_3) {
                             assertInstanceOf(WrapperPlayServerSwingAnimation.class, packet);
                             assertEquals(index, packet.readVarInt());

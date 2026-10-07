@@ -40,15 +40,15 @@ class EntityRenderPlayerIdentityTest {
             try (MockedStatic<SpigotReflectionUtil> reflection = mockStatic(SpigotReflectionUtil.class)) {
                 Player player = ProjectedEntityPacketRecorder.player(true);
                 SpoofedEntity state = SpoofedEntity.create(ENTITY_IDS::getAndIncrement, true, false, true);
-                state.playerProfile = new EntityProfile("Observer", "", "");
-                state.playerProfileCheckedAtNanos = 1_000_000_000L;
+                state.setPlayerProfile(new EntityProfile("Observer", "", ""));
+                state.setPlayerProfileCheckedAtNanos(1_000_000_000L);
                 EntityRenderPlayerIdentity identity = new BukkitEntityRegistryHost(new EntityRenderPacketChannel(), BukkitEntityRegistryHost.PLUGIN_VISIBILITY).identity();
                 reflection.when(() -> SpigotReflectionUtil.getUserProfile(player)).thenReturn(List.of());
 
                 assertFalse(identity.playerProfileChanged(player, state, 1_499_999_999L));
                 reflection.verifyNoInteractions();
                 assertFalse(identity.playerProfileChanged(player, state, 1_500_000_000L));
-                assertEquals(1_500_000_000L, state.playerProfileCheckedAtNanos);
+                assertEquals(1_500_000_000L, state.playerProfileCheckedAtNanos());
                 reflection.verify(() -> SpigotReflectionUtil.getUserProfile(player), times(1));
 
                 reflection.when(() -> SpigotReflectionUtil.getUserProfile(player))
@@ -57,18 +57,18 @@ class EntityRenderPlayerIdentityTest {
                 reflection.verify(() -> SpigotReflectionUtil.getUserProfile(player), times(1));
                 assertTrue(identity.playerProfileChanged(player, state, 2_000_000_000L));
 
-                state.playerProfile = new EntityProfile("Observer", "skin", "signature");
+                state.setPlayerProfile(new EntityProfile("Observer", "skin", "signature"));
                 assertFalse(identity.playerProfileChanged(player, state, 2_500_000_000L));
                 reflection.when(() -> SpigotReflectionUtil.getUserProfile(player))
                     .thenReturn(List.of(new TextureProperty("textures", "skin", "new-signature")));
                 assertTrue(identity.playerProfileChanged(player, state, 3_000_000_000L));
 
-                state.playerProfile = new EntityProfile("Observer", "skin", "new-signature");
+                state.setPlayerProfile(new EntityProfile("Observer", "skin", "new-signature"));
                 when(player.getName()).thenReturn("Renamed");
                 assertTrue(identity.playerProfileChanged(player, state, 3_500_000_000L));
                 reflection.when(() -> SpigotReflectionUtil.getUserProfile(player))
                     .thenReturn(List.of(new TextureProperty("textures", "new-skin", "new-signature")));
-                state.playerProfile = new EntityProfile("Renamed", "skin", "new-signature");
+                state.setPlayerProfile(new EntityProfile("Renamed", "skin", "new-signature"));
                 assertTrue(identity.playerProfileChanged(player, state, 4_000_000_000L));
             }
         } finally {
@@ -89,8 +89,8 @@ class EntityRenderPlayerIdentityTest {
 
             WrapperPlayServerPlayerInfoUpdate packet = recorder.sentOfType(WrapperPlayServerPlayerInfoUpdate.class).getFirst();
             UserProfile sentProfile = packet.getEntries().getFirst().getGameProfile();
-            assertSame(profile, state.playerProfile);
-            assertEquals(state.fakeUuid, sentProfile.getUUID());
+            assertSame(profile, state.playerProfile());
+            assertEquals(state.fakeUuid(), sentProfile.getUUID());
             assertEquals(1, sentProfile.getTextureProperties().size());
             TextureProperty texture = sentProfile.getTextureProperties().getFirst();
             assertEquals("textures", texture.getName());
@@ -125,7 +125,7 @@ class EntityRenderPlayerIdentityTest {
                 List<WrapperPlayServerPlayerInfoUpdate> packets = recorder.sentOfType(WrapperPlayServerPlayerInfoUpdate.class);
                 assertEquals(1, packets.size());
                 WrapperPlayServerPlayerInfoUpdate.PlayerInfo info = packets.getFirst().getEntries().getFirst();
-                assertEquals(state.fakeUuid, info.getGameProfile().getUUID());
+                assertEquals(state.fakeUuid(), info.getGameProfile().getUUID());
                 assertFalse(info.isListed());
                 List<TextureProperty> textures = info.getGameProfile().getTextureProperties();
                 assertEquals(1, textures.size());

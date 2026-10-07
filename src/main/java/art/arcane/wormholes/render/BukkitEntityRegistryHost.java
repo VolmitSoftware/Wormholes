@@ -127,7 +127,7 @@ public final class BukkitEntityRegistryHost implements EntityOutput<Player, Vect
 
     @Override
     public void spawn(Player observer, SpoofedEntity state, SnapshotProjector.Spawn<Vector3d, EntityType> spawn) {
-        channel.send(observer, new WrapperPlayServerSpawnEntity(state.fakeId, Optional.of(state.fakeUuid), spawn.type(),
+        channel.send(observer, new WrapperPlayServerSpawnEntity(state.fakeId(), Optional.of(state.fakeUuid()), spawn.type(),
             spawn.position(), spawn.pitch(), spawn.yaw(), spawn.yaw(), spawn.data(), Optional.of(spawn.velocity())));
     }
 
@@ -177,7 +177,7 @@ public final class BukkitEntityRegistryHost implements EntityOutput<Player, Vect
 
     @Override
     public void playerInfo(Player observer, SpoofedEntity state, EntityProfile profile) {
-        identity.sendRemotePlayerInfo(observer, profile, state, state.upsideDown);
+        identity.sendRemotePlayerInfo(observer, profile, state, state.upsideDown());
     }
 
     @Override

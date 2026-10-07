@@ -46,12 +46,12 @@ public class MinecraftEntityPacketsTest extends MinecraftTestBase {
     @Test
     public void playerInfoPreservesSignedSkinAndHidesTabEntry() {
         SpoofedEntity state = SpoofedEntity.create(ENTITY_IDS::getAndIncrement, true, false, true);
-        state.setPlayerIdentity(ProjectedEntityIdentity.NAMING.syntheticProfileName(state.fakeUuid), "PortalTester");
+        state.setPlayerIdentity(ProjectedEntityIdentity.NAMING.syntheticProfileName(state.fakeUuid()), "PortalTester");
         ClientboundPlayerInfoUpdatePacket packet = MinecraftEntityPackets.playerInfo(RegistryAccess.EMPTY, state,
             new EntityProfile("PortalTester", "texture-value", "texture-signature"));
         ClientboundPlayerInfoUpdatePacket.Entry entry = packet.entries().getFirst();
-        assertEquals(state.fakeUuid, entry.profileId());
-        assertEquals(state.playerProfileName, entry.profile().name());
+        assertEquals(state.fakeUuid(), entry.profileId());
+        assertEquals(state.playerProfileName(), entry.profile().name());
         assertEquals("texture-signature", entry.profile().properties().get("textures").iterator().next().signature());
         assertFalse(entry.listed());
         assertTrue(entry.showHat());

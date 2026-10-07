@@ -46,15 +46,15 @@ final class EntityRenderPlayerIdentity {
     void sendPlayerInfo(Player observer, Player player, SpoofedEntity state, boolean upsideDown) {
         String sourceName = player.getName();
         String label = ProjectedEntityIdentity.NAMING.labelText(sourceName);
-        String name = ProjectedEntityIdentity.NAMING.projectedProfileName(sourceName, state.fakeUuid, upsideDown);
+        String name = ProjectedEntityIdentity.NAMING.projectedProfileName(sourceName, state.fakeUuid(), upsideDown);
         state.setPlayerIdentity(name, label);
         names.retain(observer, name);
-        UserProfile userProfile = new UserProfile(state.fakeUuid, name);
-        state.playerProfile = playerProfile(player);
-        state.playerProfileCheckedAtNanos = System.nanoTime();
-        if (!state.playerProfile.textureValue().isEmpty()) {
-            userProfile.getTextureProperties().add(new TextureProperty("textures", state.playerProfile.textureValue(),
-                state.playerProfile.textureSignature().isEmpty() ? null : state.playerProfile.textureSignature()));
+        UserProfile userProfile = new UserProfile(state.fakeUuid(), name);
+        state.setPlayerProfile(playerProfile(player));
+        state.setPlayerProfileCheckedAtNanos(System.nanoTime());
+        if (!state.playerProfile().textureValue().isEmpty()) {
+            userProfile.getTextureProperties().add(new TextureProperty("textures", state.playerProfile().textureValue(),
+                state.playerProfile().textureSignature().isEmpty() ? null : state.playerProfile().textureSignature()));
         }
         GameMode gameMode = SpigotConversionUtil.fromBukkitGameMode(player.getGameMode());
         WrapperPlayServerPlayerInfoUpdate.PlayerInfo info = new WrapperPlayServerPlayerInfoUpdate.PlayerInfo(
@@ -69,21 +69,21 @@ final class EntityRenderPlayerIdentity {
     }
 
     boolean playerProfileChanged(Player player, SpoofedEntity state, long nowNanos) {
-        if (nowNanos - state.playerProfileCheckedAtNanos < PROFILE_REFRESH_NANOS) {
+        if (nowNanos - state.playerProfileCheckedAtNanos() < PROFILE_REFRESH_NANOS) {
             return false;
         }
-        state.playerProfileCheckedAtNanos = nowNanos;
-        return !Objects.equals(state.playerProfile, playerProfile(player));
+        state.setPlayerProfileCheckedAtNanos(nowNanos);
+        return !Objects.equals(state.playerProfile(), playerProfile(player));
     }
 
     void sendRemotePlayerInfo(Player observer, EntityProfile profile, SpoofedEntity state, boolean upsideDown) {
-        state.playerProfile = profile;
+        state.setPlayerProfile(profile);
         String sourceName = profile == null ? null : profile.name();
         String label = ProjectedEntityIdentity.NAMING.labelText(sourceName);
-        String name = ProjectedEntityIdentity.NAMING.projectedProfileName(sourceName, state.fakeUuid, upsideDown);
+        String name = ProjectedEntityIdentity.NAMING.projectedProfileName(sourceName, state.fakeUuid(), upsideDown);
         state.setPlayerIdentity(name, label);
         names.retain(observer, name);
-        UserProfile userProfile = new UserProfile(state.fakeUuid, name);
+        UserProfile userProfile = new UserProfile(state.fakeUuid(), name);
         if (profile != null && profile.textureValue() != null && !profile.textureValue().isEmpty()) {
             String signature = profile.textureSignature() == null || profile.textureSignature().isEmpty() ? null : profile.textureSignature();
             userProfile.getTextureProperties().add(new TextureProperty("textures", profile.textureValue(), signature));
@@ -104,19 +104,19 @@ final class EntityRenderPlayerIdentity {
     }
 
     void spawnPlayerLabel(Player observer, SpoofedEntity state, Vector3d playerPosition, double playerHeight) {
-        if (!state.playerEntry || !labelsEnabled) {
+        if (!state.playerEntry() || !labelsEnabled) {
             return;
         }
         Vector3d labelPosition = ProjectedEntityRenderer.playerLabelPosition(playerPosition, playerHeight);
-        WrapperPlayServerSpawnEntity spawn = new WrapperPlayServerSpawnEntity(state.labelFakeId, Optional.of(state.labelFakeUuid),
+        WrapperPlayServerSpawnEntity spawn = new WrapperPlayServerSpawnEntity(state.labelFakeId(), Optional.of(state.labelFakeUuid()),
             EntityTypes.TEXT_DISPLAY, labelPosition, 0.0F, 0.0F, 0.0F, 0, Optional.empty());
         channel.send(observer, spawn);
-        channel.send(observer, new WrapperPlayServerEntityMetadata(state.labelFakeId, ProjectedEntityRenderer.playerLabelMetadata(state.playerLabelText)));
+        channel.send(observer, new WrapperPlayServerEntityMetadata(state.labelFakeId(), ProjectedEntityRenderer.playerLabelMetadata(state.playerLabelText())));
         state.rememberLabelPosition(labelPosition.getX(), labelPosition.getY(), labelPosition.getZ());
     }
 
     void updatePlayerLabelPosition(Player observer, SpoofedEntity state, Vector3d playerPosition, double playerHeight) {
-        if (!state.playerEntry || !labelsEnabled) {
+        if (!state.playerEntry() || !labelsEnabled) {
             return;
         }
         Vector3d labelPosition = ProjectedEntityRenderer.playerLabelPosition(playerPosition, playerHeight);
@@ -126,14 +126,14 @@ final class EntityRenderPlayerIdentity {
         }
         if (move.relative) {
             channel.send(observer, new WrapperPlayServerEntityRelativeMove(
-                state.labelFakeId, move.deltaX, move.deltaY, move.deltaZ, false));
+                state.labelFakeId(), move.deltaX, move.deltaY, move.deltaZ, false));
             return;
         }
-        channel.send(observer, new WrapperPlayServerEntityTeleport(state.labelFakeId, labelPosition, 0.0F, 0.0F, false));
+        channel.send(observer, new WrapperPlayServerEntityTeleport(state.labelFakeId(), labelPosition, 0.0F, 0.0F, false));
     }
 
     void updatePlayerLabelText(Player observer, SpoofedEntity state, EntityProfile profile) {
-        if (!state.playerEntry) {
+        if (!state.playerEntry()) {
             return;
         }
         String sourceName = profile == null ? null : profile.name();
@@ -141,11 +141,11 @@ final class EntityRenderPlayerIdentity {
         if (!state.updatePlayerLabelText(label)) {
             return;
         }
-        channel.send(observer, new WrapperPlayServerEntityMetadata(state.labelFakeId, ProjectedEntityRenderer.playerLabelTextMetadata(label)));
+        channel.send(observer, new WrapperPlayServerEntityMetadata(state.labelFakeId(), ProjectedEntityRenderer.playerLabelTextMetadata(label)));
     }
 
     void releaseVanillaNametag(Player observer, SpoofedEntity state) {
-        names.release(observer, state.playerProfileName);
+        names.release(observer, state.playerProfileName());
     }
 
     void sendVanillaNameTeamRemoval(Player observer) {

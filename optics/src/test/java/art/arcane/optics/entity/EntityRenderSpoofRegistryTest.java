@@ -25,7 +25,7 @@ public final class EntityRenderSpoofRegistryTest {
         assertEquals(-1, registry.livingId(source));
         SpoofedEntity living = SpoofedEntity.create(ENTITY_IDS::getAndIncrement, false, false, true);
         registry.track(source, living);
-        assertEquals(living.fakeId, registry.livingId(source));
+        assertEquals(living.fakeId(), registry.livingId(source));
         registry.destroyHidden(host);
         assertEquals(-1, registry.livingId(source));
     }
@@ -48,14 +48,14 @@ public final class EntityRenderSpoofRegistryTest {
             new EntityRelationship(declared, null, List.of(), vehicle),
             new EntityRelationship(inferred, vehicle, List.of(), null));
         registry.applyRelationships(host, relationships);
-        assertArrayEquals(new int[] {declaredState.fakeId}, host.passengers.getFirst());
-        assertArrayEquals(new int[] {declaredState.fakeId, vehicleState.fakeId}, host.leashes.getFirst());
+        assertArrayEquals(new int[] {declaredState.fakeId()}, host.passengers.getFirst());
+        assertArrayEquals(new int[] {declaredState.fakeId(), vehicleState.fakeId()}, host.leashes.getFirst());
         registry.applyRelationships(host, relationships);
         assertEquals(1, host.passengers.size());
         registry.applyRelationships(host, (Collection<EntityRelationship>) List.<EntityRelationship>of(
             new EntityRelationship(declared, null, List.of(), null)));
         assertArrayEquals(new int[0], host.passengers.getLast());
-        assertArrayEquals(new int[] {declaredState.fakeId, -1}, host.leashes.getLast());
+        assertArrayEquals(new int[] {declaredState.fakeId(), -1}, host.leashes.getLast());
         registry.applyRelationships(host, (Collection<EntityRelationship>) List.<EntityRelationship>of());
         assertEquals(2, host.passengers.size());
         assertEquals(2, host.leashes.size());
@@ -71,8 +71,8 @@ public final class EntityRenderSpoofRegistryTest {
         registry.destroyHidden(host);
         assertFalse(registry.contains(source));
         assertEquals(1, registry.size());
-        assertArrayEquals(new int[] {state.fakeId, state.labelFakeId}, host.destroyed.getFirst());
-        assertEquals(List.of(state.fakeUuid), host.removedPlayers);
+        assertArrayEquals(new int[] {state.fakeId(), state.labelFakeId()}, host.destroyed.getFirst());
+        assertEquals(List.of(state.fakeUuid()), host.removedPlayers);
         registry.destroyAll(host);
         assertEquals(2, host.destroyed.size());
         registry.commitDestroyed();

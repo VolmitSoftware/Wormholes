@@ -560,7 +560,7 @@ public final class ProjectedEntityRenderer {
         int metadataTransform = projection.metadataTransform();
 
         SpoofedEntity state = registry.get(entity.getUniqueId());
-        if (state != null && (state.upsideDown != upsideDown
+        if (state != null && (state.upsideDown() != upsideDown
             || entity instanceof Player player && identity.playerProfileChanged(player, state, System.nanoTime()))) {
             registry.destroySingle(observer, entity.getUniqueId(), state);
             state = null;
@@ -572,7 +572,7 @@ public final class ProjectedEntityRenderer {
             if (playerEntity) {
                 identity.sendPlayerInfo(observer, (Player) entity, state, upsideDown);
             }
-            WrapperPlayServerSpawnEntity spawn = new WrapperPlayServerSpawnEntity(state.fakeId, Optional.of(state.fakeUuid),
+            WrapperPlayServerSpawnEntity spawn = new WrapperPlayServerSpawnEntity(state.fakeId(), Optional.of(state.fakeUuid()),
                 packetType, position, pitch, yaw, yaw, ItemFrameTransform.spawnData(metadataTransform), Optional.of(velocity));
             channel.send(observer, spawn);
             identity.spawnPlayerLabel(observer, state, position, entity.getHeight());
@@ -595,7 +595,7 @@ public final class ProjectedEntityRenderer {
         }
         if (state.updateVelocity(velocity.getX(), velocity.getY(), velocity.getZ(),
             FidelitySettings.snapshot().entityVelocityEpsilon())) {
-            channel.send(observer, new WrapperPlayServerEntityVelocity(state.fakeId, velocity));
+            channel.send(observer, new WrapperPlayServerEntityVelocity(state.fakeId(), velocity));
         }
         boolean metadataRefreshDue = state.shouldRefreshMetadata();
         if (metadataTransformChanged || metadataRefreshDue) {

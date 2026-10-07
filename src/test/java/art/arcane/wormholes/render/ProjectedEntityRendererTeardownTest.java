@@ -102,7 +102,7 @@ public final class ProjectedEntityRendererTeardownTest {
 
             List<WrapperPlayServerDestroyEntities> destroys = recorder.sentOfType(WrapperPlayServerDestroyEntities.class);
             assertEquals(1, destroys.size());
-            assertArrayEquals(new int[] { ghost.fakeId }, destroys.get(0).getEntityIds());
+            assertArrayEquals(new int[] { ghost.fakeId() }, destroys.get(0).getEntityIds());
             assertFalse(renderer.hasProjectedEntity(sourceId));
             assertEquals(0, renderer.getSpoofedCount());
         } finally {
@@ -157,7 +157,7 @@ public final class ProjectedEntityRendererTeardownTest {
             List<WrapperPlayServerDestroyEntities> destroys =
                 recorder.sentOfType(WrapperPlayServerDestroyEntities.class);
             assertEquals(1, destroys.size());
-            assertArrayEquals(new int[] { ghost.fakeId }, destroys.get(0).getEntityIds());
+            assertArrayEquals(new int[] { ghost.fakeId() }, destroys.get(0).getEntityIds());
             assertEquals(0, renderer.getSpoofedCount());
         } finally {
             recorder.uninstall();
@@ -186,7 +186,7 @@ public final class ProjectedEntityRendererTeardownTest {
                 BukkitEntityOcclusion.create());
 
             assertFalse(renderer.hasProjectedEntity(sourceId));
-            assertArrayEquals(new int[] {item.fakeId},
+            assertArrayEquals(new int[] {item.fakeId()},
                 recorder.sentOfType(WrapperPlayServerDestroyEntities.class).getFirst().getEntityIds());
         } finally {
             recorder.uninstall();
@@ -205,7 +205,7 @@ public final class ProjectedEntityRendererTeardownTest {
             BukkitEntityRegistryHost output = new BukkitEntityRegistryHost(channel, BukkitEntityRegistryHost.PLUGIN_VISIBILITY);
             SpoofRegistry<Player, Vector3d> registry = new SpoofRegistry<>(output);
             SpoofedEntity vehicle = SpoofedEntity.create(ENTITY_IDS::getAndIncrement, false, false, true);
-            vehicle.lastPassengers = new int[] { vehicle.fakeId + 1 };
+            vehicle.setLastPassengers(new int[] { vehicle.fakeId() + 1 });
             registry.track(UUID.randomUUID(), vehicle);
             ProjectedEntityRenderer renderer = new ProjectedEntityRenderer(output, registry, new QueuedOpticsScheduler());
             Player observer = ProjectedEntityPacketRecorder.player(true);

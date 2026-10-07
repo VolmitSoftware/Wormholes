@@ -78,19 +78,19 @@ final class EntityRenderMetadataBridge {
                 observer, remoteView, visual, state, metadataTransform, sourceMapId, force);
             metadata = FRAMES.transformMetadata(
                 metadata, metadataTransform, mapProjection.mapId(), mapProjection.stripMapId());
-            List<EntityData<?>> patched = state.upsideDown ? withUpsideDownMetadataRemote(visual.isPlayer(), metadata) : metadata;
+            List<EntityData<?>> patched = state.upsideDown() ? withUpsideDownMetadataRemote(visual.isPlayer(), metadata) : metadata;
             String signature = metadataSignature(patched);
-            if (force || !signature.equals(state.lastMetadataSignature)) {
-                state.lastMetadataSignature = signature;
-                channel.send(observer, new WrapperPlayServerEntityMetadata(state.fakeId, patched));
+            if (force || !signature.equals(state.lastMetadataSignature())) {
+                state.setLastMetadataSignature(signature);
+                channel.send(observer, new WrapperPlayServerEntityMetadata(state.fakeId(), patched));
             }
         }
         List<Equipment> equipment = remoteView.getEquipment(visual.id());
         if (equipment != null && !equipment.isEmpty()) {
             String signature = equipmentSignature(equipment);
-            if (force || !signature.equals(state.lastEquipmentSignature)) {
-                state.lastEquipmentSignature = signature;
-                channel.send(observer, new WrapperPlayServerEntityEquipment(state.fakeId, equipment));
+            if (force || !signature.equals(state.lastEquipmentSignature())) {
+                state.setLastEquipmentSignature(signature);
+                channel.send(observer, new WrapperPlayServerEntityEquipment(state.fakeId(), equipment));
             }
         }
     }
@@ -157,29 +157,29 @@ final class EntityRenderMetadataBridge {
             && mapProjection.mapId() == null
             && !mapProjection.stripMapId();
         String signature = metadataUnchanged ? snapshot.metadataSig : metadataSignature(metadata);
-        if (state.upsideDown) {
+        if (state.upsideDown()) {
             metadata = withUpsideDownMetadata(entity, metadata);
             signature = metadataSignature(metadata);
         }
         if (metadata.isEmpty()) {
             return;
         }
-        if (!force && signature.equals(state.lastMetadataSignature)) {
+        if (!force && signature.equals(state.lastMetadataSignature())) {
             return;
         }
-        state.lastMetadataSignature = signature;
-        channel.send(observer, new WrapperPlayServerEntityMetadata(state.fakeId, metadata));
+        state.setLastMetadataSignature(signature);
+        channel.send(observer, new WrapperPlayServerEntityMetadata(state.fakeId(), metadata));
     }
 
     private void sendEntityEquipment(Player observer, SpoofedEntity state, EntityRenderCaches.EntityStateSnapshot snapshot, boolean force) {
         if (snapshot.equipment.isEmpty()) {
             return;
         }
-        if (!force && snapshot.equipmentSig.equals(state.lastEquipmentSignature)) {
+        if (!force && snapshot.equipmentSig.equals(state.lastEquipmentSignature())) {
             return;
         }
-        state.lastEquipmentSignature = snapshot.equipmentSig;
-        channel.send(observer, new WrapperPlayServerEntityEquipment(state.fakeId, snapshot.equipment));
+        state.setLastEquipmentSignature(snapshot.equipmentSig);
+        channel.send(observer, new WrapperPlayServerEntityEquipment(state.fakeId(), snapshot.equipment));
     }
 
     private List<EntityData<?>> withUpsideDownMetadata(Entity entity, List<EntityData<?>> metadata) {
