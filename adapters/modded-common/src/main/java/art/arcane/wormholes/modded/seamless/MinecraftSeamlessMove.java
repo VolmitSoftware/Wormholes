@@ -17,11 +17,13 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.PositionMoveRotation;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.level.storage.LevelData;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -138,6 +140,20 @@ public final class MinecraftSeamlessMove implements SeamlessMove.Steps {
             player.connection.send(new ClientboundGameEventPacket(ClientboundGameEventPacket.STOP_RAINING, 0.0F));
         }
         player.connection.send(new ClientboundChangeDifficultyPacket(data.getDifficulty(), data.isDifficultyLocked()));
+    }
+
+    @Override
+    public void spectators() {
+        ServerPlayer player = context.player();
+        List<ServerPlayer> watchers = origin.players();
+        for (int index = watchers.size() - 1; index >= 0; index--) {
+            ServerPlayer watcher = watchers.get(index);
+            if (watcher.getCamera() == player) {
+                watcher.teleport(new TeleportTransition(context.destination(), player.position(), Vec3.ZERO, player.getYRot(), player.getXRot(),
+                    TeleportTransition.DO_NOTHING));
+                watcher.setCamera(null);
+            }
+        }
     }
 
     @Override

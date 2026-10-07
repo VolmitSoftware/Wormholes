@@ -25,6 +25,7 @@ public final class SeamlessMove {
             steps.addToLevel();
             steps.dimensionTriggers();
             steps.levelInfo();
+            steps.spectators();
             steps.levelChanged();
             return true;
         } finally {
@@ -78,6 +79,8 @@ public final class SeamlessMove {
         void dimensionTriggers();
 
         void levelInfo();
+
+        void spectators();
 
         void levelChanged();
 

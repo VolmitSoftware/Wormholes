@@ -17,7 +17,7 @@ public class SeamlessMoveOrderTest {
         assertTrue(SeamlessMove.crossLevel(steps));
 
         assertEquals(List.of("moving:true", "allow", "accept", "departLevel", "enterLevel", "handOver", "addToLevel",
-            "dimensionTriggers", "levelInfo", "levelChanged", "moving:false"), steps.calls);
+            "dimensionTriggers", "levelInfo", "spectators", "levelChanged", "moving:false"), steps.calls);
     }
 
     @Test
@@ -28,7 +28,7 @@ public class SeamlessMoveOrderTest {
         assertTrue(SeamlessMove.crossLevel(steps));
 
         assertEquals(List.of("moving:true", "allow", "accept", "departLevel", "enterLevel", "handOver", "abandonHandOver", "addToLevel",
-            "dimensionTriggers", "levelInfo", "levelChanged", "moving:false"), steps.calls);
+            "dimensionTriggers", "levelInfo", "spectators", "levelChanged", "moving:false"), steps.calls);
     }
 
     @Test
@@ -149,6 +149,11 @@ public class SeamlessMoveOrderTest {
         @Override
         public void levelInfo() {
             calls.add("levelInfo");
+        }
+
+        @Override
+        public void spectators() {
+            calls.add("spectators");
         }
 
         @Override
