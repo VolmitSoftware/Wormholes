@@ -32,8 +32,8 @@ import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.render.view.ProjectionWorldViewProvider;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Vec3d;
-import art.arcane.optics.claim.ProjectedBlockClaim;
-import art.arcane.optics.scan.ProjectorPassRevision;
+import art.arcane.optics.claim.BlockClaim;
+import art.arcane.optics.scan.PassRevision;
 import art.arcane.wormholes.portal.ApertureKind;
 
 public final class ClientViewPortalSource {
@@ -133,7 +133,7 @@ public final class ClientViewPortalSource {
         }
         plateTarget = ProjectorPlates.target(portal, destination, frontSide, portal.getRenderMode().scanMode().buriedCellCulling(), rtpTarget, fidelity);
         if (nativeMesh) {
-            geometryRevision = ProjectorPassRevision.mix(geometryRevision, meshTargetRevision());
+            geometryRevision = PassRevision.mix(geometryRevision, meshTargetRevision());
         }
         if (!ProjectorPlates.enabled(plates, portal, rtpTarget)) {
             refused = true;
@@ -202,7 +202,7 @@ public final class ClientViewPortalSource {
         return outcome == ProjectorDestination.Outcome.READY ? destination.destAnchor : null;
     }
 
-    public ProjectedBlockClaim.LightingPolicy lightingPolicy() {
+    public BlockClaim.LightingPolicy lightingPolicy() {
         return lightingPolicy(ProjectorPlates.fidelity(portal));
     }
 
@@ -226,7 +226,7 @@ public final class ClientViewPortalSource {
             Settings.PROJECTION_RECURSIVE_PORTAL_DEPTH,
             blackoutPolicy, blackoutId, ApertureDescriptor.MASK_AIR_PROJECT, lightingPolicy(fidelity), fidelityFlags(fidelity),
             kind, DoorApertureFrames.geometryPlaneOffset(kind, portal.getFrame()), 0,
-            nativeMesh ? ProjectorPassRevision.mix(identitySalt, meshTargetRevision()) : targetIdentity(rtpTarget, identitySalt), List.of())).orElse(null);
+            nativeMesh ? PassRevision.mix(identitySalt, meshTargetRevision()) : targetIdentity(rtpTarget, identitySalt), List.of())).orElse(null);
     }
 
     public void noteAcoustics(AcousticsBridge<Player> bridge, long nowMillis) {
@@ -248,14 +248,14 @@ public final class ClientViewPortalSource {
         if (structure == null || frame == null || portal.getOrigin() == null || eye == null) {
             return 0L;
         }
-        long hash = ProjectorPassRevision.mix(REVISION_SEED, System.identityHashCode(structure));
-        hash = ProjectorPassRevision.mix(hash, structure.getRevision());
-        hash = ProjectorPassRevision.mix(hash, frame.getNormal().ordinal());
-        hash = ProjectorPassRevision.mix(hash, frame.getRight().ordinal());
-        hash = ProjectorPassRevision.mix(hash, frame.getUp().ordinal());
-        hash = ProjectorPassRevision.mix(hash, ProjectorPlates.frontSide(portal, eye) ? 1L : 2L);
-        hash = ProjectorPassRevision.mix(hash, portal.getNetworkViewDepth());
-        return ProjectorPassRevision.mix(hash, effectKind(portal));
+        long hash = PassRevision.mix(REVISION_SEED, System.identityHashCode(structure));
+        hash = PassRevision.mix(hash, structure.getRevision());
+        hash = PassRevision.mix(hash, frame.getNormal().ordinal());
+        hash = PassRevision.mix(hash, frame.getRight().ordinal());
+        hash = PassRevision.mix(hash, frame.getUp().ordinal());
+        hash = PassRevision.mix(hash, ProjectorPlates.frontSide(portal, eye) ? 1L : 2L);
+        hash = PassRevision.mix(hash, portal.getNetworkViewDepth());
+        return PassRevision.mix(hash, effectKind(portal));
     }
 
     public static ApertureDescriptor effectGeometry(ILocalPortal portal, Location eye) {
@@ -268,7 +268,7 @@ public final class ClientViewPortalSource {
         return ApertureDescriptor.fromPortal(new ApertureDescriptor.Source(structure, frame, ProjectorPlates.frontSide(portal, eye), false, 0,
             Settings.NEAR_PLANE_PADDING, Settings.PROJECTION_APERTURE_PADDING_BLOCKS, Settings.FRUSTUM_CULLING_RATIO, portal.getNetworkViewDepth(), 0,
             ApertureDescriptor.BLACKOUT_OFF, ViewStreamLimits.PALETTE_AIR, ApertureDescriptor.MASK_AIR_PROJECT,
-            ProjectedBlockClaim.LightingPolicy.LOCAL, 0, kind, DoorApertureFrames.geometryPlaneOffset(kind, frame), 0, 0L, List.of())).orElse(null);
+            BlockClaim.LightingPolicy.LOCAL, 0, kind, DoorApertureFrames.geometryPlaneOffset(kind, frame), 0, 0L, List.of())).orElse(null);
     }
 
     private static int effectKind(ILocalPortal portal) {
@@ -285,7 +285,7 @@ public final class ClientViewPortalSource {
     }
 
     private long meshTargetRevision() {
-        return plateTarget == null ? 0L : ProjectorPassRevision.mix(plateTarget.transformRevision(),
+        return plateTarget == null ? 0L : PassRevision.mix(plateTarget.transformRevision(),
             System.identityHashCode(plateTarget.key().destinationViewIdentity()));
     }
 
@@ -293,7 +293,7 @@ public final class ClientViewPortalSource {
         if (rtpTarget == null) {
             return 0L;
         }
-        long identity = ProjectorPassRevision.mix(identitySalt, rtpTarget.plateIdentity());
+        long identity = PassRevision.mix(identitySalt, rtpTarget.plateIdentity());
         return identity == 0L ? 1L : identity;
     }
 
@@ -301,42 +301,42 @@ public final class ClientViewPortalSource {
         PortalStructure structure = portal.getStructure();
         Frame frame = portal.getFrame();
         Box area = structure.getArea();
-        long hash = ProjectorPassRevision.mix(REVISION_SEED, System.identityHashCode(structure));
+        long hash = PassRevision.mix(REVISION_SEED, System.identityHashCode(structure));
         if (area != null) {
-            hash = ProjectorPassRevision.mix(hash, Double.doubleToLongBits(area.getXa()));
-            hash = ProjectorPassRevision.mix(hash, Double.doubleToLongBits(area.getYa()));
-            hash = ProjectorPassRevision.mix(hash, Double.doubleToLongBits(area.getZa()));
-            hash = ProjectorPassRevision.mix(hash, Double.doubleToLongBits(area.getXb()));
-            hash = ProjectorPassRevision.mix(hash, Double.doubleToLongBits(area.getYb()));
-            hash = ProjectorPassRevision.mix(hash, Double.doubleToLongBits(area.getZb()));
+            hash = PassRevision.mix(hash, Double.doubleToLongBits(area.getXa()));
+            hash = PassRevision.mix(hash, Double.doubleToLongBits(area.getYa()));
+            hash = PassRevision.mix(hash, Double.doubleToLongBits(area.getZa()));
+            hash = PassRevision.mix(hash, Double.doubleToLongBits(area.getXb()));
+            hash = PassRevision.mix(hash, Double.doubleToLongBits(area.getYb()));
+            hash = PassRevision.mix(hash, Double.doubleToLongBits(area.getZb()));
         }
-        hash = ProjectorPassRevision.mix(hash, frame.getNormal().ordinal());
-        hash = ProjectorPassRevision.mix(hash, frame.getRight().ordinal());
-        hash = ProjectorPassRevision.mix(hash, frame.getUp().ordinal());
-        hash = ProjectorPassRevision.mix(hash, frontSide ? 1L : 2L);
-        hash = ProjectorPassRevision.mix(hash, target == null && portal.isMirrorMode() ? 3L + destination.mirrorRotationQuarterTurns : 0L);
-        hash = ProjectorPassRevision.mix(hash, portal.getNetworkViewDepth());
-        hash = ProjectorPassRevision.mix(hash, Double.doubleToLongBits(Settings.NEAR_PLANE_PADDING));
-        hash = ProjectorPassRevision.mix(hash, Double.doubleToLongBits(Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
-        hash = ProjectorPassRevision.mix(hash, Double.doubleToLongBits(Settings.FRUSTUM_CULLING_RATIO));
-        hash = ProjectorPassRevision.mix(hash, blackoutState == null ? 0L : blackoutState.hashCode());
-        hash = ProjectorPassRevision.mix(hash, lightingPolicy(fidelity).ordinal());
-        hash = ProjectorPassRevision.mix(hash, fidelityFlags(fidelity));
-        hash = ProjectorPassRevision.mix(hash, kind());
-        return ProjectorPassRevision.mix(hash, target == null ? 0L : target.plateIdentity());
+        hash = PassRevision.mix(hash, frame.getNormal().ordinal());
+        hash = PassRevision.mix(hash, frame.getRight().ordinal());
+        hash = PassRevision.mix(hash, frame.getUp().ordinal());
+        hash = PassRevision.mix(hash, frontSide ? 1L : 2L);
+        hash = PassRevision.mix(hash, target == null && portal.isMirrorMode() ? 3L + destination.mirrorRotationQuarterTurns : 0L);
+        hash = PassRevision.mix(hash, portal.getNetworkViewDepth());
+        hash = PassRevision.mix(hash, Double.doubleToLongBits(Settings.NEAR_PLANE_PADDING));
+        hash = PassRevision.mix(hash, Double.doubleToLongBits(Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
+        hash = PassRevision.mix(hash, Double.doubleToLongBits(Settings.FRUSTUM_CULLING_RATIO));
+        hash = PassRevision.mix(hash, blackoutState == null ? 0L : blackoutState.hashCode());
+        hash = PassRevision.mix(hash, lightingPolicy(fidelity).ordinal());
+        hash = PassRevision.mix(hash, fidelityFlags(fidelity));
+        hash = PassRevision.mix(hash, kind());
+        return PassRevision.mix(hash, target == null ? 0L : target.plateIdentity());
     }
 
-    private ProjectedBlockClaim.LightingPolicy lightingPolicy(FidelityPortalExtension fidelity) {
+    private BlockClaim.LightingPolicy lightingPolicy(FidelityPortalExtension fidelity) {
         if (nativeMesh) {
-            return ProjectedBlockClaim.LightingPolicy.SOURCE;
+            return BlockClaim.LightingPolicy.SOURCE;
         }
         if (blackoutState != null) {
-            return ProjectedBlockClaim.LightingPolicy.FULL_BRIGHT;
+            return BlockClaim.LightingPolicy.FULL_BRIGHT;
         }
         boolean sourceLighting = FidelitySettings.skyLight && atmosphereMode(fidelity).promotesSkyLight();
         return Settings.LIGHTING_FIDELITY || sourceLighting
-            ? ProjectedBlockClaim.LightingPolicy.SOURCE
-            : ProjectedBlockClaim.LightingPolicy.LOCAL;
+            ? BlockClaim.LightingPolicy.SOURCE
+            : BlockClaim.LightingPolicy.LOCAL;
     }
 
     private static int fidelityFlags(FidelityPortalExtension fidelity) {

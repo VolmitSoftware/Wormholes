@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.optics.claim.ProjectionOutput;
+import art.arcane.optics.claim.WorldOutput;
 import art.arcane.optics.math.CellKeys;
 
 import art.arcane.wormholes.render.FidelitySettings;
@@ -25,7 +25,7 @@ public final class MinecraftAtmosphere implements AutoCloseable {
     private final WormholesModRuntime runtime;
     private final ServerPlayer observer;
     private final ServerLevel world;
-    private final ProjectionOutput<ServerPlayer> output;
+    private final WorldOutput<ServerPlayer> output;
     private final BiomeClaimSet claims;
     private final Map<UUID, AtmosphereChannel<BlockState, ContentView<BlockState, BlockState>>> channels = new HashMap<>();
     private final Long2ObjectMap<BiomeClaimSet.ChunkBiomes> pending = new Long2ObjectOpenHashMap<>();
@@ -104,6 +104,6 @@ public final class MinecraftAtmosphere implements AutoCloseable {
         }
     }
 
-    public record Context(ServerPlayer observer, MinecraftProjectionWorldView local, ProjectionOutput<ServerPlayer> output) {
+    public record Context(ServerPlayer observer, MinecraftProjectionWorldView local, WorldOutput<ServerPlayer> output) {
     }
 }

@@ -4,7 +4,7 @@ import art.arcane.optics.aperture.AperturePolygon;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.optics.frame.Frame;
-import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.claim.BlockClaim;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 import art.arcane.wormholes.portal.ApertureKind;
@@ -146,7 +146,7 @@ public class PortalViewportTest {
         ApertureDescriptor geometry = ApertureDescriptor.fromPortal(new ApertureDescriptor.Source(aperture,
             Frame.canonical(Face.S), true, false, 0, 0, 0, 0, 64, 0,
             ApertureDescriptor.BLACKOUT_OFF, 0, ApertureDescriptor.MASK_AIR_PROJECT,
-            ProjectedBlockClaim.LightingPolicy.LOCAL, 0, ApertureKind.FRAME, 0.0D, 0, 0, List.of())).orElseThrow();
+            BlockClaim.LightingPolicy.LOCAL, 0, ApertureKind.FRAME, 0.0D, 0, 0, List.of())).orElseThrow();
         return AperturePolygon.from(geometry);
     }
 }

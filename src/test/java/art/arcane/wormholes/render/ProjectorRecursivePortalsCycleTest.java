@@ -28,8 +28,8 @@ import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.recursion.RecursiveEndpoints;
-import art.arcane.optics.scan.ProjectorSample;
-import art.arcane.optics.scan.ProjectorSampler;
+import art.arcane.optics.scan.Sample;
+import art.arcane.optics.scan.Sampler;
 
 final class ProjectorRecursivePortalsCycleTest {
     private static final double EYE_X = 1.0D;
@@ -145,15 +145,15 @@ final class ProjectorRecursivePortalsCycleTest {
     void maskOnlyHitsLeaveTheDestinationMemoIntact() {
         FacingPair maskPair = new FacingPair(false);
         FacingPair linkedPair = new FacingPair(true);
-        ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> masked = sampler(maskPair);
-        ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> linked = sampler(linkedPair);
+        Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> masked = sampler(maskPair);
+        Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> linked = sampler(linkedPair);
 
-        ProjectorSample<BlockData, ProjectionWorldView> maskSample = masked.resolve(new StoneWorldView(maskPair.world),
+        Sample<BlockData, ProjectionWorldView> maskSample = masked.resolve(new StoneWorldView(maskPair.world),
             SAMPLE_X, SAMPLE_Y, SAMPLE_Z, EYE_X, EYE_Y, EYE_Z, null, 3, false, null, null);
         linked.resolve(new StoneWorldView(linkedPair.world), SAMPLE_X, SAMPLE_Y, SAMPLE_Z, EYE_X, EYE_Y, EYE_Z,
             linkedPair.back, 3, false, null, null);
 
-        assertEquals(ProjectorSample.Kind.MASK_AIR, maskSample.kind);
+        assertEquals(Sample.Kind.MASK_AIR, maskSample.kind);
         assertFalse(masked.recursiveSamplesCached(), "a mask is pure geometry and must not poison the destination memo");
         assertTrue(linked.recursiveSamplesCached(), "a nested sample still invalidates the destination memo");
     }
@@ -185,25 +185,25 @@ final class ProjectorRecursivePortalsCycleTest {
         AtomicInteger nestedViewLookups = new AtomicInteger();
         ProjectionWorldView view = new StoneWorldView(pair.world);
         @SuppressWarnings("unchecked")
-        ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView>[] sampler = (ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView>[]) new ProjectorSampler<?, ?, ?, ?, ?>[1];
+        Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView>[] sampler = (Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView>[]) new Sampler<?, ?, ?, ?, ?>[1];
         RenderTestSupport.withBukkitServer(() -> sampler[0] = BukkitProjectorBlocks.sampler(BukkitProjectorBlocks.memo(), portals,
             ignored -> {
                 nestedViewLookups.incrementAndGet();
                 return view;
             }));
 
-        ProjectorSample<BlockData, ProjectionWorldView> sample = sampler[0].resolve(view, SAMPLE_X, SAMPLE_Y, SAMPLE_Z, EYE_X, EYE_Y, EYE_Z,
+        Sample<BlockData, ProjectionWorldView> sample = sampler[0].resolve(view, SAMPLE_X, SAMPLE_Y, SAMPLE_Z, EYE_X, EYE_Y, EYE_Z,
             pair.back, 3, false, null, null);
 
-        assertEquals(ProjectorSample.Kind.MASK_AIR, sample.kind);
+        assertEquals(Sample.Kind.MASK_AIR, sample.kind);
         assertEquals(1, nestedViewLookups.get(), "the second nesting must be masked, not sampled");
     }
 
-    private static ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler(FacingPair pair) {
+    private static Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler(FacingPair pair) {
         RecursiveEndpoints<World, ILocalPortal> portals = BukkitProjectorPortalAccess.create(pair::portals);
         ProjectionWorldView view = new StoneWorldView(pair.world);
         @SuppressWarnings("unchecked")
-        ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView>[] sampler = (ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView>[]) new ProjectorSampler<?, ?, ?, ?, ?>[1];
+        Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView>[] sampler = (Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView>[]) new Sampler<?, ?, ?, ?, ?>[1];
         RenderTestSupport.withBukkitServer(() -> sampler[0] = BukkitProjectorBlocks.sampler(BukkitProjectorBlocks.memo(), portals,
             ignored -> view));
         return sampler[0];

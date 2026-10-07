@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.optics.entity.ProjectedEntityEvent;
+import art.arcane.optics.entity.EntityAnimation;
 import art.arcane.optics.fidelity.AcousticsBridge;
 
 import art.arcane.wormholes.network.view.RemoteViewCache;
@@ -195,7 +195,7 @@ public final class MinecraftNetworkService implements AutoCloseable {
         }
     }
 
-    public void forwardEntityEvent(ProjectedEntityEvent event) {
+    public void forwardEntityEvent(EntityAnimation event) {
         if (viewServer != null) {
             viewServer.forwardEntityEvent(event);
         }
@@ -284,7 +284,7 @@ public final class MinecraftNetworkService implements AutoCloseable {
             case WireMessage.ViewEntities entities -> views.applyEntities(peer, entities.portalId(), entities.entities(), entities.presentIds());
             case WireMessage.ViewEntityAnimation event -> {
                 if (views.get(peer, event.portalId()) != null) {
-                    runtime.projections().entityEvent(new ProjectedEntityEvent(event.entityId(), event.hurt(),
+                    runtime.projections().entityEvent(new EntityAnimation(event.entityId(), event.hurt(),
                         event.animationOrdinal(), event.yaw()));
                 }
             }

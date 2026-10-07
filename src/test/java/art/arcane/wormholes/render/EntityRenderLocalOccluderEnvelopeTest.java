@@ -16,7 +16,7 @@ import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.volume.LocalEntityEnvelope;
-import art.arcane.optics.volume.ProjectionVolume;
+import art.arcane.optics.volume.ApertureSlab;
 import art.arcane.optics.volume.ViewVolume;
 
 public final class EntityRenderLocalOccluderEnvelopeTest {
@@ -53,7 +53,7 @@ public final class EntityRenderLocalOccluderEnvelopeTest {
         SettingsSnapshot settings = applyExactFrustumSettings();
         try {
             ViewVolume frustum = frustum();
-            ProjectionVolume volume = volume();
+            ApertureSlab volume = volume();
             assertFalse(LocalEntityEnvelope.envelopeFullyProjected(
                 1.0D, 0.75D, 4.9D,
                 2.0D, 2.5D, 5.5D,
@@ -67,8 +67,8 @@ public final class EntityRenderLocalOccluderEnvelopeTest {
         }
     }
 
-    private static ProjectionVolume volume() {
-        return ProjectionVolume.of(new TestStructure().getArea(), Frame.canonical(Face.N), 5.0D, true, 16.0D, 0.0D);
+    private static ApertureSlab volume() {
+        return ApertureSlab.of(new TestStructure().getArea(), Frame.canonical(Face.N), 5.0D, true, 16.0D, 0.0D);
     }
 
     private static ViewVolume frustum() {

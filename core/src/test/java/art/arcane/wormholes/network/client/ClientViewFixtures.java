@@ -11,7 +11,7 @@ import art.arcane.optics.frame.AxisPermutation;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Vec3d;
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.ViewStreamCodec;
 import art.arcane.optics.stream.ViewStreamLimits;
@@ -86,11 +86,11 @@ public final class ClientViewFixtures {
     }
 
     public static TravelMessage.TravelBegin travelBegin() {
-        ProjectionEnvironment base = environment();
-        ProjectionEnvironment.World world = base.world();
-        ProjectionEnvironment environment = new ProjectionEnvironment(base.gameTime(), base.sky(), base.fog(), base.lighting(),
+        EnvironmentState base = environment();
+        EnvironmentState.World world = base.world();
+        EnvironmentState environment = new EnvironmentState(base.gameTime(), base.sky(), base.fog(), base.lighting(),
             base.clouds(), OpticTransform.IDENTITY, base.dimension(),
-            new ProjectionEnvironment.World("minecraft:overworld", world.clockTime(), world.biomeKey(), world.seaLevel(),
+            new EnvironmentState.World("minecraft:overworld", world.clockTime(), world.biomeKey(), world.seaLevel(),
                 world.blockLight(), world.skyLight(), world.logicalHeight(), world.hasCeiling(), world.ambientLight(),
                 world.eyeMedium(), world.hasFixedTime()));
         return new TravelMessage.TravelBegin(new UUID(12, 34), 3L, new UUID(56, 78), "minecraft:the_nether",
@@ -100,16 +100,16 @@ public final class ClientViewFixtures {
             List.of(new TravelMessage.TravelCoordinate(-32, -10)), environment, 30_000, TravelMessage.ArrivalRules.FRAME, false, 0, false);
     }
 
-    static ProjectionEnvironment environment() {
-        ProjectionEnvironment.Color color = new ProjectionEnvironment.Color(0.125F, 0.5F, 1.25F);
-        ProjectionEnvironment.ColorAlpha alpha = new ProjectionEnvironment.ColorAlpha(0.75F, 0.5F, 0.25F, 0.5F);
-        return new ProjectionEnvironment(18000L,
-            new ProjectionEnvironment.Sky(ProjectionEnvironment.Skybox.OVERWORLD, 1.5F, 2.5F, 3.5F, 0.8F, alpha, color, 5, 0.25F, 0.5F),
-            new ProjectionEnvironment.Fog(color, -8.0F, 96.0F, 512.0F, 256.0F, color, 0.0F, 32.0F),
-            new ProjectionEnvironment.Lighting(color, 0.75F, color, color), new ProjectionEnvironment.Clouds(alpha, 192.0F),
+    static EnvironmentState environment() {
+        EnvironmentState.Color color = new EnvironmentState.Color(0.125F, 0.5F, 1.25F);
+        EnvironmentState.ColorAlpha alpha = new EnvironmentState.ColorAlpha(0.75F, 0.5F, 0.25F, 0.5F);
+        return new EnvironmentState(18000L,
+            new EnvironmentState.Sky(EnvironmentState.Skybox.OVERWORLD, 1.5F, 2.5F, 3.5F, 0.8F, alpha, color, 5, 0.25F, 0.5F),
+            new EnvironmentState.Fog(color, -8.0F, 96.0F, 512.0F, 256.0F, color, 0.0F, 32.0F),
+            new EnvironmentState.Lighting(color, 0.75F, color, color), new EnvironmentState.Clouds(alpha, 192.0F),
             OpticTransform.of(AxisPermutation.of(Face.N, Face.U, Face.E), -128.5D, 96.0D, 33.25D),
-            new ProjectionEnvironment.Dimension(-64, 384, true, ProjectionEnvironment.CardinalLighting.DEFAULT, 63.0D, false),
-            new ProjectionEnvironment.World("test:destination", 72000L, "minecraft:plains", 63, 7, 15, 256, true, 0.1F, ProjectionEnvironment.EyeMedium.WATER, true));
+            new EnvironmentState.Dimension(-64, 384, true, EnvironmentState.CardinalLighting.DEFAULT, 63.0D, false),
+            new EnvironmentState.World("test:destination", 72000L, "minecraft:plains", 63, 7, 15, 256, true, 0.1F, EnvironmentState.EyeMedium.WATER, true));
     }
 
     static ApertureDescriptor geometry() {

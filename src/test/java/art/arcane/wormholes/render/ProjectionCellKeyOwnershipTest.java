@@ -12,7 +12,7 @@ import org.bukkit.util.Vector;
 import org.junit.jupiter.api.Test;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
-import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.claim.BlockClaim;
 import art.arcane.optics.math.CellKeys;
 
 public final class ProjectionCellKeyOwnershipTest {
@@ -30,7 +30,7 @@ public final class ProjectionCellKeyOwnershipTest {
             positions.add(new Vector(cell[0], cell[1], cell[2]));
         }
 
-        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims = PortalSkinRenderer.fluidClaims(positions, null);
+        Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>> claims = PortalSkinRenderer.fluidClaims(positions, null);
 
         assertEquals(cells.length, claims.size(), "every skinned cell must produce exactly one distinct claim key");
         for (int[] cell : cells) {

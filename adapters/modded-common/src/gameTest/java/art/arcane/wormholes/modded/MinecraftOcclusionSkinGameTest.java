@@ -4,9 +4,9 @@ import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.mixin.DoorDisplayDataAccess;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
-import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.claim.BlockClaim;
 import art.arcane.optics.math.CellKeys;
-import art.arcane.optics.claim.ProjectionClaimSet;
+import art.arcane.optics.claim.ClaimSet;
 import art.arcane.optics.view.ContentView;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.frame.OpticTransform;
@@ -97,11 +97,11 @@ public final class MinecraftOcclusionSkinGameTest {
                  new MinecraftPortalProjector.Context(observer.player(), source, ignored -> view, new MinecraftProjectorPortalAccess(runtime), null))) {
             MinecraftPortalProjector.Result result = projector.update(level.getGameTime(), Long.MAX_VALUE);
             helper.assertTrue(result == MinecraftPortalProjector.Result.READY, "Venticular projection pass did not complete: " + result);
-            ProjectedBlockClaim<BlockState, ContentView<BlockState, BlockState>> coverClaim = projector.claimDelta().claims()
+            BlockClaim<BlockState, ContentView<BlockState, BlockState>> coverClaim = projector.claimDelta().claims()
                 .get(CellKeys.pack(coverCell.getX(), coverCell.getY(), coverCell.getZ()));
             helper.assertTrue(coverClaim != null && coverClaim.getData().is(cover.getBlock()),
                 "Venticular projection did not place the " + cover.getBlock().getName().getString() + " row in front of the marker");
-            ProjectedBlockClaim<BlockState, ContentView<BlockState, BlockState>> markerClaim = projector.claimDelta().claims()
+            BlockClaim<BlockState, ContentView<BlockState, BlockState>> markerClaim = projector.claimDelta().claims()
                 .get(CellKeys.pack(markerCell.getX(), markerCell.getY(), markerCell.getZ()));
             return markerClaim != null && markerClaim.getData().is(marker.getBlock());
         } finally {
@@ -110,7 +110,7 @@ public final class MinecraftOcclusionSkinGameTest {
     }
 
     private void verifySkinFace() {
-        ProjectionClaimSet<ProjectedBlockClaim<BlockState, ContentView<BlockState, BlockState>>> claims = new ProjectionClaimSet<>();
+        ClaimSet<BlockClaim<BlockState, ContentView<BlockState, BlockState>>> claims = new ClaimSet<>();
         LongOpenHashSet staged = new LongOpenHashSet();
         source.setSurfaceSkin("minecraft:glass");
         observer.drainPackets();

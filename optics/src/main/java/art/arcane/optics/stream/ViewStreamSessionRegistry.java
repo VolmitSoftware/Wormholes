@@ -1,7 +1,7 @@
 package art.arcane.optics.stream;
 
 import java.security.SecureRandom;
-import art.arcane.optics.entity.ProjectedEntityEvent;
+import art.arcane.optics.entity.EntityAnimation;
 import art.arcane.optics.internal.stream.PlateStreamEncoder;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -64,7 +64,7 @@ public final class ViewStreamSessionRegistry<O, B> {
         return session != null && session.burst(message);
     }
 
-    public void entityEvent(ProjectedEntityEvent event) {
+    public void entityEvent(EntityAnimation event) {
         platform.entities().event(event);
     }
 

@@ -12,7 +12,7 @@ import java.util.WeakHashMap;
 import java.util.function.Function;
 
 import art.arcane.optics.math.CellKeys;
-import art.arcane.optics.scan.ProjectorSample;
+import art.arcane.optics.scan.Sample;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.plate.PlateCell;
@@ -93,7 +93,7 @@ public final class PlateStreamEncoder<B> {
         IdentityHashMap<PlateCell<B>, String> cellStates = new IdentityHashMap<PlateCell<B>, String>(64);
         Object2IntOpenHashMap<String> backingVotes = new Object2IntOpenHashMap<String>(16);
         IntOpenHashSet referenced = new IntOpenHashSet(256);
-        int[] kindCounts = new int[ProjectorSample.Kind.values().length + 1];
+        int[] kindCounts = new int[Sample.Kind.values().length + 1];
         int[] cells = new int[ViewStreamLimits.BRICK_CELLS];
         int paletteSize = plate.paletteSize();
         int[] refIds = new int[paletteSize + 1];
@@ -141,7 +141,7 @@ public final class PlateStreamEncoder<B> {
                             kindCounts[kindCounts.length - 1]++;
                             continue;
                         }
-                        ProjectorSample.Kind kind = cell.kind();
+                        Sample.Kind kind = cell.kind();
                         kindCounts[kind.ordinal()]++;
                         int id;
                         switch (kind) {

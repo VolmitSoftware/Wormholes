@@ -40,7 +40,7 @@ import art.arcane.optics.frame.OpticTransform;
 import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
-import art.arcane.optics.occlusion.ProjectedEntityOcclusion;
+import art.arcane.optics.occlusion.EntityOcclusion;
 import art.arcane.optics.recursion.EntityPath;
 import art.arcane.optics.recursion.RecursiveEndpoints;
 import art.arcane.optics.volume.ViewVolume;
@@ -278,7 +278,7 @@ final class ProjectedEntityRecursionTest {
         private final UUID entityId = UUID.randomUUID();
         private final Map<String, Object> entityState = RenderTestSupport.entityState(entityId, finalWorld,
             EntityType.ZOMBIE, 1.5D, 1.0D, 103.0D, 1.0D);
-        private final ProjectedEntityOcclusion<BlockData, ProjectionWorldView> occlusion = BukkitEntityOcclusion.create();
+        private final EntityOcclusion<BlockData, ProjectionWorldView> occlusion = BukkitEntityOcclusion.create();
 
         private Fixture() {
             finalEntities.add(RenderTestSupport.entity(LivingEntity.class, entityState));

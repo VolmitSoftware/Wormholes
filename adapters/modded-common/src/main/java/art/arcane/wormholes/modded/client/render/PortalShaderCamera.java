@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client.render;
 
 import art.arcane.optics.math.Vec3d;
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
@@ -20,7 +20,7 @@ final class PortalShaderCamera extends Camera {
     private final Matrix4f viewRotation;
     private final Probe attributes;
 
-    PortalShaderCamera(ProjectionEnvironment environment, CameraRenderState display) {
+    PortalShaderCamera(EnvironmentState environment, CameraRenderState display) {
         setEntity(Minecraft.getInstance().getCameraEntity());
         Vec3d eye = environment.transform().inverse().point(new Vec3d(display.pos.x, display.pos.y, display.pos.z));
         setPosition(eye.x(), eye.y(), eye.z());
@@ -52,8 +52,8 @@ final class PortalShaderCamera extends Camera {
     private static final class Probe extends EnvironmentAttributeProbe {
         private final Map<EnvironmentAttribute<?>, Object> values = new IdentityHashMap<>();
 
-        private Probe(ProjectionEnvironment environment) {
-            ProjectionEnvironment.Sky sky = environment.sky();
+        private Probe(EnvironmentState environment) {
+            EnvironmentState.Sky sky = environment.sky();
             values.put(EnvironmentAttributes.SUN_ANGLE, (float) Math.toDegrees(sky.sunAngle()));
             values.put(EnvironmentAttributes.MOON_ANGLE, (float) Math.toDegrees(sky.moonAngle()));
             values.put(EnvironmentAttributes.STAR_ANGLE, (float) Math.toDegrees(sky.starAngle()));
@@ -61,7 +61,7 @@ final class PortalShaderCamera extends Camera {
             values.put(EnvironmentAttributes.SUNRISE_SUNSET_COLOR, PortalEnvironment.vector(sky.sunrise()));
             values.put(EnvironmentAttributes.SKY_COLOR, PortalEnvironment.vector(sky.color()));
             values.put(EnvironmentAttributes.MOON_PHASE, MoonPhase.values()[sky.moonPhase()]);
-            ProjectionEnvironment.Fog fog = environment.fog();
+            EnvironmentState.Fog fog = environment.fog();
             values.put(EnvironmentAttributes.FOG_COLOR, PortalEnvironment.vector(fog.color()));
             values.put(EnvironmentAttributes.FOG_START_DISTANCE, fog.start());
             values.put(EnvironmentAttributes.FOG_END_DISTANCE, fog.end());
@@ -70,7 +70,7 @@ final class PortalShaderCamera extends Camera {
             values.put(EnvironmentAttributes.WATER_FOG_COLOR, PortalEnvironment.vector(fog.waterColor()));
             values.put(EnvironmentAttributes.WATER_FOG_START_DISTANCE, fog.waterStart());
             values.put(EnvironmentAttributes.WATER_FOG_END_DISTANCE, fog.waterEnd());
-            ProjectionEnvironment.Lighting lighting = environment.lighting();
+            EnvironmentState.Lighting lighting = environment.lighting();
             values.put(EnvironmentAttributes.BLOCK_LIGHT_TINT, PortalEnvironment.vector(lighting.blockTint()));
             values.put(EnvironmentAttributes.SKY_LIGHT_FACTOR, lighting.skyFactor());
             values.put(EnvironmentAttributes.SKY_LIGHT_COLOR, PortalEnvironment.vector(lighting.skyColor()));

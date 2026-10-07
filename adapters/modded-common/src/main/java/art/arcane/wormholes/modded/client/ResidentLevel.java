@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.wormholes.modded.mixin.client.PreparedPacketAccess;
 import art.arcane.wormholes.network.client.TravelMessage;
 import net.minecraft.client.Minecraft;
@@ -37,7 +37,7 @@ final class ResidentLevel {
         this.world = world;
     }
 
-    static ClientLevel create(TravelMessage.TravelWorld world, ProjectionEnvironment environment, TravelMessage.TravelCoordinate center) {
+    static ClientLevel create(TravelMessage.TravelWorld world, EnvironmentState environment, TravelMessage.TravelCoordinate center) {
         Minecraft minecraft = Minecraft.getInstance();
         ClientPacketListener connection = minecraft.getConnection();
         Holder<DimensionType> type = connection.registryAccess().lookupOrThrow(Registries.DIMENSION_TYPE)

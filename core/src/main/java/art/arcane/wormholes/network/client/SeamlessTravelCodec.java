@@ -1,6 +1,6 @@
 package art.arcane.wormholes.network.client;
 
-import art.arcane.optics.stream.ProjectionEnvironmentCodec;
+import art.arcane.optics.stream.EnvironmentStateCodec;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.stream.ViewStreamReader;
@@ -43,7 +43,7 @@ public final class SeamlessTravelCodec implements TravelExtension.Seamless {
             case TravelMessage.RemoteLevelOpen open -> {
                 out.u8(open.levelHandle());
                 TravelExtension.world(out, open.world());
-                ProjectionEnvironmentCodec.write(out, open.environment());
+                EnvironmentStateCodec.write(out, open.environment());
                 out.u8(open.viewRadius());
                 out.i32(open.center().x());
                 out.i32(open.center().z());
@@ -81,7 +81,7 @@ public final class SeamlessTravelCodec implements TravelExtension.Seamless {
     public TravelMessage decode(int id, ViewStreamReader in) throws ViewStreamProtocolException {
         return switch (id) {
             case TravelMessage.REMOTE_LEVEL_OPEN -> new TravelMessage.RemoteLevelOpen(in.u8(), TravelExtension.world(in),
-                ProjectionEnvironmentCodec.read(in), in.u8(), new TravelMessage.TravelCoordinate(in.i32(), in.i32()));
+                EnvironmentStateCodec.read(in), in.u8(), new TravelMessage.TravelCoordinate(in.i32(), in.i32()));
             case TravelMessage.REMOTE_LEVEL_CLOSE -> new TravelMessage.RemoteLevelClose(in.u8());
             case TravelMessage.ROUTED_PACKET -> {
                 int handle = in.u8();

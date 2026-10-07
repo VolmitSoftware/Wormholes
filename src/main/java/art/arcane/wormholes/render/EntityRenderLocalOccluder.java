@@ -22,7 +22,7 @@ import art.arcane.optics.frame.Frame;
 import art.arcane.optics.occlusion.LocalOcclusionArbiter;
 import art.arcane.optics.volume.LocalEntityEnvelope;
 import art.arcane.optics.volume.ViewVolume;
-import art.arcane.optics.volume.ProjectionVolume;
+import art.arcane.optics.volume.ApertureSlab;
 
 final class EntityRenderLocalOccluder {
     private static final double LABEL_HORIZONTAL_MARGIN = 0.5D;
@@ -56,9 +56,9 @@ final class EntityRenderLocalOccluder {
         double eyeX = scratchEntityPosition[0];
         double eyeY = scratchEntityPosition[1] + observer.getEyeHeight();
         double eyeZ = scratchEntityPosition[2];
-        boolean eyeFrontSide = ProjectionVolume.side(frame, origin.getX(), origin.getY(), origin.getZ(), eyeX, eyeY, eyeZ);
-        ProjectionVolume volume = ProjectionVolume.of(localPortal.getStructure().getArea(), frame,
-            ProjectionVolume.plane(frame, origin.getX(), origin.getY(), origin.getZ()), eyeFrontSide, projectionDepth, 0.0D);
+        boolean eyeFrontSide = ApertureSlab.side(frame, origin.getX(), origin.getY(), origin.getZ(), eyeX, eyeY, eyeZ);
+        ApertureSlab volume = ApertureSlab.of(localPortal.getStructure().getArea(), frame,
+            ApertureSlab.plane(frame, origin.getX(), origin.getY(), origin.getZ()), eyeFrontSide, projectionDepth, 0.0D);
         double ownedRange = largestOwnedLocalEntityRange(localWorld, localCenter, volume.maxDepth());
         if (ownedRange <= 0.0D) {
             return;
@@ -107,7 +107,7 @@ final class EntityRenderLocalOccluder {
         return 0.0D;
     }
 
-    private boolean shouldHideLocalEntity(UUID observerId, Entity entity, ProjectionVolume volume, ViewVolume frustum) {
+    private boolean shouldHideLocalEntity(UUID observerId, Entity entity, ApertureSlab volume, ViewVolume frustum) {
         if (entity == null || entity.isDead() || !entity.isValid()) {
             return false;
         }

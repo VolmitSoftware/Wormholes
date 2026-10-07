@@ -13,7 +13,7 @@ import art.arcane.optics.frame.Frame;
 import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
-import art.arcane.optics.scan.ProjectorPassRevision;
+import art.arcane.optics.scan.PassRevision;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.ArrayList;
@@ -116,7 +116,7 @@ public final class MinecraftDoorProjectionViews {
         source.setBlackoutBackground(false);
         MinecraftPortal anchor = descriptor(destination.routeId(), destination.origin(), destination.frame(), new ApertureCells(), destination.worldKey());
         UUID route = UUID.nameUUIDFromBytes(destination.signature().getBytes(StandardCharsets.UTF_8));
-        long identity = ProjectorPassRevision.mix(route.getMostSignificantBits(), route.getLeastSignificantBits());
+        long identity = PassRevision.mix(route.getMostSignificantBits(), route.getLeastSignificantBits());
         return new Aperture(plane, destination, source, anchor, identity == 0L ? 1L : identity);
     }
 

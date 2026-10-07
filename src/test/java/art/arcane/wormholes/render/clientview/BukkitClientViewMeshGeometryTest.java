@@ -10,7 +10,7 @@ import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.IPortal;
 import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.render.ClientViewPortalSource;
-import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.claim.BlockClaim;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import com.github.retrooper.packetevents.protocol.ConnectionState;
 import org.junit.jupiter.api.Test;
@@ -128,7 +128,7 @@ class BukkitClientViewMeshGeometryTest {
             assertTrue(nativeGeometry.mirror());
             assertEquals(ApertureDescriptor.BLACKOUT_OFF, nativeGeometry.blackoutPolicy());
             assertEquals(0, nativeGeometry.blackoutState());
-            assertEquals(ProjectedBlockClaim.LightingPolicy.SOURCE.ordinal(), nativeGeometry.lightingPolicy());
+            assertEquals(BlockClaim.LightingPolicy.SOURCE.ordinal(), nativeGeometry.lightingPolicy());
             when(fixture.portal.getBlackoutColor()).thenReturn(BlackoutColor.WHITE);
             source.update(fixture.player, fixture.eye, null, 2L, true);
             assertEquals(revision, source.geometryRevision());
@@ -136,7 +136,7 @@ class BukkitClientViewMeshGeometryTest {
             source.update(fixture.player, fixture.eye, null, 2L, false);
             ApertureDescriptor ordinaryGeometry = source.geometry(palette, 1L);
             assertEquals(ApertureDescriptor.BLACKOUT_SHELL, ordinaryGeometry.blackoutPolicy());
-            assertEquals(ProjectedBlockClaim.LightingPolicy.FULL_BRIGHT.ordinal(), ordinaryGeometry.lightingPolicy());
+            assertEquals(BlockClaim.LightingPolicy.FULL_BRIGHT.ordinal(), ordinaryGeometry.lightingPolicy());
         }
     }
 

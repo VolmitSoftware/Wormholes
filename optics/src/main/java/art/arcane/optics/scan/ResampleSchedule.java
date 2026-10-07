@@ -111,7 +111,7 @@ public final class ResampleSchedule {
                                   UUID destWorldId,
                                   double destinationOriginX,
                                   double destinationOriginZ,
-                                  ProjectorRemoteFootprint footprint) {
+                                  RemoteFootprint footprint) {
         if (!firstProjectionDone) {
             return true;
         }
@@ -139,7 +139,7 @@ public final class ResampleSchedule {
     }
 
     public long destinationUnaffectedThrough(UUID destWorldId, double originX, double originZ, long sinceVersion,
-                                             ProjectorRemoteFootprint footprint) {
+                                             RemoteFootprint footprint) {
         WorldChangeTracker changes = tracker.get();
         if (destWorldId == null || changes == null) {
             return WorldChangeTracker.AFFECTED;

@@ -10,7 +10,7 @@ import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.QuarterTurn;
-import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.claim.BlockClaim;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 
@@ -53,7 +53,7 @@ public record ApertureDescriptor(int originX,
     public static final int MAX_DEPTH_BLOCKS = 0xFFFF;
     public static final int MAX_APERTURE_CELLS = 1 << 20;
     private static final Face[] DIRECTIONS = Face.values();
-    private static final ProjectedBlockClaim.LightingPolicy[] LIGHTING_POLICIES = ProjectedBlockClaim.LightingPolicy.values();
+    private static final BlockClaim.LightingPolicy[] LIGHTING_POLICIES = BlockClaim.LightingPolicy.values();
     private static final double BLOCK_EXTENT = 0.999D;
 
     public ApertureDescriptor {
@@ -98,8 +98,8 @@ public record ApertureDescriptor(int originX,
                 open[(row * columns) + column] = aperture.containsBlock(cell[0], cell[1], cell[2]);
             }
         }
-        ProjectedBlockClaim.LightingPolicy lighting = source.lightingPolicy() == null
-            ? ProjectedBlockClaim.LightingPolicy.LOCAL
+        BlockClaim.LightingPolicy lighting = source.lightingPolicy() == null
+            ? BlockClaim.LightingPolicy.LOCAL
             : source.lightingPolicy();
         return Optional.of(new ApertureDescriptor(min[0], min[1], min[2], normal.ordinal(), source.frontSide(),
             packQuarterTurns(frameTurns, source.mirror() ? source.mirrorQuarterTurns() : 0), source.mirror(),
@@ -236,7 +236,7 @@ public record ApertureDescriptor(int originX,
         return OpticTransform.mirror(frame(), apertureArea().center(), QuarterTurn.of(mirrorQuarterTurns()));
     }
 
-    public ProjectedBlockClaim.LightingPolicy lightingPolicyType() {
+    public BlockClaim.LightingPolicy lightingPolicyType() {
         return LIGHTING_POLICIES[lightingPolicy];
     }
 
@@ -365,7 +365,7 @@ public record ApertureDescriptor(int originX,
                          int blackoutPolicy,
                          int blackoutState,
                          int maskAirPolicy,
-                         ProjectedBlockClaim.LightingPolicy lightingPolicy,
+                         BlockClaim.LightingPolicy lightingPolicy,
                          int fidelityFlags,
                          int kind,
                          double planeOffset,

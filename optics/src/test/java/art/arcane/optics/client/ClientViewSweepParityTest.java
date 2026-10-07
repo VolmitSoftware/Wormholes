@@ -12,10 +12,10 @@ import art.arcane.optics.frame.Frame;
 import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.optics.scan.ScanMode;
 import art.arcane.optics.volume.ViewVolume;
-import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.claim.BlockClaim;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.volume.PlaneWindow;
-import art.arcane.optics.volume.ProjectionVolume;
+import art.arcane.optics.volume.ApertureSlab;
 import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
@@ -43,7 +43,7 @@ final class ClientViewSweepParityTest {
                         for (double hysteresis : new double[] {0.0D, HYSTERESIS}) {
                             ApertureDescriptor geometry = ApertureDescriptor.fromPortal(new ApertureDescriptor.Source(aperture,
                                 frame, front, false, 0, 2.0D, padding, 0.2D, 8, 0, ApertureDescriptor.BLACKOUT_OFF, 0,
-                                ApertureDescriptor.MASK_AIR_PROJECT, ProjectedBlockClaim.LightingPolicy.LOCAL, 0,
+                                ApertureDescriptor.MASK_AIR_PROJECT, BlockClaim.LightingPolicy.LOCAL, 0,
                                 0, 0.0D, 0, 0L, List.of())).orElseThrow();
                             BlockBox bounds = new BlockBox(-31, -34, -29, 25, 25, 25);
                             ClientSweep sweep = new ClientSweep(geometry, bounds, hysteresis);
@@ -101,24 +101,24 @@ final class ClientViewSweepParityTest {
         Frame projectionFrame = frame.view(geometry.frontSide());
         Face normal = projectionFrame.getNormal();
         double eyeDot = dot(eye.getX() - origin.getX(), eye.getY() - origin.getY(), eye.getZ() - origin.getZ(), normal);
-        double clearance = ProjectionVolume.portalPlaneClearance(area, frame);
+        double clearance = ApertureSlab.portalPlaneClearance(area, frame);
         PlaneWindow window = PlaneWindow.create(aperture, area, projectionFrame,
             origin.getX(), origin.getY(), origin.getZ(), padding, eyeDot);
         ViewVolume frustum = new ViewVolume(eye, aperture, new ViewVolume.Options(geometry.depthBlocks(), geometry.depthBlocks(),
             geometry.nearPlanePadding(), geometry.frustumCullingRatio(), padding));
         Box region = frustum.getRegion();
-        int minX = Math.max(bounds.minX(), ProjectionVolume.minBlockForCenter(region.getXa()));
-        int minY = Math.max(bounds.minY(), ProjectionVolume.minBlockForCenter(region.getYa()));
-        int minZ = Math.max(bounds.minZ(), ProjectionVolume.minBlockForCenter(region.getZa()));
-        int maxX = Math.min(bounds.minX() + bounds.sizeX() - 1, ProjectionVolume.maxBlockForCenter(region.getXb()));
-        int maxY = Math.min(bounds.minY() + bounds.sizeY() - 1, ProjectionVolume.maxBlockForCenter(region.getYb()));
-        int maxZ = Math.min(bounds.minZ() + bounds.sizeZ() - 1, ProjectionVolume.maxBlockForCenter(region.getZb()));
+        int minX = Math.max(bounds.minX(), ApertureSlab.minBlockForCenter(region.getXa()));
+        int minY = Math.max(bounds.minY(), ApertureSlab.minBlockForCenter(region.getYa()));
+        int minZ = Math.max(bounds.minZ(), ApertureSlab.minBlockForCenter(region.getZa()));
+        int maxX = Math.min(bounds.minX() + bounds.sizeX() - 1, ApertureSlab.maxBlockForCenter(region.getXb()));
+        int maxY = Math.min(bounds.minY() + bounds.sizeY() - 1, ApertureSlab.maxBlockForCenter(region.getYb()));
+        int maxZ = Math.min(bounds.minZ() + bounds.sizeZ() - 1, ApertureSlab.maxBlockForCenter(region.getZb()));
         LongOpenHashSet expected = new LongOpenHashSet();
         for (int x = minX; x <= maxX; x++) {
             for (int y = minY; y <= maxY; y++) {
                 for (int z = minZ; z <= maxZ; z++) {
                     double cellDot = dot(x + 0.5D - origin.getX(), y + 0.5D - origin.getY(), z + 0.5D - origin.getZ(), localNormal);
-                    if (!ProjectionVolume.projectsBehindPortalPlane(cellDot, geometry.frontSide(), clearance)
+                    if (!ApertureSlab.projectsBehindPortalPlane(cellDot, geometry.frontSide(), clearance)
                         || Math.abs(cellDot) > geometry.depthBlocks() + clearance) {
                         continue;
                     }
@@ -148,7 +148,7 @@ final class ClientViewSweepParityTest {
                 sweep.sweep(eye.getX(), eye.getY(), eye.getZ(), 0.0D, 0.0D, 0.0D);
                 applied += sweep.appliedCount();
                 for (ScanMode mode : MODES) {
-                    Long2ObjectOpenHashMap<ProjectedBlockClaim<String, ClientSweepScene.SceneView>> server = scene.serverClaims(eye, mode, false);
+                    Long2ObjectOpenHashMap<BlockClaim<String, ClientSweepScene.SceneView>> server = scene.serverClaims(eye, mode, false);
                     claims += server.size();
                     collectMissing(server, sweep, eye, mode, failures);
                 }
@@ -176,7 +176,7 @@ final class ClientViewSweepParityTest {
                 clamp(eye.getZ() + velocityZ, -6.0D, 6.0D));
             sweep.sweep(eye.getX(), eye.getY(), eye.getZ(), velocityX, velocityY, velocityZ);
             Vec3d lookahead = quantized(eye.getX() + velocityX, eye.getY() + velocityY, eye.getZ() + velocityZ);
-            Long2ObjectOpenHashMap<ProjectedBlockClaim<String, ClientSweepScene.SceneView>> server =
+            Long2ObjectOpenHashMap<BlockClaim<String, ClientSweepScene.SceneView>> server =
                 scene.serverClaims(lookahead, ClientSweepScene.OPEN_SCAN, false);
             claims += server.size();
             collectMissing(server, sweep, lookahead, ClientSweepScene.OPEN_SCAN, failures);
@@ -202,9 +202,9 @@ final class ClientViewSweepParityTest {
         return new Vec3d(Math.round(x * 20.0D) / 20.0D, Math.round(y * 20.0D) / 20.0D, Math.round(z * 20.0D) / 20.0D);
     }
 
-    private static void collectMissing(Long2ObjectOpenHashMap<ProjectedBlockClaim<String, ClientSweepScene.SceneView>> server,
+    private static void collectMissing(Long2ObjectOpenHashMap<BlockClaim<String, ClientSweepScene.SceneView>> server,
                                        ClientSweep sweep, Vec3d eye, ScanMode mode, List<String> failures) {
-        for (Long2ObjectMap.Entry<ProjectedBlockClaim<String, ClientSweepScene.SceneView>> entry : server.long2ObjectEntrySet()) {
+        for (Long2ObjectMap.Entry<BlockClaim<String, ClientSweepScene.SceneView>> entry : server.long2ObjectEntrySet()) {
             long key = entry.getLongKey();
             int x = CellKeys.unpackX(key);
             int y = CellKeys.unpackY(key);
@@ -229,7 +229,7 @@ final class ClientViewSweepParityTest {
         double eyeDot = dot(eye.getX() - origin.getX(), eye.getY() - origin.getY(), eye.getZ() - origin.getZ(), projectionNormal);
         PlaneWindow window = PlaneWindow.create(scene.aperture, area, projectionFrame,
             origin.getX(), origin.getY(), origin.getZ(), padding, eyeDot);
-        double clearance = ProjectionVolume.portalPlaneClearance(area, scene.localFrame);
+        double clearance = ApertureSlab.portalPlaneClearance(area, scene.localFrame);
         for (int index = 0; index < cells.size(); index++) {
             long key = cells.getLong(index);
             double x = CellKeys.unpackX(key) + 0.5D;
@@ -240,7 +240,7 @@ final class ClientViewSweepParityTest {
             boolean inRegion = x >= region.getXa() - 0.5D && x <= region.getXb() + 0.5D
                 && y >= region.getYa() - 0.5D && y <= region.getYb() + 0.5D
                 && z >= region.getZa() - 0.5D && z <= region.getZb() + 0.5D;
-            boolean inDepth = ProjectionVolume.projectsBehindPortalPlane(cellDot, frontSide, clearance)
+            boolean inDepth = ApertureSlab.projectsBehindPortalPlane(cellDot, frontSide, clearance)
                 && Math.abs(cellDot) <= scene.depth + clearance;
             boolean inWindow = window.containsRayIntersection(eye.getX(), eye.getY(), eye.getZ(), x, y, z, signed);
             if (!inRegion || !inDepth || !inWindow) {

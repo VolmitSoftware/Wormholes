@@ -6,8 +6,8 @@ import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 
-import art.arcane.optics.claim.ProjectedBlockClaim;
-import art.arcane.optics.claim.ProjectionOutput;
+import art.arcane.optics.claim.BlockClaim;
+import art.arcane.optics.claim.WorldOutput;
 import art.arcane.optics.fidelity.WeatherRelay;
 import art.arcane.optics.spi.OpticsScheduler;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
@@ -17,8 +17,8 @@ final class ProjectorWeather {
     private final WeatherRelay relay = new WeatherRelay();
     private final Random random = new Random();
 
-    void relay(OpticsScheduler<Player, World> scheduler, ProjectionOutput<Player> output, Player observer, Conditions conditions,
-               Long2ObjectMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims) {
+    void relay(OpticsScheduler<Player, World> scheduler, WorldOutput<Player> output, Player observer, Conditions conditions,
+               Long2ObjectMap<BlockClaim<BlockData, ProjectionWorldView>> claims) {
         WeatherRelay.Burst burst = relay.plan(conditions.storm(), conditions.thunder(), conditions.biome(), scheduler.tick());
         if (burst == null) {
             return;

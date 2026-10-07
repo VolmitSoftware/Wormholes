@@ -10,7 +10,7 @@ import it.unimi.dsi.fastutil.objects.ObjectIterator;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.ArrayList;
-import art.arcane.optics.entity.ProjectedEntityEvent;
+import art.arcane.optics.entity.EntityAnimation;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -137,7 +137,7 @@ public final class ClientProjectedEntities {
             if (pending.expires < clientTick) {
                 iterator.remove();
             } else if (event.entityId().equals(tracked.visual.id())) {
-                world.event(tracked.entityId, new ProjectedEntityEvent(event.entityId(), event.hurt(), event.animation(), event.yaw()));
+                world.event(tracked.entityId, new EntityAnimation(event.entityId(), event.hurt(), event.animation(), event.yaw()));
                 iterator.remove();
             }
         }

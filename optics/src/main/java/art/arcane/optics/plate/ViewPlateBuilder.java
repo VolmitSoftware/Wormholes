@@ -17,19 +17,19 @@ import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.optics.math.CellKeys;
-import art.arcane.optics.scan.ProjectorSample;
+import art.arcane.optics.scan.Sample;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.frame.ViewWindow;
 import art.arcane.optics.internal.plate.PlateOcclusionField;
 import art.arcane.optics.volume.LodPolicy;
-import art.arcane.optics.volume.ProjectionVolume;
+import art.arcane.optics.volume.ApertureSlab;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Vec3d;
 
 /**
  * Samples the portal-scoped volume behind one face of a portal through the destination view and
  * produces an immutable {@link ViewPlate}. The build is resumable so it can be spread over several
- * steps; the classification of every cell matches {@code ProjectorSampler.resolve} without recursion,
+ * steps; the classification of every cell matches {@code Sampler.resolve} without recursion,
  * so the per-observer scan can substitute plate cells for sampler calls.
  */
 public final class ViewPlateBuilder {
@@ -195,7 +195,7 @@ public final class ViewPlateBuilder {
         private final int normalStep;
         private final int normalStart;
         private final int normalEnd;
-        private final ProjectionVolume volume;
+        private final ApertureSlab volume;
         private final BlockBox box;
 
         private Geometry(Request<?, ?, ?> request, BlockBox clip) {
@@ -209,8 +209,8 @@ public final class ViewPlateBuilder {
                 new Vec3d(request.localOriginX(), request.localOriginY(), request.localOriginZ()), localFrame,
                 new Vec3d(request.remoteOriginX(), request.remoteOriginY(), request.remoteOriginZ()), request.remoteFrame(), frontSide, 0.0D).toward();
             double pad = Math.max(0.0D, request.lateralBlocks()) + Math.max(0.0D, request.aperturePadding());
-            this.volume = ProjectionVolume.of(request.aperture().getArea(), localFrame,
-                ProjectionVolume.plane(localFrame, request.localOriginX(), request.localOriginY(), request.localOriginZ()), frontSide,
+            this.volume = ApertureSlab.of(request.aperture().getArea(), localFrame,
+                ApertureSlab.plane(localFrame, request.localOriginX(), request.localOriginY(), request.localOriginZ()), frontSide,
                 request.depthBlocks(), pad);
             this.normalAxis = volume.normalAxis();
             this.rightAxis = projectionLocalFrame.getRight().axisIndex();
@@ -431,21 +431,21 @@ public final class ViewPlateBuilder {
 
         private void classify(int index, long localKey, B remote, int rx, int ry, int rz, LodPolicy lod) {
             if (request.blocks().isOccluded(remote)) {
-                grid.put(index, localKey, ProjectorSample.Kind.OCCLUDED, remote, remote, null);
+                grid.put(index, localKey, Sample.Kind.OCCLUDED, remote, remote, null);
                 return;
             }
             M material = request.blocks().material(remote);
             if (request.blocks().isAir(material) || lod.dropsDetail(slabIndex, request.blocks().materialName(material))) {
-                grid.put(index, localKey, ProjectorSample.Kind.REMOTE_AIR, request.air(), request.air(), null);
+                grid.put(index, localKey, Sample.Kind.REMOTE_AIR, request.air(), request.air(), null);
                 return;
             }
             int occlusionDepth = request.buriedCellCulling() ? occlusion.depth(rx, ry, rz, remote) : 0;
-            ProjectorSample.Kind kind = switch (occlusionDepth) {
-                case 1 -> ProjectorSample.Kind.BACKING_BLOCK;
-                case 2 -> ProjectorSample.Kind.OCCLUDED;
-                default -> ProjectorSample.Kind.BLOCK;
+            Sample.Kind kind = switch (occlusionDepth) {
+                case 1 -> Sample.Kind.BACKING_BLOCK;
+                case 2 -> Sample.Kind.OCCLUDED;
+                default -> Sample.Kind.BLOCK;
             };
-            if (kind == ProjectorSample.Kind.OCCLUDED) {
+            if (kind == Sample.Kind.OCCLUDED) {
                 grid.put(index, localKey, kind, remote, remote, null);
                 return;
             }

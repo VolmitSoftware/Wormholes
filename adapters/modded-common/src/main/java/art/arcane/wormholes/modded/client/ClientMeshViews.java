@@ -4,7 +4,7 @@ import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.client.render.PortalScene;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.BlockBox;
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.frame.OpticTransform;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntIterator;
@@ -47,9 +47,9 @@ public final class ClientMeshViews {
                 continue;
             }
             Scene scene = scenes.get(portal.portalKey());
-            ProjectionEnvironment environment = session.environment(portal.portalKey());
+            EnvironmentState environment = session.environment(portal.portalKey());
             OpticTransform transform = environment == null ? null : environment.transform();
-            ProjectionEnvironment.Dimension dimension = environment == null ? null : environment.dimension();
+            EnvironmentState.Dimension dimension = environment == null ? null : environment.dimension();
             ClientMeshSections.Identity identity = view.identity();
             int blendRadius = Minecraft.getInstance().options.biomeBlendRadius().get();
             boolean terrainUnchanged = scene != null && scene.view == view && Objects.equals(scene.transform, transform)
@@ -104,7 +104,7 @@ public final class ClientMeshViews {
         if (scene == null || scene.level != entity.level() || scene.session.meshes().view(portalKey) != scene.view) {
             return false;
         }
-        ProjectionEnvironment environment = scene.environment();
+        EnvironmentState environment = scene.environment();
         if (environment == null) {
             return false;
         }
@@ -119,7 +119,7 @@ public final class ClientMeshViews {
                 continue;
             }
             try {
-                ProjectionEnvironment environment = scene.environment();
+                EnvironmentState environment = scene.environment();
                 if (environment != null) {
                     scene.features.extract(scene.portalKey, camera, partialTick, environment.transform());
                     renderer.featuresReady(scene.portalKey);
@@ -145,7 +145,7 @@ public final class ClientMeshViews {
 
     private record Scene(int portalKey, ApertureDescriptor surfaceGeometry, ClientMeshSections.View view, ClientLevel level,
                          ClientMeshEntities features, ClientViewSession session, OpticTransform transform,
-                         ProjectionEnvironment.Dimension dimension, ClientMeshSections.Identity identity, int blendRadius,
+                         EnvironmentState.Dimension dimension, ClientMeshSections.Identity identity, int blendRadius,
                          BlockBox bounds, PortalScene.MeshIdentity meshContext) implements PortalScene {
         @Override
         public ApertureDescriptor geometry() {
@@ -153,7 +153,7 @@ public final class ClientMeshViews {
         }
 
         @Override
-        public ProjectionEnvironment environment() {
+        public EnvironmentState environment() {
             return session.environment(portalKey);
         }
 
@@ -183,7 +183,7 @@ public final class ClientMeshViews {
             if (meshContext == null) {
                 return null;
             }
-            ProjectionEnvironment current = environment();
+            EnvironmentState current = environment();
             return current != null && identity.equals(view.identity()) && bounds.equals(view.bounds())
                 && dimension.equals(current.dimension()) && identity.matchesEnvironment(current) ? meshContext : null;
         }

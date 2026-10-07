@@ -464,7 +464,7 @@ public sealed interface ViewStreamMessage {
         }
     }
 
-    record Environment(int portalKey, ProjectionEnvironment environment) implements Projection {
+    record Environment(int portalKey, EnvironmentState environment) implements Projection {
         public Environment {
             Objects.requireNonNull(environment, "environment");
         }

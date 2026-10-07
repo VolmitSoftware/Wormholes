@@ -10,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.frame.AxisPermutation;
 import art.arcane.optics.state.StateProperties;
-import art.arcane.optics.scan.ProjectorSampleMemo;
+import art.arcane.optics.scan.SampleMemo;
 
 import java.util.HashSet;
 import java.util.Random;
@@ -124,7 +124,7 @@ public final class SectionCacheTest {
         SectionCache<Block, Kind> cache = new SectionCache<Block, Kind>(new Blocks(), OPEN_LIMITS);
         SectionCache<Block, Kind>.WorldSections sections = cache.world(world, MIN_SECTION_Y, MAX_SECTION_Y);
         cache.tick(1);
-        ProjectorSampleMemo<Block, Kind, FakeWorld> memo = new ProjectorSampleMemo<Block, Kind, FakeWorld>(new Blocks(), () -> null);
+        SampleMemo<Block, Kind, FakeWorld> memo = new SampleMemo<Block, Kind, FakeWorld>(new Blocks(), () -> null);
 
         for (int x = -16; x < 32; x++) {
             for (int y = -16; y < 32; y++) {

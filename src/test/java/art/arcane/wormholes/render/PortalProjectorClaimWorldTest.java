@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
-import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.claim.BlockClaim;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.wormholes.platform.QueuedOpticsScheduler;
 
@@ -92,9 +92,9 @@ public final class PortalProjectorClaimWorldTest {
         assertTrue(arbiter.isIdle(), "the abandoned claim state must be discarded, not leaked");
     }
 
-    private static Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims() {
-        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(1);
-        claims.put(CELL, new ProjectedBlockClaim<BlockData, ProjectionWorldView>(blockData("projected"), null, ProjectedBlockClaim.NO_REMOTE_KEY, false));
+    private static Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>> claims() {
+        Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>> claims = new Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>>(1);
+        claims.put(CELL, new BlockClaim<BlockData, ProjectionWorldView>(blockData("projected"), null, BlockClaim.NO_REMOTE_KEY, false));
         return claims;
     }
 

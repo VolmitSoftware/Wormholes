@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded.client.render;
 
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.renderpearl.api.GpuFormat;
 import com.mojang.renderpearl.api.pipeline.CompiledRenderPipeline;
@@ -49,7 +49,7 @@ final class PortalIrisRenderer implements PortalShaderRenderer {
         return new PortalIrisRenderer(() -> Iris.getCurrentPack().orElseThrow());
     }
 
-    private NamespacedId dimension(ProjectionEnvironment environment) {
+    private NamespacedId dimension(EnvironmentState environment) {
         return PortalIrisPipeline.dimension(pack, environment);
     }
 
@@ -118,7 +118,7 @@ final class PortalIrisRenderer implements PortalShaderRenderer {
     }
 
     @Override
-    public Session acquire(int key, ProjectionEnvironment environment, int width, int height) {
+    public Session acquire(int key, EnvironmentState environment, int width, int height) {
         updatePack();
         Entry existing = entries.get(key);
         if (existing != null && existing.dimension.equals(dimension(environment))) {
@@ -194,7 +194,7 @@ final class PortalIrisRenderer implements PortalShaderRenderer {
         }
     }
 
-    private long entryBytes(Entry entry, ProjectionEnvironment environment, int width, int height) {
+    private long entryBytes(Entry entry, EnvironmentState environment, int width, int height) {
         return PortalIrisResources.targets(pack.getProgramSet(dimension(environment)), width, height)
             + (entry.shadows == null ? entry.shadowBytes : 0);
     }

@@ -10,7 +10,7 @@ import java.util.function.Supplier;
 import art.arcane.optics.stream.BrickLightSource;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.math.CellKeys;
-import art.arcane.optics.scan.ProjectorSample;
+import art.arcane.optics.scan.Sample;
 import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.plate.PlateCell;
 import art.arcane.optics.plate.ViewPlate;
@@ -192,8 +192,8 @@ public final class PlateLight<B> implements BrickLightSource {
         }
     }
 
-    private static boolean lit(ProjectorSample.Kind kind) {
-        return kind == ProjectorSample.Kind.BLOCK || kind == ProjectorSample.Kind.REMOTE_AIR || kind == ProjectorSample.Kind.MASK_AIR;
+    private static boolean lit(Sample.Kind kind) {
+        return kind == Sample.Kind.BLOCK || kind == Sample.Kind.REMOTE_AIR || kind == Sample.Kind.MASK_AIR;
     }
 
     private static boolean sameFrame(ViewWindow left, ViewWindow right) {

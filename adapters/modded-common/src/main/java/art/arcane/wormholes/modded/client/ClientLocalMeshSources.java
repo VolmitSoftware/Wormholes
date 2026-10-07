@@ -7,7 +7,7 @@ import art.arcane.wormholes.modded.clientview.MinecraftLightSnapshot;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.BrickCodec;
 import art.arcane.optics.stream.ViewStreamCapability;
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.stream.ViewStreamLimits;
@@ -166,7 +166,7 @@ public final class ClientLocalMeshSources {
         }
         routes.entrySet().removeIf(entry -> session.portal(entry.getKey()) == null || session.meshes().view(entry.getKey()) == null);
         for (ClientPortal portal : session.portals().values()) {
-            ProjectionEnvironment environment = session.environment(portal.portalKey());
+            EnvironmentState environment = session.environment(portal.portalKey());
             ClientMeshSections.View view = session.meshes().view(portal.portalKey());
             boolean local = environment != null && eligible(portal, environment, current);
             if (view == null || environment == null || !local && !session.has(ViewStreamCapability.MESH_REUSE)) {
@@ -301,7 +301,7 @@ public final class ClientLocalMeshSources {
         }
     }
 
-    private static boolean eligible(ClientPortal portal, ProjectionEnvironment environment, ClientLevel level) {
+    private static boolean eligible(ClientPortal portal, EnvironmentState environment, ClientLevel level) {
         return portal.geometry().mirror() && environment.world().dimensionKey().equals(level.dimension().identifier().toString());
     }
 
@@ -315,7 +315,7 @@ public final class ClientLocalMeshSources {
                 return null;
             }
             ClientPortal ancestor = session.portal(parent);
-            ProjectionEnvironment environment = session.environment(parent);
+            EnvironmentState environment = session.environment(parent);
             if (ancestor == null || environment == null) {
                 return null;
             }

@@ -45,7 +45,7 @@ import art.arcane.optics.plate.ViewPlate;
 import art.arcane.optics.view.ContentView;
 import art.arcane.wormholes.render.view.ProjectionEntityView;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
-import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.claim.BlockClaim;
 import art.arcane.optics.entity.ItemFrameTransform;
 import art.arcane.optics.entity.EntityProjection;
 import art.arcane.optics.frame.ViewWindow;
@@ -132,8 +132,8 @@ public final class ClientViewSceneCapture {
         if (plate == null) {
             return BrickLightSource.NONE;
         }
-        ProjectedBlockClaim.LightingPolicy policy = source.lightingPolicy();
-        if (!mesh && policy == ProjectedBlockClaim.LightingPolicy.LOCAL) {
+        BlockClaim.LightingPolicy policy = source.lightingPolicy();
+        if (!mesh && policy == BlockClaim.LightingPolicy.LOCAL) {
             return BrickLightSource.NONE;
         }
         ViewWindow frame = source.transformFrame();
@@ -142,7 +142,7 @@ public final class ClientViewSceneCapture {
         if (frame == null || world == null || view == null) {
             return BrickLightSource.NONE;
         }
-        boolean fullBright = !mesh && policy == ProjectedBlockClaim.LightingPolicy.FULL_BRIGHT;
+        boolean fullBright = !mesh && policy == BlockClaim.LightingPolicy.FULL_BRIGHT;
         return lights.light(plate, () -> {
             LightSampler sampler = fullBright ? (x, y, z) -> ContentView.packLight(15, 15)
                 : source.regionSnapshots() ? view::getLight : snapshot(world, PlateLight.remoteBox(plate.box(), frame));

@@ -16,19 +16,19 @@ import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.AxisPermutation;
 import art.arcane.optics.state.StateProperties;
 import art.arcane.optics.volume.ViewVolume;
-import art.arcane.optics.claim.ProjectedBlockClaim;
-import art.arcane.optics.claim.ProjectionBlackout;
+import art.arcane.optics.claim.BlockClaim;
+import art.arcane.optics.claim.Blackout;
 import art.arcane.optics.view.BlockStates;
 import art.arcane.optics.scan.CellScan;
 import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.optics.volume.FrustumFit;
 import art.arcane.optics.recursion.RecursiveEndpoints;
-import art.arcane.optics.scan.ProjectorSampleMemo;
-import art.arcane.optics.scan.ProjectorSampler;
+import art.arcane.optics.scan.SampleMemo;
+import art.arcane.optics.scan.Sampler;
 import art.arcane.optics.scan.ScanDestination;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.volume.LodPolicy;
-import art.arcane.optics.volume.ProjectionVolume;
+import art.arcane.optics.volume.ApertureSlab;
 import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.view.ContentView;
 import art.arcane.optics.math.Box;
@@ -116,15 +116,15 @@ public final class ClientSweepScene {
             + ((eye.getZ() - localOrigin.getZ()) * normal.z()) >= 0.0D;
     }
 
-    Long2ObjectOpenHashMap<ProjectedBlockClaim<String, SceneView>> serverClaims(Vec3d eye, ScanMode mode,
+    Long2ObjectOpenHashMap<BlockClaim<String, SceneView>> serverClaims(Vec3d eye, ScanMode mode,
                                                                                boolean blackout) {
         StringBlocks blocks = new StringBlocks();
-        ProjectorSampleMemo<String, String, SceneView> memo = new ProjectorSampleMemo<String, String, SceneView>(blocks, () -> null);
+        SampleMemo<String, String, SceneView> memo = new SampleMemo<String, String, SceneView>(blocks, () -> null);
         RecursiveEndpoints<Object, ScanPortal> recursive = new RecursiveEndpoints<Object, ScanPortal>(new NoPortals(),
             () -> new RecursiveEndpoints.Options(APERTURE_PADDING, depth));
-        ProjectorSampler<String, String, Object, ScanPortal, SceneView> sampler = new ProjectorSampler<String, String, Object, ScanPortal, SceneView>(
-            new ProjectorSampler.Options<String, String, Object, ScanPortal, SceneView>(memo, recursive, ignored -> null, ignored -> null));
-        ProjectionBlackout<String> seal = new Seal(blackout);
+        Sampler<String, String, Object, ScanPortal, SceneView> sampler = new Sampler<String, String, Object, ScanPortal, SceneView>(
+            new Sampler.Options<String, String, Object, ScanPortal, SceneView>(memo, recursive, ignored -> null, ignored -> null));
+        Blackout<String> seal = new Seal(blackout);
         CellScan.ScanSettings settings = new CellScan.ScanSettings(0, 1.0D, APERTURE_PADDING, false, false, 0, true);
         CellScan<String, String, Object, ScanPortal, SceneView> scan = new CellScan<String, String, Object, ScanPortal, SceneView>(
             new CellScan.Context<String, String, Object, ScanPortal, SceneView>(localPortal, aperture, sampler, memo, seal,
@@ -133,13 +133,13 @@ public final class ClientSweepScene {
         ViewVolume frustum = fit.fit(aperture, localFrame, eye, depth, lateral);
         scan.run(new Destination(), null, eye, frustum, depth, true, false, true, mode, null, false,
             LodPolicy.NONE);
-        return new Long2ObjectOpenHashMap<ProjectedBlockClaim<String, SceneView>>(scan.claims());
+        return new Long2ObjectOpenHashMap<BlockClaim<String, SceneView>>(scan.claims());
     }
 
     ApertureDescriptor geometry(boolean frontSide, int blackoutPolicy) {
         return ApertureDescriptor.fromPortal(new ApertureDescriptor.Source(aperture, localFrame, frontSide, false, 0,
             NEAR_PLANE_PADDING, APERTURE_PADDING, CULLING_RATIO, depth, 0, blackoutPolicy, ClientSweepPalette.BLACKOUT_ID,
-            ApertureDescriptor.MASK_AIR_PROJECT, ProjectedBlockClaim.LightingPolicy.SOURCE, 0, 1, 0.0D, 0, 0L,
+            ApertureDescriptor.MASK_AIR_PROJECT, BlockClaim.LightingPolicy.SOURCE, 0, 1, 0.0D, 0, 0L,
             List.of())).orElseThrow();
     }
 
@@ -171,7 +171,7 @@ public final class ClientSweepScene {
         int[] axisMin = new int[3];
         int[] axisMax = new int[3];
         Frame projectionFrame = localFrame.view(frontSide);
-        double clearance = ProjectionVolume.portalPlaneClearance(area, localFrame);
+        double clearance = ApertureSlab.portalPlaneClearance(area, localFrame);
         double maxDepth = depthBlocks + clearance;
         Face normal = localFrame.getNormal();
         int normalAxis = normal.axisIndex();
@@ -181,15 +181,15 @@ public final class ClientSweepScene {
         double signedMax = frontSide ? -clearance : maxDepth;
         double centerA = originNormal + (signedMin / facing);
         double centerB = originNormal + (signedMax / facing);
-        axisMin[normalAxis] = ProjectionVolume.minBlockForCenter(Math.min(centerA, centerB));
-        axisMax[normalAxis] = ProjectionVolume.maxBlockForCenter(Math.max(centerA, centerB));
+        axisMin[normalAxis] = ApertureSlab.minBlockForCenter(Math.min(centerA, centerB));
+        axisMax[normalAxis] = ApertureSlab.maxBlockForCenter(Math.max(centerA, centerB));
         double pad = Math.max(0.0D, lateralBlocks) + Math.max(0.0D, aperturePadding);
         for (Face lateralDirection : new Face[] {projectionFrame.getRight(), projectionFrame.getUp()}) {
             int axis = lateralDirection.axisIndex();
             double areaMin = axis == 0 ? area.getXa() : axis == 1 ? area.getYa() : area.getZa();
             double areaMax = axis == 0 ? area.getXb() : axis == 1 ? area.getYb() : area.getZb();
-            axisMin[axis] = ProjectionVolume.minBlockForCenter(areaMin - pad);
-            axisMax[axis] = ProjectionVolume.maxBlockForCenter(areaMax + pad);
+            axisMin[axis] = ApertureSlab.minBlockForCenter(areaMin - pad);
+            axisMax[axis] = ApertureSlab.maxBlockForCenter(areaMax + pad);
         }
         return BlockBox.spanning(axisMin[0], axisMin[1], axisMin[2], axisMax[0], axisMax[1], axisMax[2]);
     }
@@ -399,7 +399,7 @@ public final class ClientSweepScene {
         }
     }
 
-    private record Seal(boolean enabled) implements ProjectionBlackout<String> {
+    private record Seal(boolean enabled) implements Blackout<String> {
         @Override
         public boolean isEnabled() {
             return enabled;

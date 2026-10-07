@@ -1,7 +1,7 @@
 package art.arcane.optics.fidelity;
 
 import art.arcane.optics.light.SkyMath;
-import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.claim.BlockClaim;
 import art.arcane.optics.claim.RecordingProjectionOutput;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import java.util.ArrayList;
@@ -18,10 +18,10 @@ final class WeatherRelayTest {
     @Test
     void precipitationSamplesOnlyProjectedAirAndMaskCells() {
         WeatherRelay relay = new WeatherRelay();
-        Long2ObjectOpenHashMap<ProjectedBlockClaim<String, Object>> claims = new Long2ObjectOpenHashMap<>();
-        claims.put(1L, new ProjectedBlockClaim<>("stone", null, 0L, false));
-        claims.put(2L, new ProjectedBlockClaim<>("air", null, 0L, false));
-        claims.put(3L, new ProjectedBlockClaim<>("stone", null, 0L, true));
+        Long2ObjectOpenHashMap<BlockClaim<String, Object>> claims = new Long2ObjectOpenHashMap<>();
+        claims.put(1L, new BlockClaim<>("stone", null, 0L, false));
+        claims.put(2L, new BlockClaim<>("air", null, 0L, false));
+        claims.put(3L, new BlockClaim<>("stone", null, 0L, true));
         RecordingProjectionOutput<String> output = new RecordingProjectionOutput<String>();
         relay.spawn(new WeatherRelay.Emission<>(claims, relay.plan(true, true, "minecraft:snowy_plains", 0L),
             new Random(37L), "air"::equals), output, "observer");

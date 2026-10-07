@@ -4,7 +4,7 @@ import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.wormholes.modded.client.render.PortalScene;
 import art.arcane.optics.stream.Brick;
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.optics.math.BlockBox;
@@ -29,7 +29,7 @@ import static org.mockito.Mockito.mock;
 
 public class ClientMeshProofTest extends MinecraftTestBase {
     private static final BlockBox BOUNDS = new BlockBox(-32, -32, -32, 64, 64, 64);
-    private static final ProjectionEnvironment ENVIRONMENT = PortalEnvironmentTest.environment(OpticTransform.IDENTITY);
+    private static final EnvironmentState ENVIRONMENT = PortalEnvironmentTest.environment(OpticTransform.IDENTITY);
     private static final Options OPTIONS = new Options(ENVIRONMENT, 71, 11);
 
     @Test
@@ -108,11 +108,11 @@ public class ClientMeshProofTest extends MinecraftTestBase {
             mock(RegistryAccess.class), ENVIRONMENT, 0)));
         assertMismatch(original, ClientMeshWorld.meshIdentity(new ClientMeshWorld.Snapshot(fixture.store.view(7), 0L,
             fixture.registry, ENVIRONMENT, 1)));
-        ProjectionEnvironment.Dimension dimension = ENVIRONMENT.dimension();
-        ProjectionEnvironment changed = new ProjectionEnvironment(ENVIRONMENT.gameTime(), ENVIRONMENT.sky(), ENVIRONMENT.fog(),
+        EnvironmentState.Dimension dimension = ENVIRONMENT.dimension();
+        EnvironmentState changed = new EnvironmentState(ENVIRONMENT.gameTime(), ENVIRONMENT.sky(), ENVIRONMENT.fog(),
             ENVIRONMENT.lighting(), ENVIRONMENT.clouds(), ENVIRONMENT.transform(),
-            new ProjectionEnvironment.Dimension(dimension.minY(), dimension.height(), dimension.hasSkyLight(),
-                ProjectionEnvironment.CardinalLighting.NETHER, dimension.horizonHeight(), dimension.endFlashes()), ENVIRONMENT.world());
+            new EnvironmentState.Dimension(dimension.minY(), dimension.height(), dimension.hasSkyLight(),
+                EnvironmentState.CardinalLighting.NETHER, dimension.horizonHeight(), dimension.endFlashes()), ENVIRONMENT.world());
         assertMismatch(original, ClientMeshWorld.meshIdentity(new ClientMeshWorld.Snapshot(fixture.store.view(7), 0L,
             fixture.registry, changed, 0)));
         assertTrue(fixture.store.retainLocal(7, 2, new BlockBox(-32, -48, -32, 64, 80, 64), 64));
@@ -123,13 +123,13 @@ public class ClientMeshProofTest extends MinecraftTestBase {
     public void worldTransformEpochAndAuthoritativeTargetSeparateProofsEvenWithSharedSections() throws Exception {
         Fixture fixture = new Fixture(OPTIONS, true);
         PortalScene.MeshIdentity original = fixture.proof();
-        ProjectionEnvironment.World world = ENVIRONMENT.world();
-        ProjectionEnvironment otherWorld = new ProjectionEnvironment(ENVIRONMENT.gameTime(), ENVIRONMENT.sky(), ENVIRONMENT.fog(),
+        EnvironmentState.World world = ENVIRONMENT.world();
+        EnvironmentState otherWorld = new EnvironmentState(ENVIRONMENT.gameTime(), ENVIRONMENT.sky(), ENVIRONMENT.fog(),
             ENVIRONMENT.lighting(), ENVIRONMENT.clouds(), ENVIRONMENT.transform(), ENVIRONMENT.dimension(),
-            new ProjectionEnvironment.World("minecraft:the_nether", world.clockTime(), world.biomeKey(), world.seaLevel(),
+            new EnvironmentState.World("minecraft:the_nether", world.clockTime(), world.biomeKey(), world.seaLevel(),
                 world.blockLight(), world.skyLight(), world.logicalHeight(), world.hasCeiling(), world.ambientLight(),
                 world.eyeMedium(), world.hasFixedTime()));
-        ProjectionEnvironment translated = ENVIRONMENT.withTransform(OpticTransform.of(AxisPermutation.of(Face.E, Face.U, Face.S), 16, 0, 0));
+        EnvironmentState translated = ENVIRONMENT.withTransform(OpticTransform.of(AxisPermutation.of(Face.E, Face.U, Face.S), 16, 0, 0));
         for (Options options : List.of(new Options(otherWorld, 71, 11), new Options(translated, 71, 11),
             new Options(ENVIRONMENT, 72, 11), new Options(ENVIRONMENT, 71, 12),
             new Options(ENVIRONMENT, 71L << 32, 11), new Options(ENVIRONMENT, 71, 11L << 32))) {
@@ -221,6 +221,6 @@ public class ClientMeshProofTest extends MinecraftTestBase {
         }
     }
 
-    private record Options(ProjectionEnvironment environment, long epoch, long target) {
+    private record Options(EnvironmentState environment, long epoch, long target) {
     }
 }

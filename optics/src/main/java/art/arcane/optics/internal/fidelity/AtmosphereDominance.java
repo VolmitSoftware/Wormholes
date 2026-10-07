@@ -6,7 +6,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 
-import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.claim.BlockClaim;
 import art.arcane.optics.math.CellKeys;
 
 /**
@@ -21,7 +21,7 @@ public final class AtmosphereDominance {
     }
 
     /** Returns quart-cell key (quart coordinates packed with {@link CellKeys#pack}) to biome id. */
-    public static <B, V> Long2IntOpenHashMap compute(Long2ObjectMap<ProjectedBlockClaim<B, V>> claims,
+    public static <B, V> Long2IntOpenHashMap compute(Long2ObjectMap<BlockClaim<B, V>> claims,
                                               double dominance,
                                               RemoteBiomeLookup lookup) {
         Long2IntOpenHashMap out = new Long2IntOpenHashMap();
@@ -30,9 +30,9 @@ public final class AtmosphereDominance {
             return out;
         }
         Long2ObjectOpenHashMap<Long2LongOpenHashMap> sections = new Long2ObjectOpenHashMap<Long2LongOpenHashMap>(8);
-        for (Long2ObjectMap.Entry<ProjectedBlockClaim<B, V>> entry : claims.long2ObjectEntrySet()) {
-            ProjectedBlockClaim<B, V> claim = entry.getValue();
-            if (claim == null || claim.getLightRemoteKey() == ProjectedBlockClaim.NO_REMOTE_KEY) {
+        for (Long2ObjectMap.Entry<BlockClaim<B, V>> entry : claims.long2ObjectEntrySet()) {
+            BlockClaim<B, V> claim = entry.getValue();
+            if (claim == null || claim.getLightRemoteKey() == BlockClaim.NO_REMOTE_KEY) {
                 continue;
             }
             long localKey = entry.getLongKey();

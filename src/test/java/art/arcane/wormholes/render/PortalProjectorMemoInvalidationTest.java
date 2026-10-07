@@ -14,9 +14,9 @@ import java.util.function.LongUnaryOperator;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.render.view.ProjectionWorldView;
-import art.arcane.optics.scan.ProjectorRemoteFootprint;
-import art.arcane.optics.scan.ProjectorSample;
-import art.arcane.optics.scan.ProjectorSampleMemo;
+import art.arcane.optics.scan.RemoteFootprint;
+import art.arcane.optics.scan.Sample;
+import art.arcane.optics.scan.SampleMemo;
 import art.arcane.optics.view.WorldChangeTracker;
 
 public final class PortalProjectorMemoInvalidationTest {
@@ -24,19 +24,19 @@ public final class PortalProjectorMemoInvalidationTest {
 
     @Test
     public void sparseFrustumsRetainTheirSampledDestinationCells() {
-        assertTrue(ProjectorSampleMemo.budgetFor(482, 46_306L) >= 46_306);
-        assertTrue(ProjectorSampleMemo.budgetFor(2_405, 51_255L) >= 51_255);
+        assertTrue(SampleMemo.budgetFor(482, 46_306L) >= 46_306);
+        assertTrue(SampleMemo.budgetFor(2_405, 51_255L) >= 51_255);
     }
 
     @Test
     public void sampleMemoBudgetRemainsBoundedForExtremeInputs() {
-        assertTrue(ProjectorSampleMemo.budgetFor(0, 0L) >= 4_096);
-        assertTrue(ProjectorSampleMemo.budgetFor(Integer.MAX_VALUE, Long.MAX_VALUE) == Integer.MAX_VALUE);
+        assertTrue(SampleMemo.budgetFor(0, 0L) >= 4_096);
+        assertTrue(SampleMemo.budgetFor(Integer.MAX_VALUE, Long.MAX_VALUE) == Integer.MAX_VALUE);
     }
 
     @Test
     public void aChangedSourceViewRevisionAlwaysDropsTheDestinationMemos() {
-        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
+        SampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
         memo.refreshDestination(6L);
         AtomicInteger dirtyProbes = new AtomicInteger();
 
@@ -53,7 +53,7 @@ public final class PortalProjectorMemoInvalidationTest {
 
     @Test
     public void crossServerDestinationsRelyOnTheViewRevisionAlone() {
-        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
+        SampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
         memo.refreshDestination(11L);
 
         assertFalse(memo.destinationStale(11L, false, since -> WorldChangeTracker.AFFECTED));
@@ -62,7 +62,7 @@ public final class PortalProjectorMemoInvalidationTest {
 
     @Test
     public void localDestinationsDropTheMemosWhenAChangeAffectsThem() {
-        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
+        SampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
         memo.refreshDestination(0L);
 
         assertTrue(memo.destinationStale(0L, true, since -> WorldChangeTracker.AFFECTED));
@@ -71,7 +71,7 @@ public final class PortalProjectorMemoInvalidationTest {
 
     @Test
     public void theLocalAirMemoSurvivesOnlyWhenNothingCanHaveChangedIt() {
-        assertFalse(ProjectorSampleMemo.localSampleMemoStale(false, false, 4L, 4L, 10, 4096));
+        assertFalse(SampleMemo.localSampleMemoStale(false, false, 4L, 4L, 10, 4096));
     }
 
     @Test
@@ -79,24 +79,24 @@ public final class PortalProjectorMemoInvalidationTest {
         boolean scheduledContentResample = false;
         boolean renderModeChanged = false;
 
-        assertFalse(ProjectorSampleMemo.localSampleMemoStale(
+        assertFalse(SampleMemo.localSampleMemoStale(
             scheduledContentResample || renderModeChanged, false, 4L, 4L, 10, 4096));
     }
 
     @Test
     public void theFullRefreshBackstopAlwaysDropsTheLocalAirMemo() {
-        assertTrue(ProjectorSampleMemo.localSampleMemoStale(true, false, 4L, 4L, 10, 4096),
+        assertTrue(SampleMemo.localSampleMemoStale(true, false, 4L, 4L, 10, 4096),
             "a forced resample pass must re-read local block states, not trust the memo");
     }
 
     @Test
     public void aLocalViewRevisionChangeDropsTheLocalAirMemo() {
-        assertTrue(ProjectorSampleMemo.localSampleMemoStale(false, false, 5L, 4L, 10, 4096));
+        assertTrue(SampleMemo.localSampleMemoStale(false, false, 5L, 4L, 10, 4096));
     }
 
     @Test
     public void localRefreshReportsEveryContentInvalidationBeforeCameraReuse() {
-        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
+        SampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
 
         assertTrue(memo.refreshLocal(false, false, 4L, 4096));
         assertFalse(memo.refreshLocal(false, false, 4L, 4096));
@@ -107,16 +107,16 @@ public final class PortalProjectorMemoInvalidationTest {
 
     @Test
     public void trackedLocalChangesAndMemoOverflowDropTheLocalAirMemo() {
-        assertTrue(ProjectorSampleMemo.localSampleMemoStale(false, true, 4L, 4L, 10, 4096));
-        assertTrue(ProjectorSampleMemo.localSampleMemoStale(false, false, 4L, 4L, 4097, 4096));
+        assertTrue(SampleMemo.localSampleMemoStale(false, true, 4L, 4L, 10, 4096));
+        assertTrue(SampleMemo.localSampleMemoStale(false, false, 4L, 4L, 4097, 4096));
     }
 
     @Test
     public void aBlockChangeInsideTheScannedFootprintDropsTheMemosOnTheVeryNextPass() {
         WorldChangeTracker tracker = new WorldChangeTracker();
-        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = new ProjectorSampleMemo<BlockData, Material, ProjectionWorldView>(
+        SampleMemo<BlockData, Material, ProjectionWorldView> memo = new SampleMemo<BlockData, Material, ProjectionWorldView>(
             BukkitProjectorBlocks.defaults(), () -> tracker);
-        ProjectorRemoteFootprint footprint = new ProjectorRemoteFootprint();
+        RemoteFootprint footprint = new RemoteFootprint();
         footprint.record(33, 70, -17);
         LongUnaryOperator unaffectedThrough = since -> tracker.unaffectedThrough(DESTINATION_WORLD,
             footprint.queryMinChunkX(), footprint.queryMinChunkZ(), footprint.queryMaxChunkX(), footprint.queryMaxChunkZ(),
@@ -139,11 +139,11 @@ public final class PortalProjectorMemoInvalidationTest {
 
     @Test
     public void destinationMemoBudgetOverflowStillInvalidatesContentSamples() {
-        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
+        SampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
         ProjectionWorldView destination = destinationView();
 
         assertFalse(memo.destinationOverBudget(0));
-        memo.cacheSample(destination, 0, 64, 0, ProjectorSample.noSample());
+        memo.cacheSample(destination, 0, 64, 0, Sample.noSample());
         assertFalse(memo.destinationOverBudget(1));
         assertTrue(memo.destinationOverBudget(0));
     }

@@ -4,9 +4,9 @@ import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.AmbientSparkCadence;
 import art.arcane.wormholes.portal.PortalType;
-import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.claim.BlockClaim;
 import art.arcane.optics.math.CellKeys;
-import art.arcane.optics.claim.ProjectionClaimSet;
+import art.arcane.optics.claim.ClaimSet;
 import art.arcane.optics.view.ContentView;
 import io.netty.channel.embedded.EmbeddedChannel;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -48,7 +48,7 @@ final class MinecraftPortalSurfaceGameTest {
         BlockPos cell = helper.absolutePos(new BlockPos(24, 3, 4));
         MinecraftPortal portal = runtime.portals().create(player.getUUID(), helper.getLevel(), List.of(cell, cell.above()),
             PortalType.PORTAL, new Vec3(0, 0, -1));
-        ProjectionClaimSet<ProjectedBlockClaim<BlockState, ContentView<BlockState, BlockState>>> claims = new ProjectionClaimSet<>();
+        ClaimSet<BlockClaim<BlockState, ContentView<BlockState, BlockState>>> claims = new ClaimSet<>();
         LongOpenHashSet staged = new LongOpenHashSet();
         MinecraftProjectorPortalAccess access = new MinecraftProjectorPortalAccess(runtime);
         Vec3 previous = player.position();
@@ -105,8 +105,8 @@ final class MinecraftPortalSurfaceGameTest {
             channel.runPendingTasks();
             helper.assertTrue(channel.outboundMessages().stream().anyMatch(packet -> packet instanceof ClientboundRemoveEntitiesPacket removed
                 && removed.entityIds().contains(display)), "Changing to fluid did not remove skin display");
-            Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockState, ContentView<BlockState, BlockState>>> behind = new Long2ObjectOpenHashMap<>();
-            behind.put(key, new ProjectedBlockClaim<>(Blocks.STONE.defaultBlockState(), null, ProjectedBlockClaim.NO_REMOTE_KEY, false));
+            Long2ObjectOpenHashMap<BlockClaim<BlockState, ContentView<BlockState, BlockState>>> behind = new Long2ObjectOpenHashMap<>();
+            behind.put(key, new BlockClaim<>(Blocks.STONE.defaultBlockState(), null, BlockClaim.NO_REMOTE_KEY, false));
             UUID background = UUID.randomUUID();
             claims.replacePortalClaims(background, background.toString(), 100, behind);
             portal.setSurfaceSkin("");

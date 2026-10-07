@@ -58,7 +58,7 @@ import art.arcane.wormholes.portal.rtp.RtpRotationMode;
 import art.arcane.wormholes.network.view.ViewServer;
 import art.arcane.optics.occlusion.LocalOcclusionArbiter;
 import art.arcane.wormholes.render.PortalProjector;
-import art.arcane.optics.entity.ProjectedEntityEvent;
+import art.arcane.optics.entity.EntityAnimation;
 import art.arcane.wormholes.render.PortalSkinRenderer;
 import art.arcane.wormholes.render.ProjectionClaimArbiter;
 import art.arcane.wormholes.render.FidelitySettings;
@@ -803,7 +803,7 @@ public class ProjectionManager implements Listener {
             default -> -1;
         };
         if (animation >= 0) {
-            clientView.entityEvent(ProjectedEntityEvent.animation(entityId, animation));
+            clientView.entityEvent(EntityAnimation.animation(entityId, animation));
         }
         for (Player observer : interestSet.projectedEntityObservers(entityId)) {
             UUID observerId = observer.getUniqueId();
@@ -836,7 +836,7 @@ public class ProjectionManager implements Listener {
         if (closed || entityId == null) {
             return;
         }
-        clientView.entityEvent(ProjectedEntityEvent.hurt(entityId, yaw));
+        clientView.entityEvent(EntityAnimation.hurt(entityId, yaw));
         for (Player observer : interestSet.projectedEntityObservers(entityId)) {
             UUID observerId = observer.getUniqueId();
             ProjectedEntityUpdateBatcher.ScheduleLease lease =

@@ -7,8 +7,8 @@ import it.unimi.dsi.fastutil.longs.LongArrayList;
 
 import java.util.function.Predicate;
 
-import art.arcane.optics.claim.ProjectedBlockClaim;
-import art.arcane.optics.claim.ProjectionOutput;
+import art.arcane.optics.claim.BlockClaim;
+import art.arcane.optics.claim.WorldOutput;
 
 /**
  * Relays destination precipitation into the projected volume as short particle bursts, rate-capped
@@ -37,16 +37,16 @@ public final class WeatherRelay {
         return new Burst(particle, thunder ? MAX_PARTICLES_PER_BURST : RAIN_PARTICLES_PER_BURST);
     }
 
-    public <O, B, V> void spawn(Emission<B, V> emission, ProjectionOutput<O> output, O observer) {
-        Long2ObjectMap<ProjectedBlockClaim<B, V>> claims = emission.claims();
+    public <O, B, V> void spawn(Emission<B, V> emission, WorldOutput<O> output, O observer) {
+        Long2ObjectMap<BlockClaim<B, V>> claims = emission.claims();
         Burst burst = emission.burst();
         Random random = emission.random();
         if (burst == null || claims == null || claims.isEmpty()) {
             return;
         }
         LongArrayList airCells = new LongArrayList(Math.min(claims.size(), 256));
-        for (Long2ObjectMap.Entry<ProjectedBlockClaim<B, V>> entry : claims.long2ObjectEntrySet()) {
-            ProjectedBlockClaim<B, V> claim = entry.getValue();
+        for (Long2ObjectMap.Entry<BlockClaim<B, V>> entry : claims.long2ObjectEntrySet()) {
+            BlockClaim<B, V> claim = entry.getValue();
             if (claim.isMaskAir() || emission.air().test(claim.getData())) {
                 airCells.add(entry.getLongKey());
             }
@@ -66,7 +66,7 @@ public final class WeatherRelay {
         SNOWFLAKE
     }
 
-    public record Emission<B, V>(Long2ObjectMap<ProjectedBlockClaim<B, V>> claims, Burst burst, Random random, Predicate<B> air) {
+    public record Emission<B, V>(Long2ObjectMap<BlockClaim<B, V>> claims, Burst burst, Random random, Predicate<B> air) {
     }
 
     static boolean isCold(String biomeKey) {

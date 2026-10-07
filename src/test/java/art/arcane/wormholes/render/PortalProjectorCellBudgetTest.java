@@ -20,7 +20,7 @@ import art.arcane.wormholes.util.Cuboid;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.volume.PlaneWindow;
 import art.arcane.optics.volume.ViewVolume;
-import art.arcane.optics.volume.ProjectionVolume;
+import art.arcane.optics.volume.ApertureSlab;
 
 public final class PortalProjectorCellBudgetTest {
     private static final double DEPTH_BLOCKS = 64.0D;
@@ -238,14 +238,14 @@ public final class PortalProjectorCellBudgetTest {
                                            double depthBlocks) {
         Box region = frustum.getRegion();
         int[] axisMin = new int[] {
-            ProjectionVolume.minBlockForCenter(region.getXa()),
-            ProjectionVolume.minBlockForCenter(region.getYa()),
-            ProjectionVolume.minBlockForCenter(region.getZa())
+            ApertureSlab.minBlockForCenter(region.getXa()),
+            ApertureSlab.minBlockForCenter(region.getYa()),
+            ApertureSlab.minBlockForCenter(region.getZa())
         };
         int[] axisMax = new int[] {
-            ProjectionVolume.maxBlockForCenter(region.getXb()),
-            ProjectionVolume.maxBlockForCenter(region.getYb()),
-            ProjectionVolume.maxBlockForCenter(region.getZb())
+            ApertureSlab.maxBlockForCenter(region.getXb()),
+            ApertureSlab.maxBlockForCenter(region.getYb()),
+            ApertureSlab.maxBlockForCenter(region.getZb())
         };
         Location center = structure.getCenter();
         double originX = center.getX();
@@ -257,7 +257,7 @@ public final class PortalProjectorCellBudgetTest {
         double eyeRelZ = eye.getZ() - originZ;
         boolean eyeFrontSide = dot(eyeRelX, eyeRelY, eyeRelZ, normal) >= 0.0D;
         Frame projectionFrame = frame.view(eyeFrontSide);
-        double clearance = ProjectionVolume.portalPlaneClearance(structure.getArea(), frame);
+        double clearance = ApertureSlab.portalPlaneClearance(structure.getArea(), frame);
         double maximumDepth = depthBlocks + clearance;
         double signedMinimum = eyeFrontSide ? -maximumDepth : clearance;
         double signedMaximum = eyeFrontSide ? -clearance : maximumDepth;
@@ -267,9 +267,9 @@ public final class PortalProjectorCellBudgetTest {
         double centerA = normalOrigin + (signedMinimum / normalComponent);
         double centerB = normalOrigin + (signedMaximum / normalComponent);
         axisMin[normalAxis] = Math.max(axisMin[normalAxis],
-            ProjectionVolume.minBlockForCenter(Math.min(centerA, centerB)));
+            ApertureSlab.minBlockForCenter(Math.min(centerA, centerB)));
         axisMax[normalAxis] = Math.min(axisMax[normalAxis],
-            ProjectionVolume.maxBlockForCenter(Math.max(centerA, centerB)));
+            ApertureSlab.maxBlockForCenter(Math.max(centerA, centerB)));
 
         Face projectionNormal = projectionFrame.getNormal();
         Face projectionRight = projectionFrame.getRight();

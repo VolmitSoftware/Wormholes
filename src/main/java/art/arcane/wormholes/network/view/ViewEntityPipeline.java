@@ -1,7 +1,7 @@
 package art.arcane.wormholes.network.view;
 
 import art.arcane.optics.math.Vec3d;
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.wormholes.render.clientview.BukkitPortalEnvironment;
 import art.arcane.optics.light.SkyMath;
 
@@ -181,7 +181,7 @@ final class ViewEntityPipeline {
             }
             if (session.meshDistance > 0 && tickCounter >= session.nextEnvironmentTick) {
                 ViewEntityState.Center center = session.center();
-                ProjectionEnvironment environment = BukkitPortalEnvironment.capture(session.world,
+                EnvironmentState environment = BukkitPortalEnvironment.capture(session.world,
                     new Vec3d(center.x(), center.y(), center.z()), OpticTransform.IDENTITY);
                 timeDelivery.queueEnvironment(session, environment);
                 session.nextEnvironmentTick = tickCounter + 20;

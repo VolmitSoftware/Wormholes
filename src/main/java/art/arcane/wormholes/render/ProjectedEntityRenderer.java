@@ -54,13 +54,13 @@ import art.arcane.wormholes.render.view.RemoteWorldView;
 import art.arcane.optics.entity.EntityRelationship;
 import art.arcane.optics.entity.ItemFrameTransform;
 import art.arcane.optics.entity.PlayerNames;
-import art.arcane.optics.entity.ProjectionRecovery;
+import art.arcane.optics.entity.EntityRecovery;
 import art.arcane.optics.entity.SnapshotProjector;
 import art.arcane.optics.entity.SpoofRegistry;
 import art.arcane.optics.entity.SpoofedEntity;
 import art.arcane.optics.entity.EntityProjection;
 import art.arcane.optics.occlusion.LocalOcclusionArbiter;
-import art.arcane.optics.occlusion.ProjectedEntityOcclusion;
+import art.arcane.optics.occlusion.EntityOcclusion;
 import art.arcane.optics.recursion.EntityPath;
 import art.arcane.optics.recursion.RecursiveEndpoints;
 import art.arcane.optics.spi.OpticsScheduler;
@@ -93,7 +93,7 @@ public final class ProjectedEntityRenderer {
     private final double[] scratchLook;
     private final double[] scratchEntityPosition;
     private final List<EntityRelationship> scratchRelationships;
-    private final ProjectionRecovery<Player> recovery;
+    private final EntityRecovery<Player> recovery;
     private final OpticsScheduler<Player, ?> scheduler;
     private volatile int publishedSpoofedCount;
     private final Map<UUID, ProjectedEntityRenderer> nestedRenderers = new HashMap<UUID, ProjectedEntityRenderer>();
@@ -143,7 +143,7 @@ public final class ProjectedEntityRenderer {
         this.scratchEntityPosition = new double[5];
         this.scratchRelationships = new ArrayList<EntityRelationship>(16);
         this.scheduler = scheduler;
-        this.recovery = new ProjectionRecovery<>(output, scheduler, new ProjectionRecovery.Teardown<>(this::hasRenderState,
+        this.recovery = new EntityRecovery<>(output, scheduler, new EntityRecovery.Teardown<>(this::hasRenderState,
             this::sendTeardown, this::dropRenderState, occluder::release));
     }
 
@@ -223,7 +223,7 @@ public final class ProjectedEntityRenderer {
     }
 
     record RecursiveRender(ILocalPortal localPortal, ViewVolume frustum, double depth,
-                           boolean snapshots, Function<World, ProjectionWorldView> viewLookup, ProjectedEntityOcclusion<BlockData, ProjectionWorldView> occlusion) {
+                           boolean snapshots, Function<World, ProjectionWorldView> viewLookup, EntityOcclusion<BlockData, ProjectionWorldView> occlusion) {
     }
 
     public void apply(Player observer,
@@ -232,7 +232,7 @@ public final class ProjectedEntityRenderer {
                       ViewVolume frustum,
                       double projectionDepth,
                       OpticTransform transform,
-                      ProjectedEntityOcclusion<BlockData, ProjectionWorldView> entityOcclusion) {
+                      EntityOcclusion<BlockData, ProjectionWorldView> entityOcclusion) {
         if (!Settings.ENTITY_SPOOFING || entityLimit() <= 0) {
             close(observer);
             return;
@@ -296,7 +296,7 @@ public final class ProjectedEntityRenderer {
                             ViewVolume frustum,
                             double projectionDepth,
                             OpticTransform transform,
-                            ProjectedEntityOcclusion<BlockData, ProjectionWorldView> entityOcclusion) {
+                            EntityOcclusion<BlockData, ProjectionWorldView> entityOcclusion) {
         if (!Settings.ENTITY_SPOOFING || entityLimit() <= 0) {
             close(observer);
             return;
@@ -355,7 +355,7 @@ public final class ProjectedEntityRenderer {
                               ViewVolume frustum,
                               double projectionDepth,
                               OpticTransform transform,
-                              ProjectedEntityOcclusion<BlockData, ProjectionWorldView> entityOcclusion) {
+                              EntityOcclusion<BlockData, ProjectionWorldView> entityOcclusion) {
         if (!Settings.ENTITY_SPOOFING || entityLimit() <= 0) {
             close(observer);
             return;

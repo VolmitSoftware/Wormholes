@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client.render;
 
 import art.arcane.wormholes.modded.mixin.client.PreparedLevelAccess;
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.frame.OpticTransform;
 import com.mojang.blaze3d.ProjectionType;
 import com.mojang.blaze3d.pipeline.TextureTarget;
@@ -138,7 +138,7 @@ public final class PortalIrisMainPipelines {
         }
         ClientPortalRenderer renderer = ClientPortalRenderer.instance();
         TextureTarget target = renderer.nativeTravelTarget();
-        ProjectionEnvironment environment = draw.environment().withTransform(OpticTransform.IDENTITY);
+        EnvironmentState environment = draw.environment().withTransform(OpticTransform.IDENTITY);
         PortalShaderCamera camera = new PortalShaderCamera(environment, draw.camera());
         PortalShaderContext.View view = new PortalShaderContext.View(environment, camera, target,
             draw.camera().viewRotationMatrix, projection);
@@ -240,7 +240,7 @@ public final class PortalIrisMainPipelines {
     private record NativeTerrain(TerrainRenderPass pass, WorldRenderingPhase phase) {
     }
 
-    record NativeDraw(ClientLevel level, ProjectionEnvironment environment, CameraRenderState camera,
+    record NativeDraw(ClientLevel level, EnvironmentState environment, CameraRenderState camera,
                       SodiumWorldRenderer renderer, ClientSodiumTerrain.WarmStage stage) {
     }
 

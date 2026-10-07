@@ -9,7 +9,7 @@ import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.stream.PlateSectionBox;
 import art.arcane.optics.entity.EntitySnapshot;
-import art.arcane.optics.entity.ProjectedEntityEvent;
+import art.arcane.optics.entity.EntityAnimation;
 import art.arcane.wormholes.portal.effects.PortalAnimation;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.fidelity.AcousticsProfile;
@@ -294,7 +294,7 @@ final class ClientViewHarness {
         final Map<Integer, EntitySnapshot> entities = new HashMap<>();
         final Map<Integer, byte[]> metadata = new HashMap<>();
         final List<String> events = new ArrayList<>();
-        final List<ProjectedEntityEvent> entityActions = new ArrayList<>();
+        final List<EntityAnimation> entityActions = new ArrayList<>();
         final List<String> particles = new ArrayList<>();
         int moves;
         float rain;
@@ -326,7 +326,7 @@ final class ClientViewHarness {
         }
 
         @Override
-        public void event(int entityId, ProjectedEntityEvent event) {
+        public void event(int entityId, EntityAnimation event) {
             assertTrue(entities.containsKey(entityId));
             entityActions.add(event);
         }

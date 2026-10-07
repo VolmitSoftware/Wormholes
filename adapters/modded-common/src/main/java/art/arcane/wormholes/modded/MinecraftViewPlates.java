@@ -5,7 +5,7 @@ import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.optics.view.WorldChangeTracker;
-import art.arcane.optics.scan.ProjectorPassRevision;
+import art.arcane.optics.scan.PassRevision;
 import art.arcane.optics.fidelity.AtmosphereMode;
 import art.arcane.optics.fidelity.FogPlatePolicy;
 import art.arcane.optics.volume.LodPolicy;
@@ -50,11 +50,11 @@ public final class MinecraftViewPlates {
         int depth = portal.getNetworkViewDepth();
         int lateral = Math.min(portal.getNetworkViewLateralPad(), FidelitySettings.plateLateralClampBlocks);
         double padding = runtime.configuration().settings().getProjection().aperturePaddingBlocks;
-        long transform = ProjectorPassRevision.transform(localFrame, target.remoteFrame(), origin.x(), origin.y(), origin.z(),
+        long transform = PassRevision.transform(localFrame, target.remoteFrame(), origin.x(), origin.y(), origin.z(),
             target.originX(), target.originY(), target.originZ(), depth, lateral, padding, target.culling(), lod, target.blockEntities());
-        transform = ProjectorPassRevision.mix(transform, targetIdentity);
-        transform = ProjectorPassRevision.mix(transform, portal.getGeometry().getRevision());
-        long transformRevision = ProjectorPassRevision.mix(transform, Objects.hashCode(portal.getNetworkViewFallbackBlock()));
+        transform = PassRevision.mix(transform, targetIdentity);
+        transform = PassRevision.mix(transform, portal.getGeometry().getRevision());
+        long transformRevision = PassRevision.mix(transform, Objects.hashCode(portal.getNetworkViewFallbackBlock()));
         long destinationRevision = target.destView() instanceof MinecraftProjectionWorldView ? 0L : target.destView().getRevision();
         ViewPlateKey key = new ViewPlateKey(portal.getId(), target.destView(), target.front(), target.mirrorQuarterTurns(), targetIdentity);
         return new Resolved(key, destinationRevision, transformRevision, lod, depth, lateral, padding);
@@ -88,7 +88,7 @@ public final class MinecraftViewPlates {
         ViewPlateKey original = resolved.key();
         ViewPlateKey key = new ViewPlateKey(original.portalId(), new MeshSection(original.destinationViewIdentity(), clip),
             original.frontSide(), original.mirrorQuarterTurns(), original.targetIdentity());
-        long transform = ProjectorPassRevision.mix(resolved.transformRevision(), boundedDistance);
+        long transform = PassRevision.mix(resolved.transformRevision(), boundedDistance);
         WorldChangeTracker tracker = runtime.projections().changes();
         MinecraftPortal portal = target.portal();
         Vec3d origin = portal.getOrigin();

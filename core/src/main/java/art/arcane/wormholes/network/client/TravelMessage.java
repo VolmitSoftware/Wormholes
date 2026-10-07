@@ -11,7 +11,7 @@ import art.arcane.optics.crossing.MomentumRule;
 import art.arcane.optics.crossing.OrientationRule;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.math.Vec3d;
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 
 public sealed interface TravelMessage {
     int TRAVEL_BEGIN = 41;
@@ -108,7 +108,7 @@ public sealed interface TravelMessage {
     }
 
     record TravelBegin(UUID token, long generation, UUID sourcePortal, String sourceWorld, ApertureDescriptor sourceGeometry,
-                       OpticTransform destinationToSource, TravelWorld world, TravelPose arrival, List<TravelCoordinate> chunks, ProjectionEnvironment environment,
+                       OpticTransform destinationToSource, TravelWorld world, TravelPose arrival, List<TravelCoordinate> chunks, EnvironmentState environment,
                        int expiresMillis, ArrivalRules rules, boolean resident, int levelHandle, boolean seamless) implements TravelMessage {
         public TravelBegin {
             travelIdentity(token, generation);
@@ -336,7 +336,7 @@ public sealed interface TravelMessage {
         }
     }
 
-    record RemoteLevelOpen(int levelHandle, TravelWorld world, ProjectionEnvironment environment, int viewRadius,
+    record RemoteLevelOpen(int levelHandle, TravelWorld world, EnvironmentState environment, int viewRadius,
                            TravelCoordinate center) implements TravelMessage {
         public RemoteLevelOpen {
             Objects.requireNonNull(world, "world");

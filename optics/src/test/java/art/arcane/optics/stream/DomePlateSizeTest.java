@@ -14,7 +14,7 @@ import java.util.zip.Deflater;
 
 import org.junit.jupiter.api.Test;
 
-import art.arcane.optics.scan.ProjectorSample;
+import art.arcane.optics.scan.Sample;
 import art.arcane.optics.plate.ViewPlate;
 import art.arcane.optics.plate.ViewPlateBuilder;
 
@@ -54,10 +54,10 @@ final class DomePlateSizeTest {
             }
             double cells = plate.box().cells();
             reports.add(new PlateReport(scenarios.get(i).name(), raw, deflated, encoded.brickCount(),
-                (encoded.kindCount(ProjectorSample.Kind.REMOTE_AIR.ordinal()) + encoded.kindCount(ProjectorSample.Kind.values().length)) / cells,
-                encoded.kindCount(ProjectorSample.Kind.BLOCK.ordinal()) / cells,
-                encoded.kindCount(ProjectorSample.Kind.BACKING_BLOCK.ordinal()) / cells,
-                encoded.kindCount(ProjectorSample.Kind.OCCLUDED.ordinal()) / cells));
+                (encoded.kindCount(Sample.Kind.REMOTE_AIR.ordinal()) + encoded.kindCount(Sample.Kind.values().length)) / cells,
+                encoded.kindCount(Sample.Kind.BLOCK.ordinal()) / cells,
+                encoded.kindCount(Sample.Kind.BACKING_BLOCK.ordinal()) / cells,
+                encoded.kindCount(Sample.Kind.OCCLUDED.ordinal()) / cells));
         }
         return reports;
     }

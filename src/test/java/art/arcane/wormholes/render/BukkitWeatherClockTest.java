@@ -22,7 +22,7 @@ import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
-import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.claim.BlockClaim;
 import art.arcane.optics.fidelity.WeatherRelay;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.plate.PlateWorkers;
@@ -46,7 +46,7 @@ final class BukkitWeatherClockTest {
         Player observer = mock(Player.class);
         ProjectorWeather weather = new ProjectorWeather();
         BukkitProjectionOutput output = new BukkitProjectionOutput((player, chunkX, chunkZ) -> true, portalId -> List.of());
-        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims = airClaims(40);
+        Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>> claims = airClaims(40);
 
         weather.relay(scheduler, output, observer, new ProjectorWeather.Conditions(true, false, "minecraft:plains"), claims);
         verify(observer, times(12)).spawnParticle(eq(Particle.RAIN), anyDouble(), anyDouble(), anyDouble(), anyInt(),
@@ -72,14 +72,14 @@ final class BukkitWeatherClockTest {
         assertEquals(WeatherRelay.BURST_INTERVAL_TICKS, scheduler.tick());
     }
 
-    private static Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> airClaims(int count) {
+    private static Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>> airClaims(int count) {
         BlockData air = mock(BlockData.class);
         when(air.getMaterial()).thenReturn(Material.AIR);
-        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims =
-            new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(count);
+        Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>> claims =
+            new Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>>(count);
         for (int index = 0; index < count; index++) {
-            claims.put(CellKeys.pack(index, 70, 0), new ProjectedBlockClaim<BlockData, ProjectionWorldView>(air, null,
-                ProjectedBlockClaim.NO_REMOTE_KEY, false));
+            claims.put(CellKeys.pack(index, 70, 0), new BlockClaim<BlockData, ProjectionWorldView>(air, null,
+                BlockClaim.NO_REMOTE_KEY, false));
         }
         return claims;
     }

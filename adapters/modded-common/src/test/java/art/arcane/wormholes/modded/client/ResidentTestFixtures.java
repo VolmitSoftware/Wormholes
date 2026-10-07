@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.optics.frame.OpticTransform;
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.wormholes.modded.mixin.client.PreparedLevelAccess;
 import art.arcane.wormholes.modded.mixin.client.PreparedPacketAccess;
@@ -99,11 +99,11 @@ final class ResidentTestFixtures {
         return new TravelMessage.RemoteLevelOpen(handle, world, environment(world), 4, new TravelMessage.TravelCoordinate(x, z));
     }
 
-    static ProjectionEnvironment environment(TravelMessage.TravelWorld world) {
-        ProjectionEnvironment base = PortalEnvironmentTest.environment(OpticTransform.IDENTITY);
-        ProjectionEnvironment.World source = base.world();
-        return new ProjectionEnvironment(base.gameTime(), base.sky(), base.fog(), base.lighting(), base.clouds(), base.transform(), base.dimension(),
-            new ProjectionEnvironment.World(world.dimension(), source.clockTime(), source.biomeKey(), source.seaLevel(), source.blockLight(),
+    static EnvironmentState environment(TravelMessage.TravelWorld world) {
+        EnvironmentState base = PortalEnvironmentTest.environment(OpticTransform.IDENTITY);
+        EnvironmentState.World source = base.world();
+        return new EnvironmentState(base.gameTime(), base.sky(), base.fog(), base.lighting(), base.clouds(), base.transform(), base.dimension(),
+            new EnvironmentState.World(world.dimension(), source.clockTime(), source.biomeKey(), source.seaLevel(), source.blockLight(),
                 source.skyLight(), source.logicalHeight(), source.hasCeiling(), source.ambientLight(), source.eyeMedium(), source.hasFixedTime()));
     }
 

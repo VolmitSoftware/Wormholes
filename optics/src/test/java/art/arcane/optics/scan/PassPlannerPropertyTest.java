@@ -41,7 +41,7 @@ public final class PassPlannerPropertyTest {
                 assertFalse(PassPlanner.reusable(mutated), context);
                 assertTrue(plan.kind() == PassPlan.Kind.RESCAN || plan.kind() == PassPlan.Kind.RESUME_OCCLUSION, context);
                 assertTrue(plan.has(PassPlan.CONTENT_INVALIDATED), context);
-                assertTrue((plan.reasons() & ProjectorResampleReasons.PRESENTATION) != 0, context);
+                assertTrue((plan.reasons() & ResampleReasons.PRESENTATION) != 0, context);
             }
         }
     }

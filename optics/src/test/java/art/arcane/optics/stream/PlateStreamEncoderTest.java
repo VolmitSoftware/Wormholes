@@ -29,7 +29,7 @@ import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.optics.math.CellKeys;
-import art.arcane.optics.scan.ProjectorSample;
+import art.arcane.optics.scan.Sample;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.internal.stream.EncodedPlate;
 import art.arcane.optics.internal.stream.PlateStreamEncoder;
@@ -53,7 +53,7 @@ final class PlateStreamEncoderTest {
         return new int[] {(int) Math.floor(out[0]), (int) Math.floor(out[1]), (int) Math.floor(out[2])};
     }
 
-    static long firstCellOfKind(ViewPlate<String> plate, ProjectorSample.Kind kind) {
+    static long firstCellOfKind(ViewPlate<String> plate, Sample.Kind kind) {
         for (long key : plate.cellKeys()) {
             if (plate.cell(key).kind() == kind) {
                 return key;
@@ -111,7 +111,7 @@ final class PlateStreamEncoderTest {
         assertTrue(empty.step(1));
         verify(capturedAir, never()).sampleBlockData(anyInt(), anyInt(), anyInt());
         assertEquals(4096, empty.result().cellCount());
-        assertEquals(ProjectorSample.Kind.REMOTE_AIR, empty.result().paletteCell(1).kind());
+        assertEquals(Sample.Kind.REMOTE_AIR, empty.result().paletteCell(1).kind());
     }
 
     @Test
@@ -143,10 +143,10 @@ final class PlateStreamEncoderTest {
                 int expected;
                 if (source == null) {
                     expected = ViewStreamLimits.PALETTE_AIR;
-                } else if (source.kind() == ProjectorSample.Kind.OCCLUDED) {
+                } else if (source.kind() == Sample.Kind.OCCLUDED) {
                     expected = ViewStreamLimits.PALETTE_OCCLUDED;
                     occluded++;
-                } else if (source.kind() == ProjectorSample.Kind.BACKING_BLOCK) {
+                } else if (source.kind() == Sample.Kind.BACKING_BLOCK) {
                     expected = ViewStreamLimits.PALETTE_BACKING;
                     backing++;
                 } else if (source.isAir()) {
@@ -178,7 +178,7 @@ final class PlateStreamEncoderTest {
         Map<String, Integer> votes = new HashMap<String, Integer>();
         for (long key : plate.cellKeys()) {
             PlateCell<String> cell = plate.cell(key);
-            if (cell.kind() == ProjectorSample.Kind.BACKING_BLOCK) {
+            if (cell.kind() == Sample.Kind.BACKING_BLOCK) {
                 votes.merge(cell.data(), 1, Integer::sum);
             }
         }
@@ -218,10 +218,10 @@ final class PlateStreamEncoderTest {
         ViewPlate<String> vault = smallPlate(world, false);
         int occluded = 0;
         for (long key : vault.cellKeys()) {
-            ProjectorSample.Kind kind = vault.cell(key).kind();
-            assertNotEquals(ProjectorSample.Kind.BACKING_BLOCK, kind);
-            assertNotEquals(ProjectorSample.Kind.BLOCK, kind);
-            if (kind == ProjectorSample.Kind.OCCLUDED) {
+            Sample.Kind kind = vault.cell(key).kind();
+            assertNotEquals(Sample.Kind.BACKING_BLOCK, kind);
+            assertNotEquals(Sample.Kind.BLOCK, kind);
+            if (kind == Sample.Kind.OCCLUDED) {
                 occluded++;
             }
         }
@@ -259,7 +259,7 @@ final class PlateStreamEncoderTest {
     @Test
     void lightFollowsTheSourceOnEveryBrickAndBlockEntitiesRideAlong() throws IOException {
         SyntheticWorld world = new SyntheticWorld(14L);
-        long visible = firstCellOfKind(smallPlate(world, false), ProjectorSample.Kind.BLOCK);
+        long visible = firstCellOfKind(smallPlate(world, false), Sample.Kind.BLOCK);
         int[] remote = remoteOf(CellKeys.unpackX(visible), CellKeys.unpackY(visible), CellKeys.unpackZ(visible));
         world.setBlockEntity(remote[0], remote[1], remote[2], "minecraft:chest[facing=north,type=single,waterlogged=false]",
             new BlockEntitySample("minecraft:chest", new byte[] {10, 0, 0, 0}));

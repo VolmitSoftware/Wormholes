@@ -2,7 +2,7 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.MeshHash;
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.SectionBiomes;
@@ -468,7 +468,7 @@ public final class ClientMeshSections {
         private final long targetIdentity;
         private final int hash;
 
-        Identity(ProjectionEnvironment environment, long epoch, long targetIdentity) {
+        Identity(EnvironmentState environment, long epoch, long targetIdentity) {
             world = environment.world().dimensionKey();
             transform = environment.transform();
             this.epoch = epoch;
@@ -479,7 +479,7 @@ public final class ClientMeshSections {
             hash = 31 * value + Long.hashCode(targetIdentity);
         }
 
-        boolean matchesEnvironment(ProjectionEnvironment environment) {
+        boolean matchesEnvironment(EnvironmentState environment) {
             return environment != null && world.equals(environment.world().dimensionKey()) && transform.equals(environment.transform());
         }
 

@@ -22,7 +22,7 @@ import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.optics.math.CellKeys;
-import art.arcane.optics.scan.ProjectorSample;
+import art.arcane.optics.scan.Sample;
 import art.arcane.optics.plate.PlateCell;
 import art.arcane.optics.plate.ViewPlate;
 import art.arcane.optics.plate.ViewPlateBuilder;
@@ -63,14 +63,14 @@ final class LodMergeTest {
         ILocalPortal portal = portal(structure);
         FlowerView destination = new FlowerView();
         ViewPlate<BlockData> cut = ViewPlateBuilder.build(request(portal, structure, destination, new LodPolicy(false, 100, 2), 8.0D));
-        assertEquals(ProjectorSample.Kind.BLOCK, cut.cell(CellKeys.pack(0, 64, -1)).kind());
-        assertEquals(ProjectorSample.Kind.BLOCK, cut.cell(CellKeys.pack(0, 64, -2)).kind());
-        assertEquals(ProjectorSample.Kind.REMOTE_AIR, cut.cell(CellKeys.pack(0, 64, -4)).kind());
+        assertEquals(Sample.Kind.BLOCK, cut.cell(CellKeys.pack(0, 64, -1)).kind());
+        assertEquals(Sample.Kind.BLOCK, cut.cell(CellKeys.pack(0, 64, -2)).kind());
+        assertEquals(Sample.Kind.REMOTE_AIR, cut.cell(CellKeys.pack(0, 64, -4)).kind());
         assertEquals(Material.STONE, cut.cell(CellKeys.pack(0, 63, -4)).data().getMaterial(),
             "full blocks past the cutoff stay");
 
         ViewPlate<BlockData> none = ViewPlateBuilder.build(request(portal, structure, destination, LodPolicy.NONE, 8.0D));
-        assertEquals(ProjectorSample.Kind.BLOCK, none.cell(CellKeys.pack(0, 64, -4)).kind());
+        assertEquals(Sample.Kind.BLOCK, none.cell(CellKeys.pack(0, 64, -4)).kind());
         assertTrue(LodPolicy.NONE.isNone());
         assertFalse(new LodPolicy(true, 32, 48).isNone());
     }

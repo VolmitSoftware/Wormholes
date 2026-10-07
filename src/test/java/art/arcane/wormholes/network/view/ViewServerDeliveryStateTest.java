@@ -1,6 +1,6 @@
 package art.arcane.wormholes.network.view;
 
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import static org.mockito.Mockito.mock;
 import org.junit.jupiter.api.Test;
 
@@ -12,8 +12,8 @@ class ViewServerDeliveryStateTest {
     @Test
     void pendingEnvironmentRetainsTheLatestSnapshotUntilThatSnapshotIsAccepted() {
         ViewServer.TimeDeliveryState state = new ViewServer.TimeDeliveryState(3);
-        ProjectionEnvironment first = mock(ProjectionEnvironment.class);
-        ProjectionEnvironment latest = mock(ProjectionEnvironment.class);
+        EnvironmentState first = mock(EnvironmentState.class);
+        EnvironmentState latest = mock(EnvironmentState.class);
         assertFalse(state.needsEnvironmentDelivery());
         state.desiredEnvironment = first;
         assertTrue(state.needsEnvironmentDelivery());

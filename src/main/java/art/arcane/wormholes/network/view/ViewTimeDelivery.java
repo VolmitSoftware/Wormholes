@@ -1,6 +1,6 @@
 package art.arcane.wormholes.network.view;
 
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.network.NetworkManager;
@@ -40,7 +40,7 @@ final class ViewTimeDelivery {
         start(session, peerName, state);
     }
 
-    void queueEnvironment(ViewSession session, ProjectionEnvironment environment) {
+    void queueEnvironment(ViewSession session, EnvironmentState environment) {
         for (Map.Entry<String, ViewServer.TimeDeliveryState> entry : session.timeDeliveryStates.entrySet()) {
             entry.getValue().desiredEnvironment = environment;
             start(session, entry.getKey(), entry.getValue());
@@ -80,7 +80,7 @@ final class ViewTimeDelivery {
             }
         }
         if (state.needsEnvironmentDelivery()) {
-            ProjectionEnvironment environment = state.desiredEnvironment;
+            EnvironmentState environment = state.desiredEnvironment;
             if (network.send(peerName, new WireMessage.ViewEnvironment(session.portalId, environment))) {
                 state.acceptedEnvironment = environment;
             }

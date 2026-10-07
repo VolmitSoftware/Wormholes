@@ -32,8 +32,8 @@ import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.optics.math.CellKeys;
-import art.arcane.optics.scan.ProjectorSample;
-import art.arcane.optics.scan.ProjectorSampleMemo;
+import art.arcane.optics.scan.Sample;
+import art.arcane.optics.scan.SampleMemo;
 import art.arcane.optics.volume.LodPolicy;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.util.Cuboid;
@@ -109,8 +109,8 @@ final class ViewPlateBuilderTest {
         destination.unknown(1, 64, -1);
         ViewPlate<BlockData> plate = ViewPlateBuilder.build(request(portal, structure, destination, true));
 
-        assertEquals(ProjectorSample.Kind.REMOTE_AIR, plate.cell(CellKeys.pack(0, 65, -1)).kind());
-        assertEquals(ProjectorSample.Kind.BLOCK, plate.cell(CellKeys.pack(0, 64, -1)).kind());
+        assertEquals(Sample.Kind.REMOTE_AIR, plate.cell(CellKeys.pack(0, 65, -1)).kind());
+        assertEquals(Sample.Kind.BLOCK, plate.cell(CellKeys.pack(0, 64, -1)).kind());
         assertNull(plate.cell(CellKeys.pack(1, 64, -1)), "unavailable samples stay absent so the projector falls back");
     }
 
@@ -205,7 +205,7 @@ final class ViewPlateBuilderTest {
             double[] remotePoint = new double[3];
 
             ViewPlate<BlockData> plate = ViewPlateBuilder.build(request);
-            ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = new ProjectorSampleMemo<BlockData, Material, ProjectionWorldView>(blocks, () -> null);
+            SampleMemo<BlockData, Material, ProjectionWorldView> memo = new SampleMemo<BlockData, Material, ProjectionWorldView>(blocks, () -> null);
             Set<PlateCell<BlockData>> palette = Collections.newSetFromMap(new IdentityHashMap<PlateCell<BlockData>, Boolean>());
             int present = 0;
             int occluded = 0;
@@ -227,15 +227,15 @@ final class ViewPlateBuilderTest {
                         String label = "seed=" + seed + " mirror=" + mirror + " cell=" + x + "," + y + "," + z;
                         assertNotNull(remote, label + " unknown samples must stay absent");
                         if (remote.getMaterial() == Material.AIR) {
-                            assertEquals(ProjectorSample.Kind.REMOTE_AIR, cell.kind(), label);
+                            assertEquals(Sample.Kind.REMOTE_AIR, cell.kind(), label);
                             assertSame(air, cell.data(), label);
                             continue;
                         }
                         int occlusionDepth = buried ? memo.occlusionDepthInView(destination, rx, ry, rz, remote) : 0;
-                        ProjectorSample.Kind expected = occlusionDepth == 1 ? ProjectorSample.Kind.BACKING_BLOCK
-                            : occlusionDepth == 2 ? ProjectorSample.Kind.OCCLUDED : ProjectorSample.Kind.BLOCK;
+                        Sample.Kind expected = occlusionDepth == 1 ? Sample.Kind.BACKING_BLOCK
+                            : occlusionDepth == 2 ? Sample.Kind.OCCLUDED : Sample.Kind.BLOCK;
                         assertEquals(expected, cell.kind(), label);
-                        if (expected == ProjectorSample.Kind.OCCLUDED) {
+                        if (expected == Sample.Kind.OCCLUDED) {
                             occluded++;
                         }
                         assertSame(remote, cell.data(), label);

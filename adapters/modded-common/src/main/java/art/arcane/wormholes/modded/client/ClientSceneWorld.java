@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.optics.entity.EntitySnapshot;
-import art.arcane.optics.entity.ProjectedEntityEvent;
+import art.arcane.optics.entity.EntityAnimation;
 import art.arcane.wormholes.portal.effects.PortalAnimation;
 import art.arcane.optics.fidelity.AcousticsProfile;
 
@@ -14,7 +14,7 @@ public interface ClientSceneWorld {
 
     void tick(int entityId, int portalKey, boolean nativeMesh);
 
-    default void event(int entityId, ProjectedEntityEvent event) {
+    default void event(int entityId, EntityAnimation event) {
     }
 
     void metadata(int entityId, byte[] metadata);

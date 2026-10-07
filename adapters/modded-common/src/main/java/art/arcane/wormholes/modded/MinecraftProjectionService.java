@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.optics.math.Vec3d;
-import art.arcane.optics.entity.ProjectedEntityEvent;
+import art.arcane.optics.entity.EntityAnimation;
 import art.arcane.optics.entity.CandidateCache;
 import art.arcane.optics.fidelity.AcousticsBridge;
 import art.arcane.optics.fidelity.AcousticsProfile;
@@ -11,7 +11,7 @@ import java.util.Collection;
 import art.arcane.optics.aperture.ObserverGeometry;
 import art.arcane.wormholes.modded.clientview.MinecraftClientViewService;
 import art.arcane.wormholes.config.toml.ProjectionConfig;
-import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.claim.BlockClaim;
 import art.arcane.optics.occlusion.LocalOcclusionArbiter;
 import art.arcane.wormholes.portal.IPortal;
 import net.minecraft.server.MinecraftServer;
@@ -27,14 +27,14 @@ import art.arcane.optics.plate.PlatePipeline;
 import art.arcane.optics.plate.ViewPlateCache;
 import art.arcane.optics.view.ContentView;
 import art.arcane.optics.view.SectionCache;
-import art.arcane.optics.light.ProjectorLighting;
+import art.arcane.optics.light.LightOverlay;
 import art.arcane.wormholes.config.toml.RenderConfig;
 import art.arcane.optics.fidelity.BlockEntitySample;
-import art.arcane.optics.fidelity.ProjectedBlockEntityLayer;
+import art.arcane.optics.fidelity.BlockEntityLayer;
 import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.optics.math.CellKeys;
-import art.arcane.optics.scan.ProjectionBlockSlices;
-import art.arcane.optics.claim.ProjectionClaimSet;
+import art.arcane.optics.scan.BlockSlices;
+import art.arcane.optics.claim.ClaimSet;
 import art.arcane.optics.volume.GazeScheduler;
 import art.arcane.wormholes.service.WormholesTelemetry;
 import art.arcane.optics.math.Box;
@@ -155,18 +155,18 @@ public final class MinecraftProjectionService implements AutoCloseable {
     public void entityEvent(Entity entity, Packet<? super ClientGamePacketListener> packet) {
         int animation = MinecraftEntityPackets.animationId(packet);
         if (animation != MinecraftEntityPackets.NO_ANIMATION) {
-            publishEntityEvent(ProjectedEntityEvent.animation(entity.getUUID(), animation));
+            publishEntityEvent(EntityAnimation.animation(entity.getUUID(), animation));
         } else if (packet instanceof ClientboundHurtAnimationPacket || packet instanceof ClientboundDamageEventPacket) {
             Long previous = hurtEventTicks.put(entity.getUUID(), (long) tick);
             if (previous != null && previous == tick) {
                 return;
             }
             float yaw = packet instanceof ClientboundHurtAnimationPacket hurt ? hurt.yaw() : entity.getYRot();
-            publishEntityEvent(ProjectedEntityEvent.hurt(entity.getUUID(), yaw));
+            publishEntityEvent(EntityAnimation.hurt(entity.getUUID(), yaw));
         }
     }
 
-    public void entityEvent(ProjectedEntityEvent event) {
+    public void entityEvent(EntityAnimation event) {
         runtime.requireServerThread();
         if (closed) {
             return;
@@ -179,7 +179,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
         }
     }
 
-    private void publishEntityEvent(ProjectedEntityEvent event) {
+    private void publishEntityEvent(EntityAnimation event) {
         entityEvent(event);
         runtime.network().forwardEntityEvent(event);
     }
@@ -523,15 +523,15 @@ public final class MinecraftProjectionService implements AutoCloseable {
         private final AcousticsBridge<ServerPlayer> acoustics;
         private final Map<UUID, MinecraftPortalProjector> projectors = new HashMap<>();
         private final Map<UUID, Long> grace = new HashMap<>();
-        private final ProjectionClaimSet<ProjectedBlockClaim<BlockState, ContentView<BlockState, BlockState>>> claims = new ProjectionClaimSet<>();
+        private final ClaimSet<BlockClaim<BlockState, ContentView<BlockState, BlockState>>> claims = new ClaimSet<>();
         private final LongOpenHashSet staged = new LongOpenHashSet();
         private final LongOpenHashSet displacedClaimKeys = new LongOpenHashSet();
         private final LongOpenHashSet restoredClaimKeys = new LongOpenHashSet();
         private final LongOpenHashSet pending = new LongOpenHashSet();
         private final Long2ObjectMap<LongOpenHashSet> sentChunks = new Long2ObjectOpenHashMap<>();
-        private final ProjectedBlockEntityLayer<ServerPlayer> blockEntities = new ProjectedBlockEntityLayer<>(WormholesTelemetry.metrics());
+        private final BlockEntityLayer<ServerPlayer> blockEntities = new BlockEntityLayer<>(WormholesTelemetry.metrics());
         private final MinecraftProjectionOutput output;
-        private final ProjectorLighting<ServerPlayer, BlockState, ContentView<BlockState, BlockState>> lighting;
+        private final LightOverlay<ServerPlayer, BlockState, ContentView<BlockState, BlockState>> lighting;
         private final LongOpenHashSet dirtyLight = new LongOpenHashSet();
         private final MinecraftAtmosphere atmosphere;
         private final MinecraftPortalSurfaces surfaces;
@@ -542,7 +542,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
             this.player = player;
             this.world = player.level();
             this.output = new MinecraftProjectionOutput(runtime, player);
-            this.lighting = new ProjectorLighting<>(output, () -> changes, WormholesTelemetry.metrics());
+            this.lighting = new LightOverlay<>(output, () -> changes, WormholesTelemetry.metrics());
             this.acoustics = new AcousticsBridge<>(new AcousticsBridge.Options<>(output, ServerPlayer::getUUID, FidelitySettings::snapshot));
             this.portals.setDoorViews(doorwayViews);
             this.portals.observer(player);
@@ -588,7 +588,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
                 new GazeScheduler.Eye(eye.x, eye.y, eye.z, player.getYRot(), player.getXRot()),
                 gazeCandidates, budget, tick, gazeOptions(config()));
             gaze.retain(player.getUUID(), activeIds);
-            ProjectionBlockSlices slices = new ProjectionBlockSlices(selected.size());
+            BlockSlices slices = new BlockSlices(selected.size());
             int processed = 0;
             for (MinecraftPortal portal : selected) {
                 if (System.nanoTime() >= deadline) {
@@ -620,7 +620,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
             }
             surfaces.update(candidates, portals, tick);
             if (!staged.isEmpty()) {
-                ProjectionClaimSet.ProjectionClaimSetResult resolved = claims.resolveStaged(staged);
+                ClaimSet.Result resolved = claims.resolveStaged(staged);
                 pending.addAll(resolved.getPacketChangeKeys());
                 dirtyLight.addAll(resolved.getDirtyLightingKeys());
                 staged.clear();
@@ -683,7 +683,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
                 int x = CellKeys.unpackX(key);
                 int y = CellKeys.unpackY(key);
                 int z = CellKeys.unpackZ(key);
-                ProjectedBlockClaim<BlockState, ContentView<BlockState, BlockState>> claim = claims.getWinningClaim(key);
+                BlockClaim<BlockState, ContentView<BlockState, BlockState>> claim = claims.getWinningClaim(key);
                 if (!world.getChunkSource().chunkMap.isChunkTracked(player, x >> 4, z >> 4)) {
                     if (claim == null) {
                         iterator.remove();

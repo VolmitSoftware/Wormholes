@@ -17,7 +17,7 @@ import org.bukkit.entity.Player;
 import art.arcane.wormholes.Settings;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.EntityScenes;
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.stream.BrickLightSource;
 import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.entity.EntitySnapshot;
@@ -132,12 +132,12 @@ final class BukkitClientViewScene implements EntityScenes<ClientViewObserver>, C
         }
         int darken = view.getSkyDarken();
         if (world == null && view instanceof RemoteWorldView remote) {
-            ProjectionEnvironment environment = remote.environment(OpticTransform.IDENTITY);
+            EnvironmentState environment = remote.environment(OpticTransform.IDENTITY);
             if (environment == null) {
                 return null;
             }
             boolean weather = source.relaysWeather();
-            boolean clock = weather && environment.sky().skybox() == ProjectionEnvironment.Skybox.OVERWORLD;
+            boolean clock = weather && environment.sky().skybox() == EnvironmentState.Skybox.OVERWORLD;
             int flags = (weather ? ViewStreamMessage.Atmosphere.FLAG_WEATHER : 0) | (clock ? ViewStreamMessage.Atmosphere.FLAG_TIME : 0);
             return new ClientViewSceneFx.Sample(clock ? environment.gameTime() : 0L, clock,
                 weather ? environment.sky().rain() : 0.0F, weather ? environment.sky().thunder() : 0.0F,
@@ -161,16 +161,16 @@ final class BukkitClientViewScene implements EntityScenes<ClientViewObserver>, C
     }
 
     @Override
-    public ProjectionEnvironment environment(ClientViewObserver observer, UUID portalId, long tick) {
+    public EnvironmentState environment(ClientViewObserver observer, UUID portalId, long tick) {
         return environment(observer, null, portalId, portals.source(observer, portalId), observer.eye(), tick);
     }
 
     @Override
-    public ProjectionEnvironment nestedEnvironment(ClientViewObserver observer, UUID parent, UUID portalId, long tick) {
+    public EnvironmentState nestedEnvironment(ClientViewObserver observer, UUID parent, UUID portalId, long tick) {
         return environment(observer, parent, portalId, portals.nestedSource(observer, parent, portalId), observer.reflectedEye(parent), tick);
     }
 
-    private ProjectionEnvironment environment(ClientViewObserver observer, UUID parent, UUID portalId, ClientViewPortalSource source,
+    private EnvironmentState environment(ClientViewObserver observer, UUID parent, UUID portalId, ClientViewPortalSource source,
                                                Location eye, long tick) {
         if (source == null || eye == null || source.transformFrame() == null) {
             return null;

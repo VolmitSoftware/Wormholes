@@ -1,7 +1,7 @@
 package art.arcane.optics.stream;
 
 import art.arcane.optics.entity.EntitySnapshot;
-import art.arcane.optics.entity.ProjectedEntityEvent;
+import art.arcane.optics.entity.EntityAnimation;
 import art.arcane.optics.entity.EntityProjection;
 import org.junit.jupiter.api.Test;
 
@@ -46,14 +46,14 @@ final class MeshLocalEntityIdentityTest {
         fixture.cover(1, true);
         fixture.harness.tick();
         int first = fixture.harness.client.received.size();
-        fixture.source.event(ProjectedEntityEvent.animation(fixture.localReal, 3));
-        fixture.source.event(ProjectedEntityEvent.animation(fixture.remoteReal, 3));
+        fixture.source.event(EntityAnimation.animation(fixture.localReal, 3));
+        fixture.source.event(EntityAnimation.animation(fixture.remoteReal, 3));
         fixture.harness.tick();
         assertEquals(List.of(fixture.remoteOpaque), events(fixture.harness, first));
         fixture.cover(2, false);
         fixture.harness.tick();
         int resumed = fixture.harness.client.received.size();
-        fixture.source.event(ProjectedEntityEvent.hurt(fixture.localReal, 45));
+        fixture.source.event(EntityAnimation.hurt(fixture.localReal, 45));
         fixture.harness.tick();
         assertEquals(List.of(fixture.localOpaque), events(fixture.harness, resumed));
     }

@@ -8,13 +8,13 @@ import art.arcane.wormholes.portal.BlackoutColor;
 import art.arcane.optics.fidelity.AtmosphereMode;
 import art.arcane.optics.fidelity.FogPlatePolicy;
 import art.arcane.wormholes.render.atmosphere.BukkitFogPlateShells;
-import art.arcane.optics.claim.ProjectionBlackout;
+import art.arcane.optics.claim.Blackout;
 
 /**
  * The block the blackout shell is built from for the current pass: the portal's concrete colour, or
  * the destination dimension's fog plate when the atmosphere mode asks for one.
  */
-final class ProjectorBlackoutSeal implements ProjectionBlackout<BlockData> {
+final class ProjectorBlackoutSeal implements Blackout<BlockData> {
     private BlockData blackoutData;
     private BlockData colorData;
     private BlackoutColor blackoutColorCache;

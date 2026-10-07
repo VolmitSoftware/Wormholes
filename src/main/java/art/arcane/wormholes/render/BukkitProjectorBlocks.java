@@ -19,8 +19,8 @@ import art.arcane.optics.state.StateProperties;
 import art.arcane.optics.state.StateRewriteCache;
 import art.arcane.optics.recursion.RecursiveEndpoints;
 import art.arcane.optics.scan.CellScan;
-import art.arcane.optics.scan.ProjectorSampleMemo;
-import art.arcane.optics.scan.ProjectorSampler;
+import art.arcane.optics.scan.SampleMemo;
+import art.arcane.optics.scan.Sampler;
 import art.arcane.optics.view.BlockStates;
 
 public final class BukkitProjectorBlocks implements BlockStates<BlockData, Material> {
@@ -45,28 +45,28 @@ public final class BukkitProjectorBlocks implements BlockStates<BlockData, Mater
         return DEFAULTS;
     }
 
-    public static ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo() {
-        return new ProjectorSampleMemo<BlockData, Material, ProjectionWorldView>(DEFAULTS, () -> Wormholes.projectionChangeTracker);
+    public static SampleMemo<BlockData, Material, ProjectionWorldView> memo() {
+        return new SampleMemo<BlockData, Material, ProjectionWorldView>(DEFAULTS, () -> Wormholes.projectionChangeTracker);
     }
 
-    public static ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo(Predicate<Material> occlusion) {
-        return new ProjectorSampleMemo<BlockData, Material, ProjectionWorldView>(
+    public static SampleMemo<BlockData, Material, ProjectionWorldView> memo(Predicate<Material> occlusion) {
+        return new SampleMemo<BlockData, Material, ProjectionWorldView>(
             new BukkitProjectorBlocks(occlusion), () -> Wormholes.projectionChangeTracker);
     }
 
-    public static ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler(
-        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo,
+    public static Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler(
+        SampleMemo<BlockData, Material, ProjectionWorldView> memo,
         RecursiveEndpoints<World, ILocalPortal> recursivePortals,
         Function<World, ProjectionWorldView> viewLookup) {
-        return new ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView>(
-            new ProjectorSampler.Options<BlockData, Material, World, ILocalPortal, ProjectionWorldView>(
+        return new Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView>(
+            new Sampler.Options<BlockData, Material, World, ILocalPortal, ProjectionWorldView>(
                 memo, recursivePortals, viewLookup, ProjectionWorldView::getWorld));
     }
 
     static CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan(
         ILocalPortal portal,
-        ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler,
-        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo, ProjectorBlackoutSeal blackout) {
+        Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler,
+        SampleMemo<BlockData, Material, ProjectionWorldView> memo, ProjectorBlackoutSeal blackout) {
         return new CellScan<>(new CellScan.Context<>(portal, portal.getStructure(), sampler, memo, blackout,
             () -> new CellScan.ScanSettings(Settings.PROJECTION_RECURSIVE_PORTAL_DEPTH,
                 Settings.PROJECTION_OCCLUSION_REVEAL_MARGIN_DEGREES, Settings.PROJECTION_APERTURE_PADDING_BLOCKS, Settings.DEBUG,

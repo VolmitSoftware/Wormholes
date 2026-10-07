@@ -4,7 +4,7 @@ import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ViewStreamCapability;
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.Brick;
@@ -187,12 +187,12 @@ public class ClientLocalMeshSourcesTest extends MinecraftTestBase {
         when(current.dimensionType()).thenReturn(dimensionType);
         when(current.dimension()).thenReturn(ResourceKey.create(Registries.DIMENSION, Identifier.parse("test:current_pocket")));
         fixture.add(2);
-        ProjectionEnvironment original = PortalEnvironmentTest.environment(PortalEnvironmentTest.identity());
-        ProjectionEnvironment.World previous = original.world();
-        ProjectionEnvironment.World unvisited = new ProjectionEnvironment.World("test:unvisited_pocket", previous.clockTime(),
+        EnvironmentState original = PortalEnvironmentTest.environment(PortalEnvironmentTest.identity());
+        EnvironmentState.World previous = original.world();
+        EnvironmentState.World unvisited = new EnvironmentState.World("test:unvisited_pocket", previous.clockTime(),
             previous.biomeKey(), previous.seaLevel(), previous.blockLight(), previous.skyLight(), previous.logicalHeight(),
             previous.hasCeiling(), previous.ambientLight(), previous.eyeMedium(), previous.hasFixedTime());
-        fixture.session.handle(new ViewStreamMessage.Environment(2, new ProjectionEnvironment(original.gameTime(), original.sky(),
+        fixture.session.handle(new ViewStreamMessage.Environment(2, new EnvironmentState(original.gameTime(), original.sky(),
             original.fog(), original.lighting(), original.clouds(), original.transform(), original.dimension(), unvisited)), fixture.sink);
         fixture.messages.clear();
         for (int tick = 0; tick < 20; tick++) {
@@ -239,13 +239,13 @@ public class ClientLocalMeshSourcesTest extends MinecraftTestBase {
         source.update();
         Fixture active = new Fixture();
         when(active.level.dimension()).thenReturn(Level.NETHER);
-        ProjectionEnvironment environment = PortalEnvironmentTest.environment(PortalEnvironmentTest.identity());
-        ProjectionEnvironment.World originalWorld = environment.world();
-        ProjectionEnvironment.World nether = new ProjectionEnvironment.World("minecraft:the_nether", originalWorld.clockTime(),
+        EnvironmentState environment = PortalEnvironmentTest.environment(PortalEnvironmentTest.identity());
+        EnvironmentState.World originalWorld = environment.world();
+        EnvironmentState.World nether = new EnvironmentState.World("minecraft:the_nether", originalWorld.clockTime(),
             originalWorld.biomeKey(), originalWorld.seaLevel(), originalWorld.blockLight(), originalWorld.skyLight(),
             originalWorld.logicalHeight(), originalWorld.hasCeiling(), originalWorld.ambientLight(), originalWorld.eyeMedium(),
             originalWorld.hasFixedTime());
-        active.session.handle(new ViewStreamMessage.Environment(1, new ProjectionEnvironment(environment.gameTime(),
+        active.session.handle(new ViewStreamMessage.Environment(1, new EnvironmentState(environment.gameTime(),
             environment.sky(), environment.fog(), environment.lighting(), environment.clouds(), environment.transform(),
             environment.dimension(), nether)), active.sink);
         for (int tick = 0; tick < 100 && active.session.meshes().view(1).section(0L) == null; tick++) {

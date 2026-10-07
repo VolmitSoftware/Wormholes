@@ -9,10 +9,10 @@ import java.util.Random;
 
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.frame.Frame;
-import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.claim.BlockClaim;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.scan.CellScan;
-import art.arcane.optics.scan.ProjectorSample;
+import art.arcane.optics.scan.Sample;
 import art.arcane.optics.math.Face;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -30,8 +30,8 @@ final class ClientCellRulesTest {
         ClientCellRules.Policy policy = policy(ApertureDescriptor.BLACKOUT_OFF, ApertureDescriptor.MASK_AIR_PROJECT);
         for (boolean shadowAir : new boolean[] {false, true}) {
             boolean projected = ClientCellRules.evaluate(false, ClientCellRules.AIR, false, shadowAir, policy) != ClientCellRules.KEEP_REAL;
-            assertEquals(CellScan.shouldProjectAirSample(ProjectorSample.Kind.REMOTE_AIR, shadowAir), projected);
-            assertEquals(CellScan.shouldProjectAirSample(ProjectorSample.Kind.MASK_AIR, shadowAir), projected);
+            assertEquals(CellScan.shouldProjectAirSample(Sample.Kind.REMOTE_AIR, shadowAir), projected);
+            assertEquals(CellScan.shouldProjectAirSample(Sample.Kind.MASK_AIR, shadowAir), projected);
         }
         assertEquals(ClientCellRules.AIR, ClientCellRules.evaluate(false, ClientCellRules.AIR, false, false, policy));
     }
@@ -87,14 +87,14 @@ final class ClientCellRulesTest {
                     sweep.sweep(eye.getX(), eye.getY(), eye.getZ(), 0.0D, 0.0D, 0.0D);
                     ClientCellRules.Policy policy = ClientCellRules.Policy.of(geometry, ClientSweepPalette.BACKING_STATE_ID);
                     ClientSweepPalette palette = new ClientSweepPalette();
-                    Long2ObjectOpenHashMap<ProjectedBlockClaim<String, ClientSweepScene.SceneView>> server =
+                    Long2ObjectOpenHashMap<BlockClaim<String, ClientSweepScene.SceneView>> server =
                         scene.serverClaims(eye, ClientSweepScene.OPEN_SCAN, blackout);
-                    for (Long2ObjectMap.Entry<ProjectedBlockClaim<String, ClientSweepScene.SceneView>> entry : server.long2ObjectEntrySet()) {
+                    for (Long2ObjectMap.Entry<BlockClaim<String, ClientSweepScene.SceneView>> entry : server.long2ObjectEntrySet()) {
                         long key = entry.getLongKey();
                         int x = CellKeys.unpackX(key);
                         int y = CellKeys.unpackY(key);
                         int z = CellKeys.unpackZ(key);
-                        ProjectedBlockClaim<String, ClientSweepScene.SceneView> claim = entry.getValue();
+                        BlockClaim<String, ClientSweepScene.SceneView> claim = entry.getValue();
                         String expected = claim.isBlackout() ? ClientSweepScene.BLACKOUT : claim.getData();
                         if (claim.isBlackout()) {
                             blackoutClaims++;

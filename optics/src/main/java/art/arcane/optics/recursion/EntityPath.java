@@ -7,7 +7,7 @@ import art.arcane.optics.view.BlockView;
 import art.arcane.optics.entity.EntitySnapshot;
 
 import art.arcane.optics.math.Box;
-import art.arcane.optics.occlusion.ProjectedEntityOcclusion;
+import art.arcane.optics.occlusion.EntityOcclusion;
 import art.arcane.optics.volume.ViewVolume;
 import art.arcane.optics.frame.OpticTransform;
 
@@ -103,7 +103,7 @@ public final class EntityPath<W, P extends Endpoint> {
         return root.frustum().containsPrimitive(out[0], out[1], out[2]);
     }
 
-    public <B, V extends BlockView<B>> boolean fullyHidden(ProjectedEntityOcclusion<B, V> occlusion, double minX, double minY, double minZ,
+    public <B, V extends BlockView<B>> boolean fullyHidden(EntityOcclusion<B, V> occlusion, double minX, double minY, double minZ,
                         double maxX, double maxY, double maxZ) {
         chain.pointInto(minX, minY, minZ, scratch);
         double x = scratch[0];

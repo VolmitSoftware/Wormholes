@@ -44,7 +44,7 @@ import art.arcane.optics.fidelity.AcousticsBridge;
 import art.arcane.optics.fidelity.AcousticsProfile;
 import art.arcane.optics.fidelity.FogPlatePolicy;
 import art.arcane.wormholes.render.bedrock.ClientProfileService;
-import art.arcane.optics.fidelity.ProjectedBlockEntityLayer;
+import art.arcane.optics.fidelity.BlockEntityLayer;
 import art.arcane.wormholes.render.lod.DissolveSchedule;
 import art.arcane.optics.volume.LodPolicy;
 import art.arcane.optics.volume.LodProfile;
@@ -59,24 +59,24 @@ import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Vec3d;
 
 import art.arcane.wormholes.portal.ProjectorViewSettings;
-import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.claim.BlockClaim;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.occlusion.LocalOcclusionArbiter;
 import art.arcane.optics.recursion.EntityPath;
 import art.arcane.optics.recursion.RecursiveEndpoints;
 import art.arcane.optics.scan.CellScan;
-import art.arcane.optics.scan.ProjectorCommitLatency;
+import art.arcane.optics.scan.CommitLatency;
 import art.arcane.optics.scan.PassInputs;
 import art.arcane.optics.scan.PassPlan;
 import art.arcane.optics.scan.PassPlanner;
-import art.arcane.optics.scan.ProjectorFrustumFailures;
-import art.arcane.optics.scan.ProjectorResampleReasons;
-import art.arcane.optics.scan.ProjectorSampleMemo;
-import art.arcane.optics.scan.ProjectorSampler;
+import art.arcane.optics.scan.FrustumFailures;
+import art.arcane.optics.scan.ResampleReasons;
+import art.arcane.optics.scan.SampleMemo;
+import art.arcane.optics.scan.Sampler;
 import art.arcane.optics.scan.ResampleSchedule;
 import art.arcane.optics.spi.OpticsScheduler;
 import art.arcane.optics.volume.ViewVolume;
-import art.arcane.optics.volume.ProjectionVolume;
+import art.arcane.optics.volume.ApertureSlab;
 public final class PortalProjector {
     private static final long DIAG_LOG_INTERVAL_PASSES = 50L;
 
@@ -86,29 +86,29 @@ public final class PortalProjector {
     private final UUID localWorldId;
     private final ProjectionClaimArbiter claimArbiter;
     private final UUID endSurfaceOwner;
-    private final Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> endSurfaceClaims;
-    private ProjectedBlockClaim<BlockData, ProjectionWorldView> endSurfaceAir;
+    private final Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>> endSurfaceClaims;
+    private BlockClaim<BlockData, ProjectionWorldView> endSurfaceAir;
     private boolean endSurfaceActive;
     private final ProjectionWorldViewProvider viewProvider;
     private final BooleanSupplier activeGuard;
     private final OpticsScheduler<Player, World> scheduler;
     private final ProjectorDestination destination;
-    private final ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> sampleMemo;
-    private final ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler;
+    private final SampleMemo<BlockData, Material, ProjectionWorldView> sampleMemo;
+    private final Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler;
     private final ProjectorBlackoutSeal blackout;
     private final ProjectorViewFrustum viewFrustum;
     private final ResampleSchedule schedule;
     private final CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> cellScan;
-    private final ProjectorFrustumFailures frustumFailures;
+    private final FrustumFailures frustumFailures;
     private final ProjectedEntityRenderer entityRenderer;
     private final RecursiveEndpoints<World, ILocalPortal> entityRecursivePortals = BukkitProjectorPortalAccess.create();
     private final ViewPlateCache<BlockData, World> plateCache;
     private final AtmosphereChannel<BlockData, ProjectionWorldView> atmosphere = new AtmosphereChannel<>();
     private final ProjectorWeather weather = new ProjectorWeather();
-    private final ProjectedBlockEntityLayer<Player> blockEntityLayer = new ProjectedBlockEntityLayer<Player>(WormholesTelemetry.metrics());
+    private final BlockEntityLayer<Player> blockEntityLayer = new BlockEntityLayer<Player>(WormholesTelemetry.metrics());
     private final DissolveSchedule dissolve = new DissolveSchedule();
-    private final ProjectorCommitLatency commitLatency = new ProjectorCommitLatency();
-    private final ProjectorResampleReasons resampleReasons = new ProjectorResampleReasons();
+    private final CommitLatency commitLatency = new CommitLatency();
+    private final ResampleReasons resampleReasons = new ResampleReasons();
     private final LongOpenHashSet displacedClaimKeys = new LongOpenHashSet(16);
     private final LongOpenHashSet restoredClaimKeys = new LongOpenHashSet(16);
     private long blockPasses;
@@ -184,7 +184,7 @@ public final class PortalProjector {
         this.schedule = new ResampleSchedule(() -> ProjectorViewSettings.viewCadence(portal), () -> Wormholes.projectionChangeTracker,
             PortalProjector::resampleCadence);
         this.cellScan = BukkitProjectorBlocks.scan(portal, sampler, sampleMemo, blackout);
-        this.frustumFailures = new ProjectorFrustumFailures(WormholesTelemetry.metrics());
+        this.frustumFailures = new FrustumFailures(WormholesTelemetry.metrics());
         this.claimWorld = constructionWorld;
         this.claimWorldId = this.localWorldId;
         this.firstProjectionDone = false;
@@ -594,8 +594,8 @@ public final class PortalProjector {
             cellScan.invalidateOcclusionContinuation();
             Frame portalFrame = portal.getFrame();
             Vec3d origin = portal.getOrigin();
-            ProjectionVolume volume = ProjectionVolume.of(portal.getStructure().getArea(), portalFrame,
-                ProjectionVolume.plane(portalFrame, origin.getX(), origin.getY(), origin.getZ()), true, depthBlocks, 0.0D);
+            ApertureSlab volume = ApertureSlab.of(portal.getStructure().getArea(), portalFrame,
+                ApertureSlab.plane(portalFrame, origin.getX(), origin.getY(), origin.getZ()), true, depthBlocks, 0.0D);
             DissolveSchedule.filter(cellScan.claims(), admitted, volume.maxDepth(), key -> Math.abs(volume.signedDistance(
                 CellKeys.unpackX(key) + 0.5D, CellKeys.unpackY(key) + 0.5D, CellKeys.unpackZ(key) + 0.5D)));
         }
@@ -738,7 +738,7 @@ public final class PortalProjector {
         Frame localFrame = portal.getFrame();
         Frame remoteFrame = destination.mirrorMode ? localFrame.flipNormal() : destination.destAnchor.getFrame();
         Vec3d localOrigin = portal.getOrigin();
-        boolean eyeFrontSide = ProjectionVolume.side(localFrame, localOrigin.getX(), localOrigin.getY(), localOrigin.getZ(),
+        boolean eyeFrontSide = ApertureSlab.side(localFrame, localOrigin.getX(), localOrigin.getY(), localOrigin.getZ(),
             eye.getX(), eye.getY(), eye.getZ());
         Frame projectionLocalFrame = viewFrame(localFrame, eyeFrontSide);
         Frame projectionRemoteFrame = viewFrame(remoteFrame, eyeFrontSide);
@@ -895,7 +895,7 @@ public final class PortalProjector {
     }
 
     private int sampleMemoBudget(long fittedCandidateWork) {
-        return ProjectorSampleMemo.budgetFor(lastRenderedCells, fittedCandidateWork);
+        return SampleMemo.budgetFor(lastRenderedCells, fittedCandidateWork);
     }
 
     void noteClaimWorld(World world) {
@@ -908,7 +908,7 @@ public final class PortalProjector {
 
     private void noteFrustumFailure(String stage, RuntimeException ex) {
         int consecutive = frustumFailures.recordFailure();
-        boolean exhausted = ProjectorFrustumFailures.exhausted(consecutive);
+        boolean exhausted = FrustumFailures.exhausted(consecutive);
         Wormholes plugin = Wormholes.instance;
         if (plugin != null) {
             plugin.getLogger().log(Level.WARNING, "[Projector] failed to build " + stage + " frustum for portal "
@@ -1025,8 +1025,8 @@ public final class PortalProjector {
                 continue;
             }
             if (endSurfaceAir == null) {
-                endSurfaceAir = new ProjectedBlockClaim<>(Bukkit.createBlockData(Material.AIR), null,
-                    ProjectedBlockClaim.NO_REMOTE_KEY, true);
+                endSurfaceAir = new BlockClaim<>(Bukkit.createBlockData(Material.AIR), null,
+                    BlockClaim.NO_REMOTE_KEY, true);
             }
             endSurfaceClaims.put(CellKeys.pack(x, y, z), endSurfaceAir);
         }

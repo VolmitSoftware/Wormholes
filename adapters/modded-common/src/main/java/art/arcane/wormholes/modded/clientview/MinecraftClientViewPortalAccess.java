@@ -23,8 +23,8 @@ import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.render.FidelitySettings;
-import art.arcane.optics.claim.ProjectedBlockClaim;
-import art.arcane.optics.scan.ProjectorPassRevision;
+import art.arcane.optics.claim.BlockClaim;
+import art.arcane.optics.scan.PassRevision;
 import art.arcane.optics.fidelity.AcousticsProfile;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.recursion.ClientRecursionPlanner;
@@ -320,24 +320,24 @@ public final class MinecraftClientViewPortalAccess implements ViewStreamEndpoint
     }
 
     private long revision(MinecraftClientViewPeer peer, ServerPlayer player, MinecraftPortal portal, boolean front) {
-        long stamp = ProjectorPassRevision.mix(portal.getGeometry().getRevision(), front ? 1L : 2L);
-        stamp = ProjectorPassRevision.mix(stamp, peer.portals().routeIdentity(portal));
+        long stamp = PassRevision.mix(portal.getGeometry().getRevision(), front ? 1L : 2L);
+        stamp = PassRevision.mix(stamp, peer.portals().routeIdentity(portal));
         if (peer.meshDepth() > 0) {
-            stamp = ProjectorPassRevision.mix(stamp, meshTargetRevision(peer, portal, front));
+            stamp = PassRevision.mix(stamp, meshTargetRevision(peer, portal, front));
         }
-        stamp = ProjectorPassRevision.mix(stamp, portal.isMirrorMode() ? mirrorQuarterTurns(peer, portal) + 1L : 0L);
+        stamp = PassRevision.mix(stamp, portal.isMirrorMode() ? mirrorQuarterTurns(peer, portal) + 1L : 0L);
         if (peer.meshDepth() == 0) {
-            stamp = ProjectorPassRevision.mix(stamp, portal.isBlackoutBackground() ? 1L : 0L);
-            stamp = ProjectorPassRevision.mix(stamp, portal.getBlackoutColor().ordinal());
+            stamp = PassRevision.mix(stamp, portal.isBlackoutBackground() ? 1L : 0L);
+            stamp = PassRevision.mix(stamp, portal.getBlackoutColor().ordinal());
         }
-        stamp = ProjectorPassRevision.mix(stamp, portal.getNetworkViewDepth());
-        stamp = ProjectorPassRevision.mix(stamp, portal.isOpen() ? 1L : 0L);
-        stamp = ProjectorPassRevision.mix(stamp, MinecraftViewPlates.atmosphereMode(portal).ordinal());
-        stamp = ProjectorPassRevision.mix(stamp, Objects.hashCode(MinecraftViewPlates.stringSetting(portal, "fidelity.acoustics")));
-        stamp = ProjectorPassRevision.mix(stamp, Objects.hashCode(portal.getDestinationId()));
-        stamp = ProjectorPassRevision.mix(stamp, portal.getType() == PortalType.RTP ? runtime.rtp().plateIdentity(player, portal) : 0L);
-        stamp = ProjectorPassRevision.mix(stamp, System.identityHashCode(player.level()));
-        return ProjectorPassRevision.mix(stamp, System.identityHashCode(runtime.configuration().settings()));
+        stamp = PassRevision.mix(stamp, portal.getNetworkViewDepth());
+        stamp = PassRevision.mix(stamp, portal.isOpen() ? 1L : 0L);
+        stamp = PassRevision.mix(stamp, MinecraftViewPlates.atmosphereMode(portal).ordinal());
+        stamp = PassRevision.mix(stamp, Objects.hashCode(MinecraftViewPlates.stringSetting(portal, "fidelity.acoustics")));
+        stamp = PassRevision.mix(stamp, Objects.hashCode(portal.getDestinationId()));
+        stamp = PassRevision.mix(stamp, portal.getType() == PortalType.RTP ? runtime.rtp().plateIdentity(player, portal) : 0L);
+        stamp = PassRevision.mix(stamp, System.identityHashCode(player.level()));
+        return PassRevision.mix(stamp, System.identityHashCode(runtime.configuration().settings()));
     }
 
     private ApertureDescriptor geometry(MinecraftClientViewPeer peer, ServerPlayer player, MinecraftPortal portal, SessionPalette palette,
@@ -355,10 +355,10 @@ public final class MinecraftClientViewPortalAccess implements ViewStreamEndpoint
             : ViewStreamLimits.PALETTE_AIR;
         long targetIdentity = opaque(portal.getType() == PortalType.RTP ? runtime.rtp().plateIdentity(player, portal) : portals.routeIdentity(portal));
         if (peer.meshDepth() > 0) {
-            targetIdentity = opaque(ProjectorPassRevision.mix(targetIdentity, meshTargetRevision(peer, portal, front)));
+            targetIdentity = opaque(PassRevision.mix(targetIdentity, meshTargetRevision(peer, portal, front)));
         }
-        ProjectedBlockClaim.LightingPolicy lighting = peer.meshDepth() > 0 || render.lightingFidelity
-            ? ProjectedBlockClaim.LightingPolicy.SOURCE : ProjectedBlockClaim.LightingPolicy.LOCAL;
+        BlockClaim.LightingPolicy lighting = peer.meshDepth() > 0 || render.lightingFidelity
+            ? BlockClaim.LightingPolicy.SOURCE : BlockClaim.LightingPolicy.LOCAL;
         int kind = kind(peer, portal);
         ApertureDescriptor.Source source = new ApertureDescriptor.Source(portal.getGeometry(), portal.getFrame(), front,
             portal.isMirrorMode(), portal.isMirrorMode() ? mirrorQuarterTurns(peer, portal) : 0, projection.nearPlanePadding,
@@ -403,11 +403,11 @@ public final class MinecraftClientViewPortalAccess implements ViewStreamEndpoint
         if (portal == null || player == null) {
             return 0L;
         }
-        long stamp = ProjectorPassRevision.mix(portal.getGeometry().getRevision(), front(player, portal) ? 1L : 2L);
-        stamp = ProjectorPassRevision.mix(stamp, portal.getNetworkViewDepth());
-        stamp = ProjectorPassRevision.mix(stamp, kind(peer, portal));
-        stamp = ProjectorPassRevision.mix(stamp, System.identityHashCode(player.level()));
-        return ProjectorPassRevision.mix(stamp, System.identityHashCode(runtime.configuration().settings()));
+        long stamp = PassRevision.mix(portal.getGeometry().getRevision(), front(player, portal) ? 1L : 2L);
+        stamp = PassRevision.mix(stamp, portal.getNetworkViewDepth());
+        stamp = PassRevision.mix(stamp, kind(peer, portal));
+        stamp = PassRevision.mix(stamp, System.identityHashCode(player.level()));
+        return PassRevision.mix(stamp, System.identityHashCode(runtime.configuration().settings()));
     }
 
     @Override
@@ -423,7 +423,7 @@ public final class MinecraftClientViewPortalAccess implements ViewStreamEndpoint
         ApertureDescriptor.Source source = new ApertureDescriptor.Source(portal.getGeometry(), portal.getFrame(), front(player, portal), false, 0,
             projection.nearPlanePadding, projection.aperturePaddingBlocks, projection.frustumCullingRatio, portal.getNetworkViewDepth(), 0,
             ApertureDescriptor.BLACKOUT_OFF, ViewStreamLimits.PALETTE_AIR, ApertureDescriptor.MASK_AIR_PROJECT,
-            ProjectedBlockClaim.LightingPolicy.LOCAL, 0, kind, DoorApertureFrames.geometryPlaneOffset(kind, portal.getFrame()), 0, 0L,
+            BlockClaim.LightingPolicy.LOCAL, 0, kind, DoorApertureFrames.geometryPlaneOffset(kind, portal.getFrame()), 0, 0L,
             List.of());
         return ApertureDescriptor.fromPortal(source).orElse(null);
     }
@@ -496,7 +496,7 @@ public final class MinecraftClientViewPortalAccess implements ViewStreamEndpoint
     }
 
     private long opaque(long identity) {
-        return identity == 0L ? 0L : ProjectorPassRevision.mix(ProjectorPassRevision.mix(identitySecret, identity), identitySecret);
+        return identity == 0L ? 0L : PassRevision.mix(PassRevision.mix(identitySecret, identity), identitySecret);
     }
 
     private static int kind(MinecraftClientViewPeer peer, MinecraftPortal portal) {
@@ -546,7 +546,7 @@ public final class MinecraftClientViewPortalAccess implements ViewStreamEndpoint
     private long meshTargetRevision(MinecraftClientViewPeer peer, MinecraftPortal portal, boolean front) {
         MinecraftViewPlates.Target target = target(peer, portal, front);
         MinecraftViewPlates.Resolved resolved = target == null ? null : MinecraftViewPlates.resolve(runtime, target);
-        return resolved == null ? 0L : ProjectorPassRevision.mix(resolved.transformRevision(), System.identityHashCode(target.destView()));
+        return resolved == null ? 0L : PassRevision.mix(resolved.transformRevision(), System.identityHashCode(target.destView()));
     }
 
     private static int mirrorQuarterTurns(MinecraftClientViewPeer peer, MinecraftPortal portal) {

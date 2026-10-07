@@ -8,7 +8,7 @@ import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.optics.volume.PlaneWindow;
-import art.arcane.optics.volume.ProjectionVolume;
+import art.arcane.optics.volume.ApertureSlab;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.aperture.ApertureDescriptor;
@@ -44,7 +44,7 @@ public final class ClientRecursionPlanner {
         double dz = Math.abs(extent[2]);
         Box area = new Box(center.x() - dx, center.x() + dx, center.y() - dy, center.y() + dy, center.z() - dz, center.z() + dz);
         Box aperture = parent.apertureArea();
-        ProjectionVolume volume = ProjectionVolume.of(aperture, parent.frame(), parent.planeCoordinate(), parent.frontSide(),
+        ApertureSlab volume = ApertureSlab.of(aperture, parent.frame(), parent.planeCoordinate(), parent.frontSide(),
             parent.depthBlocks(), 0.0D);
         int normalAxis = volume.normalAxis();
         if (!volume.reaches(volume.distance(area.min(normalAxis)), volume.distance(area.max(normalAxis)))) {

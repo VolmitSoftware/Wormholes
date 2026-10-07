@@ -4,7 +4,7 @@ import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.math.Angles;
 import art.arcane.wormholes.modded.MinecraftAcoustics;
 import art.arcane.wormholes.modded.MinecraftEntityPackets;
-import art.arcane.optics.entity.ProjectedEntityEvent;
+import art.arcane.optics.entity.EntityAnimation;
 import art.arcane.wormholes.modded.MinecraftAnimationParticles;
 import art.arcane.wormholes.modded.MinecraftPacketBlobs;
 import art.arcane.optics.entity.EntitySnapshot;
@@ -165,7 +165,7 @@ public final class ClientLevelScene implements ClientSceneWorld {
     }
 
     @Override
-    public void event(int entityId, ProjectedEntityEvent event) {
+    public void event(int entityId, EntityAnimation event) {
         Entity entity = level.getEntity(entityId);
         if (entity == null) {
             return;

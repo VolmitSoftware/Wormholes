@@ -19,7 +19,7 @@ import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.optics.math.CellKeys;
-import art.arcane.optics.scan.ProjectorSample;
+import art.arcane.optics.scan.Sample;
 import art.arcane.optics.client.ClientSweepScene;
 import art.arcane.optics.volume.LodPolicy;
 import art.arcane.optics.view.ContentView;
@@ -52,7 +52,7 @@ final class PlaneSectionCaptureTest {
                     long planeKey = CellKeys.pack(coordinate, coordinate, coordinate);
                     PlateCell<String> cell = job.result().cell(planeKey);
                     assertNotNull(cell, context);
-                    assertEquals(ProjectorSample.Kind.BLOCK, cell.kind(), context);
+                    assertEquals(Sample.Kind.BLOCK, cell.kind(), context);
                     assertEquals("minecraft:stone", cell.sourceData(), context);
                     int eyeSide = front ? 1 : -1;
                     assertNull(job.result().cell(CellKeys.pack(coordinate + facing.x() * eyeSide,

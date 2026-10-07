@@ -2,7 +2,7 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.frame.OpticTransform;
@@ -30,7 +30,7 @@ public class ClientLocalMeshSelectionTest {
         ClientPortal child = portal(2, 1);
         when(session.portal(1)).thenReturn(root);
         OpticTransform reflection = OpticTransform.of(AxisPermutation.of(Face.E, Face.U, Face.N), 0, 0, 10);
-        ProjectionEnvironment environment = PortalEnvironmentTest.environment(reflection);
+        EnvironmentState environment = PortalEnvironmentTest.environment(reflection);
         when(session.environment(1)).thenReturn(environment);
         assertEquals(new Vec3d(2.5, 3.25, -4.75),
             ClientLocalMeshSources.sourceEye(session, child, new Vec3d(2.5, 3.25, 14.75)));
@@ -44,8 +44,8 @@ public class ClientLocalMeshSelectionTest {
         ClientPortal child = portal(3, 2);
         when(session.portal(1)).thenReturn(root);
         when(session.portal(2)).thenReturn(parent);
-        ProjectionEnvironment rootEnvironment = PortalEnvironmentTest.environment(OpticTransform.of(AxisPermutation.of(Face.S, Face.U, Face.W), 100, 20, -50));
-        ProjectionEnvironment parentEnvironment = PortalEnvironmentTest.environment(OpticTransform.of(AxisPermutation.of(Face.W, Face.U, Face.S), 6, 0, 0));
+        EnvironmentState rootEnvironment = PortalEnvironmentTest.environment(OpticTransform.of(AxisPermutation.of(Face.S, Face.U, Face.W), 100, 20, -50));
+        EnvironmentState parentEnvironment = PortalEnvironmentTest.environment(OpticTransform.of(AxisPermutation.of(Face.W, Face.U, Face.S), 6, 0, 0));
         when(session.environment(1)).thenReturn(rootEnvironment);
         when(session.environment(2)).thenReturn(parentEnvironment);
         assertEquals(new Vec3d(2, 3, 4),
@@ -63,7 +63,7 @@ public class ClientLocalMeshSelectionTest {
         ClientPortal parent = portal(2, 0);
         when(session.portal(2)).thenReturn(parent);
         assertNull(ClientLocalMeshSources.sourceEye(session, child, eye));
-        ProjectionEnvironment environment = PortalEnvironmentTest.environment(OpticTransform.IDENTITY);
+        EnvironmentState environment = PortalEnvironmentTest.environment(OpticTransform.IDENTITY);
         when(session.environment(2)).thenReturn(environment);
         parent = portal(2, 3);
         when(session.portal(2)).thenReturn(parent);

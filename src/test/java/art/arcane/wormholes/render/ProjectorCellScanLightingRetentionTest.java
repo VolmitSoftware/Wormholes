@@ -39,21 +39,21 @@ import art.arcane.optics.volume.LodPolicy;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.util.Cuboid;
 import art.arcane.optics.math.Face;
-import art.arcane.optics.claim.ProjectedBlockClaim;
-import art.arcane.optics.claim.ProjectionClaimSet;
-import art.arcane.optics.internal.occlusion.ProjectorHoldProof;
+import art.arcane.optics.claim.BlockClaim;
+import art.arcane.optics.claim.ClaimSet;
+import art.arcane.optics.internal.occlusion.HoldProof;
 import art.arcane.optics.math.CellKeys;
-import art.arcane.optics.occlusion.ProjectedEntityOcclusion;
-import art.arcane.optics.occlusion.ProjectorViewOcclusion;
+import art.arcane.optics.occlusion.EntityOcclusion;
+import art.arcane.optics.occlusion.ViewOcclusion;
 import art.arcane.optics.scan.CellScan;
-import art.arcane.optics.scan.ProjectorPassRevision;
-import art.arcane.optics.scan.ProjectorRemoteFootprint;
-import art.arcane.optics.scan.ProjectorSampleMemo;
-import art.arcane.optics.scan.ProjectorSampler;
+import art.arcane.optics.scan.PassRevision;
+import art.arcane.optics.scan.RemoteFootprint;
+import art.arcane.optics.scan.SampleMemo;
+import art.arcane.optics.scan.Sampler;
 import art.arcane.optics.view.WorldChangeTracker;
 import art.arcane.optics.volume.PlaneWindow;
 import art.arcane.optics.volume.ViewVolume;
-import art.arcane.optics.volume.ProjectionVolume;
+import art.arcane.optics.volume.ApertureSlab;
 
 public final class ProjectorCellScanLightingRetentionTest {
     private static final BukkitProjectorBlocks TEST_BLOCKS =
@@ -92,11 +92,11 @@ public final class ProjectorCellScanLightingRetentionTest {
                     ViewVolume frustum = new ViewVolume(BukkitGeometry.vector(eye), unlimited.structure(), new ViewVolume.Options(12.0D, 5.0D, Settings.NEAR_PLANE_PADDING, Settings.FRUSTUM_CULLING_RATIO, Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
                     unlimited.scan().run(unlimited.destination(), null, BukkitGeometry.vector(eye), frustum, 12.0D,
                         pass == 0, false, true, new ScanMode(false, mode.scanMode().observerOcclusion()), null, variant == 3, lod);
-                    Long2ObjectMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> committed = staged.scan().claims();
-                    Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> committedCopy = new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(committed);
+                    Long2ObjectMap<BlockClaim<BlockData, ProjectionWorldView>> committed = staged.scan().claims();
+                    Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>> committedCopy = new Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>>(committed);
                     Long2ObjectMap<BlockEntitySample> committedBlockEntities = staged.scan().blockEntities();
                     Long2ObjectOpenHashMap<BlockEntitySample> blockEntityCopy = new Long2ObjectOpenHashMap<BlockEntitySample>(committedBlockEntities);
-                    ProjectedEntityOcclusion<BlockData, ProjectionWorldView> entityOcclusion = staged.scan().entityOcclusion();
+                    EntityOcclusion<BlockData, ProjectionWorldView> entityOcclusion = staged.scan().entityOcclusion();
                     Field blockerField = CellScan.class.getDeclaredField("projectedOcclusionGeometry");
                     blockerField.setAccessible(true);
                     LongOpenHashSet committedBlockers = (LongOpenHashSet) blockerField.get(staged.scan());
@@ -160,9 +160,9 @@ public final class ProjectorCellScanLightingRetentionTest {
         scan.run(fixture.destination(), null, BukkitGeometry.vector(eye), frustum, 16.0D,
             true, false, true, new ScanMode(false, false), null, false, LodPolicy.NONE);
         scan.commit();
-        Long2ObjectMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> committed = scan.claims();
-        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> expected = new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(committed);
-        ProjectedEntityOcclusion<BlockData, ProjectionWorldView> entityOcclusion = scan.entityOcclusion();
+        Long2ObjectMap<BlockClaim<BlockData, ProjectionWorldView>> committed = scan.claims();
+        Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>> expected = new Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>>(committed);
+        EntityOcclusion<BlockData, ProjectionWorldView> entityOcclusion = scan.entityOcclusion();
         for (int cancelled = 0; cancelled < 3; cancelled++) {
             scan.begin(fixture.destination(), null, BukkitGeometry.vector(eye), frustum, 16.0D,
                 true, cancelled == 1, true, new ScanMode(false, false), null, false, LodPolicy.NONE);
@@ -208,12 +208,12 @@ public final class ProjectorCellScanLightingRetentionTest {
             assertTrue(++advances < 1_000);
         }
         assertTrue(advances > 1);
-        Field revision = ProjectedEntityOcclusion.class.getDeclaredField("revision");
+        Field revision = EntityOcclusion.class.getDeclaredField("revision");
         revision.setAccessible(true);
         assertEquals(0L, revision.getLong(fixture.scan().entityOcclusion()));
         fixture.scan().commit();
         fixture.scan().entityOcclusion().startBatch();
-        Field batchReady = ProjectedEntityOcclusion.class.getDeclaredField("batchReady");
+        Field batchReady = EntityOcclusion.class.getDeclaredField("batchReady");
         batchReady.setAccessible(true);
         assertFalse(batchReady.getBoolean(fixture.scan().entityOcclusion()));
     }
@@ -223,8 +223,8 @@ public final class ProjectorCellScanLightingRetentionTest {
         ILocalPortal portal = portal(structure, frame);
         MutableWorldView local = new MutableWorldView(blockData(Material.STONE));
         MutableWorldView remote = new MutableWorldView(blockData(solidRemote ? Material.STONE : Material.AIR));
-        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo(ProjectorCellScanLightingRetentionTest::testMaterialOccluding);
-        ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
+        SampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo(ProjectorCellScanLightingRetentionTest::testMaterialOccluding);
+        Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
             () -> BukkitProjectorBlocks.sampler(memo, BukkitProjectorPortalAccess.create(), world -> remote));
         ProjectorBlackoutSeal blackout = new ProjectorBlackoutSeal();
         CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan = BukkitProjectorBlocks.scan(portal, sampler, memo, blackout);
@@ -232,12 +232,12 @@ public final class ProjectorCellScanLightingRetentionTest {
         return new ScanFixture(scan, destination(portal, structure, local, remote), structure, blackout, local, remote);
     }
 
-    private static void assertEquivalentClaims(Long2ObjectMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> expected,
-                                               Long2ObjectMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> actual) {
+    private static void assertEquivalentClaims(Long2ObjectMap<BlockClaim<BlockData, ProjectionWorldView>> expected,
+                                               Long2ObjectMap<BlockClaim<BlockData, ProjectionWorldView>> actual) {
         assertEquals(expected.keySet(), actual.keySet());
         for (long key : expected.keySet()) {
-            ProjectedBlockClaim<BlockData, ProjectionWorldView> expectedClaim = expected.get(key);
-            ProjectedBlockClaim<BlockData, ProjectionWorldView> actualClaim = actual.get(key);
+            BlockClaim<BlockData, ProjectionWorldView> expectedClaim = expected.get(key);
+            BlockClaim<BlockData, ProjectionWorldView> actualClaim = actual.get(key);
             assertEquals(expectedClaim.getData().getAsString(), actualClaim.getData().getAsString());
             assertEquals(expectedClaim.getLightRemoteKey(), actualClaim.getLightRemoteKey());
             assertEquals(expectedClaim.getLightingPolicy(), actualClaim.getLightingPolicy());
@@ -343,15 +343,15 @@ public final class ProjectorCellScanLightingRetentionTest {
             MutableWorldView localView = new MutableWorldView(blockData(Material.STONE));
             MutableWorldView remoteView = new MutableWorldView(blockData(Material.AIR));
             ProjectorDestination destination = destination(portal, structure, localView, remoteView);
-            ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo(
+            SampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo(
                 ProjectorCellScanLightingRetentionTest::testMaterialOccluding);
-            ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
+            Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
                 () -> BukkitProjectorBlocks.sampler(memo, BukkitProjectorPortalAccess.create(), world -> remoteView));
             ProjectorBlackoutSeal blackout = new ProjectorBlackoutSeal();
             CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan = BukkitProjectorBlocks.scan(portal, sampler, memo, blackout);
             useOcclusion(scan);
-            ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> incremental = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
-            ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> full = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
+            ClaimSet<BlockClaim<BlockData, ProjectionWorldView>> incremental = new ClaimSet<BlockClaim<BlockData, ProjectionWorldView>>();
+            ClaimSet<BlockClaim<BlockData, ProjectionWorldView>> full = new ClaimSet<BlockClaim<BlockData, ProjectionWorldView>>();
             UUID owner = new UUID(0L, 1L);
             Location eye = structure.getCenter().add(normal.x() * 1.5D, normal.y() * 1.5D, normal.z() * 1.5D);
             Face right = frame.getRight();
@@ -375,13 +375,13 @@ public final class ProjectorCellScanLightingRetentionTest {
                 if (pass == 4) {
                     scan.claims().keySet().removeIf(key -> (key & 1L) == 0L);
                 }
-                ProjectionClaimSet.ClaimDelta<ProjectedBlockClaim<BlockData, ProjectionWorldView>> delta = scan.claimDelta();
+                ClaimSet.ClaimDelta<BlockClaim<BlockData, ProjectionWorldView>> delta = scan.claimDelta();
                 if (pass == 0 || pass == 6 || pass == 7 || pass == 8) {
                     assertSame(null, delta.previousClaims(), normal + " pass=" + pass);
                 }
-                ProjectionClaimSet.ProjectionClaimSetResult actual =
+                ClaimSet.Result actual =
                     incremental.replacePortalDelta(owner, owner.toString(), 2.0D, delta);
-                ProjectionClaimSet.ProjectionClaimSetResult expected =
+                ClaimSet.Result expected =
                     full.replacePortalClaims(owner, owner.toString(), 2.0D, scan.claims());
                 assertEquals(expected.getPacketChangeKeys(), actual.getPacketChangeKeys(), normal + " pass=" + pass);
                 assertEquals(expected.getDirtyLightingKeys(), actual.getDirtyLightingKeys(), normal + " pass=" + pass);
@@ -408,9 +408,9 @@ public final class ProjectorCellScanLightingRetentionTest {
             MutableWorldView localView = new MutableWorldView(blockData(Material.AIR));
             MutableWorldView remoteView = new MutableWorldView(blockData(Material.AIR));
             ProjectorDestination destination = destination(portal, structure, localView, remoteView);
-            ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo(
+            SampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo(
                 ProjectorCellScanLightingRetentionTest::testMaterialOccluding);
-            ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
+            Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
                 () -> BukkitProjectorBlocks.sampler(memo, BukkitProjectorPortalAccess.create(), world -> remoteView));
             CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan = BukkitProjectorBlocks.scan(portal, sampler, memo, new ProjectorBlackoutSeal());
             useOcclusion(scan);
@@ -435,8 +435,8 @@ public final class ProjectorCellScanLightingRetentionTest {
                 new ScanMode(false, false), null, false, LodPolicy.NONE);
             assertEquals(0, scan.emptyCellSkips(), normal.name());
             assertFalse(scan.claims().isEmpty(), normal.name());
-            Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> expected =
-                new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(scan.claims());
+            Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>> expected =
+                new Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>>(scan.claims());
             scan.commit();
             scan.invalidateContent();
             scan.run(destination, null, BukkitGeometry.vector(eye), moved, 8.0D, true, false, false,
@@ -458,34 +458,34 @@ public final class ProjectorCellScanLightingRetentionTest {
                 MutableWorldView localView = new MutableWorldView(blockData(Material.STONE));
                 MutableWorldView remoteView = new MutableWorldView(blockData(Material.STONE));
                 ProjectorDestination destination = destination(portal, structure, localView, remoteView);
-                ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo(
+                SampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo(
                     ProjectorCellScanLightingRetentionTest::testMaterialOccluding);
-                ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
+                Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
                     () -> BukkitProjectorBlocks.sampler(memo, BukkitProjectorPortalAccess.create(), world -> remoteView));
                 ProjectorBlackoutSeal blackout = new ProjectorBlackoutSeal();
                 enableBlackout(blackout);
                 CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan = BukkitProjectorBlocks.scan(portal, sampler, memo, blackout);
                 Field occlusion = CellScan.class.getDeclaredField("viewOcclusion");
                 occlusion.setAccessible(true);
-                occlusion.set(scan, new ProjectorViewOcclusion<BlockData>(
+                occlusion.set(scan, new ViewOcclusion<BlockData>(
                     TEST_BLOCKS, Integer.MAX_VALUE));
                 Location eye = structure.getCenter().add(normal.x() * 1.5D, normal.y() * 1.5D, normal.z() * 1.5D);
                 ViewVolume frustum = new ViewVolume(BukkitGeometry.vector(eye), structure, new ViewVolume.Options(6.0D, 3.0D, Settings.NEAR_PLANE_PADDING, Settings.FRUSTUM_CULLING_RATIO, Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
                 scan.run(destination, null, BukkitGeometry.vector(eye), frustum, 6.0D, true, false, false,
                     new ScanMode(false, true), null, false, LodPolicy.NONE);
-                Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> expected =
-                    new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(scan.claims());
+                Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>> expected =
+                    new Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>>(scan.claims());
                 assertFalse(expected.isEmpty(), normal.name());
                 assertEquals(0, scan.unresolvedOcclusionCells(), normal.name());
                 scan.clear();
-                occlusion.set(scan, new ProjectorViewOcclusion<BlockData>(
+                occlusion.set(scan, new ViewOcclusion<BlockData>(
                     TEST_BLOCKS, 64));
                 scan.run(destination, null, BukkitGeometry.vector(eye), frustum, 6.0D, true, false, false,
                     new ScanMode(false, true), null, false, LodPolicy.NONE);
                 assertTrue(scan.unresolvedOcclusionCells() > 0, normal.name());
                 assertFalse(scan.canResumeOcclusion(destination, BukkitGeometry.vector(eye), frustum), normal.name());
-                ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> incremental = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
-                ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> full = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
+                ClaimSet<BlockClaim<BlockData, ProjectionWorldView>> incremental = new ClaimSet<BlockClaim<BlockData, ProjectionWorldView>>();
+                ClaimSet<BlockClaim<BlockData, ProjectionWorldView>> full = new ClaimSet<BlockClaim<BlockData, ProjectionWorldView>>();
                 UUID owner = new UUID(0L, 1L);
                 incremental.replacePortalDelta(owner, owner.toString(), 1.0D, scan.claimDelta());
                 full.replacePortalClaims(owner, owner.toString(), 1.0D, scan.claims());
@@ -497,9 +497,9 @@ public final class ProjectorCellScanLightingRetentionTest {
                     assertTrue(scan.canResumeOcclusion(destination, BukkitGeometry.vector(eye), frustum), normal.name());
                     scan.resumeOcclusion();
                     assertFalse(scan.canResumeOcclusion(destination, BukkitGeometry.vector(eye), frustum), normal.name());
-                    ProjectionClaimSet.ProjectionClaimSetResult actual =
+                    ClaimSet.Result actual =
                         incremental.replacePortalDelta(owner, owner.toString(), 1.0D, scan.claimDelta());
-                    ProjectionClaimSet.ProjectionClaimSetResult expectedChanges =
+                    ClaimSet.Result expectedChanges =
                         full.replacePortalClaims(owner, owner.toString(), 1.0D, scan.claims());
                     assertEquals(expectedChanges.getPacketChangeKeys(), actual.getPacketChangeKeys(), normal.name());
                     assertEquals(expectedChanges.getReverts(), actual.getReverts(), normal.name());
@@ -512,13 +512,13 @@ public final class ProjectorCellScanLightingRetentionTest {
                 assertEquals(0, localView.readinessQueries, normal.name());
                 scan.resumeOcclusion();
                 assertEquals(expected.keySet(), liveKeys(scan), normal.name());
-                for (Long2ObjectMap.Entry<ProjectedBlockClaim<BlockData, ProjectionWorldView>> entry : scan.claims().long2ObjectEntrySet()) {
+                for (Long2ObjectMap.Entry<BlockClaim<BlockData, ProjectionWorldView>> entry : scan.claims().long2ObjectEntrySet()) {
                     if (entry.getValue().isHeld()) {
                         assertFalse(expected.containsKey(entry.getLongKey()), normal.name());
                     }
                 }
-                for (Long2ObjectMap.Entry<ProjectedBlockClaim<BlockData, ProjectionWorldView>> entry : expected.long2ObjectEntrySet()) {
-                    ProjectedBlockClaim<BlockData, ProjectionWorldView> actual = scan.claims().get(entry.getLongKey());
+                for (Long2ObjectMap.Entry<BlockClaim<BlockData, ProjectionWorldView>> entry : expected.long2ObjectEntrySet()) {
+                    BlockClaim<BlockData, ProjectionWorldView> actual = scan.claims().get(entry.getLongKey());
                     assertEquals(entry.getValue().getData(), actual.getData(), normal.name());
                     assertEquals(entry.getValue().getLightingPolicy(), actual.getLightingPolicy(), normal.name());
                     assertEquals(entry.getValue().getLightRemoteKey(), actual.getLightRemoteKey(), normal.name());
@@ -538,15 +538,15 @@ public final class ProjectorCellScanLightingRetentionTest {
         MutableWorldView localView = new MutableWorldView(blockData(Material.STONE));
         MutableWorldView remoteView = new MutableWorldView(blockData(Material.STONE));
         ProjectorDestination destination = destination(portal, structure, localView, remoteView);
-        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo(
+        SampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo(
             ProjectorCellScanLightingRetentionTest::testMaterialOccluding);
-        ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
+        Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
             () -> BukkitProjectorBlocks.sampler(memo, BukkitProjectorPortalAccess.create(), world -> remoteView));
         ProjectorBlackoutSeal blackout = new ProjectorBlackoutSeal();
         CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan = BukkitProjectorBlocks.scan(portal, sampler, memo, blackout);
         Field occlusion = CellScan.class.getDeclaredField("viewOcclusion");
         occlusion.setAccessible(true);
-        occlusion.set(scan, new ProjectorViewOcclusion<BlockData>(TEST_BLOCKS, 1));
+        occlusion.set(scan, new ViewOcclusion<BlockData>(TEST_BLOCKS, 1));
         Location eye = structure.getCenter().add(0.0D, 0.0D, 1.5D);
         ViewVolume frustum = new ViewVolume(BukkitGeometry.vector(eye), structure, new ViewVolume.Options(6.0D, 3.0D, Settings.NEAR_PLANE_PADDING, Settings.FRUSTUM_CULLING_RATIO, Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
         scan.run(destination, null, BukkitGeometry.vector(eye), frustum, 6.0D, true, false, false,
@@ -591,8 +591,8 @@ public final class ProjectorCellScanLightingRetentionTest {
         MutableWorldView localView = new MutableWorldView(blockData(Material.AIR));
         MutableWorldView remoteView = new MutableWorldView(blockData(Material.SHORT_GRASS));
         ProjectorDestination destination = destination(portal, structure, localView, remoteView);
-        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
-        ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
+        SampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
+        Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
             () -> BukkitProjectorBlocks.sampler(memo, BukkitProjectorPortalAccess.create(), world -> remoteView));
         CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan = BukkitProjectorBlocks.scan(portal, sampler, memo, new ProjectorBlackoutSeal());
         useOcclusion(scan);
@@ -625,8 +625,8 @@ public final class ProjectorCellScanLightingRetentionTest {
         MutableWorldView remoteView = new MutableWorldView(blockData(Material.CHEST));
         remoteView.blockEntity = new BlockEntitySample("minecraft:chest", new byte[] {10, 0, 0, 0});
         ProjectorDestination destination = destination(portal, structure, localView, remoteView);
-        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
-        ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
+        SampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
+        Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
             () -> BukkitProjectorBlocks.sampler(memo, BukkitProjectorPortalAccess.create(), world -> remoteView));
         CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan = BukkitProjectorBlocks.scan(portal, sampler, memo, new ProjectorBlackoutSeal());
         useOcclusion(scan);
@@ -694,9 +694,9 @@ public final class ProjectorCellScanLightingRetentionTest {
             remoteView.blocks.put(CellKeys.pack(0, 65, -2), blockData(Material.STONE));
             remoteView.blocks.put(targetKey, blockData(Material.GOLD_BLOCK));
             ProjectorDestination destination = destination(portal, structure, localView, remoteView);
-            ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo(
+            SampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo(
                 ProjectorCellScanLightingRetentionTest::testMaterialOccluding);
-            ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
+            Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
                 () -> BukkitProjectorBlocks.sampler(memo, BukkitProjectorPortalAccess.create(), world -> remoteView));
             CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan = BukkitProjectorBlocks.scan(portal, sampler, memo, new ProjectorBlackoutSeal());
             useOcclusion(scan);
@@ -715,12 +715,12 @@ public final class ProjectorCellScanLightingRetentionTest {
 
             Field field = CellScan.class.getDeclaredField("viewOcclusion");
             field.setAccessible(true);
-            field.set(scan, new ProjectorViewOcclusion<BlockData>(TEST_BLOCKS, 1));
+            field.set(scan, new ViewOcclusion<BlockData>(TEST_BLOCKS, 1));
             memo.clearDestinationSamples();
             scan.run(destination, null, BukkitGeometry.vector(centerEye), centerFrustum, 6.0D, true, false, true,
                 new ScanMode(false, true), null, false, LodPolicy.NONE);
 
-            ProjectionClaimSet.ClaimDelta<ProjectedBlockClaim<BlockData, ProjectionWorldView>> delta = scan.claimDelta();
+            ClaimSet.ClaimDelta<BlockClaim<BlockData, ProjectionWorldView>> delta = scan.claimDelta();
             assertTrue(scan.unresolvedOcclusionCells() > 0, "the starved pass must leave cells unresolved");
             assertTrue(scan.claims().get(targetLocalKey).isHeld(), "an unresolved committed hold stays held");
             assertFalse(delta.changedKeys().contains(targetLocalKey));
@@ -749,9 +749,9 @@ public final class ProjectorCellScanLightingRetentionTest {
         remoteView.blocks.put(CellKeys.pack(0, 65, -2), blockData(Material.STONE));
         remoteView.blocks.put(targetKey, blockData(Material.GOLD_BLOCK));
         ProjectorDestination destination = destination(portal, structure, localView, remoteView);
-        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo(
+        SampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo(
             ProjectorCellScanLightingRetentionTest::testMaterialOccluding);
-        ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
+        Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
             () -> BukkitProjectorBlocks.sampler(memo, BukkitProjectorPortalAccess.create(), world -> remoteView));
         CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan = BukkitProjectorBlocks.scan(portal, sampler, memo, new ProjectorBlackoutSeal());
         useOcclusion(scan);
@@ -771,9 +771,9 @@ public final class ProjectorCellScanLightingRetentionTest {
             new ScanMode(false, true), null, false, LodPolicy.NONE);
 
         assertFalse(remoteView.readKeys.contains(targetKey), "camera-only refresh must reuse the retained target sample");
-        ProjectionClaimSet.ClaimDelta<ProjectedBlockClaim<BlockData, ProjectionWorldView>> hiddenDelta = scan.claimDelta();
+        ClaimSet.ClaimDelta<BlockClaim<BlockData, ProjectionWorldView>> hiddenDelta = scan.claimDelta();
         if (hold) {
-            ProjectedBlockClaim<BlockData, ProjectionWorldView> held = scan.claims().get(targetLocalKey);
+            BlockClaim<BlockData, ProjectionWorldView> held = scan.claims().get(targetLocalKey);
             assertTrue(held != null && held.isHeld(), "a committed cell turning hidden stays claimed as held");
             assertTrue(scan.hiddenHolds() > 0);
             assertFalse(hiddenDelta.removedKeys().contains(targetLocalKey));
@@ -809,8 +809,8 @@ public final class ProjectorCellScanLightingRetentionTest {
         try {
             for (boolean wall : new boolean[] {true, false}) {
                 HoldFixture fixture = holdFixture(wall);
-                ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> incremental = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
-                ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> full = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
+                ClaimSet<BlockClaim<BlockData, ProjectionWorldView>> incremental = new ClaimSet<BlockClaim<BlockData, ProjectionWorldView>>();
+                ClaimSet<BlockClaim<BlockData, ProjectionWorldView>> full = new ClaimSet<BlockClaim<BlockData, ProjectionWorldView>>();
                 Location first = fixture.eye(3.0D);
                 fixture.run(first, true);
                 assertDeltaMatchesFull(fixture.scan(), incremental, full, "wall=" + wall + " first");
@@ -819,11 +819,11 @@ public final class ProjectorCellScanLightingRetentionTest {
 
                 Location second = fixture.eye(-3.0D);
                 fixture.run(second, false);
-                ProjectionClaimSet.ClaimDelta<ProjectedBlockClaim<BlockData, ProjectionWorldView>> delta = fixture.scan().claimDelta();
+                ClaimSet.ClaimDelta<BlockClaim<BlockData, ProjectionWorldView>> delta = fixture.scan().claimDelta();
                 LongOpenHashSet removed = new LongOpenHashSet(delta.removedKeys());
                 LongOpenHashSet held = heldKeys(fixture.scan());
-                ProjectionClaimSet.ProjectionClaimSetResult result = assertDeltaMatchesFull(fixture.scan(), incremental, full, "wall=" + wall + " second");
-                ProjectorHoldProof proof = ProjectorHoldProof.create(fixture.structure().getArea(), fixture.scan().localFrame(),
+                ClaimSet.Result result = assertDeltaMatchesFull(fixture.scan(), incremental, full, "wall=" + wall + " second");
+                HoldProof proof = HoldProof.create(fixture.structure().getArea(), fixture.scan().localFrame(),
                     fixture.structure().getCenter().getX(), fixture.structure().getCenter().getY(), fixture.structure().getCenter().getZ(),
                     Settings.PROJECTION_APERTURE_PADDING_BLOCKS);
                 assertTrue(proof.beginEye(second.getX(), second.getY(), second.getZ()));
@@ -834,10 +834,10 @@ public final class ProjectorCellScanLightingRetentionTest {
                         continue;
                     }
                     left++;
-                    ProjectorHoldProof.Verdict verdict = proof.verdict(CellKeys.unpackX(key), CellKeys.unpackY(key),
+                    HoldProof.Verdict verdict = proof.verdict(CellKeys.unpackX(key), CellKeys.unpackY(key),
                         CellKeys.unpackZ(key), fixture::occupancy);
                     if (held.contains(key)) {
-                        assertEquals(ProjectorHoldProof.Verdict.HOLD, verdict, "wall=" + wall);
+                        assertEquals(HoldProof.Verdict.HOLD, verdict, "wall=" + wall);
                         assertFalse(removed.contains(key), "wall=" + wall);
                         assertFalse(result.getPacketChangeKeys().contains(key), "a held cell sends nothing");
                     } else {
@@ -868,8 +868,8 @@ public final class ProjectorCellScanLightingRetentionTest {
         try {
             for (boolean sideFlip : new boolean[] {true, false}) {
                 HoldFixture fixture = holdFixture(true);
-                ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> incremental = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
-                ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> full = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
+                ClaimSet<BlockClaim<BlockData, ProjectionWorldView>> incremental = new ClaimSet<BlockClaim<BlockData, ProjectionWorldView>>();
+                ClaimSet<BlockClaim<BlockData, ProjectionWorldView>> full = new ClaimSet<BlockClaim<BlockData, ProjectionWorldView>>();
                 fixture.run(fixture.eye(3.0D), true);
                 assertDeltaMatchesFull(fixture.scan(), incremental, full, "first");
                 fixture.scan().commit();
@@ -888,7 +888,7 @@ public final class ProjectorCellScanLightingRetentionTest {
                     third = second;
                 }
                 fixture.run(third, false);
-                ProjectionClaimSet.ClaimDelta<ProjectedBlockClaim<BlockData, ProjectionWorldView>> delta = fixture.scan().claimDelta();
+                ClaimSet.ClaimDelta<BlockClaim<BlockData, ProjectionWorldView>> delta = fixture.scan().claimDelta();
                 assertTrue(heldKeys(fixture.scan()).isEmpty(), "sideFlip=" + sideFlip);
                 assertEquals(0, fixture.scan().heldClaims(), "sideFlip=" + sideFlip);
                 for (long key : held) {
@@ -908,8 +908,8 @@ public final class ProjectorCellScanLightingRetentionTest {
         Settings.PROJECTION_HOLD_INVISIBLE_CLAIMS = true;
         try {
             HoldFixture fixture = holdFixture(true);
-            ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> incremental = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
-            ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> full = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
+            ClaimSet<BlockClaim<BlockData, ProjectionWorldView>> incremental = new ClaimSet<BlockClaim<BlockData, ProjectionWorldView>>();
+            ClaimSet<BlockClaim<BlockData, ProjectionWorldView>> full = new ClaimSet<BlockClaim<BlockData, ProjectionWorldView>>();
             fixture.run(fixture.eye(3.0D), true);
             assertDeltaMatchesFull(fixture.scan(), incremental, full, "first");
             fixture.scan().commit();
@@ -922,7 +922,7 @@ public final class ProjectorCellScanLightingRetentionTest {
 
             fixture.scan().dropHolds();
             fixture.run(second, false);
-            ProjectionClaimSet.ClaimDelta<ProjectedBlockClaim<BlockData, ProjectionWorldView>> delta = fixture.scan().claimDelta();
+            ClaimSet.ClaimDelta<BlockClaim<BlockData, ProjectionWorldView>> delta = fixture.scan().claimDelta();
             LongOpenHashSet live = liveKeys(fixture.scan());
             assertTrue(heldKeys(fixture.scan()).isEmpty());
             assertEquals(0, fixture.scan().heldClaims());
@@ -1008,7 +1008,7 @@ public final class ProjectorCellScanLightingRetentionTest {
             }
             wall.memo().clearDestinationSamples();
             wall.runCenter(true);
-            ProjectedBlockClaim<BlockData, ProjectionWorldView> resampled = wall.scan().claims().get(nearLocalKey);
+            BlockClaim<BlockData, ProjectionWorldView> resampled = wall.scan().claims().get(nearLocalKey);
             assertTrue(resampled != null && !resampled.isHeld(), "a released cell is resampled live once its blockers open");
             assertTrue(wall.scan().claimDelta().changedKeys().contains(nearLocalKey));
             assertTrue(wall.scan().claims().get(farLocalKey).isHeld());
@@ -1085,7 +1085,7 @@ public final class ProjectorCellScanLightingRetentionTest {
             wall.scan().commit();
             long nearBlocker = heldBlockers(wall.scan(), nearLocalKey).iterator().nextLong();
 
-            ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> set = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
+            ClaimSet<BlockClaim<BlockData, ProjectionWorldView>> set = new ClaimSet<BlockClaim<BlockData, ProjectionWorldView>>();
             UUID owner = new UUID(0L, 7L);
             UUID other = new UUID(0L, 8L);
             set.replacePortalClaims(owner, owner.toString(), 5.0D, wall.scan().claims());
@@ -1095,8 +1095,8 @@ public final class ProjectorCellScanLightingRetentionTest {
             assertTrue(displaced.isEmpty() && restored.isEmpty());
             assertFalse(wall.scan().exposeLosingClaims(displaced, restored, true));
 
-            Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> otherClaims = new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
-            otherClaims.put(nearBlocker, new ProjectedBlockClaim<BlockData, ProjectionWorldView>(blockData(Material.AIR), null, ProjectedBlockClaim.NO_REMOTE_KEY, false));
+            Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>> otherClaims = new Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>>();
+            otherClaims.put(nearBlocker, new BlockClaim<BlockData, ProjectionWorldView>(blockData(Material.AIR), null, BlockClaim.NO_REMOTE_KEY, false));
             set.replacePortalClaims(other, other.toString(), 1.0D, otherClaims);
             assertTrue(set.drainLosingTransitions(owner, displaced, restored, false));
             assertEquals(LongOpenHashSet.of(nearBlocker), displaced);
@@ -1139,9 +1139,9 @@ public final class ProjectorCellScanLightingRetentionTest {
             }
         }
         ProjectorDestination destination = destination(portal, structure, localView, remoteView);
-        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo(
+        SampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo(
             ProjectorCellScanLightingRetentionTest::testMaterialOccluding);
-        ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
+        Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
             () -> BukkitProjectorBlocks.sampler(memo, BukkitProjectorPortalAccess.create(), world -> remoteView));
         CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan = BukkitProjectorBlocks.scan(portal, sampler, memo, new ProjectorBlackoutSeal());
         useOcclusion(scan);
@@ -1150,7 +1150,7 @@ public final class ProjectorCellScanLightingRetentionTest {
 
     private record WallFixture(CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan,
                                ProjectorDestination destination, PortalStructure structure, MutableWorldView remote,
-                               ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo, long nearTarget, long farTarget,
+                               SampleMemo<BlockData, Material, ProjectionWorldView> memo, long nearTarget, long farTarget,
                                LongOpenHashSet wallKeys) {
         private void buildWall() {
             BlockData stone = blockData(Material.STONE);
@@ -1192,7 +1192,7 @@ public final class ProjectorCellScanLightingRetentionTest {
             long targetLocalKey = remoteClaimKey(hidden.scan(), hidden.targetKey());
             hidden.scan().commit();
             hidden.runCenter(false);
-            ProjectedBlockClaim<BlockData, ProjectionWorldView> held = hidden.scan().claims().get(targetLocalKey);
+            BlockClaim<BlockData, ProjectionWorldView> held = hidden.scan().claims().get(targetLocalKey);
             assertTrue(held.isHeld());
             hidden.scan().commit();
 
@@ -1204,7 +1204,7 @@ public final class ProjectorCellScanLightingRetentionTest {
             hidden.remote().blocks.put(hidden.targetKey(), blockData(Material.DIAMOND_BLOCK));
             hidden.memo().clearDestinationSamples();
             hidden.runCenter(false);
-            ProjectedBlockClaim<BlockData, ProjectionWorldView> refreshed = hidden.scan().claims().get(targetLocalKey);
+            BlockClaim<BlockData, ProjectionWorldView> refreshed = hidden.scan().claims().get(targetLocalKey);
             assertTrue(refreshed.isHeld(), "the cell is still hidden");
             assertEquals(Material.DIAMOND_BLOCK, refreshed.getData().getMaterial(), "a hidden hold never pins stale destination content");
             assertTrue(hidden.scan().claimDelta().changedKeys().contains(targetLocalKey));
@@ -1233,9 +1233,9 @@ public final class ProjectorCellScanLightingRetentionTest {
         remoteView.blocks.put(CellKeys.pack(0, 65, -2), blockData(Material.STONE));
         remoteView.blocks.put(targetKey, blockData(Material.GOLD_BLOCK));
         ProjectorDestination destination = destination(portal, structure, localView, remoteView);
-        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo(
+        SampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo(
             ProjectorCellScanLightingRetentionTest::testMaterialOccluding);
-        ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
+        Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
             () -> BukkitProjectorBlocks.sampler(memo, BukkitProjectorPortalAccess.create(), world -> remoteView));
         CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan = BukkitProjectorBlocks.scan(portal, sampler, memo, new ProjectorBlackoutSeal());
         useOcclusion(scan);
@@ -1244,7 +1244,7 @@ public final class ProjectorCellScanLightingRetentionTest {
 
     private record HiddenFixture(CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan,
                                  ProjectorDestination destination, PortalStructure structure, MutableWorldView remote,
-                                 ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo, long targetKey) {
+                                 SampleMemo<BlockData, Material, ProjectionWorldView> memo, long targetKey) {
         private void runSide(boolean forceResample) {
             run(structure.getCenter().add(2.5D, 0.0D, 1.5D), forceResample);
         }
@@ -1293,8 +1293,8 @@ public final class ProjectorCellScanLightingRetentionTest {
 
             Settings.PROJECTION_MAX_HELD_CELLS_PER_PORTAL = newest.size();
             HoldFixture capped = holdFixture(true);
-            ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> incremental = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
-            ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> full = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
+            ClaimSet<BlockClaim<BlockData, ProjectionWorldView>> incremental = new ClaimSet<BlockClaim<BlockData, ProjectionWorldView>>();
+            ClaimSet<BlockClaim<BlockData, ProjectionWorldView>> full = new ClaimSet<BlockClaim<BlockData, ProjectionWorldView>>();
             for (int pass = 0; pass < offsets.length; pass++) {
                 capped.run(capped.eye(offsets[pass]), pass == 0);
                 assertTrue(capped.scan().heldClaims() <= newest.size(), "pass=" + pass);
@@ -1311,15 +1311,15 @@ public final class ProjectorCellScanLightingRetentionTest {
         }
     }
 
-    private static ProjectionClaimSet.ProjectionClaimSetResult assertDeltaMatchesFull(
+    private static ClaimSet.Result assertDeltaMatchesFull(
         CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan,
-        ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> incremental,
-        ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> full,
+        ClaimSet<BlockClaim<BlockData, ProjectionWorldView>> incremental,
+        ClaimSet<BlockClaim<BlockData, ProjectionWorldView>> full,
         String label) {
         UUID owner = new UUID(0L, 7L);
-        ProjectionClaimSet.ProjectionClaimSetResult actual =
+        ClaimSet.Result actual =
             incremental.replacePortalDelta(owner, owner.toString(), 2.0D, scan.claimDelta());
-        ProjectionClaimSet.ProjectionClaimSetResult expected =
+        ClaimSet.Result expected =
             full.replacePortalClaims(owner, owner.toString(), 2.0D, scan.claims());
         assertEquals(expected.getPacketChangeKeys(), actual.getPacketChangeKeys(), label);
         assertEquals(expected.getReverts(), actual.getReverts(), label);
@@ -1357,9 +1357,9 @@ public final class ProjectorCellScanLightingRetentionTest {
         }
         MutableWorldView remoteView = new MutableWorldView(blockData(Material.STONE));
         ProjectorDestination destination = destination(portal, structure, localView, remoteView);
-        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo(
+        SampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo(
             ProjectorCellScanLightingRetentionTest::testMaterialOccluding);
-        ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
+        Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
             () -> BukkitProjectorBlocks.sampler(memo, BukkitProjectorPortalAccess.create(), world -> remoteView));
         CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan = BukkitProjectorBlocks.scan(portal, sampler, memo, new ProjectorBlackoutSeal());
         useOcclusion(scan);
@@ -1379,9 +1379,9 @@ public final class ProjectorCellScanLightingRetentionTest {
                 new ScanMode(false, false), null, false, LodPolicy.NONE);
         }
 
-        private ProjectorHoldProof.Occupancy occupancy(int x, int y, int z) {
+        private HoldProof.Occupancy occupancy(int x, int y, int z) {
             return testMaterialOccluding(local.sampleBlockData(x, y, z).getMaterial())
-                ? ProjectorHoldProof.Occupancy.OCCLUDING : ProjectorHoldProof.Occupancy.OPEN;
+                ? HoldProof.Occupancy.OCCLUDING : HoldProof.Occupancy.OPEN;
         }
     }
 
@@ -1393,8 +1393,8 @@ public final class ProjectorCellScanLightingRetentionTest {
         MutableWorldView localView = new MutableWorldView(blockData(Material.STONE));
         MutableWorldView remoteView = new MutableWorldView(blockData(Material.GLASS));
         ProjectorDestination destination = destination(portal, structure, localView, remoteView);
-        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
-        ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
+        SampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
+        Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
             () -> BukkitProjectorBlocks.sampler(memo, BukkitProjectorPortalAccess.create(), world -> remoteView));
         CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan = BukkitProjectorBlocks.scan(portal, sampler, memo, new ProjectorBlackoutSeal());
         useOcclusion(scan);
@@ -1405,7 +1405,7 @@ public final class ProjectorCellScanLightingRetentionTest {
             new ScanMode(false, true), null, false, LodPolicy.NONE);
         scan.commit();
         long firstCell = scan.claims().values().iterator().next().getLightRemoteKey();
-        for (ProjectedBlockClaim<BlockData, ProjectionWorldView> claim : scan.claims().values()) {
+        for (BlockClaim<BlockData, ProjectionWorldView> claim : scan.claims().values()) {
             assertTrue(affects(scan.remoteFootprint(), claim.getLightRemoteKey()));
         }
         assertFalse(scan.remoteFootprint().affectsBlock(CellKeys.unpackX(firstCell) + 400,
@@ -1429,7 +1429,7 @@ public final class ProjectorCellScanLightingRetentionTest {
         assertFalse(scan.remoteFootprint().nested());
     }
 
-    private static boolean affects(ProjectorRemoteFootprint footprint, long cellKey) {
+    private static boolean affects(RemoteFootprint footprint, long cellKey) {
         return footprint.affectsBlock(CellKeys.unpackX(cellKey), CellKeys.unpackY(cellKey),
             CellKeys.unpackZ(cellKey));
     }
@@ -1442,8 +1442,8 @@ public final class ProjectorCellScanLightingRetentionTest {
         MutableWorldView localView = new MutableWorldView(blockData(Material.STONE));
         MutableWorldView remoteView = new MutableWorldView(blockData(Material.GLASS));
         ProjectorDestination destination = destination(portal, structure, localView, remoteView);
-        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
-        ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
+        SampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
+        Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
             () -> BukkitProjectorBlocks.sampler(memo, BukkitProjectorPortalAccess.create(), world -> remoteView));
         CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan = BukkitProjectorBlocks.scan(portal, sampler, memo, new ProjectorBlackoutSeal());
         useOcclusion(scan);
@@ -1464,7 +1464,7 @@ public final class ProjectorCellScanLightingRetentionTest {
             new ScanMode(false, true), null, false, LodPolicy.NONE);
 
         assertFalse(scan.claims().isEmpty());
-        for (ProjectedBlockClaim<BlockData, ProjectionWorldView> claim : scan.claims().values()) {
+        for (BlockClaim<BlockData, ProjectionWorldView> claim : scan.claims().values()) {
             assertSame(remoteView.data, claim.getData());
         }
     }
@@ -1481,8 +1481,8 @@ public final class ProjectorCellScanLightingRetentionTest {
                 MutableWorldView remoteView = new MutableWorldView(blockData(Material.GLASS));
                 ProjectorDestination destination = destination(portal, structure, localView, remoteView);
                 destination.mirrorMode = scenario == 1;
-                ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
-                ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
+                SampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
+                Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
                     () -> BukkitProjectorBlocks.sampler(memo, BukkitProjectorPortalAccess.create(), world -> remoteView));
                 CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan = BukkitProjectorBlocks.scan(portal, sampler, memo, new ProjectorBlackoutSeal());
                 useOcclusion(scan);
@@ -1508,14 +1508,14 @@ public final class ProjectorCellScanLightingRetentionTest {
                 }
                 scan.run(destination, null, BukkitGeometry.vector(eye), moved, 6.0D, false, false, true,
                     new ScanMode(false, false), null, false, LodPolicy.NONE);
-                Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> actual =
-                    new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(scan.claims());
+                Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>> actual =
+                    new Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>>(scan.claims());
                 scan.run(destination, null, BukkitGeometry.vector(eye), moved, 6.0D, true, false, true,
                     new ScanMode(false, false), null, false, LodPolicy.NONE);
 
                 assertEquals(scan.claims().keySet(), actual.keySet());
-                for (Long2ObjectMap.Entry<ProjectedBlockClaim<BlockData, ProjectionWorldView>> entry : scan.claims().long2ObjectEntrySet()) {
-                    ProjectedBlockClaim<BlockData, ProjectionWorldView> retained = actual.get(entry.getLongKey());
+                for (Long2ObjectMap.Entry<BlockClaim<BlockData, ProjectionWorldView>> entry : scan.claims().long2ObjectEntrySet()) {
+                    BlockClaim<BlockData, ProjectionWorldView> retained = actual.get(entry.getLongKey());
                     assertEquals(entry.getValue().getLightRemoteKey(), retained.getLightRemoteKey(),
                         normal.name() + " scenario=" + scenario);
                     assertSame(entry.getValue().getData(), retained.getData());
@@ -1532,8 +1532,8 @@ public final class ProjectorCellScanLightingRetentionTest {
         MutableWorldView localView = new MutableWorldView(blockData(Material.STONE));
         MutableWorldView remoteView = new MutableWorldView(blockData(Material.AIR));
         ProjectorDestination destination = destination(portal, structure, localView, remoteView);
-        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
-        ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
+        SampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
+        Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
             () -> BukkitProjectorBlocks.sampler(memo, BukkitProjectorPortalAccess.create(), world -> remoteView));
         CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan = BukkitProjectorBlocks.scan(portal, sampler, memo, new ProjectorBlackoutSeal());
         useOcclusion(scan);
@@ -1564,8 +1564,8 @@ public final class ProjectorCellScanLightingRetentionTest {
         MutableWorldView remoteView = new MutableWorldView(blockData(Material.GLASS));
         MutableWorldView nextRemoteView = new MutableWorldView(blockData(Material.GOLD_BLOCK));
         ProjectorDestination destination = destination(portal, structure, localView, remoteView);
-        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
-        ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
+        SampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
+        Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
             () -> BukkitProjectorBlocks.sampler(memo, BukkitProjectorPortalAccess.create(), world -> remoteView));
         CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan = BukkitProjectorBlocks.scan(portal, sampler, memo, new ProjectorBlackoutSeal());
         useOcclusion(scan);
@@ -1580,7 +1580,7 @@ public final class ProjectorCellScanLightingRetentionTest {
             new ScanMode(false, true), null, false, LodPolicy.NONE);
 
         assertFalse(scan.claims().isEmpty());
-        for (ProjectedBlockClaim<BlockData, ProjectionWorldView> claim : scan.claims().values()) {
+        for (BlockClaim<BlockData, ProjectionWorldView> claim : scan.claims().values()) {
             assertSame(nextRemoteView.data, claim.getData());
             assertSame(nextRemoteView, claim.getLightView());
         }
@@ -1596,9 +1596,9 @@ public final class ProjectorCellScanLightingRetentionTest {
             MutableWorldView localView = new MutableWorldView(blockData(Material.STONE));
             MutableWorldView remoteView = new MutableWorldView(blockData(Material.STONE));
             ProjectorDestination destination = destination(portal, structure, localView, remoteView);
-            ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo(
+            SampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo(
                 ProjectorCellScanLightingRetentionTest::testMaterialOccluding);
-            ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
+            Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
                 () -> BukkitProjectorBlocks.sampler(memo, BukkitProjectorPortalAccess.create(), world -> remoteView));
             CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan = BukkitProjectorBlocks.scan(portal, sampler, memo, new ProjectorBlackoutSeal());
             useOcclusion(scan);
@@ -1644,9 +1644,9 @@ public final class ProjectorCellScanLightingRetentionTest {
         MutableWorldView localView = new MutableWorldView(blockData(Material.STONE));
         MutableWorldView remoteView = new MutableWorldView(blockData(Material.STONE));
         ProjectorDestination destination = destination(portal, structure, localView, remoteView);
-        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo(
+        SampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo(
             ProjectorCellScanLightingRetentionTest::testMaterialOccluding);
-        ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
+        Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
             () -> BukkitProjectorBlocks.sampler(memo, BukkitProjectorPortalAccess.create(), world -> remoteView));
         ProjectorBlackoutSeal blackout = new ProjectorBlackoutSeal();
         CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan = BukkitProjectorBlocks.scan(portal, sampler, memo, blackout);
@@ -1657,7 +1657,7 @@ public final class ProjectorCellScanLightingRetentionTest {
         scan.run(destination, null, BukkitGeometry.vector(eye), frustum, 4.0D, true, false, false, new ScanMode(false, false), null, false, LodPolicy.NONE);
 
         assertFalse(scan.claims().isEmpty());
-        assertLighting(scan, ProjectedBlockClaim.LightingPolicy.SOURCE);
+        assertLighting(scan, BlockClaim.LightingPolicy.SOURCE);
         LongOpenHashSet initialKeys = new LongOpenHashSet(scan.claims().keySet());
         scan.commit();
 
@@ -1666,7 +1666,7 @@ public final class ProjectorCellScanLightingRetentionTest {
         scan.run(destination, null, BukkitGeometry.vector(eye), frustum, 4.0D, true, false, false, new ScanMode(false, false), null, false, LodPolicy.NONE);
 
         assertEquals(initialKeys, scan.claims().keySet());
-        assertLighting(scan, ProjectedBlockClaim.LightingPolicy.FULL_BRIGHT);
+        assertLighting(scan, BlockClaim.LightingPolicy.FULL_BRIGHT);
         assertTrue(localView.requests > 0);
         scan.commit();
 
@@ -1679,7 +1679,7 @@ public final class ProjectorCellScanLightingRetentionTest {
         scan.run(destination, null, BukkitGeometry.vector(eye), frustum, 4.0D, true, false, false, new ScanMode(false, false), null, false, LodPolicy.NONE);
 
         assertEquals(initialKeys, scan.claims().keySet());
-        assertLighting(scan, ProjectedBlockClaim.LightingPolicy.SOURCE);
+        assertLighting(scan, BlockClaim.LightingPolicy.SOURCE);
         assertTrue(remoteView.reads > 0);
         assertEquals(0, remoteView.requests);
     }
@@ -1692,9 +1692,9 @@ public final class ProjectorCellScanLightingRetentionTest {
         MutableWorldView localView = new MutableWorldView(blockData(Material.STONE));
         LayeredWorldView remoteView = new LayeredWorldView();
         ProjectorDestination destination = destination(portal, structure, localView, remoteView);
-        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo(
+        SampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo(
             ProjectorCellScanLightingRetentionTest::testMaterialOccluding);
-        ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
+        Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
             () -> BukkitProjectorBlocks.sampler(memo, BukkitProjectorPortalAccess.create(), world -> remoteView));
         CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan = BukkitProjectorBlocks.scan(portal, sampler, memo, new ProjectorBlackoutSeal());
         useOcclusion(scan);
@@ -1707,7 +1707,7 @@ public final class ProjectorCellScanLightingRetentionTest {
         int foliageClaims = 0;
         int backingClaims = 0;
         int deepClaims = 0;
-        for (ProjectedBlockClaim<BlockData, ProjectionWorldView> claim : scan.claims().values()) {
+        for (BlockClaim<BlockData, ProjectionWorldView> claim : scan.claims().values()) {
             Material material = claim.getData().getMaterial();
             if (material == Material.GRASS_BLOCK) {
                 grassClaims++;
@@ -1734,15 +1734,15 @@ public final class ProjectorCellScanLightingRetentionTest {
         ILocalPortal portal = portal(structure, frame);
         Location eye = structure.getCenter().add(0.0D, 0.0D, 1.5D);
         ViewVolume frustum = new ViewVolume(BukkitGeometry.vector(eye), structure, new ViewVolume.Options(4.0D, 2.0D, Settings.NEAR_PLANE_PADDING, Settings.FRUSTUM_CULLING_RATIO, Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
-        int expectedFarZ = ProjectionVolume.minBlockForCenter(frustum.getRegion().getZa());
+        int expectedFarZ = ApertureSlab.minBlockForCenter(frustum.getRegion().getZa());
 
         for (ProjectionRenderMode renderMode : ProjectionRenderMode.values()) {
             MutableWorldView localView = new MutableWorldView(blockData(Material.STONE));
             TransparentSkylineWorldView remoteView = new TransparentSkylineWorldView(expectedFarZ);
             ProjectorDestination destination = destination(portal, structure, localView, remoteView);
-            ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo(
+            SampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo(
                 ProjectorCellScanLightingRetentionTest::testMaterialOccluding);
-            ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
+            Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
                 () -> BukkitProjectorBlocks.sampler(memo, BukkitProjectorPortalAccess.create(), world -> remoteView));
             ProjectorBlackoutSeal blackout = new ProjectorBlackoutSeal();
             enableBlackout(blackout);
@@ -1768,16 +1768,16 @@ public final class ProjectorCellScanLightingRetentionTest {
             boolean foundSealedAir = false;
             boolean foundNearTransparent = false;
             boolean foundLateralShell = false;
-            for (Long2ObjectMap.Entry<ProjectedBlockClaim<BlockData, ProjectionWorldView>> entry : scan.claims().long2ObjectEntrySet()) {
+            for (Long2ObjectMap.Entry<BlockClaim<BlockData, ProjectionWorldView>> entry : scan.claims().long2ObjectEntrySet()) {
                 long key = entry.getLongKey();
-                ProjectedBlockClaim<BlockData, ProjectionWorldView> claim = entry.getValue();
+                BlockClaim<BlockData, ProjectionWorldView> claim = entry.getValue();
                 int x = CellKeys.unpackX(key);
                 int y = CellKeys.unpackY(key);
                 int z = CellKeys.unpackZ(key);
                 if (claim.isBlackout()) {
                     assertTrue(geometry.contains(key), renderMode.name());
                     assertEquals(Material.BLACK_CONCRETE, claim.getData().getMaterial(), renderMode.name());
-                    assertEquals(ProjectedBlockClaim.LightingPolicy.FULL_BRIGHT, claim.getLightingPolicy(), renderMode.name());
+                    assertEquals(BlockClaim.LightingPolicy.FULL_BRIGHT, claim.getLightingPolicy(), renderMode.name());
                     assertFalse(claim.isMaskAir(), renderMode.name());
                     Material remote = remoteView.sampleBlockData(x, y, z).getMaterial();
                     assertFalse(testMaterialOccluding(remote), renderMode.name() + " sealed an opaque cell");
@@ -1809,7 +1809,7 @@ public final class ProjectorCellScanLightingRetentionTest {
             assertTrue(foundNearTransparent, renderMode.name());
             assertTrue(foundLateralShell, renderMode.name());
             for (long key : geometry) {
-                ProjectedBlockClaim<BlockData, ProjectionWorldView> claim = scan.claims().get(key);
+                BlockClaim<BlockData, ProjectionWorldView> claim = scan.claims().get(key);
                 assertTrue(claim != null && claim.isBlackout(), renderMode.name());
             }
         }
@@ -1856,7 +1856,7 @@ public final class ProjectorCellScanLightingRetentionTest {
                             }
                         }
                         boolean farClaim = false;
-                        for (Long2ObjectMap.Entry<ProjectedBlockClaim<BlockData, ProjectionWorldView>> entry : scan.claims().long2ObjectEntrySet()) {
+                        for (Long2ObjectMap.Entry<BlockClaim<BlockData, ProjectionWorldView>> entry : scan.claims().long2ObjectEntrySet()) {
                             if (!entry.getValue().isBlackout()) {
                                 continue;
                             }
@@ -1875,8 +1875,8 @@ public final class ProjectorCellScanLightingRetentionTest {
                                 x, y, z, distance), normal + " offset=" + offset + " padding=" + padding);
                         }
                         assertTrue(farClaim, normal + " offset=" + offset + " padding=" + padding);
-                        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> moved =
-                            new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(scan.claims());
+                        Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>> moved =
+                            new Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>>(scan.claims());
                         scan.run(fixture.destination(), null, BukkitGeometry.vector(eye), frustum, 6.0D,
                             true, false, false, new ScanMode(false, false), null, false, LodPolicy.NONE);
                         assertEquivalentClaims(moved, scan.claims());
@@ -1899,8 +1899,8 @@ public final class ProjectorCellScanLightingRetentionTest {
         MutableWorldView localView = new MutableWorldView(blockData(Material.AIR));
         MutableWorldView remoteView = new MutableWorldView(blockData(Material.AIR));
         ProjectorDestination destination = destination(portal, structure, localView, remoteView);
-        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
-        ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
+        SampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
+        Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
             () -> BukkitProjectorBlocks.sampler(memo, BukkitProjectorPortalAccess.create(), world -> remoteView));
         ProjectorBlackoutSeal blackout = new ProjectorBlackoutSeal();
         enableBlackout(blackout);
@@ -1915,7 +1915,7 @@ public final class ProjectorCellScanLightingRetentionTest {
         assertFalse(initialMask.isEmpty());
         assertEquals(initialMask, scan.claims().keySet(), "every claim is a shell cell over air");
         assertAllBlackout(scan);
-        assertEquals(ProjectionVolume.minBlockForCenter(frustum.getRegion().getZa()),
+        assertEquals(ApertureSlab.minBlockForCenter(frustum.getRegion().getZa()),
             minimumBlackoutGeometryZ(scan));
         scan.commit();
 
@@ -1935,7 +1935,7 @@ public final class ProjectorCellScanLightingRetentionTest {
         assertTrue(blackoutGeometry(scan).isEmpty());
         assertNoBlackoutClaims(scan);
         assertFalse(scan.claims().isEmpty());
-        for (ProjectedBlockClaim<BlockData, ProjectionWorldView> claim : scan.claims().values()) {
+        for (BlockClaim<BlockData, ProjectionWorldView> claim : scan.claims().values()) {
             assertEquals(Material.STONE, claim.getData().getMaterial());
         }
     }
@@ -1948,8 +1948,8 @@ public final class ProjectorCellScanLightingRetentionTest {
         MutableWorldView localView = new MutableWorldView(blockData(Material.STONE));
         MutableWorldView remoteView = new MutableWorldView(blockData(Material.STONE));
         ProjectorDestination destination = destination(portal, structure, localView, remoteView);
-        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
-        ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
+        SampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
+        Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
             () -> BukkitProjectorBlocks.sampler(memo, BukkitProjectorPortalAccess.create(), world -> remoteView));
         ProjectorBlackoutSeal blackout = new ProjectorBlackoutSeal();
         enableBlackout(blackout);
@@ -1975,8 +1975,8 @@ public final class ProjectorCellScanLightingRetentionTest {
             MutableWorldView localView = new MutableWorldView(blockData(Material.STONE));
             MutableWorldView remoteView = new MutableWorldView(blockData(Material.AIR));
             ProjectorDestination destination = destination(portal, structure, localView, remoteView);
-            ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
-            ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
+            SampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
+            Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
                 () -> BukkitProjectorBlocks.sampler(memo, BukkitProjectorPortalAccess.create(), world -> remoteView));
             ProjectorBlackoutSeal blackout = new ProjectorBlackoutSeal();
             enableBlackout(blackout);
@@ -1999,7 +1999,7 @@ public final class ProjectorCellScanLightingRetentionTest {
             boolean farFace = false;
             boolean lateral = false;
             for (long key : geometry) {
-                ProjectedBlockClaim<BlockData, ProjectionWorldView> claim = scan.claims().get(key);
+                BlockClaim<BlockData, ProjectionWorldView> claim = scan.claims().get(key);
                 assertTrue(claim != null && claim.isBlackout(), normal.name());
                 assertEquals(Material.BLACK_CONCRETE, claim.getData().getMaterial(), normal.name());
                 farFace |= coordinate(key, normal) == expectedCoordinate;
@@ -2007,7 +2007,7 @@ public final class ProjectorCellScanLightingRetentionTest {
             }
             assertTrue(farFace, normal.name());
             assertTrue(lateral, normal.name());
-            for (Long2ObjectMap.Entry<ProjectedBlockClaim<BlockData, ProjectionWorldView>> entry : scan.claims().long2ObjectEntrySet()) {
+            for (Long2ObjectMap.Entry<BlockClaim<BlockData, ProjectionWorldView>> entry : scan.claims().long2ObjectEntrySet()) {
                 if (!entry.getValue().isBlackout()) {
                     assertEquals(Material.AIR, entry.getValue().getData().getMaterial(), normal.name());
                     assertFalse(geometry.contains(entry.getLongKey()), normal.name());
@@ -2024,8 +2024,8 @@ public final class ProjectorCellScanLightingRetentionTest {
         MutableWorldView localView = new MutableWorldView(blockData(Material.STONE));
         MutableWorldView remoteView = new MutableWorldView(blockData(Material.AIR));
         ProjectorDestination destination = destination(portal, structure, localView, remoteView);
-        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
-        ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
+        SampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
+        Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
             () -> BukkitProjectorBlocks.sampler(memo, BukkitProjectorPortalAccess.create(), world -> remoteView));
         ProjectorBlackoutSeal blackout = new ProjectorBlackoutSeal();
         enableBlackout(blackout);
@@ -2034,8 +2034,8 @@ public final class ProjectorCellScanLightingRetentionTest {
         Location eye = structure.getCenter().add(0.0D, 0.0D, 1.5D);
         ViewVolume shallow = new ViewVolume(BukkitGeometry.vector(eye), structure, new ViewVolume.Options(4.0D, 2.0D, Settings.NEAR_PLANE_PADDING, Settings.FRUSTUM_CULLING_RATIO, Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
         ViewVolume deep = new ViewVolume(BukkitGeometry.vector(eye), structure, new ViewVolume.Options(6.0D, 2.0D, Settings.NEAR_PLANE_PADDING, Settings.FRUSTUM_CULLING_RATIO, Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
-        int shallowFarZ = ProjectionVolume.minBlockForCenter(shallow.getRegion().getZa());
-        int deepFarZ = ProjectionVolume.minBlockForCenter(deep.getRegion().getZa());
+        int shallowFarZ = ApertureSlab.minBlockForCenter(shallow.getRegion().getZa());
+        int deepFarZ = ApertureSlab.minBlockForCenter(deep.getRegion().getZa());
         assertTrue(deepFarZ < shallowFarZ);
 
         scan.run(destination, null, BukkitGeometry.vector(eye), shallow, 4.0D, true, false, false,
@@ -2049,9 +2049,9 @@ public final class ProjectorCellScanLightingRetentionTest {
         LongOpenHashSet geometry = blackoutGeometry(scan);
         assertEquals(deepFarZ, minimumBlackoutGeometryZ(scan));
         int formerFarCells = 0;
-        for (Long2ObjectMap.Entry<ProjectedBlockClaim<BlockData, ProjectionWorldView>> entry : scan.claims().long2ObjectEntrySet()) {
+        for (Long2ObjectMap.Entry<BlockClaim<BlockData, ProjectionWorldView>> entry : scan.claims().long2ObjectEntrySet()) {
             long key = entry.getLongKey();
-            ProjectedBlockClaim<BlockData, ProjectionWorldView> claim = entry.getValue();
+            BlockClaim<BlockData, ProjectionWorldView> claim = entry.getValue();
             assertEquals(geometry.contains(key), claim.isBlackout(),
                 "shell membership and concrete must agree at " + CellKeys.unpackX(key)
                     + "," + CellKeys.unpackY(key) + "," + CellKeys.unpackZ(key));
@@ -2061,10 +2061,10 @@ public final class ProjectorCellScanLightingRetentionTest {
             }
         }
         assertTrue(formerFarCells > 0, "the old far slab must be resampled as air once it is interior");
-        ProjectionClaimSet.ClaimDelta<ProjectedBlockClaim<BlockData, ProjectionWorldView>> delta = scan.claimDelta();
+        ClaimSet.ClaimDelta<BlockClaim<BlockData, ProjectionWorldView>> delta = scan.claimDelta();
         for (long key : delta.changedKeys()) {
-            ProjectedBlockClaim<BlockData, ProjectionWorldView> previous = delta.previousClaims().get(key);
-            ProjectedBlockClaim<BlockData, ProjectionWorldView> next = delta.claims().get(key);
+            BlockClaim<BlockData, ProjectionWorldView> previous = delta.previousClaims().get(key);
+            BlockClaim<BlockData, ProjectionWorldView> next = delta.claims().get(key);
             assertTrue(previous == null || next == null || previous != next);
         }
     }
@@ -2078,12 +2078,12 @@ public final class ProjectorCellScanLightingRetentionTest {
         ViewVolume shallow = new ViewVolume(BukkitGeometry.vector(eye), structure, new ViewVolume.Options(4.0D, 2.0D, Settings.NEAR_PLANE_PADDING, Settings.FRUSTUM_CULLING_RATIO, Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
         ViewVolume deep = new ViewVolume(BukkitGeometry.vector(eye), structure, new ViewVolume.Options(6.0D, 2.0D, Settings.NEAR_PLANE_PADDING, Settings.FRUSTUM_CULLING_RATIO, Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
         long oldCap = CellKeys.pack(structure.getCenter().getBlockX(),
-            structure.getCenter().getBlockY(), ProjectionVolume.minBlockForCenter(shallow.getRegion().getZa()));
+            structure.getCenter().getBlockY(), ApertureSlab.minBlockForCenter(shallow.getRegion().getZa()));
         for (boolean localUnavailable : new boolean[] {true, false}) {
             MutableWorldView local = new MutableWorldView(blockData(Material.AIR));
             MutableWorldView remote = new MutableWorldView(blockData(Material.AIR));
-            ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
-            ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
+            SampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
+            Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
                 () -> BukkitProjectorBlocks.sampler(memo, BukkitProjectorPortalAccess.create(), world -> remote));
             ProjectorBlackoutSeal blackout = new ProjectorBlackoutSeal();
             enableBlackout(blackout);
@@ -2120,8 +2120,8 @@ public final class ProjectorCellScanLightingRetentionTest {
         MutableWorldView localView = new MutableWorldView(blockData(Material.STONE));
         MutableWorldView remoteView = new MutableWorldView(blockData(Material.AIR));
         ProjectorDestination destination = destination(portal, structure, localView, remoteView);
-        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
-        ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
+        SampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
+        Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
             () -> BukkitProjectorBlocks.sampler(memo, BukkitProjectorPortalAccess.create(), world -> remoteView));
         ProjectorBlackoutSeal blackout = new ProjectorBlackoutSeal();
         enableBlackout(blackout);
@@ -2144,7 +2144,7 @@ public final class ProjectorCellScanLightingRetentionTest {
         assertTrue(blackoutGeometry(scan).isEmpty());
         assertNoBlackoutClaims(scan);
         assertEquals(keys, scan.claims().keySet());
-        assertLighting(scan, ProjectedBlockClaim.LightingPolicy.SOURCE);
+        assertLighting(scan, BlockClaim.LightingPolicy.SOURCE);
         for (long key : shell) {
             assertEquals(Material.AIR, scan.claims().get(key).getData().getMaterial());
         }
@@ -2158,8 +2158,8 @@ public final class ProjectorCellScanLightingRetentionTest {
         MutableWorldView localView = new MutableWorldView(blockData(Material.STONE));
         MutableWorldView remoteView = new MutableWorldView(blockData(Material.AIR));
         ProjectorDestination destination = destination(portal, structure, localView, remoteView);
-        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
-        ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
+        SampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
+        Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
             () -> BukkitProjectorBlocks.sampler(memo, BukkitProjectorPortalAccess.create(), world -> remoteView));
         ProjectorBlackoutSeal blackout = new ProjectorBlackoutSeal();
         enableBlackout(blackout);
@@ -2181,9 +2181,9 @@ public final class ProjectorCellScanLightingRetentionTest {
             new ScanMode(false, false), null, false, LodPolicy.NONE);
 
         assertEquals(shell, blackoutGeometry(scan));
-        ProjectionClaimSet.ClaimDelta<ProjectedBlockClaim<BlockData, ProjectionWorldView>> delta = scan.claimDelta();
+        ClaimSet.ClaimDelta<BlockClaim<BlockData, ProjectionWorldView>> delta = scan.claimDelta();
         for (long key : shell) {
-            ProjectedBlockClaim<BlockData, ProjectionWorldView> claim = scan.claims().get(key);
+            BlockClaim<BlockData, ProjectionWorldView> claim = scan.claims().get(key);
             assertTrue(claim.isBlackout());
             assertEquals(Material.RED_CONCRETE, claim.getData().getMaterial());
             assertTrue(delta.changedKeys().contains(key), "recoloured shell cells must be resent");
@@ -2203,8 +2203,8 @@ public final class ProjectorCellScanLightingRetentionTest {
             MutableWorldView localView = new MutableWorldView(blockData(Material.AIR));
             MutableWorldView remoteView = new MutableWorldView(blockData(Material.AIR));
             ProjectorDestination destination = destination(portal, structure, localView, remoteView);
-            ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
-            ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
+            SampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
+            Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
                 () -> BukkitProjectorBlocks.sampler(memo, BukkitProjectorPortalAccess.create(), world -> remoteView));
             ProjectorBlackoutSeal blackout = new ProjectorBlackoutSeal();
             enableBlackout(blackout);
@@ -2234,15 +2234,15 @@ public final class ProjectorCellScanLightingRetentionTest {
 
     private static void assertAllBlackout(CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan) {
         assertFalse(scan.claims().isEmpty());
-        for (ProjectedBlockClaim<BlockData, ProjectionWorldView> claim : scan.claims().values()) {
+        for (BlockClaim<BlockData, ProjectionWorldView> claim : scan.claims().values()) {
             assertTrue(claim.isBlackout());
             assertEquals(Material.BLACK_CONCRETE, claim.getData().getMaterial());
-            assertEquals(ProjectedBlockClaim.LightingPolicy.FULL_BRIGHT, claim.getLightingPolicy());
+            assertEquals(BlockClaim.LightingPolicy.FULL_BRIGHT, claim.getLightingPolicy());
         }
     }
 
     private static void assertNoBlackoutClaims(CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan) {
-        for (ProjectedBlockClaim<BlockData, ProjectionWorldView> claim : scan.claims().values()) {
+        for (BlockClaim<BlockData, ProjectionWorldView> claim : scan.claims().values()) {
             assertFalse(claim.isBlackout());
             assertFalse(claim.getData().getMaterial() == Material.BLACK_CONCRETE);
         }
@@ -2252,11 +2252,11 @@ public final class ProjectorCellScanLightingRetentionTest {
         throws ReflectiveOperationException {
         Field field = CellScan.class.getDeclaredField("viewOcclusion");
         field.setAccessible(true);
-        field.set(scan, new ProjectorViewOcclusion<BlockData>(TEST_BLOCKS));
+        field.set(scan, new ViewOcclusion<BlockData>(TEST_BLOCKS));
     }
 
     private static long remoteClaimKey(CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan, long remoteKey) {
-        for (Long2ObjectMap.Entry<ProjectedBlockClaim<BlockData, ProjectionWorldView>> entry : scan.claims().long2ObjectEntrySet()) {
+        for (Long2ObjectMap.Entry<BlockClaim<BlockData, ProjectionWorldView>> entry : scan.claims().long2ObjectEntrySet()) {
             if (entry.getValue().getLightRemoteKey() == remoteKey) {
                 return entry.getLongKey();
             }
@@ -2266,7 +2266,7 @@ public final class ProjectorCellScanLightingRetentionTest {
 
     private static LongOpenHashSet liveKeys(CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan) {
         LongOpenHashSet keys = new LongOpenHashSet();
-        for (Long2ObjectMap.Entry<ProjectedBlockClaim<BlockData, ProjectionWorldView>> entry : scan.claims().long2ObjectEntrySet()) {
+        for (Long2ObjectMap.Entry<BlockClaim<BlockData, ProjectionWorldView>> entry : scan.claims().long2ObjectEntrySet()) {
             if (!entry.getValue().isHeld()) {
                 keys.add(entry.getLongKey());
             }
@@ -2276,7 +2276,7 @@ public final class ProjectorCellScanLightingRetentionTest {
 
     private static LongOpenHashSet heldKeys(CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan) {
         LongOpenHashSet keys = new LongOpenHashSet();
-        for (Long2ObjectMap.Entry<ProjectedBlockClaim<BlockData, ProjectionWorldView>> entry : scan.claims().long2ObjectEntrySet()) {
+        for (Long2ObjectMap.Entry<BlockClaim<BlockData, ProjectionWorldView>> entry : scan.claims().long2ObjectEntrySet()) {
             if (entry.getValue().isHeld()) {
                 keys.add(entry.getLongKey());
             }
@@ -2285,7 +2285,7 @@ public final class ProjectorCellScanLightingRetentionTest {
     }
 
     private static boolean hasRemoteClaim(CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan, long remoteKey) {
-        for (ProjectedBlockClaim<BlockData, ProjectionWorldView> claim : scan.claims().values()) {
+        for (BlockClaim<BlockData, ProjectionWorldView> claim : scan.claims().values()) {
             if (claim.getLightRemoteKey() == remoteKey) {
                 return true;
             }
@@ -2295,7 +2295,7 @@ public final class ProjectorCellScanLightingRetentionTest {
 
     private static long scanRevision(PortalStructure structure, Frame frame, LodPolicy lod, boolean blockEntities) {
         Location origin = structure.getCenter();
-        return ProjectorPassRevision.transform(frame, frame,
+        return PassRevision.transform(frame, frame,
             origin.getX(), origin.getY(), origin.getZ(), origin.getX(), origin.getY(), origin.getZ(),
             4, 2, 0.0D, false, lod, blockEntities);
     }
@@ -2317,20 +2317,20 @@ public final class ProjectorCellScanLightingRetentionTest {
 
     private static int farFrustumCoordinate(ViewVolume frustum, Face normal) {
         if (normal.x() > 0) {
-            return ProjectionVolume.minBlockForCenter(frustum.getRegion().getXa());
+            return ApertureSlab.minBlockForCenter(frustum.getRegion().getXa());
         }
         if (normal.x() < 0) {
-            return ProjectionVolume.maxBlockForCenter(frustum.getRegion().getXb());
+            return ApertureSlab.maxBlockForCenter(frustum.getRegion().getXb());
         }
         if (normal.y() > 0) {
-            return ProjectionVolume.minBlockForCenter(frustum.getRegion().getYa());
+            return ApertureSlab.minBlockForCenter(frustum.getRegion().getYa());
         }
         if (normal.y() < 0) {
-            return ProjectionVolume.maxBlockForCenter(frustum.getRegion().getYb());
+            return ApertureSlab.maxBlockForCenter(frustum.getRegion().getYb());
         }
         return normal.z() > 0
-            ? ProjectionVolume.minBlockForCenter(frustum.getRegion().getZa())
-            : ProjectionVolume.maxBlockForCenter(frustum.getRegion().getZb());
+            ? ApertureSlab.minBlockForCenter(frustum.getRegion().getZa())
+            : ApertureSlab.maxBlockForCenter(frustum.getRegion().getZb());
     }
 
     private static int coordinate(long key, Face direction) {
@@ -2367,8 +2367,8 @@ public final class ProjectorCellScanLightingRetentionTest {
         return destination;
     }
 
-    private static void assertLighting(CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan, ProjectedBlockClaim.LightingPolicy expected) {
-        for (ProjectedBlockClaim<BlockData, ProjectionWorldView> claim : scan.claims().values()) {
+    private static void assertLighting(CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan, BlockClaim.LightingPolicy expected) {
+        for (BlockClaim<BlockData, ProjectionWorldView> claim : scan.claims().values()) {
             assertEquals(expected, claim.getLightingPolicy());
         }
     }
@@ -2444,7 +2444,7 @@ public final class ProjectorCellScanLightingRetentionTest {
         return null;
     }
 
-    private static ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> withBukkitServer(SamplerFactory factory) throws ReflectiveOperationException {
+    private static Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> withBukkitServer(SamplerFactory factory) throws ReflectiveOperationException {
         synchronized (Bukkit.class) {
             Field serverField = Bukkit.class.getDeclaredField("server");
             serverField.setAccessible(true);
@@ -2489,7 +2489,7 @@ public final class ProjectorCellScanLightingRetentionTest {
     }
 
     private interface SamplerFactory {
-        ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> create();
+        Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> create();
     }
 
     private static final class MutableWorldView implements ProjectionWorldView {

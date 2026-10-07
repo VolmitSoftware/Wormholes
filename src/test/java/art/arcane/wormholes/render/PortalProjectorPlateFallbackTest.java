@@ -38,10 +38,10 @@ import art.arcane.optics.plate.ViewPlateKey;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.util.Cuboid;
 import art.arcane.optics.math.Face;
-import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.claim.BlockClaim;
 import art.arcane.optics.scan.CellScan;
-import art.arcane.optics.scan.ProjectorSampleMemo;
-import art.arcane.optics.scan.ProjectorSampler;
+import art.arcane.optics.scan.SampleMemo;
+import art.arcane.optics.scan.Sampler;
 import art.arcane.optics.volume.ViewVolume;
 
 public final class PortalProjectorPlateFallbackTest {
@@ -59,17 +59,17 @@ public final class PortalProjectorPlateFallbackTest {
             boolean buried = renderMode.scanMode().buriedCellCulling();
 
             CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> samplerScan = scan(portal, remoteView);
-            ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> samplerPath = samplerOf(samplerScan);
+            Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> samplerPath = samplerOf(samplerScan);
             samplerPath.setBuriedCellCullingPass(buried);
             samplerScan.run(destination(portal, structure, new StoneView(), remoteView), null, BukkitGeometry.vector(eye), frustum, 4.0D,
                 true, false, false, renderMode.scanMode(), null, false, LodPolicy.NONE);
-            Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> samplerClaims = new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(samplerScan.claims());
+            Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>> samplerClaims = new Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>>(samplerScan.claims());
             assertFalse(samplerClaims.isEmpty(), renderMode.name());
             assertTrue(samplerPath.remoteSampleCount() > 0, renderMode.name());
 
             ViewPlate<BlockData> plate = ViewPlateBuilder.build(request(portal, structure, remoteView, buried));
             CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> plateScan = scan(portal, remoteView);
-            ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> platePath = samplerOf(plateScan);
+            Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> platePath = samplerOf(plateScan);
             platePath.setBuriedCellCullingPass(buried);
             remoteView.reads = 0;
             plateScan.run(destination(portal, structure, new StoneView(), remoteView), null, BukkitGeometry.vector(eye), frustum, 4.0D,
@@ -93,7 +93,7 @@ public final class PortalProjectorPlateFallbackTest {
         CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> samplerScan = scan(portal, remoteView);
         samplerScan.run(destination(portal, structure, new StoneView(), remoteView), null, BukkitGeometry.vector(eye), frustum, 4.0D,
             true, false, false, new ScanMode(false, false), null, false, LodPolicy.NONE);
-        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> expected = new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(samplerScan.claims());
+        Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>> expected = new Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>>(samplerScan.claims());
 
         ViewPlate<BlockData> partial = ViewPlateBuilder.build(new ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView>(
             new ViewPlateKey(PORTAL_ID, remoteView, true, 0, 0L), portal.getStructure(), remoteView, frame, frame,
@@ -101,7 +101,7 @@ public final class PortalProjectorPlateFallbackTest {
             structure.getCenter().getX(), structure.getCenter().getY(), structure.getCenter().getZ(),
             false, 0, 1.0D, 2.0D, 0.75D, false, blockData(Material.AIR), LodPolicy.NONE, false, 0L, 1L, 0L, new BukkitProjectorBlocks(PortalProjectorPlateFallbackTest::testMaterialOccluding)));
         CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> plateScan = scan(portal, remoteView);
-        ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> platePath = samplerOf(plateScan);
+        Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> platePath = samplerOf(plateScan);
         plateScan.run(destination(portal, structure, new StoneView(), remoteView), null, BukkitGeometry.vector(eye), frustum, 4.0D,
             true, false, false, new ScanMode(false, false), partial, false, LodPolicy.NONE);
 
@@ -121,10 +121,10 @@ public final class PortalProjectorPlateFallbackTest {
         LodPolicy lod = new LodPolicy(true, 1, 3);
 
         CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> samplerScan = scan(portal, remoteView);
-        ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> samplerPath = samplerOf(samplerScan);
+        Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> samplerPath = samplerOf(samplerScan);
         samplerScan.run(destination(portal, structure, new StoneView(), remoteView), null, BukkitGeometry.vector(eye), frustum, 6.0D,
             true, false, false, new ScanMode(false, false), null, false, lod);
-        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> coarse = new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(samplerScan.claims());
+        Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>> coarse = new Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>>(samplerScan.claims());
         int coarseReads = remoteView.reads;
 
         CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> denseScan = scan(portal, remoteView);
@@ -147,13 +147,13 @@ public final class PortalProjectorPlateFallbackTest {
         assertEquals(0, samplerOf(plateScan).remoteSampleCount());
     }
 
-    private static void assertSameClaims(Long2ObjectMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> expected,
-                                         Long2ObjectMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> actual,
+    private static void assertSameClaims(Long2ObjectMap<BlockClaim<BlockData, ProjectionWorldView>> expected,
+                                         Long2ObjectMap<BlockClaim<BlockData, ProjectionWorldView>> actual,
                                          String label) {
         assertEquals(new LongOpenHashSet(expected.keySet()), new LongOpenHashSet(actual.keySet()), label);
-        for (Long2ObjectMap.Entry<ProjectedBlockClaim<BlockData, ProjectionWorldView>> entry : expected.long2ObjectEntrySet()) {
-            ProjectedBlockClaim<BlockData, ProjectionWorldView> left = entry.getValue();
-            ProjectedBlockClaim<BlockData, ProjectionWorldView> right = actual.get(entry.getLongKey());
+        for (Long2ObjectMap.Entry<BlockClaim<BlockData, ProjectionWorldView>> entry : expected.long2ObjectEntrySet()) {
+            BlockClaim<BlockData, ProjectionWorldView> left = entry.getValue();
+            BlockClaim<BlockData, ProjectionWorldView> right = actual.get(entry.getLongKey());
             assertEquals(left.getData().getMaterial(), right.getData().getMaterial(), label);
             assertEquals(left.getLightRemoteKey(), right.getLightRemoteKey(), label);
             assertEquals(left.isMaskAir(), right.isMaskAir(), label);
@@ -171,16 +171,16 @@ public final class PortalProjectorPlateFallbackTest {
     }
 
     private static CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan(ILocalPortal portal, ProjectionWorldView remoteView) throws ReflectiveOperationException {
-        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo(PortalProjectorPlateFallbackTest::testMaterialOccluding);
-        ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
+        SampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo(PortalProjectorPlateFallbackTest::testMaterialOccluding);
+        Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
             () -> BukkitProjectorBlocks.sampler(memo, BukkitProjectorPortalAccess.create(), world -> remoteView));
         return BukkitProjectorBlocks.scan(portal, sampler, memo, new ProjectorBlackoutSeal());
     }
 
-    private static ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> samplerOf(CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan) throws ReflectiveOperationException {
+    private static Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> samplerOf(CellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan) throws ReflectiveOperationException {
         Field field = CellScan.class.getDeclaredField("sampler");
         field.setAccessible(true);
-        return (ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView>) field.get(scan);
+        return (Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView>) field.get(scan);
     }
 
     private static boolean testMaterialOccluding(Material material) {
@@ -250,7 +250,7 @@ public final class PortalProjectorPlateFallbackTest {
         return null;
     }
 
-    private static ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> withBukkitServer(SamplerFactory factory) throws ReflectiveOperationException {
+    private static Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> withBukkitServer(SamplerFactory factory) throws ReflectiveOperationException {
         synchronized (Bukkit.class) {
             Field serverField = Bukkit.class.getDeclaredField("server");
             serverField.setAccessible(true);
@@ -295,7 +295,7 @@ public final class PortalProjectorPlateFallbackTest {
     }
 
     private interface SamplerFactory {
-        ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> create();
+        Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> create();
     }
 
     private static final class StoneView implements ProjectionWorldView {

@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client.render;
 
 import org.junit.Test;
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import com.mojang.blaze3d.pipeline.TextureTarget;
 import net.irisshaders.iris.shaderpack.ShaderPack;
 import net.irisshaders.iris.shaderpack.materialmap.NamespacedId;
@@ -133,7 +133,7 @@ public class PortalIrisPoolTest {
         idle(pool).add(older);
         field(PortalIrisRenderer.class, "reserved").setLong(pool, 1650 * MIB);
         ProgramSet programs = mock(ProgramSet.class);
-        ProjectionEnvironment environment = mock(ProjectionEnvironment.class);
+        EnvironmentState environment = mock(EnvironmentState.class);
         when(pack.getProgramSet(dimension)).thenReturn(programs);
         field(PortalIrisRenderer.class, "pack").set(pool, pack);
         try (MockedStatic<PortalIrisPipeline> pipelines = mockStatic(PortalIrisPipeline.class);
@@ -167,7 +167,7 @@ public class PortalIrisPoolTest {
         ShaderPack pack = mock(ShaderPack.class);
         PortalIrisRenderer pool = new PortalIrisRenderer(() -> pack);
         ProgramSet programs = mock(ProgramSet.class);
-        ProjectionEnvironment environment = mock(ProjectionEnvironment.class);
+        EnvironmentState environment = mock(EnvironmentState.class);
         NamespacedId dimension = new NamespacedId("minecraft:overworld");
         when(pack.getProgramSet(dimension)).thenReturn(programs);
         field(PortalIrisRenderer.class, "pack").set(pool, pack);
@@ -210,7 +210,7 @@ public class PortalIrisPoolTest {
     public void warmupBuildsOnePipelinePerFrameAndReusesAlreadyReadySessions() throws ReflectiveOperationException {
         ShaderPack pack = mock(ShaderPack.class);
         PortalIrisRenderer pool = new PortalIrisRenderer(() -> pack);
-        ProjectionEnvironment environment = mock(ProjectionEnvironment.class);
+        EnvironmentState environment = mock(EnvironmentState.class);
         PortalShaderContext.View view = mock(PortalShaderContext.View.class);
         NamespacedId dimension = new NamespacedId("minecraft:overworld");
         ProgramSet programs = mock(ProgramSet.class);
@@ -273,8 +273,8 @@ public class PortalIrisPoolTest {
     public void steadyViewsAndResolutionChangesRetainTheirLinkedPipeline() throws ReflectiveOperationException {
         ShaderPack pack = mock(ShaderPack.class);
         PortalIrisRenderer pool = new PortalIrisRenderer(() -> pack);
-        ProjectionEnvironment environment = mock(ProjectionEnvironment.class);
-        ProjectionEnvironment.World world = mock(ProjectionEnvironment.World.class);
+        EnvironmentState environment = mock(EnvironmentState.class);
+        EnvironmentState.World world = mock(EnvironmentState.World.class);
         when(environment.world()).thenReturn(world);
         when(world.dimensionKey()).thenReturn("minecraft:overworld");
         PortalShaderContext.View view = mock(PortalShaderContext.View.class);
@@ -335,8 +335,8 @@ public class PortalIrisPoolTest {
     public void pendingResizeAndReopeningRetainTheShaderQueue() throws ReflectiveOperationException {
         ShaderPack pack = mock(ShaderPack.class);
         PortalIrisRenderer pool = new PortalIrisRenderer(() -> pack);
-        ProjectionEnvironment environment = mock(ProjectionEnvironment.class);
-        ProjectionEnvironment.World world = mock(ProjectionEnvironment.World.class);
+        EnvironmentState environment = mock(EnvironmentState.class);
+        EnvironmentState.World world = mock(EnvironmentState.World.class);
         when(environment.world()).thenReturn(world);
         when(world.dimensionKey()).thenReturn("minecraft:overworld");
         PortalShaderContext.View view = mock(PortalShaderContext.View.class);
@@ -395,7 +395,7 @@ public class PortalIrisPoolTest {
     public void failedWarmupConsumesTheFramesConstructionAllowance() throws ReflectiveOperationException {
         ShaderPack pack = mock(ShaderPack.class);
         PortalIrisRenderer pool = new PortalIrisRenderer(() -> pack);
-        ProjectionEnvironment environment = mock(ProjectionEnvironment.class);
+        EnvironmentState environment = mock(EnvironmentState.class);
         PortalShaderContext.View view = mock(PortalShaderContext.View.class);
         NamespacedId dimension = new NamespacedId("minecraft:overworld");
         when(pack.getProgramSet(dimension)).thenReturn(mock(ProgramSet.class));
@@ -423,7 +423,7 @@ public class PortalIrisPoolTest {
         PortalIrisRenderer pool = new PortalIrisRenderer(() -> pack);
         ProgramSet programs = mock(ProgramSet.class);
         NamespacedId dimension = new NamespacedId("minecraft:overworld");
-        ProjectionEnvironment environment = mock(ProjectionEnvironment.class);
+        EnvironmentState environment = mock(EnvironmentState.class);
         when(pack.getProgramSet(dimension)).thenReturn(programs);
         try (MockedStatic<PortalIrisPipeline> dimensions = mockStatic(PortalIrisPipeline.class);
              MockedStatic<PortalIrisResources> resources = mockStatic(PortalIrisResources.class);
@@ -478,7 +478,7 @@ public class PortalIrisPoolTest {
         PortalIrisRenderer pool = new PortalIrisRenderer(() -> pack);
         ProgramSet programs = mock(ProgramSet.class);
         NamespacedId dimension = new NamespacedId("minecraft:overworld");
-        ProjectionEnvironment environment = mock(ProjectionEnvironment.class);
+        EnvironmentState environment = mock(EnvironmentState.class);
         when(pack.getProgramSet(dimension)).thenReturn(programs);
         try (MockedStatic<PortalIrisPipeline> dimensions = mockStatic(PortalIrisPipeline.class);
              MockedStatic<PortalIrisResources> resources = mockStatic(PortalIrisResources.class);

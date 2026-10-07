@@ -10,7 +10,7 @@ public final class LocalEntityEnvelope {
                                           double maxX,
                                           double maxY,
                                           double maxZ,
-                                          ProjectionVolume volume,
+                                          ApertureSlab volume,
                                           ViewVolume frustum) {
         return volume.encloses(volume.signedDistance(minX, minY, minZ), volume.signedDistance(maxX, maxY, maxZ))
             && frustum.containsBox(minX, minY, minZ, maxX, maxY, maxZ);

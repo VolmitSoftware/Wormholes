@@ -12,7 +12,7 @@ import art.arcane.wormholes.chunk.BukkitChunkLeaseProvider;
 import art.arcane.wormholes.chunk.presend.ChunkCoordinate;
 import art.arcane.wormholes.chunk.presend.ChunkPreSendPlanner;
 import art.arcane.optics.math.Vec3d;
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.LocalPortal;
 import art.arcane.optics.crossing.PlaneCrossing;
@@ -299,7 +299,7 @@ final class BukkitPreparedTravel implements AutoCloseable {
             }
             ChunkWorldContext metadata = context.get();
             Vec3d eye = preparation.feet.add(new Vec3d(0, preparation.eyeHeight, 0));
-            ProjectionEnvironment environment = authoritativeEnvironment(BukkitPortalEnvironment.capture(preparation.world, eye,
+            EnvironmentState environment = authoritativeEnvironment(BukkitPortalEnvironment.capture(preparation.world, eye,
                 OpticTransform.IDENTITY), metadata);
             preparation.begin = new TravelMessage.TravelBegin(UUID.randomUUID(), preparation.generation, preparation.source,
                 preparation.sourceWorld, preparation.sourceGeometry, preparation.destinationToSource, new TravelMessage.TravelWorld(metadata.dimension(), metadata.dimensionType(), metadata.seed(),
@@ -397,10 +397,10 @@ final class BukkitPreparedTravel implements AutoCloseable {
         return nearest;
     }
 
-    private static ProjectionEnvironment authoritativeEnvironment(ProjectionEnvironment environment, ChunkWorldContext metadata) {
-        ProjectionEnvironment.World world = environment.world();
-        return new ProjectionEnvironment(metadata.gameTime(), environment.sky(), environment.fog(), environment.lighting(),
-            environment.clouds(), environment.transform(), environment.dimension(), new ProjectionEnvironment.World(metadata.dimension(),
+    private static EnvironmentState authoritativeEnvironment(EnvironmentState environment, ChunkWorldContext metadata) {
+        EnvironmentState.World world = environment.world();
+        return new EnvironmentState(metadata.gameTime(), environment.sky(), environment.fog(), environment.lighting(),
+            environment.clouds(), environment.transform(), environment.dimension(), new EnvironmentState.World(metadata.dimension(),
                 metadata.clockTime(), world.biomeKey(), metadata.seaLevel(), world.blockLight(), world.skyLight(), world.logicalHeight(),
                 world.hasCeiling(), world.ambientLight(), world.eyeMedium(), world.hasFixedTime()));
     }

@@ -6,7 +6,7 @@ import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.PlateHandoff;
 import art.arcane.optics.stream.PlateSectionBox;
 import art.arcane.optics.math.CellKeys;
-import art.arcane.optics.scan.ProjectorSample;
+import art.arcane.optics.scan.Sample;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.plate.PlateCell;
@@ -221,7 +221,7 @@ public final class ClientPlate implements ClientPortalContent {
         if (cell == null) {
             return ViewStreamLimits.PALETTE_AIR;
         }
-        ProjectorSample.Kind kind = cell.kind();
+        Sample.Kind kind = cell.kind();
         return switch (kind) {
             case OCCLUDED -> ViewStreamLimits.PALETTE_OCCLUDED;
             case BACKING_BLOCK -> ViewStreamLimits.PALETTE_BACKING;

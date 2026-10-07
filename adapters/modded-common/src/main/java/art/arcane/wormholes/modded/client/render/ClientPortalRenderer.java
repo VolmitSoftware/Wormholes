@@ -5,7 +5,7 @@ import art.arcane.wormholes.modded.client.WormholesClient;
 
 import art.arcane.optics.aperture.AperturePolygon;
 import art.arcane.optics.aperture.ApertureDescriptor;
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.portal.ApertureKind;
@@ -114,7 +114,7 @@ public final class ClientPortalRenderer {
     private Portal travel;
     private Portal arrival;
     private Portal travelSource;
-    private ProjectionEnvironment travelSourceEnvironment;
+    private EnvironmentState travelSourceEnvironment;
     private PortalShaderRenderer.Session travelSourceShaders;
     private CameraRenderState travelCamera;
     private final CameraRenderState travelDisplayCamera = new CameraRenderState();
@@ -177,7 +177,7 @@ public final class ClientPortalRenderer {
     }
 
     public void prepareTravelSource(ClientTravelScene scene) {
-        ProjectionEnvironment environment = scene.environment();
+        EnvironmentState environment = scene.environment();
         if (environment != null && environment.equals(travelSourceEnvironment)) {
             Portal previous = portals.remove(-3);
             if (previous != null) {
@@ -199,7 +199,7 @@ public final class ClientPortalRenderer {
         travelSourceShaders = null;
     }
 
-    public void prepareTravelSourceEnvironment(ProjectionEnvironment environment) {
+    public void prepareTravelSourceEnvironment(EnvironmentState environment) {
         if (!Objects.equals(travelSourceEnvironment, environment)) {
             if (shaderRenderer != null) {
                 shaderRenderer.remove(-3);
@@ -711,7 +711,7 @@ public final class ClientPortalRenderer {
         return targets.travel(-4, main.width, main.height);
     }
 
-    void prepareNativeSky(ProjectionEnvironment environment, CameraRenderState camera) {
+    void prepareNativeSky(EnvironmentState environment, CameraRenderState camera) {
         if (nativeEnvironment == null) {
             nativeEnvironment = new PortalEnvironmentRenderer();
         }

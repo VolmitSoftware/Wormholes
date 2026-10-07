@@ -1,7 +1,7 @@
 package art.arcane.optics.plate;
 
 
-import art.arcane.optics.scan.ProjectorSample;
+import art.arcane.optics.scan.Sample;
 import art.arcane.optics.fidelity.BlockEntitySample;
 
 /**
@@ -13,19 +13,19 @@ import art.arcane.optics.fidelity.BlockEntitySample;
 public final class PlateCell<B> {
     static final int BYTES = 40;
 
-    private final ProjectorSample.Kind kind;
+    private final Sample.Kind kind;
     private final B sourceData;
     private final B data;
     private final BlockEntitySample blockEntity;
 
-    public PlateCell(ProjectorSample.Kind kind, B sourceData, B data, BlockEntitySample blockEntity) {
+    public PlateCell(Sample.Kind kind, B sourceData, B data, BlockEntitySample blockEntity) {
         this.kind = kind;
         this.sourceData = sourceData;
         this.data = data;
         this.blockEntity = blockEntity;
     }
 
-    public ProjectorSample.Kind kind() {
+    public Sample.Kind kind() {
         return kind;
     }
 
@@ -42,11 +42,11 @@ public final class PlateCell<B> {
     }
 
     public boolean isAir() {
-        return kind == ProjectorSample.Kind.REMOTE_AIR || kind == ProjectorSample.Kind.MASK_AIR;
+        return kind == Sample.Kind.REMOTE_AIR || kind == Sample.Kind.MASK_AIR;
     }
 
-    public <V> ProjectorSample<B, V> sample(V lightView, long remoteKey) {
-        return new ProjectorSample<B, V>(kind, sourceData, lightView, remoteKey);
+    public <V> Sample<B, V> sample(V lightView, long remoteKey) {
+        return new Sample<B, V>(kind, sourceData, lightView, remoteKey);
     }
 
     int bytes() {

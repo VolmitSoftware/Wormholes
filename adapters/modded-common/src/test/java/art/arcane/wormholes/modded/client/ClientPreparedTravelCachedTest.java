@@ -28,7 +28,7 @@ import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.wormholes.modded.client.render.PortalIrisMainPipelines;
 import art.arcane.wormholes.modded.clientview.MinecraftPortalEnvironment;
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.frame.OpticTransform;
 import net.minecraft.client.player.LocalPlayer;
@@ -523,13 +523,13 @@ public class ClientPreparedTravelCachedTest {
         when(player.getZ()).thenReturn(-3.4);
         when(player.getEyePosition()).thenReturn(new Vec3(12.25, 87.12, -3.4));
         Vec3d eye = new Vec3d(12.25, 87.12, -3.4);
-        ProjectionEnvironment template = PortalEnvironmentTest.environment(OpticTransform.IDENTITY);
-        ProjectionEnvironment environment = new ProjectionEnvironment(template.gameTime(), template.sky(), template.fog(),
+        EnvironmentState template = PortalEnvironmentTest.environment(OpticTransform.IDENTITY);
+        EnvironmentState environment = new EnvironmentState(template.gameTime(), template.sky(), template.fog(),
             template.lighting(), template.clouds(), template.transform(),
-            new ProjectionEnvironment.Dimension(world.minY(), world.height(), false,
-                ProjectionEnvironment.CardinalLighting.DEFAULT, 0.0, false),
-            new ProjectionEnvironment.World(world.dimension(), 6000, "minecraft:nether_wastes", world.seaLevel(),
-                7, 0, 128, true, 0.1F, ProjectionEnvironment.EyeMedium.NONE, false));
+            new EnvironmentState.Dimension(world.minY(), world.height(), false,
+                EnvironmentState.CardinalLighting.DEFAULT, 0.0, false),
+            new EnvironmentState.World(world.dimension(), 6000, "minecraft:nether_wastes", world.seaLevel(),
+                7, 0, 128, true, 0.1F, EnvironmentState.EyeMedium.NONE, false));
         Method capture = ClientPreparedTravel.class.getDeclaredMethod("sourceBegin", ClientLevel.class, LocalPlayer.class);
         capture.setAccessible(true);
         Minecraft minecraft = mock(Minecraft.class);
@@ -599,7 +599,7 @@ public class ClientPreparedTravelCachedTest {
         TravelMessage.TravelBegin begin = new TravelMessage.TravelBegin(original.token(), original.generation(),
             original.sourcePortal(), original.sourceWorld(), original.sourceGeometry(), original.destinationToSource(),
             original.world(), original.arrival(), manifest, original.environment(), original.expiresMillis(), TravelMessage.ArrivalRules.FRAME, false, 0, false);
-        ProjectionEnvironment environment = begin.environment();
+        EnvironmentState environment = begin.environment();
         List<TravelMessage> sent = new ArrayList<>();
         ClientPreparedTravel travel = ClientTravelTestFixtures.travel(sent::add);
         Minecraft minecraft = mock(Minecraft.class);

@@ -9,7 +9,7 @@ import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.ViewWindow;
 import art.arcane.optics.aperture.ApertureCells;
-import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.claim.BlockClaim;
 import art.arcane.optics.aperture.AperturePolygon;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.Face;
@@ -53,7 +53,7 @@ class DoorApertureFramesTest {
                 for (double padding : new double[]{0, 0.125, 0.5}) {
                     for (boolean front : new boolean[]{true, false}) {
                         ApertureDescriptor geometry = ApertureDescriptor.fromPortal(new ApertureDescriptor.Source(cells, frame,
-                            front, false, 0, padding, padding, 1, 128, 4, 0, 0, 0, ProjectedBlockClaim.LightingPolicy.LOCAL,
+                            front, false, 0, padding, padding, 1, 128, 4, 0, 0, 0, BlockClaim.LightingPolicy.LOCAL,
                             0, ApertureKind.DOOR, DoorwayPlane.planeOffset(frame.getNormal()), 0, 1, List.of())).orElseThrow();
                         assertEquals(frame, geometry.frame());
                         assertEquals(plane.planeY(), geometry.planeCoordinate(), 0.0D);

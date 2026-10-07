@@ -6,9 +6,9 @@ import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.QuarterTurn;
 import static art.arcane.optics.math.Face.E;
 import art.arcane.optics.recursion.RecursiveEndpoints;
-import art.arcane.optics.scan.ProjectorSample;
-import art.arcane.optics.scan.ProjectorSampleMemo;
-import art.arcane.optics.scan.ProjectorSampler;
+import art.arcane.optics.scan.Sample;
+import art.arcane.optics.scan.SampleMemo;
+import art.arcane.optics.scan.Sampler;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Blocks;
@@ -34,26 +34,26 @@ public class MinecraftProjectorSamplerTest extends MinecraftTestBase {
         when(fixture.view().sampleBlockData(anyInt(), anyInt(), anyInt())).thenReturn(stone);
         when(fixture.view().material(anyInt(), anyInt(), anyInt())).thenReturn(stone);
         fixture.sampler().setBuriedCellCullingPass(true);
-        assertEquals(ProjectorSample.Kind.OCCLUDED, sample(fixture, true).kind());
+        assertEquals(Sample.Kind.OCCLUDED, sample(fixture, true).kind());
 
         fixture.memo().clearDestinationSamples();
         when(fixture.view().material(2, 64, 0)).thenReturn(Blocks.AIR.defaultBlockState());
-        assertEquals(ProjectorSample.Kind.BACKING_BLOCK, sample(fixture, true).kind());
+        assertEquals(Sample.Kind.BACKING_BLOCK, sample(fixture, true).kind());
 
         fixture.memo().clearDestinationSamples();
         when(fixture.view().material(1, 64, 0)).thenReturn(Blocks.AIR.defaultBlockState());
-        assertEquals(ProjectorSample.Kind.BLOCK, sample(fixture, true).kind());
+        assertEquals(Sample.Kind.BLOCK, sample(fixture, true).kind());
 
         fixture.memo().clearDestinationSamples();
         when(fixture.view().sampleBlockData(0, 64, 0)).thenReturn(Blocks.CAVE_AIR.defaultBlockState());
-        ProjectorSample<BlockState, MinecraftProjectionWorldView> air = sample(fixture, true);
-        assertEquals(ProjectorSample.Kind.REMOTE_AIR, air.kind());
+        Sample<BlockState, MinecraftProjectionWorldView> air = sample(fixture, true);
+        assertEquals(Sample.Kind.REMOTE_AIR, air.kind());
         assertSame(Blocks.AIR.defaultBlockState(), air.data());
         assertSame(fixture.view(), air.lightView());
 
         fixture.memo().clearDestinationSamples();
         when(fixture.view().sampleBlockData(0, 64, 0)).thenReturn(null);
-        assertEquals(ProjectorSample.Kind.NO_SAMPLE, sample(fixture, true).kind());
+        assertEquals(Sample.Kind.NO_SAMPLE, sample(fixture, true).kind());
     }
 
     @Test
@@ -75,10 +75,10 @@ public class MinecraftProjectorSamplerTest extends MinecraftTestBase {
         assertNotSame(Blocks.STONE.defaultBlockState(), sentinel);
         assertFalse(MinecraftProjectorBlocks.INSTANCE.isOccluded(Blocks.STONE.defaultBlockState()));
         when(fixture.view().sampleBlockData(0, 64, 0)).thenReturn(sentinel);
-        assertEquals(ProjectorSample.Kind.OCCLUDED, sample(fixture, false).kind());
+        assertEquals(Sample.Kind.OCCLUDED, sample(fixture, false).kind());
     }
 
-    private static ProjectorSample<BlockState, MinecraftProjectionWorldView> sample(Fixture fixture, boolean culling) {
+    private static Sample<BlockState, MinecraftProjectionWorldView> sample(Fixture fixture, boolean culling) {
         return fixture.sampler().resolve(fixture.view(), 0.1D, 64.1D, 0.1D,
             0.0D, 64.0D, -5.0D, null, 3, culling, null, null);
     }
@@ -93,15 +93,15 @@ public class MinecraftProjectorSamplerTest extends MinecraftTestBase {
         when(access.endpoints()).thenReturn(List.of());
         RecursiveEndpoints<ServerLevel, MinecraftPortal> portals = new RecursiveEndpoints<>(access,
             () -> new RecursiveEndpoints.Options(0.0D, 64.0D));
-        ProjectorSampleMemo<BlockState, BlockState, MinecraftProjectionWorldView> memo = new ProjectorSampleMemo<>(
+        SampleMemo<BlockState, BlockState, MinecraftProjectionWorldView> memo = new SampleMemo<>(
             MinecraftProjectorBlocks.INSTANCE, () -> null);
-        ProjectorSampler<BlockState, BlockState, ServerLevel, MinecraftPortal, MinecraftProjectionWorldView> sampler = new ProjectorSampler<>(
-            new ProjectorSampler.Options<>(memo, portals, world -> view, MinecraftProjectionWorldView::getWorld));
+        Sampler<BlockState, BlockState, ServerLevel, MinecraftPortal, MinecraftProjectionWorldView> sampler = new Sampler<>(
+            new Sampler.Options<>(memo, portals, world -> view, MinecraftProjectionWorldView::getWorld));
         return new Fixture(view, memo, sampler);
     }
 
     private record Fixture(MinecraftProjectionWorldView view,
-                           ProjectorSampleMemo<BlockState, BlockState, MinecraftProjectionWorldView> memo,
-                           ProjectorSampler<BlockState, BlockState, ServerLevel, MinecraftPortal, MinecraftProjectionWorldView> sampler) {
+                           SampleMemo<BlockState, BlockState, MinecraftProjectionWorldView> memo,
+                           Sampler<BlockState, BlockState, ServerLevel, MinecraftPortal, MinecraftProjectionWorldView> sampler) {
     }
 }

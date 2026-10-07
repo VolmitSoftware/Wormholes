@@ -7,7 +7,7 @@ import art.arcane.optics.stream.ViewStreamReader;
 import art.arcane.optics.stream.ViewStreamWriter;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.aperture.ApertureCells;
-import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.claim.BlockClaim;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 import org.junit.jupiter.api.Test;
@@ -73,7 +73,7 @@ final class ClientPortalGeometryPlaneOffsetTest {
         ApertureCells aperture = new ApertureCells();
         aperture.setArea(new Box(min[0], max[0] + 0.999D, min[1], max[1] + 0.999D, min[2], max[2] + 0.999D));
         return ApertureDescriptor.fromPortal(new ApertureDescriptor.Source(aperture, frame, true, false, 0, 2.0D, 0.75D, 0.2D, 64, 3,
-            ApertureDescriptor.BLACKOUT_OFF, 0, ApertureDescriptor.MASK_AIR_PROJECT, ProjectedBlockClaim.LightingPolicy.LOCAL, 0,
+            ApertureDescriptor.BLACKOUT_OFF, 0, ApertureDescriptor.MASK_AIR_PROJECT, BlockClaim.LightingPolicy.LOCAL, 0,
             kind, planeOffset, 0, 11L, nested)).orElseThrow();
     }
 }

@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client.render;
 
 import art.arcane.optics.aperture.ApertureDescriptor;
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import it.unimi.dsi.fastutil.longs.LongIterable;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
@@ -24,7 +24,7 @@ public interface PortalScene {
         return false;
     }
 
-    default ProjectionEnvironment environment() {
+    default EnvironmentState environment() {
         return null;
     }
 

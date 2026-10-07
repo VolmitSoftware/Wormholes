@@ -6,7 +6,7 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.claim.BlockClaim;
 import art.arcane.optics.entity.EntityProjection;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.OpticTransform;
@@ -68,7 +68,7 @@ final class ApertureMirrorTransformTest {
         aperture.setArea(area);
         ApertureDescriptor.Source source = new ApertureDescriptor.Source(aperture, Frame.canonical(normal), true, true, 0, 2.0D,
             0.75D, 0.2D, 16, 1, ApertureDescriptor.BLACKOUT_OFF, 0, ApertureDescriptor.MASK_AIR_PROJECT,
-            ProjectedBlockClaim.LightingPolicy.LOCAL, 0, 0, 0.0D, 0, 0L, List.of());
+            BlockClaim.LightingPolicy.LOCAL, 0, 0, 0.0D, 0, 0L, List.of());
         return ApertureDescriptor.fromPortal(source).orElseThrow();
     }
 }

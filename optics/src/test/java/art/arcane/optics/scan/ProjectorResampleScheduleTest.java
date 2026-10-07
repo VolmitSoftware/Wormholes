@@ -22,12 +22,12 @@ class ProjectorResampleScheduleTest {
             () -> null, () -> CADENCE);
         long revision = 7L;
 
-        assertTrue(schedule.stableResample(false, revision, true, null, 0.0D, 0.0D, new ProjectorRemoteFootprint()));
+        assertTrue(schedule.stableResample(false, revision, true, null, 0.0D, 0.0D, new RemoteFootprint()));
         schedule.noteSourceViewRevision(revision);
 
         for (int pass = 0; pass < 2_000; pass++) {
             schedule.beginBlockPass();
-            assertFalse(schedule.stableResample(true, revision, true, null, 0.0D, 0.0D, new ProjectorRemoteFootprint()));
+            assertFalse(schedule.stableResample(true, revision, true, null, 0.0D, 0.0D, new RemoteFootprint()));
         }
     }
 
@@ -35,7 +35,7 @@ class ProjectorResampleScheduleTest {
     void farDestinationChurnNeverForcesACadenceResampleAndNearChangesWaitForTheCadence() {
         WorldChangeTracker tracker = new WorldChangeTracker();
         UUID worldId = UUID.nameUUIDFromBytes("resample-churn".getBytes(StandardCharsets.UTF_8));
-        ProjectorRemoteFootprint footprint = new ProjectorRemoteFootprint();
+        RemoteFootprint footprint = new RemoteFootprint();
         footprint.record(8, 64, 8);
         ResampleSchedule schedule = new ResampleSchedule(() -> STANDARD_VIEW,
             () -> tracker, () -> CADENCE);
@@ -78,7 +78,7 @@ class ProjectorResampleScheduleTest {
     void destinationChangeStaysPendingUntilTheForcedResample() {
         WorldChangeTracker tracker = new WorldChangeTracker();
         UUID worldId = UUID.nameUUIDFromBytes("resample-pending".getBytes(StandardCharsets.UTF_8));
-        ProjectorRemoteFootprint footprint = new ProjectorRemoteFootprint();
+        RemoteFootprint footprint = new RemoteFootprint();
         footprint.record(8, 64, 8);
         ResampleSchedule schedule = new ResampleSchedule(() -> STANDARD_VIEW, () -> tracker, () -> CADENCE);
         schedule.stableResample(false, 0L, false, worldId, 8.0D, 8.0D, footprint);
@@ -104,7 +104,7 @@ class ProjectorResampleScheduleTest {
     void cadenceIntervalsFollowTheSuppliedRefreshInterval() {
         WorldChangeTracker tracker = new WorldChangeTracker();
         UUID worldId = UUID.nameUUIDFromBytes("resample-cadence".getBytes(StandardCharsets.UTF_8));
-        ProjectorRemoteFootprint footprint = new ProjectorRemoteFootprint();
+        RemoteFootprint footprint = new RemoteFootprint();
         footprint.record(8, 64, 8);
         ResampleSchedule schedule = new ResampleSchedule(() -> STANDARD_VIEW,
             () -> tracker, () -> new ResampleSchedule.Cadence(2, 8, 4, 1));
@@ -128,7 +128,7 @@ class ProjectorResampleScheduleTest {
     void invalidatedDestinationForcesTheNextResample() {
         WorldChangeTracker tracker = new WorldChangeTracker();
         UUID worldId = UUID.nameUUIDFromBytes("resample-invalidate".getBytes(StandardCharsets.UTF_8));
-        ProjectorRemoteFootprint footprint = new ProjectorRemoteFootprint();
+        RemoteFootprint footprint = new RemoteFootprint();
         footprint.record(8, 64, 8);
         ResampleSchedule schedule = new ResampleSchedule(() -> STANDARD_VIEW,
             () -> tracker, () -> CADENCE);
@@ -149,7 +149,7 @@ class ProjectorResampleScheduleTest {
     void cadenceIsReadOncePerBlockPassAndReloadsTakeEffectOnTheNextPass() {
         WorldChangeTracker tracker = new WorldChangeTracker();
         UUID worldId = UUID.nameUUIDFromBytes("resample-cadence".getBytes(StandardCharsets.UTF_8));
-        ProjectorRemoteFootprint footprint = new ProjectorRemoteFootprint();
+        RemoteFootprint footprint = new RemoteFootprint();
         footprint.record(8, 64, 8);
         AtomicInteger reads = new AtomicInteger();
         AtomicReference<ResampleSchedule.Cadence> configured = new AtomicReference<>(CADENCE);

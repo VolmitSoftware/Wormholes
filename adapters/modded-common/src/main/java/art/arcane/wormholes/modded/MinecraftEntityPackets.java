@@ -69,7 +69,7 @@ import art.arcane.optics.entity.EntityOutput;
 import art.arcane.optics.entity.EntityProfile;
 import art.arcane.optics.entity.MapSnapshot;
 import art.arcane.optics.entity.PlayerNames;
-import art.arcane.optics.entity.ProjectedMaps;
+import art.arcane.optics.entity.MapRelay;
 import art.arcane.optics.entity.SnapshotProjector;
 import art.arcane.optics.entity.SpoofRegistry;
 import art.arcane.optics.entity.SpoofedEntity;
@@ -91,7 +91,7 @@ public final class MinecraftEntityPackets implements EntityOutput<ServerPlayer, 
 
     private final WormholesModRuntime runtime;
     private final PlayerNames<ServerPlayer> names = new PlayerNames<>(this, ProjectedEntityIdentity.nextTeamName());
-    private final ProjectedMaps<ServerPlayer> maps = new ProjectedMaps<>(this);
+    private final MapRelay<ServerPlayer> maps = new MapRelay<>(this);
     private final Scoreboard teams = new Scoreboard();
     private MinecraftPacketBlobs blobs;
 
@@ -366,8 +366,8 @@ public final class MinecraftEntityPackets implements EntityOutput<ServerPlayer, 
         List<SynchedEntityData.DataValue<?>> metadata = update.view().getMetadata(update.visual().id());
         if (metadata != null && !metadata.isEmpty()) {
             Integer sourceMapId = MinecraftEntityMetadata.FRAMES.mapId(metadata);
-            ProjectedMaps.Projection map = maps.project(observer, update.visual(), state,
-                new ProjectedMaps.Options(sourceMapId, update.metadataTransform(), update.initial()));
+            MapRelay.Projection map = maps.project(observer, update.visual(), state,
+                new MapRelay.Options(sourceMapId, update.metadataTransform(), update.initial()));
             metadata = MinecraftEntityMetadata.FRAMES.transformMetadata(metadata, update.metadataTransform(), map.mapId(), map.stripMapId());
             if (state.upsideDown()) {
                 metadata = update.visual().isPlayer() ? MinecraftEntityMetadata.ENTITIES.upsideDownPlayer(metadata)

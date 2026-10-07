@@ -3,7 +3,7 @@ package art.arcane.wormholes.modded.client;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.optics.stream.Brick;
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.stream.SectionBiomes;
@@ -33,12 +33,12 @@ import static org.junit.Assert.assertTrue;
 
 public class ClientMeshSectionsReuseTest extends MinecraftTestBase {
     private static final BlockBox BOUNDS = new BlockBox(-32, -32, -32, 64, 64, 64);
-    private static final ProjectionEnvironment ENVIRONMENT = PortalEnvironmentTest.environment(OpticTransform.IDENTITY);
+    private static final EnvironmentState ENVIRONMENT = PortalEnvironmentTest.environment(OpticTransform.IDENTITY);
 
     @Test
     public void immutableIdentityUsesValueEqualityWithoutTreatingCachedHashCollisionsAsProof() {
         ClientMeshSections.Identity original = new ClientMeshSections.Identity(ENVIRONMENT, 71, 1);
-        ProjectionEnvironment same = ENVIRONMENT.withTransform(OpticTransform.of(AxisPermutation.of(Face.E, Face.U, Face.S), 0, 0, 0));
+        EnvironmentState same = ENVIRONMENT.withTransform(OpticTransform.of(AxisPermutation.of(Face.E, Face.U, Face.S), 0, 0, 0));
         ClientMeshSections.Identity equivalent = new ClientMeshSections.Identity(same, 71, 1);
         assertEquals(original, equivalent);
         assertEquals(original.hashCode(), equivalent.hashCode());
@@ -144,13 +144,13 @@ public class ClientMeshSectionsReuseTest extends MinecraftTestBase {
         store.begin(7, 2, BOUNDS, 8);
         assertTrue(store.bind(7, new ClientMeshSections.Identity(ENVIRONMENT, 71, 12)).isEmpty());
         assertTrue(store.view(7).sectionKeys().isEmpty());
-        ProjectionEnvironment translated = ENVIRONMENT.withTransform(OpticTransform.of(AxisPermutation.of(Face.E, Face.U, Face.S), 16, 0, 0));
+        EnvironmentState translated = ENVIRONMENT.withTransform(OpticTransform.of(AxisPermutation.of(Face.E, Face.U, Face.S), 16, 0, 0));
         assertTrue(store.bind(7, new ClientMeshSections.Identity(translated, 71, 11)).isEmpty());
-        ProjectionEnvironment.World previous = ENVIRONMENT.world();
-        ProjectionEnvironment.World nether = new ProjectionEnvironment.World("minecraft:the_nether", previous.clockTime(),
+        EnvironmentState.World previous = ENVIRONMENT.world();
+        EnvironmentState.World nether = new EnvironmentState.World("minecraft:the_nether", previous.clockTime(),
             previous.biomeKey(), previous.seaLevel(), previous.blockLight(), previous.skyLight(), previous.logicalHeight(),
             previous.hasCeiling(), previous.ambientLight(), previous.eyeMedium(), previous.hasFixedTime());
-        ProjectionEnvironment otherWorld = new ProjectionEnvironment(ENVIRONMENT.gameTime(), ENVIRONMENT.sky(), ENVIRONMENT.fog(),
+        EnvironmentState otherWorld = new EnvironmentState(ENVIRONMENT.gameTime(), ENVIRONMENT.sky(), ENVIRONMENT.fog(),
             ENVIRONMENT.lighting(), ENVIRONMENT.clouds(), ENVIRONMENT.transform(), ENVIRONMENT.dimension(), nether);
         assertTrue(store.bind(7, new ClientMeshSections.Identity(otherWorld, 71, 11)).isEmpty());
         assertNull(store.view(7).section(0L));

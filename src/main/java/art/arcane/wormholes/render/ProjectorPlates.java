@@ -23,7 +23,7 @@ import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.render.view.ProjectionWorldViewProvider;
 import art.arcane.optics.math.Face;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
-import art.arcane.optics.scan.ProjectorPassRevision;
+import art.arcane.optics.scan.PassRevision;
 import art.arcane.optics.view.WorldChangeTracker;
 
 final class ProjectorPlates {
@@ -72,7 +72,7 @@ final class ProjectorPlates {
         LodPolicy lod = portalLod(fidelity);
         boolean blockEntities = FidelitySettings.blockEntities && (fidelity == null || fidelity.effectiveBlockEntities());
         long targetIdentity = rtpTarget == null ? 0L : rtpTarget.plateIdentity();
-        long transformRevision = ProjectorPassRevision.mix(ProjectorPassRevision.transform(localFrame, remoteFrame,
+        long transformRevision = PassRevision.mix(PassRevision.transform(localFrame, remoteFrame,
             localOriginX, localOriginY, localOriginZ, remoteOriginX, remoteOriginY, remoteOriginZ, depth, lateral,
             aperturePadding, buriedCellCulling, lod, blockEntities), targetIdentity);
         ViewPlateKey key = new ViewPlateKey(portal.getId(), destination.destView, eyeFrontSide, quarterTurns, targetIdentity);
@@ -104,7 +104,7 @@ final class ProjectorPlates {
         ViewPlateKey original = target.key();
         ViewPlateKey key = new ViewPlateKey(original.portalId(), new MeshSection(original.destinationViewIdentity(), clip),
             original.frontSide(), original.mirrorQuarterTurns(), original.targetIdentity());
-        long transform = ProjectorPassRevision.mix(target.transformRevision(), boundedDistance);
+        long transform = PassRevision.mix(target.transformRevision(), boundedDistance);
         WorldChangeTracker tracker = Wormholes.projectionChangeTracker;
         long revision = destination.destView.getRevision();
         return cache.current(key, revision, transform, tracker, false, previous -> {

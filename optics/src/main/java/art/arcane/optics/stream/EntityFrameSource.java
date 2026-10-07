@@ -3,7 +3,7 @@ package art.arcane.optics.stream;
 import java.util.UUID;
 import java.util.List;
 
-import art.arcane.optics.entity.ProjectedEntityEvent;
+import art.arcane.optics.entity.EntityAnimation;
 
 @FunctionalInterface
 public interface EntityFrameSource<O> {
@@ -13,7 +13,7 @@ public interface EntityFrameSource<O> {
         return sourceId;
     }
 
-    default void event(ProjectedEntityEvent event) {
+    default void event(EntityAnimation event) {
     }
 
     default List<ViewStreamMessage.EntityEvent> events(O observer, UUID portal, int portalKey) {

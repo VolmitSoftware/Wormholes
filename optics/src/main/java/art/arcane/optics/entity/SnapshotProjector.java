@@ -8,7 +8,7 @@ import art.arcane.optics.view.BlockView;
 import art.arcane.optics.aperture.Endpoint;
 
 import java.util.function.Supplier;
-import art.arcane.optics.occlusion.ProjectedEntityOcclusion;
+import art.arcane.optics.occlusion.EntityOcclusion;
 import art.arcane.optics.recursion.EntityPath;
 import art.arcane.optics.volume.ViewVolume;
 import art.arcane.optics.frame.OpticTransform;
@@ -129,19 +129,19 @@ public final class SnapshotProjector<O, W, P extends Endpoint, R, T, V> {
     }
 
     public static <W, P extends Endpoint, B, BV extends BlockView<B>> boolean fullyHidden(
-            ProjectedEntityOcclusion<B, BV> occlusion, EntitySnapshot visual, EntityPath<W, P> path) {
+            EntityOcclusion<B, BV> occlusion, EntitySnapshot visual, EntityPath<W, P> path) {
         if (path == null || !path.nested() || visual == null) {
             return occlusion.fullyHidden(visual);
         }
-        return path.fullyHidden(occlusion, visual.x() - ProjectedEntityOcclusion.VISUAL_HALF_WIDTH, visual.y(),
-            visual.z() - ProjectedEntityOcclusion.VISUAL_HALF_WIDTH, visual.x() + ProjectedEntityOcclusion.VISUAL_HALF_WIDTH,
-            visual.y() + Math.max(ProjectedEntityOcclusion.MIN_VISUAL_HEIGHT, visual.height()) + ProjectedEntityOcclusion.LABEL_VERTICAL_MARGIN,
-            visual.z() + ProjectedEntityOcclusion.VISUAL_HALF_WIDTH);
+        return path.fullyHidden(occlusion, visual.x() - EntityOcclusion.VISUAL_HALF_WIDTH, visual.y(),
+            visual.z() - EntityOcclusion.VISUAL_HALF_WIDTH, visual.x() + EntityOcclusion.VISUAL_HALF_WIDTH,
+            visual.y() + Math.max(EntityOcclusion.MIN_VISUAL_HEIGHT, visual.height()) + EntityOcclusion.LABEL_VERTICAL_MARGIN,
+            visual.z() + EntityOcclusion.VISUAL_HALF_WIDTH);
     }
 
     public record Pass<W, P extends Endpoint, V, B, BV extends BlockView<B>>(
         P local, Endpoint remote, V view, OpticTransform transform, ViewVolume frustum, EntityPath<W, P> path,
-        ProjectedEntityOcclusion<B, BV> occlusion, double range, int limit) {
+        EntityOcclusion<B, BV> occlusion, double range, int limit) {
     }
 
     public record EntityRange(double x, double y, double z, double range) {

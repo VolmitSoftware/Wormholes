@@ -1,7 +1,7 @@
 package art.arcane.wormholes.render.view;
 
 import art.arcane.optics.entity.EntityProfile;
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.wormholes.network.view.RemoteViewCache;
 import art.arcane.optics.math.BlockBox;
@@ -32,8 +32,8 @@ public class RemoteProjectionView<B, T, M, E> implements ContentView<B, T>, Proj
         this.biomeIds = options.biomeIds();
     }
 
-    public ProjectionEnvironment environment(OpticTransform transform) {
-        ProjectionEnvironment captured = view.environment();
+    public EnvironmentState environment(OpticTransform transform) {
+        EnvironmentState captured = view.environment();
         return captured == null ? null : captured.withTransform(transform);
     }
 

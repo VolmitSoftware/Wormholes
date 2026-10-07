@@ -11,7 +11,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.service.WormholesTelemetry;
-import art.arcane.optics.scan.ProjectorFrustumFailures;
+import art.arcane.optics.scan.FrustumFailures;
 
 public final class PortalProjectorFrustumFailureTest {
     @BeforeEach
@@ -26,34 +26,34 @@ public final class PortalProjectorFrustumFailureTest {
 
     @Test
     public void aProjectorThatCannotBuildItsFrustumIsGivenUpOnInsteadOfRetriedForever() {
-        ProjectorFrustumFailures failures = new ProjectorFrustumFailures(WormholesTelemetry.metrics());
+        FrustumFailures failures = new FrustumFailures(WormholesTelemetry.metrics());
 
-        assertFalse(ProjectorFrustumFailures.exhausted(failures.recordFailure()),
+        assertFalse(FrustumFailures.exhausted(failures.recordFailure()),
             "the first failure must not close a projector that may recover");
-        assertFalse(ProjectorFrustumFailures.exhausted(failures.recordFailure()),
+        assertFalse(FrustumFailures.exhausted(failures.recordFailure()),
             "the second failure must not close a projector that may recover");
-        assertTrue(ProjectorFrustumFailures.exhausted(failures.recordFailure()),
+        assertTrue(FrustumFailures.exhausted(failures.recordFailure()),
             "a structure that always throws must stop the pass loop instead of spinning forever");
         assertEquals(3, failures.total(), "every terminal failure must be counted for reporting");
     }
 
     @Test
     public void aRecoveredPassClearsTheConsecutiveFailureRun() {
-        ProjectorFrustumFailures failures = new ProjectorFrustumFailures(WormholesTelemetry.metrics());
+        FrustumFailures failures = new FrustumFailures(WormholesTelemetry.metrics());
 
         failures.recordFailure();
         failures.recordFailure();
         failures.recordSuccess();
 
         assertEquals(0, failures.consecutive(), "a successful frustum build must clear the failure run");
-        assertFalse(ProjectorFrustumFailures.exhausted(failures.recordFailure()),
+        assertFalse(FrustumFailures.exhausted(failures.recordFailure()),
             "isolated failures separated by good passes must never close a healthy projector");
         assertEquals(3, failures.total(), "the lifetime failure count must survive recovery");
     }
 
     @Test
     public void repeatedSuccessesDoNotDisturbTheFailureCounters() {
-        ProjectorFrustumFailures failures = new ProjectorFrustumFailures(WormholesTelemetry.metrics());
+        FrustumFailures failures = new FrustumFailures(WormholesTelemetry.metrics());
 
         failures.recordSuccess();
         failures.recordSuccess();
@@ -65,7 +65,7 @@ public final class PortalProjectorFrustumFailureTest {
 
     @Test
     public void everyFrustumBuildFailureReachesTheSharedTerminalFailureCounter() {
-        ProjectorFrustumFailures failures = new ProjectorFrustumFailures(WormholesTelemetry.metrics());
+        FrustumFailures failures = new FrustumFailures(WormholesTelemetry.metrics());
 
         failures.recordFailure();
         failures.recordFailure();
@@ -75,28 +75,28 @@ public final class PortalProjectorFrustumFailureTest {
         assertEquals(3, failures.total(), "the subsystem ledger must still own the local count");
         assertEquals(3L, WormholesTelemetry.failures(),
             "the render terminal failure must also be visible on the plugin wide counter, not just in verbose diagnostics");
-        assertEquals(Map.of(ProjectorFrustumFailures.FAILURE_REASON, Long.valueOf(3L)),
+        assertEquals(Map.of(FrustumFailures.FAILURE_REASON, Long.valueOf(3L)),
             WormholesTelemetry.failureBreakdown(),
             "the failure must be attributed to a stable, greppable reason");
     }
 
     @Test
     public void theFrustumFailureReasonIsAStableSubsystemPrefixedToken() {
-        assertEquals("RENDER_FRUSTUM_BUILD_FAILED", ProjectorFrustumFailures.FAILURE_REASON);
+        assertEquals("RENDER_FRUSTUM_BUILD_FAILED", FrustumFailures.FAILURE_REASON);
     }
 
     @Test
     public void theClosingFailureIsCountedExactlyOnceAndNotAgainAtTheProjectorLevel() {
-        ProjectorFrustumFailures failures = new ProjectorFrustumFailures(WormholesTelemetry.metrics());
+        FrustumFailures failures = new FrustumFailures(WormholesTelemetry.metrics());
 
         int consecutive = 0;
-        while (!ProjectorFrustumFailures.exhausted(consecutive)) {
+        while (!FrustumFailures.exhausted(consecutive)) {
             consecutive = failures.recordFailure();
         }
 
-        assertEquals(ProjectorFrustumFailures.CONSECUTIVE_LIMIT, failures.total(),
+        assertEquals(FrustumFailures.CONSECUTIVE_LIMIT, failures.total(),
             "the run that closes the projector must not be double counted at two levels of the same call chain");
-        assertEquals((long) ProjectorFrustumFailures.CONSECUTIVE_LIMIT, WormholesTelemetry.failures(),
+        assertEquals((long) FrustumFailures.CONSECUTIVE_LIMIT, WormholesTelemetry.failures(),
             "the run that closes the projector must not be double counted at two levels of the same call chain");
     }
 }

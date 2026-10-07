@@ -25,7 +25,7 @@ import art.arcane.wormholes.portal.UniversalTunnel;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.render.view.ProjectionWorldViewProvider;
 import art.arcane.wormholes.render.view.RemoteWorldView;
-import art.arcane.optics.scan.ProjectorPassRevision;
+import art.arcane.optics.scan.PassRevision;
 import art.arcane.optics.scan.ScanDestination;
 
 final class ProjectorDestination implements ScanDestination<ILocalPortal, ProjectionWorldView> {
@@ -207,7 +207,7 @@ final class ProjectorDestination implements ScanDestination<ILocalPortal, Projec
         }
         long hash = mixId(IDENTITY_SEED, destAnchor == null ? null : destAnchor.getId());
         hash = mixId(hash, destWorld == null ? null : destWorld.getUID());
-        return remoteView == null ? hash : ProjectorPassRevision.mix(hash, Objects.hashCode(remoteFallbackState));
+        return remoteView == null ? hash : PassRevision.mix(hash, Objects.hashCode(remoteFallbackState));
     }
 
     private ProjectionWorldView remoteWorldView(String peerName, UUID portalId, int meshDistance) {
@@ -232,9 +232,9 @@ final class ProjectorDestination implements ScanDestination<ILocalPortal, Projec
 
     private static long mixId(long hash, UUID id) {
         if (id == null) {
-            return ProjectorPassRevision.mix(hash, 0L);
+            return PassRevision.mix(hash, 0L);
         }
-        return ProjectorPassRevision.mix(ProjectorPassRevision.mix(hash, id.getMostSignificantBits()), id.getLeastSignificantBits());
+        return PassRevision.mix(PassRevision.mix(hash, id.getMostSignificantBits()), id.getLeastSignificantBits());
     }
 
     private static BlockData parseRemoteFallback(String fallbackState) {

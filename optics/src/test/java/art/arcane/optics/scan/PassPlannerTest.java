@@ -87,7 +87,7 @@ public final class PassPlannerTest {
 
         assertEquals(PassPlan.Kind.RESCAN, plan.kind());
         assertTrue(plan.has(PassPlan.CONTENT_INVALIDATED), "the projection side is part of the presentation");
-        assertTrue((plan.reasons() & ProjectorResampleReasons.CAMERA) != 0);
+        assertTrue((plan.reasons() & ResampleReasons.CAMERA) != 0);
     }
 
     @Test
@@ -158,7 +158,7 @@ public final class PassPlannerTest {
         assertTrue(plan.has(PassPlan.DESTINATION_SAMPLES_STALE));
         assertTrue(plan.has(PassPlan.LOCAL_CONTENT_RESAMPLE));
         assertTrue(plan.has(PassPlan.CONTENT_INVALIDATED));
-        assertTrue((plan.reasons() & ProjectorResampleReasons.STABLE_CADENCE) != 0);
+        assertTrue((plan.reasons() & ResampleReasons.STABLE_CADENCE) != 0);
     }
 
     @Test
@@ -171,13 +171,13 @@ public final class PassPlannerTest {
         inputs.unresolvedOcclusion(true);
         PassPlan recursive = PassPlanner.plan(inputs);
         assertTrue(recursive.has(PassPlan.DESTINATION_CONTENT_STALE));
-        assertTrue((recursive.reasons() & ProjectorResampleReasons.DEST_STALE_RECURSIVE) != 0);
+        assertTrue((recursive.reasons() & ResampleReasons.DEST_STALE_RECURSIVE) != 0);
         inputs.sampler(false, false);
         inputs.unresolvedOcclusion(false);
         inputs.scanMode(new ScanMode(true, true));
         PassPlan modeChange = PassPlanner.plan(inputs);
         assertTrue(modeChange.has(PassPlan.CONTENT_INVALIDATED));
-        assertTrue((modeChange.reasons() & ProjectorResampleReasons.PRESENTATION) != 0);
+        assertTrue((modeChange.reasons() & ResampleReasons.PRESENTATION) != 0);
     }
 
     @Test
@@ -190,7 +190,7 @@ public final class PassPlannerTest {
 
         assertEquals(PassPlan.Kind.RESUME_OCCLUSION, plan.kind());
         assertEquals(0, plan.flags());
-        assertEquals(ProjectorResampleReasons.UNRESOLVED_OCCLUSION, plan.reasons());
+        assertEquals(ResampleReasons.UNRESOLVED_OCCLUSION, plan.reasons());
         assertEquals(PassPlanner.revision(inputs), plan.revision());
     }
 
@@ -347,34 +347,34 @@ public final class PassPlannerTest {
         }
         int reasons = 0;
         if (invalidated) {
-            reasons |= ProjectorResampleReasons.INVALIDATED;
+            reasons |= ResampleReasons.INVALIDATED;
         }
         if (unresolved) {
-            reasons |= ProjectorResampleReasons.UNRESOLVED_OCCLUSION;
+            reasons |= ResampleReasons.UNRESOLVED_OCCLUSION;
         }
         if (stable) {
-            reasons |= ProjectorResampleReasons.STABLE_CADENCE;
+            reasons |= ResampleReasons.STABLE_CADENCE;
         }
         if (localDirty) {
-            reasons |= ProjectorResampleReasons.LOCAL_DIRTY;
+            reasons |= ResampleReasons.LOCAL_DIRTY;
         }
         if (remotePending) {
-            reasons |= ProjectorResampleReasons.REMOTE_PENDING;
+            reasons |= ResampleReasons.REMOTE_PENDING;
         }
         if (lighting) {
-            reasons |= ProjectorResampleReasons.LIGHTING;
+            reasons |= ResampleReasons.LIGHTING;
         }
         if (!committed || !hasProjection || fullSend) {
-            reasons |= ProjectorResampleReasons.FULL_SEND;
+            reasons |= ResampleReasons.FULL_SEND;
         }
         if (dissolving) {
-            reasons |= ProjectorResampleReasons.PRESENTATION;
+            reasons |= ResampleReasons.PRESENTATION;
         }
         if (!camera || moved || flipped) {
-            reasons |= ProjectorResampleReasons.CAMERA;
+            reasons |= ResampleReasons.CAMERA;
         }
         if (holdsExposed) {
-            reasons |= ProjectorResampleReasons.HOLDS_EXPOSED;
+            reasons |= ResampleReasons.HOLDS_EXPOSED;
         }
         boolean scheduled = stable || remotePending;
         boolean destinationContentStale = scheduled || cullingChanged || recursiveCached;
@@ -382,13 +382,13 @@ public final class PassPlannerTest {
         boolean destinationOverBudget = !destinationContentStale && !destinationDirty && bits[OVER_BUDGET];
         boolean destinationSamplesStale = destinationContentStale || destinationDirty || destinationOverBudget;
         if (destinationContentStale && recursiveCached) {
-            reasons |= ProjectorResampleReasons.DEST_STALE_RECURSIVE;
+            reasons |= ResampleReasons.DEST_STALE_RECURSIVE;
         }
         if (destinationDirty) {
-            reasons |= ProjectorResampleReasons.DEST_STALE_DIRTY;
+            reasons |= ResampleReasons.DEST_STALE_DIRTY;
         }
         if (destinationOverBudget) {
-            reasons |= ProjectorResampleReasons.DEST_OVER_BUDGET;
+            reasons |= ResampleReasons.DEST_OVER_BUDGET;
         }
         boolean localContentResample = scheduled || cullingChanged;
         boolean localSamplesStale = localContentResample || bits[LOCAL_STALE];
@@ -398,7 +398,7 @@ public final class PassPlannerTest {
         boolean reuseStableContent = viewCameraMoved && !contentInvalidated && !scheduled;
         boolean forceStableCellResample = contentInvalidated || scheduled || (viewCameraMoved && !reuseStableContent);
         if (presentationChanged) {
-            reasons |= ProjectorResampleReasons.PRESENTATION;
+            reasons |= ResampleReasons.PRESENTATION;
         }
         boolean resume = committed && !invalidated && !dissolving && !forceStableCellResample && !fullSend
             && !destinationSamplesStale && !localSamplesStale && !presentationChanged && bits[RESUMABLE];

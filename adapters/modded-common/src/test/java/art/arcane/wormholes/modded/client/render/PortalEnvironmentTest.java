@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client.render;
 
 import art.arcane.optics.math.Vec3d;
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.AxisPermutation;
@@ -48,7 +48,7 @@ public class PortalEnvironmentTest {
 
     @Test
     public void skyAndFogUseDestinationMetadataAndRequestedDistance() {
-        ProjectionEnvironment environment = environment(identity());
+        EnvironmentState environment = environment(identity());
         SkyRenderState sky = PortalEnvironment.sky(environment, new Vec3d(0, 80, 0));
         assertEquals(new Vector3f(0.2f, 0.4f, 0.8f), sky.skyColor);
         assertEquals(MoonPhase.THIRD_QUARTER, sky.moonPhase);
@@ -77,17 +77,17 @@ public class PortalEnvironmentTest {
         return OpticTransform.of(AxisPermutation.of(Face.E, Face.U, Face.S), 0, 0, 0);
     }
 
-    public static ProjectionEnvironment environment(OpticTransform transform) {
-        ProjectionEnvironment.Color sky = new ProjectionEnvironment.Color(0.2f, 0.4f, 0.8f);
-        ProjectionEnvironment.Color white = new ProjectionEnvironment.Color(1, 1, 1);
-        return new ProjectionEnvironment(6000,
-            new ProjectionEnvironment.Sky(ProjectionEnvironment.Skybox.OVERWORLD, 1, 2, 3, 0.2f,
-                new ProjectionEnvironment.ColorAlpha(1, 0.5f, 0.1f, 0), sky, 2, 0.3f, 0.1f),
-            new ProjectionEnvironment.Fog(sky, 30, 900, 800, 700, sky, -8, 96),
-            new ProjectionEnvironment.Lighting(white, 0.85f, new ProjectionEnvironment.Color(0.7f, 0.8f, 1),
-                new ProjectionEnvironment.Color(0, 0, 0)),
-            new ProjectionEnvironment.Clouds(new ProjectionEnvironment.ColorAlpha(1, 1, 1, 1), 192), transform,
-            new ProjectionEnvironment.Dimension(-64, 384, true, ProjectionEnvironment.CardinalLighting.DEFAULT, 63, false),
-            new ProjectionEnvironment.World("minecraft:overworld", 6000, "minecraft:plains", 63, 7, 15, 256, true, 0.1F, ProjectionEnvironment.EyeMedium.NONE, false));
+    public static EnvironmentState environment(OpticTransform transform) {
+        EnvironmentState.Color sky = new EnvironmentState.Color(0.2f, 0.4f, 0.8f);
+        EnvironmentState.Color white = new EnvironmentState.Color(1, 1, 1);
+        return new EnvironmentState(6000,
+            new EnvironmentState.Sky(EnvironmentState.Skybox.OVERWORLD, 1, 2, 3, 0.2f,
+                new EnvironmentState.ColorAlpha(1, 0.5f, 0.1f, 0), sky, 2, 0.3f, 0.1f),
+            new EnvironmentState.Fog(sky, 30, 900, 800, 700, sky, -8, 96),
+            new EnvironmentState.Lighting(white, 0.85f, new EnvironmentState.Color(0.7f, 0.8f, 1),
+                new EnvironmentState.Color(0, 0, 0)),
+            new EnvironmentState.Clouds(new EnvironmentState.ColorAlpha(1, 1, 1, 1), 192), transform,
+            new EnvironmentState.Dimension(-64, 384, true, EnvironmentState.CardinalLighting.DEFAULT, 63, false),
+            new EnvironmentState.World("minecraft:overworld", 6000, "minecraft:plains", 63, 7, 15, 256, true, 0.1F, EnvironmentState.EyeMedium.NONE, false));
     }
 }

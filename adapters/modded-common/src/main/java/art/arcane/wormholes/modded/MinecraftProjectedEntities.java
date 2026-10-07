@@ -1,8 +1,8 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.optics.math.Vec3d;
-import art.arcane.optics.entity.ProjectedEntityEvent;
-import art.arcane.optics.entity.ProjectionRecovery;
+import art.arcane.optics.entity.EntityAnimation;
+import art.arcane.optics.entity.EntityRecovery;
 
 import art.arcane.wormholes.config.toml.RenderConfig;
 import art.arcane.wormholes.portal.IPortal;
@@ -13,9 +13,9 @@ import art.arcane.optics.entity.SpoofRegistry;
 import art.arcane.optics.entity.SnapshotProjector;
 import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.optics.volume.ViewVolume;
-import art.arcane.optics.occlusion.ProjectedEntityOcclusion;
+import art.arcane.optics.occlusion.EntityOcclusion;
 import art.arcane.optics.volume.LocalEntityEnvelope;
-import art.arcane.optics.volume.ProjectionVolume;
+import art.arcane.optics.volume.ApertureSlab;
 import art.arcane.optics.recursion.RecursiveEndpoints;
 import art.arcane.optics.view.ContentView;
 import art.arcane.wormholes.render.view.ProjectionEntityData;
@@ -48,7 +48,7 @@ public final class MinecraftProjectedEntities implements AutoCloseable {
         ProjectionEntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment>> projector;
     private final RecursiveEndpoints<ServerLevel, MinecraftPortal> recursive;
     private final Map<UUID, MinecraftProjectedEntities> nested = new HashMap<>();
-    private final ProjectionRecovery<ServerPlayer> recovery;
+    private final EntityRecovery<ServerPlayer> recovery;
     private final UUID visibilityOwner = UUID.randomUUID();
 
     public MinecraftProjectedEntities(WormholesModRuntime runtime, Context context) {
@@ -59,8 +59,8 @@ public final class MinecraftProjectedEntities implements AutoCloseable {
         this.packets = new MinecraftEntityPackets(runtime);
         this.registry = new SpoofRegistry<>(packets);
         this.projector = new SnapshotProjector<>(registry, MinecraftEntityVisualHost.FEED, packets, FidelitySettings::snapshot);
-        this.recovery = new ProjectionRecovery<>(packets, runtime.projections().scheduler(),
-            new ProjectionRecovery.Teardown<>(this::hasState, this::sendTeardown, this::dropState, this::releaseVisibility));
+        this.recovery = new EntityRecovery<>(packets, runtime.projections().scheduler(),
+            new EntityRecovery.Teardown<>(this::hasState, this::sendTeardown, this::dropState, this::releaseVisibility));
     }
 
     public void apply(View view) {
@@ -93,7 +93,7 @@ public final class MinecraftProjectedEntities implements AutoCloseable {
         }
     }
 
-    public void event(ProjectedEntityEvent event) {
+    public void event(EntityAnimation event) {
         if (observer.hasDisconnected()) {
             return;
         }
@@ -165,9 +165,9 @@ public final class MinecraftProjectedEntities implements AutoCloseable {
     private void hideLocal(View view) {
         Vec3d origin = source.getOrigin();
         Frame frame = source.getFrame();
-        boolean eyeFrontSide = ProjectionVolume.side(frame, origin.x(), origin.y(), origin.z(), view.eye().x(), view.eye().y(), view.eye().z());
-        ProjectionVolume volume = ProjectionVolume.of(source.getGeometry().getArea(), frame,
-            ProjectionVolume.plane(frame, origin.x(), origin.y(), origin.z()), eyeFrontSide, view.depth(), 0.0D);
+        boolean eyeFrontSide = ApertureSlab.side(frame, origin.x(), origin.y(), origin.z(), view.eye().x(), view.eye().y(), view.eye().z());
+        ApertureSlab volume = ApertureSlab.of(source.getGeometry().getArea(), frame,
+            ApertureSlab.plane(frame, origin.x(), origin.y(), origin.z()), eyeFrontSide, view.depth(), 0.0D);
         Collection<Entity> candidates = runtime.projections().localEntities(observer.level(), source, volume.maxDepth());
         Map<UUID, Entity> desired = new HashMap<>(Math.max(4, candidates.size()));
         for (Entity entity : candidates) {
@@ -212,6 +212,6 @@ public final class MinecraftProjectedEntities implements AutoCloseable {
     public record View(MinecraftPortal destination, IPortal anchor, ServerLevel world,
                        ProjectionEntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment> entities,
                        OpticTransform transform, ViewVolume frustum, Vec3d eye,
-                       ProjectedEntityOcclusion<BlockState, ContentView<BlockState, BlockState>> occlusion, double depth) {
+                       EntityOcclusion<BlockState, ContentView<BlockState, BlockState>> occlusion, double depth) {
     }
 }

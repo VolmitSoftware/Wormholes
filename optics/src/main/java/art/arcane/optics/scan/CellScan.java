@@ -30,20 +30,20 @@ import art.arcane.optics.plate.PlateCell;
 import art.arcane.optics.plate.ViewPlate;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
-import art.arcane.optics.claim.ProjectedBlockClaim;
-import art.arcane.optics.claim.ProjectionBlackout;
-import art.arcane.optics.claim.ProjectionClaimSet;
+import art.arcane.optics.claim.BlockClaim;
+import art.arcane.optics.claim.Blackout;
+import art.arcane.optics.claim.ClaimSet;
 import art.arcane.optics.frame.ViewWindow;
-import art.arcane.optics.internal.occlusion.ProjectorBlackoutBoundary;
-import art.arcane.optics.internal.occlusion.ProjectorHoldProof;
+import art.arcane.optics.internal.occlusion.BlackoutBoundary;
+import art.arcane.optics.internal.occlusion.HoldProof;
 import art.arcane.optics.math.CellKeys;
-import art.arcane.optics.occlusion.ProjectedEntityOcclusion;
-import art.arcane.optics.occlusion.ProjectorViewOcclusion;
+import art.arcane.optics.occlusion.EntityOcclusion;
+import art.arcane.optics.occlusion.ViewOcclusion;
 import art.arcane.optics.recursion.RecursiveEndpoints;
 import art.arcane.optics.volume.FrustumRow;
 import art.arcane.optics.volume.PlaneWindow;
 import art.arcane.optics.volume.ViewVolume;
-import art.arcane.optics.volume.ProjectionVolume;
+import art.arcane.optics.volume.ApertureSlab;
 
 public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B, M>> {
     private static final int FINISH_SEAL = 0;
@@ -54,13 +54,13 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
     private final P portal;
     private final CellAperture aperture;
     private final Supplier<ScanSettings> settings;
-    private final ProjectorSampler<B, M, W, P, V> sampler;
-    private final ProjectorSampleMemo<B, M, V> memo;
-    private final ProjectionBlackout<B> blackout;
-    private final ProjectorViewOcclusion<B> viewOcclusion;
-    private ProjectedEntityOcclusion<B, V> entityOcclusion;
-    private ProjectedEntityOcclusion<B, V> projectedEntityOcclusion;
-    private final ProjectorBlackoutBoundary blackoutBoundary;
+    private final Sampler<B, M, W, P, V> sampler;
+    private final SampleMemo<B, M, V> memo;
+    private final Blackout<B> blackout;
+    private final ViewOcclusion<B> viewOcclusion;
+    private EntityOcclusion<B, V> entityOcclusion;
+    private EntityOcclusion<B, V> projectedEntityOcclusion;
+    private final BlackoutBoundary blackoutBoundary;
     private OpticTransform cellTransform;
     private final double[] scratchRemotePoint;
     private final double[] scratchRemoteEye;
@@ -78,7 +78,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
     private final double[] scratchSlabWindowBounds;
     private final int[] scratchCellCoords;
     private final Long2ByteOpenHashMap localChunkReadiness;
-    private final ProjectorEmptyCellRuns emptyCells;
+    private final EmptyCellRuns emptyCells;
     private final FrustumRow frustumRow;
     private final LongOpenHashSet blackoutGeometry;
     private final Long2LongOpenHashMap blackoutRemoteKeys;
@@ -93,11 +93,11 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
     private int resumeTraced;
     private int resumeResolved;
     private int resumeUnresolvedBefore;
-    private Long2ObjectOpenHashMap<ProjectedBlockClaim<B, V>> projected;
-    private Long2ObjectOpenHashMap<ProjectedBlockClaim<B, V>> nextProjected;
+    private Long2ObjectOpenHashMap<BlockClaim<B, V>> projected;
+    private Long2ObjectOpenHashMap<BlockClaim<B, V>> nextProjected;
     private final LongOpenHashSet changedClaimKeys;
     private final LongOpenHashSet removedClaimKeys;
-    private Long2ObjectMap<ProjectedBlockClaim<B, V>> deltaBaseline;
+    private Long2ObjectMap<BlockClaim<B, V>> deltaBaseline;
     private int retainedClaimCount;
     private int unfilteredClaimCount;
     private Long2ObjectOpenHashMap<BlockEntitySample> projectedBlockEntities;
@@ -162,8 +162,8 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
     private int hiddenHolds;
     private int coneHolds;
     private int heldEvictions;
-    private ProjectorRemoteFootprint remoteFootprint;
-    private ProjectorRemoteFootprint nextRemoteFootprint;
+    private RemoteFootprint remoteFootprint;
+    private RemoteFootprint nextRemoteFootprint;
     private boolean restartRemoteFootprint;
 
     public CellScan(Context<B, M, W, P, V> context) {
@@ -173,10 +173,10 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
         this.sampler = context.sampler();
         this.memo = context.memo();
         this.blackout = context.blackout();
-        this.viewOcclusion = new ProjectorViewOcclusion<B>(memo.blocks());
-        this.entityOcclusion = new ProjectedEntityOcclusion<B, V>(new ProjectorViewOcclusion<B>(memo.blocks(), ProjectedEntityOcclusion.MAX_VOXEL_STEPS_PER_BATCH));
-        this.projectedEntityOcclusion = new ProjectedEntityOcclusion<B, V>(new ProjectorViewOcclusion<B>(memo.blocks(), ProjectedEntityOcclusion.MAX_VOXEL_STEPS_PER_BATCH));
-        this.blackoutBoundary = new ProjectorBlackoutBoundary();
+        this.viewOcclusion = new ViewOcclusion<B>(memo.blocks());
+        this.entityOcclusion = new EntityOcclusion<B, V>(new ViewOcclusion<B>(memo.blocks(), EntityOcclusion.MAX_VOXEL_STEPS_PER_BATCH));
+        this.projectedEntityOcclusion = new EntityOcclusion<B, V>(new ViewOcclusion<B>(memo.blocks(), EntityOcclusion.MAX_VOXEL_STEPS_PER_BATCH));
+        this.blackoutBoundary = new BlackoutBoundary();
         this.cellTransform = OpticTransform.IDENTITY;
         this.scratchRemotePoint = new double[3];
         this.scratchRemoteEye = new double[3];
@@ -194,7 +194,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
         this.scratchSlabWindowBounds = new double[4];
         this.scratchCellCoords = new int[3];
         this.localChunkReadiness = new Long2ByteOpenHashMap(16);
-        this.emptyCells = new ProjectorEmptyCellRuns();
+        this.emptyCells = new EmptyCellRuns();
         this.frustumRow = new FrustumRow();
         this.blackoutGeometry = new LongOpenHashSet(256);
         this.blackoutRemoteKeys = new Long2LongOpenHashMap(256);
@@ -206,8 +206,8 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
         this.unresolvedTargetRemoteKeys = new LongArrayList(256);
         this.projectedUnresolvedOcclusion = new LongOpenHashSet(256);
         this.nextUnresolvedOcclusion = new LongOpenHashSet(256);
-        this.projected = new Long2ObjectOpenHashMap<ProjectedBlockClaim<B, V>>(256);
-        this.nextProjected = new Long2ObjectOpenHashMap<ProjectedBlockClaim<B, V>>(256);
+        this.projected = new Long2ObjectOpenHashMap<BlockClaim<B, V>>(256);
+        this.nextProjected = new Long2ObjectOpenHashMap<BlockClaim<B, V>>(256);
         this.changedClaimKeys = new LongOpenHashSet(64);
         this.removedClaimKeys = new LongOpenHashSet(64);
         this.projectedBlockEntities = new Long2ObjectOpenHashMap<BlockEntitySample>(16);
@@ -221,20 +221,20 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
         this.losingClaimKeys = new LongOpenHashSet(16);
         this.losingBlockers = new LongOpenHashSet(16);
         this.losingClaimsUnsynced = true;
-        this.remoteFootprint = new ProjectorRemoteFootprint();
-        this.nextRemoteFootprint = new ProjectorRemoteFootprint();
+        this.remoteFootprint = new RemoteFootprint();
+        this.nextRemoteFootprint = new RemoteFootprint();
     }
 
-    public Long2ObjectOpenHashMap<ProjectedBlockClaim<B, V>> claims() {
+    public Long2ObjectOpenHashMap<BlockClaim<B, V>> claims() {
         return preparedResult ? nextProjected : projected;
     }
 
-    public ProjectionClaimSet.ClaimDelta<ProjectedBlockClaim<B, V>> claimDelta() {
+    public ClaimSet.ClaimDelta<BlockClaim<B, V>> claimDelta() {
         if (!preparedResult) {
             throw new IllegalStateException("Projection scan is not complete");
         }
         if (removedClaimsResolved && nextProjected.size() == resolvedClaimCount) {
-            return new ProjectionClaimSet.ClaimDelta<ProjectedBlockClaim<B, V>>(deltaBaseline, nextProjected, changedClaimKeys, removedClaimKeys);
+            return new ClaimSet.ClaimDelta<BlockClaim<B, V>>(deltaBaseline, nextProjected, changedClaimKeys, removedClaimKeys);
         }
         removedClaimKeys.clear();
         if (deltaBaseline != null
@@ -247,7 +247,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
                 }
             }
         }
-        return new ProjectionClaimSet.ClaimDelta<ProjectedBlockClaim<B, V>>(deltaBaseline, nextProjected, changedClaimKeys, removedClaimKeys);
+        return new ClaimSet.ClaimDelta<BlockClaim<B, V>>(deltaBaseline, nextProjected, changedClaimKeys, removedClaimKeys);
     }
 
     public Long2ObjectOpenHashMap<BlockEntitySample> blockEntities() {
@@ -263,7 +263,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
         return blackoutClaims;
     }
 
-    public ProjectedEntityOcclusion<B, V> entityOcclusion() {
+    public EntityOcclusion<B, V> entityOcclusion() {
         return preparedResult && !reuseCommittedEntityOcclusion ? entityOcclusion : projectedEntityOcclusion;
     }
 
@@ -399,7 +399,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
         return losingClaimsUnsynced;
     }
 
-    public ProjectorRemoteFootprint remoteFootprint() {
+    public RemoteFootprint remoteFootprint() {
         return remoteFootprint;
     }
 
@@ -422,8 +422,8 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
         while (displaced.hasNext()) {
             long key = displaced.nextLong();
             losingClaimKeys.add(key);
-            ProjectedBlockClaim<B, V> claim = projected.get(key);
-            if (claim == null || claim.getLightRemoteKey() == ProjectedBlockClaim.NO_REMOTE_KEY) {
+            BlockClaim<B, V> claim = projected.get(key);
+            if (claim == null || claim.getLightRemoteKey() == BlockClaim.NO_REMOTE_KEY) {
                 continue;
             }
             long remoteKey = claim.getLightRemoteKey();
@@ -509,7 +509,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
             LongOpenHashSet occlusionSwap = projectedOcclusionGeometry;
             projectedOcclusionGeometry = occlusionGeometry;
             occlusionGeometry = occlusionSwap;
-            ProjectedEntityOcclusion<B, V> entityOcclusionSwap = projectedEntityOcclusion;
+            EntityOcclusion<B, V> entityOcclusionSwap = projectedEntityOcclusion;
             projectedEntityOcclusion = entityOcclusion;
             entityOcclusion = entityOcclusionSwap;
         }
@@ -522,7 +522,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
         pending = null;
         preparedResult = false;
         reuseCommittedEntityOcclusion = false;
-        Long2ObjectOpenHashMap<ProjectedBlockClaim<B, V>> swap = projected;
+        Long2ObjectOpenHashMap<BlockClaim<B, V>> swap = projected;
         projected = nextProjected;
         nextProjected = swap;
         Long2ObjectOpenHashMap<BlockEntitySample> blockEntitySwap = projectedBlockEntities;
@@ -707,7 +707,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
 
     private void commitRemoteFootprint(boolean fresh) {
         if (fresh) {
-            ProjectorRemoteFootprint swap = remoteFootprint;
+            RemoteFootprint swap = remoteFootprint;
             remoteFootprint = nextRemoteFootprint;
             nextRemoteFootprint = swap;
         } else {
@@ -788,9 +788,9 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
         }
     }
 
-    private void rememberOcclusionBlocker(long localKey, ProjectedBlockClaim<B, V> claim, boolean observerOcclusion) {
+    private void rememberOcclusionBlocker(long localKey, BlockClaim<B, V> claim, boolean observerOcclusion) {
         if (!observerOcclusion
-            || claim.getLightRemoteKey() == ProjectedBlockClaim.NO_REMOTE_KEY
+            || claim.getLightRemoteKey() == BlockClaim.NO_REMOTE_KEY
             || !viewOcclusion.isOccluding(claim.getData())) {
             return;
         }
@@ -839,16 +839,16 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
                                                     int upAxis) {
         int mask = 0;
         if (right == rightMinimum) {
-            mask |= ProjectorBlackoutBoundary.faceMask(rightAxis, -1);
+            mask |= BlackoutBoundary.faceMask(rightAxis, -1);
         }
         if (right == rightMaximum) {
-            mask |= ProjectorBlackoutBoundary.faceMask(rightAxis, 1);
+            mask |= BlackoutBoundary.faceMask(rightAxis, 1);
         }
         if (up == upMinimum) {
-            mask |= ProjectorBlackoutBoundary.faceMask(upAxis, -1);
+            mask |= BlackoutBoundary.faceMask(upAxis, -1);
         }
         if (up == upMaximum) {
-            mask |= ProjectorBlackoutBoundary.faceMask(upAxis, 1);
+            mask |= BlackoutBoundary.faceMask(upAxis, 1);
         }
         return mask;
     }
@@ -856,7 +856,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
     private void rememberBlackoutCell(long key,
                                       long remoteKey,
                                       int boundaryMask,
-                                      ProjectedBlockClaim<B, V> claim) {
+                                      BlockClaim<B, V> claim) {
         if (!viewOcclusion.isOccluding(claim.getData())) {
             addBlackoutCell(key, remoteKey, boundaryMask);
         }
@@ -865,7 +865,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
     private void rememberBlackoutCell(long key,
                                       long remoteKey,
                                       int boundaryMask,
-                                      ProjectorSample<B, V> sample) {
+                                      Sample<B, V> sample) {
         if (!viewOcclusion.isOccluding(sample.data)) {
             addBlackoutCell(key, remoteKey, boundaryMask);
         }
@@ -881,7 +881,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
     }
 
     /** A committed shell claim still covers this cell only while the destination view and the remote cell it sealed are unchanged. */
-    private static <B, V> boolean previousShellMatches(ProjectedBlockClaim<B, V> previous, V destView, long remoteKey) {
+    private static <B, V> boolean previousShellMatches(BlockClaim<B, V> previous, V destView, long remoteKey) {
         return previous != null
             && previous.isBlackout()
             && previous.getLightRemoteKey() == remoteKey
@@ -902,7 +902,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
 
     private void filterObserverTarget(V view, double eyeX, double eyeY, double eyeZ,
                                       long localKey, long remoteKey) {
-        ProjectorViewOcclusion.Visibility visibility = viewOcclusion.visibility(view,
+        ViewOcclusion.Visibility visibility = viewOcclusion.visibility(view,
             CellKeys.unpackX(remoteKey), CellKeys.unpackY(remoteKey),
             CellKeys.unpackZ(remoteKey), eyeX, eyeY, eyeZ);
         switch (visibility) {
@@ -920,11 +920,11 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
         if (!holdClaims) {
             return;
         }
-        ProjectedBlockClaim<B, V> current = nextProjected.get(localKey);
+        BlockClaim<B, V> current = nextProjected.get(localKey);
         if (current == null || current.isHeld()) {
             return;
         }
-        ProjectedBlockClaim<B, V> previous = projected.get(localKey);
+        BlockClaim<B, V> previous = projected.get(localKey);
         if (previous == null || !previous.isHeld() || !sameCommittedContent(previous, current)) {
             return;
         }
@@ -937,12 +937,12 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
     }
 
     private void hideTarget(long localKey) {
-        ProjectedBlockClaim<B, V> hidden = nextProjected.get(localKey);
+        BlockClaim<B, V> hidden = nextProjected.get(localKey);
         if (hidden != null && hidden.isBlackout()) {
             return;
         }
         if (hidden != null && holdClaims) {
-            ProjectedBlockClaim<B, V> previous = projected.get(localKey);
+            BlockClaim<B, V> previous = projected.get(localKey);
             if (previous != null && !previous.isBlackout()) {
                 long[] blockers = hiddenHoldBlockers(localKey);
                 if (blockers != null) {
@@ -1011,12 +1011,12 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
         return true;
     }
 
-    private static <B, V> boolean sameCommittedContent(ProjectedBlockClaim<B, V> previous, ProjectedBlockClaim<B, V> current) {
+    private static <B, V> boolean sameCommittedContent(BlockClaim<B, V> previous, BlockClaim<B, V> current) {
         return current.sameBlock(previous) && current.sameLightSource(previous)
             && current.getLightRemoteKey() == previous.getLightRemoteKey();
     }
 
-    private void holdFreshClaim(long key, ProjectedBlockClaim<B, V> fresh) {
+    private void holdFreshClaim(long key, BlockClaim<B, V> fresh) {
         nextProjected.put(key, fresh.withHeld(true));
         long since = heldSince.get(key);
         nextHeldSince.put(key, since == Long.MIN_VALUE ? holdGeneration : since);
@@ -1025,8 +1025,8 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
         }
     }
 
-    private void holdClaim(long key, ProjectedBlockClaim<B, V> previous) {
-        ProjectedBlockClaim<B, V> held = previous.withHeld(true);
+    private void holdClaim(long key, BlockClaim<B, V> previous) {
+        BlockClaim<B, V> held = previous.withHeld(true);
         nextProjected.put(key, held);
         nextBlockEntities.remove(key);
         retainBlockEntity(key);
@@ -1119,11 +1119,11 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
         keptCount = 0;
         maskedCells = 0;
         int retainedKeys = 0;
-        ObjectIterator<Long2ObjectMap.Entry<ProjectedBlockClaim<B, V>>> iterator = nextProjected.long2ObjectEntrySet().fastIterator();
+        ObjectIterator<Long2ObjectMap.Entry<BlockClaim<B, V>>> iterator = nextProjected.long2ObjectEntrySet().fastIterator();
         while (iterator.hasNext()) {
-            Long2ObjectMap.Entry<ProjectedBlockClaim<B, V>> entry = iterator.next();
-            ProjectedBlockClaim<B, V> nextCell = entry.getValue();
-            ProjectedBlockClaim<B, V> previousCell = projected.get(entry.getLongKey());
+            Long2ObjectMap.Entry<BlockClaim<B, V>> entry = iterator.next();
+            BlockClaim<B, V> nextCell = entry.getValue();
+            BlockClaim<B, V> previousCell = projected.get(entry.getLongKey());
             if (nextCell.isMaskAir()) {
                 maskedCells++;
             }
@@ -1168,7 +1168,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
         private RecursiveEndpoints.Hit<W, P> maskHit;
         private PlaneWindow planeWindow;
         private PlaneWindow blackoutWindow;
-        private ProjectorHoldProof holdProof;
+        private HoldProof holdProof;
         private LodPolicy lodPolicy;
         private int[] axisMin;
         private int[] axisMax;
@@ -1229,7 +1229,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
         private double remoteOriginX;
         private double remoteOriginY;
         private double remoteOriginZ;
-        private ProjectionVolume volume;
+        private ApertureSlab volume;
         private double projectionFacingNormal;
         private double slabSignedDistance;
         private double sampleNormalCenter;
@@ -1328,12 +1328,12 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
             localMinY = localView.getMinHeight();
             localMaxY = localView.getMaxHeight() - 1;
             Box area = frustum.getRegion();
-            int xa = ProjectionVolume.minBlockForCenter(area.getXa());
-            int ya = Math.max(ProjectionVolume.minBlockForCenter(area.getYa()), localMinY);
-            int za = ProjectionVolume.minBlockForCenter(area.getZa());
-            int xb = ProjectionVolume.maxBlockForCenter(area.getXb());
-            int yb = Math.min(ProjectionVolume.maxBlockForCenter(area.getYb()), localMaxY);
-            int zb = ProjectionVolume.maxBlockForCenter(area.getZb());
+            int xa = ApertureSlab.minBlockForCenter(area.getXa());
+            int ya = Math.max(ApertureSlab.minBlockForCenter(area.getYa()), localMinY);
+            int za = ApertureSlab.minBlockForCenter(area.getZa());
+            int xb = ApertureSlab.maxBlockForCenter(area.getXb());
+            int yb = Math.min(ApertureSlab.maxBlockForCenter(area.getYb()), localMaxY);
+            int zb = ApertureSlab.maxBlockForCenter(area.getZb());
 
             localFrame = portal.frame();
             Frame remoteFrame = targetFrame != null
@@ -1355,7 +1355,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
             double eyeRelX = eyeX - localOriginX;
             double eyeRelY = eyeY - localOriginY;
             double eyeRelZ = eyeZ - localOriginZ;
-            eyeFrontSide = ProjectionVolume.side(localFrame, localOriginX, localOriginY, localOriginZ, eyeX, eyeY, eyeZ);
+            eyeFrontSide = ApertureSlab.side(localFrame, localOriginX, localOriginY, localOriginZ, eyeX, eyeY, eyeZ);
             projectionLocalFrame = localFrame.view(eyeFrontSide);
             projectionRemoteFrame = remoteFrame.view(eyeFrontSide);
             cellTransform = ViewWindow.of(mirrorMode, QuarterTurn.of(mirrorRotationQuarterTurns), portal.origin(), localFrame,
@@ -1379,8 +1379,8 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
             double projectionFacingZ = projectionLocalFrame.getNormal().z();
             projectionEyeDot = (eyeRelX * projectionFacingX) + (eyeRelY * projectionFacingY) + (eyeRelZ * projectionFacingZ);
             blackoutEnabled = blackout.isEnabled() && blackoutData != null;
-            volume = ProjectionVolume.of(aperture.getArea(), localFrame,
-                ProjectionVolume.plane(localFrame, localOriginX, localOriginY, localOriginZ), eyeFrontSide, depthBlocks, 0.0D);
+            volume = ApertureSlab.of(aperture.getArea(), localFrame,
+                ApertureSlab.plane(localFrame, localOriginX, localOriginY, localOriginZ), eyeFrontSide, depthBlocks, 0.0D);
             planeWindow = PlaneWindow.create(aperture, aperture.getArea(), projectionLocalFrame,
                 localOriginX, localOriginY, localOriginZ, settings.get().aperturePadding(),
                 projectionEyeDot);
@@ -1389,7 +1389,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
                     localOriginX, localOriginY, localOriginZ, 0.0D, projectionEyeDot)
                 : null;
             holdProof = holdConeClaims
-                ? ProjectorHoldProof.create(aperture.getArea(), projectionLocalFrame,
+                ? HoldProof.create(aperture.getArea(), projectionLocalFrame,
                     localOriginX, localOriginY, localOriginZ, settings.get().aperturePadding())
                 : null;
             planeRejected = 0;
@@ -1665,7 +1665,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
                         }
 
                         long key = CellKeys.pack(x, y, z);
-                        ProjectedBlockClaim<B, V> previousCell = projected.get(key);
+                        BlockClaim<B, V> previousCell = projected.get(key);
                         boolean blackoutFarCell = blackoutEnabled
                             && (blackoutContainsRow || blackoutWindow.containsRayIntersection(
                                 eyeX, eyeY, eyeZ, cx, cy, cz, slabSignedDistance));
@@ -1683,14 +1683,14 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
                             blackoutFarSliceFound = true;
                         }
                         if (blackoutFarCell) {
-                            blackoutBoundaryMask |= ProjectorBlackoutBoundary.faceMask(normalAxis, blackoutFarSign);
+                            blackoutBoundaryMask |= BlackoutBoundary.faceMask(normalAxis, blackoutFarSign);
                         }
                         boolean blackoutCell = blackoutBoundaryMask != 0;
                         if (reuseMappedClaims && !masked && previousCell != null && !previousCell.isBlackout() && !previousCell.isHeld()
                             && previousCell.getLightView() == destView
                             && previousCell.isFullBright() == blackoutEnabled) {
                             long remoteKey = previousCell.getLightRemoteKey();
-                            if (remoteKey != ProjectedBlockClaim.NO_REMOTE_KEY) {
+                            if (remoteKey != BlockClaim.NO_REMOTE_KEY) {
                                 nextRemoteFootprint.recordCell(remoteKey);
                             }
                             nextProjected.put(key, previousCell);
@@ -1719,12 +1719,12 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
                         long remoteKey = CellKeys.pack(rx, ry, rz);
                         nextRemoteFootprint.record(rx, ry, rz);
                         long previousRemoteKey = previousCell == null
-                            ? ProjectedBlockClaim.NO_REMOTE_KEY
+                            ? BlockClaim.NO_REMOTE_KEY
                             : previousCell.getLightRemoteKey();
                         if (!localChunkReady(localView, x, z)) {
                             completeGeometry = false;
                             if (previousCell != null && !previousCell.isBlackout()) {
-                                ProjectedBlockClaim<B, V> retained = previousCell.withFullBright(blackoutEnabled).withHeld(false);
+                                BlockClaim<B, V> retained = previousCell.withFullBright(blackoutEnabled).withHeld(false);
                                 nextProjected.put(key, retained);
                                 retainedClaimCount++;
                                 if (deltaBaseline != null && retained != previousCell) {
@@ -1768,7 +1768,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
                                 recursiveDepth)
                             : masked ? maskHit : null;
                         PlateCell<B> plateCell = plate == null || recursiveHit != null ? null : plate.cleanCell(key, rx, rz);
-                        ProjectorSample<B, V> sample;
+                        Sample<B, V> sample;
                         if (plateCell != null) {
                             plateHits++;
                             sample = plateCell.sample(destView, remoteKey);
@@ -1781,24 +1781,24 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
                                 buriedCellCulling,
                                 rootRecursiveIndex,
                                 recursiveHit);
-                            if (lodActive && recursiveHit == null && sample.kind == ProjectorSample.Kind.BLOCK
+                            if (lodActive && recursiveHit == null && sample.kind == Sample.Kind.BLOCK
                                 && lodPolicy.dropsDetail(mergedSlab ? slabIndex - 1 : slabIndex, memo.blocks().materialName(memo.blocks().material(sample.data)))) {
-                                sample = new ProjectorSample<B, V>(ProjectorSample.Kind.REMOTE_AIR, sampler.air(), destView, sample.remoteKey());
+                                sample = new Sample<B, V>(Sample.Kind.REMOTE_AIR, sampler.air(), destView, sample.remoteKey());
                             }
                         }
-                        if (sample.kind == ProjectorSample.Kind.OCCLUDED) {
+                        if (sample.kind == Sample.Kind.OCCLUDED) {
                             if (cacheEmptyCells) {
                                 emptyCells.markEmpty(u);
                             }
                             continue;
                         }
-                        if (sample.kind == ProjectorSample.Kind.NO_SAMPLE) {
+                        if (sample.kind == Sample.Kind.NO_SAMPLE) {
                             completeGeometry = false;
                             boolean matchingRemoteUnavailable = !destView.isChunkReady(rx, rz)
                                 && previousCell != null
                                 && previousRemoteKey == remoteKey;
                             if (matchingRemoteUnavailable && !previousCell.isBlackout()) {
-                                ProjectedBlockClaim<B, V> retained = previousCell.withFullBright(blackoutEnabled).withHeld(false);
+                                BlockClaim<B, V> retained = previousCell.withFullBright(blackoutEnabled).withHeld(false);
                                 nextProjected.put(key, retained);
                                 retainedClaimCount++;
                                 if (deltaBaseline != null && retained != previousCell) {
@@ -1818,8 +1818,8 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
                         if (blackoutCell) {
                             rememberBlackoutCell(key, remoteKey, blackoutBoundaryMask, sample);
                         }
-                        boolean maskAir = sample.kind == ProjectorSample.Kind.MASK_AIR;
-                        boolean remoteAir = sample.kind == ProjectorSample.Kind.REMOTE_AIR;
+                        boolean maskAir = sample.kind == Sample.Kind.MASK_AIR;
+                        boolean remoteAir = sample.kind == Sample.Kind.REMOTE_AIR;
                         boolean localAir = (maskAir || remoteAir) && memo.isLocalAir(localView, x, y, z);
                         if ((maskAir || remoteAir) && !shouldProjectAirSample(sample.kind, localAir)) {
                             if (cacheEmptyCells && !maskAir) {
@@ -1836,9 +1836,9 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
                             projectedHit = sampler.transformProjectedBlockData(sample.data);
                         }
 
-                        ProjectedBlockClaim<B, V> nextCell;
+                        BlockClaim<B, V> nextCell;
                         if (blackoutEnabled) {
-                            ProjectedBlockClaim.LightingPolicy lightingPolicy = ProjectedBlockClaim.LightingPolicy.FULL_BRIGHT;
+                            BlockClaim.LightingPolicy lightingPolicy = BlockClaim.LightingPolicy.FULL_BRIGHT;
                             nextCell = sample.matchesClaim(previousCell, projectedHit, maskAir, lightingPolicy)
                                 ? previousCell
                                 : sample.asClaim(projectedHit, lightingPolicy);
@@ -1951,14 +1951,14 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
         private void holdReleasedClaims() {
             if (retainedClaimCount != projected.size() || nextProjected.size() != unfilteredClaimCount) {
                 boolean proving = holdProof != null && holdProof.beginEye(eyeX, eyeY, eyeZ);
-                ObjectIterator<Long2ObjectMap.Entry<ProjectedBlockClaim<B, V>>> iterator = projected.long2ObjectEntrySet().fastIterator();
+                ObjectIterator<Long2ObjectMap.Entry<BlockClaim<B, V>>> iterator = projected.long2ObjectEntrySet().fastIterator();
                 while (iterator.hasNext()) {
-                    Long2ObjectMap.Entry<ProjectedBlockClaim<B, V>> entry = iterator.next();
+                    Long2ObjectMap.Entry<BlockClaim<B, V>> entry = iterator.next();
                     long key = entry.getLongKey();
                     if (nextProjected.containsKey(key)) {
                         continue;
                     }
-                    ProjectedBlockClaim<B, V> previous = entry.getValue();
+                    BlockClaim<B, V> previous = entry.getValue();
                     if (proving && !previous.isBlackout() && holdProof.verdict(CellKeys.unpackX(key),
                         CellKeys.unpackY(key), CellKeys.unpackZ(key), this).holds()) {
                         holdClaim(key, previous);
@@ -1974,12 +1974,12 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
         }
 
         @Override
-        public ProjectorHoldProof.Occupancy occupancy(int x, int y, int z) {
+        public HoldProof.Occupancy occupancy(int x, int y, int z) {
             if (y < localMinY || y > localMaxY) {
-                return ProjectorHoldProof.Occupancy.OPEN;
+                return HoldProof.Occupancy.OPEN;
             }
             if (!localChunkReady(localView, x, z)) {
-                return ProjectorHoldProof.Occupancy.UNKNOWN;
+                return HoldProof.Occupancy.UNKNOWN;
             }
             return memo.localOccupancy(localView, x, y, z);
         }
@@ -1993,13 +1993,13 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
             LongIterator iterator = blackoutGeometry.iterator();
             while (iterator.hasNext()) {
                 long key = iterator.nextLong();
-                ProjectedBlockClaim<B, V> existing = nextProjected.get(key);
+                BlockClaim<B, V> existing = nextProjected.get(key);
                 long remoteKey = blackoutRemoteKeys.get(key);
-                ProjectedBlockClaim<B, V> previous = projected.get(key);
-                ProjectedBlockClaim<B, V> claim = previousShellMatches(previous, destView, remoteKey)
+                BlockClaim<B, V> previous = projected.get(key);
+                BlockClaim<B, V> claim = previousShellMatches(previous, destView, remoteKey)
                     && previous.getData().equals(blackoutData)
                     ? previous
-                    : ProjectedBlockClaim.blackout(blackoutData, destView, remoteKey);
+                    : BlockClaim.blackout(blackoutData, destView, remoteKey);
                 nextProjected.put(key, claim);
                 blackoutClaims++;
                 if (existing == null && previous != null) {
@@ -2024,8 +2024,8 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
                                boolean mergedSlabs, int mergeDistance, int detailCutoff) {
     }
 
-    public static boolean shouldProjectAirSample(ProjectorSample.Kind kind, boolean localAir) {
-        return (kind == ProjectorSample.Kind.MASK_AIR || kind == ProjectorSample.Kind.REMOTE_AIR) && !localAir;
+    public static boolean shouldProjectAirSample(Sample.Kind kind, boolean localAir) {
+        return (kind == Sample.Kind.MASK_AIR || kind == Sample.Kind.REMOTE_AIR) && !localAir;
     }
 
     public record ScanSettings(int recursiveDepth, double revealMarginDegrees, double aperturePadding, boolean debug,
@@ -2039,7 +2039,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
     }
 
     public record Context<B, M, W, P extends Endpoint, V extends ContentView<B, M>>(
-        P portal, CellAperture aperture, ProjectorSampler<B, M, W, P, V> sampler,
-        ProjectorSampleMemo<B, M, V> memo, ProjectionBlackout<B> blackout, Supplier<ScanSettings> settings) {
+        P portal, CellAperture aperture, Sampler<B, M, W, P, V> sampler,
+        SampleMemo<B, M, V> memo, Blackout<B> blackout, Supplier<ScanSettings> settings) {
     }
 }

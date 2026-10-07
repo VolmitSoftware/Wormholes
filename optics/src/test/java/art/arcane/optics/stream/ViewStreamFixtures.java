@@ -87,16 +87,16 @@ final class ViewStreamFixtures {
         return new SectionBiomes(palette, indices);
     }
 
-    static ProjectionEnvironment environment() {
-        ProjectionEnvironment.Color color = new ProjectionEnvironment.Color(0.125F, 0.5F, 1.25F);
-        ProjectionEnvironment.ColorAlpha alpha = new ProjectionEnvironment.ColorAlpha(0.75F, 0.5F, 0.25F, 0.5F);
-        return new ProjectionEnvironment(18000L,
-            new ProjectionEnvironment.Sky(ProjectionEnvironment.Skybox.OVERWORLD, 1.5F, 2.5F, 3.5F, 0.8F, alpha, color, 5, 0.25F, 0.5F),
-            new ProjectionEnvironment.Fog(color, -8.0F, 96.0F, 512.0F, 256.0F, color, 0.0F, 32.0F),
-            new ProjectionEnvironment.Lighting(color, 0.75F, color, color), new ProjectionEnvironment.Clouds(alpha, 192.0F),
+    static EnvironmentState environment() {
+        EnvironmentState.Color color = new EnvironmentState.Color(0.125F, 0.5F, 1.25F);
+        EnvironmentState.ColorAlpha alpha = new EnvironmentState.ColorAlpha(0.75F, 0.5F, 0.25F, 0.5F);
+        return new EnvironmentState(18000L,
+            new EnvironmentState.Sky(EnvironmentState.Skybox.OVERWORLD, 1.5F, 2.5F, 3.5F, 0.8F, alpha, color, 5, 0.25F, 0.5F),
+            new EnvironmentState.Fog(color, -8.0F, 96.0F, 512.0F, 256.0F, color, 0.0F, 32.0F),
+            new EnvironmentState.Lighting(color, 0.75F, color, color), new EnvironmentState.Clouds(alpha, 192.0F),
             OpticTransform.of(AxisPermutation.of(Face.N, Face.U, Face.E), -128.5D, 96.0D, 33.25D),
-            new ProjectionEnvironment.Dimension(-64, 384, true, ProjectionEnvironment.CardinalLighting.DEFAULT, 63.0D, false),
-            new ProjectionEnvironment.World("test:destination", 72000L, "minecraft:plains", 63, 7, 15, 256, true, 0.1F, ProjectionEnvironment.EyeMedium.WATER, true));
+            new EnvironmentState.Dimension(-64, 384, true, EnvironmentState.CardinalLighting.DEFAULT, 63.0D, false),
+            new EnvironmentState.World("test:destination", 72000L, "minecraft:plains", 63, 7, 15, 256, true, 0.1F, EnvironmentState.EyeMedium.WATER, true));
     }
 
     static ViewStreamMessage.Offer offer() {

@@ -14,7 +14,7 @@ public final class EntityProjectionRecoveryTest {
         RecordingEntityOutput output = new RecordingEntityOutput();
         FakeOpticsScheduler<Object, Object> scheduler = new FakeOpticsScheduler<Object, Object>();
         Teardown teardown = new Teardown();
-        ProjectionRecovery<Object> recovery = new ProjectionRecovery<>(output, scheduler, teardown.callbacks());
+        EntityRecovery<Object> recovery = new EntityRecovery<>(output, scheduler, teardown.callbacks());
         teardown.failures = 2;
         recovery.teardown(output);
         assertTrue(recovery.pending());
@@ -37,7 +37,7 @@ public final class EntityProjectionRecoveryTest {
         RecordingEntityOutput output = new RecordingEntityOutput();
         FakeOpticsScheduler<Object, Object> scheduler = new FakeOpticsScheduler<Object, Object>();
         Teardown teardown = new Teardown();
-        ProjectionRecovery<Object> recovery = new ProjectionRecovery<>(output, scheduler, teardown.callbacks());
+        EntityRecovery<Object> recovery = new EntityRecovery<>(output, scheduler, teardown.callbacks());
         teardown.failures = 1;
         recovery.teardown(output);
         output.online = false;
@@ -53,8 +53,8 @@ public final class EntityProjectionRecoveryTest {
         private int sends;
         private int releases;
 
-        private ProjectionRecovery.Teardown<Object> callbacks() {
-            return new ProjectionRecovery.Teardown<>(() -> state, this::send, observer -> state = false, observer -> releases++);
+        private EntityRecovery.Teardown<Object> callbacks() {
+            return new EntityRecovery.Teardown<>(() -> state, this::send, observer -> state = false, observer -> releases++);
         }
 
         private void send(Object observer) {

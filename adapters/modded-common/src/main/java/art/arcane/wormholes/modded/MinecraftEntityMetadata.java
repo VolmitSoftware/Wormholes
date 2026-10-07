@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.optics.entity.ProjectedMetadata;
+import art.arcane.optics.entity.MetadataPatcher;
 import art.arcane.optics.entity.ItemFrameMetadata;
 import art.arcane.optics.entity.MetadataAccess;
 import art.arcane.optics.math.Face;
@@ -18,7 +18,7 @@ import java.util.Optional;
 public final class MinecraftEntityMetadata implements MetadataAccess<SynchedEntityData.DataValue<?>> {
     public static final MinecraftEntityMetadata ACCESS = new MinecraftEntityMetadata();
     public static final ItemFrameMetadata<SynchedEntityData.DataValue<?>> FRAMES = new ItemFrameMetadata<>(ACCESS);
-    public static final ProjectedMetadata<SynchedEntityData.DataValue<?>> ENTITIES = new ProjectedMetadata<>(ACCESS);
+    public static final MetadataPatcher<SynchedEntityData.DataValue<?>> ENTITIES = new MetadataPatcher<>(ACCESS);
 
     private MinecraftEntityMetadata() {
     }

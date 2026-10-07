@@ -2,7 +2,7 @@ package art.arcane.wormholes.portal.rtp;
 
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.frame.Frame;
-import art.arcane.optics.scan.ProjectorPassRevision;
+import art.arcane.optics.scan.PassRevision;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 import java.nio.charset.StandardCharsets;
@@ -25,15 +25,15 @@ public final class RtpProjectionGeometry {
     }
 
     public static long plateIdentity(UUID worldId, double x, double y, double z, Frame frame, long routeRevision) {
-        long identity = ProjectorPassRevision.mix(1469598103934665603L, worldId.getMostSignificantBits());
-        identity = ProjectorPassRevision.mix(identity, worldId.getLeastSignificantBits());
-        identity = ProjectorPassRevision.mix(identity, Double.doubleToLongBits(x));
-        identity = ProjectorPassRevision.mix(identity, Double.doubleToLongBits(y));
-        identity = ProjectorPassRevision.mix(identity, Double.doubleToLongBits(z));
-        identity = ProjectorPassRevision.mix(identity, frame.getNormal().ordinal());
-        identity = ProjectorPassRevision.mix(identity, frame.getRight().ordinal());
-        identity = ProjectorPassRevision.mix(identity, frame.getUp().ordinal());
-        identity = ProjectorPassRevision.mix(identity, routeRevision);
+        long identity = PassRevision.mix(1469598103934665603L, worldId.getMostSignificantBits());
+        identity = PassRevision.mix(identity, worldId.getLeastSignificantBits());
+        identity = PassRevision.mix(identity, Double.doubleToLongBits(x));
+        identity = PassRevision.mix(identity, Double.doubleToLongBits(y));
+        identity = PassRevision.mix(identity, Double.doubleToLongBits(z));
+        identity = PassRevision.mix(identity, frame.getNormal().ordinal());
+        identity = PassRevision.mix(identity, frame.getRight().ordinal());
+        identity = PassRevision.mix(identity, frame.getUp().ordinal());
+        identity = PassRevision.mix(identity, routeRevision);
         return identity == 0L ? 1L : identity;
     }
 

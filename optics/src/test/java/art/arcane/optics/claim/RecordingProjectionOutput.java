@@ -13,11 +13,11 @@ import art.arcane.optics.fidelity.AcousticsBridge;
 import art.arcane.optics.fidelity.BiomeClaimSet;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.fidelity.WeatherRelay;
-import art.arcane.optics.light.ProjectorLighting;
+import art.arcane.optics.light.LightOverlay;
 import art.arcane.optics.math.CellKeys;
 
-public final class RecordingProjectionOutput<O> implements ProjectionOutput<O> {
-    public final List<ProjectorLighting.ChunkLight> lights = new ArrayList<ProjectorLighting.ChunkLight>();
+public final class RecordingProjectionOutput<O> implements WorldOutput<O> {
+    public final List<LightOverlay.ChunkLight> lights = new ArrayList<LightOverlay.ChunkLight>();
     public final List<Emitted<O, BlockEntitySend>> blockEntities = new ArrayList<Emitted<O, BlockEntitySend>>();
     public final List<Emitted<O, BiomeClaimSet.ChunkBiomes>> biomes = new ArrayList<Emitted<O, BiomeClaimSet.ChunkBiomes>>();
     public final List<Emitted<O, WeatherSend>> weather = new ArrayList<Emitted<O, WeatherSend>>();
@@ -27,7 +27,7 @@ public final class RecordingProjectionOutput<O> implements ProjectionOutput<O> {
     public final Set<O> ambientClients = new HashSet<O>();
     public final Set<Long> unsentChunks = new HashSet<Long>();
     public List<O> everyone = List.of();
-    public Consumer<ProjectorLighting.ChunkLight> lightListener = light -> { };
+    public Consumer<LightOverlay.ChunkLight> lightListener = light -> { };
     public int lightSectionBudget = Integer.MAX_VALUE;
 
     @Override
@@ -41,7 +41,7 @@ public final class RecordingProjectionOutput<O> implements ProjectionOutput<O> {
     }
 
     @Override
-    public void light(O observer, ProjectorLighting.ChunkLight light) {
+    public void light(O observer, LightOverlay.ChunkLight light) {
         lights.add(light);
         lightListener.accept(light);
     }

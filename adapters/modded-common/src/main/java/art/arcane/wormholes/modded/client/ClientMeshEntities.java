@@ -2,7 +2,7 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.fidelity.BlockEntitySample;
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.frame.OpticTransform;
 import net.minecraft.world.phys.Vec3;
@@ -423,7 +423,7 @@ public final class ClientMeshEntities {
     private LocalPlayer localSelf(int portalKey, ClientViewSession session, ClientProjectedEntities projected, LocalPlayer player) {
         UUID id = session.selfEntityId();
         ClientPortal portal = session.portal(portalKey);
-        ProjectionEnvironment environment = session.environment(portalKey);
+        EnvironmentState environment = session.environment(portalKey);
         if (id == null || player == null || portal == null || portal.geometry().mirror()
             || environment == null || !environment.world().dimensionKey().equals(level.dimension().identifier().toString())
             || !projected.presentPlayer(portalKey, id) || player.level() != level) {
@@ -485,7 +485,7 @@ public final class ClientMeshEntities {
         for (int depth = 0; depth < ViewStreamLimits.MAX_GEOMETRY_DEPTH && portal != null
             && portal.geometry().parentPortalKey() != 0; depth++) {
             int parent = portal.geometry().parentPortalKey();
-            ProjectionEnvironment environment = client.session().environment(parent);
+            EnvironmentState environment = client.session().environment(parent);
             if (environment == null) {
                 return List.of();
             }

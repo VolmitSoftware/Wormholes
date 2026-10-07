@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded.client.render;
 
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import net.minecraft.client.Camera;
 import org.joml.Matrix4fc;
@@ -57,7 +57,7 @@ public final class PortalShaderContext implements AutoCloseable {
         }
     }
 
-    public record View(ProjectionEnvironment environment, Camera camera, RenderTarget target,
+    public record View(EnvironmentState environment, Camera camera, RenderTarget target,
                        Matrix4fc modelView, Matrix4fc projection) {
         public View {
             Objects.requireNonNull(environment);

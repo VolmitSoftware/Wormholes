@@ -17,7 +17,7 @@ import art.arcane.wormholes.portal.RemotePortal;
 import art.arcane.wormholes.network.view.RemoteViewCache;
 import art.arcane.optics.math.BlockBox;
 import art.arcane.wormholes.network.view.ViewSubscriptionManager;
-import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.claim.BlockClaim;
 import art.arcane.optics.view.ContentView;
 import art.arcane.wormholes.render.view.RemoteProjectionView;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -183,7 +183,7 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
             assertEquals(MinecraftPortalProjector.Result.READY, projector.update(1L, Long.MAX_VALUE));
             assertFalse(projector.claimDelta().claims().isEmpty());
             boolean remoteClaim = false;
-            for (ProjectedBlockClaim<BlockState, ContentView<BlockState, BlockState>> claim : projector.claimDelta().claims().values()) {
+            for (BlockClaim<BlockState, ContentView<BlockState, BlockState>> claim : projector.claimDelta().claims().values()) {
                 if (claim.getData().is(Blocks.GOLD_BLOCK)) {
                     assertTrue(claim.getLightView() instanceof RemoteProjectionView<?, ?, ?, ?>);
                     remoteClaim = true;
@@ -276,7 +276,7 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
             assertFalse(projector.scan().hasPending());
             assertTrue(destinationSamples(scene, projector, 3L) > 0);
             assertFalse(projector.scan().claims().isEmpty());
-            for (ProjectedBlockClaim<BlockState, ContentView<BlockState, BlockState>> claim : projector.scan().claims().values()) {
+            for (BlockClaim<BlockState, ContentView<BlockState, BlockState>> claim : projector.scan().claims().values()) {
                 assertTrue(claim.getData().is(Blocks.STONE));
             }
         }

@@ -11,7 +11,7 @@ import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.client.ClientSweep;
 import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.math.Box;
-import art.arcane.optics.volume.ProjectionVolume;
+import art.arcane.optics.volume.ApertureSlab;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -88,10 +88,10 @@ public final class ClientMirrorBuilder implements ClientPortalContent {
     public static BlockBox displayBox(ApertureDescriptor geometry) {
         Box area = geometry.apertureArea();
         Frame frame = geometry.frame();
-        double plane = ProjectionVolume.plane(frame, (area.getXa() + area.getXb()) * 0.5D, (area.getYa() + area.getYb()) * 0.5D,
+        double plane = ApertureSlab.plane(frame, (area.getXa() + area.getXb()) * 0.5D, (area.getYa() + area.getYb()) * 0.5D,
             (area.getZa() + area.getZb()) * 0.5D);
         double pad = Math.min(geometry.depthBlocks(), MAX_LATERAL_BLOCKS) + Math.max(0.0D, geometry.aperturePadding());
-        return ProjectionVolume.of(area, frame, plane, geometry.frontSide(), geometry.depthBlocks(), pad).box();
+        return ApertureSlab.of(area, frame, plane, geometry.frontSide(), geometry.depthBlocks(), pad).box();
     }
 
     public ApertureDescriptor geometry() {

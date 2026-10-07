@@ -2,7 +2,7 @@ package art.arcane.optics.scan;
 
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.volume.GazeScheduler;
-import art.arcane.optics.volume.ProjectionVolume;
+import art.arcane.optics.volume.ApertureSlab;
 
 public final class PassPlanner {
     private static final long SEED = 0x6A09E667F3BCC909L;
@@ -13,35 +13,35 @@ public final class PassPlanner {
     public static long revision(PassInputs inputs) {
         long hash = frame(SEED, inputs.localFrame);
         hash = frame(hash, inputs.remoteFrame);
-        hash = ProjectorPassRevision.mix(hash, Double.doubleToLongBits(inputs.localX));
-        hash = ProjectorPassRevision.mix(hash, Double.doubleToLongBits(inputs.localY));
-        hash = ProjectorPassRevision.mix(hash, Double.doubleToLongBits(inputs.localZ));
-        hash = ProjectorPassRevision.mix(hash, Double.doubleToLongBits(inputs.remoteX));
-        hash = ProjectorPassRevision.mix(hash, Double.doubleToLongBits(inputs.remoteY));
-        hash = ProjectorPassRevision.mix(hash, Double.doubleToLongBits(inputs.remoteZ));
-        hash = ProjectorPassRevision.mix(hash, inputs.mirror ? 1L : 0L);
-        hash = ProjectorPassRevision.mix(hash, inputs.quarterTurns);
-        hash = ProjectorPassRevision.mix(hash, inputs.depth);
-        hash = ProjectorPassRevision.mix(hash, inputs.lateral);
-        hash = ProjectorPassRevision.mix(hash, Double.doubleToLongBits(inputs.projectionDistance));
-        hash = ProjectorPassRevision.mix(hash, Double.doubleToLongBits(inputs.aperturePadding));
-        hash = ProjectorPassRevision.mix(hash, Double.doubleToLongBits(inputs.nearPlanePadding));
-        hash = ProjectorPassRevision.mix(hash, Double.doubleToLongBits(inputs.cullingRatio));
-        hash = ProjectorPassRevision.mix(hash, Double.doubleToLongBits(inputs.revealMargin));
-        hash = ProjectorPassRevision.mix(hash, inputs.maxCells);
-        hash = ProjectorPassRevision.mix(hash, inputs.recursionDepth);
-        hash = ProjectorPassRevision.mix(hash, inputs.buriedCellCulling ? 1L : 0L);
-        hash = ProjectorPassRevision.mix(hash, inputs.observerOcclusion ? 1L : 0L);
-        hash = ProjectorPassRevision.mix(hash, inputs.lodProfile == null ? -1L : inputs.lodProfile.ordinal());
-        hash = ProjectorPassRevision.mix(hash, inputs.lodMergeRuns ? 1L : 0L);
-        hash = ProjectorPassRevision.mix(hash, inputs.lodDistance);
-        hash = ProjectorPassRevision.mix(hash, inputs.lodCutoff);
-        hash = ProjectorPassRevision.mix(hash, inputs.blockEntities ? 1L : 0L);
-        hash = ProjectorPassRevision.mix(hash, inputs.blackout ? 1L + ((long) inputs.blackoutColor << 1) + (inputs.fogPlate ? 1L << 40 : 0L) : 0L);
-        hash = ProjectorPassRevision.mix(hash, inputs.atmosphere == null ? -1L : inputs.atmosphere.ordinal());
-        hash = ProjectorPassRevision.mix(hash, inputs.apertureRevision);
-        hash = ProjectorPassRevision.mix(hash, inputs.destinationIdentity);
-        return ProjectorPassRevision.mix(hash, side(inputs, inputs.eyeX, inputs.eyeY, inputs.eyeZ) ? 1L : 0L);
+        hash = PassRevision.mix(hash, Double.doubleToLongBits(inputs.localX));
+        hash = PassRevision.mix(hash, Double.doubleToLongBits(inputs.localY));
+        hash = PassRevision.mix(hash, Double.doubleToLongBits(inputs.localZ));
+        hash = PassRevision.mix(hash, Double.doubleToLongBits(inputs.remoteX));
+        hash = PassRevision.mix(hash, Double.doubleToLongBits(inputs.remoteY));
+        hash = PassRevision.mix(hash, Double.doubleToLongBits(inputs.remoteZ));
+        hash = PassRevision.mix(hash, inputs.mirror ? 1L : 0L);
+        hash = PassRevision.mix(hash, inputs.quarterTurns);
+        hash = PassRevision.mix(hash, inputs.depth);
+        hash = PassRevision.mix(hash, inputs.lateral);
+        hash = PassRevision.mix(hash, Double.doubleToLongBits(inputs.projectionDistance));
+        hash = PassRevision.mix(hash, Double.doubleToLongBits(inputs.aperturePadding));
+        hash = PassRevision.mix(hash, Double.doubleToLongBits(inputs.nearPlanePadding));
+        hash = PassRevision.mix(hash, Double.doubleToLongBits(inputs.cullingRatio));
+        hash = PassRevision.mix(hash, Double.doubleToLongBits(inputs.revealMargin));
+        hash = PassRevision.mix(hash, inputs.maxCells);
+        hash = PassRevision.mix(hash, inputs.recursionDepth);
+        hash = PassRevision.mix(hash, inputs.buriedCellCulling ? 1L : 0L);
+        hash = PassRevision.mix(hash, inputs.observerOcclusion ? 1L : 0L);
+        hash = PassRevision.mix(hash, inputs.lodProfile == null ? -1L : inputs.lodProfile.ordinal());
+        hash = PassRevision.mix(hash, inputs.lodMergeRuns ? 1L : 0L);
+        hash = PassRevision.mix(hash, inputs.lodDistance);
+        hash = PassRevision.mix(hash, inputs.lodCutoff);
+        hash = PassRevision.mix(hash, inputs.blockEntities ? 1L : 0L);
+        hash = PassRevision.mix(hash, inputs.blackout ? 1L + ((long) inputs.blackoutColor << 1) + (inputs.fogPlate ? 1L << 40 : 0L) : 0L);
+        hash = PassRevision.mix(hash, inputs.atmosphere == null ? -1L : inputs.atmosphere.ordinal());
+        hash = PassRevision.mix(hash, inputs.apertureRevision);
+        hash = PassRevision.mix(hash, inputs.destinationIdentity);
+        return PassRevision.mix(hash, side(inputs, inputs.eyeX, inputs.eyeY, inputs.eyeZ) ? 1L : 0L);
     }
 
     public static boolean reusable(PassInputs inputs) {
@@ -85,16 +85,16 @@ public final class PassPlanner {
         }
         int reasons = factReasons(inputs);
         if (inputs.dissolving || presentationChanged) {
-            reasons |= ProjectorResampleReasons.PRESENTATION;
+            reasons |= ResampleReasons.PRESENTATION;
         }
         if (destinationContentStale && inputs.recursiveSamplesCached) {
-            reasons |= ProjectorResampleReasons.DEST_STALE_RECURSIVE;
+            reasons |= ResampleReasons.DEST_STALE_RECURSIVE;
         }
         if (destinationDirty) {
-            reasons |= ProjectorResampleReasons.DEST_STALE_DIRTY;
+            reasons |= ResampleReasons.DEST_STALE_DIRTY;
         }
         if (destinationOverBudget) {
-            reasons |= ProjectorResampleReasons.DEST_OVER_BUDGET;
+            reasons |= ResampleReasons.DEST_OVER_BUDGET;
         }
         boolean resume = inputs.committed && !inputs.dissolving && !contentInvalidated && !inputs.fullSendPending
             && inputs.occlusionResumable;
@@ -111,31 +111,31 @@ public final class PassPlanner {
     private static int factReasons(PassInputs inputs) {
         int reasons = 0;
         if (inputs.invalidated) {
-            reasons |= ProjectorResampleReasons.INVALIDATED;
+            reasons |= ResampleReasons.INVALIDATED;
         }
         if (inputs.unresolvedOcclusion) {
-            reasons |= ProjectorResampleReasons.UNRESOLVED_OCCLUSION;
+            reasons |= ResampleReasons.UNRESOLVED_OCCLUSION;
         }
         if (inputs.stableResample) {
-            reasons |= ProjectorResampleReasons.STABLE_CADENCE;
+            reasons |= ResampleReasons.STABLE_CADENCE;
         }
         if (inputs.localDirty) {
-            reasons |= ProjectorResampleReasons.LOCAL_DIRTY;
+            reasons |= ResampleReasons.LOCAL_DIRTY;
         }
         if (inputs.remoteResamplePending) {
-            reasons |= ProjectorResampleReasons.REMOTE_PENDING;
+            reasons |= ResampleReasons.REMOTE_PENDING;
         }
         if (inputs.lightingDue) {
-            reasons |= ProjectorResampleReasons.LIGHTING;
+            reasons |= ResampleReasons.LIGHTING;
         }
         if (!inputs.committed || !inputs.hasProjection || inputs.fullSendPending) {
-            reasons |= ProjectorResampleReasons.FULL_SEND;
+            reasons |= ResampleReasons.FULL_SEND;
         }
         if (!inputs.camera || cameraMoved(inputs) || sideChanged(inputs)) {
-            reasons |= ProjectorResampleReasons.CAMERA;
+            reasons |= ResampleReasons.CAMERA;
         }
         if (inputs.holdsExposed) {
-            reasons |= ProjectorResampleReasons.HOLDS_EXPOSED;
+            reasons |= ResampleReasons.HOLDS_EXPOSED;
         }
         return reasons;
     }
@@ -152,12 +152,12 @@ public final class PassPlanner {
     }
 
     private static boolean side(PassInputs inputs, double x, double y, double z) {
-        return ProjectionVolume.side(inputs.localFrame, inputs.localX, inputs.localY, inputs.localZ, x, y, z);
+        return ApertureSlab.side(inputs.localFrame, inputs.localX, inputs.localY, inputs.localZ, x, y, z);
     }
 
     private static long frame(long hash, Frame frame) {
-        long mixed = ProjectorPassRevision.mix(hash, frame.getNormal().ordinal());
-        mixed = ProjectorPassRevision.mix(mixed, frame.getRight().ordinal());
-        return ProjectorPassRevision.mix(mixed, frame.getUp().ordinal());
+        long mixed = PassRevision.mix(hash, frame.getNormal().ordinal());
+        mixed = PassRevision.mix(mixed, frame.getRight().ordinal());
+        return PassRevision.mix(mixed, frame.getUp().ordinal());
     }
 }

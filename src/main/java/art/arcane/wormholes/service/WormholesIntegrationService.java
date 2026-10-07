@@ -17,7 +17,7 @@ import art.arcane.wormholes.network.TraversalService;
 import art.arcane.wormholes.network.WireCompression;
 import art.arcane.wormholes.network.replication.ChunkReplicationManager;
 import art.arcane.wormholes.network.view.ViewServer;
-import art.arcane.optics.fidelity.ProjectedBlockEntityLayer;
+import art.arcane.optics.fidelity.BlockEntityLayer;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.ServicePriority;
 
@@ -184,7 +184,7 @@ public final class WormholesIntegrationService implements IntegrationServiceCont
                 case IntegrationMetricSchema.WORMHOLES_PLATE_BYTES ->
                     out.put(key, samplePlateBytes(now));
                 case IntegrationMetricSchema.WORMHOLES_BLOCK_ENTITIES_PER_SECOND ->
-                    out.put(key, available(key, blockEntitiesWindow.perSecond(WormholesTelemetry.counter(ProjectedBlockEntityLayer.SENT_METRIC), now), now));
+                    out.put(key, available(key, blockEntitiesWindow.perSecond(WormholesTelemetry.counter(BlockEntityLayer.SENT_METRIC), now), now));
                 default -> out.put(key, IntegrationMetricSample.unavailable(
                     IntegrationMetricSchema.descriptor(key),
                     "unsupported-key",

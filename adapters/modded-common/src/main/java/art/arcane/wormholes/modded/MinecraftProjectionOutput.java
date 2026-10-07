@@ -3,12 +3,12 @@ package art.arcane.wormholes.modded;
 import java.util.List;
 import java.util.UUID;
 
-import art.arcane.optics.claim.ProjectionOutput;
+import art.arcane.optics.claim.WorldOutput;
 import art.arcane.optics.fidelity.AcousticsBridge;
 import art.arcane.optics.fidelity.BiomeClaimSet;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.fidelity.WeatherRelay;
-import art.arcane.optics.light.ProjectorLighting;
+import art.arcane.optics.light.LightOverlay;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.wormholes.config.toml.RenderConfig;
 import art.arcane.wormholes.render.client.session.ClientViewEmitters;
@@ -20,7 +20,7 @@ import net.minecraft.network.protocol.game.ClientboundLightUpdatePacketData;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.biome.Biome;
 
-public final class MinecraftProjectionOutput implements ProjectionOutput<ServerPlayer> {
+public final class MinecraftProjectionOutput implements WorldOutput<ServerPlayer> {
     private final WormholesModRuntime runtime;
     private final ServerPlayer viewer;
     private final MinecraftBlockEntityPackets blockEntities;
@@ -44,7 +44,7 @@ public final class MinecraftProjectionOutput implements ProjectionOutput<ServerP
     }
 
     @Override
-    public void light(ServerPlayer observer, ProjectorLighting.ChunkLight light) {
+    public void light(ServerPlayer observer, LightOverlay.ChunkLight light) {
         runtime.requireServerThread();
         observer.connection.send(lightPacket(light));
     }
@@ -52,7 +52,7 @@ public final class MinecraftProjectionOutput implements ProjectionOutput<ServerP
     @Override
     public int lightSectionBudget() {
         RenderConfig render = runtime.configuration().settings().getRender();
-        return ProjectorLighting.lightingSectionBudget(render.adaptiveLighting, Math.clamp(render.lightingMaxSectionsPerPass, 1, 64));
+        return LightOverlay.lightingSectionBudget(render.adaptiveLighting, Math.clamp(render.lightingMaxSectionsPerPass, 1, 64));
     }
 
     @Override
@@ -91,7 +91,7 @@ public final class MinecraftProjectionOutput implements ProjectionOutput<ServerP
         return List.of(viewer);
     }
 
-    static ClientboundLightUpdatePacket lightPacket(ProjectorLighting.ChunkLight light) {
+    static ClientboundLightUpdatePacket lightPacket(LightOverlay.ChunkLight light) {
         return new ClientboundLightUpdatePacket(light.chunkX(), light.chunkZ(), new ClientboundLightUpdatePacketData(light.skyMask(),
             light.blockMask(), light.emptySkyMask(), light.emptyBlockMask(), List.of(light.skyArrays()), List.of(light.blockArrays())));
     }

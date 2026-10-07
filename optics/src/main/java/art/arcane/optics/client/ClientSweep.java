@@ -9,7 +9,7 @@ import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.optics.volume.ViewVolume;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.volume.PlaneWindow;
-import art.arcane.optics.volume.ProjectionVolume;
+import art.arcane.optics.volume.ApertureSlab;
 import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.math.Axis;
 import art.arcane.optics.math.Box;
@@ -38,7 +38,7 @@ public final class ClientSweep {
     private double originX;
     private double originY;
     private double originZ;
-    private ProjectionVolume volume;
+    private ApertureSlab volume;
     private boolean blackout;
     private long[] applied;
     private long[] shell;
@@ -98,7 +98,7 @@ public final class ClientSweep {
         this.blackout = geometry.blackoutPolicy() != ApertureDescriptor.BLACKOUT_OFF;
         Layout nextLayout = new Layout(bounds, frame.getNormal().axisIndex(),
             frame.getRight().axisIndex(), frame.getUp().axisIndex());
-        this.volume = ProjectionVolume.of(area, frame, ProjectionVolume.plane(frame, originX, originY, originZ), geometry.frontSide(),
+        this.volume = ApertureSlab.of(area, frame, ApertureSlab.plane(frame, originX, originY, originZ), geometry.frontSide(),
             geometry.depthBlocks(), 0.0D);
         if (layout == null || !layout.equals(nextLayout)) {
             remap(nextLayout);
@@ -235,7 +235,7 @@ public final class ClientSweep {
         double relX = eyeX - originX;
         double relY = eyeY - originY;
         double relZ = eyeZ - originZ;
-        eyeFrontSide = ProjectionVolume.side(frame, originX, originY, originZ, eyeX, eyeY, eyeZ);
+        eyeFrontSide = ApertureSlab.side(frame, originX, originY, originZ, eyeX, eyeY, eyeZ);
         Frame projectionFrame = frame.view(eyeFrontSide);
         Face projectionNormal = projectionFrame.getNormal();
         eyeDot = (relX * projectionNormal.x()) + (relY * projectionNormal.y()) + (relZ * projectionNormal.z());
@@ -313,12 +313,12 @@ public final class ClientSweep {
         ViewVolume frustum = new ViewVolume(new Vec3d(eyeX, eyeY, eyeZ), aperture,
             new ViewVolume.Options(depth, depth, geometry.nearPlanePadding(), geometry.frustumCullingRatio(), padding));
         Box region = frustum.getRegion();
-        axisMin[0] = ProjectionVolume.minBlockForCenter(region.getXa());
-        axisMin[1] = ProjectionVolume.minBlockForCenter(region.getYa());
-        axisMin[2] = ProjectionVolume.minBlockForCenter(region.getZa());
-        axisMax[0] = ProjectionVolume.maxBlockForCenter(region.getXb());
-        axisMax[1] = ProjectionVolume.maxBlockForCenter(region.getYb());
-        axisMax[2] = ProjectionVolume.maxBlockForCenter(region.getZb());
+        axisMin[0] = ApertureSlab.minBlockForCenter(region.getXa());
+        axisMin[1] = ApertureSlab.minBlockForCenter(region.getYa());
+        axisMin[2] = ApertureSlab.minBlockForCenter(region.getZa());
+        axisMax[0] = ApertureSlab.maxBlockForCenter(region.getXb());
+        axisMax[1] = ApertureSlab.maxBlockForCenter(region.getYb());
+        axisMax[2] = ApertureSlab.maxBlockForCenter(region.getZb());
         int normalAxis = layout.normalAxis;
         axisMin[normalAxis] = Math.max(axisMin[normalAxis], volume.normalMin());
         axisMax[normalAxis] = Math.min(axisMax[normalAxis], volume.normalMax());

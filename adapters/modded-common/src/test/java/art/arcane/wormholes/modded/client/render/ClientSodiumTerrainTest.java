@@ -83,7 +83,7 @@ import java.lang.reflect.Method;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.frame.OpticTransform;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import java.util.Map;
@@ -126,7 +126,7 @@ public class ClientSodiumTerrainTest extends MinecraftTestBase {
         PortalIrisSettings settings = mock(PortalIrisSettings.class);
         when(settings.terrainCompatible(settings)).thenReturn(true);
         ClientSodiumTerrain.State state = new ClientSodiumTerrain.State(new ClientSodiumTerrain.Ownership(level, renderer, settings, 10));
-        set(state, "warmEnvironment", mock(ProjectionEnvironment.class));
+        set(state, "warmEnvironment", mock(EnvironmentState.class));
         set(state, "warmCamera", new CameraRenderState());
         Object pipeline = new Object();
         AtomicInteger frame = new AtomicInteger(100);
@@ -222,7 +222,7 @@ public class ClientSodiumTerrainTest extends MinecraftTestBase {
         when(settings.terrainCompatible(settings)).thenReturn(true);
         ClientSodiumTerrain.State state = new ClientSodiumTerrain.State(new ClientSodiumTerrain.Ownership(level, renderer, settings, 10));
         warmViewport(level, state);
-        set(state, "warmEnvironment", mock(ProjectionEnvironment.class));
+        set(state, "warmEnvironment", mock(EnvironmentState.class));
         set(state, "warmCamera", new CameraRenderState());
         Map<ClientLevel, ClientSodiumTerrain.State> states = states();
         states.put(level, state);

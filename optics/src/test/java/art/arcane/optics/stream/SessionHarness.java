@@ -9,7 +9,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
 
-import art.arcane.optics.entity.ProjectedEntityEvent;
+import art.arcane.optics.entity.EntityAnimation;
 
 final class SessionHarness {
     static final int DATA_VERSION = 4325;
@@ -71,7 +71,7 @@ final class SessionHarness {
                 }
 
                 @Override
-                public void event(ProjectedEntityEvent event) {
+                public void event(EntityAnimation event) {
                     entities.event(event);
                 }
 

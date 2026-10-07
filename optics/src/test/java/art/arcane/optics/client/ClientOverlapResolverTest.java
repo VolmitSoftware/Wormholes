@@ -9,8 +9,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Random;
 
-import art.arcane.optics.claim.ProjectedBlockClaim;
-import art.arcane.optics.claim.ProjectionClaimSet;
+import art.arcane.optics.claim.BlockClaim;
+import art.arcane.optics.claim.ClaimSet;
 import org.junit.jupiter.api.Test;
 
 final class ClientOverlapResolverTest {
@@ -48,7 +48,7 @@ final class ClientOverlapResolverTest {
         for (int sample = 0; sample < 20_000; sample++) {
             ClientOverlapResolver.Contender candidate = randomContender(random);
             ClientOverlapResolver.Contender current = randomContender(random);
-            boolean expected = ProjectionClaimSet.isHigherPriority(candidate.distance(), tieKey(candidate), claim(candidate),
+            boolean expected = ClaimSet.isHigherPriority(candidate.distance(), tieKey(candidate), claim(candidate),
                 current.distance(), tieKey(current), claim(current));
             assertEquals(expected, ClientOverlapResolver.isHigherPriority(candidate, current), candidate + " vs " + current);
             assertEquals(expected && candidate.portalKey() != current.portalKey(), EXACT.displaces(candidate, current),
@@ -86,7 +86,7 @@ final class ClientOverlapResolverTest {
         return String.format(Locale.ROOT, "%08d", contender.portalKey());
     }
 
-    private static ProjectedBlockClaim<String, Object> claim(ClientOverlapResolver.Contender contender) {
-        return new ProjectedBlockClaim<String, Object>("minecraft:stone", null, ProjectedBlockClaim.NO_REMOTE_KEY, contender.maskAir());
+    private static BlockClaim<String, Object> claim(ClientOverlapResolver.Contender contender) {
+        return new BlockClaim<String, Object>("minecraft:stone", null, BlockClaim.NO_REMOTE_KEY, contender.maskAir());
     }
 }

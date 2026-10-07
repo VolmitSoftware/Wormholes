@@ -13,7 +13,7 @@ import org.bukkit.Material;
 import org.bukkit.block.data.BlockData;
 import org.junit.jupiter.api.Test;
 
-import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.claim.BlockClaim;
 import art.arcane.optics.math.CellKeys;
 
 final class DissolveScheduleTest {
@@ -57,7 +57,7 @@ final class DissolveScheduleTest {
 
     @Test
     void filterKeepsTheNearestCellsFirst() {
-        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
+        Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>> claims = new Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>>();
         for (int depth = 1; depth <= 8; depth++) {
             claims.put(CellKeys.pack(0, 64, -depth), claim());
         }
@@ -72,8 +72,8 @@ final class DissolveScheduleTest {
         assertTrue(claims.isEmpty());
     }
 
-    private static ProjectedBlockClaim<BlockData, ProjectionWorldView> claim() {
-        return new ProjectedBlockClaim<BlockData, ProjectionWorldView>(blockData(), null, ProjectedBlockClaim.NO_REMOTE_KEY, false);
+    private static BlockClaim<BlockData, ProjectionWorldView> claim() {
+        return new BlockClaim<BlockData, ProjectionWorldView>(blockData(), null, BlockClaim.NO_REMOTE_KEY, false);
     }
 
     private static BlockData blockData() {

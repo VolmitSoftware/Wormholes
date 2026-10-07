@@ -16,7 +16,7 @@ import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.optics.internal.stream.EncodedPlate;
 import art.arcane.optics.internal.stream.PlateStreamEncoder;
 import art.arcane.optics.math.CellKeys;
-import art.arcane.optics.scan.ProjectorSample;
+import art.arcane.optics.scan.Sample;
 import art.arcane.optics.volume.LodPolicy;
 import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.plate.PlateCell;
@@ -72,9 +72,9 @@ final class PlateExposurePropertyTest {
                 int z = baseZ + ViewStreamLimits.brickCellZ(i);
                 PlateCell<String> source = box.index(x, y, z) < 0 ? null : plate.cell(CellKeys.pack(x, y, z));
                 int id = cells[i];
-                if (source != null && source.kind() == ProjectorSample.Kind.OCCLUDED) {
+                if (source != null && source.kind() == Sample.Kind.OCCLUDED) {
                     assertEquals(ViewStreamLimits.PALETTE_OCCLUDED, id, "occluded cell " + x + "," + y + "," + z + " leaked a state");
-                } else if (source != null && source.kind() == ProjectorSample.Kind.BACKING_BLOCK) {
+                } else if (source != null && source.kind() == Sample.Kind.BACKING_BLOCK) {
                     assertEquals(ViewStreamLimits.PALETTE_BACKING, id, "backing cell " + x + "," + y + "," + z + " leaked a state");
                 } else if (id >= ViewStreamLimits.RESERVED_PALETTE_IDS) {
                     referenced.add(id);
@@ -86,7 +86,7 @@ final class PlateExposurePropertyTest {
                     int y = baseY + ViewStreamLimits.brickCellY(entity.cellIndex());
                     int z = baseZ + ViewStreamLimits.brickCellZ(entity.cellIndex());
                     PlateCell<String> source = plate.cell(CellKeys.pack(x, y, z));
-                    assertEquals(ProjectorSample.Kind.BLOCK, source.kind(), "block entity on a non-visible cell");
+                    assertEquals(Sample.Kind.BLOCK, source.kind(), "block entity on a non-visible cell");
                 }
             }
         }

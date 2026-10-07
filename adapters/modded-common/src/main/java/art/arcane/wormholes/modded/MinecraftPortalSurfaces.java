@@ -9,9 +9,9 @@ import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.wormholes.render.PortalSkinGeometry;
 import art.arcane.wormholes.render.PortalSkinGeometry.SkinTransform;
-import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.claim.BlockClaim;
 import art.arcane.optics.math.CellKeys;
-import art.arcane.optics.claim.ProjectionClaimSet;
+import art.arcane.optics.claim.ClaimSet;
 import art.arcane.optics.view.ContentView;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
@@ -149,7 +149,7 @@ final class MinecraftPortalSurfaces implements AutoCloseable {
         if (PortalSurfaceSkins.isFluid(portal.getSurfaceSkin()) || surface.withholdsDisplays) {
             for (Vec3d cell : portal.getGeometry().getBlockPositions()) {
                 surface.fluid.put(CellKeys.pack(cell.getBlockX(), cell.getBlockY(), cell.getBlockZ()),
-                    new ProjectedBlockClaim<>(block, null, ProjectedBlockClaim.NO_REMOTE_KEY, false));
+                    new BlockClaim<>(block, null, BlockClaim.NO_REMOTE_KEY, false));
             }
             return;
         }
@@ -247,7 +247,7 @@ final class MinecraftPortalSurfaces implements AutoCloseable {
         outlines.clear();
     }
 
-    record Context(ServerPlayer player, ProjectionClaimSet<ProjectedBlockClaim<BlockState, ContentView<BlockState, BlockState>>> claims,
+    record Context(ServerPlayer player, ClaimSet<BlockClaim<BlockState, ContentView<BlockState, BlockState>>> claims,
                    LongOpenHashSet staged) { }
 
     private static final class Surface {
@@ -257,7 +257,7 @@ final class MinecraftPortalSurfaces implements AutoCloseable {
         private final Frame frame;
         private final boolean withholdsDisplays;
         private final List<Integer> displays = new ArrayList<>();
-        private final Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockState, ContentView<BlockState, BlockState>>> fluid = new Long2ObjectOpenHashMap<>();
+        private final Long2ObjectOpenHashMap<BlockClaim<BlockState, ContentView<BlockState, BlockState>>> fluid = new Long2ObjectOpenHashMap<>();
 
         private Surface(MinecraftPortal portal, ServerPlayer viewer) {
             owner = UUID.nameUUIDFromBytes(("wormholes:surface-skin:" + portal.getId()).getBytes(StandardCharsets.UTF_8));

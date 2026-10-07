@@ -10,7 +10,7 @@ import art.arcane.optics.crossing.MomentumRule;
 import art.arcane.optics.crossing.OrientationRule;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.math.Vec3d;
-import art.arcane.optics.stream.ProjectionEnvironmentCodec;
+import art.arcane.optics.stream.EnvironmentStateCodec;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.ViewStreamCodec;
 import art.arcane.optics.stream.ViewStreamExtension;
@@ -107,7 +107,7 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
                 uuid(out, begin.sourcePortal());
                 out.string(begin.sourceWorld());
                 ViewStreamCodec.writeGeometry(out, begin.sourceGeometry(), 0);
-                ProjectionEnvironmentCodec.writeTransform(out, begin.destinationToSource());
+                EnvironmentStateCodec.writeTransform(out, begin.destinationToSource());
                 world(out, begin.world());
                 pose(out, begin.arrival());
                 out.u16(begin.chunks().size());
@@ -115,7 +115,7 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
                     out.i32(chunk.x());
                     out.i32(chunk.z());
                 }
-                ProjectionEnvironmentCodec.write(out, begin.environment());
+                EnvironmentStateCodec.write(out, begin.environment());
                 out.i32(begin.expiresMillis());
                 rules(out, begin.rules());
                 out.u8(begin.resident() ? 1 : 0);
@@ -203,7 +203,7 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
                 UUID portal = uuid(in);
                 String source = in.string();
                 ApertureDescriptor geometry = ViewStreamCodec.readGeometry(in, 0);
-                OpticTransform transform = ProjectionEnvironmentCodec.readTransform(in);
+                OpticTransform transform = EnvironmentStateCodec.readTransform(in);
                 TravelMessage.TravelWorld world = world(in);
                 TravelMessage.TravelPose pose = pose(in);
                 int count = count(in);
@@ -212,7 +212,7 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
                     chunks.add(new TravelMessage.TravelCoordinate(in.i32(), in.i32()));
                 }
                 yield new TravelMessage.TravelBegin(token, generation, portal, source, geometry, transform, world, pose, chunks,
-                    ProjectionEnvironmentCodec.read(in), in.i32(), rules(in), bool(in), in.u8(), bool(in));
+                    EnvironmentStateCodec.read(in), in.i32(), rules(in), bool(in), in.u8(), bool(in));
             }
             case TravelMessage.TRAVEL_CHUNK -> {
                 int x = in.i32();

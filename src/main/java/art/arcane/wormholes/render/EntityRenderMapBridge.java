@@ -2,8 +2,8 @@ package art.arcane.wormholes.render;
 
 import art.arcane.wormholes.network.view.BukkitProjectedMapData;
 import java.util.Optional;
-import art.arcane.optics.entity.ProjectedMaps;
-import art.arcane.optics.entity.ProjectedMaps.Projection;
+import art.arcane.optics.entity.MapRelay;
+import art.arcane.optics.entity.MapRelay.Projection;
 
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.ItemFrame;
@@ -22,10 +22,10 @@ import art.arcane.optics.entity.SpoofedEntity;
 import art.arcane.optics.entity.EntityOutput;
 
 final class EntityRenderMapBridge {
-    private final ProjectedMaps<Player> projected;
+    private final MapRelay<Player> projected;
 
     EntityRenderMapBridge(EntityOutput<Player, ?, ?, ?, ?> output) {
-        this.projected = new ProjectedMaps<>(output);
+        this.projected = new MapRelay<>(output);
     }
 
     Projection projectLocal(Player observer,
@@ -77,7 +77,7 @@ final class EntityRenderMapBridge {
             sendMap(observer, localMapView);
             return Projection.none();
         }
-        return projected.project(observer, visual, state, new ProjectedMaps.Options(sourceMapId, metadataTransform, force));
+        return projected.project(observer, visual, state, new MapRelay.Options(sourceMapId, metadataTransform, force));
     }
 
     private static MapView mapView(ItemFrame itemFrame) {

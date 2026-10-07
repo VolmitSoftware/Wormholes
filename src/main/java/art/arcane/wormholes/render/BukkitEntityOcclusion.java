@@ -7,25 +7,25 @@ import art.arcane.wormholes.render.view.ProjectionWorldView;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.util.BoundingBox;
 
-import static art.arcane.optics.occlusion.ProjectedEntityOcclusion.LABEL_HORIZONTAL_MARGIN;
-import static art.arcane.optics.occlusion.ProjectedEntityOcclusion.LABEL_VERTICAL_MARGIN;
-import static art.arcane.optics.occlusion.ProjectedEntityOcclusion.MIN_VISUAL_HEIGHT;
-import static art.arcane.optics.occlusion.ProjectedEntityOcclusion.VISUAL_HALF_WIDTH;
+import static art.arcane.optics.occlusion.EntityOcclusion.LABEL_HORIZONTAL_MARGIN;
+import static art.arcane.optics.occlusion.EntityOcclusion.LABEL_VERTICAL_MARGIN;
+import static art.arcane.optics.occlusion.EntityOcclusion.MIN_VISUAL_HEIGHT;
+import static art.arcane.optics.occlusion.EntityOcclusion.VISUAL_HALF_WIDTH;
 import art.arcane.optics.entity.SnapshotProjector;
-import art.arcane.optics.occlusion.ProjectedEntityOcclusion;
-import art.arcane.optics.occlusion.ProjectorViewOcclusion;
+import art.arcane.optics.occlusion.EntityOcclusion;
+import art.arcane.optics.occlusion.ViewOcclusion;
 import art.arcane.optics.recursion.EntityPath;
 
 final class BukkitEntityOcclusion {
     private BukkitEntityOcclusion() {
     }
 
-    static ProjectedEntityOcclusion<BlockData, ProjectionWorldView> create() {
-        return new ProjectedEntityOcclusion<>(new ProjectorViewOcclusion<>(BukkitProjectorBlocks.defaults(),
-            ProjectedEntityOcclusion.MAX_VOXEL_STEPS_PER_BATCH));
+    static EntityOcclusion<BlockData, ProjectionWorldView> create() {
+        return new EntityOcclusion<>(new ViewOcclusion<>(BukkitProjectorBlocks.defaults(),
+            EntityOcclusion.MAX_VOXEL_STEPS_PER_BATCH));
     }
 
-    static boolean fullyHidden(ProjectedEntityOcclusion<BlockData, ProjectionWorldView> occlusion, BoundingBox box) {
+    static boolean fullyHidden(EntityOcclusion<BlockData, ProjectionWorldView> occlusion, BoundingBox box) {
         if (box == null) {
             return false;
         }
@@ -34,7 +34,7 @@ final class BukkitEntityOcclusion {
             box.getMaxY() + LABEL_VERTICAL_MARGIN, box.getMaxZ() + LABEL_HORIZONTAL_MARGIN);
     }
 
-    static boolean fullyHidden(ProjectedEntityOcclusion<BlockData, ProjectionWorldView> occlusion,
+    static boolean fullyHidden(EntityOcclusion<BlockData, ProjectionWorldView> occlusion,
                                BoundingBox box, EntityPath<World, ILocalPortal> path) {
         if (path == null || !path.nested() || box == null) {
             return fullyHidden(occlusion, box);
@@ -44,7 +44,7 @@ final class BukkitEntityOcclusion {
             box.getMaxY() + LABEL_VERTICAL_MARGIN, box.getMaxZ() + LABEL_HORIZONTAL_MARGIN);
     }
 
-    static boolean fullyHidden(ProjectedEntityOcclusion<BlockData, ProjectionWorldView> occlusion,
+    static boolean fullyHidden(EntityOcclusion<BlockData, ProjectionWorldView> occlusion,
                                EntitySnapshot visual, EntityPath<World, ILocalPortal> path) {
         return SnapshotProjector.fullyHidden(occlusion, visual, path);
     }

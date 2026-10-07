@@ -760,7 +760,7 @@ public final class ViewStreamCodec {
             }
             case ViewStreamMessage.Environment m -> {
                 out.varint(m.portalKey());
-                ProjectionEnvironmentCodec.write(out, m.environment());
+                EnvironmentStateCodec.write(out, m.environment());
             }
             case ViewStreamMessage.Atmosphere m -> {
                 out.varint(m.portalKey());
@@ -997,7 +997,7 @@ public final class ViewStreamCodec {
                 }
                 yield new ViewStreamMessage.EntityFrame(portalKey, seq, entities, presentIds, true);
             }
-            case ENVIRONMENT -> new ViewStreamMessage.Environment(in.varint(), ProjectionEnvironmentCodec.read(in));
+            case ENVIRONMENT -> new ViewStreamMessage.Environment(in.varint(), EnvironmentStateCodec.read(in));
             case ATMOSPHERE -> new ViewStreamMessage.Atmosphere(in.varint(), in.i64(), in.f32(), in.f32(), in.u8());
             case SESSION_RESET -> {
                 ViewStreamMessage.ResetReason reason = ViewStreamMessage.ResetReason.byId(in.u8());

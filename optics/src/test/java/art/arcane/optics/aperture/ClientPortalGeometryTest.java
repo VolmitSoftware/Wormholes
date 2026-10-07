@@ -14,7 +14,7 @@ import java.util.Optional;
 
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.frame.Frame;
-import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.claim.BlockClaim;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 import org.junit.jupiter.api.Test;
@@ -144,7 +144,7 @@ final class ClientPortalGeometryTest {
         assertFalse(copy(valid, 6, valid.apertureMask(), 0).valid());
         assertFalse(copy(valid, valid.facing(), new long[] {0L}, 0).valid());
         assertFalse(copy(valid, valid.facing(), new long[] {0xFL, 0L}, 0).valid());
-        assertEquals(ProjectedBlockClaim.LightingPolicy.SOURCE, valid.lightingPolicyType());
+        assertEquals(BlockClaim.LightingPolicy.SOURCE, valid.lightingPolicyType());
         assertTrue(valid.hasFidelity(ApertureDescriptor.FIDELITY_LIGHTING));
         assertFalse(valid.hasFidelity(ApertureDescriptor.FIDELITY_SOUNDS));
     }
@@ -202,7 +202,7 @@ final class ClientPortalGeometryTest {
 
     private static ApertureDescriptor.Source source(CellAperture aperture, Frame frame, boolean mirror, int mirrorTurns) {
         return new ApertureDescriptor.Source(aperture, frame, true, mirror, mirrorTurns, 2.0D, 0.75D, 0.2D, 64, 3,
-            ApertureDescriptor.BLACKOUT_SHELL, 7, ApertureDescriptor.MASK_AIR_PROJECT, ProjectedBlockClaim.LightingPolicy.SOURCE,
+            ApertureDescriptor.BLACKOUT_SHELL, 7, ApertureDescriptor.MASK_AIR_PROJECT, BlockClaim.LightingPolicy.SOURCE,
             ApertureDescriptor.FIDELITY_LIGHTING | ApertureDescriptor.FIDELITY_WEATHER, 0, 0.0D, 0, 0L,
             List.of());
     }

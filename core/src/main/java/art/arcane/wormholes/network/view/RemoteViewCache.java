@@ -5,7 +5,7 @@ import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.math.BlockBox;
 
 import art.arcane.optics.entity.EntityProfile;
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.light.SkyMath;
 
 import art.arcane.wormholes.network.replication.ChunkBulk;
@@ -110,7 +110,7 @@ public final class RemoteViewCache<B, M, E> {
         private volatile long lastUpdateMillis;
         private volatile long revision;
         private volatile int skyDarken;
-        private volatile ProjectionEnvironment environment;
+        private volatile EnvironmentState environment;
         private volatile boolean storm;
         private volatile boolean thunder;
         private volatile boolean viewReady;
@@ -176,7 +176,7 @@ public final class RemoteViewCache<B, M, E> {
             return revision;
         }
 
-        public ProjectionEnvironment environment() {
+        public EnvironmentState environment() {
             return environment;
         }
 
@@ -445,7 +445,7 @@ public final class RemoteViewCache<B, M, E> {
         }
     }
 
-    public void applyEnvironment(String peerName, UUID portalId, ProjectionEnvironment environment) {
+    public void applyEnvironment(String peerName, UUID portalId, EnvironmentState environment) {
         RemoteView<B, M, E> view = views.get(key(peerName, portalId));
         if (view != null) {
             view.environment = environment;

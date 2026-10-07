@@ -52,7 +52,7 @@ import art.arcane.wormholes.portal.PortalSurfaceSkins;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 import art.arcane.wormholes.render.bedrock.ClientProfileService;
-import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.claim.BlockClaim;
 import art.arcane.optics.math.CellKeys;
 
 public final class PortalSkinRenderer {
@@ -389,7 +389,7 @@ public final class PortalSkinRenderer {
         if (cells.isEmpty()) {
             return null;
         }
-        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims = fluidClaims(cells, data);
+        Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>> claims = fluidClaims(cells, data);
         if (!submitFluidClaims(observer, portal, world, claimOwnerId, claims)) {
             return null;
         }
@@ -397,7 +397,7 @@ public final class PortalSkinRenderer {
     }
 
     private boolean submitFluidClaims(Player observer, ILocalPortal portal, World world, UUID claimOwnerId,
-                                      Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims) {
+                                      Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>> claims) {
         if (claims == null || claims.isEmpty()) {
             return false;
         }
@@ -405,12 +405,12 @@ public final class PortalSkinRenderer {
         return true;
     }
 
-    static Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> fluidClaims(List<Vector> cells, BlockData data) {
-        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims =
-            new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(Math.max(4, cells.size() * 2));
+    static Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>> fluidClaims(List<Vector> cells, BlockData data) {
+        Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>> claims =
+            new Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>>(Math.max(4, cells.size() * 2));
         for (Vector cell : cells) {
             long key = CellKeys.pack(cell.getBlockX(), cell.getBlockY(), cell.getBlockZ());
-            claims.put(key, new ProjectedBlockClaim<BlockData, ProjectionWorldView>(data, null, ProjectedBlockClaim.NO_REMOTE_KEY, false));
+            claims.put(key, new BlockClaim<BlockData, ProjectionWorldView>(data, null, BlockClaim.NO_REMOTE_KEY, false));
         }
         return claims;
     }
@@ -660,7 +660,7 @@ public final class PortalSkinRenderer {
 
     private record PortalSkinState(SkinRenderMode mode, String stateKey, int[] displayIds,
                                    ILocalPortal portal, UUID claimOwnerId,
-                                   Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> fluidClaims) {
+                                   Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>> fluidClaims) {
     }
 
     @FunctionalInterface

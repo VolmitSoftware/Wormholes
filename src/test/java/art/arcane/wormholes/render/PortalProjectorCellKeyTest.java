@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 import org.junit.jupiter.api.Test;
-import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.claim.BlockClaim;
 import art.arcane.optics.math.CellKeys;
 
 public final class PortalProjectorCellKeyTest {
@@ -56,10 +56,10 @@ public final class PortalProjectorCellKeyTest {
 
     @Test
     public void theSentinelRemoteKeyIsTheOneDefinedByTheClaimThatStoresIt() {
-        assertEquals(Long.MIN_VALUE, ProjectedBlockClaim.NO_REMOTE_KEY,
+        assertEquals(Long.MIN_VALUE, BlockClaim.NO_REMOTE_KEY,
             "the light sentinel must stay outside the packed cell key range");
-        assertNotEquals(ProjectedBlockClaim.NO_REMOTE_KEY, CellKeys.pack(-30_000_000, -2032, -30_000_000),
+        assertNotEquals(BlockClaim.NO_REMOTE_KEY, CellKeys.pack(-30_000_000, -2032, -30_000_000),
             "no reachable cell may collide with the no-remote-light sentinel");
-        assertNotEquals(ProjectedBlockClaim.NO_REMOTE_KEY, CellKeys.pack(0, 0, 0));
+        assertNotEquals(BlockClaim.NO_REMOTE_KEY, CellKeys.pack(0, 0, 0));
     }
 }

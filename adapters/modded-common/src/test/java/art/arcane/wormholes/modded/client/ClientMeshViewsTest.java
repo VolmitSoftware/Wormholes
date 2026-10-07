@@ -3,7 +3,7 @@ package art.arcane.wormholes.modded.client;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.client.render.PortalScene;
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.SectionBiomes;
@@ -94,7 +94,7 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
         ApertureDescriptor geometry = mock(ApertureDescriptor.class);
         ClientPortalRenderer renderer = mock(ClientPortalRenderer.class);
         ClientLevel level = mock(ClientLevel.class);
-        ProjectionEnvironment environment = mock(ProjectionEnvironment.class);
+        EnvironmentState environment = mock(EnvironmentState.class);
         Camera camera = mock(Camera.class);
         when(session.active()).thenReturn(true);
         when(session.meshes()).thenReturn(meshes);
@@ -187,7 +187,7 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
         ApertureDescriptor geometry = mock(ApertureDescriptor.class);
         ClientPortalRenderer renderer = mock(ClientPortalRenderer.class);
         ClientLevel level = mock(ClientLevel.class);
-        ProjectionEnvironment environment = mock(ProjectionEnvironment.class);
+        EnvironmentState environment = mock(EnvironmentState.class);
         when(session.active()).thenReturn(true);
         when(session.meshes()).thenReturn(meshes);
         when(meshes.view(7)).thenReturn(view);
@@ -262,8 +262,8 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
             ClientMeshSections.Identity worldIdentity = new ClientMeshSections.Identity(fixture.environment, 1, 2);
             when(fixture.view.identity()).thenReturn(worldIdentity);
             fixture.views.update(fixture.session, foreignRegistry);
-            when(fixture.environment.dimension()).thenReturn(new ProjectionEnvironment.Dimension(-64, 384, true,
-                ProjectionEnvironment.CardinalLighting.NETHER, 63, false));
+            when(fixture.environment.dimension()).thenReturn(new EnvironmentState.Dimension(-64, 384, true,
+                EnvironmentState.CardinalLighting.NETHER, 63, false));
             fixture.views.update(fixture.session, foreignRegistry);
             ClientMeshSections.View replacement = mock(ClientMeshSections.View.class);
             when(replacement.changed()).thenReturn(new LongOpenHashSet());
@@ -376,8 +376,8 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
             verify(fixture.renderer, times(3)).replaceScene(eq(7), captured.capture());
             PortalScene third = captured.getValue();
             assertNotNull(third.meshContext());
-            when(fixture.environment.dimension()).thenReturn(new ProjectionEnvironment.Dimension(-32, 256, false,
-                ProjectionEnvironment.CardinalLighting.NETHER, 63, false));
+            when(fixture.environment.dimension()).thenReturn(new EnvironmentState.Dimension(-32, 256, false,
+                EnvironmentState.CardinalLighting.NETHER, 63, false));
             assertNull(third.meshContext());
             assertFalse(third.matchesMeshIdentity(0L, firstProof));
             fixture.views.update(fixture.session, fixture.level);
@@ -595,8 +595,8 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
         private final ClientPortal portal = mock(ClientPortal.class);
         private final ClientPortalRenderer renderer = mock(ClientPortalRenderer.class);
         private final ClientLevel level = mock(ClientLevel.class);
-        private final ProjectionEnvironment environment = mock(ProjectionEnvironment.class);
-        private final ProjectionEnvironment.World world = mock(ProjectionEnvironment.World.class);
+        private final EnvironmentState environment = mock(EnvironmentState.class);
+        private final EnvironmentState.World world = mock(EnvironmentState.World.class);
         private final ClientMeshViews views = new ClientMeshViews();
 
         private Fixture() {
@@ -620,8 +620,8 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
             when(environment.world()).thenReturn(world);
             ClientMeshSections.Identity identity = new ClientMeshSections.Identity(environment, 1, 1);
             when(view.identity()).thenReturn(identity);
-            when(environment.dimension()).thenReturn(new ProjectionEnvironment.Dimension(-64, 384, true,
-                ProjectionEnvironment.CardinalLighting.DEFAULT, 63, false));
+            when(environment.dimension()).thenReturn(new EnvironmentState.Dimension(-64, 384, true,
+                EnvironmentState.CardinalLighting.DEFAULT, 63, false));
             when(renderer.available(7)).thenReturn(true);
         }
     }

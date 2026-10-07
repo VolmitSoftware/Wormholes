@@ -28,8 +28,8 @@ import art.arcane.wormholes.network.view.PacketBlobs;
 import art.arcane.wormholes.render.view.ProjectionEntityView;
 import art.arcane.optics.entity.ItemFrameTransform;
 import art.arcane.optics.entity.PlayerNames;
-import art.arcane.optics.entity.ProjectedMaps;
-import art.arcane.optics.entity.ProjectedMetadata;
+import art.arcane.optics.entity.MapRelay;
+import art.arcane.optics.entity.MetadataPatcher;
 import art.arcane.optics.entity.SpoofedEntity;
 import art.arcane.optics.entity.EntityOutput;
 import art.arcane.optics.entity.ItemFrameMetadata;
@@ -39,7 +39,7 @@ import art.arcane.optics.math.Face;
 final class EntityRenderMetadataBridge {
     static final long METADATA_BRIDGE_RETRY_MILLIS = 60_000L;
     private static final MetadataAccess<EntityData<?>> ACCESS = new Access();
-    private static final ProjectedMetadata<EntityData<?>> ENTITIES = new ProjectedMetadata<>(ACCESS);
+    private static final MetadataPatcher<EntityData<?>> ENTITIES = new MetadataPatcher<>(ACCESS);
     static final ItemFrameMetadata<EntityData<?>> FRAMES = new ItemFrameMetadata<>(ACCESS);
 
     private final EntityRenderPacketChannel channel;
@@ -74,7 +74,7 @@ final class EntityRenderMetadataBridge {
         List<EntityData<?>> metadata = remoteView.getMetadata(visual.id());
         if (metadata != null && !metadata.isEmpty()) {
             Integer sourceMapId = FRAMES.mapId(metadata);
-            ProjectedMaps.Projection mapProjection = mapBridge.projectVisual(
+            MapRelay.Projection mapProjection = mapBridge.projectVisual(
                 observer, remoteView, visual, state, metadataTransform, sourceMapId, force);
             metadata = FRAMES.transformMetadata(
                 metadata, metadataTransform, mapProjection.mapId(), mapProjection.stripMapId());
@@ -149,7 +149,7 @@ final class EntityRenderMetadataBridge {
             return;
         }
         Integer sourceMapId = FRAMES.mapId(snapshot.metadata);
-        ProjectedMaps.Projection mapProjection = mapBridge.projectLocal(
+        MapRelay.Projection mapProjection = mapBridge.projectLocal(
             observer, entity, state, metadataTransform, sourceMapId, force);
         List<EntityData<?>> metadata = FRAMES.transformMetadata(
             snapshot.metadata, metadataTransform, mapProjection.mapId(), mapProjection.stripMapId());

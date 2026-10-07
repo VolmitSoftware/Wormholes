@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded.clientview;
 
-import art.arcane.optics.scan.ProjectorSample;
+import art.arcane.optics.scan.Sample;
 import art.arcane.optics.stream.PlateHandoffs;
 import art.arcane.optics.stream.PlateOffer;
 import art.arcane.optics.plate.PlateCell;
@@ -26,9 +26,9 @@ public final class MinecraftClientViewHandoffs implements PlateHandoffs<BlockSta
             if (cell == null || cell.data() == null) {
                 continue;
             }
-            if (cell.kind() == ProjectorSample.Kind.BACKING_BLOCK) {
+            if (cell.kind() == Sample.Kind.BACKING_BLOCK) {
                 backing.addTo(cell.data(), 1);
-            } else if (cell.kind() == ProjectorSample.Kind.OCCLUDED) {
+            } else if (cell.kind() == Sample.Kind.OCCLUDED) {
                 occluded.addTo(cell.data(), 1);
             }
         }

@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client.render;
 
 import art.arcane.optics.math.Vec3d;
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
 import com.mojang.renderpearl.api.commands.RenderPass;
@@ -30,7 +30,7 @@ final class PortalEnvironmentRenderer implements AutoCloseable {
     private final FogRenderer fog = new FogRenderer();
     private final Matrix4f view = new Matrix4f();
     private PortalClouds clouds;
-    private ProjectionEnvironment previous;
+    private EnvironmentState previous;
     private long receivedTime;
     private float previousSun;
     private float previousMoon;
@@ -40,7 +40,7 @@ final class PortalEnvironmentRenderer implements AutoCloseable {
     private FogData fogData;
     private SkyRenderState sky;
 
-    void prepare(ProjectionEnvironment environment, CameraRenderState camera) {
+    void prepare(EnvironmentState environment, CameraRenderState camera) {
         Minecraft minecraft = Minecraft.getInstance();
         long now = minecraft.level.getGameTime();
         boolean changed = environment != previous;

@@ -7,7 +7,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import art.arcane.optics.math.CellKeys;
-import art.arcane.optics.scan.ProjectorSample;
+import art.arcane.optics.scan.Sample;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -182,7 +182,7 @@ public final class PlateGrid<B> {
             place(toIndex, toKey, entry);
         }
 
-        void put(int index, long localKey, ProjectorSample.Kind kind, B source, B data, BlockEntitySample blockEntity) {
+        void put(int index, long localKey, Sample.Kind kind, B source, B data, BlockEntitySample blockEntity) {
             if (blockEntity != null) {
                 blockEntityCells.put(localKey, new PlateCell<B>(kind, source, data, blockEntity));
                 place(index, localKey, BLOCK_ENTITY);
@@ -207,7 +207,7 @@ public final class PlateGrid<B> {
         }
 
         void fillAir(B air) {
-            Arrays.fill(cells, entry(ProjectorSample.Kind.REMOTE_AIR, air, air));
+            Arrays.fill(cells, entry(Sample.Kind.REMOTE_AIR, air, air));
             cellCount = cells.length;
         }
 
@@ -225,8 +225,8 @@ public final class PlateGrid<B> {
             cells[index] = entry;
         }
 
-        private char entry(ProjectorSample.Kind kind, B source, B data) {
-            if (kind == ProjectorSample.Kind.REMOTE_AIR) {
+        private char entry(Sample.Kind kind, B source, B data) {
+            if (kind == Sample.Kind.REMOTE_AIR) {
                 if (airEntry == ABSENT) {
                     airEntry = append(kind, source, data);
                 }
@@ -248,7 +248,7 @@ public final class PlateGrid<B> {
             return appended;
         }
 
-        private char append(ProjectorSample.Kind kind, B source, B data) {
+        private char append(Sample.Kind kind, B source, B data) {
             if (palette.size() >= MAX_PALETTE) {
                 return ABSENT;
             }

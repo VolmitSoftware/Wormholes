@@ -20,7 +20,7 @@ import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.ViewWindow;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.view.WorldChangeTracker;
-import art.arcane.optics.scan.ProjectorSample;
+import art.arcane.optics.scan.Sample;
 import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.plate.PlateCell;
 import art.arcane.optics.plate.ViewPlate;
@@ -304,8 +304,8 @@ class ViewStreamPlateLightTest {
         if (cell == null) {
             return false;
         }
-        ProjectorSample.Kind kind = cell.kind();
-        return kind == ProjectorSample.Kind.BLOCK || kind == ProjectorSample.Kind.REMOTE_AIR || kind == ProjectorSample.Kind.MASK_AIR;
+        Sample.Kind kind = cell.kind();
+        return kind == Sample.Kind.BLOCK || kind == Sample.Kind.REMOTE_AIR || kind == Sample.Kind.MASK_AIR;
     }
 
     private static long find(ViewPlate<String> plate, String state) {
@@ -313,7 +313,7 @@ class ViewStreamPlateLightTest {
         while (keys.hasNext()) {
             long key = keys.nextLong();
             PlateCell<String> cell = plate.cell(key);
-            if (cell != null && state.equals(cell.sourceData()) && cell.kind() == ProjectorSample.Kind.BLOCK) {
+            if (cell != null && state.equals(cell.sourceData()) && cell.kind() == Sample.Kind.BLOCK) {
                 return key;
             }
         }

@@ -5,7 +5,7 @@ import art.arcane.optics.plate.ChunkLease;
 import art.arcane.optics.plate.ChunkLeaseRegistry;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.WormholesModRuntime;
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.AxisPermutation;
@@ -42,7 +42,7 @@ public class MinecraftEnvironmentCaptureTest extends MinecraftTestBase {
     public void waitsForSavedEyeChunkOutsideMeshAndSamplesOnlyOnServerThread() {
         Fixture fixture = fixture();
         MinecraftEnvironmentCapture.Request request = request(fixture, new Vec3d(-32.5D, 92, 128));
-        ProjectionEnvironment environment = mock(ProjectionEnvironment.class);
+        EnvironmentState environment = mock(EnvironmentState.class);
         try (MockedStatic<MinecraftPortalEnvironment> sampler = mockStatic(MinecraftPortalEnvironment.class)) {
             sampler.when(() -> MinecraftPortalEnvironment.capture(fixture.world(), request.eye(), request.transform(), fixture.world().isFlat())).thenReturn(environment);
             assertNull(fixture.capture().capture(request));
@@ -132,7 +132,7 @@ public class MinecraftEnvironmentCaptureTest extends MinecraftTestBase {
         CompletableFuture<Boolean> secondReady = new CompletableFuture<>();
         when(secondLease.ready()).thenReturn(secondReady);
         when(fixture.leases().retain(eq(fixture.world()), any(UUID.class), eq(2), eq(0))).thenReturn(secondLease);
-        ProjectionEnvironment environment = mock(ProjectionEnvironment.class);
+        EnvironmentState environment = mock(EnvironmentState.class);
         try (MockedStatic<MinecraftPortalEnvironment> sampler = mockStatic(MinecraftPortalEnvironment.class)) {
             sampler.when(() -> MinecraftPortalEnvironment.capture(fixture.world(), second.eye(), second.transform(), fixture.world().isFlat())).thenReturn(environment);
             fixture.capture().capture(first);

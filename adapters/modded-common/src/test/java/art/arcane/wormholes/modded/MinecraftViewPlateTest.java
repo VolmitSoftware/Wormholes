@@ -3,7 +3,7 @@ package art.arcane.wormholes.modded;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.optics.view.WorldChangeTracker;
-import art.arcane.optics.scan.ProjectorSample;
+import art.arcane.optics.scan.Sample;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.volume.LodPolicy;
 import art.arcane.optics.plate.PlateCaptureJob;
@@ -145,7 +145,7 @@ public class MinecraftViewPlateTest extends MinecraftTestBase {
             for (long cell : live.cellKeys()) {
                 PlateCell<BlockState> expected = live.cell(cell);
                 PlateCell<BlockState> actual = built.cell(cell);
-                assertEquals(ProjectorSample.Kind.BLOCK, actual.kind());
+                assertEquals(Sample.Kind.BLOCK, actual.kind());
                 assertSame(expected.data(), actual.data());
                 assertSame(expected.sourceData(), actual.sourceData());
             }

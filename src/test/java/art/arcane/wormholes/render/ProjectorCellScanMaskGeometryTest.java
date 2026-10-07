@@ -33,11 +33,11 @@ import art.arcane.optics.math.Box;
 import art.arcane.wormholes.util.BukkitGeometry;
 import art.arcane.wormholes.util.Cuboid;
 import art.arcane.optics.math.Face;
-import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.claim.BlockClaim;
 import art.arcane.optics.recursion.RecursiveEndpoints;
 import art.arcane.optics.scan.CellScan;
-import art.arcane.optics.scan.ProjectorSampleMemo;
-import art.arcane.optics.scan.ProjectorSampler;
+import art.arcane.optics.scan.SampleMemo;
+import art.arcane.optics.scan.Sampler;
 import art.arcane.optics.volume.ViewVolume;
 
 final class ProjectorCellScanMaskGeometryTest {
@@ -60,7 +60,7 @@ final class ProjectorCellScanMaskGeometryTest {
                 cold.run(scene, eye, frustum, true, mode);
                 assertEquivalentClaims(cold.scan.claims(), incremental.scan.claims(), mode + " pass=" + pass);
                 LongOpenHashSet masks = new LongOpenHashSet();
-                for (Long2ObjectMap.Entry<ProjectedBlockClaim<BlockData, ProjectionWorldView>> entry : incremental.scan.claims().long2ObjectEntrySet()) {
+                for (Long2ObjectMap.Entry<BlockClaim<BlockData, ProjectionWorldView>> entry : incremental.scan.claims().long2ObjectEntrySet()) {
                     if (entry.getValue().isMaskAir()) {
                         masks.add(entry.getLongKey());
                     }
@@ -99,11 +99,11 @@ final class ProjectorCellScanMaskGeometryTest {
         assertTrue(masked.scan.remoteFootprint().size() > 0);
     }
 
-    private static void assertEquivalentClaims(Long2ObjectMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> expected,
-                                               Long2ObjectMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> actual,
+    private static void assertEquivalentClaims(Long2ObjectMap<BlockClaim<BlockData, ProjectionWorldView>> expected,
+                                               Long2ObjectMap<BlockClaim<BlockData, ProjectionWorldView>> actual,
                                                String context) {
         LongOpenHashSet liveKeys = new LongOpenHashSet(actual.size());
-        for (Long2ObjectMap.Entry<ProjectedBlockClaim<BlockData, ProjectionWorldView>> entry : actual.long2ObjectEntrySet()) {
+        for (Long2ObjectMap.Entry<BlockClaim<BlockData, ProjectionWorldView>> entry : actual.long2ObjectEntrySet()) {
             if (entry.getValue().isHeld()) {
                 assertTrue(!expected.containsKey(entry.getLongKey()), context + " held claim must be invisible from the eye");
                 continue;
@@ -112,8 +112,8 @@ final class ProjectorCellScanMaskGeometryTest {
         }
         assertEquals(expected.keySet(), liveKeys, context);
         for (long key : expected.keySet()) {
-            ProjectedBlockClaim<BlockData, ProjectionWorldView> expectedClaim = expected.get(key);
-            ProjectedBlockClaim<BlockData, ProjectionWorldView> actualClaim = actual.get(key);
+            BlockClaim<BlockData, ProjectionWorldView> expectedClaim = expected.get(key);
+            BlockClaim<BlockData, ProjectionWorldView> actualClaim = actual.get(key);
             assertEquals(expectedClaim.getData().getAsString(), actualClaim.getData().getAsString(), context);
             assertEquals(expectedClaim.getLightRemoteKey(), actualClaim.getLightRemoteKey(), context);
             assertEquals(expectedClaim.isMaskAir(), actualClaim.isMaskAir(), context);
@@ -156,10 +156,10 @@ final class ProjectorCellScanMaskGeometryTest {
         }
 
         private ScanRig rig(boolean perCellRecursion) throws ReflectiveOperationException {
-            ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo(ProjectorCellScanMaskGeometryTest::occludingMaterial);
+            SampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo(ProjectorCellScanMaskGeometryTest::occludingMaterial);
             List<ILocalPortal> candidates = perCellRecursion ? portalsWithDecoy : portals;
             RecursiveEndpoints<World, ILocalPortal> recursivePortals = BukkitProjectorPortalAccess.create(() -> candidates);
-            ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withServer(
+            Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withServer(
                 () -> BukkitProjectorBlocks.sampler(memo, recursivePortals, ignored -> view));
             return new ScanRig(BukkitProjectorBlocks.scan(mirror, sampler, memo, new ProjectorBlackoutSeal()));
         }
@@ -308,7 +308,7 @@ final class ProjectorCellScanMaskGeometryTest {
         return null;
     }
 
-    private static ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> withServer(SamplerFactory factory)
+    private static Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> withServer(SamplerFactory factory)
         throws ReflectiveOperationException {
         synchronized (Bukkit.class) {
             Field serverField = Bukkit.class.getDeclaredField("server");
@@ -340,6 +340,6 @@ final class ProjectorCellScanMaskGeometryTest {
     }
 
     private interface SamplerFactory {
-        ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> create();
+        Sampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> create();
     }
 }

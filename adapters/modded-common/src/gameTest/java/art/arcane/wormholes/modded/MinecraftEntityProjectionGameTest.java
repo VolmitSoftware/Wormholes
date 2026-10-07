@@ -3,9 +3,9 @@ package art.arcane.wormholes.modded;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.optics.volume.ViewVolume;
-import art.arcane.optics.entity.ProjectedEntityEvent;
-import art.arcane.optics.occlusion.ProjectedEntityOcclusion;
-import art.arcane.optics.occlusion.ProjectorViewOcclusion;
+import art.arcane.optics.entity.EntityAnimation;
+import art.arcane.optics.occlusion.EntityOcclusion;
+import art.arcane.optics.occlusion.ViewOcclusion;
 import art.arcane.optics.view.ContentView;
 import art.arcane.optics.frame.OpticTransform;
 import io.netty.channel.embedded.EmbeddedChannel;
@@ -107,8 +107,8 @@ public final class MinecraftEntityProjectionGameTest {
         MinecraftProjectorPortalAccess portals = new MinecraftProjectorPortalAccess(runtime);
         renderer = new MinecraftProjectedEntities(runtime, new MinecraftProjectedEntities.Context(player, source, portals.createRecursiveIndex()));
         ViewVolume frustum = new ViewVolume(eye, source.getGeometry(), new ViewVolume.Options(16, 16, 0.1D, 1.0D, 0.0D));
-        ProjectedEntityOcclusion<BlockState, ContentView<BlockState, BlockState>> occlusion = new ProjectedEntityOcclusion<>(
-            new ProjectorViewOcclusion<>(MinecraftProjectorBlocks.INSTANCE, ProjectedEntityOcclusion.MAX_VOXEL_STEPS_PER_BATCH));
+        EntityOcclusion<BlockState, ContentView<BlockState, BlockState>> occlusion = new EntityOcclusion<>(
+            new ViewOcclusion<>(MinecraftProjectorBlocks.INSTANCE, EntityOcclusion.MAX_VOXEL_STEPS_PER_BATCH));
         view = new MinecraftProjectedEntities.View(destination, destination, level, runtime.projections().scene(level, destination, 16),
             OpticTransform.between(destination.getFrame(), target, source.getFrame(), origin), frustum, eye, occlusion, 16);
         clearPackets();
@@ -138,8 +138,8 @@ public final class MinecraftEntityProjectionGameTest {
             options.helper().assertTrue(options.channel().outboundMessages().stream().anyMatch(packet -> packet instanceof ClientboundMoveEntityPacket),
                 "Projected entity movement did not reach the observer");
             clearPackets();
-            renderer.event(ProjectedEntityEvent.animation(remote.getUUID(), MinecraftEntityPackets.ANIMATION_SWING_MAIN_HAND));
-            renderer.event(ProjectedEntityEvent.hurt(remote.getUUID(), 27.0F));
+            renderer.event(EntityAnimation.animation(remote.getUUID(), MinecraftEntityPackets.ANIMATION_SWING_MAIN_HAND));
+            renderer.event(EntityAnimation.hurt(remote.getUUID(), 27.0F));
             options.channel().runPendingTasks();
             options.helper().assertTrue(options.channel().outboundMessages().stream().anyMatch(packet ->
                 packet instanceof ClientboundSwingAnimationPacket swing && swing.entityId() == fakeId && swing.hand() == InteractionHand.MAIN_HAND),

@@ -13,12 +13,12 @@ import com.github.retrooper.packetevents.PacketEvents;
 import com.github.retrooper.packetevents.protocol.world.chunk.LightData;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerUpdateLight;
 
-import art.arcane.optics.claim.ProjectionOutput;
+import art.arcane.optics.claim.WorldOutput;
 import art.arcane.optics.fidelity.AcousticsBridge;
 import art.arcane.optics.fidelity.BiomeClaimSet;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.fidelity.WeatherRelay;
-import art.arcane.optics.light.ProjectorLighting;
+import art.arcane.optics.light.LightOverlay;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
@@ -28,7 +28,7 @@ import art.arcane.wormholes.render.blockentity.BlockEntityPacketSink;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.service.WormholesTelemetry;
 
-public final class BukkitProjectionOutput implements ProjectionOutput<Player> {
+public final class BukkitProjectionOutput implements WorldOutput<Player> {
     private final ProjectionChunkVisibility visibility;
     private final Function<UUID, List<Player>> observers;
     private final LightPacketSender lightSender;
@@ -54,8 +54,8 @@ public final class BukkitProjectionOutput implements ProjectionOutput<Player> {
         return visibility;
     }
 
-    public ProjectorLighting<Player, BlockData, ProjectionWorldView> lighting() {
-        return new ProjectorLighting<Player, BlockData, ProjectionWorldView>(this, () -> Wormholes.projectionChangeTracker,
+    public LightOverlay<Player, BlockData, ProjectionWorldView> lighting() {
+        return new LightOverlay<Player, BlockData, ProjectionWorldView>(this, () -> Wormholes.projectionChangeTracker,
             WormholesTelemetry.metrics());
     }
 
@@ -70,7 +70,7 @@ public final class BukkitProjectionOutput implements ProjectionOutput<Player> {
     }
 
     @Override
-    public void light(Player observer, ProjectorLighting.ChunkLight light) {
+    public void light(Player observer, LightOverlay.ChunkLight light) {
         lightSender.send(observer, new LightPacket(light.chunkX(), light.chunkZ(), new LightData(true, light.blockMask(), light.skyMask(),
             light.emptyBlockMask(), light.emptySkyMask(), light.skyArrays().length, light.blockArrays().length,
             light.skyArrays(), light.blockArrays())));
@@ -78,7 +78,7 @@ public final class BukkitProjectionOutput implements ProjectionOutput<Player> {
 
     @Override
     public int lightSectionBudget() {
-        return ProjectorLighting.lightingSectionBudget(Settings.ADAPTIVE_LIGHTING, Settings.LIGHTING_MAX_SECTIONS_PER_PASS);
+        return LightOverlay.lightingSectionBudget(Settings.ADAPTIVE_LIGHTING, Settings.LIGHTING_MAX_SECTIONS_PER_PASS);
     }
 
     @Override

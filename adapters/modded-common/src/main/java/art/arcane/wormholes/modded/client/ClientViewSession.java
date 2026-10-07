@@ -2,7 +2,7 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.clientview.LocalPlateHandles;
 import art.arcane.optics.stream.ViewStreamCapability;
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.stream.ViewStreamHandshake;
 import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
@@ -37,7 +37,7 @@ public final class ClientViewSession {
     private final ClientMeshSections meshes;
     private final Int2ObjectOpenHashMap<ClientPortal> portals;
     private final Int2ObjectOpenHashMap<ApertureDescriptor> meshGeometry = new Int2ObjectOpenHashMap<>();
-    private final Int2ObjectOpenHashMap<ProjectionEnvironment> environments = new Int2ObjectOpenHashMap<>();
+    private final Int2ObjectOpenHashMap<EnvironmentState> environments = new Int2ObjectOpenHashMap<>();
     private final IntOpenHashSet dirtyPortals;
     private final Int2ObjectOpenHashMap<List<ViewStreamMessage.MeshClaim>> pendingClaims = new Int2ObjectOpenHashMap<>();
     private final Int2IntOpenHashMap cacheSequences = new Int2IntOpenHashMap();
@@ -432,7 +432,7 @@ public final class ClientViewSession {
         return meshes;
     }
 
-    public ProjectionEnvironment environment(int portalKey) {
+    public EnvironmentState environment(int portalKey) {
         return environments.get(portalKey);
     }
 

@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client.render;
 
 import art.arcane.wormholes.modded.mixin.client.IrisPortalRenderingAccess;
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import net.irisshaders.iris.Iris;
 import net.irisshaders.iris.gl.framebuffer.GlFramebuffer;
 import java.util.List;
@@ -99,7 +99,7 @@ public final class PortalIrisPipeline implements AutoCloseable {
         }
     }
 
-    public static NamespacedId dimension(ShaderPack pack, ProjectionEnvironment environment) {
+    public static NamespacedId dimension(ShaderPack pack, EnvironmentState environment) {
         NamespacedId requested = new NamespacedId(environment.world().dimensionKey());
         if (pack.getDimensionMap().containsKey(requested)) {
             return requested;

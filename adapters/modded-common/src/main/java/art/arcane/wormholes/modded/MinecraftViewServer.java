@@ -2,11 +2,11 @@ package art.arcane.wormholes.modded;
 
 import art.arcane.optics.math.CellKeys;
 
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.clientview.MinecraftPortalEnvironment;
 import art.arcane.optics.plate.ChunkLease;
-import art.arcane.optics.entity.ProjectedEntityEvent;
+import art.arcane.optics.entity.EntityAnimation;
 import art.arcane.optics.fidelity.AcousticsBridge;
 import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.wormholes.network.view.ViewEntityInterestIndex;
@@ -130,7 +130,7 @@ public final class MinecraftViewServer implements AutoCloseable {
         }
     }
 
-    public void forwardEntityEvent(ProjectedEntityEvent event) {
+    public void forwardEntityEvent(EntityAnimation event) {
         runtime.requireServerThread();
         if (closed) {
             return;
@@ -542,7 +542,7 @@ public final class MinecraftViewServer implements AutoCloseable {
     private void deliverTime(Session session, String peer, Peer state) {
         if (session.meshDistance > 0 && ticks >= state.nextEnvironmentTick) {
             ViewEntityState.Center center = session.entities.center();
-            ProjectionEnvironment environment = MinecraftPortalEnvironment.capture(session.level,
+            EnvironmentState environment = MinecraftPortalEnvironment.capture(session.level,
                 new Vec3d(center.x(), center.y(), center.z()), OpticTransform.IDENTITY, session.level.isFlat());
             if (network.send(peer, new WireMessage.ViewEnvironment(session.portalId, environment))) {
                 state.nextEnvironmentTick = ticks + 20;

@@ -12,7 +12,7 @@ import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.AxisPermutation;
 import art.arcane.optics.aperture.ApertureCells;
-import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.claim.BlockClaim;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 import org.junit.jupiter.api.Test;
@@ -169,6 +169,6 @@ final class ClientRecursionPlannerTest {
         aperture.setArea(new Box(x, x + 0.999D, 64.0D, 66.999D, z - 1.0D, z + 1.999D));
         return ApertureDescriptor.fromPortal(new ApertureDescriptor.Source(aperture, Frame.canonical(Face.E), frontSide, mirror, 0,
             2.0D, 0.75D, 0.2D, 32, recursionDepth, ApertureDescriptor.BLACKOUT_OFF, 0, ApertureDescriptor.MASK_AIR_PROJECT,
-            ProjectedBlockClaim.LightingPolicy.SOURCE, 0, ApertureKind.FRAME, 0.0D, 0, 0L, nested)).orElseThrow();
+            BlockClaim.LightingPolicy.SOURCE, 0, ApertureKind.FRAME, 0.0D, 0, 0L, nested)).orElseThrow();
     }
 }

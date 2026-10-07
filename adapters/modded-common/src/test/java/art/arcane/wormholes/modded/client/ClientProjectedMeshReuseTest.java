@@ -5,7 +5,7 @@ import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.wormholes.modded.client.render.PortalScene;
 import art.arcane.optics.stream.Brick;
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.optics.aperture.ApertureDescriptor;
@@ -280,7 +280,7 @@ public class ClientProjectedMeshReuseTest extends MinecraftTestBase {
     private static final class Fixture implements AutoCloseable {
         private final ClientPortalRenderer renderer = ClientPortalRenderer.instance();
         private final ClientMeshSections store;
-        private final ProjectionEnvironment environment = PortalEnvironmentTest.environment(OpticTransform.IDENTITY);
+        private final EnvironmentState environment = PortalEnvironmentTest.environment(OpticTransform.IDENTITY);
         private final RegistryAccess registry = mock(RegistryAccess.class);
         private PortalScene scene;
         private Object gpuSection;

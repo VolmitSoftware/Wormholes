@@ -10,7 +10,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 
 import org.junit.jupiter.api.Test;
 
-import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.claim.BlockClaim;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.view.ContentView;
 
@@ -19,14 +19,14 @@ final class AtmosphereChannelBiomeIdTest {
 
     @Test
     void overridesUseTheDestinationViewBiomeIdOncePerQuartCell() {
-        Long2ObjectOpenHashMap<ProjectedBlockClaim<String, Destination>> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim<String, Destination>>();
+        Long2ObjectOpenHashMap<BlockClaim<String, Destination>> claims = new Long2ObjectOpenHashMap<BlockClaim<String, Destination>>();
         for (int qy = 0; qy < 4; qy++) {
             for (int qz = 0; qz < 4; qz++) {
                 for (int qx = 0; qx < 4; qx++) {
                     int x = qx << 2;
                     int y = 64 + (qy << 2);
                     int z = qz << 2;
-                    claims.put(CellKeys.pack(x, y, z), new ProjectedBlockClaim<String, Destination>("stone", null,
+                    claims.put(CellKeys.pack(x, y, z), new BlockClaim<String, Destination>("stone", null,
                         CellKeys.pack(x + 100, y, z + 100), false));
                 }
             }

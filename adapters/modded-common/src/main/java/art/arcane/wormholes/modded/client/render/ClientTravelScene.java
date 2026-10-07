@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded.client.render;
 
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.frame.OpticTransform;
@@ -30,7 +30,7 @@ public final class ClientTravelScene implements PortalScene {
     private static final long SNAPSHOT_NANOS = 2_000_000L;
     private static final int MAX_SNAPSHOTS = 64;
     private ClientLevel level;
-    private ProjectionEnvironment environment;
+    private EnvironmentState environment;
     private ApertureDescriptor geometry;
     private final Long2ObjectOpenHashMap<RenderSectionRegion> regions = new Long2ObjectOpenHashMap<>();
     private final LongOpenHashSet sections = new LongOpenHashSet();
@@ -234,7 +234,7 @@ public final class ClientTravelScene implements PortalScene {
     }
 
     @Override
-    public ProjectionEnvironment environment() {
+    public EnvironmentState environment() {
         return environment;
     }
 

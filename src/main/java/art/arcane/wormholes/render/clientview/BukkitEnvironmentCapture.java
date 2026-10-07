@@ -3,7 +3,7 @@ package art.arcane.wormholes.render.clientview;
 import art.arcane.wormholes.chunk.BukkitChunkLeaseProvider;
 import art.arcane.optics.plate.ChunkLease;
 import art.arcane.optics.math.Vec3d;
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.wormholes.platform.BukkitRegionTaskProvider;
 import art.arcane.wormholes.platform.WormholesPlatform;
@@ -27,7 +27,7 @@ final class BukkitEnvironmentCapture implements AutoCloseable {
     private long nextPrune;
     private boolean closed;
 
-    synchronized ProjectionEnvironment capture(Request request) {
+    synchronized EnvironmentState capture(Request request) {
         if (closed) {
             return null;
         }
@@ -82,7 +82,7 @@ final class BukkitEnvironmentCapture implements AutoCloseable {
     }
 
     private void start(Request request, State state) {
-        CompletableFuture<ProjectionEnvironment> pending = new CompletableFuture<>();
+        CompletableFuture<EnvironmentState> pending = new CompletableFuture<>();
         state.pending = pending;
         ChunkLease lease;
         try {
@@ -109,7 +109,7 @@ final class BukkitEnvironmentCapture implements AutoCloseable {
         }
     }
 
-    private void dispatch(Request request, State state, CompletableFuture<ProjectionEnvironment> pending) {
+    private void dispatch(Request request, State state, CompletableFuture<EnvironmentState> pending) {
         if (pending.isDone()) {
             return;
         }
@@ -125,7 +125,7 @@ final class BukkitEnvironmentCapture implements AutoCloseable {
         }
     }
 
-    private void sample(Request request, State state, CompletableFuture<ProjectionEnvironment> pending) {
+    private void sample(Request request, State state, CompletableFuture<EnvironmentState> pending) {
         synchronized (state) {
             if (pending.isDone()) {
                 return;
@@ -144,8 +144,8 @@ final class BukkitEnvironmentCapture implements AutoCloseable {
         }
     }
 
-    private void finish(Request request, State state, CompletableFuture<ProjectionEnvironment> pending, ChunkLease lease,
-                        ProjectionEnvironment value, Throwable failure) {
+    private void finish(Request request, State state, CompletableFuture<EnvironmentState> pending, ChunkLease lease,
+                        EnvironmentState value, Throwable failure) {
         synchronized (state) {
             if (state.pending == pending) {
                 state.pending = null;
@@ -178,8 +178,8 @@ final class BukkitEnvironmentCapture implements AutoCloseable {
         private final OpticTransform transform;
         private final int chunkX;
         private final int chunkZ;
-        private CompletableFuture<ProjectionEnvironment> pending;
-        private ProjectionEnvironment snapshot;
+        private CompletableFuture<EnvironmentState> pending;
+        private EnvironmentState snapshot;
         private volatile boolean unavailable;
         private long touched;
 

@@ -12,7 +12,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
-import art.arcane.optics.entity.ProjectedEntityEvent;
+import art.arcane.optics.entity.EntityAnimation;
 import java.util.function.Predicate;
 
 import art.arcane.optics.entity.EntityDeltaCodec;
@@ -73,7 +73,7 @@ public final class EntityFrames<O> implements EntityFrameSource<O> {
     }
 
     @Override
-    public void event(ProjectedEntityEvent event) {
+    public void event(EntityAnimation event) {
         Objects.requireNonNull(event, "event");
         UUID id = scenes.projectedId(event.entityId());
         for (ObserverState state : states.values()) {
@@ -95,7 +95,7 @@ public final class EntityFrames<O> implements EntityFrameSource<O> {
             return List.of();
         }
         List<ViewStreamMessage.EntityEvent> outbound = new ArrayList<>();
-        ProjectedEntityEvent event;
+        EntityAnimation event;
         while ((event = state.events.poll()) != null) {
             state.pendingEvents.decrementAndGet();
             UUID id = scenes.projectedId(event.entityId());
@@ -158,7 +158,7 @@ public final class EntityFrames<O> implements EntityFrameSource<O> {
         int sequence;
         long touched;
         int eventSequence;
-        ConcurrentLinkedQueue<ProjectedEntityEvent> events = new ConcurrentLinkedQueue<>();
+        ConcurrentLinkedQueue<EntityAnimation> events = new ConcurrentLinkedQueue<>();
         AtomicInteger pendingEvents = new AtomicInteger();
 
         ObserverState(int portalKey) {

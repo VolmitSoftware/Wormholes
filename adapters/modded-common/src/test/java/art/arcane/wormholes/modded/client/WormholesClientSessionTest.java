@@ -2,7 +2,7 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.optics.stream.ViewStreamCapability;
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.BlockBox;
@@ -45,17 +45,17 @@ public class WormholesClientSessionTest extends MinecraftTestBase {
             ClientViewSession session = harness.session;
             ClientViewSession.Sink sink = mock(ClientViewSession.Sink.class);
             ApertureDescriptor geometry = ClientViewHarness.geometry();
-            ProjectionEnvironment environment = PortalEnvironmentTest.environment(OpticTransform.IDENTITY);
+            EnvironmentState environment = PortalEnvironmentTest.environment(OpticTransform.IDENTITY);
             session.handle(new ViewStreamMessage.Portal(1, 1, geometry), sink);
             session.handle(new ViewStreamMessage.MeshBegin(1, 1, new BlockBox(-32, -32, -32, 64, 64, 64), 8), sink);
             session.handle(new ViewStreamMessage.Environment(1, environment), sink);
             session.cacheClaims(1, List.of(new ViewStreamMessage.MeshClaim(0, 0, 0, 77)));
-            ProjectionEnvironment next = environment.withTransform(OpticTransform.of(AxisPermutation.of(Face.E, Face.U, Face.S), 0, 0, 0));
+            EnvironmentState next = environment.withTransform(OpticTransform.of(AxisPermutation.of(Face.E, Face.U, Face.S), 0, 0, 0));
             if (change == 1) {
-                ProjectionEnvironment.World world = environment.world();
-                next = new ProjectionEnvironment(environment.gameTime(), environment.sky(), environment.fog(),
+                EnvironmentState.World world = environment.world();
+                next = new EnvironmentState(environment.gameTime(), environment.sky(), environment.fog(),
                     environment.lighting(), environment.clouds(), environment.transform(), environment.dimension(),
-                    new ProjectionEnvironment.World("minecraft:the_nether", world.clockTime(), world.biomeKey(),
+                    new EnvironmentState.World("minecraft:the_nether", world.clockTime(), world.biomeKey(),
                         world.seaLevel(), world.blockLight(), world.skyLight(), world.logicalHeight(), world.hasCeiling(),
                         world.ambientLight(), world.eyeMedium(), world.hasFixedTime()));
             } else if (change == 2) {

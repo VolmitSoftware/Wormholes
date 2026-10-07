@@ -34,7 +34,7 @@ import art.arcane.wormholes.portal.ProjectionRenderMode;
 import art.arcane.wormholes.portal.ProjectionMode;
 import art.arcane.wormholes.portal.rtp.MinecraftRtpRuntime;
 import art.arcane.wormholes.render.FidelitySettings;
-import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.claim.BlockClaim;
 import art.arcane.optics.view.WorldChangeTracker;
 import art.arcane.optics.recursion.RecursiveEndpoints;
 import art.arcane.optics.aperture.ApertureDescriptor;
@@ -90,7 +90,7 @@ public class MinecraftClientViewPortalAccessTest extends MinecraftTestBase {
         long revision = portals.geometryRevision(fixture.peer(), fixture.source().getId());
         assertEquals(ApertureDescriptor.BLACKOUT_OFF, geometry.blackoutPolicy());
         assertEquals(0, geometry.blackoutState());
-        assertEquals(ProjectedBlockClaim.LightingPolicy.SOURCE.ordinal(), geometry.lightingPolicy());
+        assertEquals(BlockClaim.LightingPolicy.SOURCE.ordinal(), geometry.lightingPolicy());
         when(fixture.source().isBlackoutBackground()).thenReturn(false);
         when(fixture.source().getBlackoutColor()).thenReturn(BlackoutColor.WHITE);
         assertEquals(revision, portals.geometryRevision(fixture.peer(), fixture.source().getId()));

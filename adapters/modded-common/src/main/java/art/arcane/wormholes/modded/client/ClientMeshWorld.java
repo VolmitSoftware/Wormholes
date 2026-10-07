@@ -3,7 +3,7 @@ package art.arcane.wormholes.modded.client;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.client.render.PortalScene;
 import art.arcane.optics.math.BlockBox;
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.optics.frame.OpticTransform;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
@@ -48,12 +48,12 @@ public final class ClientMeshWorld implements BlockAndTintGetter {
     private final int blendRadius;
     private final int minY;
     private final int height;
-    private final ProjectionEnvironment.Dimension dimension;
+    private final EnvironmentState.Dimension dimension;
     private final PortalScene.MeshIdentity meshIdentity;
     private final DestinationWorld destination = new DestinationWorld();
 
     public ClientMeshWorld(Snapshot snapshot) {
-        ProjectionEnvironment environment = Objects.requireNonNull(snapshot.environment());
+        EnvironmentState environment = Objects.requireNonNull(snapshot.environment());
         int sectionX = SectionPos.x(snapshot.center());
         int sectionY = SectionPos.y(snapshot.center());
         int sectionZ = SectionPos.z(snapshot.center());
@@ -68,7 +68,7 @@ public final class ClientMeshWorld implements BlockAndTintGetter {
         destinationCells = cells.inverse();
         dimension = environment.dimension();
         blendRadius = snapshot.blendRadius();
-        CardinalLighting source = environment.dimension().cardinalLighting() == ProjectionEnvironment.CardinalLighting.NETHER
+        CardinalLighting source = environment.dimension().cardinalLighting() == EnvironmentState.CardinalLighting.NETHER
             ? CardinalLighting.NETHER : CardinalLighting.DEFAULT;
         lighting = new CardinalLighting(shade(source, Direction.DOWN), shade(source, Direction.UP), shade(source, Direction.NORTH),
             shade(source, Direction.SOUTH), shade(source, Direction.WEST), shade(source, Direction.EAST));
@@ -306,7 +306,7 @@ public final class ClientMeshWorld implements BlockAndTintGetter {
 
         @Override
         public CardinalLighting cardinalLighting() {
-            return dimension.cardinalLighting() == ProjectionEnvironment.CardinalLighting.NETHER
+            return dimension.cardinalLighting() == EnvironmentState.CardinalLighting.NETHER
                 ? CardinalLighting.NETHER : CardinalLighting.DEFAULT;
         }
 
@@ -341,7 +341,7 @@ public final class ClientMeshWorld implements BlockAndTintGetter {
         }
     }
 
-    public record Snapshot(ClientMeshSections.View view, long center, RegistryAccess registry, ProjectionEnvironment environment, int blendRadius) {
+    public record Snapshot(ClientMeshSections.View view, long center, RegistryAccess registry, EnvironmentState environment, int blendRadius) {
         public Snapshot {
             if (blendRadius < 0 || blendRadius > 7) {
                 throw new IllegalArgumentException("Invalid biome blend radius");
@@ -352,7 +352,7 @@ public final class ClientMeshWorld implements BlockAndTintGetter {
     private static final class MeshIdentity implements PortalScene.MeshIdentity {
         private final ClientMeshSections.Identity identity;
         private final RegistryAccess registry;
-        private final ProjectionEnvironment.Dimension dimension;
+        private final EnvironmentState.Dimension dimension;
         private final BlockBox bounds;
         private final int blendRadius;
         private final ClientMeshSections.Section[] inputs;

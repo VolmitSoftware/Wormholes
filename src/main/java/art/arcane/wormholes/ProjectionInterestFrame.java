@@ -24,7 +24,7 @@ import art.arcane.optics.occlusion.LocalOcclusionArbiter;
 import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.wormholes.render.PortalProjector;
 import art.arcane.wormholes.render.PortalSkinRenderer;
-import art.arcane.optics.scan.ProjectionBlockSlices;
+import art.arcane.optics.scan.BlockSlices;
 import art.arcane.wormholes.render.ProjectionClaimArbiter;
 import art.arcane.optics.volume.GazeScheduler;
 import art.arcane.wormholes.render.clientview.ClientViewRouting;
@@ -210,7 +210,7 @@ final class ProjectionInterestFrame {
         }
         ledger.recordScheduled(scheduledBlocks.size());
         ledger.recordDeferred(Math.max(0, blockCandidates.size() - scheduledBlocks.size()));
-        ProjectionBlockSlices slices = new ProjectionBlockSlices(scheduledBlocks.size());
+        BlockSlices slices = new BlockSlices(scheduledBlocks.size());
         projectRetiring(observer, retiring, blockPortalIds, projected, observerBudget, slices);
         projectActiveObserver(observer, priorityOrder(interested, interestedIds, scheduledBlocks, blockPortalIds),
             resolvedRtpTargets, blockPortalIds, updateEntities, projected, observerBudget, slices);
@@ -256,7 +256,7 @@ final class ProjectionInterestFrame {
 
     private void projectRetiring(Player observer, List<PortalProjector> retiring, Set<UUID> blockPortalIds,
                                  List<PortalProjector> projected,
-                                 ProjectionBudgetLedger.ObserverFrame observerBudget, ProjectionBlockSlices slices) {
+                                 ProjectionBudgetLedger.ObserverFrame observerBudget, BlockSlices slices) {
         for (PortalProjector projector : retiring) {
             if (!blockPortalIds.contains(projector.getPortal().getId())) {
                 continue;
@@ -279,7 +279,7 @@ final class ProjectionInterestFrame {
                                        Map<UUID, PortalProjector.RtpProjectionTarget> rtpTargets,
                                        Set<UUID> blockPortalIds, boolean updateEntities,
                                        List<PortalProjector> projected,
-                                       ProjectionBudgetLedger.ObserverFrame observerBudget, ProjectionBlockSlices slices) {
+                                       ProjectionBudgetLedger.ObserverFrame observerBudget, BlockSlices slices) {
         if (!alive.getAsBoolean() || observer == null || !observer.isOnline()) {
             return;
         }

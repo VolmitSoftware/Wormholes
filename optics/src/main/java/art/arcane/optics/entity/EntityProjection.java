@@ -9,7 +9,7 @@ import art.arcane.optics.math.Angles;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.recursion.EntityPath;
-import art.arcane.optics.scan.ProjectorPassRevision;
+import art.arcane.optics.scan.PassRevision;
 import art.arcane.optics.volume.ViewVolume;
 
 public final class EntityProjection {
@@ -34,8 +34,8 @@ public final class EntityProjection {
         if (id == null) {
             return null;
         }
-        long most = ProjectorPassRevision.mix(ProjectorPassRevision.mix(secret, id.getMostSignificantBits()), id.getLeastSignificantBits());
-        long least = ProjectorPassRevision.mix(ProjectorPassRevision.mix(most, secret), id.getMostSignificantBits() ^ 0x5DEECE66DL);
+        long most = PassRevision.mix(PassRevision.mix(secret, id.getMostSignificantBits()), id.getLeastSignificantBits());
+        long least = PassRevision.mix(PassRevision.mix(most, secret), id.getMostSignificantBits() ^ 0x5DEECE66DL);
         return new UUID((most & ~0xF000L) | 0x4000L, (least & 0x3FFFFFFFFFFFFFFFL) | 0x8000000000000000L);
     }
 

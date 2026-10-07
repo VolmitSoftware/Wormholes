@@ -46,7 +46,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
-import art.arcane.optics.entity.ProjectedEntityEvent;
+import art.arcane.optics.entity.EntityAnimation;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import art.arcane.wormholes.network.client.TravelMessage;
@@ -317,7 +317,7 @@ public final class MinecraftClientViewService implements AutoCloseable {
         return active != null && !active.sessions().isEmpty() && active.effectsReceiver(player.getUUID());
     }
 
-    public void entityEvent(ProjectedEntityEvent event) {
+    public void entityEvent(EntityAnimation event) {
         ViewStreamSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
         if (active != null) {
             active.entityEvent(event);

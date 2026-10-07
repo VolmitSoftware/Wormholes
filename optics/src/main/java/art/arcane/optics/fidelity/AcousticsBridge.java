@@ -8,7 +8,7 @@ import java.util.function.Function;
 
 import java.util.function.Supplier;
 
-import art.arcane.optics.claim.ProjectionOutput;
+import art.arcane.optics.claim.WorldOutput;
 import art.arcane.optics.internal.fidelity.SoundAttenuation;
 
 /**
@@ -31,7 +31,7 @@ public final class AcousticsBridge<O> {
     public record Playback(String soundKey, AcousticsProfile.SoundClass soundClass, double x, double y, double z, float volume, float pitch) {
     }
 
-    public record Options<O>(ProjectionOutput<O> output, Function<O, UUID> observerId, Supplier<FidelityOptions> fidelity) {
+    public record Options<O>(WorldOutput<O> output, Function<O, UUID> observerId, Supplier<FidelityOptions> fidelity) {
     }
 
     public enum Environment {
@@ -84,7 +84,7 @@ public final class AcousticsBridge<O> {
         private int count;
     }
 
-    private final ProjectionOutput<O> output;
+    private final WorldOutput<O> output;
     private final Function<O, UUID> observerId;
     private final Supplier<FidelityOptions> fidelity;
     private final Map<UUID, Aperture> apertures;

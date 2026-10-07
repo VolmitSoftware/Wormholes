@@ -18,9 +18,9 @@ import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.optics.frame.ViewWindow;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.CellKeys;
-import art.arcane.optics.scan.ProjectorPassRevision;
+import art.arcane.optics.scan.PassRevision;
 import art.arcane.optics.volume.PlaneWindow;
-import art.arcane.optics.volume.ProjectionVolume;
+import art.arcane.optics.volume.ApertureSlab;
 
 public final class RecursiveEndpoints<W, P extends Endpoint> {
     private static final int BUCKET_SHIFT = 4;
@@ -67,10 +67,10 @@ public final class RecursiveEndpoints<W, P extends Endpoint> {
 
     private long portalSignature() {
         Options current = options.get();
-        long hash = ProjectorPassRevision.mix(0x9E3779B97F4A7C15L, Double.doubleToLongBits(current.aperturePadding()));
-        hash = ProjectorPassRevision.mix(hash, Double.doubleToLongBits(current.depthBlocks()));
+        long hash = PassRevision.mix(0x9E3779B97F4A7C15L, Double.doubleToLongBits(current.aperturePadding()));
+        hash = PassRevision.mix(hash, Double.doubleToLongBits(current.depthBlocks()));
         List<P> portals = directory.endpoints();
-        hash = ProjectorPassRevision.mix(hash, portals.size());
+        hash = PassRevision.mix(hash, portals.size());
         for (P portal : portals) {
             hash = mixPortal(hash, portal);
         }
@@ -79,54 +79,54 @@ public final class RecursiveEndpoints<W, P extends Endpoint> {
 
     private long mixPortal(long hash, P portal) {
         if (portal == null) {
-            return ProjectorPassRevision.mix(hash, 0L);
+            return PassRevision.mix(hash, 0L);
         }
         long mixed = mixIdentity(hash, portal);
-        mixed = ProjectorPassRevision.mix(mixed, directory.eligible(portal) ? 1L : 2L);
+        mixed = PassRevision.mix(mixed, directory.eligible(portal) ? 1L : 2L);
         W world = directory.world(portal);
-        mixed = ProjectorPassRevision.mix(mixed, world == null ? 0L : System.identityHashCode(world));
+        mixed = PassRevision.mix(mixed, world == null ? 0L : System.identityHashCode(world));
         CellAperture structure = directory.aperture(portal);
         if (structure != null) {
-            mixed = ProjectorPassRevision.mix(mixed, structure.getRevision());
+            mixed = PassRevision.mix(mixed, structure.getRevision());
             mixed = mixBox(mixed, structure.getArea());
         }
         mixed = mixBox(mixed, directory.view(portal));
         boolean mirror = directory.mirror(portal);
-        mixed = ProjectorPassRevision.mix(mixed, mirror ? 1L + directory.mirrorTurns(portal).getQuarterTurns() : 0L);
+        mixed = PassRevision.mix(mixed, mirror ? 1L + directory.mirrorTurns(portal).getQuarterTurns() : 0L);
         P destination = directory.destination(portal);
         if (destination == null) {
-            return ProjectorPassRevision.mix(mixed, 0L);
+            return PassRevision.mix(mixed, 0L);
         }
         mixed = mixIdentity(mixed, destination);
         W destinationWorld = directory.world(destination);
-        return ProjectorPassRevision.mix(mixed, destinationWorld == null ? 0L : System.identityHashCode(destinationWorld));
+        return PassRevision.mix(mixed, destinationWorld == null ? 0L : System.identityHashCode(destinationWorld));
     }
 
     private static long mixIdentity(long hash, Endpoint portal) {
         UUID id = portal.id();
-        long mixed = ProjectorPassRevision.mix(hash, id == null ? 0L : id.getMostSignificantBits());
-        mixed = ProjectorPassRevision.mix(mixed, id == null ? 0L : id.getLeastSignificantBits());
+        long mixed = PassRevision.mix(hash, id == null ? 0L : id.getMostSignificantBits());
+        mixed = PassRevision.mix(mixed, id == null ? 0L : id.getLeastSignificantBits());
         Vec3d origin = portal.origin();
         if (origin != null) {
-            mixed = ProjectorPassRevision.mix(mixed, Double.doubleToLongBits(origin.getX()));
-            mixed = ProjectorPassRevision.mix(mixed, Double.doubleToLongBits(origin.getY()));
-            mixed = ProjectorPassRevision.mix(mixed, Double.doubleToLongBits(origin.getZ()));
+            mixed = PassRevision.mix(mixed, Double.doubleToLongBits(origin.getX()));
+            mixed = PassRevision.mix(mixed, Double.doubleToLongBits(origin.getY()));
+            mixed = PassRevision.mix(mixed, Double.doubleToLongBits(origin.getZ()));
         }
         Frame frame = portal.frame();
-        return ProjectorPassRevision.mix(mixed, frame == null ? -1L
+        return PassRevision.mix(mixed, frame == null ? -1L
             : frame.getNormal().ordinal() | (frame.getRight().ordinal() << 3) | (frame.getUp().ordinal() << 6));
     }
 
     private static long mixBox(long hash, Box box) {
         if (box == null) {
-            return ProjectorPassRevision.mix(hash, -1L);
+            return PassRevision.mix(hash, -1L);
         }
-        long mixed = ProjectorPassRevision.mix(hash, Double.doubleToLongBits(box.getXa()));
-        mixed = ProjectorPassRevision.mix(mixed, Double.doubleToLongBits(box.getXb()));
-        mixed = ProjectorPassRevision.mix(mixed, Double.doubleToLongBits(box.getYa()));
-        mixed = ProjectorPassRevision.mix(mixed, Double.doubleToLongBits(box.getYb()));
-        mixed = ProjectorPassRevision.mix(mixed, Double.doubleToLongBits(box.getZa()));
-        return ProjectorPassRevision.mix(mixed, Double.doubleToLongBits(box.getZb()));
+        long mixed = PassRevision.mix(hash, Double.doubleToLongBits(box.getXa()));
+        mixed = PassRevision.mix(mixed, Double.doubleToLongBits(box.getXb()));
+        mixed = PassRevision.mix(mixed, Double.doubleToLongBits(box.getYa()));
+        mixed = PassRevision.mix(mixed, Double.doubleToLongBits(box.getYb()));
+        mixed = PassRevision.mix(mixed, Double.doubleToLongBits(box.getZa()));
+        return PassRevision.mix(mixed, Double.doubleToLongBits(box.getZb()));
     }
 
     public Index indexFor(W world, double eyeX, double eyeY, double eyeZ, P excludedPortal) {
@@ -462,7 +462,7 @@ public final class RecursiveEndpoints<W, P extends Endpoint> {
             double localProjectionNormalY = candidateLocalFrame.getNormal().y();
             double localProjectionNormalZ = candidateLocalFrame.getNormal().z();
             double signedEyeDistance = (eyeRelX * localProjectionNormalX) + (eyeRelY * localProjectionNormalY) + (eyeRelZ * localProjectionNormalZ);
-            double candidateClearance = ProjectionVolume.portalPlaneClearance(directory.aperture(candidate).getArea(), frame);
+            double candidateClearance = ApertureSlab.portalPlaneClearance(directory.aperture(candidate).getArea(), frame);
 
             boolean mirror = directory.mirror(candidate);
             P destination = mirror ? candidate : directory.destination(candidate);
@@ -542,7 +542,7 @@ public final class RecursiveEndpoints<W, P extends Endpoint> {
             double pointRelY = pointY - originY;
             double pointRelZ = pointZ - originZ;
             double pointDot = (pointRelX * normalX) + (pointRelY * normalY) + (pointRelZ * normalZ);
-            if (!ProjectionVolume.projectsBehindPortalPlane(pointDot, eyeFrontSide, clearance)) {
+            if (!ApertureSlab.projectsBehindPortalPlane(pointDot, eyeFrontSide, clearance)) {
                 return -1.0D;
             }
             if (Math.abs(pointDot) > maxDepth) {

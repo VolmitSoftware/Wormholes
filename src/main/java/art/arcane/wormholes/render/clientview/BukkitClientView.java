@@ -11,7 +11,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import art.arcane.optics.entity.ProjectedEntityEvent;
+import art.arcane.optics.entity.EntityAnimation;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.function.BiConsumer;
@@ -374,7 +374,7 @@ public final class BukkitClientView implements ClientViewRouting {
         return registry.effectsReceiver(player.getUniqueId());
     }
 
-    public void entityEvent(ProjectedEntityEvent event) {
+    public void entityEvent(EntityAnimation event) {
         registry.entityEvent(event);
     }
 

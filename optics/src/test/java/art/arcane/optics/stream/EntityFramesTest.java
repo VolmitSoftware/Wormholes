@@ -13,7 +13,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
 
-import art.arcane.optics.entity.ProjectedEntityEvent;
+import art.arcane.optics.entity.EntityAnimation;
 import art.arcane.optics.entity.EntityDeltaCodec;
 import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.optics.entity.EntityProjection;
@@ -83,9 +83,9 @@ class EntityFramesTest {
             }
         });
         frames.frame("observer", new EntityFrameTarget(PORTAL, 7, true, false), 1);
-        frames.event(ProjectedEntityEvent.animation(source, 3));
-        frames.event(ProjectedEntityEvent.hurt(source, 179));
-        frames.event(ProjectedEntityEvent.animation(UUID.randomUUID(), 0));
+        frames.event(EntityAnimation.animation(source, 3));
+        frames.event(EntityAnimation.hurt(source, 179));
+        frames.event(EntityAnimation.animation(UUID.randomUUID(), 0));
         frames.frame("observer", new EntityFrameTarget(PORTAL, 7, true, false), 2);
         List<ViewStreamMessage.EntityEvent> events = frames.events("observer", PORTAL, 7);
         assertEquals(2, events.size());
@@ -95,13 +95,13 @@ class EntityFramesTest {
         assertEquals(179, events.getLast().yaw());
         assertTrue(frames.events("observer", PORTAL, 7).isEmpty());
         frames.frame("observer", new EntityFrameTarget(PORTAL, 7, true, false), 3);
-        frames.event(ProjectedEntityEvent.animation(source, 0));
+        frames.event(EntityAnimation.animation(source, 0));
         assertTrue(frames.events("observer", PORTAL, 7).getFirst().eventSeq() > events.getLast().eventSeq());
-        frames.event(ProjectedEntityEvent.hurt(source, 0));
+        frames.event(EntityAnimation.hurt(source, 0));
         visible[0] = false;
         assertTrue(frames.events("observer", PORTAL, 7).isEmpty());
         visible[0] = true;
-        frames.event(ProjectedEntityEvent.animation(source, 0));
+        frames.event(EntityAnimation.animation(source, 0));
         scene.clear();
         frames.frame("observer", new EntityFrameTarget(PORTAL, 7, false, false), 4);
         assertTrue(frames.events("observer", PORTAL, 7).isEmpty());
@@ -114,11 +114,11 @@ class EntityFramesTest {
         EntityFrames<String> frames = new EntityFrames<>(scenes(scene, new AtomicInteger()));
         frames.frame("a", new EntityFrameTarget(PORTAL, 1, true, false), 1);
         frames.frame("b", new EntityFrameTarget(PORTAL, 2, true, false), 1);
-        frames.event(ProjectedEntityEvent.animation(source, 0));
+        frames.event(EntityAnimation.animation(source, 0));
         assertEquals(1, frames.events("a", PORTAL, 1).size());
         assertEquals(1, frames.events("b", PORTAL, 2).size());
         assertTrue(frames.events("a", PORTAL, 1).isEmpty());
-        frames.event(ProjectedEntityEvent.hurt(source, 0));
+        frames.event(EntityAnimation.hurt(source, 0));
         frames.frame("a", new EntityFrameTarget(PORTAL, 8, false, false), 2);
         assertTrue(frames.events("a", PORTAL, 8).isEmpty());
         assertEquals(1, frames.events("b", PORTAL, 2).size());

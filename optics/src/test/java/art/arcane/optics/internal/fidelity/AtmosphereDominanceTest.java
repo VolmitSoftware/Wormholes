@@ -9,7 +9,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 
 import org.junit.jupiter.api.Test;
 
-import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.claim.BlockClaim;
 import art.arcane.optics.math.CellKeys;
 
 final class AtmosphereDominanceTest {
@@ -17,7 +17,7 @@ final class AtmosphereDominanceTest {
 
     @Test
     void aSectionIsRetintedOnlyWhenTheCoveredQuartCellsReachTheDominanceFraction() {
-        Long2ObjectOpenHashMap<ProjectedBlockClaim<String, Object>> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim<String, Object>>();
+        Long2ObjectOpenHashMap<BlockClaim<String, Object>> claims = new Long2ObjectOpenHashMap<BlockClaim<String, Object>>();
         coverQuartCells(claims, 0, 4, 0, 40);
 
         Long2IntOpenHashMap dominated = AtmosphereDominance.compute(claims, 0.6D, key -> DESTINATION_BIOME);
@@ -27,7 +27,7 @@ final class AtmosphereDominanceTest {
             assertEquals(4, CellKeys.unpackY(cell) >> 2, "cells are keyed by quart coordinates: section 4 holds block y 64..79");
         }
 
-        Long2ObjectOpenHashMap<ProjectedBlockClaim<String, Object>> sparse = new Long2ObjectOpenHashMap<ProjectedBlockClaim<String, Object>>();
+        Long2ObjectOpenHashMap<BlockClaim<String, Object>> sparse = new Long2ObjectOpenHashMap<BlockClaim<String, Object>>();
         coverQuartCells(sparse, 0, 4, 0, 30);
         assertTrue(AtmosphereDominance.compute(sparse, 0.6D, key -> DESTINATION_BIOME).isEmpty(),
             "30 of 64 quart cells stay below a 0.6 dominance");
@@ -35,7 +35,7 @@ final class AtmosphereDominanceTest {
 
     @Test
     void sectionsAreJudgedIndependentlyAndUnknownBiomesAreSkipped() {
-        Long2ObjectOpenHashMap<ProjectedBlockClaim<String, Object>> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim<String, Object>>();
+        Long2ObjectOpenHashMap<BlockClaim<String, Object>> claims = new Long2ObjectOpenHashMap<BlockClaim<String, Object>>();
         coverQuartCells(claims, 0, 4, 0, 64);
         coverQuartCells(claims, 0, 5, 0, 8);
 
@@ -51,7 +51,7 @@ final class AtmosphereDominanceTest {
 
     @Test
     void manyClaimsInOneQuartCellCountOnce() {
-        Long2ObjectOpenHashMap<ProjectedBlockClaim<String, Object>> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim<String, Object>>();
+        Long2ObjectOpenHashMap<BlockClaim<String, Object>> claims = new Long2ObjectOpenHashMap<BlockClaim<String, Object>>();
         for (int x = 0; x < 4; x++) {
             for (int y = 64; y < 68; y++) {
                 for (int z = 0; z < 4; z++) {
@@ -63,7 +63,7 @@ final class AtmosphereDominanceTest {
             "64 blocks in a single quart cell cover 1 of 64 cells");
     }
 
-    private static void coverQuartCells(Long2ObjectOpenHashMap<ProjectedBlockClaim<String, Object>> claims,
+    private static void coverQuartCells(Long2ObjectOpenHashMap<BlockClaim<String, Object>> claims,
                                         int sectionX, int sectionY, int sectionZ, int quartCells) {
         int added = 0;
         for (int qy = 0; qy < 4 && added < quartCells; qy++) {
@@ -79,8 +79,8 @@ final class AtmosphereDominanceTest {
         }
     }
 
-    private static ProjectedBlockClaim<String, Object> claim(int x, int y, int z) {
-        return new ProjectedBlockClaim<String, Object>("stone", null, CellKeys.pack(x + 100, y, z + 100), false);
+    private static BlockClaim<String, Object> claim(int x, int y, int z) {
+        return new BlockClaim<String, Object>("stone", null, CellKeys.pack(x + 100, y, z + 100), false);
     }
 
 }

@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.optics.light.ProjectorLighting;
+import art.arcane.optics.light.LightOverlay;
 import net.minecraft.network.protocol.game.ClientboundLightUpdatePacket;
 import org.junit.Test;
 
@@ -27,7 +27,7 @@ public class MinecraftProjectionOutputTest {
         sky[2047] = (byte) 0xAF;
         secondSky[0] = (byte) 0x31;
         block[35] = (byte) 0xD8;
-        ProjectorLighting.ChunkLight light = new ProjectorLighting.ChunkLight(-17, 65, blockMask, skyMask,
+        LightOverlay.ChunkLight light = new LightOverlay.ChunkLight(-17, 65, blockMask, skyMask,
             emptyBlock, emptySky, new byte[][] {sky, secondSky}, new byte[][] {block});
 
         ClientboundLightUpdatePacket packet = MinecraftProjectionOutput.lightPacket(light);

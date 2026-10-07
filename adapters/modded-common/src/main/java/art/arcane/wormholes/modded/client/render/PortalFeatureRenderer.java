@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded.client.render;
 
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.frame.OpticTransform;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.MeshData;
@@ -149,7 +149,7 @@ public final class PortalFeatureRenderer implements AutoCloseable {
     private void submit(PortalScene scene, CameraRenderState camera, Minecraft minecraft, boolean includeEntities, boolean includeBlockEntities, Frustum frustum) {
         PoseStack pose = new PoseStack();
         Vec3 eye = camera.pos;
-        ProjectionEnvironment environment = scene.environment();
+        EnvironmentState environment = scene.environment();
         OpticTransform transform = environment == null ? null : environment.transform();
         Matrix4f rotation = transform == null ? null : PortalProjection.rotation(transform);
         CameraRenderState featureCamera = environment == null ? camera : ClientPortalRenderer.transformedCamera(camera,

@@ -13,7 +13,7 @@ import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.optics.stream.BrickLightSource;
 import art.arcane.optics.stream.EntityScenes;
 import art.arcane.optics.stream.ViewStreamMessage;
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.wormholes.portal.AmbientOutlineGeometry;
 import art.arcane.wormholes.portal.PortalType;
@@ -223,7 +223,7 @@ public final class MinecraftClientViewScene implements EntityScenes<MinecraftCli
     }
 
     @Override
-    public ProjectionEnvironment environment(MinecraftClientViewPeer peer, UUID portalId, long tick) {
+    public EnvironmentState environment(MinecraftClientViewPeer peer, UUID portalId, long tick) {
         Destination destination = destination(peer, portalId);
         ServerPlayer player = peer.player();
         if (destination == null || player == null) {
@@ -235,7 +235,7 @@ public final class MinecraftClientViewScene implements EntityScenes<MinecraftCli
     }
 
     @Override
-    public ProjectionEnvironment nestedEnvironment(MinecraftClientViewPeer peer, UUID parent, UUID portalId, long tick) {
+    public EnvironmentState nestedEnvironment(MinecraftClientViewPeer peer, UUID parent, UUID portalId, long tick) {
         ServerPlayer player = peer.player();
         MinecraftPortal portal = portals.portal(peer, portalId);
         Destination mirror = destination(peer, parent);

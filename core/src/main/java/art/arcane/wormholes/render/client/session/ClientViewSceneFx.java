@@ -6,7 +6,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import art.arcane.optics.stream.EntityFrames;
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamScene;
 import art.arcane.wormholes.network.client.ClientViewExtensions;
@@ -101,7 +101,7 @@ public final class ClientViewSceneFx<P> implements ViewStreamScene<P> {
         return environment(state, effects.nestedEnvironment(observer, parent, portal, tick), tick);
     }
 
-    private static ViewStreamMessage.Environment environment(PortalState state, ProjectionEnvironment sample, long tick) {
+    private static ViewStreamMessage.Environment environment(PortalState state, EnvironmentState sample, long tick) {
         state.nextEnvironmentTick = tick + 5L;
         if (sample == null || sample.equals(state.environment)) {
             return null;
@@ -163,11 +163,11 @@ public final class ClientViewSceneFx<P> implements ViewStreamScene<P> {
             return false;
         }
 
-        default ProjectionEnvironment environment(P observer, UUID portal, long tick) {
+        default EnvironmentState environment(P observer, UUID portal, long tick) {
             return null;
         }
 
-        default ProjectionEnvironment nestedEnvironment(P observer, UUID parent, UUID portal, long tick) {
+        default EnvironmentState nestedEnvironment(P observer, UUID parent, UUID portal, long tick) {
             return null;
         }
     }
@@ -191,7 +191,7 @@ public final class ClientViewSceneFx<P> implements ViewStreamScene<P> {
         private final int portalKey;
         private List<FxMessage.FxEmitter> emitters;
         private Sample atmosphere;
-        private ProjectionEnvironment environment;
+        private EnvironmentState environment;
         private long nextEnvironmentTick;
         private long atmosphereTick;
         private long touched;

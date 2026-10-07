@@ -3,7 +3,7 @@ package art.arcane.wormholes.modded.client;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.optics.stream.Brick;
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.ViewStreamProtocolException;
@@ -24,7 +24,7 @@ import static org.junit.Assert.assertTrue;
 
 public class ClientMeshLocalContentTest extends MinecraftTestBase {
     private static final BlockBox BOUNDS = new BlockBox(-32, -32, -32, 64, 64, 64);
-    private static final ProjectionEnvironment ENVIRONMENT = PortalEnvironmentTest.environment(OpticTransform.IDENTITY);
+    private static final EnvironmentState ENVIRONMENT = PortalEnvironmentTest.environment(OpticTransform.IDENTITY);
 
     @Test
     public void unchangedHaloCapturePreservesTheGpuRevisionWithoutPublishingNeighborInvalidation() throws Exception {

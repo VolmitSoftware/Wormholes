@@ -34,9 +34,9 @@ import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
-import art.arcane.optics.claim.ProjectedBlockClaim;
-import art.arcane.optics.claim.ProjectionClaimSet;
-import art.arcane.optics.light.ProjectorLighting;
+import art.arcane.optics.claim.BlockClaim;
+import art.arcane.optics.claim.ClaimSet;
+import art.arcane.optics.light.LightOverlay;
 
 public final class ProjectionClaimArbiterConcurrencyTest {
     private static final long CELL_KEY = 42L;
@@ -51,28 +51,28 @@ public final class ProjectionClaimArbiterConcurrencyTest {
         Player observer = player(new UUID(0L, 201L), playerWorld, new AtomicBoolean(true), sentLocations);
         ILocalPortal portal = portal(new UUID(0L, 202L));
         ProjectionClaimArbiter arbiter = arbiter();
-        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> first = singleClaim(blockData("stable"));
-        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> transientClaims = singleClaim(blockData("transient"));
-        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> finalClaims = new Long2ObjectOpenHashMap<>(first);
+        Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>> first = singleClaim(blockData("stable"));
+        Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>> transientClaims = singleClaim(blockData("transient"));
+        Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>> finalClaims = new Long2ObjectOpenHashMap<>(first);
         LongOpenHashSet changed = new LongOpenHashSet(new long[] {CELL_KEY});
         LongOpenHashSet empty = new LongOpenHashSet();
         assertEquals(1, arbiter.submitDelta(observer, portal, firstWorld,
-            new ProjectionClaimSet.ClaimDelta<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(null, first, empty, empty), 1.0D, false, false).getBlockChanges());
+            new ClaimSet.ClaimDelta<BlockClaim<BlockData, ProjectionWorldView>>(null, first, empty, empty), 1.0D, false, false).getBlockChanges());
         sentLocations.clear();
         arbiter.beginFrame(observer, firstWorld, false);
         arbiter.submitDelta(observer, portal, firstWorld,
-            new ProjectionClaimSet.ClaimDelta<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(first, transientClaims, changed, empty), 1.0D, false, false);
+            new ClaimSet.ClaimDelta<BlockClaim<BlockData, ProjectionWorldView>>(first, transientClaims, changed, empty), 1.0D, false, false);
         arbiter.submitDelta(observer, portal, firstWorld,
-            new ProjectionClaimSet.ClaimDelta<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(transientClaims, finalClaims, changed, empty), 1.0D, false, false);
+            new ClaimSet.ClaimDelta<BlockClaim<BlockData, ProjectionWorldView>>(transientClaims, finalClaims, changed, empty), 1.0D, false, false);
         assertEquals(0, arbiter.flushFrame(observer).getBlockChanges());
         assertTrue(sentLocations.isEmpty());
 
         arbiter.discardObserver(observer.getUniqueId());
         assertEquals(1, arbiter.submitDelta(observer, portal, firstWorld,
-            new ProjectionClaimSet.ClaimDelta<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(finalClaims, first, empty, empty), 1.0D, false, false).getBlockChanges());
+            new ClaimSet.ClaimDelta<BlockClaim<BlockData, ProjectionWorldView>>(finalClaims, first, empty, empty), 1.0D, false, false).getBlockChanges());
         playerWorld.set(secondWorld);
         assertEquals(1, arbiter.submitDelta(observer, portal, secondWorld,
-            new ProjectionClaimSet.ClaimDelta<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(first, finalClaims, empty, empty), 1.0D, false, false).getBlockChanges());
+            new ClaimSet.ClaimDelta<BlockClaim<BlockData, ProjectionWorldView>>(first, finalClaims, empty, empty), 1.0D, false, false).getBlockChanges());
         assertEquals(0, arbiter.release(observer, portal, firstWorld, false).getReverts());
         assertEquals(1, arbiter.release(observer, portal, secondWorld, false).getReverts());
         assertTrue(arbiter.isIdle());
@@ -87,16 +87,16 @@ public final class ProjectionClaimArbiterConcurrencyTest {
         ILocalPortal holder = portal(new UUID(0L, 302L));
         ILocalPortal other = portal(new UUID(0L, 303L));
         BlockData heldData = blockData("held");
-        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> live = singleClaim(heldData);
-        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> held = new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(1);
+        Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>> live = singleClaim(heldData);
+        Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>> held = new Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>>(1);
         held.put(CELL_KEY, live.get(CELL_KEY).withHeld(true));
         LongOpenHashSet changed = new LongOpenHashSet(new long[] {CELL_KEY});
         LongOpenHashSet empty = new LongOpenHashSet();
 
         assertEquals(1, arbiter.submitDelta(observer, holder, world,
-            new ProjectionClaimSet.ClaimDelta<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(null, live, empty, empty), 1.0D, false, false).getBlockChanges());
+            new ClaimSet.ClaimDelta<BlockClaim<BlockData, ProjectionWorldView>>(null, live, empty, empty), 1.0D, false, false).getBlockChanges());
         assertEquals(0, arbiter.submitDelta(observer, holder, world,
-            new ProjectionClaimSet.ClaimDelta<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(live, held, changed, empty), 1.0D, false, false).getBlockChanges());
+            new ClaimSet.ClaimDelta<BlockClaim<BlockData, ProjectionWorldView>>(live, held, changed, empty), 1.0D, false, false).getBlockChanges());
         assertSame(heldData, sentBlocks(observersMap(arbiter).get(observerId)).get(CELL_KEY));
 
         BlockData liveData = blockData("live");
@@ -336,8 +336,8 @@ public final class ProjectionClaimArbiterConcurrencyTest {
         playerWorld.set(world);
         arbiter.submit(observer, portal, world, singleClaim(blockData("a")), 2.0D, false);
         Object observerState = observersMap(arbiter).get(observerId);
-        ProjectorLighting<Player, BlockData, ProjectionWorldView> lighting = lighting(observerState);
-        Field field = ProjectorLighting.class.getDeclaredField("sentChunkSections");
+        LightOverlay<Player, BlockData, ProjectionWorldView> lighting = lighting(observerState);
+        Field field = LightOverlay.class.getDeclaredField("sentChunkSections");
         field.setAccessible(true);
         @SuppressWarnings("unchecked")
         Long2ObjectOpenHashMap<IntOpenHashSet> sent = (Long2ObjectOpenHashMap<IntOpenHashSet>) field.get(lighting);
@@ -620,10 +620,10 @@ public final class ProjectionClaimArbiterConcurrencyTest {
             UUID sourcePortal = UUID.fromString("00000000-0000-0000-0000-000000000066");
             UUID blackoutPortal = UUID.fromString("00000000-0000-0000-0000-000000000067");
             BlockData data = blockData("shared");
-            Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> sourceClaims = singleLightingClaim(
-                data, sourceView, ProjectedBlockClaim.LightingPolicy.SOURCE);
-            Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> fullBrightClaims = singleLightingClaim(
-                data, sourceView, ProjectedBlockClaim.LightingPolicy.FULL_BRIGHT);
+            Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>> sourceClaims = singleLightingClaim(
+                data, sourceView, BlockClaim.LightingPolicy.SOURCE);
+            Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>> fullBrightClaims = singleLightingClaim(
+                data, sourceView, BlockClaim.LightingPolicy.FULL_BRIGHT);
 
             arbiter.submit(observer, sourcePortal, world, sourceClaims, 2.0D, true);
             arbiter.submit(observer, blackoutPortal, world, fullBrightClaims, 1.0D, true);
@@ -666,28 +666,28 @@ public final class ProjectionClaimArbiterConcurrencyTest {
         return (LongOpenHashSet) field.get(observerState);
     }
 
-    private static ProjectorLighting<Player, BlockData, ProjectionWorldView> lighting(Object observerState) throws Exception {
+    private static LightOverlay<Player, BlockData, ProjectionWorldView> lighting(Object observerState) throws Exception {
         Field field = observerState.getClass().getDeclaredField("lighting");
         field.setAccessible(true);
-        return (ProjectorLighting<Player, BlockData, ProjectionWorldView>) field.get(observerState);
+        return (LightOverlay<Player, BlockData, ProjectionWorldView>) field.get(observerState);
     }
 
-    private static Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> singleClaim(BlockData data) {
+    private static Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>> singleClaim(BlockData data) {
         return singleClaim(CELL_KEY, data);
     }
 
-    private static Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> singleClaim(long key, BlockData data) {
-        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(1);
-        claims.put(key, new ProjectedBlockClaim<BlockData, ProjectionWorldView>(data, null, ProjectedBlockClaim.NO_REMOTE_KEY, false));
+    private static Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>> singleClaim(long key, BlockData data) {
+        Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>> claims = new Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>>(1);
+        claims.put(key, new BlockClaim<BlockData, ProjectionWorldView>(data, null, BlockClaim.NO_REMOTE_KEY, false));
         return claims;
     }
 
-    private static Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> singleLightingClaim(
+    private static Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>> singleLightingClaim(
         BlockData data,
         ProjectionWorldView sourceView,
-        ProjectedBlockClaim.LightingPolicy lightingPolicy) {
-        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(1);
-        claims.put(CELL_KEY, new ProjectedBlockClaim<BlockData, ProjectionWorldView>(data, sourceView, CELL_KEY, false, lightingPolicy));
+        BlockClaim.LightingPolicy lightingPolicy) {
+        Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>> claims = new Long2ObjectOpenHashMap<BlockClaim<BlockData, ProjectionWorldView>>(1);
+        claims.put(CELL_KEY, new BlockClaim<BlockData, ProjectionWorldView>(data, sourceView, CELL_KEY, false, lightingPolicy));
         return claims;
     }
 

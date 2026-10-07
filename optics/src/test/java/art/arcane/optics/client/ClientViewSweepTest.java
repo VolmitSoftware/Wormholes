@@ -14,7 +14,7 @@ import java.util.Random;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.aperture.ApertureCells;
-import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.claim.BlockClaim;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.math.Box;
@@ -318,7 +318,7 @@ final class ClientViewSweepTest {
             + ((eye.getZ() - origin.getZ()) * facing.z()) >= 0.0D;
         ApertureDescriptor geometry = ApertureDescriptor.fromPortal(new ApertureDescriptor.Source(aperture, frame, frontSide, mirror, 0,
             ClientSweepScene.NEAR_PLANE_PADDING, ClientSweepScene.APERTURE_PADDING, ClientSweepScene.CULLING_RATIO, 64, 0,
-            ApertureDescriptor.BLACKOUT_OFF, 0, ApertureDescriptor.MASK_AIR_PROJECT, ProjectedBlockClaim.LightingPolicy.SOURCE, 0,
+            ApertureDescriptor.BLACKOUT_OFF, 0, ApertureDescriptor.MASK_AIR_PROJECT, BlockClaim.LightingPolicy.SOURCE, 0,
             mirror ? 0 : 1, 0.0D, 0, 0L, List.of())).orElseThrow();
         BlockBox bounds = ClientSweepScene.plateBox(area, frame, origin, frontSide, 64, 40, ClientSweepScene.APERTURE_PADDING);
         return new ClientSweep(geometry, bounds, HYSTERESIS);

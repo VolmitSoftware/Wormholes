@@ -5,7 +5,7 @@ import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 
 
-import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.claim.BlockClaim;
 import art.arcane.optics.internal.fidelity.AtmosphereDominance;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.view.ContentView;
@@ -79,6 +79,6 @@ public final class AtmosphereChannel<B, V extends ContentView<?, ?>> {
         remoteBiomeIds.put(quart, id);
         return id;
     }
-    public record Scan<B, V>(Long2ObjectMap<ProjectedBlockClaim<B, V>> claims, V destination, boolean claimsChanged) {
+    public record Scan<B, V>(Long2ObjectMap<BlockClaim<B, V>> claims, V destination, boolean claimsChanged) {
     }
 }

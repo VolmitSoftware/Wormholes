@@ -4,7 +4,7 @@ import art.arcane.wormholes.chunk.BukkitChunkLeaseProvider;
 import art.arcane.optics.plate.ChunkLease;
 import art.arcane.optics.plate.ChunkLeaseRegistry;
 import art.arcane.optics.math.Vec3d;
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.wormholes.platform.BukkitRegionTaskProvider;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.optics.math.Face;
@@ -45,7 +45,7 @@ class BukkitEnvironmentCaptureTest {
         when(lease.ready()).thenReturn(ready);
         when(registry.retain(eq(world), eq(worldId), anyInt(), anyInt())).thenReturn(lease);
         OpticTransform transform = OpticTransform.of(AxisPermutation.of(Face.E, Face.U, Face.S), -128, 0, 0);
-        ProjectionEnvironment environment = mock(ProjectionEnvironment.class);
+        EnvironmentState environment = mock(EnvironmentState.class);
         when(environment.transform()).thenReturn(transform);
         BukkitEnvironmentCapture.Request request = new BukkitEnvironmentCapture.Request(UUID.randomUUID(), null, UUID.randomUUID(), world,
             new Vec3d(-32.5D, 92, 128), transform, 1);
@@ -137,7 +137,7 @@ class BukkitEnvironmentCaptureTest {
         CompletableFuture<Boolean> secondReady = new CompletableFuture<>();
         when(secondLease.ready()).thenReturn(secondReady);
         when(fixture.registry().retain(any(), any(), eq(2), eq(0))).thenReturn(secondLease);
-        ProjectionEnvironment environment = mock(ProjectionEnvironment.class);
+        EnvironmentState environment = mock(EnvironmentState.class);
         BukkitEnvironmentCapture.Request first = fixture.request();
         BukkitEnvironmentCapture.Request second = new BukkitEnvironmentCapture.Request(first.observer(), null, first.portal(), first.world(),
             new Vec3d(32, 80, 0), first.transform(), 2L);

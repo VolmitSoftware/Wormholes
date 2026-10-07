@@ -2,7 +2,7 @@ package art.arcane.wormholes.network.view;
 
 import art.arcane.optics.math.BlockBox;
 
-import art.arcane.optics.stream.ProjectionEnvironment;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 
 import art.arcane.wormholes.Settings;
@@ -78,8 +78,8 @@ public final class ViewServer implements Listener {
     static final class TimeDeliveryState {
         private final AtomicBoolean deliveryRunning = new AtomicBoolean(false);
         private final AtomicBoolean initialAccepted = new AtomicBoolean(false);
-        volatile ProjectionEnvironment desiredEnvironment;
-        volatile ProjectionEnvironment acceptedEnvironment;
+        volatile EnvironmentState desiredEnvironment;
+        volatile EnvironmentState acceptedEnvironment;
         private volatile int desiredSkyDarken;
         private volatile int acceptedSkyDarken = -1;
         private volatile boolean desiredStorm;

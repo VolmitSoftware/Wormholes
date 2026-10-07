@@ -289,13 +289,13 @@ public final class FrustumFit {
                                long limit) {
         Box region = frustum.getRegion();
         int[] axisMin = scratchAxisMin;
-        axisMin[0] = ProjectionVolume.minBlockForCenter(region.getXa());
-        axisMin[1] = ProjectionVolume.minBlockForCenter(region.getYa());
-        axisMin[2] = ProjectionVolume.minBlockForCenter(region.getZa());
+        axisMin[0] = ApertureSlab.minBlockForCenter(region.getXa());
+        axisMin[1] = ApertureSlab.minBlockForCenter(region.getYa());
+        axisMin[2] = ApertureSlab.minBlockForCenter(region.getZa());
         int[] axisMax = scratchAxisMax;
-        axisMax[0] = ProjectionVolume.maxBlockForCenter(region.getXb());
-        axisMax[1] = ProjectionVolume.maxBlockForCenter(region.getYb());
-        axisMax[2] = ProjectionVolume.maxBlockForCenter(region.getZb());
+        axisMax[0] = ApertureSlab.maxBlockForCenter(region.getXb());
+        axisMax[1] = ApertureSlab.maxBlockForCenter(region.getYb());
+        axisMax[2] = ApertureSlab.maxBlockForCenter(region.getZb());
 
         Vec3d center = structure.getArea().center();
         double originX = center.getX();
@@ -304,11 +304,11 @@ public final class FrustumFit {
         double eyeRelX = eye.getX() - originX;
         double eyeRelY = eye.getY() - originY;
         double eyeRelZ = eye.getZ() - originZ;
-        boolean eyeFrontSide = ProjectionVolume.side(frame, originX, originY, originZ, eye.getX(), eye.getY(), eye.getZ());
+        boolean eyeFrontSide = ApertureSlab.side(frame, originX, originY, originZ, eye.getX(), eye.getY(), eye.getZ());
         Frame projectionFrame = frame.view(eyeFrontSide);
         double projectionEyeDot = dot(eyeRelX, eyeRelY, eyeRelZ, projectionFrame.getNormal());
-        ProjectionVolume volume = ProjectionVolume.of(structure.getArea(), frame,
-            ProjectionVolume.plane(frame, originX, originY, originZ), eyeFrontSide, depthBlocks, 0.0D);
+        ApertureSlab volume = ApertureSlab.of(structure.getArea(), frame,
+            ApertureSlab.plane(frame, originX, originY, originZ), eyeFrontSide, depthBlocks, 0.0D);
         int slabAxis = volume.normalAxis();
         axisMin[slabAxis] = Math.max(axisMin[slabAxis], volume.normalMin());
         axisMax[slabAxis] = Math.min(axisMax[slabAxis], volume.normalMax());
