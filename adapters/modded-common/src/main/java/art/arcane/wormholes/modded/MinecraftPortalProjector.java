@@ -75,6 +75,8 @@ public final class MinecraftPortalProjector implements AutoCloseable {
     private final ViewPlateCache<BlockState, ServerLevel> plates;
     private final Blackout blackout = new Blackout();
     private final PassInputs passInputs = new PassInputs();
+    private Frame flippedFrameSource;
+    private Frame flippedFrame;
     private Destination pendingDestination;
     private Vec3d pendingEye;
     private long pendingRevision;
@@ -383,7 +385,7 @@ public final class MinecraftPortalProjector implements AutoCloseable {
     private long describePass(Destination destination, Vec3d eye) {
         Frame frame = portal.getFrame();
         Vec3d origin = portal.getOrigin();
-        Frame remoteFrame = destination.mirrorMode() ? frame.flipNormal() : destination.destAnchor().getFrame();
+        Frame remoteFrame = destination.mirrorMode() ? flipped(frame) : destination.destAnchor().getFrame();
         ProjectionConfig config = config();
         AtmosphereMode atmosphere = atmosphereMode();
         passInputs.eye(eye.x(), eye.y(), eye.z());
@@ -403,6 +405,14 @@ public final class MinecraftPortalProjector implements AutoCloseable {
         passInputs.atmosphere(atmosphere);
         passInputs.identity(portal.getGeometry().getRevision(), destination.identity());
         return PassPlanner.revision(passInputs);
+    }
+
+    private Frame flipped(Frame frame) {
+        if (frame != flippedFrameSource) {
+            flippedFrameSource = frame;
+            flippedFrame = frame.flipNormal();
+        }
+        return flippedFrame;
     }
 
     private Destination resolveDestination() {

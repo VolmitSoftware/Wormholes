@@ -137,6 +137,8 @@ public final class PortalProjector {
     private long lastPresentationRevision;
     private boolean lastCoarse;
     private final PassInputs passInputs = new PassInputs();
+    private Frame flippedFrameSource;
+    private Frame flippedFrame;
     private boolean lastPassUsedPlate;
     private final AtomicLong invalidationGeneration = new AtomicLong();
     private long lastCommittedGeneration;
@@ -663,7 +665,7 @@ public final class PortalProjector {
         Frame localFrame = portal.getFrame();
         Vec3d origin = portal.getOrigin();
         boolean mirror = destination.mirrorMode;
-        Frame remoteFrame = rtpTarget != null ? rtpTarget.frame() : mirror ? localFrame.flipNormal() : destination.destAnchor.getFrame();
+        Frame remoteFrame = rtpTarget != null ? rtpTarget.frame() : mirror ? flipped(localFrame) : destination.destAnchor.getFrame();
         FidelityPortalExtension fidelity = fidelityExtension();
         AtmosphereMode atmosphereMode = atmosphereMode(fidelity);
         BlackoutColor blackoutColor = portal.getBlackoutColor();
@@ -870,6 +872,14 @@ public final class PortalProjector {
 
     FidelityPortalExtension fidelityExtension() {
         return ProjectorPlates.fidelity(portal);
+    }
+
+    private Frame flipped(Frame frame) {
+        if (frame != flippedFrameSource) {
+            flippedFrameSource = frame;
+            flippedFrame = frame.flipNormal();
+        }
+        return flippedFrame;
     }
 
     private static AtmosphereMode atmosphereMode(FidelityPortalExtension fidelity) {
