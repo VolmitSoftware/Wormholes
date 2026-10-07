@@ -186,8 +186,8 @@ sourceSets {
     clientGameTest {
         java.srcDir('../modded-common/src/clientGameTest/java')
         resources.srcDir('../modded-common/src/clientGameTest/resources')
-        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath + sourceSets.gameTest.output
-        runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath + sourceSets.gameTest.output
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
     }
 }
 
@@ -206,7 +206,6 @@ loom {
     mods {
         wormholes {
             sourceSet(sourceSets.main)
-            sourceSet(sourceSets.gameTest)
             modFiles.from(provider { project(':core').sourceSets.main.output })
             modFiles.from(provider { project(':optics').sourceSets.main.output })
         }
@@ -223,7 +222,7 @@ loom {
 }
 
 tasks.named('runClientGameTest').configure {
-    dependsOn(tasks.named('gameTestClasses'), tasks.named('clientGameTestClasses'))
+    dependsOn(tasks.named('clientGameTestClasses'))
 }
 
 tasks.named('processClientGameTestResources').configure {
