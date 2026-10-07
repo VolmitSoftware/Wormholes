@@ -58,16 +58,16 @@ class ChunkPreSendServiceTest {
     }
 
     @Test
-    void aCrossServerDestinationHasNothingToSendAndIsCountedOnce() {
+    void aCrossServerDestinationHasNothingToSendAndIsNotAFailure() {
         RecordingPreSendPlatform platform = new RecordingPreSendPlatform();
         ChunkPreSendService<String, String> service = service(platform, ENABLED);
-        long before = failureCount("PRESEND_CROSS_SERVER");
+        long before = WormholesTelemetry.failures();
 
         ChunkPreSendTicket<String, String> ticket = service.preSend(RecordingPreSendPlatform.PLAYER, null, 0, 0);
 
         assertEquals(ChunkPreSendOutcome.SKIPPED_CROSS_SERVER, ticket.outcome());
         assertTrue(platform.announced().isEmpty());
-        assertEquals(before + 1L, failureCount("PRESEND_CROSS_SERVER"));
+        assertEquals(before, WormholesTelemetry.failures());
     }
 
     @Test
@@ -540,13 +540,13 @@ class ChunkPreSendServiceTest {
         platform.sent().clear();
         options.set(ChunkPreSendOptions.of(true, 2, 10, 5000));
         assertEquals(ChunkPreSendRollbackOutcome.CONTINUED, service.rollback(ticket));
-        long before = failureCount("PRESEND_ROLLBACK_PLAYER_OFFLINE");
+        long before = WormholesTelemetry.failures();
 
         platform.online(false);
         platform.runScheduled();
 
         assertEquals(10, platform.sent().size(), "a departed player must not be handed another slice of chunks");
-        assertEquals(before + 1L, failureCount("PRESEND_ROLLBACK_PLAYER_OFFLINE"));
+        assertEquals(before, WormholesTelemetry.failures());
     }
 
     @Test
@@ -570,10 +570,12 @@ class ChunkPreSendServiceTest {
     void aCrossWorldDestinationDoesNotPreSendOrChangeTheSourceClientWindow() {
         RecordingPreSendPlatform platform = new RecordingPreSendPlatform().playerChunk(3, 3);
         ChunkPreSendService<String, String> service = service(platform, ENABLED);
+        long before = WormholesTelemetry.failures();
         ChunkPreSendTicket<String, String> ticket = service.preSend(
             RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.DESTINATION_WORLD, 48, 48
         );
         assertEquals(ChunkPreSendOutcome.SKIPPED_DIMENSION_MISMATCH, ticket.outcome());
+        assertEquals(before, WormholesTelemetry.failures(), "cross-world travel skips pre-send by design");
         assertEquals(0, ticket.sentChunks());
         assertTrue(platform.sent().isEmpty());
         assertTrue(platform.announced().isEmpty());

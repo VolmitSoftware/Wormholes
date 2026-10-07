@@ -229,7 +229,7 @@ public final class ChunkPreSendService<W, P> {
         ChunkPreSendOutcome outcome = truncated
             ? ChunkPreSendOutcome.PRE_SENT_PARTIAL
             : ChunkPreSendOutcome.PRE_SENT;
-        count(outcome.telemetryReason());
+        count(outcome.failureReason());
         return new ChunkPreSendTicket<>(outcome, player, sourceWorld, rollback, sent.size(), plan.size(), true);
     }
 
@@ -293,12 +293,12 @@ public final class ChunkPreSendService<W, P> {
     }
 
     private ChunkPreSendTicket<W, P> reject(ChunkPreSendOutcome outcome, P player) {
-        count(outcome.telemetryReason());
+        count(outcome.failureReason());
         return ChunkPreSendTicket.rejected(outcome, player);
     }
 
     private ChunkPreSendRollbackOutcome report(ChunkPreSendRollbackOutcome outcome) {
-        count(outcome.telemetryReason());
+        count(outcome.failureReason());
         return outcome;
     }
 

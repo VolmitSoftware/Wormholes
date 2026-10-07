@@ -186,7 +186,7 @@ class ChunkPreSendPlannerTest {
                 continue;
             }
             assertNull(
-                outcome.telemetryReason(),
+                outcome.failureReason(),
                 outcome + " delivered chunks and must not be counted against failuresPerMinute"
             );
         }
