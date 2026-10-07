@@ -17,16 +17,20 @@ public abstract class ClientViewPayloadOrderMixin {
     @Inject(method = "handle(Lnet/minecraft/network/protocol/common/ServerCommonPacketListener;)V", at = @At("HEAD"), cancellable = true)
     private void wormholesHandleInPacketOrder(ServerCommonPacketListener listener, CallbackInfo callback) {
         ServerboundCustomPayloadPacket packet = (ServerboundCustomPayloadPacket) (Object) this;
-        if (!(packet.payload() instanceof ClientViewPayload payload) || !(listener instanceof ServerGamePacketListenerImpl game)) {
+        if (!(listener instanceof ServerGamePacketListenerImpl game) || !packet.payload().type().id().equals(ClientViewPayload.ID)) {
             return;
         }
-        callback.cancel();
         MinecraftServer server = game.player.level().getServer();
         PacketProcessor processor = server.packetProcessor();
         if (!processor.isSameThread()) {
+            callback.cancel();
             processor.scheduleIfPossible(listener, packet);
             return;
         }
+        if (!(packet.payload() instanceof ClientViewPayload payload)) {
+            return;
+        }
+        callback.cancel();
         WormholesModRuntime runtime = WormholesModRuntime.forServer(server);
         if (runtime != null) {
             runtime.clientViews().receivePlay(game.player, payload.data());

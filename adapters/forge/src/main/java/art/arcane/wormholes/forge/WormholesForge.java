@@ -69,7 +69,12 @@ public final class WormholesForge {
             return;
         }
         context.setPacketHandled(true);
-        runtime.clientViews().receive(context.getConnection(), payload.data());
+        ServerPlayer sender = context.getSender();
+        if (sender == null) {
+            runtime.clientViews().receive(context.getConnection(), payload.data());
+            return;
+        }
+        runtime.clientViews().receivePlay(sender, payload.data());
     }
 
     private void configureClientView(GatherLoginConfigurationTasksEvent event, Channel<CustomPacketPayload> clientView) {

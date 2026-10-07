@@ -137,6 +137,7 @@
     "client.VanillaPortalEffectMixin",
     "client.MeshFeatureWindingMixin",
     "client.ClientReconfigurationMixin",
+    "client.ClientViewPayloadOrderClientMixin",
     "client.ChunkSkyLightSourcesMixin",
     "client.LevelChunkMixin",
     "client.LevelLightEngineMixin",
