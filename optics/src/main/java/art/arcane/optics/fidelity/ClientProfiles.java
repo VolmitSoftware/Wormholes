@@ -8,15 +8,15 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 
 import java.util.function.Supplier;
-public final class ClientProfiles<P> {
-    private final Options<P> options;
+public final class ClientProfiles<O> {
+    private final Options<O> options;
     private final Map<UUID, BedrockProfile> profiles = new ConcurrentHashMap<>();
 
-    public ClientProfiles(Options<P> options) {
+    public ClientProfiles(Options<O> options) {
         this.options = options;
     }
 
-    public BedrockProfile profile(P player) {
+    public BedrockProfile profile(O player) {
         FidelityOptions fidelity = options.fidelity().get();
         if (player == null || !fidelity.bedrockEnabled()) {
             return BedrockProfile.JAVA;
@@ -38,7 +38,7 @@ public final class ClientProfiles<P> {
         return count;
     }
 
-    private BedrockProfile detect(P player, FidelityOptions fidelity) {
+    private BedrockProfile detect(O player, FidelityOptions fidelity) {
         boolean bedrock = options.detector().test(player);
         if (!bedrock) {
             String brand = options.brands().apply(player);
@@ -50,6 +50,6 @@ public final class ClientProfiles<P> {
         return bedrock ? BedrockProfile.forBedrock(fidelity) : BedrockProfile.JAVA;
     }
 
-    public record Options<P>(Predicate<P> detector, Function<P, String> brands, Function<P, UUID> identity,
+    public record Options<O>(Predicate<O> detector, Function<O, String> brands, Function<O, UUID> identity,
                              Supplier<FidelityOptions> fidelity) { }
 }

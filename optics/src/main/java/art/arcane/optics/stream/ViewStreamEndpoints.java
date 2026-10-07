@@ -9,80 +9,80 @@ import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.plate.ViewPlate;
 
-public interface ViewStreamEndpoints<P, B> {
-    void interested(P observer, List<UUID> out);
+public interface ViewStreamEndpoints<O, B> {
+    void interested(O observer, List<UUID> out);
 
-    long geometryRevision(P observer, UUID portal);
+    long geometryRevision(O observer, UUID portal);
 
-    ApertureDescriptor geometry(P observer, UUID portal, SessionPalette palette);
+    ApertureDescriptor geometry(O observer, UUID portal, SessionPalette palette);
 
-    ViewPlate<B> plate(P observer, UUID portal, boolean firstAttendance);
+    ViewPlate<B> plate(O observer, UUID portal, boolean firstAttendance);
 
-    default int meshDistanceBlocks(P observer) {
+    default int meshDistanceBlocks(O observer) {
         return 0;
     }
 
-    default Vec3d meshEye(P observer) {
+    default Vec3d meshEye(O observer) {
         return null;
     }
 
-    default void prepareNested(P observer, UUID context, UUID parentContext, UUID portal) {
+    default void prepareNested(O observer, UUID context, UUID parentContext, UUID portal) {
     }
 
-    default void releaseNested(P observer, UUID context) {
+    default void releaseNested(O observer, UUID context) {
     }
 
-    default Vec3d nestedEye(P observer, UUID context) {
+    default Vec3d nestedEye(O observer, UUID context) {
         return null;
     }
 
-    default WorldChangeTracker meshChanges(P observer) {
+    default WorldChangeTracker meshChanges(O observer) {
         return null;
     }
 
-    default boolean localMeshWorld(P observer, UUID context) {
+    default boolean localMeshWorld(O observer, UUID context) {
         return false;
     }
 
-    default ViewPlate<B> meshSection(P observer, UUID portal, BlockBox clip, int distance) {
+    default ViewPlate<B> meshSection(O observer, UUID portal, BlockBox clip, int distance) {
         return null;
     }
 
-    default ViewPlate<B> nestedMeshSection(P observer, UUID parent, UUID child, BlockBox clip, int distance) {
+    default ViewPlate<B> nestedMeshSection(O observer, UUID parent, UUID child, BlockBox clip, int distance) {
         return null;
     }
 
-    default boolean meshSectionQueued(P observer, UUID portal, BlockBox clip) {
+    default boolean meshSectionQueued(O observer, UUID portal, BlockBox clip) {
         return false;
     }
 
-    default boolean nestedMeshSectionQueued(P observer, UUID parent, UUID child, BlockBox clip) {
+    default boolean nestedMeshSectionQueued(O observer, UUID parent, UUID child, BlockBox clip) {
         return meshSectionQueued(observer, child, clip);
     }
 
-    default SectionBiomes meshBiomes(P observer, UUID portal, ViewPlate<B> plate) {
+    default SectionBiomes meshBiomes(O observer, UUID portal, ViewPlate<B> plate) {
         return SectionBiomes.NONE;
     }
 
-    boolean refused(P observer, UUID portal);
+    boolean refused(O observer, UUID portal);
 
-    ViewPlate<B> standbyPlate(P observer, UUID portal);
+    ViewPlate<B> standbyPlate(O observer, UUID portal);
 
-    BrickLightSource lightBaseline(P observer, UUID portal, ViewPlate<B> plate);
+    BrickLightSource lightBaseline(O observer, UUID portal, ViewPlate<B> plate);
 
-    void releaseVanilla(P observer, UUID portal);
+    void releaseVanilla(O observer, UUID portal);
 
-    void nested(P observer, UUID parent, ApertureDescriptor parentGeometry, List<UUID> out);
+    void nested(O observer, UUID parent, ApertureDescriptor parentGeometry, List<UUID> out);
 
-    long nestedGeometryRevision(P observer, UUID parent, UUID child);
+    long nestedGeometryRevision(O observer, UUID parent, UUID child);
 
-    ApertureDescriptor nestedGeometry(P observer, UUID parent, UUID child, SessionPalette palette);
+    ApertureDescriptor nestedGeometry(O observer, UUID parent, UUID child, SessionPalette palette);
 
-    ViewPlate<B> nestedPlate(P observer, UUID parent, UUID child);
+    ViewPlate<B> nestedPlate(O observer, UUID parent, UUID child);
 
-    void effects(P observer, List<UUID> out);
+    void effects(O observer, List<UUID> out);
 
-    long effectGeometryRevision(P observer, UUID portal);
+    long effectGeometryRevision(O observer, UUID portal);
 
-    ApertureDescriptor effectGeometry(P observer, UUID portal, SessionPalette palette);
+    ApertureDescriptor effectGeometry(O observer, UUID portal, SessionPalette palette);
 }

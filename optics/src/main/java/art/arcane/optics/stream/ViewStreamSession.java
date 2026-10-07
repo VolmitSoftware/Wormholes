@@ -20,7 +20,7 @@ import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.plate.ViewPlate;
 import art.arcane.optics.client.MeshPlan;
 
-public final class ViewStreamSession<P, B> {
+public final class ViewStreamSession<O, B> {
     static final long BRICK_MISS_TIMEOUT_NANOS = 5_000_000_000L;
     private static final long NANOS_PER_MILLI = 1_000_000L;
     private static final int PLAY_PHASE_GRACE_MILLIS = ViewStreamLimits.PLAY_PHASE_PENDING_TICKS * 50;
@@ -29,14 +29,14 @@ public final class ViewStreamSession<P, B> {
     private static final int MAX_PENDING_BURSTS = 1024;
     static final int NATIVE_RETRY_TICKS = 20;
 
-    private final ViewStreamSessionRegistry<P, B> registry;
-    private final ViewStreamPlatform<P, B> platform;
+    private final ViewStreamSessionRegistry<O, B> registry;
+    private final ViewStreamPlatform<O, B> platform;
     private final UUID playerId;
-    private final P player;
+    private final O player;
     private final long zeroCopyNonce;
     private final ViewStreamLane lane;
     private final MeshStream<B> mesh = new MeshStream<B>();
-    private final Hooks<P> hooks;
+    private final Hooks<O> hooks;
     private final Predicate<ViewStreamMessage> sender;
     private final ConcurrentLinkedQueue<Command<B>> inbox;
     private final Object handshakeLock;
@@ -83,7 +83,7 @@ public final class ViewStreamSession<P, B> {
     private boolean laneSent;
     private int lastLaneSequence;
 
-    ViewStreamSession(ViewStreamSessionRegistry<P, B> registry, UUID playerId, P player, long zeroCopyNonce) {
+    ViewStreamSession(ViewStreamSessionRegistry<O, B> registry, UUID playerId, O player, long zeroCopyNonce) {
         this.registry = registry;
         this.platform = registry.platform();
         this.playerId = Objects.requireNonNull(playerId, "playerId");
@@ -122,7 +122,7 @@ public final class ViewStreamSession<P, B> {
         return playerId;
     }
 
-    public P player() {
+    public O player() {
         return player;
     }
 
@@ -142,7 +142,7 @@ public final class ViewStreamSession<P, B> {
         return !closed && state == ViewStreamSessionState.CLIENT_VIEW && ViewStreamCapability.MESH_RENDER.in(caps);
     }
 
-    public Hooks<P> hooks() {
+    public Hooks<O> hooks() {
         return hooks;
     }
 
@@ -295,7 +295,7 @@ public final class ViewStreamSession<P, B> {
         }
         ViewStreamOptions options = registry.options();
         mesh.beginTick();
-        ViewStreamEndpoints<P, B> portals = platform.endpoints();
+        ViewStreamEndpoints<O, B> portals = platform.endpoints();
         interest.clear();
         if (ViewStreamCapability.PLATES.in(caps)) {
             portals.interested(player, interest);
@@ -647,7 +647,7 @@ public final class ViewStreamSession<P, B> {
         }
     }
 
-    private ViewStreamSlot<B> attach(UUID portal, ViewStreamEndpoints<P, B> portals) {
+    private ViewStreamSlot<B> attach(UUID portal, ViewStreamEndpoints<O, B> portals) {
         if (rejected.contains(portal)) {
             return null;
         }
@@ -664,7 +664,7 @@ public final class ViewStreamSession<P, B> {
         return slot;
     }
 
-    private boolean promote(ViewStreamSlot<B> slot, ViewStreamEndpoints<P, B> portals) {
+    private boolean promote(ViewStreamSlot<B> slot, ViewStreamEndpoints<O, B> portals) {
         if (rejected.contains(slot.portalId)) {
             return false;
         }
@@ -677,7 +677,7 @@ public final class ViewStreamSession<P, B> {
         return true;
     }
 
-    private ApertureDescriptor ownable(UUID portal, ViewStreamEndpoints<P, B> portals) {
+    private ApertureDescriptor ownable(UUID portal, ViewStreamEndpoints<O, B> portals) {
         ApertureDescriptor geometry = meshGeometry(portals.geometry(player, portal, registry.palette()), portals);
         if (geometry == null) {
             reject(portal);
@@ -686,7 +686,7 @@ public final class ViewStreamSession<P, B> {
         return meshEnabled() || clientMirror(geometry) || !portals.refused(player, portal) ? geometry : null;
     }
 
-    private void own(ViewStreamSlot<B> slot, long stamp, ApertureDescriptor geometry, ViewStreamEndpoints<P, B> portals) {
+    private void own(ViewStreamSlot<B> slot, long stamp, ApertureDescriptor geometry, ViewStreamEndpoints<O, B> portals) {
         slot.effects = false;
         slot.geometryStamp = stamp;
         slot.baseGeometry = geometry;
@@ -696,7 +696,7 @@ public final class ViewStreamSession<P, B> {
         portals.releaseVanilla(player, slot.portalId);
     }
 
-    private void attachEffects(ViewStreamEndpoints<P, B> portals, long serverTick) {
+    private void attachEffects(ViewStreamEndpoints<O, B> portals, long serverTick) {
         effectInterest.clear();
         portals.effects(player, effectInterest);
         for (int i = 0; i < effectInterest.size(); i++) {
@@ -778,7 +778,7 @@ public final class ViewStreamSession<P, B> {
         platform.endpoints().releaseNested(player, slot.contextId);
     }
 
-    private Refresh refresh(ViewStreamSlot<B> slot, ViewStreamEndpoints<P, B> portals, ViewStreamOptions options, long serverTick) {
+    private Refresh refresh(ViewStreamSlot<B> slot, ViewStreamEndpoints<O, B> portals, ViewStreamOptions options, long serverTick) {
         if (slot.effects) {
             return refreshEffects(slot, portals, options, serverTick);
         }
@@ -837,7 +837,7 @@ public final class ViewStreamSession<P, B> {
         return changed ? Refresh.CHANGED : Refresh.UNCHANGED;
     }
 
-    private Refresh refreshEffects(ViewStreamSlot<B> slot, ViewStreamEndpoints<P, B> portals, ViewStreamOptions options,
+    private Refresh refreshEffects(ViewStreamSlot<B> slot, ViewStreamEndpoints<O, B> portals, ViewStreamOptions options,
                                    long serverTick) {
         boolean changed = false;
         long stamp = portals.effectGeometryRevision(player, slot.portalId);
@@ -855,7 +855,7 @@ public final class ViewStreamSession<P, B> {
         return changed ? Refresh.CHANGED : Refresh.UNCHANGED;
     }
 
-    private boolean refreshStandby(ViewStreamSlot<B> slot, ViewStreamEndpoints<P, B> portals, ViewStreamOptions options) {
+    private boolean refreshStandby(ViewStreamSlot<B> slot, ViewStreamEndpoints<O, B> portals, ViewStreamOptions options) {
         ViewStreamSlot<B> shadow = slot.standbySlot;
         if (!options.standbyPrestream()) {
             if (shadow == null) {
@@ -927,7 +927,7 @@ public final class ViewStreamSession<P, B> {
         return queued;
     }
 
-    private int refreshNested(ViewStreamSlot<B> slot, ViewStreamEndpoints<P, B> portals, ViewStreamOptions options, long serverTick) {
+    private int refreshNested(ViewStreamSlot<B> slot, ViewStreamEndpoints<O, B> portals, ViewStreamOptions options, long serverTick) {
         if (meshEnabled()) {
             portals.prepareNested(player, slot.contextId, null, slot.portalId);
             int depth = nativeRecursionDepth(slot.baseGeometry);
@@ -989,7 +989,7 @@ public final class ViewStreamSession<P, B> {
         return flags;
     }
 
-    private int refreshNativeNested(ViewStreamSlot<B> slot, ViewStreamEndpoints<P, B> portals, long serverTick,
+    private int refreshNativeNested(ViewStreamSlot<B> slot, ViewStreamEndpoints<O, B> portals, long serverTick,
                                     int depth, int depthLimit, int mirrors, int[] remaining) {
         if (depth >= depthLimit || !clientRecursion(slot.baseGeometry) || remaining[0] <= 0) {
             boolean changed = !slot.children.isEmpty();
@@ -1145,7 +1145,7 @@ public final class ViewStreamSession<P, B> {
         return ViewStreamCapability.MESH_RENDER.in(caps) && platform.endpoints().meshDistanceBlocks(player) > 0;
     }
 
-    private ApertureDescriptor meshGeometry(ApertureDescriptor geometry, ViewStreamEndpoints<P, B> portals) {
+    private ApertureDescriptor meshGeometry(ApertureDescriptor geometry, ViewStreamEndpoints<O, B> portals) {
         return geometry != null && meshEnabled() ? geometry.withDepth(portals.meshDistanceBlocks(player)) : geometry;
     }
 
@@ -1166,7 +1166,7 @@ public final class ViewStreamSession<P, B> {
             && registry.options().clientRecursion();
     }
 
-    private BrickLightSource light(UUID portal, ViewPlate<B> plate, ViewStreamEndpoints<P, B> portals, ViewStreamOptions options) {
+    private BrickLightSource light(UUID portal, ViewPlate<B> plate, ViewStreamEndpoints<O, B> portals, ViewStreamOptions options) {
         if (!options.destinationLight() || !ViewStreamCapability.DEST_LIGHT.in(caps)) {
             return BrickLightSource.NONE;
         }
@@ -1651,39 +1651,39 @@ public final class ViewStreamSession<P, B> {
     private record Reset<B>(ViewStreamMessage.ResetReason reason, boolean terminal) implements Command<B> {
     }
 
-    public interface Hooks<P> {
-        boolean onExtension(P peer, Object payload);
+    public interface Hooks<O> {
+        boolean onExtension(O peer, Object payload);
 
-        void tickExtension(P peer, long nowMillis, Predicate<ViewStreamMessage> sender);
+        void tickExtension(O peer, long nowMillis, Predicate<ViewStreamMessage> sender);
 
-        void onReset(P peer);
+        void onReset(O peer);
 
-        void onClose(P peer);
+        void onClose(O peer);
 
-        static <P> Hooks<P> none() {
-            return new Hooks<P>() {
+        static <O> Hooks<O> none() {
+            return new Hooks<O>() {
                 @Override
-                public boolean onExtension(P peer, Object payload) {
+                public boolean onExtension(O peer, Object payload) {
                     return false;
                 }
 
                 @Override
-                public void tickExtension(P peer, long nowMillis, Predicate<ViewStreamMessage> sender) {
+                public void tickExtension(O peer, long nowMillis, Predicate<ViewStreamMessage> sender) {
                 }
 
                 @Override
-                public void onReset(P peer) {
+                public void onReset(O peer) {
                 }
 
                 @Override
-                public void onClose(P peer) {
+                public void onClose(O peer) {
                 }
             };
         }
     }
 
     @FunctionalInterface
-    public interface HooksFactory<P, B> {
-        Hooks<P> create(ViewStreamSession<P, B> session);
+    public interface HooksFactory<O, B> {
+        Hooks<O> create(ViewStreamSession<O, B> session);
     }
 }

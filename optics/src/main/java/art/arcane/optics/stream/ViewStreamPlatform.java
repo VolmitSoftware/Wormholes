@@ -7,10 +7,10 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.LongSupplier;
 
-public record ViewStreamPlatform<P, B>(ViewStreamTransport<P> transport,
-                                       ViewStreamEndpoints<P, B> endpoints,
-                                       EntityFrameSource<P> entities,
-                                       ViewStreamScene<P> scene,
+public record ViewStreamPlatform<O, B>(ViewStreamTransport<O> transport,
+                                       ViewStreamEndpoints<O, B> endpoints,
+                                       EntityFrameSource<O> entities,
+                                       ViewStreamScene<O> scene,
                                        PlateHandoffs<B> handoffs,
                                        Executor lanes,
                                        Function<B, String> stateStrings,
@@ -19,7 +19,7 @@ public record ViewStreamPlatform<P, B>(ViewStreamTransport<P> transport,
                                        LongSupplier nanoClock,
                                        BiConsumer<String, Throwable> warnings,
                                        List<ViewStreamExtension<?>> extensions,
-                                       ViewStreamSession.HooksFactory<P, B> hooks) {
+                                       ViewStreamSession.HooksFactory<O, B> hooks) {
     public ViewStreamPlatform {
         Objects.requireNonNull(transport, "transport");
         Objects.requireNonNull(endpoints, "endpoints");

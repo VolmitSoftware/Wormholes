@@ -10,7 +10,7 @@ public final class BoundarySamples {
     private BoundarySamples() {
     }
 
-    public static <P> void append(List<P> outline, LongOpenHashSet occupied, int x, int y, int z, Axis normalAxis, int samplesPerEdge, PointFactory<P> factory) {
+    public static <R> void append(List<R> outline, LongOpenHashSet occupied, int x, int y, int z, Axis normalAxis, int samplesPerEdge, PointFactory<R> factory) {
         switch (normalAxis) {
             case X -> {
                 if (!occupied.contains(CellKeys.pack(x, y - 1, z))) {
@@ -57,14 +57,14 @@ public final class BoundarySamples {
         }
     }
 
-    private static <P> void addLine(List<P> points, int samplesPerEdge, PointFactory<P> factory, double x0, double y0, double z0, double x1, double y1, double z1) {
+    private static <R> void addLine(List<R> points, int samplesPerEdge, PointFactory<R> factory, double x0, double y0, double z0, double x1, double y1, double z1) {
         for (int sample = 0; sample < samplesPerEdge; sample++) {
             double t = (sample + 0.5D) / samplesPerEdge;
             points.add(factory.create(x0 + ((x1 - x0) * t), y0 + ((y1 - y0) * t), z0 + ((z1 - z0) * t)));
         }
     }
 
-    public interface PointFactory<P> {
-        P create(double x, double y, double z);
+    public interface PointFactory<R> {
+        R create(double x, double y, double z);
     }
 }

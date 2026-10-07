@@ -18,23 +18,23 @@ import java.util.function.Predicate;
 import art.arcane.optics.entity.EntityDeltaCodec;
 import art.arcane.optics.entity.EntitySnapshot;
 
-public final class EntityFrames<P> implements EntityFrameSource<P> {
+public final class EntityFrames<O> implements EntityFrameSource<O> {
     public static final long STATE_IDLE_TICKS = 200L;
     private static final long PRUNE_INTERVAL_TICKS = 100L;
 
-    private final Scenes<P> scenes;
+    private final Scenes<O> scenes;
     private final ConcurrentHashMap<Object, Scene> captured;
     private final ConcurrentHashMap<StateKey, ObserverState> states;
     private volatile long nextPrune;
 
-    public EntityFrames(Scenes<P> scenes) {
+    public EntityFrames(Scenes<O> scenes) {
         this.scenes = Objects.requireNonNull(scenes, "scenes");
         this.captured = new ConcurrentHashMap<Object, Scene>();
         this.states = new ConcurrentHashMap<StateKey, ObserverState>();
     }
 
     @Override
-    public ViewStreamMessage.EntityFrame frame(P observer, UUID portal, int portalKey, long tick, boolean full, boolean hideObserver) {
+    public ViewStreamMessage.EntityFrame frame(O observer, UUID portal, int portalKey, long tick, boolean full, boolean hideObserver) {
         prune(tick);
         Object sceneKey = scenes.sceneKey(observer, portal);
         StateKey stateKey = new StateKey(observer, portal);
@@ -85,7 +85,7 @@ public final class EntityFrames<P> implements EntityFrameSource<P> {
     }
 
     @Override
-    public List<ViewStreamMessage.EntityEvent> events(P observer, UUID portal, int portalKey) {
+    public List<ViewStreamMessage.EntityEvent> events(O observer, UUID portal, int portalKey) {
         ObserverState state = states.get(new StateKey(observer, portal));
         if (state == null || state.portalKey != portalKey || state.events.isEmpty()) {
             return List.of();
@@ -111,11 +111,11 @@ public final class EntityFrames<P> implements EntityFrameSource<P> {
         return states.size();
     }
 
-    public void forget(P observer) {
+    public void forget(O observer) {
         states.keySet().removeIf(key -> key.observer() == observer);
     }
 
-    private List<EntitySnapshot> scene(Object sceneKey, P observer, UUID portal, long tick) {
+    private List<EntitySnapshot> scene(Object sceneKey, O observer, UUID portal, long tick) {
         Scene scene = captured.get(sceneKey);
         if (scene != null && scene.tick == tick) {
             return scene.visuals;
@@ -135,20 +135,20 @@ public final class EntityFrames<P> implements EntityFrameSource<P> {
         states.values().removeIf(state -> tick - state.touched > STATE_IDLE_TICKS);
     }
 
-    public interface Scenes<P> {
-        Object sceneKey(P observer, UUID portal);
+    public interface Scenes<O> {
+        Object sceneKey(O observer, UUID portal);
 
-        List<EntitySnapshot> capture(P observer, UUID portal, long tick);
+        List<EntitySnapshot> capture(O observer, UUID portal, long tick);
 
         default UUID projectedId(UUID sourceId) {
             return sourceId;
         }
 
-        default boolean visible(P observer, EntitySnapshot visual) {
+        default boolean visible(O observer, EntitySnapshot visual) {
             return true;
         }
 
-        default boolean isObserver(P observer, EntitySnapshot visual) {
+        default boolean isObserver(O observer, EntitySnapshot visual) {
             return false;
         }
     }

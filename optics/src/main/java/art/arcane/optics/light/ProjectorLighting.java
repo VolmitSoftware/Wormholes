@@ -21,7 +21,7 @@ import art.arcane.optics.claim.ProjectionOutput;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.view.WorldChangeTracker;
 
-public final class ProjectorLighting<P, B, V extends ContentView<?, ?>> {
+public final class ProjectorLighting<O, B, V extends ContentView<?, ?>> {
     private static final int SECTION_NIBBLE_BYTES = 2048;
     private static final long BASELINE_MAX_AGE_MILLIS = 2000L;
 
@@ -31,7 +31,7 @@ public final class ProjectorLighting<P, B, V extends ContentView<?, ?>> {
     private final Long2ObjectOpenHashMap<SectionBaseline[]> baselineCache = new Long2ObjectOpenHashMap<SectionBaseline[]>(8);
     private final Long2ObjectOpenHashMap<SectionClaims> sectionClaims = new Long2ObjectOpenHashMap<SectionClaims>(16);
     private final Long2ObjectOpenHashMap<IntOpenHashSet> currentChunkSections = new Long2ObjectOpenHashMap<IntOpenHashSet>(8);
-    private final ProjectionOutput<P> output;
+    private final ProjectionOutput<O> output;
     private final Supplier<WorldChangeTracker> changes;
     private final OpticsMetrics metrics;
     private V indexedLocalView;
@@ -39,20 +39,20 @@ public final class ProjectorLighting<P, B, V extends ContentView<?, ?>> {
     private int indexedMaxHeight;
     private boolean indexedSourceLighting;
 
-    public ProjectorLighting(ProjectionOutput<P> output, Supplier<WorldChangeTracker> changes, OpticsMetrics metrics) {
+    public ProjectorLighting(ProjectionOutput<O> output, Supplier<WorldChangeTracker> changes, OpticsMetrics metrics) {
         this.output = output;
         this.changes = changes;
         this.metrics = metrics;
     }
 
-    public void apply(P observer,
+    public void apply(O observer,
                       V localView,
                       Long2ObjectMap<ProjectedBlockClaim<B, V>> projectedClaims,
                       LongSet dirtyLocalKeys) {
         apply(observer, localView, projectedClaims, dirtyLocalKeys, true);
     }
 
-    public void apply(P observer,
+    public void apply(O observer,
                V localView,
                Long2ObjectMap<ProjectedBlockClaim<B, V>> projectedClaims,
                LongSet dirtyLocalKeys,
@@ -203,7 +203,7 @@ public final class ProjectorLighting<P, B, V extends ContentView<?, ?>> {
     }
 
     private void revertStaleSections(
-        P observer,
+        O observer,
         V localView,
         Long2ObjectOpenHashMap<IntOpenHashSet> currentSections
     ) {
@@ -235,7 +235,7 @@ public final class ProjectorLighting<P, B, V extends ContentView<?, ?>> {
         }
     }
 
-    public void revert(P observer, V localView) {
+    public void revert(O observer, V localView) {
         pendingChunkSections.clear();
         sectionClaims.clear();
         currentChunkSections.clear();
@@ -286,7 +286,7 @@ public final class ProjectorLighting<P, B, V extends ContentView<?, ?>> {
         baselineCache.remove(chunkKey);
     }
 
-    public void discardUnsentChunks(P observer) {
+    public void discardUnsentChunks(O observer) {
         Iterator<Long2ObjectMap.Entry<IntOpenHashSet>> iterator = sentChunkSections.long2ObjectEntrySet().iterator();
         while (iterator.hasNext()) {
             Long2ObjectMap.Entry<IntOpenHashSet> entry = iterator.next();
@@ -379,7 +379,7 @@ public final class ProjectorLighting<P, B, V extends ContentView<?, ?>> {
         sent.addAll(sections);
     }
 
-    private boolean sendChunkLight(P observer,
+    private boolean sendChunkLight(O observer,
                                 V localView,
                                 int chunkX,
                                 int chunkZ,
@@ -539,7 +539,7 @@ public final class ProjectorLighting<P, B, V extends ContentView<?, ?>> {
         return section >= minSection && section <= maxSection;
     }
 
-    private boolean sendLocalChunkLight(P observer, V localView, int chunkX, int chunkZ, IntSet sections) {
+    private boolean sendLocalChunkLight(O observer, V localView, int chunkX, int chunkZ, IntSet sections) {
         if (!output.chunkSent(observer, chunkX, chunkZ)) {
             return true;
         }

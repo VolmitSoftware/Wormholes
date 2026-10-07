@@ -15,7 +15,7 @@ import art.arcane.optics.spi.OpticsMetrics;
  * cells whose sample changed or disappeared, and drains the queue under the per-tick packet budget.
  * A cell that leaves the projection re-sends the real local block entity when there is one.
  */
-public final class ProjectedBlockEntityLayer<P> {
+public final class ProjectedBlockEntityLayer<O> {
     @FunctionalInterface
     public interface LocalLookup {
         BlockEntitySample sample(int x, int y, int z);
@@ -80,7 +80,7 @@ public final class ProjectedBlockEntityLayer<P> {
         }
     }
 
-    public int flush(P observer, int budget, ProjectionOutput<P> output) {
+    public int flush(O observer, int budget, ProjectionOutput<O> output) {
         int sentNow = 0;
         while (sentNow < budget && !pendingOrder.isEmpty()) {
             long key = pendingOrder.removeLong(0);

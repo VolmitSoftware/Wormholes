@@ -2,36 +2,36 @@ package art.arcane.optics.stream;
 
 import java.util.UUID;
 
-public interface ViewStreamScene<P> {
+public interface ViewStreamScene<O> {
     default long effectCapability() {
         return ViewStreamCapability.NONE;
     }
 
-    ViewStreamMessage.Extension effects(P observer, UUID endpoint, int key, long tick, boolean full);
+    ViewStreamMessage.Extension effects(O observer, UUID endpoint, int key, long tick, boolean full);
 
-    ViewStreamMessage.Atmosphere atmosphere(P observer, UUID endpoint, int key, long tick, boolean full);
+    ViewStreamMessage.Atmosphere atmosphere(O observer, UUID endpoint, int key, long tick, boolean full);
 
-    default ViewStreamMessage.Environment environment(P observer, UUID endpoint, int key, long tick, boolean full) {
+    default ViewStreamMessage.Environment environment(O observer, UUID endpoint, int key, long tick, boolean full) {
         return null;
     }
 
-    default ViewStreamMessage.Environment nestedEnvironment(P observer, UUID parent, UUID endpoint, int key, long tick, boolean full) {
+    default ViewStreamMessage.Environment nestedEnvironment(O observer, UUID parent, UUID endpoint, int key, long tick, boolean full) {
         return null;
     }
 
-    default boolean environmentUnavailable(P observer, UUID parent, UUID endpoint) {
+    default boolean environmentUnavailable(O observer, UUID parent, UUID endpoint) {
         return false;
     }
 
-    static <P> ViewStreamScene<P> none() {
-        return new ViewStreamScene<P>() {
+    static <O> ViewStreamScene<O> none() {
+        return new ViewStreamScene<O>() {
             @Override
-            public ViewStreamMessage.Extension effects(P observer, UUID endpoint, int key, long tick, boolean full) {
+            public ViewStreamMessage.Extension effects(O observer, UUID endpoint, int key, long tick, boolean full) {
                 return null;
             }
 
             @Override
-            public ViewStreamMessage.Atmosphere atmosphere(P observer, UUID endpoint, int key, long tick, boolean full) {
+            public ViewStreamMessage.Atmosphere atmosphere(O observer, UUID endpoint, int key, long tick, boolean full) {
                 return null;
             }
         };

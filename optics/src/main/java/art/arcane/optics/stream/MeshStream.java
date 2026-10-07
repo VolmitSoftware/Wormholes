@@ -48,7 +48,7 @@ final class MeshStream<B> {
         }
     }
 
-    synchronized <P> boolean refresh(ViewStreamSlot<B> slot, ViewStreamEndpoints<P, B> portals, P player,
+    synchronized <O> boolean refresh(ViewStreamSlot<B> slot, ViewStreamEndpoints<O, B> portals, O player,
                                      long tick, long now, boolean destinationLight, Vec3d eye) {
         if (eye == null) {
             return false;
