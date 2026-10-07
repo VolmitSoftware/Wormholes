@@ -6,6 +6,7 @@ import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftChunkPacketEncoding;
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
+import art.arcane.wormholes.modded.seamless.StraddleTracker;
 import art.arcane.wormholes.modded.client.render.ClientTravelScene;
 import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
 import art.arcane.wormholes.modded.client.render.PortalIrisMainPipelines;
@@ -16,6 +17,8 @@ import art.arcane.wormholes.modded.mixin.client.PreparedPacketAccess;
 import art.arcane.wormholes.modded.mixin.client.PreparedEntityAccess;
 import art.arcane.wormholes.network.client.ClientTravelWindow;
 import art.arcane.optics.stream.ViewStreamCapability;
+import art.arcane.optics.aperture.Aperture;
+import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.OpticTransform;
@@ -125,7 +128,7 @@ public final class ClientPreparedTravel {
     private final LongOpenHashSet changed = new LongOpenHashSet();
     private TravelMessage.TravelBegin begin;
     private TravelMessage.TravelCommit commit;
-    private ClientStraddle straddle;
+    private Aperture straddleAperture;
     private ClientTravelChunks chunks;
     private ClientLevel staged;
     private ClientTravelScene scene;
@@ -151,10 +154,6 @@ public final class ClientPreparedTravel {
 
     public ResidentLevels residents() {
         return residents;
-    }
-
-    public ClientStraddle straddle() {
-        return straddle;
     }
 
     public boolean active() {
@@ -253,7 +252,12 @@ public final class ClientPreparedTravel {
             }
             ClientPortalRenderer.instance().transitionTravel(true);
             arrival = null;
-            straddle = null;
+            if (seamless) {
+                StraddleTracker.Endpoint back = destinationEndpoint(begin);
+                straddleAperture = back.aperture();
+                StraddleTracker.register(player, StraddleTracker.create(back, sourceEndpoint(begin, begin.sourceGeometry().aperture()), sourceLevel,
+                    ClientTravelMotion.vector(player.getEyePosition())));
+            }
             previousCamera = seamless ? checkpoint(begin, toward, previous, eye) : ClientTravelMotion.point(toward, eye);
             return true;
         } catch (RuntimeException failure) {
@@ -384,6 +388,7 @@ public final class ClientPreparedTravel {
             retireSourcePreparation();
             sourceCapture = Integer.MAX_VALUE;
         }
+        updateStraddle(Minecraft.getInstance().player);
         if (begin == null) {
             return;
         }
@@ -405,7 +410,6 @@ public final class ClientPreparedTravel {
             clear(true);
             return;
         }
-        straddle = seamless(begin) && !adopted && prediction == null && minecraft.player != null ? straddle(minecraft.player) : null;
         if (adopted) {
             if (minecraft.level != staged) {
                 clear(true);
@@ -778,7 +782,6 @@ public final class ClientPreparedTravel {
         changed.clear();
         begin = null;
         commit = null;
-        straddle = null;
         chunks = null;
         staged = null;
         scene = null;
@@ -1778,12 +1781,67 @@ public final class ClientPreparedTravel {
         ClientTravelMotion.apply(player, reconciled);
     }
 
-    private ClientStraddle straddle(LocalPlayer player) {
-        Vec3 position = player.position();
-        AABB bounds = player.getBoundingBox();
-        return ClientStraddle.of(begin.sourceGeometry(), new Box(bounds.minX, bounds.maxX, bounds.minY, bounds.maxY, bounds.minZ, bounds.maxZ),
-            new Vec3d(player.xo, player.yo, player.zo), ClientTravelMotion.vector(position), ClientTravelMotion.vector(player.getDeltaMovement()),
-            ClientTravelMotion.vector(player.getEyePosition()));
+    private void updateStraddle(LocalPlayer player) {
+        if (player == null || prediction != null) {
+            return;
+        }
+        boolean preparing = begin != null && !adopted && staged != null && seamless(begin);
+        if (!preparing && straddleAperture == null) {
+            StraddleTracker.clear(player);
+            return;
+        }
+        Box stretched = StraddleTracker.stretched(box(player.getBoundingBox()), ClientTravelMotion.vector(player.getDeltaMovement()),
+            new Vec3d(player.xo - player.getX(), player.yo - player.getY(), player.zo - player.getZ()));
+        if (preparing) {
+            StraddleTracker.Straddle straddle = straddle(begin, staged, stretched, ClientTravelMotion.vector(player.getEyePosition()));
+            straddleAperture = straddle == null ? null : begin.sourceGeometry().aperture();
+            if (straddle == null) {
+                StraddleTracker.clear(player);
+            } else {
+                StraddleTracker.register(player, straddle);
+            }
+            return;
+        }
+        if (!StraddleTracker.qualifies(stretched, straddleAperture)) {
+            straddleAperture = null;
+            StraddleTracker.clear(player);
+        }
+    }
+
+    static StraddleTracker.Straddle straddle(TravelMessage.TravelBegin value, Level destination, Box stretched, Vec3d eye) {
+        ApertureCells aperture = value.sourceGeometry().aperture();
+        if (!StraddleTracker.qualifies(stretched, aperture)) {
+            return null;
+        }
+        return StraddleTracker.create(sourceEndpoint(value, aperture), destinationEndpoint(value), destination, eye);
+    }
+
+    static StraddleTracker.Endpoint sourceEndpoint(TravelMessage.TravelBegin value, Aperture aperture) {
+        ApertureDescriptor geometry = value.sourceGeometry();
+        return new StraddleTracker.Endpoint(aperture, geometry.frame(), planePoint(geometry));
+    }
+
+    static StraddleTracker.Endpoint destinationEndpoint(TravelMessage.TravelBegin value) {
+        ApertureDescriptor geometry = value.sourceGeometry();
+        OpticTransform toward = value.destinationToSource().inverse();
+        ApertureCells aperture = new ApertureCells();
+        aperture.setArea(toward.box(geometry.apertureArea()));
+        Frame exit = ClientTravelMotion.exitFrame(geometry.frame().view(geometry.frontSide()), toward, geometry.frontSide());
+        return new StraddleTracker.Endpoint(aperture, exit, toward.point(planePoint(geometry)));
+    }
+
+    private static Vec3d planePoint(ApertureDescriptor geometry) {
+        Vec3d center = geometry.apertureArea().center();
+        double plane = geometry.planeCoordinate();
+        return switch (geometry.facingDirection().getAxis()) {
+            case X -> new Vec3d(plane, center.y(), center.z());
+            case Y -> new Vec3d(center.x(), plane, center.z());
+            case Z -> new Vec3d(center.x(), center.y(), plane);
+        };
+    }
+
+    private static Box box(AABB bounds) {
+        return new Box(bounds.minX, bounds.maxX, bounds.minY, bounds.maxY, bounds.minZ, bounds.maxZ);
     }
 
     private static Vec3 checkpoint(TravelMessage.TravelBegin value, OpticTransform toward, Vec3 previous, Vec3 eye) {
@@ -1870,6 +1928,10 @@ public final class ClientPreparedTravel {
         prediction = null;
         if (previous.seamless) {
             residents.endCrossing(false);
+            straddleAperture = null;
+            if (Minecraft.getInstance().player != null) {
+                StraddleTracker.clear(Minecraft.getInstance().player);
+            }
         }
         ((PreparedLevelAccess) previous.source).wormholes$extractor(previous.extractor);
         if (!positionConfirmed && !(commit != null && adopted)) {

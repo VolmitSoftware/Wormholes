@@ -106,6 +106,32 @@ public class ResidentLevelsRoutingTest extends MinecraftTestBase {
     }
 
     @Test
+    public void aHandleReopenedForAnotherLevelRestartsItsSequence() {
+        ClientLevel current = ResidentTestFixtures.level(ResidentTestFixtures.OVERWORLD);
+        try (ResidentLevelsOpenCloseTest.Scope scope = new ResidentLevelsOpenCloseTest.Scope(current)) {
+            ResidentLevels residents = new ResidentLevels(scope.sent::add, 512L << 20);
+            ClientLevel nether = residents.open(ResidentTestFixtures.open(3, ResidentTestFixtures.NETHER, 12, -4));
+            List<ClientLevel> applied = new ArrayList<>();
+            doAnswer(call -> {
+                applied.add(scope.connection.getLevel());
+                return null;
+            }).when(scope.connection).handleForgetLevelChunk(any());
+            for (TravelMessage.RoutedPacket fragment : ResidentTestFixtures.routed(3, 40, new ClientboundForgetLevelChunkPacket(new ChunkPos(5, 6)))) {
+                residents.route(fragment);
+            }
+            residents.beginCrossing(current);
+            scope.minecraft.level = nether;
+            residents.endCrossing(true);
+            ResidentTestFixtures.loaded(current, 1, 1);
+            residents.open(ResidentTestFixtures.open(3, ResidentTestFixtures.OVERWORLD, 1, 2));
+            for (TravelMessage.RoutedPacket fragment : ResidentTestFixtures.routed(3, 0, new ClientboundForgetLevelChunkPacket(new ChunkPos(1, 1)))) {
+                residents.route(fragment);
+            }
+            assertEquals(List.of(nether, current), applied);
+        }
+    }
+
+    @Test
     public void routedPacketsForUnopenedHandlesAreDropped() {
         ClientLevel current = ResidentTestFixtures.level(ResidentTestFixtures.OVERWORLD);
         try (ResidentLevelsOpenCloseTest.Scope scope = new ResidentLevelsOpenCloseTest.Scope(current)) {

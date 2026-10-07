@@ -9,11 +9,8 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Properties;
 
 final class ClientViewTestConfig {
@@ -32,33 +29,22 @@ final class ClientViewTestConfig {
     }
 
     static void enable() {
-        enable(true);
+        write(true, true);
     }
 
     static void enable(boolean lightingFidelity) {
-        write(lightingFidelity);
+        write(lightingFidelity, true);
     }
 
     static void enableSeamless(boolean seamlessTravel) {
-        Path file = write(true);
-        try {
-            List<String> lines = new ArrayList<>(Files.readAllLines(file, StandardCharsets.UTF_8));
-            lines.removeIf(line -> line.startsWith("seamless-travel"));
-            int section = lines.indexOf("[client-view]");
-            if (section < 0) {
-                throw new IllegalStateException("ClientView test config has no [client-view] section at " + file);
-            }
-            lines.add(section + 1, "seamless-travel = " + seamlessTravel);
-            Files.write(file, lines, StandardCharsets.UTF_8);
-        } catch (IOException failure) {
-            throw new UncheckedIOException("ClientView test config could not select seamless travel at " + file, failure);
-        }
+        write(true, seamlessTravel);
     }
 
-    private static Path write(boolean lightingFidelity) {
+    private static void write(boolean lightingFidelity, boolean seamlessTravel) {
         Path directory = FabricLoader.getInstance().getGameDir().resolve("config/wormholes");
         WormholesConfigFile file = new WormholesConfigFile();
         file.clientView.enabled = true;
+        file.clientView.seamlessTravel = seamlessTravel;
         file.render.lightingFidelity = lightingFidelity;
         file.render.blockEntityContainers = true;
         file.render.blockEntityTypes.add("minecraft:chest");
@@ -67,8 +53,6 @@ final class ClientViewTestConfig {
         } catch (IOException failure) {
             throw new UncheckedIOException("ClientView test config directory could not be created at " + directory, failure);
         }
-        Path target = directory.resolve(WormholesSettings.CONFIG_FILE_NAME);
-        TomlCodec.writeCanonical(target.toFile(), file);
-        return target;
+        TomlCodec.writeCanonical(directory.resolve(WormholesSettings.CONFIG_FILE_NAME).toFile(), file);
     }
 }

@@ -45,7 +45,7 @@ public final class ResidentLevels {
 
     public ClientLevel open(TravelMessage.RemoteLevelOpen open) {
         ResidentLevel bound = handles.get(open.levelHandle());
-        if (bound != null && bound.world().equals(open.world())) {
+        if (bound != null && bound.world().equals(open.world()) && bound.level() != activeLevel()) {
             bound.bind(open, ++clock);
             return bound.level();
         }

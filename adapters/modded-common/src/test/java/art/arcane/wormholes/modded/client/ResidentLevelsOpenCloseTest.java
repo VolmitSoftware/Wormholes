@@ -103,6 +103,30 @@ public class ResidentLevelsOpenCloseTest extends MinecraftTestBase {
     }
 
     @Test
+    public void afterACrossingTheHandleReopensForTheLevelJustLeft() {
+        for (boolean sameDimension : new boolean[]{false, true}) {
+            ClientLevel current = ResidentTestFixtures.level(ResidentTestFixtures.OVERWORLD);
+            try (Scope scope = new Scope(current)) {
+                ResidentLevels residents = scope.residents();
+                TravelMessage.TravelWorld world = sameDimension ? ResidentTestFixtures.OVERWORLD : ResidentTestFixtures.NETHER;
+                ClientLevel destination = residents.open(ResidentTestFixtures.open(3, world, 300, 300));
+                residents.beginCrossing(current);
+                scope.minecraft.level = destination;
+                residents.endCrossing(true);
+                ResidentTestFixtures.loaded(current, 1, 1);
+                assertSame(current, residents.open(ResidentTestFixtures.open(3, ResidentTestFixtures.OVERWORLD, 1, 2)));
+                assertEquals(3, residents.handle(current));
+                assertEquals(0, residents.handle(destination));
+                assertSame(current, residents.level(3));
+                assertEquals(1, scope.levels.constructed().size());
+                residents.close(new TravelMessage.RemoteLevelClose(3));
+                assertEquals(0, residents.handle(current));
+                assertTrue(residents.resident(current));
+            }
+        }
+    }
+
+    @Test
     public void rejectedCrossingLeavesTheSourceUnretired() {
         ClientLevel current = ResidentTestFixtures.level(ResidentTestFixtures.OVERWORLD);
         try (Scope scope = new Scope(current)) {
