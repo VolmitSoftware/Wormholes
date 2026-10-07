@@ -1,7 +1,6 @@
 package art.arcane.wormholes.modded.client.render;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.wormholes.modded.mixin.client.SodiumPreparedSectionStateMixin;
 import art.arcane.wormholes.modded.mixin.client.SodiumPreparedSectionsMixin;
 import net.caffeinemc.mods.sodium.client.render.chunk.async.CullTask;
 import net.caffeinemc.mods.sodium.client.render.chunk.data.BuiltSectionInfo;
@@ -121,7 +120,7 @@ public class ClientSodiumTerrainTest extends MinecraftTestBase {
         when(minecraft.options.getEffectiveRenderDistance()).thenReturn(10);
         ClientLevel level = mock(ClientLevel.class);
         SodiumWorldRenderer renderer = mock(SodiumWorldRenderer.class, withSettings().extraInterfaces(PortalSodiumTerrainAccess.class));
-        when(renderer.isTerrainRenderComplete()).thenReturn(true);
+        when(renderer.isTerrainRenderComplete()).thenReturn(false);
         PortalSodiumSectionAccess visibility = warmVisibility(renderer);
         PortalIrisSettings settings = mock(PortalIrisSettings.class);
         when(settings.terrainCompatible(settings)).thenReturn(true);
@@ -168,9 +167,6 @@ public class ClientSodiumTerrainTest extends MinecraftTestBase {
             ClientSodiumTerrain.warmPrepared();
             assertTrue(stages.isEmpty());
             when(renderer.isSectionReady(0, 0, 0)).thenReturn(true);
-            ClientSodiumTerrain.warmPrepared();
-            assertTrue(stages.isEmpty());
-            when(((PortalSodiumTerrainAccess) renderer).wormholes$sectionSettled(0, 0, 0)).thenReturn(true);
             for (int index = 0; index < 7; index++) {
                 assertFalse(state.warmed());
                 if (index == 2) {
@@ -758,10 +754,10 @@ public class ClientSodiumTerrainTest extends MinecraftTestBase {
             clients.when(Minecraft::getInstance).thenReturn(minecraft);
             renderers.when(SodiumWorldRenderer::instanceNullable).thenReturn(activeRenderer);
             ClientSodiumTerrain.lightChanged(active, section, true);
-            assertFalse(stateReady(activeState));
+            assertTrue(stateReady(activeState));
             verify(activeRenderer, never()).scheduleRebuildForChunk(anyInt(), anyInt(), anyInt(), anyBoolean());
             ClientSodiumTerrain.lightChanged(inactive, section, false);
-            assertFalse(stateReady(inactiveState));
+            assertTrue(stateReady(inactiveState));
             verify(retainedRenderer).scheduleRebuildForChunk(-5, -4, 7, false);
             verify(retainedRenderer, times(1)).scheduleRebuildForChunk(anyInt(), anyInt(), anyInt(), anyBoolean());
             ClientSodiumTerrain.lightChanged(mock(ClientLevel.class), section, false);
@@ -804,8 +800,57 @@ public class ClientSodiumTerrainTest extends MinecraftTestBase {
                 renderers.when(SodiumWorldRenderer::instanceNullable).thenReturn(renderer);
                 callbacks.getFirst().run();
             }
-            assertFalse(stateReady(retained));
+            assertTrue(stateReady(retained));
             verify(renderer).scheduleRebuildForChunk(-5, -4, 7, false);
+        } finally {
+            states.clear();
+        }
+    }
+
+    @Test
+    public void builtTerrainStaysReadyWhileItRebuildsButAnUnbuiltVisibleSectionIsNot() throws Exception {
+        Minecraft minecraft = mock(Minecraft.class);
+        set(minecraft, "options", mock(Options.class));
+        when(minecraft.options.getEffectiveRenderDistance()).thenReturn(10);
+        when(minecraft.isSameThread()).thenReturn(true);
+        ClientLevel level = mock(ClientLevel.class);
+        minecraft.level = level;
+        SodiumWorldRenderer renderer = mock(SodiumWorldRenderer.class, withSettings().extraInterfaces(PortalSodiumTerrainAccess.class));
+        when(renderer.isTerrainRenderComplete()).thenReturn(false);
+        PortalSodiumSectionAccess visibility = warmVisibility(renderer);
+        ClientSodiumTerrain.State state = state(level, renderer);
+        Map<ClientLevel, ClientSodiumTerrain.State> states = states();
+        states.put(level, state);
+        try (MockedStatic<Minecraft> clients = mockStatic(Minecraft.class);
+             MockedStatic<SodiumWorldRenderer> renderers = mockStatic(SodiumWorldRenderer.class);
+             MockedStatic<PortalShaderScope> shaders = mockStatic(PortalShaderScope.class)) {
+            clients.when(Minecraft::getInstance).thenReturn(minecraft);
+            renderers.when(SodiumWorldRenderer::instanceNullable).thenReturn(renderer);
+            Viewport viewport = warmViewport(level, state);
+            when(level.getSectionsCount()).thenReturn(1);
+            LevelChunk chunk = mock(LevelChunk.class);
+            LevelChunkSection section = mock(LevelChunkSection.class);
+            when(chunk.getSection(0)).thenReturn(section);
+            for (int x = -1; x <= 1; x++) {
+                for (int z = -1; z <= 1; z++) {
+                    when(level.getChunkSource().getChunk(x, z, ChunkStatus.FULL, false)).thenReturn(chunk);
+                }
+            }
+            when(viewport.getTransform()).thenReturn(new CameraTransform(0, 8, 0));
+            when(viewport.isBoxVisible(8, 8, 8)).thenReturn(true);
+            assertFalse(ClientSodiumTerrain.ready(level));
+            when(renderer.isSectionReady(0, 0, 0)).thenReturn(true);
+            assertTrue(ClientSodiumTerrain.ready(level));
+            ClientSodiumTerrain.dirty(level, SectionPos.asLong(0, 0, 0));
+            ClientSodiumTerrain.lightChanged(level, SectionPos.asLong(0, 0, 0), false);
+            assertTrue(stateReady(state));
+            assertTrue(ClientSodiumTerrain.ready(level));
+            when(visibility.wormholes$visibilityReady()).thenReturn(false);
+            assertFalse(ClientSodiumTerrain.ready(level));
+            when(visibility.wormholes$visibilityReady()).thenReturn(true);
+            when(renderer.isSectionReady(0, 0, 0)).thenReturn(false);
+            ClientSodiumTerrain.columnUnloaded(level, 0, 0);
+            assertFalse(ClientSodiumTerrain.ready(level));
         } finally {
             states.clear();
         }
@@ -886,52 +931,6 @@ public class ClientSodiumTerrainTest extends MinecraftTestBase {
         } finally {
             states.clear();
         }
-    }
-
-    @Test
-    public void oldBuiltMeshIsNotSettledDuringRebuildWorkerOrPendingGpuUpload() throws Exception {
-        SodiumPreparedSectionStateMixin section = mock(SodiumPreparedSectionStateMixin.class, CALLS_REAL_METHODS);
-        set(section, "runningJobs", List.of());
-        assertTrue(section.wormholes$buildSettled());
-        set(section, "pendingUpdateType", ChunkUpdateTypes.REBUILD);
-        assertFalse(section.wormholes$buildSettled());
-        set(section, "pendingUpdateType", 0);
-        set(section, "runningJobs", List.of(mock(ChunkJob.class)));
-        assertFalse(section.wormholes$buildSettled());
-        set(section, "runningJobs", List.of());
-        set(section, "pendingBuildOutput", mock(ChunkBuildOutput.class));
-        assertFalse(section.wormholes$buildSettled());
-        set(section, "pendingBuildOutput", null);
-        assertTrue(section.wormholes$buildSettled());
-    }
-
-    @Test
-    public void preparedTranslucentsRemainPendingUntilQueuedSortAndCompletedIndicesAreConsumed() throws Exception {
-        SodiumPreparedSectionStateMixin section = mock(SodiumPreparedSectionStateMixin.class, CALLS_REAL_METHODS);
-        set(section, "runningJobs", List.of());
-        assertTrue(section.wormholes$buildSettled());
-        set(section, "pendingUpdateType", ChunkUpdateTypes.INITIAL_BUILD);
-        assertTrue(section.wormholes$buildSettled());
-        set(section, "pendingUpdateType", 0);
-        for (int update : new int[]{ChunkUpdateTypes.SORT, ChunkUpdateTypes.join(ChunkUpdateTypes.SORT, ChunkUpdateTypes.IMPORTANT)}) {
-            set(section, "pendingUpdateType", update);
-            assertFalse(section.wormholes$buildSettled());
-        }
-        set(section, "pendingUpdateType", 0);
-        set(section, "runningJobs", List.of(mock(ChunkJob.class)));
-        assertFalse(section.wormholes$buildSettled());
-        set(section, "runningJobs", List.of());
-        set(section, "pendingDynamicSortOutput", mock(ChunkSortOutput.class));
-        assertFalse(section.wormholes$buildSettled());
-        set(section, "pendingBuildOutput", mock(ChunkBuildOutput.class));
-        set(section, "pendingDynamicSortOutput", null);
-        assertFalse(section.wormholes$buildSettled());
-        set(section, "pendingBuildOutput", null);
-        assertTrue(section.wormholes$buildSettled());
-        set(section, "pendingUpdateType", ChunkUpdateTypes.SORT);
-        assertFalse(section.wormholes$buildSettled());
-        set(section, "pendingUpdateType", 0);
-        assertTrue(section.wormholes$buildSettled());
     }
 
     @Test
@@ -1059,7 +1058,17 @@ public class ClientSodiumTerrainTest extends MinecraftTestBase {
             assertFalse(ClientSodiumTerrain.retainUnshadedHandoff());
             minecraft.level = level;
             assertFalse(ClientSodiumTerrain.usesPreparedTerrain(level));
-            set(state, "viewport", mock(Viewport.class));
+            Viewport viewport = warmViewport(level, state);
+            when(level.getSectionsCount()).thenReturn(1);
+            LevelChunk chunk = mock(LevelChunk.class);
+            when(chunk.getSection(0)).thenReturn(mock(LevelChunkSection.class));
+            for (int x = -1; x <= 1; x++) {
+                for (int z = -1; z <= 1; z++) {
+                    when(level.getChunkSource().getChunk(x, z, ChunkStatus.FULL, false)).thenReturn(chunk);
+                }
+            }
+            when(viewport.getTransform()).thenReturn(new CameraTransform(0, 8, 0));
+            when(viewport.isBoxVisible(8, 8, 8)).thenReturn(true);
             assertTrue(ClientSodiumTerrain.usesPreparedTerrain(level));
             assertFalse(ClientSodiumTerrain.ready(level));
             assertTrue(ClientSodiumTerrain.retainUnshadedHandoff());
@@ -1336,8 +1345,7 @@ public class ClientSodiumTerrainTest extends MinecraftTestBase {
     }
 
     private static void set(Object value, String name, Object fieldValue) throws Exception {
-        Class<?> owner = value instanceof SodiumPreparedSectionStateMixin ? SodiumPreparedSectionStateMixin.class
-            : value instanceof SodiumPreparedExtractorMixin ? SodiumPreparedExtractorMixin.class
+        Class<?> owner = value instanceof SodiumPreparedExtractorMixin ? SodiumPreparedExtractorMixin.class
             : value instanceof SodiumPreparedSectionsMixin ? SodiumPreparedSectionsMixin.class : value.getClass();
         Field field = owner.getDeclaredField(name);
         field.setAccessible(true);

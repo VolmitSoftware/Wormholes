@@ -130,7 +130,7 @@ public final class ClientSodiumTerrain {
         }
         for (State state : STATES.values()) {
             if (state.level == minecraft.level || state.warmEnvironment == null || state.warmFailed
-                || !state.compatible() || !state.renderer.isTerrainRenderComplete() || !visibility(state).wormholes$visibilityReady()) {
+                || !state.compatible() || !visibility(state).wormholes$visibilityReady()) {
                 continue;
             }
             Object pipeline = PortalIrisMainPipelines.nativePipeline(state.level);
@@ -141,7 +141,7 @@ public final class ClientSodiumTerrain {
             if (state.warmStage == WarmStage.COMPLETE) {
                 continue;
             }
-            if (state.viewport == null || !sectionsReady(state, state.viewport)) {
+            if (state.viewport == null || !sectionsBuilt(state, state.viewport)) {
                 continue;
             }
             lastWarmFrame = frame;
@@ -211,8 +211,7 @@ public final class ClientSodiumTerrain {
         }
         State state = STATES.get(level);
         if (state != null && state.viewport != null && !state.ready && level == Minecraft.getInstance().level && state.compatible()) {
-            state.ready = state.renderer.isTerrainRenderComplete() && sectionsReady(state, state.viewport)
-                && visibility(state).wormholes$visibilityReady() && state.warmed();
+            state.ready = sectionsBuilt(state, state.viewport) && visibility(state).wormholes$visibilityReady() && state.warmed();
         }
         return state != null && state.viewport != null && state.ready && visibility(state).wormholes$visibilityReady()
             && state.warmed() && state.compatible() && compatible(level);
@@ -315,7 +314,6 @@ public final class ClientSodiumTerrain {
         if (state == null || state.closed) {
             return;
         }
-        state.ready = false;
         if (!vanillaUpdated || !handlesMainUpdates(level)) {
             state.renderer.scheduleRebuildForChunk(SectionPos.x(sectionKey), SectionPos.y(sectionKey), SectionPos.z(sectionKey), false);
         }
@@ -327,7 +325,6 @@ public final class ClientSodiumTerrain {
         }
         State state = STATES.get(level);
         if (state != null) {
-            state.ready = false;
             int sectionX = SectionPos.x(sectionKey);
             int sectionY = SectionPos.y(sectionKey);
             int sectionZ = SectionPos.z(sectionKey);
@@ -415,8 +412,7 @@ public final class ClientSodiumTerrain {
         prewarming++;
         try {
             state.renderer.setupTerrain(camera, state.viewport, fog, false, false, matrix);
-            state.ready = state.renderer.isTerrainRenderComplete() && sectionsReady(state, state.viewport)
-                && visibility(state).wormholes$visibilityReady() && state.warmed();
+            state.ready = sectionsBuilt(state, state.viewport) && visibility(state).wormholes$visibilityReady() && state.warmed();
         } finally {
             prewarming--;
         }
@@ -494,7 +490,7 @@ public final class ClientSodiumTerrain {
         }
     }
 
-    private static boolean sectionsReady(State state, Viewport viewport) {
+    private static boolean sectionsBuilt(State state, Viewport viewport) {
         int centerX = viewport.getChunkCoord().x();
         int centerZ = viewport.getChunkCoord().z();
         for (int x = centerX - state.distance; x <= centerX + state.distance; x++) {
@@ -506,8 +502,7 @@ public final class ClientSodiumTerrain {
                 for (int y = state.level.getMinSectionY(); y < state.level.getMinSectionY() + state.level.getSectionsCount(); y++) {
                     if (withinRenderDistance(viewport.getTransform(), x, y, z, state.distance * 16.0f)
                         && viewport.isBoxVisible((x << 4) + 8, (y << 4) + 8, (z << 4) + 8)
-                        && (!chunk.getSection(y - state.level.getMinSectionY()).hasOnlyAir() && !state.renderer.isSectionReady(x, y, z)
-                            || !((PortalSodiumTerrainAccess) state.renderer).wormholes$sectionSettled(x, y, z))) {
+                        && !chunk.getSection(y - state.level.getMinSectionY()).hasOnlyAir() && !state.renderer.isSectionReady(x, y, z)) {
                         return false;
                     }
                 }

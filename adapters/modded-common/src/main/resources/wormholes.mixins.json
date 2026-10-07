@@ -130,7 +130,6 @@
     "client.SodiumPreparedTerrainReloadMixin",
     "client.SodiumPreparedSectionsMixin",
     "client.SodiumPreparedColumnsMixin",
-    "client.SodiumPreparedSectionStateMixin",
     "client.MeshInteractionMixin",
     "client.MeshEntityRendererMixin",
     "client.EndPortalSurfaceMixin",

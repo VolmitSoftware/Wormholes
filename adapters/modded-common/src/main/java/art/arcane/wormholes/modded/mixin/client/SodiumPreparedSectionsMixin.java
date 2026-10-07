@@ -3,7 +3,6 @@ package art.arcane.wormholes.modded.mixin.client;
 import art.arcane.wormholes.modded.client.render.PortalSodiumSectionAccess;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
-import net.caffeinemc.mods.sodium.client.render.chunk.RenderSection;
 import net.caffeinemc.mods.sodium.client.render.chunk.RenderSectionManager;
 import net.caffeinemc.mods.sodium.client.render.chunk.occlusion.CullType;
 import net.caffeinemc.mods.sodium.client.render.chunk.occlusion.SectionTree;
@@ -14,7 +13,6 @@ import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
-import org.spongepowered.asm.mixin.gen.Invoker;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -29,10 +27,6 @@ public abstract class SodiumPreparedSectionsMixin implements PortalSodiumSection
     @Unique private final SectionTree[] wormholes$trees = new SectionTree[CullType.values().length];
     @Unique private final long[] wormholes$treeRevisions = new long[CullType.values().length];
     @Unique private long wormholes$listRevision = -1;
-
-    @Override
-    @Invoker("getRenderSection")
-    public abstract RenderSection wormholes$terrainSection(int x, int y, int z);
 
     @Override
     public boolean wormholes$visibilityReady() {

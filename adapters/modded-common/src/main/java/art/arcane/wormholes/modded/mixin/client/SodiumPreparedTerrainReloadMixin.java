@@ -1,13 +1,10 @@
 package art.arcane.wormholes.modded.mixin.client;
 
 import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
-import art.arcane.wormholes.modded.client.render.PortalSodiumSectionAccess;
-import art.arcane.wormholes.modded.client.render.PortalSodiumSectionState;
 import art.arcane.wormholes.modded.client.render.PortalSodiumTerrainAccess;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import net.caffeinemc.mods.sodium.client.render.SodiumWorldRenderer;
-import net.caffeinemc.mods.sodium.client.render.chunk.RenderSection;
 import net.caffeinemc.mods.sodium.client.render.chunk.RenderSectionManager;
 import net.caffeinemc.mods.sodium.client.render.chunk.UniformBufferManager;
 import org.spongepowered.asm.mixin.Mixin;
@@ -26,12 +23,6 @@ public abstract class SodiumPreparedTerrainReloadMixin implements PortalSodiumTe
     @Override
     public void wormholes$prepareFrame() {
         uniformBufferManager.prepareFrame();
-    }
-
-    @Override
-    public boolean wormholes$sectionSettled(int x, int y, int z) {
-        RenderSection section = ((PortalSodiumSectionAccess) renderSectionManager).wormholes$terrainSection(x, y, z);
-        return section == null || section.isBuilt() && ((PortalSodiumSectionState) section).wormholes$buildSettled();
     }
 
     @WrapMethod(method = "reload")
