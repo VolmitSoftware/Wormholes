@@ -132,6 +132,8 @@ public class ClientPreparedTravelPacketBudgetTest extends MinecraftTestBase {
             TravelMessage.TravelBegin begin = mock(TravelMessage.TravelBegin.class);
             when(begin.token()).thenReturn(new UUID(17, 23));
             when(begin.generation()).thenReturn(7L);
+            when(begin.sourceWorld()).thenReturn("minecraft:overworld");
+            when(begin.world()).thenReturn(ResidentTestFixtures.NETHER);
             set(travel, "begin", begin);
             when(minecraft.isSameThread()).thenReturn(true);
             when(minecraft.getConnection()).thenReturn(listener);

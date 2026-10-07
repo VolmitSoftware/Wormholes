@@ -195,7 +195,7 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
             iris.when(() -> PortalIrisMainPipelines.authoritativeHandoff(retained)).thenReturn(shaderScope);
             encoding.when(() -> MinecraftChunkPacketEncoding.encode(eq(RegistryAccess.EMPTY), any()))
                 .thenAnswer(call -> call.getArgument(1) == packet ? installed : physical.get());
-            invoke(travel, "declinePreparation", new Class<?>[0]);
+            invoke(travel, "declinePreparation", new Class<?>[]{String.class}, "test decline");
             assertNull(field(travel, "begin"));
             assertNull(field(travel, "staged"));
             assertNull(field(travel, "sourcePreparation"));
@@ -263,7 +263,7 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
              MockedStatic<PortalIrisMainPipelines> iris = mockStatic(PortalIrisMainPipelines.class)) {
             access.when(Minecraft::getInstance).thenReturn(minecraft);
             renderer.when(ClientPortalRenderer::instance).thenReturn(mock(ClientPortalRenderer.class));
-            invoke(travel, "declinePreparation", new Class<?>[0]);
+            invoke(travel, "declinePreparation", new Class<?>[]{String.class}, "test decline");
             assertNull(field(travel, "sourcePreparation"));
             Object pending = invoke(travel, "preparation", new Class<?>[]{TravelMessage.TravelBegin.class}, begin);
             assertSame(retained, field(pending, "level"));
@@ -361,7 +361,7 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
                  MockedStatic<PortalIrisMainPipelines> iris = mockStatic(PortalIrisMainPipelines.class)) {
                 access.when(Minecraft::getInstance).thenReturn(minecraft);
                 renderer.when(ClientPortalRenderer::instance).thenReturn(mock(ClientPortalRenderer.class));
-                invoke(travel, "declinePreparation", new Class<?>[0]);
+                invoke(travel, "declinePreparation", new Class<?>[]{String.class}, "test decline");
                 assertEquals(1, map(travel, "retainedWorlds").size());
                 terrain.verify(() -> ClientSodiumTerrain.forget(retained), never());
                 if (resources) {

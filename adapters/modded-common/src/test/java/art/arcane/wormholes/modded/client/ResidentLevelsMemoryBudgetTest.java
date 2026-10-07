@@ -64,9 +64,10 @@ public class ResidentLevelsMemoryBudgetTest extends MinecraftTestBase {
             columns(other, 4, 24);
             assertTrue(residents.has(1));
             assertTrue(residents.has(2));
-            residents.beginCrossing(current);
+            residents.crossing(current);
             scope.minecraft.level = open;
-            residents.endCrossing(true);
+            residents.crossing(null);
+            residents.retire(current);
             columns(current, 4, 24);
             residents.close(new TravelMessage.RemoteLevelClose(1));
             residents.close(new TravelMessage.RemoteLevelClose(2));

@@ -414,13 +414,18 @@ public final class MinecraftClientViewPortalAccess implements ViewStreamEndpoint
     public ApertureDescriptor effectGeometry(MinecraftClientViewPeer peer, UUID portalId, SessionPalette palette) {
         MinecraftPortal portal = portal(peer, portalId);
         ServerPlayer player = peer.player();
+        return portal == null || player == null ? null : travelGeometry(peer, portal, front(player, portal));
+    }
+
+    ApertureDescriptor travelGeometry(MinecraftClientViewPeer peer, MinecraftPortal portal, boolean front) {
+        ServerPlayer player = peer.player();
         MinecraftProjectorPortalAccess portals = peer.portals();
-        if (portal == null || player == null || portals == null || portals.world(portal) != player.level()) {
+        if (player == null || portals == null || portals.world(portal) != player.level()) {
             return null;
         }
         ProjectionConfig projection = runtime.configuration().settings().getProjection();
         int kind = kind(peer, portal);
-        ApertureDescriptor.Source source = new ApertureDescriptor.Source(portal.getGeometry(), portal.getFrame(), front(player, portal), false, 0,
+        ApertureDescriptor.Source source = new ApertureDescriptor.Source(portal.getGeometry(), portal.getFrame(), front, false, 0,
             projection.nearPlanePadding, projection.aperturePaddingBlocks, projection.frustumCullingRatio, portal.getNetworkViewDepth(), 0,
             ApertureDescriptor.BLACKOUT_OFF, ViewStreamLimits.PALETTE_AIR, ApertureDescriptor.MASK_AIR_PROJECT,
             BlockClaim.LightingPolicy.LOCAL, 0, kind, DoorApertureFrames.geometryPlaneOffset(kind, portal.getFrame()), 0, 0L,

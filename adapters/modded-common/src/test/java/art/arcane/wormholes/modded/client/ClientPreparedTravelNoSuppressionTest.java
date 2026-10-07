@@ -23,42 +23,43 @@ import static org.mockito.Mockito.when;
 
 public class ClientPreparedTravelNoSuppressionTest extends MinecraftTestBase {
     @Test
-    public void seamlessPredictionKeepsSendingMovementWhilePreparedPredictionSuppressesIt() throws ReflectiveOperationException {
-        for (boolean seamless : new boolean[]{true, false}) {
+    public void preparedPredictionSuppressesMovementAndAnIdleTravelDoesNot() throws ReflectiveOperationException {
+        for (boolean predicting : new boolean[]{true, false}) {
             ClientLevel source = ResidentTestFixtures.level(ResidentTestFixtures.OVERWORLD);
             try (ResidentLevelsOpenCloseTest.Scope scope = new ResidentLevelsOpenCloseTest.Scope(source);
                  MockedStatic<WormholesClient> clients = mockStatic(WormholesClient.class)) {
                 ClientPreparedTravel travel = ClientTravelTestFixtures.travel(scope.sent::add);
-                set(travel, "prediction", SeamlessTravelFixtures.prediction(source, scope.connection, seamless));
+                if (predicting) {
+                    set(travel, "prediction", SeamlessTravelFixtures.prediction(source, scope.connection));
+                }
                 WormholesClient client = mock(WormholesClient.class);
                 when(client.preparedTravel()).thenReturn(travel);
                 clients.when(WormholesClient::instance).thenReturn(client);
-                assertTrue(travel.pendingCrossing());
-                assertTrue(travel.suppressesMovement() != seamless);
+                assertTrue(travel.pendingCrossing() == predicting);
+                assertTrue(travel.suppressesMovement() == predicting);
                 CallbackInfo callback = mock(CallbackInfo.class);
                 PreparedTravelPlayerMixin mixin = mock(PreparedTravelPlayerMixin.class, CALLS_REAL_METHODS);
                 Method method = PreparedTravelPlayerMixin.class.getDeclaredMethod("wormholes$sourceMovement", CallbackInfo.class);
                 method.setAccessible(true);
                 method.invoke(mixin, callback);
-                if (seamless) {
-                    verify(callback, never()).cancel();
-                } else {
+                if (predicting) {
                     verify(callback).cancel();
+                } else {
+                    verify(callback, never()).cancel();
                 }
             }
         }
     }
 
     @Test
-    public void seamlessPredictionNeverDefersWorldPackets() throws ReflectiveOperationException {
+    public void onlyAPreparedPredictionDefersWorldPackets() throws ReflectiveOperationException {
         ClientLevel source = ResidentTestFixtures.level(ResidentTestFixtures.OVERWORLD);
         try (ResidentLevelsOpenCloseTest.Scope scope = new ResidentLevelsOpenCloseTest.Scope(source)) {
             ClientPreparedTravel travel = ClientTravelTestFixtures.travel(scope.sent::add);
-            set(travel, "prediction", SeamlessTravelFixtures.prediction(source, scope.connection, true));
             Runnable action = mock(Runnable.class);
             assertFalse(travel.deferWorldPacket(new ClientboundForgetLevelChunkPacket(new ChunkPos(1, 1)), action));
             verify(action, never()).run();
-            set(travel, "prediction", SeamlessTravelFixtures.prediction(source, scope.connection, false));
+            set(travel, "prediction", SeamlessTravelFixtures.prediction(source, scope.connection));
             assertTrue(travel.deferWorldPacket(new ClientboundForgetLevelChunkPacket(new ChunkPos(1, 1)), action));
         }
     }

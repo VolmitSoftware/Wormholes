@@ -221,6 +221,13 @@ final class TravelExtensionCodecTest {
         assertEquals(TravelMessage.REMOTE_VIEW_ACK, Byte.toUnsignedInt(payload[0]));
         assertEquals(ack, ClientViewFixtures.CODEC.decodeC2S(payload));
         assertThrows(ViewStreamProtocolException.class, () -> ClientViewFixtures.CODEC.encodeS2C(ack, 0, 0));
+        ViewStreamMessage reopen = TravelExtension.PREPARED.wrap(new TravelMessage.RemoteLevelReopen(4));
+        byte[] request = ClientViewFixtures.CODEC.encodeC2S(reopen);
+        assertEquals(TravelMessage.REMOTE_LEVEL_REOPEN, Byte.toUnsignedInt(request[0]));
+        assertEquals(reopen, ClientViewFixtures.CODEC.decodeC2S(request));
+        assertThrows(ViewStreamProtocolException.class, () -> ClientViewFixtures.CODEC.encodeS2C(reopen, 0, 0));
+        assertThrows(IllegalArgumentException.class, () -> new TravelMessage.RemoteLevelReopen(0));
+        assertThrows(IllegalArgumentException.class, () -> new TravelMessage.RemoteLevelReopen(TravelMessage.MAX_LEVEL_HANDLE + 1));
     }
 
     @Test
@@ -363,7 +370,7 @@ final class TravelExtensionCodecTest {
                 assertThrows(ViewStreamProtocolException.class, () -> decode(c2s, false), "C2S " + id);
             }
         }
-        assertThrows(ViewStreamProtocolException.class, () -> TRAVEL.decode(56, null));
+        assertThrows(ViewStreamProtocolException.class, () -> TRAVEL.decode(57, null));
     }
 
     @Test
@@ -371,7 +378,7 @@ final class TravelExtensionCodecTest {
         assertEquals(ClientViewExtensions.PREPARED_TRAVEL | ClientViewExtensions.PREPARED_TRAVEL_CACHE,
             TravelExtension.PREPARED.capabilities());
         assertEquals(TravelExtension.PREPARED.capabilities() | ClientViewExtensions.FX_EMITTERS, ClientViewExtensions.CODEC.capabilities());
-        for (int id = TravelMessage.REMOTE_LEVEL_OPEN; id <= TravelMessage.REMOTE_VIEW_ACK; id++) {
+        for (int id = TravelMessage.REMOTE_LEVEL_OPEN; id <= TravelMessage.REMOTE_LEVEL_REOPEN; id++) {
             assertFalse(TravelExtension.PREPARED.clientbound(id), "S2C " + id);
             assertFalse(TravelExtension.PREPARED.serverbound(id), "C2S " + id);
         }
@@ -397,7 +404,7 @@ final class TravelExtensionCodecTest {
                 clientbound.add(id);
             }
         }
-        assertEquals(List.of(44, 46, 47, 49, 55), serverbound);
+        assertEquals(List.of(44, 46, 47, 49, 55, 56), serverbound);
         assertEquals(List.of(41, 42, 43, 45, 46, 48, 51, 52, 53, 54), clientbound);
         assertEquals(41, TRAVEL.firstId());
         assertEquals(63, TRAVEL.lastId());
@@ -407,7 +414,8 @@ final class TravelExtensionCodecTest {
 
     private static boolean identified(TravelMessage message) {
         return !(message instanceof TravelMessage.RemoteLevelOpen || message instanceof TravelMessage.RemoteLevelClose
-            || message instanceof TravelMessage.RoutedPacket || message instanceof TravelMessage.RemoteViewAck);
+            || message instanceof TravelMessage.RoutedPacket || message instanceof TravelMessage.RemoteViewAck
+            || message instanceof TravelMessage.RemoteLevelReopen);
     }
 
     private static TravelMessage.RemoteLevelOpen remoteLevelOpen(int handle) {

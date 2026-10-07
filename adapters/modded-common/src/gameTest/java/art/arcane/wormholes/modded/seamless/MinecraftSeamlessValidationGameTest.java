@@ -25,6 +25,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.phys.Vec3;
@@ -39,7 +40,6 @@ import java.util.concurrent.CompletableFuture;
 public final class MinecraftSeamlessValidationGameTest {
     private static final Logger LOGGER = LoggerFactory.getLogger("WormholesGameTest");
     private static final int STAGE_TICKS = 600;
-    private static final int COOLDOWN_TICKS = 10;
     private static final double BEFORE = -0.3D;
     private static final double AFTER = 0.2D;
 
@@ -57,6 +57,8 @@ public final class MinecraftSeamlessValidationGameTest {
     private Attempt attempt;
     private Phase phase = Phase.PREPARE;
     private TravelMessage.TravelBegin begin;
+    private TravelMessage.TravelBegin known;
+    private TravelMessage.TravelBegin claimed;
     private long barrier;
     private BlockPos broken;
     private ArmorStand resident;
@@ -85,7 +87,7 @@ public final class MinecraftSeamlessValidationGameTest {
         attempts.add(new Attempt("no_access", Expect.REJECT));
         attempts.add(new Attempt("no_cost", Expect.REJECT));
         attempts.add(new Attempt("same_level_accept", Expect.ACCEPT_SAME_LEVEL));
-        attempts.add(new Attempt("cooldown", Expect.NO_PREPARATION));
+        attempts.add(new Attempt("same_level_again", Expect.ACCEPT_SAME_LEVEL));
         next(0);
         helper.runAfterDelay(1, this::step);
     }
@@ -106,8 +108,8 @@ public final class MinecraftSeamlessValidationGameTest {
         fixture.stand(source, BEFORE);
         fixture.forgetResolved();
         begin = null;
-        phase = attempt.expect == Expect.NO_PREPARATION ? Phase.OBSERVE : Phase.PREPARE;
-        remaining = attempt.expect == Expect.NO_PREPARATION ? COOLDOWN_TICKS : STAGE_TICKS;
+        phase = Phase.PREPARE;
+        remaining = STAGE_TICKS;
     }
 
     private void open(boolean nether) throws Exception {
@@ -135,12 +137,7 @@ public final class MinecraftSeamlessValidationGameTest {
         try {
             fixture.pump();
             if (!advance()) {
-                helper.assertTrue(--remaining > 0 || phase == Phase.OBSERVE, "Seamless attempt " + attempt.label + " timed out in "
-                    + phase + "; travel " + fixture.travel());
-                if (phase == Phase.OBSERVE && remaining <= 0) {
-                    pass();
-                    return;
-                }
+                helper.assertTrue(--remaining > 0, "Seamless attempt " + attempt.label + " timed out in " + phase + "; travel " + fixture.travel());
             }
             if (!result.isDone()) {
                 helper.runAfterDelay(1, this::step);
@@ -153,18 +150,17 @@ public final class MinecraftSeamlessValidationGameTest {
     private boolean advance() throws Exception {
         switch (phase) {
             case PREPARE -> {
-                TravelMessage.TravelBegin latest = fixture.last(TravelMessage.TravelBegin.class);
-                TravelMessage.TravelEnd end = fixture.last(TravelMessage.TravelEnd.class);
-                if (latest == null || !latest.seamless() || end == null || !end.token().equals(latest.token())) {
+                TravelMessage.TravelBegin latest = arm();
+                if (latest == null || !arrivalDelivered()) {
                     return false;
                 }
-                helper.assertTrue(latest.resident(), attempt.label + " prepared a far route without a resident level");
+                helper.assertTrue(latest.seamless() && latest.resident(), attempt.label + " armed a far route without a resident level");
                 if (attempt.expect == Expect.ACCEPT_LEVEL_CHANGE && !residentPaired()) {
                     return false;
                 }
                 begin = latest;
-                barrier = end.contentRevision();
-                fixture.send(new TravelMessage.TravelReady(latest.token(), latest.generation(), barrier));
+                claimed = latest;
+                barrier = 1L;
                 phase = Phase.CROSS;
                 return true;
             }
@@ -190,11 +186,6 @@ public final class MinecraftSeamlessValidationGameTest {
             }
             case RESULT -> {
                 return attempt.expect == Expect.REJECT ? rejected() : accepted();
-            }
-            case OBSERVE -> {
-                TravelMessage.TravelBegin latest = fixture.last(TravelMessage.TravelBegin.class);
-                helper.assertTrue(latest == null, "A seamless preparation was offered during the arrival cooldown");
-                return false;
             }
         }
         return false;
@@ -238,6 +229,25 @@ public final class MinecraftSeamlessValidationGameTest {
         Vec3d out = new PlaneCrossing(source.getFrame().view(front), origin, claimed, new Vec3d(0, 0, 0), look, front)
             .outPoint(destination.getFrame(), destination.getOrigin());
         return new Vec3(out.x(), out.y(), out.z());
+    }
+
+    private TravelMessage.TravelBegin arm() {
+        for (TravelMessage message : fixture.travel()) {
+            if (message instanceof TravelMessage.TravelBegin armed && armed.sourcePortal().equals(source.getId())) {
+                known = armed;
+            } else if (message instanceof TravelMessage.TravelCancel cancel && known != null && cancel.token().equals(known.token())
+                && (claimed == null || !claimed.token().equals(cancel.token()))) {
+                known = null;
+            }
+        }
+        return known;
+    }
+
+    private boolean arrivalDelivered() {
+        RemoteRoute route = runtime.remoteRoutes().route(fixture.player().getUUID(), source.getId());
+        Vec3 arrival = arrival();
+        return route != null && route.opened() && route.stream().delivered(ChunkPos.pack((int) Math.floor(arrival.x) >> 4,
+            (int) Math.floor(arrival.z) >> 4));
     }
 
     private boolean residentPaired() {
@@ -343,11 +353,11 @@ public final class MinecraftSeamlessValidationGameTest {
     }
 
     private enum Phase {
-        PREPARE, CROSS, RESULT, OBSERVE
+        PREPARE, CROSS, RESULT
     }
 
     private enum Expect {
-        ACCEPT_LEVEL_CHANGE, ACCEPT_SAME_LEVEL, REJECT, NO_PREPARATION
+        ACCEPT_LEVEL_CHANGE, ACCEPT_SAME_LEVEL, REJECT
     }
 
     private static final class Attempt {

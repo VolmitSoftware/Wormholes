@@ -150,9 +150,9 @@ public class ClientTravelCrossingDeclineTest extends MinecraftTestBase {
         }
 
         private boolean presentable() throws ReflectiveOperationException {
-            Method presentable = ClientPreparedTravel.class.getDeclaredMethod("presentable");
-            presentable.setAccessible(true);
-            return (boolean) presentable.invoke(travel);
+            Method unpresentable = ClientPreparedTravel.class.getDeclaredMethod("unpresentable");
+            unpresentable.setAccessible(true);
+            return unpresentable.invoke(travel) == null;
         }
 
         private void eye(Vec3 position) {

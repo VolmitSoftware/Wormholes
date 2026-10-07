@@ -2,6 +2,14 @@ package art.arcane.wormholes.clientgametest;
 
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerConnection;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
+import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
+
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 
 final class FabricSeamlessServer implements SeamlessServer {
     private final TestServerContext server;
@@ -29,5 +37,26 @@ final class FabricSeamlessServer implements SeamlessServer {
             SeamlessScenario.removePortal(connection.getServerPlayer(), minecraftServer, route.source());
             SeamlessScenario.removePortal(connection.getServerPlayer(), minecraftServer, route.destination());
         });
+    }
+
+    @Override
+    public void lightNetherPortal(BlockPos frame) {
+        server.runOnServer(minecraftServer -> SeamlessWalkThrough.light(minecraftServer, connection.getServerPlayer(), frame));
+    }
+
+    @Override
+    public boolean netherPortalLit(BlockPos frame) {
+        return server.computeOnServer(minecraftServer -> SeamlessWalkThrough.lit(minecraftServer, frame));
+    }
+
+    @Override
+    public List<Vec3> netherPortalCenters(BlockPos frame) {
+        return server.computeOnServer(minecraftServer -> SeamlessWalkThrough.centers(minecraftServer, frame));
+    }
+
+    @Override
+    public void approachFrom(ResourceKey<Level> level, Vec3 position, float yaw) {
+        server.runOnServer(minecraftServer -> connection.getServerPlayer().teleportTo(Objects.requireNonNull(minecraftServer.getLevel(level)),
+            position.x, position.y, position.z, Set.of(), yaw, 0.0F, false));
     }
 }

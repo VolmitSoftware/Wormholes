@@ -25,6 +25,7 @@ public final class ClientGameTestDriver {
     private static final String FILTER = "wormholes.clientgametest.filter";
     private static final int RENDER_DISTANCE = 5;
     private static final int FRAMERATE_LIMIT = 120;
+    private static final int WALK_TRIPS = 2;
     private static volatile DriverClient driver;
 
     private ClientGameTestDriver() {
@@ -96,7 +97,9 @@ public final class ClientGameTestDriver {
                 new Pass("same-dimension-singleplayer", true, label -> SeamlessSameDimension.seamless(client, server, label)),
                 new Pass("cross-dimension-singleplayer-frame", true,
                     label -> SeamlessCrossDimension.seamless(client, server, label, OrientationPolicy.FRAME)),
-                new Pass("cross-dimension-stress-singleplayer", true, label -> SeamlessCrossDimension.stress(client, server, label)));
+                new Pass("cross-dimension-stress-singleplayer", true, label -> SeamlessCrossDimension.stress(client, server, label)),
+                new Pass("walk-nether-portal-singleplayer", true, label -> SeamlessWalkThrough.netherPortal(client, server, label, WALK_TRIPS)),
+                new Pass("walk-frame-portal-singleplayer", true, label -> SeamlessWalkThrough.framePortal(client, server, label, WALK_TRIPS)));
         }
         if (Boolean.parseBoolean(System.getProperty(SERVER_SEAMLESS, "true"))) {
             return List.of(

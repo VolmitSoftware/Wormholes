@@ -42,22 +42,22 @@ public class StraddleClientTest extends MinecraftTestBase {
         ClientLevel destination = mock(ClientLevel.class);
         double plane = GEOMETRY.planeCoordinate();
         double front = front();
-        StraddleTracker.Straddle straddle = ClientPreparedTravel.straddle(BEGIN, destination, box(1.0, plane + front * 0.2), eye(1.0, plane + front * 0.2));
+        StraddleTracker.Straddle straddle = ClientSeamlessTravel.straddle(BEGIN, destination, box(1.0, plane + front * 0.2), eye(1.0, plane + front * 0.2));
         assertNotNull(straddle);
         assertSame(destination, straddle.destination());
         assertEquals(GEOMETRY.frontSide(), straddle.frontSide());
         assertEquals(BEGIN.destinationToSource().inverse().point(new Vec3d(0.5, 1.5, plane)), straddle.toward().point(new Vec3d(0.5, 1.5, plane)));
-        assertNull(ClientPreparedTravel.straddle(BEGIN, destination, box(6.0, plane + front * 0.2), eye(6.0, plane + front * 0.2)));
-        assertNull(ClientPreparedTravel.straddle(BEGIN, destination, box(1.0, plane + front * 3.0), eye(1.0, plane + front * 3.0)));
+        assertNull(ClientSeamlessTravel.straddle(BEGIN, destination, box(6.0, plane + front * 0.2), eye(6.0, plane + front * 0.2)));
+        assertNull(ClientSeamlessTravel.straddle(BEGIN, destination, box(1.0, plane + front * 3.0), eye(1.0, plane + front * 3.0)));
         Box approaching = StraddleTracker.stretched(box(1.0, plane + front * 1.2), new Vec3d(0, 0, -front * 0.8), new Vec3d(0, 0, 0));
-        assertNotNull(ClientPreparedTravel.straddle(BEGIN, destination, approaching, eye(1.0, plane + front * 1.2)));
+        assertNotNull(ClientSeamlessTravel.straddle(BEGIN, destination, approaching, eye(1.0, plane + front * 1.2)));
     }
 
     @Test
     public void theSlabExcludesOnlyShapesBehindTheSourcePlaneInsideTheApertureFootprint() {
         double plane = GEOMETRY.planeCoordinate();
         double front = front();
-        StraddleTracker.Straddle straddle = ClientPreparedTravel.straddle(BEGIN, mock(ClientLevel.class), box(1.0, plane + front * 0.2),
+        StraddleTracker.Straddle straddle = ClientSeamlessTravel.straddle(BEGIN, mock(ClientLevel.class), box(1.0, plane + front * 0.2),
             eye(1.0, plane + front * 0.2));
         double behindNear = Math.min(plane, plane - front);
         double behindFar = Math.max(plane, plane - front);
@@ -70,8 +70,8 @@ public class StraddleClientTest extends MinecraftTestBase {
 
     @Test
     public void theReturnEndpointIsTheMappedSourceOpening() {
-        StraddleTracker.Endpoint back = ClientPreparedTravel.destinationEndpoint(BEGIN);
-        StraddleTracker.Endpoint source = ClientPreparedTravel.sourceEndpoint(BEGIN, GEOMETRY.aperture());
+        StraddleTracker.Endpoint back = ClientSeamlessTravel.destinationEndpoint(BEGIN);
+        StraddleTracker.Endpoint source = ClientSeamlessTravel.sourceEndpoint(BEGIN, GEOMETRY.aperture());
         assertEquals(BEGIN.destinationToSource().inverse().point(source.origin()), back.origin());
         assertEquals(GEOMETRY.apertureArea().center().add(new Vec3d(100, 64, 100)), back.aperture().getArea().center());
         assertEquals(GEOMETRY.frame(), back.frame());
@@ -81,7 +81,7 @@ public class StraddleClientTest extends MinecraftTestBase {
     public void blocksBehindThePlaneStopSuffocatingAndHidingTheViewWhileStraddling() throws ReflectiveOperationException {
         double plane = GEOMETRY.planeCoordinate();
         double front = front();
-        StraddleTracker.Straddle straddle = ClientPreparedTravel.straddle(BEGIN, mock(ClientLevel.class), box(1.0, plane + front * 0.2),
+        StraddleTracker.Straddle straddle = ClientSeamlessTravel.straddle(BEGIN, mock(ClientLevel.class), box(1.0, plane + front * 0.2),
             eye(1.0, plane + front * 0.2));
         LocalPlayer player = mock(LocalPlayer.class, withSettings().extraInterfaces(StraddleHolder.class));
         when(((StraddleHolder) player).wormholesStraddle()).thenReturn(straddle);

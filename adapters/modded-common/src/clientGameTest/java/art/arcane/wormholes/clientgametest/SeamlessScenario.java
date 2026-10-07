@@ -129,9 +129,7 @@ final class SeamlessScenario {
     }
 
     static void awaitReady(SeamlessClient client) {
-        client.waitFor(minecraft -> WormholesClient.instance().preparedTravel().readyRevision() > 0
-            && !WormholesClient.instance().preparedTravel().adopted() && !WormholesClient.instance().preparedTravel().pendingCrossing(),
-            PREPARATION_TIMEOUT_TICKS);
+        client.waitFor(SeamlessScenario::ready, PREPARATION_TIMEOUT_TICKS);
     }
 
     static void turnAround(SeamlessClient client, Vec3d portal) {
@@ -144,9 +142,7 @@ final class SeamlessScenario {
     static void awaitPrepared(SeamlessClient client) {
         client.waitForChunksRender();
         client.waitTicks(VIEW_SETTLE_TICKS);
-        client.waitFor(minecraft -> WormholesClient.instance().preparedTravel().readyRevision() > 0
-            && !WormholesClient.instance().preparedTravel().adopted() && !WormholesClient.instance().preparedTravel().pendingCrossing(),
-            PREPARATION_TIMEOUT_TICKS);
+        client.waitFor(SeamlessScenario::ready, PREPARATION_TIMEOUT_TICKS);
     }
 
     static Crossing walkThrough(SeamlessClient client, String label) {
@@ -186,6 +182,12 @@ final class SeamlessScenario {
         return new Crossing(label, index, player, source);
     }
 
+    static boolean ready(Minecraft minecraft) {
+        ClientPreparedTravel travel = WormholesClient.instance().preparedTravel();
+        return (travel.readyRevision() > 0 || travel.seamless().armed()) && !travel.adopted() && !travel.pendingCrossing()
+            && !travel.seamless().pending();
+    }
+
     static void assertSeamlessNegotiated(SeamlessClient client) {
         boolean seamless = client.computeOnClient(minecraft -> WormholesClient.instance().session().active()
             && WormholesClient.instance().session().has(ClientViewExtensions.REMOTE_VIEW)
@@ -194,7 +196,8 @@ final class SeamlessScenario {
     }
 
     static void assertPreparedTravel(SeamlessClient client, Crossing crossing, boolean dimensionChanged) {
-        client.waitFor(minecraft -> !WormholesClient.instance().preparedTravel().pendingCrossing(), ACCEPT_TIMEOUT_TICKS);
+        client.waitFor(minecraft -> !WormholesClient.instance().preparedTravel().pendingCrossing()
+            && !WormholesClient.instance().preparedTravel().seamless().pending(), ACCEPT_TIMEOUT_TICKS);
         client.waitTicks(SETTLE_TICKS);
         reportFrameTimes(crossing);
         assertTrue(!dimensionChanged || TravelTap.respawns() > 0, crossing.label() + ": prepared travel received no respawn packet");
@@ -231,7 +234,8 @@ final class SeamlessScenario {
     }
 
     private static void assertSeamless(SeamlessClient client, Crossing crossing, Leg leg, BlockPos returnPortal, int returnViewTicks) {
-        client.waitFor(minecraft -> !WormholesClient.instance().preparedTravel().pendingCrossing(), ACCEPT_TIMEOUT_TICKS);
+        client.waitFor(minecraft -> !WormholesClient.instance().preparedTravel().pendingCrossing()
+            && !WormholesClient.instance().preparedTravel().seamless().pending(), ACCEPT_TIMEOUT_TICKS);
         boolean levelChanged = client.computeOnClient(minecraft -> minecraft.level != crossing.source());
         if (levelChanged) {
             client.waitFor(minecraft -> WormholesClient.instance().preparedTravel().residents().handle(crossing.source()) > 0, returnViewTicks);

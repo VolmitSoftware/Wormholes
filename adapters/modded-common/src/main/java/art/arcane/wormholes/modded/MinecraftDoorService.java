@@ -210,7 +210,7 @@ public final class MinecraftDoorService implements AutoCloseable {
         return pocketOperations.protects(position);
     }
 
-    boolean travelling(UUID entityId) {
+    public boolean travelling(UUID entityId) {
         return flights.containsKey(entityId) || pocketTrips.containsKey(entityId) || rules.rescuing(entityId);
     }
 
@@ -1180,6 +1180,7 @@ public final class MinecraftDoorService implements AutoCloseable {
             ? runtime.preSend().preSend(player, arrival.level(), (int) Math.floor(arrival.point().x()), (int) Math.floor(arrival.point().z())) : null;
         MinecraftTravelCosts.Admission admission = null;
         TravelMessage.TravelCommit preparedCommit = null;
+        ServerLevel originLevel = (ServerLevel) entity.level();
         Entity arrived = null;
         try {
             if (arrival.context().isPresent()) {
@@ -1215,6 +1216,7 @@ public final class MinecraftDoorService implements AutoCloseable {
                 admission.commit();
             }
             if (entity instanceof ServerPlayer player) {
+                runtime.clientViews().crossed(player, originLevel, arrival.level(), seamless != null, preparedCommit != null);
                 runtime.clientViews().completeTravel(player);
             }
         } finally {

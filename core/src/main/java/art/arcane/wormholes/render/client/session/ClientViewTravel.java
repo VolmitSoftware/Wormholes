@@ -16,10 +16,13 @@ import art.arcane.wormholes.network.client.TravelMessage;
 
 public final class ClientViewTravel<P> implements ViewStreamHooks<P> {
     private static final int MAX_PENDING_ACKS = 64;
+    private static final int MAX_PENDING_CROSSES = 16;
 
     private final ViewStreamSession<P, ?> session;
     private final ClientPreparedTravelServer server;
     private final ArrayDeque<TravelMessage.RemoteViewAck> acks = new ArrayDeque<>();
+    private final ArrayDeque<TravelMessage.TravelCross> crosses = new ArrayDeque<>();
+    private final ArrayDeque<TravelMessage.RemoteLevelReopen> reopens = new ArrayDeque<>();
 
     public ClientViewTravel(ViewStreamSession<P, ?> session) {
         this.session = Objects.requireNonNull(session, "session");
@@ -74,6 +77,25 @@ public final class ClientViewTravel<P> implements ViewStreamHooks<P> {
         }
     }
 
+    public void drainReopens(Consumer<TravelMessage.RemoteLevelReopen> consumer) {
+        while (true) {
+            TravelMessage.RemoteLevelReopen reopen;
+            synchronized (reopens) {
+                reopen = reopens.pollFirst();
+            }
+            if (reopen == null) {
+                return;
+            }
+            consumer.accept(reopen);
+        }
+    }
+
+    public TravelMessage.TravelCross takeSeamlessCross() {
+        synchronized (crosses) {
+            return crosses.pollFirst();
+        }
+    }
+
     public ApertureDescriptor travelGeometry(UUID portal) {
         return session.endpointGeometry(portal);
     }
@@ -92,11 +114,13 @@ public final class ClientViewTravel<P> implements ViewStreamHooks<P> {
     @Override
     public boolean onExtension(P peer, Object payload) {
         return switch (payload) {
-            case TravelMessage.TravelCross cross -> preparedTravelSelected() && server.requestCross(cross, System.currentTimeMillis());
+            case TravelMessage.TravelCross cross -> seamlessSelected() ? queue(cross)
+                : preparedTravelSelected() && server.requestCross(cross, System.currentTimeMillis());
             case TravelMessage.TravelCancel cancel -> preparedTravelSelected() && server.cancel(cancel);
             case TravelMessage.TravelCached cached -> preparedTravelCacheSelected() && server.cached(cached);
             case TravelMessage.TravelReady ready -> preparedTravelSelected() && server.ready(ready);
             case TravelMessage.RemoteViewAck ack -> remoteViewSelected() && queue(ack);
+            case TravelMessage.RemoteLevelReopen reopen -> remoteViewSelected() && queue(reopen);
             default -> false;
         };
     }
@@ -117,6 +141,12 @@ public final class ClientViewTravel<P> implements ViewStreamHooks<P> {
         synchronized (acks) {
             acks.clear();
         }
+        synchronized (crosses) {
+            crosses.clear();
+        }
+        synchronized (reopens) {
+            reopens.clear();
+        }
     }
 
     private boolean sendable(TravelMessage message) {
@@ -133,6 +163,26 @@ public final class ClientViewTravel<P> implements ViewStreamHooks<P> {
             case TravelMessage.TravelAccept ignored -> seamlessSelected();
             default -> false;
         };
+    }
+
+    private boolean queue(TravelMessage.TravelCross cross) {
+        synchronized (crosses) {
+            if (crosses.size() >= MAX_PENDING_CROSSES) {
+                return false;
+            }
+            crosses.addLast(cross);
+            return true;
+        }
+    }
+
+    private boolean queue(TravelMessage.RemoteLevelReopen reopen) {
+        synchronized (reopens) {
+            if (reopens.size() >= MAX_PENDING_ACKS) {
+                return false;
+            }
+            reopens.addLast(reopen);
+            return true;
+        }
     }
 
     private boolean queue(TravelMessage.RemoteViewAck ack) {

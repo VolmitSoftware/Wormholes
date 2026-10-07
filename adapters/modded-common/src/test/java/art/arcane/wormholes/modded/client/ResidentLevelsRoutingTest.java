@@ -119,9 +119,10 @@ public class ResidentLevelsRoutingTest extends MinecraftTestBase {
             for (TravelMessage.RoutedPacket fragment : ResidentTestFixtures.routed(3, 40, new ClientboundForgetLevelChunkPacket(new ChunkPos(5, 6)))) {
                 residents.route(fragment);
             }
-            residents.beginCrossing(current);
+            residents.crossing(current);
             scope.minecraft.level = nether;
-            residents.endCrossing(true);
+            residents.crossing(null);
+            residents.retire(current);
             ResidentTestFixtures.loaded(current, 1, 1);
             residents.open(ResidentTestFixtures.open(3, ResidentTestFixtures.OVERWORLD, 1, 2));
             for (TravelMessage.RoutedPacket fragment : ResidentTestFixtures.routed(3, 0, new ClientboundForgetLevelChunkPacket(new ChunkPos(1, 1)))) {
@@ -132,16 +133,25 @@ public class ResidentLevelsRoutingTest extends MinecraftTestBase {
     }
 
     @Test
-    public void routedPacketsForUnopenedHandlesAreDropped() {
+    public void routedPacketsForUnopenedHandlesAskTheServerToReopenOnce() {
         ClientLevel current = ResidentTestFixtures.level(ResidentTestFixtures.OVERWORLD);
         try (ResidentLevelsOpenCloseTest.Scope scope = new ResidentLevelsOpenCloseTest.Scope(current)) {
             ResidentLevels residents = new ResidentLevels(scope.sent::add, 512L << 20);
-            for (TravelMessage.RoutedPacket fragment : ResidentTestFixtures.routed(8, 0, new ClientboundForgetLevelChunkPacket(new ChunkPos(5, 6)))) {
-                residents.route(fragment);
+            for (int repeat = 0; repeat < 2; repeat++) {
+                for (TravelMessage.RoutedPacket fragment : ResidentTestFixtures.routed(8, repeat, new ClientboundForgetLevelChunkPacket(new ChunkPos(5, 6)))) {
+                    residents.route(fragment);
+                }
             }
             verify(scope.connection, never()).handleForgetLevelChunk(any());
             residents.tick();
-            assertTrue(scope.sent.isEmpty());
+            assertEquals(List.of(new TravelMessage.RemoteLevelReopen(8)), scope.sent);
+            residents.open(ResidentTestFixtures.open(8, ResidentTestFixtures.NETHER, 5, 6));
+            scope.sent.clear();
+            residents.close(new TravelMessage.RemoteLevelClose(8));
+            for (TravelMessage.RoutedPacket fragment : ResidentTestFixtures.routed(8, 2, new ClientboundForgetLevelChunkPacket(new ChunkPos(5, 6)))) {
+                residents.route(fragment);
+            }
+            assertEquals(List.of(new TravelMessage.RemoteLevelReopen(8)), scope.sent);
         }
     }
 
@@ -156,7 +166,7 @@ public class ResidentLevelsRoutingTest extends MinecraftTestBase {
             when(client.preparedTravel()).thenReturn(travel);
             clients.when(WormholesClient::instance).thenReturn(client);
             ClientLevel nether = residents.open(ResidentTestFixtures.open(3, ResidentTestFixtures.NETHER, 12, -4));
-            residents.beginCrossing(current);
+            residents.crossing(current);
             activate(scope, nether);
             List<ClientLevel> applied = new ArrayList<>();
             Operation<Void> original = recording(scope, applied);
@@ -167,7 +177,8 @@ public class ResidentLevelsRoutingTest extends MinecraftTestBase {
             assertSame(nether, scope.connection.getLevel());
             residents.withLevel(nether, () -> invoke(packet, original));
             assertSame(nether, applied.getLast());
-            residents.endCrossing(true);
+            residents.crossing(null);
+            residents.retire(current);
             assertNull(residents.redirectTarget());
             dispatch(packet, original);
             assertSame(nether, applied.getLast());
@@ -186,9 +197,9 @@ public class ResidentLevelsRoutingTest extends MinecraftTestBase {
             when(client.preparedTravel()).thenReturn(travel);
             clients.when(WormholesClient::instance).thenReturn(client);
             ClientLevel nether = residents.open(ResidentTestFixtures.open(3, ResidentTestFixtures.NETHER, 12, -4));
-            residents.beginCrossing(current);
+            residents.crossing(current);
             activate(scope, nether);
-            residents.endCrossing(false);
+            residents.crossing(null);
             activate(scope, current);
             List<ClientLevel> applied = new ArrayList<>();
             dispatch(new ClientboundForgetLevelChunkPacket(new ChunkPos(5, 6)), recording(scope, applied));

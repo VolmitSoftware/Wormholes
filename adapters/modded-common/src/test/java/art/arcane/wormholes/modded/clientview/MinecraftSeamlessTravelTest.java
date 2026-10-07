@@ -19,6 +19,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
+import net.minecraft.server.players.PlayerList;
 import org.junit.Test;
 
 import java.util.List;
@@ -26,6 +27,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
@@ -38,30 +40,41 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class MinecraftPreparedTravelSeamlessTest extends MinecraftTestBase {
+public class MinecraftSeamlessTravelTest extends MinecraftTestBase {
     @Test
-    public void seamlessSessionStreamsRoutesInsteadOfCapturingPreparedChunks() {
+    public void seamlessSessionArmsRoutesInsteadOfCapturingPreparedChunks() {
         Fixture fixture = new Fixture(true);
 
-        fixture.prepared.tick(fixture.session, fixture.player);
+        fixture.seamless.tick(fixture.session, fixture.player);
 
         verify(fixture.routes).update(eq(fixture.player), eq(fixture.session), eq(List.of()), anyLong());
         verify(fixture.leases, never()).retain(any(), any(), anyInt(), anyInt());
-        verify(fixture.session).cancelTravel();
+        verify(fixture.session, never()).cancelTravel();
     }
 
     @Test
-    public void rejectedSeamlessCrossingCancelsAndSendsTheVanillaCorrection() {
+    public void aCrossingForAnUnarmedRouteIsRejectedWithTheVanillaCorrection() {
         Fixture fixture = new Fixture(true);
-        when(fixture.travel.takeCross()).thenReturn(Optional.of(new TravelMessage.TravelCross(UUID.randomUUID(), 1L, 1L,
-            new TravelMessage.TravelPose(0.5D, 64.0D, 0.4D, 0.0F, 0.0F), new Vec3d(0.5D, 65.62D, 0.6D), new Vec3d(0.5D, 65.62D, 0.4D))));
+        TravelMessage.TravelCross cross = new TravelMessage.TravelCross(UUID.randomUUID(), 1L, 1L,
+            new TravelMessage.TravelPose(0.5D, 64.0D, 0.4D, 0.0F, 0.0F), new Vec3d(0.5D, 65.62D, 0.6D), new Vec3d(0.5D, 65.62D, 0.4D));
+        when(fixture.session.takeSeamlessCross()).thenReturn(cross, (TravelMessage.TravelCross) null);
 
-        fixture.prepared.settleCross(fixture.session, fixture.player);
+        fixture.seamless.settle(fixture.session, fixture.player);
 
         verify(fixture.player.connection).teleport(4.0D, 64.0D, -2.0D, 30.0F, 5.0F);
-        verify(fixture.session).cancelTravel();
+        verify(fixture.session).sendTravel(new TravelMessage.TravelCancel(cross.token(), cross.generation()));
         verify(fixture.registry, never()).crossPrepared(any(), any(), any(), any());
         verify(fixture.doors, never()).crossPrepared(any(), any(), any());
+    }
+
+    @Test
+    public void serverDetectedCrossingsThroughUnarmedPortalsKeepTheOrdinaryPath() {
+        Fixture fixture = new Fixture(true);
+
+        fixture.seamless.tick(fixture.session, fixture.player);
+
+        assertFalse(fixture.seamless.defer(fixture.player, UUID.randomUUID()));
+        assertFalse(fixture.seamless.crossing(fixture.player.getUUID()));
     }
 
     @Test
@@ -75,10 +88,10 @@ public class MinecraftPreparedTravelSeamlessTest extends MinecraftTestBase {
     }
 
     @Test
-    public void arrivalStaysOnTheTeleportPathWithoutASeamlessPreparation() {
+    public void arrivalStaysOnTheTeleportPathWithoutACrossingInFlight() {
         Fixture fixture = new Fixture(true);
 
-        assertNull(fixture.prepared.seamlessArrival(fixture.session, fixture.player, UUID.randomUUID(), fixture.level,
+        assertNull(fixture.seamless.arrival(fixture.session, fixture.player, UUID.randomUUID(), fixture.level,
             new TravelMessage.TravelPose(0, 64, 0, 0, 0), new Vec3d(0, 0, 0)));
     }
 
@@ -95,7 +108,7 @@ public class MinecraftPreparedTravelSeamlessTest extends MinecraftTestBase {
         Vec3d arrived = crossing.outPoint(frame, destination);
         Angles.Look look = ArrivalOrientation.apply(crossing, frame, TravelMessage.ArrivalRules.FRAME.orientation(), false);
 
-        TravelMessage.TravelPose pose = MinecraftPreparedTravel.seamlessPose(new TravelMessage.TravelPose(arrived.x(), arrived.y(), arrived.z(),
+        TravelMessage.TravelPose pose = MinecraftSeamlessTravel.pose(new TravelMessage.TravelPose(arrived.x(), arrived.y(), arrived.z(),
             look.yaw(), look.pitch()), cross, crossing, TravelMessage.ArrivalRules.FRAME, frame, destination);
 
         assertEquals(725.0F, pose.yaw(), 1.0E-3F);
@@ -119,6 +132,7 @@ public class MinecraftPreparedTravelSeamlessTest extends MinecraftTestBase {
         @SuppressWarnings("unchecked")
         private final ClientViewTravel<MinecraftClientViewPeer> session = mock(ClientViewTravel.class);
         private final MinecraftPreparedTravel prepared = new MinecraftPreparedTravel(runtime, portals);
+        private final MinecraftSeamlessTravel seamless = new MinecraftSeamlessTravel(runtime, portals, prepared);
 
         private Fixture(boolean seamless) {
             UUID playerId = UUID.randomUUID();
@@ -144,6 +158,10 @@ public class MinecraftPreparedTravelSeamlessTest extends MinecraftTestBase {
             when(session.seamlessSelected()).thenReturn(seamless);
             when(travel.takeCross()).thenReturn(Optional.empty());
             when(travel.preparing()).thenReturn(Optional.empty());
+            when(routes.routes(playerId)).thenReturn(List.of());
+            PlayerList list = mock(PlayerList.class);
+            when(server.getPlayerList()).thenReturn(list);
+            when(list.getViewDistance()).thenReturn(10);
         }
     }
 }

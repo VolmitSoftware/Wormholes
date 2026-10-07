@@ -1,5 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.optics.crossing.Pose;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
@@ -14,9 +16,11 @@ import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.util.ArrayDeque;
 import java.util.UUID;
 
-import static art.arcane.wormholes.modded.client.ClientTravelTestFixtures.set;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -24,27 +28,36 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class ClientPreparedTravelSeamlessAcceptTest extends MinecraftTestBase {
+public class ClientSeamlessTravelTest extends MinecraftTestBase {
     @Test
-    public void acceptWithinToleranceAdoptsTheResidentLevelWithoutARespawn() throws ReflectiveOperationException {
-        Crossing crossing = new Crossing();
-        try (crossing) {
+    public void armsAreHeldPerSourcePortalUntilTheServerDisarmsThem() throws ReflectiveOperationException {
+        try (Crossing crossing = new Crossing(false)) {
+            assertTrue(crossing.travel.armed(crossing.begin.sourcePortal()));
+            assertTrue(crossing.travel.receive(new TravelMessage.TravelCancel(SeamlessTravelFixtures.TOKEN, SeamlessTravelFixtures.GENERATION)));
+            assertFalse(crossing.travel.armed(crossing.begin.sourcePortal()));
+            assertFalse(crossing.travel.receive(new TravelMessage.TravelCancel(new UUID(3, 3), 2L)));
+        }
+    }
+
+    @Test
+    public void acceptWithinToleranceKeepsTheSwappedLevelAndRetiresTheSource() throws ReflectiveOperationException {
+        try (Crossing crossing = new Crossing(true)) {
             crossing.travel.receive(SeamlessTravelFixtures.accept(0.0004D, 0.2F));
-            assertTrue(crossing.travel.adopted());
-            assertTrue(crossing.travel.positionConfirmed());
-            assertFalse(crossing.travel.pendingCrossing());
+            assertFalse(crossing.travel.pending());
+            assertTrue(crossing.travel.armed());
             assertNull(crossing.residents.crossingSource());
             assertTrue(crossing.residents.resident(crossing.source));
             assertSame(crossing.nether, crossing.scope.minecraft.level);
             assertSame(crossing.nether, crossing.scope.connection.getLevel());
             verify(crossing.scope.minecraft, never()).setLevel(any());
-            assertPosition(crossing.player, 100.5004D);
+            assertPosition(crossing.player, 100.5004D, 99.0D);
             verify(crossing.player).setYRot(185.0F);
             ArgumentCaptor<Vec3> velocity = ArgumentCaptor.forClass(Vec3.class);
             verify(crossing.player).setDeltaMovement(velocity.capture());
@@ -56,39 +69,21 @@ public class ClientPreparedTravelSeamlessAcceptTest extends MinecraftTestBase {
 
     @Test
     public void acceptOutsideToleranceCorrectsToTheServerPose() throws ReflectiveOperationException {
-        Crossing crossing = new Crossing();
-        try (crossing) {
+        try (Crossing crossing = new Crossing(true)) {
             crossing.travel.receive(SeamlessTravelFixtures.accept(0.5D, 10.0F));
-            assertTrue(crossing.travel.positionConfirmed());
-            assertFalse(crossing.travel.pendingCrossing());
-            assertPosition(crossing.player, 101.0D);
+            assertFalse(crossing.travel.pending());
+            assertPosition(crossing.player, 101.0D, 99.0D);
             verify(crossing.player).setYRot(195.0F);
             assertSame(crossing.nether, crossing.scope.minecraft.level);
-            assertTrue(crossing.scope.sent.stream().noneMatch(TravelMessage.TravelCancel.class::isInstance));
         }
     }
 
     @Test
-    public void foreignOrStaleAcceptsLeaveThePredictionPending() throws ReflectiveOperationException {
-        Crossing crossing = new Crossing();
-        try (crossing) {
-            TravelMessage.TravelAccept valid = SeamlessTravelFixtures.accept(0.0D, 0.0F);
-            crossing.travel.receive(new TravelMessage.TravelAccept(new UUID(9, 9), valid.generation(), valid.contentRevision(), valid.pose(),
-                valid.velocity(), valid.levelHandle(), valid.dimensionChanged(), valid.serverTick()));
-            crossing.travel.receive(new TravelMessage.TravelAccept(valid.token(), valid.generation(), valid.contentRevision() + 1, valid.pose(),
-                valid.velocity(), valid.levelHandle(), valid.dimensionChanged(), valid.serverTick()));
-            assertTrue(crossing.travel.pendingCrossing());
-            assertFalse(crossing.travel.positionConfirmed());
-            assertSame(crossing.source, crossing.residents.crossingSource());
-        }
-    }
-
-    @Test
-    public void cancelDuringThePendingWindowRestoresTheSourceLevel() throws ReflectiveOperationException {
-        Crossing crossing = new Crossing();
-        try (crossing) {
+    public void cancelDuringThePendingWindowRestoresTheSourceLevelAndKeepsTheArm() throws ReflectiveOperationException {
+        try (Crossing crossing = new Crossing(true)) {
             crossing.travel.receive(new TravelMessage.TravelCancel(SeamlessTravelFixtures.TOKEN, SeamlessTravelFixtures.GENERATION));
-            assertFalse(crossing.travel.pendingCrossing());
+            assertFalse(crossing.travel.pending());
+            assertTrue(crossing.travel.armed(crossing.begin.sourcePortal()));
             assertNull(crossing.residents.crossingSource());
             assertFalse(crossing.residents.resident(crossing.source));
             assertSame(crossing.source, crossing.scope.connection.getLevel());
@@ -98,19 +93,43 @@ public class ClientPreparedTravelSeamlessAcceptTest extends MinecraftTestBase {
         }
     }
 
-    private static void assertPosition(LocalPlayer player, double x) {
+    @Test
+    public void anUnclaimedServerCrossingSwapsIntoTheResidentLevel() throws ReflectiveOperationException {
+        try (Crossing crossing = new Crossing(false)) {
+            crossing.travel.receive(SeamlessTravelFixtures.accept(0.0D, 0.0F));
+            verify(crossing.scope.minecraft).setLevel(crossing.nether);
+            assertSame(crossing.nether, crossing.scope.connection.getLevel());
+            assertTrue(crossing.residents.resident(crossing.source));
+            verify(crossing.source).removeEntity(42, Entity.RemovalReason.CHANGED_DIMENSION);
+            verify(crossing.nether).addEntity(crossing.player);
+            assertPosition(crossing.player, SeamlessTravelFixtures.EXPECTED_ARRIVAL.x, SeamlessTravelFixtures.EXPECTED_ARRIVAL.z);
+            verify(crossing.client).dropProjectedEntities(crossing.begin.sourceGeometry());
+        }
+    }
+
+    @Test
+    public void anUnclaimedServerCrossingIntoAnUnknownLevelAsksForItToBeReopened() throws ReflectiveOperationException {
+        try (Crossing crossing = new Crossing(false)) {
+            crossing.residents.close(new TravelMessage.RemoteLevelClose(3));
+            crossing.travel.receive(SeamlessTravelFixtures.accept(0.0D, 0.0F));
+            assertSame(crossing.source, crossing.scope.minecraft.level);
+            assertTrue(crossing.scope.sent.contains(new TravelMessage.RemoteLevelReopen(3)));
+        }
+    }
+
+    private static void assertPosition(LocalPlayer player, double x, double z) {
         ArgumentCaptor<Vec3> position = ArgumentCaptor.forClass(Vec3.class);
-        verify(player).setPos(position.capture());
+        verify(player, atLeastOnce()).setPos(position.capture());
         assertEquals(x, position.getValue().x, 0.000001D);
         assertEquals(64.0D, position.getValue().y, 0.000001D);
-        assertEquals(99.0D, position.getValue().z, 0.000001D);
+        assertEquals(z, position.getValue().z, 0.000001D);
     }
 
     static final class Crossing implements AutoCloseable {
         final ClientLevel source = ResidentTestFixtures.level(ResidentTestFixtures.OVERWORLD);
         final ResidentLevelsOpenCloseTest.Scope scope = new ResidentLevelsOpenCloseTest.Scope(source);
         final ResidentLevels residents = new ResidentLevels(scope.sent::add, 512L << 20);
-        final ClientPreparedTravel travel = new ClientPreparedTravel(scope.sent::add, residents);
+        final ClientSeamlessTravel travel = new ClientSeamlessTravel(scope.sent::add, residents);
         final TravelMessage.TravelBegin begin = SeamlessTravelFixtures.begin(true, true);
         final LocalPlayer player = SeamlessTravelFixtures.player();
         final MockedStatic<PortalIrisMainPipelines> shaders = mockStatic(PortalIrisMainPipelines.class);
@@ -119,8 +138,7 @@ public class ClientPreparedTravelSeamlessAcceptTest extends MinecraftTestBase {
         final MockedStatic<ClientPortalRenderer> renderers = mockStatic(ClientPortalRenderer.class);
         final ClientLevel nether;
 
-        Crossing() throws ReflectiveOperationException {
-            when(client.preparedTravel()).thenReturn(travel);
+        Crossing(boolean predicted) throws ReflectiveOperationException {
             ClientViewSession session = mock(ClientViewSession.class);
             when(session.has(any(ViewStreamCapability.class))).thenReturn(true);
             when(session.has(anyLong())).thenReturn(true);
@@ -133,16 +151,33 @@ public class ClientPreparedTravelSeamlessAcceptTest extends MinecraftTestBase {
             ResidentTestFixtures.loaded(nether, 6, 6);
             residents.retire(nether);
             assertSame(nether, residents.open(ResidentTestFixtures.open(3, ResidentTestFixtures.NETHER, 6, 6)));
-            set(travel, "begin", begin);
-            set(travel, "chunks", SeamlessTravelFixtures.chunks(begin));
-            set(travel, "staged", nether);
-            set(travel, "deadline", System.currentTimeMillis() + 60_000L);
-            set(travel, "prediction", SeamlessTravelFixtures.prediction(source, scope.connection, true));
-            residents.beginCrossing(source);
+            assertTrue(travel.receive(begin));
+            if (!predicted) {
+                return;
+            }
+            pending().add(crossing(begin, source, nether));
+            residents.crossing(source);
             scope.minecraft.level = nether;
             ((PreparedPacketAccess) scope.connection).wormholes$level(nether);
-            assertTrue(travel.pendingCrossing());
-            assertFalse(travel.suppressesMovement());
+            assertTrue(travel.pending());
+        }
+
+        @SuppressWarnings("unchecked")
+        private ArrayDeque<Object> pending() throws ReflectiveOperationException {
+            Field field = ClientSeamlessTravel.class.getDeclaredField("pending");
+            field.setAccessible(true);
+            return (ArrayDeque<Object>) field.get(travel);
+        }
+
+        private static Object crossing(TravelMessage.TravelBegin begin, ClientLevel from, ClientLevel to) throws ReflectiveOperationException {
+            Pose before = new Pose(new Vec3d(0.5, 0, 0.2), new Vec3d(0.5, 0, 0.5), new Vec3d(0.5, 0, 0.5), new Vec3d(0, 0, -0.3),
+                180, 10, 178, 9, 179, 177, 181, 179);
+            ClientTravelMotion.Carry carry = new ClientTravelMotion.Carry(180, 10, 178, 9, new Vec3d(0.5, 0, 0.2), new Vec3d(0.5, 0, 0.5));
+            Class<?> type = Class.forName(ClientSeamlessTravel.class.getName() + "$Crossing");
+            Constructor<?> constructor = type.getDeclaredConstructors()[0];
+            constructor.setAccessible(true);
+            return constructor.newInstance(begin, from, to, before, carry, SeamlessTravelFixtures.DESTINATION, SeamlessTravelFixtures.EXPECTED_ARRIVAL,
+                System.currentTimeMillis() + 60_000L);
         }
 
         @Override

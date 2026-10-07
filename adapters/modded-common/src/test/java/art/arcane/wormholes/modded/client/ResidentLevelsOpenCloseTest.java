@@ -105,10 +105,11 @@ public class ResidentLevelsOpenCloseTest extends MinecraftTestBase {
         try (Scope scope = new Scope(current)) {
             ResidentLevels residents = scope.residents();
             ClientLevel nether = residents.open(ResidentTestFixtures.open(3, ResidentTestFixtures.NETHER, 12, -4));
-            residents.beginCrossing(current);
+            residents.crossing(current);
             scope.minecraft.level = nether;
             assertTrue(residents.muted(current));
-            residents.endCrossing(true);
+            residents.crossing(null);
+            residents.retire(current);
             assertTrue(residents.resident(current));
             assertFalse(residents.muted(nether));
             ResidentTestFixtures.loaded(current, 1, 1);
@@ -129,9 +130,10 @@ public class ResidentLevelsOpenCloseTest extends MinecraftTestBase {
                 ResidentLevels residents = scope.residents();
                 TravelMessage.TravelWorld world = sameDimension ? ResidentTestFixtures.OVERWORLD : ResidentTestFixtures.NETHER;
                 ClientLevel destination = residents.open(ResidentTestFixtures.open(3, world, 300, 300));
-                residents.beginCrossing(current);
+                residents.crossing(current);
                 scope.minecraft.level = destination;
-                residents.endCrossing(true);
+                residents.crossing(null);
+                residents.retire(current);
                 ResidentTestFixtures.loaded(current, 1, 1);
                 assertSame(current, residents.open(ResidentTestFixtures.open(3, ResidentTestFixtures.OVERWORLD, 1, 2)));
                 assertEquals(3, residents.handle(current));
@@ -151,9 +153,9 @@ public class ResidentLevelsOpenCloseTest extends MinecraftTestBase {
         try (Scope scope = new Scope(current)) {
             ResidentLevels residents = scope.residents();
             residents.open(ResidentTestFixtures.open(3, ResidentTestFixtures.NETHER, 12, -4));
-            residents.beginCrossing(current);
+            residents.crossing(current);
             assertSame(current, residents.crossingSource());
-            residents.endCrossing(false);
+            residents.crossing(null);
             assertNull(residents.crossingSource());
             assertFalse(residents.resident(current));
         }

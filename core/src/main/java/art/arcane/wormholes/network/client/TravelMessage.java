@@ -28,6 +28,7 @@ public sealed interface TravelMessage {
     int ROUTED_PACKET = 53;
     int TRAVEL_ACCEPT = 54;
     int REMOTE_VIEW_ACK = 55;
+    int REMOTE_LEVEL_REOPEN = 56;
     int FIRST_ID = 41;
     int LAST_ID = 63;
 
@@ -430,6 +431,19 @@ public sealed interface TravelMessage {
         @Override
         public int id() {
             return REMOTE_VIEW_ACK;
+        }
+    }
+
+    record RemoteLevelReopen(int levelHandle) implements TravelMessage {
+        public RemoteLevelReopen {
+            if (!residentHandle(levelHandle)) {
+                throw new IllegalArgumentException("Remote level handle " + levelHandle);
+            }
+        }
+
+        @Override
+        public int id() {
+            return REMOTE_LEVEL_REOPEN;
         }
     }
 }

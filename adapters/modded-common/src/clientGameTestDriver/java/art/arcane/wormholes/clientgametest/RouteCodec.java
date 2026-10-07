@@ -98,11 +98,11 @@ final class RouteCodec {
         return new Vec3d(Double.parseDouble(values[0]), Double.parseDouble(values[1]), Double.parseDouble(values[2]));
     }
 
-    private static String position(BlockPos position) {
+    static String position(BlockPos position) {
         return position.getX() + VALUES + position.getY() + VALUES + position.getZ();
     }
 
-    private static String level(ResourceKey<Level> level) {
+    static String level(ResourceKey<Level> level) {
         return level.identifier().toString();
     }
 }

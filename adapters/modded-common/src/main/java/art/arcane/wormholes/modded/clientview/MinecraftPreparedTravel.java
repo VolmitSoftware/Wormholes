@@ -3,31 +3,17 @@ package art.arcane.wormholes.modded.clientview;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.plate.ChunkLease;
 import art.arcane.optics.crossing.PlaneCrossing;
-import art.arcane.optics.crossing.Pose;
-import art.arcane.optics.crossing.PoseTransform;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.MinecraftChunkPacketEncoding;
 import art.arcane.wormholes.modded.MinecraftProjectionWorldView;
 import art.arcane.wormholes.modded.WormholesModRuntime;
-import art.arcane.wormholes.modded.mixin.SeamlessListenerAccess;
-import art.arcane.wormholes.modded.seamless.MinecraftSeamlessMove;
-import art.arcane.wormholes.modded.seamless.RemoteRoute;
 import art.arcane.wormholes.modded.seamless.RemoteRoutes;
-import art.arcane.wormholes.modded.seamless.RouteWindow;
-import art.arcane.wormholes.network.MinecraftGatewayPolicies;
-import art.arcane.wormholes.nexus.NetworkMember;
-import art.arcane.wormholes.portal.PortalType;
-import it.unimi.dsi.fastutil.longs.LongList;
 import art.arcane.wormholes.network.client.ClientTravelWindow;
 import art.arcane.optics.aperture.ApertureDescriptor;
-import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.wormholes.render.client.session.ClientPreparedTravelServer;
 import art.arcane.wormholes.render.client.session.ClientViewTravel;
 import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
-import net.minecraft.server.level.ChunkMap;
-import net.minecraft.world.entity.PositionMoveRotation;
-import net.minecraft.world.level.ChunkPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.chunk.LevelChunk;
@@ -67,10 +53,6 @@ final class MinecraftPreparedTravel {
     void tick(ClientViewTravel<MinecraftClientViewPeer> travel, ServerPlayer player) {
         if (!travel.preparedTravelSelected()) {
             discard(travel);
-            return;
-        }
-        if (travel.seamlessSelected()) {
-            seamlessTick(travel, player);
             return;
         }
         Optional<TravelMessage.TravelCross> crossing = travel.server().takeCross();
@@ -259,257 +241,7 @@ final class MinecraftPreparedTravel {
         }
     }
 
-    MinecraftSeamlessMove.Context seamlessArrival(ClientViewTravel<MinecraftClientViewPeer> travel, ServerPlayer player, UUID source,
-                                                  ServerLevel world, TravelMessage.TravelPose arrival, Vec3d velocity) {
-        Preparation preparation = preparations.get(player.getUUID());
-        if (preparation == null || !preparation.seamless || preparation.cross == null || preparation.world != world
-            || !preparation.source.getId().equals(source) || !travel.server().crossing()) {
-            return null;
-        }
-        RemoteRoute route = runtime.remoteRoutes().route(player.getUUID(), source);
-        boolean changed = world != player.level();
-        if (route == null || route.level() != world || route.handle() != preparation.handle || changed && !route.resident()) {
-            return null;
-        }
-        long tick = runtime.server().getTickCount();
-        TravelMessage.TravelPose pose = seamlessPose(arrival, preparation.cross, preparation.crossing, preparation.begin.rules(),
-            preparation.destination.getFrame(), preparation.destination.getOrigin());
-        Optional<TravelMessage.TravelAccept> accept = travel.server().accept(new ClientPreparedTravelServer.Commit(source,
-            player.level().dimension().identifier().toString(), world.dimension().identifier().toString(), pose, velocity,
-            System.currentTimeMillis()), route.handle(), changed, tick);
-        if (accept.isEmpty()) {
-            return null;
-        }
-        preparation.committed = true;
-        return new MinecraftSeamlessMove.Context(runtime, player, world, new PositionMoveRotation(new Vec3(pose.x(), pose.y(), pose.z()),
-            new Vec3(velocity.x(), velocity.y(), velocity.z()), pose.yaw(), pose.pitch()), route, returnRoute(travel, player, preparation, route.handle()),
-            accept.get(), travel::sendTravel, tick);
-    }
-
-    boolean seamlessPreparation(UUID player) {
-        Preparation preparation = preparations.get(player);
-        return preparation != null && preparation.seamless;
-    }
-
-    void settleCross(ClientViewTravel<MinecraftClientViewPeer> travel, ServerPlayer player) {
-        Optional<TravelMessage.TravelCross> crossing = travel.server().takeCross();
-        if (crossing.isPresent()) {
-            crossSeamless(travel, player, crossing.get());
-        }
-    }
-
-    private void seamlessTick(ClientViewTravel<MinecraftClientViewPeer> travel, ServerPlayer player) {
-        UUID playerId = player.getUUID();
-        RemoteRoutes routes = runtime.remoteRoutes();
-        travel.drainAcks(ack -> routes.ack(playerId, ack));
-        List<RemoteRoutes.Candidate> candidates = seamlessCandidates(travel, player);
-        routes.update(player, travel, candidates, runtime.server().getTickCount());
-        RemoteRoutes.Candidate nearest = null;
-        for (int index = 0; index < candidates.size(); index++) {
-            RemoteRoutes.Candidate candidate = candidates.get(index);
-            if ((nearest == null || candidate.distance() < nearest.distance()) && !runtime.portals().arrivalBlocks(player, candidate.source())) {
-                nearest = candidate;
-            }
-        }
-        RemoteRoute route = nearest == null ? null : routes.route(playerId, nearest.source().getId());
-        if (route == null) {
-            discard(travel);
-            return;
-        }
-        int coreRadius = RemoteRoutes.coreRadius(RemoteRoutes.fullRadius(player.requestedViewDistance(),
-            runtime.server().getPlayerList().getViewDistance()));
-        Vec3d anchor = nearest.destination().getOrigin();
-        int centerX = (int) Math.floor(anchor.x()) >> 4;
-        int centerZ = (int) Math.floor(anchor.z()) >> 4;
-        Preparation preparation = preparations.get(playerId);
-        if (preparation == null || !preparation.seamless || preparation.source != nearest.source() || preparation.destination != nearest.destination()
-            || preparation.world != nearest.level() || preparation.handle != route.handle() || !preparation.core.matches(centerX, centerZ, coreRadius)
-            || preparation.route != travel.player().portals().routeIdentity(nearest.source()) || travel.server().preparing().isEmpty()) {
-            discard(travel);
-            preparation = createSeamless(travel, player, nearest, route, new RouteWindow(centerX, centerZ, coreRadius));
-            if (preparation == null) {
-                return;
-            }
-            preparations.put(playerId, preparation);
-        }
-        if (preparation.committed) {
-            return;
-        }
-        markResident(travel, player, route, preparation);
-        travel.server().tick(System.currentTimeMillis(), 0, travel::sendTravel);
-    }
-
-    private void markResident(ClientViewTravel<MinecraftClientViewPeer> travel, ServerPlayer player, RemoteRoute route, Preparation preparation) {
-        if (route.resident() && preparation.marked == route.stream().version()) {
-            return;
-        }
-        ChunkMap chunks = player.level().getChunkSource().chunkMap;
-        LongList keys = preparation.core.keys();
-        for (int index = 0; index < keys.size(); index++) {
-            long key = keys.getLong(index);
-            int x = ChunkPos.getX(key);
-            int z = ChunkPos.getZ(key);
-            TravelMessage.TravelCoordinate coordinate = new TravelMessage.TravelCoordinate(x, z);
-            boolean ready = route.resident() ? route.stream().delivered(key) : chunks.isChunkTracked(player, x, z);
-            if (ready) {
-                travel.server().routed(coordinate, route.resident() ? route.stream().revision(key) : 1);
-            } else {
-                travel.server().invalidate(coordinate);
-            }
-        }
-        preparation.marked = route.resident() ? route.stream().version() : Long.MIN_VALUE;
-    }
-
-    private List<RemoteRoutes.Candidate> seamlessCandidates(ClientViewTravel<MinecraftClientViewPeer> travel, ServerPlayer player) {
-        interested.clear();
-        portals.interested(travel.player(), interested);
-        List<RemoteRoutes.Candidate> candidates = new ArrayList<>(interested.size());
-        Vec3d feet = new Vec3d(player.getX(), player.getY(), player.getZ());
-        for (UUID id : interested) {
-            MinecraftPortal source = portals.portal(travel.player(), id);
-            if (source == null || source.isMirrorMode() || !source.isOpen() || source.getType() == PortalType.RTP
-                || MinecraftGatewayPolicies.active(source)) {
-                continue;
-            }
-            MinecraftPortal destination = travel.player().portals().projectionDestination(source);
-            ServerLevel world = destination == null ? null : runtime.portals().resolveLevel(destination);
-            if (world == null || RemoteRoutes.travelWorld(world).isEmpty() || !eligible(travel.player(), player, source, destination)) {
-                continue;
-            }
-            candidates.add(new RemoteRoutes.Candidate(source, destination, world, source.getOrigin().distance(feet)));
-        }
-        return candidates;
-    }
-
-    private Preparation createSeamless(ClientViewTravel<MinecraftClientViewPeer> travel, ServerPlayer player, RemoteRoutes.Candidate candidate,
-                                       RemoteRoute route, RouteWindow core) {
-        MinecraftPortal source = candidate.source();
-        MinecraftPortal destination = candidate.destination();
-        ServerLevel world = candidate.level();
-        ApertureDescriptor geometry = travel.travelGeometry(source.getId());
-        MinecraftClientViewScene.Destination mapped = geometry == null ? null
-            : portals.scene().destination(travel.player(), source.getId(), geometry.frontSide());
-        if (mapped == null || geometry.mirror()) {
-            return null;
-        }
-        Vec3d feet = mappedCrossing(player, source, destination);
-        Vec3d eye = feet.add(new Vec3d(0, player.getEyeHeight(), 0));
-        List<TravelMessage.TravelCoordinate> coordinates = core.coordinates();
-        TravelMessage.TravelBegin begin = new TravelMessage.TravelBegin(UUID.randomUUID(), ++generation, source.getId(),
-            player.level().dimension().identifier().toString(), geometry, mapped.frame().transform(), RemoteRoutes.travelWorld(world).orElseThrow(),
-            new TravelMessage.TravelPose(feet.x(), feet.y(), feet.z(), player.getYRot(), player.getXRot()), coordinates,
-            MinecraftPortalEnvironment.capture(world, eye, OpticTransform.IDENTITY, world.isFlat()),
-            TravelMessage.MAX_TRAVEL_EXPIRY_MILLIS, rules(travel.player(), source), route.resident(), route.handle(), true);
-        travel.server().begin(begin, System.currentTimeMillis());
-        Preparation preparation = new Preparation(new PreparationOptions(source, destination, world,
-            travel.player().portals().routeIdentity(source), coordinates));
-        preparation.begin = begin;
-        preparation.seamless = true;
-        preparation.handle = route.handle();
-        preparation.core = core;
-        return preparation;
-    }
-
-    private void crossSeamless(ClientViewTravel<MinecraftClientViewPeer> travel, ServerPlayer player, TravelMessage.TravelCross request) {
-        Preparation preparation = preparations.get(player.getUUID());
-        TravelMessage.TravelBegin begin = preparation == null ? null : preparation.begin;
-        PlaneCrossing actual = preparation == null || preparation.committed || !preparation.seamless ? null : seamlessCrossing(travel, player, preparation, request);
-        if (actual != null) {
-            preparation.cross = request;
-            preparation.crossing = actual;
-            dispatchCross(travel.player(), player, preparation.source, preparation.destination,
-                travel.travelGeometry(preparation.source.getId()).kind(), actual);
-        }
-        if (actual == null || !runtime.clientViews().seamlessAccepted(player.getUUID(), begin.token())) {
-            discard(travel);
-            player.connection.teleport(player.getX(), player.getY(), player.getZ(), player.getYRot(), player.getXRot());
-        }
-    }
-
-    private PlaneCrossing seamlessCrossing(ClientViewTravel<MinecraftClientViewPeer> travel, ServerPlayer player, Preparation preparation,
-                                           TravelMessage.TravelCross request) {
-        ApertureDescriptor geometry = travel.travelGeometry(preparation.source.getId());
-        RemoteRoute route = runtime.remoteRoutes().route(player.getUUID(), preparation.source.getId());
-        if (geometry == null || route == null || route.level() != preparation.world || route.handle() != preparation.handle
-            || player.level() != runtime.portals().resolveLevel(preparation.source)
-            || travel.player().portals().projectionDestination(preparation.source) != preparation.destination
-            || travel.player().portals().routeIdentity(preparation.source) != preparation.route
-            || player.getVehicle() != null || !player.getPassengers().isEmpty()) {
-            return null;
-        }
-        Vec3d feet = new Vec3d(player.getX(), player.getY(), player.getZ());
-        Vec3d velocity = runtime.portals().observedVelocity(player);
-        ClientPreparedTravelServer.SeamlessRejection rejection = travel.server().validSeamlessCross(request, new ClientPreparedTravelServer.Authority(
-                player.level().dimension().identifier().toString(), geometry,
-                new TravelMessage.TravelPose(feet.x(), feet.y(), feet.z(), player.getYRot(), player.getXRot()), velocity, player.getEyeHeight()),
-            seamlessAuthority(player, runtime.server().getTickCount(), runtime.configuration().settings().getMain().teleportCooldownMillis),
-            System.currentTimeMillis());
-        if (rejection != ClientPreparedTravelServer.SeamlessRejection.NONE) {
-            LOGGER.debug("Seamless crossing of {} through {} rejected: {}", player.getUUID(), preparation.source.getId(), rejection);
-            return null;
-        }
-        boolean front = geometry.signedDistance(request.previousEye().x(), request.previousEye().y(), request.previousEye().z()) > 0.0D;
-        Vec3 look = Vec3.directionFromRotation(request.sourcePose().pitch(), request.sourcePose().yaw());
-        PlaneCrossing actual = new PlaneCrossing(preparation.source.getFrame().view(front), preparation.source.getOrigin(),
-            new Vec3d(request.sourcePose().x(), request.sourcePose().y(), request.sourcePose().z()), velocity, new Vec3d(look.x, look.y, look.z), front);
-        Vec3d arrival = actual.outPoint(preparation.destination.getFrame(), preparation.destination.getOrigin());
-        return residentArrival(route, player, arrival)
-            && destinationMatches(travel.player(), player, preparation.source, preparation.destination, actual)
-            ? actual : null;
-    }
-
-    static ClientPreparedTravelServer.SeamlessAuthority seamlessAuthority(ServerPlayer player, long tick, long cooldownMillis) {
-        return new ClientPreparedTravelServer.SeamlessAuthority(((SeamlessListenerAccess) player.connection).wormholesAwaitingPosition() != null,
-            player.isChangingDimension(), tick, cooldownMillis);
-    }
-
-    static TravelMessage.TravelPose seamlessPose(TravelMessage.TravelPose arrival, TravelMessage.TravelCross cross, PlaneCrossing crossing,
-                                                 TravelMessage.ArrivalRules rules, Frame destination, Vec3d destinationOrigin) {
-        OpticTransform toward = crossing.toward(destination, destinationOrigin);
-        TravelMessage.TravelPose source = cross.sourcePose();
-        Vec3d position = new Vec3d(source.x(), source.y(), source.z());
-        Pose crossed = PoseTransform.apply(new Pose(position, position, position, crossing.velocity(), source.yaw(), source.pitch(),
-            source.yaw(), source.pitch(), source.yaw(), source.yaw(), source.yaw(), source.yaw()), toward);
-        Frame view = crossing.frame();
-        Frame exit = new Frame(toward.face(view.getNormal()), toward.face(view.getRight()), toward.face(view.getUp())).view(crossing.frontSide());
-        Pose arrived = PoseTransform.arrive(crossed, crossing, exit, rules.orientation(), rules.gravityFlip(), rules.momentum(),
-            rules.momentum().maxSpeed());
-        return new TravelMessage.TravelPose(arrival.x(), arrival.y(), arrival.z(), arrived.yaw(), arrived.pitch());
-    }
-
-    static boolean residentArrival(RemoteRoute route, ServerPlayer player, Vec3d arrival) {
-        int chunkX = arrival.blockX() >> 4;
-        int chunkZ = arrival.blockZ() >> 4;
-        return route.resident() ? route.stream().delivered(ChunkPos.pack(chunkX, chunkZ))
-            : player.level().getChunkSource().chunkMap.isChunkTracked(player, chunkX, chunkZ);
-    }
-
-    boolean destinationMatches(MinecraftClientViewPeer peer, ServerPlayer player, MinecraftPortal source, MinecraftPortal destination,
-                               PlaneCrossing crossing) {
-        if (peer.door(source.getId()) == source) {
-            return true;
-        }
-        NetworkMember selected = runtime.portals().resolveDestination(source, player, crossing);
-        return selected != null && selected.isLocal() && selected.portalId().equals(destination.getId());
-    }
-
-    private RemoteRoutes.Return returnRoute(ClientViewTravel<MinecraftClientViewPeer> travel, ServerPlayer player, Preparation preparation,
-                                            int handle) {
-        MinecraftPortal arrival = preparation.destination;
-        if (runtime.portals().get(arrival.getId()) != arrival || !arrival.isOpen() || arrival.isMirrorMode()) {
-            return null;
-        }
-        MinecraftPortal back = travel.player().portals().projectionDestination(arrival);
-        if (back == null || runtime.portals().get(back.getId()) != back || runtime.portals().resolveLevel(back) != player.level()
-            || !back.isOpen() || back.isMirrorMode() || !runtime.portals().canDepart(player, arrival) || !runtime.portals().canArrive(player, back)) {
-            return null;
-        }
-        TravelMessage.RemoteLevelOpen open = RemoteRoutes.openReturn(player.level(), back, handle,
-            RemoteRoutes.fullRadius(player.requestedViewDistance(), runtime.server().getPlayerList().getViewDistance()));
-        return open == null ? null : new RemoteRoutes.Return(arrival, back, open);
-    }
-
-    private TravelMessage.ArrivalRules rules(MinecraftClientViewPeer peer, MinecraftPortal source) {
+    TravelMessage.ArrivalRules rules(MinecraftClientViewPeer peer, MinecraftPortal source) {
         return peer.door(source.getId()) == source ? runtime.portals().doorArrivalRules() : runtime.portals().arrivalRules(source);
     }
 
@@ -710,12 +442,6 @@ final class MinecraftPreparedTravel {
         private final Map<TravelMessage.TravelCoordinate, Captured> captured = new HashMap<>();
         private final Map<TravelMessage.TravelCoordinate, ChunkLease> leases = new HashMap<>();
         private boolean committed;
-        private boolean seamless;
-        private int handle;
-        private long marked = Long.MIN_VALUE;
-        private RouteWindow core;
-        private TravelMessage.TravelCross cross;
-        private PlaneCrossing crossing;
 
         private Preparation(PreparationOptions options) {
             this.source = options.source();

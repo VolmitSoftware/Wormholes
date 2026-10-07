@@ -49,7 +49,7 @@ final class SeamlessTravelFixtures {
             EXPECTED_ARRIVAL.y, EXPECTED_ARRIVAL.z, DESTINATION.yaw() + yaw, DESTINATION.pitch()), new Vec3d(0, 0, -0.25), 3, true, 100L);
     }
 
-    static Object prediction(ClientLevel source, ClientPacketListener connection, boolean seamless) throws ReflectiveOperationException {
+    static Object prediction(ClientLevel source, ClientPacketListener connection) throws ReflectiveOperationException {
         Pose motion = new Pose(new Vec3d(0.5, 0, 0.2), new Vec3d(0.5, 0, 0.5), new Vec3d(0.5, 0, 0.5), new Vec3d(0, 0, -0.3),
             180, 10, 178, 9, 179, 177, 181, 179);
         ClientTravelMotion.Carry carry = new ClientTravelMotion.Carry(180, 10, 178, 9, new Vec3d(0.5, 0, 0.2), new Vec3d(0.5, 0, 0.5));
@@ -57,7 +57,7 @@ final class SeamlessTravelFixtures {
         Constructor<?> state = stateType.getDeclaredConstructors()[0];
         state.setAccessible(true);
         Object value = state.newInstance(source, motion, carry, DESTINATION, EXPECTED_ARRIVAL, REVISION, mock(LevelExtractor.class),
-            connection, seamless);
+            connection);
         Class<?> predictionType = Class.forName(ClientPreparedTravel.class.getName() + "$Prediction");
         Constructor<?> prediction = predictionType.getDeclaredConstructor(stateType);
         prediction.setAccessible(true);

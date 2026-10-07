@@ -14,7 +14,7 @@ public final class SeamlessTravelCodec implements TravelExtension.Seamless {
 
     @Override
     public boolean serverbound(int id) {
-        return id == TravelMessage.REMOTE_VIEW_ACK;
+        return id == TravelMessage.REMOTE_VIEW_ACK || id == TravelMessage.REMOTE_LEVEL_REOPEN;
     }
 
     @Override
@@ -73,6 +73,7 @@ public final class SeamlessTravelCodec implements TravelExtension.Seamless {
                 out.i32(ack.lastSequence());
                 out.u8(ack.chunksPerTickHint());
             }
+            case TravelMessage.RemoteLevelReopen reopen -> out.u8(reopen.levelHandle());
             default -> throw new ViewStreamProtocolException("Unexpected seamless travel message " + message.id());
         }
     }
@@ -94,6 +95,7 @@ public final class SeamlessTravelCodec implements TravelExtension.Seamless {
             case TravelMessage.TRAVEL_ACCEPT -> new TravelMessage.TravelAccept(TravelExtension.uuid(in), in.i64(), in.i64(), TravelExtension.pose(in),
                 TravelExtension.vector(in), in.u8(), TravelExtension.bool(in), in.i64());
             case TravelMessage.REMOTE_VIEW_ACK -> new TravelMessage.RemoteViewAck(in.u8(), in.i32(), in.u8());
+            case TravelMessage.REMOTE_LEVEL_REOPEN -> new TravelMessage.RemoteLevelReopen(in.u8());
             default -> throw new ViewStreamProtocolException("Unknown travel message " + id);
         };
     }

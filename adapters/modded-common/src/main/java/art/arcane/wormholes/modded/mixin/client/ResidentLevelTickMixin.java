@@ -19,6 +19,14 @@ public abstract class ResidentLevelTickMixin {
         }
     }
 
+    @Inject(method = "tick", at = @At("TAIL"))
+    private void wormholes$tickEndCrossing(CallbackInfo callback) {
+        WormholesClient client = WormholesClient.instance();
+        if (client != null) {
+            client.preparedTravel().seamless().afterTick();
+        }
+    }
+
     @ModifyArg(method = "updateLevelInEngines(Lnet/minecraft/client/multiplayer/ClientLevel;)V", at = @At(value = "INVOKE",
         target = "Lnet/minecraft/client/Minecraft;updateLevelInEngines(Lnet/minecraft/client/multiplayer/ClientLevel;Z)V"), index = 1)
     private boolean wormholes$keepSounds(boolean stopSound) {

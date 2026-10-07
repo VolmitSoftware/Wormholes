@@ -1,0 +1,474 @@
+package art.arcane.wormholes.modded.client;
+
+import art.arcane.optics.aperture.Aperture;
+import art.arcane.optics.aperture.ApertureCells;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.crossing.Pose;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Vec3d;
+import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
+import art.arcane.wormholes.modded.client.render.PortalIrisMainPipelines;
+import art.arcane.wormholes.modded.seamless.StraddleTracker;
+import art.arcane.wormholes.network.client.TravelMessage;
+import net.minecraft.client.Camera;
+import net.minecraft.client.DeltaTracker;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.util.Mth;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.chunk.status.ChunkStatus;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.ArrayDeque;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.UUID;
+import java.util.function.Consumer;
+
+public final class ClientSeamlessTravel {
+    private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
+    private static final boolean IRIS = ClientSeamlessTravel.class.getClassLoader().getResource("net/irisshaders/iris/Iris.class") != null;
+    private static final long ACCEPT_TIMEOUT_MILLIS = 2_000L;
+    private static final int MAX_CROSSINGS_PER_FRAME = 3;
+    private static final double CHECKPOINT_NUDGE = 0.001D;
+    private static final double POSITION_TOLERANCE = 1.0E-3D;
+    private static final float LOOK_TOLERANCE = 0.5F;
+    private static final long CROSS_REVISION = 1L;
+    private static final float TICK_END_PARTIAL = 0.0F;
+
+    private final Consumer<TravelMessage> sender;
+    private final ResidentLevels residents;
+    private final Map<UUID, TravelMessage.TravelBegin> arms = new LinkedHashMap<>();
+    private final ArrayDeque<Crossing> pending = new ArrayDeque<>();
+    private Vec3 previousEye;
+    private UUID declined;
+    private StraddleTracker.Straddle returning;
+    private boolean straddling;
+
+    public ClientSeamlessTravel(Consumer<TravelMessage> sender, ResidentLevels residents) {
+        this.sender = sender;
+        this.residents = residents;
+    }
+
+    public boolean receive(TravelMessage message) {
+        return switch (message) {
+            case TravelMessage.TravelBegin begin when begin.seamless() -> {
+                arms.put(begin.sourcePortal(), begin);
+                yield true;
+            }
+            case TravelMessage.TravelAccept accept -> {
+                accept(accept);
+                yield true;
+            }
+            case TravelMessage.TravelCancel cancel -> cancel(cancel);
+            default -> false;
+        };
+    }
+
+    public boolean armed() {
+        return !arms.isEmpty();
+    }
+
+    public boolean pending() {
+        return !pending.isEmpty();
+    }
+
+    public boolean armed(UUID source) {
+        return arms.containsKey(source);
+    }
+
+    public boolean beforeFrame(Camera camera, DeltaTracker tracker) {
+        Minecraft minecraft = Minecraft.getInstance();
+        LocalPlayer player = minecraft.player;
+        if (minecraft.level == null || player == null || !camera.isInitialized() || camera.entity() != player) {
+            previousEye = null;
+            return false;
+        }
+        return detect(player, camera.getCameraEntityPartialTicks(tracker));
+    }
+
+    public void afterTick() {
+        Minecraft minecraft = Minecraft.getInstance();
+        LocalPlayer player = minecraft.player;
+        if (minecraft.level == null || player == null || minecraft.getCameraEntity() != player) {
+            return;
+        }
+        detect(player, TICK_END_PARTIAL);
+    }
+
+    public void tick() {
+        Minecraft minecraft = Minecraft.getInstance();
+        LocalPlayer player = minecraft.player;
+        if (player == null || minecraft.getConnection() == null) {
+            return;
+        }
+        Crossing oldest = pending.peekFirst();
+        if (oldest != null && System.currentTimeMillis() >= oldest.deadline()) {
+            rollback(oldest, "no server answer within " + ACCEPT_TIMEOUT_MILLIS + " ms");
+        }
+        if (arms.isEmpty() && returning == null) {
+            if (straddling) {
+                straddling = false;
+                StraddleTracker.clear(player);
+            }
+            return;
+        }
+        straddle(minecraft, player);
+        warm(minecraft, player);
+    }
+
+    public void serverPosition() {
+        Crossing oldest = pending.peekFirst();
+        if (oldest != null) {
+            rollback(oldest, "server position correction");
+        }
+        previousEye = null;
+    }
+
+    public void clear() {
+        arms.clear();
+        pending.clear();
+        residents.crossing(null);
+        previousEye = null;
+        declined = null;
+        returning = null;
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player != null) {
+            StraddleTracker.clear(player);
+        }
+    }
+
+    static StraddleTracker.Straddle straddle(TravelMessage.TravelBegin value, Level destination, Box stretched, Vec3d eye) {
+        ApertureCells aperture = value.sourceGeometry().aperture();
+        if (!StraddleTracker.qualifies(stretched, aperture)) {
+            return null;
+        }
+        return StraddleTracker.create(sourceEndpoint(value, aperture), destinationEndpoint(value), destination, eye);
+    }
+
+    static StraddleTracker.Endpoint sourceEndpoint(TravelMessage.TravelBegin value, Aperture aperture) {
+        ApertureDescriptor geometry = value.sourceGeometry();
+        return new StraddleTracker.Endpoint(aperture, geometry.frame(), planePoint(geometry));
+    }
+
+    static StraddleTracker.Endpoint destinationEndpoint(TravelMessage.TravelBegin value) {
+        ApertureDescriptor geometry = value.sourceGeometry();
+        OpticTransform toward = value.destinationToSource().inverse();
+        ApertureCells aperture = new ApertureCells();
+        aperture.setArea(toward.box(geometry.apertureArea()));
+        Frame exit = ClientTravelMotion.exitFrame(geometry.frame().view(geometry.frontSide()), toward, geometry.frontSide());
+        return new StraddleTracker.Endpoint(aperture, exit, toward.point(planePoint(geometry)));
+    }
+
+    private boolean detect(LocalPlayer player, float partial) {
+        Minecraft minecraft = Minecraft.getInstance();
+        Vec3 eye = player.getEyePosition(partial);
+        Vec3 previous = previousEye;
+        previousEye = eye;
+        if (previous == null || arms.isEmpty() || minecraft.getConnection() == null || player.isPassenger() || player.isDeadOrDying()) {
+            return false;
+        }
+        boolean crossedAny = false;
+        for (int combo = 0; combo < MAX_CROSSINGS_PER_FRAME; combo++) {
+            TravelMessage.TravelBegin arm = crossedArm(minecraft.level, previous, eye);
+            if (arm == null) {
+                break;
+            }
+            Vec3 checkpoint = cross(minecraft, player, arm, partial, previous, eye);
+            if (checkpoint == null) {
+                break;
+            }
+            crossedAny = true;
+            previous = checkpoint;
+            eye = player.getEyePosition(partial);
+        }
+        previousEye = eye;
+        return crossedAny;
+    }
+
+    private TravelMessage.TravelBegin crossedArm(ClientLevel level, Vec3 previous, Vec3 eye) {
+        String dimension = level.dimension().identifier().toString();
+        TravelMessage.TravelBegin nearest = null;
+        double nearestDistance = Double.POSITIVE_INFINITY;
+        for (TravelMessage.TravelBegin arm : arms.values()) {
+            ApertureDescriptor geometry = arm.sourceGeometry();
+            if (!arm.sourceWorld().equals(dimension) || !ClientPreparedTravel.crossed(geometry, previous, eye)) {
+                continue;
+            }
+            double distance = Math.abs(geometry.signedDistance(previous.x, previous.y, previous.z));
+            if (distance < nearestDistance) {
+                nearest = arm;
+                nearestDistance = distance;
+            }
+        }
+        return nearest;
+    }
+
+    private Vec3 cross(Minecraft minecraft, LocalPlayer player, TravelMessage.TravelBegin arm, float partial, Vec3 previous, Vec3 eye) {
+        ClientLevel source = minecraft.level;
+        ClientLevel target = arm.resident() ? residents.level(arm.levelHandle()) : source;
+        Pose before = ClientTravelMotion.capture(player);
+        Vec3 feet = player.getPosition(partial);
+        TravelMessage.TravelPose crossingPose = new TravelMessage.TravelPose(feet.x, feet.y, feet.z, player.getYRot(), player.getXRot());
+        Pose after = ClientTravelMotion.arrive(arm, before, new Vec3d(feet.x, feet.y, feet.z));
+        String refusal = target == null ? "resident level " + arm.levelHandle() + " is not open"
+            : arrivalLoaded(target, after.position()) ? null : "arrival terrain not received";
+        if (refusal != null) {
+            if (!arm.token().equals(declined)) {
+                declined = arm.token();
+                LOGGER.info("Crossing declined {} -> {}: {}", arm.sourceWorld(), arm.world().dimension(), refusal);
+            }
+            return null;
+        }
+        OpticTransform toward = arm.destinationToSource().inverse();
+        Vec3 expected = ClientTravelMotion.point(toward, feet);
+        ClientTravelMotion.Carry carry = ClientTravelMotion.carry(player);
+        try {
+            sender.accept(new TravelMessage.TravelCross(arm.token(), arm.generation(), CROSS_REVISION, crossingPose,
+                ClientTravelMotion.vector(previous), ClientTravelMotion.vector(eye)));
+            ClientTravelMotion.Carry carried = carry.moved(before, after, toward);
+            if (target != source) {
+                ClientLevelSwitch.activate(residents, target, after, carried);
+            } else {
+                ClientTravelMotion.apply(player, after);
+                carried.restore(player);
+            }
+        } catch (RuntimeException failure) {
+            LOGGER.warn("Unable to predict seamless portal crossing", failure);
+            return null;
+        }
+        pending.addLast(new Crossing(arm, source, target, before, carry, after, expected, System.currentTimeMillis() + ACCEPT_TIMEOUT_MILLIS));
+        residents.crossing(pending.peekFirst().source() == pending.peekFirst().target() ? null : pending.peekFirst().source());
+        declined = null;
+        returning = StraddleTracker.create(destinationEndpoint(arm), sourceEndpoint(arm, arm.sourceGeometry().aperture()), source,
+            ClientTravelMotion.vector(player.getEyePosition()));
+        StraddleTracker.register(player, returning);
+        straddling = true;
+        return checkpoint(arm, toward, previous, eye);
+    }
+
+    private void accept(TravelMessage.TravelAccept accept) {
+        Crossing first = pending.peekFirst();
+        if (first != null && first.arm().token().equals(accept.token()) && first.arm().generation() == accept.generation()) {
+            pending.removeFirst();
+            confirmed(first, accept);
+            return;
+        }
+        if (first != null) {
+            rollback(first, "the server crossed through another portal");
+        }
+        serverCrossing(accept);
+    }
+
+    private void confirmed(Crossing crossing, TravelMessage.TravelAccept accept) {
+        TravelMessage.TravelBegin arm = crossing.arm();
+        LOGGER.info("Crossing seamless {} -> {}{}", arm.sourceWorld(), arm.world().dimension(),
+            accept.dimensionChanged() ? " (resident " + accept.levelHandle() + ")" : "");
+        Crossing next = pending.peekFirst();
+        residents.crossing(next == null || next.source() == next.target() ? null : next.source());
+        if (crossing.source() != crossing.target()) {
+            residents.retire(crossing.source());
+        }
+        WormholesClient client = WormholesClient.instance();
+        if (client != null) {
+            client.dropProjectedEntities(arm.sourceGeometry());
+        }
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player == null || next != null) {
+            return;
+        }
+        TravelMessage.TravelPose authoritative = accept.pose();
+        Vec3d offset = new Vec3d(authoritative.x() - crossing.expected().x, authoritative.y() - crossing.expected().y,
+            authoritative.z() - crossing.expected().z);
+        float yaw = Mth.wrapDegrees(authoritative.yaw() - crossing.after().yaw());
+        float pitch = authoritative.pitch() - crossing.after().pitch();
+        Pose reconciled = ClientTravelMotion.reconcile(ClientTravelMotion.capture(player), offset, crossing.after().velocity(), accept.velocity());
+        if (offset.lengthSquared() > POSITION_TOLERANCE * POSITION_TOLERANCE || Math.abs(yaw) > LOOK_TOLERANCE || Math.abs(pitch) > LOOK_TOLERANCE) {
+            LOGGER.warn("Seamless crossing corrected by the server: offset {} yaw {} pitch {}", offset, yaw, pitch);
+            reconciled = ClientTravelMotion.turned(reconciled, yaw, pitch);
+        }
+        ClientTravelMotion.apply(player, reconciled);
+    }
+
+    private void serverCrossing(TravelMessage.TravelAccept accept) {
+        Minecraft minecraft = Minecraft.getInstance();
+        LocalPlayer player = minecraft.player;
+        TravelMessage.TravelBegin arm = arm(accept.token(), accept.generation());
+        if (player == null || minecraft.level == null) {
+            return;
+        }
+        ClientLevel source = minecraft.level;
+        ClientLevel target = accept.dimensionChanged() ? residents.level(accept.levelHandle()) : source;
+        if (target == null) {
+            LOGGER.warn("Crossing seamless by the server could not swap: resident level {} is not open", accept.levelHandle());
+            sender.accept(new TravelMessage.RemoteLevelReopen(accept.levelHandle()));
+            return;
+        }
+        Pose before = ClientTravelMotion.capture(player);
+        Pose mapped = arm == null ? before : ClientTravelMotion.toward(arm.destinationToSource(), before);
+        TravelMessage.TravelPose pose = accept.pose();
+        Vec3d offset = new Vec3d(pose.x() - mapped.position().x(), pose.y() - mapped.position().y(), pose.z() - mapped.position().z());
+        Pose placed = ClientTravelMotion.turned(mapped.moved(offset).withVelocity(accept.velocity()), Mth.wrapDegrees(pose.yaw() - mapped.yaw()),
+            pose.pitch() - mapped.pitch());
+        ClientTravelMotion.Carry carried = arm == null ? ClientTravelMotion.carry(player)
+            : ClientTravelMotion.carry(player).moved(before, placed, arm.destinationToSource().inverse());
+        if (target != source) {
+            ClientLevelSwitch.activate(residents, target, placed, carried);
+            residents.retire(source);
+        } else {
+            ClientTravelMotion.apply(player, placed);
+            carried.restore(player);
+        }
+        previousEye = null;
+        LOGGER.info("Crossing seamless {} -> {} by the server{}", arm == null ? source.dimension().identifier() : arm.sourceWorld(),
+            target.dimension().identifier(), accept.dimensionChanged() ? " (resident " + accept.levelHandle() + ")" : "");
+        WormholesClient client = WormholesClient.instance();
+        if (client != null && arm != null) {
+            client.dropProjectedEntities(arm.sourceGeometry());
+        }
+    }
+
+    private boolean cancel(TravelMessage.TravelCancel cancel) {
+        for (Crossing crossing : pending) {
+            if (crossing.arm().token().equals(cancel.token()) && crossing.arm().generation() == cancel.generation()) {
+                rollback(crossing, "server rejected the crossing");
+                return true;
+            }
+        }
+        Iterator<Map.Entry<UUID, TravelMessage.TravelBegin>> iterator = arms.entrySet().iterator();
+        while (iterator.hasNext()) {
+            TravelMessage.TravelBegin arm = iterator.next().getValue();
+            if (arm.token().equals(cancel.token()) && arm.generation() == cancel.generation()) {
+                iterator.remove();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void rollback(Crossing from, String reason) {
+        LOGGER.info("Crossing rolled back {} -> {}: {}", from.arm().sourceWorld(), from.arm().world().dimension(), reason);
+        while (!pending.isEmpty() && pending.peekLast() != from) {
+            pending.removeLast();
+        }
+        pending.pollLast();
+        Minecraft minecraft = Minecraft.getInstance();
+        LocalPlayer player = minecraft.player;
+        Crossing next = pending.peekFirst();
+        residents.crossing(next == null || next.source() == next.target() ? null : next.source());
+        previousEye = null;
+        returning = null;
+        if (player == null) {
+            return;
+        }
+        StraddleTracker.clear(player);
+        if (minecraft.level != from.source()) {
+            ClientLevelSwitch.activate(residents, from.source(), from.before(), from.carry());
+        } else {
+            ClientTravelMotion.apply(player, from.before());
+            from.carry().restore(player);
+        }
+    }
+
+    private void straddle(Minecraft minecraft, LocalPlayer player) {
+        Box stretched = StraddleTracker.stretched(box(player.getBoundingBox()), ClientTravelMotion.vector(player.getDeltaMovement()),
+            new Vec3d(player.xo - player.getX(), player.yo - player.getY(), player.zo - player.getZ()));
+        Vec3d eye = ClientTravelMotion.vector(player.getEyePosition());
+        String dimension = minecraft.level.dimension().identifier().toString();
+        for (TravelMessage.TravelBegin arm : arms.values()) {
+            ClientLevel target = arm.resident() ? residents.level(arm.levelHandle()) : minecraft.level;
+            StraddleTracker.Straddle straddle = target == null || !arm.sourceWorld().equals(dimension) ? null : straddle(arm, target, stretched, eye);
+            if (straddle != null) {
+                StraddleTracker.register(player, straddle);
+                straddling = true;
+                returning = null;
+                return;
+            }
+        }
+        if (returning != null && StraddleTracker.qualifies(stretched, returning.aperture())) {
+            StraddleTracker.register(player, returning);
+            straddling = true;
+            return;
+        }
+        returning = null;
+        straddling = false;
+        StraddleTracker.clear(player);
+    }
+
+    private void warm(Minecraft minecraft, LocalPlayer player) {
+        TravelMessage.TravelBegin nearest = null;
+        double nearestDistance = Double.POSITIVE_INFINITY;
+        String dimension = minecraft.level.dimension().identifier().toString();
+        for (TravelMessage.TravelBegin arm : arms.values()) {
+            if (!arm.resident() || !arm.sourceWorld().equals(dimension)) {
+                continue;
+            }
+            double distance = Math.abs(arm.sourceGeometry().signedDistance(player.getX(), player.getEyeY(), player.getZ()));
+            if (distance < nearestDistance) {
+                nearest = arm;
+                nearestDistance = distance;
+            }
+        }
+        ClientLevel level = nearest == null ? null : residents.level(nearest.levelHandle());
+        if (level == null) {
+            return;
+        }
+        try {
+            if (!IRIS || PortalIrisMainPipelines.prepare(level)) {
+                ClientSodiumTerrain.prepare(level, nearest.environment(), ClientPreparedTravel.travelCamera(nearest));
+            }
+        } catch (RuntimeException failure) {
+            LOGGER.warn("Unable to prepare the {} terrain behind portal {}", level.dimension().identifier(), nearest.sourcePortal(), failure);
+        }
+    }
+
+    private TravelMessage.TravelBegin arm(UUID token, long generation) {
+        for (TravelMessage.TravelBegin arm : arms.values()) {
+            if (arm.token().equals(token) && arm.generation() == generation) {
+                return arm;
+            }
+        }
+        return null;
+    }
+
+    private static boolean arrivalLoaded(ClientLevel level, Vec3d feet) {
+        int x = (int) Math.floor(feet.x()) >> 4;
+        int z = (int) Math.floor(feet.z()) >> 4;
+        return level.getChunkSource().getChunk(x, z, ChunkStatus.FULL, false) != null;
+    }
+
+    private static Vec3 checkpoint(TravelMessage.TravelBegin value, OpticTransform toward, Vec3 previous, Vec3 eye) {
+        ApertureDescriptor geometry = value.sourceGeometry();
+        double before = geometry.signedDistance(previous.x, previous.y, previous.z);
+        double after = geometry.signedDistance(eye.x, eye.y, eye.z);
+        Vec3 crossing = before == after ? eye : previous.lerp(eye, before / (before - after));
+        Vec3 motion = ClientTravelMotion.position(toward.vector(ClientTravelMotion.vector(eye.subtract(previous))));
+        Vec3 mapped = ClientTravelMotion.point(toward, crossing);
+        return motion.lengthSqr() == 0.0D ? mapped : mapped.add(motion.normalize().scale(CHECKPOINT_NUDGE));
+    }
+
+    private static Vec3d planePoint(ApertureDescriptor geometry) {
+        Vec3d center = geometry.apertureArea().center();
+        double plane = geometry.planeCoordinate();
+        return switch (geometry.facingDirection().getAxis()) {
+            case X -> new Vec3d(plane, center.y(), center.z());
+            case Y -> new Vec3d(center.x(), plane, center.z());
+            case Z -> new Vec3d(center.x(), center.y(), plane);
+        };
+    }
+
+    private static Box box(AABB bounds) {
+        return new Box(bounds.minX, bounds.maxX, bounds.minY, bounds.maxY, bounds.minZ, bounds.maxZ);
+    }
+
+    private record Crossing(TravelMessage.TravelBegin arm, ClientLevel source, ClientLevel target, Pose before, ClientTravelMotion.Carry carry,
+                            Pose after, Vec3 expected, long deadline) {
+    }
+}

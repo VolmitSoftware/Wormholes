@@ -335,11 +335,15 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
                 Vec3d start = previous != null && previous.level() == level
                     ? vector(previous.point()) : new Vec3d(root.xo, root.yo, root.zo);
                 Vec3d end = vector(current);
-                Vec3d intersection = PlaneCrossing.intersection(source.getFrame(), source.getOrigin(), start, end);
+                Vec3d lift = !random && root instanceof ServerPlayer eyed && runtime.clientViews().seamlessEye(eyed.getUUID(), source.getId())
+                    ? new Vec3d(0.0D, root.getEyeHeight(), 0.0D) : new Vec3d(0.0D, 0.0D, 0.0D);
+                Vec3d detectStart = start.add(lift);
+                Vec3d detectEnd = end.add(lift);
+                Vec3d intersection = PlaneCrossing.intersection(source.getFrame(), source.getOrigin(), detectStart, detectEnd);
                 DeferredCrossing deferred = deferredCrossings.get(root.getUUID());
-                boolean retained = deferred != null && deferred.source() == source && retainedCrossing(deferred, now) && deferred.crossing().frame().getNormal().x() * (end.x() - source.getOrigin().x())
-                        + deferred.crossing().frame().getNormal().y() * (end.y() - source.getOrigin().y())
-                        + deferred.crossing().frame().getNormal().z() * (end.z() - source.getOrigin().z()) <= 0.0D;
+                boolean retained = deferred != null && deferred.source() == source && retainedCrossing(deferred, now) && deferred.crossing().frame().getNormal().x() * (detectEnd.x() - source.getOrigin().x())
+                        + deferred.crossing().frame().getNormal().y() * (detectEnd.y() - source.getOrigin().y())
+                        + deferred.crossing().frame().getNormal().z() * (detectEnd.z() - source.getOrigin().z()) <= 0.0D;
                 if (!retained && (intersection == null || !source.getGeometry().contains(intersection))) {
                     continue;
                 }
@@ -350,9 +354,11 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
                 visited.add(root.getUUID());
                 Vec3 velocity = root instanceof ServerPlayer ? current.subtract(start.x(), start.y(), start.z()) : root.getDeltaMovement();
                 PlaneCrossing crossing = PlaneCrossing.create(source.getFrame(), source.getOrigin(),
-                    new PlaneCrossing.Motion(start, end, vector(velocity), vector(root.getLookAngle())));
+                    new PlaneCrossing.Motion(detectStart, end, vector(velocity), vector(root.getLookAngle())));
                 if (retained) {
-                    crossing = deferred.crossing();
+                    PlaneCrossing held = deferred.crossing();
+                    crossing = lift.y() > 0.0D ? new PlaneCrossing(held.frame(), held.origin(), end, vector(velocity), vector(root.getLookAngle()),
+                        held.frontSide()) : held;
                 }
                 if (!random && root instanceof ServerPlayer player && runtime.clientViews().deferTravel(player.getUUID(), source.getId())) {
                     deferredCrossings.putIfAbsent(root.getUUID(), new DeferredCrossing(player, source, level, source.getDestinationId(), source.getDestinationServer(), crossing, now + 2_500L));
@@ -453,7 +459,7 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
             return false;
         }
         Arrival arrival = arrivals.get(player.getUUID());
-        if (arrival != null && arrival.blocks(sourceId, overlaps(source, player), System.currentTimeMillis())) {
+        if (!runtime.clientViews().seamlessCrossing(player) && arrival != null && arrival.blocks(sourceId, overlaps(source, player), System.currentTimeMillis())) {
             return false;
         }
         if (destination == null || !destination.isOpen() || destination.isMirrorMode() || !admit(player, source, destination)) {
@@ -501,7 +507,7 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
                                     String destinationServer, PlaneCrossing crossing, long expiresAt) {
     }
 
-    boolean travelling(UUID entityId) {
+    public boolean travelling(UUID entityId) {
         return pending.containsKey(entityId);
     }
 
@@ -711,6 +717,7 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
         List<MinecraftTravelCosts.Admission> payments = new ArrayList<>();
         List<PreparedCommit> preparedCommits = new ArrayList<>();
         boolean reloadExpected = entity.level() != targetLevel;
+        ServerLevel originLevel = (ServerLevel) entity.level();
         Entity arrived;
         List<Entity> rig = entity.getSelfAndPassengers().toList();
         TravelMessage.TravelPose pose = new TravelMessage.TravelPose(target.x(), target.y(), target.z(), look.yaw(), look.pitch());
@@ -780,6 +787,9 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
             rollback(preSend);
             return;
         }
+        if (arrived instanceof ServerPlayer player) {
+            runtime.clientViews().crossed(player, originLevel, targetLevel, seamless != null, prepared(preparedCommits, player.getUUID()));
+        }
         for (PreparedCommit commit : preparedCommits) {
             runtime.clientViews().completeTravel(commit.player());
         }
@@ -805,7 +815,11 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
             if (member instanceof ServerPlayer player) {
                 runtime.atlas().departed(player, source);
             }
-            arrivals.put(member.getUUID(), new Arrival(destination.getId(), now + cooldown, now + 60_000L));
+            if (seamless == null) {
+                arrivals.put(member.getUUID(), new Arrival(destination.getId(), now + cooldown, now + 60_000L));
+            } else {
+                arrivals.remove(member.getUUID());
+            }
             visited.add(member.getUUID());
         }
     }

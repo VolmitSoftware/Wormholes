@@ -15,10 +15,12 @@ import art.arcane.wormholes.modded.seamless.RouteWindow;
 import art.arcane.wormholes.nexus.NetworkMember;
 import art.arcane.wormholes.portal.Portal;
 import art.arcane.wormholes.portal.PortalType;
-import art.arcane.wormholes.render.client.session.ClientPreparedTravelServer;
+import art.arcane.wormholes.render.client.session.SeamlessCrossCheck;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import org.junit.Test;
 
@@ -38,19 +40,20 @@ public class SeamlessValidationTest extends MinecraftTestBase {
         ServerPlayer player = player();
         when(((SeamlessListenerAccess) player.connection).wormholesAwaitingPosition()).thenReturn(new Vec3(1, 2, 3));
 
-        ClientPreparedTravelServer.SeamlessAuthority authority = MinecraftPreparedTravel.seamlessAuthority(player, 40L, 1_000L);
+        SeamlessCrossCheck.Server authority = MinecraftSeamlessTravel.authority(player, null, new Vec3d(0, -3.9D, 0));
 
         assertTrue(authority.awaitingTeleport());
         assertFalse(authority.changingDimension());
-        assertEquals(40L, authority.serverTick());
-        assertEquals(1_000L, authority.cooldownMillis());
+        assertEquals("minecraft:overworld", authority.world());
+        assertEquals(-3.9D, authority.velocity().y(), 0.0D);
+        assertEquals(1.62D, authority.eyeHeight(), 1.0E-6D);
     }
 
     @Test
     public void changingDimensionIsReported() {
         ServerPlayer player = player();
         when(player.isChangingDimension()).thenReturn(true);
-        assertTrue(MinecraftPreparedTravel.seamlessAuthority(player, 1L, 0L).changingDimension());
+        assertTrue(MinecraftSeamlessTravel.authority(player, null, new Vec3d(0, 0, 0)).changingDimension());
     }
 
     @Test
@@ -59,8 +62,8 @@ public class SeamlessValidationTest extends MinecraftTestBase {
             new Vec3d(40.0D, 70.0D, 40.0D), new RouteWindow(2, 2, 2), 4);
         route.stream().markDelivered(ChunkPos.pack(2, 2));
 
-        assertTrue(MinecraftPreparedTravel.residentArrival(route, player(), new Vec3d(40.0D, 70.0D, 40.0D)));
-        assertFalse(MinecraftPreparedTravel.residentArrival(route, player(), new Vec3d(56.0D, 70.0D, 40.0D)));
+        assertTrue(MinecraftSeamlessTravel.residentArrival(route, player(), new Vec3d(40.0D, 70.0D, 40.0D)));
+        assertFalse(MinecraftSeamlessTravel.residentArrival(route, player(), new Vec3d(56.0D, 70.0D, 40.0D)));
     }
 
     @Test
@@ -68,7 +71,8 @@ public class SeamlessValidationTest extends MinecraftTestBase {
         WormholesModRuntime runtime = mock(WormholesModRuntime.class);
         MinecraftPortalRegistry registry = mock(MinecraftPortalRegistry.class);
         when(runtime.portals()).thenReturn(registry);
-        MinecraftPreparedTravel travel = new MinecraftPreparedTravel(runtime, mock(MinecraftClientViewPortalAccess.class));
+        MinecraftClientViewPortalAccess access = mock(MinecraftClientViewPortalAccess.class);
+        MinecraftSeamlessTravel travel = new MinecraftSeamlessTravel(runtime, access, new MinecraftPreparedTravel(runtime, access));
         MinecraftClientViewPeer peer = mock(MinecraftClientViewPeer.class);
         ServerPlayer player = player();
         MinecraftPortal source = portal();
@@ -91,6 +95,10 @@ public class SeamlessValidationTest extends MinecraftTestBase {
     private static ServerPlayer player() {
         ServerPlayer player = mock(ServerPlayer.class);
         player.connection = mock(ServerGamePacketListenerImpl.class, withSettings().extraInterfaces(SeamlessListenerAccess.class));
+        ServerLevel level = mock(ServerLevel.class);
+        when(level.dimension()).thenReturn(Level.OVERWORLD);
+        when(player.level()).thenReturn(level);
+        when(player.getEyeHeight()).thenReturn(1.62F);
         return player;
     }
 

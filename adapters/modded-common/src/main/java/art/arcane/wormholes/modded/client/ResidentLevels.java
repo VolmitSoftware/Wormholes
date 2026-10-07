@@ -6,6 +6,7 @@ import art.arcane.wormholes.modded.seamless.RoutedPackets;
 import art.arcane.wormholes.network.client.TravelMessage;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntLinkedOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ChunkBatchSizeCalculator;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -32,11 +33,11 @@ public final class ResidentLevels {
     private final Int2ObjectOpenHashMap<ResidentLevel> handles = new Int2ObjectOpenHashMap<>();
     private final List<ResidentLevel> levels = new ArrayList<>();
     private final IntLinkedOpenHashSet unacknowledged = new IntLinkedOpenHashSet();
+    private final IntOpenHashSet reopening = new IntOpenHashSet();
     private ClientLevel crossingSource;
     private Routing routing;
     private long clock;
     private boolean activating;
-    private boolean unknownHandleReported;
 
     public ResidentLevels(Consumer<TravelMessage> sender, long budgetBytes) {
         this.sender = sender;
@@ -62,6 +63,7 @@ public final class ResidentLevels {
         }
         resident.bind(open, ++clock);
         handles.put(open.levelHandle(), resident);
+        reopening.remove(open.levelHandle());
         enforceBudget();
         return resident.level();
     }
@@ -83,9 +85,9 @@ public final class ResidentLevels {
     public void route(TravelMessage.RoutedPacket fragment) {
         ResidentLevel resident = handles.get(fragment.levelHandle());
         if (resident == null) {
-            if (!unknownHandleReported) {
-                unknownHandleReported = true;
-                LOGGER.warn("Dropping routed packets for unopened resident level {}", fragment.levelHandle());
+            if (reopening.add(fragment.levelHandle())) {
+                LOGGER.info("Resident level {} is not open here; asking the server to reopen it", fragment.levelHandle());
+                sender.accept(new TravelMessage.RemoteLevelReopen(fragment.levelHandle()));
             }
             return;
         }
@@ -202,16 +204,8 @@ public final class ResidentLevels {
         return crossingSource;
     }
 
-    public void beginCrossing(ClientLevel source) {
+    public void crossing(ClientLevel source) {
         crossingSource = source;
-    }
-
-    public void endCrossing(boolean accepted) {
-        ClientLevel source = crossingSource;
-        crossingSource = null;
-        if (accepted && source != null && source != Minecraft.getInstance().level) {
-            retire(source);
-        }
     }
 
     public ClientLevel crossingSource() {
@@ -257,11 +251,11 @@ public final class ResidentLevels {
         handles.clear();
         unacknowledged.clear();
         decoder.clear();
+        reopening.clear();
         crossingSource = null;
-        unknownHandleReported = false;
     }
 
-    void retire(ClientLevel level) {
+    public void retire(ClientLevel level) {
         ResidentLevel existing = find(level);
         if (existing != null) {
             existing.touch(++clock);
@@ -365,6 +359,7 @@ public final class ResidentLevels {
         handles.remove(resident.handle());
         decoder.forget(resident.handle());
         unacknowledged.remove(resident.handle());
+        reopening.remove(resident.handle());
         resident.unbind(++clock);
     }
 

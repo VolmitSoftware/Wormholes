@@ -62,6 +62,7 @@ public final class RemoteRoutes implements AutoCloseable {
     public static final int MIN_CORE_RADIUS = 2;
     private static final int LINGER_TICKS = RouteStream.FORGET_HYSTERESIS_TICKS;
     private static final int MAX_LEASES_PER_TICK = 16;
+    private static final int MAX_NEAR_ROUTES = 16;
     private static final double FULL_RADIUS_BLOCKS = 8.0D;
     private static final double PARTIAL_RADIUS_BLOCKS = 24.0D;
     private static final Comparator<Candidate> NEAREST = Comparator.comparingDouble(Candidate::distance);
@@ -135,9 +136,21 @@ public final class RemoteRoutes implements AutoCloseable {
         runtime.requireServerThread();
         PlayerRoutes state = state(player, travel);
         RemoteViewOptions config = runtime.configuration().remoteView();
-        List<Candidate> ranked = rank(candidates, config.routes());
-        expire(state, ranked, tick);
         int full = fullRadius(player.requestedViewDistance(), runtime.server().getPlayerList().getViewDistance());
+        List<Candidate> nearby = new ArrayList<>(candidates.size());
+        List<Candidate> far = new ArrayList<>(candidates.size());
+        for (int index = 0; index < candidates.size(); index++) {
+            Candidate candidate = candidates.get(index);
+            if (candidate.level() == player.level()
+                && window(candidate.destination().getOrigin(), radius(full, candidate.distance())).within(player.getChunkTrackingView())) {
+                nearby.add(candidate);
+            } else {
+                far.add(candidate);
+            }
+        }
+        List<Candidate> ranked = rank(far, config.routes());
+        ranked.addAll(rank(nearby, MAX_NEAR_ROUTES));
+        expire(state, ranked, tick);
         for (int index = 0; index < ranked.size(); index++) {
             Candidate candidate = ranked.get(index);
             Vec3d anchor = candidate.destination().getOrigin();
@@ -248,6 +261,25 @@ public final class RemoteRoutes implements AutoCloseable {
         return false;
     }
 
+    public boolean reopen(UUID player, int handle) {
+        PlayerRoutes state = players.get(player);
+        if (state == null) {
+            return false;
+        }
+        for (int index = 0; index < state.routes.size(); index++) {
+            RemoteRoute route = state.routes.get(index);
+            if (route.resident() && route.handle() == handle && route.opened()) {
+                releaseArrival(route);
+                unpairAll(route);
+                route.stream().clear();
+                route.opened(false);
+                route.viewersDirty();
+                return true;
+            }
+        }
+        return false;
+    }
+
     public void tickViewers(ServerLevel level, Int2ObjectMap<?> entityMap, long tick) {
         List<RemoteRoute> routes = resident.get(level);
         if (routes == null || routes.isEmpty()) {
@@ -347,7 +379,7 @@ public final class RemoteRoutes implements AutoCloseable {
         }
     }
 
-    List<RemoteRoute> routes(UUID player) {
+    public List<RemoteRoute> routes(UUID player) {
         PlayerRoutes state = players.get(player);
         return state == null ? List.of() : state.routes;
     }
