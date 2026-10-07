@@ -19,7 +19,7 @@ public record ViewStreamPlatform<O, B>(ViewStreamTransport<O> transport,
                                        LongSupplier nanoClock,
                                        BiConsumer<String, Throwable> warnings,
                                        List<ViewStreamExtension<?>> extensions,
-                                       ViewStreamSession.HooksFactory<O, B> hooks) {
+                                       ViewStreamHooksFactory<O, B> hooks) {
     public ViewStreamPlatform {
         Objects.requireNonNull(transport, "transport");
         Objects.requireNonNull(endpoints, "endpoints");
@@ -32,6 +32,6 @@ public record ViewStreamPlatform<O, B>(ViewStreamTransport<O> transport,
         nanoClock = nanoClock == null ? System::nanoTime : nanoClock;
         warnings = warnings == null ? (message, error) -> { } : warnings;
         extensions = extensions == null ? List.of() : List.copyOf(extensions);
-        hooks = hooks == null ? session -> ViewStreamSession.Hooks.none() : hooks;
+        hooks = hooks == null ? session -> ViewStreamHooks.none() : hooks;
     }
 }

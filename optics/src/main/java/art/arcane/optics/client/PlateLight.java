@@ -34,7 +34,7 @@ public final class PlateLight<B> implements BrickLightSource {
     private final WeakReference<ViewPlate<B>> plate;
     private final BlockBox box;
     private final ViewWindow frame;
-    private final Sampler sampler;
+    private final LightSampler sampler;
     private final OpticTransform transform;
     private final double[] remote;
     private final boolean fullBright;
@@ -44,7 +44,7 @@ public final class PlateLight<B> implements BrickLightSource {
     private volatile LongSet dirtyChunks;
     private long reusedSections;
 
-    public PlateLight(ViewPlate<B> plate, ViewWindow frame, Sampler sampler, boolean fullBright) {
+    public PlateLight(ViewPlate<B> plate, ViewWindow frame, LightSampler sampler, boolean fullBright) {
         this.plate = new WeakReference<ViewPlate<B>>(Objects.requireNonNull(plate, "plate"));
         this.box = plate.box();
         this.frame = Objects.requireNonNull(frame, "frame");
@@ -200,11 +200,6 @@ public final class PlateLight<B> implements BrickLightSource {
         return left.transform().equals(right.transform()) && left.mirror() == right.mirror() && left.frontSide() == right.frontSide()
             && left.localOrigin().equals(right.localOrigin()) && left.remoteOrigin().equals(right.remoteOrigin())
             && left.localFrame().equals(right.localFrame()) && left.remoteFrame().equals(right.remoteFrame());
-    }
-
-    @FunctionalInterface
-    public interface Sampler {
-        int light(int x, int y, int z);
     }
 
     private record Section(byte[] block, byte[] sky, boolean filled, boolean complete, long computedNanos) {

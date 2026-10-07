@@ -17,12 +17,6 @@ import art.arcane.optics.math.CellKeys;
 public final class AtmosphereDominance {
     public static final int QUART_CELLS_PER_SECTION = 64;
 
-    @FunctionalInterface
-    public interface RemoteBiomeLookup {
-        /** Client biome id for the destination cell a claim was sampled from, or -1 when unknown. */
-        int biomeIdFor(long remoteKey);
-    }
-
     private AtmosphereDominance() {
     }
 

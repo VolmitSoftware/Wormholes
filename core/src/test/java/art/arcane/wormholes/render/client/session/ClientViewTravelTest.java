@@ -19,6 +19,7 @@ import art.arcane.optics.stream.SessionPalette;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.ViewStreamEndpoints;
 import art.arcane.optics.stream.ViewStreamHandshake;
+import art.arcane.optics.stream.ViewStreamHooksFactory;
 import art.arcane.optics.stream.ViewStreamInbound;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.ViewStreamMessage;
@@ -138,7 +139,7 @@ final class ClientViewTravelTest {
         assertEquals(ViewStreamInbound.HELLO_ACCEPTED, session.receive(hello, 0, hello.length));
     }
 
-    private ViewStreamPlatform<String, String> platform(ViewStreamSession.HooksFactory<String, String> hooks) {
+    private ViewStreamPlatform<String, String> platform(ViewStreamHooksFactory<String, String> hooks) {
         return new ViewStreamPlatform<String, String>(new ViewStreamTransport<String>() {
             @Override
             public void send(String player, byte[] payload) {

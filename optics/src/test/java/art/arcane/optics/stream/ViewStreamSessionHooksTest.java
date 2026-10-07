@@ -98,7 +98,7 @@ final class ViewStreamSessionHooksTest {
         return new SessionHarness(SessionHarness.options(true, 8), Runnable::run, 0L, List.of(TestEffects.INSTANCE, Echo.INSTANCE));
     }
 
-    private static final class Recording implements ViewStreamSession.Hooks<String> {
+    private static final class Recording implements ViewStreamHooks<String> {
         private final List<String> events = new ArrayList<String>();
         private final List<Boolean> sent = new ArrayList<Boolean>();
         private boolean handled;

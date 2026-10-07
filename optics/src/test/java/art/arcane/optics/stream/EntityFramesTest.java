@@ -61,7 +61,7 @@ class EntityFramesTest {
         UUID opaque = EntityProjection.opaque(123, source);
         List<EntitySnapshot> scene = new ArrayList<>(List.of(visual(opaque, 10.5D, 0)));
         boolean[] visible = {true};
-        EntityFrames<String> frames = new EntityFrames<>(new EntityFrames.Scenes<String>() {
+        EntityFrames<String> frames = new EntityFrames<>(new EntityScenes<String>() {
             @Override
             public Object sceneKey(String observer, UUID portal) {
                 return portal;
@@ -169,7 +169,7 @@ class EntityFramesTest {
     void lostSceneClearsPresenceOnce() {
         List<EntitySnapshot> scene = List.of(visual(UUID.randomUUID(), 10.5D, 0.0D));
         boolean[] visible = {true};
-        EntityFrames<String> frames = new EntityFrames<String>(new EntityFrames.Scenes<String>() {
+        EntityFrames<String> frames = new EntityFrames<String>(new EntityScenes<String>() {
             @Override
             public Object sceneKey(String observer, UUID portal) {
                 return visible[0] ? portal : null;
@@ -213,7 +213,7 @@ class EntityFramesTest {
         UUID self = UUID.randomUUID();
         UUID pig = UUID.randomUUID();
         List<EntitySnapshot> scene = List.of(visual(self, 10.5D, 0.0D), visual(pig, 12.5D, 0.0D));
-        EntityFrames<String> frames = new EntityFrames<String>(new EntityFrames.Scenes<String>() {
+        EntityFrames<String> frames = new EntityFrames<String>(new EntityScenes<String>() {
             @Override
             public Object sceneKey(String observer, UUID portal) {
                 return portal;
@@ -237,8 +237,8 @@ class EntityFramesTest {
         assertEquals(2, other.presentIds().size(), "only the observer itself is hidden");
     }
 
-    private static EntityFrames.Scenes<String> scenes(List<EntitySnapshot> scene, AtomicInteger captures) {
-        return new EntityFrames.Scenes<String>() {
+    private static EntityScenes<String> scenes(List<EntitySnapshot> scene, AtomicInteger captures) {
+        return new EntityScenes<String>() {
             @Override
             public Object sceneKey(String observer, UUID portal) {
                 return portal;

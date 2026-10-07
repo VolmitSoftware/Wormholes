@@ -4,6 +4,7 @@ import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.wormholes.network.client.ClientTravelHash;
+import art.arcane.optics.view.WorldChangeListener;
 import art.arcane.optics.view.WorldChangeTracker;
 
 import java.util.ArrayDeque;
@@ -19,7 +20,7 @@ import java.util.UUID;
 import java.util.function.Predicate;
 import art.arcane.wormholes.network.client.TravelMessage;
 
-public final class ClientPreparedTravelServer implements WorldChangeTracker.ChangeListener, AutoCloseable {
+public final class ClientPreparedTravelServer implements WorldChangeListener, AutoCloseable {
     private static final int MAX_RETAINED_COLUMNS = 256;
     private static final int MAX_RETAINED_BYTES = TravelMessage.MAX_TRAVEL_BYTES;
     private static final int MAX_SENT_BARRIERS = 16;

@@ -6,9 +6,9 @@ import com.github.retrooper.packetevents.protocol.nbt.NBTList;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import art.arcane.optics.fidelity.BlockEntitySanitizer;
+import art.arcane.optics.fidelity.TagAccess;
 
-public enum BukkitBlockEntityTags implements BlockEntitySanitizer.TagAccess<NBT> {
+public enum BukkitBlockEntityTags implements TagAccess<NBT> {
     INSTANCE;
 
     public Iterable<String> names(NBT compound) {

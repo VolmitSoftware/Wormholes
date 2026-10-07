@@ -173,7 +173,7 @@ final class ProjectorHoldProofTest {
         throw new IllegalArgumentException(x + "," + y + "," + z);
     }
 
-    private static final class EditableWall implements ProjectorHoldProof.LocalOccupancy {
+    private static final class EditableWall implements LocalOccupancy {
         private final List<int[]> cells = new ArrayList<int[]>();
         private final List<ProjectorHoldProof.Occupancy> values = new ArrayList<ProjectorHoldProof.Occupancy>();
 

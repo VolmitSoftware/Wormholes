@@ -4,6 +4,7 @@ package art.arcane.optics.scan;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.function.Supplier;
+import art.arcane.optics.internal.occlusion.LocalOccupancy;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.aperture.Endpoint;
 import art.arcane.optics.aperture.CellAperture;
@@ -1156,7 +1157,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
                                LodPolicy lod) {
     }
 
-    private final class ScanPass implements ProjectorHoldProof.LocalOccupancy {
+    private final class ScanPass implements LocalOccupancy {
         private V localView;
         private V destView;
         private P dest;

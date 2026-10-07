@@ -85,7 +85,7 @@ final class MeshLocalEntityIdentityTest {
 
         private Fixture() throws Exception {
             List<EntitySnapshot> visuals = List.of(visual(localOpaque), visual(remoteOpaque));
-            source = new EntityFrames<>(new EntityFrames.Scenes<String>() {
+            source = new EntityFrames<>(new EntityScenes<String>() {
                 @Override
                 public Object sceneKey(String observer, UUID portal) {
                     return portal;

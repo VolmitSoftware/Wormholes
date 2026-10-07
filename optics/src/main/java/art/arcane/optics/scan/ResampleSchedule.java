@@ -4,11 +4,12 @@ package art.arcane.optics.scan;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Supplier;
+import art.arcane.optics.view.WorldChangeFilter;
 import art.arcane.optics.view.WorldChangeTracker;
 
 public final class ResampleSchedule {
     private static final int STABLE_RESAMPLE_BACKSTOP_TICKS = 1_200;
-    private static final WorldChangeTracker.ChangeFilter ANY_CHANGE = new WorldChangeTracker.ChangeFilter() {
+    private static final WorldChangeFilter ANY_CHANGE = new WorldChangeFilter() {
         @Override
         public boolean affectsBlock(int x, int y, int z) {
             return true;

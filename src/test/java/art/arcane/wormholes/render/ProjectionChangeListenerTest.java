@@ -23,6 +23,7 @@ import org.bukkit.event.block.BlockRedstoneEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.junit.jupiter.api.Test;
 import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.view.WorldChangeListener;
 import art.arcane.optics.view.WorldChangeTracker;
 
 public final class ProjectionChangeListenerTest {
@@ -95,7 +96,7 @@ public final class ProjectionChangeListenerTest {
 
     private static List<Long> recordBlocks(WorldChangeTracker tracker) {
         List<Long> blocks = new ArrayList<Long>();
-        tracker.addListener(new WorldChangeTracker.ChangeListener() {
+        tracker.addListener(new WorldChangeListener() {
             @Override
             public void blockChanged(UUID worldId, long blockKey) {
                 blocks.add(Long.valueOf(blockKey));

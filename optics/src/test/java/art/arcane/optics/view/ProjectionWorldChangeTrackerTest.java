@@ -87,7 +87,7 @@ public final class ProjectionWorldChangeTrackerTest {
     public void blockChangesStampTheChunkAndNotifyListenersWithTheBlockPosition() {
         WorldChangeTracker tracker = new WorldChangeTracker();
         List<String> events = new ArrayList<String>();
-        WorldChangeTracker.ChangeListener listener = recording(events);
+        WorldChangeListener listener = recording(events);
         tracker.addListener(listener);
         tracker.addListener(listener);
 
@@ -231,8 +231,8 @@ public final class ProjectionWorldChangeTrackerTest {
         assertEquals(tracker.currentVersion(), tracker.unaffectedThrough(WORLD, 0, 0, 1, 1, 0L, filter(new ArrayList<String>(), true)));
     }
 
-    private static WorldChangeTracker.ChangeFilter filter(List<String> seen, boolean affects) {
-        return new WorldChangeTracker.ChangeFilter() {
+    private static WorldChangeFilter filter(List<String> seen, boolean affects) {
+        return new WorldChangeFilter() {
             @Override
             public boolean affectsBlock(int x, int y, int z) {
                 seen.add("block " + x + "," + y + "," + z);
@@ -247,8 +247,8 @@ public final class ProjectionWorldChangeTrackerTest {
         };
     }
 
-    private static WorldChangeTracker.ChangeListener recording(List<String> events) {
-        return new WorldChangeTracker.ChangeListener() {
+    private static WorldChangeListener recording(List<String> events) {
+        return new WorldChangeListener() {
             @Override
             public void blockChanged(UUID worldId, long blockKey) {
                 events.add("block " + CellKeys.unpackX(blockKey) + "," + CellKeys.unpackY(blockKey)

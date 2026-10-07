@@ -42,7 +42,7 @@ public final class ViewStreamSession<O, B> {
     private final long zeroCopyNonce;
     private final ViewStreamLane lane;
     private final MeshStream<B> mesh = new MeshStream<B>();
-    private final Hooks<O> hooks;
+    private final ViewStreamHooks<O> hooks;
     private final Predicate<ViewStreamMessage> sender;
     private final ConcurrentLinkedQueue<Command<B>> inbox;
     private final Object handshakeLock;
@@ -148,7 +148,7 @@ public final class ViewStreamSession<O, B> {
         return !closed && state == ViewStreamSessionState.CLIENT_VIEW && ViewStreamCapability.MESH_RENDER.in(caps);
     }
 
-    public Hooks<O> hooks() {
+    public ViewStreamHooks<O> hooks() {
         return hooks;
     }
 
@@ -1665,41 +1665,5 @@ public final class ViewStreamSession<O, B> {
     }
 
     private record Reset<B>(ViewStreamMessage.ResetReason reason, boolean terminal) implements Command<B> {
-    }
-
-    public interface Hooks<O> {
-        boolean onExtension(O peer, Object payload);
-
-        void tickExtension(O peer, long nowMillis, Predicate<ViewStreamMessage> sender);
-
-        void onReset(O peer);
-
-        void onClose(O peer);
-
-        static <O> Hooks<O> none() {
-            return new Hooks<O>() {
-                @Override
-                public boolean onExtension(O peer, Object payload) {
-                    return false;
-                }
-
-                @Override
-                public void tickExtension(O peer, long nowMillis, Predicate<ViewStreamMessage> sender) {
-                }
-
-                @Override
-                public void onReset(O peer) {
-                }
-
-                @Override
-                public void onClose(O peer) {
-                }
-            };
-        }
-    }
-
-    @FunctionalInterface
-    public interface HooksFactory<O, B> {
-        Hooks<O> create(ViewStreamSession<O, B> session);
     }
 }

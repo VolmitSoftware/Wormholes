@@ -7,13 +7,14 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.stream.ViewStreamHooks;
 import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamSession;
 import art.arcane.wormholes.network.client.ClientViewExtensions;
 import art.arcane.wormholes.network.client.TravelExtension;
 import art.arcane.wormholes.network.client.TravelMessage;
 
-public final class ClientViewTravel<P> implements ViewStreamSession.Hooks<P> {
+public final class ClientViewTravel<P> implements ViewStreamHooks<P> {
     private static final int MAX_PENDING_ACKS = 64;
 
     private final ViewStreamSession<P, ?> session;

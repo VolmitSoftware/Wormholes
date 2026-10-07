@@ -16,11 +16,6 @@ import art.arcane.optics.spi.OpticsMetrics;
  * A cell that leaves the projection re-sends the real local block entity when there is one.
  */
 public final class ProjectedBlockEntityLayer<O> {
-    @FunctionalInterface
-    public interface LocalLookup {
-        BlockEntitySample sample(int x, int y, int z);
-    }
-
     public static final String SENT_METRIC = "projection.block-entities.sent";
 
     private final OpticsMetrics metrics;
@@ -39,7 +34,7 @@ public final class ProjectedBlockEntityLayer<O> {
         this.restoring = new LongOpenHashSet(64);
     }
 
-    public void update(Long2ObjectMap<BlockEntitySample> desired, LocalLookup local) {
+    public void update(Long2ObjectMap<BlockEntitySample> desired, BlockEntityLookup local) {
         for (Long2ObjectMap.Entry<BlockEntitySample> entry : desired.long2ObjectEntrySet()) {
             long key = entry.getLongKey();
             BlockEntitySample sample = entry.getValue();
@@ -117,7 +112,7 @@ public final class ProjectedBlockEntityLayer<O> {
     }
 
     /** Queues the local block entity of every projected cell so a closing view leaves real signs intact. */
-    public void retireAll(LocalLookup local) {
+    public void retireAll(BlockEntityLookup local) {
         Long2ObjectOpenHashMap<BlockEntitySample> empty = new Long2ObjectOpenHashMap<BlockEntitySample>();
         update(empty, local);
     }

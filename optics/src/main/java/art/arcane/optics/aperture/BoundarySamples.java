@@ -63,8 +63,4 @@ public final class BoundarySamples {
             points.add(factory.create(x0 + ((x1 - x0) * t), y0 + ((y1 - y0) * t), z0 + ((z1 - z0) * t)));
         }
     }
-
-    public interface PointFactory<R> {
-        R create(double x, double y, double z);
-    }
 }

@@ -21,6 +21,7 @@ import net.minecraft.network.protocol.game.ClientboundHurtAnimationPacket;
 import net.minecraft.network.protocol.game.ClientboundDamageEventPacket;
 import net.minecraft.world.entity.Entity;
 import java.util.concurrent.ConcurrentHashMap;
+import art.arcane.optics.view.WorldChangeListener;
 import art.arcane.optics.view.WorldChangeTracker;
 import art.arcane.optics.plate.PlatePipeline;
 import art.arcane.optics.plate.ViewPlateCache;
@@ -795,7 +796,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
             }
         }
     }
-    private final class SectionEviction implements WorldChangeTracker.ChangeListener {
+    private final class SectionEviction implements WorldChangeListener {
         @Override
         public void blockChanged(UUID worldId, long blockKey) {
             MinecraftProjectionWorldView view = viewById(worldId);

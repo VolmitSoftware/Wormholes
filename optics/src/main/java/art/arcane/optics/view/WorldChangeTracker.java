@@ -18,18 +18,18 @@ public final class WorldChangeTracker {
     private final ConcurrentHashMap<UUID, ConcurrentHashMap<Long, Long>> worldChunks = new ConcurrentHashMap<UUID, ConcurrentHashMap<Long, Long>>();
     private final ConcurrentHashMap<UUID, Long> clearFloor = new ConcurrentHashMap<UUID, Long>();
     private final ConcurrentHashMap<UUID, AtomicLong> worldMaxStamp = new ConcurrentHashMap<UUID, AtomicLong>();
-    private final CopyOnWriteArrayList<ChangeListener> listeners = new CopyOnWriteArrayList<ChangeListener>();
+    private final CopyOnWriteArrayList<WorldChangeListener> listeners = new CopyOnWriteArrayList<WorldChangeListener>();
     private final ConcurrentHashMap<UUID, ChangeLog> changeLogs = new ConcurrentHashMap<UUID, ChangeLog>();
 
     public long currentVersion() {
         return version.get();
     }
 
-    public void addListener(ChangeListener listener) {
+    public void addListener(WorldChangeListener listener) {
         listeners.addIfAbsent(listener);
     }
 
-    public void removeListener(ChangeListener listener) {
+    public void removeListener(WorldChangeListener listener) {
         listeners.remove(listener);
     }
 
@@ -39,7 +39,7 @@ public final class WorldChangeTracker {
         }
         long blockKey = CellKeys.pack(blockX, blockY, blockZ);
         stamp(worldId, blockX, blockZ, blockKey, false);
-        for (ChangeListener listener : listeners) {
+        for (WorldChangeListener listener : listeners) {
             listener.blockChanged(worldId, blockKey);
         }
     }
@@ -49,7 +49,7 @@ public final class WorldChangeTracker {
             return;
         }
         stamp(worldId, blockX, blockZ, CellKeys.chunkKey(blockX >> 4, blockZ >> 4), true);
-        for (ChangeListener listener : listeners) {
+        for (WorldChangeListener listener : listeners) {
             listener.columnChanged(worldId, blockX >> 4, blockZ >> 4);
         }
     }
@@ -111,7 +111,7 @@ public final class WorldChangeTracker {
     }
 
     public long unaffectedThrough(UUID worldId, int minChunkX, int minChunkZ, int maxChunkX, int maxChunkZ, long sinceVersion,
-                                  ChangeFilter filter) {
+                                  WorldChangeFilter filter) {
         if (worldId == null) {
             return AFFECTED;
         }
@@ -138,7 +138,7 @@ public final class WorldChangeTracker {
         worldChunks.remove(worldId);
         clearFloor.remove(worldId);
         worldMaxStamp.remove(worldId);
-        for (ChangeListener listener : listeners) {
+        for (WorldChangeListener listener : listeners) {
             listener.worldCleared(worldId);
         }
     }
@@ -163,12 +163,6 @@ public final class WorldChangeTracker {
                 return;
             }
         }
-    }
-
-    public interface ChangeFilter {
-        boolean affectsBlock(int x, int y, int z);
-
-        boolean affectsColumn(int chunkX, int chunkZ);
     }
 
     private static final class ChangeLog {
@@ -203,7 +197,7 @@ public final class WorldChangeTracker {
         }
 
         private synchronized long unaffectedThrough(int minChunkX, int minChunkZ, int maxChunkX, int maxChunkZ,
-                                                    long sinceVersion, long currentVersion, ChangeFilter filter) {
+                                                    long sinceVersion, long currentVersion, WorldChangeFilter filter) {
             if (droppedThrough > sinceVersion) {
                 return AFFECTED;
             }
@@ -239,13 +233,5 @@ public final class WorldChangeTracker {
         private static boolean inside(int chunkX, int chunkZ, int minChunkX, int minChunkZ, int maxChunkX, int maxChunkZ) {
             return chunkX >= minChunkX && chunkX <= maxChunkX && chunkZ >= minChunkZ && chunkZ <= maxChunkZ;
         }
-    }
-
-    public interface ChangeListener {
-        void blockChanged(UUID worldId, long blockKey);
-
-        void columnChanged(UUID worldId, int chunkX, int chunkZ);
-
-        void worldCleared(UUID worldId);
     }
 }

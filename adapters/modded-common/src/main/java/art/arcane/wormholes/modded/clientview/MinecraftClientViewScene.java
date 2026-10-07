@@ -11,6 +11,7 @@ import art.arcane.wormholes.modded.MinecraftProjectionWorldView;
 import art.arcane.wormholes.modded.MinecraftViewPlates;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.optics.stream.BrickLightSource;
+import art.arcane.optics.stream.EntityScenes;
 import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.entity.EntitySnapshot;
@@ -23,7 +24,6 @@ import art.arcane.optics.entity.EntityProjection;
 import art.arcane.optics.fidelity.AcousticsBridge;
 import art.arcane.optics.fidelity.AcousticsProfile;
 import art.arcane.wormholes.render.client.session.ClientViewEmitters;
-import art.arcane.optics.stream.EntityFrames;
 import art.arcane.optics.client.PlateLight;
 import art.arcane.wormholes.render.client.session.ClientViewSceneFx;
 import art.arcane.optics.plate.ViewPlate;
@@ -51,7 +51,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import art.arcane.wormholes.network.client.FxMessage;
 import art.arcane.wormholes.render.ProjectedEntityIdentity;
 
-public final class MinecraftClientViewScene implements EntityFrames.Scenes<MinecraftClientViewPeer>,
+public final class MinecraftClientViewScene implements EntityScenes<MinecraftClientViewPeer>,
     ClientViewSceneFx.Effects<MinecraftClientViewPeer> {
     private static final int SURFACE_CADENCE_TICKS = 5;
     private static final long METADATA_IDLE_TICKS = 200L;

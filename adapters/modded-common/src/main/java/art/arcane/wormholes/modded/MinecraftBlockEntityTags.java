@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.optics.fidelity.BlockEntitySanitizer;
+import art.arcane.optics.fidelity.TagAccess;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtIo;
@@ -10,7 +10,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
-public enum MinecraftBlockEntityTags implements BlockEntitySanitizer.TagAccess<Tag> {
+public enum MinecraftBlockEntityTags implements TagAccess<Tag> {
     INSTANCE;
 
     public Iterable<String> names(Tag compound) {

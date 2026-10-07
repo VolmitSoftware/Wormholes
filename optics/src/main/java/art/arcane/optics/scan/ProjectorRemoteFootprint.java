@@ -3,9 +3,9 @@ package art.arcane.optics.scan;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import art.arcane.optics.math.CellKeys;
-import art.arcane.optics.view.WorldChangeTracker;
+import art.arcane.optics.view.WorldChangeFilter;
 
-public final class ProjectorRemoteFootprint implements WorldChangeTracker.ChangeFilter {
+public final class ProjectorRemoteFootprint implements WorldChangeFilter {
     public static final int MARGIN_BLOCKS = 2;
     private static final long NO_SECTION = Long.MIN_VALUE;
 

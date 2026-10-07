@@ -1,5 +1,6 @@
 package art.arcane.wormholes.render;
 
+import art.arcane.optics.client.LightSampler;
 import art.arcane.optics.entity.EntityProfile;
 import java.security.SecureRandom;
 import java.util.ArrayList;
@@ -143,7 +144,7 @@ public final class ClientViewSceneCapture {
         }
         boolean fullBright = !mesh && policy == ProjectedBlockClaim.LightingPolicy.FULL_BRIGHT;
         return lights.light(plate, () -> {
-            PlateLight.Sampler sampler = fullBright ? (x, y, z) -> ContentView.packLight(15, 15)
+            LightSampler sampler = fullBright ? (x, y, z) -> ContentView.packLight(15, 15)
                 : source.regionSnapshots() ? view::getLight : snapshot(world, PlateLight.remoteBox(plate.box(), frame));
             return new PlateLight<BlockData>(plate, frame, sampler, fullBright);
         });
@@ -233,7 +234,7 @@ public final class ClientViewSceneCapture {
         sources.values().removeIf(entry -> tick - entry.tick() > IDLE_TICKS);
     }
 
-    private static PlateLight.Sampler snapshot(World world, BlockBox box) {
+    private static LightSampler snapshot(World world, BlockBox box) {
         if (box.cells() == 0L) {
             return (x, y, z) -> PlateLight.UNAVAILABLE;
         }

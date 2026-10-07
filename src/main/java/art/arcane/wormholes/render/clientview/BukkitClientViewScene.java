@@ -16,6 +16,7 @@ import org.bukkit.entity.Player;
 
 import art.arcane.wormholes.Settings;
 import art.arcane.optics.math.Vec3d;
+import art.arcane.optics.stream.EntityScenes;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.stream.BrickLightSource;
 import art.arcane.optics.stream.ViewStreamMessage;
@@ -30,7 +31,6 @@ import art.arcane.wormholes.render.ClientViewSceneCapture;
 import art.arcane.wormholes.render.FidelitySubsystem;
 import art.arcane.optics.fidelity.AcousticsBridge;
 import art.arcane.wormholes.render.client.session.ClientViewEmitters;
-import art.arcane.optics.stream.EntityFrames;
 import art.arcane.wormholes.render.client.session.ClientViewSceneFx;
 import art.arcane.optics.plate.ViewPlate;
 import art.arcane.optics.frame.OpticTransform;
@@ -38,7 +38,7 @@ import art.arcane.optics.frame.ViewWindow;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.network.client.FxMessage;
 
-final class BukkitClientViewScene implements EntityFrames.Scenes<ClientViewObserver>, ClientViewSceneFx.Effects<ClientViewObserver> {
+final class BukkitClientViewScene implements EntityScenes<ClientViewObserver>, ClientViewSceneFx.Effects<ClientViewObserver> {
     private static final int AMBIENT_CADENCE_TICKS = 1;
 
     private final BukkitClientViewPortalAccess portals;

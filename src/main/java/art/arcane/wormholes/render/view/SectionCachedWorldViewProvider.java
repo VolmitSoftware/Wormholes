@@ -4,6 +4,7 @@ import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.render.BukkitProjectorBlocks;
 import art.arcane.optics.math.CellKeys;
+import art.arcane.optics.view.WorldChangeListener;
 import art.arcane.optics.view.WorldChangeTracker;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -19,7 +20,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.logging.Level;
 import art.arcane.optics.view.SectionCache;
 
-final class SectionCachedWorldViewProvider implements ProjectionWorldViewProvider, WorldChangeTracker.ChangeListener {
+final class SectionCachedWorldViewProvider implements ProjectionWorldViewProvider, WorldChangeListener {
     private final Plugin plugin;
     private final WorldChangeTracker tracker;
     private final SectionCache<BlockData, Material> cache;

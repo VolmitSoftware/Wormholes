@@ -26,11 +26,6 @@ public final class ProjectorHoldProof {
         UNKNOWN
     }
 
-    @FunctionalInterface
-    public interface LocalOccupancy {
-        Occupancy occupancy(int x, int y, int z);
-    }
-
     private final int normalAxis;
     private final int normalSign;
     private final int planeCoord;

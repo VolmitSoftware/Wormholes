@@ -15,6 +15,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
 
+import art.arcane.optics.client.LightSampler;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.ViewWindow;
 import art.arcane.optics.math.CellKeys;
@@ -148,7 +149,7 @@ class ViewStreamPlateLightTest {
         ViewPlate<String> first = portal.build(world);
         PlateLight.Cache<String> cache = new PlateLight.Cache<String>();
         AtomicInteger samples = new AtomicInteger();
-        PlateLight.Sampler counting = (rx, ry, rz) -> {
+        LightSampler counting = (rx, ry, rz) -> {
             samples.incrementAndGet();
             return glow(rx, ry, rz);
         };

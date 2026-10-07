@@ -30,7 +30,7 @@ final class SessionHarness {
     final ViewStreamSession<String, String> session;
     EntityFrameSource<String> entities = EntityFrameSource.none();
     ViewStreamScene<String> scene = ViewStreamScene.none();
-    ViewStreamSession.Hooks<String> hooks = ViewStreamSession.Hooks.none();
+    ViewStreamHooks<String> hooks = ViewStreamHooks.none();
     PlateHandoffs<String> handoffs = PlateHandoffs.none();
     long c2sSpacingNanos = C2S_SPACING_NANOS;
     int c2sCount;
@@ -97,7 +97,7 @@ final class SessionHarness {
             },
             offer -> handoffs.publish(offer), lanes, state -> state, DATA_VERSION,
             ViewStreamCapability.ALL, clock::get, (message, error) -> warnings.add(new AssertionError(message, error)),
-            extensions, created -> new ViewStreamSession.Hooks<String>() {
+            extensions, created -> new ViewStreamHooks<String>() {
                 @Override
                 public boolean onExtension(String peer, Object payload) {
                     return hooks.onExtension(peer, payload);

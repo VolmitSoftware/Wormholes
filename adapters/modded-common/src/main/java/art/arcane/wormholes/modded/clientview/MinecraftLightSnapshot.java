@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.clientview;
 
+import art.arcane.optics.client.LightSampler;
 import art.arcane.optics.client.PlateLight;
 import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.view.ContentView;
@@ -13,7 +14,7 @@ import net.minecraft.world.level.lighting.LayerLightEventListener;
 
 import java.util.Objects;
 
-public final class MinecraftLightSnapshot implements PlateLight.Sampler {
+public final class MinecraftLightSnapshot implements LightSampler {
     private static final DataLayer OPEN_SKY = new DataLayer(15);
     private static final DataLayer DARK = new DataLayer(0);
 

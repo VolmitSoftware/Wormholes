@@ -15,6 +15,7 @@ import art.arcane.optics.math.Box;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.view.BlockStates;
 import art.arcane.optics.view.ContentView;
+import art.arcane.optics.view.WorldChangeFilter;
 import art.arcane.optics.view.WorldChangeTracker;
 
 public final class ProjectorSampleMemo<B, M, V extends ContentView<B, M>> {
@@ -328,7 +329,7 @@ public final class ProjectorSampleMemo<B, M, V extends ContentView<B, M>> {
         return occluding;
     }
 
-    private final class LocalChangeFilter implements WorldChangeTracker.ChangeFilter {
+    private final class LocalChangeFilter implements WorldChangeFilter {
         private V view;
 
         @Override

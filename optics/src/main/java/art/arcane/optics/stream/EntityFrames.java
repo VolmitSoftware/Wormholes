@@ -22,12 +22,12 @@ public final class EntityFrames<O> implements EntityFrameSource<O> {
     public static final long STATE_IDLE_TICKS = 200L;
     private static final long PRUNE_INTERVAL_TICKS = 100L;
 
-    private final Scenes<O> scenes;
+    private final EntityScenes<O> scenes;
     private final ConcurrentHashMap<Object, Scene> captured;
     private final ConcurrentHashMap<StateKey, ObserverState> states;
     private volatile long nextPrune;
 
-    public EntityFrames(Scenes<O> scenes) {
+    public EntityFrames(EntityScenes<O> scenes) {
         this.scenes = Objects.requireNonNull(scenes, "scenes");
         this.captured = new ConcurrentHashMap<Object, Scene>();
         this.states = new ConcurrentHashMap<StateKey, ObserverState>();
@@ -133,24 +133,6 @@ public final class EntityFrames<O> implements EntityFrameSource<O> {
         nextPrune = tick + PRUNE_INTERVAL_TICKS;
         captured.values().removeIf(scene -> tick - scene.tick > PRUNE_INTERVAL_TICKS);
         states.values().removeIf(state -> tick - state.touched > STATE_IDLE_TICKS);
-    }
-
-    public interface Scenes<O> {
-        Object sceneKey(O observer, UUID portal);
-
-        List<EntitySnapshot> capture(O observer, UUID portal, long tick);
-
-        default UUID projectedId(UUID sourceId) {
-            return sourceId;
-        }
-
-        default boolean visible(O observer, EntitySnapshot visual) {
-            return true;
-        }
-
-        default boolean isObserver(O observer, EntitySnapshot visual) {
-            return false;
-        }
     }
 
     private record Scene(long tick, List<EntitySnapshot> visuals) {
