@@ -22,7 +22,4 @@ public interface RemoteTrackedEntityAccess {
 
     @Invoker("getEffectiveRange")
     int wormholesEffectiveRange();
-
-    @Invoker("broadcastRemoved")
-    void wormholesBroadcastRemoved();
 }
