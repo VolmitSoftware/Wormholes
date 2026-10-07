@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(LevelExtractor.class)
 public abstract class StraddleOverlayMixin {
-    @Inject(method = "extractPlayerState", at = @At("TAIL"))
+    @Inject(method = "extractPlayerState", at = @At("RETURN"))
     private void wormholes$straddleOverlay(Camera camera, DeltaTracker tracker, float partialTicks, PlayerRenderState state, CallbackInfo callback) {
         if (ClientStraddles.hidesInWallOverlay(Minecraft.getInstance().player)) {
             state.blockOverlay = null;
