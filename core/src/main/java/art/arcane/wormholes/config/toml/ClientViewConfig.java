@@ -41,11 +41,11 @@ public class ClientViewConfig {
     public boolean clientRecursion = true;
     @ConfigDescription("Fabric, Forge and NeoForge servers only: let clients running the Wormholes mod walk through portals with no teleport, respawn or loading screen, with destination chunks and entities streamed ahead. Off keeps prepared travel.")
     public boolean seamlessTravel = true;
-    @ConfigDescription("Portal destinations streamed ahead per seamless player, 1 to 4.")
+    @ConfigDescription("Fabric, Forge and NeoForge servers only: portal destinations streamed ahead per seamless player, 1 to 4.")
     public int remoteViewRoutes = RemoteViewOptions.DEFAULT.routes();
-    @ConfigDescription("Destination chunk columns streamed per seamless player per tick, 1 to 64. The client's own acknowledgement can lower it further.")
+    @ConfigDescription("Fabric, Forge and NeoForge servers only: destination chunk columns streamed per seamless player per tick, 1 to 64. The client's own acknowledgement can lower it further.")
     public int remoteViewChunksPerTick = RemoteViewOptions.DEFAULT.chunksPerTick();
-    @ConfigDescription("Destination bytes streamed per seamless player per tick, 16384 to 2097152.")
+    @ConfigDescription("Fabric, Forge and NeoForge servers only: destination bytes streamed per seamless player per tick, 16384 to 2097152.")
     public int remoteViewBytesPerTick = RemoteViewOptions.DEFAULT.bytesPerTick();
 
     public void normalizeRuntimeBounds() {
