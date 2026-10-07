@@ -36,4 +36,18 @@ public abstract class PreparedTravelWorldPacketsMixin {
             original.call(packet);
         }
     }
+
+    @WrapMethod(method = {
+        "handleBlockChangedAck", "handleUpdateAttributes", "handleProjectilePowerPacket", "handleGameEvent", "handleMountScreenOpen",
+        "handleLookAt", "handleOpenSignEditor", "handleTickingState", "handleTickingStep"
+    })
+    private void wormholes$seamlessSourceWorld(@Coerce Packet<ClientGamePacketListener> packet, Operation<Void> original) {
+        WormholesClient client = WormholesClient.instance();
+        ClientLevel crossingSource = client == null ? null : client.preparedTravel().residents().redirectTarget();
+        if (crossingSource == null) {
+            original.call(packet);
+            return;
+        }
+        client.preparedTravel().residents().withLevel(crossingSource, () -> original.call(packet));
+    }
 }
