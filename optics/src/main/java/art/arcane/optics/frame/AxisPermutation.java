@@ -42,7 +42,7 @@ public final class AxisPermutation {
         images = new Face[FACE_COUNT];
         for (Face face : Face.values()) {
             Face image = axisImages[face.getAxis().ordinal()];
-            images[face.ordinal()] = sign(face) > 0 ? image : image.reverse();
+            images[face.ordinal()] = face.sign() > 0 ? image : image.reverse();
         }
         int[] sources = new int[3];
         double[] signs = new double[3];
@@ -51,9 +51,9 @@ public final class AxisPermutation {
             Face image = axisImages[source];
             int target = image.getAxis().ordinal();
             sources[target] = source;
-            signs[target] = sign(image);
+            signs[target] = image.sign();
             Face sourceFace = ORDER[source * 2];
-            inverseImages[target] = sign(image) > 0 ? sourceFace : sourceFace.reverse();
+            inverseImages[target] = image.sign() > 0 ? sourceFace : sourceFace.reverse();
         }
         sourceX = sources[0];
         sourceY = sources[1];
@@ -162,18 +162,18 @@ public final class AxisPermutation {
     }
 
     public void vectorInto(double x, double y, double z, double[] out3) {
-        double outX = signX * component(sourceX, x, y, z);
-        double outY = signY * component(sourceY, x, y, z);
-        double outZ = signZ * component(sourceZ, x, y, z);
+        double outX = signX * Axis.component(sourceX, x, y, z);
+        double outY = signY * Axis.component(sourceY, x, y, z);
+        double outZ = signZ * Axis.component(sourceZ, x, y, z);
         out3[0] = outX;
         out3[1] = outY;
         out3[2] = outZ;
     }
 
     public void cellInto(int x, int y, int z, int[] out3) {
-        int outX = cell(signX, component(sourceX, x, y, z));
-        int outY = cell(signY, component(sourceY, x, y, z));
-        int outZ = cell(signZ, component(sourceZ, x, y, z));
+        int outX = cell(signX, Axis.component(sourceX, x, y, z));
+        int outY = cell(signY, Axis.component(sourceY, x, y, z));
+        int outZ = cell(signZ, Axis.component(sourceZ, x, y, z));
         out3[0] = outX;
         out3[1] = outY;
         out3[2] = outZ;
@@ -255,10 +255,6 @@ public final class AxisPermutation {
         return a.x() * b.x() + a.y() * b.y() + a.z() * b.z();
     }
 
-    private static int sign(Face face) {
-        return face.x() + face.y() + face.z();
-    }
-
     private static int determinant(Face x, Face y, Face z) {
         return x.x() * (y.y() * z.z() - y.z() * z.y())
             - y.x() * (x.y() * z.z() - x.z() * z.y())
@@ -273,14 +269,6 @@ public final class AxisPermutation {
             case E -> 12;
             default -> -1;
         };
-    }
-
-    private static double component(int axis, double x, double y, double z) {
-        return axis == 0 ? x : axis == 1 ? y : z;
-    }
-
-    private static int component(int axis, int x, int y, int z) {
-        return axis == 0 ? x : axis == 1 ? y : z;
     }
 
     private static int cell(double sign, int value) {

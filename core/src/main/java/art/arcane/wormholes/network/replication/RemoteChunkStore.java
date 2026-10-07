@@ -219,8 +219,8 @@ public final class RemoteChunkStore {
     }
 
     private static void validateSliceStream(ViewSlice slice, ReplicationStreamKey stream) throws IOException {
-        int expectedChunkX = (int) (stream.chunkKey() >> 32);
-        int expectedChunkZ = (int) stream.chunkKey();
+        int expectedChunkX = CellKeys.chunkX(stream.chunkKey());
+        int expectedChunkZ = CellKeys.chunkZ(stream.chunkKey());
         long maxX = (long) slice.minX() + slice.sizeX() - 1L;
         long maxZ = (long) slice.minZ() + slice.sizeZ() - 1L;
         if ((slice.minX() >> 4) != expectedChunkX || (slice.minZ() >> 4) != expectedChunkZ
@@ -254,8 +254,8 @@ public final class RemoteChunkStore {
         if (!batch.blocks().isEmpty() || !batch.entities().isEmpty()) {
             chunk.contentHashValid = false;
         }
-        int chunkMinX = ((int) (chunk.stream().chunkKey() >> 32)) << 4;
-        int chunkMinZ = ((int) chunk.stream().chunkKey()) << 4;
+        int chunkMinX = CellKeys.chunkX(chunk.stream().chunkKey()) << 4;
+        int chunkMinZ = CellKeys.chunkZ(chunk.stream().chunkKey()) << 4;
         for (BlockChange change : batch.blocks()) {
             int worldX = chunkMinX + BlockChange.unpackX(change.packedXyz());
             int worldZ = chunkMinZ + BlockChange.unpackZ(change.packedXyz());

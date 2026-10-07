@@ -11,6 +11,7 @@ import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.volume.PlaneWindow;
 import art.arcane.optics.volume.ProjectionVolume;
 import art.arcane.optics.math.BlockBox;
+import art.arcane.optics.math.Axis;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
@@ -95,8 +96,8 @@ public final class ClientSweep {
         this.originY = center.getY();
         this.originZ = center.getZ();
         this.blackout = geometry.blackoutPolicy() != ApertureDescriptor.BLACKOUT_OFF;
-        Layout nextLayout = new Layout(bounds, ApertureDescriptor.axisOf(frame.getNormal()),
-            ApertureDescriptor.axisOf(frame.getRight()), ApertureDescriptor.axisOf(frame.getUp()));
+        Layout nextLayout = new Layout(bounds, frame.getNormal().axisIndex(),
+            frame.getRight().axisIndex(), frame.getUp().axisIndex());
         this.volume = ProjectionVolume.of(area, frame, ProjectionVolume.plane(frame, originX, originY, originZ), geometry.frontSide(),
             geometry.depthBlocks(), 0.0D);
         if (layout == null || !layout.equals(nextLayout)) {
@@ -264,10 +265,10 @@ public final class ClientSweep {
         Face projectionUp = projectionFrame.getUp();
         int rightSign = projectionRight.x() + projectionRight.y() + projectionRight.z();
         int upSign = projectionUp.x() + projectionUp.y() + projectionUp.z();
-        double normalOrigin = component(normalAxis);
-        double rightOrigin = component(rightAxis);
-        double upOrigin = component(upAxis);
-        double projectionFacing = axisComponent(projectionFrame.getNormal(), normalAxis);
+        double normalOrigin = Axis.component(normalAxis, originX, originY, originZ);
+        double rightOrigin = Axis.component(rightAxis, originX, originY, originZ);
+        double upOrigin = Axis.component(upAxis, originX, originY, originZ);
+        double projectionFacing = projectionFrame.getNormal().component(normalAxis);
         PlaneWindow window = PlaneWindow.create(aperture, area, projectionFrame,
             originX, originY, originZ, padding, eyeDot);
         PlaneWindow blackoutWindow = shellPass
@@ -460,14 +461,6 @@ public final class ClientSweep {
             bits &= bits - 1L;
             out.add(layout.nextKey((word << 6) + bit));
         }
-    }
-
-    private double component(int axis) {
-        return axis == 0 ? originX : axis == 1 ? originY : originZ;
-    }
-
-    private static double axisComponent(Face direction, int axis) {
-        return axis == 0 ? direction.x() : axis == 1 ? direction.y() : direction.z();
     }
 
     private static void setRange(long[] mask, int first, int last) {

@@ -193,8 +193,8 @@ final class ClientPortalGeometryTest {
         Frame frame = Frame.canonical(normal);
         int[] min = {7, 64, -3};
         int[] max = {7, 64, -3};
-        max[ApertureDescriptor.axisOf(frame.getRight())] += width - 1;
-        max[ApertureDescriptor.axisOf(frame.getUp())] += height - 1;
+        max[frame.getRight().axisIndex()] += width - 1;
+        max[frame.getUp().axisIndex()] += height - 1;
         ApertureCells aperture = new ApertureCells();
         aperture.setArea(new Box(min[0], max[0] + 0.999D, min[1], max[1] + 0.999D, min[2], max[2] + 0.999D));
         return aperture;

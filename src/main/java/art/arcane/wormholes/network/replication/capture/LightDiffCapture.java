@@ -1,6 +1,7 @@
 package art.arcane.wormholes.network.replication.capture;
 
 import org.bukkit.block.data.BlockData;
+import art.arcane.optics.math.CellKeys;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.network.replication.BlockChange;
 import art.arcane.wormholes.network.replication.LightDiff;
@@ -64,8 +65,8 @@ public final class LightDiffCapture {
         if (toSample.isEmpty()) {
             return;
         }
-        int chunkX = (int) (chunkKey >> 32);
-        int chunkZ = (int) chunkKey;
+        int chunkX = CellKeys.chunkX(chunkKey);
+        int chunkZ = CellKeys.chunkZ(chunkKey);
         Chunk chunk;
         try {
             if (!world.isChunkLoaded(chunkX, chunkZ)) {

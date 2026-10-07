@@ -174,7 +174,7 @@ public final class ClientSweepScene {
         double clearance = ProjectionVolume.portalPlaneClearance(area, localFrame);
         double maxDepth = depthBlocks + clearance;
         Face normal = localFrame.getNormal();
-        int normalAxis = ApertureDescriptor.axisOf(normal);
+        int normalAxis = normal.axisIndex();
         double facing = normalAxis == 0 ? normal.x() : normalAxis == 1 ? normal.y() : normal.z();
         double originNormal = normalAxis == 0 ? origin.getX() : normalAxis == 1 ? origin.getY() : origin.getZ();
         double signedMin = frontSide ? -maxDepth : clearance;
@@ -185,7 +185,7 @@ public final class ClientSweepScene {
         axisMax[normalAxis] = ProjectionVolume.maxBlockForCenter(Math.max(centerA, centerB));
         double pad = Math.max(0.0D, lateralBlocks) + Math.max(0.0D, aperturePadding);
         for (Face lateralDirection : new Face[] {projectionFrame.getRight(), projectionFrame.getUp()}) {
-            int axis = ApertureDescriptor.axisOf(lateralDirection);
+            int axis = lateralDirection.axisIndex();
             double areaMin = axis == 0 ? area.getXa() : axis == 1 ? area.getYa() : area.getZa();
             double areaMax = axis == 0 ? area.getXb() : axis == 1 ? area.getYb() : area.getZb();
             axisMin[axis] = ProjectionVolume.minBlockForCenter(areaMin - pad);

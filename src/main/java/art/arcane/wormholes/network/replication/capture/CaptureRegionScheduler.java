@@ -1,6 +1,7 @@
 package art.arcane.wormholes.network.replication.capture;
 
 import org.bukkit.block.data.BlockData;
+import art.arcane.optics.math.CellKeys;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.platform.BukkitRegionTaskProvider;
 
@@ -137,8 +138,8 @@ public final class CaptureRegionScheduler {
         if (world == null || !drainsInFlight.add(key)) {
             return;
         }
-        int chunkX = (int) (key.chunkKey() >> 32);
-        int chunkZ = (int) key.chunkKey();
+        int chunkX = CellKeys.chunkX(key.chunkKey());
+        int chunkZ = CellKeys.chunkZ(key.chunkKey());
         Runnable complete = () -> drainsInFlight.remove(key);
         boolean scheduled = BukkitRegionTaskProvider.run(
             world,

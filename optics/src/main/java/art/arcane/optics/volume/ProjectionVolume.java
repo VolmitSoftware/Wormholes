@@ -18,8 +18,8 @@ public final class ProjectionVolume {
 
     private ProjectionVolume(Box aperture, Frame frame, double plane, boolean frontSide, double depth, double padding) {
         Face normal = frame.getNormal();
-        this.normalAxis = axisOf(normal);
-        this.facing = component(normal, normalAxis);
+        this.normalAxis = normal.axisIndex();
+        this.facing = normal.component(normalAxis);
         this.plane = plane;
         this.frontSide = frontSide;
         this.clearance = portalPlaneClearance(aperture, frame);
@@ -36,8 +36,8 @@ public final class ProjectionVolume {
                 max[axis] = maxBlockForCenter(Math.max(centerA, centerB));
                 continue;
             }
-            min[axis] = minBlockForCenter(low(aperture, axis) - padding);
-            max[axis] = maxBlockForCenter(high(aperture, axis) + padding);
+            min[axis] = minBlockForCenter(aperture.min(axis) - padding);
+            max[axis] = maxBlockForCenter(aperture.max(axis) + padding);
         }
         this.box = BlockBox.spanning(min[0], min[1], min[2], max[0], max[1], max[2]);
     }
@@ -171,21 +171,5 @@ public final class ProjectionVolume {
         double near = frontSide ? -maxDepth : clearance;
         double far = frontSide ? -clearance : maxDepth;
         return Math.max(firstDistance, secondDistance) >= near && Math.min(firstDistance, secondDistance) <= far;
-    }
-
-    private static int axisOf(Face direction) {
-        return direction.x() != 0 ? 0 : direction.y() != 0 ? 1 : 2;
-    }
-
-    private static double component(Face direction, int axis) {
-        return axis == 0 ? direction.x() : axis == 1 ? direction.y() : direction.z();
-    }
-
-    private static double low(Box area, int axis) {
-        return axis == 0 ? area.getXa() : axis == 1 ? area.getYa() : area.getZa();
-    }
-
-    private static double high(Box area, int axis) {
-        return axis == 0 ? area.getXb() : axis == 1 ? area.getYb() : area.getZb();
     }
 }

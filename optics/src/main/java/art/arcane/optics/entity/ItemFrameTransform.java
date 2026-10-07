@@ -129,11 +129,7 @@ public final class ItemFrameTransform {
     }
 
     private static boolean positive(Face imageX, Face imageY, Face imageZ, int axis) {
-        int sum = component(imageX, axis) + component(imageY, axis) + component(imageZ, axis);
+        int sum = imageX.component(axis) + imageY.component(axis) + imageZ.component(axis);
         return sum > 0;
-    }
-
-    private static int component(Face face, int axis) {
-        return axis == 0 ? face.x() : axis == 1 ? face.y() : face.z();
     }
 }

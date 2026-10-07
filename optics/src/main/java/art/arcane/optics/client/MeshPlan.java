@@ -19,7 +19,7 @@ public final class MeshPlan {
         int[] min = {(int) Math.floor(area.getXa()), (int) Math.floor(area.getYa()), (int) Math.floor(area.getZa())};
         int[] max = {(int) Math.floor(area.getXb()), (int) Math.floor(area.getYb()), (int) Math.floor(area.getZb())};
         Face normal = geometry.facingDirection();
-        int axis = normal.x() != 0 ? 0 : normal.y() != 0 ? 1 : 2;
+        int axis = normal.axisIndex();
         int step = (normal.x() + normal.y() + normal.z()) * (geometry.frontSide() ? -1 : 1);
         for (int i = 0; i < 3; i++) {
             if (i != axis) {
@@ -52,7 +52,7 @@ public final class MeshPlan {
         int[] max = {(bounds.minX() + bounds.sizeX() - 1) >> 4, (bounds.minY() + bounds.sizeY() - 1) >> 4,
             (bounds.minZ() + bounds.sizeZ() - 1) >> 4};
         Face normal = geometry.facingDirection();
-        int axis = normal.x() != 0 ? 0 : normal.y() != 0 ? 1 : 2;
+        int axis = normal.axisIndex();
         int right = (axis + 1) % 3;
         int up = (axis + 2) % 3;
         double plane = geometry.planeCoordinate();

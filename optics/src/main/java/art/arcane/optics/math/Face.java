@@ -122,6 +122,21 @@ public enum Face
 		return z;
 	}
 
+	public int component(int axis)
+	{
+		return axis == 0 ? x : axis == 1 ? y : z;
+	}
+
+	public int axisIndex()
+	{
+		return x != 0 ? 0 : y != 0 ? 1 : 2;
+	}
+
+	public int sign()
+	{
+		return x + y + z;
+	}
+
 	public static Face getDirection(Vec3d v)
 	{
 		Vec3d normalized = v.normalize();

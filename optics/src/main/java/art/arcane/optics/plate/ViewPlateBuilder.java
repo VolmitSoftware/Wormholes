@@ -213,8 +213,8 @@ public final class ViewPlateBuilder {
                 ProjectionVolume.plane(localFrame, request.localOriginX(), request.localOriginY(), request.localOriginZ()), frontSide,
                 request.depthBlocks(), pad);
             this.normalAxis = volume.normalAxis();
-            this.rightAxis = axisOf(projectionLocalFrame.getRight());
-            this.upAxis = axisOf(projectionLocalFrame.getUp());
+            this.rightAxis = projectionLocalFrame.getRight().axisIndex();
+            this.upAxis = projectionLocalFrame.getUp().axisIndex();
             for (int axis = 0; axis < 3; axis++) {
                 axisMin[axis] = volume.min(axis);
                 axisMax[axis] = volume.max(axis);
@@ -261,11 +261,6 @@ public final class ViewPlateBuilder {
         private BlockBox remoteBox(BlockBox source, int margin) {
             return transform.box(source, margin);
         }
-
-        private static int axisOf(Face direction) {
-            return direction.x() != 0 ? 0 : direction.y() != 0 ? 1 : 2;
-        }
-
     }
 
     private static final class BuildJob<B, M, W, V extends ContentView<B, M>> extends Job<B, W> {

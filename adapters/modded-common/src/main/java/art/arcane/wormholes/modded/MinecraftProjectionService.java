@@ -662,11 +662,11 @@ public final class MinecraftProjectionService implements AutoCloseable {
             while (iterator.hasNext()) {
                 Long2ObjectMap.Entry<LongOpenHashSet> entry = iterator.next();
                 long chunk = entry.getLongKey();
-                if (!world.getChunkSource().chunkMap.isChunkTracked(player, (int) (chunk >> 32), (int) chunk)) {
+                if (!world.getChunkSource().chunkMap.isChunkTracked(player, CellKeys.chunkX(chunk), CellKeys.chunkZ(chunk))) {
                     pending.addAll(entry.getValue());
                     blockEntities.invalidateSent();
-                    lighting.discardChunk((int) (chunk >> 32), (int) chunk);
-                    atmosphere.resend((int) (chunk >> 32), (int) chunk);
+                    lighting.discardChunk(CellKeys.chunkX(chunk), CellKeys.chunkZ(chunk));
+                    atmosphere.resend(CellKeys.chunkX(chunk), CellKeys.chunkZ(chunk));
                     dirtyLight.addAll(entry.getValue());
                     iterator.remove();
                 }

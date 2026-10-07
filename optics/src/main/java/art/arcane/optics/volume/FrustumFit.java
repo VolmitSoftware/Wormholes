@@ -3,6 +3,7 @@ package art.arcane.optics.volume;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.aperture.CellAperture;
 import art.arcane.optics.frame.Frame;
+import art.arcane.optics.math.Axis;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 public final class FrustumFit {
@@ -315,13 +316,13 @@ public final class FrustumFit {
         Face projectionNormal = projectionFrame.getNormal();
         Face projectionRight = projectionFrame.getRight();
         Face projectionUp = projectionFrame.getUp();
-        int normalAxis = axis(projectionNormal);
-        int rightAxis = axis(projectionRight);
-        int upAxis = axis(projectionUp);
-        int rightSign = (int) coordinate(projectionRight, rightAxis);
-        int upSign = (int) coordinate(projectionUp, upAxis);
-        double rightOrigin = coordinate(rightAxis, originX, originY, originZ);
-        double upOrigin = coordinate(upAxis, originX, originY, originZ);
+        int normalAxis = projectionNormal.axisIndex();
+        int rightAxis = projectionRight.axisIndex();
+        int upAxis = projectionUp.axisIndex();
+        int rightSign = projectionRight.component(rightAxis);
+        int upSign = projectionUp.component(upAxis);
+        double rightOrigin = Axis.component(rightAxis, originX, originY, originZ);
+        double upOrigin = Axis.component(upAxis, originX, originY, originZ);
         if (axisMin[normalAxis] > axisMax[normalAxis]
             || axisMin[rightAxis] > axisMax[rightAxis]
             || axisMin[upAxis] > axisMax[upAxis]) {
@@ -330,8 +331,8 @@ public final class FrustumFit {
 
         PlaneWindow planeWindow = PlaneWindow.create(structure, structure.getArea(), projectionFrame,
             originX, originY, originZ, options.aperturePadding(), projectionEyeDot);
-        double normalOrigin = coordinate(normalAxis, originX, originY, originZ);
-        double projectionFacingNormal = coordinate(projectionNormal, normalAxis);
+        double normalOrigin = Axis.component(normalAxis, originX, originY, originZ);
+        double projectionFacingNormal = projectionNormal.component(normalAxis);
         long work = 0L;
         for (int n = axisMin[normalAxis]; n <= axisMax[normalAxis]; n++) {
             double slabSignedDistance = projectionFacingNormal * ((n + 0.5D) - normalOrigin);
@@ -367,18 +368,6 @@ public final class FrustumFit {
 
     private static double dot(double x, double y, double z, Face direction) {
         return (x * direction.x()) + (y * direction.y()) + (z * direction.z());
-    }
-
-    private static int axis(Face direction) {
-        return direction.x() != 0 ? 0 : direction.y() != 0 ? 1 : 2;
-    }
-
-    private static double coordinate(Face direction, int axis) {
-        return axis == 0 ? direction.x() : axis == 1 ? direction.y() : direction.z();
-    }
-
-    private static double coordinate(int axis, double x, double y, double z) {
-        return axis == 0 ? x : axis == 1 ? y : z;
     }
 
     public void setOptions(Options options) {

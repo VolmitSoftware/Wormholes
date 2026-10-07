@@ -1,5 +1,6 @@
 package art.arcane.wormholes.network.replication.capture;
 
+import art.arcane.optics.math.CellKeys;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.network.replication.BlockChange;
@@ -130,8 +131,8 @@ public final class ChunkSnapshotComparator {
                 List<Long> keys = replication.subscribedChunkKeys(world.getUID());
                 for (Long keyBoxed : keys) {
                     long chunkKey = keyBoxed.longValue();
-                    int chunkX = (int) (chunkKey >> 32);
-                    int chunkZ = (int) chunkKey;
+                    int chunkX = CellKeys.chunkX(chunkKey);
+                    int chunkZ = CellKeys.chunkZ(chunkKey);
                     probeQueue.add(new PendingProbe(world, chunkKey, chunkX, chunkZ));
                 }
             }

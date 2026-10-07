@@ -101,15 +101,15 @@ public final class OpticTransform {
     }
 
     public double translationX() {
-        return toX - signX * component(sourceX, fromX, fromY, fromZ);
+        return toX - signX * Axis.component(sourceX, fromX, fromY, fromZ);
     }
 
     public double translationY() {
-        return toY - signY * component(sourceY, fromX, fromY, fromZ);
+        return toY - signY * Axis.component(sourceY, fromX, fromY, fromZ);
     }
 
     public double translationZ() {
-        return toZ - signZ * component(sourceZ, fromX, fromY, fromZ);
+        return toZ - signZ * Axis.component(sourceZ, fromX, fromY, fromZ);
     }
 
     public boolean reflects() {
@@ -166,9 +166,9 @@ public final class OpticTransform {
         double offsetX = x - fromX;
         double offsetY = y - fromY;
         double offsetZ = z - fromZ;
-        double outX = toX + signX * component(sourceX, offsetX, offsetY, offsetZ);
-        double outY = toY + signY * component(sourceY, offsetX, offsetY, offsetZ);
-        double outZ = toZ + signZ * component(sourceZ, offsetX, offsetY, offsetZ);
+        double outX = toX + signX * Axis.component(sourceX, offsetX, offsetY, offsetZ);
+        double outY = toY + signY * Axis.component(sourceY, offsetX, offsetY, offsetZ);
+        double outZ = toZ + signZ * Axis.component(sourceZ, offsetX, offsetY, offsetZ);
         out3[0] = outX;
         out3[1] = outY;
         out3[2] = outZ;
@@ -292,7 +292,7 @@ public final class OpticTransform {
         double radians = Math.toRadians(yaw);
         double x = -Math.sin(radians);
         double z = Math.cos(radians);
-        return Angles.yaw(signX * component(sourceX, x, 0.0D, z), signZ * component(sourceZ, x, 0.0D, z));
+        return Angles.yaw(signX * Axis.component(sourceX, x, 0.0D, z), signZ * Axis.component(sourceZ, x, 0.0D, z));
     }
 
     public Look look(Look look) {
@@ -301,8 +301,8 @@ public final class OpticTransform {
         double x = direction[0];
         double y = direction[1];
         double z = direction[2];
-        return Angles.look(signX * component(sourceX, x, y, z), signY * component(sourceY, x, y, z),
-            signZ * component(sourceZ, x, y, z));
+        return Angles.look(signX * Axis.component(sourceX, x, y, z), signY * Axis.component(sourceY, x, y, z),
+            signZ * Axis.component(sourceZ, x, y, z));
     }
 
     public byte[] encode() {
@@ -344,7 +344,7 @@ public final class OpticTransform {
     }
 
     private double snapped(double target, double sign, int source, double x, double y, double z) {
-        return snapNearInteger(target + sign * component(source, x, y, z), snapTolerance);
+        return snapNearInteger(target + sign * Axis.component(source, x, y, z), snapTolerance);
     }
 
     private static int integralCell(double target, double sign, int source, int x, int y, int z) {
@@ -354,10 +354,6 @@ public final class OpticTransform {
 
     private int snappedCell(double target, double sign, int source, double x, double y, double z) {
         return (int) Math.floor(snapped(target, sign, source, x, y, z));
-    }
-
-    private static double component(int axis, double x, double y, double z) {
-        return axis == 0 ? x : axis == 1 ? y : z;
     }
 
     private static boolean integral(double value) {

@@ -73,9 +73,9 @@ public record ApertureDescriptor(int originX,
         int[] max = {(int) Math.floor(area.getXb()), (int) Math.floor(area.getYb()), (int) Math.floor(area.getZb())};
         Face normal = frame.getNormal();
         Frame canonical = Frame.canonical(normal);
-        int normalAxis = axisOf(normal);
-        int columnAxis = axisOf(canonical.getRight());
-        int rowAxis = axisOf(canonical.getUp());
+        int normalAxis = normal.axisIndex();
+        int columnAxis = canonical.getRight().axisIndex();
+        int rowAxis = canonical.getUp().axisIndex();
         int frameTurns = quarterTurnsFrom(canonical, frame);
         long width = (long) max[columnAxis] - min[columnAxis] + 1L;
         long height = (long) max[rowAxis] - min[rowAxis] + 1L;
@@ -248,15 +248,15 @@ public record ApertureDescriptor(int originX,
         int[] min = {originX, originY, originZ};
         int[] max = {originX, originY, originZ};
         Frame canonical = Frame.canonical(facingDirection());
-        max[axisOf(canonical.getRight())] += apertureWidth - 1;
-        max[axisOf(canonical.getUp())] += apertureHeight - 1;
+        max[canonical.getRight().axisIndex()] += apertureWidth - 1;
+        max[canonical.getUp().axisIndex()] += apertureHeight - 1;
         return new Box(min[0], max[0] + BLOCK_EXTENT, min[1], max[1] + BLOCK_EXTENT, min[2], max[2] + BLOCK_EXTENT);
     }
 
     public ApertureCells aperture() {
         Frame canonical = Frame.canonical(facingDirection());
-        int columnAxis = axisOf(canonical.getRight());
-        int rowAxis = axisOf(canonical.getUp());
+        int columnAxis = canonical.getRight().axisIndex();
+        int rowAxis = canonical.getUp().axisIndex();
         List<Vec3d> cells = new ArrayList<Vec3d>(openCellCount());
         int[] origin = {originX, originY, originZ};
         int[] cell = {originX, originY, originZ};
@@ -338,10 +338,6 @@ public record ApertureDescriptor(int originX,
             + ", blackoutPolicy=" + blackoutPolicy + ", blackoutState=" + blackoutState + ", maskAirPolicy=" + maskAirPolicy
             + ", lightingPolicy=" + lightingPolicy + ", fidelityFlags=" + fidelityFlags + ", kind=" + kind
             + ", planeOffset=" + planeOffset + ", parentPortalKey=" + parentPortalKey + ", targetIdentity=" + targetIdentity + ", nested=" + nested + "]";
-    }
-
-    public static int axisOf(Face direction) {
-        return direction.x() != 0 ? 0 : direction.y() != 0 ? 1 : 2;
     }
 
     private static int quarterTurnsFrom(Frame canonical, Frame frame) {

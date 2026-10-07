@@ -94,6 +94,16 @@ public class Box
 	public double getZa() { return za; }
 	public double getZb() { return zb; }
 
+	public double min(int axis)
+	{
+		return axis == 0 ? xa : axis == 1 ? ya : za;
+	}
+
+	public double max(int axis)
+	{
+		return axis == 0 ? xb : axis == 1 ? yb : zb;
+	}
+
 	public Vec3d getCornerVector(Face x, Face y, Face z)
 	{
 		assert x.getAxis().equals(Axis.X) : " X direction must be on the X axis.";

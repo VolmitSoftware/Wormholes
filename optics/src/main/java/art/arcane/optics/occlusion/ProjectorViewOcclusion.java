@@ -12,6 +12,7 @@ import it.unimi.dsi.fastutil.longs.LongSet;
 
 import art.arcane.optics.view.BlockStates;
 import art.arcane.optics.view.BlockView;
+import art.arcane.optics.math.Axis;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.math.CellKeys;
 
@@ -728,16 +729,16 @@ public final class ProjectorViewOcclusion<B> {
         double deltaZ = targetZ + 0.5D - eyeZ;
         int firstOtherAxis = (axis + 1) % 3;
         int secondOtherAxis = (axis + 2) % 3;
-        double eyeAxis = coordinate(axis, eyeX, eyeY, eyeZ);
-        double eyeFirst = coordinate(firstOtherAxis, eyeX, eyeY, eyeZ);
-        double eyeSecond = coordinate(secondOtherAxis, eyeX, eyeY, eyeZ);
-        double centerDelta = coordinate(axis, deltaX, deltaY, deltaZ);
+        double eyeAxis = Axis.component(axis, eyeX, eyeY, eyeZ);
+        double eyeFirst = Axis.component(firstOtherAxis, eyeX, eyeY, eyeZ);
+        double eyeSecond = Axis.component(secondOtherAxis, eyeX, eyeY, eyeZ);
+        double centerDelta = Axis.component(axis, deltaX, deltaY, deltaZ);
         int direction = sign(centerDelta);
         if (direction == 0) {
             return false;
         }
-        int blockAxis = coordinate(axis, blockX, blockY, blockZ);
-        int targetAxis = coordinate(axis, targetX, targetY, targetZ);
+        int blockAxis = Axis.component(axis, blockX, blockY, blockZ);
+        int targetAxis = Axis.component(axis, targetX, targetY, targetZ);
         if ((direction > 0 && targetAxis <= blockAxis)
             || (direction < 0 && targetAxis >= blockAxis)) {
             return false;
@@ -756,7 +757,7 @@ public final class ProjectorViewOcclusion<B> {
                     double endX = targetX + targetBound(xOffset, revealMargin);
                     double endY = targetY + targetBound(yOffset, revealMargin);
                     double endZ = targetZ + targetBound(zOffset, revealMargin);
-                    double axisDelta = coordinate(axis, endX, endY, endZ) - eyeAxis;
+                    double axisDelta = Axis.component(axis, endX, endY, endZ) - eyeAxis;
                     if (sign(axisDelta) != direction) {
                         return false;
                     }
@@ -765,9 +766,9 @@ public final class ProjectorViewOcclusion<B> {
                         return false;
                     }
                     double projectedFirst = eyeFirst
-                        + (coordinate(firstOtherAxis, endX, endY, endZ) - eyeFirst) * t;
+                        + (Axis.component(firstOtherAxis, endX, endY, endZ) - eyeFirst) * t;
                     double projectedSecond = eyeSecond
-                        + (coordinate(secondOtherAxis, endX, endY, endZ) - eyeSecond) * t;
+                        + (Axis.component(secondOtherAxis, endX, endY, endZ) - eyeSecond) * t;
                     minFirst = Math.min(minFirst, projectedFirst);
                     maxFirst = Math.max(maxFirst, projectedFirst);
                     minSecond = Math.min(minSecond, projectedSecond);
@@ -927,22 +928,6 @@ public final class ProjectorViewOcclusion<B> {
             return eligibleBlockers.contains(CellKeys.pack(x, y, z));
         }
         return blocked(view, x, y, z);
-    }
-
-    private static double coordinate(int axis, double x, double y, double z) {
-        return switch (axis) {
-            case 0 -> x;
-            case 1 -> y;
-            default -> z;
-        };
-    }
-
-    private static int coordinate(int axis, int x, int y, int z) {
-        return switch (axis) {
-            case 0 -> x;
-            case 1 -> y;
-            default -> z;
-        };
     }
 
     private static int axisCoordinate(int requestedAxis,

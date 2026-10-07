@@ -116,7 +116,7 @@ public final class ProjectorHoldProof {
             upMin = Math.min(upMin, upValue);
             upMax = Math.max(upMax, upValue);
         }
-        int normalAxis = normal.x() != 0 ? 0 : normal.y() != 0 ? 1 : 2;
+        int normalAxis = normal.axisIndex();
         int normalSign = normal.x() + normal.y() + normal.z();
         double normalOrigin = normalAxis == 0 ? originX : normalAxis == 1 ? originY : originZ;
         double proofPadding = Math.max(MIN_PROOF_PADDING, padding);

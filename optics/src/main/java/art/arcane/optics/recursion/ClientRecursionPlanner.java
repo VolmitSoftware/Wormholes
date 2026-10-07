@@ -47,13 +47,13 @@ public final class ClientRecursionPlanner {
         ProjectionVolume volume = ProjectionVolume.of(aperture, parent.frame(), parent.planeCoordinate(), parent.frontSide(),
             parent.depthBlocks(), 0.0D);
         int normalAxis = volume.normalAxis();
-        if (!volume.reaches(volume.distance(low(area, normalAxis)), volume.distance(high(area, normalAxis)))) {
+        if (!volume.reaches(volume.distance(area.min(normalAxis)), volume.distance(area.max(normalAxis)))) {
             return false;
         }
         double distance = volume.maxDepth();
         for (int axis = 0; axis < 3; axis++) {
-            if (axis != normalAxis && (high(area, axis) < low(aperture, axis) - distance
-                || low(area, axis) > high(aperture, axis) + distance)) {
+            if (axis != normalAxis && (area.max(axis) < aperture.min(axis) - distance
+                || area.min(axis) > aperture.max(axis) + distance)) {
                 return false;
             }
         }
@@ -108,14 +108,6 @@ public final class ClientRecursionPlanner {
             }
         }
         return false;
-    }
-
-    private static double low(Box box, int axis) {
-        return axis == 0 ? box.getXa() : axis == 1 ? box.getYa() : box.getZa();
-    }
-
-    private static double high(Box box, int axis) {
-        return axis == 0 ? box.getXb() : axis == 1 ? box.getYb() : box.getZb();
     }
 
     private static boolean visible(List<Window> chain, double x, double y, double z) {

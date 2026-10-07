@@ -67,8 +67,8 @@ final class ViewBulkPipeline {
         if (!matches(session, peerName, stream)) {
             return;
         }
-        int chunkX = (int) (stream.chunkKey() >> 32);
-        int chunkZ = (int) stream.chunkKey();
+        int chunkX = CellKeys.chunkX(stream.chunkKey());
+        int chunkZ = CellKeys.chunkZ(stream.chunkKey());
         sendInitialBulkWithRetry(session, peerName, chunkX, chunkZ);
     }
 
@@ -80,8 +80,8 @@ final class ViewBulkPipeline {
         if (!matches(session, peerName, stream)) {
             return;
         }
-        int chunkX = (int) (stream.chunkKey() >> 32);
-        int chunkZ = (int) stream.chunkKey();
+        int chunkX = CellKeys.chunkX(stream.chunkKey());
+        int chunkZ = CellKeys.chunkZ(stream.chunkKey());
         sendInitialBulkWithRetry(session, peerName, chunkX, chunkZ);
     }
 
@@ -262,7 +262,7 @@ final class ViewBulkPipeline {
             && session.peers.contains(peerName)
             && session.world.getUID().equals(stream.sourceWorldId())
             && session.renderMode == stream.renderMode()
-            && session.containsChunk((int) (stream.chunkKey() >> 32), (int) stream.chunkKey());
+            && session.containsChunk(CellKeys.chunkX(stream.chunkKey()), CellKeys.chunkZ(stream.chunkKey()));
     }
 
     private void scheduleBulkCompleteRetry(ViewSession session, String peerName, BulkCompleteKey key) {

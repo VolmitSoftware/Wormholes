@@ -18,6 +18,16 @@ public enum Axis
 		this.z = z;
 	}
 	
+	public static double component(int axis, double x, double y, double z)
+	{
+		return axis == 0 ? x : axis == 1 ? y : z;
+	}
+
+	public static int component(int axis, int x, int y, int z)
+	{
+		return axis == 0 ? x : axis == 1 ? y : z;
+	}
+
 	public Vec3d positive()
 	{
 		return new Vec3d(x, y, z);

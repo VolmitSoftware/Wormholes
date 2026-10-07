@@ -68,8 +68,8 @@ final class ClientPortalGeometryPlaneOffsetTest {
         Frame frame = Frame.canonical(normal);
         int[] min = {-9, 70, 14};
         int[] max = {-9, 70, 14};
-        max[ApertureDescriptor.axisOf(frame.getRight())] += 1;
-        max[ApertureDescriptor.axisOf(frame.getUp())] += 2;
+        max[frame.getRight().axisIndex()] += 1;
+        max[frame.getUp().axisIndex()] += 2;
         ApertureCells aperture = new ApertureCells();
         aperture.setArea(new Box(min[0], max[0] + 0.999D, min[1], max[1] + 0.999D, min[2], max[2] + 0.999D));
         return ApertureDescriptor.fromPortal(new ApertureDescriptor.Source(aperture, frame, true, false, 0, 2.0D, 0.75D, 0.2D, 64, 3,

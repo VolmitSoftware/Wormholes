@@ -363,8 +363,8 @@ public final class RemoteViewCache<B, M, E> {
     }
 
     private static boolean columnIntersectsBox(long columnKey, BlockBox box) {
-        int chunkX = (int) (columnKey >> 32);
-        int chunkZ = (int) columnKey;
+        int chunkX = CellKeys.chunkX(columnKey);
+        int chunkZ = CellKeys.chunkZ(columnKey);
         int minChunkX = box.minX() >> 4;
         int maxChunkX = box.maxX() >> 4;
         int minChunkZ = box.minZ() >> 4;

@@ -1414,12 +1414,12 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
             Face projectionNormalDirection = projectionLocalFrame.getNormal();
             Face projectionRightDirection = projectionLocalFrame.getRight();
             Face projectionUpDirection = projectionLocalFrame.getUp();
-            normalAxis = projectionNormalDirection.x() != 0 ? 0 : (projectionNormalDirection.y() != 0 ? 1 : 2);
+            normalAxis = projectionNormalDirection.axisIndex();
             blackoutFarSign = -(projectionNormalDirection.x()
                 + projectionNormalDirection.y() + projectionNormalDirection.z());
-            rightAxis = projectionRightDirection.x() != 0 ? 0 : (projectionRightDirection.y() != 0 ? 1 : 2);
+            rightAxis = projectionRightDirection.axisIndex();
             rightSign = projectionRightDirection.x() + projectionRightDirection.y() + projectionRightDirection.z();
-            upAxis = projectionUpDirection.x() != 0 ? 0 : (projectionUpDirection.y() != 0 ? 1 : 2);
+            upAxis = projectionUpDirection.axisIndex();
             upSign = projectionUpDirection.x() + projectionUpDirection.y() + projectionUpDirection.z();
             axisMin = scratchAxisMin;
             axisMin[0] = xa;

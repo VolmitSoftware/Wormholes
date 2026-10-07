@@ -479,8 +479,8 @@ public final class MinecraftViewServer implements AutoCloseable {
     }
 
     private CompletableFuture<Boolean> captureBulk(Session session, String peer, ReplicationStreamKey stream, long generation) {
-        int chunkX = (int) (stream.chunkKey() >> 32);
-        int chunkZ = (int) stream.chunkKey();
+        int chunkX = CellKeys.chunkX(stream.chunkKey());
+        int chunkZ = CellKeys.chunkZ(stream.chunkKey());
         ChunkLease lease = session.lease(stream.chunkKey(), chunkX, chunkZ);
         CompletableFuture<Boolean> result = new CompletableFuture<>();
         lease.ready().whenCompleteAsync((ready, failure) -> {

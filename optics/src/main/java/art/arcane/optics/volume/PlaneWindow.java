@@ -84,7 +84,7 @@ public final class PlaneWindow {
         double upMax = axisBound(area, frame.getUp(), originX, originY, originZ, true);
 
         Face normal = frame.getNormal();
-        int normalAxis = normal.x() != 0 ? 0 : (normal.y() != 0 ? 1 : 2);
+        int normalAxis = normal.axisIndex();
         double normalOrigin = normalAxis == 0 ? originX : (normalAxis == 1 ? originY : originZ);
         int planeCoord = (int) Math.floor(normalOrigin);
         boolean perCell = structure != null && !structure.isFullCuboid();

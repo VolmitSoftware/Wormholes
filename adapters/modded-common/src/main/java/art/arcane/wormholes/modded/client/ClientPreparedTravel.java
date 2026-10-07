@@ -1980,8 +1980,8 @@ public final class ClientPreparedTravel {
         }
         Vec3 intersection = previous.lerp(current, before / (before - after));
         Frame frame = Frame.canonical(geometry.facingDirection());
-        int columnAxis = ApertureDescriptor.axisOf(frame.getRight());
-        int rowAxis = ApertureDescriptor.axisOf(frame.getUp());
+        int columnAxis = frame.getRight().axisIndex();
+        int rowAxis = frame.getUp().axisIndex();
         int column = (int) Math.floor(component(intersection, columnAxis)) - origin(geometry, columnAxis);
         int row = (int) Math.floor(component(intersection, rowAxis)) - origin(geometry, rowAxis);
         return geometry.apertureOpen(column, row);

@@ -26,9 +26,9 @@ public final class AperturePolygon {
         origin = new int[]{geometry.originX(), geometry.originY(), geometry.originZ()};
         Face normal = geometry.facingDirection();
         Frame canonical = Frame.canonical(normal);
-        normalAxis = ApertureDescriptor.axisOf(normal);
+        normalAxis = normal.axisIndex();
         planeCoordinate = geometry.planeCoordinate();
-        columnAxis = ApertureDescriptor.axisOf(canonical.getRight());
+        columnAxis = canonical.getRight().axisIndex();
         width = geometry.apertureWidth();
         height = geometry.apertureHeight();
         mask = geometry.apertureMask();

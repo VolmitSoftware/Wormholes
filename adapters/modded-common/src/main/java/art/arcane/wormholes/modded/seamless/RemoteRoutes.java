@@ -3,6 +3,7 @@ package art.arcane.wormholes.modded.seamless;
 import art.arcane.wormholes.modded.mixin.RemoteTrackedEntityAccess;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.math.Box;
+import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.plate.ChunkLease;
 import art.arcane.optics.view.WorldChangeTracker;
@@ -593,7 +594,7 @@ public final class RemoteRoutes implements AutoCloseable {
         }
         for (int index = 0; index < dirty.size(); index++) {
             long cell = dirty.getLong(index);
-            long key = ChunkPos.pack((int) (cell >> 32), (int) cell);
+            long key = ChunkPos.pack(CellKeys.chunkX(cell), CellKeys.chunkZ(cell));
             route.stream().observed(key, ticking(route.level(), key));
         }
     }

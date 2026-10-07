@@ -675,8 +675,8 @@ public final class ProjectionClaimArbiter {
             Long2ObjectMap.Entry<SentChunk> entry = iterator.next();
             long chunkKey = entry.getLongKey();
             SentChunk sentChunk = entry.getValue();
-            int chunkX = (int) (chunkKey >> 32);
-            int chunkZ = (int) chunkKey;
+            int chunkX = CellKeys.chunkX(chunkKey);
+            int chunkZ = CellKeys.chunkZ(chunkKey);
             long currentChunkRevision = chunkVisibility.chunkRevision(observer, chunkX, chunkZ);
             if (chunkVisibility.isChunkSent(observer, chunkX, chunkZ)
                 && (currentChunkRevision == Long.MIN_VALUE || currentChunkRevision == sentChunk.revision)) {
