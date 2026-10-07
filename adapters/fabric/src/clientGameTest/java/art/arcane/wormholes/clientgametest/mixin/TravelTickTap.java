@@ -14,6 +14,11 @@ public abstract class TravelTickTap {
         TravelTap.tickStarted();
     }
 
+    @Inject(method = "tick", at = @At("HEAD"))
+    private void wormholesTest$gameTick(CallbackInfo callback) {
+        TravelTap.gameTick();
+    }
+
     @Inject(method = "runTick", at = @At("RETURN"))
     private void wormholesTest$tickEnded(boolean advanceGameTime, CallbackInfo callback) {
         TravelTap.tickEnded();

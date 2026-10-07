@@ -23,6 +23,7 @@ public final class TravelTap {
     private static boolean loadingScreen;
     private static boolean unloaded;
     private static long tickStarted;
+    private static long gameTicks;
 
     private TravelTap() {
     }
@@ -61,6 +62,10 @@ public final class TravelTap {
         ACCEPTS.incrementAndGet();
     }
 
+    public static void gameTick() {
+        gameTicks++;
+    }
+
     public static void tickStarted() {
         tickStarted = System.nanoTime();
     }
@@ -82,7 +87,8 @@ public final class TravelTap {
         }
         FRAMES.add(new Frame(FRAMES.size(), camera.position(), camera.yRot(), camera.xRot(),
             minecraft.level.dimension().identifier().toString(), System.identityHashCode(minecraft.level),
-            System.identityHashCode(minecraft.player), 0L));
+            System.identityHashCode(minecraft.player), gameTicks + minecraft.getDeltaTracker().getGameTimeDeltaPartialTick(true),
+            minecraft.player.position().distanceTo(new Vec3(minecraft.player.xo, minecraft.player.yo, minecraft.player.zo)), 0L));
     }
 
     public static synchronized List<Frame> frames() {
@@ -123,9 +129,10 @@ public final class TravelTap {
         return -1;
     }
 
-    public record Frame(int index, Vec3 camera, float yaw, float pitch, String dimension, int level, int player, long tickNanos) {
+    public record Frame(int index, Vec3 camera, float yaw, float pitch, String dimension, int level, int player, double clock, double tickSpeed,
+                        long tickNanos) {
         Frame withTickNanos(long nanos) {
-            return new Frame(index, camera, yaw, pitch, dimension, level, player, nanos);
+            return new Frame(index, camera, yaw, pitch, dimension, level, player, clock, tickSpeed, nanos);
         }
     }
 }

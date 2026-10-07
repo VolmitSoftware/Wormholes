@@ -62,7 +62,7 @@ public final class SeamlessCrossDimensionClientGameTest implements FabricClientG
         SeamlessScenario.awaitPrepared(context, connection);
         SeamlessScenario.Crossing outbound = SeamlessScenario.walkThrough(context, label);
         SeamlessScenario.assertSeamlessTravel(context, route, outbound);
-        SeamlessScenario.turnBack(context, connection);
+        SeamlessScenario.turnBack(context, connection, route);
         SeamlessScenario.Crossing inbound = SeamlessScenario.walkThrough(context, label + "-return");
         SeamlessScenario.assertSeamlessReturn(context, route, inbound);
         SeamlessScenario.finish(context, server, player, route);

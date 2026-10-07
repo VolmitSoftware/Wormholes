@@ -1,6 +1,8 @@
 package art.arcane.wormholes.clientgametest.mixin;
 
 import art.arcane.wormholes.clientgametest.TravelTap;
+import art.arcane.wormholes.modded.client.WormholesClient;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
 import org.spongepowered.asm.mixin.Mixin;
@@ -28,6 +30,8 @@ public abstract class TravelPacketTap {
         target = "Lnet/minecraft/network/protocol/PacketUtils;ensureRunningOnSameThread(Lnet/minecraft/network/protocol/Packet;Lnet/minecraft/network/PacketListener;Lnet/minecraft/network/PacketProcessor;)V",
         shift = At.Shift.AFTER))
     private void wormholesTest$added(ClientboundAddEntityPacket packet, CallbackInfo callback) {
-        TravelTap.added(packet.getId());
+        if (WormholesClient.activeLevel(Minecraft.getInstance().level)) {
+            TravelTap.added(packet.getId());
+        }
     }
 }

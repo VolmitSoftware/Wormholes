@@ -52,8 +52,8 @@ final class SeamlessScenario {
     private static final int RETURN_VIEW_TICKS = 20;
     private static final double CROSSING_JUMP = 4.0D;
     private static final double POSE_TOLERANCE = 1.0E-3D;
+    private static final int STEP_AWAY_TICKS = 8;
     private static final float LOOK_TOLERANCE = 0.5F;
-    private static final int RENDER_DISTANCE = 10;
     private static final int VIEW_SETTLE_TICKS = 100;
 
     private SeamlessScenario() {
@@ -95,15 +95,18 @@ final class SeamlessScenario {
             route.sourceMin().getY(), route.sourceMin().getZ() + 6.5D, Set.of(), 180.0F, 0.0F, false));
     }
 
-    static void turnBack(ClientGameTestContext context, TestServerConnection connection) {
-        context.getInput().lookAt(0.0F, 0.0F);
+    static void turnBack(ClientGameTestContext context, TestServerConnection connection, Route route) {
+        context.getInput().holdKeyFor(options -> options.keyUp, STEP_AWAY_TICKS);
+        context.waitTicks(SETTLE_TICKS);
+        Vec3d portal = route.inbound().exit().sourceOrigin();
+        Vec3 feet = context.computeOnClient(client -> client.player.position());
+        context.getInput().lookAt((float) Math.toDegrees(Math.atan2(-(portal.x() - feet.x), portal.z() - feet.z)), 0.0F);
         context.waitTicks(SETTLE_TICKS);
         awaitPrepared(context, connection);
     }
 
     static void awaitPrepared(ClientGameTestContext context, TestServerConnection connection) {
         connection.waitForChunksRender();
-        context.runOnClient(client -> client.options.renderDistance().set(RENDER_DISTANCE));
         context.waitTicks(VIEW_SETTLE_TICKS);
         context.waitFor(client -> WormholesClient.instance().preparedTravel().readyRevision() > 0
             && !WormholesClient.instance().preparedTravel().adopted() && !WormholesClient.instance().preparedTravel().pendingCrossing(),
@@ -162,6 +165,8 @@ final class SeamlessScenario {
         }
         context.waitFor(client -> NativeClientViewAssertions.sections(NativeClientViewAssertions.portalKey(returnPortal)) > 0, RETURN_VIEW_TICKS);
         context.waitTicks(SETTLE_TICKS);
+        assertTrue(context.computeOnClient(client -> !client.levelRenderer.visibleSections().isEmpty()),
+            crossing.label() + ": the main renderer draws nothing of the arrival level");
         reportFrameTimes(crossing);
         assertTrue(TravelTap.respawns() == 0, crossing.label() + ": " + TravelTap.respawns() + " respawn packets were handled");
         assertTrue(TravelTap.positions() == 0, crossing.label() + ": " + TravelTap.positions() + " position packets were handled");
@@ -178,9 +183,11 @@ final class SeamlessScenario {
         TravelTap.Frame earlier = frames.get(crossing.index() - 2);
         TravelTap.Frame before = frames.get(crossing.index() - 1);
         TravelTap.Frame after = frames.get(crossing.index());
-        double step = before.camera().distanceTo(earlier.camera());
+        double step = Math.max(before.tickSpeed(), after.tickSpeed()) * (after.clock() - before.clock());
         Vec3d mapped = leg.toward().point(new Vec3d(before.camera().x, before.camera().y, before.camera().z));
         double gap = new Vec3(mapped.x(), mapped.y(), mapped.z()).distanceTo(after.camera());
+        LOGGER.info("[{}] pose continuity: camera moved {} blocks across the crossing frame, per-frame speed {} blocks over {} ticks", crossing.label(),
+            String.format("%.5f", gap), String.format("%.5f", step), String.format("%.4f", after.clock() - before.clock()));
         assertTrue(gap <= step + POSE_TOLERANCE, crossing.label() + ": camera moved " + gap + " blocks across the crossing frame (step " + step + ")");
         Angles.Look expected = expectedLook(leg, before);
         float yawStep = Math.abs(wrap(before.yaw() - earlier.yaw()));

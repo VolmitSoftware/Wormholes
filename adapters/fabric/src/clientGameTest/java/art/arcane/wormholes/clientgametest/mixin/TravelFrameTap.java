@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(GameRenderer.class)
 public abstract class TravelFrameTap {
-    @Inject(method = "render", at = @At("HEAD"))
+    @Inject(method = "render", at = @At("TAIL"))
     private void wormholesTest$frame(CallbackInfo callback) {
         TravelTap.frame(Minecraft.getInstance());
     }
