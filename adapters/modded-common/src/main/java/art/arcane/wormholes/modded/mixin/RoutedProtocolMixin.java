@@ -17,16 +17,6 @@ public abstract class RoutedProtocolMixin implements RoutedProtocolHolder {
     @Unique
     private volatile ProtocolInfo<?> wormholesOutbound;
 
-    @Inject(method = "setupInboundProtocol", at = @At("HEAD"))
-    private <T extends PacketListener> void wormholesCaptureInbound(ProtocolInfo<T> protocol, T listener, CallbackInfo callback) {
-        wormholesInbound = protocol;
-    }
-
-    @Inject(method = "setupOutboundProtocol", at = @At("HEAD"))
-    private void wormholesCaptureOutbound(ProtocolInfo<?> protocol, CallbackInfo callback) {
-        wormholesOutbound = protocol;
-    }
-
     @Override
     public ProtocolInfo<?> wormholesInboundProtocol() {
         return wormholesInbound;
@@ -35,5 +25,15 @@ public abstract class RoutedProtocolMixin implements RoutedProtocolHolder {
     @Override
     public ProtocolInfo<?> wormholesOutboundProtocol() {
         return wormholesOutbound;
+    }
+
+    @Inject(method = "setupInboundProtocol", at = @At("HEAD"))
+    private <T extends PacketListener> void wormholesCaptureInbound(ProtocolInfo<T> protocol, T listener, CallbackInfo callback) {
+        wormholesInbound = protocol;
+    }
+
+    @Inject(method = "setupOutboundProtocol", at = @At("HEAD"))
+    private void wormholesCaptureOutbound(ProtocolInfo<?> protocol, CallbackInfo callback) {
+        wormholesOutbound = protocol;
     }
 }

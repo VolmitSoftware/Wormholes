@@ -52,6 +52,7 @@ import com.mojang.brigadier.CommandDispatcher;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
@@ -483,7 +484,7 @@ public final class MinecraftDoorService implements AutoCloseable {
         doors.put(endpoint.identity().itemId(), new ActiveDoor(endpoint));
     }
 
-    static net.minecraft.core.Direction facing(Face direction) {
+    static Direction facing(Face direction) {
         return switch (direction) {
             case N -> NORTH;
             case S -> SOUTH;
@@ -494,7 +495,7 @@ public final class MinecraftDoorService implements AutoCloseable {
         };
     }
 
-    private static Face direction(net.minecraft.core.Direction direction) {
+    private static Face direction(Direction direction) {
         return switch (direction) {
             case NORTH -> Face.N;
             case SOUTH -> Face.S;

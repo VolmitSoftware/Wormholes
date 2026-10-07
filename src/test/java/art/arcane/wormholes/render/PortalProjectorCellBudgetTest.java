@@ -125,7 +125,7 @@ public final class PortalProjectorCellBudgetTest {
         assertFalse(dense.fittedCoarse());
 
         ProjectorViewFrustum coarse = new ProjectorViewFrustum(null);
-        coarse.setLodPolicy(new art.arcane.optics.volume.LodPolicy(false, 1, 48));
+        coarse.setLodPolicy(new LodPolicy(false, 1, 48));
         coarse.fit(null, structure, frame, observerEye, 128.0D, LATERAL_PAD);
         assertTrue(coarse.fittedCoarse(), "run merging must be tried before shedding depth");
         assertEquals(128.0D, coarse.fittedDepth(), 1.0E-9D, "the coarse fit keeps the requested depth");

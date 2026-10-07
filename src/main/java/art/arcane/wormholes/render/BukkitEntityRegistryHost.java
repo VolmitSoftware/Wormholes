@@ -263,7 +263,7 @@ public final class BukkitEntityRegistryHost implements EntityOutput<Player, Vect
             Class<? extends Entity> entityClass = Optional.ofNullable(Registry.ENTITY_TYPE.get(key))
                 .map(type -> type.getEntityClass()).orElse(null);
             return entityClass != null && LivingEntity.class.isAssignableFrom(entityClass);
-        } catch (Throwable ignored) {
+        } catch (RuntimeException | LinkageError unavailable) {
             return false;
         }
     }

@@ -279,21 +279,6 @@ public final class ClientViewSession {
         return true;
     }
 
-    private void extension(ViewStreamMessage.Extension extension, Sink sink) throws ViewStreamProtocolException {
-        switch (extension.payload()) {
-            case TravelMessage ignored -> {
-            }
-            case FxMessage.Fx fx -> {
-                if (fx.portalKey() == FxMessage.WORLD_FX_KEY || portals.containsKey(fx.portalKey())) {
-                    sink.fx(fx);
-                } else {
-                    ignoredSceneMessages++;
-                }
-            }
-            default -> throw new ViewStreamProtocolException("unexpected clientbound extension " + extension.id());
-        }
-    }
-
     public void refuseMesh(int portalKey, int generation, Sink sink) {
         Objects.requireNonNull(sink, "sink");
         ClientMeshSections.View view = meshes.view(portalKey);
@@ -443,12 +428,6 @@ public final class ClientViewSession {
         }
     }
 
-    private int nextCacheSequence(int portalKey) {
-        int sequence = cacheSequences.get(portalKey) + 1;
-        cacheSequences.put(portalKey, sequence);
-        return sequence;
-    }
-
     public ClientMeshSections meshes() {
         return meshes;
     }
@@ -479,6 +458,27 @@ public final class ClientViewSession {
 
     public int dataVersion() {
         return dataVersion;
+    }
+
+    private void extension(ViewStreamMessage.Extension extension, Sink sink) throws ViewStreamProtocolException {
+        switch (extension.payload()) {
+            case TravelMessage ignored -> {
+            }
+            case FxMessage.Fx fx -> {
+                if (fx.portalKey() == FxMessage.WORLD_FX_KEY || portals.containsKey(fx.portalKey())) {
+                    sink.fx(fx);
+                } else {
+                    ignoredSceneMessages++;
+                }
+            }
+            default -> throw new ViewStreamProtocolException("unexpected clientbound extension " + extension.id());
+        }
+    }
+
+    private int nextCacheSequence(int portalKey) {
+        int sequence = cacheSequences.get(portalKey) + 1;
+        cacheSequences.put(portalKey, sequence);
+        return sequence;
     }
 
     private void portal(ViewStreamMessage.Portal message) throws ViewStreamProtocolException {

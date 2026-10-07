@@ -39,6 +39,11 @@ import static org.mockito.Mockito.when;
 import art.arcane.wormholes.network.client.TravelMessage;
 
 public class ClientTravelCrossingPoseTest extends MinecraftTestBase {
+    private static final MomentumRule PRESERVE = new MomentumRule(MomentumRule.Mode.PRESERVE, 1.0D, 0.0D, null);
+    private static final Pose SOURCE = new Pose(new Vec3d(0.5, 1, 0.2), new Vec3d(0.5, 1, 0.5), new Vec3d(0.5, 1, 0.5),
+        new Vec3d(0.05, 0.02, 0.3), 5, 10, 2, 8, 4, 1, 6, 3);
+    private static final Vec3d CROSSING = new Vec3d(0.5, 1, 0);
+
     @Test
     public void standingReverseCrossingPreservesExactFeetAboveDestinationFloor() throws ReflectiveOperationException {
         TravelMessage.TravelPose pose = pose(new Vec3(1001.5, 200, 0.4), 0.75f);
@@ -182,11 +187,6 @@ public class ClientTravelCrossingPoseTest extends MinecraftTestBase {
         Frame exit = ClientTravelMotion.exitFrame(begin.sourceGeometry().frame().view(true), begin.destinationToSource().inverse(), true);
         assertEquals(Frame.canonical(Face.E), exit);
     }
-
-    private static final MomentumRule PRESERVE = new MomentumRule(MomentumRule.Mode.PRESERVE, 1.0D, 0.0D, null);
-    private static final Pose SOURCE = new Pose(new Vec3d(0.5, 1, 0.2), new Vec3d(0.5, 1, 0.5), new Vec3d(0.5, 1, 0.5),
-        new Vec3d(0.05, 0.02, 0.3), 5, 10, 2, 8, 4, 1, 6, 3);
-    private static final Vec3d CROSSING = new Vec3d(0.5, 1, 0);
 
     private static TravelMessage.TravelBegin begin(Face exit, OrientationRule orientation, boolean gravityFlip, MomentumRule momentum) {
         Frame destination = Frame.canonical(exit);

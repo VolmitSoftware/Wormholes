@@ -79,20 +79,6 @@ public final class ProjectorSampleMemo<B, M, V extends ContentView<B, M>> {
         sampleMapFor(view).put(CellKeys.pack(x, y, z), sample);
     }
 
-    private Long2ObjectOpenHashMap<ProjectorSample<B, V>> sampleMapFor(V view) {
-        if (view == lastSampleView && lastSampleMap != null) {
-            return lastSampleMap;
-        }
-        Long2ObjectOpenHashMap<ProjectorSample<B, V>> viewSamples = remoteSamples.get(view);
-        if (viewSamples == null) {
-            viewSamples = new Long2ObjectOpenHashMap<ProjectorSample<B, V>>(256);
-            remoteSamples.put(view, viewSamples);
-        }
-        lastSampleView = view;
-        lastSampleMap = viewSamples;
-        return viewSamples;
-    }
-
     public boolean isLocalAir(V view, int x, int y, int z) {
         long key = CellKeys.pack(x, y, z);
         byte known = localAir.get(key);
@@ -122,16 +108,6 @@ public final class ProjectorSampleMemo<B, M, V extends ContentView<B, M>> {
         localOccupancy.put(key, (byte) 1);
         includeLocalChunk(x >> 4, z >> 4);
         return ProjectorHoldProof.Occupancy.OCCLUDING;
-    }
-
-    private void includeLocalChunk(int chunkX, int chunkZ) {
-        if (!hasLocalRegionRect) {
-            return;
-        }
-        localRegionChunkMinX = Math.min(localRegionChunkMinX, chunkX);
-        localRegionChunkMaxX = Math.max(localRegionChunkMaxX, chunkX);
-        localRegionChunkMinZ = Math.min(localRegionChunkMinZ, chunkZ);
-        localRegionChunkMaxZ = Math.max(localRegionChunkMaxZ, chunkZ);
     }
 
     public int occlusionDepthInView(V view, int x, int y, int z, B selfData) {
@@ -187,17 +163,6 @@ public final class ProjectorSampleMemo<B, M, V extends ContentView<B, M>> {
             return 1;
         }
         return 2;
-    }
-
-    private boolean occludingMemoized(V view, Long2ByteOpenHashMap memo, int x, int y, int z) {
-        long key = CellKeys.pack(x, y, z);
-        byte known = memo.get(key);
-        if (known != 0) {
-            return known == 1;
-        }
-        boolean occluding = blocks.isOccluding(view.material(x, y, z));
-        memo.put(key, occluding ? (byte) 1 : (byte) 2);
-        return occluding;
     }
 
     public boolean destinationStale(long viewRevision, boolean hasDestinationWorld, LongUnaryOperator unaffectedThrough) {
@@ -319,6 +284,50 @@ public final class ProjectorSampleMemo<B, M, V extends ContentView<B, M>> {
     }
 
 
+    public static boolean localSampleMemoStale(boolean forceStableCellResample,
+                                        boolean localDirty,
+                                        long viewRevision,
+                                        long memoRevision,
+                                        int memoSize,
+                                        int memoBudget) {
+        return forceStableCellResample || localDirty || viewRevision != memoRevision || memoSize > memoBudget;
+    }
+
+    private Long2ObjectOpenHashMap<ProjectorSample<B, V>> sampleMapFor(V view) {
+        if (view == lastSampleView && lastSampleMap != null) {
+            return lastSampleMap;
+        }
+        Long2ObjectOpenHashMap<ProjectorSample<B, V>> viewSamples = remoteSamples.get(view);
+        if (viewSamples == null) {
+            viewSamples = new Long2ObjectOpenHashMap<ProjectorSample<B, V>>(256);
+            remoteSamples.put(view, viewSamples);
+        }
+        lastSampleView = view;
+        lastSampleMap = viewSamples;
+        return viewSamples;
+    }
+
+    private void includeLocalChunk(int chunkX, int chunkZ) {
+        if (!hasLocalRegionRect) {
+            return;
+        }
+        localRegionChunkMinX = Math.min(localRegionChunkMinX, chunkX);
+        localRegionChunkMaxX = Math.max(localRegionChunkMaxX, chunkX);
+        localRegionChunkMinZ = Math.min(localRegionChunkMinZ, chunkZ);
+        localRegionChunkMaxZ = Math.max(localRegionChunkMaxZ, chunkZ);
+    }
+
+    private boolean occludingMemoized(V view, Long2ByteOpenHashMap memo, int x, int y, int z) {
+        long key = CellKeys.pack(x, y, z);
+        byte known = memo.get(key);
+        if (known != 0) {
+            return known == 1;
+        }
+        boolean occluding = blocks.isOccluding(view.material(x, y, z));
+        memo.put(key, occluding ? (byte) 1 : (byte) 2);
+        return occluding;
+    }
+
     private final class LocalChangeFilter implements WorldChangeTracker.ChangeFilter {
         private V view;
 
@@ -347,14 +356,5 @@ public final class ProjectorSampleMemo<B, M, V extends ContentView<B, M>> {
         public boolean affectsColumn(int chunkX, int chunkZ) {
             return true;
         }
-    }
-
-    public static boolean localSampleMemoStale(boolean forceStableCellResample,
-                                        boolean localDirty,
-                                        long viewRevision,
-                                        long memoRevision,
-                                        int memoSize,
-                                        int memoBudget) {
-        return forceStableCellResample || localDirty || viewRevision != memoRevision || memoSize > memoBudget;
     }
 }

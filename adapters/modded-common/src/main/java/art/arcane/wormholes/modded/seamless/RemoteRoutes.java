@@ -389,6 +389,10 @@ public final class RemoteRoutes implements AutoCloseable {
         }
     }
 
+    static StraddleTracker.Endpoint endpoint(MinecraftPortal portal) {
+        return new StraddleTracker.Endpoint(portal.getGeometry(), portal.getFrame(), portal.getOrigin());
+    }
+
     private PlayerRoutes state(ServerPlayer player, ClientViewTravel<?> travel) {
         PlayerRoutes state = players.get(player.getUUID());
         if (state != null && state.travel == travel) {
@@ -417,10 +421,6 @@ public final class RemoteRoutes implements AutoCloseable {
             return;
         }
         StraddleTracker.clear(player);
-    }
-
-    static StraddleTracker.Endpoint endpoint(MinecraftPortal portal) {
-        return new StraddleTracker.Endpoint(portal.getGeometry(), portal.getFrame(), portal.getOrigin());
     }
 
     private static Box box(AABB box) {

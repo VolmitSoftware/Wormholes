@@ -170,7 +170,7 @@ final class ViewEntityPipeline {
         }
         EntityCaptureContext context = new EntityCaptureContext(token);
         try {
-            int skyDarken = art.arcane.optics.light.SkyMath.computeSkyDarken(session.world.getTime());
+            int skyDarken = SkyMath.computeSkyDarken(session.world.getTime());
             int weather = (session.world.hasStorm() ? 1 : 0) | (session.world.isThundering() ? 2 : 0);
             if (skyDarken != session.lastSkyDarken || weather != session.lastWeather) {
                 session.lastSkyDarken = skyDarken;

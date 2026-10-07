@@ -333,7 +333,7 @@ class DoorPortalVisualServiceTest
 				throw new AssertionError("Attendance polled World." + method.getName());
 			});
 
-		assertTrue(service.hasNearbyViewer(world, new org.bukkit.Location(world, 1.25D, 64.5D, -3.75D)));
+		assertTrue(service.hasNearbyViewer(world, new Location(world, 1.25D, 64.5D, -3.75D)));
 
 		assertEquals(worldId, queriedWorld.get());
 		assertEquals(1.25D, query.get()[0]);
@@ -689,7 +689,7 @@ class DoorPortalVisualServiceTest
 			PortalPlaneGeometry base =
 				DoorPortalGeometry.overlayGeometry(
 					DoorPortalGeometry.geometry(Face.N, DoorHinge.LEFT), Face.N);
-			org.bukkit.Location anchor = new org.bukkit.Location(world, 1.5D, 2.0D, 3.5D);
+			org.bukkit.Location anchor = new Location(world, 1.5D, 2.0D, 3.5D);
 
 			ThreadLocalRandom random = mock(ThreadLocalRandom.class);
 			try(MockedStatic<ThreadLocalRandom> randomSource = mockStatic(ThreadLocalRandom.class))
@@ -761,7 +761,7 @@ class DoorPortalVisualServiceTest
 					DoorPortalGeometry.geometry(Face.E, DoorHinge.RIGHT), Face.E);
 
 			service.animateFrame(
-				visual, world, new org.bukkit.Location(world, 1.5D, 2.0D, 3.5D), Face.E, base, 4);
+				visual, world, new Location(world, 1.5D, 2.0D, 3.5D), Face.E, base, 4);
 
 			assertEquals(3, overlayCalls.get());
 		}

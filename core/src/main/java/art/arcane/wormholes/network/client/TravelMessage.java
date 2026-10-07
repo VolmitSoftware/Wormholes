@@ -46,6 +46,24 @@ public sealed interface TravelMessage {
 
     int id();
 
+    private static boolean residentHandle(int levelHandle) {
+        return levelHandle >= 1 && levelHandle <= MAX_LEVEL_HANDLE;
+    }
+
+    private static void travelVector(Vec3d vector) {
+        Objects.requireNonNull(vector, "vector");
+        if (!Double.isFinite(vector.x()) || !Double.isFinite(vector.y()) || !Double.isFinite(vector.z())) {
+            throw new IllegalArgumentException("Travel vector");
+        }
+    }
+
+    private static void travelIdentity(UUID token, long generation) {
+        Objects.requireNonNull(token, "token");
+        if (generation <= 0) {
+            throw new IllegalArgumentException("Travel generation");
+        }
+    }
+
     record TravelWorld(String dimension, String dimensionType, long seed, boolean debug, boolean flat,
                        int seaLevel, int minY, int height) {
         public TravelWorld {
@@ -412,24 +430,6 @@ public sealed interface TravelMessage {
         @Override
         public int id() {
             return REMOTE_VIEW_ACK;
-        }
-    }
-
-    private static boolean residentHandle(int levelHandle) {
-        return levelHandle >= 1 && levelHandle <= MAX_LEVEL_HANDLE;
-    }
-
-    private static void travelVector(Vec3d vector) {
-        Objects.requireNonNull(vector, "vector");
-        if (!Double.isFinite(vector.x()) || !Double.isFinite(vector.y()) || !Double.isFinite(vector.z())) {
-            throw new IllegalArgumentException("Travel vector");
-        }
-    }
-
-    private static void travelIdentity(UUID token, long generation) {
-        Objects.requireNonNull(token, "token");
-        if (generation <= 0) {
-            throw new IllegalArgumentException("Travel generation");
         }
     }
 }

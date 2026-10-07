@@ -4,6 +4,7 @@ import art.arcane.optics.entity.ProjectedMetadata;
 import art.arcane.optics.entity.ItemFrameMetadata;
 import art.arcane.optics.entity.MetadataAccess;
 import art.arcane.optics.math.Face;
+import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.EntityDataSerializer;
@@ -27,18 +28,18 @@ public final class MinecraftEntityMetadata implements MetadataAccess<SynchedEnti
     @Override
     public Object value(SynchedEntityData.DataValue<?> value) { return value.value(); }
     @Override
-    public boolean isDirection(Object value) { return value instanceof net.minecraft.core.Direction; }
+    public boolean isDirection(Object value) { return value instanceof Direction; }
     @Override
     public boolean isItem(Object value) { return value instanceof ItemStack; }
     @Override
     public Object direction(Face direction) {
         return switch (direction) {
-            case D -> net.minecraft.core.Direction.DOWN;
-            case U -> net.minecraft.core.Direction.UP;
-            case N -> net.minecraft.core.Direction.NORTH;
-            case S -> net.minecraft.core.Direction.SOUTH;
-            case W -> net.minecraft.core.Direction.WEST;
-            case E -> net.minecraft.core.Direction.EAST;
+            case D -> Direction.DOWN;
+            case U -> Direction.UP;
+            case N -> Direction.NORTH;
+            case S -> Direction.SOUTH;
+            case W -> Direction.WEST;
+            case E -> Direction.EAST;
         };
     }
     @Override

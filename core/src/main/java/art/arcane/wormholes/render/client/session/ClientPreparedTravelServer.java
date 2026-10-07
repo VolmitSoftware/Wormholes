@@ -174,24 +174,6 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
         return true;
     }
 
-    private Payload snapshot(TravelMessage.TravelCoordinate coordinate, byte[] current) {
-        if (destinationWorld == null) {
-            return new Payload(current.clone());
-        }
-        SnapshotKey key = new SnapshotKey(destinationWorld, begin.world(), coordinate);
-        Payload prior = retained.get(key);
-        if (prior != null && Arrays.equals(prior.bytes, current)) {
-            return prior;
-        }
-        Payload next = new Payload(current.clone());
-        retained.put(key, next);
-        retainedBytes += next.bytes.length - (prior == null ? 0 : prior.bytes.length);
-        while (retained.size() > MAX_RETAINED_COLUMNS || retainedBytes > MAX_RETAINED_BYTES) {
-            retainedBytes -= retained.pollFirstEntry().getValue().bytes.length;
-        }
-        return next;
-    }
-
     public synchronized void invalidate(TravelMessage.TravelCoordinate position) {
         Column column = columns.get(position);
         if (column != null && column.valid) {
@@ -371,10 +353,6 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
         return pendingCross != null && crossClaimed;
     }
 
-    public enum AutomaticCross {
-        ORDINARY, DEFER, FALLBACK
-    }
-
     public synchronized Optional<TravelMessage.TravelCross> takeCross() {
         if (pendingCross == null || crossClaimed) {
             return Optional.empty();
@@ -492,6 +470,24 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
         return Optional.of(result);
     }
 
+    private Payload snapshot(TravelMessage.TravelCoordinate coordinate, byte[] current) {
+        if (destinationWorld == null) {
+            return new Payload(current.clone());
+        }
+        SnapshotKey key = new SnapshotKey(destinationWorld, begin.world(), coordinate);
+        Payload prior = retained.get(key);
+        if (prior != null && Arrays.equals(prior.bytes, current)) {
+            return prior;
+        }
+        Payload next = new Payload(current.clone());
+        retained.put(key, next);
+        retainedBytes += next.bytes.length - (prior == null ? 0 : prior.bytes.length);
+        while (retained.size() > MAX_RETAINED_COLUMNS || retainedBytes > MAX_RETAINED_BYTES) {
+            retainedBytes -= retained.pollFirstEntry().getValue().bytes.length;
+        }
+        return next;
+    }
+
     private boolean committable(Commit request) {
         return !worldInvalidated && request.nowMillis() < deadline
             && (pendingCross == null || request.nowMillis() < crossDeadline) && readyRevision > 0L
@@ -576,6 +572,10 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
         contentRevision = 0L;
         sentRevision = 0L;
         readyRevision = 0L;
+    }
+
+    public enum AutomaticCross {
+        ORDINARY, DEFER, FALLBACK
     }
 
     public record Commit(UUID portal, String sourceWorld, String destinationWorld,

@@ -440,24 +440,6 @@ public final class SectionCacheTest {
             }
         }
 
-        private Block get(int x, int y, int z) {
-            int ox = x + ORIGIN;
-            int oy = y + ORIGIN;
-            int oz = z + ORIGIN;
-            if (ox < 0 || oy < 0 || oz < 0 || ox >= SPAN || oy >= SPAN || oz >= SPAN) {
-                return AIR;
-            }
-            Block block = blocks[slot(x, y, z)];
-            return block == null ? AIR : block;
-        }
-
-        private boolean occluding(int x, int y, int z) {
-            if (y < (MIN_SECTION_Y << 4) || y > (MAX_SECTION_Y << 4) + 15) {
-                return false;
-            }
-            return get(x, y, z).kind == Kind.STONE;
-        }
-
         @Override
         public boolean columnAvailable(int chunkX, int chunkZ) {
             return !unloaded.contains(columnKey(chunkX, chunkZ));
@@ -556,6 +538,24 @@ public final class SectionCacheTest {
 
         private static int slot(int x, int y, int z) {
             return (((x + ORIGIN) * SPAN) + (y + ORIGIN)) * SPAN + (z + ORIGIN);
+        }
+
+        private Block get(int x, int y, int z) {
+            int ox = x + ORIGIN;
+            int oy = y + ORIGIN;
+            int oz = z + ORIGIN;
+            if (ox < 0 || oy < 0 || oz < 0 || ox >= SPAN || oy >= SPAN || oz >= SPAN) {
+                return AIR;
+            }
+            Block block = blocks[slot(x, y, z)];
+            return block == null ? AIR : block;
+        }
+
+        private boolean occluding(int x, int y, int z) {
+            if (y < (MIN_SECTION_Y << 4) || y > (MAX_SECTION_Y << 4) + 15) {
+                return false;
+            }
+            return get(x, y, z).kind == Kind.STONE;
         }
     }
 

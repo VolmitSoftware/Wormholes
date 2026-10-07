@@ -1,5 +1,6 @@
 package art.arcane.wormholes;
 
+import art.arcane.optics.view.WorldChangeTracker;
 import com.github.retrooper.packetevents.protocol.player.Equipment;
 
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
@@ -95,7 +96,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
     public static volatile PortalManager portalManager;
     public static volatile TraversableManager traversableManager;
     public static volatile ProjectionManager projectionManager;
-    public static volatile art.arcane.optics.view.WorldChangeTracker projectionChangeTracker;
+    public static volatile WorldChangeTracker projectionChangeTracker;
     public static volatile ArrivalWarmer arrivalWarmer;
     public static volatile BukkitRtpRuntime rtpRuntime;
     public static volatile NetworkManager networkManager;
@@ -200,7 +201,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
             vanillaTravelCostCapture = new VanillaTravelCostCapture();
             portalManager = new PortalManager();
             traversableManager = new TraversableManager();
-            projectionChangeTracker = new art.arcane.optics.view.WorldChangeTracker();
+            projectionChangeTracker = new WorldChangeTracker();
             projectionManager = new ProjectionManager(packetEvents().projectionChunkTracker(), opticsScheduler);
             arrivalWarmer = new ArrivalWarmer();
             rtpRuntime = new BukkitRtpEnvironment(this, portalManager).createRuntime();

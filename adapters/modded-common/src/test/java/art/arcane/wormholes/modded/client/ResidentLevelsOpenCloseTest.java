@@ -234,17 +234,17 @@ public class ResidentLevelsOpenCloseTest extends MinecraftTestBase {
             return new ResidentLevels(sent::add, 512L << 20);
         }
 
-        @SuppressWarnings("unchecked")
-        private static ResourceKey<Level> dimension(Object argument) {
-            return (ResourceKey<Level>) argument;
-        }
-
         @Override
         public void close() {
             levels.close();
             extractors.close();
             terrain.close();
             access.close();
+        }
+
+        @SuppressWarnings("unchecked")
+        private static ResourceKey<Level> dimension(Object argument) {
+            return (ResourceKey<Level>) argument;
         }
     }
 }

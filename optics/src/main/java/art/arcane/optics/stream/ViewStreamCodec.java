@@ -233,6 +233,209 @@ public final class ViewStreamCodec {
         return out;
     }
 
+    public static void writePatchOp(ViewStreamWriter out, ViewStreamMessage.PatchOp op) throws ViewStreamProtocolException {
+        out.u16(op.brickIndex());
+        out.u8(op.op());
+        switch (op) {
+            case ViewStreamMessage.FullOp full -> BrickCodec.write(out, full.brick());
+            case ViewStreamMessage.SparseOp sparse -> {
+                int[] cells = sparse.cellIndices();
+                int[] ids = sparse.paletteIds();
+                out.u16(cells.length);
+                for (int i = 0; i < cells.length; i++) {
+                    out.u16(cells[i]);
+                    out.varint(ids[i]);
+                }
+            }
+            case ViewStreamMessage.ClearOp clear -> {
+            }
+        }
+    }
+
+    public static ViewStreamMessage.PatchOp readPatchOp(ViewStreamReader in) throws ViewStreamProtocolException {
+        int brickIndex = in.u16();
+        int op = in.u8();
+        return switch (op) {
+            case ViewStreamMessage.PatchOp.OP_FULL -> {
+                Brick brick = BrickCodec.read(in);
+                if (brick.brickIndex() != brickIndex) {
+                    throw new ViewStreamProtocolException("FULL op brick index mismatch");
+                }
+                yield new ViewStreamMessage.FullOp(brick);
+            }
+            case ViewStreamMessage.PatchOp.OP_SPARSE -> {
+                int count = in.checkedCount(in.u16(), ViewStreamLimits.BRICK_CELLS, 3);
+                int[] cells = new int[count];
+                int[] ids = new int[count];
+                for (int i = 0; i < count; i++) {
+                    cells[i] = in.u16();
+                    if (cells[i] >= ViewStreamLimits.BRICK_CELLS) {
+                        throw new ViewStreamProtocolException("sparse cell outside the brick");
+                    }
+                    ids[i] = in.varint(ViewStreamLimits.MAX_SESSION_PALETTE_SIZE - 1);
+                }
+                yield new ViewStreamMessage.SparseOp(brickIndex, cells, ids);
+            }
+            case ViewStreamMessage.PatchOp.OP_CLEAR -> new ViewStreamMessage.ClearOp(brickIndex);
+            default -> throw new ViewStreamProtocolException("unknown patch op " + op);
+        };
+    }
+
+    public static void writeGeometry(ViewStreamWriter out, ApertureDescriptor geometry, int depth) throws ViewStreamProtocolException {
+        if (depth >= ViewStreamLimits.MAX_GEOMETRY_DEPTH) {
+            throw new ViewStreamProtocolException("portal geometry nested deeper than " + ViewStreamLimits.MAX_GEOMETRY_DEPTH);
+        }
+        out.i32(geometry.originX());
+        out.i32(geometry.originY());
+        out.i32(geometry.originZ());
+        out.u8(geometry.facing());
+        out.u8(geometry.frontSide() ? 1 : 0);
+        out.u8(geometry.quarterTurns());
+        out.u8(geometry.mirror() ? 1 : 0);
+        out.u16(geometry.apertureWidth());
+        out.u16(geometry.apertureHeight());
+        long[] mask = geometry.apertureMask();
+        if (mask.length > ViewStreamLimits.MAX_APERTURE_MASK_WORDS) {
+            throw new ViewStreamProtocolException("aperture mask of " + mask.length + " words");
+        }
+        out.varint(mask.length);
+        out.longs(mask);
+        out.f32(geometry.nearPlanePadding());
+        out.f32(geometry.aperturePadding());
+        out.f32(geometry.frustumCullingRatio());
+        out.u16(geometry.depthBlocks());
+        out.u8(geometry.recursionDepth());
+        out.u8(geometry.blackoutPolicy());
+        out.varint(geometry.blackoutState());
+        out.u8(geometry.maskAirPolicy());
+        out.u8(geometry.lightingPolicy());
+        out.u8(geometry.fidelityFlags());
+        out.u8(geometry.kind());
+        out.f64(geometry.planeOffset());
+        out.varint(geometry.parentPortalKey());
+        out.i64(geometry.targetIdentity());
+        List<ApertureDescriptor> nested = geometry.nested();
+        if (nested.size() > ViewStreamLimits.MAX_NESTED_GEOMETRY) {
+            throw new ViewStreamProtocolException("portal geometry with " + nested.size() + " nested portals");
+        }
+        out.u8(nested.size());
+        for (ApertureDescriptor child : nested) {
+            writeGeometry(out, child, depth + 1);
+        }
+    }
+
+    public static ApertureDescriptor readGeometry(ViewStreamReader in, int depth) throws ViewStreamProtocolException {
+        if (depth >= ViewStreamLimits.MAX_GEOMETRY_DEPTH) {
+            throw new ViewStreamProtocolException("portal geometry nested deeper than " + ViewStreamLimits.MAX_GEOMETRY_DEPTH);
+        }
+        int originX = in.i32();
+        int originY = in.i32();
+        int originZ = in.i32();
+        int facing = in.u8();
+        boolean frontSide = readFlag(in);
+        int quarterTurns = in.u8();
+        boolean mirror = readFlag(in);
+        int apertureWidth = in.u16();
+        int apertureHeight = in.u16();
+        int words = in.checkedCount(in.varint(), ViewStreamLimits.MAX_APERTURE_MASK_WORDS, 8);
+        long[] mask = in.longs(words);
+        float nearPlanePadding = in.f32();
+        float aperturePadding = in.f32();
+        float frustumCullingRatio = in.f32();
+        int depthBlocks = in.u16();
+        int recursionDepth = in.u8();
+        int blackoutPolicy = in.u8();
+        int blackoutState = in.varint(ViewStreamLimits.MAX_SESSION_PALETTE_SIZE - 1);
+        int maskAirPolicy = in.u8();
+        int lightingPolicy = in.u8();
+        int fidelityFlags = in.u8();
+        int kind = in.u8();
+        double planeOffset = in.f64();
+        int parentPortalKey = in.varint();
+        long targetIdentity = in.i64();
+        int nestedCount = in.checkedCount(in.u8(), ViewStreamLimits.MAX_NESTED_GEOMETRY, 40);
+        List<ApertureDescriptor> nested = new ArrayList<ApertureDescriptor>(nestedCount);
+        for (int i = 0; i < nestedCount; i++) {
+            nested.add(readGeometry(in, depth + 1));
+        }
+        return new ApertureDescriptor(originX, originY, originZ, facing, frontSide, quarterTurns, mirror, apertureWidth, apertureHeight,
+            mask, nearPlanePadding, aperturePadding, frustumCullingRatio, depthBlocks, recursionDepth, blackoutPolicy, blackoutState,
+            maskAirPolicy, lightingPolicy, fidelityFlags, kind, planeOffset, parentPortalKey, targetIdentity, nested);
+    }
+
+    public static byte[] deflate(byte[] data, int length) {
+        Deflater deflater = new Deflater(Deflater.DEFAULT_COMPRESSION);
+        try {
+            deflater.setInput(data, 0, length);
+            deflater.finish();
+            ByteArrayOutputStream out = new ByteArrayOutputStream(Math.max(64, length / 2));
+            byte[] buffer = new byte[8192];
+            while (!deflater.finished()) {
+                int produced = deflater.deflate(buffer);
+                out.write(buffer, 0, produced);
+            }
+            return out.toByteArray();
+        } finally {
+            deflater.end();
+        }
+    }
+
+    public static byte[] inflate(byte[] data, int offset, int length, int maxOutput) throws ViewStreamProtocolException {
+        Inflater inflater = new Inflater();
+        try {
+            inflater.setInput(data, offset, length);
+            ByteArrayOutputStream out = new ByteArrayOutputStream(Math.min(maxOutput, Math.max(256, length * 4)));
+            byte[] buffer = new byte[8192];
+            while (!inflater.finished()) {
+                int produced = inflater.inflate(buffer);
+                if (produced == 0) {
+                    if (inflater.needsInput() || inflater.needsDictionary()) {
+                        throw new ViewStreamProtocolException("truncated deflate stream");
+                    }
+                    continue;
+                }
+                if (out.size() + produced > maxOutput) {
+                    throw new ViewStreamProtocolException("inflated frame exceeds " + maxOutput + " bytes");
+                }
+                out.write(buffer, 0, produced);
+            }
+            return out.toByteArray();
+        } catch (DataFormatException e) {
+            throw new ViewStreamProtocolException("corrupt deflate stream", e);
+        } finally {
+            inflater.end();
+        }
+    }
+
+    public static byte[] entityBytes(EntitySnapshot visual) throws ViewStreamProtocolException {
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream(128);
+        DataOutputStream out = new DataOutputStream(buffer);
+        try {
+            visual.write(out);
+            out.flush();
+        } catch (IOException e) {
+            throw new ViewStreamProtocolException("entity visual encode failed", e);
+        }
+        byte[] bytes = buffer.toByteArray();
+        if (bytes.length > ViewStreamLimits.MAX_ENTITY_VISUAL_BYTES) {
+            throw new ViewStreamProtocolException("entity visual of " + bytes.length + " bytes exceeds the cap");
+        }
+        return bytes;
+    }
+
+    public static EntitySnapshot entityFromBytes(byte[] bytes) throws ViewStreamProtocolException {
+        DataInputStream in = new DataInputStream(new ByteArrayInputStream(bytes));
+        try {
+            EntitySnapshot visual = EntitySnapshot.read(in);
+            if (in.available() != 0) {
+                throw new ViewStreamProtocolException("trailing bytes after entity visual");
+            }
+            return visual;
+        } catch (IOException | RuntimeException e) {
+            throw new ViewStreamProtocolException("corrupt entity visual", e);
+        }
+    }
+
     private void register(ViewStreamExtension<?> extension) {
         int first = extension.firstId();
         int last = extension.lastId();
@@ -807,209 +1010,6 @@ public final class ViewStreamCodec {
             case VIEW_STATS -> new ViewStreamMessage.ViewStats(in.i32(), in.u16(), in.i32(), in.u16(), in.u16(), in.u16(), in.u16());
             case PLATE_REFUSED -> new ViewStreamMessage.PlateRefused(in.varint(), in.i32());
         };
-    }
-
-    public static void writePatchOp(ViewStreamWriter out, ViewStreamMessage.PatchOp op) throws ViewStreamProtocolException {
-        out.u16(op.brickIndex());
-        out.u8(op.op());
-        switch (op) {
-            case ViewStreamMessage.FullOp full -> BrickCodec.write(out, full.brick());
-            case ViewStreamMessage.SparseOp sparse -> {
-                int[] cells = sparse.cellIndices();
-                int[] ids = sparse.paletteIds();
-                out.u16(cells.length);
-                for (int i = 0; i < cells.length; i++) {
-                    out.u16(cells[i]);
-                    out.varint(ids[i]);
-                }
-            }
-            case ViewStreamMessage.ClearOp clear -> {
-            }
-        }
-    }
-
-    public static ViewStreamMessage.PatchOp readPatchOp(ViewStreamReader in) throws ViewStreamProtocolException {
-        int brickIndex = in.u16();
-        int op = in.u8();
-        return switch (op) {
-            case ViewStreamMessage.PatchOp.OP_FULL -> {
-                Brick brick = BrickCodec.read(in);
-                if (brick.brickIndex() != brickIndex) {
-                    throw new ViewStreamProtocolException("FULL op brick index mismatch");
-                }
-                yield new ViewStreamMessage.FullOp(brick);
-            }
-            case ViewStreamMessage.PatchOp.OP_SPARSE -> {
-                int count = in.checkedCount(in.u16(), ViewStreamLimits.BRICK_CELLS, 3);
-                int[] cells = new int[count];
-                int[] ids = new int[count];
-                for (int i = 0; i < count; i++) {
-                    cells[i] = in.u16();
-                    if (cells[i] >= ViewStreamLimits.BRICK_CELLS) {
-                        throw new ViewStreamProtocolException("sparse cell outside the brick");
-                    }
-                    ids[i] = in.varint(ViewStreamLimits.MAX_SESSION_PALETTE_SIZE - 1);
-                }
-                yield new ViewStreamMessage.SparseOp(brickIndex, cells, ids);
-            }
-            case ViewStreamMessage.PatchOp.OP_CLEAR -> new ViewStreamMessage.ClearOp(brickIndex);
-            default -> throw new ViewStreamProtocolException("unknown patch op " + op);
-        };
-    }
-
-    public static void writeGeometry(ViewStreamWriter out, ApertureDescriptor geometry, int depth) throws ViewStreamProtocolException {
-        if (depth >= ViewStreamLimits.MAX_GEOMETRY_DEPTH) {
-            throw new ViewStreamProtocolException("portal geometry nested deeper than " + ViewStreamLimits.MAX_GEOMETRY_DEPTH);
-        }
-        out.i32(geometry.originX());
-        out.i32(geometry.originY());
-        out.i32(geometry.originZ());
-        out.u8(geometry.facing());
-        out.u8(geometry.frontSide() ? 1 : 0);
-        out.u8(geometry.quarterTurns());
-        out.u8(geometry.mirror() ? 1 : 0);
-        out.u16(geometry.apertureWidth());
-        out.u16(geometry.apertureHeight());
-        long[] mask = geometry.apertureMask();
-        if (mask.length > ViewStreamLimits.MAX_APERTURE_MASK_WORDS) {
-            throw new ViewStreamProtocolException("aperture mask of " + mask.length + " words");
-        }
-        out.varint(mask.length);
-        out.longs(mask);
-        out.f32(geometry.nearPlanePadding());
-        out.f32(geometry.aperturePadding());
-        out.f32(geometry.frustumCullingRatio());
-        out.u16(geometry.depthBlocks());
-        out.u8(geometry.recursionDepth());
-        out.u8(geometry.blackoutPolicy());
-        out.varint(geometry.blackoutState());
-        out.u8(geometry.maskAirPolicy());
-        out.u8(geometry.lightingPolicy());
-        out.u8(geometry.fidelityFlags());
-        out.u8(geometry.kind());
-        out.f64(geometry.planeOffset());
-        out.varint(geometry.parentPortalKey());
-        out.i64(geometry.targetIdentity());
-        List<ApertureDescriptor> nested = geometry.nested();
-        if (nested.size() > ViewStreamLimits.MAX_NESTED_GEOMETRY) {
-            throw new ViewStreamProtocolException("portal geometry with " + nested.size() + " nested portals");
-        }
-        out.u8(nested.size());
-        for (ApertureDescriptor child : nested) {
-            writeGeometry(out, child, depth + 1);
-        }
-    }
-
-    public static ApertureDescriptor readGeometry(ViewStreamReader in, int depth) throws ViewStreamProtocolException {
-        if (depth >= ViewStreamLimits.MAX_GEOMETRY_DEPTH) {
-            throw new ViewStreamProtocolException("portal geometry nested deeper than " + ViewStreamLimits.MAX_GEOMETRY_DEPTH);
-        }
-        int originX = in.i32();
-        int originY = in.i32();
-        int originZ = in.i32();
-        int facing = in.u8();
-        boolean frontSide = readFlag(in);
-        int quarterTurns = in.u8();
-        boolean mirror = readFlag(in);
-        int apertureWidth = in.u16();
-        int apertureHeight = in.u16();
-        int words = in.checkedCount(in.varint(), ViewStreamLimits.MAX_APERTURE_MASK_WORDS, 8);
-        long[] mask = in.longs(words);
-        float nearPlanePadding = in.f32();
-        float aperturePadding = in.f32();
-        float frustumCullingRatio = in.f32();
-        int depthBlocks = in.u16();
-        int recursionDepth = in.u8();
-        int blackoutPolicy = in.u8();
-        int blackoutState = in.varint(ViewStreamLimits.MAX_SESSION_PALETTE_SIZE - 1);
-        int maskAirPolicy = in.u8();
-        int lightingPolicy = in.u8();
-        int fidelityFlags = in.u8();
-        int kind = in.u8();
-        double planeOffset = in.f64();
-        int parentPortalKey = in.varint();
-        long targetIdentity = in.i64();
-        int nestedCount = in.checkedCount(in.u8(), ViewStreamLimits.MAX_NESTED_GEOMETRY, 40);
-        List<ApertureDescriptor> nested = new ArrayList<ApertureDescriptor>(nestedCount);
-        for (int i = 0; i < nestedCount; i++) {
-            nested.add(readGeometry(in, depth + 1));
-        }
-        return new ApertureDescriptor(originX, originY, originZ, facing, frontSide, quarterTurns, mirror, apertureWidth, apertureHeight,
-            mask, nearPlanePadding, aperturePadding, frustumCullingRatio, depthBlocks, recursionDepth, blackoutPolicy, blackoutState,
-            maskAirPolicy, lightingPolicy, fidelityFlags, kind, planeOffset, parentPortalKey, targetIdentity, nested);
-    }
-
-    public static byte[] deflate(byte[] data, int length) {
-        Deflater deflater = new Deflater(Deflater.DEFAULT_COMPRESSION);
-        try {
-            deflater.setInput(data, 0, length);
-            deflater.finish();
-            ByteArrayOutputStream out = new ByteArrayOutputStream(Math.max(64, length / 2));
-            byte[] buffer = new byte[8192];
-            while (!deflater.finished()) {
-                int produced = deflater.deflate(buffer);
-                out.write(buffer, 0, produced);
-            }
-            return out.toByteArray();
-        } finally {
-            deflater.end();
-        }
-    }
-
-    public static byte[] inflate(byte[] data, int offset, int length, int maxOutput) throws ViewStreamProtocolException {
-        Inflater inflater = new Inflater();
-        try {
-            inflater.setInput(data, offset, length);
-            ByteArrayOutputStream out = new ByteArrayOutputStream(Math.min(maxOutput, Math.max(256, length * 4)));
-            byte[] buffer = new byte[8192];
-            while (!inflater.finished()) {
-                int produced = inflater.inflate(buffer);
-                if (produced == 0) {
-                    if (inflater.needsInput() || inflater.needsDictionary()) {
-                        throw new ViewStreamProtocolException("truncated deflate stream");
-                    }
-                    continue;
-                }
-                if (out.size() + produced > maxOutput) {
-                    throw new ViewStreamProtocolException("inflated frame exceeds " + maxOutput + " bytes");
-                }
-                out.write(buffer, 0, produced);
-            }
-            return out.toByteArray();
-        } catch (DataFormatException e) {
-            throw new ViewStreamProtocolException("corrupt deflate stream", e);
-        } finally {
-            inflater.end();
-        }
-    }
-
-    public static byte[] entityBytes(EntitySnapshot visual) throws ViewStreamProtocolException {
-        ByteArrayOutputStream buffer = new ByteArrayOutputStream(128);
-        DataOutputStream out = new DataOutputStream(buffer);
-        try {
-            visual.write(out);
-            out.flush();
-        } catch (IOException e) {
-            throw new ViewStreamProtocolException("entity visual encode failed", e);
-        }
-        byte[] bytes = buffer.toByteArray();
-        if (bytes.length > ViewStreamLimits.MAX_ENTITY_VISUAL_BYTES) {
-            throw new ViewStreamProtocolException("entity visual of " + bytes.length + " bytes exceeds the cap");
-        }
-        return bytes;
-    }
-
-    public static EntitySnapshot entityFromBytes(byte[] bytes) throws ViewStreamProtocolException {
-        DataInputStream in = new DataInputStream(new ByteArrayInputStream(bytes));
-        try {
-            EntitySnapshot visual = EntitySnapshot.read(in);
-            if (in.available() != 0) {
-                throw new ViewStreamProtocolException("trailing bytes after entity visual");
-            }
-            return visual;
-        } catch (IOException | RuntimeException e) {
-            throw new ViewStreamProtocolException("corrupt entity visual", e);
-        }
     }
 
     private static SectionBiomes readSectionBiomes(ViewStreamReader in) throws ViewStreamProtocolException {

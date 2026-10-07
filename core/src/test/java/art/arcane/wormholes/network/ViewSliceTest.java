@@ -1,5 +1,6 @@
 package art.arcane.wormholes.network;
 
+import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.wormholes.network.view.ViewSlice;
 import org.junit.jupiter.api.Test;
 
@@ -207,7 +208,7 @@ class ViewSliceTest {
     @Test
     void viewEntitiesRoundTrip() throws IOException {
         UUID portalId = UUID.randomUUID();
-        art.arcane.optics.entity.EntitySnapshot visual = art.arcane.optics.entity.EntitySnapshot.full(
+        EntitySnapshot visual = EntitySnapshot.full(
             UUID.randomUUID(), "minecraft:player",
             10.5D, 64.0D, -3.25D, 1.95D,
             0.1D, -0.2D, 0.97D,
@@ -224,7 +225,7 @@ class ViewSliceTest {
         assertEquals(portalId, decoded.portalId());
         assertEquals(1, decoded.entities().size());
         assertEquals(List.of(visual.id()), decoded.presentIds());
-        art.arcane.optics.entity.EntitySnapshot roundTripped = decoded.entities().get(0);
+        EntitySnapshot roundTripped = decoded.entities().get(0);
         assertEquals(visual.id(), roundTripped.id());
         assertEquals(visual.typeKey(), roundTripped.typeKey());
         assertEquals(visual.x(), roundTripped.x(), 1.0D / 4096.0D);

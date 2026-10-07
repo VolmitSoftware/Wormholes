@@ -301,11 +301,6 @@ public final class BukkitClientView implements ClientViewRouting {
         return observers.get(playerId);
     }
 
-    private ClientViewTravel<ClientViewObserver> travel(UUID playerId) {
-        ViewStreamSession<ClientViewObserver, BlockData> session = registry.session(playerId);
-        return session == null ? null : ClientViewTravel.of(session);
-    }
-
     public ClientViewObserver observer(UUID playerId, User user) {
         while (true) {
             ClientViewObserver existing = observers.get(playerId);
@@ -523,6 +518,11 @@ public final class BukkitClientView implements ClientViewRouting {
         registry.runtimeEnabled(false);
         registry.shutdown();
         observers.clear();
+    }
+
+    private ClientViewTravel<ClientViewObserver> travel(UUID playerId) {
+        ViewStreamSession<ClientViewObserver, BlockData> session = registry.session(playerId);
+        return session == null ? null : ClientViewTravel.of(session);
     }
 
     private void retire(UUID playerId, ClientViewObserver observer) {

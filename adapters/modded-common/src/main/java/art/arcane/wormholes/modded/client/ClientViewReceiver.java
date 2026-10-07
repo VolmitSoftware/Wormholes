@@ -50,7 +50,10 @@ public final class ClientViewReceiver {
         try {
             frame = MinecraftClientViewExtensions.CODEC.decodeS2C(payload, session.caps());
         } catch (ViewStreamProtocolException | RuntimeException failure) {
-            decodeFailures.incrementAndGet();
+            if (decodeFailures.incrementAndGet() == 1L) {
+                LOGGER.warn("Wormholes ClientView dropped an undecodable {} byte frame; later decode failures are only counted", payload.length,
+                    failure);
+            }
             return;
         }
         switch (frame.message()) {

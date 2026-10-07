@@ -122,7 +122,7 @@ final class ViewSubscriptions {
         session.sendStates.remove(peerName);
         session.lastSentPresentIds.remove(peerName);
         session.lastPeerSideband.remove(peerName);
-        int initialSkyDarken = art.arcane.optics.light.SkyMath.computeSkyDarken(session.world.getTime());
+        int initialSkyDarken = SkyMath.computeSkyDarken(session.world.getTime());
         session.timeDeliveryStates.put(peerName, new ViewServer.TimeDeliveryState(initialSkyDarken));
         timeDelivery.queue(session, peerName, initialSkyDarken, session.world.hasStorm(), session.world.isThundering());
         for (long[] column : session.columns) {

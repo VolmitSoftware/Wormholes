@@ -35,6 +35,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class DoorEntitySweepTest
 {
+	private static final UUID WORLD_ID = new UUID(17L, 19L);
+	private static final DoorwayPlane PLANE = new DoorwayPlane(0, 64, 0, Face.N);
+
 	@Test
 	public void anObjectCompletionLeavesTheDoorStandingOpenForTheRestOfTheVolley()
 	{
@@ -48,9 +51,6 @@ final class DoorEntitySweepTest
 		assertTrue(DoorEntitySweep.shouldSweep(new DoorwayPlane(0, 64, 0, Face.N), cycle, true));
 		assertEquals(DoorOpenCycle.Phase.ARMED, cycle.phase());
 	}
-
-	private static final UUID WORLD_ID = new UUID(17L, 19L);
-	private static final DoorwayPlane PLANE = new DoorwayPlane(0, 64, 0, Face.N);
 
 	private static Entity stub(Class<?>... interfaces)
 	{

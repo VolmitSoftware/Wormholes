@@ -383,12 +383,6 @@ public final class MinecraftClientViewService implements AutoCloseable {
         return false;
     }
 
-    private ClientViewTravel<MinecraftClientViewPeer> travel(UUID playerId) {
-        ViewStreamSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
-        ViewStreamSession<MinecraftClientViewPeer, BlockState> session = active == null ? null : active.session(playerId);
-        return session == null ? null : ClientViewTravel.of(session);
-    }
-
     public boolean holdsVanilla(UUID player) {
         ViewStreamSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
         ViewStreamSession<MinecraftClientViewPeer, BlockState> session = active == null ? null : active.session(player);
@@ -485,12 +479,19 @@ public final class MinecraftClientViewService implements AutoCloseable {
         LocalPlateHandles.clear();
     }
 
+    private ClientViewTravel<MinecraftClientViewPeer> travel(UUID playerId) {
+        ViewStreamSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
+        ViewStreamSession<MinecraftClientViewPeer, BlockState> session = active == null ? null : active.session(playerId);
+        return session == null ? null : ClientViewTravel.of(session);
+    }
+
     private void follow(ViewStreamSession<MinecraftClientViewPeer, BlockState> session, ServerPlayer player) {
         ViewStreamMessage.ResetReason reason = session.player().follow(player, runtime, levelHandoffs.remove(player.getUUID()));
         if (reason != null) {
             session.reset(reason);
         }
     }
+
     private record Seamless(UUID source, UUID token, long generation, long until, boolean accepted) {
     }
 
