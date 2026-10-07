@@ -1,5 +1,7 @@
 package art.arcane.wormholes;
 
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.CompletableFuture;
 import art.arcane.optics.view.WorldChangeTracker;
 import com.github.retrooper.packetevents.protocol.player.Equipment;
 
@@ -321,9 +323,10 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
     }
 
     @Override
-    public void onPreUnload(ReloadAware.PreUnloadReason reason) {
+    public CompletionStage<Void> commitReload(ReloadAware.PreUnloadReason reason) {
         getLogger().info("BileTools pre-unload hook fired (" + reason + "). Tearing down Wormholes managers and PacketEvents.");
         tearDownBeforeDrain();
+        return CompletableFuture.completedFuture(null);
     }
 
     private void tearDownBeforeDrain() {
