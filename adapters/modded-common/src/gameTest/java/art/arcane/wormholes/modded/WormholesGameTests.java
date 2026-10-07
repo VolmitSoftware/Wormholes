@@ -1,6 +1,8 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.modded.clientview.MinecraftClientViewGameTest;
+import art.arcane.wormholes.modded.seamless.MinecraftRemoteViewGameTest;
+import art.arcane.wormholes.modded.seamless.MinecraftSeamlessValidationGameTest;
 import art.arcane.wormholes.portal.PortalStateCodec;
 import art.arcane.wormholes.network.NativeHandoffProbe;
 import art.arcane.wormholes.network.NativeGatewayPolicyProbe;
@@ -63,6 +65,8 @@ public final class WormholesGameTests {
     public static final Identifier PROJECTION_PLATE_CAPTURE_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "projection_plate_capture_runtime");
     public static final Identifier CLIENTVIEW_NEGOTIATION = Identifier.fromNamespaceAndPath("wormholes", "clientview_negotiation");
     public static final Identifier CLIENTVIEW_STREAM = Identifier.fromNamespaceAndPath("wormholes", "clientview_stream");
+    public static final Identifier SEAMLESS_VALIDATION = Identifier.fromNamespaceAndPath("wormholes", "seamless_validation");
+    public static final Identifier REMOTE_VIEW = Identifier.fromNamespaceAndPath("wormholes", "remote_view");
     private static final Set<CompletableFuture<?>> REPORTED_FAILURES = new HashSet<>();
     private static final Logger LOGGER = LoggerFactory.getLogger("WormholesGameTest");
 
@@ -167,6 +171,18 @@ public final class WormholesGameTests {
         CompletableFuture<Boolean> result = MinecraftClientViewGameTest.stream(helper, RUNTIME);
         helper.startSequence().thenWaitUntil(() -> helper.assertTrue(completed(helper, result, "clientview stream"),
             "ClientView stream did not complete")).thenSucceed();
+    }
+
+    public static void seamlessValidation(GameTestHelper helper) {
+        CompletableFuture<Boolean> result = MinecraftSeamlessValidationGameTest.run(helper, RUNTIME);
+        helper.startSequence().thenWaitUntil(() -> helper.assertTrue(completed(helper, result, "seamless validation"),
+            "Seamless validation did not complete")).thenSucceed();
+    }
+
+    public static void remoteView(GameTestHelper helper) {
+        CompletableFuture<Boolean> result = MinecraftRemoteViewGameTest.run(helper, RUNTIME);
+        helper.startSequence().thenWaitUntil(() -> helper.assertTrue(completed(helper, result, "remote view"),
+            "Remote view did not complete")).thenSucceed();
     }
 
     public static void costsRuntime(GameTestHelper helper) {

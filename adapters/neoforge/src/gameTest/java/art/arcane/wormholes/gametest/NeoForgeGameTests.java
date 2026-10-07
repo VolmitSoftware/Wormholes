@@ -1,6 +1,7 @@
 package art.arcane.wormholes.gametest;
 
 import art.arcane.wormholes.modded.MinecraftProxyPayload;
+import art.arcane.wormholes.modded.clientview.ClientViewPayload;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import art.arcane.wormholes.modded.MinecraftGameTestPlayer;
 import net.neoforged.neoforge.network.registration.NetworkRegistry;
@@ -21,7 +22,8 @@ import net.neoforged.neoforge.registries.RegisterEvent;
 public final class NeoForgeGameTests {
     public NeoForgeGameTests(IEventBus bus) {
         bus.addListener((RegisterPayloadHandlersEvent event) -> event.registrar("1").optional()
-            .playToClient(MinecraftProxyPayload.TYPE, MinecraftProxyPayload.CODEC, (payload, context) -> { }));
+            .playToClient(MinecraftProxyPayload.TYPE, MinecraftProxyPayload.CODEC, (payload, context) -> { })
+            .commonBidirectional(ClientViewPayload.TYPE, ClientViewPayload.CODEC, (payload, context) -> { }));
         MinecraftGameTestPlayer.configureConnections(NetworkRegistry::configureMockConnection);
         bus.addListener((RegisterEvent event) -> event.register(Registries.TEST_FUNCTION,
             WormholesGameTests.PORTAL_RUNTIME, () -> WormholesGameTests::portalRuntime));
@@ -63,6 +65,10 @@ public final class NeoForgeGameTests {
             WormholesGameTests.CLIENTVIEW_NEGOTIATION, () -> WormholesGameTests::clientViewNegotiation));
         bus.addListener((RegisterEvent event) -> event.register(Registries.TEST_FUNCTION,
             WormholesGameTests.CLIENTVIEW_STREAM, () -> WormholesGameTests::clientViewStream));
+        bus.addListener((RegisterEvent event) -> event.register(Registries.TEST_FUNCTION,
+            WormholesGameTests.SEAMLESS_VALIDATION, () -> WormholesGameTests::seamlessValidation));
+        bus.addListener((RegisterEvent event) -> event.register(Registries.TEST_FUNCTION,
+            WormholesGameTests.REMOTE_VIEW, () -> WormholesGameTests::remoteView));
         NeoForge.EVENT_BUS.addListener((RegisterCommandsEvent event) -> WormholesGameTests.RUNTIME.registerCommands(event.getDispatcher()));
         NeoForge.EVENT_BUS.addListener((ServerStartedEvent event) -> WormholesGameTests.start(event.getServer()));
         NeoForge.EVENT_BUS.addListener((ServerTickEvent.Post event) -> tick());
