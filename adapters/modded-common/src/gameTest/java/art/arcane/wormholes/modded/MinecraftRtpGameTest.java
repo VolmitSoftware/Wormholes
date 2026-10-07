@@ -22,6 +22,7 @@ import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
 import net.minecraft.world.item.Items;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.Level;
@@ -43,11 +44,13 @@ public final class MinecraftRtpGameTest {
     private static final int ANNULUS_INNER = 12;
     private static final int ANNULUS_OUTER = 24;
     private static final int ANNULUS_STEP = 2;
+    private static final int LANDING_DEPTH = 8;
 
     private final GameTestHelper helper;
     private final WormholesModRuntime runtime;
     private final MinecraftGameTestPlayer connection;
     private final MinecraftPortal portal;
+    private final List<BlockPos> landing = new ArrayList<>();
     private MinecraftPortal preview;
     private UUID previousRoute;
     private MinecraftGameTestPlayer second;
@@ -94,6 +97,7 @@ public final class MinecraftRtpGameTest {
                 helper.setBlock(new BlockPos(x, 1, z), Blocks.STONE);
             }
         }
+        buildLanding();
         approach();
         editor(helper.startSequence()).thenWaitUntil(() -> {
             preview = runtime.rtp().projectionDestination(connection.player(), portal);
@@ -380,6 +384,28 @@ public final class MinecraftRtpGameTest {
         return common;
     }
 
+    private void buildLanding() {
+        ServerLevel level = helper.getLevel();
+        int centerX = Mth.floor(portal.getOrigin().x());
+        int centerZ = Mth.floor(portal.getOrigin().z());
+        int y = level.getMaxY() - LANDING_DEPTH;
+        int inner = ANNULUS_INNER - 1;
+        int outer = ANNULUS_OUTER + 1;
+        for (int dx = -outer; dx <= outer; dx++) {
+            for (int dz = -outer; dz <= outer; dz++) {
+                int distanceSquared = dx * dx + dz * dz;
+                if (distanceSquared < inner * inner || distanceSquared > outer * outer) {
+                    continue;
+                }
+                BlockPos position = new BlockPos(centerX + dx, y, centerZ + dz);
+                if (level.getBlockState(position).isAir()) {
+                    level.setBlock(position, Blocks.STONE.defaultBlockState(), Block.UPDATE_CLIENTS);
+                    landing.add(position);
+                }
+            }
+        }
+    }
+
     private void approach() {
         connection.player().snapTo(Vec3.atBottomCenterOf(helper.absolutePos(new BlockPos(3, 2, 3))));
         connection.player().setDeltaMovement(Vec3.ZERO);
@@ -407,5 +433,9 @@ public final class MinecraftRtpGameTest {
         }
         runtime.portals().remove(connection.player(), portal.getId());
         connection.close();
+        for (BlockPos position : landing) {
+            helper.getLevel().setBlock(position, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS);
+        }
+        landing.clear();
     }
 }
