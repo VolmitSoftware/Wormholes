@@ -32,11 +32,9 @@ final class NeoForgeSeamlessEvents implements SeamlessMove.Events {
     public void chunkWatched(ServerPlayer player, ServerLevel level, LevelChunk chunk) {
         EventHooks.fireChunkWatch(player, chunk, level);
         LevelChunkAuxiliaryLightManager lights = chunk.getAuxLightManager(chunk.getPos());
-        if (lights != null) {
-            Map<BlockPos, Byte> entries = auxiliaryLights(lights.serializeNBT());
-            if (!entries.isEmpty()) {
-                player.connection.send(new ClientboundCustomPayloadPacket(new AuxiliaryLightDataPayload(chunk.getPos(), entries)));
-            }
+        ListTag stored = lights == null ? null : lights.serializeNBT();
+        if (stored != null) {
+            player.connection.send(new ClientboundCustomPayloadPacket(new AuxiliaryLightDataPayload(chunk.getPos(), auxiliaryLights(stored))));
         }
         EventHooks.fireChunkSent(player, chunk, level);
     }
