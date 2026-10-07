@@ -26,6 +26,7 @@ import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.objects.ObjectIterator;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundForgetLevelChunkPacket;
 import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
@@ -297,6 +298,7 @@ public final class RemoteRoutes implements AutoCloseable {
 
     public boolean handOver(ServerPlayer player, HandOver handOver, long tick) {
         runtime.requireServerThread();
+        SeamlessMove.Events events = runtime.seamlessEvents();
         RemoteRoute forward = handOver.forward();
         if (forward != null && forward.resident()) {
             RouteWindow delivered = forward.window().withRadius(Math.max(1, forward.stream().deliveredRadius()));
@@ -304,10 +306,12 @@ public final class RemoteRoutes implements AutoCloseable {
             ChunkTrackingView view = delivered.view();
             player.setChunkTrackingView(view);
             hold(player, forward.level(), view);
+            leaveDeparted(player, handOver, forward.level(), view, events);
+            watchDelivered(player, handOver, forward.level(), view, events);
         }
         List<RemoteTrackedEntityAccess> departed = trackedBy(handOver.origin(), player);
         if (forward != null) {
-            adoptForward(player, forward);
+            adoptForward(player, forward, events);
             release(forward);
         }
         RemoteRoute returned = forward != null && forward.resident() && handOver.back() != null
@@ -320,6 +324,9 @@ public final class RemoteRoutes implements AutoCloseable {
                 returned.paired().add(entity.getId());
             } else {
                 entity.stopSeenByPlayer(player);
+            }
+            if (entity != player) {
+                events.entityUntracked(player, entity);
             }
         }
         return returned != null;
@@ -678,7 +685,7 @@ public final class RemoteRoutes implements AutoCloseable {
         return tracked;
     }
 
-    private void adoptForward(ServerPlayer player, RemoteRoute forward) {
+    private void adoptForward(ServerPlayer player, RemoteRoute forward, SeamlessMove.Events events) {
         if (forward.paired().isEmpty() || forward.viewer() == null) {
             return;
         }
@@ -686,9 +693,44 @@ public final class RemoteRoutes implements AutoCloseable {
         for (int id : forward.paired().toIntArray()) {
             if (entityMap.get(id) instanceof RemoteTrackedEntityAccess tracked && tracked.wormholesSeenBy().remove(forward.viewer())) {
                 tracked.wormholesSeenBy().add(player.connection);
+                relayPairingPayloads(tracked, player);
+                events.entityTracked(player, tracked.wormholesTrackedEntity());
             }
         }
         forward.paired().clear();
+    }
+
+    private static void relayPairingPayloads(RemoteTrackedEntityAccess tracked, ServerPlayer player) {
+        List<Packet<? super ClientGamePacketListener>> packets = new ArrayList<>();
+        tracked.wormholesServerEntity().sendPairingData(player, packets::add);
+        for (int index = 0; index < packets.size(); index++) {
+            if (packets.get(index) instanceof ClientboundCustomPayloadPacket payload) {
+                player.connection.send(payload);
+            }
+        }
+    }
+
+    private static void leaveDeparted(ServerPlayer player, HandOver handOver, ServerLevel level, ChunkTrackingView view, SeamlessMove.Events events) {
+        boolean levelChanged = level != handOver.origin();
+        handOver.departedView().forEach(position -> {
+            if (levelChanged || !view.contains(position.x(), position.z())) {
+                events.chunkUnwatched(new SeamlessMove.ChunkLeave(player, handOver.origin(), position,
+                    !handOver.departedPending().contains(position.pack())));
+            }
+        });
+    }
+
+    private static void watchDelivered(ServerPlayer player, HandOver handOver, ServerLevel level, ChunkTrackingView view, SeamlessMove.Events events) {
+        boolean levelChanged = level != handOver.origin();
+        view.forEach(position -> {
+            if (!levelChanged && handOver.departedView().contains(position.x(), position.z())) {
+                return;
+            }
+            LevelChunk chunk = level.getChunkSource().getChunkNow(position.x(), position.z());
+            if (chunk != null) {
+                events.chunkWatched(player, level, chunk);
+            }
+        });
     }
 
     private RemoteRoute adoptReturn(ServerPlayer player, HandOver handOver, long tick) {

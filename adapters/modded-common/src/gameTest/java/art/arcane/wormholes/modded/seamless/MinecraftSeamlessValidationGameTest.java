@@ -22,8 +22,11 @@ import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,6 +59,8 @@ public final class MinecraftSeamlessValidationGameTest {
     private TravelMessage.TravelBegin begin;
     private long barrier;
     private BlockPos broken;
+    private ArmorStand resident;
+    private RecordingEvents events;
     private int remaining = STAGE_TICKS;
 
     private MinecraftSeamlessValidationGameTest(GameTestHelper helper, WormholesModRuntime runtime) {
@@ -115,6 +120,12 @@ public final class MinecraftSeamlessValidationGameTest {
         BlockPos target = nether ? new BlockPos(base.getX(), 70, base.getZ()) : base.offset(400, 0, 0);
         destination = fixture.portal(destinationLevel, target);
         helper.assertTrue(fixture.link(source, destination), "Seamless fixture did not link portals");
+        if (nether) {
+            resident = new ArmorStand(destinationLevel, destination.getOrigin().x() + 1.0D, Math.floor(destination.getOrigin().y()) - 1.0D,
+                destination.getOrigin().z() + 2.5D);
+            resident.setNoGravity(true);
+            helper.assertTrue(destinationLevel.addFreshEntity(resident), "The seamless fixture could not spawn the destination entity");
+        }
         fixture.stand(source, BEFORE);
         fixture.negotiate();
     }
@@ -147,6 +158,9 @@ public final class MinecraftSeamlessValidationGameTest {
                     return false;
                 }
                 helper.assertTrue(latest.resident(), attempt.label + " prepared a far route without a resident level");
+                if (attempt.expect == Expect.ACCEPT_LEVEL_CHANGE && !residentPaired()) {
+                    return false;
+                }
                 begin = latest;
                 barrier = end.contentRevision();
                 fixture.send(new TravelMessage.TravelReady(latest.token(), latest.generation(), barrier));
@@ -156,6 +170,10 @@ public final class MinecraftSeamlessValidationGameTest {
             case CROSS -> {
                 arrange();
                 fixture.forget();
+                if (attempt.expect == Expect.ACCEPT_LEVEL_CHANGE) {
+                    events = new RecordingEvents(runtime.seamlessEvents());
+                    runtime.seamlessEvents(events);
+                }
                 if (attempt.expect == Expect.ACCEPT_SAME_LEVEL) {
                     Vec3 arrival = arrival();
                     broken = BlockPos.containing(arrival.x, arrival.y - 1.0D, arrival.z);
@@ -221,6 +239,11 @@ public final class MinecraftSeamlessValidationGameTest {
         return new Vec3(out.x(), out.y(), out.z());
     }
 
+    private boolean residentPaired() {
+        RemoteRoute route = runtime.remoteRoutes().route(fixture.player().getUUID(), source.getId());
+        return route != null && route.paired().contains(resident.getId());
+    }
+
     private boolean rejected() throws Exception {
         if (fixture.last(TravelMessage.TravelCancel.class) == null || !fixture.vanillaContains(ClientboundPlayerPositionPacket.class)) {
             return false;
@@ -249,6 +272,13 @@ public final class MinecraftSeamlessValidationGameTest {
         helper.assertTrue(player.position().distanceTo(new Vec3(accept.pose().x(), accept.pose().y(), accept.pose().z())) < 1.0E-3D,
             attempt.label + " server pose " + player.position() + " differs from the accepted pose " + accept.pose());
         helper.assertTrue(!runtime.seamlessMoving(player), attempt.label + " left the player marked as moving");
+        if (levelChange) {
+            runtime.seamlessEvents(events.delegate);
+            helper.assertTrue(events.watched > 0, attempt.label + " fired no chunk watch for the adopted destination window");
+            helper.assertTrue(events.unwatched > 0, attempt.label + " fired no chunk unwatch for the departed origin view");
+            helper.assertTrue(events.tracked.contains(resident.getId()), attempt.label + " fired no start-tracking for the adopted destination entity");
+            events = null;
+        }
         if (broken != null) {
             helper.assertTrue(destinationLevel.getBlockState(broken).isAir(), attempt.label
                 + " handled the block break sent after the crossing before the crossing itself");
@@ -279,6 +309,12 @@ public final class MinecraftSeamlessValidationGameTest {
 
     private void finish(Throwable failure) {
         try {
+            if (events != null) {
+                runtime.seamlessEvents(events.delegate);
+            }
+            if (resident != null) {
+                resident.discard();
+            }
             if (costs != null) {
                 costs.close();
             }
@@ -315,6 +351,50 @@ public final class MinecraftSeamlessValidationGameTest {
         private Attempt(String label, Expect expect) {
             this.label = label;
             this.expect = expect;
+        }
+    }
+
+    private static final class RecordingEvents implements SeamlessMove.Events {
+        private final SeamlessMove.Events delegate;
+        private final List<Integer> tracked = new ArrayList<>();
+        private int watched;
+        private int unwatched;
+
+        private RecordingEvents(SeamlessMove.Events delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public boolean allowLevelChange(ServerPlayer player, ServerLevel destination) {
+            return delegate.allowLevelChange(player, destination);
+        }
+
+        @Override
+        public void levelChanged(ServerPlayer player, ServerLevel origin, ServerLevel destination) {
+            delegate.levelChanged(player, origin, destination);
+        }
+
+        @Override
+        public void chunkWatched(ServerPlayer player, ServerLevel level, LevelChunk chunk) {
+            watched++;
+            delegate.chunkWatched(player, level, chunk);
+        }
+
+        @Override
+        public void chunkUnwatched(SeamlessMove.ChunkLeave leave) {
+            unwatched++;
+            delegate.chunkUnwatched(leave);
+        }
+
+        @Override
+        public void entityTracked(ServerPlayer player, Entity entity) {
+            tracked.add(entity.getId());
+            delegate.entityTracked(player, entity);
+        }
+
+        @Override
+        public void entityUntracked(ServerPlayer player, Entity entity) {
+            delegate.entityUntracked(player, entity);
         }
     }
 

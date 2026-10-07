@@ -2,6 +2,9 @@ package art.arcane.wormholes.modded.seamless;
 
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.chunk.LevelChunk;
 
 import java.util.Objects;
 
@@ -99,10 +102,42 @@ public final class SeamlessMove {
             @Override
             public void levelChanged(ServerPlayer player, ServerLevel origin, ServerLevel destination) {
             }
+
+            @Override
+            public void chunkWatched(ServerPlayer player, ServerLevel level, LevelChunk chunk) {
+            }
+
+            @Override
+            public void chunkUnwatched(ChunkLeave leave) {
+            }
+
+            @Override
+            public void entityTracked(ServerPlayer player, Entity entity) {
+            }
+
+            @Override
+            public void entityUntracked(ServerPlayer player, Entity entity) {
+            }
         };
 
         boolean allowLevelChange(ServerPlayer player, ServerLevel destination);
 
         void levelChanged(ServerPlayer player, ServerLevel origin, ServerLevel destination);
+
+        void chunkWatched(ServerPlayer player, ServerLevel level, LevelChunk chunk);
+
+        void chunkUnwatched(ChunkLeave leave);
+
+        void entityTracked(ServerPlayer player, Entity entity);
+
+        void entityUntracked(ServerPlayer player, Entity entity);
+    }
+
+    public record ChunkLeave(ServerPlayer player, ServerLevel level, ChunkPos pos, boolean sent) {
+        public ChunkLeave {
+            Objects.requireNonNull(player, "player");
+            Objects.requireNonNull(level, "level");
+            Objects.requireNonNull(pos, "pos");
+        }
     }
 }
