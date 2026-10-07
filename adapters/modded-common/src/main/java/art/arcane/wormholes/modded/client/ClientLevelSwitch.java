@@ -4,6 +4,7 @@ import art.arcane.optics.crossing.Pose;
 import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
 import art.arcane.wormholes.modded.client.render.PortalIrisMainPipelines;
 import art.arcane.wormholes.modded.client.render.PortalShaderWarmup;
+import art.arcane.wormholes.modded.mixin.client.ParticleEngineAccess;
 import art.arcane.wormholes.modded.mixin.client.PreparedEntityAccess;
 import art.arcane.wormholes.modded.mixin.client.PreparedLevelAccess;
 import art.arcane.wormholes.modded.mixin.client.PreparedPacketAccess;
@@ -35,7 +36,7 @@ final class ClientLevelSwitch {
         minecraft.setCameraEntity(player);
     }
 
-    static void activate(ClientLevel destination, Pose pose, ClientTravelMotion.Carry carry) {
+    static void activate(ResidentLevels residents, ClientLevel destination, Pose pose, ClientTravelMotion.Carry carry) {
         Minecraft minecraft = Minecraft.getInstance();
         LocalPlayer player = minecraft.player;
         if (minecraft.level != null) {
@@ -50,19 +51,19 @@ final class ClientLevelSwitch {
         PreparedPacketAccess connection = (PreparedPacketAccess) minecraft.getConnection();
         connection.wormholes$level(destination);
         connection.wormholes$data(destination.getLevelData());
-        swap(minecraft, destination);
+        swap(minecraft, residents, destination);
         destination.addEntity(player);
         minecraft.setCameraEntity(player);
     }
 
-    private static void swap(Minecraft minecraft, ClientLevel destination) {
+    private static void swap(Minecraft minecraft, ResidentLevels residents, ClientLevel destination) {
         PortalShaderWarmup.shared().hold();
         detachExtractor(minecraft, destination);
         try (ClientSodiumTerrain.Handoff ignored = ClientSodiumTerrain.residentHandoff(destination)) {
             minecraft.level = destination;
             minecraft.levelExtractor.setLevel(destination);
         }
-        minecraft.particleEngine.setLevel(destination);
+        residents.particles().swap((ParticleEngineAccess) minecraft.particleEngine, destination);
         minecraft.gameRenderer.setLevel(destination);
         ((PreparedChunkColumns) destination.getChunkSource()).wormholes$announceColumns();
     }

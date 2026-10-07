@@ -168,6 +168,7 @@
     "client.PreparedTravelActionsMixin",
     "client.PreparedTravelWorldPacketsMixin",
     "client.PreparedTravelChunkCacheMixin",
+    "client.ParticleEngineAccess",
     "client.PreparedEntityAccess",
     "client.ClientAvatarStateAccess",
     "client.ResidentLevelEffectsMixin",

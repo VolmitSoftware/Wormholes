@@ -3,6 +3,7 @@ package art.arcane.wormholes.modded.client;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
+import art.arcane.wormholes.modded.mixin.client.ParticleEngineAccess;
 import art.arcane.wormholes.modded.mixin.client.PreparedLevelAccess;
 import art.arcane.wormholes.modded.mixin.client.PreparedPacketAccess;
 import art.arcane.wormholes.modded.seamless.RoutedPackets;
@@ -29,9 +30,12 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.dimension.DimensionType;
 
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import org.mockito.AdditionalAnswers;
 
 import java.lang.reflect.Field;
+import java.util.ArrayDeque;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceArray;
@@ -61,9 +65,19 @@ final class ResidentTestFixtures {
         when(minecraft.isSameThread()).thenReturn(true);
         when(minecraft.getSoundManager()).thenReturn(mock(SoundManager.class));
         engine(minecraft, "levelExtractor", mock(LevelExtractor.class));
-        engine(minecraft, "particleEngine", mock(ParticleEngine.class));
+        engine(minecraft, "particleEngine", particleEngine());
         engine(minecraft, "gameRenderer", mock(GameRenderer.class));
         return minecraft;
+    }
+
+    private static ParticleEngine particleEngine() {
+        ParticleEngine engine = mock(ParticleEngine.class, withSettings().extraInterfaces(ParticleEngineAccess.class));
+        ParticleEngineAccess access = (ParticleEngineAccess) engine;
+        when(access.wormholes$particles()).thenReturn(new IdentityHashMap<>());
+        when(access.wormholes$emitters()).thenReturn(new ArrayDeque<>());
+        when(access.wormholes$pending()).thenReturn(new ArrayDeque<>());
+        when(access.wormholes$counts()).thenReturn(new Object2IntOpenHashMap<>());
+        return engine;
     }
 
     private static void engine(Minecraft minecraft, String name, Object engine) {

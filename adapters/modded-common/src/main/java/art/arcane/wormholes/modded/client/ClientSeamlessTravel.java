@@ -251,7 +251,7 @@ public final class ClientSeamlessTravel {
                 ClientTravelMotion.vector(previous), ClientTravelMotion.vector(eye)));
             ClientTravelMotion.Carry carried = carry.moved(before, after, toward);
             if (target != source) {
-                ClientLevelSwitch.activate(target, after, carried);
+                ClientLevelSwitch.activate(residents, target, after, carried);
             } else {
                 ClientTravelMotion.apply(player, after);
                 carried.restore(player);
@@ -340,7 +340,7 @@ public final class ClientSeamlessTravel {
         ClientTravelMotion.Carry carried = arm == null ? ClientTravelMotion.carry(player)
             : ClientTravelMotion.carry(player).moved(before, placed, arm.destinationToSource().inverse());
         if (target != source) {
-            ClientLevelSwitch.activate(target, placed, carried);
+            ClientLevelSwitch.activate(residents, target, placed, carried);
             residents.retire(source);
         } else {
             ClientTravelMotion.apply(player, placed);
@@ -390,7 +390,7 @@ public final class ClientSeamlessTravel {
         }
         StraddleTracker.clear(player);
         if (minecraft.level != from.source()) {
-            ClientLevelSwitch.activate(from.source(), from.before(), from.carry());
+            ClientLevelSwitch.activate(residents, from.source(), from.before(), from.carry());
         } else {
             ClientTravelMotion.apply(player, from.before());
             from.carry().restore(player);

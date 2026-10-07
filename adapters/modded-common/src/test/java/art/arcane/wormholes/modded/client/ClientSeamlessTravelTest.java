@@ -5,6 +5,7 @@ import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.modded.MinecraftTestBase;
+import art.arcane.wormholes.modded.mixin.client.ParticleEngineAccess;
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
 import art.arcane.wormholes.modded.client.render.PortalIrisMainPipelines;
@@ -106,7 +107,8 @@ public class ClientSeamlessTravelTest extends MinecraftTestBase {
             verify(crossing.scope.minecraft, never()).setLevel(any());
             assertSame(crossing.nether, crossing.scope.minecraft.level);
             verify(crossing.scope.minecraft.levelExtractor).setLevel(crossing.nether);
-            verify(crossing.scope.minecraft.particleEngine).setLevel(crossing.nether);
+            verify(crossing.scope.minecraft.particleEngine, never()).setLevel(any());
+            verify((ParticleEngineAccess) crossing.scope.minecraft.particleEngine).wormholes$level(crossing.nether);
             verify(crossing.scope.minecraft.gameRenderer).setLevel(crossing.nether);
             verify(crossing.scope.minecraft.getSoundManager(), never()).stop();
             assertSame(crossing.nether, crossing.scope.connection.getLevel());

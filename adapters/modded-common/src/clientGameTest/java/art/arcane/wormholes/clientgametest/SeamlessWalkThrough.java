@@ -1,13 +1,18 @@
 package art.arcane.wormholes.clientgametest;
 
+import art.arcane.wormholes.clientgametest.mixin.ParticleGroupTap;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.modded.client.ClientPreparedTravel;
 import art.arcane.wormholes.modded.client.WormholesClient;
+import art.arcane.wormholes.modded.mixin.client.ParticleEngineAccess;
 import art.arcane.wormholes.transit.OrientationPolicy;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.particle.Particle;
+import net.minecraft.client.particle.ParticleGroup;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -44,6 +49,7 @@ final class SeamlessWalkThrough {
     private static final int BASELINE_FRAMES = 40;
     private static final int SETTLE_TIMEOUT_TICKS = 100;
     private static final int APPROACH_TIMEOUT_TICKS = 200;
+    private static final int MARKER_LIFETIME_TICKS = 6000;
     private static final double CROSSING_JUMP = 4.0D;
     private static final double APPROACH_BLOCKS = 6.5D;
     private static final double FAR_APPROACH_BLOCKS = 9.0D;
@@ -66,13 +72,20 @@ final class SeamlessWalkThrough {
         LOGGER.info("[{}] nether portal pair {}", label, centers);
         client.waitTicks(LOOK_TICKS);
         List<String> failures = new ArrayList<>();
+        Particle marker = client.computeOnClient(SeamlessWalkThrough::markParticle);
         for (int trip = 1; trip <= trips; trip++) {
             face(client, centers.getFirst());
             walk(client, label + "-" + trip, failures);
             client.waitTicks(ARRIVAL_PAUSE_TICKS);
+            if (trip == 1 && client.computeOnClient(minecraft -> shown(minecraft, marker))) {
+                failures.add(label + "-" + trip + " kept drawing overworld particles in the nether");
+            }
             face(client, centers.get(1));
             walk(client, label + "-" + trip + "-return", failures);
             client.waitTicks(ARRIVAL_PAUSE_TICKS);
+            if (trip == 1 && !client.computeOnClient(minecraft -> shown(minecraft, marker) && marker.isAlive())) {
+                failures.add(label + "-" + trip + "-return lost the overworld particles at the level swap");
+            }
         }
         client.restoreDefaultGameOptions();
         SeamlessScenario.assertTrue(failures.isEmpty(), label + ": " + failures);
@@ -186,6 +199,27 @@ final class SeamlessWalkThrough {
 
     private static Vec3 center(MinecraftPortal portal) {
         return new Vec3(portal.getOrigin().x(), portal.getOrigin().y(), portal.getOrigin().z());
+    }
+
+    private static Particle markParticle(Minecraft minecraft) {
+        Vec3 eye = minecraft.player.getEyePosition();
+        Particle particle = minecraft.particleEngine.createParticle(ParticleTypes.END_ROD, eye.x, eye.y + 1.0D, eye.z, 0.0D, 0.0D, 0.0D);
+        SeamlessScenario.assertTrue(particle != null, "the marker particle could not be created");
+        particle.setLifetime(MARKER_LIFETIME_TICKS);
+        return particle;
+    }
+
+    private static boolean shown(Minecraft minecraft, Particle particle) {
+        ParticleEngineAccess engine = (ParticleEngineAccess) minecraft.particleEngine;
+        if (engine.wormholes$pending().contains(particle)) {
+            return true;
+        }
+        for (ParticleGroup<?> group : engine.wormholes$particles().values()) {
+            if (((ParticleGroupTap) group).wormholesTest$particles().contains(particle)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static String travelState(Minecraft minecraft) {

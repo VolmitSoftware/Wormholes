@@ -34,6 +34,7 @@ public final class ResidentLevels {
     private final List<ResidentLevel> levels = new ArrayList<>();
     private final IntLinkedOpenHashSet unacknowledged = new IntLinkedOpenHashSet();
     private final IntOpenHashSet reopening = new IntOpenHashSet();
+    private final ClientParticleLevels particles = new ClientParticleLevels();
     private ClientLevel crossingSource;
     private Routing routing;
     private long clock;
@@ -238,7 +239,12 @@ public final class ResidentLevels {
         unacknowledged.clear();
         decoder.clear();
         reopening.clear();
+        particles.clear();
         crossingSource = null;
+    }
+
+    ClientParticleLevels particles() {
+        return particles;
     }
 
     public void retire(ClientLevel level) {
@@ -371,7 +377,8 @@ public final class ResidentLevels {
         }
     }
 
-    private static void forget(ClientLevel level) {
+    private void forget(ClientLevel level) {
+        particles.forget(level);
         ClientSodiumTerrain.forget(level);
         ResidentLevel.discardEntities(level);
     }
