@@ -2,6 +2,7 @@ package art.arcane.wormholes.modded.mixin;
 
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.modded.seamless.RemoteRoute;
+import art.arcane.wormholes.modded.seamless.ResidentRoutesHolder;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.sugar.Local;
 import net.minecraft.network.protocol.Packet;
@@ -62,7 +63,7 @@ public abstract class RemoteViewerChunkMixin {
     @Unique
     private List<ServerPlayer> wormholesRemoteViewers(List<ServerPlayer> players, LevelChunk chunk, boolean border) {
         wormholes$routes = List.of();
-        if (!(chunk.getLevel() instanceof ServerLevel level)) {
+        if (!(chunk.getLevel() instanceof ServerLevel level) || !((ResidentRoutesHolder) level).wormholesResidentRoutes()) {
             return players;
         }
         WormholesModRuntime runtime = WormholesModRuntime.forServer(level.getServer());

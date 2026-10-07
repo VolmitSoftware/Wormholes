@@ -50,6 +50,7 @@
     "RemoteViewerBroadcastMixin",
     "RemoteViewerChunkMixin",
     "RemoteViewerTrackingMixin",
+    "ResidentRoutesLevelMixin",
     "RoutedProtocolMixin",
     "SeamlessChunkMapAccess",
     "SeamlessChunkMapMixin",

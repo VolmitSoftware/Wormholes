@@ -286,6 +286,11 @@ public final class RemoteRoutes implements AutoCloseable {
         for (UUID player : List.copyOf(players.keySet())) {
             forget(player, false);
         }
+        for (ServerLevel level : resident.keySet()) {
+            if (level instanceof ResidentRoutesHolder holder) {
+                holder.wormholesResidentRoutes(false);
+            }
+        }
         resident.clear();
         arrivals.clear();
     }
@@ -716,12 +721,18 @@ public final class RemoteRoutes implements AutoCloseable {
         if (!routes.contains(route)) {
             routes.add(route);
         }
+        if (route.level() instanceof ResidentRoutesHolder holder) {
+            holder.wormholesResidentRoutes(true);
+        }
     }
 
     private void unindex(RemoteRoute route) {
         List<RemoteRoute> routes = resident.get(route.level());
         if (routes != null && routes.remove(route) && routes.isEmpty()) {
             resident.remove(route.level());
+            if (route.level() instanceof ResidentRoutesHolder holder) {
+                holder.wormholesResidentRoutes(false);
+            }
         }
     }
 
