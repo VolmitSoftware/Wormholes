@@ -244,7 +244,7 @@ final class SeamlessScenario {
             returnViewTicks, crossing.label() + ": the return view had no sections");
         LOGGER.info("[{}] return view present {} ticks after the crossing was accepted", crossing.label(), returnView);
         client.waitTicks(SETTLE_TICKS);
-        assertTrue(client.computeOnClient(minecraft -> !minecraft.levelRenderer.visibleSections().isEmpty()),
+        assertTrue(client.computeOnClient(minecraft -> MainRendererSections.visible(minecraft) > 0),
             crossing.label() + ": the main renderer draws nothing of the arrival level");
         reportFrameTimes(crossing);
         assertTrue(TravelTap.respawns() == 0, crossing.label() + ": " + TravelTap.respawns() + " respawn packets were handled");
