@@ -613,7 +613,7 @@ final class LocalPortalMenus
 		return element;
 	}
 
-	private Element mirrorModeOption(Player p, Window window)
+	Element mirrorModeOption(Player p, Window window)
 	{
 		UIElement element = new UIElement("mode-mirror");
 		element.onLeftClick((e) -> FoliaScheduler.runEntity(Wormholes.instance, p, () ->
@@ -628,13 +628,13 @@ final class LocalPortalMenus
 			}
 			window.close();
 		}));
-		element.onRightClick((e) -> rotateMirrorImage(element, window, p, nativeMirror(p) ? portal.getMirrorRotation().clockwise() : portal.getMirrorRotation().clockwiseFor(portal.getFrame())));
-		element.onShiftRightClick((e) -> rotateMirrorImage(element, window, p, nativeMirror(p) ? portal.getMirrorRotation().counterClockwise() : portal.getMirrorRotation().counterClockwiseFor(portal.getFrame())));
-		applyMirrorModeOption(element, p);
+		element.onRightClick((e) -> rotateMirrorImage(element, window, p, portal.getMirrorRotation().clockwiseFor(portal.getFrame())));
+		element.onShiftRightClick((e) -> rotateMirrorImage(element, window, p, portal.getMirrorRotation().counterClockwiseFor(portal.getFrame())));
+		applyMirrorModeOption(element);
 		return element;
 	}
 
-	private void applyMirrorModeOption(Element element, Player viewer)
+	private void applyMirrorModeOption(Element element)
 	{
 		boolean current = portal.isMirrorMode();
 		Wormholes.text().apply(element,
@@ -647,8 +647,8 @@ final class LocalPortalMenus
 		}
 		KList<String> lore = element.getLore();
 		lore.add(Wormholes.text().legacy(WormholesMessages.PORTAL_MENU_MIRROR_ROTATION,
-				LocalPortalText.arguments("degrees", mirrorRotation(viewer).getDegrees())));
-		if(nativeMirror(viewer) || QuarterTurn.supportsQuarterTurns(portal.getFrame()))
+				LocalPortalText.arguments("degrees", mirrorRotation().getDegrees())));
+		if(QuarterTurn.supportsQuarterTurns(portal.getFrame()))
 		{
 			lore.add(Wormholes.text().legacy(WormholesMessages.PORTAL_MENU_MIRROR_ROTATE_CLOCKWISE));
 			lore.add(Wormholes.text().legacy(WormholesMessages.PORTAL_MENU_MIRROR_ROTATE_COUNTERCLOCKWISE));
@@ -657,14 +657,9 @@ final class LocalPortalMenus
 		lore.addAll(Wormholes.text().legacyLines(WormholesMessages.PORTAL_MENU_MIRROR_FLIP));
 	}
 
-	private boolean nativeMirror(Player viewer)
+	private QuarterTurn mirrorRotation()
 	{
-		return Wormholes.projectionManager != null && Wormholes.projectionManager.clientView().nativeMesh(viewer);
-	}
-
-	private QuarterTurn mirrorRotation(Player viewer)
-	{
-		return nativeMirror(viewer) ? portal.getMirrorRotation() : portal.getMirrorRotation().coherentFor(portal.getFrame());
+		return portal.getMirrorRotation().coherentFor(portal.getFrame());
 	}
 
 	private void rotateMirrorImage(Element element, Window window, Player viewer, QuarterTurn rotation)
@@ -675,10 +670,10 @@ final class LocalPortalMenus
 			return;
 		}
 		portal.setMirrorRotation(rotation);
-		applyMirrorModeOption(element, viewer);
+		applyMirrorModeOption(element);
 		window.updateInventory();
 		text.notifySetting(viewer, WormholesMessages.PORTAL_MIRROR_ROTATION_CHANGED,
-				LocalPortalText.arguments("degrees", mirrorRotation(viewer).getDegrees()));
+				LocalPortalText.arguments("degrees", mirrorRotation().getDegrees()));
 	}
 
 	private Element directionElement(Window window, Player viewer)
