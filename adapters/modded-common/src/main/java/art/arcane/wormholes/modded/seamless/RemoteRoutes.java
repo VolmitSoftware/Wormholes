@@ -782,8 +782,13 @@ public final class RemoteRoutes implements AutoCloseable {
                 adopted.add(key);
             }
         });
+        UUID worldId = MinecraftProjectionWorldView.worldId(returned.level());
         for (int index = 0; index < adopted.size(); index++) {
-            returned.stream().adopt(adopted.getLong(index), tick);
+            long key = adopted.getLong(index);
+            returned.stream().adopt(key, tick);
+            if (window.contains(key)) {
+                returned.leases().put(key, runtime.leases().retain(returned.level(), worldId, ChunkPos.getX(key), ChunkPos.getZ(key)));
+            }
         }
         PlayerRoutes state = players.get(player.getUUID());
         state.sends.control(open);

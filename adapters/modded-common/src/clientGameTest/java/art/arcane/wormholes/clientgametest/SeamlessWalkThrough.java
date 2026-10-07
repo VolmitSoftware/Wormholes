@@ -43,6 +43,7 @@ final class SeamlessWalkThrough {
     private static final int SETTLED_FRAME = 10;
     private static final int BASELINE_FRAMES = 40;
     private static final int SETTLE_TIMEOUT_TICKS = 100;
+    private static final int APPROACH_TIMEOUT_TICKS = 200;
     private static final double CROSSING_JUMP = 4.0D;
     private static final double APPROACH_BLOCKS = 6.5D;
     private static final double FAR_APPROACH_BLOCKS = 9.0D;
@@ -82,7 +83,9 @@ final class SeamlessWalkThrough {
         SeamlessScenario.assertSeamlessNegotiated(client);
         SeamlessScenario.Route route = server.build(new SeamlessScenario.RouteSpec(Level.OVERWORLD, FRAME_SOURCE, Level.NETHER, FRAME_DESTINATION,
             OrientationPolicy.FRAME, false));
-        server.approachFrom(Level.OVERWORLD, new Vec3(FRAME_SOURCE.getX() + 1.5D, FRAME_SOURCE.getY(), FRAME_SOURCE.getZ() + FAR_APPROACH_BLOCKS), 180.0F);
+        Vec3 start = new Vec3(FRAME_SOURCE.getX() + 1.5D, FRAME_SOURCE.getY(), FRAME_SOURCE.getZ() + FAR_APPROACH_BLOCKS);
+        server.approachFrom(Level.OVERWORLD, start, 180.0F);
+        client.waitFor(minecraft -> minecraft.player != null && minecraft.player.position().distanceTo(start) < 1.0D, APPROACH_TIMEOUT_TICKS);
         client.waitForChunksDownload();
         client.runOnClient(minecraft -> TravelTap.reset());
         List<String> failures = new ArrayList<>();

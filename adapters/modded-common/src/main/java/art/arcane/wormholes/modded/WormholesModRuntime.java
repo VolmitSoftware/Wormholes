@@ -68,6 +68,7 @@ public final class WormholesModRuntime {
     private volatile SeamlessMove.Events seamlessEvents = SeamlessMove.Events.NONE;
     private MinecraftServer server;
     private ChunkLeaseRegistry<ServerLevel> leases;
+    private MinecraftChunkLeasePlatform leasePlatform;
     private ChunkPreSendService<ServerLevel, ServerPlayer> preSend;
     private WormholesModConfiguration configuration;
     private MinecraftPortalRegistry portals;
@@ -89,7 +90,8 @@ public final class WormholesModRuntime {
             FidelitySettings.refresh(configuration.settings());
             tick = 0;
             sequence = 0;
-            leases = new ChunkLeaseRegistry<>(new MinecraftChunkLeasePlatform(this), projections.scheduler(),
+            leasePlatform = new MinecraftChunkLeasePlatform(this);
+            leases = new ChunkLeaseRegistry<>(leasePlatform, projections.scheduler(),
                 new ChunkLeaseRegistry.Options(1000L, 50L, 3));
             preSend = new ChunkPreSendService<>(new MinecraftChunkPreSendPlatform(this), configuration::preSendOptions);
             portals = new MinecraftPortalRegistry(this, new MinecraftPortalRegistry.Options(
@@ -200,6 +202,7 @@ public final class WormholesModRuntime {
             requireServerThread();
             tick++;
         }
+        leasePlatform.tick();
         nexus.tick();
         recipeBook.tick();
         rules.tick();
@@ -509,7 +512,8 @@ public final class WormholesModRuntime {
             access::close,
             () -> { if (portals != null) { portals.close(); } },
             () -> { if (configuration != null) { configuration.close(); } },
-            () -> { if (leases != null) { leases.shutdown(); } }
+            () -> { if (leases != null) { leases.shutdown(); } },
+            () -> { if (leasePlatform != null) { leasePlatform.close(); } }
         }) {
             try {
                 cleanup.run();
@@ -538,6 +542,7 @@ public final class WormholesModRuntime {
         configuration = null;
         preSend = null;
         leases = null;
+        leasePlatform = null;
         server = null;
     }
 
