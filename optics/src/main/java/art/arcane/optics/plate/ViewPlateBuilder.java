@@ -19,6 +19,7 @@ import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.scan.ProjectorSample;
 import art.arcane.optics.fidelity.BlockEntitySample;
+import art.arcane.optics.frame.ViewWindow;
 import art.arcane.optics.volume.LodPolicy;
 import art.arcane.optics.volume.ProjectionVolume;
 import art.arcane.optics.math.Face;
@@ -204,11 +205,9 @@ public final class ViewPlateBuilder {
             Frame localFrame = request.localFrame();
             this.projectionLocalFrame = localFrame.view(frontSide);
             this.projectionRemoteFrame = request.remoteFrame().view(frontSide);
-            this.transform = request.mirrorMode()
-                ? OpticTransform.mirror(localFrame, new Vec3d(request.localOriginX(), request.localOriginY(), request.localOriginZ()),
-                    QuarterTurn.of(request.mirrorRotationQuarterTurns())).inverse()
-                : OpticTransform.between(projectionLocalFrame, request.localOriginX(), request.localOriginY(), request.localOriginZ(),
-                    projectionRemoteFrame, request.remoteOriginX(), request.remoteOriginY(), request.remoteOriginZ());
+            this.transform = ViewWindow.of(request.mirrorMode(), QuarterTurn.of(request.mirrorRotationQuarterTurns()),
+                new Vec3d(request.localOriginX(), request.localOriginY(), request.localOriginZ()), localFrame,
+                new Vec3d(request.remoteOriginX(), request.remoteOriginY(), request.remoteOriginZ()), request.remoteFrame(), frontSide, 0.0D).toward();
             double pad = Math.max(0.0D, request.lateralBlocks()) + Math.max(0.0D, request.aperturePadding());
             this.volume = ProjectionVolume.of(request.aperture().getArea(), localFrame,
                 ProjectionVolume.plane(localFrame, request.localOriginX(), request.localOriginY(), request.localOriginZ()), frontSide,

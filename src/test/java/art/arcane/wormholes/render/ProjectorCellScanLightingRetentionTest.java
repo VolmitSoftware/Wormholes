@@ -131,7 +131,7 @@ public final class ProjectorCellScanLightingRetentionTest {
                         assertTrue(nextProcessedCells - processedCells <= 128);
                         processedCells = nextProcessedCells;
                         Location latestEye = eye.clone().add(23.0D, 17.0D, 11.0D);
-                        staged.scan().updateEntityOcclusionEye(BukkitGeometry.vector(latestEye), staged.destination(), frame, frame);
+                        staged.scan().updateEntityOcclusionEye(BukkitGeometry.vector(latestEye), staged.destination(), frame, true);
                     }
                     assertTrue(advances > 1);
                     assertSame(staged.scan().claims(), staged.scan().claimDelta().claims());

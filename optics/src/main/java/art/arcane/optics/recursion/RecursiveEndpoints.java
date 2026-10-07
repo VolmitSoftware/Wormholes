@@ -14,6 +14,8 @@ import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.aperture.Endpoint;
 import art.arcane.optics.aperture.EndpointDirectory;
 import art.arcane.optics.aperture.CellAperture;
+import art.arcane.optics.frame.QuarterTurn;
+import art.arcane.optics.frame.ViewWindow;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.scan.ProjectorPassRevision;
@@ -462,27 +464,12 @@ public final class RecursiveEndpoints<W, P extends Endpoint> {
             double signedEyeDistance = (eyeRelX * localProjectionNormalX) + (eyeRelY * localProjectionNormalY) + (eyeRelZ * localProjectionNormalZ);
             double candidateClearance = ProjectionVolume.portalPlaneClearance(directory.aperture(candidate).getArea(), frame);
 
-            P destination;
-            W destinationWorld;
-            OpticTransform stepToward;
-            P linkedDestination = directory.destination(candidate);
-            if (directory.mirror(candidate)) {
-                destination = candidate;
-                destinationWorld = directory.world(candidate);
-                stepToward = destinationWorld == null ? null
-                    : OpticTransform.mirror(frame, candidate.origin(), directory.mirrorTurns(candidate))
-                        .inverse();
-            } else if (linkedDestination != null) {
-                destination = linkedDestination;
-                destinationWorld = directory.world(linkedDestination);
-                stepToward = destinationWorld == null || linkedDestination.frame() == null || linkedDestination.origin() == null ? null
-                    : OpticTransform.between(candidateLocalFrame, candidate.origin(), linkedDestination.frame().view(frontSide),
-                        linkedDestination.origin());
-            } else {
-                destination = null;
-                destinationWorld = null;
-                stepToward = null;
-            }
+            boolean mirror = directory.mirror(candidate);
+            P destination = mirror ? candidate : directory.destination(candidate);
+            W destinationWorld = destination == null ? null : directory.world(destination);
+            OpticTransform stepToward = destinationWorld == null || destination.frame() == null || destination.origin() == null ? null
+                : ViewWindow.of(mirror, mirror ? directory.mirrorTurns(candidate) : QuarterTurn.DEGREES_0, candidate.origin(), frame,
+                    destination.origin(), destination.frame(), frontSide, 0.0D).toward();
             boolean canTraverse = stepToward != null;
             double nestedEyeX = 0.0D;
             double nestedEyeY = 0.0D;

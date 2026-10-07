@@ -32,6 +32,7 @@ import art.arcane.optics.math.Face;
 import art.arcane.optics.claim.ProjectedBlockClaim;
 import art.arcane.optics.claim.ProjectionBlackout;
 import art.arcane.optics.claim.ProjectionClaimSet;
+import art.arcane.optics.frame.ViewWindow;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.occlusion.ProjectedEntityOcclusion;
 import art.arcane.optics.occlusion.ProjectorBlackoutBoundary;
@@ -759,17 +760,9 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
         return ready;
     }
 
-    public void updateEntityOcclusionEye(Vec3d eye,
-                                  ScanDestination<P, V> destination,
-                                  Frame localViewFrame,
-                                  Frame remoteViewFrame) {
-        double localOriginX = portal.origin().getX();
-        double localOriginY = portal.origin().getY();
-        double localOriginZ = portal.origin().getZ();
-        OpticTransform toward = destination.mirrorMode()
-            ? OpticTransform.mirror(portal.frame(), portal.origin(), QuarterTurn.of(destination.mirrorRotationQuarterTurns())).inverse()
-            : OpticTransform.between(localViewFrame, localOriginX, localOriginY, localOriginZ, remoteViewFrame,
-                destination.originX(), destination.originY(), destination.originZ());
+    public void updateEntityOcclusionEye(Vec3d eye, ScanDestination<P, V> destination, Frame remoteFrame, boolean frontSide) {
+        OpticTransform toward = ViewWindow.of(destination.mirrorMode(), QuarterTurn.of(destination.mirrorRotationQuarterTurns()), portal.origin(),
+            portal.frame(), new Vec3d(destination.originX(), destination.originY(), destination.originZ()), remoteFrame, frontSide, 0.0D).toward();
         toward.pointInto(eye.getX(), eye.getY(), eye.getZ(), scratchRemoteEye);
         projectedEntityOcclusion.updateEye(scratchRemoteEye[0], scratchRemoteEye[1], scratchRemoteEye[2]);
     }
@@ -1364,10 +1357,8 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
             eyeFrontSide = ProjectionVolume.side(localFrame, localOriginX, localOriginY, localOriginZ, eyeX, eyeY, eyeZ);
             projectionLocalFrame = localFrame.view(eyeFrontSide);
             projectionRemoteFrame = remoteFrame.view(eyeFrontSide);
-            cellTransform = mirrorMode
-                ? OpticTransform.mirror(localFrame, portal.origin(), QuarterTurn.of(mirrorRotationQuarterTurns)).inverse()
-                : OpticTransform.between(projectionLocalFrame, localOriginX, localOriginY, localOriginZ, projectionRemoteFrame,
-                    remoteOriginX, remoteOriginY, remoteOriginZ);
+            cellTransform = ViewWindow.of(mirrorMode, QuarterTurn.of(mirrorRotationQuarterTurns), portal.origin(), localFrame,
+                new Vec3d(remoteOriginX, remoteOriginY, remoteOriginZ), remoteFrame, eyeFrontSide, 0.0D).toward();
             cellTransform.pointInto(eyeX, eyeY, eyeZ, scratchRemoteEye);
             sampler.prepareTransform(cellTransform.permutation().inverse());
             scannedRemoteEyeX = scratchRemoteEye[0];

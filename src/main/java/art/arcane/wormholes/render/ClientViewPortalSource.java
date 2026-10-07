@@ -182,9 +182,8 @@ public final class ClientViewPortalSource {
             return null;
         }
         Vec3d localOrigin = new Vec3d(target.localOriginX(), target.localOriginY(), target.localOriginZ());
-        return target.mirrorMode() ? ViewWindow.mirror(localOrigin, target.localFrame(), QuarterTurn.of(target.quarterTurns()), frontSide, target.depth())
-            : ViewWindow.between(localOrigin, target.localFrame(), new Vec3d(target.remoteOriginX(), target.remoteOriginY(), target.remoteOriginZ()),
-                target.remoteFrame(), frontSide, target.depth());
+        return ViewWindow.of(target.mirrorMode(), QuarterTurn.of(target.quarterTurns()), localOrigin, target.localFrame(),
+            new Vec3d(target.remoteOriginX(), target.remoteOriginY(), target.remoteOriginZ()), target.remoteFrame(), frontSide, target.depth());
     }
 
     public World destinationWorld() {

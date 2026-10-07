@@ -738,7 +738,7 @@ public final class PortalProjector {
             eye.getX(), eye.getY(), eye.getZ());
         Frame projectionLocalFrame = viewFrame(localFrame, eyeFrontSide);
         Frame projectionRemoteFrame = viewFrame(remoteFrame, eyeFrontSide);
-        cellScan.updateEntityOcclusionEye(BukkitGeometry.vector(eye), destination, projectionLocalFrame, projectionRemoteFrame);
+        cellScan.updateEntityOcclusionEye(BukkitGeometry.vector(eye), destination, remoteFrame, eyeFrontSide);
         updateProjectedEntities(frustum, depthBlocks, true, projectionLocalFrame, projectionRemoteFrame);
         lastProjectNanos = System.nanoTime() - startNanos;
         WormholesTelemetry.addRenderNanos(lastProjectNanos);

@@ -312,10 +312,8 @@ public final class MinecraftClientViewScene implements EntityFrames.Scenes<Minec
         }
         Vec3d origin = portal.getOrigin();
         double depth = peer.meshDepth() > 0 ? peer.meshDepth() : portal.getNetworkViewDepth();
-        ViewWindow frame = target.mirrorMode()
-            ? ViewWindow.mirror(origin, portal.getFrame(), QuarterTurn.of(target.mirrorQuarterTurns()), target.front(), depth)
-            : ViewWindow.between(origin, portal.getFrame(), new Vec3d(target.originX(), target.originY(), target.originZ()), target.remoteFrame(),
-                target.front(), depth);
+        ViewWindow frame = ViewWindow.of(target.mirrorMode(), QuarterTurn.of(target.mirrorQuarterTurns()), origin, portal.getFrame(),
+            new Vec3d(target.originX(), target.originY(), target.originZ()), target.remoteFrame(), target.front(), depth);
         return new Destination(view.getWorld(), anchor, frame);
     }
 

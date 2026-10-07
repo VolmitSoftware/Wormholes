@@ -37,6 +37,7 @@ import art.arcane.optics.scan.ResampleSchedule;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.QuarterTurn;
+import art.arcane.optics.frame.ViewWindow;
 import art.arcane.wormholes.portal.ProjectorViewSettings;
 import art.arcane.optics.scan.ProjectorSampleMemo;
 import art.arcane.optics.view.WorldChangeTracker;
@@ -170,9 +171,7 @@ public final class MinecraftPortalProjector implements AutoCloseable {
         Vec3d origin = portal.getOrigin();
         boolean front = ProjectionVolume.side(localFrame, origin.x(), origin.y(), origin.z(), eye.x(), eye.y(), eye.z());
         Frame remoteFrame = destination.mirrorMode() ? localFrame.flipNormal() : destination.destAnchor().getFrame();
-        localFrame = localFrame.view(front);
-        remoteFrame = remoteFrame.view(front);
-        scan.updateEntityOcclusionEye(eye, destination, localFrame, remoteFrame);
+        scan.updateEntityOcclusionEye(eye, destination, remoteFrame, front);
         ProjectionEntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment> data = destination.dest() == null ? remoteView
             : runtime.projections().scene(portals.world(destination.dest()), destination.dest(),
                 Math.min(runtime.configuration().settings().getRender().entitySpoofRange, fit.fittedDepth()));
@@ -182,9 +181,8 @@ public final class MinecraftPortalProjector implements AutoCloseable {
         if (entities == null) {
             entities = new MinecraftProjectedEntities(runtime, new MinecraftProjectedEntities.Context(observer, portal, portals.createRecursiveIndex()));
         }
-        OpticTransform transform = destination.mirrorMode()
-            ? OpticTransform.mirror(portal.getFrame(), origin, QuarterTurn.of(destination.mirrorRotationQuarterTurns()))
-            : OpticTransform.between(remoteFrame, destination.destAnchor().getOrigin(), localFrame, origin);
+        OpticTransform transform = ViewWindow.of(destination.mirrorMode(), QuarterTurn.of(destination.mirrorRotationQuarterTurns()), origin,
+            localFrame, destination.destAnchor().getOrigin(), remoteFrame, front, fit.fittedDepth()).transform();
         entities.apply(new MinecraftProjectedEntities.View(destination.dest(), destination.destAnchor(),
             destination.dest() == null ? null : portals.world(destination.dest()), data, transform, frustum, eye, scan.entityOcclusion(),
             fit.fittedDepth()));
