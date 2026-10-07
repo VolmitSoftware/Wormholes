@@ -26,7 +26,7 @@ import art.arcane.wormholes.network.client.TravelMessage;
 public class ClientPreparedTravelCoverageTest extends MinecraftTestBase {
     @Test
     public void realNativeNeighborLossAndArrivalBubbleEscapeRequireNormalWaiting() throws ReflectiveOperationException {
-        ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
+        ClientPreparedTravel travel = ClientTravelTestFixtures.travel(ignored -> { });
         List<TravelMessage.TravelCoordinate> coordinates = new ArrayList<>(49);
         for (int z = -3; z <= 3; z++) {
             for (int x = -3; x <= 3; x++) {

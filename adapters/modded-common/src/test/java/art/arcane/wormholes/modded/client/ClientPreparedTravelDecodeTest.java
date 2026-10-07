@@ -73,7 +73,7 @@ public class ClientPreparedTravelDecodeTest extends MinecraftTestBase {
     }
 
     private static void nativeUpdates(boolean edits) throws ReflectiveOperationException {
-        ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
+        ClientPreparedTravel travel = ClientTravelTestFixtures.travel(ignored -> { });
         ClientLevel level = mock(ClientLevel.class);
         ClientChunkCache cache = mock(ClientChunkCache.class);
         LevelChunk chunk = mock(LevelChunk.class);
@@ -148,7 +148,7 @@ public class ClientPreparedTravelDecodeTest extends MinecraftTestBase {
 
     @Test
     public void failedNativeReplacementRestoresScopeAndKeepsOrdinaryInvalidation() throws ReflectiveOperationException {
-        ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
+        ClientPreparedTravel travel = ClientTravelTestFixtures.travel(ignored -> { });
         ClientLevel level = mock(ClientLevel.class);
         ClientChunkCache cache = mock(ClientChunkCache.class);
         when(level.dimension()).thenReturn(Level.OVERWORLD);
@@ -195,7 +195,7 @@ public class ClientPreparedTravelDecodeTest extends MinecraftTestBase {
     }
 
     private static void decode(boolean lightChanged) throws ReflectiveOperationException {
-        ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
+        ClientPreparedTravel travel = ClientTravelTestFixtures.travel(ignored -> { });
         ClientLevel level = mock(ClientLevel.class);
         ClientChunkCache cache = mock(ClientChunkCache.class);
         LevelChunk chunk = mock(LevelChunk.class);

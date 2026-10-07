@@ -19,11 +19,15 @@ public class WormholesClientConfig {
     public static final double MAX_HYSTERESIS_BLOCKS = 4.0D;
     public static final int MAX_SECTIONS_PER_TICK = 65535;
     public static final double MAX_ATMOSPHERE_DOMINANCE_BLOCKS = 16.0D;
+    public static final int MIN_RESIDENT_LEVEL_MEMORY_MB = 64;
+    public static final int MAX_RESIDENT_LEVEL_MEMORY_MB = 8192;
 
     @ConfigDescription("Portal renderer: native uses ClientView; block-packets uses the server's standard block and entity packets. Restart the game after changing it.")
     public String renderer = Renderer.NATIVE.key();
     @ConfigDescription("Shared memory budget in MiB for received portal sections, plates and cached brick content. Updates that would exceed it are refused.")
     public int maxPlateMemoryMb = 256;
+    @ConfigDescription("Memory budget in MiB for destination worlds kept loaded behind portals on servers with seamless crossing. Closed destinations beyond it are released, oldest first.")
+    public int residentLevelMemoryMb = 512;
     @ConfigDescription("Batch block writes for plate-based ClientView. The dedicated portal renderer does not write projected blocks into local chunks.")
     public boolean bulkWrite = false;
     @ConfigDescription("Edge hysteresis in blocks for plate-based ClientView. The dedicated renderer clips to the portal opening instead.")
@@ -50,6 +54,7 @@ public class WormholesClientConfig {
     public void normalize() {
         renderer = rendererMode().key();
         maxPlateMemoryMb = Math.max(MIN_PLATE_MEMORY_MB, Math.min(MAX_PLATE_MEMORY_MB, maxPlateMemoryMb));
+        residentLevelMemoryMb = Math.max(MIN_RESIDENT_LEVEL_MEMORY_MB, Math.min(MAX_RESIDENT_LEVEL_MEMORY_MB, residentLevelMemoryMb));
         if (!Double.isFinite(hysteresisBlocks) || hysteresisBlocks < 0.0D) {
             hysteresisBlocks = ClientSweep.DEFAULT_HYSTERESIS_BLOCKS;
         }
@@ -67,6 +72,10 @@ public class WormholesClientConfig {
 
     public long plateMemoryBytes() {
         return (long) maxPlateMemoryMb * 1024L * 1024L;
+    }
+
+    public long residentLevelMemoryBytes() {
+        return (long) residentLevelMemoryMb * 1024L * 1024L;
     }
 
     public int plateMemoryMbForHello() {

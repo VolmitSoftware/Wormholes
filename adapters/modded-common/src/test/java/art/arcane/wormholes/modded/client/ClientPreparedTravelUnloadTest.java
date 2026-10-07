@@ -98,7 +98,7 @@ public class ClientPreparedTravelUnloadTest extends MinecraftTestBase {
         Object prediction = mock(type);
         set(prediction, "source", source);
         set(prediction, "packets", new ArrayDeque<Runnable>());
-        ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
+        ClientPreparedTravel travel = ClientTravelTestFixtures.travel(ignored -> { });
         set(travel, "prediction", prediction);
         set(travel, "staged", destination);
         set(travel, "adopted", true);

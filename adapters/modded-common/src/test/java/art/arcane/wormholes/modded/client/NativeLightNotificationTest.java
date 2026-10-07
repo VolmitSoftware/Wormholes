@@ -63,7 +63,7 @@ public class NativeLightNotificationTest extends MinecraftTestBase {
     @Test
     @SuppressWarnings("unchecked")
     public void lightNotificationRetiresByteProofAndCustomSnapshotWithoutExpandingNativeGeometry() throws Exception {
-        ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
+        ClientPreparedTravel travel = ClientTravelTestFixtures.travel(ignored -> { });
         ClientLevel level = mock(ClientLevel.class);
         when(level.dimension()).thenReturn(Level.OVERWORLD);
         ClientTravelScene scene = mock(ClientTravelScene.class);

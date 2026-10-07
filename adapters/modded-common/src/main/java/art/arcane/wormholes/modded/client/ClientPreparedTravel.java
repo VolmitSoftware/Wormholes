@@ -1,5 +1,8 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.optics.crossing.Pose;
+import art.arcane.optics.math.Angles;
+import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftChunkPacketEncoding;
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
@@ -38,7 +41,6 @@ import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.core.Holder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.ProtocolInfo;
@@ -49,7 +51,6 @@ import net.minecraft.network.protocol.game.ClientboundSetChunkCacheCenterPacket;
 import net.minecraft.network.protocol.game.ClientboundSetChunkCacheRadiusPacket;
 import net.minecraft.network.protocol.game.ClientboundForgetLevelChunkPacket;
 import net.minecraft.network.protocol.game.ClientboundLightUpdatePacketData;
-import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.entity.Entity;
@@ -63,6 +64,8 @@ import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.lighting.LevelLightEngine;
 import net.minecraft.world.level.dimension.DimensionType;
+import net.minecraft.util.Mth;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
@@ -97,12 +100,16 @@ public final class ClientPreparedTravel {
     private static final int MAX_PENDING_BYTES = 8 << 20;
     private static final long CROSS_TIMEOUT_MILLIS = 2_000;
     private static final int MAX_RETAINED_WORLDS = 2;
+    private static final double POSITION_TOLERANCE = 1.0E-3D;
+    private static final float LOOK_TOLERANCE = 0.5F;
+    private static final double CHECKPOINT_NUDGE = 0.001D;
     private static final boolean SODIUM = ClientPreparedTravel.class.getClassLoader()
         .getResource("net/caffeinemc/mods/sodium/client/render/chunk/map/ChunkTrackerHolder.class") != null;
     private static final boolean IRIS = ClientPreparedTravel.class.getClassLoader()
         .getResource("net/irisshaders/iris/Iris.class") != null;
     private static final ThreadLocal<AppliedColumn> APPLIED_COLUMN = new ThreadLocal<>();
     private final Consumer<TravelMessage> sender;
+    private final ResidentLevels residents;
     private final ClientTravelCache cache = new ClientTravelCache();
     private int sourceCapture;
     private boolean nativeCacheFailureReported;
@@ -118,6 +125,7 @@ public final class ClientPreparedTravel {
     private final LongOpenHashSet changed = new LongOpenHashSet();
     private TravelMessage.TravelBegin begin;
     private TravelMessage.TravelCommit commit;
+    private ClientStraddle straddle;
     private ClientTravelChunks chunks;
     private ClientLevel staged;
     private ClientTravelScene scene;
@@ -132,12 +140,21 @@ public final class ClientPreparedTravel {
     private Prediction prediction;
     private Vec3 previousCamera;
     private boolean seamlessRespawn;
-    private ClientTravelMotion beforePosition;
+    private Pose beforePosition;
     private Arrival arrival;
     private ResidentColumns resident;
 
-    public ClientPreparedTravel(Consumer<TravelMessage> sender) {
+    public ClientPreparedTravel(Consumer<TravelMessage> sender, ResidentLevels residents) {
         this.sender = sender;
+        this.residents = residents;
+    }
+
+    public ResidentLevels residents() {
+        return residents;
+    }
+
+    public ClientStraddle straddle() {
+        return straddle;
     }
 
     public boolean active() {
@@ -170,6 +187,10 @@ public final class ClientPreparedTravel {
         return prediction != null && !positionConfirmed;
     }
 
+    public boolean suppressesMovement() {
+        return pendingCrossing() && !prediction.seamless;
+    }
+
     public boolean beforeFrame(Camera camera, DeltaTracker tracker) {
         Minecraft minecraft = Minecraft.getInstance();
         LocalPlayer player = minecraft.player;
@@ -198,30 +219,42 @@ public final class ClientPreparedTravel {
             declinePreparation();
             return false;
         }
-        ClientTravelMotion source = ClientTravelMotion.capture(player);
-        ClientTravelMotion destination = source.transform(begin.destinationToSource());
+        Pose source = ClientTravelMotion.capture(player);
+        TravelMessage.TravelPose crossingPose = crossingPose(player, partial);
+        Vec3d crossingFeet = new Vec3d(crossingPose.x(), crossingPose.y(), crossingPose.z());
+        Pose destination = ClientTravelMotion.arrive(begin, source, crossingFeet);
         if (!covers(pose(destination))) {
             declinePreparation();
             return false;
         }
         ClientLevel sourceLevel = minecraft.level;
-        TravelMessage.TravelPose crossingPose = crossingPose(player, partial);
-        Vec3 expectedArrival = ClientTravelMotion.point(begin.destinationToSource(), new Vec3(crossingPose.x(), crossingPose.y(), crossingPose.z()));
-        prediction = new Prediction(new PredictionState(sourceLevel, source, destination, expectedArrival, acknowledgedRevision,
-            ((PreparedLevelAccess) sourceLevel).wormholes$extractor(), minecraft.getConnection()));
+        OpticTransform toward = begin.destinationToSource().inverse();
+        Vec3 expectedArrival = ClientTravelMotion.point(toward, new Vec3(crossingPose.x(), crossingPose.y(), crossingPose.z()));
+        boolean seamless = seamless(begin);
+        prediction = new Prediction(new PredictionState(sourceLevel, source, ClientTravelMotion.carry(player), destination, expectedArrival,
+            acknowledgedRevision, ((PreparedLevelAccess) sourceLevel).wormholes$extractor(), minecraft.getConnection(), seamless));
         try {
             prediction.deadline = System.currentTimeMillis() + CROSS_TIMEOUT_MILLIS;
             sender.accept(new TravelMessage.TravelCross(begin.token(), begin.generation(), prediction.revision,
                 crossingPose, vector(previous), vector(eye), source.bodyYaw(), source.headYaw()));
-            if (begin.sourceWorld().equals(begin.world().dimension())) {
+            ClientTravelMotion.Carry carried = prediction.carry.moved(source, destination, toward);
+            if (seamless && staged != sourceLevel) {
+                residents.beginCrossing(sourceLevel);
+                attachPlayer(staged, destination, carried, true);
+            } else if (seamless) {
+                ClientTravelMotion.apply(player, destination);
+                carried.restore(player);
+            } else if (begin.sourceWorld().equals(begin.world().dimension())) {
                 prepareSameWorld(sourceLevel, source, destination);
-                destination.apply(player);
+                ClientTravelMotion.apply(player, destination);
+                carried.restore(player);
             } else {
-                attachPlayer(staged, destination);
+                attachPlayer(staged, destination, carried, false);
             }
             ClientPortalRenderer.instance().transitionTravel(true);
             arrival = null;
-            previousCamera = ClientTravelMotion.point(begin.destinationToSource(), eye);
+            straddle = null;
+            previousCamera = seamless ? checkpoint(begin, toward, previous, eye) : ClientTravelMotion.point(toward, eye);
             return true;
         } catch (RuntimeException failure) {
             LOGGER.warn("Unable to predict prepared portal crossing", failure);
@@ -232,7 +265,7 @@ public final class ClientPreparedTravel {
 
     public boolean deferWorldPacket(Packet<ClientGamePacketListener> packet, Runnable action) {
         Minecraft minecraft = Minecraft.getInstance();
-        if (!minecraft.isSameThread()) {
+        if (!minecraft.isSameThread() || residents.routing() || prediction != null && prediction.seamless) {
             return false;
         }
         if (adopted && commit != null && pendingCrossing() && prediction.source != staged
@@ -271,6 +304,9 @@ public final class ClientPreparedTravel {
             && dimension.identifier().toString().equals(commit.destinationWorld());
         if (prediction != null && !seamlessRespawn) {
             clear(true);
+        }
+        if (!seamlessRespawn) {
+            residents.clear(commit != null ? staged : null);
         }
         return seamlessRespawn;
     }
@@ -320,6 +356,10 @@ public final class ClientPreparedTravel {
                     }
                 }
                 case TravelMessage.TravelCommit value -> commit(value);
+                case TravelMessage.TravelAccept value -> accept(value);
+                case TravelMessage.RemoteLevelOpen value -> residents.open(value);
+                case TravelMessage.RemoteLevelClose value -> residents.close(value);
+                case TravelMessage.RoutedPacket value -> residents.route(value);
                 case TravelMessage.TravelCancel value -> {
                     if (chunks != null && chunks.matches(value.token(), value.generation())) {
                         clear(false);
@@ -356,7 +396,8 @@ public final class ClientPreparedTravel {
         }
         if (pendingCrossing() && (System.currentTimeMillis() >= prediction.deadline || minecraft.player == null
             || minecraft.player.isDeadOrDying() || !predictedTerrainAvailable()
-            || !covers(pose(ClientTravelMotion.capture(minecraft.player))))) {
+            || !covers(new TravelMessage.TravelPose(minecraft.player.getX(), minecraft.player.getY(), minecraft.player.getZ(),
+                minecraft.player.getYRot(), minecraft.player.getXRot())))) {
             clear(true);
             return;
         }
@@ -364,6 +405,7 @@ public final class ClientPreparedTravel {
             clear(true);
             return;
         }
+        straddle = seamless(begin) && !adopted && prediction == null && minecraft.player != null ? straddle(minecraft.player) : null;
         if (adopted) {
             if (minecraft.level != staged) {
                 clear(true);
@@ -388,6 +430,10 @@ public final class ClientPreparedTravel {
             } else if (positionConfirmed && connection.hasClientLoaded() && pendingPreparation != null && pendingPreparation.level != null) {
                 retainArrivalPreparation();
             }
+            return;
+        }
+        if (begin.seamless()) {
+            advanceSeamless();
             return;
         }
         captureSource();
@@ -532,10 +578,10 @@ public final class ClientPreparedTravel {
         positionConfirmed = true;
         if (prediction != null && beforePosition != null) {
             Vec3 offset = position.subtract(prediction.expectedArrival);
-            ClientTravelMotion reconciled = beforePosition.reconcile(offset, prediction.destination.velocity(),
-                new Vec3(commit.velocity().x(), commit.velocity().y(), commit.velocity().z()));
+            Pose reconciled = ClientTravelMotion.reconcile(beforePosition, ClientTravelMotion.vector(offset), prediction.destination.velocity(),
+                commit.velocity());
             if (covers(pose(reconciled))) {
-                reconciled.apply(minecraft.player);
+                ClientTravelMotion.apply(minecraft.player, reconciled);
             }
             beforePosition = null;
             prediction.packets.clear();
@@ -677,6 +723,7 @@ public final class ClientPreparedTravel {
     public void clear() {
         clear(true);
         discardRetainedWorlds();
+        residents.clear();
     }
 
     private void clear(boolean clearArrival) {
@@ -710,7 +757,7 @@ public final class ClientPreparedTravel {
             }
         }
         ClientPortalRenderer.instance().cancelTravel();
-        if (staged != null && staged != minecraft.level && !hasRetainedWorld(staged)) {
+        if (staged != null && staged != minecraft.level && !hasRetainedWorld(staged) && !residents.resident(staged)) {
             ClientSodiumTerrain.forget(staged);
         }
         discardPendingPreparation();
@@ -731,6 +778,7 @@ public final class ClientPreparedTravel {
         changed.clear();
         begin = null;
         commit = null;
+        straddle = null;
         chunks = null;
         staged = null;
         scene = null;
@@ -818,6 +866,9 @@ public final class ClientPreparedTravel {
 
     private PendingPreparation preparation(TravelMessage.TravelBegin value) {
         PendingPreparation next = new PendingPreparation(value);
+        if (value.seamless()) {
+            return next;
+        }
         SourcePreparation source = sourcePreparation;
         RetainedWorld retained = retainedWorld(value.world());
         if (retained != null) {
@@ -851,7 +902,7 @@ public final class ClientPreparedTravel {
 
     private void advancePreparation() {
         PendingPreparation next = pendingPreparation;
-        if (next == null) {
+        if (next == null || next.begin.seamless()) {
             return;
         }
         if (System.currentTimeMillis() >= next.deadline) {
@@ -1006,7 +1057,13 @@ public final class ClientPreparedTravel {
             return;
         }
         try {
-            if (next.level == null) {
+            if (next.begin.seamless()) {
+                staged = seamlessLevel(next.begin);
+                if (staged == null) {
+                    declineSeamless(next.begin);
+                    return;
+                }
+            } else if (next.level == null) {
                 Minecraft minecraft = Minecraft.getInstance();
                 if (minecraft.getConnection() == null || minecraft.level == null
                     || !minecraft.level.dimension().identifier().toString().equals(next.begin.sourceWorld())) {
@@ -1053,9 +1110,29 @@ public final class ClientPreparedTravel {
         }
         PendingPreparation next = preparation(value);
         clear(false);
-        staged = next.level == null ? createLevel(value) : next.level;
+        if (value.seamless()) {
+            staged = seamlessLevel(value);
+            if (staged == null) {
+                declineSeamless(value);
+                return;
+            }
+        } else {
+            staged = next.level == null ? createLevel(value) : next.level;
+        }
         cache.bind(connection, connection.registryAccess());
         adoptPreparation(next);
+        if (value.seamless()) {
+            sourceCapture = Integer.MAX_VALUE;
+            prepareSeamlessSource(minecraft);
+        }
+    }
+
+    private static void prepareSeamlessSource(Minecraft minecraft) {
+        if (minecraft.player == null || !(minecraft.level instanceof ClientTravelWorld world) || world.wormholes$travelWorld() == null) {
+            return;
+        }
+        ClientPortalRenderer.instance().prepareTravelSourceEnvironment(MinecraftPortalEnvironment.capture(minecraft.level,
+            vector(minecraft.player.getEyePosition()), OpticTransform.IDENTITY, world.wormholes$travelWorld().flat()));
     }
 
     private void adoptPreparation(PendingPreparation next) {
@@ -1092,24 +1169,8 @@ public final class ClientPreparedTravel {
     }
 
     private ClientLevel createLevel(TravelMessage.TravelBegin value) {
-        Minecraft minecraft = Minecraft.getInstance();
-        ClientPacketListener connection = minecraft.getConnection();
-        Holder<DimensionType> type = connection.registryAccess().lookupOrThrow(Registries.DIMENSION_TYPE)
-            .getOrThrow(ResourceKey.create(Registries.DIMENSION_TYPE, Identifier.parse(value.world().dimensionType())));
-        if (type.value().minY() != value.world().minY() || type.value().height() != value.world().height()) {
-            throw new IllegalArgumentException("Prepared travel dimension height differs from synchronized registry");
-        }
-        ClientLevel.ClientLevelData source = minecraft.level.getLevelData();
-        ClientLevel.ClientLevelData data = new ClientLevel.ClientLevelData(source.getDifficulty(), source.isHardcore(), value.world().flat());
-        data.setGameTime(value.environment().gameTime());
-        LevelExtractor extractor = new PreparedLevelExtractor(minecraft);
-        ClientLevel level = new ClientLevel(connection, data, ResourceKey.create(Registries.DIMENSION, Identifier.parse(value.world().dimension())),
-            type, ((PreparedPacketAccess) connection).wormholes$chunkRadius(), minecraft.level.getServerSimulationDistance(),
-            extractor, value.world().debug(), value.world().seed(), value.world().seaLevel());
-        level.getChunkSource().updateViewCenter((int) Math.floor(value.arrival().x()) >> 4, (int) Math.floor(value.arrival().z()) >> 4);
-        level.setRainLevel(value.environment().sky().rain());
-        level.setThunderLevel(value.environment().sky().thunder());
-        return level;
+        return ResidentLevel.create(value.world(), value.environment(),
+            new TravelMessage.TravelCoordinate((int) Math.floor(value.arrival().x()) >> 4, (int) Math.floor(value.arrival().z()) >> 4));
     }
 
     private void chunk(TravelMessage.TravelChunk fragment) {
@@ -1145,7 +1206,7 @@ public final class ClientPreparedTravel {
     public boolean receiveNativeChunk(ClientLevel level, ClientboundLevelChunkWithLightPacket packet) {
         WormholesClient client = WormholesClient.instance();
         if (level == null || client == null || !client.session().active()
-            || !client.session().has(ViewStreamCapability.PREPARED_TRAVEL_CACHE)) {
+            || !client.session().has(ViewStreamCapability.PREPARED_TRAVEL_CACHE) || client.session().has(ViewStreamCapability.SEAMLESS_TRAVEL)) {
             return false;
         }
         TravelMessage.TravelCoordinate coordinate = new TravelMessage.TravelCoordinate(packet.x(), packet.z());
@@ -1457,13 +1518,7 @@ public final class ClientPreparedTravel {
 
     private static void discardRetainedUpdates(ClientLevel level) {
         ((PreparedLevelAccess) level).wormholes$lightUpdates().clear();
-        List<Entity> entities = new ArrayList<>();
-        for (Entity entity : level.entitiesForRendering()) {
-            entities.add(entity);
-        }
-        for (Entity entity : entities) {
-            level.removeEntity(entity.getId(), Entity.RemovalReason.DISCARDED);
-        }
+        ResidentLevel.discardEntities(level);
     }
 
     private static void decodeChanged(ClientLevel level, ClientTravelScene scene,
@@ -1508,7 +1563,7 @@ public final class ClientPreparedTravel {
         }
     }
 
-    private void prepareSameWorld(ClientLevel source, ClientTravelMotion original, ClientTravelMotion destination) {
+    private void prepareSameWorld(ClientLevel source, Pose original, Pose destination) {
         boolean missing = false;
         for (TravelMessage.TravelCoordinate coordinate : begin.chunks()) {
             if (source.getChunkSource().getChunk(coordinate.x(), coordinate.z(), FULL, false) == null) {
@@ -1521,8 +1576,8 @@ public final class ClientPreparedTravel {
             scene.adoptLevel(source);
             return;
         }
-        int sourceX = (int) Math.floor(original.position().x) >> 4;
-        int sourceZ = (int) Math.floor(original.position().z) >> 4;
+        int sourceX = (int) Math.floor(original.position().x()) >> 4;
+        int sourceZ = (int) Math.floor(original.position().z()) >> 4;
         prediction.sourceCenter = new ChunkPos(sourceX, sourceZ);
         int bytes = 0;
         for (int dz = -1; dz <= 1; dz++) {
@@ -1546,8 +1601,8 @@ public final class ClientPreparedTravel {
                 prediction.sourceColumns.add(packet);
             }
         }
-        source.getChunkSource().updateViewCenter((int) Math.floor(destination.position().x) >> 4,
-            (int) Math.floor(destination.position().z) >> 4);
+        source.getChunkSource().updateViewCenter((int) Math.floor(destination.position().x()) >> 4,
+            (int) Math.floor(destination.position().z()) >> 4);
         for (TravelMessage.TravelCoordinate coordinate : begin.chunks()) {
             if (source.getChunkSource().getChunk(coordinate.x(), coordinate.z(), FULL, false) != null) {
                 continue;
@@ -1639,6 +1694,108 @@ public final class ClientPreparedTravel {
         }
     }
 
+    private void advanceSeamless() {
+        long revision = chunks.endRevision();
+        if (revision == 0 || !seamlessWindow()) {
+            return;
+        }
+        if (scene == null) {
+            scene = new ClientTravelScene(staged, begin);
+            ClientPortalRenderer.instance().prepareTravel(scene, arrivalCamera(begin.arrival()));
+        }
+        drawnRevision = revision;
+        ClientSodiumTerrain.Preparation terrain = prepareTerrain(staged, begin, true);
+        if (!ClientSodiumTerrain.usesPreparedTerrain(staged)) {
+            scene.advance();
+        }
+        if (terrain != ClientSodiumTerrain.Preparation.PENDING
+            && (terrain == ClientSodiumTerrain.Preparation.READY || ClientPortalRenderer.instance().travelReady())
+            && (!IRIS || ClientPortalRenderer.instance().travelSourceShaderReady()) && acknowledgedRevision != revision) {
+            acknowledgedRevision = revision;
+            sender.accept(new TravelMessage.TravelReady(begin.token(), begin.generation(), revision));
+        }
+    }
+
+    private boolean seamlessWindow() {
+        if (!begin.resident()) {
+            return covers(begin.arrival());
+        }
+        for (TravelMessage.TravelCoordinate coordinate : begin.chunks()) {
+            if (staged.getChunkSource().getChunk(coordinate.x(), coordinate.z(), FULL, false) == null) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean seamless(TravelMessage.TravelBegin value) {
+        if (value == null || !value.seamless()) {
+            return false;
+        }
+        WormholesClient client = WormholesClient.instance();
+        return client == null || client.session().has(ViewStreamCapability.SEAMLESS_TRAVEL);
+    }
+
+    private ClientLevel seamlessLevel(TravelMessage.TravelBegin value) {
+        return value.resident() ? residents.level(value.levelHandle()) : Minecraft.getInstance().level;
+    }
+
+    private void declineSeamless(TravelMessage.TravelBegin value) {
+        sender.accept(new TravelMessage.TravelCancel(value.token(), value.generation()));
+        clear(false);
+    }
+
+    private void accept(TravelMessage.TravelAccept value) {
+        Prediction current = prediction;
+        if (current == null || !current.seamless || positionConfirmed || chunks == null || !chunks.matches(value.token(), value.generation())
+            || current.revision != value.contentRevision()) {
+            return;
+        }
+        Minecraft minecraft = Minecraft.getInstance();
+        adopted = true;
+        positionConfirmed = true;
+        prediction = null;
+        current.packets.clear();
+        residents.endCrossing(true);
+        WormholesClient client = WormholesClient.instance();
+        if (client != null) {
+            client.dropProjectedEntities(begin.sourceGeometry());
+        }
+        LocalPlayer player = minecraft.player;
+        if (player == null) {
+            return;
+        }
+        TravelMessage.TravelPose authoritative = value.pose();
+        Vec3d offset = new Vec3d(authoritative.x() - current.expectedArrival.x, authoritative.y() - current.expectedArrival.y,
+            authoritative.z() - current.expectedArrival.z);
+        float yaw = Mth.wrapDegrees(authoritative.yaw() - current.destination.yaw());
+        float pitch = authoritative.pitch() - current.destination.pitch();
+        Pose reconciled = ClientTravelMotion.reconcile(ClientTravelMotion.capture(player), offset, current.destination.velocity(), value.velocity());
+        if (offset.lengthSquared() > POSITION_TOLERANCE * POSITION_TOLERANCE || Math.abs(yaw) > LOOK_TOLERANCE || Math.abs(pitch) > LOOK_TOLERANCE) {
+            LOGGER.warn("Seamless crossing corrected by the server: offset {} yaw {} pitch {}", offset, yaw, pitch);
+            reconciled = ClientTravelMotion.turned(reconciled, yaw, pitch);
+        }
+        ClientTravelMotion.apply(player, reconciled);
+    }
+
+    private ClientStraddle straddle(LocalPlayer player) {
+        Vec3 position = player.position();
+        AABB bounds = player.getBoundingBox();
+        return ClientStraddle.of(begin.sourceGeometry(), new Box(bounds.minX, bounds.maxX, bounds.minY, bounds.maxY, bounds.minZ, bounds.maxZ),
+            new Vec3d(player.xo, player.yo, player.zo), ClientTravelMotion.vector(position), ClientTravelMotion.vector(player.getDeltaMovement()),
+            ClientTravelMotion.vector(player.getEyePosition()));
+    }
+
+    private static Vec3 checkpoint(TravelMessage.TravelBegin value, OpticTransform toward, Vec3 previous, Vec3 eye) {
+        ApertureDescriptor geometry = value.sourceGeometry();
+        double before = geometry.signedDistance(previous.x, previous.y, previous.z);
+        double after = geometry.signedDistance(eye.x, eye.y, eye.z);
+        Vec3 crossing = before == after ? eye : previous.lerp(eye, before / (before - after));
+        Vec3 motion = ClientTravelMotion.position(toward.vector(ClientTravelMotion.vector(eye.subtract(previous))));
+        Vec3 mapped = ClientTravelMotion.point(toward, crossing);
+        return motion.lengthSqr() == 0.0D ? mapped : mapped.add(motion.normalize().scale(CHECKPOINT_NUDGE));
+    }
+
     private boolean predictedTerrainAvailable() {
         Minecraft minecraft = Minecraft.getInstance();
         return prediction != null && prediction.connection == minecraft.getConnection() && staged != null && minecraft.level == staged
@@ -1649,7 +1806,7 @@ public final class ClientPreparedTravel {
     private void commit(TravelMessage.TravelCommit value) {
         if (System.currentTimeMillis() >= deadline || chunks == null || !chunks.matches(value.token(), value.generation())
             || (prediction == null ? acknowledgedRevision != value.contentRevision() : prediction.revision != value.contentRevision())
-            || (prediction == null ? chunks.completeRevision() != value.contentRevision() : prediction.revision != value.contentRevision())
+            || (prediction == null ? revision(chunks, begin) != value.contentRevision() : prediction.revision != value.contentRevision())
             || !begin.sourceWorld().equals(value.sourceWorld())
             || !begin.world().dimension().equals(value.destinationWorld()) || !covers(value.arrival())) {
             return;
@@ -1666,7 +1823,7 @@ public final class ClientPreparedTravel {
         }
     }
 
-    private void attachPlayer(ClientLevel destination, ClientTravelMotion motion) {
+    private void attachPlayer(ClientLevel destination, Pose pose, ClientTravelMotion.Carry carry, boolean seamless) {
         Minecraft minecraft = Minecraft.getInstance();
         LocalPlayer player = minecraft.player;
         if (minecraft.level != null) {
@@ -1675,9 +1832,17 @@ public final class ClientPreparedTravel {
         PreparedEntityAccess access = (PreparedEntityAccess) player;
         access.wormholes$level(destination);
         access.wormholes$restore();
-        motion.apply(player);
+        ClientTravelMotion.apply(player, pose);
+        carry.restore(player);
         ((PreparedLevelAccess) destination).wormholes$extractor(minecraft.levelExtractor);
-        attachLevel(destination, false);
+        if (seamless) {
+            PreparedPacketAccess connection = (PreparedPacketAccess) minecraft.getConnection();
+            connection.wormholes$level(destination);
+            connection.wormholes$data(destination.getLevelData());
+            residents.activate(() -> attachLevel(destination, false));
+        } else {
+            attachLevel(destination, false);
+        }
         destination.addEntity(player);
         minecraft.setCameraEntity(player);
     }
@@ -1703,6 +1868,9 @@ public final class ClientPreparedTravel {
         }
         Prediction previous = prediction;
         prediction = null;
+        if (previous.seamless) {
+            residents.endCrossing(false);
+        }
         ((PreparedLevelAccess) previous.source).wormholes$extractor(previous.extractor);
         if (!positionConfirmed && !(commit != null && adopted)) {
             ClientPacketListener connection = Minecraft.getInstance().getConnection();
@@ -1718,12 +1886,14 @@ public final class ClientPreparedTravel {
                 for (ClientboundLevelChunkWithLightPacket packet : previous.sourceColumns) {
                     applyChunk(previous.source, packet);
                 }
-                previous.motion.apply(Minecraft.getInstance().player);
+                ClientTravelMotion.apply(Minecraft.getInstance().player, previous.motion);
+                previous.carry.restore(Minecraft.getInstance().player);
             } else if (Minecraft.getInstance().level == staged) {
                 if (previous.source == staged) {
-                    previous.motion.apply(Minecraft.getInstance().player);
+                    ClientTravelMotion.apply(Minecraft.getInstance().player, previous.motion);
+                    previous.carry.restore(Minecraft.getInstance().player);
                 } else {
-                    attachPlayer(previous.source, previous.motion);
+                    attachPlayer(previous.source, previous.motion, previous.carry, previous.seamless);
                 }
             }
         }
@@ -1765,9 +1935,12 @@ public final class ClientPreparedTravel {
         return new Vec3d(point.x, point.y, point.z);
     }
 
-    private static TravelMessage.TravelPose pose(ClientTravelMotion motion) {
-        return new TravelMessage.TravelPose(motion.position().x, motion.position().y, motion.position().z,
-            motion.rotation().yaw(), motion.rotation().pitch());
+    private static TravelMessage.TravelPose pose(Pose motion) {
+        return new TravelMessage.TravelPose(motion.position().x(), motion.position().y(), motion.position().z(), motion.yaw(), motion.pitch());
+    }
+
+    private static long revision(ClientTravelChunks chunks, TravelMessage.TravelBegin value) {
+        return value.seamless() ? chunks.endRevision() : chunks.completeRevision();
     }
 
     private static TravelMessage.TravelPose crossingPose(LocalPlayer player, float partial) {
@@ -2034,8 +2207,7 @@ public final class ClientPreparedTravel {
         if (player != null && minecraft.level != null
             && value.sourceWorld().equals(minecraft.level.dimension().identifier().toString())) {
             Vec3d feet = value.destinationToSource().inverse().point(new Vec3d(player.getX(), player.getY(), player.getZ()));
-            ClientTravelMotion.Rotation look = new ClientTravelMotion.Rotation(player.getYRot(), player.getXRot())
-                .transform(value.destinationToSource());
+            Angles.Look look = ClientTravelMotion.look(value.destinationToSource().inverse(), player.getYRot(), player.getXRot());
             return arrivalCamera(new TravelMessage.TravelPose(feet.x(), feet.y(), feet.z(), look.yaw(), look.pitch()), eyeHeight(player));
         }
         return arrivalCamera(value.arrival(), eyeHeight(player));
@@ -2269,13 +2441,15 @@ public final class ClientPreparedTravel {
 
     private static final class Prediction {
         private final ClientLevel source;
-        private final ClientTravelMotion motion;
-        private final ClientTravelMotion destination;
+        private final Pose motion;
+        private final ClientTravelMotion.Carry carry;
+        private final Pose destination;
         private final Vec3 expectedArrival;
         private final long revision;
         private final LevelExtractor extractor;
         private final ClientPacketListener connection;
         private final ProtocolInfo<ClientGamePacketListener> protocol;
+        private final boolean seamless;
         private long deadline = Long.MAX_VALUE;
         private final ArrayDeque<Runnable> packets = new ArrayDeque<>();
         private int retainedPacketBytes;
@@ -2285,17 +2459,19 @@ public final class ClientPreparedTravel {
         private Prediction(PredictionState state) {
             source = state.source();
             motion = state.motion();
+            carry = state.carry();
             destination = state.destination();
             expectedArrival = state.expectedArrival();
             revision = state.revision();
             extractor = state.extractor();
             connection = state.connection();
+            seamless = state.seamless();
             protocol = GameProtocols.CLIENTBOUND_TEMPLATE.bind(RegistryFriendlyByteBuf.decorator(state.connection().registryAccess()));
         }
     }
 
-    private record PredictionState(ClientLevel source, ClientTravelMotion motion, ClientTravelMotion destination, Vec3 expectedArrival,
-                                   long revision, LevelExtractor extractor, ClientPacketListener connection) {
+    private record PredictionState(ClientLevel source, Pose motion, ClientTravelMotion.Carry carry, Pose destination, Vec3 expectedArrival,
+                                   long revision, LevelExtractor extractor, ClientPacketListener connection, boolean seamless) {
     }
 
     private record Column(int x, int z, int revision, byte[] data) {

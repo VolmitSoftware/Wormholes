@@ -12,7 +12,7 @@ public abstract class PreparedTravelPlayerMixin {
     @Inject(method = "sendChanges", at = @At("HEAD"), cancellable = true)
     private void wormholes$sourceMovement(CallbackInfo callback) {
         WormholesClient client = WormholesClient.instance();
-        if (client != null && client.preparedTravel().pendingCrossing()) {
+        if (client != null && client.preparedTravel().suppressesMovement()) {
             callback.cancel();
         }
     }

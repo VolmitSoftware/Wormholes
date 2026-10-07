@@ -16,6 +16,7 @@ import art.arcane.wormholes.transit.OrientationPolicy;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerConnection;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
@@ -112,6 +113,7 @@ final class SeamlessScenario {
     static Crossing walkThrough(ClientGameTestContext context, String label) {
         context.runOnClient(client -> TravelTap.reset());
         int player = context.computeOnClient(client -> System.identityHashCode(client.player));
+        ClientLevel source = context.computeOnClient(client -> client.level);
         context.getInput().holdKey(options -> options.keyUp);
         try {
             context.waitFor(client -> TravelTap.crossingFrame(CROSSING_JUMP) >= 0, CROSSING_TIMEOUT_TICKS);
@@ -120,7 +122,7 @@ final class SeamlessScenario {
         }
         context.waitTicks(1);
         int index = context.computeOnClient(client -> TravelTap.crossingFrame(CROSSING_JUMP));
-        return new Crossing(label, index, player);
+        return new Crossing(label, index, player, source);
     }
 
     static void assertSeamlessNegotiated(ClientGameTestContext context) {
@@ -143,21 +145,22 @@ final class SeamlessScenario {
         boolean present = context.computeOnClient(client -> client.level.getEntity(route.standId()) != null
             && client.level.getEntity(route.frameId()) != null);
         assertTrue(present, crossing.label() + ": destination entities were not resident on the first tick after the crossing");
-        assertSeamless(context, crossing, route.outbound());
+        assertSeamless(context, crossing, route.outbound(), route.destinationMin());
         assertTrue(!TravelTap.addedAny(route.standId(), route.frameId()),
             crossing.label() + ": destination entities were added again after the crossing");
-        context.waitFor(client -> NativeClientViewAssertions.sections(NativeClientViewAssertions.portalKey(route.destinationMin())) > 0,
-            RETURN_VIEW_TICKS);
     }
 
     static void assertSeamlessReturn(ClientGameTestContext context, Route route, Crossing crossing) {
-        assertSeamless(context, crossing, route.inbound());
-        context.waitFor(client -> NativeClientViewAssertions.sections(NativeClientViewAssertions.portalKey(route.sourceMin())) > 0,
-            RETURN_VIEW_TICKS);
+        assertSeamless(context, crossing, route.inbound(), route.sourceMin());
     }
 
-    private static void assertSeamless(ClientGameTestContext context, Crossing crossing, Leg leg) {
+    private static void assertSeamless(ClientGameTestContext context, Crossing crossing, Leg leg, BlockPos returnPortal) {
         context.waitFor(client -> !WormholesClient.instance().preparedTravel().pendingCrossing(), ACCEPT_TIMEOUT_TICKS);
+        boolean levelChanged = context.computeOnClient(client -> client.level != crossing.source());
+        if (levelChanged) {
+            context.waitFor(client -> WormholesClient.instance().preparedTravel().residents().handle(crossing.source()) > 0, RETURN_VIEW_TICKS);
+        }
+        context.waitFor(client -> NativeClientViewAssertions.sections(NativeClientViewAssertions.portalKey(returnPortal)) > 0, RETURN_VIEW_TICKS);
         context.waitTicks(SETTLE_TICKS);
         reportFrameTimes(crossing);
         assertTrue(TravelTap.respawns() == 0, crossing.label() + ": " + TravelTap.respawns() + " respawn packets were handled");
@@ -290,6 +293,6 @@ final class SeamlessScenario {
     record Exit(Frame sourceView, Vec3d sourceOrigin, Frame destinationFrame, boolean front) {
     }
 
-    record Crossing(String label, int index, int player) {
+    record Crossing(String label, int index, int player, ClientLevel source) {
     }
 }

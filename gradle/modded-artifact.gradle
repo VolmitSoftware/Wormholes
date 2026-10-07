@@ -20,7 +20,7 @@ abstract class VerifyModdedArtifact extends DefaultTask {
                                      'client.PreparedTravelCameraMixin', 'client.SodiumPreparedRendererMixin',
                                      'client.SodiumPreparedExtractorMixin', 'client.IrisPortalHandAccess',
                                      'client.IrisPortalHandBuffersAccess', 'client.IrisPortalHandFrameAccess',
-                                     'client.LocalMeshChunkMixin'] as Set
+                                     'client.LocalMeshChunkMixin', 'client.StraddleOverlayMixin'] as Set
 
     @InputFile
     @PathSensitive(PathSensitivity.NONE)

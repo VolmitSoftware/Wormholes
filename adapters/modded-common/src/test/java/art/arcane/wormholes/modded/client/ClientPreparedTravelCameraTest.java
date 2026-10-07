@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.optics.math.Angles;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.optics.math.Face;
@@ -94,7 +95,7 @@ public class ClientPreparedTravelCameraTest {
                     when(player.getEyeHeight()).thenReturn(height);
                     CameraRenderState camera = (CameraRenderState) method.invoke(null, begin);
                     Vec3d feet = transform.inverse().point(new Vec3d(102, 23, 206));
-                    ClientTravelMotion.Rotation look = new ClientTravelMotion.Rotation(30, 20).transform(transform);
+                    Angles.Look look = ClientTravelMotion.look(transform.inverse(), 30, 20);
                     assertEquals(new Vec3(feet.x(), feet.y() + height, feet.z()), camera.pos);
                     assertEquals(look.yaw(), camera.yRot, 0.0F);
                     assertEquals(look.pitch(), camera.xRot, 0.0F);

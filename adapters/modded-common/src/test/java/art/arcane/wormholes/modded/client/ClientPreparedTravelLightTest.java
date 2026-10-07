@@ -211,7 +211,7 @@ public class ClientPreparedTravelLightTest extends MinecraftTestBase {
     }
 
     private static final class Fixture implements AutoCloseable {
-        private final ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
+        private final ClientPreparedTravel travel = ClientTravelTestFixtures.travel(ignored -> { });
         private final ClientLevel level = mock(ClientLevel.class);
         private final ClientChunkCache cache = mock(ClientChunkCache.class);
         private final Minecraft minecraft = mock(Minecraft.class);

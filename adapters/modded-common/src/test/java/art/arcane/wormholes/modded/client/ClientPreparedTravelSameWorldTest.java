@@ -1,6 +1,8 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
+import art.arcane.optics.crossing.Pose;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.client.render.ClientTravelScene;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.optics.frame.OpticTransform;
@@ -8,7 +10,6 @@ import net.minecraft.client.multiplayer.ClientChunkCache;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
-import net.minecraft.world.phys.Vec3;
 import org.junit.Test;
 
 import java.lang.reflect.Method;
@@ -46,14 +47,13 @@ public class ClientPreparedTravelSameWorldTest extends MinecraftTestBase {
             new TravelMessage.TravelWorld("minecraft:overworld", "minecraft:overworld", 1, false, false, 63, -64, 384),
             new TravelMessage.TravelPose(0, 80, 0, 0, 0), coordinates,
             PortalEnvironmentTest.environment(OpticTransform.IDENTITY), 30_000, TravelMessage.ArrivalRules.FRAME, false, 0, false);
-        ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
+        ClientPreparedTravel travel = ClientTravelTestFixtures.travel(ignored -> { });
         set(travel, "begin", begin);
         set(travel, "scene", scene);
         set(travel, "staged", mock(ClientLevel.class));
-        ClientTravelMotion motion = new ClientTravelMotion(new Vec3(0, 80, 0), new Vec3(0, 80, 0), new Vec3(0, 80, 0),
-            Vec3.ZERO, new ClientTravelMotion.Rotation(0, 0), new ClientTravelMotion.Rotation(0, 0), 0, 0, 0, 0);
-        Method method = ClientPreparedTravel.class.getDeclaredMethod("prepareSameWorld", ClientLevel.class,
-            ClientTravelMotion.class, ClientTravelMotion.class);
+        Pose motion = new Pose(new Vec3d(0, 80, 0), new Vec3d(0, 80, 0), new Vec3d(0, 80, 0),
+            new Vec3d(0, 0, 0), 0, 0, 0, 0, 0, 0, 0, 0);
+        Method method = ClientPreparedTravel.class.getDeclaredMethod("prepareSameWorld", ClientLevel.class, Pose.class, Pose.class);
         method.setAccessible(true);
         method.invoke(travel, live, motion, motion);
         assertSame(live, travel.level());

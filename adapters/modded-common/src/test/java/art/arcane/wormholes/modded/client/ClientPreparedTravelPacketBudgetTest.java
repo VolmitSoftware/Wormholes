@@ -114,7 +114,7 @@ public class ClientPreparedTravelPacketBudgetTest extends MinecraftTestBase {
         private final ArrayList<TravelMessage> sent = new ArrayList<>();
         private final long deadline = System.currentTimeMillis() + 2000;
         private final Object prediction;
-        private final ClientPreparedTravel travel = new ClientPreparedTravel(sent::add);
+        private final ClientPreparedTravel travel = ClientTravelTestFixtures.travel(sent::add);
         private final MockedStatic<Minecraft> minecraftAccess;
         private final MockedStatic<ClientPortalRenderer> rendererAccess;
 

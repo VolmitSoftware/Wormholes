@@ -98,7 +98,7 @@ public class ClientTravelCrossingDeclineTest extends MinecraftTestBase {
         private final DeltaTracker tracker = mock(DeltaTracker.class);
         private final ClientPortalRenderer renderer = mock(ClientPortalRenderer.class);
         private final List<TravelMessage> sent = new ArrayList<>();
-        private final ClientPreparedTravel travel = new ClientPreparedTravel(sent::add);
+        private final ClientPreparedTravel travel = ClientTravelTestFixtures.travel(sent::add);
         private final TravelMessage.TravelBegin begin;
         private final MockedStatic<Minecraft> minecraftAccess;
         private final MockedStatic<ClientPortalRenderer> rendererAccess;

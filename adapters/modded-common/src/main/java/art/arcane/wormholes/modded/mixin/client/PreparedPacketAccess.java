@@ -14,6 +14,9 @@ public interface PreparedPacketAccess {
     @Accessor("levelData")
     void wormholes$data(ClientLevel.ClientLevelData data);
 
+    @Accessor("levelData")
+    ClientLevel.ClientLevelData wormholes$data();
+
     @Accessor("serverChunkRadius")
     int wormholes$chunkRadius();
 

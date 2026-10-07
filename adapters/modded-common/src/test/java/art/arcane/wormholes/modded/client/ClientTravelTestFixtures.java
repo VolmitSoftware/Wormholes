@@ -2,12 +2,18 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.Face;
+import art.arcane.wormholes.network.client.TravelMessage;
 
 import java.lang.reflect.Field;
 import java.util.List;
+import java.util.function.Consumer;
 
 final class ClientTravelTestFixtures {
     private ClientTravelTestFixtures() {
+    }
+
+    static ClientPreparedTravel travel(Consumer<TravelMessage> sender) {
+        return new ClientPreparedTravel(sender, new ResidentLevels(sender, 512L << 20));
     }
 
     static ApertureDescriptor geometry() {

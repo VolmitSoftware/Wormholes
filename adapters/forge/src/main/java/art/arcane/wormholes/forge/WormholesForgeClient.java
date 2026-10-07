@@ -3,6 +3,8 @@ package art.arcane.wormholes.forge;
 import art.arcane.wormholes.modded.client.WormholesClient;
 import art.arcane.wormholes.modded.clientview.ClientViewPayload;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientPacketListener;
+import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.event.TickEvent;
@@ -35,6 +37,12 @@ final class WormholesForgeClient {
         context.setPacketHandled(true);
         WormholesClient client = WormholesClient.instance();
         if (client == null) {
+            return;
+        }
+        Minecraft minecraft = Minecraft.getInstance();
+        ClientPacketListener listener = minecraft.getConnection();
+        if (listener != null && !minecraft.packetProcessor().isSameThread()) {
+            minecraft.packetProcessor().scheduleIfPossible(listener, new ClientboundCustomPayloadPacket(payload));
             return;
         }
         client.receive(payload.data(), bytes -> channel.reply(new ClientViewPayload(bytes), context));

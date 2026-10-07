@@ -74,7 +74,7 @@ public class ClientPreparedTravelRollbackTest extends MinecraftTestBase {
         set(prediction, "extractor", mock(LevelExtractor.class));
         set(prediction, "packets", new ArrayDeque<Runnable>());
         set(prediction, "sourceColumns", new ArrayList<>());
-        ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
+        ClientPreparedTravel travel = ClientTravelTestFixtures.travel(ignored -> { });
         set(travel, "prediction", prediction);
         return travel;
     }

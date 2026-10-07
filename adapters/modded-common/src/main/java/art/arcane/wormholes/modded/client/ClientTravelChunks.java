@@ -106,6 +106,10 @@ final class ClientTravelChunks {
         end = message;
     }
 
+    long endRevision() {
+        return end == null ? 0 : end.contentRevision();
+    }
+
     long completeRevision() {
         if (end == null || !pending.isEmpty()) {
             return 0;

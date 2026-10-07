@@ -3,6 +3,7 @@ package art.arcane.wormholes.modded.mixin.client;
 import art.arcane.wormholes.modded.client.WormholesClient;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
@@ -26,6 +27,11 @@ public abstract class PreparedTravelWorldPacketsMixin {
     })
     private void wormholes$sourceWorld(@Coerce Packet<ClientGamePacketListener> packet, Operation<Void> original) {
         WormholesClient client = WormholesClient.instance();
+        ClientLevel crossingSource = client == null ? null : client.preparedTravel().residents().redirectTarget();
+        if (crossingSource != null) {
+            client.preparedTravel().residents().withLevel(crossingSource, () -> original.call(packet));
+            return;
+        }
         if (client == null || !client.preparedTravel().deferWorldPacket(packet, () -> original.call(packet))) {
             original.call(packet);
         }

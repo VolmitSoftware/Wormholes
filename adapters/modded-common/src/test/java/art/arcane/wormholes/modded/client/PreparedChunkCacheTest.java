@@ -34,24 +34,21 @@ public class PreparedChunkCacheTest {
                 opcodes.add(instruction.getOpcode());
             }
         }
-        assertEquals(List.of(Opcodes.INVOKESTATIC, Opcodes.GETFIELD, Opcodes.ALOAD, Opcodes.GETFIELD,
-            Opcodes.IF_ACMPEQ, Opcodes.ALOAD, Opcodes.INVOKEVIRTUAL, Opcodes.RETURN), opcodes);
-        MethodInsnNode current = (MethodInsnNode) instructions.get(0);
-        assertEquals("net/minecraft/client/Minecraft", current.owner);
-        assertEquals("getInstance", current.name);
-        FieldInsnNode attached = (FieldInsnNode) instructions.get(1);
-        assertEquals("net/minecraft/client/Minecraft", attached.owner);
-        assertEquals("level", attached.name);
-        assertEquals(0, ((VarInsnNode) instructions.get(2)).var);
-        FieldInsnNode owner = (FieldInsnNode) instructions.get(3);
+        assertEquals(List.of(Opcodes.ALOAD, Opcodes.GETFIELD, Opcodes.INVOKESTATIC, Opcodes.IFNE, Opcodes.ALOAD,
+            Opcodes.INVOKEVIRTUAL, Opcodes.RETURN), opcodes);
+        assertEquals(0, ((VarInsnNode) instructions.get(0)).var);
+        FieldInsnNode owner = (FieldInsnNode) instructions.get(1);
         assertEquals("art/arcane/wormholes/modded/mixin/client/PreparedChunkCacheMixin", owner.owner);
         assertEquals("level", owner.name);
-        assertEquals(attached.desc, owner.desc);
-        assertEquals(3, ((VarInsnNode) instructions.get(5)).var);
-        MethodInsnNode cancel = (MethodInsnNode) instructions.get(6);
+        MethodInsnNode active = (MethodInsnNode) instructions.get(2);
+        assertEquals("art/arcane/wormholes/modded/client/WormholesClient", active.owner);
+        assertEquals("activeLevel", active.name);
+        assertEquals("(" + owner.desc + ")Z", active.desc);
+        assertEquals(3, ((VarInsnNode) instructions.get(4)).var);
+        MethodInsnNode cancel = (MethodInsnNode) instructions.get(5);
         assertEquals("org/spongepowered/asm/mixin/injection/callback/CallbackInfo", cancel.owner);
         assertEquals("cancel", cancel.name);
-        AbstractInsnNode target = ((JumpInsnNode) instructions.get(4)).label;
+        AbstractInsnNode target = ((JumpInsnNode) instructions.get(3)).label;
         while (target.getOpcode() < 0) {
             target = target.getNext();
         }

@@ -81,7 +81,7 @@ public class ClientPreparedTravelCachedTest {
     public void originalChunkPacketsUseListenerWorldAndRemainAvailableAcrossAdoption() throws ReflectiveOperationException {
         Method fixture = ClientPreparedTravelPendingTest.class.getDeclaredMethod("begin", long.class);
         fixture.setAccessible(true);
-        ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
+        ClientPreparedTravel travel = ClientTravelTestFixtures.travel(ignored -> { });
         set(travel, "begin", fixture.invoke(null, 12L));
         ClientTravelCache cache = (ClientTravelCache) get(travel, "cache");
         Minecraft minecraft = mock(Minecraft.class);
@@ -135,7 +135,7 @@ public class ClientPreparedTravelCachedTest {
         Method fixture = ClientPreparedTravelPendingTest.class.getDeclaredMethod("begin", long.class);
         fixture.setAccessible(true);
         TravelMessage.TravelBegin begin = (TravelMessage.TravelBegin) fixture.invoke(null, 12L);
-        ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
+        ClientPreparedTravel travel = ClientTravelTestFixtures.travel(ignored -> { });
         set(travel, "begin", begin);
         Class<?> sourceType = Class.forName(ClientPreparedTravel.class.getName() + "$SourcePreparation");
         Constructor<?> constructor = sourceType.getDeclaredConstructor(TravelMessage.TravelBegin.class);
@@ -192,7 +192,7 @@ public class ClientPreparedTravelCachedTest {
         Method fixture = ClientPreparedTravelPendingTest.class.getDeclaredMethod("begin", long.class);
         fixture.setAccessible(true);
         TravelMessage.TravelBegin begin = (TravelMessage.TravelBegin) fixture.invoke(null, 12L);
-        ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
+        ClientPreparedTravel travel = ClientTravelTestFixtures.travel(ignored -> { });
         set(travel, "begin", begin);
         TravelMessage.TravelCoordinate coordinate = begin.chunks().getFirst();
         byte[] installed = {8, 3, 5};
@@ -314,7 +314,7 @@ public class ClientPreparedTravelCachedTest {
         constructor.setAccessible(true);
         Class<?> predictionType = Class.forName(ClientPreparedTravel.class.getName() + "$Prediction");
         for (int state = 0; state < 4; state++) {
-            ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
+            ClientPreparedTravel travel = ClientTravelTestFixtures.travel(ignored -> { });
             set(travel, "begin", state == 3 ? null : begin);
             set(travel, "sourcePreparation", constructor.newInstance(begin));
             set(travel, "sourceCapture", 16);
@@ -344,7 +344,7 @@ public class ClientPreparedTravelCachedTest {
         fixture.setAccessible(true);
         TravelMessage.TravelBegin old = (TravelMessage.TravelBegin) fixture.invoke(null, 12L);
         TravelMessage.TravelBegin next = (TravelMessage.TravelBegin) fixture.invoke(null, 13L);
-        ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
+        ClientPreparedTravel travel = ClientTravelTestFixtures.travel(ignored -> { });
         Class<?> sourceType = Class.forName(ClientPreparedTravel.class.getName() + "$SourcePreparation");
         Constructor<?> constructor = sourceType.getDeclaredConstructor(TravelMessage.TravelBegin.class);
         constructor.setAccessible(true);
@@ -408,7 +408,7 @@ public class ClientPreparedTravelCachedTest {
         Method prepare = ClientPreparedTravel.class.getDeclaredMethod("preparation", TravelMessage.TravelBegin.class);
         prepare.setAccessible(true);
         for (int mismatch = 0; mismatch < 3; mismatch++) {
-            ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
+            ClientPreparedTravel travel = ClientTravelTestFixtures.travel(ignored -> { });
             Object source = constructor.newInstance(old);
             ClientTravelScene scene = mock(ClientTravelScene.class);
             set(source, "level", mock(ClientLevel.class));
@@ -511,7 +511,7 @@ public class ClientPreparedTravelCachedTest {
         Method fixture = ClientPreparedTravelPendingTest.class.getDeclaredMethod("begin", long.class);
         fixture.setAccessible(true);
         TravelMessage.TravelBegin destination = (TravelMessage.TravelBegin) fixture.invoke(null, 12L);
-        ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
+        ClientPreparedTravel travel = ClientTravelTestFixtures.travel(ignored -> { });
         set(travel, "begin", destination);
         ClientLevel level = mock(ClientLevel.class, withSettings().extraInterfaces(ClientTravelWorld.class));
         TravelMessage.TravelWorld world = new TravelMessage.TravelWorld("minecraft:the_nether", "minecraft:the_nether",
@@ -601,7 +601,7 @@ public class ClientPreparedTravelCachedTest {
             original.world(), original.arrival(), manifest, original.environment(), original.expiresMillis(), TravelMessage.ArrivalRules.FRAME, false, 0, false);
         ProjectionEnvironment environment = begin.environment();
         List<TravelMessage> sent = new ArrayList<>();
-        ClientPreparedTravel travel = new ClientPreparedTravel(sent::add);
+        ClientPreparedTravel travel = ClientTravelTestFixtures.travel(sent::add);
         Minecraft minecraft = mock(Minecraft.class);
         ClientPacketListener connection = mock(ClientPacketListener.class);
         when(connection.registryAccess()).thenReturn(RegistryAccess.EMPTY);
@@ -717,7 +717,7 @@ public class ClientPreparedTravelCachedTest {
         TravelMessage.TravelBegin begin = new TravelMessage.TravelBegin(original.token(), original.generation(),
             original.sourcePortal(), original.sourceWorld(), original.sourceGeometry(), original.destinationToSource(),
             original.world(), original.arrival(), manifest, original.environment(), original.expiresMillis(), TravelMessage.ArrivalRules.FRAME, false, 0, false);
-        ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
+        ClientPreparedTravel travel = ClientTravelTestFixtures.travel(ignored -> { });
         Class<?> pendingType = Class.forName(ClientPreparedTravel.class.getName() + "$PendingPreparation");
         Constructor<?> pendingConstructor = pendingType.getDeclaredConstructor(TravelMessage.TravelBegin.class);
         pendingConstructor.setAccessible(true);
@@ -766,7 +766,7 @@ public class ClientPreparedTravelCachedTest {
         Method fixture = ClientPreparedTravelPendingTest.class.getDeclaredMethod("begin", long.class);
         fixture.setAccessible(true);
         TravelMessage.TravelBegin begin = (TravelMessage.TravelBegin) fixture.invoke(null, 8L);
-        ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
+        ClientPreparedTravel travel = ClientTravelTestFixtures.travel(ignored -> { });
         Field cacheField = ClientPreparedTravel.class.getDeclaredField("cache");
         cacheField.setAccessible(true);
         ClientTravelCache cache = (ClientTravelCache) cacheField.get(travel);

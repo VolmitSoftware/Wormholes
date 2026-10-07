@@ -1,84 +1,124 @@
 package art.arcane.wormholes.modded.client;
 
-import art.arcane.optics.math.Vec3d;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.crossing.MomentumRule;
+import art.arcane.optics.crossing.PlaneCrossing;
+import art.arcane.optics.crossing.Pose;
+import art.arcane.optics.crossing.PoseTransform;
+import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.math.Angles;
+import art.arcane.optics.math.Vec3d;
+import art.arcane.wormholes.modded.mixin.client.ClientAvatarStateAccess;
+import art.arcane.wormholes.network.client.TravelMessage;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
-record ClientTravelMotion(Vec3 position, Vec3 previous, Vec3 oldPosition, Vec3 velocity,
-                          Rotation rotation, Rotation previousRotation, float bodyYaw,
-                          float previousBodyYaw, float headYaw, float previousHeadYaw) {
-    static ClientTravelMotion capture(LocalPlayer player) {
-        return new ClientTravelMotion(player.position(), new Vec3(player.xo, player.yo, player.zo),
-            player.oldPosition(), player.getDeltaMovement(), new Rotation(player.getYRot(), player.getXRot()),
-            new Rotation(player.yRotO, player.xRotO), player.yBodyRot, player.yBodyRotO,
-            player.yHeadRot, player.yHeadRotO);
+final class ClientTravelMotion {
+    private ClientTravelMotion() {
     }
 
-    ClientTravelMotion transform(OpticTransform transform) {
-        Rotation current = rotation.transform(transform);
-        current = new Rotation(unwrap(current.yaw(), rotation.yaw()), current.pitch());
-        Rotation previousLook = previousRotation.transform(transform);
-        previousLook = new Rotation(unwrap(previousLook.yaw(), current.yaw()), previousLook.pitch());
-        float body = unwrap(new Rotation(bodyYaw, 0).transform(transform).yaw(), current.yaw());
-        float oldBody = unwrap(new Rotation(previousBodyYaw, 0).transform(transform).yaw(), body);
-        float head = unwrap(new Rotation(headYaw, rotation.pitch()).transform(transform).yaw(), current.yaw());
-        float oldHead = unwrap(new Rotation(previousHeadYaw, previousRotation.pitch()).transform(transform).yaw(), head);
-        return new ClientTravelMotion(point(transform, position), point(transform, previous),
-            point(transform, oldPosition), direction(transform, velocity), current, previousLook, body, oldBody, head, oldHead);
+    static Pose capture(LocalPlayer player) {
+        return new Pose(vector(player.position()), new Vec3d(player.xo, player.yo, player.zo), vector(player.oldPosition()),
+            vector(player.getDeltaMovement()), player.getYRot(), player.getXRot(), player.yRotO, player.xRotO,
+            player.yBodyRot, player.yBodyRotO, player.yHeadRot, player.yHeadRotO);
     }
 
-    ClientTravelMotion move(Vec3 offset) {
-        return new ClientTravelMotion(position.add(offset), previous.add(offset), oldPosition.add(offset), velocity,
-            rotation, previousRotation, bodyYaw, previousBodyYaw, headYaw, previousHeadYaw);
+    static void apply(LocalPlayer player, Pose pose) {
+        player.setPos(position(pose.position()));
+        player.setOldPosAndRot(position(pose.oldPosition()), pose.previousYaw(), pose.previousPitch());
+        player.xo = pose.previousPosition().x();
+        player.yo = pose.previousPosition().y();
+        player.zo = pose.previousPosition().z();
+        player.setDeltaMovement(position(pose.velocity()));
+        player.setYRot(pose.yaw());
+        player.setXRot(pose.pitch());
+        player.yBodyRot = pose.bodyYaw();
+        player.yBodyRotO = pose.previousBodyYaw();
+        player.yHeadRot = pose.headYaw();
+        player.yHeadRotO = pose.previousHeadYaw();
     }
 
-    ClientTravelMotion reconcile(Vec3 offset, Vec3 predictedVelocity, Vec3 authoritativeVelocity) {
-        ClientTravelMotion moved = move(offset);
-        return new ClientTravelMotion(moved.position, moved.previous, moved.oldPosition,
-            velocity.add(authoritativeVelocity.subtract(predictedVelocity)), rotation, previousRotation,
-            bodyYaw, previousBodyYaw, headYaw, previousHeadYaw);
+    static Pose toward(OpticTransform destinationToSource, Pose source) {
+        return PoseTransform.apply(source, destinationToSource.inverse());
     }
 
-    void apply(LocalPlayer player) {
-        player.setPos(position);
-        player.setOldPosAndRot(oldPosition, previousRotation.yaw(), previousRotation.pitch());
-        player.xo = previous.x;
-        player.yo = previous.y;
-        player.zo = previous.z;
-        player.setDeltaMovement(velocity);
-        player.setYRot(rotation.yaw());
-        player.setXRot(rotation.pitch());
-        player.yBodyRot = bodyYaw;
-        player.yBodyRotO = previousBodyYaw;
-        player.yHeadRot = headYaw;
-        player.yHeadRotO = previousHeadYaw;
+    static Pose arrive(TravelMessage.TravelBegin begin, Pose source, Vec3d crossingPoint) {
+        OpticTransform toward = begin.destinationToSource().inverse();
+        ApertureDescriptor geometry = begin.sourceGeometry();
+        boolean front = geometry.frontSide();
+        Frame sourceView = geometry.frame().view(front);
+        PlaneCrossing crossing = new PlaneCrossing(sourceView, crossingPoint, crossingPoint, source.velocity(),
+            Angles.direction(source.yaw(), source.pitch()), front);
+        TravelMessage.ArrivalRules rules = begin.rules();
+        MomentumRule momentum = rules.momentum();
+        return PoseTransform.arrive(PoseTransform.apply(source, toward), crossing, exitFrame(sourceView, toward, front),
+            rules.orientation(), rules.gravityFlip(), momentum, momentum.maxSpeed());
     }
 
-    static Vec3 point(OpticTransform transform, Vec3 position) {
-        Vec3d point = transform.inverse().point(new Vec3d(position.x, position.y, position.z));
+    static Frame exitFrame(Frame sourceView, OpticTransform toward, boolean front) {
+        return new Frame(toward.face(sourceView.getNormal()), toward.face(sourceView.getRight()), toward.face(sourceView.getUp())).view(front);
+    }
+
+    static Pose reconcile(Pose current, Vec3d offset, Vec3d predictedVelocity, Vec3d authoritativeVelocity) {
+        Pose moved = current.moved(offset);
+        return moved.withVelocity(current.velocity().add(authoritativeVelocity.subtract(predictedVelocity)));
+    }
+
+    static Pose turned(Pose pose, float yaw, float pitch) {
+        return new Pose(pose.position(), pose.previousPosition(), pose.oldPosition(), pose.velocity(), pose.yaw() + yaw,
+            Mth.clamp(pose.pitch() + pitch, -90.0F, 90.0F), pose.previousYaw() + yaw, Mth.clamp(pose.previousPitch() + pitch, -90.0F, 90.0F),
+            pose.bodyYaw() + yaw, pose.previousBodyYaw() + yaw, pose.headYaw() + yaw, pose.previousHeadYaw() + yaw);
+    }
+
+    static Vec3 point(OpticTransform toward, Vec3 point) {
+        return position(toward.point(vector(point)));
+    }
+
+    static Angles.Look look(OpticTransform toward, float yaw, float pitch) {
+        return toward.look(new Angles.Look(yaw, pitch));
+    }
+
+    static Carry carry(LocalPlayer player) {
+        if (!(player.avatarState() instanceof ClientAvatarStateAccess cloak)) {
+            Vec3d position = vector(player.position());
+            return new Carry(player.yBob, player.xBob, player.yBobO, player.xBobO, position, position);
+        }
+        return new Carry(player.yBob, player.xBob, player.yBobO, player.xBobO,
+            new Vec3d(cloak.wormholes$xCloak(), cloak.wormholes$yCloak(), cloak.wormholes$zCloak()),
+            new Vec3d(cloak.wormholes$xCloakO(), cloak.wormholes$yCloakO(), cloak.wormholes$zCloakO()));
+    }
+
+    static Vec3d vector(Vec3 point) {
+        return new Vec3d(point.x, point.y, point.z);
+    }
+
+    static Vec3 position(Vec3d point) {
         return new Vec3(point.x(), point.y(), point.z());
     }
 
-    static Vec3 direction(OpticTransform transform, Vec3 direction) {
-        return new Vec3(direction.x * transform.permutation().x().x() + direction.y * transform.permutation().x().y() + direction.z * transform.permutation().x().z(),
-            direction.x * transform.permutation().y().x() + direction.y * transform.permutation().y().y() + direction.z * transform.permutation().y().z(),
-            direction.x * transform.permutation().z().x() + direction.y * transform.permutation().z().y() + direction.z * transform.permutation().z().z());
-    }
+    record Carry(float yBob, float xBob, float yBobO, float xBobO, Vec3d cloak, Vec3d previousCloak) {
+        Carry moved(Pose from, Pose to, OpticTransform toward) {
+            return new Carry(yBob + to.yaw() - from.yaw(), xBob + to.pitch() - from.pitch(),
+                yBobO + to.previousYaw() - from.previousYaw(), xBobO + to.previousPitch() - from.previousPitch(),
+                toward.point(cloak), toward.point(previousCloak));
+        }
 
-    private static float unwrap(float angle, float reference) {
-        return (float) (angle + 360.0 * Math.floor((reference - angle) / 360.0 + 0.5));
-    }
-
-    record Rotation(float yaw, float pitch) {
-        Rotation transform(OpticTransform transform) {
-            double yawRadians = Math.toRadians(yaw);
-            double pitchRadians = Math.toRadians(pitch);
-            double horizontal = Math.cos(pitchRadians);
-            Vec3 look = direction(transform, new Vec3(-Math.sin(yawRadians) * horizontal,
-                -Math.sin(pitchRadians), Math.cos(yawRadians) * horizontal));
-            return new Rotation((float) Math.toDegrees(Math.atan2(-look.x, look.z)),
-                (float) Math.toDegrees(Math.atan2(-look.y, Math.hypot(look.x, look.z))));
+        void restore(LocalPlayer player) {
+            player.yBob = yBob;
+            player.xBob = xBob;
+            player.yBobO = yBobO;
+            player.xBobO = xBobO;
+            if (!(player.avatarState() instanceof ClientAvatarStateAccess access)) {
+                return;
+            }
+            access.wormholes$xCloak(cloak.x());
+            access.wormholes$yCloak(cloak.y());
+            access.wormholes$zCloak(cloak.z());
+            access.wormholes$xCloakO(previousCloak.x());
+            access.wormholes$yCloakO(previousCloak.y());
+            access.wormholes$zCloakO(previousCloak.z());
         }
     }
 }

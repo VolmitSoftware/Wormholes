@@ -136,7 +136,7 @@ public class ClientPreparedTravelRespawnTest extends MinecraftTestBase {
         Minecraft minecraft = mock(Minecraft.class);
         ClientLevel destination = mock(ClientLevel.class);
         WormholesClient client = mock(WormholesClient.class);
-        when(client.preparedTravel()).thenReturn(new ClientPreparedTravel(ignored -> { }));
+        when(client.preparedTravel()).thenReturn(ClientTravelTestFixtures.travel(ignored -> { }));
         Operation<Void> vanilla = operation();
         try (MockedStatic<WormholesClient> clients = mockStatic(WormholesClient.class);
              MockedStatic<ClientSodiumTerrain> terrain = mockStatic(ClientSodiumTerrain.class)) {
@@ -257,7 +257,7 @@ public class ClientPreparedTravelRespawnTest extends MinecraftTestBase {
         Class<?> arrivalType = Class.forName(ClientPreparedTravel.class.getName() + "$AuthoritativeArrival");
         Constructor<?> arrival = arrivalType.getDeclaredConstructor(retainedType);
         arrival.setAccessible(true);
-        ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
+        ClientPreparedTravel travel = ClientTravelTestFixtures.travel(ignored -> { });
         set(travel, "authoritativeArrival", arrival.newInstance(provenance));
         return travel;
     }
@@ -269,7 +269,7 @@ public class ClientPreparedTravelRespawnTest extends MinecraftTestBase {
     }
 
     private static ClientPreparedTravel adopted(ClientLevel level) throws ReflectiveOperationException {
-        ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
+        ClientPreparedTravel travel = ClientTravelTestFixtures.travel(ignored -> { });
         Field staged = ClientPreparedTravel.class.getDeclaredField("staged");
         staged.setAccessible(true);
         staged.set(travel, level);

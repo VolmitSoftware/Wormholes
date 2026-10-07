@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.mixin.client.PreparedTravelCameraMixin;
 import art.arcane.wormholes.modded.mixin.client.PreparedLevelAccess;
@@ -110,7 +111,7 @@ public class ClientPreparedTravelFrameTest extends MinecraftTestBase {
             when(chunks.getChunk(3, 7, FULL, false)).thenReturn(chunk);
             LevelRenderer levelRenderer = mock(LevelRenderer.class);
             field(minecraft, "levelRenderer", levelRenderer);
-            ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
+            ClientPreparedTravel travel = ClientTravelTestFixtures.travel(ignored -> { });
             Method fixture = ClientPreparedTravelPendingTest.class.getDeclaredMethod("begin", long.class);
             fixture.setAccessible(true);
             TravelMessage.TravelBegin begin = (TravelMessage.TravelBegin) fixture.invoke(null, 9L);
@@ -215,7 +216,7 @@ public class ClientPreparedTravelFrameTest extends MinecraftTestBase {
             TravelMessage.TravelBegin begin = new TravelMessage.TravelBegin(original.token(), original.generation(),
                 original.sourcePortal(), original.sourceWorld(), original.sourceGeometry(), original.destinationToSource(),
                 original.world(), original.arrival(), coordinates, original.environment(), original.expiresMillis(), TravelMessage.ArrivalRules.FRAME, false, 0, false);
-            ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
+            ClientPreparedTravel travel = ClientTravelTestFixtures.travel(ignored -> { });
             field(travel, "begin", begin);
             field(travel, "staged", level);
             field(travel, "deadline", System.currentTimeMillis() + 300_000L);
@@ -228,7 +229,8 @@ public class ClientPreparedTravelFrameTest extends MinecraftTestBase {
             field(prediction, "revision", 42L);
             field(prediction, "deadline", rejected == 4 ? 1L : System.currentTimeMillis() + 2_000L);
             field(prediction, "extractor", mock(LevelExtractor.class));
-            field(prediction, "motion", mock(ClientTravelMotion.class));
+            field(prediction, "motion", ClientTravelMotionTest.motion(0, 0));
+            field(prediction, "carry", new ClientTravelMotion.Carry(0, 0, 0, 0, new Vec3d(0, 80, 0), new Vec3d(0, 80, 0)));
             field(prediction, "packets", new ArrayDeque<Runnable>());
             field(prediction, "sourceColumns", new ArrayList<>());
             field(travel, "prediction", prediction);
@@ -289,7 +291,7 @@ public class ClientPreparedTravelFrameTest extends MinecraftTestBase {
     public void foreignExpiredOrdinaryPredictedAndVisibleUiStatesNeverHoldFrames() throws ReflectiveOperationException {
         for (int mismatch = 0; mismatch < 11; mismatch++) {
             Minecraft minecraft = minecraft();
-            ClientPreparedTravel travel = mismatch == 0 ? new ClientPreparedTravel(ignored -> { }) : fallback(minecraft);
+            ClientPreparedTravel travel = mismatch == 0 ? ClientTravelTestFixtures.travel(ignored -> { }) : fallback(minecraft);
             switch (mismatch) {
                 case 1 -> minecraft.level = mock(ClientLevel.class);
                 case 2 -> when(minecraft.level.registryAccess()).thenReturn(mock(RegistryAccess.class));

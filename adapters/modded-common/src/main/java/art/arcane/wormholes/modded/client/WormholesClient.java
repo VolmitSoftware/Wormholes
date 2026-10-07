@@ -32,6 +32,8 @@ import java.util.Objects;
 import java.util.function.Consumer;
 import art.arcane.wormholes.modded.clientview.MinecraftClientViewExtensions;
 import art.arcane.wormholes.network.client.TravelExtension;
+import art.arcane.wormholes.network.client.TravelMessage;
+import art.arcane.optics.aperture.ApertureDescriptor;
 
 public final class WormholesClient {
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
@@ -58,7 +60,8 @@ public final class WormholesClient {
         this.config = Objects.requireNonNull(config, "config");
         this.sender = Objects.requireNonNull(sender, "sender");
         this.stats = new ClientViewStats();
-        this.preparedTravel = new ClientPreparedTravel(message -> send(TravelExtension.PREPARED.wrap(message)));
+        Consumer<TravelMessage> travel = message -> send(TravelExtension.PREPARED.wrap(message));
+        this.preparedTravel = new ClientPreparedTravel(travel, new ResidentLevels(travel, config.residentLevelMemoryBytes()));
         this.reflections = new ClientReflectionEntity();
         this.dataVersion = SharedConstants.getCurrentVersion().dataVersion().version();
         this.brandTag = ClientBrandRetriever.getClientModName();
@@ -82,6 +85,11 @@ public final class WormholesClient {
         if (client != null) {
             client.reapplyChunk(chunk);
         }
+    }
+
+    public static boolean activeLevel(ClientLevel level) {
+        WormholesClient client = instance;
+        return (client == null ? Minecraft.getInstance().level : client.preparedTravel.residents().activeLevel()) == level;
     }
 
     public static void reconfiguring() {
@@ -162,6 +170,18 @@ public final class WormholesClient {
     public boolean managesVanillaPortal(ClientLevel level, BlockPos position) {
         return attachedLevel == level && session.managesVanillaPortal(position.getX(), position.getY(), position.getZ())
             || preparedTravel.managesVanillaPortal(level, position);
+    }
+
+    public void dropProjectedEntities(ApertureDescriptor geometry) {
+        ClientProjectedEntities entities = tick == null ? null : tick.entities();
+        if (entities == null) {
+            return;
+        }
+        for (ClientPortal portal : session.portals().values()) {
+            if (!portal.nested() && portal.geometry().sameSurface(geometry)) {
+                entities.drop(portal.portalKey());
+            }
+        }
     }
 
     public ClientLocalMeshSources localMeshes() {

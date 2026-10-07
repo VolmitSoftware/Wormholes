@@ -122,7 +122,7 @@ public class ClientPreparedTravelPendingTest {
     }
 
     private static ClientPreparedTravel arrival() throws ReflectiveOperationException {
-        ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
+        ClientPreparedTravel travel = ClientTravelTestFixtures.travel(ignored -> { });
         TravelMessage.TravelBegin active = mock(TravelMessage.TravelBegin.class);
         when(active.world()).thenReturn(new TravelMessage.TravelWorld("minecraft:the_nether", "minecraft:the_nether",
             7, false, false, 32, 0, 256));

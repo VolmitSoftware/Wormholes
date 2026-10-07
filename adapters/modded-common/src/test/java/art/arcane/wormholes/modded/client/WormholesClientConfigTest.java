@@ -40,6 +40,27 @@ public class WormholesClientConfigTest extends MinecraftTestBase {
     }
 
     @Test
+    public void nativeRendererOffersRemoteViewAndSeamlessTravel() {
+        long capabilities = session(new WormholesClientConfig()).clientCapabilities();
+        assertTrue(ViewStreamCapability.REMOTE_VIEW.in(capabilities));
+        assertTrue(ViewStreamCapability.SEAMLESS_TRAVEL.in(capabilities));
+        assertTrue(ViewStreamCapability.PREPARED_TRAVEL.in(capabilities));
+    }
+
+    @Test
+    public void residentLevelBudgetDefaultsTo512MebibytesAndIsClamped() throws Exception {
+        Path configDirectory = directory.newFolder().toPath();
+        WormholesClientConfig defaults = WormholesClientConfig.load(configDirectory);
+        assertEquals(512, defaults.residentLevelMemoryMb);
+        assertEquals(512L * 1024L * 1024L, defaults.residentLevelMemoryBytes());
+        assertTrue(Files.readString(configDirectory.resolve(WormholesClientConfig.FILE_NAME)).contains("resident-level-memory-mb = 512"));
+        WormholesClientConfig tiny = new WormholesClientConfig();
+        tiny.residentLevelMemoryMb = 1;
+        tiny.normalize();
+        assertEquals(WormholesClientConfig.MIN_RESIDENT_LEVEL_MEMORY_MB, tiny.residentLevelMemoryMb);
+    }
+
+    @Test
     public void blockPacketRendererDoesNotNegotiateOrAcceptClientView() throws Exception {
         WormholesClientConfig config = new WormholesClientConfig();
         config.renderer = "block-packets";
