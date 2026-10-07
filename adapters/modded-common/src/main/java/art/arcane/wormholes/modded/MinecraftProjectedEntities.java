@@ -18,7 +18,7 @@ import art.arcane.optics.volume.LocalEntityEnvelope;
 import art.arcane.optics.volume.ProjectionVolume;
 import art.arcane.optics.recursion.RecursiveEndpoints;
 import art.arcane.optics.view.ContentView;
-import art.arcane.optics.view.EntityData;
+import art.arcane.wormholes.render.view.ProjectionEntityData;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.network.protocol.game.ClientboundHurtAnimationPacket;
 import net.minecraft.server.level.ServerLevel;
@@ -45,7 +45,7 @@ public final class MinecraftProjectedEntities implements AutoCloseable {
     private final MinecraftEntityPackets packets;
     private final SpoofRegistry<ServerPlayer, Vec3> registry;
     private final SnapshotProjector<ServerPlayer, ServerLevel, MinecraftPortal, Vec3, EntityType<?>,
-        EntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment>> projector;
+        ProjectionEntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment>> projector;
     private final RecursiveEndpoints<ServerLevel, MinecraftPortal> recursive;
     private final Map<UUID, MinecraftProjectedEntities> nested = new HashMap<>();
     private final ProjectionRecovery<ServerPlayer> recovery;
@@ -210,7 +210,7 @@ public final class MinecraftProjectedEntities implements AutoCloseable {
     }
 
     public record View(MinecraftPortal destination, IPortal anchor, ServerLevel world,
-                       EntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment> entities,
+                       ProjectionEntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment> entities,
                        OpticTransform transform, ViewVolume frustum, Vec3d eye,
                        ProjectedEntityOcclusion<BlockState, ContentView<BlockState, BlockState>> occlusion, double depth) {
     }

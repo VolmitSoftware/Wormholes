@@ -73,13 +73,13 @@ import art.arcane.optics.entity.ProjectedMaps;
 import art.arcane.optics.entity.SnapshotProjector;
 import art.arcane.optics.entity.SpoofRegistry;
 import art.arcane.optics.entity.SpoofedEntity;
-import art.arcane.optics.view.EntityData;
 import art.arcane.wormholes.modded.mixin.ProjectionEntityMapAccess;
 import art.arcane.wormholes.render.ProjectedEntityIdentity;
+import art.arcane.wormholes.render.view.ProjectionEntityData;
 import art.arcane.wormholes.service.WormholesTelemetry;
 
 public final class MinecraftEntityPackets implements EntityOutput<ServerPlayer, Vec3, EntityType<?>,
-    EntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment>, Entity> {
+    ProjectionEntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment>, Entity> {
     public static final int NO_ANIMATION = -1;
     public static final int ANIMATION_SWING_MAIN_HAND = 0;
     public static final int ANIMATION_WAKE_UP = 2;
@@ -362,7 +362,7 @@ public final class MinecraftEntityPackets implements EntityOutput<ServerPlayer, 
 
     @Override
     public void entityState(ServerPlayer observer, SpoofedEntity state,
-                            SnapshotProjector.State<EntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment>> update) {
+                            SnapshotProjector.State<ProjectionEntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment>> update) {
         List<SynchedEntityData.DataValue<?>> metadata = update.view().getMetadata(update.visual().id());
         if (metadata != null && !metadata.isEmpty()) {
             Integer sourceMapId = MinecraftEntityMetadata.FRAMES.mapId(metadata);

@@ -4,7 +4,7 @@ import art.arcane.optics.entity.EntityProfile;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.wormholes.network.view.ViewEntityState;
-import art.arcane.optics.view.EntityData;
+import art.arcane.wormholes.render.view.ProjectionEntityData;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -21,7 +21,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-public final class MinecraftLocalEntityView implements EntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment> {
+public final class MinecraftLocalEntityView implements ProjectionEntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment> {
     private final ServerLevel level;
     private final MinecraftPacketBlobs blobs;
     private final MinecraftEntityVisualCapture capture;

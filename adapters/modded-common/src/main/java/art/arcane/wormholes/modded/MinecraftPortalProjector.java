@@ -15,7 +15,6 @@ import art.arcane.wormholes.portal.RemotePortal;
 import art.arcane.wormholes.network.view.RemoteViewCache;
 import art.arcane.wormholes.network.view.ViewSubscriptionManager;
 import art.arcane.optics.view.ContentView;
-import art.arcane.optics.view.EntityData;
 import art.arcane.wormholes.render.view.RemoteProjectionView;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
@@ -47,6 +46,7 @@ import art.arcane.optics.volume.LodPolicy;
 import art.arcane.optics.plate.ViewPlate;
 import art.arcane.optics.plate.ViewPlateCache;
 import art.arcane.optics.volume.ProjectionVolume;
+import art.arcane.wormholes.render.view.ProjectionEntityData;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -173,7 +173,7 @@ public final class MinecraftPortalProjector implements AutoCloseable {
         localFrame = localFrame.view(front);
         remoteFrame = remoteFrame.view(front);
         scan.updateEntityOcclusionEye(eye, destination, localFrame, remoteFrame);
-        EntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment> data = destination.dest() == null ? remoteView
+        ProjectionEntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment> data = destination.dest() == null ? remoteView
             : runtime.projections().scene(portals.world(destination.dest()), destination.dest(),
                 Math.min(runtime.configuration().settings().getRender().entitySpoofRange, fit.fittedDepth()));
         if (data == null) {

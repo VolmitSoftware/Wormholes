@@ -15,17 +15,17 @@ import art.arcane.optics.entity.EntityProfile;
 import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.optics.entity.SnapshotProjector;
 import art.arcane.optics.math.Vec3d;
-import art.arcane.optics.view.EntityData;
+import art.arcane.wormholes.render.view.ProjectionEntityData;
 
 public final class MinecraftEntityVisualHost implements EntityFeed<ServerPlayer, ServerLevel,
-    EntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment>, Entity> {
+    ProjectionEntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment>, Entity> {
     public static final MinecraftEntityVisualHost FEED = new MinecraftEntityVisualHost();
 
     private MinecraftEntityVisualHost() {
     }
 
     @Override
-    public List<EntitySnapshot> entities(EntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment> view,
+    public List<EntitySnapshot> entities(ProjectionEntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment> view,
                                          SnapshotProjector.EntityRange range) {
         return view.getEntities(range.x(), range.y(), range.z(), range.range());
     }
@@ -37,23 +37,23 @@ public final class MinecraftEntityVisualHost implements EntityFeed<ServerPlayer,
     }
 
     @Override
-    public boolean visible(ServerPlayer observer, EntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment> view,
+    public boolean visible(ServerPlayer observer, ProjectionEntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment> view,
                            UUID entityId) {
         return !(view instanceof MinecraftLocalEntityView local) || local.visible(observer, entityId);
     }
 
     @Override
-    public EntityProfile profile(EntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment> view, UUID entityId) {
+    public EntityProfile profile(ProjectionEntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment> view, UUID entityId) {
         return view.getProfile(entityId);
     }
 
     @Override
-    public int stateVersion(EntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment> view, UUID entityId) {
+    public int stateVersion(ProjectionEntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment> view, UUID entityId) {
         return view.getStateVersion(entityId);
     }
 
     @Override
-    public boolean hasMap(EntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment> view, UUID entityId) {
+    public boolean hasMap(ProjectionEntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment> view, UUID entityId) {
         return MinecraftEntityMetadata.FRAMES.mapId(view.getMetadata(entityId)) != null;
     }
 

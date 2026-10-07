@@ -12,10 +12,9 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.function.ToIntFunction;
 import art.arcane.optics.view.ContentView;
-import art.arcane.optics.view.EntityData;
 import art.arcane.optics.frame.OpticTransform;
 
-public class RemoteProjectionView<B, T, M, E> implements ContentView<B, T>, EntityData<M, E> {
+public class RemoteProjectionView<B, T, M, E> implements ContentView<B, T>, ProjectionEntityData<M, E> {
     private final RemoteViewCache.RemoteView<B, M, E> view;
     private final B fallback;
     private final Function<B, T> materials;
