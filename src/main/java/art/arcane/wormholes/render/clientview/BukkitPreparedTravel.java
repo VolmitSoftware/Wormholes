@@ -304,7 +304,7 @@ final class BukkitPreparedTravel implements AutoCloseable {
             preparation.begin = new TravelMessage.TravelBegin(UUID.randomUUID(), preparation.generation, preparation.source,
                 preparation.sourceWorld, preparation.sourceGeometry, preparation.destinationToSource, new TravelMessage.TravelWorld(metadata.dimension(), metadata.dimensionType(), metadata.seed(),
                     metadata.debug(), metadata.flat(), metadata.seaLevel(), metadata.minY(), metadata.height()), preparation.arrival,
-                preparation.coordinates, environment, TravelMessage.MAX_TRAVEL_EXPIRY_MILLIS);
+                preparation.coordinates, environment, TravelMessage.MAX_TRAVEL_EXPIRY_MILLIS, TravelMessage.ArrivalRules.FRAME, false, 0, false);
         } catch (RuntimeException failure) {
             plugin.getLogger().log(Level.SEVERE, "Could not prepare portal destination " + preparation.destination, failure);
             preparation.failed = true;

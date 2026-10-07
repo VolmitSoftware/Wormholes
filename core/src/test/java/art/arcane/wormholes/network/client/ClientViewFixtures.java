@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.UUID;
 
 import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.crossing.MomentumRule;
+import art.arcane.optics.crossing.OrientationRule;
 import art.arcane.optics.frame.AxisPermutation;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.math.Face;
@@ -50,7 +52,7 @@ public final class ClientViewFixtures {
             ViewStreamLimits.FLAG_LAST));
         out.add(travel("travel_cross", new TravelMessage.TravelCross(new UUID(12, 34), 3L, 9L,
             new TravelMessage.TravelPose(635.5D, 65.0D, -4681.4D, 90.0F, -12.0F),
-            new Vec3d(635.5D, 66.62D, -4681.6D), new Vec3d(635.5D, 66.62D, -4681.4D)), ViewStreamCapability.NONE, 0, 0));
+            new Vec3d(635.5D, 66.62D, -4681.6D), new Vec3d(635.5D, 66.62D, -4681.4D), 91.5F, 89.25F), ViewStreamCapability.NONE, 0, 0));
         byte[] travelHash = new byte[32];
         for (int index = 0; index < travelHash.length; index++) {
             travelHash[index] = (byte) index;
@@ -59,7 +61,24 @@ public final class ClientViewFixtures {
             ViewStreamCapability.ALL, 23, ViewStreamLimits.FLAG_LAST));
         out.add(travel("travel_cached", new TravelMessage.TravelCached(new UUID(12, 34), 3L, -32, -10, 2, travelHash, true),
             ViewStreamCapability.NONE, 0, 0));
+        out.add(travel("travel_begin_seamless", seamlessBegin(), ViewStreamCapability.ALL, 25, 0));
+        out.add(travel("remote_level_open", new TravelMessage.RemoteLevelOpen(4, travelBegin().world(), travelBegin().environment(), 8,
+            new TravelMessage.TravelCoordinate(-32, -10)), ViewStreamCapability.ALL, 26, 0));
+        out.add(travel("remote_level_close", new TravelMessage.RemoteLevelClose(4), ViewStreamCapability.ALL, 27, ViewStreamLimits.FLAG_LAST));
+        out.add(travel("routed_packet", new TravelMessage.RoutedPacket(4, 17, 0, 1, 4, new byte[] {5, 6, 7, 8}),
+            ViewStreamCapability.ALL, 28, 0));
+        out.add(travel("travel_accept", new TravelMessage.TravelAccept(new UUID(12, 34), 3L, 9L, travelBegin().arrival(),
+            new Vec3d(0.25D, -0.5D, 1.0D), 4, true, 1200L), ViewStreamCapability.ALL, 29, ViewStreamLimits.FLAG_LAST));
+        out.add(travel("remote_view_ack", new TravelMessage.RemoteViewAck(4, 17, 8), ViewStreamCapability.NONE, 0, 0));
         return out;
+    }
+
+    static TravelMessage.TravelBegin seamlessBegin() {
+        TravelMessage.TravelBegin base = travelBegin();
+        return new TravelMessage.TravelBegin(base.token(), base.generation(), base.sourcePortal(), base.sourceWorld(), base.sourceGeometry(),
+            base.destinationToSource(), base.world(), base.arrival(), base.chunks(), base.environment(), base.expiresMillis(),
+            new TravelMessage.ArrivalRules(OrientationRule.LOOK, true, new MomentumRule(MomentumRule.Mode.SCALE, 0.75D, 3.5D,
+                new Vec3d(0.0D, 0.25D, 0.0D))), true, 4, true);
     }
 
     public static TravelMessage.TravelBegin travelBegin() {
@@ -74,7 +93,7 @@ public final class ClientViewFixtures {
             geometry(), OpticTransform.of(AxisPermutation.of(Face.S, Face.U, Face.E), 4, 0, 6),
             new TravelMessage.TravelWorld("minecraft:overworld", "minecraft:overworld", 123456789L, false, true, 63, -64, 384),
             new TravelMessage.TravelPose(-511.5D, 81.0D, -159.5D, 90.0F, -12.0F),
-            List.of(new TravelMessage.TravelCoordinate(-32, -10)), environment, 30_000);
+            List.of(new TravelMessage.TravelCoordinate(-32, -10)), environment, 30_000, TravelMessage.ArrivalRules.FRAME, false, 0, false);
     }
 
     static ProjectionEnvironment environment() {

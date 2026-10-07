@@ -181,6 +181,6 @@ class ClientPreparedTravelServerTest {
             }
         }
         return new TravelMessage.TravelBegin(fixture.token(), fixture.generation(), fixture.sourcePortal(), fixture.sourceWorld(),
-            fixture.sourceGeometry(), fixture.destinationToSource(), fixture.world(), new TravelMessage.TravelPose(0, 64, 0, 0, 0), coordinates, fixture.environment(), fixture.expiresMillis());
+            fixture.sourceGeometry(), fixture.destinationToSource(), fixture.world(), new TravelMessage.TravelPose(0, 64, 0, 0, 0), coordinates, fixture.environment(), fixture.expiresMillis(), TravelMessage.ArrivalRules.FRAME, false, 0, false);
     }
 }

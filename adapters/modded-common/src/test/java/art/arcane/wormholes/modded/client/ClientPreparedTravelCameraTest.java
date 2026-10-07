@@ -88,7 +88,7 @@ public class ClientPreparedTravelCameraTest {
                 OpticTransform.of(AxisPermutation.of(Face.E, Face.S, Face.D), 100, 20, 200)}) {
                 TravelMessage.TravelBegin begin = new TravelMessage.TravelBegin(original.token(), original.generation(),
                     original.sourcePortal(), original.sourceWorld(), original.sourceGeometry(), transform,
-                    original.world(), original.arrival(), original.chunks(), original.environment(), original.expiresMillis());
+                    original.world(), original.arrival(), original.chunks(), original.environment(), original.expiresMillis(), TravelMessage.ArrivalRules.FRAME, false, 0, false);
                 for (Pose pose : new Pose[]{Pose.STANDING, Pose.CROUCHING, Pose.SWIMMING}) {
                     float height = player.getDefaultDimensions(pose).eyeHeight();
                     when(player.getEyeHeight()).thenReturn(height);

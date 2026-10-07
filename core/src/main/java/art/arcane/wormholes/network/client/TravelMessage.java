@@ -7,6 +7,8 @@ import java.util.Objects;
 import java.util.UUID;
 
 import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.crossing.MomentumRule;
+import art.arcane.optics.crossing.OrientationRule;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ProjectionEnvironment;
@@ -21,8 +23,13 @@ public sealed interface TravelMessage {
     int TRAVEL_CROSS = 47;
     int TRAVEL_REUSE = 48;
     int TRAVEL_CACHED = 49;
-    int FIRST_ID = TRAVEL_BEGIN;
-    int LAST_ID = TRAVEL_CACHED;
+    int REMOTE_LEVEL_OPEN = 51;
+    int REMOTE_LEVEL_CLOSE = 52;
+    int ROUTED_PACKET = 53;
+    int TRAVEL_ACCEPT = 54;
+    int REMOTE_VIEW_ACK = 55;
+    int FIRST_ID = 41;
+    int LAST_ID = 63;
 
     int TRAVEL_HASH_BYTES = 32;
     int TRAVEL_REUSE_BYTES = 74;
@@ -32,6 +39,10 @@ public sealed interface TravelMessage {
     int MAX_TRAVEL_BYTES = 64 * 1024 * 1024;
     int TRAVEL_FRAGMENT_BYTES = 48 * 1024;
     int MAX_TRAVEL_EXPIRY_MILLIS = 300_000;
+    int MAX_LEVEL_HANDLE = 255;
+    int MAX_REMOTE_VIEW_RADIUS = 16;
+    int MAX_ROUTED_PACKET_BYTES = 2 * 1024 * 1024;
+    int MAX_CHUNKS_PER_TICK_HINT = 64;
 
     int id();
 
@@ -67,11 +78,26 @@ public sealed interface TravelMessage {
         }
     }
 
+    record ArrivalRules(OrientationRule orientation, boolean gravityFlip, MomentumRule momentum) {
+        public static final ArrivalRules FRAME = new ArrivalRules(OrientationRule.FRAME, false,
+            new MomentumRule(MomentumRule.Mode.PRESERVE, 1.0D, 0.0D, new Vec3d(0.0D, 0.0D, 0.0D)));
+
+        public ArrivalRules {
+            Objects.requireNonNull(orientation, "orientation");
+            Objects.requireNonNull(momentum, "momentum");
+            travelVector(momentum.impulse());
+        }
+    }
+
     record TravelBegin(UUID token, long generation, UUID sourcePortal, String sourceWorld, ApertureDescriptor sourceGeometry,
                        OpticTransform destinationToSource, TravelWorld world, TravelPose arrival, List<TravelCoordinate> chunks, ProjectionEnvironment environment,
-                       int expiresMillis) implements TravelMessage {
+                       int expiresMillis, ArrivalRules rules, boolean resident, int levelHandle, boolean seamless) implements TravelMessage {
         public TravelBegin {
             travelIdentity(token, generation);
+            Objects.requireNonNull(rules, "rules");
+            if (resident ? !residentHandle(levelHandle) : levelHandle != 0) {
+                throw new IllegalArgumentException("Travel level handle " + levelHandle);
+            }
             Objects.requireNonNull(sourcePortal, "sourcePortal");
             Objects.requireNonNull(sourceWorld, "sourceWorld");
             Objects.requireNonNull(sourceGeometry, "sourceGeometry");
@@ -262,12 +288,15 @@ public sealed interface TravelMessage {
     }
 
     record TravelCross(UUID token, long generation, long contentRevision, TravelPose sourcePose,
-                       Vec3d previousEye, Vec3d currentEye) implements TravelMessage {
+                       Vec3d previousEye, Vec3d currentEye, float bodyYaw, float headYaw) implements TravelMessage {
         public TravelCross {
             travelIdentity(token, generation);
             Objects.requireNonNull(sourcePose, "sourcePose");
             travelVector(previousEye);
             travelVector(currentEye);
+            if (!Float.isFinite(bodyYaw) || !Float.isFinite(headYaw)) {
+                throw new IllegalArgumentException("Travel crossing yaw");
+            }
             if (contentRevision <= 0 || Math.abs(previousEye.x()) > 30_000_000 || Math.abs(previousEye.z()) > 30_000_000
                 || Math.abs(currentEye.x()) > 30_000_000 || Math.abs(currentEye.z()) > 30_000_000
                 || Math.abs(previousEye.y()) > 20_000_000 || Math.abs(currentEye.y()) > 20_000_000) {
@@ -290,6 +319,107 @@ public sealed interface TravelMessage {
         public int id() {
             return TRAVEL_CANCEL;
         }
+    }
+
+    record RemoteLevelOpen(int levelHandle, TravelWorld world, ProjectionEnvironment environment, int viewRadius,
+                           TravelCoordinate center) implements TravelMessage {
+        public RemoteLevelOpen {
+            Objects.requireNonNull(world, "world");
+            Objects.requireNonNull(environment, "environment");
+            Objects.requireNonNull(center, "center");
+            if (!residentHandle(levelHandle) || viewRadius < 1 || viewRadius > MAX_REMOTE_VIEW_RADIUS
+                || !world.dimension().equals(environment.world().dimensionKey()) || !environment.transform().isIdentity()) {
+                throw new IllegalArgumentException("Remote level");
+            }
+        }
+
+        @Override
+        public int id() {
+            return REMOTE_LEVEL_OPEN;
+        }
+    }
+
+    record RemoteLevelClose(int levelHandle) implements TravelMessage {
+        public RemoteLevelClose {
+            if (!residentHandle(levelHandle)) {
+                throw new IllegalArgumentException("Remote level handle " + levelHandle);
+            }
+        }
+
+        @Override
+        public int id() {
+            return REMOTE_LEVEL_CLOSE;
+        }
+    }
+
+    record RoutedPacket(int levelHandle, int sequence, int fragmentIndex, int fragmentCount, int totalBytes,
+                        byte[] payload) implements TravelMessage {
+        public RoutedPacket {
+            Objects.requireNonNull(payload, "payload");
+            if (!residentHandle(levelHandle) || sequence < 0 || totalBytes <= 0 || totalBytes > MAX_ROUTED_PACKET_BYTES
+                || fragmentCount != (totalBytes + TRAVEL_FRAGMENT_BYTES - 1) / TRAVEL_FRAGMENT_BYTES
+                || fragmentIndex < 0 || fragmentIndex >= fragmentCount
+                || payload.length != Math.min(TRAVEL_FRAGMENT_BYTES, totalBytes - fragmentIndex * TRAVEL_FRAGMENT_BYTES)) {
+                throw new IllegalArgumentException("Routed packet fragment");
+            }
+            payload = payload.clone();
+        }
+
+        @Override
+        public byte[] payload() {
+            return payload.clone();
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof RoutedPacket that && levelHandle == that.levelHandle && sequence == that.sequence
+                && fragmentIndex == that.fragmentIndex && fragmentCount == that.fragmentCount && totalBytes == that.totalBytes
+                && Arrays.equals(payload, that.payload);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(levelHandle, sequence, fragmentIndex, fragmentCount, totalBytes) * 31 + Arrays.hashCode(payload);
+        }
+
+        @Override
+        public int id() {
+            return ROUTED_PACKET;
+        }
+    }
+
+    record TravelAccept(UUID token, long generation, long contentRevision, TravelPose pose, Vec3d velocity, int levelHandle,
+                        boolean dimensionChanged, long serverTick) implements TravelMessage {
+        public TravelAccept {
+            travelIdentity(token, generation);
+            Objects.requireNonNull(pose, "pose");
+            travelVector(velocity);
+            if (contentRevision <= 0 || levelHandle < 0 || levelHandle > MAX_LEVEL_HANDLE || serverTick < 0) {
+                throw new IllegalArgumentException("Travel accept");
+            }
+        }
+
+        @Override
+        public int id() {
+            return TRAVEL_ACCEPT;
+        }
+    }
+
+    record RemoteViewAck(int levelHandle, int lastSequence, int chunksPerTickHint) implements TravelMessage {
+        public RemoteViewAck {
+            if (!residentHandle(levelHandle) || lastSequence < 0 || chunksPerTickHint < 1 || chunksPerTickHint > MAX_CHUNKS_PER_TICK_HINT) {
+                throw new IllegalArgumentException("Remote view acknowledgement");
+            }
+        }
+
+        @Override
+        public int id() {
+            return REMOTE_VIEW_ACK;
+        }
+    }
+
+    private static boolean residentHandle(int levelHandle) {
+        return levelHandle >= 1 && levelHandle <= MAX_LEVEL_HANDLE;
     }
 
     private static void travelVector(Vec3d vector) {

@@ -212,7 +212,7 @@ public final class ClientPreparedTravel {
         try {
             prediction.deadline = System.currentTimeMillis() + CROSS_TIMEOUT_MILLIS;
             sender.accept(new TravelMessage.TravelCross(begin.token(), begin.generation(), prediction.revision,
-                crossingPose, vector(previous), vector(eye)));
+                crossingPose, vector(previous), vector(eye), source.bodyYaw(), source.headYaw()));
             if (begin.sourceWorld().equals(begin.world().dimension())) {
                 prepareSameWorld(sourceLevel, source, destination);
                 destination.apply(player);
@@ -1401,7 +1401,7 @@ public final class ClientPreparedTravel {
         return new TravelMessage.TravelBegin(begin.token(), begin.generation(), begin.sourcePortal(), begin.sourceWorld(),
             begin.sourceGeometry(), OpticTransform.IDENTITY, world,
             new TravelMessage.TravelPose(player.getX(), player.getY(), player.getZ(), player.getYRot(), player.getXRot()), manifest,
-            MinecraftPortalEnvironment.capture(level, vector(eye), OpticTransform.IDENTITY, world.flat()), begin.expiresMillis());
+            MinecraftPortalEnvironment.capture(level, vector(eye), OpticTransform.IDENTITY, world.flat()), begin.expiresMillis(), TravelMessage.ArrivalRules.FRAME, false, 0, false);
     }
 
     private void advanceSourcePreparation() {

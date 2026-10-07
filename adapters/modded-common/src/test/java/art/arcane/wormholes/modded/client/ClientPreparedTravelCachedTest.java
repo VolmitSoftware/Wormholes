@@ -462,7 +462,7 @@ public class ClientPreparedTravelCachedTest {
         TravelMessage.TravelBegin manifest = new TravelMessage.TravelBegin(template.token(), template.generation(),
             template.sourcePortal(), template.sourceWorld(), template.sourceGeometry(), template.destinationToSource(), template.world(),
             template.arrival(), ClientTravelWindow.coordinates(0, 0, 3),
-            template.environment(), template.expiresMillis());
+            template.environment(), template.expiresMillis(), TravelMessage.ArrivalRules.FRAME, false, 0, false);
         Object source = sourceConstructor.newInstance(manifest);
         Method next = sourceType.getDeclaredMethod("nextCapture");
         next.setAccessible(true);
@@ -598,7 +598,7 @@ public class ClientPreparedTravelCachedTest {
         manifest.add(missing);
         TravelMessage.TravelBegin begin = new TravelMessage.TravelBegin(original.token(), original.generation(),
             original.sourcePortal(), original.sourceWorld(), original.sourceGeometry(), original.destinationToSource(),
-            original.world(), original.arrival(), manifest, original.environment(), original.expiresMillis());
+            original.world(), original.arrival(), manifest, original.environment(), original.expiresMillis(), TravelMessage.ArrivalRules.FRAME, false, 0, false);
         ProjectionEnvironment environment = begin.environment();
         List<TravelMessage> sent = new ArrayList<>();
         ClientPreparedTravel travel = new ClientPreparedTravel(sent::add);
@@ -716,7 +716,7 @@ public class ClientPreparedTravelCachedTest {
         }
         TravelMessage.TravelBegin begin = new TravelMessage.TravelBegin(original.token(), original.generation(),
             original.sourcePortal(), original.sourceWorld(), original.sourceGeometry(), original.destinationToSource(),
-            original.world(), original.arrival(), manifest, original.environment(), original.expiresMillis());
+            original.world(), original.arrival(), manifest, original.environment(), original.expiresMillis(), TravelMessage.ArrivalRules.FRAME, false, 0, false);
         ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
         Class<?> pendingType = Class.forName(ClientPreparedTravel.class.getName() + "$PendingPreparation");
         Constructor<?> pendingConstructor = pendingType.getDeclaredConstructor(TravelMessage.TravelBegin.class);

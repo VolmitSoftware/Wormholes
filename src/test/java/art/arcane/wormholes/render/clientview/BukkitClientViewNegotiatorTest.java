@@ -58,6 +58,32 @@ final class BukkitClientViewNegotiatorTest {
     }
 
     @Test
+    void bukkitNeverOffersOrAcceptsRemoteViewOrSeamlessTravel() throws Exception {
+        assertFalse(ViewStreamCapability.REMOTE_VIEW.in(BukkitClientView.PLATFORM_CAPS));
+        assertFalse(ViewStreamCapability.SEAMLESS_TRAVEL.in(BukkitClientView.PLATFORM_CAPS));
+        assertTrue(ViewStreamCapability.REMOTE_VIEW.in(ClientViewExtensions.CODEC.capabilities()));
+        assertTrue(ViewStreamCapability.SEAMLESS_TRAVEL.in(ClientViewExtensions.CODEC.capabilities()));
+        ChunkPacketAccess packets = mock(ChunkPacketAccess.class);
+        when(packets.snapshotSupported()).thenReturn(true);
+        try (MockedStatic<NativeAdapters> adapters = mockStatic(NativeAdapters.class)) {
+            adapters.when(() -> NativeAdapters.find(ChunkPacketAccess.class)).thenReturn(Optional.of(packets));
+            try (ClientViewFixture fixture = new ClientViewFixture(ClientViewFixture.options(true, false, 100), ConnectionState.PLAY)) {
+                fixture.clientView.observer(fixture.playerId, fixture.user).brand("fabric");
+                assertTrue(fixture.negotiator.offerPlay(fixture.player));
+                assertEquals(ViewStreamInbound.HELLO_ACCEPTED, fixture.hello(ViewStreamCapability.ALL));
+                List<ViewStreamMessage> messages = fixture.messages();
+                ViewStreamMessage.Offer offer = (ViewStreamMessage.Offer) messages.get(0);
+                ViewStreamMessage.Accept accept = (ViewStreamMessage.Accept) messages.get(1);
+                assertTrue(ViewStreamCapability.PREPARED_TRAVEL.in(accept.caps()));
+                assertFalse(ViewStreamCapability.REMOTE_VIEW.in(offer.serverCaps()));
+                assertFalse(ViewStreamCapability.SEAMLESS_TRAVEL.in(offer.serverCaps()));
+                assertFalse(ViewStreamCapability.REMOTE_VIEW.in(accept.caps()));
+                assertFalse(ViewStreamCapability.SEAMLESS_TRAVEL.in(accept.caps()));
+            }
+        }
+    }
+
+    @Test
     void exactNativeSnapshotCapabilityNegotiatesReuseAndOldPreparedPeersKeepNativeTransfer() throws Exception {
         ChunkPacketAccess packets = mock(ChunkPacketAccess.class);
         when(packets.snapshotSupported()).thenReturn(true);

@@ -20,6 +20,7 @@ public enum ViewStreamMessageType {
     MESH_DROP(18, Direction.S2C),
     ENVIRONMENT(19, Direction.S2C),
     ENTITY_EVENT(20, Direction.S2C),
+    ENTITY_SELF(21, Direction.S2C),
     HELLO(32, Direction.C2S),
     BRICK_MISS(33, Direction.C2S),
     ACK(34, Direction.C2S),
@@ -28,8 +29,7 @@ public enum ViewStreamMessageType {
     MESH_ACK(37, Direction.C2S),
     MESH_LOCAL(38, Direction.C2S),
     MESH_CACHED(39, Direction.C2S),
-    MESH_REUSE(40, Direction.S2C),
-    ENTITY_SELF(50, Direction.S2C);
+    MESH_REUSE(40, Direction.S2C);
 
     private static final ViewStreamMessageType[] BY_ID = index();
 

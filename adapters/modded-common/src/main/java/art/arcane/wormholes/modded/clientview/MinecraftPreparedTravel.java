@@ -301,7 +301,7 @@ final class MinecraftPreparedTravel {
             player.level().dimension().identifier().toString(), geometry, mapped.frame().transform(), metadata,
             new TravelMessage.TravelPose(feet.x(), feet.y(), feet.z(), player.getYRot(), player.getXRot()), coordinates,
             MinecraftPortalEnvironment.capture(world, eye, OpticTransform.IDENTITY, world.isFlat()),
-            TravelMessage.MAX_TRAVEL_EXPIRY_MILLIS);
+            TravelMessage.MAX_TRAVEL_EXPIRY_MILLIS, TravelMessage.ArrivalRules.FRAME, false, 0, false);
         travel.server().begin(begin, System.currentTimeMillis());
         travel.server().reuseSelected(travel.preparedTravelCacheSelected());
         travel.server().watchWorld(runtime.projections().changes(), MinecraftProjectionWorldView.worldId(world));

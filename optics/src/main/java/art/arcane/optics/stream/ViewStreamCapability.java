@@ -22,7 +22,9 @@ public enum ViewStreamCapability {
     MESH_REUSE(15),
     PREPARED_TRAVEL(16),
     PREPARED_TRAVEL_CACHE(17),
-    ENTITY_SELF(18);
+    ENTITY_SELF(18),
+    REMOTE_VIEW(19),
+    SEAMLESS_TRAVEL(20);
 
     public static final long NONE = 0L;
     public static final long ALL = allMask();

@@ -114,6 +114,9 @@ public final class ViewStreamHandshake {
         if (!ViewStreamCapability.PREPARED_TRAVEL.in(caps) || !ViewStreamCapability.MESH_RENDER.in(caps)) {
             caps &= ~ViewStreamCapability.PREPARED_TRAVEL_CACHE.mask();
         }
+        if (!ViewStreamCapability.REMOTE_VIEW.in(caps) || !ViewStreamCapability.MESH_RENDER.in(caps)) {
+            caps &= ~ViewStreamCapability.SEAMLESS_TRAVEL.mask();
+        }
         if (!ViewStreamCapability.ENTITY_FRAMES.in(caps)) {
             caps &= ~ViewStreamCapability.ENTITY_SELF.mask();
         }
