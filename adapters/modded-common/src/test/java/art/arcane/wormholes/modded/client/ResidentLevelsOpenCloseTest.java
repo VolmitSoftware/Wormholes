@@ -11,10 +11,13 @@ import net.minecraft.core.RegistryAccess;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReferenceArray;
@@ -36,6 +39,9 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
 public class ResidentLevelsOpenCloseTest extends MinecraftTestBase {
+    @Rule
+    public final TemporaryFolder folder = new TemporaryFolder();
+
     @Test
     public void openCreatesOneLevelPerHandleAndReopeningTheSameWorldRecentersIt() {
         ClientLevel current = ResidentTestFixtures.level(ResidentTestFixtures.OVERWORLD);
@@ -166,6 +172,21 @@ public class ResidentLevelsOpenCloseTest extends MinecraftTestBase {
             assertFalse(residents.resident(far));
             scope.terrain.verify(() -> ClientSodiumTerrain.forget(nether));
             scope.terrain.verify(() -> ClientSodiumTerrain.forget(far), never());
+        }
+    }
+
+    @Test
+    public void joiningAConnectionDropsResidentLevelsOfThePreviousOne() throws IOException {
+        ClientLevel current = ResidentTestFixtures.level(ResidentTestFixtures.OVERWORLD);
+        try (Scope scope = new Scope(current)) {
+            WormholesClient client = WormholesClient.initialize(folder.newFolder().toPath(), bytes -> { });
+            ResidentLevels residents = client.preparedTravel().residents();
+            ClientLevel nether = residents.open(ResidentTestFixtures.open(1, ResidentTestFixtures.NETHER, 0, 13));
+            client.connected();
+            assertFalse(residents.has(1));
+            assertFalse(residents.resident(nether));
+            ClientLevel reopened = residents.open(ResidentTestFixtures.open(1, ResidentTestFixtures.NETHER, 0, 13));
+            assertFalse(reopened == nether);
         }
     }
 

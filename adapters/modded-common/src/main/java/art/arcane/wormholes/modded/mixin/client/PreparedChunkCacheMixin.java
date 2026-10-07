@@ -1,6 +1,7 @@
 package art.arcane.wormholes.modded.mixin.client;
 
 import art.arcane.wormholes.modded.client.PreparedChunkColumns;
+import art.arcane.wormholes.modded.client.PreparedChunkStorage;
 import art.arcane.wormholes.modded.client.WormholesClient;
 import net.minecraft.client.multiplayer.ClientChunkCache;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -29,6 +30,9 @@ public abstract class PreparedChunkCacheMixin implements PreparedChunkColumns {
     @Unique
     private int wormholes$radius;
 
+    @Unique
+    private PreparedChunkStorage wormholes$storage;
+
     @Override
     public AtomicReferenceArray<LevelChunk> wormholes$columns() {
         return wormholes$columns;
@@ -40,9 +44,15 @@ public abstract class PreparedChunkCacheMixin implements PreparedChunkColumns {
     }
 
     @Override
-    public void wormholes$storage(AtomicReferenceArray<LevelChunk> columns, int radius) {
+    public void wormholes$storage(PreparedChunkStorage storage, AtomicReferenceArray<LevelChunk> columns, int radius) {
+        wormholes$storage = storage;
         wormholes$columns = columns;
         wormholes$radius = radius;
+    }
+
+    @Override
+    public void wormholes$announceColumns() {
+        wormholes$storage.wormholes$announce();
     }
 
     @Inject(method = "onLightUpdate", at = @At("HEAD"), cancellable = true)

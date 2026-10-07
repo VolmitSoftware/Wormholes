@@ -92,6 +92,7 @@ public class ClientPreparedTravelSeamlessAcceptTest extends MinecraftTestBase {
             assertSame(crossing.source, crossing.scope.connection.getLevel());
             verify(crossing.nether).removeEntity(42, Entity.RemovalReason.CHANGED_DIMENSION);
             verify(crossing.source).addEntity(crossing.player);
+            verify((PreparedChunkColumns) crossing.source.getChunkSource()).wormholes$announceColumns();
         }
     }
 

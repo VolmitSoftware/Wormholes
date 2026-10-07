@@ -30,6 +30,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongLinkedOpenHashSet;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Camera;
 import net.minecraft.client.renderer.LevelRenderer;
@@ -41,6 +42,7 @@ import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.client.renderer.block.BlockStateModelSet;
 import net.minecraft.client.renderer.block.FluidStateModelSet;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
+import net.minecraft.client.renderer.chunk.SectionRenderDispatcher;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.core.SectionPos;
@@ -116,6 +118,7 @@ public final class ClientPortalRenderer {
     private CameraRenderState travelCamera;
     private final CameraRenderState travelDisplayCamera = new CameraRenderState();
     private final LongOpenHashSet travelDrawSections = new LongOpenHashSet();
+    private final LongOpenHashSet mainDrawn = new LongOpenHashSet();
     private boolean travelTransition;
     private boolean travelDrawn;
     private long travelMeshEpoch;
@@ -981,15 +984,31 @@ public final class ClientPortalRenderer {
         }
         LevelRenderer renderer = minecraft.levelRenderer;
         long fade = Util.toMillis(minecraft.options.chunkSectionFadeInTime().get());
+        boolean indexed = false;
         for (LongIterator iterator = cover.scene.sectionKeys().iterator(); iterator.hasNext();) {
             long key = iterator.nextLong();
-            if (!cover.scene.empty(key) && visibleSection(cover, key)
-                && !renderer.isSectionCompiledAndVisible(new BlockPos((SectionPos.x(key) << 4) + 8,
-                    (SectionPos.y(key) << 4) + 8, (SectionPos.z(key) << 4) + 8), fade)) {
+            if (cover.scene.empty(key) || !visibleSection(cover, key)) {
+                continue;
+            }
+            if (!indexed && !indexMainDrawn(renderer)) {
+                return false;
+            }
+            indexed = true;
+            if (mainDrawn.contains(key) && !renderer.isSectionCompiledAndVisible(new BlockPos((SectionPos.x(key) << 4) + 8,
+                (SectionPos.y(key) << 4) + 8, (SectionPos.z(key) << 4) + 8), fade)) {
                 return false;
             }
         }
         return true;
+    }
+
+    private boolean indexMainDrawn(LevelRenderer renderer) {
+        ObjectArrayList<SectionRenderDispatcher.RenderSection> drawn = renderer.visibleSections();
+        mainDrawn.clear();
+        for (int index = 0; index < drawn.size(); index++) {
+            mainDrawn.add(drawn.get(index).getSectionNode());
+        }
+        return !drawn.isEmpty();
     }
 
     private void drawLayer(RenderPass pass, RenderTarget layer) {

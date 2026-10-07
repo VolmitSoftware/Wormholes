@@ -58,6 +58,8 @@ public class ClientPreparedTravelRespawnTest extends MinecraftTestBase {
         ClientLevel source = mock(ClientLevel.class, withSettings().extraInterfaces(PreparedLevelAccess.class));
         minecraft.level = source;
         ClientLevel destination = mock(ClientLevel.class);
+        ClientChunkCache destinationCache = mock(ClientChunkCache.class, withSettings().extraInterfaces(PreparedChunkColumns.class));
+        when(destination.getChunkSource()).thenReturn(destinationCache);
         ClientPreparedTravel travel = adopted(destination);
         assertFalse(travel.seamlessRespawn());
         WormholesClient client = mock(WormholesClient.class);
@@ -99,6 +101,7 @@ public class ClientPreparedTravelRespawnTest extends MinecraftTestBase {
             verify((PreparedLevelAccess) source).wormholes$extractor(extractor.capture());
             assertEquals(1, extractors.constructed().size());
             assertSame(extractors.constructed().getFirst(), extractor.getValue());
+            verify((PreparedChunkColumns) destinationCache).wormholes$announceColumns();
             verify(vanilla, never()).call(minecraft, destination);
             verify(terrainScope).close();
             if (iris) {

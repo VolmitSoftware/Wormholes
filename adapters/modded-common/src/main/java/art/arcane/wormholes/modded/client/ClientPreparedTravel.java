@@ -1918,6 +1918,7 @@ public final class ClientPreparedTravel {
                 minecraft.setLevel(destination);
             }
         }
+        ((PreparedChunkColumns) destination.getChunkSource()).wormholes$announceColumns();
     }
 
     private void rollback() {

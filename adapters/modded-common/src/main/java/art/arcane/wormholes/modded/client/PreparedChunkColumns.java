@@ -9,5 +9,7 @@ public interface PreparedChunkColumns {
 
     int wormholes$radius();
 
-    void wormholes$storage(AtomicReferenceArray<LevelChunk> columns, int radius);
+    void wormholes$storage(PreparedChunkStorage storage, AtomicReferenceArray<LevelChunk> columns, int radius);
+
+    void wormholes$announceColumns();
 }

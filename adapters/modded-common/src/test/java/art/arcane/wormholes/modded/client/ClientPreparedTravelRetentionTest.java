@@ -141,7 +141,7 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
         when(retained.dimension()).thenReturn(Level.OVERWORLD);
         when(retained.entitiesForRendering()).thenReturn(List.of());
         when(((PreparedLevelAccess) retained).wormholes$lightUpdates()).thenReturn(new ArrayDeque<>());
-        ClientChunkCache cache = mock(ClientChunkCache.class);
+        ClientChunkCache cache = mock(ClientChunkCache.class, withSettings().extraInterfaces(PreparedChunkColumns.class));
         when(retained.getChunkSource()).thenReturn(cache);
         when(cache.getChunk(0, 0, FULL, false)).thenReturn(mock(LevelChunk.class));
         ClientPacketListener connection = mock(ClientPacketListener.class);
@@ -217,6 +217,7 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
             verify((PreparedLevelAccess) retained).wormholes$extractor(extractor);
             verify((PreparedLevelAccess) retained).wormholes$data(data);
             assertTrue(travel.attachRespawnLevel(retained));
+            verify((PreparedChunkColumns) cache).wormholes$announceColumns();
             terrain.verify(() -> ClientSodiumTerrain.authoritativeHandoff(retained));
             terrain.verify(() -> ClientSodiumTerrain.handoff(retained), never());
             assertTrue(travel.receiveNativeChunk(retained, packet));

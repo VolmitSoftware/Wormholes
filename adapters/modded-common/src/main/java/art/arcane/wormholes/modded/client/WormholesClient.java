@@ -193,6 +193,7 @@ public final class WormholesClient {
     }
 
     public void connected() {
+        preparedTravel.clear();
         if (session.state() == ClientViewSession.State.VANILLA || session.state() == ClientViewSession.State.DECLINED) {
             return;
         }

@@ -6,6 +6,7 @@ import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.AxisPermutation;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -31,6 +32,7 @@ import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.ProjectionMatrixBuffer;
 import net.minecraft.client.renderer.SkyRenderer;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
+import net.minecraft.client.renderer.chunk.SectionRenderDispatcher;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.core.SectionPos;
@@ -708,6 +710,13 @@ public class ClientPortalRendererTest extends MinecraftTestBase {
         when(options.chunkSectionFadeInTime().get()).thenReturn(0.25);
         set(minecraft, "options", options);
         set(minecraft, "levelRenderer", main);
+        ObjectArrayList<SectionRenderDispatcher.RenderSection> drawn = new ObjectArrayList<>();
+        for (long key : new long[] {near, neighbor, empty, hidden}) {
+            SectionRenderDispatcher.RenderSection section = mock(SectionRenderDispatcher.RenderSection.class);
+            when(section.getSectionNode()).thenReturn(key);
+            drawn.add(section);
+        }
+        when(main.visibleSections()).thenReturn(drawn);
         when(main.isSectionCompiledAndVisible(new BlockPos(8, 8, 8), 0)).thenReturn(true);
         when(main.isSectionCompiledAndVisible(new BlockPos(8, 8, 8), 250)).thenReturn(true);
         Method ready = ClientPortalRenderer.class.getDeclaredMethod("mainTravelCoverageReady");
@@ -721,6 +730,45 @@ public class ClientPortalRendererTest extends MinecraftTestBase {
             assertTrue((boolean) ready.invoke(renderer));
             verify(main, never()).isSectionCompiledAndVisible(new BlockPos(40, 8, 8), 250);
             verify(main, never()).isSectionCompiledAndVisible(new BlockPos(56, 8, 8), 250);
+        } finally {
+            renderer.clear();
+        }
+    }
+
+    @Test
+    public void arrivalIgnoresSectionsTheMainRendererDoesNotDraw() throws ReflectiveOperationException {
+        ClientPortalRenderer renderer = ClientPortalRenderer.instance();
+        renderer.clear();
+        PortalScene scene = scene();
+        long near = SectionPos.asLong(0, 0, 0);
+        long occluded = SectionPos.asLong(1, 0, 0);
+        when(scene.sectionKeys()).thenReturn(LongArrayList.of(near, occluded));
+        renderer.prepareTravel(scene, new CameraRenderState());
+        Object portal = get(renderer, "travel");
+        Frustum frustum = mock(Frustum.class);
+        when(frustum.isVisible(any(AABB.class))).thenReturn(true);
+        set(portal, "cullFrustum", frustum);
+        set(portal, "rendered", true);
+        renderer.transitionTravel(true);
+        Minecraft minecraft = mock(Minecraft.class);
+        LevelRenderer main = mock(LevelRenderer.class);
+        Options options = mock(Options.class, RETURNS_DEEP_STUBS);
+        when(options.chunkSectionFadeInTime().get()).thenReturn(0.0);
+        set(minecraft, "options", options);
+        set(minecraft, "levelRenderer", main);
+        ObjectArrayList<SectionRenderDispatcher.RenderSection> drawn = new ObjectArrayList<>();
+        when(main.visibleSections()).thenReturn(drawn);
+        when(main.isSectionCompiledAndVisible(new BlockPos(8, 8, 8), 0)).thenReturn(true);
+        Method ready = ClientPortalRenderer.class.getDeclaredMethod("mainTravelCoverageReady");
+        ready.setAccessible(true);
+        try (MockedStatic<Minecraft> access = mockStatic(Minecraft.class)) {
+            access.when(Minecraft::getInstance).thenReturn(minecraft);
+            assertFalse((boolean) ready.invoke(renderer));
+            SectionRenderDispatcher.RenderSection section = mock(SectionRenderDispatcher.RenderSection.class);
+            when(section.getSectionNode()).thenReturn(near);
+            drawn.add(section);
+            assertTrue((boolean) ready.invoke(renderer));
+            verify(main, never()).isSectionCompiledAndVisible(new BlockPos(24, 8, 8), 0);
         } finally {
             renderer.clear();
         }
