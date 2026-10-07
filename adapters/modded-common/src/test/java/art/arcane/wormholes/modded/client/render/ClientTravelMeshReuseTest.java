@@ -47,6 +47,7 @@ import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -622,10 +623,13 @@ public class ClientTravelMeshReuseTest extends MinecraftTestBase {
             assertTrue(((Map<?, ?>) field(renderer, "retainedMeshes")).isEmpty());
             assertTrue(((Map<?, ?>) field(renderer, "retainedMeshOrder")).isEmpty());
             renderer.invalidateTravel(7);
-            assertFalse(sections.containsKey(7));
+            assertSame(completed, sections.get(7));
             assertTrue(((LongSet) field(portal, "dirty")).contains(7));
+            assertNull(field(completed, "identity"));
             assertFalse((boolean) retain.invoke(renderer, portal, completed));
+            sections.remove(7);
             ((LongSet) field(portal, "dirty")).remove(7);
+            set(completed, "identity", identity((byte) 1));
             assertTrue((boolean) retain.invoke(renderer, portal, completed));
             when(scene.revision(7)).thenReturn(92L);
             when(scene.meshContext()).thenReturn(identity((byte) 1));

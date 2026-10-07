@@ -259,6 +259,20 @@ public final class ClientPortalRenderer {
         return true;
     }
 
+    public boolean travelCovered() {
+        if (!travelDrawable()) {
+            return false;
+        }
+        for (LongIterator iterator = travel.scene.sectionKeys().iterator(); iterator.hasNext();) {
+            long key = iterator.nextLong();
+            if (!travel.sections.containsKey(key) && inTravelFrustum(travel, key)
+                && (travel.scene.revision(key) < 0 || !travel.scene.empty(key))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public boolean travelMainReady() {
         return travelTransition && travelMainReady;
     }
@@ -279,15 +293,9 @@ public final class ClientPortalRenderer {
     }
 
     public void invalidateTravel(long sectionKey) {
-        if (travel == null) {
-            return;
+        if (travel != null) {
+            invalidate(travel.key, sectionKey, true);
         }
-        Section removed = travel.sections.remove(sectionKey);
-        if (removed != null) {
-            closeSection(removed);
-            travel.orderDirty = true;
-        }
-        invalidate(travel.key, sectionKey, true);
     }
 
     public void transitionTravel(boolean value) {
@@ -348,15 +356,9 @@ public final class ClientPortalRenderer {
     }
 
     public void invalidateArrival(long key) {
-        if (arrival == null) {
-            return;
+        if (arrival != null) {
+            invalidate(arrival.key, key, true);
         }
-        Section removed = arrival.sections.remove(key);
-        if (removed != null) {
-            closeSection(removed);
-            arrival.orderDirty = true;
-        }
-        invalidate(arrival.key, key, true);
     }
 
     public boolean coversLocalPlayer(Entity entity) {
@@ -1163,7 +1165,7 @@ public final class ClientPortalRenderer {
         LongIterator existing = portal.sections.keySet().iterator();
         while (existing.hasNext()) {
             long key = existing.nextLong();
-            if (portal.scene.revision(key) < 0) {
+            if (portal.scene.revision(key) < 0 && !portal.scene.refreshing(key)) {
                 closeSection(portal.sections.get(key));
                 existing.remove();
                 portal.orderDirty = true;
@@ -1184,7 +1186,9 @@ public final class ClientPortalRenderer {
         for (LongIterator iterator = portal.dirty.iterator(); iterator.hasNext();) {
             long key = iterator.nextLong();
             if (portal.scene.revision(key) < 0) {
-                iterator.remove();
+                if (!portal.scene.refreshing(key)) {
+                    iterator.remove();
+                }
             } else if (!portal.building.contains(key) && visibleSection(portal, key)) {
                 if (portal.sections.containsKey(key)) {
                     if (!foundResident) {

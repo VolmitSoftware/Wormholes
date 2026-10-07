@@ -46,6 +46,10 @@ public interface PortalScene {
 
     long revision(long sectionKey);
 
+    default boolean refreshing(long sectionKey) {
+        return false;
+    }
+
     default List<BlockEntityRenderState> blockEntities() {
         return List.of();
     }

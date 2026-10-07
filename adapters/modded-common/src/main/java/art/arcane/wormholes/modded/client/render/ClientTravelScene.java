@@ -253,6 +253,11 @@ public final class ClientTravelScene implements PortalScene {
         return sections.contains(sectionKey) && !pendingSections.contains(sectionKey)
             ? revisions.get(sectionKey) : -1;
     }
+
+    @Override
+    public boolean refreshing(long sectionKey) {
+        return pendingSections.contains(sectionKey) && revisions.containsKey(sectionKey);
+    }
     record MeshIdentity(TravelMessage.TravelWorld world, byte[][] columns) implements PortalScene.MeshIdentity {
         @Override
         public int contextHash() {

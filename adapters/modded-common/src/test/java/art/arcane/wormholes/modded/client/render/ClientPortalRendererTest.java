@@ -645,7 +645,7 @@ public class ClientPortalRendererTest extends MinecraftTestBase {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void changedArrivalSectionReleasesStaleMeshWithoutReleasingDrawableCover() throws ReflectiveOperationException {
+    public void changedArrivalSectionKeepsDrawingItsMeshUntilTheRebuildLands() throws ReflectiveOperationException {
         ClientPortalRenderer renderer = ClientPortalRenderer.instance();
         renderer.clear();
         long key = SectionPos.asLong(0, 5, 0);
@@ -658,30 +658,110 @@ public class ClientPortalRendererTest extends MinecraftTestBase {
         TextureTarget target = mock(TextureTarget.class, RETURNS_DEEP_STUBS);
         when(session.target()).thenReturn(target);
         set(portal, "shader", session);
-        Class<?> sectionType = Class.forName(ClientPortalRenderer.class.getName() + "$Section");
-        Constructor<?> constructor = sectionType.getDeclaredConstructor(long.class, long.class);
-        constructor.setAccessible(true);
-        Object section = constructor.newInstance(key, 1L);
+        Object section = sectionConstructor().newInstance(key, 1L);
         PortalGpuMesh mesh = mock(PortalGpuMesh.class);
         when(mesh.bytes()).thenReturn(64L);
         ((EnumMap<ChunkSectionLayer, PortalGpuMesh>) get(section, "layers")).put(ChunkSectionLayer.SOLID, mesh);
         Long2ObjectOpenHashMap<Object> sections = (Long2ObjectOpenHashMap<Object>) get(portal, "sections");
         sections.put(key, section);
         set(renderer, "gpuBytes", 64L);
-        set(portal, "orderDirty", false);
         renderer.retainArrival();
         try {
             assertTrue(renderer.arrivalDrawable());
             renderer.invalidateArrival(key);
-            assertFalse(sections.containsKey(key));
+            assertSame(section, sections.get(key));
             assertTrue(((LongSet) get(portal, "dirty")).contains(key));
-            assertEquals(true, get(portal, "orderDirty"));
-            assertEquals(0L, get(renderer, "gpuBytes"));
-            verify(mesh).close();
+            assertEquals(64L, get(renderer, "gpuBytes"));
+            verify(mesh, never()).close();
             assertSame(portal, get(renderer, "arrival"));
             assertTrue(renderer.arrivalDrawable());
-            renderer.invalidateArrival(key);
-            verify(mesh, times(1)).close();
+            when(scene.revision(key)).thenReturn(2L);
+            set(renderer, "pendingBuilds", 1);
+            finish(renderer, portal, key, 2L);
+            verify(mesh).close();
+            assertEquals(2L, get(sections.get(key), "revision"));
+        } finally {
+            renderer.clear();
+        }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void invalidatedTravelSectionKeepsDrawingItsMeshUntilTheRebuildLands() throws ReflectiveOperationException {
+        ClientPortalRenderer renderer = ClientPortalRenderer.instance();
+        renderer.clear();
+        long key = SectionPos.asLong(0, 5, 0);
+        PortalScene scene = scene();
+        when(scene.sectionKeys()).thenReturn(LongArrayList.of(key));
+        when(scene.revision(key)).thenReturn(1L);
+        renderer.prepareTravel(scene, new CameraRenderState());
+        Object portal = get(renderer, "travel");
+        Object section = sectionConstructor().newInstance(key, 1L);
+        PortalGpuMesh mesh = mock(PortalGpuMesh.class);
+        ((EnumMap<ChunkSectionLayer, PortalGpuMesh>) get(section, "layers")).put(ChunkSectionLayer.SOLID, mesh);
+        Long2ObjectOpenHashMap<Object> sections = (Long2ObjectOpenHashMap<Object>) get(portal, "sections");
+        sections.put(key, section);
+        try {
+            renderer.invalidateTravel(key);
+            assertSame(section, sections.get(key));
+            assertTrue(((LongSet) get(portal, "dirty")).contains(key));
+            verify(mesh, never()).close();
+            when(scene.revision(key)).thenReturn(2L);
+            set(renderer, "pendingBuilds", 1);
+            finish(renderer, portal, key, 2L);
+            verify(mesh).close();
+            assertEquals(2L, get(sections.get(key), "revision"));
+        } finally {
+            renderer.clear();
+        }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void refreshingSnapshotKeepsItsMeshQueuedAndRebuildsItOnceTheSnapshotLands() throws ReflectiveOperationException {
+        ClientPortalRenderer renderer = ClientPortalRenderer.instance();
+        renderer.clear();
+        long refreshing = SectionPos.asLong(0, 5, 0);
+        long retired = SectionPos.asLong(1, 5, 0);
+        PortalScene scene = scene();
+        when(scene.sectionKeys()).thenReturn(LongArrayList.of(refreshing, retired));
+        when(scene.revision(anyLong())).thenReturn(1L);
+        renderer.prepareTravel(scene, new CameraRenderState());
+        Object portal = get(renderer, "travel");
+        Long2ObjectOpenHashMap<Object> sections = (Long2ObjectOpenHashMap<Object>) get(portal, "sections");
+        PortalGpuMesh kept = mock(PortalGpuMesh.class);
+        PortalGpuMesh dropped = mock(PortalGpuMesh.class);
+        Object refreshingSection = sectionConstructor().newInstance(refreshing, 1L);
+        Object retiredSection = sectionConstructor().newInstance(retired, 1L);
+        ((EnumMap<ChunkSectionLayer, PortalGpuMesh>) get(refreshingSection, "layers")).put(ChunkSectionLayer.SOLID, kept);
+        ((EnumMap<ChunkSectionLayer, PortalGpuMesh>) get(retiredSection, "layers")).put(ChunkSectionLayer.SOLID, dropped);
+        sections.put(refreshing, refreshingSection);
+        sections.put(retired, retiredSection);
+        CameraRenderState camera = new CameraRenderState();
+        camera.pos = Vec3.ZERO;
+        set(renderer, "camera", camera);
+        Method maintain = ClientPortalRenderer.class.getDeclaredMethod("maintain", portal.getClass());
+        maintain.setAccessible(true);
+        LongSet dirty = (LongSet) get(portal, "dirty");
+        try {
+            when(scene.revision(anyLong())).thenReturn(-1L);
+            when(scene.refreshing(refreshing)).thenReturn(true);
+            renderer.invalidateTravel(refreshing);
+            renderer.invalidateTravel(retired);
+            maintain.invoke(renderer, portal);
+            assertSame(refreshingSection, sections.get(refreshing));
+            verify(kept, never()).close();
+            assertTrue(dirty.contains(refreshing));
+            assertFalse(sections.containsKey(retired));
+            verify(dropped).close();
+            assertFalse((boolean) get(portal, "hasResidentBuild"));
+            assertFalse((boolean) get(portal, "hasInitialBuild"));
+            when(scene.revision(refreshing)).thenReturn(2L);
+            when(scene.refreshing(refreshing)).thenReturn(false);
+            maintain.invoke(renderer, portal);
+            assertTrue((boolean) get(portal, "hasResidentBuild"));
+            assertEquals(refreshing, get(portal, "residentSection"));
+            assertSame(refreshingSection, sections.get(refreshing));
         } finally {
             renderer.clear();
         }
@@ -940,6 +1020,62 @@ public class ClientPortalRendererTest extends MinecraftTestBase {
             when(scene.empty(key)).thenReturn(true);
             when(scene.revision(key)).thenReturn(-1L);
             assertFalse(renderer.travelReady());
+        } finally {
+            renderer.clear();
+        }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void crossingCoverageAcceptsStaleRebuildingAndUndrawnMeshesButNotVisibleHoles() throws ReflectiveOperationException {
+        ClientPortalRenderer renderer = ClientPortalRenderer.instance();
+        renderer.clear();
+        PortalScene scene = scene();
+        long forward = SectionPos.asLong(0, 5, -2);
+        long side = SectionPos.asLong(3, 5, -2);
+        long behind = SectionPos.asLong(0, 5, 1);
+        when(scene.sectionKeys()).thenReturn(new LongOpenHashSet(new long[]{forward, side, behind}));
+        when(scene.revision(anyLong())).thenReturn(-1L);
+        renderer.prepareTravel(scene, new CameraRenderState());
+        Object portal = get(renderer, "travel");
+        PortalShaderRenderer.Session session = mock(PortalShaderRenderer.Session.class);
+        when(session.ready()).thenReturn(true);
+        when(session.target()).thenReturn(mock(TextureTarget.class, RETURNS_DEEP_STUBS));
+        set(renderer, "shaderRenderer", mock(PortalShaderRenderer.class));
+        set(portal, "shader", session);
+        Long2ObjectOpenHashMap<Object> sections = (Long2ObjectOpenHashMap<Object>) get(portal, "sections");
+        Matrix4f projection = new Matrix4f().perspective((float) Math.toRadians(60), 16.0F / 9.0F, 0.05F, 512);
+        Frustum frustum = new Frustum(new Matrix4f(), projection);
+        frustum.prepare(8, 88, 0);
+        set(portal, "cullFrustum", frustum);
+        try {
+            assertFalse(renderer.travelCovered());
+            set(renderer, "travelDrawn", true);
+            assertFalse(renderer.travelCovered());
+            when(scene.revision(forward)).thenReturn(1L);
+            assertFalse(renderer.travelCovered());
+            when(scene.empty(forward)).thenReturn(true);
+            assertTrue(renderer.travelCovered());
+            when(scene.empty(forward)).thenReturn(false);
+            sections.put(forward, drawableSection(sectionConstructor(), forward));
+            assertTrue(renderer.travelCovered());
+            when(scene.revision(forward)).thenReturn(2L);
+            ((LongSet) get(portal, "dirty")).add(forward);
+            ((LongSet) get(portal, "building")).add(forward);
+            set(renderer, "travelMeshEpoch", 7L);
+            assertFalse(renderer.travelReady());
+            assertTrue(renderer.travelCovered());
+            when(scene.revision(forward)).thenReturn(-1L);
+            assertTrue(renderer.travelCovered());
+            Frustum wide = new Frustum(new Matrix4f(), new Matrix4f().perspective((float) Math.toRadians(140), 16.0F / 9.0F, 0.05F, 512));
+            wide.prepare(8, 88, 0);
+            set(portal, "cullFrustum", wide);
+            assertFalse(renderer.travelCovered());
+            when(scene.revision(side)).thenReturn(1L);
+            sections.put(side, drawableSection(sectionConstructor(), side));
+            assertTrue(renderer.travelCovered());
+            when(session.ready()).thenReturn(false);
+            assertFalse(renderer.travelCovered());
         } finally {
             renderer.clear();
         }
@@ -2152,6 +2288,22 @@ public class ClientPortalRendererTest extends MinecraftTestBase {
         Field field = owner.getClass().getDeclaredField(name);
         field.setAccessible(true);
         field.set(owner, value);
+    }
+
+    private static Constructor<?> sectionConstructor() throws ReflectiveOperationException {
+        Class<?> sectionType = Class.forName(ClientPortalRenderer.class.getName() + "$Section");
+        Constructor<?> constructor = sectionType.getDeclaredConstructor(long.class, long.class);
+        constructor.setAccessible(true);
+        return constructor;
+    }
+
+    private static void finish(ClientPortalRenderer renderer, Object portal, long key, long revision) throws ReflectiveOperationException {
+        PortalSectionMesh mesh = mock(PortalSectionMesh.class);
+        when(mesh.meshes()).thenReturn(Map.of());
+        Method finish = ClientPortalRenderer.class.getDeclaredMethod("finish", portal.getClass(), long.class, long.class,
+            int.class, PortalScene.MeshIdentity.class, PortalSectionMesh.class, Throwable.class);
+        finish.setAccessible(true);
+        finish.invoke(renderer, portal, key, revision, get(portal, "generation"), null, mesh, null);
     }
 
     @SuppressWarnings("unchecked")

@@ -212,10 +212,7 @@ public final class ClientPreparedTravel {
             || !crossed(begin.sourceGeometry(), previous, eye)) {
             return false;
         }
-        boolean nativeReady = staged != null && ClientSodiumTerrain.ready(staged);
-        if (acknowledgedRevision == 0 || staged == null || System.currentTimeMillis() >= deadline
-            || !nativeReady && (!ClientPortalRenderer.instance().travelDrawable() || !ClientPortalRenderer.instance().travelReady())
-            || (IRIS && (!IrisMain.ready(staged) || !ClientPortalRenderer.instance().travelSourceShaderReady()))) {
+        if (!presentable()) {
             declinePreparation();
             return false;
         }
@@ -472,7 +469,7 @@ public final class ClientPreparedTravel {
         }
         advanceSourcePreparation();
         if (terrain != ClientSodiumTerrain.Preparation.PENDING
-            && (terrain == ClientSodiumTerrain.Preparation.READY || ClientPortalRenderer.instance().travelReady()) && revision != 0
+            && (terrain == ClientSodiumTerrain.Preparation.READY || ClientPortalRenderer.instance().travelCovered()) && revision != 0
             && (!IRIS || ClientPortalRenderer.instance().travelSourceShaderReady())) {
             if (acknowledgedRevision != revision) {
                 acknowledgedRevision = revision;
@@ -484,7 +481,7 @@ public final class ClientPreparedTravel {
     public ClientLevel adopt(Construction construction) {
         if (System.currentTimeMillis() >= deadline || commit == null || staged == null || adopted
             || (prediction == null ? acknowledgedRevision != commit.contentRevision() : prediction.revision != commit.contentRevision())
-            || (prediction == null ? !ClientSodiumTerrain.ready(staged) && !ClientPortalRenderer.instance().travelReady()
+            || (prediction == null ? !ClientSodiumTerrain.ready(staged) && !ClientPortalRenderer.instance().travelCovered()
                 : !predictedTerrainAvailable() || !covers(commit.arrival()))
             || !matches(construction)) {
             RetainedWorld retained = retainedWorld(construction);
@@ -1688,6 +1685,12 @@ public final class ClientPreparedTravel {
         }
     }
 
+    private boolean presentable() {
+        return acknowledgedRevision != 0 && staged != null && System.currentTimeMillis() < deadline
+            && (ClientSodiumTerrain.ready(staged) || ClientPortalRenderer.instance().travelCovered())
+            && (!IRIS || IrisMain.ready(staged) && ClientPortalRenderer.instance().travelSourceShaderReady());
+    }
+
     private void declinePreparation() {
         try {
             sender.accept(new TravelMessage.TravelCancel(begin.token(), begin.generation()));
@@ -1713,7 +1716,7 @@ public final class ClientPreparedTravel {
             scene.advance();
         }
         if (terrain != ClientSodiumTerrain.Preparation.PENDING
-            && (terrain == ClientSodiumTerrain.Preparation.READY || ClientPortalRenderer.instance().travelReady())
+            && (terrain == ClientSodiumTerrain.Preparation.READY || ClientPortalRenderer.instance().travelCovered())
             && (!IRIS || ClientPortalRenderer.instance().travelSourceShaderReady()) && acknowledgedRevision != revision) {
             acknowledgedRevision = revision;
             sender.accept(new TravelMessage.TravelReady(begin.token(), begin.generation(), revision));

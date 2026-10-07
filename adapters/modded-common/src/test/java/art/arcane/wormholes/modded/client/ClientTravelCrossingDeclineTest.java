@@ -2,6 +2,7 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
+import art.arcane.wormholes.modded.client.render.PortalIrisMainPipelines;
 import net.minecraft.client.Camera;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
@@ -25,6 +26,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -53,6 +55,27 @@ public class ClientTravelCrossingDeclineTest extends MinecraftTestBase {
             verify(fixture.renderer, never()).retireArrival();
             fixture.eye(new Vec3(0.5, 1.62, 0.7));
             assertEquals(1, fixture.sent.size());
+        }
+    }
+
+    @Test
+    public void coveredCoverStillRebuildingStaysPresentableAndAHoleDoesNot() throws ReflectiveOperationException {
+        try (Fixture fixture = new Fixture(); MockedStatic<PortalIrisMainPipelines> iris = mockStatic(PortalIrisMainPipelines.class)) {
+            iris.when(() -> PortalIrisMainPipelines.ready(any())).thenReturn(true);
+            set(fixture.travel, "acknowledgedRevision", 50L);
+            set(fixture.travel, "staged", mock(ClientLevel.class));
+            when(fixture.renderer.travelSourceShaderReady()).thenReturn(true);
+            when(fixture.renderer.travelReady()).thenReturn(false);
+            when(fixture.renderer.travelCovered()).thenReturn(true);
+            assertTrue(fixture.presentable());
+            when(fixture.renderer.travelCovered()).thenReturn(false);
+            assertFalse(fixture.presentable());
+            when(fixture.renderer.travelCovered()).thenReturn(true);
+            set(fixture.travel, "acknowledgedRevision", 0L);
+            assertFalse(fixture.presentable());
+            set(fixture.travel, "acknowledgedRevision", 50L);
+            set(fixture.travel, "deadline", System.currentTimeMillis() - 1L);
+            assertFalse(fixture.presentable());
         }
     }
 
@@ -124,6 +147,12 @@ public class ClientTravelCrossingDeclineTest extends MinecraftTestBase {
             minecraftAccess.when(Minecraft::getInstance).thenReturn(minecraft);
             rendererAccess = mockStatic(ClientPortalRenderer.class);
             rendererAccess.when(ClientPortalRenderer::instance).thenReturn(renderer);
+        }
+
+        private boolean presentable() throws ReflectiveOperationException {
+            Method presentable = ClientPreparedTravel.class.getDeclaredMethod("presentable");
+            presentable.setAccessible(true);
+            return (boolean) presentable.invoke(travel);
         }
 
         private void eye(Vec3 position) {

@@ -160,6 +160,37 @@ public class ClientTravelSceneTest extends MinecraftTestBase {
     }
 
     @Test
+    public void changedSnapshotRefreshesUntilReplacedWhileUnsnapshottedAndLostHalosDoNot() {
+        ClientLevel level = level();
+        LevelChunk loaded = level.getChunkSource().getChunk(0, 0, ChunkStatus.FULL, false);
+        AtomicBoolean halo = new AtomicBoolean(true);
+        when(level.getChunkSource().getChunk(1, 0, ChunkStatus.FULL, false)).thenAnswer(call -> halo.get() ? loaded : null);
+        try (MockedConstruction<RenderRegionCache> ignored = mockConstruction(RenderRegionCache.class)) {
+            ClientTravelScene scene = new ClientTravelScene(level, begin());
+            long changed = SectionPos.asLong(0, 5, 0);
+            long unaffected = SectionPos.asLong(-2, 12, -2);
+            assertFalse(scene.refreshing(changed));
+            for (int batch = 0; batch < 7; batch++) {
+                advance(scene, Long.MAX_VALUE);
+            }
+            assertFalse(scene.refreshing(changed));
+            scene.changedSection(changed);
+            assertEquals(-1, scene.revision(changed));
+            assertTrue(scene.refreshing(changed));
+            assertFalse(scene.refreshing(unaffected));
+            advance(scene, Long.MAX_VALUE);
+            assertTrue(scene.revision(changed) > 0);
+            assertFalse(scene.refreshing(changed));
+            halo.set(false);
+            scene.changedSection(changed);
+            assertTrue(scene.refreshing(changed));
+            advance(scene, Long.MAX_VALUE);
+            assertEquals(-1, scene.revision(changed));
+            assertFalse(scene.refreshing(changed));
+        }
+    }
+
+    @Test
     public void interiorChangesQueueOnlyTwentySevenSectionsAndKeepInitialBatchThroughput() {
         ClientLevel level = level();
         try (MockedConstruction<RenderRegionCache> ignored = mockConstruction(RenderRegionCache.class)) {
