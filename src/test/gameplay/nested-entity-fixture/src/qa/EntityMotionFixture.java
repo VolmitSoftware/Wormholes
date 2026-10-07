@@ -2,11 +2,13 @@ package qa;
 
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.portal.LocalPortal;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.ProjectionMode;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -58,8 +60,8 @@ final class EntityMotionFixture implements Listener {
             throw new IllegalStateException("Motion fixture requires Paper's single region");
         }
         World world = player.getWorld();
-        source = portal(player, 320, Direction.S, "source");
-        destination = portal(player, 416, Direction.E, "destination");
+        source = portal(player, 320, Face.S, "source");
+        destination = portal(player, 416, Face.E, "destination");
         if (!source.setDestination(destination)) {
             throw new IllegalStateException("Motion fixture could not link portals");
         }
@@ -70,7 +72,7 @@ final class EntityMotionFixture implements Listener {
                 task -> player.sendMessage("MOTION ready=" + done), null, 40));
     }
 
-    private LocalPortal portal(Player player, int offset, Direction normal, String name) {
+    private LocalPortal portal(Player player, int offset, Face normal, String name) {
         World world = player.getWorld();
         for (int chunkX = (offset - 16) >> 4; chunkX <= (offset + 32) >> 4; chunkX++) {
             for (int chunkZ = -1; chunkZ <= 1; chunkZ++) {
@@ -87,8 +89,8 @@ final class EntityMotionFixture implements Listener {
         Set<Block> aperture = new HashSet<>();
         for (int lateral = 5; lateral <= 11; lateral++) {
             for (int y = 190; y <= 197; y++) {
-                Block block = world.getBlockAt(offset + (normal == Direction.S ? lateral : 8), y,
-                    normal == Direction.S ? 8 : lateral);
+                Block block = world.getBlockAt(offset + (normal == Face.S ? lateral : 8), y,
+                    normal == Face.S ? 8 : lateral);
                 if (lateral == 5 || lateral == 11 || y == 190 || y == 197) {
                     block.setType(Material.OBSIDIAN, false);
                 } else {
@@ -102,7 +104,7 @@ final class EntityMotionFixture implements Listener {
             PortalStructure structure = new PortalStructure();
             structure.setBlocks(aperture);
             portal = new LocalPortal(id, PortalType.PORTAL, structure);
-            portal.setFrame(PortalFrame.canonical(normal));
+            portal.setFrame(Frame.canonical(normal));
             portal.setOwner(player.getUniqueId());
             portal.setProjectionMode(ProjectionMode.OFF);
             Wormholes.portalManager.addLocalPortal(portal);
@@ -147,12 +149,21 @@ final class EntityMotionFixture implements Listener {
         if (moving == null || !event.getEntity().getUniqueId().equals(moving.getUniqueId()) || event.getTo() == null) {
             return;
         }
-        Vector expected = source.getFrame().transformPoint(event.getFrom().toVector(), source.getStructure().getCenter().toVector(),
-            destination.getStructure().getCenter().toVector(), destination.getFrame());
+        OpticTransform crossing = OpticTransform.between(source.getFrame(), vec(source.getStructure().getCenter().toVector()),
+            destination.getFrame(), vec(destination.getStructure().getCenter().toVector()));
+        Vector expected = bukkit(crossing.point(vec(event.getFrom().toVector())));
         positionError = event.getTo().toVector().distance(expected);
-        departureVelocity = source.getFrame().transformVector(moving.getVelocity(), destination.getFrame());
+        departureVelocity = bukkit(crossing.vector(vec(moving.getVelocity())));
         teleport = "teleported";
         plugin.getLogger().info("Motion teleport from=" + event.getFrom().toVector() + " to=" + event.getTo().toVector()
             + " expected=" + expected + " positionError=" + positionError + " expectedVelocity=" + departureVelocity);
+    }
+
+    private static Vec3d vec(Vector v) {
+        return new Vec3d(v.getX(), v.getY(), v.getZ());
+    }
+
+    private static Vector bukkit(Vec3d v) {
+        return new Vector(v.x(), v.y(), v.z());
     }
 }

@@ -6,13 +6,13 @@ import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.access.PortalAdmission;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.LocalPortal;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.ProjectionMode;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
 import art.arcane.wormholes.service.WormholesTelemetry;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -198,13 +198,15 @@ public final class RealDropsFixture extends JavaPlugin {
             request.chunk().addPluginChunkTicket(this);
             clearDrops(world, request.offset());
             preparePlatform(world, request.offset());
+            Set<Block> blocks = aperture(world, request.offset());
             PortalStructure structure = new PortalStructure();
-            structure.setBlocks(aperture(world, request.offset()));
+            structure.setBlocks(blocks);
             UUID id = UUID.nameUUIDFromBytes(("drop-projection-fixture:" + request.name()).getBytes(StandardCharsets.UTF_8));
+            retireOverlapping(id, blocks);
             ILocalPortal existing = Wormholes.portalManager.getLocalPortal(id);
             LocalPortal portal = existing == null ? new LocalPortal(id, PortalType.PORTAL, structure) : (LocalPortal) existing;
             portal.setName("Drop projection " + request.name());
-            portal.setFrame(PortalFrame.canonical(Direction.S));
+            portal.setFrame(Frame.canonical(Face.S));
             portal.setOwner(request.owner());
             portal.setNetworkViewDepth(16);
             portal.setNetworkViewLateralPad(8);
@@ -222,6 +224,20 @@ public final class RealDropsFixture extends JavaPlugin {
             request.ready().complete(portal);
         } catch (RuntimeException error) {
             request.ready().completeExceptionally(error);
+        }
+    }
+
+    private void retireOverlapping(UUID id, Set<Block> blocks) {
+        for (ILocalPortal other : Wormholes.portalManager.getLocalPortals()) {
+            if (other.getId().equals(id)) {
+                continue;
+            }
+            for (Block block : blocks) {
+                if (other.getStructure().contains(block.getLocation())) {
+                    other.destroy();
+                    break;
+                }
+            }
         }
     }
 

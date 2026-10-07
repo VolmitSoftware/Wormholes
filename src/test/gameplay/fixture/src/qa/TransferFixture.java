@@ -6,12 +6,12 @@ import art.arcane.wormholes.access.AccessPortalExtension;
 import art.arcane.wormholes.network.TraversalService;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.LocalPortal;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.ProjectionMode;
 import art.arcane.wormholes.service.WormholesTelemetry;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -150,7 +150,7 @@ public final class TransferFixture extends JavaPlugin {
             structure.setBlocks(aperture);
             LocalPortal portal = new LocalPortal(portalId(), request.reentry() ? PortalType.PORTAL : PortalType.GATEWAY, structure);
             portal.setName("Transfer fixture " + Wormholes.networkManager.getLocalName());
-            portal.setFrame(PortalFrame.canonical(Direction.S));
+            portal.setFrame(Frame.canonical(Face.S));
             portal.setOwner(request.owner());
             portal.setProjectionMode(ProjectionMode.OFF);
             Wormholes.portalManager.addLocalPortal(portal);
@@ -173,7 +173,7 @@ public final class TransferFixture extends JavaPlugin {
             if (newTarget) {
                 target = new LocalPortal(targetId, PortalType.PORTAL, structure);
             }
-            target.setFrame(PortalFrame.canonical(Direction.S));
+            target.setFrame(Frame.canonical(Face.S));
             target.setOwner(request.owner());
             target.setProjectionMode(ProjectionMode.OFF);
             if (newTarget) {

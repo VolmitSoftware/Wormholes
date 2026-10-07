@@ -18,7 +18,8 @@ paper = [path for path in paper if not path.name.endswith('-sources.jar')]
 if not paper:
     raise SystemExit('A cached Paper 26.3 API jar is required')
 wormholes = pathlib.Path(os.environ.get('WORMHOLES_JAR', str(project / 'build/libs/Wormholes-2.2.1.jar')))
-volmlib = project.parent / 'VolmLib/shared/build/libs/shared-local-SNAPSHOT.jar'
+volmlib_candidates = [parent / 'VolmLib/shared/build/libs/shared-local-SNAPSHOT.jar' for parent in project.parents]
+volmlib = next((candidate for candidate in volmlib_candidates if candidate.is_file()), volmlib_candidates[0])
 if not wormholes.is_file() or not volmlib.is_file():
     raise SystemExit('Build Wormholes and the local VolmLib shared library first')
 dependencies = [paper[-1], wormholes, volmlib]

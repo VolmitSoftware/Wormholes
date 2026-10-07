@@ -1,13 +1,14 @@
 package qa;
 
 import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.LocalPortal;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.ProjectionMode;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -132,10 +133,11 @@ public final class NestedEntityFixture extends JavaPlugin {
         PortalStructure structure = new PortalStructure();
         structure.setBlocks(blocks);
         UUID id = UUID.nameUUIDFromBytes(("nested-entity-fixture:" + name).getBytes(StandardCharsets.UTF_8));
+        retireOverlapping(id, blocks);
         LocalPortal portal = (LocalPortal) Wormholes.portalManager.getLocalPortal(id);
         if (portal == null) {
             portal = new LocalPortal(id, PortalType.PORTAL, structure);
-            portal.setFrame(PortalFrame.canonical(Direction.S));
+            portal.setFrame(Frame.canonical(Face.S));
             portal.setOwner(owner.getUniqueId());
             portal.setName("Nested entity " + name);
             portal.setNetworkViewDepth(20);
@@ -146,6 +148,20 @@ public final class NestedEntityFixture extends JavaPlugin {
         }
         portal.open();
         return portal;
+    }
+
+    private void retireOverlapping(UUID id, Set<Block> blocks) {
+        for (ILocalPortal other : Wormholes.portalManager.getLocalPortals()) {
+            if (other.getId().equals(id)) {
+                continue;
+            }
+            for (Block block : blocks) {
+                if (other.getStructure().contains(block.getLocation())) {
+                    other.destroy();
+                    break;
+                }
+            }
+        }
     }
 
     private Item item(World world, double x, double z, Material material) {

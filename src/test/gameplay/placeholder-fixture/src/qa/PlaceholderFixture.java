@@ -5,7 +5,7 @@ import art.arcane.volmlib.util.json.JSONObject;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.LocalPortal;
-import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.optics.frame.Frame;
 import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.ProjectionMode;
@@ -18,7 +18,7 @@ import art.arcane.wormholes.portal.rtp.RtpSafetyMode;
 import art.arcane.wormholes.portal.rtp.RtpService;
 import art.arcane.wormholes.portal.rtp.RtpSettings;
 import art.arcane.wormholes.portal.rtp.RtpVerticalMode;
-import art.arcane.wormholes.util.Direction;
+import art.arcane.optics.math.Face;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -126,12 +126,12 @@ public final class PlaceholderFixture extends JavaPlugin {
         structure.setBlocks(aperture);
         LocalPortal portal = new LocalPortal(spec.id(), spec.type(), structure);
         portal.setName(spec.name());
-        portal.setFrame(PortalFrame.derive(structure.getArea(), Direction.S));
+        portal.setFrame(Frame.derive(structure.getArea(), Face.S));
         portal.setOwner(request.owner());
         portal.setProjectionMode(ProjectionMode.OFF);
         if (spec.type() == PortalType.RTP) {
             JSONObject state = portal.toJSON();
-            state.put("rtp", timedSettings(request.world()).toJson());
+            state.put("rtp", BukkitRtpRuntime.writeSettings(timedSettings(request.world())));
             portal.loadJSON(state);
         }
         Wormholes.portalManager.addLocalPortal(portal);
