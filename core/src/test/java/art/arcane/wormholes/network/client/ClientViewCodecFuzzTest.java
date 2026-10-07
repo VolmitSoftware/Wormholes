@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Random;
 
 import org.junit.jupiter.api.Test;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.stream.ViewStreamMessageType;
 
 final class ClientViewCodecFuzzTest {
@@ -35,7 +35,7 @@ final class ClientViewCodecFuzzTest {
     }
 
     @Test
-    void mutatedGoldenFramesOnlyEverThrowProtocolExceptions() throws ClientViewProtocolException {
+    void mutatedGoldenFramesOnlyEverThrowProtocolExceptions() throws ViewStreamProtocolException {
         Random random = new Random(0xBADC0FFEEL);
         List<byte[]> seeds = new ArrayList<byte[]>();
         List<Long> caps = new ArrayList<Long>();
@@ -86,7 +86,7 @@ final class ClientViewCodecFuzzTest {
         try {
             ClientViewCodec.decodeS2C(payload, caps);
             decoded++;
-        } catch (ClientViewProtocolException expected) {
+        } catch (ViewStreamProtocolException expected) {
             decoded += 0;
         } catch (Throwable unexpected) {
             fail("S2C decode threw " + unexpected + " for " + payload.length + " bytes", unexpected);
@@ -94,7 +94,7 @@ final class ClientViewCodecFuzzTest {
         try {
             ClientViewCodec.decodeC2S(payload);
             decoded++;
-        } catch (ClientViewProtocolException expected) {
+        } catch (ViewStreamProtocolException expected) {
             decoded += 0;
         } catch (Throwable unexpected) {
             fail("C2S decode threw " + unexpected + " for " + payload.length + " bytes", unexpected);

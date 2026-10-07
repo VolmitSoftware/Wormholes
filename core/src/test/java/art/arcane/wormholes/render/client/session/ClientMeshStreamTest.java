@@ -11,7 +11,7 @@ import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.BrickLightSource;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamMessageType;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.stream.ViewStreamLimits;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -33,8 +33,8 @@ import art.arcane.wormholes.render.plate.PlateTestFixtures;
 import art.arcane.optics.plate.ViewPlate;
 import java.util.UUID;
 import art.arcane.optics.client.MeshPlan;
-import art.arcane.optics.stream.ClientViewInbound;
-import art.arcane.optics.stream.ClientViewSessionState;
+import art.arcane.optics.stream.ViewStreamInbound;
+import art.arcane.optics.stream.ViewStreamSessionState;
 
 final class ClientMeshStreamTest {
     @Test
@@ -116,7 +116,7 @@ final class ClientMeshStreamTest {
     }
 
     @Test
-    void nativeMirrorUsesSectionStreamingWithoutLegacyMirrorCapabilityOrPlate() throws ClientViewProtocolException {
+    void nativeMirrorUsesSectionStreamingWithoutLegacyMirrorCapabilityOrPlate() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(false, 0));
         harness.access.meshDistance = 208;
         SessionPortal mirror = harness.access.add(new SessionPortal("native-mirror", 0));
@@ -134,13 +134,13 @@ final class ClientMeshStreamTest {
         assertTrue(harness.access.plateRequested.isEmpty());
         assertTrue(harness.access.refusalChecked.isEmpty());
         ClientViewMessage.MeshSection section = (ClientViewMessage.MeshSection) harness.last(ViewStreamMessageType.MESH_SECTION);
-        assertEquals(ClientViewInbound.HANDLED, harness.c2s(ClientViewCodec.encodeC2S(ack(section))));
+        assertEquals(ViewStreamInbound.HANDLED, harness.c2s(ClientViewCodec.encodeC2S(ack(section))));
         harness.tick();
         assertEquals(ClientMeshStream.MAX_IN_FLIGHT + 1, harness.sent(ViewStreamMessageType.MESH_SECTION));
     }
 
     @Test
-    void fullSpeedMeshAndFrameAcknowledgementsKeepTheSessionActive() throws ClientViewProtocolException {
+    void fullSpeedMeshAndFrameAcknowledgementsKeepTheSessionActive() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(false, ViewStreamLimits.DEFAULT_ACK_WINDOW_FRAMES));
         harness.c2sSpacingNanos = 0L;
         harness.client.autoAck = true;
@@ -154,12 +154,12 @@ final class ClientMeshStreamTest {
             while (cursor < harness.client.received.size()) {
                 ClientViewMessage message = harness.client.received.get(cursor++);
                 if (message instanceof ClientViewMessage.MeshSection section) {
-                    assertEquals(ClientViewInbound.HANDLED, harness.c2s(ClientViewCodec.encodeC2S(ack(section))));
+                    assertEquals(ViewStreamInbound.HANDLED, harness.c2s(ClientViewCodec.encodeC2S(ack(section))));
                     acknowledged++;
                 }
             }
             harness.pump();
-            assertEquals(ClientViewSessionState.CLIENT_VIEW, harness.session.state(), "session reset on tick " + tick);
+            assertEquals(ViewStreamSessionState.CLIENT_VIEW, harness.session.state(), "session reset on tick " + tick);
             assertEquals(0L, harness.session.stats().c2sDropped());
         }
         assertTrue(acknowledged >= 32 * ClientMeshStream.MAX_PENDING_CAPTURES, "cached section streaming must sustain its bounded reservations");
@@ -374,7 +374,7 @@ final class ClientMeshStreamTest {
     }
 
     @Test
-    void clientDistanceStreamsBoundedSectionsAndWaitsForTheirOwnAcks() throws ClientViewProtocolException {
+    void clientDistanceStreamsBoundedSectionsAndWaitsForTheirOwnAcks() throws ViewStreamProtocolException {
         SessionHarness harness = meshHarness();
         for (int tick = 0; tick < 8; tick++) {
             harness.tick();
@@ -388,14 +388,14 @@ final class ClientMeshStreamTest {
         assertEquals(513, begin.bounds().sizeZ());
         assertEquals(MeshPlan.capacity(portal.geometry()), begin.maxResidentSections());
         ClientViewMessage.MeshSection section = (ClientViewMessage.MeshSection) harness.last(ViewStreamMessageType.MESH_SECTION);
-        assertEquals(ClientViewInbound.HANDLED, harness.c2s(ClientViewCodec.encodeC2S(ack(section))));
+        assertEquals(ViewStreamInbound.HANDLED, harness.c2s(ClientViewCodec.encodeC2S(ack(section))));
         harness.tick();
         assertEquals(ClientMeshStream.MAX_IN_FLIGHT + 1, harness.sent(ViewStreamMessageType.MESH_SECTION));
         assertTrue(harness.warnings.isEmpty(), harness.warnings.toString());
     }
 
     @Test
-    void retargetDropsOldGenerationCreditsAndIgnoresLateAcks() throws ClientViewProtocolException {
+    void retargetDropsOldGenerationCreditsAndIgnoresLateAcks() throws ViewStreamProtocolException {
         SessionHarness harness = meshHarness();
         harness.tick();
         ClientViewMessage.MeshSection old = (ClientViewMessage.MeshSection) harness.last(ViewStreamMessageType.MESH_SECTION);
@@ -403,13 +403,13 @@ final class ClientMeshStreamTest {
         harness.tick();
         ClientViewMessage.MeshSection replacement = (ClientViewMessage.MeshSection) harness.last(ViewStreamMessageType.MESH_SECTION);
         assertTrue(replacement.generation() > old.generation());
-        assertEquals(ClientViewInbound.IGNORED, harness.c2s(ClientViewCodec.encodeC2S(ack(old))));
-        assertEquals(ClientViewInbound.HANDLED, harness.c2s(ClientViewCodec.encodeC2S(ack(replacement))));
+        assertEquals(ViewStreamInbound.IGNORED, harness.c2s(ClientViewCodec.encodeC2S(ack(old))));
+        assertEquals(ViewStreamInbound.HANDLED, harness.c2s(ClientViewCodec.encodeC2S(ack(replacement))));
         assertTrue(harness.warnings.isEmpty(), harness.warnings.toString());
     }
 
     @Test
-    void failedEncodingOfRetiredGenerationDoesNotRejectItsReplacement() throws ClientViewProtocolException {
+    void failedEncodingOfRetiredGenerationDoesNotRejectItsReplacement() throws ViewStreamProtocolException {
         SessionHarness harness = meshHarness();
         harness.access.light = (sectionX, sectionY, sectionZ, block, sky) -> {
             harness.access.light = BrickLightSource.NONE;
@@ -420,7 +420,7 @@ final class ClientMeshStreamTest {
         harness.tick();
         harness.tick();
 
-        assertEquals(ClientViewSessionState.CLIENT_VIEW, harness.session.state());
+        assertEquals(ViewStreamSessionState.CLIENT_VIEW, harness.session.state());
         assertTrue(harness.session.owns(harness.access.portals.keySet().iterator().next()));
         assertTrue(harness.warnings.isEmpty(), harness.warnings.toString());
         ClientViewMessage.MeshSection replacement = (ClientViewMessage.MeshSection) harness.last(ViewStreamMessageType.MESH_SECTION);
@@ -428,7 +428,7 @@ final class ClientMeshStreamTest {
     }
 
     @Test
-    void unavailableSectionsKeepCaptureWorkBounded() throws ClientViewProtocolException {
+    void unavailableSectionsKeepCaptureWorkBounded() throws ViewStreamProtocolException {
         SessionHarness harness = meshHarness();
         harness.access.meshReady = false;
         for (int tick = 0; tick < 5; tick++) {
@@ -443,7 +443,7 @@ final class ClientMeshStreamTest {
     }
 
     @Test
-    void stalledNearCapturesDoNotBlockOtherVisibleSections() throws ClientViewProtocolException {
+    void stalledNearCapturesDoNotBlockOtherVisibleSections() throws ViewStreamProtocolException {
         SessionHarness harness = meshHarness();
         SessionPortal portal = harness.access.portals.values().iterator().next();
         List<MeshPlan.Section> order = MeshPlan.visible(portal.geometry(new SessionPalette()).withDepth(512), harness.access.eye);
@@ -493,7 +493,7 @@ final class ClientMeshStreamTest {
     }
 
     @Test
-    void identicalRebuiltSectionsDoNotResendTheirPayload() throws ClientViewProtocolException {
+    void identicalRebuiltSectionsDoNotResendTheirPayload() throws ViewStreamProtocolException {
         SessionHarness harness = meshHarness();
         harness.access.meshDistance = 16;
         for (int tick = 0; tick < 120; tick++) {
@@ -514,7 +514,7 @@ final class ClientMeshStreamTest {
     }
 
     @Test
-    void mirrorAndItsChildBothReceiveIndependentSectionStreams() throws ClientViewProtocolException {
+    void mirrorAndItsChildBothReceiveIndependentSectionStreams() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(false, 0));
         harness.access.meshDistance = 64;
         SessionPortal parent = harness.access.add(new SessionPortal("mirror", 0));
@@ -604,7 +604,7 @@ final class ClientMeshStreamTest {
     }
 
     @Test
-    void refusalQueuedBeforeRetargetDoesNotRejectTheReplacementGeneration() throws ClientViewProtocolException {
+    void refusalQueuedBeforeRetargetDoesNotRejectTheReplacementGeneration() throws ViewStreamProtocolException {
         ArrayDeque<Runnable> tasks = new ArrayDeque<Runnable>();
         SessionHarness harness = new SessionHarness(SessionHarness.options(false, 0), tasks::add, 0);
         harness.access.meshDistance = 512;
@@ -655,7 +655,7 @@ final class ClientMeshStreamTest {
     }
 
     @Test
-    void clientMemoryRefusalRetriesItsPortalWithoutReleasingNativeOwnership() throws ClientViewProtocolException {
+    void clientMemoryRefusalRetriesItsPortalWithoutReleasingNativeOwnership() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(false, 0));
         harness.access.meshDistance = 64;
         SessionPortal first = harness.access.add(new SessionPortal("first", 0));
@@ -679,12 +679,12 @@ final class ClientMeshStreamTest {
         }
         assertTrue(harness.sent(ViewStreamMessageType.MESH_BEGIN) > before);
         assertTrue(harness.session.owns(refused.id));
-        assertEquals(ClientViewSessionState.CLIENT_VIEW, harness.session.state());
+        assertEquals(ViewStreamSessionState.CLIENT_VIEW, harness.session.state());
         assertTrue(harness.warnings.isEmpty(), harness.warnings.toString());
     }
 
     @Test
-    void teleportResetDiscardsOldCreditsAndStartsFreshPortalKeys() throws ClientViewProtocolException {
+    void teleportResetDiscardsOldCreditsAndStartsFreshPortalKeys() throws ViewStreamProtocolException {
         SessionHarness harness = meshHarness();
         harness.tick();
         ClientViewMessage.MeshSection old = (ClientViewMessage.MeshSection) harness.last(ViewStreamMessageType.MESH_SECTION);
@@ -694,19 +694,19 @@ final class ClientMeshStreamTest {
         ClientViewMessage.MeshSection next = (ClientViewMessage.MeshSection) harness.last(ViewStreamMessageType.MESH_SECTION);
         assertTrue(next.portalKey() != old.portalKey());
         assertTrue(next.generation() > old.generation());
-        assertEquals(ClientViewInbound.IGNORED, harness.c2s(ClientViewCodec.encodeC2S(ack(old))));
-        assertEquals(ClientViewInbound.HANDLED, harness.c2s(ClientViewCodec.encodeC2S(ack(next))));
+        assertEquals(ViewStreamInbound.IGNORED, harness.c2s(ClientViewCodec.encodeC2S(ack(old))));
+        assertEquals(ViewStreamInbound.HANDLED, harness.c2s(ClientViewCodec.encodeC2S(ack(next))));
         assertTrue(harness.warnings.isEmpty(), harness.warnings.toString());
     }
 
     @Test
-    void unavailableCaptureTimesOutWithoutResettingTheSession() throws ClientViewProtocolException {
+    void unavailableCaptureTimesOutWithoutResettingTheSession() throws ViewStreamProtocolException {
         SessionHarness harness = meshHarness();
         harness.access.meshReady = false;
         harness.tick();
         harness.clock.addAndGet(ClientMeshStream.TIMEOUT_NANOS);
         harness.tick();
-        assertEquals(ClientViewSessionState.CLIENT_VIEW, harness.session.state());
+        assertEquals(ViewStreamSessionState.CLIENT_VIEW, harness.session.state());
         assertEquals(1, harness.sent(ViewStreamMessageType.PORTAL_DROP));
         assertEquals(0, harness.sent(ViewStreamMessageType.MESH_SECTION));
         assertEquals(1, harness.warnings.size());
@@ -714,7 +714,7 @@ final class ClientMeshStreamTest {
     }
 
     @Test
-    void validBudgetQueuedCapturesKeepTheirPortalButLoadingFailuresStillExpire() throws ClientViewProtocolException {
+    void validBudgetQueuedCapturesKeepTheirPortalButLoadingFailuresStillExpire() throws ViewStreamProtocolException {
         SessionHarness harness = meshHarness();
         harness.access.meshReady = false;
         harness.access.meshQueued = true;
@@ -769,7 +769,7 @@ final class ClientMeshStreamTest {
         return stream.poll(tick * SessionHarness.TICK_NANOS);
     }
 
-    private static SessionHarness meshHarness() throws ClientViewProtocolException {
+    private static SessionHarness meshHarness() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(false, 0));
         harness.access.meshDistance = 512;
         harness.access.add(new SessionPortal("mesh", 0));

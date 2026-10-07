@@ -18,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.ViewStreamLimits;
 
@@ -231,7 +231,7 @@ final class ClientPreparedTravelReuseTest {
     }
 
     @Test
-    void largeCapturedPayloadsDoNotEscapeWireBudgetOnCacheMiss() throws ClientViewProtocolException {
+    void largeCapturedPayloadsDoNotEscapeWireBudgetOnCacheMiss() throws ViewStreamProtocolException {
         ClientPreparedTravelServer server = new ClientPreparedTravelServer();
         ClientViewMessage.TravelBegin begin = begin(1);
         server.begin(begin, 0);

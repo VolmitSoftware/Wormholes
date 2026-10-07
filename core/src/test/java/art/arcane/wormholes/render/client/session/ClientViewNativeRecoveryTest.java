@@ -3,7 +3,7 @@ package art.arcane.wormholes.render.client.session;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamMessageType;
 import art.arcane.optics.stream.ViewStreamLimits;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayDeque;
@@ -12,12 +12,12 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import art.arcane.optics.stream.ClientViewInbound;
-import art.arcane.optics.stream.ClientViewSessionState;
+import art.arcane.optics.stream.ViewStreamInbound;
+import art.arcane.optics.stream.ViewStreamSessionState;
 
 final class ClientViewNativeRecoveryTest {
     @Test
-    void automaticSessionFailuresRebuildNativeStreamsWithoutReturningOwnership() throws ClientViewProtocolException {
+    void automaticSessionFailuresRebuildNativeStreamsWithoutReturningOwnership() throws ViewStreamProtocolException {
         for (ClientViewMessage.ResetReason reason : List.of(ClientViewMessage.ResetReason.PROTOCOL, ClientViewMessage.ResetReason.OVERLOAD,
             ClientViewMessage.ResetReason.TELEPORT, ClientViewMessage.ResetReason.DIMENSION, ClientViewMessage.ResetReason.RESPAWN)) {
             SessionHarness harness = nativeSession();
@@ -28,7 +28,7 @@ final class ClientViewNativeRecoveryTest {
             assertTrue(harness.registry.owns(harness.playerId, portal.id));
             assertTrue(harness.session.nativeRendererSelected());
             harness.tick();
-            assertEquals(ClientViewSessionState.CLIENT_VIEW, harness.session.state());
+            assertEquals(ViewStreamSessionState.CLIENT_VIEW, harness.session.state());
             assertTrue(harness.registry.owns(harness.playerId, portal.id));
             assertFalse(harness.client.portals.containsKey(oldKey));
             assertEquals(1, harness.client.portals.size());
@@ -39,7 +39,7 @@ final class ClientViewNativeRecoveryTest {
     }
 
     @Test
-    void invalidGeometryRemainsNativeAndRetriesAfterCooldown() throws ClientViewProtocolException {
+    void invalidGeometryRemainsNativeAndRetriesAfterCooldown() throws ViewStreamProtocolException {
         SessionHarness harness = nativeSession();
         SessionPortal portal = harness.access.portals.values().iterator().next();
         portal.geometryAvailable = false;
@@ -56,43 +56,43 @@ final class ClientViewNativeRecoveryTest {
     }
 
     @Test
-    void clientResyncHelloRecoversNativeFramesButExplicitDisableReleasesSelection() throws ClientViewProtocolException {
+    void clientResyncHelloRecoversNativeFramesButExplicitDisableReleasesSelection() throws ViewStreamProtocolException {
         SessionHarness harness = nativeSession();
         harness.tick();
         SessionPortal portal = harness.access.portals.values().iterator().next();
         int oldKey = harness.client.portals.keySet().iterator().next();
-        assertEquals(ClientViewInbound.HANDLED, harness.c2s(harness.client.hello(SessionHarness.DATA_VERSION,
+        assertEquals(ViewStreamInbound.HANDLED, harness.c2s(harness.client.hello(SessionHarness.DATA_VERSION,
             SessionHarness.NATIVE_CAPS, "fabric", 0L)));
         harness.tick();
         assertFalse(harness.client.portals.containsKey(oldKey));
         assertTrue(harness.session.owns(portal.id));
         harness.registry.runtimeEnabled(false);
         harness.pump();
-        assertEquals(ClientViewSessionState.VANILLA, harness.session.state());
+        assertEquals(ViewStreamSessionState.VANILLA, harness.session.state());
         assertFalse(harness.session.nativeRendererSelected());
         assertFalse(harness.session.owns(portal.id));
     }
 
     @Test
-    void protocolViolationResetKeepsNativeOwnershipAndRecoversOnTheOwnerTick() throws ClientViewProtocolException {
+    void protocolViolationResetKeepsNativeOwnershipAndRecoversOnTheOwnerTick() throws ViewStreamProtocolException {
         SessionHarness harness = nativeSession();
         harness.tick();
         SessionPortal portal = harness.access.portals.values().iterator().next();
-        ClientViewInbound result = ClientViewInbound.IGNORED;
+        ViewStreamInbound result = ViewStreamInbound.IGNORED;
         for (int violation = 0; violation < ViewStreamLimits.C2S_VIOLATION_LIMIT; violation++) {
             result = harness.c2s(new byte[] {(byte) 99});
         }
-        assertEquals(ClientViewInbound.RESET, result);
+        assertEquals(ViewStreamInbound.RESET, result);
         assertTrue(harness.session.nativeRendererSelected());
         assertTrue(harness.session.owns(portal.id));
         harness.tick();
         assertEquals(1, harness.client.portals.size());
-        assertEquals(ClientViewSessionState.CLIENT_VIEW, harness.session.state());
+        assertEquals(ViewStreamSessionState.CLIENT_VIEW, harness.session.state());
         assertEquals(0, harness.sent(ViewStreamMessageType.PLATE_BEGIN));
     }
 
     @Test
-    void queuedResetDoesNotDiscardMeshStateRebuiltBeforeTheLaneRuns() throws ClientViewProtocolException {
+    void queuedResetDoesNotDiscardMeshStateRebuiltBeforeTheLaneRuns() throws ViewStreamProtocolException {
         ArrayDeque<Runnable> tasks = new ArrayDeque<>();
         SessionHarness harness = new SessionHarness(SessionHarness.options(false, 0), tasks::add, 0L);
         harness.access.meshDistance = 64;
@@ -109,14 +109,14 @@ final class ClientViewNativeRecoveryTest {
         assertEquals(1, harness.client.portals.size());
     }
 
-    private static void drain(ArrayDeque<Runnable> tasks, SessionHarness harness) throws ClientViewProtocolException {
+    private static void drain(ArrayDeque<Runnable> tasks, SessionHarness harness) throws ViewStreamProtocolException {
         while (!tasks.isEmpty()) {
             tasks.remove().run();
         }
         harness.pump();
     }
 
-    private static SessionHarness nativeSession() throws ClientViewProtocolException {
+    private static SessionHarness nativeSession() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(false, 0));
         harness.access.meshDistance = 64;
         harness.access.add(new SessionPortal("native", 0));

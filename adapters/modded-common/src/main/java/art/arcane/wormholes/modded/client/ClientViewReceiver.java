@@ -3,7 +3,7 @@ package art.arcane.wormholes.modded.client;
 import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,7 +47,7 @@ public final class ClientViewReceiver {
         ClientViewCodec.S2CFrame frame;
         try {
             frame = ClientViewCodec.decodeS2C(payload, session.caps());
-        } catch (ClientViewProtocolException | RuntimeException failure) {
+        } catch (ViewStreamProtocolException | RuntimeException failure) {
             decodeFailures.incrementAndGet();
             return;
         }
@@ -126,7 +126,7 @@ public final class ClientViewReceiver {
         try {
             reply.accept(ClientViewCodec.encodeC2S(message));
             return true;
-        } catch (ClientViewProtocolException | RuntimeException failure) {
+        } catch (ViewStreamProtocolException | RuntimeException failure) {
             replyFailures.incrementAndGet();
             LOGGER.warn("Wormholes ClientView could not answer the server offer with {}; awaiting connection recovery", message.type(), failure);
             return false;

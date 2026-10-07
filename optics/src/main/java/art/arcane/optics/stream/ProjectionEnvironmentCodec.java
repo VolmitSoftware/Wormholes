@@ -9,7 +9,7 @@ public final class ProjectionEnvironmentCodec {
     private ProjectionEnvironmentCodec() {
     }
 
-    public static void write(ClientViewWriter out, ProjectionEnvironment value) throws ClientViewProtocolException {
+    public static void write(ViewStreamWriter out, ProjectionEnvironment value) throws ViewStreamProtocolException {
         out.i64(value.gameTime());
         ProjectionEnvironment.Sky sky = value.sky();
         out.u8(sky.skybox().ordinal());
@@ -59,7 +59,7 @@ public final class ProjectionEnvironmentCodec {
         out.u8(value.world().hasFixedTime() ? 1 : 0);
     }
 
-    public static ProjectionEnvironment read(ClientViewReader in) throws ClientViewProtocolException {
+    public static ProjectionEnvironment read(ViewStreamReader in) throws ViewStreamProtocolException {
         try {
             long gameTime = in.i64();
             ProjectionEnvironment.Sky sky = new ProjectionEnvironment.Sky(enumValue(ProjectionEnvironment.Skybox.values(), in.u8()),
@@ -75,56 +75,56 @@ public final class ProjectionEnvironmentCodec {
                 enumValue(ProjectionEnvironment.EyeMedium.values(), in.u8()), bool(in));
             return new ProjectionEnvironment(gameTime, sky, fog, lighting, clouds, transform, dimension, world);
         } catch (IllegalArgumentException exception) {
-            throw new ClientViewProtocolException("Invalid destination environment", exception);
+            throw new ViewStreamProtocolException("Invalid destination environment", exception);
         }
     }
 
-    public static void writeTransform(ClientViewWriter out, OpticTransform transform) {
+    public static void writeTransform(ViewStreamWriter out, OpticTransform transform) {
         out.bytes(transform.encode());
     }
 
-    public static OpticTransform readTransform(ClientViewReader in) throws ClientViewProtocolException {
+    public static OpticTransform readTransform(ViewStreamReader in) throws ViewStreamProtocolException {
         byte[] encoded = in.bytes(OpticTransform.ENCODED_BYTES);
         try {
             return OpticTransform.decode(encoded);
         } catch (IllegalArgumentException exception) {
-            throw new ClientViewProtocolException("Invalid environment transform", exception);
+            throw new ViewStreamProtocolException("Invalid environment transform", exception);
         }
     }
 
-    private static boolean bool(ClientViewReader in) throws ClientViewProtocolException {
+    private static boolean bool(ViewStreamReader in) throws ViewStreamProtocolException {
         int value = in.u8();
         if (value > 1) {
-            throw new ClientViewProtocolException("Invalid environment boolean");
+            throw new ViewStreamProtocolException("Invalid environment boolean");
         }
         return value == 1;
     }
 
-    private static <T> T enumValue(T[] values, int ordinal) throws ClientViewProtocolException {
+    private static <T> T enumValue(T[] values, int ordinal) throws ViewStreamProtocolException {
         if (ordinal >= values.length) {
-            throw new ClientViewProtocolException("Invalid environment enum");
+            throw new ViewStreamProtocolException("Invalid environment enum");
         }
         return values[ordinal];
     }
 
-    private static void rgb(ClientViewWriter out, ProjectionEnvironment.Color value) {
+    private static void rgb(ViewStreamWriter out, ProjectionEnvironment.Color value) {
         out.f32(value.red());
         out.f32(value.green());
         out.f32(value.blue());
     }
 
-    private static void rgba(ClientViewWriter out, ProjectionEnvironment.ColorAlpha value) {
+    private static void rgba(ViewStreamWriter out, ProjectionEnvironment.ColorAlpha value) {
         out.f32(value.red());
         out.f32(value.green());
         out.f32(value.blue());
         out.f32(value.alpha());
     }
 
-    private static ProjectionEnvironment.Color rgb(ClientViewReader in) throws ClientViewProtocolException {
+    private static ProjectionEnvironment.Color rgb(ViewStreamReader in) throws ViewStreamProtocolException {
         return new ProjectionEnvironment.Color(in.f32(), in.f32(), in.f32());
     }
 
-    private static ProjectionEnvironment.ColorAlpha rgba(ClientViewReader in) throws ClientViewProtocolException {
+    private static ProjectionEnvironment.ColorAlpha rgba(ViewStreamReader in) throws ViewStreamProtocolException {
         return new ProjectionEnvironment.ColorAlpha(in.f32(), in.f32(), in.f32(), in.f32());
     }
 }

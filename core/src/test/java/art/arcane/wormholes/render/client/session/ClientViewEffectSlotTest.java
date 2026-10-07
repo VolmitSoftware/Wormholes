@@ -20,16 +20,16 @@ import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamMessageType;
 import art.arcane.optics.stream.ViewStreamLimits;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.wormholes.portal.effects.PortalAnimation;
-import art.arcane.optics.stream.ClientViewSessionState;
+import art.arcane.optics.stream.ViewStreamSessionState;
 
 final class ClientViewEffectSlotTest {
     private static final ClientViewMessage.FxEmitter SPARKS = new ClientViewMessage.FxEmitter(ClientViewMessage.FxKind.SURFACE,
         ClientViewEmitters.SPARK_PARTICLE, 10.0D, 66.0D, 20.0D, 0.29F, 0.0F, 1, 3);
 
     @Test
-    void oneShotsTravelOnTheWorldKeyBatchedPerLaneRun() throws ClientViewProtocolException {
+    void oneShotsTravelOnTheWorldKeyBatchedPerLaneRun() throws ViewStreamProtocolException {
         List<Runnable> queued = new ArrayList<Runnable>();
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8), queued::add, 0L);
         ClientViewMessage.FxEmitter burst = ClientViewEmitters.burst("minecraft:portal", 1.0D, 2.0D, 3.0D, 4, 0.45D, 0.65D, 0.18D);
@@ -53,7 +53,7 @@ final class ClientViewEffectSlotTest {
     }
 
     @Test
-    void rejectedOneShotsDoNotKeepOccupyingTheBacklog() throws ClientViewProtocolException {
+    void rejectedOneShotsDoNotKeepOccupyingTheBacklog() throws ViewStreamProtocolException {
         List<Runnable> queued = new ArrayList<Runnable>();
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8), queued::add, 0L);
         harness.handshake(SessionHarness.CLIENT_CAPS);
@@ -71,10 +71,10 @@ final class ClientViewEffectSlotTest {
     }
 
     @Test
-    void sessionsWithoutFxEmittersNeverTakeOneShots() throws ClientViewProtocolException {
+    void sessionsWithoutFxEmittersNeverTakeOneShots() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
         harness.handshake(SessionHarness.CLIENT_CAPS & ~ViewStreamCapability.FX_EMITTERS.mask());
-        assertEquals(ClientViewSessionState.CLIENT_VIEW, harness.session.state());
+        assertEquals(ViewStreamSessionState.CLIENT_VIEW, harness.session.state());
         assertFalse(harness.session.effectsReceiver());
         assertFalse(harness.session.oneShot(ClientViewEmitters.burst("minecraft:smoke", 0.0D, 0.0D, 0.0D, 6, 0.0D, 0.0D, 0.01D)));
         harness.pump();
@@ -82,7 +82,7 @@ final class ClientViewEffectSlotTest {
     }
 
     @Test
-    void effectSlotsCarryFxWithoutOwningThePortalAndPromoteInPlace() throws ClientViewProtocolException {
+    void effectSlotsCarryFxWithoutOwningThePortalAndPromoteInPlace() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
         Effects effects = new Effects();
         harness.fx = new ClientViewSceneFx<String>(effects);
@@ -143,7 +143,7 @@ final class ClientViewEffectSlotTest {
     }
 
     @Test
-    void effectSlotsWithoutGeometryAreSkipped() throws ClientViewProtocolException {
+    void effectSlotsWithoutGeometryAreSkipped() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
         SessionPortal closed = new SessionPortal("closed", 0);
         closed.geometryAvailable = false;
@@ -164,7 +164,7 @@ final class ClientViewEffectSlotTest {
         return accepted;
     }
 
-    private static void drain(List<Runnable> queued, SessionHarness harness) throws ClientViewProtocolException {
+    private static void drain(List<Runnable> queued, SessionHarness harness) throws ViewStreamProtocolException {
         while (!queued.isEmpty()) {
             queued.remove(0).run();
             harness.pump();

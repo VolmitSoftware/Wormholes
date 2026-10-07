@@ -6,7 +6,7 @@ import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ViewStreamLimits;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.frame.OpticTransform;
 import org.junit.After;
 import org.junit.Test;
@@ -31,7 +31,7 @@ public class ClientPreparedTravelRoutingTest extends MinecraftTestBase {
     }
 
     @Test
-    public void completeTravelDispatchesOnceAndOrdinaryTickKeepsSessionAccountingActive() throws ClientViewProtocolException {
+    public void completeTravelDispatchesOnceAndOrdinaryTickKeepsSessionAccountingActive() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness(ViewStreamCapability.ALL);
         List<ClientViewMessage.TravelCoordinate> coordinates = new ArrayList<>(49);
         List<ClientViewMessage.TravelChunkRevision> revisions = new ArrayList<>(49);
@@ -85,7 +85,7 @@ public class ClientPreparedTravelRoutingTest extends MinecraftTestBase {
         assertEquals(0, harness.session.protocolFailures());
     }
 
-    private static void receive(ClientViewHarness harness, ClientViewMessage message) throws ClientViewProtocolException {
+    private static void receive(ClientViewHarness harness, ClientViewMessage message) throws ViewStreamProtocolException {
         harness.receive(message, ViewStreamLimits.FLAG_LAST);
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
         assertTrue(harness.session.active());

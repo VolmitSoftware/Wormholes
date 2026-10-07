@@ -11,13 +11,13 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.ViewStreamLimits;
 
 final class ClientMeshLocalCodecTest {
     @Test
-    void partialCoverageRoundTripsSignedSectionsAndExplicitEntityUuids() throws ClientViewProtocolException {
+    void partialCoverageRoundTripsSignedSectionsAndExplicitEntityUuids() throws ViewStreamProtocolException {
         ClientViewMessage.MeshLocal message = new ClientViewMessage.MeshLocal(7, 3, 11, true,
             List.of(new ClientViewMessage.MeshCoordinate(-300, -64, 300), new ClientViewMessage.MeshCoordinate(25, 16, -25)),
             List.of(new UUID(12, 34), new UUID(-56, -78)));
@@ -25,7 +25,7 @@ final class ClientMeshLocalCodecTest {
     }
 
     @Test
-    void unavailableCoverageAndACompleteEmptyWorldRemainDistinct() throws ClientViewProtocolException {
+    void unavailableCoverageAndACompleteEmptyWorldRemainDistinct() throws ViewStreamProtocolException {
         for (boolean available : new boolean[]{false, true}) {
             ClientViewMessage.MeshLocal message = new ClientViewMessage.MeshLocal(7, 3, 11, available, List.of(), List.of());
             assertEquals(message, ClientViewCodec.decodeC2S(ClientViewCodec.encodeC2S(message)));
@@ -33,7 +33,7 @@ final class ClientMeshLocalCodecTest {
     }
 
     @Test
-    void maximumCoverageFitsOneBoundedClientFrame() throws ClientViewProtocolException {
+    void maximumCoverageFitsOneBoundedClientFrame() throws ViewStreamProtocolException {
         List<ClientViewMessage.MeshCoordinate> sections = new ArrayList<>(ClientViewMessage.MeshLocal.MAX_SECTIONS);
         List<UUID> entities = new ArrayList<>(ClientViewMessage.MeshLocal.MAX_ENTITIES);
         for (int index = 0; index < ClientViewMessage.MeshLocal.MAX_SECTIONS; index++) {
@@ -49,48 +49,48 @@ final class ClientMeshLocalCodecTest {
     }
 
     @Test
-    void malformedAvailabilityFlagsAndOversizedCountsAreProtocolErrors() throws ClientViewProtocolException {
+    void malformedAvailabilityFlagsAndOversizedCountsAreProtocolErrors() throws ViewStreamProtocolException {
         byte[] frame = emptyFrame();
         assertEquals(15, frame.length);
         for (int flag : new int[]{2, 255}) {
             byte[] invalid = frame.clone();
             invalid[10] = (byte) flag;
-            assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.decodeC2S(invalid));
+            assertThrows(ViewStreamProtocolException.class, () -> ClientViewCodec.decodeC2S(invalid));
         }
         for (int count : new int[]{ClientViewMessage.MeshLocal.MAX_SECTIONS + 1, 65535}) {
             byte[] invalid = frame.clone();
             ByteBuffer.wrap(invalid).order(ByteOrder.LITTLE_ENDIAN).putShort(11, (short) count);
-            assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.decodeC2S(invalid));
+            assertThrows(ViewStreamProtocolException.class, () -> ClientViewCodec.decodeC2S(invalid));
         }
         for (int count : new int[]{ClientViewMessage.MeshLocal.MAX_ENTITIES + 1, 65535}) {
             byte[] invalid = frame.clone();
             ByteBuffer.wrap(invalid).order(ByteOrder.LITTLE_ENDIAN).putShort(13, (short) count);
-            assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.decodeC2S(invalid));
+            assertThrows(ViewStreamProtocolException.class, () -> ClientViewCodec.decodeC2S(invalid));
         }
     }
 
     @Test
-    void nonpositiveGenerationAndSequenceAreProtocolErrors() throws ClientViewProtocolException {
+    void nonpositiveGenerationAndSequenceAreProtocolErrors() throws ViewStreamProtocolException {
         for (int offset : new int[]{2, 6}) {
             for (int value : new int[]{0, -1, Integer.MIN_VALUE}) {
                 byte[] invalid = emptyFrame();
                 ByteBuffer.wrap(invalid).order(ByteOrder.LITTLE_ENDIAN).putInt(offset, value);
-                assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.decodeC2S(invalid));
+                assertThrows(ViewStreamProtocolException.class, () -> ClientViewCodec.decodeC2S(invalid));
             }
         }
     }
 
     @Test
-    void truncatedCoordinatesUuidsAndTrailingBytesAreRejected() throws ClientViewProtocolException {
+    void truncatedCoordinatesUuidsAndTrailingBytesAreRejected() throws ViewStreamProtocolException {
         ClientViewMessage.MeshLocal message = new ClientViewMessage.MeshLocal(7, 3, 11, true,
             List.of(new ClientViewMessage.MeshCoordinate(-20, 4, 9)), List.of(new UUID(12, 34)));
         byte[] frame = ClientViewCodec.encodeC2S(message);
         for (int length = 0; length < frame.length; length++) {
             byte[] truncated = Arrays.copyOf(frame, length);
-            assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.decodeC2S(truncated));
+            assertThrows(ViewStreamProtocolException.class, () -> ClientViewCodec.decodeC2S(truncated));
         }
         byte[] trailing = Arrays.copyOf(frame, frame.length + 1);
-        assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.decodeC2S(trailing));
+        assertThrows(ViewStreamProtocolException.class, () -> ClientViewCodec.decodeC2S(trailing));
     }
 
     @Test
@@ -109,14 +109,14 @@ final class ClientMeshLocalCodecTest {
     }
 
     @Test
-    void claimsCannotBeEncodedInTheServerToClientDirection() throws ClientViewProtocolException {
+    void claimsCannotBeEncodedInTheServerToClientDirection() throws ViewStreamProtocolException {
         ClientViewMessage.MeshLocal message = new ClientViewMessage.MeshLocal(7, 3, 11, true, List.of(), List.of());
-        assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.encodeS2C(message, 0, 0));
+        assertThrows(ViewStreamProtocolException.class, () -> ClientViewCodec.encodeS2C(message, 0, 0));
         byte[] frame = ClientViewCodec.encodeC2S(message);
-        assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.decodeS2C(frame, ViewStreamCapability.ALL));
+        assertThrows(ViewStreamProtocolException.class, () -> ClientViewCodec.decodeS2C(frame, ViewStreamCapability.ALL));
     }
 
-    private static byte[] emptyFrame() throws ClientViewProtocolException {
+    private static byte[] emptyFrame() throws ViewStreamProtocolException {
         return ClientViewCodec.encodeC2S(new ClientViewMessage.MeshLocal(7, 3, 11, true, List.of(), List.of()));
     }
 }

@@ -6,10 +6,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
-final class ClientViewAckWindowTest {
+final class ViewStreamAckWindowTest {
     @Test
     void aCumulativeAckFreesEveryClosedGroupUpToItsSequence() {
-        ClientViewAckWindow window = new ClientViewAckWindow(4);
+        ViewStreamAckWindow window = new ViewStreamAckWindow(4);
         window.record(1, 100L);
         window.record(2, 200L);
         window.record(3, 300L);
@@ -25,7 +25,7 @@ final class ClientViewAckWindowTest {
 
     @Test
     void anOpenManifestIsNeverFreedByACumulativeAck() {
-        ClientViewAckWindow window = new ClientViewAckWindow(2);
+        ViewStreamAckWindow window = new ViewStreamAckWindow(2);
         window.open(5, 100L);
         window.record(6, 200L);
         assertTrue(window.full());
@@ -38,7 +38,7 @@ final class ClientViewAckWindowTest {
 
     @Test
     void freeingIsNotBlockedByAnEarlierOpenManifest() {
-        ClientViewAckWindow window = new ClientViewAckWindow(3);
+        ViewStreamAckWindow window = new ViewStreamAckWindow(3);
         window.open(5, 100L);
         window.record(6, 200L);
         window.record(7, 300L);
@@ -50,7 +50,7 @@ final class ClientViewAckWindowTest {
 
     @Test
     void closingAManifestMovesItToTheSequenceThatEndsTheStream() {
-        ClientViewAckWindow window = new ClientViewAckWindow(4);
+        ViewStreamAckWindow window = new ViewStreamAckWindow(4);
         window.open(5, 100L);
         window.record(6, 200L);
         assertTrue(window.close(5, 9, 500L));
@@ -64,7 +64,7 @@ final class ClientViewAckWindowTest {
 
     @Test
     void abandoningAManifestReleasesItsSlotWithoutAnAck() {
-        ClientViewAckWindow window = new ClientViewAckWindow(1);
+        ViewStreamAckWindow window = new ViewStreamAckWindow(1);
         window.open(5, 100L);
         assertTrue(window.full());
         assertFalse(window.abandon(6));
@@ -76,7 +76,7 @@ final class ClientViewAckWindowTest {
 
     @Test
     void aZeroCapacityWindowTracksWithoutEverFilling() {
-        ClientViewAckWindow window = new ClientViewAckWindow(0);
+        ViewStreamAckWindow window = new ViewStreamAckWindow(0);
         for (int sequence = 0; sequence < 200; sequence++) {
             window.record(sequence, sequence);
             assertFalse(window.full());
@@ -88,7 +88,7 @@ final class ClientViewAckWindowTest {
 
     @Test
     void clearingForgetsOutstandingGroupsButKeepsTheTotals() {
-        ClientViewAckWindow window = new ClientViewAckWindow(4);
+        ViewStreamAckWindow window = new ViewStreamAckWindow(4);
         window.record(1, 0L);
         window.open(2, 0L);
         window.ack(1, 3, 10L);

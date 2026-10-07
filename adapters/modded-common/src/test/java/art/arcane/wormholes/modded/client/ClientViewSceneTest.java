@@ -5,7 +5,7 @@ import art.arcane.wormholes.config.VisualQualityProfile;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.entity.EntityDeltaCodec;
 import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.wormholes.portal.effects.PortalAnimation;
@@ -33,7 +33,7 @@ public class ClientViewSceneTest extends MinecraftTestBase {
     }
 
     @Test
-    public void entityActionsWaitForSpawnAndDoNotReplayAcrossFullSnapshots() throws ClientViewProtocolException {
+    public void entityActionsWaitForSpawnAndDoNotReplayAcrossFullSnapshots() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
         UUID id = UUID.randomUUID();
@@ -55,7 +55,7 @@ public class ClientViewSceneTest extends MinecraftTestBase {
     }
 
     @Test
-    public void staleOrRemovedEntityActionsExpireWithoutReplay() throws ClientViewProtocolException {
+    public void staleOrRemovedEntityActionsExpireWithoutReplay() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
         UUID id = UUID.randomUUID();
@@ -76,7 +76,7 @@ public class ClientViewSceneTest extends MinecraftTestBase {
     }
 
     @Test
-    public void destinationLightLandsOnOverlaidCellsAndLeavesWithThem() throws ClientViewProtocolException {
+    public void destinationLightLandsOnOverlaidCellsAndLeavesWithThem() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
@@ -99,7 +99,7 @@ public class ClientViewSceneTest extends MinecraftTestBase {
     }
 
     @Test
-    public void realLightChangesUnderAProjectionShowThroughAtOnceAndAfterTheProjectionLeaves() throws ClientViewProtocolException {
+    public void realLightChangesUnderAProjectionShowThroughAtOnceAndAfterTheProjectionLeaves() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
@@ -126,7 +126,7 @@ public class ClientViewSceneTest extends MinecraftTestBase {
     }
 
     @Test
-    public void destinationAirOverRealAirInsideTheConeCarriesDestinationLightAndGivesItBack() throws ClientViewProtocolException {
+    public void destinationAirOverRealAirInsideTheConeCarriesDestinationLightAndGivesItBack() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
@@ -146,7 +146,7 @@ public class ClientViewSceneTest extends MinecraftTestBase {
     }
 
     @Test
-    public void destinationSkyDarkenFromAtmosphereRebasesProjectedSkyLightWithoutTakingTheSky() throws ClientViewProtocolException {
+    public void destinationSkyDarkenFromAtmosphereRebasesProjectedSkyLightWithoutTakingTheSky() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
@@ -173,7 +173,7 @@ public class ClientViewSceneTest extends MinecraftTestBase {
     }
 
     @Test
-    public void entitiesSpawnInsideTheConeFollowDeltasAndLeaveWithThePortal() throws ClientViewProtocolException {
+    public void entitiesSpawnInsideTheConeFollowDeltasAndLeaveWithThePortal() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
@@ -209,7 +209,7 @@ public class ClientViewSceneTest extends MinecraftTestBase {
     }
 
     @Test
-    public void entityFramesForUnknownPortalsAreIgnored() throws ClientViewProtocolException {
+    public void entityFramesForUnknownPortalsAreIgnored() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
         UUID id = UUID.randomUUID();
@@ -220,7 +220,7 @@ public class ClientViewSceneTest extends MinecraftTestBase {
     }
 
     @Test
-    public void emittersFireOnTheirCadenceAndOneShotsFireOnce() throws ClientViewProtocolException {
+    public void emittersFireOnTheirCadenceAndOneShotsFireOnce() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
         ClientViewMessage.FxEmitter rim = new ClientViewMessage.FxEmitter(ClientViewMessage.FxKind.RIM_DUST, "", 0.0D, 64.0D, 10.0D, 0x00FF00, 1.0F,
@@ -252,7 +252,7 @@ public class ClientViewSceneTest extends MinecraftTestBase {
     }
 
     @Test
-    public void suspendedParticlesKeepEmitterCadenceAndSoundsWithoutAccumulatingAnimations() throws ClientViewProtocolException {
+    public void suspendedParticlesKeepEmitterCadenceAndSoundsWithoutAccumulatingAnimations() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
         ClientViewMessage.FxEmitter rim = new ClientViewMessage.FxEmitter(ClientViewMessage.FxKind.RIM_DUST, "", 0.0D, 64.0D, 10.0D,
@@ -287,7 +287,7 @@ public class ClientViewSceneTest extends MinecraftTestBase {
     }
 
     @Test
-    public void resumeDiscardsQueuedOneShotsButAppliesCurrentContinuousEmitters() throws ClientViewProtocolException {
+    public void resumeDiscardsQueuedOneShotsButAppliesCurrentContinuousEmitters() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
         harness.tick.effectsActive(false);
@@ -315,7 +315,7 @@ public class ClientViewSceneTest extends MinecraftTestBase {
     }
 
     @Test
-    public void suspendedDestinationWeatherDoesNotEmitParticles() throws ClientViewProtocolException {
+    public void suspendedDestinationWeatherDoesNotEmitParticles() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
         harness.receive(new ClientViewMessage.Atmosphere(ClientViewHarness.PORTAL_KEY, 18000L, 0.8F, 0.5F,
@@ -335,7 +335,7 @@ public class ClientViewSceneTest extends MinecraftTestBase {
     }
 
     @Test
-    public void worldOneShotsRunAnimationsAndBurstsWithoutAPortal() throws ClientViewProtocolException {
+    public void worldOneShotsRunAnimationsAndBurstsWithoutAPortal() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
         ClientViewMessage.FxEmitter rim = new ClientViewMessage.FxEmitter(ClientViewMessage.FxKind.RIM_DUST, "", 0.0D, 64.0D, 10.0D, 0x00FF00, 1.0F,
@@ -367,7 +367,7 @@ public class ClientViewSceneTest extends MinecraftTestBase {
     }
 
     @Test
-    public void destinationSkyHoldsOnlyWhileThePortalDominates() throws ClientViewProtocolException {
+    public void destinationSkyHoldsOnlyWhileThePortalDominates() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
         harness.receive(new ClientViewMessage.Atmosphere(ClientViewHarness.PORTAL_KEY, 18000L, 0.8F, 0.5F,
@@ -396,7 +396,7 @@ public class ClientViewSceneTest extends MinecraftTestBase {
     }
 
     @Test
-    public void localWeatherAndTimeThatChangeWhileAPortalDominatesSurviveTheRestore() throws ClientViewProtocolException {
+    public void localWeatherAndTimeThatChangeWhileAPortalDominatesSurviveTheRestore() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
         harness.receive(new ClientViewMessage.Atmosphere(ClientViewHarness.PORTAL_KEY, 18000L, 0.8F, 0.5F,
@@ -419,7 +419,7 @@ public class ClientViewSceneTest extends MinecraftTestBase {
     }
 
     @Test
-    public void aTimeOnlyPortalNeverWritesTheLocalWeatherBack() throws ClientViewProtocolException {
+    public void aTimeOnlyPortalNeverWritesTheLocalWeatherBack() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
         harness.receive(new ClientViewMessage.Atmosphere(ClientViewHarness.PORTAL_KEY, 18000L, 0.0F, 0.0F,

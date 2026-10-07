@@ -6,7 +6,7 @@ import art.arcane.wormholes.network.client.ClientViewChannel;
 import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.stream.PlateSectionBox;
 import art.arcane.optics.client.ClientSweep;
 import art.arcane.optics.math.BlockBox;
@@ -34,7 +34,7 @@ public class ClientViewFailureTest extends MinecraftTestBase {
     }
 
     @Test
-    public void aPlateBoxTheSweepCannotHoldIsRefusedInsteadOfCrashingTheTick() throws ClientViewProtocolException {
+    public void aPlateBoxTheSweepCannotHoldIsRefusedInsteadOfCrashingTheTick() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.receive(new ClientViewMessage.Portal(ClientViewHarness.PORTAL_KEY, 1, ClientViewHarness.geometry()), 0);
         BlockBox cells = new BlockBox(-8, 56, 0, 300, 200, 300);
@@ -58,7 +58,7 @@ public class ClientViewFailureTest extends MinecraftTestBase {
     }
 
     @Test
-    public void aRuntimeFailureWhileHandlingOneMessageCountsAsAProtocolFailure() throws ClientViewProtocolException {
+    public void aRuntimeFailureWhileHandlingOneMessageCountsAsAProtocolFailure() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness(ViewStreamCapability.ALL);
         harness.stream();
         harness.tick(EYE_X, EYE_Y, EYE_Z);
@@ -76,7 +76,7 @@ public class ClientViewFailureTest extends MinecraftTestBase {
     }
 
     @Test
-    public void aSenderThatThrowsKeepsNativeSelectionUnavailableForRecovery() throws ClientViewProtocolException {
+    public void aSenderThatThrowsKeepsNativeSelectionUnavailableForRecovery() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness(ViewStreamCapability.ALL);
         harness.tick.sender(message -> {
             throw new UnsupportedOperationException("Payload " + ClientViewChannel.CHANNEL + " may not be sent to the server!");
@@ -94,7 +94,7 @@ public class ClientViewFailureTest extends MinecraftTestBase {
     }
 
     @Test
-    public void aLaterOfferNegotiatesAgainAfterASendFailure() throws ClientViewProtocolException {
+    public void aLaterOfferNegotiatesAgainAfterASendFailure() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness(ViewStreamCapability.ALL);
         boolean[] blocked = {true};
         harness.tick.sender(message -> {
@@ -122,7 +122,7 @@ public class ClientViewFailureTest extends MinecraftTestBase {
     }
 
     @Test
-    public void anOfferReplyThatCannotBeSentKeepsAcceptedNativeSelection() throws ClientViewProtocolException {
+    public void anOfferReplyThatCannotBeSentKeepsAcceptedNativeSelection() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness(ViewStreamCapability.ALL);
         byte[] offer = ClientViewCodec.encodeS2C(offer(), 1, ViewStreamLimits.FLAG_LAST);
 
@@ -134,7 +134,7 @@ public class ClientViewFailureTest extends MinecraftTestBase {
     }
 
     @Test
-    public void aNewOfferClearsThePreviousServersPortalsBeforeTheNextStream() throws ClientViewProtocolException {
+    public void aNewOfferClearsThePreviousServersPortalsBeforeTheNextStream() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
         harness.tick(EYE_X, EYE_Y, EYE_Z);
@@ -163,7 +163,7 @@ public class ClientViewFailureTest extends MinecraftTestBase {
     }
 
     @Test
-    public void malformedNativeStreamRetriesHelloAtBoundedCadenceThenAcceptsFreshMesh() throws ClientViewProtocolException {
+    public void malformedNativeStreamRetriesHelloAtBoundedCadenceThenAcceptsFreshMesh() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness(ViewStreamCapability.ALL);
         harness.receive(offer(), 0);
         harness.receive(new ClientViewMessage.Accept(2, ViewStreamCapability.ALL, 20, ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 9L, 8), 0);

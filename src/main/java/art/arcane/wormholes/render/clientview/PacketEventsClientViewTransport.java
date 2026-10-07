@@ -22,9 +22,9 @@ import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPl
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPluginMessage;
 
 import art.arcane.optics.stream.ViewStreamLimits;
-import art.arcane.optics.stream.ClientViewTransport;
+import art.arcane.optics.stream.ViewStreamTransport;
 
-public final class PacketEventsClientViewTransport extends PacketListenerAbstract implements ClientViewTransport<ClientViewObserver> {
+public final class PacketEventsClientViewTransport extends PacketListenerAbstract implements ViewStreamTransport<ClientViewObserver> {
     public static final int PING_ID = 0x57484356;
     public static final String REGISTER_CHANNEL = "minecraft:register";
     public static final String BRAND_CHANNEL = "minecraft:brand";

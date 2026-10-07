@@ -9,7 +9,7 @@ import art.arcane.optics.stream.BrickCodec;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.optics.fidelity.BlockEntitySample;
@@ -141,7 +141,7 @@ public final class ClientLocalMeshSources {
         return route == null ? Set.of() : Set.copyOf(route.entities);
     }
 
-    public void update(ClientViewSession session, ClientLevel current, double eyeX, double eyeY, double eyeZ) throws ClientViewProtocolException {
+    public void update(ClientViewSession session, ClientLevel current, double eyeX, double eyeY, double eyeZ) throws ViewStreamProtocolException {
         tick++;
         if (session.acceptMessage() != null) {
             long currentEpoch = session.acceptMessage().hashSalt();
@@ -375,7 +375,7 @@ public final class ClientLocalMeshSources {
         route.entities.addAll(present);
     }
 
-    private Derived capture(ClientViewSession session, Route route, long display) throws ClientViewProtocolException {
+    private Derived capture(ClientViewSession session, Route route, long display) throws ViewStreamProtocolException {
         int x = SectionPos.x(display) << 4;
         int y = SectionPos.y(display) << 4;
         int z = SectionPos.z(display) << 4;
@@ -415,7 +415,7 @@ public final class ClientLocalMeshSources {
                 try {
                     entities.add(new Brick.BlockEntityCell(cell, BlockEntitySample.encode(sample)));
                 } catch (IOException failure) {
-                    throw new ClientViewProtocolException("Unable to encode local block entity", failure);
+                    throw new ViewStreamProtocolException("Unable to encode local block entity", failure);
                 }
             }
         }

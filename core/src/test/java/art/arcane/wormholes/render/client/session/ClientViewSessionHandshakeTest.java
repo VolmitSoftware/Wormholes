@@ -16,14 +16,14 @@ import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamMessageType;
 import art.arcane.optics.stream.ViewStreamLimits;
-import art.arcane.optics.stream.ClientViewProtocolException;
-import art.arcane.optics.stream.ClientViewInbound;
-import art.arcane.optics.stream.ClientViewPhase;
-import art.arcane.optics.stream.ClientViewSessionState;
+import art.arcane.optics.stream.ViewStreamProtocolException;
+import art.arcane.optics.stream.ViewStreamInbound;
+import art.arcane.optics.stream.ViewStreamPhase;
+import art.arcane.optics.stream.ViewStreamSessionState;
 
 final class ClientViewSessionHandshakeTest {
     @Test
-    void helloAcceptsWithTheCapabilityIntersection() throws ClientViewProtocolException {
+    void helloAcceptsWithTheCapabilityIntersection() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
         harness.handshake(ViewStreamCapability.of(ViewStreamCapability.PLATES, ViewStreamCapability.BRICK_CACHE,
             ViewStreamCapability.ZERO_COPY, ViewStreamCapability.CLIENT_MIRROR));
@@ -34,23 +34,23 @@ final class ClientViewSessionHandshakeTest {
         assertTrue(ViewStreamCapability.CONFIG_PHASE.in(harness.client.offer.serverCaps()));
         assertEquals(harness.registry.hashSalt(), accept.hashSalt());
         assertEquals(8, accept.ackWindowFrames());
-        assertEquals(ClientViewSessionState.CLIENT_VIEW, harness.session.state());
+        assertEquals(ViewStreamSessionState.CLIENT_VIEW, harness.session.state());
         assertEquals(accept.sessionId(), harness.session.stats().sessionId());
     }
 
     @Test
-    void aMismatchedDataVersionIsDeclinedAndStaysVanilla() throws ClientViewProtocolException {
+    void aMismatchedDataVersionIsDeclinedAndStaysVanilla() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
         harness.session.brand("fabric");
-        assertTrue(harness.session.offer(ClientViewPhase.CONFIGURATION));
+        assertTrue(harness.session.offer(ViewStreamPhase.CONFIGURATION));
         harness.client.receive(harness.frames);
-        assertEquals(ClientViewInbound.HELLO_DECLINED, harness.c2s(harness.client.hello(SessionHarness.DATA_VERSION + 1,
+        assertEquals(ViewStreamInbound.HELLO_DECLINED, harness.c2s(harness.client.hello(SessionHarness.DATA_VERSION + 1,
             SessionHarness.CLIENT_CAPS, "fabric", 0L)));
         harness.client.receive(harness.frames);
         ClientViewMessage.Decline decline = (ClientViewMessage.Decline) harness.last(ViewStreamMessageType.DECLINE);
         assertEquals(ClientViewMessage.DeclineReason.DATA_VERSION_MISMATCH, decline.reason());
-        assertEquals(ClientViewSessionState.VANILLA, harness.session.state());
-        assertEquals(ClientViewInbound.IGNORED, harness.c2s(harness.client.hello(SessionHarness.DATA_VERSION, SessionHarness.CLIENT_CAPS,
+        assertEquals(ViewStreamSessionState.VANILLA, harness.session.state());
+        assertEquals(ViewStreamInbound.IGNORED, harness.c2s(harness.client.hello(SessionHarness.DATA_VERSION, SessionHarness.CLIENT_CAPS,
             "fabric", 0L)));
     }
 
@@ -58,17 +58,17 @@ final class ClientViewSessionHandshakeTest {
     void vanillaBrandsNeverWaitAndModdedBrandsWaitForHello() throws Exception {
         SessionHarness vanilla = new SessionHarness(SessionHarness.options(true, 8));
         vanilla.session.brand("vanilla");
-        vanilla.session.offer(ClientViewPhase.CONFIGURATION);
+        vanilla.session.offer(ViewStreamPhase.CONFIGURATION);
         assertFalse(vanilla.session.awaitingHello());
-        assertEquals(ClientViewSessionState.VANILLA, vanilla.session.awaitHandshake());
+        assertEquals(ViewStreamSessionState.VANILLA, vanilla.session.awaitHandshake());
 
         SessionHarness modded = new SessionHarness(SessionHarness.options(true, 8));
         modded.session.brand("fabric");
-        modded.session.offer(ClientViewPhase.CONFIGURATION);
+        modded.session.offer(ViewStreamPhase.CONFIGURATION);
         modded.client.receive(modded.frames);
         assertTrue(modded.session.awaitingHello());
         byte[] hello = modded.client.hello(SessionHarness.DATA_VERSION, SessionHarness.CLIENT_CAPS, "fabric", 0L);
-        AtomicReference<ClientViewInbound> inbound = new AtomicReference<ClientViewInbound>();
+        AtomicReference<ViewStreamInbound> inbound = new AtomicReference<ViewStreamInbound>();
         Thread netty = new Thread(() -> {
             try {
                 Thread.sleep(20L);
@@ -78,24 +78,24 @@ final class ClientViewSessionHandshakeTest {
             inbound.set(modded.session.receive(hello, 0, hello.length));
         });
         netty.start();
-        assertEquals(ClientViewSessionState.CLIENT_VIEW, modded.session.awaitHandshake());
+        assertEquals(ViewStreamSessionState.CLIENT_VIEW, modded.session.awaitHandshake());
         netty.join();
-        assertEquals(ClientViewInbound.HELLO_ACCEPTED, inbound.get());
+        assertEquals(ViewStreamInbound.HELLO_ACCEPTED, inbound.get());
     }
 
     @Test
     void aGraceExpiryFallsBackToVanilla() {
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
         harness.session.brand("fabric");
-        harness.session.offer(ClientViewPhase.CONFIGURATION);
+        harness.session.offer(ViewStreamPhase.CONFIGURATION);
         harness.clock.addAndGet(99_000_000L);
-        assertEquals(ClientViewSessionState.PENDING, harness.session.expire());
+        assertEquals(ViewStreamSessionState.PENDING, harness.session.expire());
         harness.clock.addAndGet(1_000_000L);
-        assertEquals(ClientViewSessionState.VANILLA, harness.session.expire());
+        assertEquals(ViewStreamSessionState.VANILLA, harness.session.expire());
     }
 
     @Test
-    void aLateHelloReleasesVanillaClaimsThenStreams() throws ClientViewProtocolException {
+    void aLateHelloReleasesVanillaClaimsThenStreams() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
         SessionWorld world = new SessionWorld(20L);
         SessionPortal a = harness.access.add(new SessionPortal("a", 0));
@@ -103,23 +103,23 @@ final class ClientViewSessionHandshakeTest {
         a.plate = a.build(world);
         b.plate = b.build(world);
         harness.session.brand("fabric");
-        assertTrue(harness.session.offer(ClientViewPhase.PLAY));
+        assertTrue(harness.session.offer(ViewStreamPhase.PLAY));
         harness.client.receive(harness.frames);
         int pendingTicks = 0;
-        while (harness.session.state() == ClientViewSessionState.PENDING) {
+        while (harness.session.state() == ViewStreamSessionState.PENDING) {
             assertTrue(harness.session.holdsVanilla());
             harness.tick();
             pendingTicks++;
         }
         assertEquals(10, pendingTicks, "play-phase negotiation holds for ten ticks");
-        assertEquals(ClientViewSessionState.VANILLA, harness.session.state());
+        assertEquals(ViewStreamSessionState.VANILLA, harness.session.state());
         assertFalse(harness.session.holdsVanilla());
         harness.tick();
         assertFalse(harness.session.owns(a.id));
         assertTrue(harness.events.stream().noneMatch(event -> event.startsWith("release")));
 
         harness.events.clear();
-        assertEquals(ClientViewInbound.HELLO_ACCEPTED, harness.c2s(harness.client.hello(SessionHarness.DATA_VERSION, SessionHarness.CLIENT_CAPS,
+        assertEquals(ViewStreamInbound.HELLO_ACCEPTED, harness.c2s(harness.client.hello(SessionHarness.DATA_VERSION, SessionHarness.CLIENT_CAPS,
             "fabric", 0L)));
         assertEquals(List.of("send ACCEPT"), harness.events);
         assertEquals(1L, harness.session.stats().lateSwitches());
@@ -140,7 +140,7 @@ final class ClientViewSessionHandshakeTest {
     }
 
     @Test
-    void theKillSwitchResetsSessionsToVanilla() throws ClientViewProtocolException {
+    void theKillSwitchResetsSessionsToVanilla() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
         SessionPortal a = harness.access.add(new SessionPortal("a", 0));
         a.plate = a.build(new SessionWorld(21L));
@@ -152,16 +152,16 @@ final class ClientViewSessionHandshakeTest {
         harness.pump();
         ClientViewMessage.SessionReset reset = (ClientViewMessage.SessionReset) harness.last(ViewStreamMessageType.SESSION_RESET);
         assertEquals(ClientViewMessage.ResetReason.DISABLED, reset.reason());
-        assertEquals(ClientViewSessionState.VANILLA, harness.session.state());
+        assertEquals(ViewStreamSessionState.VANILLA, harness.session.state());
         assertFalse(harness.session.owns(a.id));
         int received = harness.client.received.size();
         harness.tick();
         harness.tick();
         assertEquals(received, harness.client.received.size());
-        assertFalse(harness.session.offer(ClientViewPhase.PLAY));
+        assertFalse(harness.session.offer(ViewStreamPhase.PLAY));
 
         harness.registry.runtimeEnabled(true);
-        assertTrue(harness.session.offer(ClientViewPhase.PLAY));
+        assertTrue(harness.session.offer(ViewStreamPhase.PLAY));
     }
 
     @Test
@@ -183,7 +183,7 @@ final class ClientViewSessionHandshakeTest {
     }
 
     @Test
-    void disablingTheConfigSectionEndsSessions() throws ClientViewProtocolException {
+    void disablingTheConfigSectionEndsSessions() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
         harness.handshake(SessionHarness.CLIENT_CAPS);
         ClientViewOptions on = harness.registry.options();
@@ -191,62 +191,62 @@ final class ClientViewSessionHandshakeTest {
             on.ackWindowFrames(), on.brickCache(), on.destinationLight(), on.entityFrames(), on.zeroCopy(), on.standbyPrestream(),
             on.viewStats(), on.clientMirror(), on.clientRecursion(), on.interestGraceTicks()));
         harness.pump();
-        assertEquals(ClientViewSessionState.VANILLA, harness.session.state());
+        assertEquals(ViewStreamSessionState.VANILLA, harness.session.state());
         assertEquals(ClientViewMessage.ResetReason.DISABLED,
             ((ClientViewMessage.SessionReset) harness.last(ViewStreamMessageType.SESSION_RESET)).reason());
     }
 
     @Test
-    void repeatedProtocolViolationsEndTheSession() throws ClientViewProtocolException {
+    void repeatedProtocolViolationsEndTheSession() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
         harness.handshake(SessionHarness.CLIENT_CAPS);
         byte[] garbage = {(byte) 99, 1, 2};
-        assertEquals(ClientViewInbound.DROPPED, harness.c2s(garbage));
-        assertEquals(ClientViewInbound.DROPPED, harness.c2s(garbage));
-        assertEquals(ClientViewSessionState.CLIENT_VIEW, harness.session.state());
-        assertEquals(ClientViewInbound.RESET, harness.c2s(garbage));
+        assertEquals(ViewStreamInbound.DROPPED, harness.c2s(garbage));
+        assertEquals(ViewStreamInbound.DROPPED, harness.c2s(garbage));
+        assertEquals(ViewStreamSessionState.CLIENT_VIEW, harness.session.state());
+        assertEquals(ViewStreamInbound.RESET, harness.c2s(garbage));
         harness.pump();
-        assertEquals(ClientViewSessionState.VANILLA, harness.session.state());
+        assertEquals(ViewStreamSessionState.VANILLA, harness.session.state());
         assertEquals(ClientViewMessage.ResetReason.PROTOCOL,
             ((ClientViewMessage.SessionReset) harness.last(ViewStreamMessageType.SESSION_RESET)).reason());
         assertEquals(3L, harness.session.stats().c2sDropped());
     }
 
     @Test
-    void floodingPastTheRateLimitDropsThenResets() throws ClientViewProtocolException {
+    void floodingPastTheRateLimitDropsThenResets() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
         harness.handshake(SessionHarness.CLIENT_CAPS);
         byte[] ack = ClientViewCodec.encodeC2S(new ClientViewMessage.Ack(0, 0, 0));
-        ClientViewInbound last = ClientViewInbound.HANDLED;
+        ViewStreamInbound last = ViewStreamInbound.HANDLED;
         int sent = 0;
         int cap = ViewStreamLimits.MAX_C2S_MESSAGES_PER_SECOND;
-        while (last != ClientViewInbound.RESET && sent < cap + 20) {
+        while (last != ViewStreamInbound.RESET && sent < cap + 20) {
             harness.clock.addAndGet(1_000_000L);
             last = harness.session.receive(ack, 0, ack.length);
             sent++;
         }
-        assertEquals(ClientViewInbound.RESET, last);
+        assertEquals(ViewStreamInbound.RESET, last);
         assertTrue(sent > cap && sent < cap + 10, "reset after " + sent + " messages");
     }
 
     @Test
-    void viewStatsAreAcceptedAtMostEveryFiveSeconds() throws ClientViewProtocolException {
+    void viewStatsAreAcceptedAtMostEveryFiveSeconds() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
         harness.handshake(SessionHarness.CLIENT_CAPS);
         byte[] stats = ClientViewCodec.encodeC2S(new ClientViewMessage.ViewStats(10, 2, 400, 0, 80, 120, 3));
-        assertEquals(ClientViewInbound.HANDLED, harness.c2s(stats));
-        assertEquals(ClientViewInbound.IGNORED, harness.c2s(stats));
+        assertEquals(ViewStreamInbound.HANDLED, harness.c2s(stats));
+        assertEquals(ViewStreamInbound.IGNORED, harness.c2s(stats));
         harness.clock.addAndGet(5_000_000_000L);
-        assertEquals(ClientViewInbound.HANDLED, harness.c2s(stats));
+        assertEquals(ViewStreamInbound.HANDLED, harness.c2s(stats));
         ClientViewMessage.ViewStats recorded = harness.session.stats().viewStats();
         assertEquals(400, recorded.overlayCells());
     }
 
     @Test
-    void aBrickMissBeforeTheHandshakeIsIgnored() throws ClientViewProtocolException {
+    void aBrickMissBeforeTheHandshakeIsIgnored() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
         byte[] miss = ClientViewCodec.encodeC2S(ClientViewMessage.BrickMiss.of(new ClientViewMessage.BrickMiss.Plate(1, 1, new long[] {-1L})));
-        assertEquals(ClientViewInbound.IGNORED, harness.c2s(miss));
+        assertEquals(ViewStreamInbound.IGNORED, harness.c2s(miss));
         assertInstanceOf(ClientViewSessionStats.class, harness.session.stats());
         assertTrue(harness.frames.isEmpty());
     }

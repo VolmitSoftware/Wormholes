@@ -1,6 +1,6 @@
 package art.arcane.optics.stream;
 
-public final class ClientViewAckWindow {
+public final class ViewStreamAckWindow {
     private static final int UNBOUNDED_TRACKING = 64;
 
     private final int capacity;
@@ -12,7 +12,7 @@ public final class ClientViewAckWindow {
     private long lastRttNanos;
     private long appliedCells;
 
-    public ClientViewAckWindow(int capacity) {
+    public ViewStreamAckWindow(int capacity) {
         this.capacity = Math.max(0, capacity);
         int slots = this.capacity == 0 ? UNBOUNDED_TRACKING : this.capacity;
         this.sequences = new int[slots];

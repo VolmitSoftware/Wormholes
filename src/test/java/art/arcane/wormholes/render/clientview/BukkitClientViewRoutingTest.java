@@ -25,19 +25,19 @@ import com.github.retrooper.packetevents.protocol.ConnectionState;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamMessageType;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.optics.occlusion.LocalOcclusionArbiter;
 import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.wormholes.render.PortalProjector;
 import art.arcane.wormholes.render.ProjectionClaimArbiter;
-import art.arcane.optics.stream.ClientViewInbound;
-import art.arcane.optics.stream.ClientViewSessionState;
+import art.arcane.optics.stream.ViewStreamInbound;
+import art.arcane.optics.stream.ViewStreamSessionState;
 import art.arcane.wormholes.platform.QueuedOpticsScheduler;
 
 final class BukkitClientViewRoutingTest {
     @Test
-    void nativeGeometryFailureAndAutomaticResetsNeverReturnThePortalToPacketProjection() throws ClientViewProtocolException {
+    void nativeGeometryFailureAndAutomaticResetsNeverReturnThePortalToPacketProjection() throws ViewStreamProtocolException {
         try (ClientViewFixture fixture = new ClientViewFixture(ClientViewFixture.options(true, false, 100), ConnectionState.PLAY)) {
             fixture.clientView.observer(fixture.playerId, fixture.user).brand("fabric");
             assertTrue(fixture.negotiator.offerPlay(fixture.player));
@@ -59,7 +59,7 @@ final class BukkitClientViewRoutingTest {
     }
 
     @Test
-    void vanillaObserverKeepsEveryPortalOnTheVanillaProjector() throws ClientViewProtocolException {
+    void vanillaObserverKeepsEveryPortalOnTheVanillaProjector() throws ViewStreamProtocolException {
         try (ClientViewFixture fixture = new ClientViewFixture(ClientViewFixture.options(true, false, 100), ConnectionState.PLAY)) {
             List<ILocalPortal> interested = fixture.route();
 
@@ -71,7 +71,7 @@ final class BukkitClientViewRoutingTest {
     }
 
     @Test
-    void negotiatedObserverOwnsTheInterestedPortalAndReceivesItsPlate() throws ClientViewProtocolException {
+    void negotiatedObserverOwnsTheInterestedPortalAndReceivesItsPlate() throws ViewStreamProtocolException {
         try (ClientViewFixture fixture = negotiated()) {
             List<ILocalPortal> interested = fixture.route();
 
@@ -100,7 +100,7 @@ final class BukkitClientViewRoutingTest {
     }
 
     @Test
-    void refusedPlatesKeepThePortalOnTheVanillaProjector() throws ClientViewProtocolException {
+    void refusedPlatesKeepThePortalOnTheVanillaProjector() throws ViewStreamProtocolException {
         try (ClientViewFixture fixture = negotiated()) {
             FidelitySettings.sharedPlate = false;
             List<ILocalPortal> interested = fixture.route();
@@ -112,7 +112,7 @@ final class BukkitClientViewRoutingTest {
     }
 
     @Test
-    void killSwitchResetsTheClientAndReturnsThePortalToVanilla() throws ClientViewProtocolException {
+    void killSwitchResetsTheClientAndReturnsThePortalToVanilla() throws ViewStreamProtocolException {
         try (ClientViewFixture fixture = negotiated()) {
             assertTrue(fixture.route().isEmpty());
             fixture.messages();
@@ -121,7 +121,7 @@ final class BukkitClientViewRoutingTest {
             List<ClientViewMessage> reset = fixture.messages();
             assertEquals(1, reset.size());
             assertEquals(ClientViewMessage.ResetReason.DISABLED, ((ClientViewMessage.SessionReset) reset.get(0)).reason());
-            assertEquals(ClientViewSessionState.VANILLA, fixture.session().state());
+            assertEquals(ViewStreamSessionState.VANILLA, fixture.session().state());
 
             assertEquals(List.of(fixture.portal), fixture.route());
             assertFalse(fixture.clientView.attending());
@@ -130,7 +130,7 @@ final class BukkitClientViewRoutingTest {
     }
 
     @Test
-    void portalLeavingInterestIsDroppedAfterTheGrace() throws ClientViewProtocolException {
+    void portalLeavingInterestIsDroppedAfterTheGrace() throws ViewStreamProtocolException {
         try (ClientViewFixture fixture = negotiated()) {
             fixture.route();
             fixture.buildPlates();
@@ -147,7 +147,7 @@ final class BukkitClientViewRoutingTest {
     }
 
     @Test
-    void vanillaAndClientViewObserversShareOnePlate() throws ClientViewProtocolException {
+    void vanillaAndClientViewObserversShareOnePlate() throws ViewStreamProtocolException {
         try (ClientViewFixture fixture = negotiated()) {
             fixture.route();
             fixture.buildPlates();
@@ -170,7 +170,7 @@ final class BukkitClientViewRoutingTest {
     }
 
     @Test
-    void clientMirrorObserversOwnTheMirrorWithoutBuildingItsPlate() throws ClientViewProtocolException {
+    void clientMirrorObserversOwnTheMirrorWithoutBuildingItsPlate() throws ViewStreamProtocolException {
         try (ClientViewFixture fixture = negotiated(ClientViewFixture.CLIENT_CAPS | ViewStreamCapability.CLIENT_MIRROR.mask())) {
             for (int tick = 0; tick < 3; tick++) {
                 assertTrue(fixture.route().isEmpty());
@@ -186,7 +186,7 @@ final class BukkitClientViewRoutingTest {
     }
 
     @Test
-    void portalsInFrontOfAClientMirrorStreamAsNestedChildren() throws ClientViewProtocolException {
+    void portalsInFrontOfAClientMirrorStreamAsNestedChildren() throws ViewStreamProtocolException {
         try (ClientViewFixture fixture = negotiated(ClientViewFixture.CLIENT_CAPS | ViewStreamCapability.CLIENT_MIRROR.mask()
             | ViewStreamCapability.CLIENT_RECURSION.mask())) {
             ILocalPortal child = fixture.linkedPortal(2);
@@ -218,7 +218,7 @@ final class BukkitClientViewRoutingTest {
     }
 
     @Test
-    void negotiatedObserverAttendsEveryProjectablePortalWithoutWaitingForTheGaze() throws ClientViewProtocolException {
+    void negotiatedObserverAttendsEveryProjectablePortalWithoutWaitingForTheGaze() throws ViewStreamProtocolException {
         try (ClientViewFixture fixture = negotiated()) {
             List<ILocalPortal> interested = new ArrayList<ILocalPortal>();
             fixture.clientView.route(fixture.player, fixture.eye.clone(), interested, List.of(fixture.portal), Map.of(), ++fixture.tick);
@@ -230,7 +230,7 @@ final class BukkitClientViewRoutingTest {
     }
 
     @Test
-    void onlyObserversOwningPortalsCountAsProjectionObservers() throws ClientViewProtocolException {
+    void onlyObserversOwningPortalsCountAsProjectionObservers() throws ViewStreamProtocolException {
         try (ClientViewFixture vanilla = new ClientViewFixture(ClientViewFixture.options(true, false, 100), ConnectionState.PLAY)) {
             vanilla.route();
             Set<UUID> none = new HashSet<UUID>();
@@ -245,15 +245,15 @@ final class BukkitClientViewRoutingTest {
         }
     }
 
-    private static ClientViewFixture negotiated() throws ClientViewProtocolException {
+    private static ClientViewFixture negotiated() throws ViewStreamProtocolException {
         return negotiated(ClientViewFixture.CLIENT_CAPS);
     }
 
-    private static ClientViewFixture negotiated(long clientCaps) throws ClientViewProtocolException {
+    private static ClientViewFixture negotiated(long clientCaps) throws ViewStreamProtocolException {
         ClientViewFixture fixture = new ClientViewFixture(ClientViewFixture.options(true, false, 100), ConnectionState.PLAY);
         fixture.clientView.observer(fixture.playerId, fixture.user).brand("fabric");
         assertTrue(fixture.negotiator.offerPlay(fixture.player));
-        assertEquals(ClientViewInbound.HELLO_ACCEPTED, fixture.hello(clientCaps));
+        assertEquals(ViewStreamInbound.HELLO_ACCEPTED, fixture.hello(clientCaps));
         List<ClientViewMessage> handshake = fixture.messages();
         assertEquals(List.of(ViewStreamMessageType.OFFER, ViewStreamMessageType.ACCEPT), types(handshake));
         return fixture;

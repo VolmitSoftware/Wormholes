@@ -7,7 +7,7 @@ import art.arcane.wormholes.modded.mixin.client.DebugScreenEntriesAccessor;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import net.minecraft.SharedConstants;
 import net.minecraft.client.Camera;
@@ -219,7 +219,7 @@ public final class WormholesClient {
         tick.tick(eye.x, eye.y, eye.z, velocity.x, velocity.y, velocity.z, System.currentTimeMillis());
         try {
             localMeshes.update(session, level, eye.x, eye.y, eye.z);
-        } catch (ClientViewProtocolException failure) {
+        } catch (ViewStreamProtocolException failure) {
             LOGGER.warn("Unable to capture local mirror sections", failure);
         }
         meshViews.update(session, level);
@@ -295,7 +295,7 @@ public final class WormholesClient {
     private void send(ClientViewMessage message) {
         try {
             sender.accept(ClientViewCodec.encodeC2S(message));
-        } catch (ClientViewProtocolException failure) {
+        } catch (ViewStreamProtocolException failure) {
             LOGGER.warn("Wormholes ClientView could not encode {}", message.type(), failure);
         }
     }

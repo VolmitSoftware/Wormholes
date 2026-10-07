@@ -13,16 +13,16 @@ import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.wormholes.network.client.ClientViewHandshake;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamMessageType;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.optics.aperture.ApertureDescriptor;
-import art.arcane.optics.stream.ClientViewInbound;
+import art.arcane.optics.stream.ViewStreamInbound;
 import art.arcane.wormholes.render.client.session.ClientViewOptions;
 import art.arcane.wormholes.render.client.session.ClientViewPlatform;
 import art.arcane.wormholes.render.client.session.ClientViewServerSession;
 import art.arcane.wormholes.render.client.session.ClientViewSessionRegistry;
-import art.arcane.optics.stream.ClientViewSessionState;
+import art.arcane.optics.stream.ViewStreamSessionState;
 import io.netty.channel.embedded.EmbeddedChannel;
 import net.minecraft.SharedConstants;
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
@@ -97,7 +97,7 @@ public final class MinecraftClientViewGameTest {
         return test.result;
     }
 
-    private void negotiate() throws ClientViewProtocolException {
+    private void negotiate() throws ViewStreamProtocolException {
         Connection accepted = mockConnection();
         MinecraftClientProfiles.brand(accepted, "fabric");
         UUID acceptedId = UUID.randomUUID();
@@ -109,12 +109,12 @@ public final class MinecraftClientViewGameTest {
         helper.assertTrue(ViewStreamCapability.CONFIG_PHASE.in(offer.serverCaps()), "Configuration OFFER lacks CONFIG_PHASE");
         helper.assertTrue(offer.mcDataVersion() == dataVersion(), "OFFER carried data version " + offer.mcDataVersion());
         helper.assertTrue(!task.tick(), "Modded-brand task finished before the HELLO grace");
-        helper.assertTrue(negotiator.receive(accepted, hello(offer, dataVersion(), STREAM_CAPS)) == ClientViewInbound.HELLO_ACCEPTED,
+        helper.assertTrue(negotiator.receive(accepted, hello(offer, dataVersion(), STREAM_CAPS)) == ViewStreamInbound.HELLO_ACCEPTED,
             "HELLO was not accepted");
         ClientViewMessage.Accept accept = (ClientViewMessage.Accept) single(accepted, ViewStreamMessageType.ACCEPT);
         helper.assertTrue(accept.caps() == (STREAM_CAPS & MinecraftClientViewService.PLATFORM_CAPS), "ACCEPT caps were " + accept.caps());
         helper.assertTrue(task.tick(), "Configuration task stayed open after ACCEPT");
-        helper.assertTrue(negotiator.session(acceptedId).state() == ClientViewSessionState.CLIENT_VIEW, "Session did not reach CLIENT_VIEW");
+        helper.assertTrue(negotiator.session(acceptedId).state() == ViewStreamSessionState.CLIENT_VIEW, "Session did not reach CLIENT_VIEW");
 
         Connection vanilla = mockConnection();
         MinecraftClientProfiles.brand(vanilla, "vanilla");
@@ -124,7 +124,7 @@ public final class MinecraftClientViewGameTest {
         });
         single(vanilla, ViewStreamMessageType.OFFER);
         helper.assertTrue(vanillaTask.tick(), "Vanilla-brand task waited for a HELLO");
-        helper.assertTrue(negotiator.session(vanillaId).state() == ClientViewSessionState.VANILLA, "Vanilla brand did not stay vanilla");
+        helper.assertTrue(negotiator.session(vanillaId).state() == ViewStreamSessionState.VANILLA, "Vanilla brand did not stay vanilla");
 
         Connection mismatched = mockConnection();
         UUID mismatchedId = UUID.randomUUID();
@@ -132,7 +132,7 @@ public final class MinecraftClientViewGameTest {
         mismatchedTask.start(packet -> {
         });
         ClientViewMessage.Offer mismatchedOffer = (ClientViewMessage.Offer) single(mismatched, ViewStreamMessageType.OFFER);
-        helper.assertTrue(negotiator.receive(mismatched, hello(mismatchedOffer, dataVersion() + 1, STREAM_CAPS)) == ClientViewInbound.HELLO_DECLINED,
+        helper.assertTrue(negotiator.receive(mismatched, hello(mismatchedOffer, dataVersion() + 1, STREAM_CAPS)) == ViewStreamInbound.HELLO_DECLINED,
             "Mismatched data version was not declined");
         ClientViewMessage.Decline decline = (ClientViewMessage.Decline) single(mismatched, ViewStreamMessageType.DECLINE);
         helper.assertTrue(decline.reason() == ClientViewMessage.DeclineReason.DATA_VERSION_MISMATCH, "DECLINE reason was " + decline.reason());
@@ -153,7 +153,7 @@ public final class MinecraftClientViewGameTest {
         helper.assertTrue(!negotiator.offerPlay(playId, "cv-play", play), "Play-phase fallback offered twice");
     }
 
-    private void startStream() throws ClientViewProtocolException {
+    private void startStream() throws ViewStreamProtocolException {
         player = MinecraftGameTestPlayer.connect(runtime, helper.getLevel(), "cv-stream");
         clear(new BlockPos(0, 2, 0), new BlockPos(8, 7, 12));
         clear(new BlockPos(36, 2, 0), new BlockPos(46, 7, 12));
@@ -172,7 +172,7 @@ public final class MinecraftClientViewGameTest {
         UUID id = player.player().getUUID();
         helper.assertTrue(negotiator.offerPlay(id, "cv-stream", connection), "Stream fixture did not offer");
         ClientViewMessage.Offer offer = (ClientViewMessage.Offer) single(connection, ViewStreamMessageType.OFFER);
-        helper.assertTrue(negotiator.receive(connection, hello(offer, dataVersion(), STREAM_CAPS)) == ClientViewInbound.HELLO_ACCEPTED,
+        helper.assertTrue(negotiator.receive(connection, hello(offer, dataVersion(), STREAM_CAPS)) == ViewStreamInbound.HELLO_ACCEPTED,
             "Stream HELLO was not accepted");
         single(connection, ViewStreamMessageType.ACCEPT);
         ClientViewServerSession<MinecraftClientViewPeer, BlockState> session = negotiator.session(id);
@@ -220,13 +220,13 @@ public final class MinecraftClientViewGameTest {
         return connection;
     }
 
-    private ClientViewMessage single(Connection connection, ViewStreamMessageType type) throws ClientViewProtocolException {
+    private ClientViewMessage single(Connection connection, ViewStreamMessageType type) throws ViewStreamProtocolException {
         List<ClientViewMessage> frames = frames(connection);
         helper.assertTrue(frames.size() == 1 && frames.get(0).type() == type, "Expected one " + type + " frame but read " + types(frames));
         return frames.get(0);
     }
 
-    private List<ClientViewMessage> frames(Connection connection) throws ClientViewProtocolException {
+    private List<ClientViewMessage> frames(Connection connection) throws ViewStreamProtocolException {
         EmbeddedChannel channel = channel(connection);
         channel.runPendingTasks();
         List<ClientViewMessage> frames = new ArrayList<>();
@@ -277,7 +277,7 @@ public final class MinecraftClientViewGameTest {
         }
     }
 
-    private static byte[] hello(ClientViewMessage.Offer offer, int dataVersion, long caps) throws ClientViewProtocolException {
+    private static byte[] hello(ClientViewMessage.Offer offer, int dataVersion, long caps) throws ViewStreamProtocolException {
         return ClientViewCodec.encodeC2S(ClientViewHandshake.clientHello(offer, dataVersion, caps, 512 * 1024, 256, 0L, "fabric"));
     }
 

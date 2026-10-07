@@ -11,8 +11,8 @@ import org.junit.jupiter.api.Test;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamMessageType;
 import art.arcane.optics.stream.ViewStreamLimits;
-import art.arcane.optics.stream.ClientViewProtocolException;
-import art.arcane.optics.stream.ClientViewSessionState;
+import art.arcane.optics.stream.ViewStreamProtocolException;
+import art.arcane.optics.stream.ViewStreamSessionState;
 
 final class ClientViewSessionLoadTest {
     private static final int PORTALS = 9;
@@ -22,7 +22,7 @@ final class ClientViewSessionLoadTest {
     private static final int C2S_MESSAGES_PER_ROUND = 2;
 
     @Test
-    void ninePortalsAtTwentyHertzWithAFullPlateFillStayFarBelowTheInboundLimit() throws ClientViewProtocolException {
+    void ninePortalsAtTwentyHertzWithAFullPlateFillStayFarBelowTheInboundLimit() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, ViewStreamLimits.DEFAULT_ACK_WINDOW_FRAMES));
         harness.c2sSpacingNanos = 0L;
         harness.client.autoAck = true;
@@ -48,7 +48,7 @@ final class ClientViewSessionLoadTest {
                 second += perTick[back];
             }
             peakPerSecond = Math.max(peakPerSecond, second);
-            assertEquals(ClientViewSessionState.CLIENT_VIEW, harness.session.state(), "session reset on tick " + i);
+            assertEquals(ViewStreamSessionState.CLIENT_VIEW, harness.session.state(), "session reset on tick " + i);
         }
         ClientViewSessionStats stats = harness.session.stats();
         assertEquals(PORTALS, harness.client.plates.size(), "every plate filled");

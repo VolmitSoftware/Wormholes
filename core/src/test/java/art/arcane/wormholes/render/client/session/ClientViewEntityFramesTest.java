@@ -17,7 +17,7 @@ import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.optics.entity.ProjectedEntityEvent;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.entity.EntityDeltaCodec;
 import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.optics.entity.EntityProjection;
@@ -193,7 +193,7 @@ class ClientViewEntityFramesTest {
     }
 
     @Test
-    void framesStayInsideTheProtocolCaps() throws ClientViewProtocolException {
+    void framesStayInsideTheProtocolCaps() throws ViewStreamProtocolException {
         List<EntitySnapshot> crowd = new ArrayList<EntitySnapshot>();
         for (int i = 0; i < 400; i++) {
             crowd.add(visual(UUID.randomUUID(), i, 0.0D));

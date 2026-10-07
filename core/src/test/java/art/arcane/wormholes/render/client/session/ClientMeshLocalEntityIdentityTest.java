@@ -15,7 +15,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import art.arcane.optics.stream.ClientViewInbound;
+import art.arcane.optics.stream.ViewStreamInbound;
 
 final class ClientMeshLocalEntityIdentityTest {
     @Test
@@ -118,7 +118,7 @@ final class ClientMeshLocalEntityIdentityTest {
         }
 
         private void cover(int sequence, boolean available) throws Exception {
-            assertEquals(ClientViewInbound.HANDLED, harness.c2s(ClientViewCodec.encodeC2S(
+            assertEquals(ViewStreamInbound.HANDLED, harness.c2s(ClientViewCodec.encodeC2S(
                 new ClientViewMessage.MeshLocal(begin.portalKey(), begin.generation(), sequence, available, List.of(), List.of(localReal)))));
         }
 

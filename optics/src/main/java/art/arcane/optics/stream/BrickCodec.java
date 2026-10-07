@@ -88,12 +88,12 @@ public final class BrickCodec {
         }
     }
 
-    public static void write(ClientViewWriter out, Brick brick) throws ClientViewProtocolException {
+    public static void write(ViewStreamWriter out, Brick brick) throws ViewStreamProtocolException {
         out.u16(brick.brickIndex());
         writeBody(out, brick);
     }
 
-    public static void writeBody(ClientViewWriter out, Brick brick) throws ClientViewProtocolException {
+    public static void writeBody(ViewStreamWriter out, Brick brick) throws ViewStreamProtocolException {
         int start = out.size();
         out.u8(brick.encoding().id());
         out.u8(brick.bitsPerIndex());
@@ -118,7 +118,7 @@ public final class BrickCodec {
         if (brick.hasBlockEntities()) {
             Brick.BlockEntityCell[] cells = brick.blockEntities();
             if (cells.length > ViewStreamLimits.MAX_BRICK_BLOCK_ENTITIES) {
-                throw new ClientViewProtocolException("brick carries " + cells.length + " block entities");
+                throw new ViewStreamProtocolException("brick carries " + cells.length + " block entities");
             }
             out.u16(cells.length);
             for (Brick.BlockEntityCell cell : cells) {
@@ -128,31 +128,31 @@ public final class BrickCodec {
             }
         }
         if (out.size() - start > ViewStreamLimits.MAX_BRICK_BYTES) {
-            throw new ClientViewProtocolException("brick body exceeds " + ViewStreamLimits.MAX_BRICK_BYTES + " bytes");
+            throw new ViewStreamProtocolException("brick body exceeds " + ViewStreamLimits.MAX_BRICK_BYTES + " bytes");
         }
     }
 
-    public static byte[] body(Brick brick) throws ClientViewProtocolException {
-        ClientViewWriter out = new ClientViewWriter(encodedSize(brick));
+    public static byte[] body(Brick brick) throws ViewStreamProtocolException {
+        ViewStreamWriter out = new ViewStreamWriter(encodedSize(brick));
         writeBody(out, brick);
         return out.toByteArray();
     }
 
-    public static Brick read(ClientViewReader in) throws ClientViewProtocolException {
+    public static Brick read(ViewStreamReader in) throws ViewStreamProtocolException {
         int brickIndex = in.u16();
         return readBody(in, brickIndex);
     }
 
-    public static Brick readBody(ClientViewReader in, int brickIndex) throws ClientViewProtocolException {
+    public static Brick readBody(ViewStreamReader in, int brickIndex) throws ViewStreamProtocolException {
         int start = in.position();
         Brick.Encoding encoding = Brick.Encoding.byId(in.u8());
         if (encoding == null) {
-            throw new ClientViewProtocolException("unknown brick encoding");
+            throw new ViewStreamProtocolException("unknown brick encoding");
         }
         int bits = in.u8();
         int flags = in.u8();
         if ((flags & ~Brick.FLAG_MASK) != 0) {
-            throw new ClientViewProtocolException("unknown brick flags " + flags);
+            throw new ViewStreamProtocolException("unknown brick flags " + flags);
         }
         int single = ViewStreamLimits.PALETTE_AIR;
         int[] palette = null;
@@ -160,26 +160,26 @@ public final class BrickCodec {
         switch (encoding) {
             case EMPTY -> {
                 if (bits != 0) {
-                    throw new ClientViewProtocolException("empty brick with bits " + bits);
+                    throw new ViewStreamProtocolException("empty brick with bits " + bits);
                 }
             }
             case SINGLE -> {
                 if (bits != 0) {
-                    throw new ClientViewProtocolException("single brick with bits " + bits);
+                    throw new ViewStreamProtocolException("single brick with bits " + bits);
                 }
                 single = in.varint(ViewStreamLimits.MAX_SESSION_PALETTE_SIZE - 1);
                 if (single == ViewStreamLimits.PALETTE_AIR) {
-                    throw new ClientViewProtocolException("single brick of air must be EMPTY");
+                    throw new ViewStreamProtocolException("single brick of air must be EMPTY");
                 }
             }
             case PALETTED -> {
                 if (!Brick.validBits(bits)) {
-                    throw new ClientViewProtocolException("invalid bits per index " + bits);
+                    throw new ViewStreamProtocolException("invalid bits per index " + bits);
                 }
                 int maxPalette = Math.min(1 << bits, ViewStreamLimits.BRICK_CELLS);
                 int size = in.varint(maxPalette);
                 if (size < 2) {
-                    throw new ClientViewProtocolException("paletted brick with " + size + " entries");
+                    throw new ViewStreamProtocolException("paletted brick with " + size + " entries");
                 }
                 in.checkedCount(size, maxPalette, 1);
                 palette = new int[size];
@@ -205,25 +205,25 @@ public final class BrickCodec {
         if ((flags & Brick.FLAG_BLOCK_ENTITIES) != 0) {
             int count = in.checkedCount(in.u16(), ViewStreamLimits.MAX_BRICK_BLOCK_ENTITIES, 3);
             if (count == 0) {
-                throw new ClientViewProtocolException("BLOCK_ENTITIES flag with zero entries");
+                throw new ViewStreamProtocolException("BLOCK_ENTITIES flag with zero entries");
             }
             blockEntities = new Brick.BlockEntityCell[count];
             int total = 0;
             for (int i = 0; i < count; i++) {
                 int cellIndex = in.u16();
                 if (cellIndex >= ViewStreamLimits.BRICK_CELLS) {
-                    throw new ClientViewProtocolException("block entity cell " + cellIndex + " outside the brick");
+                    throw new ViewStreamProtocolException("block entity cell " + cellIndex + " outside the brick");
                 }
                 int length = in.varint(ViewStreamLimits.MAX_BLOCK_ENTITY_PAYLOAD_BYTES);
                 total += length;
                 if (total > ViewStreamLimits.MAX_BRICK_BLOCK_ENTITY_BYTES) {
-                    throw new ClientViewProtocolException("brick block entity payload exceeds " + ViewStreamLimits.MAX_BRICK_BLOCK_ENTITY_BYTES);
+                    throw new ViewStreamProtocolException("brick block entity payload exceeds " + ViewStreamLimits.MAX_BRICK_BLOCK_ENTITY_BYTES);
                 }
                 blockEntities[i] = new Brick.BlockEntityCell(cellIndex, in.bytes(length));
             }
         }
         if (in.position() - start > ViewStreamLimits.MAX_BRICK_BYTES) {
-            throw new ClientViewProtocolException("brick body exceeds " + ViewStreamLimits.MAX_BRICK_BYTES + " bytes");
+            throw new ViewStreamProtocolException("brick body exceeds " + ViewStreamLimits.MAX_BRICK_BYTES + " bytes");
         }
         return new Brick(brickIndex, encoding, bits, flags, single, palette, packed, blockLight, skyLight, blockEntities);
     }
@@ -233,11 +233,11 @@ public final class BrickCodec {
         switch (brick.encoding()) {
             case EMPTY -> {
             }
-            case SINGLE -> size += ClientViewWriter.varintSize(brick.singlePaletteId());
+            case SINGLE -> size += ViewStreamWriter.varintSize(brick.singlePaletteId());
             case PALETTED -> {
-                size += ClientViewWriter.varintSize(brick.localPalette().length);
+                size += ViewStreamWriter.varintSize(brick.localPalette().length);
                 for (int id : brick.localPalette()) {
-                    size += ClientViewWriter.varintSize(id);
+                    size += ViewStreamWriter.varintSize(id);
                 }
                 size += brick.packedIndices().length * 8;
             }
@@ -248,7 +248,7 @@ public final class BrickCodec {
         if (brick.hasBlockEntities()) {
             size += 2;
             for (Brick.BlockEntityCell cell : brick.blockEntities()) {
-                size += 2 + ClientViewWriter.varintSize(cell.payload().length) + cell.payload().length;
+                size += 2 + ViewStreamWriter.varintSize(cell.payload().length) + cell.payload().length;
             }
         }
         return size;
@@ -263,7 +263,7 @@ public final class BrickCodec {
         return runs < ViewStreamLimits.LIGHT_NIBBLE_BYTES ? 1 + runs : 1 + ViewStreamLimits.LIGHT_NIBBLE_BYTES;
     }
 
-    public static void writeLightLayer(ClientViewWriter out, byte[] nibbles) throws ClientViewProtocolException {
+    public static void writeLightLayer(ViewStreamWriter out, byte[] nibbles) throws ViewStreamProtocolException {
         int uniform = uniformNibble(nibbles);
         if (uniform >= 0) {
             out.u8(LIGHT_UNIFORM);
@@ -294,13 +294,13 @@ public final class BrickCodec {
         out.varint(length);
     }
 
-    public static byte[] readLightLayer(ClientViewReader in) throws ClientViewProtocolException {
+    public static byte[] readLightLayer(ViewStreamReader in) throws ViewStreamProtocolException {
         int mode = in.u8();
         switch (mode) {
             case LIGHT_UNIFORM -> {
                 int value = in.u8();
                 if (value > MAX_LIGHT_VALUE) {
-                    throw new ClientViewProtocolException("uniform light value " + value + " exceeds " + MAX_LIGHT_VALUE);
+                    throw new ViewStreamProtocolException("uniform light value " + value + " exceeds " + MAX_LIGHT_VALUE);
                 }
                 byte[] nibbles = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
                 Arrays.fill(nibbles, (byte) (value | (value << 4)));
@@ -309,25 +309,25 @@ public final class BrickCodec {
             case LIGHT_RUNS -> {
                 int runs = in.checkedCount(in.varint(ViewStreamLimits.BRICK_CELLS), ViewStreamLimits.BRICK_CELLS, 2);
                 if (runs == 0) {
-                    throw new ClientViewProtocolException("light runs without a run");
+                    throw new ViewStreamProtocolException("light runs without a run");
                 }
                 byte[] nibbles = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
                 int cell = 0;
                 for (int run = 0; run < runs; run++) {
                     int value = in.u8();
                     if (value > MAX_LIGHT_VALUE) {
-                        throw new ClientViewProtocolException("light run value " + value + " exceeds " + MAX_LIGHT_VALUE);
+                        throw new ViewStreamProtocolException("light run value " + value + " exceeds " + MAX_LIGHT_VALUE);
                     }
                     int length = in.varint(ViewStreamLimits.BRICK_CELLS);
                     if (length == 0 || cell + length > ViewStreamLimits.BRICK_CELLS) {
-                        throw new ClientViewProtocolException("light runs do not fit the brick");
+                        throw new ViewStreamProtocolException("light runs do not fit the brick");
                     }
                     for (int end = cell + length; cell < end; cell++) {
                         BrickLightSource.setNibble(nibbles, cell, value);
                     }
                 }
                 if (cell != ViewStreamLimits.BRICK_CELLS) {
-                    throw new ClientViewProtocolException("light runs cover " + cell + " of " + ViewStreamLimits.BRICK_CELLS + " cells");
+                    throw new ViewStreamProtocolException("light runs cover " + cell + " of " + ViewStreamLimits.BRICK_CELLS + " cells");
                 }
                 return nibbles;
             }
@@ -335,7 +335,7 @@ public final class BrickCodec {
                 in.require(ViewStreamLimits.LIGHT_NIBBLE_BYTES);
                 return in.bytes(ViewStreamLimits.LIGHT_NIBBLE_BYTES);
             }
-            default -> throw new ClientViewProtocolException("unknown light layer mode " + mode);
+            default -> throw new ViewStreamProtocolException("unknown light layer mode " + mode);
         }
     }
 
@@ -376,24 +376,24 @@ public final class BrickCodec {
                 length++;
                 continue;
             }
-            size += 1 + ClientViewWriter.varintSize(length);
+            size += 1 + ViewStreamWriter.varintSize(length);
             runs++;
             value = next;
             length = 1;
         }
-        size += 1 + ClientViewWriter.varintSize(length);
+        size += 1 + ViewStreamWriter.varintSize(length);
         runs++;
-        return size + ClientViewWriter.varintSize(runs);
+        return size + ViewStreamWriter.varintSize(runs);
     }
 
-    private static void validateIndices(long[] packed, int bits, int paletteSize) throws ClientViewProtocolException {
+    private static void validateIndices(long[] packed, int bits, int paletteSize) throws ViewStreamProtocolException {
         long mask = (1L << bits) - 1L;
         int perLong = 64 / bits;
         for (long word : packed) {
             long remaining = word;
             for (int slot = 0; slot < perLong; slot++) {
                 if ((remaining & mask) >= paletteSize) {
-                    throw new ClientViewProtocolException("packed index outside the local palette");
+                    throw new ViewStreamProtocolException("packed index outside the local palette");
                 }
                 remaining >>>= bits;
             }

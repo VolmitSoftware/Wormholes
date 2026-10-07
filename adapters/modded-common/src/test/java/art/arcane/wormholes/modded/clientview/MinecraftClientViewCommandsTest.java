@@ -14,7 +14,7 @@ import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.render.client.session.ClientViewOptions;
 import art.arcane.wormholes.render.client.session.ClientViewServerSession;
 import art.arcane.wormholes.render.client.session.ClientViewSessionRegistry;
-import art.arcane.optics.stream.ClientViewSessionState;
+import art.arcane.optics.stream.ViewStreamSessionState;
 import art.arcane.wormholes.render.client.session.ClientViewSessionStats;
 import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.CommandDispatcher;
@@ -94,7 +94,7 @@ public class MinecraftClientViewCommandsTest extends MinecraftTestBase {
 
     @Test
     public void statusPrintsTheSharedCatalogRepliesForEverySession() throws CommandSyntaxException {
-        when(registry.stats()).thenReturn(List.of(new ClientViewSessionStats(ALEX, 1, ClientViewSessionState.CLIENT_VIEW,
+        when(registry.stats()).thenReturn(List.of(new ClientViewSessionStats(ALEX, 1, ViewStreamSessionState.CLIENT_VIEW,
             ViewStreamCapability.of(ViewStreamCapability.PLATES), 2, 7L, 3072L, 5L, 1, 4L, 12_500L, 900L, 30L, 0L, 0L, 0L, 0L, null)));
         when(registry.session(ALEX)).thenReturn(session);
 
@@ -125,12 +125,12 @@ public class MinecraftClientViewCommandsTest extends MinecraftTestBase {
     @Test
     public void resetRestartsOnlyActiveSessionsOfOnlinePlayers() throws CommandSyntaxException {
         when(registry.session(ALEX)).thenReturn(session);
-        when(session.state()).thenReturn(ClientViewSessionState.PENDING);
+        when(session.state()).thenReturn(ViewStreamSessionState.PENDING);
         assertEquals(0, dispatcher.execute("wormholes clientview reset Steve", admin));
         assertEquals(0, dispatcher.execute("wormholes clientview reset Alex", admin));
         verify(session, never()).reset(any());
 
-        when(session.state()).thenReturn(ClientViewSessionState.CLIENT_VIEW);
+        when(session.state()).thenReturn(ViewStreamSessionState.CLIENT_VIEW);
         assertEquals(1, dispatcher.execute("wormholes clientview reset Alex", admin));
 
         verify(session).reset(ClientViewMessage.ResetReason.TELEPORT);

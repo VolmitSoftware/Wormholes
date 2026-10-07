@@ -5,7 +5,7 @@ import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.math.BlockBox;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -220,9 +220,9 @@ public class ClientMeshSectionsTest extends MinecraftTestBase {
     public void rejectsUnknownPaletteAndOutOfBoundsCoordinates() throws Exception {
         ClientMeshSections store = store(1024 * 1024);
         store.begin(7, 1, BOUNDS, 64);
-        assertThrows(ClientViewProtocolException.class, () -> store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 3, Brick.single(0, 99), SectionBiomes.NONE)));
-        assertThrows(ClientViewProtocolException.class, () -> store.put(new ClientViewMessage.MeshSection(7, 1, 100, 0, 0, 1, 3, Brick.single(0, 3), SectionBiomes.NONE)));
-        assertThrows(ClientViewProtocolException.class, () -> store.put(new ClientViewMessage.MeshSection(7, 1, 1 << 22, 0, 0, 1, 3, Brick.single(0, 3), SectionBiomes.NONE)));
+        assertThrows(ViewStreamProtocolException.class, () -> store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 3, Brick.single(0, 99), SectionBiomes.NONE)));
+        assertThrows(ViewStreamProtocolException.class, () -> store.put(new ClientViewMessage.MeshSection(7, 1, 100, 0, 0, 1, 3, Brick.single(0, 3), SectionBiomes.NONE)));
+        assertThrows(ViewStreamProtocolException.class, () -> store.put(new ClientViewMessage.MeshSection(7, 1, 1 << 22, 0, 0, 1, 3, Brick.single(0, 3), SectionBiomes.NONE)));
         assertEquals(0, store.bytes());
     }
 
@@ -279,7 +279,7 @@ public class ClientMeshSectionsTest extends MinecraftTestBase {
         assertEquals(3, view.contentRevision());
     }
 
-    private static ClientMeshSections store(long bytes) throws ClientViewProtocolException {
+    private static ClientMeshSections store(long bytes) throws ViewStreamProtocolException {
         ClientPalette palette = new ClientPalette(BuiltInRegistries.BLOCK);
         palette.apply(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(3, "minecraft:stone"))));
         return new ClientMeshSections(palette, bytes);

@@ -7,14 +7,14 @@ import java.util.function.Function;
 import java.util.function.LongSupplier;
 
 import art.arcane.optics.stream.ViewStreamCapability;
-import art.arcane.optics.stream.ClientViewTransport;
-import art.arcane.optics.stream.ClientViewPlateHandoff;
+import art.arcane.optics.stream.ViewStreamTransport;
+import art.arcane.optics.stream.PlateHandoffs;
 
-public record ClientViewPlatform<P, B>(ClientViewTransport<P> transport,
+public record ClientViewPlatform<P, B>(ViewStreamTransport<P> transport,
                                        ClientViewPortalAccess<P, B> portals,
                                        ClientViewEntitySource<P> entities,
                                        ClientViewFxSource<P> fx,
-                                       ClientViewPlateHandoff<B> handoffs,
+                                       PlateHandoffs<B> handoffs,
                                        Executor lanes,
                                        Function<B, String> stateStrings,
                                        int mcDataVersion,
@@ -28,7 +28,7 @@ public record ClientViewPlatform<P, B>(ClientViewTransport<P> transport,
         Objects.requireNonNull(stateStrings, "stateStrings");
         entities = entities == null ? ClientViewEntitySource.none() : entities;
         fx = fx == null ? ClientViewFxSource.none() : fx;
-        handoffs = handoffs == null ? ClientViewPlateHandoff.none() : handoffs;
+        handoffs = handoffs == null ? PlateHandoffs.none() : handoffs;
         platformCaps &= ViewStreamCapability.ALL;
         nanoClock = nanoClock == null ? System::nanoTime : nanoClock;
         warnings = warnings == null ? (message, error) -> { } : warnings;

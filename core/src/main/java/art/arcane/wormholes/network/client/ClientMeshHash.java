@@ -11,8 +11,8 @@ import java.util.TreeMap;
 import java.util.function.IntFunction;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.BrickCodec;
-import art.arcane.optics.stream.ClientViewProtocolException;
-import art.arcane.optics.stream.ClientViewWriter;
+import art.arcane.optics.stream.ViewStreamProtocolException;
+import art.arcane.optics.stream.ViewStreamWriter;
 import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.optics.stream.ViewStreamLimits;
 
@@ -20,14 +20,14 @@ public final class ClientMeshHash {
     private ClientMeshHash() {
     }
 
-    public static long hash(ClientViewMessage.MeshSection section, long dictionary) throws ClientViewProtocolException {
+    public static long hash(ClientViewMessage.MeshSection section, long dictionary) throws ViewStreamProtocolException {
         ClientViewMessage.MeshSection canonical = new ClientViewMessage.MeshSection(0, 1, section.sectionX(), section.sectionY(),
             section.sectionZ(), 1, section.backingState(), section.brick(), section.biomes());
         byte[] content = ClientViewCodec.encodeBody(canonical);
         return XxHash64.hash(content, 0, content.length, dictionary);
     }
 
-    public static long resolved(ClientViewMessage.MeshSection section, long epoch, IntFunction<String> states) throws ClientViewProtocolException {
+    public static long resolved(ClientViewMessage.MeshSection section, long epoch, IntFunction<String> states) throws ViewStreamProtocolException {
         TreeMap<String, Integer> dictionary = new TreeMap<>();
         String backing = SessionPalette.AIR;
         dictionary.put(backing, 0);
@@ -43,7 +43,7 @@ public final class ClientMeshHash {
             dictionary.put(single, 0);
         }
         int next = 0;
-        ClientViewWriter output = new ClientViewWriter(1024);
+        ViewStreamWriter output = new ViewStreamWriter(1024);
         output.varint(dictionary.size());
         for (Map.Entry<String, Integer> entry : dictionary.entrySet()) {
             entry.setValue(next++);
@@ -60,7 +60,7 @@ public final class ClientMeshHash {
     }
 
     private static ResolvedPalette palette(Brick original, int backing, IntFunction<String> states,
-                                           TreeMap<String, Integer> dictionary) throws ClientViewProtocolException {
+                                           TreeMap<String, Integer> dictionary) throws ViewStreamProtocolException {
         int[] ids = original.localPalette();
         String[] names = new String[ids.length];
         Map<Integer, String> resolved = new HashMap<>();
@@ -117,13 +117,13 @@ public final class ClientMeshHash {
         return BrickCodec.pack(0, cells);
     }
 
-    private static String state(int id, int backing, IntFunction<String> states) throws ClientViewProtocolException {
+    private static String state(int id, int backing, IntFunction<String> states) throws ViewStreamProtocolException {
         if (id == ViewStreamLimits.PALETTE_OCCLUDED || id == ViewStreamLimits.PALETTE_BACKING) {
             id = backing;
         }
         String value = id == ViewStreamLimits.PALETTE_AIR ? SessionPalette.AIR : states.apply(id);
         if (value == null) {
-            throw new ClientViewProtocolException("Unknown cached section palette state " + id);
+            throw new ViewStreamProtocolException("Unknown cached section palette state " + id);
         }
         return SessionPalette.canonical(value);
     }

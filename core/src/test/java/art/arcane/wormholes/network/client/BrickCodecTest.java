@@ -15,9 +15,9 @@ import art.arcane.optics.stream.XxHash64;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.BrickCodec;
 import art.arcane.optics.stream.BrickLightSource;
-import art.arcane.optics.stream.ClientViewProtocolException;
-import art.arcane.optics.stream.ClientViewReader;
-import art.arcane.optics.stream.ClientViewWriter;
+import art.arcane.optics.stream.ViewStreamProtocolException;
+import art.arcane.optics.stream.ViewStreamReader;
+import art.arcane.optics.stream.ViewStreamWriter;
 import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.optics.stream.ViewStreamLimits;
 
@@ -39,7 +39,7 @@ final class BrickCodecTest {
         assertTrue(bodyBytes > ViewStreamLimits.MAX_BRICK_BYTES);
         assertTrue(bodyBytes + 32 < ViewStreamLimits.MIN_MAX_FRAME_BYTES);
         ClientViewMessage.MeshSection section = new ClientViewMessage.MeshSection(1, 1, 0, 0, 0, 1, 3, brick, SectionBiomes.NONE);
-        assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.encodeS2C(section, 0, 0));
+        assertThrows(ViewStreamProtocolException.class, () -> ClientViewCodec.encodeS2C(section, 0, 0));
     }
 
     @Test
@@ -57,7 +57,7 @@ final class BrickCodecTest {
     }
 
     @Test
-    void everyBitWidthRoundTripsThroughBytes() throws ClientViewProtocolException {
+    void everyBitWidthRoundTripsThroughBytes() throws ViewStreamProtocolException {
         int[] paletteSizes = {2, 3, 4, 5, 16, 17, 200, 256, 257, 1200};
         for (int size : paletteSizes) {
             int[] cells = new int[ViewStreamLimits.BRICK_CELLS];
@@ -68,11 +68,11 @@ final class BrickCodecTest {
             assertEquals(Brick.bitsFor(size), brick.bitsPerIndex(), "palette " + size);
             assertEquals(size, brick.localPalette().length, "palette " + size);
             assertArrayEquals(cells, BrickCodec.unpack(brick), "palette " + size);
-            ClientViewWriter out = new ClientViewWriter();
+            ViewStreamWriter out = new ViewStreamWriter();
             BrickCodec.write(out, brick);
             byte[] bytes = out.toByteArray();
             assertEquals(BrickCodec.encodedSize(brick) + 2, bytes.length, "palette " + size);
-            Brick decoded = BrickCodec.read(new ClientViewReader(bytes));
+            Brick decoded = BrickCodec.read(new ViewStreamReader(bytes));
             assertEquals(brick, decoded, "palette " + size);
             assertArrayEquals(cells, BrickCodec.unpack(decoded), "palette " + size);
         }
@@ -93,7 +93,7 @@ final class BrickCodecTest {
     }
 
     @Test
-    void bodyHashIgnoresTheBrickIndexAndDependsOnTheSalt() throws ClientViewProtocolException {
+    void bodyHashIgnoresTheBrickIndexAndDependsOnTheSalt() throws ViewStreamProtocolException {
         Brick a = ClientViewFixtures.palettedBrick(2);
         Brick b = a.withIndex(140);
         byte[] bodyA = BrickCodec.body(a);
@@ -104,13 +104,13 @@ final class BrickCodecTest {
     }
 
     @Test
-    void lightAndBlockEntitiesRoundTrip() throws ClientViewProtocolException {
+    void lightAndBlockEntitiesRoundTrip() throws ViewStreamProtocolException {
         Brick lit = ClientViewFixtures.litBrick(5);
         assertTrue(lit.hasLight());
         assertTrue(lit.hasBlockEntities());
-        ClientViewWriter out = new ClientViewWriter();
+        ViewStreamWriter out = new ViewStreamWriter();
         BrickCodec.write(out, lit);
-        Brick decoded = BrickCodec.read(new ClientViewReader(out.toByteArray()));
+        Brick decoded = BrickCodec.read(new ViewStreamReader(out.toByteArray()));
         assertEquals(lit, decoded);
         assertEquals(15, BrickLightSource.nibble(decoded.skyLight(), ViewStreamLimits.brickCellIndex(0, 8, 0)));
         assertEquals(0, BrickLightSource.nibble(decoded.skyLight(), ViewStreamLimits.brickCellIndex(0, 7, 0)));
@@ -119,22 +119,22 @@ final class BrickCodecTest {
     }
 
     @Test
-    void decoderRejectsIndicesOutsideTheLocalPalette() throws ClientViewProtocolException {
+    void decoderRejectsIndicesOutsideTheLocalPalette() throws ViewStreamProtocolException {
         int[] cells = new int[ViewStreamLimits.BRICK_CELLS];
         cells[0] = 4;
         cells[1] = 5;
         Brick brick = BrickCodec.pack(0, cells);
         assertEquals(2, brick.bitsPerIndex());
-        ClientViewWriter out = new ClientViewWriter();
+        ViewStreamWriter out = new ViewStreamWriter();
         BrickCodec.write(out, brick);
         byte[] bytes = out.toByteArray();
         int packedStart = 2 + 3 + 1 + 3;
         bytes[packedStart] = (byte) 0xFF;
-        assertThrows(ClientViewProtocolException.class, () -> BrickCodec.read(new ClientViewReader(bytes)));
+        assertThrows(ViewStreamProtocolException.class, () -> BrickCodec.read(new ViewStreamReader(bytes)));
     }
 
     @Test
-    void lightLayersPickTheSmallestOfUniformRunsAndRaw() throws ClientViewProtocolException {
+    void lightLayersPickTheSmallestOfUniformRunsAndRaw() throws ViewStreamProtocolException {
         byte[] uniform = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
         Arrays.fill(uniform, (byte) 0xFF);
         byte[] runs = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
@@ -149,7 +149,7 @@ final class BrickCodecTest {
     }
 
     @Test
-    void theEncodedSizeMatchesTheBodyForEveryLightMode() throws ClientViewProtocolException {
+    void theEncodedSizeMatchesTheBodyForEveryLightMode() throws ViewStreamProtocolException {
         byte[] uniform = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
         byte[] raw = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
         new Random(12L).nextBytes(raw);
@@ -158,47 +158,47 @@ final class BrickCodecTest {
             paletted.withLight(raw, raw), ClientViewFixtures.litBrick(2), ClientViewFixtures.uniformlyLitBrick(3)}) {
             byte[] body = BrickCodec.body(brick);
             assertEquals(body.length, BrickCodec.encodedSize(brick), brick.toString());
-            assertEquals(brick, BrickCodec.readBody(new ClientViewReader(body), brick.brickIndex()));
+            assertEquals(brick, BrickCodec.readBody(new ViewStreamReader(body), brick.brickIndex()));
         }
     }
 
     @Test
-    void malformedLightLayersAreRejected() throws ClientViewProtocolException {
-        ClientViewWriter shortRuns = new ClientViewWriter();
+    void malformedLightLayersAreRejected() throws ViewStreamProtocolException {
+        ViewStreamWriter shortRuns = new ViewStreamWriter();
         shortRuns.u8(BrickCodec.LIGHT_RUNS);
         shortRuns.varint(2);
         shortRuns.u8(15);
         shortRuns.varint(4000);
         shortRuns.u8(0);
         shortRuns.varint(95);
-        assertThrows(ClientViewProtocolException.class, () -> BrickCodec.readLightLayer(new ClientViewReader(shortRuns.toByteArray())));
-        ClientViewWriter overflow = new ClientViewWriter();
+        assertThrows(ViewStreamProtocolException.class, () -> BrickCodec.readLightLayer(new ViewStreamReader(shortRuns.toByteArray())));
+        ViewStreamWriter overflow = new ViewStreamWriter();
         overflow.u8(BrickCodec.LIGHT_RUNS);
         overflow.varint(1);
         overflow.u8(3);
         overflow.varint(4097);
-        assertThrows(ClientViewProtocolException.class, () -> BrickCodec.readLightLayer(new ClientViewReader(overflow.toByteArray())));
-        ClientViewWriter bright = new ClientViewWriter();
+        assertThrows(ViewStreamProtocolException.class, () -> BrickCodec.readLightLayer(new ViewStreamReader(overflow.toByteArray())));
+        ViewStreamWriter bright = new ViewStreamWriter();
         bright.u8(BrickCodec.LIGHT_UNIFORM);
         bright.u8(16);
-        assertThrows(ClientViewProtocolException.class, () -> BrickCodec.readLightLayer(new ClientViewReader(bright.toByteArray())));
-        ClientViewWriter unknown = new ClientViewWriter();
+        assertThrows(ViewStreamProtocolException.class, () -> BrickCodec.readLightLayer(new ViewStreamReader(bright.toByteArray())));
+        ViewStreamWriter unknown = new ViewStreamWriter();
         unknown.u8(3);
-        assertThrows(ClientViewProtocolException.class, () -> BrickCodec.readLightLayer(new ClientViewReader(unknown.toByteArray())));
+        assertThrows(ViewStreamProtocolException.class, () -> BrickCodec.readLightLayer(new ViewStreamReader(unknown.toByteArray())));
     }
 
-    private static void assertLightLayer(byte[] nibbles, int mode, int size) throws ClientViewProtocolException {
-        ClientViewWriter out = new ClientViewWriter();
+    private static void assertLightLayer(byte[] nibbles, int mode, int size) throws ViewStreamProtocolException {
+        ViewStreamWriter out = new ViewStreamWriter();
         BrickCodec.writeLightLayer(out, nibbles);
         byte[] encoded = out.toByteArray();
         assertEquals(mode, encoded[0]);
         assertEquals(size, encoded.length);
         assertEquals(size, BrickCodec.lightLayerSize(nibbles));
-        assertArrayEquals(nibbles, BrickCodec.readLightLayer(new ClientViewReader(encoded)));
+        assertArrayEquals(nibbles, BrickCodec.readLightLayer(new ViewStreamReader(encoded)));
     }
 
     @Test
-    void randomBricksSurviveByteRoundTrips() throws ClientViewProtocolException {
+    void randomBricksSurviveByteRoundTrips() throws ViewStreamProtocolException {
         Random random = new Random(7L);
         for (int round = 0; round < 200; round++) {
             int distinct = 1 + random.nextInt(random.nextInt(8) == 0 ? 600 : 20);
@@ -207,9 +207,9 @@ final class BrickCodecTest {
                 cells[i] = random.nextInt(distinct) == 0 ? 0 : 3 + random.nextInt(distinct);
             }
             Brick brick = BrickCodec.pack(round, cells);
-            ClientViewWriter out = new ClientViewWriter();
+            ViewStreamWriter out = new ViewStreamWriter();
             BrickCodec.write(out, brick);
-            Brick decoded = BrickCodec.read(new ClientViewReader(out.toByteArray()));
+            Brick decoded = BrickCodec.read(new ViewStreamReader(out.toByteArray()));
             assertArrayEquals(cells, BrickCodec.unpack(decoded), "round " + round);
         }
     }

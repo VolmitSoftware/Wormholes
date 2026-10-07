@@ -24,15 +24,15 @@ import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamMessageType;
 import art.arcane.optics.stream.ViewStreamLimits;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.wormholes.network.client.EncodedPlate;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.BlockBox;
 import art.arcane.wormholes.render.plate.PlateTestFixtures;
 import art.arcane.optics.plate.ViewPlate;
 import art.arcane.optics.plate.ViewPlateKey;
-import art.arcane.optics.stream.ClientViewInbound;
-import art.arcane.optics.stream.ClientViewSessionState;
+import art.arcane.optics.stream.ViewStreamInbound;
+import art.arcane.optics.stream.ViewStreamSessionState;
 
 final class ClientViewSessionStreamTest {
     private static final String[] DIRT = {"minecraft:stone", "minecraft:glass", "minecraft:gold_block", "minecraft:air",
@@ -53,13 +53,13 @@ final class ClientViewSessionStreamTest {
     }
 
     @Test
-    void aSessionWithoutPlatesNeverOwnsPortalsOrStreamsThem() throws ClientViewProtocolException {
+    void aSessionWithoutPlatesNeverOwnsPortalsOrStreamsThem() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
         SessionWorld world = new SessionWorld(1L);
         SessionPortal a = harness.access.add(new SessionPortal("a", 0));
         a.plate = a.build(world);
         harness.handshake(SessionHarness.CLIENT_CAPS & ~ViewStreamCapability.PLATES.mask());
-        assertEquals(ClientViewSessionState.CLIENT_VIEW, harness.session.state());
+        assertEquals(ViewStreamSessionState.CLIENT_VIEW, harness.session.state());
 
         harness.tick();
         harness.tick();
@@ -73,7 +73,7 @@ final class ClientViewSessionStreamTest {
     }
 
     @Test
-    void streamSendsPaletteBeforeUsePortalBeforePlateAndEndClosesTheGroup() throws ClientViewProtocolException {
+    void streamSendsPaletteBeforeUsePortalBeforePlateAndEndClosesTheGroup() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
         SessionWorld world = new SessionWorld(1L);
         SessionPortal a = harness.access.add(new SessionPortal("a", 0));
@@ -81,7 +81,7 @@ final class ClientViewSessionStreamTest {
         a.plate = a.build(world);
         b.plate = b.build(world);
         harness.handshake(SessionHarness.CLIENT_CAPS);
-        assertEquals(ClientViewSessionState.CLIENT_VIEW, harness.session.state());
+        assertEquals(ViewStreamSessionState.CLIENT_VIEW, harness.session.state());
 
         harness.tick();
 
@@ -109,7 +109,7 @@ final class ClientViewSessionStreamTest {
     }
 
     @Test
-    void withoutTheBrickCacheEveryBrickFollowsTheBeginInOneGroup() throws ClientViewProtocolException {
+    void withoutTheBrickCacheEveryBrickFollowsTheBeginInOneGroup() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(false, 8));
         SessionWorld world = new SessionWorld(2L);
         SessionPortal a = harness.access.add(new SessionPortal("a", 0));
@@ -128,7 +128,7 @@ final class ClientViewSessionStreamTest {
     }
 
     @Test
-    void oversizedHashManifestsStreamEveryBrickWithoutGivingUpThePortal() throws ClientViewProtocolException {
+    void oversizedHashManifestsStreamEveryBrickWithoutGivingUpThePortal() throws ViewStreamProtocolException {
         int frameBytes = ViewStreamLimits.MIN_MAX_FRAME_BYTES;
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8, frameBytes));
         SessionWorld world = new SessionWorld(2L);
@@ -167,7 +167,7 @@ final class ClientViewSessionStreamTest {
     }
 
     @Test
-    void patchesReproduceTheFullReencodeForRandomDirt() throws ClientViewProtocolException {
+    void patchesReproduceTheFullReencodeForRandomDirt() throws ViewStreamProtocolException {
         for (long seed = 1L; seed <= 6L; seed++) {
             SessionHarness harness = new SessionHarness(SessionHarness.options(seed % 2L == 0L, 8));
             SessionWorld world = new SessionWorld(seed);
@@ -199,7 +199,7 @@ final class ClientViewSessionStreamTest {
     }
 
     @Test
-    void theFirstPlateRequestOfAnAttendedPortalIsUrgentAndLaterRefreshesAreNot() throws ClientViewProtocolException {
+    void theFirstPlateRequestOfAnAttendedPortalIsUrgentAndLaterRefreshesAreNot() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
         SessionWorld world = new SessionWorld(9L);
         SessionPortal portal = harness.access.add(new SessionPortal("urgent", 0));
@@ -220,7 +220,7 @@ final class ClientViewSessionStreamTest {
     }
 
     @Test
-    void aPatchSplitAcrossFramesReachesTheClientAsOneRevision() throws ClientViewProtocolException {
+    void aPatchSplitAcrossFramesReachesTheClientAsOneRevision() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8, ViewStreamLimits.MIN_MAX_FRAME_BYTES));
         NoisyLight light = new NoisyLight();
         harness.access.light = light;
@@ -248,7 +248,7 @@ final class ClientViewSessionStreamTest {
     }
 
     @Test
-    void aChangedPlateBoxRestreamsInsteadOfPatching() throws ClientViewProtocolException {
+    void aChangedPlateBoxRestreamsInsteadOfPatching() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
         SessionWorld world = new SessionWorld(3L);
         SessionPortal portal = harness.access.add(new SessionPortal("moved", 0));
@@ -266,7 +266,7 @@ final class ClientViewSessionStreamTest {
     }
 
     @Test
-    void sessionResetClearsTheClientAndRestreamsFromTheBrickCache() throws ClientViewProtocolException {
+    void sessionResetClearsTheClientAndRestreamsFromTheBrickCache() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
         SessionWorld world = new SessionWorld(4L);
         SessionPortal a = harness.access.add(new SessionPortal("a", 0));
@@ -284,7 +284,7 @@ final class ClientViewSessionStreamTest {
         List<ClientViewMessage> after = harness.client.since(mark);
         ClientViewMessage.SessionReset reset = assertInstanceOf(ClientViewMessage.SessionReset.class, after.get(0));
         assertEquals(ClientViewMessage.ResetReason.TELEPORT, reset.reason());
-        assertEquals(ClientViewSessionState.CLIENT_VIEW, harness.session.state());
+        assertEquals(ViewStreamSessionState.CLIENT_VIEW, harness.session.state());
         assertTrue(harness.session.owns(a.id));
         assertEquals(2, harness.client.portals.size());
         for (Integer key : harness.client.portals.keySet()) {
@@ -296,7 +296,7 @@ final class ClientViewSessionStreamTest {
     }
 
     @Test
-    void dimensionAndRespawnResetsForgetTheDepartedPortalsInsteadOfRestreamingThem() throws ClientViewProtocolException {
+    void dimensionAndRespawnResetsForgetTheDepartedPortalsInsteadOfRestreamingThem() throws ViewStreamProtocolException {
         for (ClientViewMessage.ResetReason reason : List.of(ClientViewMessage.ResetReason.DIMENSION, ClientViewMessage.ResetReason.RESPAWN)) {
             SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
             SessionWorld world = new SessionWorld(9L);
@@ -317,7 +317,7 @@ final class ClientViewSessionStreamTest {
             assertEquals(1, after.size(), reason + " sent " + after);
             assertEquals(reason, assertInstanceOf(ClientViewMessage.SessionReset.class, after.get(0)).reason());
             assertFalse(harness.session.owns(departed.id), reason.name());
-            assertEquals(ClientViewSessionState.CLIENT_VIEW, harness.session.state());
+            assertEquals(ViewStreamSessionState.CLIENT_VIEW, harness.session.state());
 
             harness.tick();
 
@@ -331,7 +331,7 @@ final class ClientViewSessionStreamTest {
     }
 
     @Test
-    void interestGraceKeepsAPortalThenDropsIt() throws ClientViewProtocolException {
+    void interestGraceKeepsAPortalThenDropsIt() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
         SessionWorld world = new SessionWorld(5L);
         SessionPortal a = harness.access.add(new SessionPortal("a", 0));
@@ -352,7 +352,7 @@ final class ClientViewSessionStreamTest {
     }
 
     @Test
-    void refusedPlatesAndUnrepresentableGeometryStayVanilla() throws ClientViewProtocolException {
+    void refusedPlatesAndUnrepresentableGeometryStayVanilla() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
         SessionWorld world = new SessionWorld(6L);
         SessionPortal refused = harness.access.add(new SessionPortal("refused", 0));
@@ -386,7 +386,7 @@ final class ClientViewSessionStreamTest {
     }
 
     @Test
-    void aPlateTheClientRefusesHandsThePortalBackToTheVanillaPath() throws ClientViewProtocolException {
+    void aPlateTheClientRefusesHandsThePortalBackToTheVanillaPath() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
         SessionWorld world = new SessionWorld(12L);
         SessionPortal a = harness.access.add(new SessionPortal("a", 0));
@@ -400,7 +400,7 @@ final class ClientViewSessionStreamTest {
         int revision = harness.client.plateRevisions.get(key);
 
         byte[] refusal = ClientViewCodec.encodeC2S(new ClientViewMessage.PlateRefused(key, revision));
-        assertEquals(ClientViewInbound.HANDLED, harness.c2s(refusal));
+        assertEquals(ViewStreamInbound.HANDLED, harness.c2s(refusal));
         harness.tick();
 
         assertFalse(harness.session.owns(a.id), "a refused plate hands the portal back to the vanilla path");
@@ -415,14 +415,14 @@ final class ClientViewSessionStreamTest {
     }
 
     @Test
-    void aRefusalOutsideClientViewIsIgnored() throws ClientViewProtocolException {
+    void aRefusalOutsideClientViewIsIgnored() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
         byte[] refusal = ClientViewCodec.encodeC2S(new ClientViewMessage.PlateRefused(1, 1));
-        assertEquals(ClientViewInbound.IGNORED, harness.c2s(refusal));
+        assertEquals(ViewStreamInbound.IGNORED, harness.c2s(refusal));
     }
 
     @Test
-    void geometryChangesResendThePortalBeforeItsNewPlate() throws ClientViewProtocolException {
+    void geometryChangesResendThePortalBeforeItsNewPlate() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(false, 8));
         SessionWorld world = new SessionWorld(7L);
         SessionPortal a = harness.access.add(new SessionPortal("a", 0));
@@ -444,7 +444,7 @@ final class ClientViewSessionStreamTest {
     }
 
     @Test
-    void standbyPrestreamIsOffByDefault() throws ClientViewProtocolException {
+    void standbyPrestreamIsOffByDefault() throws ViewStreamProtocolException {
         assertFalse(ClientViewOptions.defaults().standbyPrestream());
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
         SessionWorld world = new SessionWorld(8L);
@@ -461,7 +461,7 @@ final class ClientViewSessionStreamTest {
     }
 
     @Test
-    void standbyPrestreamWarmsTheBrickCacheWithoutAPortal() throws ClientViewProtocolException {
+    void standbyPrestreamWarmsTheBrickCacheWithoutAPortal() throws ViewStreamProtocolException {
         ClientViewOptions base = SessionHarness.options(true, 8);
         ClientViewOptions prestream = new ClientViewOptions(true, true, base.helloGraceMillis(), base.maxFrameBytes(), base.ackWindowFrames(),
             true, base.destinationLight(), base.entityFrames(), base.zeroCopy(), true, base.viewStats(), base.clientMirror(), base.clientRecursion(),
@@ -496,7 +496,7 @@ final class ClientViewSessionStreamTest {
     }
 
     @Test
-    void zeroCopyHandsPlatesOverByReference() throws ClientViewProtocolException {
+    void zeroCopyHandsPlatesOverByReference() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8), Runnable::run, 0x5EEDL);
         List<ViewPlate<String>> published = new ArrayList<ViewPlate<String>>();
         harness.handoffs = (key, revision, plate, light) -> {
@@ -517,7 +517,7 @@ final class ClientViewSessionStreamTest {
     }
 
     @Test
-    void entityFramesStartFullAndRequestAFullFrameAfterADrop() throws ClientViewProtocolException {
+    void entityFramesStartFullAndRequestAFullFrameAfterADrop() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(false, 1));
         List<String> calls = new ArrayList<String>();
         harness.entities = (observer, portal, key, tick, full, hideObserver) -> {
@@ -542,7 +542,7 @@ final class ClientViewSessionStreamTest {
     }
 
     @Test
-    void sceneEffectsDroppedBeforeThePortalIsAnnouncedAreRequestedInFullAgain() throws ClientViewProtocolException {
+    void sceneEffectsDroppedBeforeThePortalIsAnnouncedAreRequestedInFullAgain() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(false, 1));
         List<String> calls = new ArrayList<String>();
         harness.fx = new ClientViewFxSource<String>() {

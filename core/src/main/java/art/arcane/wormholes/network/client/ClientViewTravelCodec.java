@@ -6,9 +6,9 @@ import art.arcane.optics.aperture.ApertureDescriptor;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import art.arcane.optics.stream.ClientViewProtocolException;
-import art.arcane.optics.stream.ClientViewReader;
-import art.arcane.optics.stream.ClientViewWriter;
+import art.arcane.optics.stream.ViewStreamProtocolException;
+import art.arcane.optics.stream.ViewStreamReader;
+import art.arcane.optics.stream.ViewStreamWriter;
 import art.arcane.optics.stream.ProjectionEnvironmentCodec;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.ViewStreamMessageType;
@@ -18,7 +18,7 @@ final class ClientViewTravelCodec {
     private ClientViewTravelCodec() {
     }
 
-    static void write(ClientViewWriter out, ClientViewMessage message) throws ClientViewProtocolException {
+    static void write(ViewStreamWriter out, ClientViewMessage message) throws ViewStreamProtocolException {
         switch (message) {
             case ClientViewMessage.TravelBegin begin -> {
                 identity(out, begin.token(), begin.generation());
@@ -93,11 +93,11 @@ final class ClientViewTravelCodec {
                 out.u8(cached.available() ? 1 : 0);
             }
             case ClientViewMessage.TravelCancel cancel -> identity(out, cancel.token(), cancel.generation());
-            default -> throw new ClientViewProtocolException("Unexpected travel message " + message.type());
+            default -> throw new ViewStreamProtocolException("Unexpected travel message " + message.type());
         }
     }
 
-    static ClientViewMessage read(ClientViewReader in, ViewStreamMessageType type) throws ClientViewProtocolException {
+    static ClientViewMessage read(ViewStreamReader in, ViewStreamMessageType type) throws ViewStreamProtocolException {
         try {
             UUID token = uuid(in);
             long generation = in.i64();
@@ -126,7 +126,7 @@ final class ClientViewTravelCodec {
                     int total = in.i32();
                     int size = in.i32();
                     if (size <= 0 || size > ViewStreamLimits.TRAVEL_FRAGMENT_BYTES) {
-                        throw new ClientViewProtocolException("Travel fragment size");
+                        throw new ViewStreamProtocolException("Travel fragment size");
                     }
                     yield new ClientViewMessage.TravelChunk(token, generation, x, z, revision, index, fragments, total, in.bytes(size));
                 }
@@ -145,36 +145,36 @@ final class ClientViewTravelCodec {
                 case TRAVEL_REUSE -> new ClientViewMessage.TravelReuse(token, generation, in.i32(), in.i32(), in.i32(), in.bytes(ViewStreamLimits.TRAVEL_HASH_BYTES));
                 case TRAVEL_CACHED -> new ClientViewMessage.TravelCached(token, generation, in.i32(), in.i32(), in.i32(), in.bytes(ViewStreamLimits.TRAVEL_HASH_BYTES), bool(in));
                 case TRAVEL_CROSS -> new ClientViewMessage.TravelCross(token, generation, in.i64(), pose(in), vector(in), vector(in));
-                default -> throw new ClientViewProtocolException("Unexpected travel message " + type);
+                default -> throw new ViewStreamProtocolException("Unexpected travel message " + type);
             };
         } catch (IllegalArgumentException invalid) {
-            throw new ClientViewProtocolException("Invalid travel message", invalid);
+            throw new ViewStreamProtocolException("Invalid travel message", invalid);
         }
     }
 
-    private static int count(ClientViewReader in) throws ClientViewProtocolException {
+    private static int count(ViewStreamReader in) throws ViewStreamProtocolException {
         int count = in.u16();
         if (count <= 0 || count > ViewStreamLimits.MAX_TRAVEL_CHUNKS) {
-            throw new ClientViewProtocolException("Travel manifest count");
+            throw new ViewStreamProtocolException("Travel manifest count");
         }
         return count;
     }
 
-    private static void identity(ClientViewWriter out, UUID token, long generation) {
+    private static void identity(ViewStreamWriter out, UUID token, long generation) {
         uuid(out, token);
         out.i64(generation);
     }
 
-    private static void uuid(ClientViewWriter out, UUID value) {
+    private static void uuid(ViewStreamWriter out, UUID value) {
         out.i64(value.getMostSignificantBits());
         out.i64(value.getLeastSignificantBits());
     }
 
-    private static UUID uuid(ClientViewReader in) throws ClientViewProtocolException {
+    private static UUID uuid(ViewStreamReader in) throws ViewStreamProtocolException {
         return new UUID(in.i64(), in.i64());
     }
 
-    private static void world(ClientViewWriter out, ClientViewMessage.TravelWorld world) throws ClientViewProtocolException {
+    private static void world(ViewStreamWriter out, ClientViewMessage.TravelWorld world) throws ViewStreamProtocolException {
         out.string(world.dimension());
         out.string(world.dimensionType());
         out.i64(world.seed());
@@ -185,29 +185,29 @@ final class ClientViewTravelCodec {
         out.i32(world.height());
     }
 
-    private static ClientViewMessage.TravelWorld world(ClientViewReader in) throws ClientViewProtocolException {
+    private static ClientViewMessage.TravelWorld world(ViewStreamReader in) throws ViewStreamProtocolException {
         return new ClientViewMessage.TravelWorld(in.string(), in.string(), in.i64(), bool(in), bool(in), in.i32(), in.i32(), in.i32());
     }
 
-    private static boolean bool(ClientViewReader in) throws ClientViewProtocolException {
+    private static boolean bool(ViewStreamReader in) throws ViewStreamProtocolException {
         int value = in.u8();
         if (value > 1) {
-            throw new ClientViewProtocolException("Travel boolean");
+            throw new ViewStreamProtocolException("Travel boolean");
         }
         return value == 1;
     }
 
-    private static void vector(ClientViewWriter out, Vec3d vector) {
+    private static void vector(ViewStreamWriter out, Vec3d vector) {
         out.f64(vector.x());
         out.f64(vector.y());
         out.f64(vector.z());
     }
 
-    private static Vec3d vector(ClientViewReader in) throws ClientViewProtocolException {
+    private static Vec3d vector(ViewStreamReader in) throws ViewStreamProtocolException {
         return new Vec3d(in.f64(), in.f64(), in.f64());
     }
 
-    private static void pose(ClientViewWriter out, ClientViewMessage.TravelPose pose) {
+    private static void pose(ViewStreamWriter out, ClientViewMessage.TravelPose pose) {
         out.f64(pose.x());
         out.f64(pose.y());
         out.f64(pose.z());
@@ -215,7 +215,7 @@ final class ClientViewTravelCodec {
         out.f32(pose.pitch());
     }
 
-    private static ClientViewMessage.TravelPose pose(ClientViewReader in) throws ClientViewProtocolException {
+    private static ClientViewMessage.TravelPose pose(ViewStreamReader in) throws ViewStreamProtocolException {
         return new ClientViewMessage.TravelPose(in.f64(), in.f64(), in.f64(), in.f32(), in.f32());
     }
 }

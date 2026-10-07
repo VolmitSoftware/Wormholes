@@ -6,7 +6,7 @@ import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.SectionBiomes;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.frame.OpticTransform;
@@ -56,14 +56,14 @@ public final class ClientMeshSections {
         otherMemory = Objects.requireNonNull(usage);
     }
 
-    public boolean begin(int portalKey, int generation, BlockBox bounds, int maxSections) throws ClientViewProtocolException {
+    public boolean begin(int portalKey, int generation, BlockBox bounds, int maxSections) throws ViewStreamProtocolException {
         if (generation <= 0 || maxSections <= 0 || bounds.cells() <= 0) {
-            throw new ClientViewProtocolException("Invalid mesh view bounds, generation or resident limit");
+            throw new ViewStreamProtocolException("Invalid mesh view bounds, generation or resident limit");
         }
         View previous = views.get(portalKey);
         if (previous != null && generation <= previous.generation) {
             if (generation == previous.generation && (!bounds.equals(previous.bounds) || maxSections != previous.maxSections)) {
-                throw new ClientViewProtocolException("Mesh generation changed its bounds or resident limit");
+                throw new ViewStreamProtocolException("Mesh generation changed its bounds or resident limit");
             }
             return false;
         }
@@ -72,13 +72,13 @@ public final class ClientMeshSections {
         return true;
     }
 
-    public boolean retainLocal(int portalKey, int generation, BlockBox bounds, int maxSections) throws ClientViewProtocolException {
+    public boolean retainLocal(int portalKey, int generation, BlockBox bounds, int maxSections) throws ViewStreamProtocolException {
         View view = views.get(portalKey);
         if (view == null || generation <= view.generation || view.localSections.isEmpty() && view.sections.isEmpty()) {
             return begin(portalKey, generation, bounds, maxSections);
         }
         if (generation <= 0 || maxSections <= 0 || bounds.cells() <= 0) {
-            throw new ClientViewProtocolException("Invalid retained mesh view");
+            throw new ViewStreamProtocolException("Invalid retained mesh view");
         }
         view.wireRevisions.clear();
         view.claimed.clear();
@@ -89,7 +89,7 @@ public final class ClientMeshSections {
         return true;
     }
 
-    public Result put(ClientViewMessage.MeshSection message) throws ClientViewProtocolException {
+    public Result put(ClientViewMessage.MeshSection message) throws ViewStreamProtocolException {
         int portalKey = message.portalKey();
         int generation = message.generation();
         int sectionX = message.sectionX();
@@ -103,7 +103,7 @@ public final class ClientMeshSections {
         }
         long key = sectionKey(sectionX, sectionY, sectionZ);
         if (revision <= 0 || brick.brickIndex() != 0 || !view.intersects(sectionX, sectionY, sectionZ)) {
-            throw new ClientViewProtocolException("Mesh section outside its view or invalid revision/index");
+            throw new ViewStreamProtocolException("Mesh section outside its view or invalid revision/index");
         }
         Section previous = view.sections.get(key);
         int currentRevision = view.wireRevisions.get(key);
@@ -136,7 +136,7 @@ public final class ClientMeshSections {
         return Result.APPLIED;
     }
 
-    public boolean drop(int portalKey, int generation, int sectionX, int sectionY, int sectionZ) throws ClientViewProtocolException {
+    public boolean drop(int portalKey, int generation, int sectionX, int sectionY, int sectionZ) throws ViewStreamProtocolException {
         View view = views.get(portalKey);
         if (view == null || view.generation != generation) {
             return false;
@@ -158,7 +158,7 @@ public final class ClientMeshSections {
         return true;
     }
 
-    public Section localSection(ClientViewMessage.MeshSection message) throws ClientViewProtocolException {
+    public Section localSection(ClientViewMessage.MeshSection message) throws ViewStreamProtocolException {
         return new Section(message, palette, ++revision, epoch);
     }
 
@@ -405,7 +405,7 @@ public final class ClientMeshSections {
         return new ClientViewMessage.MeshClaim(SectionPos.x(key), SectionPos.y(key), SectionPos.z(key), section.hash);
     }
 
-    public Result reuse(ClientViewMessage.MeshReuse message) throws ClientViewProtocolException {
+    public Result reuse(ClientViewMessage.MeshReuse message) throws ViewStreamProtocolException {
         View view = views.get(message.portalKey());
         if (view == null || view.generation != message.generation()) {
             return Result.STALE;
@@ -516,10 +516,10 @@ public final class ClientMeshSections {
         }
     }
 
-    private static long sectionKey(int x, int y, int z) throws ClientViewProtocolException {
+    private static long sectionKey(int x, int y, int z) throws ViewStreamProtocolException {
         long key = SectionPos.asLong(x, y, z);
         if (SectionPos.x(key) != x || SectionPos.y(key) != y || SectionPos.z(key) != z) {
-            throw new ClientViewProtocolException("Mesh section coordinates exceed the world coordinate range");
+            throw new ViewStreamProtocolException("Mesh section coordinates exceed the world coordinate range");
         }
         return key;
     }
@@ -600,7 +600,7 @@ public final class ClientMeshSections {
         private final long bytes;
         private final SectionBiomes biomes;
 
-        private Section(ClientViewMessage.MeshSection message, ClientPalette palette, int revision, long epoch) throws ClientViewProtocolException {
+        private Section(ClientViewMessage.MeshSection message, ClientPalette palette, int revision, long epoch) throws ViewStreamProtocolException {
             Brick brick = message.brick();
             this.revision = revision;
             this.hash = ClientMeshHash.resolved(message, epoch, id -> BlockStateParser.serialize(palette.state(id)));
@@ -617,14 +617,14 @@ public final class ClientMeshSections {
                     id = message.backingState();
                 }
                 if (!palette.known(id)) {
-                    throw new ClientViewProtocolException("Mesh section references unknown palette state " + id);
+                    throw new ViewStreamProtocolException("Mesh section references unknown palette state " + id);
                 }
                 states[index] = palette.state(id);
             }
             if (bitsPerIndex != 0) {
                 for (int cell = 0; cell < ViewStreamLimits.BRICK_CELLS; cell++) {
                     if (localIndex(cell) >= states.length) {
-                        throw new ClientViewProtocolException("Mesh section references an invalid local palette index");
+                        throw new ViewStreamProtocolException("Mesh section references an invalid local palette index");
                     }
                 }
             }
@@ -638,14 +638,14 @@ public final class ClientMeshSections {
             }
             for (Brick.BlockEntityCell cell : brick.blockEntities()) {
                 if (cell.cellIndex() < 0 || cell.cellIndex() >= ViewStreamLimits.BRICK_CELLS || blockEntities.containsKey(cell.cellIndex())) {
-                    throw new ClientViewProtocolException("Invalid or repeated mesh block entity cell");
+                    throw new ViewStreamProtocolException("Invalid or repeated mesh block entity cell");
                 }
                 try {
                     BlockEntitySample sample = BlockEntitySample.decode(cell.payload());
                     blockEntities.put(cell.cellIndex(), sample);
                     size += sample.bytes() + 48L;
                 } catch (IOException failure) {
-                    throw new ClientViewProtocolException("Invalid mesh block entity snapshot", failure);
+                    throw new ViewStreamProtocolException("Invalid mesh block entity snapshot", failure);
                 }
             }
             this.bytes = size;

@@ -16,9 +16,9 @@ import com.sun.management.ThreadMXBean;
 import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamMessageType;
-import art.arcane.optics.stream.ClientViewProtocolException;
-import art.arcane.optics.stream.ClientViewInbound;
-import art.arcane.optics.stream.ClientViewSessionState;
+import art.arcane.optics.stream.ViewStreamProtocolException;
+import art.arcane.optics.stream.ViewStreamInbound;
+import art.arcane.optics.stream.ViewStreamSessionState;
 
 final class ClientViewSessionPacingTest {
     private static final int STEADY_TICKS = 20_000;
@@ -39,7 +39,7 @@ final class ClientViewSessionPacingTest {
     }
 
     @Test
-    void theAckWindowPausesAtItsLimitAndResumesOnAck() throws ClientViewProtocolException {
+    void theAckWindowPausesAtItsLimitAndResumesOnAck() throws ViewStreamProtocolException {
         SessionHarness harness = withPortals(SessionHarness.options(false, 2), 5);
         harness.handshake(SessionHarness.CLIENT_CAPS);
         harness.tick();
@@ -60,7 +60,7 @@ final class ClientViewSessionPacingTest {
     }
 
     @Test
-    void aZeroWindowNeverPauses() throws ClientViewProtocolException {
+    void aZeroWindowNeverPauses() throws ViewStreamProtocolException {
         SessionHarness harness = withPortals(SessionHarness.options(true, 0), 5);
         harness.handshake(SessionHarness.CLIENT_CAPS);
         harness.tick();
@@ -68,7 +68,7 @@ final class ClientViewSessionPacingTest {
     }
 
     @Test
-    void openBrickCacheGroupsCountAgainstTheWindow() throws ClientViewProtocolException {
+    void openBrickCacheGroupsCountAgainstTheWindow() throws ViewStreamProtocolException {
         SessionHarness harness = withPortals(SessionHarness.options(true, 2), 4);
         harness.handshake(SessionHarness.CLIENT_CAPS);
         harness.client.autoMiss = false;
@@ -78,7 +78,7 @@ final class ClientViewSessionPacingTest {
     }
 
     @Test
-    void aCumulativeAckNeverReleasesAManifestWhoseBricksAreUnsent() throws ClientViewProtocolException {
+    void aCumulativeAckNeverReleasesAManifestWhoseBricksAreUnsent() throws ViewStreamProtocolException {
         SessionHarness harness = withPortals(SessionHarness.options(true, 2), 3);
         harness.handshake(SessionHarness.CLIENT_CAPS);
         harness.client.autoMiss = false;
@@ -86,7 +86,7 @@ final class ClientViewSessionPacingTest {
         assertEquals(2, harness.sent(ViewStreamMessageType.PLATE_BEGIN));
         assertEquals(2, harness.session.stats().outstandingGroups());
 
-        assertEquals(ClientViewInbound.HANDLED, harness.c2s(harness.client.ack(harness.client.lastSeq)));
+        assertEquals(ViewStreamInbound.HANDLED, harness.c2s(harness.client.ack(harness.client.lastSeq)));
         harness.pump();
         harness.tick();
         assertEquals(2, harness.sent(ViewStreamMessageType.PLATE_BEGIN), "an ack past the manifests must not open a third stream");
@@ -95,7 +95,7 @@ final class ClientViewSessionPacingTest {
 
         ClientViewMessage.PlateBegin first = (ClientViewMessage.PlateBegin) harness.client.received.stream()
             .filter(message -> message.type() == ViewStreamMessageType.PLATE_BEGIN).findFirst().orElseThrow();
-        assertEquals(ClientViewInbound.HANDLED, harness.c2s(miss(first.portalKey(), first.plateRevision(), first.brickCount(), 0)));
+        assertEquals(ViewStreamInbound.HANDLED, harness.c2s(miss(first.portalKey(), first.plateRevision(), first.brickCount(), 0)));
         harness.pump();
         assertEquals(1, harness.sent(ViewStreamMessageType.PLATE_END));
         assertEquals(2, harness.session.stats().outstandingGroups(), "the finished stream waits for its ack");
@@ -107,7 +107,7 @@ final class ClientViewSessionPacingTest {
     }
 
     @Test
-    void sceneFramesCarryNoLastFlagAndControlFramesNeedNoAck() throws ClientViewProtocolException {
+    void sceneFramesCarryNoLastFlagAndControlFramesNeedNoAck() throws ViewStreamProtocolException {
         SessionHarness harness = withPortals(SessionHarness.options(false, 8), 1);
         harness.entities = (observer, portal, key, tick, full, hideObserver) ->
             new ClientViewMessage.EntityFrame(key, (int) tick, List.of(), List.of(), true);
@@ -126,7 +126,7 @@ final class ClientViewSessionPacingTest {
     }
 
     @Test
-    void aDetachedManifestReleasesItsWindowSlot() throws ClientViewProtocolException {
+    void aDetachedManifestReleasesItsWindowSlot() throws ViewStreamProtocolException {
         SessionHarness harness = withPortals(SessionHarness.options(true, 1), 2);
         harness.handshake(SessionHarness.CLIENT_CAPS);
         harness.client.autoMiss = false;
@@ -143,7 +143,7 @@ final class ClientViewSessionPacingTest {
     }
 
     @Test
-    void oneBrickMissMessageAnswersEveryManifestOfATick() throws ClientViewProtocolException {
+    void oneBrickMissMessageAnswersEveryManifestOfATick() throws ViewStreamProtocolException {
         SessionHarness harness = withPortals(SessionHarness.options(true, 8), 4);
         harness.handshake(SessionHarness.CLIENT_CAPS);
         int before = harness.c2sCount;
@@ -154,7 +154,7 @@ final class ClientViewSessionPacingTest {
     }
 
     @Test
-    void brickMissIsHonouredOnlyForAdvertisedBricks() throws ClientViewProtocolException {
+    void brickMissIsHonouredOnlyForAdvertisedBricks() throws ViewStreamProtocolException {
         SessionHarness harness = withPortals(SessionHarness.options(true, 8), 1);
         harness.handshake(SessionHarness.CLIENT_CAPS);
         harness.client.autoMiss = false;
@@ -163,27 +163,27 @@ final class ClientViewSessionPacingTest {
         int key = begin.portalKey();
         int revision = begin.plateRevision();
 
-        assertEquals(ClientViewInbound.HANDLED, harness.c2s(miss(key, revision + 1, begin.brickCount(), 0)));
-        assertEquals(ClientViewInbound.HANDLED, harness.c2s(miss(key + 40, revision, begin.brickCount(), 0)));
+        assertEquals(ViewStreamInbound.HANDLED, harness.c2s(miss(key, revision + 1, begin.brickCount(), 0)));
+        assertEquals(ViewStreamInbound.HANDLED, harness.c2s(miss(key + 40, revision, begin.brickCount(), 0)));
         harness.pump();
         assertEquals(0, harness.sent(ViewStreamMessageType.PLATE_BRICKS));
         assertEquals(2L, harness.session.stats().staleBrickMisses());
 
-        assertEquals(ClientViewInbound.HANDLED, harness.c2s(miss(key, revision, begin.brickCount(), 128)));
+        assertEquals(ViewStreamInbound.HANDLED, harness.c2s(miss(key, revision, begin.brickCount(), 128)));
         harness.pump();
         ClientViewMessage.PlateBricks bricks = (ClientViewMessage.PlateBricks) harness.last(ViewStreamMessageType.PLATE_BRICKS);
         assertEquals(begin.brickCount(), bricks.bricks().size(), "bits past the advertised brick count are ignored");
         assertEquals(1, harness.sent(ViewStreamMessageType.PLATE_END));
         assertTrue(harness.client.open.isEmpty());
 
-        assertEquals(ClientViewInbound.HANDLED, harness.c2s(miss(key, revision, begin.brickCount(), 0)));
+        assertEquals(ViewStreamInbound.HANDLED, harness.c2s(miss(key, revision, begin.brickCount(), 0)));
         harness.pump();
         assertEquals(1, harness.sent(ViewStreamMessageType.PLATE_BRICKS), "a completed stream is never answered twice");
         assertEquals(3L, harness.session.stats().staleBrickMisses());
     }
 
     @Test
-    void anUnansweredManifestFallsBackToEveryBrick() throws ClientViewProtocolException {
+    void anUnansweredManifestFallsBackToEveryBrick() throws ViewStreamProtocolException {
         SessionHarness harness = withPortals(SessionHarness.options(true, 8), 1);
         harness.handshake(SessionHarness.CLIENT_CAPS);
         harness.client.autoMiss = false;
@@ -197,7 +197,7 @@ final class ClientViewSessionPacingTest {
     }
 
     @Test
-    void aRejectedLaneIsRescheduledOnTheNextTick() throws ClientViewProtocolException {
+    void aRejectedLaneIsRescheduledOnTheNextTick() throws ViewStreamProtocolException {
         int[] rejections = {1};
         Executor flaky = task -> {
             if (rejections[0] > 0) {
@@ -213,7 +213,7 @@ final class ClientViewSessionPacingTest {
     }
 
     @Test
-    void steadyStateTicksStayWithinTheAllocationBudget() throws ClientViewProtocolException {
+    void steadyStateTicksStayWithinTheAllocationBudget() throws ViewStreamProtocolException {
         SessionHarness harness = withPortals(SessionHarness.options(true, 8), 6);
         harness.handshake(SessionHarness.CLIENT_CAPS);
         for (int i = 0; i < 40; i++) {
@@ -241,7 +241,7 @@ final class ClientViewSessionPacingTest {
     }
 
     @Test
-    void statsCountFramesAndBytes() throws ClientViewProtocolException {
+    void statsCountFramesAndBytes() throws ViewStreamProtocolException {
         SessionHarness harness = withPortals(SessionHarness.options(true, 8), 2);
         harness.handshake(SessionHarness.CLIENT_CAPS);
         harness.tick();
@@ -254,10 +254,10 @@ final class ClientViewSessionPacingTest {
         assertTrue(harness.flushes > 0);
         harness.registry.forget(harness.playerId);
         assertTrue(harness.registry.stats().isEmpty());
-        assertEquals(ClientViewSessionState.VANILLA, harness.session.state());
+        assertEquals(ViewStreamSessionState.VANILLA, harness.session.state());
     }
 
-    private static byte[] miss(int key, int revision, int brickCount, int extraBits) throws ClientViewProtocolException {
+    private static byte[] miss(int key, int revision, int brickCount, int extraBits) throws ViewStreamProtocolException {
         int bits = brickCount + extraBits;
         long[] words = new long[(bits + 63) >>> 6];
         for (int i = 0; i < bits; i++) {

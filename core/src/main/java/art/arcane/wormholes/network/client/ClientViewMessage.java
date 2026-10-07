@@ -11,7 +11,7 @@ import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.stream.Brick;
-import art.arcane.optics.stream.ClientViewWriter;
+import art.arcane.optics.stream.ViewStreamWriter;
 import art.arcane.optics.stream.PlateSectionBox;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.stream.SectionBiomes;
@@ -643,7 +643,7 @@ public sealed interface ClientViewMessage {
             }
 
             public int wireBytes() {
-                return ClientViewWriter.varintSize(portalKey) + 4 + ClientViewWriter.varintSize(bitset.length) + bitset.length * 8;
+                return ViewStreamWriter.varintSize(portalKey) + 4 + ViewStreamWriter.varintSize(bitset.length) + bitset.length * 8;
             }
 
             public static long[] bitsetFor(int brickCount, boolean[] missed) {

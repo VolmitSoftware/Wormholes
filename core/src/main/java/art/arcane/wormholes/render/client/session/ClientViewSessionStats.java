@@ -3,11 +3,11 @@ package art.arcane.wormholes.render.client.session;
 import java.util.UUID;
 
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.optics.stream.ClientViewSessionState;
+import art.arcane.optics.stream.ViewStreamSessionState;
 
 public record ClientViewSessionStats(UUID playerId,
                                      int sessionId,
-                                     ClientViewSessionState state,
+                                     ViewStreamSessionState state,
                                      long caps,
                                      int attended,
                                      long framesSent,

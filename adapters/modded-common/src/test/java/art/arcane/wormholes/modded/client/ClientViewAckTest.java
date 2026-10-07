@@ -5,7 +5,7 @@ import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import org.junit.After;
 import org.junit.Test;
 
@@ -28,7 +28,7 @@ public class ClientViewAckTest extends MinecraftTestBase {
     }
 
     @Test
-    public void everyClosedGroupOfATickCollapsesIntoOneCumulativeAck() throws ClientViewProtocolException {
+    public void everyClosedGroupOfATickCollapsesIntoOneCumulativeAck() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
         harness.receive(new ClientViewMessage.Portal(ClientViewHarness.PORTAL_KEY, 2, ClientViewHarness.geometry()), ViewStreamLimits.FLAG_LAST);
@@ -44,7 +44,7 @@ public class ClientViewAckTest extends MinecraftTestBase {
     }
 
     @Test
-    public void framesWithoutTheLastFlagAreNeverAcknowledged() throws ClientViewProtocolException {
+    public void framesWithoutTheLastFlagAreNeverAcknowledged() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.receive(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(ClientViewHarness.STONE_ID, "minecraft:stone"))), 0);
         harness.receive(new ClientViewMessage.Portal(ClientViewHarness.PORTAL_KEY, 1, ClientViewHarness.geometry()), 0);
@@ -59,7 +59,7 @@ public class ClientViewAckTest extends MinecraftTestBase {
     }
 
     @Test
-    public void appliedCellsAccumulateUntilTheNextAck() throws ClientViewProtocolException {
+    public void appliedCellsAccumulateUntilTheNextAck() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.receive(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(ClientViewHarness.STONE_ID, "minecraft:stone"))), 0);
         harness.receive(new ClientViewMessage.Portal(ClientViewHarness.PORTAL_KEY, 1, ClientViewHarness.geometry()), 0);
@@ -81,7 +81,7 @@ public class ClientViewAckTest extends MinecraftTestBase {
     }
 
     @Test
-    public void everyManifestOfATickIsAnsweredByOneBrickMissMessage() throws ClientViewProtocolException {
+    public void everyManifestOfATickIsAnsweredByOneBrickMissMessage() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.receive(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(ClientViewHarness.STONE_ID, "minecraft:stone"))), 0);
         harness.receive(new ClientViewMessage.Portal(ClientViewHarness.PORTAL_KEY, 1, ClientViewHarness.geometry()), 0);
@@ -107,7 +107,7 @@ public class ClientViewAckTest extends MinecraftTestBase {
     }
 
     @Test
-    public void aNewOfferDropsTheAckAndBrickMissOwedToThePreviousServer() throws ClientViewProtocolException {
+    public void aNewOfferDropsTheAckAndBrickMissOwedToThePreviousServer() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
         harness.receive(new ClientViewMessage.Offer(ViewStreamLimits.WIRE_VERSION, 1, ViewStreamCapability.ALL,
@@ -124,7 +124,7 @@ public class ClientViewAckTest extends MinecraftTestBase {
     }
 
     @Test
-    public void brickMissBatchesSplitAtTheInboundByteCap() throws ClientViewProtocolException {
+    public void brickMissBatchesSplitAtTheInboundByteCap() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         int plates = 12;
         for (int key = 1; key <= plates; key++) {
@@ -145,7 +145,7 @@ public class ClientViewAckTest extends MinecraftTestBase {
         assertTrue(misses.size() > 1);
     }
 
-    private static void streamPlate(ClientViewHarness harness, int key, int endFlags) throws ClientViewProtocolException {
+    private static void streamPlate(ClientViewHarness harness, int key, int endFlags) throws ViewStreamProtocolException {
         Brick[] bricks = new Brick[ClientViewHarness.SECTIONS.brickCount()];
         for (int index = 0; index < bricks.length; index++) {
             bricks[index] = ClientViewHarness.plateBrick(index);

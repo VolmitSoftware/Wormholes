@@ -2,8 +2,8 @@ package art.arcane.wormholes.network;
 
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.stream.ProjectionEnvironmentCodec;
-import art.arcane.optics.stream.ClientViewReader;
-import art.arcane.optics.stream.ClientViewWriter;
+import art.arcane.optics.stream.ViewStreamReader;
+import art.arcane.optics.stream.ViewStreamWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -863,14 +863,14 @@ public sealed interface WireMessage {
         @Override
         public void write(DataOutputStream out) throws IOException {
             writeUuid(out, portalId);
-            ClientViewWriter encoded = new ClientViewWriter();
+            ViewStreamWriter encoded = new ViewStreamWriter();
             ProjectionEnvironmentCodec.write(encoded, environment);
             WireCodec.writeByteArray(out, encoded.toByteArray(), 1024);
         }
 
         public static ViewEnvironment read(DataInputStream in) throws IOException {
             UUID portal = readUuid(in);
-            ClientViewReader encoded = new ClientViewReader(WireCodec.readByteArray(in, 1024));
+            ViewStreamReader encoded = new ViewStreamReader(WireCodec.readByteArray(in, 1024));
             ProjectionEnvironment environment = ProjectionEnvironmentCodec.read(encoded);
             encoded.expectEnd();
             return new ViewEnvironment(portal, environment);

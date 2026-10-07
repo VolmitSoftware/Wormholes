@@ -3,15 +3,15 @@ package art.arcane.optics.stream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
-public final class ClientViewWriter {
+public final class ViewStreamWriter {
     private byte[] buffer;
     private int size;
 
-    public ClientViewWriter() {
+    public ViewStreamWriter() {
         this(256);
     }
 
-    public ClientViewWriter(int initialCapacity) {
+    public ViewStreamWriter(int initialCapacity) {
         this.buffer = new byte[Math.max(16, initialCapacity)];
     }
 
@@ -65,9 +65,9 @@ public final class ClientViewWriter {
         i64(Double.doubleToRawLongBits(value));
     }
 
-    public void varint(int value) throws ClientViewProtocolException {
+    public void varint(int value) throws ViewStreamProtocolException {
         if (value < 0) {
-            throw new ClientViewProtocolException("varint must not be negative: " + value);
+            throw new ViewStreamProtocolException("varint must not be negative: " + value);
         }
         ensure(5);
         int remaining = value;
@@ -78,10 +78,10 @@ public final class ClientViewWriter {
         buffer[size++] = (byte) remaining;
     }
 
-    public void string(String value) throws ClientViewProtocolException {
+    public void string(String value) throws ViewStreamProtocolException {
         byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
         if (bytes.length > ViewStreamLimits.MAX_STRING_BYTES) {
-            throw new ClientViewProtocolException("string of " + bytes.length + " bytes exceeds " + ViewStreamLimits.MAX_STRING_BYTES);
+            throw new ViewStreamProtocolException("string of " + bytes.length + " bytes exceeds " + ViewStreamLimits.MAX_STRING_BYTES);
         }
         varint(bytes.length);
         bytes(bytes);

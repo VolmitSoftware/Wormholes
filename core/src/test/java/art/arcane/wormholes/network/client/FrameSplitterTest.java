@@ -17,7 +17,7 @@ import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.BrickCodec;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.stream.PlateSectionBox;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.ViewStreamLimits;
@@ -39,7 +39,7 @@ final class FrameSplitterTest {
     }
 
     @Test
-    void groupsNeverExceedTheFrameSizeAndOnlyTheLastFrameCarriesLast() throws ClientViewProtocolException {
+    void groupsNeverExceedTheFrameSizeAndOnlyTheLastFrameCarriesLast() throws ViewStreamProtocolException {
         Random random = new Random(3L);
         List<Brick> bricks = heavyBricks(40, random);
         ClientViewMessage.PlateBricks message = new ClientViewMessage.PlateBricks(2, 9, bricks);
@@ -66,7 +66,7 @@ final class FrameSplitterTest {
     }
 
     @Test
-    void anOpenGroupCarriesNoLastFlag() throws ClientViewProtocolException {
+    void anOpenGroupCarriesNoLastFlag() throws ViewStreamProtocolException {
         Random random = new Random(4L);
         FrameSplitter splitter = new FrameSplitter(ViewStreamLimits.MIN_MAX_FRAME_BYTES, false);
         int[] next = {7};
@@ -85,7 +85,7 @@ final class FrameSplitterTest {
     }
 
     @Test
-    void aPatchLargerThanAFrameSplitsIntoPiecesAndOnlyTheClosingPieceAdvancesTheRevision() throws ClientViewProtocolException {
+    void aPatchLargerThanAFrameSplitsIntoPiecesAndOnlyTheClosingPieceAdvancesTheRevision() throws ViewStreamProtocolException {
         Random random = new Random(5L);
         List<Brick> bricks = heavyBricks(40, random);
         List<ClientViewMessage.PatchOp> ops = new ArrayList<ClientViewMessage.PatchOp>(bricks.size());
@@ -122,7 +122,7 @@ final class FrameSplitterTest {
     }
 
     @Test
-    void deflatedFramesAlsoRespectTheCapAndDecode() throws ClientViewProtocolException {
+    void deflatedFramesAlsoRespectTheCapAndDecode() throws ViewStreamProtocolException {
         Random random = new Random(4L);
         ClientViewMessage.PlateBricks message = new ClientViewMessage.PlateBricks(2, 9, heavyBricks(12, random));
         FrameSplitter splitter = new FrameSplitter(ViewStreamLimits.MIN_MAX_FRAME_BYTES, true);
@@ -142,7 +142,7 @@ final class FrameSplitterTest {
     }
 
     @Test
-    void paletteAndPatchGroupsSplitAtElementBoundaries() throws ClientViewProtocolException {
+    void paletteAndPatchGroupsSplitAtElementBoundaries() throws ViewStreamProtocolException {
         List<ClientViewMessage.PaletteEntry> entries = new ArrayList<ClientViewMessage.PaletteEntry>();
         for (int i = 0; i < 6000; i++) {
             entries.add(new ClientViewMessage.PaletteEntry(3 + i, "minecraft:block_" + i + "[facing=north,half=top,waterlogged=false]"));
@@ -174,7 +174,7 @@ final class FrameSplitterTest {
     }
 
     @Test
-    void anOversizeEntityFrameSplitsWithThePresenceListOnlyOnTheLastPiece() throws ClientViewProtocolException {
+    void anOversizeEntityFrameSplitsWithThePresenceListOnlyOnTheLastPiece() throws ViewStreamProtocolException {
         List<EntitySnapshot> visuals = new ArrayList<EntitySnapshot>();
         List<UUID> present = new ArrayList<UUID>();
         byte[] blob = new byte[8 * 1024];
@@ -219,7 +219,7 @@ final class FrameSplitterTest {
     }
 
     private static List<ClientViewMessage.EntityFrame> entityPieces(FrameSplitter splitter, ClientViewMessage.EntityFrame frame)
-        throws ClientViewProtocolException {
+        throws ViewStreamProtocolException {
         int[] next = {0};
         List<byte[]> frames = splitter.split(List.of(frame), () -> next[0]++);
         List<ClientViewMessage.EntityFrame> pieces = new ArrayList<ClientViewMessage.EntityFrame>(frames.size());
@@ -233,7 +233,7 @@ final class FrameSplitterTest {
         return pieces;
     }
 
-    private static void assertEntities(List<EntitySnapshot> expected, List<EntitySnapshot> actual) throws ClientViewProtocolException {
+    private static void assertEntities(List<EntitySnapshot> expected, List<EntitySnapshot> actual) throws ViewStreamProtocolException {
         assertEquals(expected.size(), actual.size());
         for (int i = 0; i < expected.size(); i++) {
             assertArrayEquals(ClientViewCodec.entityBytes(expected.get(i)), ClientViewCodec.entityBytes(actual.get(i)), "entity " + i);

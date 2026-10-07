@@ -16,14 +16,14 @@ import art.arcane.optics.plate.ViewPlate;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.BrickCodec;
 import art.arcane.optics.stream.BrickLightSource;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.stream.PlateSectionBox;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.ViewStreamLimits;
 
 final class PlatePatchEncoderTest {
     @Test
-    void aUniformReplacementUsesFewerBytesThanSparseCellEdits() throws ClientViewProtocolException {
+    void aUniformReplacementUsesFewerBytesThanSparseCellEdits() throws ViewStreamProtocolException {
         int[] cells = new int[ViewStreamLimits.BRICK_CELLS];
         Arrays.fill(cells, 3);
         Brick target = BrickCodec.pack(0, cells);
@@ -38,7 +38,7 @@ final class PlatePatchEncoderTest {
     }
 
     @Test
-    void anIsolatedEditKeepsTheSmallerSparseRepresentation() throws ClientViewProtocolException {
+    void anIsolatedEditKeepsTheSmallerSparseRepresentation() throws ViewStreamProtocolException {
         int[] cells = new int[ViewStreamLimits.BRICK_CELLS];
         for (int index = 0; index < cells.length; index++) {
             cells[index] = 3 + index % 4;
@@ -55,7 +55,7 @@ final class PlatePatchEncoderTest {
     }
 
     @Test
-    void patchAppliedToThePreviousBricksEqualsTheFullReEncodeForRandomDirt() throws ClientViewProtocolException {
+    void patchAppliedToThePreviousBricksEqualsTheFullReEncodeForRandomDirt() throws ViewStreamProtocolException {
         Random random = new Random(0xD127L);
         SessionPalette palette = new SessionPalette();
         PlateStreamEncoder<String> encoder = new PlateStreamEncoder<String>(palette, state -> state);
@@ -98,7 +98,7 @@ final class PlatePatchEncoderTest {
     }
 
     @Test
-    void unchangedPlatesProduceAnEmptyPatchAndClearedBricksProduceClearOps() throws ClientViewProtocolException {
+    void unchangedPlatesProduceAnEmptyPatchAndClearedBricksProduceClearOps() throws ViewStreamProtocolException {
         SessionPalette palette = new SessionPalette();
         PlateStreamEncoder<String> encoder = new PlateStreamEncoder<String>(palette, state -> state);
         SyntheticWorld world = new SyntheticWorld(77L);
@@ -139,7 +139,7 @@ final class PlatePatchEncoderTest {
     }
 
     @Test
-    void emptiedBricksThatStillCarryLightTravelAsFullOps() throws ClientViewProtocolException {
+    void emptiedBricksThatStillCarryLightTravelAsFullOps() throws ViewStreamProtocolException {
         PlateStreamEncoder<String> encoder = new PlateStreamEncoder<String>(new SessionPalette(), state -> state);
         BrickLightSource light = (sectionX, sectionY, sectionZ, block, sky) -> {
             Arrays.fill(sky, (byte) 0x77);
@@ -181,7 +181,7 @@ final class PlatePatchEncoderTest {
         assertEquals(next.bricks(), List.of(PlatePatchEncoder.apply(encoded.bricks().toArray(new Brick[0]), patch)));
     }
 
-    private static EncodedPlate singleBrick(Brick brick) throws ClientViewProtocolException {
+    private static EncodedPlate singleBrick(Brick brick) throws ViewStreamProtocolException {
         BlockBox cells = new BlockBox(0, 0, 0, 16, 16, 16);
         return new EncodedPlate(PlateSectionBox.snap(cells), cells, 3, new Brick[] {brick},
             new byte[][] {BrickCodec.body(brick)}, new int[] {3, 4, 5, 6, 7}, new int[0]);

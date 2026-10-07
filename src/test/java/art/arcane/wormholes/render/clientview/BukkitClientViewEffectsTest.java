@@ -20,17 +20,17 @@ import com.github.retrooper.packetevents.protocol.ConnectionState;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.render.client.session.ClientViewEmitters;
-import art.arcane.optics.stream.ClientViewInbound;
+import art.arcane.optics.stream.ViewStreamInbound;
 
 final class BukkitClientViewEffectsTest {
     private static final long FX_CAPS = ClientViewFixture.CLIENT_CAPS | ViewStreamCapability.FX_EMITTERS.mask();
 
     @Test
-    void particlesSkipReceiversAndHandThemTheClientEmitter() throws ClientViewProtocolException {
+    void particlesSkipReceiversAndHandThemTheClientEmitter() throws ViewStreamProtocolException {
         try (ClientViewFixture fixture = negotiated(FX_CAPS)) {
             Player nearby = vanilla(fixture, 4.0D);
             Player far = vanilla(fixture, 90.0D);
@@ -51,7 +51,7 @@ final class BukkitClientViewEffectsTest {
     }
 
     @Test
-    void sessionsWithoutFxLeaveTheWorldBroadcastAlone() throws ClientViewProtocolException {
+    void sessionsWithoutFxLeaveTheWorldBroadcastAlone() throws ViewStreamProtocolException {
         try (ClientViewFixture fixture = negotiated(ClientViewFixture.CLIENT_CAPS)) {
             when(fixture.world.getPlayers()).thenReturn(List.of(fixture.player));
             assertFalse(fixture.clientView.receiver(fixture.player));
@@ -61,7 +61,7 @@ final class BukkitClientViewEffectsTest {
     }
 
     @Test
-    void ambientTouchesOpenAnEffectSlotWithoutOwningThePortal() throws ClientViewProtocolException {
+    void ambientTouchesOpenAnEffectSlotWithoutOwningThePortal() throws ViewStreamProtocolException {
         try (ClientViewFixture fixture = negotiated(FX_CAPS)) {
             when(fixture.portal.getAmbientStyle()).thenReturn(AmbientParticleStyle.SPARKS);
             when(fixture.portal.getAmbientColor()).thenReturn(0xB969FF);
@@ -106,12 +106,12 @@ final class BukkitClientViewEffectsTest {
         return out;
     }
 
-    private static ClientViewFixture negotiated(long clientCaps) throws ClientViewProtocolException {
+    private static ClientViewFixture negotiated(long clientCaps) throws ViewStreamProtocolException {
         ClientViewFixture fixture = new ClientViewFixture(ClientViewFixture.options(true, false, 100), ConnectionState.PLAY);
         when(fixture.player.getLocation()).thenAnswer(call -> fixture.eye.clone());
         fixture.clientView.observer(fixture.playerId, fixture.user).brand("fabric");
         assertTrue(fixture.negotiator.offerPlay(fixture.player));
-        assertEquals(ClientViewInbound.HELLO_ACCEPTED, fixture.hello(clientCaps));
+        assertEquals(ViewStreamInbound.HELLO_ACCEPTED, fixture.hello(clientCaps));
         fixture.messages();
         return fixture;
     }

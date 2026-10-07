@@ -1,6 +1,6 @@
 package art.arcane.optics.stream;
 
-public enum ClientViewPhase {
+public enum ViewStreamPhase {
     CONFIGURATION,
     PLAY
 }

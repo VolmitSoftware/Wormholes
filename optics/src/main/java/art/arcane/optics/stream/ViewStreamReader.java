@@ -2,16 +2,16 @@ package art.arcane.optics.stream;
 
 import java.nio.charset.StandardCharsets;
 
-public final class ClientViewReader {
+public final class ViewStreamReader {
     private final byte[] data;
     private final int end;
     private int position;
 
-    public ClientViewReader(byte[] data) {
+    public ViewStreamReader(byte[] data) {
         this(data, 0, data.length);
     }
 
-    public ClientViewReader(byte[] data, int offset, int length) {
+    public ViewStreamReader(byte[] data, int offset, int length) {
         this.data = data;
         this.position = offset;
         this.end = offset + length;
@@ -29,31 +29,31 @@ public final class ClientViewReader {
         return position >= end;
     }
 
-    public void expectEnd() throws ClientViewProtocolException {
+    public void expectEnd() throws ViewStreamProtocolException {
         if (position != end) {
-            throw new ClientViewProtocolException("trailing " + (end - position) + " bytes after message");
+            throw new ViewStreamProtocolException("trailing " + (end - position) + " bytes after message");
         }
     }
 
-    public void require(int bytes) throws ClientViewProtocolException {
+    public void require(int bytes) throws ViewStreamProtocolException {
         if (bytes < 0 || bytes > end - position) {
-            throw new ClientViewProtocolException("truncated: need " + bytes + " bytes, have " + (end - position));
+            throw new ViewStreamProtocolException("truncated: need " + bytes + " bytes, have " + (end - position));
         }
     }
 
-    public int u8() throws ClientViewProtocolException {
+    public int u8() throws ViewStreamProtocolException {
         require(1);
         return data[position++] & 0xFF;
     }
 
-    public int u16() throws ClientViewProtocolException {
+    public int u16() throws ViewStreamProtocolException {
         require(2);
         int value = (data[position] & 0xFF) | ((data[position + 1] & 0xFF) << 8);
         position += 2;
         return value;
     }
 
-    public int i32() throws ClientViewProtocolException {
+    public int i32() throws ViewStreamProtocolException {
         require(4);
         int value = (data[position] & 0xFF)
             | ((data[position + 1] & 0xFF) << 8)
@@ -63,7 +63,7 @@ public final class ClientViewReader {
         return value;
     }
 
-    public long i64() throws ClientViewProtocolException {
+    public long i64() throws ViewStreamProtocolException {
         require(8);
         long value = 0L;
         for (int i = 0; i < 8; i++) {
@@ -73,15 +73,15 @@ public final class ClientViewReader {
         return value;
     }
 
-    public float f32() throws ClientViewProtocolException {
+    public float f32() throws ViewStreamProtocolException {
         return Float.intBitsToFloat(i32());
     }
 
-    public double f64() throws ClientViewProtocolException {
+    public double f64() throws ViewStreamProtocolException {
         return Double.longBitsToDouble(i64());
     }
 
-    public int varint() throws ClientViewProtocolException {
+    public int varint() throws ViewStreamProtocolException {
         int value = 0;
         int shift = 0;
         while (true) {
@@ -92,24 +92,24 @@ public final class ClientViewReader {
             }
             shift += 7;
             if (shift > 28) {
-                throw new ClientViewProtocolException("varint longer than 5 bytes");
+                throw new ViewStreamProtocolException("varint longer than 5 bytes");
             }
         }
         if (value < 0) {
-            throw new ClientViewProtocolException("varint overflow");
+            throw new ViewStreamProtocolException("varint overflow");
         }
         return value;
     }
 
-    public int varint(int max) throws ClientViewProtocolException {
+    public int varint(int max) throws ViewStreamProtocolException {
         int value = varint();
         if (value > max) {
-            throw new ClientViewProtocolException("varint " + value + " exceeds " + max);
+            throw new ViewStreamProtocolException("varint " + value + " exceeds " + max);
         }
         return value;
     }
 
-    public String string() throws ClientViewProtocolException {
+    public String string() throws ViewStreamProtocolException {
         int length = varint(ViewStreamLimits.MAX_STRING_BYTES);
         require(length);
         String value = new String(data, position, length, StandardCharsets.UTF_8);
@@ -117,7 +117,7 @@ public final class ClientViewReader {
         return value;
     }
 
-    public byte[] bytes(int length) throws ClientViewProtocolException {
+    public byte[] bytes(int length) throws ViewStreamProtocolException {
         require(length);
         byte[] copy = new byte[length];
         System.arraycopy(data, position, copy, 0, length);
@@ -125,7 +125,7 @@ public final class ClientViewReader {
         return copy;
     }
 
-    public long[] longs(int count) throws ClientViewProtocolException {
+    public long[] longs(int count) throws ViewStreamProtocolException {
         require(count * 8);
         long[] values = new long[count];
         for (int i = 0; i < count; i++) {
@@ -134,12 +134,12 @@ public final class ClientViewReader {
         return values;
     }
 
-    public int checkedCount(int count, int max, int minBytesEach) throws ClientViewProtocolException {
+    public int checkedCount(int count, int max, int minBytesEach) throws ViewStreamProtocolException {
         if (count < 0 || count > max) {
-            throw new ClientViewProtocolException("count " + count + " exceeds " + max);
+            throw new ViewStreamProtocolException("count " + count + " exceeds " + max);
         }
         if ((long) count * minBytesEach > remaining()) {
-            throw new ClientViewProtocolException("count " + count + " does not fit in " + remaining() + " bytes");
+            throw new ViewStreamProtocolException("count " + count + " does not fit in " + remaining() + " bytes");
         }
         return count;
     }

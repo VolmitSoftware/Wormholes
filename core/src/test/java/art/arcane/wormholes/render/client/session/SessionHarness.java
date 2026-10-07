@@ -11,12 +11,12 @@ import java.util.concurrent.atomic.AtomicLong;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamMessageType;
-import art.arcane.optics.stream.ClientViewProtocolException;
-import art.arcane.optics.stream.ClientViewTransport;
+import art.arcane.optics.stream.ViewStreamProtocolException;
+import art.arcane.optics.stream.ViewStreamTransport;
 import art.arcane.optics.entity.ProjectedEntityEvent;
-import art.arcane.optics.stream.ClientViewInbound;
-import art.arcane.optics.stream.ClientViewPhase;
-import art.arcane.optics.stream.ClientViewPlateHandoff;
+import art.arcane.optics.stream.ViewStreamInbound;
+import art.arcane.optics.stream.ViewStreamPhase;
+import art.arcane.optics.stream.PlateHandoffs;
 
 final class SessionHarness {
     static final int DATA_VERSION = 4325;
@@ -37,7 +37,7 @@ final class SessionHarness {
     final ClientViewServerSession<String, String> session;
     ClientViewEntitySource<String> entities = ClientViewEntitySource.none();
     ClientViewFxSource<String> fx = ClientViewFxSource.none();
-    ClientViewPlateHandoff<String> handoffs = ClientViewPlateHandoff.none();
+    PlateHandoffs<String> handoffs = PlateHandoffs.none();
     long c2sSpacingNanos = C2S_SPACING_NANOS;
     int c2sCount;
     int flushes;
@@ -48,7 +48,7 @@ final class SessionHarness {
     }
 
     SessionHarness(ClientViewOptions options, Executor lanes, long zeroCopyNonce) {
-        ClientViewTransport<String> transport = new ClientViewTransport<String>() {
+        ViewStreamTransport<String> transport = new ViewStreamTransport<String>() {
             @Override
             public void send(String player, byte[] payload) {
                 ViewStreamMessageType type = ViewStreamMessageType.byId(payload[0] & 0xFF);
@@ -110,31 +110,31 @@ final class SessionHarness {
             defaults.clientRecursion(), defaults.interestGraceTicks());
     }
 
-    void handshake(long clientCaps) throws ClientViewProtocolException {
+    void handshake(long clientCaps) throws ViewStreamProtocolException {
         handshake(clientCaps, 0L);
     }
 
-    void handshake(long clientCaps, long nonceFound) throws ClientViewProtocolException {
+    void handshake(long clientCaps, long nonceFound) throws ViewStreamProtocolException {
         session.brand("fabric");
-        session.offer(ClientViewPhase.CONFIGURATION);
+        session.offer(ViewStreamPhase.CONFIGURATION);
         client.receive(frames);
-        assertEquals(ClientViewInbound.HELLO_ACCEPTED, c2s(client.hello(DATA_VERSION, clientCaps, "fabric", nonceFound)));
+        assertEquals(ViewStreamInbound.HELLO_ACCEPTED, c2s(client.hello(DATA_VERSION, clientCaps, "fabric", nonceFound)));
         client.receive(frames);
     }
 
-    ClientViewInbound c2s(byte[] payload) {
+    ViewStreamInbound c2s(byte[] payload) {
         clock.addAndGet(c2sSpacingNanos);
         c2sCount++;
         return session.receive(payload, 0, payload.length);
     }
 
-    void tick() throws ClientViewProtocolException {
+    void tick() throws ViewStreamProtocolException {
         clock.addAndGet(TICK_NANOS);
         session.tick(++serverTick);
         pump();
     }
 
-    void pump() throws ClientViewProtocolException {
+    void pump() throws ViewStreamProtocolException {
         while (!frames.isEmpty() || !client.outbound.isEmpty()) {
             client.receive(frames);
             while (!client.outbound.isEmpty()) {
@@ -143,8 +143,8 @@ final class SessionHarness {
         }
     }
 
-    void ack() throws ClientViewProtocolException {
-        assertEquals(ClientViewInbound.HANDLED, c2s(client.ack()));
+    void ack() throws ViewStreamProtocolException {
+        assertEquals(ViewStreamInbound.HANDLED, c2s(client.ack()));
         pump();
     }
 

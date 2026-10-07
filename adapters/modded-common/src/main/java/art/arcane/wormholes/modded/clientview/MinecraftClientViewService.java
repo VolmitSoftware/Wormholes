@@ -9,12 +9,12 @@ import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.render.client.session.ClientViewEmitters;
 import art.arcane.wormholes.render.client.session.ClientPreparedTravelServer;
 import art.arcane.wormholes.render.client.session.ClientViewEntityFrames;
-import art.arcane.optics.stream.ClientViewInbound;
+import art.arcane.optics.stream.ViewStreamInbound;
 import art.arcane.wormholes.render.client.session.ClientViewOptions;
 import art.arcane.wormholes.render.client.session.ClientViewPlatform;
 import art.arcane.wormholes.render.client.session.ClientViewSceneFx;
 import art.arcane.wormholes.render.client.session.ClientViewServerSession;
-import art.arcane.optics.stream.ClientViewSessionState;
+import art.arcane.optics.stream.ViewStreamSessionState;
 import art.arcane.wormholes.render.client.session.ClientViewSessionRegistry;
 import com.mojang.authlib.GameProfile;
 import net.minecraft.SharedConstants;
@@ -143,7 +143,7 @@ public final class MinecraftClientViewService implements AutoCloseable {
     public boolean nativeMesh(ServerPlayer player) {
         ClientViewSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
         ClientViewServerSession<MinecraftClientViewPeer, BlockState> session = active == null ? null : active.session(player.getUUID());
-        return session != null && session.state() == ClientViewSessionState.CLIENT_VIEW && ViewStreamCapability.MESH_RENDER.in(session.caps());
+        return session != null && session.state() == ViewStreamSessionState.CLIENT_VIEW && ViewStreamCapability.MESH_RENDER.in(session.caps());
     }
 
     public ClientViewMessage.TravelCommit commitTravel(ServerPlayer player, UUID source, ServerLevel destination,
@@ -358,22 +358,22 @@ public final class MinecraftClientViewService implements AutoCloseable {
         current.offerPlay(player.getUUID(), player.getGameProfile().name(), listener.wormholesConnection());
     }
 
-    public ClientViewInbound receive(Connection connection, byte[] payload) {
+    public ViewStreamInbound receive(Connection connection, byte[] payload) {
         MinecraftClientViewNegotiator current = negotiator;
         if (current == null || connection == null || payload == null) {
-            return ClientViewInbound.IGNORED;
+            return ViewStreamInbound.IGNORED;
         }
-        ClientViewInbound outcome = current.receive(connection, payload);
-        if (outcome == ClientViewInbound.RESET) {
+        ViewStreamInbound outcome = current.receive(connection, payload);
+        if (outcome == ViewStreamInbound.RESET) {
             MinecraftClientViewPeer peer = current.peer(connection);
             LOGGER.warn("Wormholes ClientView ended the session for {} after repeated protocol violations", peer == null ? "unknown" : peer.name());
         }
         return outcome;
     }
 
-    public ClientViewInbound receive(ServerCommonPacketListenerImpl listener, byte[] payload) {
+    public ViewStreamInbound receive(ServerCommonPacketListenerImpl listener, byte[] payload) {
         if (!(listener instanceof ServerConnectionAccess access)) {
-            return ClientViewInbound.IGNORED;
+            return ViewStreamInbound.IGNORED;
         }
         return receive(access.wormholesConnection(), payload);
     }

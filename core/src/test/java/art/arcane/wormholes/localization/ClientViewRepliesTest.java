@@ -5,7 +5,7 @@ import art.arcane.volmlib.util.localization.LocalizationSnapshot;
 import art.arcane.volmlib.util.localization.PluralSelector;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.optics.stream.ClientViewSessionState;
+import art.arcane.optics.stream.ViewStreamSessionState;
 import art.arcane.wormholes.render.client.session.ClientViewSessionStats;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.junit.jupiter.api.Test;
@@ -32,10 +32,10 @@ final class ClientViewRepliesTest {
 
     @Test
     void statusListsEverySessionAndFallsBackToTheIdForUnknownPlayers() {
-        ClientViewSessionStats alex = stats(ALEX, ClientViewSessionState.CLIENT_VIEW,
+        ClientViewSessionStats alex = stats(ALEX, ViewStreamSessionState.CLIENT_VIEW,
             ViewStreamCapability.of(ViewStreamCapability.PLATES, ViewStreamCapability.BRICK_CACHE), 3072L, 0L, 0L,
             new ClientViewMessage.ViewStats(10, 2, 400, 0, 120, 80, 12));
-        ClientViewSessionStats ghost = stats(GHOST, ClientViewSessionState.PENDING, 0L, 0L, 4L, 2L, null);
+        ClientViewSessionStats ghost = stats(GHOST, ViewStreamSessionState.PENDING, 0L, 0L, 4L, 2L, null);
         List<String> lines = plain(ClientViewReplies.status(false, true, List.of(alex, ghost),
             playerId -> Map.of(ALEX, "Alex").get(playerId)));
 
@@ -60,7 +60,7 @@ final class ClientViewRepliesTest {
     @Test
     void everyReplyKeyBelongsToTheClientViewCatalog() {
         List<ClientViewReplies.Reply> replies = new ArrayList<>(ClientViewReplies.status(true, true,
-            List.of(stats(ALEX, ClientViewSessionState.CLIENT_VIEW, 0L, 0L, 0L, 0L, null)), playerId -> "Alex"));
+            List.of(stats(ALEX, ViewStreamSessionState.CLIENT_VIEW, 0L, 0L, 0L, 0L, null)), playerId -> "Alex"));
         replies.add(ClientViewReplies.enabled(true));
         replies.add(ClientViewReplies.disabled());
         replies.add(ClientViewReplies.reset("Alex", true));
@@ -71,7 +71,7 @@ final class ClientViewRepliesTest {
         }
     }
 
-    private static ClientViewSessionStats stats(UUID playerId, ClientViewSessionState state, long caps, long bytes, long dropped, long stale,
+    private static ClientViewSessionStats stats(UUID playerId, ViewStreamSessionState state, long caps, long bytes, long dropped, long stale,
                                                 ClientViewMessage.ViewStats view) {
         return new ClientViewSessionStats(playerId, 1, state, caps, 2, 7L, bytes, 5L, 1, 4L, 12_500L, 900L, 30L, dropped, stale, 0L, 0L, view);
     }

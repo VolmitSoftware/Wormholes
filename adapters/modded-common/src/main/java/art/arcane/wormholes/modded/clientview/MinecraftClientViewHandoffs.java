@@ -2,7 +2,7 @@ package art.arcane.wormholes.modded.clientview;
 
 import art.arcane.optics.stream.BrickLightSource;
 import art.arcane.optics.scan.ProjectorSample;
-import art.arcane.optics.stream.ClientViewPlateHandoff;
+import art.arcane.optics.stream.PlateHandoffs;
 import art.arcane.optics.plate.PlateCell;
 import art.arcane.optics.plate.ViewPlate;
 import it.unimi.dsi.fastutil.longs.LongIterator;
@@ -11,7 +11,7 @@ import net.minecraft.commands.arguments.blocks.BlockStateParser;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
-public final class MinecraftClientViewHandoffs implements ClientViewPlateHandoff<BlockState> {
+public final class MinecraftClientViewHandoffs implements PlateHandoffs<BlockState> {
     @Override
     public long publish(int portalKey, int plateRevision, ViewPlate<BlockState> plate, BrickLightSource light) {
         return LocalPlateHandles.publish(portalKey, plateRevision, plate, backingState(plate), light).handle();

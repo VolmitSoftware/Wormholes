@@ -7,8 +7,8 @@ import java.util.function.IntSupplier;
 import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.BrickCodec;
-import art.arcane.optics.stream.ClientViewProtocolException;
-import art.arcane.optics.stream.ClientViewWriter;
+import art.arcane.optics.stream.ViewStreamProtocolException;
+import art.arcane.optics.stream.ViewStreamWriter;
 import art.arcane.optics.stream.ViewStreamLimits;
 
 public final class FrameSplitter {
@@ -28,11 +28,11 @@ public final class FrameSplitter {
         return deflate;
     }
 
-    public List<byte[]> split(List<ClientViewMessage> group, IntSupplier sequence) throws ClientViewProtocolException {
+    public List<byte[]> split(List<ClientViewMessage> group, IntSupplier sequence) throws ViewStreamProtocolException {
         return split(group, sequence, true);
     }
 
-    public List<byte[]> split(List<ClientViewMessage> group, IntSupplier sequence, boolean closeGroup) throws ClientViewProtocolException {
+    public List<byte[]> split(List<ClientViewMessage> group, IntSupplier sequence, boolean closeGroup) throws ViewStreamProtocolException {
         List<ClientViewMessage> pieces = new ArrayList<ClientViewMessage>(group.size());
         int bodyBudget = maxFrameBytes - ViewStreamLimits.S2C_HEADER_BYTES;
         for (ClientViewMessage message : group) {
@@ -43,14 +43,14 @@ public final class FrameSplitter {
             int flags = closeGroup && i == pieces.size() - 1 ? ViewStreamLimits.FLAG_LAST : 0;
             byte[] frame = ClientViewCodec.encodeS2C(pieces.get(i), sequence.getAsInt(), flags, deflate);
             if (frame.length > maxFrameBytes) {
-                throw new ClientViewProtocolException(pieces.get(i).type() + " frame of " + frame.length + " bytes exceeds " + maxFrameBytes);
+                throw new ViewStreamProtocolException(pieces.get(i).type() + " frame of " + frame.length + " bytes exceeds " + maxFrameBytes);
             }
             frames.add(frame);
         }
         return frames;
     }
 
-    public List<ClientViewMessage> pieces(ClientViewMessage message, int bodyBudget) throws ClientViewProtocolException {
+    public List<ClientViewMessage> pieces(ClientViewMessage message, int bodyBudget) throws ViewStreamProtocolException {
         return switch (message) {
             case ClientViewMessage.PlateBricks bricks -> splitBricks(bricks, bodyBudget);
             case ClientViewMessage.Palette palette -> splitPalette(palette, bodyBudget);
@@ -59,22 +59,22 @@ public final class FrameSplitter {
             default -> {
                 int size = ClientViewCodec.encodeBody(message).length;
                 if (size > bodyBudget) {
-                    throw new ClientViewProtocolException(message.type() + " body of " + size + " bytes cannot be split to fit " + bodyBudget);
+                    throw new ViewStreamProtocolException(message.type() + " body of " + size + " bytes cannot be split to fit " + bodyBudget);
                 }
                 yield List.of(message);
             }
         };
     }
 
-    private static List<ClientViewMessage> splitBricks(ClientViewMessage.PlateBricks message, int bodyBudget) throws ClientViewProtocolException {
-        int header = ClientViewWriter.varintSize(message.portalKey()) + 4 + 2;
+    private static List<ClientViewMessage> splitBricks(ClientViewMessage.PlateBricks message, int bodyBudget) throws ViewStreamProtocolException {
+        int header = ViewStreamWriter.varintSize(message.portalKey()) + 4 + 2;
         List<ClientViewMessage> out = new ArrayList<ClientViewMessage>();
         List<Brick> current = new ArrayList<Brick>();
         int used = header;
         for (Brick brick : message.bricks()) {
             int size = 2 + BrickCodec.encodedSize(brick);
             if (header + size > bodyBudget) {
-                throw new ClientViewProtocolException("brick " + brick.brickIndex() + " of " + size + " bytes cannot fit a frame of " + bodyBudget);
+                throw new ViewStreamProtocolException("brick " + brick.brickIndex() + " of " + size + " bytes cannot fit a frame of " + bodyBudget);
             }
             if (used + size > bodyBudget && !current.isEmpty()) {
                 out.add(new ClientViewMessage.PlateBricks(message.portalKey(), message.plateRevision(), current));
@@ -91,24 +91,24 @@ public final class FrameSplitter {
     }
 
     private static List<ClientViewMessage> splitEntityFrame(ClientViewMessage.EntityFrame message, int bodyBudget)
-        throws ClientViewProtocolException {
+        throws ViewStreamProtocolException {
         if (ClientViewCodec.encodeBody(message).length <= bodyBudget) {
             return List.of(message);
         }
-        int header = ClientViewWriter.varintSize(message.portalKey()) + 4 + 1;
+        int header = ViewStreamWriter.varintSize(message.portalKey()) + 4 + 1;
         int unchanged = 2;
         int presence = message.presence() ? 2 + message.presentIds().size() * 16 : unchanged;
         if (header + presence > bodyBudget) {
-            throw new ClientViewProtocolException("entity presence list of " + message.presentIds().size() + " ids cannot fit a frame of " + bodyBudget);
+            throw new ViewStreamProtocolException("entity presence list of " + message.presentIds().size() + " ids cannot fit a frame of " + bodyBudget);
         }
         List<ClientViewMessage> out = new ArrayList<ClientViewMessage>();
         List<EntitySnapshot> current = new ArrayList<EntitySnapshot>();
         int used = header;
         for (EntitySnapshot visual : message.entities()) {
             int length = ClientViewCodec.entityBytes(visual).length;
-            int size = ClientViewWriter.varintSize(length) + length;
+            int size = ViewStreamWriter.varintSize(length) + length;
             if (header + size + unchanged > bodyBudget) {
-                throw new ClientViewProtocolException("entity " + visual.id() + " of " + size + " bytes cannot fit a frame of " + bodyBudget);
+                throw new ViewStreamProtocolException("entity " + visual.id() + " of " + size + " bytes cannot fit a frame of " + bodyBudget);
             }
             if (used + size + unchanged > bodyBudget && !current.isEmpty()) {
                 out.add(new ClientViewMessage.EntityFrame(message.portalKey(), message.entitySeq(), current, List.of(), false));
@@ -126,15 +126,15 @@ public final class FrameSplitter {
         return out;
     }
 
-    private static List<ClientViewMessage> splitPalette(ClientViewMessage.Palette message, int bodyBudget) throws ClientViewProtocolException {
+    private static List<ClientViewMessage> splitPalette(ClientViewMessage.Palette message, int bodyBudget) throws ViewStreamProtocolException {
         List<ClientViewMessage> out = new ArrayList<ClientViewMessage>();
         List<ClientViewMessage.PaletteEntry> current = new ArrayList<ClientViewMessage.PaletteEntry>();
         int header = 3;
         int used = header;
         for (ClientViewMessage.PaletteEntry entry : message.entries()) {
-            int size = ClientViewWriter.varintSize(entry.id()) + 2 + entry.state().length() * 3;
+            int size = ViewStreamWriter.varintSize(entry.id()) + 2 + entry.state().length() * 3;
             if (header + size > bodyBudget) {
-                throw new ClientViewProtocolException("palette entry " + entry.id() + " cannot fit a frame of " + bodyBudget);
+                throw new ViewStreamProtocolException("palette entry " + entry.id() + " cannot fit a frame of " + bodyBudget);
             }
             if ((used + size > bodyBudget || current.size() == ViewStreamLimits.MAX_PALETTE_ENTRIES_PER_MESSAGE) && !current.isEmpty()) {
                 out.add(new ClientViewMessage.Palette(current));
@@ -150,15 +150,15 @@ public final class FrameSplitter {
         return out;
     }
 
-    private static List<ClientViewMessage> splitPatch(ClientViewMessage.PlatePatch message, int bodyBudget) throws ClientViewProtocolException {
-        int header = ClientViewWriter.varintSize(message.portalKey()) + 4 + 4 + 2;
+    private static List<ClientViewMessage> splitPatch(ClientViewMessage.PlatePatch message, int bodyBudget) throws ViewStreamProtocolException {
+        int header = ViewStreamWriter.varintSize(message.portalKey()) + 4 + 4 + 2;
         List<List<ClientViewMessage.PatchOp>> pieces = new ArrayList<List<ClientViewMessage.PatchOp>>();
         List<ClientViewMessage.PatchOp> current = new ArrayList<ClientViewMessage.PatchOp>();
         int used = header;
         for (ClientViewMessage.PatchOp op : message.ops()) {
             int size = opSize(op);
             if (header + size > bodyBudget) {
-                throw new ClientViewProtocolException("patch op for brick " + op.brickIndex() + " cannot fit a frame of " + bodyBudget);
+                throw new ViewStreamProtocolException("patch op for brick " + op.brickIndex() + " cannot fit a frame of " + bodyBudget);
             }
             if (used + size > bodyBudget && !current.isEmpty()) {
                 pieces.add(current);
@@ -186,7 +186,7 @@ public final class FrameSplitter {
             case ClientViewMessage.SparseOp sparse -> {
                 int size = 3 + 2;
                 for (int id : sparse.paletteIds()) {
-                    size += 2 + ClientViewWriter.varintSize(id);
+                    size += 2 + ViewStreamWriter.varintSize(id);
                 }
                 yield size;
             }

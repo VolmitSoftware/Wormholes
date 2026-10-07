@@ -5,8 +5,8 @@ import java.util.Arrays;
 import java.util.List;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.BrickCodec;
-import art.arcane.optics.stream.ClientViewProtocolException;
-import art.arcane.optics.stream.ClientViewWriter;
+import art.arcane.optics.stream.ViewStreamProtocolException;
+import art.arcane.optics.stream.ViewStreamWriter;
 import art.arcane.optics.stream.ViewStreamLimits;
 
 public final class PlatePatchEncoder {
@@ -46,7 +46,7 @@ public final class PlatePatchEncoder {
             for (int cell = 0; cell < ViewStreamLimits.BRICK_CELLS; cell++) {
                 if (before[cell] != after[cell]) {
                     changed++;
-                    sparseBytes += 2 + ClientViewWriter.varintSize(after[cell]);
+                    sparseBytes += 2 + ViewStreamWriter.varintSize(after[cell]);
                     if (changed >= ViewStreamLimits.SPARSE_PATCH_MAX_CELLS || sparseBytes >= fullBytes) {
                         break;
                     }
@@ -71,13 +71,13 @@ public final class PlatePatchEncoder {
         return new ClientViewMessage.PlatePatch(portalKey, fromRevision, toRevision, ops);
     }
 
-    public static Brick[] apply(Brick[] previous, ClientViewMessage.PlatePatch patch) throws ClientViewProtocolException {
+    public static Brick[] apply(Brick[] previous, ClientViewMessage.PlatePatch patch) throws ViewStreamProtocolException {
         Brick[] result = previous.clone();
         int[] cells = new int[ViewStreamLimits.BRICK_CELLS];
         for (ClientViewMessage.PatchOp op : patch.ops()) {
             int index = op.brickIndex();
             if (index < 0 || index >= result.length) {
-                throw new ClientViewProtocolException("patch op for brick " + index + " outside the plate");
+                throw new ViewStreamProtocolException("patch op for brick " + index + " outside the plate");
             }
             switch (op) {
                 case ClientViewMessage.FullOp full -> result[index] = full.brick();

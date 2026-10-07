@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import art.arcane.optics.stream.ClientViewSessionState;
+import art.arcane.optics.stream.ViewStreamSessionState;
 
 final class ClientViewLocalCapabilityTest {
     @Test
@@ -18,7 +18,7 @@ final class ClientViewLocalCapabilityTest {
         assertTrue(ViewStreamCapability.LOCAL_MESH.in(harness.client.offer.serverCaps()));
         assertFalse(ViewStreamCapability.LOCAL_MESH.in(harness.client.accept.caps()));
         assertTrue(ViewStreamCapability.MESH_RENDER.in(harness.client.accept.caps()));
-        assertEquals(ClientViewSessionState.CLIENT_VIEW, harness.session.state());
+        assertEquals(ViewStreamSessionState.CLIENT_VIEW, harness.session.state());
         assertTrue(harness.session.nativeRendererSelected());
     }
 }

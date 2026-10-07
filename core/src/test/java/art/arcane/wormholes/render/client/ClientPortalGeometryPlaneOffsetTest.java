@@ -2,9 +2,9 @@ package art.arcane.wormholes.render.client;
 
 import art.arcane.wormholes.door.DoorwayPlane;
 import art.arcane.wormholes.network.client.ClientViewCodec;
-import art.arcane.optics.stream.ClientViewProtocolException;
-import art.arcane.optics.stream.ClientViewReader;
-import art.arcane.optics.stream.ClientViewWriter;
+import art.arcane.optics.stream.ViewStreamProtocolException;
+import art.arcane.optics.stream.ViewStreamReader;
+import art.arcane.optics.stream.ViewStreamWriter;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.optics.claim.ProjectedBlockClaim;
@@ -20,13 +20,13 @@ import art.arcane.optics.aperture.ApertureDescriptor;
 
 final class ClientPortalGeometryPlaneOffsetTest {
     @Test
-    void planeOffsetSurvivesTheWireBitForBit() throws ClientViewProtocolException {
+    void planeOffsetSurvivesTheWireBitForBit() throws ViewStreamProtocolException {
         for (Face normal : Face.values()) {
             ApertureDescriptor child = geometry(normal, ApertureDescriptor.KIND_FRAME, 0.0D, List.of());
             ApertureDescriptor door = geometry(normal, ApertureDescriptor.KIND_DOOR, DoorwayPlane.planeOffset(normal), List.of(child));
-            ClientViewWriter out = new ClientViewWriter();
+            ViewStreamWriter out = new ViewStreamWriter();
             ClientViewCodec.writeGeometry(out, door, 0);
-            ClientViewReader in = new ClientViewReader(out.toByteArray());
+            ViewStreamReader in = new ViewStreamReader(out.toByteArray());
             ApertureDescriptor decoded = ClientViewCodec.readGeometry(in, 0);
             in.expectEnd();
             assertEquals(door, decoded);

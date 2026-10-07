@@ -6,7 +6,7 @@ import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.wormholes.network.client.ClientViewHandshake;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.wormholes.network.client.PlateHandoff;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
@@ -164,7 +164,7 @@ public final class ClientViewSession {
         return meshFailures.size();
     }
 
-    public boolean handle(ClientViewMessage message, Sink sink) throws ClientViewProtocolException {
+    public boolean handle(ClientViewMessage message, Sink sink) throws ViewStreamProtocolException {
         Objects.requireNonNull(message, "message");
         Objects.requireNonNull(sink, "sink");
         if (message instanceof ClientViewMessage.Offer) {
@@ -271,13 +271,13 @@ public final class ClientViewSession {
                         ignoredSceneMessages++;
                     }
                 }
-                default -> throw new ClientViewProtocolException("unexpected clientbound " + message.type());
+                default -> throw new ViewStreamProtocolException("unexpected clientbound " + message.type());
             }
             ClientViewMessage.PlateRefused refused = plates.takeRefusal();
             if (refused != null) {
                 sink.refused(refused);
             }
-        } catch (ClientViewProtocolException | RuntimeException failure) {
+        } catch (ViewStreamProtocolException | RuntimeException failure) {
             protocolFailures++;
             throw failure;
         }
@@ -467,9 +467,9 @@ public final class ClientViewSession {
         return dataVersion;
     }
 
-    private void portal(ClientViewMessage.Portal message) throws ClientViewProtocolException {
+    private void portal(ClientViewMessage.Portal message) throws ViewStreamProtocolException {
         if (!message.geometry().valid()) {
-            throw new ClientViewProtocolException("invalid geometry for portal " + message.portalKey());
+            throw new ViewStreamProtocolException("invalid geometry for portal " + message.portalKey());
         }
         ClientPortal portal = portals.get(message.portalKey());
         if (portal == null) {
@@ -498,7 +498,7 @@ public final class ClientViewSession {
         }
     }
 
-    private void meshBegin(ClientViewMessage.MeshBegin message, Sink sink) throws ClientViewProtocolException {
+    private void meshBegin(ClientViewMessage.MeshBegin message, Sink sink) throws ViewStreamProtocolException {
         ClientPortal portal = portals.get(message.portalKey());
         if (portal == null) {
             ignoredSceneMessages++;
@@ -523,7 +523,7 @@ public final class ClientViewSession {
         }
     }
 
-    private void meshSection(ClientViewMessage.MeshSection message, Sink sink) throws ClientViewProtocolException {
+    private void meshSection(ClientViewMessage.MeshSection message, Sink sink) throws ViewStreamProtocolException {
         ClientMeshSections.Result result = meshes.put(message);
         if (result == ClientMeshSections.Result.REFUSED) {
             refuseMesh(message.portalKey(), message.generation(), sink);
@@ -533,7 +533,7 @@ public final class ClientViewSession {
         }
     }
 
-    private void begin(ClientViewMessage.PlateBegin begin, Sink sink) throws ClientViewProtocolException {
+    private void begin(ClientViewMessage.PlateBegin begin, Sink sink) throws ViewStreamProtocolException {
         ClientViewMessage.BrickMiss.Plate miss = plates.begin(begin);
         if (miss != null && has(ViewStreamCapability.BRICK_CACHE)) {
             sink.brickMiss(miss);
@@ -552,7 +552,7 @@ public final class ClientViewSession {
         }
     }
 
-    private void patch(ClientViewMessage.PlatePatch message) throws ClientViewProtocolException {
+    private void patch(ClientViewMessage.PlatePatch message) throws ViewStreamProtocolException {
         patchedBricks.clear();
         ClientPlate plate = plates.patch(message, patchedBricks);
         ClientPortal portal = owner(plate);

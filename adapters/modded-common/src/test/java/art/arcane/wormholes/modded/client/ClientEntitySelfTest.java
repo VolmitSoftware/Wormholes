@@ -4,7 +4,7 @@ import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import com.mojang.authlib.GameProfile;
@@ -43,7 +43,7 @@ public class ClientEntitySelfTest extends MinecraftTestBase {
     }
 
     @Test
-    public void orderedReceiverBindingSurvivesWorldAttachmentAndClearsOnSessionReset() throws ClientViewProtocolException {
+    public void orderedReceiverBindingSurvivesWorldAttachmentAndClearsOnSessionReset() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
         UUID id = UUID.randomUUID();

@@ -1,6 +1,6 @@
 package art.arcane.optics.stream;
 
-public enum ClientViewInbound {
+public enum ViewStreamInbound {
     HANDLED,
     HELLO_ACCEPTED,
     HELLO_DECLINED,

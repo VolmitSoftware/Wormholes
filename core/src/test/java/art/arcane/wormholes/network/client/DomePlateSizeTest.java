@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test;
 import art.arcane.optics.scan.ProjectorSample;
 import art.arcane.optics.plate.ViewPlate;
 import art.arcane.optics.plate.ViewPlateBuilder;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.stream.ViewStreamLimits;
 
 final class DomePlateSizeTest {
@@ -28,7 +28,7 @@ final class DomePlateSizeTest {
     }
 
     static List<PlateReport> report(List<ViewPlate<String>> plates, List<DomePlates.Scenario> scenarios, SessionPalette palette,
-                                    PlateStreamEncoder<String> encoder, FrameSplitter splitter) throws ClientViewProtocolException {
+                                    PlateStreamEncoder<String> encoder, FrameSplitter splitter) throws ViewStreamProtocolException {
         List<PlateReport> reports = new ArrayList<PlateReport>(plates.size());
         SessionPalette.Cursor cursor = palette.cursor();
         int[] seq = new int[1];
@@ -77,7 +77,7 @@ final class DomePlateSizeTest {
     }
 
     @Test
-    void nineDomePlatesStayUnderTheStreamBudget() throws ClientViewProtocolException {
+    void nineDomePlatesStayUnderTheStreamBudget() throws ViewStreamProtocolException {
         SyntheticWorld world = new SyntheticWorld(WORLD_SEED);
         List<DomePlates.Scenario> scenarios = DomePlates.scenarios(world, PLACEMENT_SEED);
         List<ViewPlate<String>> plates = new ArrayList<ViewPlate<String>>(9);

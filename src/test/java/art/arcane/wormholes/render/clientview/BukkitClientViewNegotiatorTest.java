@@ -33,8 +33,8 @@ import art.arcane.wormholes.network.client.ClientViewChannel;
 import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamMessageType;
-import art.arcane.optics.stream.ClientViewInbound;
-import art.arcane.optics.stream.ClientViewSessionState;
+import art.arcane.optics.stream.ViewStreamInbound;
+import art.arcane.optics.stream.ViewStreamSessionState;
 
 final class BukkitClientViewNegotiatorTest {
     @Test
@@ -42,7 +42,7 @@ final class BukkitClientViewNegotiatorTest {
         try (ClientViewFixture fixture = new ClientViewFixture(ClientViewFixture.options(true, false, 100), ConnectionState.PLAY)) {
             fixture.clientView.observer(fixture.playerId, fixture.user).brand("fabric");
             assertTrue(fixture.negotiator.offerPlay(fixture.player));
-            assertEquals(ClientViewInbound.HELLO_ACCEPTED, fixture.hello(ViewStreamCapability.ALL));
+            assertEquals(ViewStreamInbound.HELLO_ACCEPTED, fixture.hello(ViewStreamCapability.ALL));
 
             List<ClientViewMessage> messages = fixture.messages();
             assertEquals(List.of(ViewStreamMessageType.OFFER, ViewStreamMessageType.ACCEPT), types(messages));
@@ -67,7 +67,7 @@ final class BukkitClientViewNegotiatorTest {
                     fixture.clientView.observer(fixture.playerId, fixture.user).brand("fabric");
                     assertTrue(fixture.negotiator.offerPlay(fixture.player));
                     long caps = cache ? ViewStreamCapability.ALL : ViewStreamCapability.ALL & ~ViewStreamCapability.PREPARED_TRAVEL_CACHE.mask();
-                    assertEquals(ClientViewInbound.HELLO_ACCEPTED, fixture.hello(caps));
+                    assertEquals(ViewStreamInbound.HELLO_ACCEPTED, fixture.hello(caps));
                     List<ClientViewMessage> messages = fixture.messages();
                     ClientViewMessage.Offer offer = (ClientViewMessage.Offer) messages.get(0);
                     ClientViewMessage.Accept accept = (ClientViewMessage.Accept) messages.get(1);
@@ -86,7 +86,7 @@ final class BukkitClientViewNegotiatorTest {
         try (ClientViewFixture fixture = new ClientViewFixture(ClientViewFixture.options(true, true, 5000), ConnectionState.CONFIGURATION)) {
             fixture.clientView.observer(fixture.playerId, fixture.user).brand("vanilla");
 
-            assertEquals(ClientViewSessionState.VANILLA, fixture.negotiator.configure(fixture.playerId, fixture.user));
+            assertEquals(ViewStreamSessionState.VANILLA, fixture.negotiator.configure(fixture.playerId, fixture.user));
             fixture.user.setEncoderState(ConnectionState.PLAY);
             fixture.negotiator.on(join(fixture));
 
@@ -102,7 +102,7 @@ final class BukkitClientViewNegotiatorTest {
         try (ClientViewFixture fixture = new ClientViewFixture(ClientViewFixture.options(true, true, 120), ConnectionState.CONFIGURATION)) {
             long started = System.nanoTime();
 
-            assertEquals(ClientViewSessionState.VANILLA, fixture.negotiator.configure(fixture.playerId, fixture.user));
+            assertEquals(ViewStreamSessionState.VANILLA, fixture.negotiator.configure(fixture.playerId, fixture.user));
 
             assertTrue(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started) >= 100L);
             List<ClientViewPacketEvents.Sent> sent = fixture.drain();
@@ -127,15 +127,15 @@ final class BukkitClientViewNegotiatorTest {
     void moddedHelloDuringConfigurationAcceptsTheSession() throws Exception {
         try (ClientViewFixture fixture = new ClientViewFixture(ClientViewFixture.options(true, true, 5000), ConnectionState.CONFIGURATION)) {
             fixture.clientView.observer(fixture.playerId, fixture.user).brand("fabric");
-            CompletableFuture<ClientViewSessionState> handshake = CompletableFuture.supplyAsync(
+            CompletableFuture<ViewStreamSessionState> handshake = CompletableFuture.supplyAsync(
                 () -> fixture.negotiator.configure(fixture.playerId, fixture.user));
             long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5L);
             while (fixture.user.snapshot().size() < 2 && System.nanoTime() < deadline) {
                 Thread.sleep(5L);
             }
-            assertEquals(ClientViewInbound.HELLO_ACCEPTED, fixture.hello());
+            assertEquals(ViewStreamInbound.HELLO_ACCEPTED, fixture.hello());
 
-            assertEquals(ClientViewSessionState.CLIENT_VIEW, handshake.get(5L, TimeUnit.SECONDS));
+            assertEquals(ViewStreamSessionState.CLIENT_VIEW, handshake.get(5L, TimeUnit.SECONDS));
             List<ClientViewMessage> messages = fixture.messages();
             assertEquals(List.of(ViewStreamMessageType.OFFER, ViewStreamMessageType.ACCEPT), types(messages));
             ClientViewMessage.Accept accept = (ClientViewMessage.Accept) messages.get(1);
@@ -152,7 +152,7 @@ final class BukkitClientViewNegotiatorTest {
             fixture.clientView.observer(fixture.playerId, fixture.user).brand("fabric");
             long started = System.nanoTime();
 
-            assertEquals(ClientViewSessionState.VANILLA, fixture.negotiator.configure(fixture.playerId, fixture.user));
+            assertEquals(ViewStreamSessionState.VANILLA, fixture.negotiator.configure(fixture.playerId, fixture.user));
 
             assertTrue(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started) >= 100L);
         }
@@ -162,7 +162,7 @@ final class BukkitClientViewNegotiatorTest {
     void disabledClientViewNeverOffers() throws Exception {
         try (ClientViewFixture fixture = new ClientViewFixture(ClientViewFixture.options(false, true, 100), ConnectionState.CONFIGURATION)) {
             fixture.clientView.observer(fixture.playerId, fixture.user).brand("fabric");
-            assertEquals(ClientViewSessionState.VANILLA, fixture.negotiator.configure(fixture.playerId, fixture.user));
+            assertEquals(ViewStreamSessionState.VANILLA, fixture.negotiator.configure(fixture.playerId, fixture.user));
             fixture.user.setEncoderState(ConnectionState.PLAY);
             fixture.negotiator.on(join(fixture));
 
@@ -201,9 +201,9 @@ final class BukkitClientViewNegotiatorTest {
             assertEquals(List.of(Long.valueOf(BukkitClientViewNegotiator.PLAY_EXPIRY_TICKS)), fixture.expiries);
             assertTrue(fixture.clientView.holdsVanilla(fixture.player, 1L));
 
-            assertEquals(ClientViewInbound.HELLO_ACCEPTED, fixture.hello());
+            assertEquals(ViewStreamInbound.HELLO_ACCEPTED, fixture.hello());
             assertFalse(fixture.clientView.holdsVanilla(fixture.player, 2L));
-            assertEquals(ClientViewSessionState.CLIENT_VIEW, fixture.session().state());
+            assertEquals(ViewStreamSessionState.CLIENT_VIEW, fixture.session().state());
         }
     }
 
@@ -247,12 +247,12 @@ final class BukkitClientViewNegotiatorTest {
             fixture.negotiator.on(join(fixture));
             fixture.negotiator.on(register(fixture, ClientViewChannel.CHANNEL));
             fixture.expiryTasks.get(0).run();
-            assertEquals(ClientViewSessionState.VANILLA, fixture.session().state());
+            assertEquals(ViewStreamSessionState.VANILLA, fixture.session().state());
             assertEquals(List.of(fixture.portal), fixture.route());
             assertTrue(fixture.released.isEmpty());
             fixture.drain();
 
-            assertEquals(ClientViewInbound.HELLO_ACCEPTED, fixture.hello());
+            assertEquals(ViewStreamInbound.HELLO_ACCEPTED, fixture.hello());
             assertTrue(fixture.route().isEmpty());
 
             assertEquals(1, fixture.released.size());
@@ -270,7 +270,7 @@ final class BukkitClientViewNegotiatorTest {
             fixture.bukkit.when(Bukkit::getOnlinePlayers).thenAnswer(ignored -> List.of(fixture.player));
             fixture.clientView.observer(fixture.playerId, fixture.user).brand("fabric");
             fixture.negotiator.on(join(fixture));
-            assertEquals(ClientViewInbound.HELLO_ACCEPTED, fixture.hello());
+            assertEquals(ViewStreamInbound.HELLO_ACCEPTED, fixture.hello());
             fixture.drain();
 
             fixture.clientView.runtimeEnabled(false);
@@ -278,8 +278,8 @@ final class BukkitClientViewNegotiatorTest {
 
             assertEquals(List.of(ViewStreamMessageType.SESSION_RESET, ViewStreamMessageType.OFFER), types(fixture.messages()));
             assertTrue(fixture.clientView.holdsVanilla(fixture.player, 1L));
-            assertEquals(ClientViewInbound.HELLO_ACCEPTED, fixture.hello());
-            assertEquals(ClientViewSessionState.CLIENT_VIEW, fixture.session().state());
+            assertEquals(ViewStreamInbound.HELLO_ACCEPTED, fixture.hello());
+            assertEquals(ViewStreamSessionState.CLIENT_VIEW, fixture.session().state());
             assertEquals(List.of(ViewStreamMessageType.ACCEPT), types(fixture.messages()));
 
             fixture.clientView.runtimeEnabled(true);
@@ -298,8 +298,8 @@ final class BukkitClientViewNegotiatorTest {
             fixture.clientView.configure(ClientViewFixture.options(true, false, 100));
 
             assertEquals(List.of(ViewStreamMessageType.OFFER), types(fixture.messages()));
-            assertEquals(ClientViewInbound.HELLO_ACCEPTED, fixture.hello());
-            assertEquals(ClientViewSessionState.CLIENT_VIEW, fixture.session().state());
+            assertEquals(ViewStreamInbound.HELLO_ACCEPTED, fixture.hello());
+            assertEquals(ViewStreamSessionState.CLIENT_VIEW, fixture.session().state());
         }
     }
 

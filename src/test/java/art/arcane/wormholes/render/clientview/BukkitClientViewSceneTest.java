@@ -27,9 +27,9 @@ import art.arcane.optics.stream.BrickLightSource;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.entity.EntitySnapshot;
-import art.arcane.optics.stream.ClientViewInbound;
+import art.arcane.optics.stream.ViewStreamInbound;
 import art.arcane.optics.view.ContentView;
 import art.arcane.wormholes.render.view.ProjectionEntityView;
 
@@ -44,7 +44,7 @@ final class BukkitClientViewSceneTest {
     }
 
     @Test
-    void observerBindingMatchesItsOpaqueVisualBeforeTheFirstEntityFrame() throws ClientViewProtocolException {
+    void observerBindingMatchesItsOpaqueVisualBeforeTheFirstEntityFrame() throws ViewStreamProtocolException {
         try (ClientViewFixture fixture = negotiated(ClientViewFixture.CLIENT_CAPS | ViewStreamCapability.ENTITY_SELF.mask())) {
             EntitySnapshot self = EntitySnapshot.full(fixture.playerId, "minecraft:player", 1.5D, 64.0D, 3.0D, 1.8D,
                 0.0D, 0.0D, 1.0D, 0.0F, 0.0F, 0.0D, 0.0D, 0.0D, true, "Observer", "", "", null, null,
@@ -71,7 +71,7 @@ final class BukkitClientViewSceneTest {
     }
 
     @Test
-    void destinationLightRidesInThePlateBricksWhenLightingFidelityIsOn() throws ClientViewProtocolException {
+    void destinationLightRidesInThePlateBricksWhenLightingFidelityIsOn() throws ViewStreamProtocolException {
         Settings.LIGHTING_FIDELITY = true;
         try (ClientViewFixture fixture = negotiated(ClientViewFixture.CLIENT_CAPS)) {
             when(fixture.view.getLight(anyInt(), anyInt(), anyInt())).thenReturn(ContentView.packLight(13, 5));
@@ -100,7 +100,7 @@ final class BukkitClientViewSceneTest {
     }
 
     @Test
-    void destinationEntitiesStreamInLocalSpaceUnderOpaqueIdsAndFollowVisibility() throws ClientViewProtocolException {
+    void destinationEntitiesStreamInLocalSpaceUnderOpaqueIdsAndFollowVisibility() throws ViewStreamProtocolException {
         try (ClientViewFixture fixture = negotiated(ClientViewFixture.CLIENT_CAPS)) {
             UUID source = UUID.randomUUID();
             EntitySnapshot stand = EntitySnapshot.full(source, "minecraft:armor_stand", 1.5D, 64.0D, 3.0D, 1.975D, 0.0D, 0.0D, 1.0D, 0.0F, 0.0F,
@@ -126,14 +126,14 @@ final class BukkitClientViewSceneTest {
     }
 
     @Test
-    void clientDrawnMirrorsLeaveTheObserverOutOfItsOwnEntityFrames() throws ClientViewProtocolException {
+    void clientDrawnMirrorsLeaveTheObserverOutOfItsOwnEntityFrames() throws ViewStreamProtocolException {
         assertEquals(1, mirrorPresence(ClientViewFixture.CLIENT_CAPS | ViewStreamCapability.CLIENT_MIRROR.mask()),
             "the client draws its own reflection");
         assertEquals(2, mirrorPresence(ClientViewFixture.CLIENT_CAPS), "a streamed mirror plate keeps the projected observer");
     }
 
     @Test
-    void meshEntitiesUseClientDepthWhileLegacyEntitiesKeepPortalDepth() throws ClientViewProtocolException {
+    void meshEntitiesUseClientDepthWhileLegacyEntitiesKeepPortalDepth() throws ViewStreamProtocolException {
         Settings.ENTITY_SPOOF_RANGE = 128;
         try (ClientViewFixture fixture = negotiated(ClientViewFixture.CLIENT_CAPS | ViewStreamCapability.MESH_RENDER.mask())) {
             when(fixture.player.getClientViewDistance()).thenReturn(10);
@@ -157,7 +157,7 @@ final class BukkitClientViewSceneTest {
         }
     }
 
-    private static int mirrorPresence(long clientCaps) throws ClientViewProtocolException {
+    private static int mirrorPresence(long clientCaps) throws ViewStreamProtocolException {
         try (ClientViewFixture fixture = negotiated(clientCaps)) {
             EntitySnapshot self = EntitySnapshot.full(fixture.playerId, "minecraft:player", 1.5D, 64.0D, 3.0D, 1.8D, 0.0D, 0.0D, 1.0D, 0.0F, 0.0F,
                 0.0D, 0.0D, 0.0D, true, "", "", "", null, null, EntitySnapshot.EMPTY, EntitySnapshot.EMPTY, 0);
@@ -183,11 +183,11 @@ final class BukkitClientViewSceneTest {
         return last;
     }
 
-    private static ClientViewFixture negotiated(long clientCaps) throws ClientViewProtocolException {
+    private static ClientViewFixture negotiated(long clientCaps) throws ViewStreamProtocolException {
         ClientViewFixture fixture = new ClientViewFixture(ClientViewFixture.options(true, false, 100), ConnectionState.PLAY);
         fixture.clientView.observer(fixture.playerId, fixture.user).brand("fabric");
         assertTrue(fixture.negotiator.offerPlay(fixture.player));
-        assertEquals(ClientViewInbound.HELLO_ACCEPTED, fixture.hello(clientCaps));
+        assertEquals(ViewStreamInbound.HELLO_ACCEPTED, fixture.hello(clientCaps));
         List<ClientViewMessage> handshake = new ArrayList<ClientViewMessage>(fixture.messages());
         assertEquals(2, handshake.size());
         return fixture;

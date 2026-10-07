@@ -4,7 +4,7 @@ import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.optics.stream.Brick;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.client.ClientCellRules;
@@ -58,7 +58,7 @@ public class ClientViewApplyTest {
     }
 
     @Test
-    public void streamedPlateIsSweptAndAppliedThroughTheOverlay() throws ClientViewProtocolException {
+    public void streamedPlateIsSweptAndAppliedThroughTheOverlay() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
         harness.tick(EYE_X, EYE_Y, EYE_Z);
@@ -89,7 +89,7 @@ public class ClientViewApplyTest {
     }
 
     @Test
-    public void theApplierKeepsTheSampleOfEveryProjectedBlockEntity() throws ClientViewProtocolException {
+    public void theApplierKeepsTheSampleOfEveryProjectedBlockEntity() throws ViewStreamProtocolException {
         ClientViewHarness.FakeSurface surface = new ClientViewHarness.FakeSurface();
         ProjectionOverlay overlay = new ProjectionOverlay(new Object());
         ClientPalette palette = new ClientPalette(BuiltInRegistries.BLOCK);
@@ -131,7 +131,7 @@ public class ClientViewApplyTest {
     }
 
     @Test
-    public void leavingTheConeRevertsEveryCellToItsShadow() throws ClientViewProtocolException {
+    public void leavingTheConeRevertsEveryCellToItsShadow() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
         harness.tick(EYE_X, EYE_Y, EYE_Z);
@@ -144,7 +144,7 @@ public class ClientViewApplyTest {
     }
 
     @Test
-    public void serverUpdatesUnderTheOverlayBecomeTheShadow() throws ClientViewProtocolException {
+    public void serverUpdatesUnderTheOverlayBecomeTheShadow() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
         harness.tick(EYE_X, EYE_Y, EYE_Z);
@@ -158,7 +158,7 @@ public class ClientViewApplyTest {
     }
 
     @Test
-    public void portalDropRevertsAndSessionResetDisablesTheSession() throws ClientViewProtocolException {
+    public void portalDropRevertsAndSessionResetDisablesTheSession() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
         harness.tick(EYE_X, EYE_Y, EYE_Z);
@@ -180,7 +180,7 @@ public class ClientViewApplyTest {
     }
 
     @Test
-    public void cellsInMissingChunksWaitForTheChunkAndApplyOnArrival() throws ClientViewProtocolException {
+    public void cellsInMissingChunksWaitForTheChunkAndApplyOnArrival() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.surface.unloaded.add(ChunkPos.pack(0, 0));
         harness.stream();
@@ -207,7 +207,7 @@ public class ClientViewApplyTest {
     }
 
     @Test
-    public void plateRevisionChangesRewriteAppliedCellsInPlace() throws ClientViewProtocolException {
+    public void plateRevisionChangesRewriteAppliedCellsInPlace() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
         harness.tick(EYE_X, EYE_Y, EYE_Z);
@@ -229,7 +229,7 @@ public class ClientViewApplyTest {
     }
 
     @Test
-    public void aPatchProjectsConeCellsThatShowedTheRealState() throws ClientViewProtocolException {
+    public void aPatchProjectsConeCellsThatShowedTheRealState() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
         harness.tick(EYE_X, EYE_Y, EYE_Z);
@@ -251,7 +251,7 @@ public class ClientViewApplyTest {
     }
 
     @Test
-    public void aNewPlateRevisionProjectsConeCellsThatShowedTheRealState() throws ClientViewProtocolException {
+    public void aNewPlateRevisionProjectsConeCellsThatShowedTheRealState() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
         harness.tick(EYE_X, EYE_Y, EYE_Z);
@@ -275,7 +275,7 @@ public class ClientViewApplyTest {
     }
 
     @Test
-    public void aPatchReevaluatesTheConeCellsOfItsBricksOnly() throws ClientViewProtocolException {
+    public void aPatchReevaluatesTheConeCellsOfItsBricksOnly() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
         harness.tick(EYE_X, EYE_Y, EYE_Z);

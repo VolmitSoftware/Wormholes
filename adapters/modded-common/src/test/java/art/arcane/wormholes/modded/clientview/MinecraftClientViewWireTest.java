@@ -5,7 +5,7 @@ import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.wormholes.network.client.SessionPalette;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import io.netty.channel.embedded.EmbeddedChannel;
@@ -46,7 +46,7 @@ public class MinecraftClientViewWireTest extends MinecraftTestBase {
     }
 
     @Test
-    public void paletteMessagesCarryCanonicalStatesOverTheWire() throws ClientViewProtocolException, CommandSyntaxException {
+    public void paletteMessagesCarryCanonicalStatesOverTheWire() throws ViewStreamProtocolException, CommandSyntaxException {
         SessionPalette palette = new SessionPalette();
         List<BlockState> sample = new ArrayList<>();
         for (Block block : BuiltInRegistries.BLOCK) {

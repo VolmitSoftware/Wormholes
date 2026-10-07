@@ -7,7 +7,7 @@ import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.stream.PlateSectionBox;
 import art.arcane.optics.math.BlockBox;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -33,7 +33,7 @@ public class ClientPlateStoreTest extends MinecraftTestBase {
     private static final long GENEROUS_BUDGET = 64L * 1024L * 1024L;
 
     @Test
-    public void beginBricksEndCommitsAPlate() throws ClientViewProtocolException {
+    public void beginBricksEndCommitsAPlate() throws ViewStreamProtocolException {
         ClientPlateStore store = new ClientPlateStore(new ClientPalette(BuiltInRegistries.BLOCK), GENEROUS_BUDGET);
         PlateSectionBox sections = new PlateSectionBox(0, 4, 0, 1, 1, 1);
         BlockBox cells = new BlockBox(0, 64, 0, 16, 16, 16);
@@ -57,7 +57,7 @@ public class ClientPlateStoreTest extends MinecraftTestBase {
     }
 
     @Test
-    public void staleBricksAndEndsAreIgnored() throws ClientViewProtocolException {
+    public void staleBricksAndEndsAreIgnored() throws ViewStreamProtocolException {
         ClientPlateStore store = new ClientPlateStore(new ClientPalette(BuiltInRegistries.BLOCK), GENEROUS_BUDGET);
         store.begin(new ClientViewMessage.PlateBegin(7, 2, new PlateSectionBox(0, 0, 0, 1, 1, 1), new BlockBox(0, 0, 0, 16, 16, 16), 3, 1, null));
         assertEquals(0, store.bricks(new ClientViewMessage.PlateBricks(7, 1, List.of(brick(0, 3, 3)))));
@@ -68,7 +68,7 @@ public class ClientPlateStoreTest extends MinecraftTestBase {
     }
 
     @Test
-    public void brickMissOnlyAsksForHashesTheCacheDoesNotHold() throws ClientViewProtocolException {
+    public void brickMissOnlyAsksForHashesTheCacheDoesNotHold() throws ViewStreamProtocolException {
         ClientPlateStore store = new ClientPlateStore(new ClientPalette(BuiltInRegistries.BLOCK), GENEROUS_BUDGET);
         PlateSectionBox sections = new PlateSectionBox(0, 0, 0, 2, 1, 1);
         BlockBox cells = new BlockBox(0, 0, 0, 32, 16, 16);
@@ -95,7 +95,7 @@ public class ClientPlateStoreTest extends MinecraftTestBase {
     }
 
     @Test
-    public void patchesRewriteBricksAndRejectRevisionGaps() throws ClientViewProtocolException {
+    public void patchesRewriteBricksAndRejectRevisionGaps() throws ViewStreamProtocolException {
         ClientPlateStore store = new ClientPlateStore(new ClientPalette(BuiltInRegistries.BLOCK), GENEROUS_BUDGET);
         PlateSectionBox sections = new PlateSectionBox(0, 0, 0, 2, 1, 1);
         BlockBox cells = new BlockBox(0, 0, 0, 32, 16, 16);
@@ -121,7 +121,7 @@ public class ClientPlateStoreTest extends MinecraftTestBase {
     }
 
     @Test
-    public void plateMemoryNeverExceedsTheBudget() throws ClientViewProtocolException {
+    public void plateMemoryNeverExceedsTheBudget() throws ViewStreamProtocolException {
         long budget = 96L * 1024L;
         ClientPlateStore store = new ClientPlateStore(new ClientPalette(BuiltInRegistries.BLOCK), budget);
         PlateSectionBox big = new PlateSectionBox(0, 0, 0, 4, 4, 4);
@@ -155,7 +155,7 @@ public class ClientPlateStoreTest extends MinecraftTestBase {
     }
 
     @Test
-    public void aPlateOverTheBudgetIsRefusedAndReportedOnce() throws ClientViewProtocolException {
+    public void aPlateOverTheBudgetIsRefusedAndReportedOnce() throws ViewStreamProtocolException {
         ClientPlateStore store = new ClientPlateStore(new ClientPalette(BuiltInRegistries.BLOCK), 1024L * 1024L);
         PlateSectionBox sections = new PlateSectionBox(0, 0, 0, 16, 16, 16);
         BlockBox cells = new BlockBox(0, 0, 0, 256, 256, 256);
@@ -168,7 +168,7 @@ public class ClientPlateStoreTest extends MinecraftTestBase {
     }
 
     @Test
-    public void aPlateBoxTheSweepCannotHoldIsRefusedAtBegin() throws ClientViewProtocolException {
+    public void aPlateBoxTheSweepCannotHoldIsRefusedAtBegin() throws ViewStreamProtocolException {
         ClientPlateStore store = new ClientPlateStore(new ClientPalette(BuiltInRegistries.BLOCK), GENEROUS_BUDGET);
         BlockBox cells = new BlockBox(0, 0, 0, 300, 200, 300);
         PlateSectionBox sections = PlateSectionBox.snap(cells);
@@ -182,7 +182,7 @@ public class ClientPlateStoreTest extends MinecraftTestBase {
     }
 
     @Test
-    public void inFlightBricksCountAgainstTheBudget() throws ClientViewProtocolException {
+    public void inFlightBricksCountAgainstTheBudget() throws ViewStreamProtocolException {
         long budget = 256L * 1024L;
         ClientPlateStore store = new ClientPlateStore(new ClientPalette(BuiltInRegistries.BLOCK), budget);
         PlateSectionBox big = new PlateSectionBox(0, 0, 0, 4, 4, 4);
@@ -202,7 +202,7 @@ public class ClientPlateStoreTest extends MinecraftTestBase {
     }
 
     @Test
-    public void goldenPlateVectorsDecodeIntoTheStore() throws IOException, ClientViewProtocolException {
+    public void goldenPlateVectorsDecodeIntoTheStore() throws IOException, ViewStreamProtocolException {
         ClientViewMessage.PlateBegin goldenBegin = (ClientViewMessage.PlateBegin) golden("plate_begin_plain");
         ClientViewMessage.PlateBricks goldenBricks = (ClientViewMessage.PlateBricks) golden("plate_bricks");
         ClientViewMessage.PlateEnd goldenEnd = (ClientViewMessage.PlateEnd) golden("plate_end");
@@ -258,7 +258,7 @@ public class ClientPlateStoreTest extends MinecraftTestBase {
         throw new IllegalStateException("ClientView golden vectors not found above " + Path.of("").toAbsolutePath());
     }
 
-    private static ClientViewMessage golden(String name) throws IOException, ClientViewProtocolException {
+    private static ClientViewMessage golden(String name) throws IOException, ViewStreamProtocolException {
         long caps = ViewStreamCapability.ALL;
         for (String line : Files.readAllLines(GOLDENS.resolve("vectors.txt"), StandardCharsets.UTF_8)) {
             String[] parts = line.trim().split("\\s+");

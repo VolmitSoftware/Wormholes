@@ -2,7 +2,7 @@ package art.arcane.optics.stream;
 
 import java.util.Arrays;
 
-public final class ClientViewRateLimiter {
+public final class ViewStreamRateLimiter {
     private static final long SECOND_MILLIS = 1000L;
 
     private final int maxMessagesPerSecond;
@@ -18,12 +18,12 @@ public final class ClientViewRateLimiter {
     private long admitted;
     private String lastViolation;
 
-    public ClientViewRateLimiter() {
+    public ViewStreamRateLimiter() {
         this(ViewStreamLimits.MAX_C2S_MESSAGES_PER_SECOND, ViewStreamLimits.MAX_C2S_BYTES, ViewStreamLimits.C2S_VIOLATION_LIMIT,
             ViewStreamLimits.C2S_VIOLATION_WINDOW_MILLIS);
     }
 
-    public ClientViewRateLimiter(int maxMessagesPerSecond, int maxPayloadBytes, int violationLimit, long violationWindowMillis) {
+    public ViewStreamRateLimiter(int maxMessagesPerSecond, int maxPayloadBytes, int violationLimit, long violationWindowMillis) {
         this.maxMessagesPerSecond = Math.max(1, maxMessagesPerSecond);
         this.maxPayloadBytes = Math.max(1, maxPayloadBytes);
         this.violationLimit = Math.max(1, violationLimit);

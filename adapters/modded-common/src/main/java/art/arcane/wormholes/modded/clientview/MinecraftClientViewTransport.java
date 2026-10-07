@@ -1,13 +1,13 @@
 package art.arcane.wormholes.modded.clientview;
 
-import art.arcane.optics.stream.ClientViewTransport;
+import art.arcane.optics.stream.ViewStreamTransport;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket;
 
 import java.util.Objects;
 import java.util.function.Function;
 
-public final class MinecraftClientViewTransport implements ClientViewTransport<MinecraftClientViewPeer> {
+public final class MinecraftClientViewTransport implements ViewStreamTransport<MinecraftClientViewPeer> {
     private volatile Function<ClientViewPayload, Packet<?>> packets;
 
     public MinecraftClientViewTransport() {

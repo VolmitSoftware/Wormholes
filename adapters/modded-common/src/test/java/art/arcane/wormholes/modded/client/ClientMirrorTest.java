@@ -10,7 +10,7 @@ import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.stream.PlateSectionBox;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.AxisPermutation;
@@ -78,7 +78,7 @@ public class ClientMirrorTest {
     }
 
     @Test
-    public void mirrorCellsReflectTheShadowOfTheSourceWithoutPlateBytes() throws ClientViewProtocolException {
+    public void mirrorCellsReflectTheShadowOfTheSourceWithoutPlateBytes() throws ViewStreamProtocolException {
         Harness harness = new Harness();
         harness.surface.set(1, 65, 13, GOLD);
         harness.surface.set(0, 64, 12, Blocks.OAK_STAIRS.defaultBlockState().rotate(Rotation.CLOCKWISE_90));
@@ -95,7 +95,7 @@ public class ClientMirrorTest {
     }
 
     @Test
-    public void rainOverAClientMirrorFallsInItsReflectedAir() throws ClientViewProtocolException {
+    public void rainOverAClientMirrorFallsInItsReflectedAir() throws ViewStreamProtocolException {
         Harness harness = new Harness();
         harness.receive(new ClientViewMessage.Portal(MIRROR_KEY, 1, mirror(0, List.of())), 0);
         harness.receive(new ClientViewMessage.Atmosphere(MIRROR_KEY, 6000L, 0.8F, 0.0F, ClientViewMessage.Atmosphere.FLAG_WEATHER),
@@ -108,7 +108,7 @@ public class ClientMirrorTest {
     }
 
     @Test
-    public void mirrorReflectsThePreProjectionShadowAndFollowsBlockChanges() throws ClientViewProtocolException {
+    public void mirrorReflectsThePreProjectionShadowAndFollowsBlockChanges() throws ViewStreamProtocolException {
         Harness harness = new Harness();
         harness.receive(new ClientViewMessage.Portal(MIRROR_KEY, 1, mirror(0, List.of())), ViewStreamLimits.FLAG_LAST);
         harness.tick(EYE_X, EYE_Y, EYE_Z);
@@ -136,7 +136,7 @@ public class ClientMirrorTest {
     }
 
     @Test
-    public void droppingTheMirrorRevertsEveryReflectedCell() throws ClientViewProtocolException {
+    public void droppingTheMirrorRevertsEveryReflectedCell() throws ViewStreamProtocolException {
         Harness harness = new Harness();
         harness.surface.set(1, 65, 13, GOLD);
         harness.receive(new ClientViewMessage.Portal(MIRROR_KEY, 1, mirror(0, List.of())), ViewStreamLimits.FLAG_LAST);
@@ -150,7 +150,7 @@ public class ClientMirrorTest {
     }
 
     @Test
-    public void withoutTheClientMirrorCapabilityNothingIsDrawnLocally() throws ClientViewProtocolException {
+    public void withoutTheClientMirrorCapabilityNothingIsDrawnLocally() throws ViewStreamProtocolException {
         Harness harness = new Harness(ClientViewHarness.PLATE_CAPS & ~ViewStreamCapability.CLIENT_MIRROR.mask());
         harness.receive(new ClientViewMessage.Portal(MIRROR_KEY, 1, mirror(0, List.of())), ViewStreamLimits.FLAG_LAST);
         harness.tick(EYE_X, EYE_Y, EYE_Z);
@@ -159,7 +159,7 @@ public class ClientMirrorTest {
     }
 
     @Test
-    public void aPortalInsideTheMirrorShowsItsChildPlateInsteadOfAnEmptyAperture() throws ClientViewProtocolException {
+    public void aPortalInsideTheMirrorShowsItsChildPlateInsteadOfAnEmptyAperture() throws ViewStreamProtocolException {
         Harness harness = new Harness();
         harness.streamNested();
         harness.tick(EYE_X, EYE_Y, EYE_Z);
@@ -189,7 +189,7 @@ public class ClientMirrorTest {
     }
 
     @Test
-    public void nestedCellsTakeTheChildPlateLightOfTheirContentCell() throws ClientViewProtocolException {
+    public void nestedCellsTakeTheChildPlateLightOfTheirContentCell() throws ViewStreamProtocolException {
         Harness harness = new Harness();
         harness.streamNested();
         harness.tick(EYE_X, EYE_Y, EYE_Z);
@@ -197,7 +197,7 @@ public class ClientMirrorTest {
     }
 
     @Test
-    public void nestedCellsFollowAChildPlatePatchOfTheirLight() throws ClientViewProtocolException {
+    public void nestedCellsFollowAChildPlatePatchOfTheirLight() throws ViewStreamProtocolException {
         Harness harness = new Harness();
         harness.streamNested();
         harness.tick(EYE_X, EYE_Y, EYE_Z);
@@ -303,12 +303,12 @@ public class ClientMirrorTest {
             tick.attach(level, surface, new ClientViewHarness.FakeScene());
         }
 
-        private void receive(ClientViewMessage message, int flags) throws ClientViewProtocolException {
+        private void receive(ClientViewMessage message, int flags) throws ViewStreamProtocolException {
             receiver.receive(ClientViewCodec.encodeS2C(message, ++seq, flags), null);
             assertEquals("decode failed for " + message.type(), 0L, receiver.decodeFailures());
         }
 
-        private void streamNested() throws ClientViewProtocolException {
+        private void streamNested() throws ViewStreamProtocolException {
             ApertureDescriptor child = child();
             receive(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(GOLD_ID, "minecraft:gold_block"))), 0);
             receive(new ClientViewMessage.Portal(MIRROR_KEY, 1, mirror(2, List.of(child))), 0);
@@ -316,7 +316,7 @@ public class ClientMirrorTest {
             streamChildPlate();
         }
 
-        private void streamChildPlate() throws ClientViewProtocolException {
+        private void streamChildPlate() throws ViewStreamProtocolException {
             Brick[] bricks = new Brick[CHILD_SECTIONS.brickCount()];
             for (int index = 0; index < bricks.length; index++) {
                 bricks[index] = childBrick(index, ClientMirrorTest::contentLight);

@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamMessageType;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.aperture.ApertureDescriptor;
 
 final class ClientViewSessionNestedTest {
@@ -28,7 +28,7 @@ final class ClientViewSessionNestedTest {
     private static final long WITHOUT_RECURSION = SessionHarness.CLIENT_CAPS & ~ViewStreamCapability.CLIENT_RECURSION.mask();
 
     @Test
-    void nativeMirrorCyclesKeepSixDistinctBranchKeysWhileTheEyeMoves() throws ClientViewProtocolException {
+    void nativeMirrorCyclesKeepSixDistinctBranchKeysWhileTheEyeMoves() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(false, 0));
         harness.access.meshDistance = 64;
         SessionPortal first = harness.access.add(new SessionPortal("first mirror", 0));
@@ -75,7 +75,7 @@ final class ClientViewSessionNestedTest {
     }
 
     @Test
-    void linkedCyclesRetainTheirThreeDescendantLimit() throws ClientViewProtocolException {
+    void linkedCyclesRetainTheirThreeDescendantLimit() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(false, 0));
         harness.access.meshDistance = 64;
         SessionPortal first = harness.access.add(new SessionPortal("first linked portal", 0));
@@ -91,7 +91,7 @@ final class ClientViewSessionNestedTest {
     }
 
     @Test
-    void nativeLinkedBranchesRespectEachAperturesDepthAndDetachWhenBudgetMoves() throws ClientViewProtocolException {
+    void nativeLinkedBranchesRespectEachAperturesDepthAndDetachWhenBudgetMoves() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(false, 0));
         harness.access.meshDistance = 64;
         SessionPortal root = harness.access.add(new SessionPortal("linked root", 0));
@@ -126,7 +126,7 @@ final class ClientViewSessionNestedTest {
     }
 
     @Test
-    void clientMirrorSessionsNeverAskForTheMirrorPlate() throws ClientViewProtocolException {
+    void clientMirrorSessionsNeverAskForTheMirrorPlate() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
         SessionWorld world = new SessionWorld(21L);
         SessionPortal mirror = mirror(harness, world, 0);
@@ -147,7 +147,7 @@ final class ClientViewSessionNestedTest {
     }
 
     @Test
-    void withoutTheClientMirrorCapabilityTheMirrorPlateStreams() throws ClientViewProtocolException {
+    void withoutTheClientMirrorCapabilityTheMirrorPlateStreams() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
         SessionWorld world = new SessionWorld(22L);
         SessionPortal mirror = mirror(harness, world, 0);
@@ -159,7 +159,7 @@ final class ClientViewSessionNestedTest {
     }
 
     @Test
-    void nestedPortalsStreamAsChildrenOfTheirAttendedParent() throws ClientViewProtocolException {
+    void nestedPortalsStreamAsChildrenOfTheirAttendedParent() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
         SessionWorld world = new SessionWorld(23L);
         SessionPortal mirror = mirror(harness, world, 0);
@@ -189,7 +189,7 @@ final class ClientViewSessionNestedTest {
     }
 
     @Test
-    void aChildThatLeavesTheParentIsDroppedAndTheParentResent() throws ClientViewProtocolException {
+    void aChildThatLeavesTheParentIsDroppedAndTheParentResent() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
         SessionWorld world = new SessionWorld(24L);
         SessionPortal mirror = mirror(harness, world, 0);
@@ -206,7 +206,7 @@ final class ClientViewSessionNestedTest {
     }
 
     @Test
-    void childGeometryChangesResendBothTheChildAndItsParent() throws ClientViewProtocolException {
+    void childGeometryChangesResendBothTheChildAndItsParent() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
         SessionWorld world = new SessionWorld(25L);
         SessionPortal mirror = mirror(harness, world, 0);
@@ -225,7 +225,7 @@ final class ClientViewSessionNestedTest {
     }
 
     @Test
-    void nestedChildrenNeedTheRecursionCapability() throws ClientViewProtocolException {
+    void nestedChildrenNeedTheRecursionCapability() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
         SessionWorld world = new SessionWorld(26L);
         SessionPortal mirror = mirror(harness, world, 0);
@@ -238,7 +238,7 @@ final class ClientViewSessionNestedTest {
     }
 
     @Test
-    void aSessionResetReattachesChildrenUnderTheNewParentKey() throws ClientViewProtocolException {
+    void aSessionResetReattachesChildrenUnderTheNewParentKey() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
         SessionWorld world = new SessionWorld(27L);
         SessionPortal mirror = mirror(harness, world, 0);
@@ -258,12 +258,12 @@ final class ClientViewSessionNestedTest {
     }
 
     @Test
-    void clientMirrorEntityFramesHideTheObserverWhileServerMirrorsKeepIt() throws ClientViewProtocolException {
+    void clientMirrorEntityFramesHideTheObserverWhileServerMirrorsKeepIt() throws ViewStreamProtocolException {
         assertEquals(List.of(true), hideObserverCalls(SessionHarness.CLIENT_CAPS), "the client draws its own reflection");
         assertEquals(List.of(false), hideObserverCalls(WITHOUT_MIRROR), "a streamed mirror plate needs the projected observer");
     }
 
-    private static List<Boolean> hideObserverCalls(long clientCaps) throws ClientViewProtocolException {
+    private static List<Boolean> hideObserverCalls(long clientCaps) throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
         List<Boolean> calls = new ArrayList<Boolean>();
         harness.entities = (observer, portal, key, tick, full, hideObserver) -> {

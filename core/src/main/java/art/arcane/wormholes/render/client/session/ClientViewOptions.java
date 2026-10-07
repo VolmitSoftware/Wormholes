@@ -3,7 +3,7 @@ package art.arcane.wormholes.render.client.session;
 import art.arcane.wormholes.config.toml.ClientViewConfig;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.ViewStreamLimits;
-import art.arcane.optics.stream.ClientViewPhase;
+import art.arcane.optics.stream.ViewStreamPhase;
 
 public record ClientViewOptions(boolean enabled,
                                 boolean configurationHandshake,
@@ -38,7 +38,7 @@ public record ClientViewOptions(boolean enabled,
         return from(new ClientViewConfig(), DEFAULT_INTEREST_GRACE_TICKS);
     }
 
-    public long serverCaps(ClientViewPhase phase) {
+    public long serverCaps(ViewStreamPhase phase) {
         long caps = ViewStreamCapability.of(ViewStreamCapability.PLATES, ViewStreamCapability.FX_EMITTERS,
             ViewStreamCapability.ATMOSPHERE, ViewStreamCapability.LINK_UNCOMPRESSED, ViewStreamCapability.MESH_RENDER,
             ViewStreamCapability.LOCAL_MESH, ViewStreamCapability.MESH_REUSE, ViewStreamCapability.PREPARED_TRAVEL,
@@ -65,7 +65,7 @@ public record ClientViewOptions(boolean enabled,
         if (clientRecursion) {
             caps |= ViewStreamCapability.CLIENT_RECURSION.mask();
         }
-        if (phase == ClientViewPhase.CONFIGURATION) {
+        if (phase == ViewStreamPhase.CONFIGURATION) {
             caps |= ViewStreamCapability.CONFIG_PHASE.mask();
         }
         return caps;

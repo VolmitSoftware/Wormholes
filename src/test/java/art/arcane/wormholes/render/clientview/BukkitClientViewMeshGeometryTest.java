@@ -3,7 +3,7 @@ package art.arcane.wormholes.render.clientview;
 import art.arcane.wormholes.network.client.SessionPalette;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.wormholes.portal.BlackoutColor;
 import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.wormholes.portal.ILocalPortal;
@@ -100,7 +100,7 @@ class BukkitClientViewMeshGeometryTest {
     }
 
     @Test
-    void nativeMenuControlsRequireAnActiveMeshNegotiation() throws ClientViewProtocolException {
+    void nativeMenuControlsRequireAnActiveMeshNegotiation() throws ViewStreamProtocolException {
         for (boolean mesh : List.of(false, true)) {
             try (ClientViewFixture fixture = new ClientViewFixture(ClientViewFixture.options(true, false, 100), ConnectionState.PLAY)) {
                 fixture.clientView.observer(fixture.playerId, fixture.user).brand("fabric");

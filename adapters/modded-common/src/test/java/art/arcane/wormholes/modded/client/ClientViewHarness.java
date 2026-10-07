@@ -7,7 +7,7 @@ import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.stream.PlateSectionBox;
 import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.optics.entity.ProjectedEntityEvent;
@@ -87,7 +87,7 @@ final class ClientViewHarness {
         tick.attach(new Object(), surface, scene);
     }
 
-    void stream() throws ClientViewProtocolException {
+    void stream() throws ViewStreamProtocolException {
         receive(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(STONE_ID, "minecraft:stone"))), 0);
         receive(new ClientViewMessage.Portal(PORTAL_KEY, 1, geometry()), 0);
         Brick[] bricks = new Brick[SECTIONS.brickCount()];
@@ -103,7 +103,7 @@ final class ClientViewHarness {
         receive(new ClientViewMessage.PlateEnd(PORTAL_KEY, 1), ViewStreamLimits.FLAG_LAST);
     }
 
-    void receive(ClientViewMessage message, int flags) throws ClientViewProtocolException {
+    void receive(ClientViewMessage message, int flags) throws ViewStreamProtocolException {
         lastSeq = ++seq;
         long previousFailures = receiver.decodeFailures();
         receiver.receive(ClientViewCodec.encodeS2C(message, lastSeq, flags), null);

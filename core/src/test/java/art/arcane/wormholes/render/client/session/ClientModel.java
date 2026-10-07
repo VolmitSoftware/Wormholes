@@ -20,7 +20,7 @@ import art.arcane.wormholes.network.client.ClientViewHandshake;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamMessageType;
 import art.arcane.optics.stream.ViewStreamLimits;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.wormholes.network.client.PlatePatchEncoder;
 import art.arcane.wormholes.network.client.SessionPalette;
 import art.arcane.optics.aperture.ApertureDescriptor;
@@ -52,7 +52,7 @@ final class ClientModel {
         resetPalette();
     }
 
-    void receive(List<byte[]> frames) throws ClientViewProtocolException {
+    void receive(List<byte[]> frames) throws ViewStreamProtocolException {
         for (byte[] frame : frames) {
             receive(frame);
         }
@@ -66,7 +66,7 @@ final class ClientModel {
         }
     }
 
-    void receive(byte[] frame) throws ClientViewProtocolException {
+    void receive(byte[] frame) throws ViewStreamProtocolException {
         ClientViewCodec.S2CFrame decoded = ClientViewCodec.decodeS2C(frame, caps);
         ClientViewMessage message = decoded.message();
         received.add(message);
@@ -171,16 +171,16 @@ final class ClientModel {
         }
     }
 
-    byte[] hello(int dataVersion, long clientCaps, String brand, long nonceFound) throws ClientViewProtocolException {
+    byte[] hello(int dataVersion, long clientCaps, String brand, long nonceFound) throws ViewStreamProtocolException {
         return ClientViewCodec.encodeC2S(ClientViewHandshake.clientHello(offer, dataVersion, clientCaps,
             ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 256, nonceFound, brand));
     }
 
-    byte[] ack() throws ClientViewProtocolException {
+    byte[] ack() throws ViewStreamProtocolException {
         return ack(lastClosedSeq);
     }
 
-    byte[] ack(int seq) throws ClientViewProtocolException {
+    byte[] ack(int seq) throws ViewStreamProtocolException {
         lastAckedSeq = seq;
         return ClientViewCodec.encodeC2S(new ClientViewMessage.Ack(seq, 0, 1));
     }

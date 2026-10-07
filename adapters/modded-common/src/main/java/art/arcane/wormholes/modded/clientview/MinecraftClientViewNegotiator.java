@@ -1,11 +1,11 @@
 package art.arcane.wormholes.modded.clientview;
 
 import art.arcane.wormholes.modded.MinecraftClientProfiles;
-import art.arcane.optics.stream.ClientViewInbound;
-import art.arcane.optics.stream.ClientViewPhase;
+import art.arcane.optics.stream.ViewStreamInbound;
+import art.arcane.optics.stream.ViewStreamPhase;
 import art.arcane.wormholes.render.client.session.ClientViewServerSession;
 import art.arcane.wormholes.render.client.session.ClientViewSessionRegistry;
-import art.arcane.optics.stream.ClientViewSessionState;
+import art.arcane.optics.stream.ViewStreamSessionState;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.server.network.ConfigurationTask;
@@ -58,7 +58,7 @@ public final class MinecraftClientViewNegotiator {
                 return false;
             }
         }
-        return offer(session, ClientViewPhase.PLAY);
+        return offer(session, ViewStreamPhase.PLAY);
     }
 
     public int reoffer() {
@@ -68,25 +68,25 @@ public final class MinecraftClientViewNegotiator {
         int offered = 0;
         for (MinecraftClientViewPeer peer : List.copyOf(peers.values())) {
             ClientViewServerSession<MinecraftClientViewPeer, BlockState> session = registry.session(peer.id());
-            if (!peer.connected() || (session != null && session.state() != ClientViewSessionState.VANILLA)) {
+            if (!peer.connected() || (session != null && session.state() != ViewStreamSessionState.VANILLA)) {
                 continue;
             }
             ClientViewServerSession<MinecraftClientViewPeer, BlockState> opened = open(peer.id(), peer.name(), peer.connection());
-            if (opened != null && offer(opened, ClientViewPhase.PLAY)) {
+            if (opened != null && offer(opened, ViewStreamPhase.PLAY)) {
                 offered++;
             }
         }
         return offered;
     }
 
-    public ClientViewInbound receive(Connection connection, byte[] payload) {
+    public ViewStreamInbound receive(Connection connection, byte[] payload) {
         MinecraftClientViewPeer peer = peers.get(connection);
         if (peer == null) {
-            return ClientViewInbound.IGNORED;
+            return ViewStreamInbound.IGNORED;
         }
         ClientViewServerSession<MinecraftClientViewPeer, BlockState> session = registry.session(peer.id());
         if (session == null || session.player() != peer) {
-            return ClientViewInbound.IGNORED;
+            return ViewStreamInbound.IGNORED;
         }
         return session.receive(payload, 0, payload.length);
     }
@@ -148,7 +148,7 @@ public final class MinecraftClientViewNegotiator {
         return session;
     }
 
-    private static boolean offer(ClientViewServerSession<MinecraftClientViewPeer, BlockState> session, ClientViewPhase phase) {
+    private static boolean offer(ClientViewServerSession<MinecraftClientViewPeer, BlockState> session, ViewStreamPhase phase) {
         String brand = MinecraftClientProfiles.brand(session.player().connection());
         if (brand != null) {
             session.brand(brand);
@@ -180,7 +180,7 @@ public final class MinecraftClientViewNegotiator {
                 return;
             }
             ClientViewServerSession<MinecraftClientViewPeer, BlockState> opened = open(id, name, connection);
-            if (opened != null && offer(opened, ClientViewPhase.CONFIGURATION)) {
+            if (opened != null && offer(opened, ViewStreamPhase.CONFIGURATION)) {
                 session = opened;
             }
         }
@@ -188,7 +188,7 @@ public final class MinecraftClientViewNegotiator {
         @Override
         public boolean tick() {
             ClientViewServerSession<MinecraftClientViewPeer, BlockState> current = session;
-            return current == null || current.expire() != ClientViewSessionState.PENDING;
+            return current == null || current.expire() != ViewStreamSessionState.PENDING;
         }
 
         @Override

@@ -12,8 +12,8 @@ import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.wormholes.network.client.ClientViewHandshake;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamMessageType;
-import art.arcane.optics.stream.ClientViewProtocolException;
-import art.arcane.optics.stream.ClientViewInbound;
+import art.arcane.optics.stream.ViewStreamProtocolException;
+import art.arcane.optics.stream.ViewStreamInbound;
 import art.arcane.wormholes.render.client.session.ClientViewOptions;
 import com.mojang.authlib.GameProfile;
 import io.netty.channel.embedded.EmbeddedChannel;
@@ -80,7 +80,7 @@ public class MinecraftClientViewServiceTest extends MinecraftTestBase {
     }
 
     @Test
-    public void nativeGreetingAdvertisesAndNegotiatesLocalMesh() throws ClientViewProtocolException {
+    public void nativeGreetingAdvertisesAndNegotiatesLocalMesh() throws ViewStreamProtocolException {
         service.channelRegistered(player(overworld));
         ClientViewMessage.Offer offer = (ClientViewMessage.Offer) message(sent.get(sent.size() - 1));
         assertTrue(ViewStreamCapability.LOCAL_MESH.in(offer.serverCaps()));
@@ -90,7 +90,7 @@ public class MinecraftClientViewServiceTest extends MinecraftTestBase {
 
         byte[] hello = ClientViewCodec.encodeC2S(ClientViewHandshake.clientHello(offer, offer.mcDataVersion(),
             ViewStreamCapability.ALL, 512 * 1024, 256, 0L, "fabric"));
-        assertEquals(ClientViewInbound.HELLO_ACCEPTED, service.receive(connection, hello));
+        assertEquals(ViewStreamInbound.HELLO_ACCEPTED, service.receive(connection, hello));
         ClientViewMessage.Accept accept = (ClientViewMessage.Accept) message(sent.get(sent.size() - 1));
         assertTrue(ViewStreamCapability.LOCAL_MESH.in(accept.caps()));
         assertTrue(ViewStreamCapability.ENTITY_SELF.in(accept.caps()));
@@ -100,7 +100,7 @@ public class MinecraftClientViewServiceTest extends MinecraftTestBase {
     }
 
     @Test
-    public void changingLevelResetsTheSessionForTheNewDimension() throws ClientViewProtocolException {
+    public void changingLevelResetsTheSessionForTheNewDimension() throws ViewStreamProtocolException {
         ServerPlayer player = player(overworld);
         negotiate(player);
         int mark = sent.size();
@@ -115,7 +115,7 @@ public class MinecraftClientViewServiceTest extends MinecraftTestBase {
     }
 
     @Test
-    public void respawnResetsForRespawnInTheSameLevelAndForDimensionInAnother() throws ClientViewProtocolException {
+    public void respawnResetsForRespawnInTheSameLevelAndForDimensionInAnother() throws ViewStreamProtocolException {
         ServerPlayer first = player(overworld);
         negotiate(first);
         tick(first);
@@ -128,7 +128,7 @@ public class MinecraftClientViewServiceTest extends MinecraftTestBase {
     }
 
     @Test
-    public void switchingBackOnOffersTheConnectedClientAgain() throws ClientViewProtocolException {
+    public void switchingBackOnOffersTheConnectedClientAgain() throws ViewStreamProtocolException {
         ServerPlayer player = player(overworld);
         negotiate(player);
 
@@ -146,7 +146,7 @@ public class MinecraftClientViewServiceTest extends MinecraftTestBase {
     }
 
     @Test
-    public void enablingInTheConfigurationOffersClientsThatJoinedWhileItWasOff() throws ClientViewProtocolException {
+    public void enablingInTheConfigurationOffersClientsThatJoinedWhileItWasOff() throws ViewStreamProtocolException {
         ServerPlayer player = player(overworld);
         options = options(false);
         tick(player);
@@ -160,18 +160,18 @@ public class MinecraftClientViewServiceTest extends MinecraftTestBase {
         accept();
     }
 
-    private void negotiate(ServerPlayer player) throws ClientViewProtocolException {
+    private void negotiate(ServerPlayer player) throws ViewStreamProtocolException {
         int mark = sent.size();
         service.channelRegistered(player);
         assertEquals(List.of(ViewStreamMessageType.OFFER), types(mark));
         accept();
     }
 
-    private void accept() throws ClientViewProtocolException {
+    private void accept() throws ViewStreamProtocolException {
         ClientViewMessage.Offer offer = (ClientViewMessage.Offer) message(sent.get(sent.size() - 1));
         byte[] hello = ClientViewCodec.encodeC2S(ClientViewHandshake.clientHello(offer, offer.mcDataVersion(), HELLO_CAPS, 512 * 1024, 256, 0L,
             "fabric"));
-        assertEquals(ClientViewInbound.HELLO_ACCEPTED, service.receive(connection, hello));
+        assertEquals(ViewStreamInbound.HELLO_ACCEPTED, service.receive(connection, hello));
     }
 
     private void tick(ServerPlayer player) {
@@ -189,7 +189,7 @@ public class MinecraftClientViewServiceTest extends MinecraftTestBase {
         return player;
     }
 
-    private List<ClientViewMessage.ResetReason> resets(int from) throws ClientViewProtocolException {
+    private List<ClientViewMessage.ResetReason> resets(int from) throws ViewStreamProtocolException {
         List<ClientViewMessage.ResetReason> reasons = new ArrayList<>();
         for (int i = from; i < sent.size(); i++) {
             if (message(sent.get(i)) instanceof ClientViewMessage.SessionReset reset) {
@@ -199,7 +199,7 @@ public class MinecraftClientViewServiceTest extends MinecraftTestBase {
         return reasons;
     }
 
-    private List<ViewStreamMessageType> types(int from) throws ClientViewProtocolException {
+    private List<ViewStreamMessageType> types(int from) throws ViewStreamProtocolException {
         List<ViewStreamMessageType> types = new ArrayList<>();
         for (int i = from; i < sent.size(); i++) {
             types.add(message(sent.get(i)).type());
@@ -207,7 +207,7 @@ public class MinecraftClientViewServiceTest extends MinecraftTestBase {
         return types;
     }
 
-    private static ClientViewMessage message(byte[] payload) throws ClientViewProtocolException {
+    private static ClientViewMessage message(byte[] payload) throws ViewStreamProtocolException {
         return ClientViewCodec.decodeS2C(payload, ViewStreamCapability.ALL).message();
     }
 

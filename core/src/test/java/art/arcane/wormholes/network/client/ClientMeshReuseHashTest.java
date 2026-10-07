@@ -20,14 +20,14 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.BrickCodec;
-import art.arcane.optics.stream.ClientViewProtocolException;
-import art.arcane.optics.stream.ClientViewWriter;
+import art.arcane.optics.stream.ViewStreamProtocolException;
+import art.arcane.optics.stream.ViewStreamWriter;
 import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.optics.stream.ViewStreamLimits;
 
 final class ClientMeshReuseHashTest {
     @Test
-    void packedIndexReusePreservesExpandedCanonicalHashAtEverySupportedWidth() throws ClientViewProtocolException {
+    void packedIndexReusePreservesExpandedCanonicalHashAtEverySupportedWidth() throws ViewStreamProtocolException {
         IntFunction<String> names = id -> "test:block_" + id;
         for (int size : new int[] {2, 3, 5, 17, 257}) {
             for (boolean air : new boolean[] {false, true}) {
@@ -65,7 +65,7 @@ final class ClientMeshReuseHashTest {
     }
 
     @Test
-    void aliasesUnusedReorderedAndOverwidePalettesPreserveExpandedCanonicalHashes() throws ClientViewProtocolException {
+    void aliasesUnusedReorderedAndOverwidePalettesPreserveExpandedCanonicalHashes() throws ViewStreamProtocolException {
         IntFunction<String> names = Map.of(7, "minecraft:stone", 9, "stone", 8, "minecraft:dirt", 11, "oak_log[axis=y]")::get;
         for (Brick brick : List.of(indexedBrick(2, new int[] {7, 9, 8, 11}, new int[] {0, 1, 2, 3}),
             indexedBrick(2, new int[] {7, 8, 11}, new int[] {0, 1}),
@@ -88,7 +88,7 @@ final class ClientMeshReuseHashTest {
     }
 
     @Test
-    void uniformSectionsPreserveCanonicalDigestsWithAndWithoutExtras() throws ClientViewProtocolException {
+    void uniformSectionsPreserveCanonicalDigestsWithAndWithoutExtras() throws ViewStreamProtocolException {
         IntFunction<String> names = Map.of(7, "minecraft:stone", 9, "minecraft:stone", 81, "custom:block")::get;
         assertEquals(3797941112907736624L, ClientMeshHash.resolved(section(Brick.empty(0), SectionBiomes.NONE), 71, names));
         assertEquals(-586368193290271323L, ClientMeshHash.resolved(section(Brick.single(0, 7), SectionBiomes.NONE), 71, names));
@@ -106,7 +106,7 @@ final class ClientMeshReuseHashTest {
     }
 
     @Test
-    void unusedPaletteEntriesAreIgnoredAndDuplicateIdsResolveOnce() throws ClientViewProtocolException {
+    void unusedPaletteEntriesAreIgnoredAndDuplicateIdsResolveOnce() throws ViewStreamProtocolException {
         long[] packed = new long[Brick.packedLongs(4)];
         packed[0] = 0x1111111111111234L;
         Arrays.fill(packed, 1, packed.length, 0x1111111111111111L);
@@ -132,7 +132,7 @@ final class ClientMeshReuseHashTest {
     }
 
     @Test
-    void usedPaletteAliasesAndSentinelsCollapseToTheSameUniformContent() throws ClientViewProtocolException {
+    void usedPaletteAliasesAndSentinelsCollapseToTheSameUniformContent() throws ViewStreamProtocolException {
         long[] packed = new long[Brick.packedLongs(2)];
         Arrays.fill(packed, 0xe4e4e4e4e4e4e4e4L);
         Brick brick = new Brick(0, Brick.Encoding.PALETTED, 2, 0, 0,
@@ -156,7 +156,7 @@ final class ClientMeshReuseHashTest {
     }
 
     @Test
-    void resolvedHashIgnoresUnusedBackingButIncludesResolvedSentinelCells() throws ClientViewProtocolException {
+    void resolvedHashIgnoresUnusedBackingButIncludesResolvedSentinelCells() throws ViewStreamProtocolException {
         IntFunction<String> names = Map.of(7, "minecraft:stone", 8, "minecraft:dirt", 9, "minecraft:stone")::get;
         ClientViewMessage.MeshSection previous = section(Brick.single(0, 7), SectionBiomes.NONE);
         ClientViewMessage.MeshSection changedBacking = new ClientViewMessage.MeshSection(1, 1, 2, -3, 4, 1, 8,
@@ -171,7 +171,7 @@ final class ClientMeshReuseHashTest {
     }
 
     @Test
-    void resolvedContentSurvivesPaletteIdsPackingOrderAndTransportChanges() throws ClientViewProtocolException {
+    void resolvedContentSurvivesPaletteIdsPackingOrderAndTransportChanges() throws ViewStreamProtocolException {
         int[] cells = new int[ViewStreamLimits.BRICK_CELLS];
         cells[0] = 7;
         cells[1] = 8;
@@ -190,18 +190,18 @@ final class ClientMeshReuseHashTest {
     }
 
     @Test
-    void resolvedContentIncludesRealStatesAndConnectionEpoch() throws ClientViewProtocolException {
+    void resolvedContentIncludesRealStatesAndConnectionEpoch() throws ViewStreamProtocolException {
         ClientViewMessage.MeshSection section = section(Brick.single(0, 7), SectionBiomes.NONE);
         IntFunction<String> names = Map.of(7, "minecraft:grass_block[snowy=false]", 9, "minecraft:stone")::get;
         IntFunction<String> changed = Map.of(7, "minecraft:grass_block[snowy=true]", 9, "minecraft:stone")::get;
         long hash = ClientMeshHash.resolved(section, 71, names);
         assertNotEquals(hash, ClientMeshHash.resolved(section, 71, changed));
         assertNotEquals(hash, ClientMeshHash.resolved(section, 72, names));
-        assertThrows(ClientViewProtocolException.class, () -> ClientMeshHash.resolved(section, 71, id -> null));
+        assertThrows(ViewStreamProtocolException.class, () -> ClientMeshHash.resolved(section, 71, id -> null));
     }
 
     @Test
-    void resolvedBlockEntityAndBiomeOrderDoesNotMutateCachedSource() throws ClientViewProtocolException {
+    void resolvedBlockEntityAndBiomeOrderDoesNotMutateCachedSource() throws ViewStreamProtocolException {
         Brick.BlockEntityCell firstEntity = new Brick.BlockEntityCell(12, new byte[] {1, 2, 3});
         Brick.BlockEntityCell secondEntity = new Brick.BlockEntityCell(4, new byte[] {4, 5, 6});
         Brick.BlockEntityCell[] entities = {firstEntity, secondEntity};
@@ -223,7 +223,7 @@ final class ClientMeshReuseHashTest {
     }
 
     @Test
-    void transportIdentityDoesNotInvalidateIdenticalSectionContent() throws ClientViewProtocolException {
+    void transportIdentityDoesNotInvalidateIdenticalSectionContent() throws ViewStreamProtocolException {
         ClientViewMessage.MeshSection first = section(Brick.single(0, 7), SectionBiomes.NONE);
         ClientViewMessage.MeshSection next = new ClientViewMessage.MeshSection(99, 52, first.sectionX(), first.sectionY(),
             first.sectionZ(), 108, first.backingState(), first.brick(), first.biomes());
@@ -231,7 +231,7 @@ final class ClientMeshReuseHashTest {
     }
 
     @Test
-    void coordinatesBackingAndDictionaryIdentityCannotReuseAnotherSection() throws ClientViewProtocolException {
+    void coordinatesBackingAndDictionaryIdentityCannotReuseAnotherSection() throws ViewStreamProtocolException {
         ClientViewMessage.MeshSection first = section(Brick.single(0, 7), SectionBiomes.NONE);
         long hash = ClientMeshHash.hash(first, 31);
         assertNotEquals(hash, ClientMeshHash.hash(first, 32));
@@ -246,7 +246,7 @@ final class ClientMeshReuseHashTest {
     }
 
     @Test
-    void blockLightSkyLightAndBlockEntityUpdatesInvalidateClaims() throws ClientViewProtocolException {
+    void blockLightSkyLightAndBlockEntityUpdatesInvalidateClaims() throws ViewStreamProtocolException {
         byte[] block = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
         byte[] sky = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
         Brick first = Brick.single(0, 7).withLight(block, sky)
@@ -268,7 +268,7 @@ final class ClientMeshReuseHashTest {
     }
 
     @Test
-    void packedBlocksAndBiomePaletteOrCellChangesInvalidateClaims() throws ClientViewProtocolException {
+    void packedBlocksAndBiomePaletteOrCellChangesInvalidateClaims() throws ViewStreamProtocolException {
         int[] cells = new int[ViewStreamLimits.BRICK_CELLS];
         cells[12] = 7;
         Brick first = BrickCodec.pack(0, cells);
@@ -315,7 +315,7 @@ final class ClientMeshReuseHashTest {
     }
 
     private static long expandedHash(ClientViewMessage.MeshSection section, long epoch, IntFunction<String> names)
-        throws ClientViewProtocolException {
+        throws ViewStreamProtocolException {
         TreeMap<String, Integer> dictionary = new TreeMap<>();
         dictionary.put(SessionPalette.AIR, 0);
         String[] states = new String[ViewStreamLimits.BRICK_CELLS];
@@ -327,7 +327,7 @@ final class ClientMeshReuseHashTest {
             states[cell] = id == ViewStreamLimits.PALETTE_AIR ? SessionPalette.AIR : SessionPalette.canonical(names.apply(id));
             dictionary.put(states[cell], 0);
         }
-        ClientViewWriter output = new ClientViewWriter(1024);
+        ViewStreamWriter output = new ViewStreamWriter(1024);
         output.varint(dictionary.size());
         int id = 0;
         for (Map.Entry<String, Integer> entry : dictionary.entrySet()) {

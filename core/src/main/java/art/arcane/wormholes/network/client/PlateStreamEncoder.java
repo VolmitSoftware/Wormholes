@@ -23,7 +23,7 @@ import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.BrickCodec;
 import art.arcane.optics.stream.BrickLightSource;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.stream.PlateSectionBox;
 import art.arcane.optics.stream.ViewStreamLimits;
 
@@ -253,7 +253,7 @@ public final class PlateStreamEncoder<B> {
     private static byte[] body(Brick brick) {
         try {
             return BrickCodec.body(brick);
-        } catch (ClientViewProtocolException e) {
+        } catch (ViewStreamProtocolException e) {
             throw new IllegalStateException("brick " + brick.brickIndex() + " does not encode", e);
         }
     }

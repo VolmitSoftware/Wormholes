@@ -3,7 +3,7 @@ package art.arcane.wormholes.modded.client;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -24,7 +24,7 @@ import static org.junit.Assert.fail;
 
 public class ClientPaletteTest extends MinecraftTestBase {
     @Test
-    public void resolvesCanonicalStringsToRealBlockStates() throws ClientViewProtocolException {
+    public void resolvesCanonicalStringsToRealBlockStates() throws ViewStreamProtocolException {
         ClientPalette palette = new ClientPalette(BuiltInRegistries.BLOCK);
         BlockState stairs = Blocks.OAK_STAIRS.defaultBlockState()
             .setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.EAST)
@@ -42,7 +42,7 @@ public class ClientPaletteTest extends MinecraftTestBase {
     }
 
     @Test
-    public void unknownStatesResolveToAirAndAreCounted() throws ClientViewProtocolException {
+    public void unknownStatesResolveToAirAndAreCounted() throws ViewStreamProtocolException {
         ClientPalette palette = new ClientPalette(BuiltInRegistries.BLOCK);
         palette.apply(new ClientViewMessage.Palette(List.of(
             new ClientViewMessage.PaletteEntry(3, "wormholes:not_a_block"),
@@ -61,7 +61,7 @@ public class ClientPaletteTest extends MinecraftTestBase {
             try {
                 palette.apply(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(id, "minecraft:stone"))));
                 fail("palette accepted id " + id);
-            } catch (ClientViewProtocolException expected) {
+            } catch (ViewStreamProtocolException expected) {
                 assertTrue(expected.getMessage().contains(Integer.toString(id)));
             }
         }
@@ -103,7 +103,7 @@ public class ClientPaletteTest extends MinecraftTestBase {
     }
 
     @Test
-    public void resetForgetsEverything() throws ClientViewProtocolException {
+    public void resetForgetsEverything() throws ViewStreamProtocolException {
         ClientPalette palette = new ClientPalette(BuiltInRegistries.BLOCK);
         palette.apply(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(3, "minecraft:stone"))));
         palette.localId(Blocks.GOLD_BLOCK.defaultBlockState());

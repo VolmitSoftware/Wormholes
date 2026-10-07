@@ -7,7 +7,7 @@ import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.render.client.session.ClientViewServerSession;
 import art.arcane.wormholes.render.client.session.ClientViewSessionRegistry;
-import art.arcane.optics.stream.ClientViewSessionState;
+import art.arcane.optics.stream.ViewStreamSessionState;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.commands.CommandSourceStack;
@@ -85,7 +85,7 @@ public final class MinecraftClientViewCommands {
             return 0;
         }
         ClientViewServerSession<MinecraftClientViewPeer, BlockState> session = registry.session(player.getUUID());
-        boolean restarted = session != null && session.state() == ClientViewSessionState.CLIENT_VIEW;
+        boolean restarted = session != null && session.state() == ViewStreamSessionState.CLIENT_VIEW;
         if (restarted) {
             session.reset(ClientViewMessage.ResetReason.TELEPORT);
         }

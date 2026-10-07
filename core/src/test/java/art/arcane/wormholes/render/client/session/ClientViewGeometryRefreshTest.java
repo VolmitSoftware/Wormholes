@@ -1,7 +1,7 @@
 package art.arcane.wormholes.render.client.session;
 
 import art.arcane.optics.stream.ViewStreamMessageType;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import org.junit.jupiter.api.Test;
 
@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class ClientViewGeometryRefreshTest {
     @Test
-    void changingBackendStampsRetainEqualDescriptorsWhileRefreshingNestedAttendance() throws ClientViewProtocolException {
+    void changingBackendStampsRetainEqualDescriptorsWhileRefreshingNestedAttendance() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(false, 0));
         harness.access.meshDistance = 32;
         SessionPortal root = harness.access.add(new SessionPortal("root mirror", 0));

@@ -4,7 +4,7 @@ import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.BrickCodec;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.wormholes.network.client.PlateHandoff;
 import art.arcane.optics.client.ClientSweep;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
@@ -44,9 +44,9 @@ public final class ClientPlateStore {
         otherMemory = Objects.requireNonNull(usage);
     }
 
-    public ClientViewMessage.BrickMiss.Plate begin(ClientViewMessage.PlateBegin begin) throws ClientViewProtocolException {
+    public ClientViewMessage.BrickMiss.Plate begin(ClientViewMessage.PlateBegin begin) throws ViewStreamProtocolException {
         if (begin.brickCount() != begin.sections().brickCount()) {
-            throw new ClientViewProtocolException("plate begin of " + begin.brickCount() + " bricks for " + begin.sections().brickCount() + " sections");
+            throw new ViewStreamProtocolException("plate begin of " + begin.brickCount() + " bricks for " + begin.sections().brickCount() + " sections");
         }
         discard(begin.portalKey());
         PendingPlate plate = new PendingPlate(begin);
@@ -76,7 +76,7 @@ public final class ClientPlateStore {
             ClientViewMessage.BrickMiss.Plate.bitsetFor(hashes.length, missed));
     }
 
-    public int bricks(ClientViewMessage.PlateBricks message) throws ClientViewProtocolException {
+    public int bricks(ClientViewMessage.PlateBricks message) throws ViewStreamProtocolException {
         PendingPlate plate = pending.get(message.portalKey());
         if (plate == null || plate.revision != message.plateRevision()) {
             staleMessages++;
@@ -87,7 +87,7 @@ public final class ClientPlateStore {
             Brick brick = bricks.get(index);
             int brickIndex = brick.brickIndex();
             if (brickIndex < 0 || brickIndex >= plate.bricks.length) {
-                throw new ClientViewProtocolException("brick " + brickIndex + " outside a plate of " + plate.bricks.length);
+                throw new ViewStreamProtocolException("brick " + brickIndex + " outside a plate of " + plate.bricks.length);
             }
             Brick stored = brick.isEmpty() ? null : brick;
             long size = stored == null ? 0L : ClientPlate.brickBytes(stored) - ClientPlate.BRICK_OVERHEAD_BYTES;
@@ -120,7 +120,7 @@ public final class ClientPlateStore {
         return built;
     }
 
-    public ClientPlate patch(ClientViewMessage.PlatePatch message, IntArrayList touchedBricks) throws ClientViewProtocolException {
+    public ClientPlate patch(ClientViewMessage.PlatePatch message, IntArrayList touchedBricks) throws ViewStreamProtocolException {
         ClientPlate current = plates.get(message.portalKey());
         if (current == null || current.zeroCopy() || current.revision() != message.fromRevision()) {
             staleMessages++;
@@ -132,7 +132,7 @@ public final class ClientPlateStore {
             ClientViewMessage.PatchOp op = ops.get(index);
             int brickIndex = op.brickIndex();
             if (brickIndex < 0 || brickIndex >= bricks.length) {
-                throw new ClientViewProtocolException("patch brick " + brickIndex + " outside a plate of " + bricks.length);
+                throw new ViewStreamProtocolException("patch brick " + brickIndex + " outside a plate of " + bricks.length);
             }
             switch (op) {
                 case ClientViewMessage.FullOp full -> bricks[brickIndex] = full.brick().isEmpty() ? null : full.brick();
@@ -318,14 +318,14 @@ public final class ClientPlateStore {
         }
     }
 
-    private static Brick sparse(Brick current, int brickIndex, ClientViewMessage.SparseOp op) throws ClientViewProtocolException {
+    private static Brick sparse(Brick current, int brickIndex, ClientViewMessage.SparseOp op) throws ViewStreamProtocolException {
         int[] cells = current == null ? new int[ViewStreamLimits.BRICK_CELLS] : BrickCodec.unpack(current);
         int[] cellIndices = op.cellIndices();
         int[] paletteIds = op.paletteIds();
         for (int index = 0; index < cellIndices.length; index++) {
             int cellIndex = cellIndices[index];
             if (cellIndex < 0 || cellIndex >= ViewStreamLimits.BRICK_CELLS) {
-                throw new ClientViewProtocolException("sparse patch cell " + cellIndex + " outside the brick");
+                throw new ViewStreamProtocolException("sparse patch cell " + cellIndex + " outside the brick");
             }
             cells[cellIndex] = paletteIds[index];
         }

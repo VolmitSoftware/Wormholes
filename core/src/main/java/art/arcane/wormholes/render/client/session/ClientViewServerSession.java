@@ -21,8 +21,8 @@ import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.wormholes.network.client.ClientViewHandshake;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
-import art.arcane.optics.stream.ClientViewProtocolException;
-import art.arcane.optics.stream.ClientViewRateLimiter;
+import art.arcane.optics.stream.ViewStreamProtocolException;
+import art.arcane.optics.stream.ViewStreamRateLimiter;
 import art.arcane.wormholes.network.client.EncodedPlate;
 import art.arcane.wormholes.network.client.FrameSplitter;
 import art.arcane.wormholes.network.client.PlatePatchEncoder;
@@ -31,11 +31,11 @@ import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.plate.ViewPlate;
 import art.arcane.optics.client.MeshPlan;
-import art.arcane.optics.stream.ClientViewAckWindow;
-import art.arcane.optics.stream.ClientViewInbound;
-import art.arcane.optics.stream.ClientViewLane;
-import art.arcane.optics.stream.ClientViewPhase;
-import art.arcane.optics.stream.ClientViewSessionState;
+import art.arcane.optics.stream.ViewStreamAckWindow;
+import art.arcane.optics.stream.ViewStreamInbound;
+import art.arcane.optics.stream.ViewStreamLane;
+import art.arcane.optics.stream.ViewStreamPhase;
+import art.arcane.optics.stream.ViewStreamSessionState;
 
 public final class ClientViewServerSession<P, B> {
     static final long BRICK_MISS_TIMEOUT_NANOS = 5_000_000_000L;
@@ -51,12 +51,12 @@ public final class ClientViewServerSession<P, B> {
     private final UUID playerId;
     private final P player;
     private final long zeroCopyNonce;
-    private final ClientViewLane lane;
+    private final ViewStreamLane lane;
     private final ClientMeshStream<B> mesh = new ClientMeshStream<B>();
     private final ClientPreparedTravelServer travel = new ClientPreparedTravelServer();
     private final ConcurrentLinkedQueue<Command<B>> inbox;
     private final Object handshakeLock;
-    private final ClientViewRateLimiter limiter;
+    private final ViewStreamRateLimiter limiter;
     private final AtomicInteger sequence;
     private final IntSupplier laneSequence;
     private final HashMap<UUID, ClientViewPortalSlot<B>> slots;
@@ -79,8 +79,8 @@ public final class ClientViewServerSession<P, B> {
     private final AtomicLong c2sStale;
     private final AtomicLong staleMisses;
     private final AtomicLong lateSwitches;
-    private volatile ClientViewSessionState state;
-    private volatile ClientViewAckWindow window;
+    private volatile ViewStreamSessionState state;
+    private volatile ViewStreamAckWindow window;
     private volatile long caps;
     private volatile int sessionId;
     private volatile ClientViewMessage.ViewStats viewStats;
@@ -105,10 +105,10 @@ public final class ClientViewServerSession<P, B> {
         this.playerId = Objects.requireNonNull(playerId, "playerId");
         this.player = Objects.requireNonNull(player, "player");
         this.zeroCopyNonce = zeroCopyNonce;
-        this.lane = new ClientViewLane(platform.lanes(), this::drainSafely);
+        this.lane = new ViewStreamLane(platform.lanes(), this::drainSafely);
         this.inbox = new ConcurrentLinkedQueue<Command<B>>();
         this.handshakeLock = new Object();
-        this.limiter = new ClientViewRateLimiter();
+        this.limiter = new ViewStreamRateLimiter();
         this.sequence = new AtomicInteger();
         this.laneSequence = this::nextLaneSequence;
         this.slots = new HashMap<UUID, ClientViewPortalSlot<B>>();
@@ -128,7 +128,7 @@ public final class ClientViewServerSession<P, B> {
         this.c2sStale = new AtomicLong();
         this.staleMisses = new AtomicLong();
         this.lateSwitches = new AtomicLong();
-        this.state = ClientViewSessionState.VANILLA;
+        this.state = ViewStreamSessionState.VANILLA;
         this.nextPortalKey = 1;
     }
 
@@ -140,12 +140,12 @@ public final class ClientViewServerSession<P, B> {
         return player;
     }
 
-    public ClientViewSessionState state() {
+    public ViewStreamSessionState state() {
         return state;
     }
 
     public boolean holdsVanilla() {
-        return state == ClientViewSessionState.PENDING;
+        return state == ViewStreamSessionState.PENDING;
     }
 
     public long caps() {
@@ -153,7 +153,7 @@ public final class ClientViewServerSession<P, B> {
     }
 
     public boolean nativeRendererSelected() {
-        return !closed && state == ClientViewSessionState.CLIENT_VIEW && ViewStreamCapability.MESH_RENDER.in(caps);
+        return !closed && state == ViewStreamSessionState.CLIENT_VIEW && ViewStreamCapability.MESH_RENDER.in(caps);
     }
 
     public boolean preparedTravelSelected() {
@@ -190,7 +190,7 @@ public final class ClientViewServerSession<P, B> {
             framesSent.incrementAndGet();
             bytesSent.addAndGet(frame.length);
             return true;
-        } catch (ClientViewProtocolException failure) {
+        } catch (ViewStreamProtocolException failure) {
             platform.warnings().accept("ClientView " + message.type() + " failed for player " + playerId, failure);
             return false;
         }
@@ -204,12 +204,12 @@ public final class ClientViewServerSession<P, B> {
         if (nativeRendererSelected()) {
             return true;
         }
-        ClientViewPortalSlot<B> slot = state == ClientViewSessionState.CLIENT_VIEW ? slots.get(portal) : null;
+        ClientViewPortalSlot<B> slot = state == ViewStreamSessionState.CLIENT_VIEW ? slots.get(portal) : null;
         return slot != null && !slot.effects;
     }
 
     public boolean effectsReceiver() {
-        return !closed && state == ClientViewSessionState.CLIENT_VIEW && ViewStreamCapability.FX_EMITTERS.in(caps);
+        return !closed && state == ViewStreamSessionState.CLIENT_VIEW && ViewStreamCapability.FX_EMITTERS.in(caps);
     }
 
     public boolean oneShot(ClientViewMessage.FxEmitter emitter) {
@@ -226,11 +226,11 @@ public final class ClientViewServerSession<P, B> {
         return true;
     }
 
-    public boolean offer(ClientViewPhase phase) {
+    public boolean offer(ViewStreamPhase phase) {
         Objects.requireNonNull(phase, "phase");
         ClientViewMessage.Offer offer;
         synchronized (handshakeLock) {
-            if (closed || state != ClientViewSessionState.VANILLA || !registry.enabled()) {
+            if (closed || state != ViewStreamSessionState.VANILLA || !registry.enabled()) {
                 return false;
             }
             ClientViewHandshake.Policy policy = policy(phase);
@@ -240,7 +240,7 @@ public final class ClientViewServerSession<P, B> {
                 handshake.brand(brandTag, now);
             }
             offer = handshake.offer(now);
-            state = ClientViewSessionState.PENDING;
+            state = ViewStreamSessionState.PENDING;
         }
         sendDirect(offer);
         return true;
@@ -258,11 +258,11 @@ public final class ClientViewServerSession<P, B> {
 
     public void pong() {
         synchronized (handshakeLock) {
-            if (handshake == null || state != ClientViewSessionState.PENDING) {
+            if (handshake == null || state != ViewStreamSessionState.PENDING) {
                 return;
             }
             if (handshake.onPong(millis()).state() == ClientViewHandshake.State.VANILLA) {
-                state = ClientViewSessionState.VANILLA;
+                state = ViewStreamSessionState.VANILLA;
             }
             handshakeLock.notifyAll();
         }
@@ -270,24 +270,24 @@ public final class ClientViewServerSession<P, B> {
 
     public boolean awaitingHello() {
         synchronized (handshakeLock) {
-            return state == ClientViewSessionState.PENDING && handshake != null && handshake.waiting(millis());
+            return state == ViewStreamSessionState.PENDING && handshake != null && handshake.waiting(millis());
         }
     }
 
-    public ClientViewSessionState expire() {
+    public ViewStreamSessionState expire() {
         synchronized (handshakeLock) {
-            if (state == ClientViewSessionState.PENDING && handshake != null
+            if (state == ViewStreamSessionState.PENDING && handshake != null
                 && handshake.onDeadline(millis()).state() != ClientViewHandshake.State.OFFERED) {
-                state = ClientViewSessionState.VANILLA;
+                state = ViewStreamSessionState.VANILLA;
                 handshakeLock.notifyAll();
             }
             return state;
         }
     }
 
-    public ClientViewSessionState awaitHandshake() throws InterruptedException {
+    public ViewStreamSessionState awaitHandshake() throws InterruptedException {
         synchronized (handshakeLock) {
-            while (!closed && state == ClientViewSessionState.PENDING && handshake != null && handshake.waiting(millis())) {
+            while (!closed && state == ViewStreamSessionState.PENDING && handshake != null && handshake.waiting(millis())) {
                 long remaining = handshake.deadlineMillis() - millis();
                 handshakeLock.wait(Math.max(1L, remaining));
             }
@@ -297,12 +297,12 @@ public final class ClientViewServerSession<P, B> {
 
     public void tick(long serverTick) {
         this.serverTick = serverTick;
-        ClientViewSessionState current = state;
-        if (current == ClientViewSessionState.PENDING) {
+        ViewStreamSessionState current = state;
+        if (current == ViewStreamSessionState.PENDING) {
             expire();
             return;
         }
-        if (current != ClientViewSessionState.CLIENT_VIEW || closed) {
+        if (current != ViewStreamSessionState.CLIENT_VIEW || closed) {
             if (!slotList.isEmpty() || !rejected.isEmpty()) {
                 forgetOwned();
             }
@@ -394,7 +394,7 @@ public final class ClientViewServerSession<P, B> {
             end(reason);
             return;
         }
-        if (state != ClientViewSessionState.CLIENT_VIEW || closed) {
+        if (state != ViewStreamSessionState.CLIENT_VIEW || closed) {
             return;
         }
         inbox.add(new Reset<B>(reason, false));
@@ -416,13 +416,13 @@ public final class ClientViewServerSession<P, B> {
         }
         recovery.set(null);
         synchronized (handshakeLock) {
-            ClientViewSessionState previous = state;
-            if (previous == ClientViewSessionState.VANILLA) {
+            ViewStreamSessionState previous = state;
+            if (previous == ViewStreamSessionState.VANILLA) {
                 return;
             }
-            state = ClientViewSessionState.VANILLA;
+            state = ViewStreamSessionState.VANILLA;
             handshakeLock.notifyAll();
-            if (previous != ClientViewSessionState.CLIENT_VIEW) {
+            if (previous != ViewStreamSessionState.CLIENT_VIEW) {
                 return;
             }
         }
@@ -431,20 +431,20 @@ public final class ClientViewServerSession<P, B> {
         lane.submit();
     }
 
-    public ClientViewInbound receive(byte[] payload, int offset, int length) {
+    public ViewStreamInbound receive(byte[] payload, int offset, int length) {
         if (closed) {
-            return ClientViewInbound.IGNORED;
+            return ViewStreamInbound.IGNORED;
         }
         long now = millis();
         int messageType = payload != null && offset >= 0 && offset < payload.length && length > 0 ? payload[offset] & 0xFF : -1;
-        ClientViewRateLimiter.Verdict verdict = limiter.admit(now, length, messageType);
-        if (verdict != ClientViewRateLimiter.Verdict.ACCEPT) {
+        ViewStreamRateLimiter.Verdict verdict = limiter.admit(now, length, messageType);
+        if (verdict != ViewStreamRateLimiter.Verdict.ACCEPT) {
             return rejectInbound(verdict, null);
         }
         ClientViewMessage message;
         try {
             message = ClientViewCodec.decodeC2S(payload, offset, length);
-        } catch (ClientViewProtocolException malformed) {
+        } catch (ViewStreamProtocolException malformed) {
             return rejectInbound(limiter.violation(now, messageType, length), malformed);
         }
         return switch (message) {
@@ -455,17 +455,17 @@ public final class ClientViewServerSession<P, B> {
             case ClientViewMessage.MeshLocal local -> onMeshLocal(local);
             case ClientViewMessage.MeshCached cached -> onMeshCached(cached);
             case ClientViewMessage.TravelCross cross -> preparedTravelSelected()
-                ? (travel.requestCross(cross, System.currentTimeMillis()) ? ClientViewInbound.HANDLED : ClientViewInbound.IGNORED)
-                : ClientViewInbound.IGNORED;
+                ? (travel.requestCross(cross, System.currentTimeMillis()) ? ViewStreamInbound.HANDLED : ViewStreamInbound.IGNORED)
+                : ViewStreamInbound.IGNORED;
             case ClientViewMessage.TravelCancel cancel -> preparedTravelSelected()
-                ? (travel.cancel(cancel) ? ClientViewInbound.HANDLED : ClientViewInbound.IGNORED)
-                : ClientViewInbound.IGNORED;
+                ? (travel.cancel(cancel) ? ViewStreamInbound.HANDLED : ViewStreamInbound.IGNORED)
+                : ViewStreamInbound.IGNORED;
             case ClientViewMessage.TravelCached cached -> preparedTravelCacheSelected()
-                ? (travel.cached(cached) ? ClientViewInbound.HANDLED : ClientViewInbound.IGNORED)
-                : ClientViewInbound.IGNORED;
+                ? (travel.cached(cached) ? ViewStreamInbound.HANDLED : ViewStreamInbound.IGNORED)
+                : ViewStreamInbound.IGNORED;
             case ClientViewMessage.TravelReady ready -> preparedTravelSelected()
-                ? (travel.ready(ready) ? ClientViewInbound.HANDLED : ClientViewInbound.IGNORED)
-                : ClientViewInbound.IGNORED;
+                ? (travel.ready(ready) ? ViewStreamInbound.HANDLED : ViewStreamInbound.IGNORED)
+                : ViewStreamInbound.IGNORED;
             case ClientViewMessage.ViewStats stats -> onViewStats(stats, now);
             case ClientViewMessage.PlateRefused refused -> onRefused(refused);
             default -> rejectInbound(limiter.violation(now, messageType, length), null);
@@ -473,7 +473,7 @@ public final class ClientViewServerSession<P, B> {
     }
 
     public ClientViewSessionStats stats() {
-        ClientViewAckWindow active = window;
+        ViewStreamAckWindow active = window;
         return new ClientViewSessionStats(playerId, sessionId, state, caps, attended, framesSent.get(), bytesSent.get(),
             groupsSent.get(), active == null ? 0 : active.outstanding(), active == null ? 0L : active.acked(),
             active == null ? 0L : active.lastRttNanos() / 1000L, active == null ? 0L : active.appliedCells(), limiter.admitted(),
@@ -485,7 +485,7 @@ public final class ClientViewServerSession<P, B> {
         travel.close();
         synchronized (handshakeLock) {
             closed = true;
-            state = ClientViewSessionState.VANILLA;
+            state = ViewStreamSessionState.VANILLA;
             handshakeLock.notifyAll();
         }
         inbox.clear();
@@ -540,23 +540,23 @@ public final class ClientViewServerSession<P, B> {
         }
     }
 
-    private ClientViewHandshake.Policy policy(ClientViewPhase phase) {
+    private ClientViewHandshake.Policy policy(ViewStreamPhase phase) {
         ClientViewOptions options = registry.options();
-        int grace = phase == ClientViewPhase.PLAY ? PLAY_PHASE_GRACE_MILLIS : options.helloGraceMillis();
+        int grace = phase == ViewStreamPhase.PLAY ? PLAY_PHASE_GRACE_MILLIS : options.helloGraceMillis();
         long serverCaps = options.serverCaps(phase) & platform.platformCaps();
         return new ClientViewHandshake.Policy(registry.enabled(), platform.mcDataVersion(), serverCaps, options.maxFrameBytes(), grace,
             ViewStreamLimits.DEFAULT_TICK_RATE, options.ackWindowFrames(), options.zeroCopy());
     }
 
-    private ClientViewInbound onHello(ClientViewMessage.Hello hello, long now) {
+    private ViewStreamInbound onHello(ClientViewMessage.Hello hello, long now) {
         if (nativeRendererSelected() && hello.wire() == ViewStreamLimits.WIRE_VERSION
             && hello.mcDataVersion() == platform.mcDataVersion() && ViewStreamCapability.MESH_RENDER.in(hello.clientCaps())) {
             recovery.compareAndSet(null, ClientViewMessage.ResetReason.PROTOCOL);
-            return ClientViewInbound.HANDLED;
+            return ViewStreamInbound.HANDLED;
         }
         ClientViewHandshake.Result result;
         synchronized (handshakeLock) {
-            if (handshake == null || state == ClientViewSessionState.CLIENT_VIEW) {
+            if (handshake == null || state == ViewStreamSessionState.CLIENT_VIEW) {
                 return stale();
             }
             result = handshake.onHello(hello, now, true);
@@ -565,27 +565,27 @@ public final class ClientViewServerSession<P, B> {
             }
             sendDirect(result.reply());
             if (!result.accepted()) {
-                state = ClientViewSessionState.VANILLA;
+                state = ViewStreamSessionState.VANILLA;
                 handshakeLock.notifyAll();
-                return ClientViewInbound.HELLO_DECLINED;
+                return ViewStreamInbound.HELLO_DECLINED;
             }
             ClientViewMessage.Accept accept = handshake.accepted();
             caps = accept.caps();
             sessionId = accept.sessionId();
-            window = new ClientViewAckWindow(accept.ackWindowFrames());
+            window = new ViewStreamAckWindow(accept.ackWindowFrames());
             inbox.add(new Open<B>(accept));
             if (result.late()) {
                 lateSwitches.incrementAndGet();
             }
-            state = ClientViewSessionState.CLIENT_VIEW;
+            state = ViewStreamSessionState.CLIENT_VIEW;
             handshakeLock.notifyAll();
         }
         lane.submit();
-        return ClientViewInbound.HELLO_ACCEPTED;
+        return ViewStreamInbound.HELLO_ACCEPTED;
     }
 
-    private ClientViewInbound onMiss(ClientViewMessage.BrickMiss misses) {
-        if (state != ClientViewSessionState.CLIENT_VIEW || !ViewStreamCapability.BRICK_CACHE.in(caps)) {
+    private ViewStreamInbound onMiss(ClientViewMessage.BrickMiss misses) {
+        if (state != ViewStreamSessionState.CLIENT_VIEW || !ViewStreamCapability.BRICK_CACHE.in(caps)) {
             return stale();
         }
         List<ClientViewMessage.BrickMiss.Plate> plates = misses.plates();
@@ -593,11 +593,11 @@ public final class ClientViewServerSession<P, B> {
             inbox.add(new Miss<B>(plates.get(i)));
         }
         lane.submit();
-        return ClientViewInbound.HANDLED;
+        return ViewStreamInbound.HANDLED;
     }
 
-    private ClientViewInbound onRefused(ClientViewMessage.PlateRefused refused) {
-        if (state != ClientViewSessionState.CLIENT_VIEW) {
+    private ViewStreamInbound onRefused(ClientViewMessage.PlateRefused refused) {
+        if (state != ViewStreamSessionState.CLIENT_VIEW) {
             return stale();
         }
         if (ViewStreamCapability.MESH_RENDER.in(caps) && mesh.staleRefusal(refused.portalKey(), refused.plateRevision())) {
@@ -605,18 +605,18 @@ public final class ClientViewServerSession<P, B> {
         }
         inbox.add(new Refused<B>(refused.portalKey(), refused.plateRevision()));
         lane.submit();
-        return ClientViewInbound.HANDLED;
+        return ViewStreamInbound.HANDLED;
     }
 
-    private ClientViewInbound onMeshAck(ClientViewMessage.MeshAck ack) {
-        if (state != ClientViewSessionState.CLIENT_VIEW || !ViewStreamCapability.MESH_RENDER.in(caps)) {
+    private ViewStreamInbound onMeshAck(ClientViewMessage.MeshAck ack) {
+        if (state != ViewStreamSessionState.CLIENT_VIEW || !ViewStreamCapability.MESH_RENDER.in(caps)) {
             return stale();
         }
-        return mesh.acknowledge(ack) ? ClientViewInbound.HANDLED : stale();
+        return mesh.acknowledge(ack) ? ViewStreamInbound.HANDLED : stale();
     }
 
-    private ClientViewInbound onMeshLocal(ClientViewMessage.MeshLocal local) {
-        if (state != ClientViewSessionState.CLIENT_VIEW || !ViewStreamCapability.LOCAL_MESH.in(caps)
+    private ViewStreamInbound onMeshLocal(ClientViewMessage.MeshLocal local) {
+        if (state != ViewStreamSessionState.CLIENT_VIEW || !ViewStreamCapability.LOCAL_MESH.in(caps)
             || !ViewStreamCapability.MESH_RENDER.in(caps)) {
             return stale();
         }
@@ -626,52 +626,52 @@ public final class ClientViewServerSession<P, B> {
         }
         ClientViewMessage.MeshLocal projected = new ClientViewMessage.MeshLocal(local.portalKey(), local.generation(), local.sequence(),
             local.available(), local.sections(), entities);
-        return mesh.local(projected) ? ClientViewInbound.HANDLED : stale();
+        return mesh.local(projected) ? ViewStreamInbound.HANDLED : stale();
     }
 
-    private ClientViewInbound onMeshCached(ClientViewMessage.MeshCached cached) {
-        if (state != ClientViewSessionState.CLIENT_VIEW || !ViewStreamCapability.MESH_REUSE.in(caps)
+    private ViewStreamInbound onMeshCached(ClientViewMessage.MeshCached cached) {
+        if (state != ViewStreamSessionState.CLIENT_VIEW || !ViewStreamCapability.MESH_REUSE.in(caps)
             || !ViewStreamCapability.MESH_RENDER.in(caps)) {
             return stale();
         }
-        return mesh.cached(cached) ? ClientViewInbound.HANDLED : stale();
+        return mesh.cached(cached) ? ViewStreamInbound.HANDLED : stale();
     }
 
-    private ClientViewInbound onAck(ClientViewMessage.Ack ack) {
-        ClientViewAckWindow active = window;
-        if (state != ClientViewSessionState.CLIENT_VIEW || active == null) {
+    private ViewStreamInbound onAck(ClientViewMessage.Ack ack) {
+        ViewStreamAckWindow active = window;
+        if (state != ViewStreamSessionState.CLIENT_VIEW || active == null) {
             return stale();
         }
         if (active.ack(ack.seq(), ack.appliedCells(), platform.nanoClock().getAsLong()) && paused) {
             paused = false;
             lane.submit();
         }
-        return ClientViewInbound.HANDLED;
+        return ViewStreamInbound.HANDLED;
     }
 
-    private ClientViewInbound onViewStats(ClientViewMessage.ViewStats stats, long now) {
-        if (state != ClientViewSessionState.CLIENT_VIEW || !ViewStreamCapability.VIEW_STATS.in(caps) || !registry.options().viewStats()
+    private ViewStreamInbound onViewStats(ClientViewMessage.ViewStats stats, long now) {
+        if (state != ViewStreamSessionState.CLIENT_VIEW || !ViewStreamCapability.VIEW_STATS.in(caps) || !registry.options().viewStats()
             || (viewStats != null && now - viewStatsMillis < ViewStreamLimits.VIEW_STATS_MIN_INTERVAL_MILLIS - ViewStreamLimits.VIEW_STATS_JITTER_MILLIS)) {
             return stale();
         }
         viewStats = stats;
         viewStatsMillis = now;
-        return ClientViewInbound.HANDLED;
+        return ViewStreamInbound.HANDLED;
     }
 
-    private ClientViewInbound stale() {
+    private ViewStreamInbound stale() {
         c2sStale.incrementAndGet();
-        return ClientViewInbound.IGNORED;
+        return ViewStreamInbound.IGNORED;
     }
 
-    private ClientViewInbound rejectInbound(ClientViewRateLimiter.Verdict verdict, Throwable cause) {
+    private ViewStreamInbound rejectInbound(ViewStreamRateLimiter.Verdict verdict, Throwable cause) {
         c2sDropped.incrementAndGet();
-        if (verdict == ClientViewRateLimiter.Verdict.RESET) {
+        if (verdict == ViewStreamRateLimiter.Verdict.RESET) {
             platform.warnings().accept("ClientView protocol reset for player " + playerId + ": " + limiter.lastViolation(), cause);
             end(ClientViewMessage.ResetReason.PROTOCOL);
-            return ClientViewInbound.RESET;
+            return ViewStreamInbound.RESET;
         }
-        return ClientViewInbound.DROPPED;
+        return ViewStreamInbound.DROPPED;
     }
 
     private void reject(UUID portal) {
@@ -1261,7 +1261,7 @@ public final class ClientViewServerSession<P, B> {
         laneBursts.clear();
         cursor.reset();
         entitySelfPending = ViewStreamCapability.ENTITY_SELF.in(laneCaps);
-        ClientViewAckWindow active = window;
+        ViewStreamAckWindow active = window;
         if (active != null) {
             active.clear();
         }
@@ -1291,7 +1291,7 @@ public final class ClientViewServerSession<P, B> {
         }
         try {
             stream(slot, geometryDue ? geometry : null, plateDue ? target : null, now);
-        } catch (ClientViewProtocolException | IllegalArgumentException | IllegalStateException failure) {
+        } catch (ViewStreamProtocolException | IllegalArgumentException | IllegalStateException failure) {
             slot.failed = true;
             cursor.reset();
             platform.warnings().accept("ClientView stream failed for portal " + slot.portalId + " and player " + playerId, failure);
@@ -1300,7 +1300,7 @@ public final class ClientViewServerSession<P, B> {
     }
 
     private boolean windowFull() {
-        ClientViewAckWindow active = window;
+        ViewStreamAckWindow active = window;
         if (active == null || !active.full()) {
             return false;
         }
@@ -1313,7 +1313,7 @@ public final class ClientViewServerSession<P, B> {
     }
 
     private void stream(ClientViewPortalSlot<B> slot, ApertureDescriptor geometry, ClientViewPortalSlot.PlateTarget<B> target, long now)
-        throws ClientViewProtocolException {
+        throws ViewStreamProtocolException {
         List<ClientViewMessage> group = new ArrayList<ClientViewMessage>(6);
         List<ClientViewMessage.PaletteEntry> entries = new ArrayList<ClientViewMessage.PaletteEntry>();
         int geometryRevision = slot.geometryRevision;
@@ -1359,7 +1359,7 @@ public final class ClientViewServerSession<P, B> {
         }
         if (!group.isEmpty()) {
             int last = emit(group, close);
-            ClientViewAckWindow active = window;
+            ViewStreamAckWindow active = window;
             if (active != null && close) {
                 active.record(last, now);
             } else if (active != null) {
@@ -1386,7 +1386,7 @@ public final class ClientViewServerSession<P, B> {
         }
     }
 
-    private boolean hashManifestFits(int portalKey, EncodedPlate encoded) throws ClientViewProtocolException {
+    private boolean hashManifestFits(int portalKey, EncodedPlate encoded) throws ViewStreamProtocolException {
         int headerBytes = ClientViewCodec.encodeBody(encoded.begin(portalKey, 0, false, 0L)).length;
         long frameBytes = ViewStreamLimits.S2C_HEADER_BYTES + headerBytes + (long) Long.BYTES * encoded.brickCount();
         return frameBytes <= splitter.maxFrameBytes();
@@ -1431,7 +1431,7 @@ public final class ClientViewServerSession<P, B> {
         try {
             int last = emit(List.of(bricks, encoded.end(slot.key, revision)), true);
             closeWindow(slot, last, now);
-        } catch (ClientViewProtocolException failure) {
+        } catch (ViewStreamProtocolException failure) {
             slot.failed = true;
             abandonWindow(slot);
             platform.warnings().accept("ClientView brick stream failed for portal " + slot.portalId + " and player " + playerId, failure);
@@ -1443,7 +1443,7 @@ public final class ClientViewServerSession<P, B> {
             return;
         }
         slot.windowOpen = false;
-        ClientViewAckWindow active = window;
+        ViewStreamAckWindow active = window;
         if (active != null) {
             active.close(slot.windowSequence, closeSequence, now);
         }
@@ -1454,7 +1454,7 @@ public final class ClientViewServerSession<P, B> {
             return;
         }
         slot.windowOpen = false;
-        ClientViewAckWindow active = window;
+        ViewStreamAckWindow active = window;
         if (active != null && active.abandon(slot.windowSequence) && paused) {
             paused = false;
             lane.submit();
@@ -1478,7 +1478,7 @@ public final class ClientViewServerSession<P, B> {
                 if (bindSelf) {
                     entitySelfPending = false;
                 }
-            } catch (ClientViewProtocolException failure) {
+            } catch (ViewStreamProtocolException failure) {
                 resendScene(slot, scene.message());
                 platform.warnings().accept("ClientView " + scene.message().type() + " failed for player " + playerId, failure);
             }
@@ -1493,7 +1493,7 @@ public final class ClientViewServerSession<P, B> {
                 laneBursts.subList(from, Math.min(size, from + ViewStreamLimits.MAX_FX_EMITTERS)));
             try {
                 emit(List.of(fx), false);
-            } catch (ClientViewProtocolException failure) {
+            } catch (ViewStreamProtocolException failure) {
                 platform.warnings().accept("ClientView world FX failed for player " + playerId, failure);
                 break;
             }
@@ -1560,13 +1560,13 @@ public final class ClientViewServerSession<P, B> {
                     bytes += ClientViewCodec.encodeBody(message).length + ViewStreamLimits.S2C_HEADER_BYTES;
                 }
                 if (bytes > ClientMeshStream.SECTION_RESERVATION_BYTES) {
-                    throw new ClientViewProtocolException("mesh section plus palette needs " + bytes + " bytes; reservation is "
+                    throw new ViewStreamProtocolException("mesh section plus palette needs " + bytes + " bytes; reservation is "
                         + ClientMeshStream.SECTION_RESERVATION_BYTES);
                 }
                 if (mesh.current(ready)) {
                     emit(group, false);
                 }
-            } catch (ClientViewProtocolException | IllegalArgumentException | IllegalStateException failure) {
+            } catch (ViewStreamProtocolException | IllegalArgumentException | IllegalStateException failure) {
                 if (!mesh.current(ready)) {
                     continue;
                 }
@@ -1583,12 +1583,12 @@ public final class ClientViewServerSession<P, B> {
     private void emitQuietly(List<ClientViewMessage> group) {
         try {
             emit(group, false);
-        } catch (ClientViewProtocolException failure) {
+        } catch (ViewStreamProtocolException failure) {
             platform.warnings().accept("ClientView control frame failed for player " + playerId, failure);
         }
     }
 
-    private int emit(List<ClientViewMessage> group, boolean close) throws ClientViewProtocolException {
+    private int emit(List<ClientViewMessage> group, boolean close) throws ViewStreamProtocolException {
         List<byte[]> frames = splitter.split(group, laneSequence, close);
         long bytes = 0L;
         for (int i = 0; i < frames.size(); i++) {
@@ -1612,7 +1612,7 @@ public final class ClientViewServerSession<P, B> {
             platform.transport().flush(player);
             framesSent.incrementAndGet();
             bytesSent.addAndGet(frame.length);
-        } catch (ClientViewProtocolException failure) {
+        } catch (ViewStreamProtocolException failure) {
             platform.warnings().accept("ClientView " + message.type() + " failed for player " + playerId, failure);
         }
     }

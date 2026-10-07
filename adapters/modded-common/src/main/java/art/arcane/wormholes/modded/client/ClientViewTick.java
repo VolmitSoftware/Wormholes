@@ -4,7 +4,7 @@ import art.arcane.optics.stream.BrickLightSource;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.stream.PlateSectionBox;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.client.ClientOverlapResolver;
@@ -432,7 +432,7 @@ public final class ClientViewTick implements ClientViewSession.Sink {
             frameEffectsActive = queued.receivedNanos() - effectsResumedAtNanos >= 0L;
             try {
                 session.handle(queued.frame().message(), this);
-            } catch (ClientViewProtocolException failure) {
+            } catch (ViewStreamProtocolException failure) {
                 protocolFailures++;
                 if (session.nativeSelected()) {
                     session.abandon(this);

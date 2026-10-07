@@ -30,7 +30,7 @@ import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.network.client.ClientViewChannel;
 import art.arcane.wormholes.portal.ILocalPortal;
@@ -41,7 +41,7 @@ import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
 import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.optics.fidelity.AtmosphereMode;
-import art.arcane.optics.stream.ClientViewInbound;
+import art.arcane.optics.stream.ViewStreamInbound;
 import art.arcane.wormholes.render.client.session.ClientViewOptions;
 import art.arcane.wormholes.render.client.session.ClientViewServerSession;
 import art.arcane.optics.plate.ViewPlateBuilder;
@@ -161,11 +161,11 @@ final class ClientViewFixture implements AutoCloseable {
         return clientView.registry().session(playerId);
     }
 
-    ClientViewInbound hello() throws ClientViewProtocolException {
+    ViewStreamInbound hello() throws ViewStreamProtocolException {
         return hello(CLIENT_CAPS);
     }
 
-    ClientViewInbound hello(long clientCaps) throws ClientViewProtocolException {
+    ViewStreamInbound hello(long clientCaps) throws ViewStreamProtocolException {
         return c2s(new ClientViewMessage.Hello(ViewStreamLimits.WIRE_VERSION, DATA_VERSION, clientCaps, ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES,
             256, 0L, "fabric"));
     }
@@ -207,7 +207,7 @@ final class ClientViewFixture implements AutoCloseable {
         return interested;
     }
 
-    ClientViewInbound c2s(ClientViewMessage message) throws ClientViewProtocolException {
+    ViewStreamInbound c2s(ClientViewMessage message) throws ViewStreamProtocolException {
         byte[] payload = ClientViewCodec.encodeC2S(message);
         return session().receive(payload, 0, payload.length);
     }
@@ -216,7 +216,7 @@ final class ClientViewFixture implements AutoCloseable {
         return user.drain();
     }
 
-    List<ClientViewMessage> messages() throws ClientViewProtocolException {
+    List<ClientViewMessage> messages() throws ViewStreamProtocolException {
         List<ClientViewMessage> messages = new ArrayList<ClientViewMessage>();
         for (ClientViewPacketEvents.Sent sent : drain()) {
             if (!ClientViewChannel.CHANNEL.equals(sent.channel())) {

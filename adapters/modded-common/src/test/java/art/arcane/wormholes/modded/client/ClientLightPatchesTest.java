@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.math.CellKeys;
 import org.junit.After;
 import org.junit.Test;
@@ -21,7 +21,7 @@ public class ClientLightPatchesTest extends MinecraftTestBase {
     }
 
     @Test
-    public void onlyTheBoundEnginesReadPatchedLightAndOnlyForMaskedCells() throws ClientViewProtocolException {
+    public void onlyTheBoundEnginesReadPatchedLightAndOnlyForMaskedCells() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
@@ -45,7 +45,7 @@ public class ClientLightPatchesTest extends MinecraftTestBase {
     }
 
     @Test
-    public void theLightEngineSeesTheRealStateUnderProjectedCells() throws ClientViewProtocolException {
+    public void theLightEngineSeesTheRealStateUnderProjectedCells() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);

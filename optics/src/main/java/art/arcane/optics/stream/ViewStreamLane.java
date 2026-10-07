@@ -4,13 +4,13 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public final class ClientViewLane implements Runnable {
+public final class ViewStreamLane implements Runnable {
     private final Executor executor;
     private final Runnable body;
     private final AtomicBoolean scheduled;
     private final AtomicBoolean pending;
 
-    public ClientViewLane(Executor executor, Runnable body) {
+    public ViewStreamLane(Executor executor, Runnable body) {
         this.executor = executor;
         this.body = body;
         this.scheduled = new AtomicBoolean();

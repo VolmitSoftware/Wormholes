@@ -17,9 +17,9 @@ import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.BrickCodec;
-import art.arcane.optics.stream.ClientViewProtocolException;
-import art.arcane.optics.stream.ClientViewReader;
-import art.arcane.optics.stream.ClientViewWriter;
+import art.arcane.optics.stream.ViewStreamProtocolException;
+import art.arcane.optics.stream.ViewStreamReader;
+import art.arcane.optics.stream.ViewStreamWriter;
 import art.arcane.optics.stream.PlateSectionBox;
 import art.arcane.optics.stream.ProjectionEnvironmentCodec;
 import art.arcane.optics.stream.SectionBiomes;
@@ -39,18 +39,18 @@ public final class ClientViewCodec {
         }
     }
 
-    public static byte[] encodeS2C(ClientViewMessage message, int seq, int flags) throws ClientViewProtocolException {
+    public static byte[] encodeS2C(ClientViewMessage message, int seq, int flags) throws ViewStreamProtocolException {
         return encodeS2C(message, seq, flags, false);
     }
 
-    public static byte[] encodeS2C(ClientViewMessage message, int seq, int flags, boolean deflate) throws ClientViewProtocolException {
+    public static byte[] encodeS2C(ClientViewMessage message, int seq, int flags, boolean deflate) throws ViewStreamProtocolException {
         if (!message.type().isClientbound()) {
-            throw new ClientViewProtocolException(message.type() + " is not clientbound");
+            throw new ViewStreamProtocolException(message.type() + " is not clientbound");
         }
         if ((flags & ~(ViewStreamLimits.FLAG_LAST | ViewStreamLimits.FLAG_RESERVED)) != 0) {
-            throw new ClientViewProtocolException("caller flags " + flags + " are not allowed");
+            throw new ViewStreamProtocolException("caller flags " + flags + " are not allowed");
         }
-        ClientViewWriter body = new ClientViewWriter(256);
+        ViewStreamWriter body = new ViewStreamWriter(256);
         writeBody(body, message);
         byte[] raw = body.rawBuffer();
         int rawLength = body.size();
@@ -65,10 +65,10 @@ public final class ClientViewCodec {
         }
         int bodyLength = payloadBody == null ? rawLength : payloadBody.length;
         if (bodyLength + ViewStreamLimits.S2C_HEADER_BYTES > ViewStreamLimits.HARD_MAX_FRAME_BYTES) {
-            throw new ClientViewProtocolException(message.type() + " frame of " + (bodyLength + ViewStreamLimits.S2C_HEADER_BYTES)
+            throw new ViewStreamProtocolException(message.type() + " frame of " + (bodyLength + ViewStreamLimits.S2C_HEADER_BYTES)
                 + " bytes exceeds the hard cap");
         }
-        ClientViewWriter out = new ClientViewWriter(ViewStreamLimits.S2C_HEADER_BYTES + bodyLength);
+        ViewStreamWriter out = new ViewStreamWriter(ViewStreamLimits.S2C_HEADER_BYTES + bodyLength);
         out.u8(message.type().id());
         out.i32(seq);
         out.u8(outFlags);
@@ -80,74 +80,74 @@ public final class ClientViewCodec {
         return out.toByteArray();
     }
 
-    public static byte[] encodeC2S(ClientViewMessage message) throws ClientViewProtocolException {
+    public static byte[] encodeC2S(ClientViewMessage message) throws ViewStreamProtocolException {
         if (!message.type().isServerbound()) {
-            throw new ClientViewProtocolException(message.type() + " is not serverbound");
+            throw new ViewStreamProtocolException(message.type() + " is not serverbound");
         }
-        ClientViewWriter out = new ClientViewWriter(64);
+        ViewStreamWriter out = new ViewStreamWriter(64);
         out.u8(message.type().id());
         writeBody(out, message);
         if (out.size() > ViewStreamLimits.MAX_C2S_BYTES) {
-            throw new ClientViewProtocolException(message.type() + " payload of " + out.size() + " bytes exceeds the C2S cap");
+            throw new ViewStreamProtocolException(message.type() + " payload of " + out.size() + " bytes exceeds the C2S cap");
         }
         return out.toByteArray();
     }
 
-    public static S2CFrame decodeS2C(byte[] payload, long caps) throws ClientViewProtocolException {
+    public static S2CFrame decodeS2C(byte[] payload, long caps) throws ViewStreamProtocolException {
         return decodeS2C(payload, 0, payload.length, caps);
     }
 
-    public static S2CFrame decodeS2C(byte[] payload, int offset, int length, long caps) throws ClientViewProtocolException {
+    public static S2CFrame decodeS2C(byte[] payload, int offset, int length, long caps) throws ViewStreamProtocolException {
         if (length > ViewStreamLimits.HARD_MAX_FRAME_BYTES) {
-            throw new ClientViewProtocolException("S2C payload of " + length + " bytes exceeds the hard cap");
+            throw new ViewStreamProtocolException("S2C payload of " + length + " bytes exceeds the hard cap");
         }
-        ClientViewReader header = new ClientViewReader(payload, offset, length);
+        ViewStreamReader header = new ViewStreamReader(payload, offset, length);
         ViewStreamMessageType type = ViewStreamMessageType.byId(header.u8());
         if (type == null || !type.isClientbound()) {
-            throw new ClientViewProtocolException("unknown clientbound message type");
+            throw new ViewStreamProtocolException("unknown clientbound message type");
         }
         int seq = header.i32();
         int flags = header.u8();
         if ((flags & ~ViewStreamLimits.FLAG_MASK) != 0) {
-            throw new ClientViewProtocolException("unknown frame flags " + flags);
+            throw new ViewStreamProtocolException("unknown frame flags " + flags);
         }
-        ClientViewReader body;
+        ViewStreamReader body;
         if ((flags & ViewStreamLimits.FLAG_DEFLATED) != 0) {
             byte[] inflated = inflate(payload, offset + header.position(), header.remaining(), ViewStreamLimits.HARD_MAX_FRAME_BYTES);
-            body = new ClientViewReader(inflated);
+            body = new ViewStreamReader(inflated);
         } else {
-            body = new ClientViewReader(payload, offset + header.position(), header.remaining());
+            body = new ViewStreamReader(payload, offset + header.position(), header.remaining());
         }
         ClientViewMessage message = readBody(body, type, caps);
         body.expectEnd();
         return new S2CFrame(seq, flags, message);
     }
 
-    public static ClientViewMessage decodeC2S(byte[] payload) throws ClientViewProtocolException {
+    public static ClientViewMessage decodeC2S(byte[] payload) throws ViewStreamProtocolException {
         return decodeC2S(payload, 0, payload.length);
     }
 
-    public static ClientViewMessage decodeC2S(byte[] payload, int offset, int length) throws ClientViewProtocolException {
+    public static ClientViewMessage decodeC2S(byte[] payload, int offset, int length) throws ViewStreamProtocolException {
         if (length > ViewStreamLimits.MAX_C2S_BYTES) {
-            throw new ClientViewProtocolException("C2S payload of " + length + " bytes exceeds the cap");
+            throw new ViewStreamProtocolException("C2S payload of " + length + " bytes exceeds the cap");
         }
-        ClientViewReader in = new ClientViewReader(payload, offset, length);
+        ViewStreamReader in = new ViewStreamReader(payload, offset, length);
         ViewStreamMessageType type = ViewStreamMessageType.byId(in.u8());
         if (type == null || !type.isServerbound()) {
-            throw new ClientViewProtocolException("unknown serverbound message type");
+            throw new ViewStreamProtocolException("unknown serverbound message type");
         }
         ClientViewMessage message = readBody(in, type, ViewStreamCapability.NONE);
         in.expectEnd();
         return message;
     }
 
-    public static byte[] encodeBody(ClientViewMessage message) throws ClientViewProtocolException {
-        ClientViewWriter out = new ClientViewWriter(256);
+    public static byte[] encodeBody(ClientViewMessage message) throws ViewStreamProtocolException {
+        ViewStreamWriter out = new ViewStreamWriter(256);
         writeBody(out, message);
         return out.toByteArray();
     }
 
-    public static void writeBody(ClientViewWriter out, ClientViewMessage message) throws ClientViewProtocolException {
+    public static void writeBody(ViewStreamWriter out, ClientViewMessage message) throws ViewStreamProtocolException {
         switch (message) {
             case ClientViewMessage.Offer m -> {
                 out.u16(m.wire());
@@ -177,7 +177,7 @@ public final class ClientViewCodec {
             case ClientViewMessage.Palette m -> {
                 List<ClientViewMessage.PaletteEntry> entries = m.entries();
                 if (entries.size() > ViewStreamLimits.MAX_PALETTE_ENTRIES_PER_MESSAGE) {
-                    throw new ClientViewProtocolException("palette message with " + entries.size() + " entries");
+                    throw new ViewStreamProtocolException("palette message with " + entries.size() + " entries");
                 }
                 out.varint(entries.size());
                 for (ClientViewMessage.PaletteEntry entry : entries) {
@@ -292,7 +292,7 @@ public final class ClientViewCodec {
                 out.u8(sections.sizeZ());
                 BlockBox cells = m.cells();
                 if (cells.sizeX() > MAX_CELL_BOX_EDGE || cells.sizeY() > MAX_CELL_BOX_EDGE || cells.sizeZ() > MAX_CELL_BOX_EDGE) {
-                    throw new ClientViewProtocolException("cell box edge exceeds " + MAX_CELL_BOX_EDGE);
+                    throw new ViewStreamProtocolException("cell box edge exceeds " + MAX_CELL_BOX_EDGE);
                 }
                 out.i32(cells.minX());
                 out.i32(cells.minY());
@@ -309,7 +309,7 @@ public final class ClientViewCodec {
             case ClientViewMessage.PlateBricks m -> {
                 List<Brick> bricks = m.bricks();
                 if (bricks.size() > ViewStreamLimits.MAX_BRICKS_PER_PLATE) {
-                    throw new ClientViewProtocolException("plate bricks message with " + bricks.size() + " bricks");
+                    throw new ViewStreamProtocolException("plate bricks message with " + bricks.size() + " bricks");
                 }
                 out.varint(m.portalKey());
                 out.i32(m.plateRevision());
@@ -325,7 +325,7 @@ public final class ClientViewCodec {
             case ClientViewMessage.PlatePatch m -> {
                 List<ClientViewMessage.PatchOp> ops = m.ops();
                 if (ops.size() > ViewStreamLimits.MAX_PATCH_OPS) {
-                    throw new ClientViewProtocolException("plate patch with " + ops.size() + " ops");
+                    throw new ViewStreamProtocolException("plate patch with " + ops.size() + " ops");
                 }
                 out.varint(m.portalKey());
                 out.i32(m.fromRevision());
@@ -429,7 +429,7 @@ public final class ClientViewCodec {
         }
     }
 
-    public static ClientViewMessage readBody(ClientViewReader in, ViewStreamMessageType type, long caps) throws ClientViewProtocolException {
+    public static ClientViewMessage readBody(ViewStreamReader in, ViewStreamMessageType type, long caps) throws ViewStreamProtocolException {
         return switch (type) {
             case OFFER -> new ClientViewMessage.Offer(in.u16(), in.i32(), in.i64(), in.i32(), in.i64());
             case HELLO -> new ClientViewMessage.Hello(in.u16(), in.i32(), in.i64(), in.i32(), in.u16(), in.i64(), in.string());
@@ -437,7 +437,7 @@ public final class ClientViewCodec {
             case DECLINE -> {
                 ClientViewMessage.DeclineReason reason = ClientViewMessage.DeclineReason.byId(in.u8());
                 if (reason == null) {
-                    throw new ClientViewProtocolException("unknown decline reason");
+                    throw new ViewStreamProtocolException("unknown decline reason");
                 }
                 yield new ClientViewMessage.Decline(reason);
             }
@@ -462,12 +462,12 @@ public final class ClientViewCodec {
                 BlockBox bounds = new BlockBox(in.i32(), in.i32(), in.i32(), in.u16(), in.u16(), in.u16());
                 int limit = in.varint(Integer.MAX_VALUE);
                 if (limit == 0 || bounds.cells() == 0) {
-                    throw new ClientViewProtocolException("mesh view requires nonempty bounds and a resident budget");
+                    throw new ViewStreamProtocolException("mesh view requires nonempty bounds and a resident budget");
                 }
                 try {
                     yield new ClientViewMessage.MeshBegin(portalKey, generation, bounds, limit);
                 } catch (IllegalArgumentException invalid) {
-                    throw new ClientViewProtocolException("invalid mesh section capacity", invalid);
+                    throw new ViewStreamProtocolException("invalid mesh section capacity", invalid);
                 }
             }
             case MESH_SECTION -> {
@@ -480,7 +480,7 @@ public final class ClientViewCodec {
                 int backing = in.varint(ViewStreamLimits.MAX_SESSION_PALETTE_SIZE - 1);
                 Brick brick = BrickCodec.read(in);
                 if (brick.brickIndex() != 0) {
-                    throw new ClientViewProtocolException("mesh section brick index must be zero");
+                    throw new ViewStreamProtocolException("mesh section brick index must be zero");
                 }
                 yield new ClientViewMessage.MeshSection(portalKey, generation, sectionX, sectionY, sectionZ, revision, backing, brick, readSectionBiomes(in));
             }
@@ -493,7 +493,7 @@ public final class ClientViewCodec {
                 int available = in.u8();
                 int count = in.u16();
                 if (generation <= 0 || sequence <= 0 || available > 1 || count > ClientViewMessage.MeshCached.MAX_CLAIMS) {
-                    throw new ClientViewProtocolException("Invalid mesh cache claims");
+                    throw new ViewStreamProtocolException("Invalid mesh cache claims");
                 }
                 List<ClientViewMessage.MeshClaim> claims = new ArrayList<>(count);
                 for (int index = 0; index < count; index++) {
@@ -510,7 +510,7 @@ public final class ClientViewCodec {
                 int revision = in.i32();
                 long hash = in.i64();
                 if (generation <= 0 || revision <= 0) {
-                    throw new ClientViewProtocolException("Invalid mesh reuse acknowledgment");
+                    throw new ViewStreamProtocolException("Invalid mesh reuse acknowledgment");
                 }
                 yield new ClientViewMessage.MeshReuse(portalKey, generation, x, y, z, revision, hash);
             }
@@ -521,7 +521,7 @@ public final class ClientViewCodec {
                 int available = in.u8();
                 int sectionCount = in.u16();
                 if (generation <= 0 || sequence <= 0 || available > 1 || sectionCount > ClientViewMessage.MeshLocal.MAX_SECTIONS) {
-                    throw new ClientViewProtocolException("Invalid local mesh availability");
+                    throw new ViewStreamProtocolException("Invalid local mesh availability");
                 }
                 List<ClientViewMessage.MeshCoordinate> sections = new ArrayList<>(sectionCount);
                 for (int index = 0; index < sectionCount; index++) {
@@ -529,7 +529,7 @@ public final class ClientViewCodec {
                 }
                 int entityCount = in.u16();
                 if (entityCount > ClientViewMessage.MeshLocal.MAX_ENTITIES) {
-                    throw new ClientViewProtocolException("Too many local mesh entities");
+                    throw new ViewStreamProtocolException("Too many local mesh entities");
                 }
                 List<UUID> entities = new ArrayList<>(entityCount);
                 for (int index = 0; index < entityCount; index++) {
@@ -547,7 +547,7 @@ public final class ClientViewCodec {
                 int sizeY = in.u8();
                 int sizeZ = in.u8();
                 if ((long) sizeX * sizeY * sizeZ > ViewStreamLimits.MAX_BRICKS_PER_PLATE) {
-                    throw new ClientViewProtocolException("section box exceeds the brick cap");
+                    throw new ViewStreamProtocolException("section box exceeds the brick cap");
                 }
                 PlateSectionBox sections = new PlateSectionBox(minSectionX, minSectionY, minSectionZ, sizeX, sizeY, sizeZ);
                 int minX = in.i32();
@@ -557,12 +557,12 @@ public final class ClientViewCodec {
                 int backingState = in.varint(ViewStreamLimits.MAX_SESSION_PALETTE_SIZE - 1);
                 int brickCount = in.u16();
                 if (brickCount != sections.brickCount()) {
-                    throw new ClientViewProtocolException("brick count " + brickCount + " does not match the section box");
+                    throw new ViewStreamProtocolException("brick count " + brickCount + " does not match the section box");
                 }
                 long[] hashes = null;
                 if (ViewStreamCapability.BRICK_CACHE.in(caps) && (brickCount == 0 || in.remaining() > 0)) {
                     if (in.remaining() != brickCount * Long.BYTES) {
-                        throw new ClientViewProtocolException("brick hash manifest does not match the brick count");
+                        throw new ViewStreamProtocolException("brick hash manifest does not match the brick count");
                     }
                     hashes = in.longs(brickCount);
                 }
@@ -594,7 +594,7 @@ public final class ClientViewCodec {
             case BRICK_MISS -> {
                 int count = in.checkedCount(in.u8(), ViewStreamLimits.MAX_BRICK_MISS_PLATES, 6);
                 if (count == 0) {
-                    throw new ClientViewProtocolException("brick miss without plates");
+                    throw new ViewStreamProtocolException("brick miss without plates");
                 }
                 List<ClientViewMessage.BrickMiss.Plate> plates = new ArrayList<ClientViewMessage.BrickMiss.Plate>(count);
                 for (int i = 0; i < count; i++) {
@@ -613,7 +613,7 @@ public final class ClientViewCodec {
                 int animation = in.u8();
                 float yaw = in.f32();
                 if (!Float.isFinite(yaw) || !hurt && animation != 0 && animation != 2 && animation != 3 && animation != 4 && animation != 5) {
-                    throw new ClientViewProtocolException("invalid entity event");
+                    throw new ViewStreamProtocolException("invalid entity event");
                 }
                 yield new ClientViewMessage.EntityEvent(portalKey, eventSeq, entityId, hurt, animation, yaw);
             }
@@ -646,7 +646,7 @@ public final class ClientViewCodec {
                 for (int i = 0; i < count; i++) {
                     ClientViewMessage.FxKind kind = ClientViewMessage.FxKind.byId(in.u8());
                     if (kind == null) {
-                        throw new ClientViewProtocolException("unknown fx kind");
+                        throw new ViewStreamProtocolException("unknown fx kind");
                     }
                     String key = in.string();
                     double x = in.f64();
@@ -665,7 +665,7 @@ public final class ClientViewCodec {
             case SESSION_RESET -> {
                 ClientViewMessage.ResetReason reason = ClientViewMessage.ResetReason.byId(in.u8());
                 if (reason == null) {
-                    throw new ClientViewProtocolException("unknown reset reason");
+                    throw new ViewStreamProtocolException("unknown reset reason");
                 }
                 yield new ClientViewMessage.SessionReset(reason);
             }
@@ -675,7 +675,7 @@ public final class ClientViewCodec {
         };
     }
 
-    public static void writePatchOp(ClientViewWriter out, ClientViewMessage.PatchOp op) throws ClientViewProtocolException {
+    public static void writePatchOp(ViewStreamWriter out, ClientViewMessage.PatchOp op) throws ViewStreamProtocolException {
         out.u16(op.brickIndex());
         out.u8(op.op());
         switch (op) {
@@ -694,14 +694,14 @@ public final class ClientViewCodec {
         }
     }
 
-    public static ClientViewMessage.PatchOp readPatchOp(ClientViewReader in) throws ClientViewProtocolException {
+    public static ClientViewMessage.PatchOp readPatchOp(ViewStreamReader in) throws ViewStreamProtocolException {
         int brickIndex = in.u16();
         int op = in.u8();
         return switch (op) {
             case ClientViewMessage.PatchOp.OP_FULL -> {
                 Brick brick = BrickCodec.read(in);
                 if (brick.brickIndex() != brickIndex) {
-                    throw new ClientViewProtocolException("FULL op brick index mismatch");
+                    throw new ViewStreamProtocolException("FULL op brick index mismatch");
                 }
                 yield new ClientViewMessage.FullOp(brick);
             }
@@ -712,20 +712,20 @@ public final class ClientViewCodec {
                 for (int i = 0; i < count; i++) {
                     cells[i] = in.u16();
                     if (cells[i] >= ViewStreamLimits.BRICK_CELLS) {
-                        throw new ClientViewProtocolException("sparse cell outside the brick");
+                        throw new ViewStreamProtocolException("sparse cell outside the brick");
                     }
                     ids[i] = in.varint(ViewStreamLimits.MAX_SESSION_PALETTE_SIZE - 1);
                 }
                 yield new ClientViewMessage.SparseOp(brickIndex, cells, ids);
             }
             case ClientViewMessage.PatchOp.OP_CLEAR -> new ClientViewMessage.ClearOp(brickIndex);
-            default -> throw new ClientViewProtocolException("unknown patch op " + op);
+            default -> throw new ViewStreamProtocolException("unknown patch op " + op);
         };
     }
 
-    public static void writeGeometry(ClientViewWriter out, ApertureDescriptor geometry, int depth) throws ClientViewProtocolException {
+    public static void writeGeometry(ViewStreamWriter out, ApertureDescriptor geometry, int depth) throws ViewStreamProtocolException {
         if (depth >= ViewStreamLimits.MAX_GEOMETRY_DEPTH) {
-            throw new ClientViewProtocolException("portal geometry nested deeper than " + ViewStreamLimits.MAX_GEOMETRY_DEPTH);
+            throw new ViewStreamProtocolException("portal geometry nested deeper than " + ViewStreamLimits.MAX_GEOMETRY_DEPTH);
         }
         out.i32(geometry.originX());
         out.i32(geometry.originY());
@@ -738,7 +738,7 @@ public final class ClientViewCodec {
         out.u16(geometry.apertureHeight());
         long[] mask = geometry.apertureMask();
         if (mask.length > ViewStreamLimits.MAX_APERTURE_MASK_WORDS) {
-            throw new ClientViewProtocolException("aperture mask of " + mask.length + " words");
+            throw new ViewStreamProtocolException("aperture mask of " + mask.length + " words");
         }
         out.varint(mask.length);
         out.longs(mask);
@@ -758,7 +758,7 @@ public final class ClientViewCodec {
         out.i64(geometry.targetIdentity());
         List<ApertureDescriptor> nested = geometry.nested();
         if (nested.size() > ViewStreamLimits.MAX_NESTED_GEOMETRY) {
-            throw new ClientViewProtocolException("portal geometry with " + nested.size() + " nested portals");
+            throw new ViewStreamProtocolException("portal geometry with " + nested.size() + " nested portals");
         }
         out.u8(nested.size());
         for (ApertureDescriptor child : nested) {
@@ -766,9 +766,9 @@ public final class ClientViewCodec {
         }
     }
 
-    public static ApertureDescriptor readGeometry(ClientViewReader in, int depth) throws ClientViewProtocolException {
+    public static ApertureDescriptor readGeometry(ViewStreamReader in, int depth) throws ViewStreamProtocolException {
         if (depth >= ViewStreamLimits.MAX_GEOMETRY_DEPTH) {
-            throw new ClientViewProtocolException("portal geometry nested deeper than " + ViewStreamLimits.MAX_GEOMETRY_DEPTH);
+            throw new ViewStreamProtocolException("portal geometry nested deeper than " + ViewStreamLimits.MAX_GEOMETRY_DEPTH);
         }
         int originX = in.i32();
         int originY = in.i32();
@@ -822,7 +822,7 @@ public final class ClientViewCodec {
         }
     }
 
-    public static byte[] inflate(byte[] data, int offset, int length, int maxOutput) throws ClientViewProtocolException {
+    public static byte[] inflate(byte[] data, int offset, int length, int maxOutput) throws ViewStreamProtocolException {
         Inflater inflater = new Inflater();
         try {
             inflater.setInput(data, offset, length);
@@ -832,56 +832,56 @@ public final class ClientViewCodec {
                 int produced = inflater.inflate(buffer);
                 if (produced == 0) {
                     if (inflater.needsInput() || inflater.needsDictionary()) {
-                        throw new ClientViewProtocolException("truncated deflate stream");
+                        throw new ViewStreamProtocolException("truncated deflate stream");
                     }
                     continue;
                 }
                 if (out.size() + produced > maxOutput) {
-                    throw new ClientViewProtocolException("inflated frame exceeds " + maxOutput + " bytes");
+                    throw new ViewStreamProtocolException("inflated frame exceeds " + maxOutput + " bytes");
                 }
                 out.write(buffer, 0, produced);
             }
             return out.toByteArray();
         } catch (DataFormatException e) {
-            throw new ClientViewProtocolException("corrupt deflate stream", e);
+            throw new ViewStreamProtocolException("corrupt deflate stream", e);
         } finally {
             inflater.end();
         }
     }
 
-    public static byte[] entityBytes(EntitySnapshot visual) throws ClientViewProtocolException {
+    public static byte[] entityBytes(EntitySnapshot visual) throws ViewStreamProtocolException {
         ByteArrayOutputStream buffer = new ByteArrayOutputStream(128);
         DataOutputStream out = new DataOutputStream(buffer);
         try {
             visual.write(out);
             out.flush();
         } catch (IOException e) {
-            throw new ClientViewProtocolException("entity visual encode failed", e);
+            throw new ViewStreamProtocolException("entity visual encode failed", e);
         }
         byte[] bytes = buffer.toByteArray();
         if (bytes.length > ViewStreamLimits.MAX_ENTITY_VISUAL_BYTES) {
-            throw new ClientViewProtocolException("entity visual of " + bytes.length + " bytes exceeds the cap");
+            throw new ViewStreamProtocolException("entity visual of " + bytes.length + " bytes exceeds the cap");
         }
         return bytes;
     }
 
-    public static EntitySnapshot entityFromBytes(byte[] bytes) throws ClientViewProtocolException {
+    public static EntitySnapshot entityFromBytes(byte[] bytes) throws ViewStreamProtocolException {
         DataInputStream in = new DataInputStream(new ByteArrayInputStream(bytes));
         try {
             EntitySnapshot visual = EntitySnapshot.read(in);
             if (in.available() != 0) {
-                throw new ClientViewProtocolException("trailing bytes after entity visual");
+                throw new ViewStreamProtocolException("trailing bytes after entity visual");
             }
             return visual;
         } catch (IOException | RuntimeException e) {
-            throw new ClientViewProtocolException("corrupt entity visual", e);
+            throw new ViewStreamProtocolException("corrupt entity visual", e);
         }
     }
 
-    private static SectionBiomes readSectionBiomes(ClientViewReader in) throws ClientViewProtocolException {
+    private static SectionBiomes readSectionBiomes(ViewStreamReader in) throws ViewStreamProtocolException {
         int count = in.u16();
         if (count > SectionBiomes.CELLS) {
-            throw new ClientViewProtocolException("section biome palette exceeds " + SectionBiomes.CELLS + " entries");
+            throw new ViewStreamProtocolException("section biome palette exceeds " + SectionBiomes.CELLS + " entries");
         }
         List<String> palette = new ArrayList<String>(count);
         for (int i = 0; i < count; i++) {
@@ -890,14 +890,14 @@ public final class ClientViewCodec {
         try {
             return new SectionBiomes(palette, in.bytes(count > 1 ? SectionBiomes.INDEX_BYTES : 0));
         } catch (IllegalArgumentException invalid) {
-            throw new ClientViewProtocolException("invalid section biomes", invalid);
+            throw new ViewStreamProtocolException("invalid section biomes", invalid);
         }
     }
 
-    private static boolean readFlag(ClientViewReader in) throws ClientViewProtocolException {
+    private static boolean readFlag(ViewStreamReader in) throws ViewStreamProtocolException {
         int value = in.u8();
         if (value > 1) {
-            throw new ClientViewProtocolException("flag byte " + value);
+            throw new ViewStreamProtocolException("flag byte " + value);
         }
         return value == 1;
     }

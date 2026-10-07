@@ -19,9 +19,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import art.arcane.optics.stream.ClientViewProtocolException;
-import art.arcane.optics.stream.ClientViewReader;
-import art.arcane.optics.stream.ClientViewWriter;
+import art.arcane.optics.stream.ViewStreamProtocolException;
+import art.arcane.optics.stream.ViewStreamReader;
+import art.arcane.optics.stream.ViewStreamWriter;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.stream.ProjectionEnvironmentCodec;
 import art.arcane.optics.stream.ViewStreamCapability;
@@ -68,20 +68,20 @@ class ClientViewEnvironmentTest {
 
     @Test
     void rejectsMalformedValuesAndNonOrthogonalTransforms() throws Exception {
-        ClientViewWriter out = new ClientViewWriter();
+        ViewStreamWriter out = new ViewStreamWriter();
         ProjectionEnvironmentCodec.write(out, ClientViewFixtures.environment());
         byte[] invalidSky = out.toByteArray();
         invalidSky[8] = 3;
-        assertThrows(ClientViewProtocolException.class, () -> ProjectionEnvironmentCodec.read(new ClientViewReader(invalidSky)));
+        assertThrows(ViewStreamProtocolException.class, () -> ProjectionEnvironmentCodec.read(new ViewStreamReader(invalidSky)));
         byte[] invalidMedium = out.toByteArray();
         invalidMedium[invalidMedium.length - 2] = 4;
-        assertThrows(ClientViewProtocolException.class, () -> ProjectionEnvironmentCodec.read(new ClientViewReader(invalidMedium)));
+        assertThrows(ViewStreamProtocolException.class, () -> ProjectionEnvironmentCodec.read(new ViewStreamReader(invalidMedium)));
         byte[] invalidCeiling = out.toByteArray();
         invalidCeiling[invalidCeiling.length - 7] = 2;
-        assertThrows(ClientViewProtocolException.class, () -> ProjectionEnvironmentCodec.read(new ClientViewReader(invalidCeiling)));
+        assertThrows(ViewStreamProtocolException.class, () -> ProjectionEnvironmentCodec.read(new ViewStreamReader(invalidCeiling)));
         byte[] invalidFixedTime = out.toByteArray();
         invalidFixedTime[invalidFixedTime.length - 1] = 2;
-        assertThrows(ClientViewProtocolException.class, () -> ProjectionEnvironmentCodec.read(new ClientViewReader(invalidFixedTime)));
+        assertThrows(ViewStreamProtocolException.class, () -> ProjectionEnvironmentCodec.read(new ViewStreamReader(invalidFixedTime)));
         assertThrows(IllegalArgumentException.class, () -> new ProjectionEnvironment.Color(Float.NaN, 0, 0));
         assertThrows(IllegalArgumentException.class, () -> new ProjectionEnvironment.World("test:destination", 0, "minecraft:plains", 63, 7, 15, 256, true, Float.NaN, ProjectionEnvironment.EyeMedium.NONE, false));
         assertThrows(IllegalArgumentException.class, () -> new ProjectionEnvironment.World("missing_namespace", 0, "minecraft:plains", 63, 7, 15, 256, true, 0.1F, ProjectionEnvironment.EyeMedium.NONE, false));

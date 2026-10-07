@@ -48,14 +48,14 @@ import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.rtp.RtpRimRenderer;
 import art.arcane.wormholes.render.PortalProjector;
 import art.arcane.wormholes.render.client.session.ClientViewEntityFrames;
-import art.arcane.optics.stream.ClientViewInbound;
+import art.arcane.optics.stream.ViewStreamInbound;
 import art.arcane.wormholes.render.client.session.ClientViewOptions;
 import art.arcane.wormholes.render.client.session.ClientViewPlatform;
 import art.arcane.wormholes.render.client.session.ClientViewSceneFx;
 import art.arcane.wormholes.render.client.session.ClientViewServerSession;
 import art.arcane.wormholes.render.client.session.ClientPreparedTravelServer;
 import art.arcane.wormholes.render.client.session.ClientViewSessionRegistry;
-import art.arcane.optics.stream.ClientViewSessionState;
+import art.arcane.optics.stream.ViewStreamSessionState;
 import art.arcane.optics.plate.ViewPlateCache;
 import art.arcane.wormholes.render.view.ProjectionWorldViewProvider;
 
@@ -177,7 +177,7 @@ public final class BukkitClientView implements ClientViewRouting {
     public boolean reset(Player player) {
         ClientViewServerSession<ClientViewObserver, BlockData> session = registry.session(player.getUniqueId());
         Plugin owner = plugin;
-        if (owner == null || session == null || session.state() != ClientViewSessionState.CLIENT_VIEW) {
+        if (owner == null || session == null || session.state() != ViewStreamSessionState.CLIENT_VIEW) {
             return false;
         }
         return FoliaScheduler.runEntity(owner, player, () -> session.reset(ClientViewMessage.ResetReason.TELEPORT));
@@ -444,10 +444,10 @@ public final class BukkitClientView implements ClientViewRouting {
     @Override
     public boolean holdsVanilla(Player observer, long frameTick) {
         ClientViewServerSession<ClientViewObserver, BlockData> session = registry.session(observer.getUniqueId());
-        if (session == null || session.state() != ClientViewSessionState.PENDING) {
+        if (session == null || session.state() != ViewStreamSessionState.PENDING) {
             return false;
         }
-        return session.expire() == ClientViewSessionState.PENDING;
+        return session.expire() == ViewStreamSessionState.PENDING;
     }
 
     @Override
@@ -459,7 +459,7 @@ public final class BukkitClientView implements ClientViewRouting {
             return;
         }
         ClientViewObserver observer = session.player();
-        if (session.state() != ClientViewSessionState.CLIENT_VIEW) {
+        if (session.state() != ViewStreamSessionState.CLIENT_VIEW) {
             updateDoorVisibility(player, Set.of());
             if (observer.attending()) {
                 session.tick(frameTick);
@@ -581,8 +581,8 @@ public final class BukkitClientView implements ClientViewRouting {
             if (session == null) {
                 return;
             }
-            ClientViewInbound result = session.receive(payload, 0, payload.length);
-            if (result == ClientViewInbound.HELLO_ACCEPTED || result == ClientViewInbound.HELLO_DECLINED || result == ClientViewInbound.RESET) {
+            ViewStreamInbound result = session.receive(payload, 0, payload.length);
+            if (result == ViewStreamInbound.HELLO_ACCEPTED || result == ViewStreamInbound.HELLO_DECLINED || result == ViewStreamInbound.RESET) {
                 verbose.accept("[clientview] " + user.getName() + " " + result + " state=" + session.state()
                     + " caps=0x" + Long.toHexString(session.caps()));
             }

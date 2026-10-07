@@ -6,7 +6,7 @@ import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.math.BlockBox;
@@ -126,11 +126,11 @@ public class ClientMeshLocalContentTest extends MinecraftTestBase {
         assertTrue(view.changed().contains(0L));
     }
 
-    private static ClientMeshSections.Section capture(ClientMeshSections store, Brick brick, SectionBiomes biomes) throws ClientViewProtocolException {
+    private static ClientMeshSections.Section capture(ClientMeshSections store, Brick brick, SectionBiomes biomes) throws ViewStreamProtocolException {
         return store.localSection(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 0, brick, biomes));
     }
 
-    private static ClientMeshSections store() throws ClientViewProtocolException {
+    private static ClientMeshSections store() throws ViewStreamProtocolException {
         ClientPalette palette = new ClientPalette(BuiltInRegistries.BLOCK);
         palette.apply(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(3, "minecraft:stone"),
             new ClientViewMessage.PaletteEntry(4, "minecraft:dirt"))));

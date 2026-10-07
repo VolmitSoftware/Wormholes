@@ -27,10 +27,10 @@ import com.github.retrooper.packetevents.protocol.player.User;
 import art.arcane.wormholes.network.client.ClientViewHandshake;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
-import art.arcane.optics.stream.ClientViewPhase;
+import art.arcane.optics.stream.ViewStreamPhase;
 import art.arcane.wormholes.render.client.session.ClientViewServerSession;
 import art.arcane.wormholes.render.client.session.ClientViewSessionRegistry;
-import art.arcane.optics.stream.ClientViewSessionState;
+import art.arcane.optics.stream.ViewStreamSessionState;
 
 public final class BukkitClientViewNegotiator implements Listener, PluginMessageListener {
     public static final long PLAY_EXPIRY_TICKS = ViewStreamLimits.PLAY_PHASE_PENDING_TICKS + 1L;
@@ -48,14 +48,14 @@ public final class BukkitClientViewNegotiator implements Listener, PluginMessage
         this.verbose = Objects.requireNonNull(verbose, "verbose");
     }
 
-    public ClientViewSessionState configure(UUID playerId, User user) {
+    public ViewStreamSessionState configure(UUID playerId, User user) {
         ClientViewSessionRegistry<ClientViewObserver, BlockData> registry = view.registry();
         if (user == null || !registry.enabled() || !registry.options().configurationHandshake()) {
-            return ClientViewSessionState.VANILLA;
+            return ViewStreamSessionState.VANILLA;
         }
         ClientViewObserver observer = view.observer(playerId, user);
         if (brand(observer) == ClientViewHandshake.Brand.VANILLA) {
-            return ClientViewSessionState.VANILLA;
+            return ViewStreamSessionState.VANILLA;
         }
         long started = System.nanoTime();
         ClientViewServerSession<ClientViewObserver, BlockData> session = registry.open(playerId, observer, 0L);
@@ -64,12 +64,12 @@ public final class BukkitClientViewNegotiator implements Listener, PluginMessage
             session.brand(brand);
         }
         view.transport().register(observer);
-        if (!session.offer(ClientViewPhase.CONFIGURATION)) {
+        if (!session.offer(ViewStreamPhase.CONFIGURATION)) {
             return session.state();
         }
         observer.markOffered();
         view.transport().ping(observer);
-        ClientViewSessionState settled;
+        ViewStreamSessionState settled;
         try {
             settled = session.awaitHandshake();
         } catch (InterruptedException interrupted) {
@@ -110,7 +110,7 @@ public final class BukkitClientViewNegotiator implements Listener, PluginMessage
             ClientViewObserver observer = view.observer(playerId, users.apply(player));
             observer.player(player);
             ClientViewServerSession<ClientViewObserver, BlockData> session = registry.session(playerId);
-            if (observer.user() == null || !capable(player, observer) || (session != null && session.state() != ClientViewSessionState.VANILLA)) {
+            if (observer.user() == null || !capable(player, observer) || (session != null && session.state() != ViewStreamSessionState.VANILLA)) {
                 continue;
             }
             if (offer(player, observer, registry.open(playerId, observer, 0L))) {
@@ -194,7 +194,7 @@ public final class BukkitClientViewNegotiator implements Listener, PluginMessage
             session.brand(brand);
         }
         view.transport().register(observer);
-        if (!session.offer(ClientViewPhase.PLAY)) {
+        if (!session.offer(ViewStreamPhase.PLAY)) {
             return false;
         }
         observer.markOffered();
@@ -214,7 +214,7 @@ public final class BukkitClientViewNegotiator implements Listener, PluginMessage
 
     private void reset(Player player, ClientViewMessage.ResetReason reason) {
         ClientViewServerSession<ClientViewObserver, BlockData> session = view.registry().session(player.getUniqueId());
-        if (session != null && session.state() == ClientViewSessionState.CLIENT_VIEW) {
+        if (session != null && session.state() == ViewStreamSessionState.CLIENT_VIEW) {
             session.reset(reason);
         }
     }

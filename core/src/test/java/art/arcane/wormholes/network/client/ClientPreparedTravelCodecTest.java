@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.ViewStreamLimits;
 
@@ -23,7 +23,7 @@ final class ClientPreparedTravelCodecTest {
     private static final UUID TOKEN = new UUID(12, 34);
 
     @Test
-    void allTravelMessagesRoundTripWithWorldAndManifestIdentity() throws ClientViewProtocolException {
+    void allTravelMessagesRoundTripWithWorldAndManifestIdentity() throws ViewStreamProtocolException {
         for (ClientViewFixtures.Vector vector : travelVectors()) {
             byte[] frame = encode(vector.message());
             assertEquals(vector.message(), decode(frame, vector.clientbound()), vector.name());
@@ -32,7 +32,7 @@ final class ClientPreparedTravelCodecTest {
     }
 
     @Test
-    void chunkFragmentsPreserveTheFullBoundaryAndFinalPartialPayload() throws ClientViewProtocolException {
+    void chunkFragmentsPreserveTheFullBoundaryAndFinalPartialPayload() throws ViewStreamProtocolException {
         int total = ViewStreamLimits.TRAVEL_FRAGMENT_BYTES + 17;
         byte[] first = new byte[ViewStreamLimits.TRAVEL_FRAGMENT_BYTES];
         for (int index = 0; index < first.length; index++) {
@@ -66,7 +66,7 @@ final class ClientPreparedTravelCodecTest {
     }
 
     @Test
-    void manifestBoundFitsAFrameAndRejectsEmptyDuplicateAndOversizedCoordinates() throws ClientViewProtocolException {
+    void manifestBoundFitsAFrameAndRejectsEmptyDuplicateAndOversizedCoordinates() throws ViewStreamProtocolException {
         List<ClientViewMessage.TravelChunkRevision> chunks = new ArrayList<>(ViewStreamLimits.MAX_TRAVEL_CHUNKS);
         for (int index = 0; index < ViewStreamLimits.MAX_TRAVEL_CHUNKS; index++) {
             chunks.add(new ClientViewMessage.TravelChunkRevision(index - 544, -index, index + 1));
@@ -83,42 +83,42 @@ final class ClientPreparedTravelCodecTest {
         for (int count : new int[]{0, ViewStreamLimits.MAX_TRAVEL_CHUNKS + 1, 65535}) {
             byte[] invalid = frame.clone();
             buffer(invalid).putShort(ViewStreamLimits.S2C_HEADER_BYTES + 32, (short) count);
-            assertThrows(ClientViewProtocolException.class, () -> decode(invalid, true));
+            assertThrows(ViewStreamProtocolException.class, () -> decode(invalid, true));
         }
     }
 
     @Test
-    void decoderRejectsInconsistentFragmentIndicesCountsSizesAndRevisions() throws ClientViewProtocolException {
+    void decoderRejectsInconsistentFragmentIndicesCountsSizesAndRevisions() throws ViewStreamProtocolException {
         byte[] frame = encode(new ClientViewMessage.TravelChunk(TOKEN, 3, -32, -10, 9, 0, 1, 4, new byte[]{1, 2, 3, 4}));
         int start = ViewStreamLimits.S2C_HEADER_BYTES + 24;
         for (int revision : new int[]{0, -1}) {
             byte[] invalid = frame.clone();
             buffer(invalid).putInt(start + 8, revision);
-            assertThrows(ClientViewProtocolException.class, () -> decode(invalid, true));
+            assertThrows(ViewStreamProtocolException.class, () -> decode(invalid, true));
         }
         for (int offset : new int[]{start + 12, start + 14}) {
             byte[] invalid = frame.clone();
             buffer(invalid).putShort(offset, (short) 2);
-            assertThrows(ClientViewProtocolException.class, () -> decode(invalid, true));
+            assertThrows(ViewStreamProtocolException.class, () -> decode(invalid, true));
         }
         for (int offset : new int[]{start + 16, start + 20}) {
             for (int size : new int[]{0, -1, ViewStreamLimits.MAX_TRAVEL_CHUNK_BYTES + 1}) {
                 byte[] invalid = frame.clone();
                 buffer(invalid).putInt(offset, size);
-                assertThrows(ClientViewProtocolException.class, () -> decode(invalid, true));
+                assertThrows(ViewStreamProtocolException.class, () -> decode(invalid, true));
             }
         }
     }
 
     @Test
-    void decoderRejectsNonpositiveGenerationAndBarrierRevision() throws ClientViewProtocolException {
+    void decoderRejectsNonpositiveGenerationAndBarrierRevision() throws ViewStreamProtocolException {
         for (ClientViewFixtures.Vector vector : travelVectors()) {
             byte[] frame = encode(vector.message());
             int header = vector.clientbound() ? ViewStreamLimits.S2C_HEADER_BYTES : ViewStreamLimits.C2S_HEADER_BYTES;
             for (long generation : new long[]{0, -1, Long.MIN_VALUE}) {
                 byte[] invalid = frame.clone();
                 buffer(invalid).putLong(header + 16, generation);
-                assertThrows(ClientViewProtocolException.class, () -> decode(invalid, vector.clientbound()));
+                assertThrows(ViewStreamProtocolException.class, () -> decode(invalid, vector.clientbound()));
             }
             if (vector.message() instanceof ClientViewMessage.TravelReady
                 || vector.message() instanceof ClientViewMessage.TravelEnd
@@ -126,7 +126,7 @@ final class ClientPreparedTravelCodecTest {
                 || vector.message() instanceof ClientViewMessage.TravelCross) {
                 byte[] invalid = frame.clone();
                 buffer(invalid).putLong(header + 24, 0);
-                assertThrows(ClientViewProtocolException.class, () -> decode(invalid, vector.clientbound()));
+                assertThrows(ViewStreamProtocolException.class, () -> decode(invalid, vector.clientbound()));
             }
         }
     }
@@ -158,24 +158,24 @@ final class ClientPreparedTravelCodecTest {
     }
 
     @Test
-    void everyTravelMessageRejectsTruncationTrailingBytesAndTheWrongDirection() throws ClientViewProtocolException {
+    void everyTravelMessageRejectsTruncationTrailingBytesAndTheWrongDirection() throws ViewStreamProtocolException {
         for (ClientViewFixtures.Vector vector : travelVectors()) {
             ClientViewMessage message = vector.message();
             byte[] frame = encode(message);
             for (int length = 0; length < frame.length; length++) {
                 byte[] truncated = Arrays.copyOf(frame, length);
-                assertThrows(ClientViewProtocolException.class, () -> decode(truncated, vector.clientbound()), vector.name());
+                assertThrows(ViewStreamProtocolException.class, () -> decode(truncated, vector.clientbound()), vector.name());
             }
-            assertThrows(ClientViewProtocolException.class,
+            assertThrows(ViewStreamProtocolException.class,
                 () -> decode(Arrays.copyOf(frame, frame.length + 1), vector.clientbound()), vector.name());
             if (message instanceof ClientViewMessage.TravelCancel) {
                 assertEquals(message, ClientViewCodec.decodeC2S(ClientViewCodec.encodeC2S(message)));
             } else if (vector.clientbound()) {
-                assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.encodeC2S(message));
-                assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.decodeC2S(frame));
+                assertThrows(ViewStreamProtocolException.class, () -> ClientViewCodec.encodeC2S(message));
+                assertThrows(ViewStreamProtocolException.class, () -> ClientViewCodec.decodeC2S(frame));
             } else {
-                assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.encodeS2C(message, 0, 0));
-                assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.decodeS2C(frame, ViewStreamCapability.ALL));
+                assertThrows(ViewStreamProtocolException.class, () -> ClientViewCodec.encodeS2C(message, 0, 0));
+                assertThrows(ViewStreamProtocolException.class, () -> ClientViewCodec.decodeS2C(frame, ViewStreamCapability.ALL));
             }
         }
     }
@@ -215,12 +215,12 @@ final class ClientPreparedTravelCodecTest {
         return result;
     }
 
-    private static byte[] encode(ClientViewMessage message) throws ClientViewProtocolException {
+    private static byte[] encode(ClientViewMessage message) throws ViewStreamProtocolException {
         return message.type().isClientbound() ? ClientViewCodec.encodeS2C(message, 7, ViewStreamLimits.FLAG_LAST)
             : ClientViewCodec.encodeC2S(message);
     }
 
-    private static ClientViewMessage decode(byte[] frame, boolean clientbound) throws ClientViewProtocolException {
+    private static ClientViewMessage decode(byte[] frame, boolean clientbound) throws ViewStreamProtocolException {
         return clientbound ? ClientViewCodec.decodeS2C(frame, ViewStreamCapability.ALL).message() : ClientViewCodec.decodeC2S(frame);
     }
 

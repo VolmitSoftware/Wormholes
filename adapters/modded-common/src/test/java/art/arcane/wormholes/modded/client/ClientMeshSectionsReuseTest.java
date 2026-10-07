@@ -5,7 +5,7 @@ import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.math.Face;
@@ -348,7 +348,7 @@ public class ClientMeshSectionsReuseTest extends MinecraftTestBase {
         return new ClientViewMessage.MeshSection(key, 1, x, 0, 0, revision, state, Brick.single(0, state), SectionBiomes.NONE);
     }
 
-    private static ClientMeshSections populated() throws ClientViewProtocolException {
+    private static ClientMeshSections populated() throws ViewStreamProtocolException {
         ClientMeshSections store = store();
         store.epoch(71);
         store.begin(7, 1, BOUNDS, 8);
@@ -357,11 +357,11 @@ public class ClientMeshSectionsReuseTest extends MinecraftTestBase {
         return store;
     }
 
-    private static ClientMeshSections store() throws ClientViewProtocolException {
+    private static ClientMeshSections store() throws ViewStreamProtocolException {
         return store(1024 * 1024);
     }
 
-    private static ClientMeshSections store(long budget) throws ClientViewProtocolException {
+    private static ClientMeshSections store(long budget) throws ViewStreamProtocolException {
         ClientPalette palette = new ClientPalette(BuiltInRegistries.BLOCK);
         palette.apply(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(3, "minecraft:stone"),
             new ClientViewMessage.PaletteEntry(4, "minecraft:dirt"))));

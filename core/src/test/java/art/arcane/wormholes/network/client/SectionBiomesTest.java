@@ -11,14 +11,14 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.BrickCodec;
-import art.arcane.optics.stream.ClientViewProtocolException;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.ViewStreamLimits;
 
 final class SectionBiomesTest {
     @Test
-    void biomePayloadCountsTowardNegotiatedFrameBudget() throws ClientViewProtocolException {
+    void biomePayloadCountsTowardNegotiatedFrameBudget() throws ViewStreamProtocolException {
         Brick.BlockEntityCell[] entities = new Brick.BlockEntityCell[24];
         for (int i = 0; i < entities.length; i++) {
             entities[i] = new Brick.BlockEntityCell(i, new byte[2040]);
@@ -34,12 +34,12 @@ final class SectionBiomesTest {
             new SectionBiomes(keys, new byte[SectionBiomes.INDEX_BYTES]));
         assertTrue(ClientViewCodec.encodeBody(section).length > ViewStreamLimits.MIN_MAX_FRAME_BYTES);
         FrameSplitter splitter = new FrameSplitter(ViewStreamLimits.MIN_MAX_FRAME_BYTES, false);
-        ClientViewProtocolException error = assertThrows(ClientViewProtocolException.class, () -> splitter.split(List.of(section), () -> 0));
+        ViewStreamProtocolException error = assertThrows(ViewStreamProtocolException.class, () -> splitter.split(List.of(section), () -> 0));
         assertTrue(error.getMessage().contains("MESH_SECTION"));
     }
 
     @Test
-    void quartPaletteRoundTripsAndOwnsItsIndices() throws ClientViewProtocolException {
+    void quartPaletteRoundTripsAndOwnsItsIndices() throws ViewStreamProtocolException {
         byte[] indices = new byte[SectionBiomes.INDEX_BYTES];
         for (int cell = SectionBiomes.CELLS / 2; cell < SectionBiomes.CELLS; cell++) {
             indices[cell * 2] = 1;
@@ -54,13 +54,13 @@ final class SectionBiomesTest {
     }
 
     @Test
-    void fullGeometricCountCanExceedUnsignedShort() throws ClientViewProtocolException {
+    void fullGeometricCountCanExceedUnsignedShort() throws ViewStreamProtocolException {
         ClientViewMessage.MeshBegin begin = new ClientViewMessage.MeshBegin(1, 2, new BlockBox(-512, -512, 0, 1025, 1025, 512), 135200);
         assertEquals(begin, ClientViewCodec.decodeS2C(ClientViewCodec.encodeS2C(begin, 1, 0), ViewStreamCapability.ALL).message());
     }
 
     @Test
-    void malformedIndicesAndOversizedPalettesAreRejected() throws ClientViewProtocolException {
+    void malformedIndicesAndOversizedPalettesAreRejected() throws ViewStreamProtocolException {
         byte[] indices = new byte[SectionBiomes.INDEX_BYTES];
         indices[4] = 2;
         assertThrows(IllegalArgumentException.class, () -> new SectionBiomes(List.of("a:b", "c:d"), indices));
@@ -68,11 +68,11 @@ final class SectionBiomesTest {
         byte[] encoded = ClientViewCodec.encodeS2C(section, 1, 0);
         encoded[encoded.length - 2] = (byte) 0xFF;
         encoded[encoded.length - 1] = (byte) 0xFF;
-        assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.decodeS2C(encoded, ViewStreamCapability.ALL));
+        assertThrows(ViewStreamProtocolException.class, () -> ClientViewCodec.decodeS2C(encoded, ViewStreamCapability.ALL));
     }
 
     @Test
-    void haloSupportsEveryDistinctQuartBiomeAndUnsignedShortIndices() throws ClientViewProtocolException {
+    void haloSupportsEveryDistinctQuartBiomeAndUnsignedShortIndices() throws ViewStreamProtocolException {
         ArrayList<String> palette = new ArrayList<String>(SectionBiomes.CELLS);
         byte[] indices = new byte[SectionBiomes.INDEX_BYTES];
         for (int cell = 0; cell < SectionBiomes.CELLS; cell++) {
