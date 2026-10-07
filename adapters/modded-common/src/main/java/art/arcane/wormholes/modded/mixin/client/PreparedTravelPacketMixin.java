@@ -114,7 +114,7 @@ public abstract class PreparedTravelPacketMixin {
         return prepared == null ? original.call(connection, data, dimension, type, distance, simulation, extractor, debug, seed, seaLevel) : prepared;
     }
 
-    @WrapOperation(method = "startWaitingForNewLevel", at = @At(value = "INVOKE",
+    @WrapOperation(method = "startWaitingForNewLevel*", at = @At(value = "INVOKE",
         target = "Lnet/minecraft/client/Minecraft;setScreenAndShow(Lnet/minecraft/client/gui/screens/Screen;)V"))
     private void wormholes$preparedLoading(Minecraft minecraft, Screen screen, Operation<Void> original) {
         WormholesClient client = WormholesClient.instance();
