@@ -46,7 +46,7 @@ public final class MinecraftViewPlates {
         }
         Frame localFrame = portal.getFrame();
         Vec3d origin = portal.getOrigin();
-        LodPolicy lod = FidelitySettings.lodPolicy(LodProfile.parse(stringSetting(portal, "fidelity.lod"), LodProfile.BALANCED));
+        LodPolicy lod = FidelitySettings.lodPolicy(lodProfile(portal));
         int depth = portal.getNetworkViewDepth();
         int lateral = Math.min(portal.getNetworkViewLateralPad(), FidelitySettings.plateLateralClampBlocks);
         double padding = runtime.configuration().settings().getProjection().aperturePaddingBlocks;
@@ -119,6 +119,10 @@ public final class MinecraftViewPlates {
         ViewPlateKey original = resolved.key();
         return plates.captureQueued(new ViewPlateKey(original.portalId(), new MeshSection(original.destinationViewIdentity(), clip),
             original.frontSide(), original.mirrorQuarterTurns(), original.targetIdentity()));
+    }
+
+    public static LodProfile lodProfile(MinecraftPortal portal) {
+        return LodProfile.parse(stringSetting(portal, "fidelity.lod"), LodProfile.BALANCED);
     }
 
     public static AtmosphereMode atmosphereMode(MinecraftPortal portal) {

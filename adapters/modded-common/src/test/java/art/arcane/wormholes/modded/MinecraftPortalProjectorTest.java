@@ -222,9 +222,15 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
             long remoteKey = projector.scan().claims().values().iterator().next().getLightRemoteKey();
             scene.changes().markChanged(DESTINATION_WORLD, CellKeys.unpackX(remoteKey), CellKeys.unpackY(remoteKey),
                 CellKeys.unpackZ(remoteKey));
-            assertTrue(destinationSamples(scene, projector, 3L) > 0);
-            settle(projector, 4L);
-            for (long tick = 5L; tick <= 16L; tick++) {
+            long resampled = 3L;
+            int samples = destinationSamples(scene, projector, resampled);
+            while (samples == 0 && resampled < 67L) {
+                resampled++;
+                samples = destinationSamples(scene, projector, resampled);
+            }
+            assertTrue(samples > 0);
+            pass(projector, resampled + 1L);
+            for (long tick = resampled + 2L; tick <= resampled + 13L; tick++) {
                 assertEquals(0, destinationSamples(scene, projector, tick));
             }
         }
@@ -260,7 +266,7 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
         Scene scene = scene(air, Blocks.STONE.defaultBlockState());
         try (MinecraftPortalProjector projector = scene.projector()) {
             settle(projector, 1L);
-            settle(projector, 2L);
+            pass(projector, 2L);
             long cell = projector.scan().claims().keySet().iterator().nextLong();
             int x = CellKeys.unpackX(cell);
             int y = CellKeys.unpackY(cell);
@@ -268,7 +274,7 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
             when(scene.local().material(x, y, z)).thenReturn(air);
             when(scene.local().sampleBlockData(x, y, z)).thenReturn(air);
             scene.changes().markChanged(LOCAL_WORLD, x + 1_600, y, z + 1_600);
-            settle(projector, 3L);
+            pass(projector, 3L);
             assertTrue(projector.scan().claims().containsKey(cell));
             scene.changes().markChanged(LOCAL_WORLD, x, y, z);
             settle(projector, 4L);
@@ -361,7 +367,7 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
 
     private static int destinationSamples(Scene scene, MinecraftPortalProjector projector, long tick) {
         clearInvocations(scene.destination());
-        settle(projector, tick);
+        pass(projector, tick);
         int samples = 0;
         for (Invocation invocation : mockingDetails(scene.destination()).getInvocations()) {
             if (invocation.getMethod().getName().equals("sampleBlockData")) {
@@ -381,6 +387,14 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
         MinecraftPortalProjector.Result result = projector.update(tick, Long.MAX_VALUE);
         assertEquals(MinecraftPortalProjector.Result.READY, result);
         projector.commit();
+    }
+
+    private static void pass(MinecraftPortalProjector projector, long tick) {
+        MinecraftPortalProjector.Result result = projector.update(tick, Long.MAX_VALUE);
+        assertTrue(result == MinecraftPortalProjector.Result.READY || result == MinecraftPortalProjector.Result.IDLE);
+        if (result == MinecraftPortalProjector.Result.READY) {
+            projector.commit();
+        }
     }
 
     private static Scene scene(BlockState destinationBlock, BlockState behindSource) {

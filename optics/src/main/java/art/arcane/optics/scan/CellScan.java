@@ -433,6 +433,10 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
         return holdsExposed;
     }
 
+    public boolean holdsExposed() {
+        return holdsExposed;
+    }
+
     public void dropHolds() {
         dropHoldsRequested = true;
     }
