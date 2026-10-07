@@ -1231,12 +1231,9 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
         private double remoteOriginX;
         private double remoteOriginY;
         private double remoteOriginZ;
-        private double portalPlaneClearance;
-        private double maxProjectionDepth;
+        private ProjectionVolume volume;
         private double projectionFacingNormal;
-        private double localFacingNormal;
         private double slabSignedDistance;
-        private double cellDot;
         private double sampleNormalCenter;
         private final int recursiveDepth;
         private int n;
@@ -1360,7 +1357,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
             double eyeRelX = eyeX - localOriginX;
             double eyeRelY = eyeY - localOriginY;
             double eyeRelZ = eyeZ - localOriginZ;
-            eyeFrontSide = (eyeRelX * facingX + eyeRelY * facingY + eyeRelZ * facingZ) >= 0.0D;
+            eyeFrontSide = ProjectionVolume.side(localFrame, localOriginX, localOriginY, localOriginZ, eyeX, eyeY, eyeZ);
             projectionLocalFrame = localFrame.view(eyeFrontSide);
             projectionRemoteFrame = remoteFrame.view(eyeFrontSide);
             cellTransform = mirrorMode
@@ -1386,10 +1383,8 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
             double projectionFacingZ = projectionLocalFrame.getNormal().z();
             projectionEyeDot = (eyeRelX * projectionFacingX) + (eyeRelY * projectionFacingY) + (eyeRelZ * projectionFacingZ);
             blackoutEnabled = blackout.isEnabled() && blackoutData != null;
-            portalPlaneClearance = ProjectionVolume.portalPlaneClearance(aperture.getArea(), localFrame);
-            maxProjectionDepth = depthBlocks + portalPlaneClearance;
-            double signedMinDistance = eyeFrontSide ? -maxProjectionDepth : portalPlaneClearance;
-            double signedMaxDistance = eyeFrontSide ? -portalPlaneClearance : maxProjectionDepth;
+            volume = ProjectionVolume.of(aperture.getArea(), localFrame,
+                ProjectionVolume.plane(localFrame, localOriginX, localOriginY, localOriginZ), eyeFrontSide, depthBlocks, 0.0D);
             planeWindow = PlaneWindow.create(aperture, aperture.getArea(), projectionLocalFrame,
                 localOriginX, localOriginY, localOriginZ, settings.get().aperturePadding(),
                 projectionEyeDot);
@@ -1411,20 +1406,14 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
             plateHits = 0;
 
             if (facingX != 0.0D) {
-                double centerA = localOriginX + (signedMinDistance / facingX);
-                double centerB = localOriginX + (signedMaxDistance / facingX);
-                xa = Math.max(xa, ProjectionVolume.minBlockForCenter(Math.min(centerA, centerB)));
-                xb = Math.min(xb, ProjectionVolume.maxBlockForCenter(Math.max(centerA, centerB)));
+                xa = Math.max(xa, volume.normalMin());
+                xb = Math.min(xb, volume.normalMax());
             } else if (facingY != 0.0D) {
-                double centerA = localOriginY + (signedMinDistance / facingY);
-                double centerB = localOriginY + (signedMaxDistance / facingY);
-                ya = Math.max(ya, ProjectionVolume.minBlockForCenter(Math.min(centerA, centerB)));
-                yb = Math.min(yb, ProjectionVolume.maxBlockForCenter(Math.max(centerA, centerB)));
+                ya = Math.max(ya, volume.normalMin());
+                yb = Math.min(yb, volume.normalMax());
             } else {
-                double centerA = localOriginZ + (signedMinDistance / facingZ);
-                double centerB = localOriginZ + (signedMaxDistance / facingZ);
-                za = Math.max(za, ProjectionVolume.minBlockForCenter(Math.min(centerA, centerB)));
-                zb = Math.min(zb, ProjectionVolume.maxBlockForCenter(Math.max(centerA, centerB)));
+                za = Math.max(za, volume.normalMin());
+                zb = Math.min(zb, volume.normalMax());
             }
 
             Face projectionNormalDirection = projectionLocalFrame.getNormal();
@@ -1453,7 +1442,6 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
             slabWindowBounds = scratchSlabWindowBounds;
             cellCoords = scratchCellCoords;
             observerOcclusion = mode.observerOcclusion();
-            localFacingNormal = normalAxis == 0 ? facingX : normalAxis == 1 ? facingY : facingZ;
             normalStep = projectionFacingNormal > 0.0D ? -1 : 1;
             normalStart = normalStep > 0 ? axisMin[normalAxis] : axisMax[normalAxis];
             normalEnd = normalStep > 0 ? axisMax[normalAxis] : axisMin[normalAxis];
@@ -1463,7 +1451,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
             lodActive = !lodPolicy.isNone();
             CellMapping mapping = new CellMapping(frameCode(projectionLocalFrame), frameCode(projectionRemoteFrame), frameCode(localFrame),
                 localOriginX, localOriginY, localOriginZ, remoteOriginX, remoteOriginY, remoteOriginZ,
-                mirrorMode, mirrorRotationQuarterTurns, portalPlaneClearance,
+                mirrorMode, mirrorRotationQuarterTurns, volume.clearance(),
                 lodPolicy.mergeRuns(), lodPolicy.distanceBlocks(), lodPolicy.detailCutoffBlocks());
             reuseMappedClaims = reuseCommittedContent && !recursiveGeometry && mapping.equals(scannedMapping);
             scannedMapping = mapping;
@@ -1587,14 +1575,12 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
                     rightBlockMax = PlaneWindow.slabBlockMax(slabWindowBounds[0], slabWindowBounds[1], rightSign, axisOrigin[rightAxis], axisMax[rightAxis]);
                     upBlockMin = PlaneWindow.slabBlockMin(slabWindowBounds[2], slabWindowBounds[3], upSign, axisOrigin[upAxis], axisMin[upAxis]);
                     upBlockMax = PlaneWindow.slabBlockMax(slabWindowBounds[2], slabWindowBounds[3], upSign, axisOrigin[upAxis], axisMax[upAxis]);
-                    cellDot = localFacingNormal * ((n + 0.5D) - axisOrigin[normalAxis]);
-                    if (!ProjectionVolume.projectsBehindPortalPlane(cellDot, eyeFrontSide, portalPlaneClearance)
-                        || Math.abs(cellDot) > maxProjectionDepth) {
+                    if (!volume.containsSlab(n)) {
                         planeRejected = addRejectedCells(
                             planeRejected, rightBlockMin, rightBlockMax, upBlockMin, upBlockMax);
                         continue;
                     }
-                    slabIndex = LodPolicy.depthIndex(cellDot, portalPlaneClearance);
+                    slabIndex = volume.depthIndex(n);
                     mergedSlab = lodActive && lodPolicy.mergesSlab(slabIndex);
                     sampleNormalCenter = mergedSlab ? (n - normalStep) + 0.5D : n + 0.5D;
                     rightStart = rightSign > 0 ? rightBlockMin : rightBlockMax;

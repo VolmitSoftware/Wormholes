@@ -1,14 +1,12 @@
 package art.arcane.wormholes.render;
 
 import art.arcane.wormholes.util.BukkitGeometry;
-import art.arcane.optics.math.Vec3d;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 
 import org.bukkit.Location;
-import org.bukkit.util.Vector;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.volmlib.util.collection.KList;
@@ -18,6 +16,7 @@ import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.volume.LocalEntityEnvelope;
+import art.arcane.optics.volume.ProjectionVolume;
 import art.arcane.optics.volume.ViewVolume;
 
 public final class EntityRenderLocalOccluderEnvelopeTest {
@@ -29,8 +28,7 @@ public final class EntityRenderLocalOccluderEnvelopeTest {
             assertTrue(LocalEntityEnvelope.envelopeFullyProjected(
                 1.0D, 0.75D, 6.5D,
                 2.0D, 2.5D, 7.5D,
-                new Vec3d(1.5D, 1.5D, 5.0D), Frame.canonical(Face.N), frustum,
-                true, 0.01D, 16.0D));
+                volume(), frustum));
         } finally {
             settings.restore();
         }
@@ -44,8 +42,7 @@ public final class EntityRenderLocalOccluderEnvelopeTest {
             assertFalse(LocalEntityEnvelope.envelopeFullyProjected(
                 2.5D, 0.75D, 6.5D,
                 4.0D, 2.5D, 7.5D,
-                new Vec3d(1.5D, 1.5D, 5.0D), Frame.canonical(Face.N), frustum,
-                true, 0.01D, 16.0D));
+                volume(), frustum));
         } finally {
             settings.restore();
         }
@@ -56,19 +53,22 @@ public final class EntityRenderLocalOccluderEnvelopeTest {
         SettingsSnapshot settings = applyExactFrustumSettings();
         try {
             ViewVolume frustum = frustum();
-            Vector origin = new Vector(1.5D, 1.5D, 5.0D);
-            Frame frame = Frame.canonical(Face.N);
+            ProjectionVolume volume = volume();
             assertFalse(LocalEntityEnvelope.envelopeFullyProjected(
                 1.0D, 0.75D, 4.9D,
                 2.0D, 2.5D, 5.5D,
-                BukkitGeometry.vector(origin), frame, frustum, true, 0.01D, 16.0D));
+                volume, frustum));
             assertFalse(LocalEntityEnvelope.envelopeFullyProjected(
-                1.0D, 0.75D, 20.5D,
-                2.0D, 2.5D, 21.5D,
-                BukkitGeometry.vector(origin), frame, frustum, true, 0.01D, 16.0D));
+                1.0D, 0.75D, 21.0D,
+                2.0D, 2.5D, 22.0D,
+                volume, frustum));
         } finally {
             settings.restore();
         }
+    }
+
+    private static ProjectionVolume volume() {
+        return ProjectionVolume.of(new TestStructure().getArea(), Frame.canonical(Face.N), 5.0D, true, 16.0D, 0.0D);
     }
 
     private static ViewVolume frustum() {

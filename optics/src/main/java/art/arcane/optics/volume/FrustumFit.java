@@ -300,18 +300,17 @@ public final class FrustumFit {
         double originX = center.getX();
         double originY = center.getY();
         double originZ = center.getZ();
-        Face normal = frame.getNormal();
         double eyeRelX = eye.getX() - originX;
         double eyeRelY = eye.getY() - originY;
         double eyeRelZ = eye.getZ() - originZ;
-        boolean eyeFrontSide = dot(eyeRelX, eyeRelY, eyeRelZ, normal) >= 0.0D;
+        boolean eyeFrontSide = ProjectionVolume.side(frame, originX, originY, originZ, eye.getX(), eye.getY(), eye.getZ());
         Frame projectionFrame = frame.view(eyeFrontSide);
         double projectionEyeDot = dot(eyeRelX, eyeRelY, eyeRelZ, projectionFrame.getNormal());
-        double portalPlaneClearance = ProjectionVolume.portalPlaneClearance(structure.getArea(), frame);
-        double maxProjectionDepth = depthBlocks + portalPlaneClearance;
-        double signedMinDistance = eyeFrontSide ? -maxProjectionDepth : portalPlaneClearance;
-        double signedMaxDistance = eyeFrontSide ? -portalPlaneClearance : maxProjectionDepth;
-        clampNormalBounds(axisMin, axisMax, normal, originX, originY, originZ, signedMinDistance, signedMaxDistance);
+        ProjectionVolume volume = ProjectionVolume.of(structure.getArea(), frame,
+            ProjectionVolume.plane(frame, originX, originY, originZ), eyeFrontSide, depthBlocks, 0.0D);
+        int slabAxis = volume.normalAxis();
+        axisMin[slabAxis] = Math.max(axisMin[slabAxis], volume.normalMin());
+        axisMax[slabAxis] = Math.min(axisMax[slabAxis], volume.normalMax());
 
         Face projectionNormal = projectionFrame.getNormal();
         Face projectionRight = projectionFrame.getRight();
@@ -360,23 +359,6 @@ public final class FrustumFit {
 
     private static long axisCandidateWork(int minimum, int maximum) {
         return maximum < minimum ? 0L : (long) maximum - minimum + 1L;
-    }
-
-    private static void clampNormalBounds(int[] axisMin,
-                                          int[] axisMax,
-                                          Face normal,
-                                          double originX,
-                                          double originY,
-                                          double originZ,
-                                          double signedMinDistance,
-                                          double signedMaxDistance) {
-        int normalAxis = axis(normal);
-        double normalComponent = coordinate(normal, normalAxis);
-        double normalOrigin = coordinate(normalAxis, originX, originY, originZ);
-        double centerA = normalOrigin + (signedMinDistance / normalComponent);
-        double centerB = normalOrigin + (signedMaxDistance / normalComponent);
-        axisMin[normalAxis] = Math.max(axisMin[normalAxis], ProjectionVolume.minBlockForCenter(Math.min(centerA, centerB)));
-        axisMax[normalAxis] = Math.min(axisMax[normalAxis], ProjectionVolume.maxBlockForCenter(Math.max(centerA, centerB)));
     }
 
     private static double lateralCeiling(double axial, double lateralPadBlocks) {

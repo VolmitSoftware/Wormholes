@@ -48,19 +48,13 @@ public final class ClientRecursionPlanner {
         double dz = Math.abs(extent[2]);
         Box area = new Box(center.x() - dx, center.x() + dx, center.y() - dy, center.y() + dy, center.z() - dz, center.z() + dz);
         Box aperture = parent.apertureArea();
-        Face normal = parent.frame().getNormal();
-        int normalAxis = ApertureDescriptor.axisOf(normal);
-        double facing = normalAxis == 0 ? normal.x() : normalAxis == 1 ? normal.y() : normal.z();
-        double origin = parent.planeCoordinate();
-        double clearance = ProjectionVolume.portalPlaneClearance(aperture, parent.frame());
-        double distance = parent.depthBlocks() + clearance;
-        double signedA = (low(area, normalAxis) - origin) * facing;
-        double signedB = (high(area, normalAxis) - origin) * facing;
-        double near = parent.frontSide() ? -distance : clearance;
-        double far = parent.frontSide() ? -clearance : distance;
-        if (Math.max(signedA, signedB) < near || Math.min(signedA, signedB) > far) {
+        ProjectionVolume volume = ProjectionVolume.of(aperture, parent.frame(), parent.planeCoordinate(), parent.frontSide(),
+            parent.depthBlocks(), 0.0D);
+        int normalAxis = volume.normalAxis();
+        if (!volume.reaches(volume.distance(low(area, normalAxis)), volume.distance(high(area, normalAxis)))) {
             return false;
         }
+        double distance = volume.maxDepth();
         for (int axis = 0; axis < 3; axis++) {
             if (axis != normalAxis && (high(area, axis) < low(aperture, axis) - distance
                 || low(area, axis) > high(aperture, axis) + distance)) {

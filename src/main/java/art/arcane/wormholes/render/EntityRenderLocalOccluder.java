@@ -56,11 +56,10 @@ final class EntityRenderLocalOccluder {
         double eyeX = scratchEntityPosition[0];
         double eyeY = scratchEntityPosition[1] + observer.getEyeHeight();
         double eyeZ = scratchEntityPosition[2];
-        double eyeDot = LocalEntityEnvelope.dot(eyeX - origin.getX(), eyeY - origin.getY(), eyeZ - origin.getZ(), frame);
-        boolean eyeFrontSide = eyeDot >= 0.0D;
-        double clearance = ProjectionVolume.portalPlaneClearance(localPortal.getStructure().getArea(), frame);
-        double maxDepth = projectionDepth + clearance;
-        double ownedRange = largestOwnedLocalEntityRange(localWorld, localCenter, maxDepth);
+        boolean eyeFrontSide = ProjectionVolume.side(frame, origin.getX(), origin.getY(), origin.getZ(), eyeX, eyeY, eyeZ);
+        ProjectionVolume volume = ProjectionVolume.of(localPortal.getStructure().getArea(), frame,
+            ProjectionVolume.plane(frame, origin.getX(), origin.getY(), origin.getZ()), eyeFrontSide, projectionDepth, 0.0D);
+        double ownedRange = largestOwnedLocalEntityRange(localWorld, localCenter, volume.maxDepth());
         if (ownedRange <= 0.0D) {
             return;
         }
@@ -75,8 +74,7 @@ final class EntityRenderLocalOccluder {
         UUID observerId = observer.getUniqueId();
         try {
             for (Entity entity : candidates) {
-                if (shouldHideLocalEntity(observerId, entity, origin, frame, frustum,
-                    eyeFrontSide, clearance, maxDepth)) {
+                if (shouldHideLocalEntity(observerId, entity, volume, frustum)) {
                     desired.put(entity.getUniqueId(), entity);
                 }
             }
@@ -109,14 +107,7 @@ final class EntityRenderLocalOccluder {
         return 0.0D;
     }
 
-    private boolean shouldHideLocalEntity(UUID observerId,
-                                          Entity entity,
-                                          Vec3d origin,
-                                          Frame frame,
-                                          ViewVolume frustum,
-                                          boolean eyeFrontSide,
-                                          double clearance,
-                                          double maxDepth) {
+    private boolean shouldHideLocalEntity(UUID observerId, Entity entity, ProjectionVolume volume, ViewVolume frustum) {
         if (entity == null || entity.isDead() || !entity.isValid()) {
             return false;
         }
@@ -131,7 +122,7 @@ final class EntityRenderLocalOccluder {
             box.getMaxX() + LABEL_HORIZONTAL_MARGIN,
             box.getMaxY() + LABEL_VERTICAL_MARGIN,
             box.getMaxZ() + LABEL_HORIZONTAL_MARGIN,
-            origin, frame, frustum, eyeFrontSide, clearance, maxDepth);
+            volume, frustum);
     }
 
     private void reportOwnershipFailure(IllegalStateException error) {

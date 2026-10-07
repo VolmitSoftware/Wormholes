@@ -49,11 +49,6 @@ public final class LodPolicy {
         return !mergeRuns && detailCutoffBlocks == Integer.MAX_VALUE;
     }
 
-    /** Whole blocks past the portal plane clearance for a cell at the given signed plane distance. */
-    public static int depthIndex(double cellDot, double clearance) {
-        return (int) Math.max(0.0D, Math.floor(Math.abs(cellDot) - clearance));
-    }
-
     public boolean mergesSlab(int depth) {
         return mergeRuns && depth > distanceBlocks && ((depth - distanceBlocks) & 1) == 1;
     }

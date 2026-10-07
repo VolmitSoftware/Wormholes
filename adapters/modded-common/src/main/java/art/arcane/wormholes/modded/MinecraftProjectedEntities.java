@@ -165,10 +165,10 @@ public final class MinecraftProjectedEntities implements AutoCloseable {
     private void hideLocal(View view) {
         Vec3d origin = source.getOrigin();
         Frame frame = source.getFrame();
-        double eyeDot = LocalEntityEnvelope.dot(view.eye().x() - origin.x(), view.eye().y() - origin.y(), view.eye().z() - origin.z(), frame);
-        double clearance = ProjectionVolume.portalPlaneClearance(source.getGeometry().getArea(), frame);
-        double maxDepth = view.depth() + clearance;
-        Collection<Entity> candidates = runtime.projections().localEntities(observer.level(), source, maxDepth);
+        boolean eyeFrontSide = ProjectionVolume.side(frame, origin.x(), origin.y(), origin.z(), view.eye().x(), view.eye().y(), view.eye().z());
+        ProjectionVolume volume = ProjectionVolume.of(source.getGeometry().getArea(), frame,
+            ProjectionVolume.plane(frame, origin.x(), origin.y(), origin.z()), eyeFrontSide, view.depth(), 0.0D);
+        Collection<Entity> candidates = runtime.projections().localEntities(observer.level(), source, volume.maxDepth());
         Map<UUID, Entity> desired = new HashMap<>(Math.max(4, candidates.size()));
         for (Entity entity : candidates) {
             if (entity == observer || !entity.isAlive() || entity.isRemoved() || entity.level() != observer.level()) {
@@ -176,7 +176,7 @@ public final class MinecraftProjectedEntities implements AutoCloseable {
             }
             AABB box = entity.getBoundingBox();
             if (LocalEntityEnvelope.envelopeFullyProjected(box.minX - 0.5D, box.minY, box.minZ - 0.5D,
-                box.maxX + 0.5D, box.maxY + 0.75D, box.maxZ + 0.5D, origin, frame, view.frustum(), eyeDot >= 0.0D, clearance, maxDepth)) {
+                box.maxX + 0.5D, box.maxY + 0.75D, box.maxZ + 0.5D, volume, view.frustum())) {
                 desired.put(entity.getUUID(), entity);
             }
         }

@@ -38,8 +38,7 @@ public final class ClientSweep {
     private double originX;
     private double originY;
     private double originZ;
-    private double clearance;
-    private double maxDepth;
+    private ProjectionVolume volume;
     private boolean blackout;
     private long[] applied;
     private long[] shell;
@@ -96,11 +95,11 @@ public final class ClientSweep {
         this.originX = center.getX();
         this.originY = center.getY();
         this.originZ = center.getZ();
-        this.clearance = ProjectionVolume.portalPlaneClearance(area, frame);
-        this.maxDepth = geometry.depthBlocks() + clearance;
         this.blackout = geometry.blackoutPolicy() != ApertureDescriptor.BLACKOUT_OFF;
         Layout nextLayout = new Layout(bounds, ApertureDescriptor.axisOf(frame.getNormal()),
             ApertureDescriptor.axisOf(frame.getRight()), ApertureDescriptor.axisOf(frame.getUp()));
+        this.volume = ProjectionVolume.of(area, frame, ProjectionVolume.plane(frame, originX, originY, originZ), geometry.frontSide(),
+            geometry.depthBlocks(), 0.0D);
         if (layout == null || !layout.equals(nextLayout)) {
             remap(nextLayout);
         }
@@ -237,11 +236,10 @@ public final class ClientSweep {
     private void cone(double eyeX, double eyeY, double eyeZ) {
         Arrays.fill(next, 0L);
         Arrays.fill(nextShell, 0L);
-        Face normal = frame.getNormal();
         double relX = eyeX - originX;
         double relY = eyeY - originY;
         double relZ = eyeZ - originZ;
-        eyeFrontSide = (relX * normal.x()) + (relY * normal.y()) + (relZ * normal.z()) >= 0.0D;
+        eyeFrontSide = ProjectionVolume.side(frame, originX, originY, originZ, eyeX, eyeY, eyeZ);
         Frame projectionFrame = frame.view(eyeFrontSide);
         Face projectionNormal = projectionFrame.getNormal();
         eyeDot = (relX * projectionNormal.x()) + (relY * projectionNormal.y()) + (relZ * projectionNormal.z());
@@ -275,7 +273,6 @@ public final class ClientSweep {
         double rightOrigin = component(rightAxis);
         double upOrigin = component(upAxis);
         double projectionFacing = axisComponent(projectionFrame.getNormal(), normalAxis);
-        double localFacing = axisComponent(frame.getNormal(), normalAxis);
         PlaneWindow window = PlaneWindow.create(aperture, area, projectionFrame,
             originX, originY, originZ, padding, eyeDot);
         PlaneWindow blackoutWindow = shellPass
@@ -285,9 +282,7 @@ public final class ClientSweep {
         farSlab = Integer.MIN_VALUE;
         farDepth = Double.NEGATIVE_INFINITY;
         for (int n = axisMin[normalAxis]; n <= axisMax[normalAxis]; n++) {
-            double cellDot = localFacing * ((n + 0.5D) - normalOrigin);
-            if (!ProjectionVolume.projectsBehindPortalPlane(cellDot, eyeFrontSide, clearance)
-                || Math.abs(cellDot) > maxDepth) {
+            if (!volume.containsSlab(n)) {
                 continue;
             }
             double slabSignedDistance = projectionFacing * ((n + 0.5D) - normalOrigin);
@@ -308,7 +303,7 @@ public final class ClientSweep {
             }
             if (shellPass) {
                 markRim(mask, blackoutWindow, n, rightMin, rightMax, upMin, upMax, slabSignedDistance, eyeX, eyeY, eyeZ);
-                trackFarSlab(blackoutWindow, n, cellDot, slabSignedDistance, rightSign, upSign, rightOrigin, upOrigin,
+                trackFarSlab(blackoutWindow, n, volume.cellDistance(n), slabSignedDistance, rightSign, upSign, rightOrigin, upOrigin,
                     eyeX, eyeY, eyeZ);
             }
         }
@@ -329,14 +324,8 @@ public final class ClientSweep {
         axisMax[1] = ProjectionVolume.maxBlockForCenter(region.getYb());
         axisMax[2] = ProjectionVolume.maxBlockForCenter(region.getZb());
         int normalAxis = layout.normalAxis;
-        double facing = axisComponent(frame.getNormal(), normalAxis);
-        double normalOrigin = component(normalAxis);
-        double signedMin = eyeFrontSide ? -maxDepth : clearance;
-        double signedMax = eyeFrontSide ? -clearance : maxDepth;
-        double centerA = normalOrigin + (signedMin / facing);
-        double centerB = normalOrigin + (signedMax / facing);
-        axisMin[normalAxis] = Math.max(axisMin[normalAxis], ProjectionVolume.minBlockForCenter(Math.min(centerA, centerB)));
-        axisMax[normalAxis] = Math.min(axisMax[normalAxis], ProjectionVolume.maxBlockForCenter(Math.max(centerA, centerB)));
+        axisMin[normalAxis] = Math.max(axisMin[normalAxis], volume.normalMin());
+        axisMax[normalAxis] = Math.min(axisMax[normalAxis], volume.normalMax());
         for (int axis = 0; axis < 3; axis++) {
             axisMin[axis] = Math.max(axisMin[axis], layout.min[axis]);
             axisMax[axis] = Math.min(axisMax[axis], layout.max[axis]);

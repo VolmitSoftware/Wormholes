@@ -11,7 +11,6 @@ import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.client.ClientSweep;
 import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.math.Box;
-import art.arcane.optics.math.Face;
 import art.arcane.optics.volume.ProjectionVolume;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import net.minecraft.world.level.block.state.BlockState;
@@ -89,29 +88,10 @@ public final class ClientMirrorBuilder implements ClientPortalContent {
     public static BlockBox displayBox(ApertureDescriptor geometry) {
         Box area = geometry.apertureArea();
         Frame frame = geometry.frame();
-        Face normal = frame.getNormal();
-        int normalAxis = axisOf(normal);
-        double facing = normalAxis == 0 ? normal.x() : normalAxis == 1 ? normal.y() : normal.z();
-        double origin = (low(area, normalAxis) + high(area, normalAxis)) * 0.5D;
-        double clearance = ProjectionVolume.portalPlaneClearance(area, frame);
-        double maxDepth = geometry.depthBlocks() + clearance;
-        double signedMin = geometry.frontSide() ? -maxDepth : clearance;
-        double signedMax = geometry.frontSide() ? -clearance : maxDepth;
-        double centerA = origin + (signedMin / facing);
-        double centerB = origin + (signedMax / facing);
-        int[] min = new int[3];
-        int[] max = new int[3];
-        min[normalAxis] = ProjectionVolume.minBlockForCenter(Math.min(centerA, centerB));
-        max[normalAxis] = ProjectionVolume.maxBlockForCenter(Math.max(centerA, centerB));
+        double plane = ProjectionVolume.plane(frame, (area.getXa() + area.getXb()) * 0.5D, (area.getYa() + area.getYb()) * 0.5D,
+            (area.getZa() + area.getZb()) * 0.5D);
         double pad = Math.min(geometry.depthBlocks(), MAX_LATERAL_BLOCKS) + Math.max(0.0D, geometry.aperturePadding());
-        for (int axis = 0; axis < 3; axis++) {
-            if (axis == normalAxis) {
-                continue;
-            }
-            min[axis] = ProjectionVolume.minBlockForCenter(low(area, axis) - pad);
-            max[axis] = ProjectionVolume.maxBlockForCenter(high(area, axis) + pad);
-        }
-        return BlockBox.spanning(min[0], min[1], min[2], max[0], max[1], max[2]);
+        return ProjectionVolume.of(area, frame, plane, geometry.frontSide(), geometry.depthBlocks(), pad).box();
     }
 
     public ApertureDescriptor geometry() {
@@ -184,18 +164,6 @@ public final class ClientMirrorBuilder implements ClientPortalContent {
 
     public long missingCells() {
         return missingCells;
-    }
-
-    private static int axisOf(Face direction) {
-        return direction.x() != 0 ? 0 : direction.y() != 0 ? 1 : 2;
-    }
-
-    private static double low(Box box, int axis) {
-        return axis == 0 ? box.getXa() : axis == 1 ? box.getYa() : box.getZa();
-    }
-
-    private static double high(Box box, int axis) {
-        return axis == 0 ? box.getXb() : axis == 1 ? box.getYb() : box.getZb();
     }
 
     @FunctionalInterface

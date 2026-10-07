@@ -21,7 +21,6 @@ import art.arcane.optics.scan.ProjectorSample;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.volume.LodPolicy;
 import art.arcane.optics.volume.ProjectionVolume;
-import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.occlusion.PlateOcclusionField;
@@ -195,10 +194,7 @@ public final class ViewPlateBuilder {
         private final int normalStep;
         private final int normalStart;
         private final int normalEnd;
-        private final double clearance;
-        private final double maxDepth;
-        private final double facingNormal;
-        private final double originNormal;
+        private final ProjectionVolume volume;
         private final BlockBox box;
 
         private Geometry(Request<?, ?, ?> request, BlockBox clip) {
@@ -213,27 +209,20 @@ public final class ViewPlateBuilder {
                     QuarterTurn.of(request.mirrorRotationQuarterTurns())).inverse()
                 : OpticTransform.between(projectionLocalFrame, request.localOriginX(), request.localOriginY(), request.localOriginZ(),
                     projectionRemoteFrame, request.remoteOriginX(), request.remoteOriginY(), request.remoteOriginZ());
-            Box area = request.aperture().getArea();
-            this.clearance = ProjectionVolume.portalPlaneClearance(area, localFrame);
-            this.maxDepth = request.depthBlocks() + clearance;
-            Face normal = localFrame.getNormal();
-            this.normalAxis = axisOf(normal);
+            double pad = Math.max(0.0D, request.lateralBlocks()) + Math.max(0.0D, request.aperturePadding());
+            this.volume = ProjectionVolume.of(request.aperture().getArea(), localFrame,
+                ProjectionVolume.plane(localFrame, request.localOriginX(), request.localOriginY(), request.localOriginZ()), frontSide,
+                request.depthBlocks(), pad);
+            this.normalAxis = volume.normalAxis();
             this.rightAxis = axisOf(projectionLocalFrame.getRight());
             this.upAxis = axisOf(projectionLocalFrame.getUp());
-            this.facingNormal = component(normal, normalAxis);
-            this.originNormal = component(normalAxis, request.localOriginX(), request.localOriginY(), request.localOriginZ());
-            double signedMin = frontSide ? -maxDepth : clearance;
-            double signedMax = frontSide ? -clearance : maxDepth;
-            double centerA = originNormal + (signedMin / facingNormal);
-            double centerB = originNormal + (signedMax / facingNormal);
-            axisMin[normalAxis] = ProjectionVolume.minBlockForCenter(Math.min(centerA, centerB));
-            axisMax[normalAxis] = ProjectionVolume.maxBlockForCenter(Math.max(centerA, centerB));
-            double pad = Math.max(0.0D, request.lateralBlocks()) + Math.max(0.0D, request.aperturePadding());
-            lateralBounds(area, rightAxis, pad);
-            lateralBounds(area, upAxis, pad);
-            boolean towardPositive = frontSide ? facingNormal < 0.0D : facingNormal > 0.0D;
+            for (int axis = 0; axis < 3; axis++) {
+                axisMin[axis] = volume.min(axis);
+                axisMax[axis] = volume.max(axis);
+            }
+            boolean towardPositive = volume.farStep() > 0;
             if (clip != null) {
-                int planeBlock = (int) Math.floor(originNormal);
+                int planeBlock = (int) Math.floor(volume.plane());
                 if (towardPositive) {
                     axisMin[normalAxis] = planeBlock;
                 } else {
@@ -246,7 +235,7 @@ public final class ViewPlateBuilder {
                 axisMax[1] = Math.min(axisMax[1], clip.minY() + clip.sizeY() - 1);
                 axisMax[2] = Math.min(axisMax[2], clip.minZ() + clip.sizeZ() - 1);
             }
-            this.normalStep = towardPositive ? 1 : -1;
+            this.normalStep = volume.farStep();
             this.normalStart = towardPositive ? axisMin[normalAxis] : axisMax[normalAxis];
             this.normalEnd = towardPositive ? axisMax[normalAxis] : axisMin[normalAxis];
             this.box = BlockBox.spanning(axisMin[0], axisMin[1], axisMin[2], axisMax[0], axisMax[1], axisMax[2]);
@@ -274,24 +263,10 @@ public final class ViewPlateBuilder {
             return transform.box(source, margin);
         }
 
-        private void lateralBounds(Box area, int axis, double pad) {
-            double areaMin = axis == 0 ? area.getXa() : axis == 1 ? area.getYa() : area.getZa();
-            double areaMax = axis == 0 ? area.getXb() : axis == 1 ? area.getYb() : area.getZb();
-            axisMin[axis] = ProjectionVolume.minBlockForCenter(areaMin - pad);
-            axisMax[axis] = ProjectionVolume.maxBlockForCenter(areaMax + pad);
-        }
-
         private static int axisOf(Face direction) {
             return direction.x() != 0 ? 0 : direction.y() != 0 ? 1 : 2;
         }
 
-        private static double component(Face direction, int axis) {
-            return axis == 0 ? direction.x() : axis == 1 ? direction.y() : direction.z();
-        }
-
-        private static double component(int axis, double x, double y, double z) {
-            return axis == 0 ? x : axis == 1 ? y : z;
-        }
     }
 
     private static final class BuildJob<B, M, W, V extends ContentView<B, M>> extends Job<B, W> {
@@ -390,18 +365,11 @@ public final class ViewPlateBuilder {
         }
 
         private boolean fullyWithinDepth() {
-            for (int coordinate : new int[] {geometry.normalStart, geometry.normalEnd}) {
-                double distance = geometry.facingNormal * ((coordinate + 0.5D) - geometry.originNormal);
-                if (!includesCell(distance)) {
-                    return false;
-                }
-            }
-            return true;
+            return includesSlab(geometry.normalStart) && includesSlab(geometry.normalEnd);
         }
 
-        private boolean includesCell(double distance) {
-            return Math.abs(distance) <= geometry.maxDepth && (section != null
-                || ProjectionVolume.projectsBehindPortalPlane(distance, request.key().frontSide(), geometry.clearance));
+        private boolean includesSlab(int normalCoordinate) {
+            return section != null ? geometry.volume.withinDepth(normalCoordinate) : geometry.volume.containsSlab(normalCoordinate);
         }
 
         private boolean advance() {
@@ -426,11 +394,10 @@ public final class ViewPlateBuilder {
             int x = cellCoords[0];
             int y = cellCoords[1];
             int z = cellCoords[2];
-            double cellDot = geometry.facingNormal * ((n + 0.5D) - geometry.originNormal);
-            if (!includesCell(cellDot)) {
+            if (!includesSlab(n)) {
                 return;
             }
-            slabIndex = LodPolicy.depthIndex(cellDot, geometry.clearance);
+            slabIndex = geometry.volume.depthIndex(n);
             long localKey = CellKeys.pack(x, y, z);
             int index = grid.index(x, y, z);
             LodPolicy lod = request.lod();
