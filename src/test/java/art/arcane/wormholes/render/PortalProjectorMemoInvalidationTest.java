@@ -4,8 +4,6 @@ import art.arcane.wormholes.render.BukkitProjectorBlocks;
 import org.bukkit.Material;
 import org.bukkit.block.data.BlockData;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Proxy;
@@ -137,50 +135,6 @@ public final class PortalProjectorMemoInvalidationTest {
 
         memo.refreshDestination(0L);
         assertFalse(memo.destinationStale(0L, true, unaffectedThrough));
-    }
-
-    @Test
-    public void cameraOnlyVenticularResamplingRetainsDestinationContentSamples() {
-        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
-        ProjectionWorldView destination = destinationView();
-        ProjectorSample<BlockData, ProjectionWorldView> sample = ProjectorSample.noSample();
-        memo.cacheSample(destination, 12, 80, -9, sample);
-
-        boolean forceCellResample = PortalProjector.shouldForceCellResample(false, false, true);
-        boolean invalidateContent = PortalProjector.shouldInvalidateDestinationContentSamples(
-            false, false, false, false);
-        if (invalidateContent) {
-            memo.clearDestinationSamples();
-        }
-
-        assertTrue(forceCellResample, "camera movement must still rebuild Venticular view cells");
-        assertFalse(invalidateContent, "camera movement alone does not change immutable destination content");
-        assertSame(sample, memo.cachedSample(destination, 12, 80, -9));
-    }
-
-    @Test
-    public void scheduledContentResamplingDropsDestinationContentSamples() {
-        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
-        ProjectionWorldView destination = destinationView();
-        memo.cacheSample(destination, 12, 80, -9, ProjectorSample.noSample());
-
-        boolean forceCellResample = PortalProjector.shouldForceCellResample(true, false, false);
-        boolean invalidateContent = PortalProjector.shouldInvalidateDestinationContentSamples(
-            true, false, false, false);
-        if (invalidateContent) {
-            memo.clearDestinationSamples();
-        }
-
-        assertTrue(forceCellResample);
-        assertTrue(invalidateContent);
-        assertNull(memo.cachedSample(destination, 12, 80, -9));
-    }
-
-    @Test
-    public void renderModeCullingAndRecursiveChangesStillInvalidateDestinationContentSamples() {
-        assertTrue(PortalProjector.shouldInvalidateDestinationContentSamples(false, true, false, false));
-        assertTrue(PortalProjector.shouldInvalidateDestinationContentSamples(false, false, true, false));
-        assertTrue(PortalProjector.shouldInvalidateDestinationContentSamples(false, false, false, true));
     }
 
     @Test

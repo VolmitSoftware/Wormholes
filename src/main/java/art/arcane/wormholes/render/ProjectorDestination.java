@@ -5,6 +5,7 @@ import com.github.retrooper.packetevents.protocol.player.Equipment;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
 
 import java.util.HashMap;
+import java.util.Objects;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
@@ -24,14 +25,11 @@ import art.arcane.wormholes.portal.UniversalTunnel;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.render.view.ProjectionWorldViewProvider;
 import art.arcane.wormholes.render.view.RemoteWorldView;
+import art.arcane.optics.scan.ProjectorPassRevision;
 import art.arcane.optics.scan.ScanDestination;
 
 final class ProjectorDestination implements ScanDestination<ILocalPortal, ProjectionWorldView> {
-    enum Outcome {
-        READY,
-        CLOSE,
-        WAIT
-    }
+    private static final long IDENTITY_SEED = 0x3C6EF372FE94F82BL;
 
     private final ILocalPortal portal;
     private final ProjectionWorldViewProvider viewProvider;
@@ -125,7 +123,7 @@ final class ProjectorDestination implements ScanDestination<ILocalPortal, Projec
     Outcome resolve(Player observer, World viewWorld, PortalProjector.RtpProjectionTarget rtpTarget, int meshDistance) {
         boolean rtpMode = rtpTarget != null;
         mirrorMode = !rtpMode && portal.isMirrorMode();
-        mirrorRotationQuarterTurns = mirrorMode ? portal.getMirrorRotation().coherentFor(portal.getFrame()).getQuarterTurns() : 0;
+        mirrorRotationQuarterTurns = mirrorMode ? portal.getMirrorRotation().getQuarterTurns() : 0;
         ITunnel activeTunnel = portal.getTunnel();
         IPortal linkedDestination = activeTunnel == null ? null : activeTunnel.getDestination();
         if (!rtpMode && !mirrorMode && linkedDestination == null) {
@@ -203,6 +201,15 @@ final class ProjectorDestination implements ScanDestination<ILocalPortal, Projec
         return Outcome.READY;
     }
 
+    long identity(PortalProjector.RtpProjectionTarget rtpTarget) {
+        if (rtpTarget != null) {
+            return rtpTarget.plateIdentity();
+        }
+        long hash = mixId(IDENTITY_SEED, destAnchor == null ? null : destAnchor.getId());
+        hash = mixId(hash, destWorld == null ? null : destWorld.getUID());
+        return remoteView == null ? hash : ProjectorPassRevision.mix(hash, Objects.hashCode(remoteFallbackState));
+    }
+
     private ProjectionWorldView remoteWorldView(String peerName, UUID portalId, int meshDistance) {
         ViewSubscriptionManager<BlockData, EntityData<?>, Equipment> subscriptions = Wormholes.viewSubscriptions;
         if (subscriptions == null || peerName == null || portalId == null) {
@@ -223,11 +230,24 @@ final class ProjectorDestination implements ScanDestination<ILocalPortal, Projec
         return cachedRemoteWorldView;
     }
 
+    private static long mixId(long hash, UUID id) {
+        if (id == null) {
+            return ProjectorPassRevision.mix(hash, 0L);
+        }
+        return ProjectorPassRevision.mix(ProjectorPassRevision.mix(hash, id.getMostSignificantBits()), id.getLeastSignificantBits());
+    }
+
     private static BlockData parseRemoteFallback(String fallbackState) {
         try {
             return Bukkit.createBlockData(fallbackState);
         } catch (IllegalArgumentException e) {
             return Material.AIR.createBlockData();
         }
+    }
+
+    enum Outcome {
+        READY,
+        CLOSE,
+        WAIT
     }
 }

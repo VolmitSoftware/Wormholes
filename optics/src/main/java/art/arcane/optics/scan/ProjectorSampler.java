@@ -65,6 +65,10 @@ public final class ProjectorSampler<B, M, W, P extends Endpoint, V extends Conte
         recursiveSamplesCached = false;
     }
 
+    public boolean buriedCellCullingPass() {
+        return buriedCellCullingPass;
+    }
+
     public boolean setBuriedCellCullingPass(boolean buriedCellCulling) {
         if (buriedCellCulling == buriedCellCullingPass) {
             return false;

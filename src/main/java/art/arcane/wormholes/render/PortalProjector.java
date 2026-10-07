@@ -26,6 +26,7 @@ import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.service.WormholesTelemetry;
+import art.arcane.wormholes.portal.BlackoutColor;
 import art.arcane.wormholes.portal.DimensionalPortalKind;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.IPortal;
@@ -41,10 +42,12 @@ import art.arcane.optics.fidelity.AtmosphereChannel;
 import art.arcane.optics.fidelity.AtmosphereMode;
 import art.arcane.optics.fidelity.AcousticsBridge;
 import art.arcane.optics.fidelity.AcousticsProfile;
+import art.arcane.optics.fidelity.FogPlatePolicy;
 import art.arcane.wormholes.render.bedrock.ClientProfileService;
 import art.arcane.optics.fidelity.ProjectedBlockEntityLayer;
 import art.arcane.wormholes.render.lod.DissolveSchedule;
 import art.arcane.optics.volume.LodPolicy;
+import art.arcane.optics.volume.LodProfile;
 import art.arcane.optics.plate.ViewPlate;
 import art.arcane.optics.plate.ViewPlateCache;
 import art.arcane.wormholes.render.view.ProjectionEntityView;
@@ -63,14 +66,15 @@ import art.arcane.optics.recursion.EntityPath;
 import art.arcane.optics.recursion.RecursiveEndpoints;
 import art.arcane.optics.scan.CellScan;
 import art.arcane.optics.scan.ProjectorCommitLatency;
+import art.arcane.optics.scan.PassInputs;
+import art.arcane.optics.scan.PassPlan;
+import art.arcane.optics.scan.PassPlanner;
 import art.arcane.optics.scan.ProjectorFrustumFailures;
-import art.arcane.optics.scan.ProjectorPassRevision;
 import art.arcane.optics.scan.ProjectorResampleReasons;
 import art.arcane.optics.scan.ProjectorSampleMemo;
 import art.arcane.optics.scan.ProjectorSampler;
 import art.arcane.optics.scan.ResampleSchedule;
 import art.arcane.optics.spi.OpticsScheduler;
-import art.arcane.optics.volume.GazeScheduler;
 import art.arcane.optics.volume.ViewVolume;
 import art.arcane.optics.volume.ProjectionVolume;
 public final class PortalProjector {
@@ -130,8 +134,9 @@ public final class PortalProjector {
     private boolean hasCameraSnapshot;
     private volatile boolean reuseInvalidated;
     private RtpProjectionTarget rtpProjectionTarget;
-    private ProjectionRenderMode lastRenderMode;
     private long lastPresentationRevision;
+    private boolean lastCoarse;
+    private final PassInputs passInputs = new PassInputs();
     private boolean lastPassUsedPlate;
     private final AtomicLong invalidationGeneration = new AtomicLong();
     private long lastCommittedGeneration;
@@ -197,7 +202,6 @@ public final class PortalProjector {
         this.lastEyeZ = 0.0D;
         this.hasCameraSnapshot = false;
         this.reuseInvalidated = false;
-        this.lastRenderMode = null;
     }
 
     public ILocalPortal getPortal() {
@@ -400,7 +404,7 @@ public final class PortalProjector {
         Location eye = observer.getEyeLocation();
         entityRenderer.setViewerProfile(ClientProfileService.profileFor(observer));
         PendingProjection pending = pendingProjection;
-        if (pending != null && !matchesPendingContext(pending, eye, rtpTarget)) {
+        if (pending != null && !matchesPendingContext(pending, describePass(eye, rtpTarget))) {
             cancelPendingProjection();
             pending = null;
         }
@@ -414,7 +418,6 @@ public final class PortalProjector {
         }
 
         long scanGeneration = invalidationGeneration.get();
-        boolean projectionInvalidated = reuseInvalidated || lastCommittedGeneration != scanGeneration;
         schedule.beginBlockPass();
         blockPasses++;
         if (dissolve.retireComplete(blockPasses)) {
@@ -426,9 +429,6 @@ public final class PortalProjector {
         }
         World destWorld = destination.destWorld;
         ProjectionRenderMode renderMode = portal.getRenderMode();
-        boolean renderModeChanged = renderMode != lastRenderMode;
-        boolean viewCameraMoved = requiresViewCellResample(renderMode, hasCameraSnapshot,
-            eye.getX(), eye.getY(), eye.getZ(), lastEyeX, lastEyeY, lastEyeZ);
         double destinationOriginX = destination.originX;
         double destinationOriginZ = destination.originZ;
         UUID destWorldId = destWorld == null ? null : destWorld.getUID();
@@ -439,7 +439,20 @@ public final class PortalProjector {
             cellScan.revokeConeHolds();
         }
         boolean holdsExposed = exposeLosingClaims();
-        if (!renderModeChanged && !dissolve.isActive() && canReuseProjection(eye, stableResample, localDirty || holdsExposed)) {
+        boolean buriedCellCulling = renderMode.scanMode().buriedCellCulling();
+        describePass(eye, rtpTarget);
+        passInputs.committed(firstProjectionDone, lastPresentationRevision, lastCoarse);
+        passInputs.camera(hasCameraSnapshot, lastEyeX, lastEyeY, lastEyeZ);
+        passInputs.projection(cellScan.hasProjection(), reuseInvalidated || lastCommittedGeneration != scanGeneration,
+            initialFullSendPassesRemaining > 0);
+        passInputs.dissolving(dissolve.isActive());
+        passInputs.unresolvedOcclusion(cellScan.hasUnresolvedOcclusion());
+        passInputs.resample(stableResample, schedule.isRemoteResamplePending());
+        passInputs.lightingDue(claimArbiter.hasPendingLighting(observer) && schedule.lightingUpdatePass(firstProjectionDone));
+        passInputs.localDirty(localDirty);
+        passInputs.holdsExposed(holdsExposed);
+        passInputs.sampler(sampler.buriedCellCullingPass() != buriedCellCulling, sampler.recursiveSamplesCached());
+        if (PassPlanner.reusable(passInputs)) {
             lastReuseSkips++;
             lastBlockChanges = 0;
             if (updateEntities) {
@@ -449,10 +462,6 @@ public final class PortalProjector {
             }
             logDiagnostics(false, 0, 0, cellScan.claims().size());
             return;
-        }
-        int resampleReasonMask = reuseBlockers(eye, projectionInvalidated, stableResample, localDirty, renderModeChanged);
-        if (holdsExposed) {
-            resampleReasonMask |= ProjectorResampleReasons.HOLDS_EXPOSED;
         }
 
         double portalDepth = portal.getNetworkViewDepth();
@@ -470,16 +479,15 @@ public final class PortalProjector {
         }
         frustumFailures.recordSuccess();
         double depthBlocks = viewFrustum.fittedDepth();
-        LodPolicy observerLod = viewFrustum.fittedCoarse() ? portalLod.withMergeRuns() : portalLod;
+        boolean coarse = viewFrustum.fittedCoarse();
+        LodPolicy observerLod = coarse ? portalLod.withMergeRuns() : portalLod;
         if (portal.isBlackoutBackground()) {
             blackout.beginPass(portal.getBlackoutColor(),
-                destWorld == null ? null : destWorld.getEnvironment(),
-                fidelity == null ? FidelitySettings.atmosphereModeDefault : fidelity.effectiveAtmosphereMode());
+                destWorld == null ? null : destWorld.getEnvironment(), atmosphereMode(fidelity));
         } else {
             blackout.disable();
         }
-        boolean buriedCellCulling = renderMode.scanMode().buriedCellCulling();
-        boolean buriedCellCullingChanged = sampler.setBuriedCellCullingPass(buriedCellCulling);
+        sampler.setBuriedCellCullingPass(buriedCellCulling);
 
         if (!firstProjectionDone) {
             Wormholes.v("[Projector] portal=" + portal.getName() + " observer=" + observer.getName()
@@ -491,84 +499,57 @@ public final class PortalProjector {
                 + " aperturePadding=" + Settings.PROJECTION_APERTURE_PADDING_BLOCKS);
         }
 
-        boolean scheduledContentResample = schedule.consumeForcedResample(stableResample);
+        schedule.consumeForcedResample(stableResample);
         long destinationRevision = destination.destView.getRevision();
-        boolean recursiveSamplesCached = sampler.recursiveSamplesCached();
-        boolean destinationContentStale = shouldInvalidateDestinationContentSamples(
-            scheduledContentResample, renderModeChanged, buriedCellCullingChanged, recursiveSamplesCached);
-        boolean destinationDirty = !destinationContentStale && sampleMemo.destinationStale(destinationRevision, destWorld != null,
-            sinceVersion -> schedule.destinationUnaffectedThrough(destWorldId, destinationOriginX, destinationOriginZ, sinceVersion,
-                cellScan.remoteFootprint()));
-        boolean destinationOverBudget = !destinationContentStale && !destinationDirty
-            && sampleMemo.destinationOverBudget(sampleMemoBudget(viewFrustum.fittedCandidateWork()));
-        boolean destinationSamplesStale = destinationContentStale || destinationDirty || destinationOverBudget;
-        if (destinationContentStale) {
+        long localRevision = destination.localView.getRevision();
+        int memoBudget = sampleMemoBudget(viewFrustum.fittedCandidateWork());
+        Vec3d eyePoint = BukkitGeometry.vector(eye);
+        passInputs.samples(sampleMemo.destinationStale(destinationRevision, destWorld != null,
+                sinceVersion -> schedule.destinationUnaffectedThrough(destWorldId, destinationOriginX, destinationOriginZ, sinceVersion,
+                    cellScan.remoteFootprint())),
+            sampleMemo.destinationOverBudget(memoBudget), sampleMemo.localStale(localDirty, localRevision, memoBudget));
+        passInputs.fitted(coarse, cellScan.canResumeOcclusion(destination, eyePoint, next));
+        PassPlan plan = PassPlanner.plan(passInputs);
+        if (plan.has(PassPlan.DESTINATION_CONTENT_STALE)) {
             cellScan.dropHolds();
         }
-        if (destinationContentStale && recursiveSamplesCached) {
-            resampleReasonMask |= ProjectorResampleReasons.DEST_STALE_RECURSIVE;
-        }
-        if (destinationDirty) {
-            resampleReasonMask |= ProjectorResampleReasons.DEST_STALE_DIRTY;
-        }
-        if (destinationOverBudget) {
-            resampleReasonMask |= ProjectorResampleReasons.DEST_OVER_BUDGET;
-        }
-        if (destinationSamplesStale) {
+        if (plan.has(PassPlan.DESTINATION_SAMPLES_STALE)) {
             cellScan.restartRemoteFootprint();
             sampler.clearRecursivePortals();
             sampleMemo.clearDestinationSamples();
             sampleMemo.refreshDestination(destinationRevision);
         }
         sampler.resetRecursiveSamplesCached();
-        boolean localContentResample = scheduledContentResample || renderModeChanged;
-        boolean localSamplesStale = sampleMemo.refreshLocal(localContentResample, localDirty, destination.localView.getRevision(),
-            sampleMemoBudget(viewFrustum.fittedCandidateWork()));
+        sampleMemo.refreshLocal(plan.has(PassPlan.LOCAL_CONTENT_RESAMPLE), localDirty, localRevision, memoBudget);
         sampleMemo.expandLocalRegionRect(next.getRegion());
         sampleMemo.markLocalScanned();
-
-        boolean forceFullSend = initialFullSendPassesRemaining > 0;
-        boolean blockEntities = FidelitySettings.blockEntities && (fidelity == null || fidelity.effectiveBlockEntities());
-        long presentationRevision = presentationRevision(eye, rtpTarget, buriedCellCulling, observerLod, blockEntities);
-        boolean contentInvalidated = projectionInvalidated || destinationSamplesStale || localSamplesStale
-            || presentationRevision != lastPresentationRevision;
-        boolean reuseStableContent = viewCameraMoved && !contentInvalidated
-            && !scheduledContentResample && !renderModeChanged;
-        if (contentInvalidated) {
+        if (plan.has(PassPlan.CONTENT_INVALIDATED)) {
             cellScan.invalidateContent();
         }
-        boolean forceStableCellResample = contentInvalidated || shouldForceCellResample(
-            scheduledContentResample, renderModeChanged, viewCameraMoved && !reuseStableContent);
         sampler.resetRemoteSampleCount();
         lastBlockChanges = 0;
         lastClaimConflicts = 0;
         lastWinnerChanges = 0;
         lastClaimReverts = 0;
-        if (presentationRevision != lastPresentationRevision) {
-            resampleReasonMask |= ProjectorResampleReasons.PRESENTATION;
-        }
-        resampleReasons.record(resampleReasonMask);
+        resampleReasons.record(plan.reasons());
         ViewPlate<BlockData> plate = acquirePlate(eye, buriedCellCulling, destinationRevision, rtpTarget);
         lastPassUsedPlate = plate != null;
-        PendingProjection frame = new PendingProjection(eye, next, depthBlocks, viewFrustum.fittedCoarse(),
-            fidelity, renderMode, forceFullSend, presentationRevision, destinationRevision,
-            destination.localView, destination.destView, destination.destAnchor, scanContextRevision(),
-            scanGeneration);
-        if (firstProjectionDone && !projectionInvalidated && !dissolve.isActive()
-            && !forceStableCellResample && !forceFullSend && !destinationSamplesStale && !localSamplesStale
-            && presentationRevision == lastPresentationRevision && cellScan.canResumeOcclusion(destination, BukkitGeometry.vector(eye), next)) {
+        PendingProjection frame = new PendingProjection(eye, next, depthBlocks, coarse, fidelity, plan.has(PassPlan.FULL_SEND),
+            plan.revision(), destinationRevision, destination.localView, destination.destView, destination.destAnchor, scanGeneration);
+        if (plan.resumes()) {
             long scanStarted = System.nanoTime();
             cellScan.resumeOcclusion();
             lastScanNanos = System.nanoTime() - scanStarted;
             occlusionResumes++;
             completeProjection(frame, startNanos, updateEntities);
-        } else {
-            cellScan.begin(destination, rtpTarget == null ? null : rtpTarget.frame(), BukkitGeometry.vector(eye), next, depthBlocks, forceStableCellResample, forceFullSend,
-                viewCameraMoved, renderMode.scanMode(), plate, blockEntities, observerLod);
-            pendingProjection = frame;
-            commitLatency.begin(startNanos);
-            advanceProjection(frame, startNanos, eye, updateEntities, deadlineNanos);
+            return;
         }
+        cellScan.begin(destination, rtpTarget == null ? null : rtpTarget.frame(), eyePoint, next, depthBlocks,
+            plan.has(PassPlan.CONTENT_INVALIDATED), plan.has(PassPlan.FULL_SEND), plan.has(PassPlan.REFRESH_VISIBILITY),
+            renderMode.scanMode(), plate, blockEntities(fidelity), observerLod);
+        pendingProjection = frame;
+        commitLatency.begin(startNanos);
+        advanceProjection(frame, startNanos, eye, updateEntities, deadlineNanos);
     }
 
     private void advanceProjection(PendingProjection frame, long startNanos, Location eye,
@@ -588,7 +569,7 @@ public final class PortalProjector {
 
     private void completeProjection(PendingProjection frame, long startNanos, boolean updateEntities) {
         long finalizeStarted = System.nanoTime();
-        if (!matchesPendingContext(frame, observer.getEyeLocation(), rtpProjectionTarget)) {
+        if (!matchesPendingContext(frame, describePass(observer.getEyeLocation(), rtpProjectionTarget))) {
             cancelPendingProjection();
             recordProjectTime(startNanos);
             return;
@@ -598,21 +579,19 @@ public final class PortalProjector {
         double depthBlocks = frame.depthBlocks();
         FidelityPortalExtension fidelity = frame.fidelity();
         boolean forceFullSend = frame.forceFullSend();
-        ProjectionRenderMode renderMode = frame.renderMode();
         long destinationRevision = frame.destinationRevision();
-        long presentationRevision = frame.presentationRevision();
         if (!firstProjectionDone && !dissolve.isRetiring()) {
             dissolve.beginAdmit(blockPasses, FidelitySettings.dissolveTicks);
         }
         double admitted = dissolve.admittedFraction(blockPasses);
         if (admitted < 1.0D) {
             cellScan.invalidateOcclusionContinuation();
-            double clearance = ProjectionVolume.portalPlaneClearance(portal.getStructure().getArea(), portal.getFrame());
-            Face dissolveNormal = portal.getFrame().getNormal();
-            double originNormal = axisValueOf(portal.getOrigin().getX(), portal.getOrigin().getY(), portal.getOrigin().getZ(), dissolveNormal);
-            DissolveSchedule.filter(cellScan.claims(), admitted, depthBlocks + clearance, key -> Math.abs(
-                axisValueOf(CellKeys.unpackX(key) + 0.5D, CellKeys.unpackY(key) + 0.5D,
-                    CellKeys.unpackZ(key) + 0.5D, dissolveNormal) - originNormal));
+            Frame portalFrame = portal.getFrame();
+            Vec3d origin = portal.getOrigin();
+            ProjectionVolume volume = ProjectionVolume.of(portal.getStructure().getArea(), portalFrame,
+                ProjectionVolume.plane(portalFrame, origin.getX(), origin.getY(), origin.getZ()), true, depthBlocks, 0.0D);
+            DissolveSchedule.filter(cellScan.claims(), admitted, volume.maxDepth(), key -> Math.abs(volume.signedDistance(
+                CellKeys.unpackX(key) + 0.5D, CellKeys.unpackY(key) + 0.5D, CellKeys.unpackZ(key) + 0.5D)));
         }
 
         if (!activeGuard.getAsBoolean()) {
@@ -624,9 +603,7 @@ public final class PortalProjector {
             return;
         }
 
-        AtmosphereMode atmosphereMode = fidelity == null
-            ? FidelitySettings.atmosphereModeDefault
-            : fidelity.effectiveAtmosphereMode();
+        AtmosphereMode atmosphereMode = atmosphereMode(fidelity);
         World submitWorld = destination.localWorld;
         noteClaimWorld(submitWorld);
         boolean sourceLighting = FidelitySettings.skyLight && atmosphereMode.promotesSkyLight();
@@ -669,40 +646,46 @@ public final class PortalProjector {
         lastFinalizeNanos = System.nanoTime() - finalizeStarted;
 
         firstProjectionDone = true;
-        lastRenderMode = renderMode;
-        lastPresentationRevision = presentationRevision;
+        lastPresentationRevision = frame.revision();
+        lastCoarse = frame.coarse();
         lastCommittedGeneration = frame.invalidationGeneration();
         rememberCamera(eye);
         reuseInvalidated = invalidationGeneration.get() != frame.invalidationGeneration();
     }
 
-    private boolean matchesPendingContext(PendingProjection frame, Location eye, RtpProjectionTarget rtpTarget) {
-        if (frame.invalidationGeneration() != invalidationGeneration.get()
-            || frame.contextRevision() != scanContextRevision()
-            || frame.localView() != destination.localView || frame.destinationView() != destination.destView
-            || frame.destinationAnchor() != destination.destAnchor) {
-            return false;
-        }
-        FidelityPortalExtension fidelity = fidelityExtension();
-        LodPolicy lod = portalLod(fidelity);
-        if (frame.coarse()) {
-            lod = lod.withMergeRuns();
-        }
-        boolean blockEntities = FidelitySettings.blockEntities && (fidelity == null || fidelity.effectiveBlockEntities());
-        return frame.presentationRevision() == presentationRevision(eye, rtpTarget,
-            portal.getRenderMode().scanMode().buriedCellCulling(), lod, blockEntities);
+    private boolean matchesPendingContext(PendingProjection frame, long revision) {
+        return frame.invalidationGeneration() == invalidationGeneration.get()
+            && frame.localView() == destination.localView && frame.destinationView() == destination.destView
+            && frame.destinationAnchor() == destination.destAnchor && frame.revision() == revision;
     }
 
-    private long scanContextRevision() {
-        long revision = ProjectorPassRevision.mix(portal.getStructure().getRevision(), portal.getRenderMode().ordinal());
-        revision = ProjectorPassRevision.mix(revision, portal.isBlackoutBackground() ? 1L : 0L);
-        revision = ProjectorPassRevision.mix(revision, portal.getBlackoutColor() == null ? -1L : portal.getBlackoutColor().ordinal());
-        revision = ProjectorPassRevision.mix(revision, Double.doubleToLongBits(Settings.NEAR_PLANE_PADDING));
-        revision = ProjectorPassRevision.mix(revision, Double.doubleToLongBits(Settings.FRUSTUM_CULLING_RATIO));
-        revision = ProjectorPassRevision.mix(revision, Double.doubleToLongBits(Settings.PROJECTION_OCCLUSION_REVEAL_MARGIN_DEGREES));
-        revision = ProjectorPassRevision.mix(revision, Settings.PROJECTION_MAX_PROJECTED_CELLS);
-        revision = ProjectorPassRevision.mix(revision, Settings.PROJECTION_RECURSIVE_PORTAL_DEPTH);
-        return ProjectorPassRevision.mix(revision, rtpProjectionTarget == null ? -1L : rtpProjectionTarget.routeRevision());
+    private long describePass(Location eye, RtpProjectionTarget rtpTarget) {
+        Frame localFrame = portal.getFrame();
+        Vec3d origin = portal.getOrigin();
+        boolean mirror = destination.mirrorMode;
+        Frame remoteFrame = rtpTarget != null ? rtpTarget.frame() : mirror ? localFrame.flipNormal() : destination.destAnchor.getFrame();
+        FidelityPortalExtension fidelity = fidelityExtension();
+        AtmosphereMode atmosphereMode = atmosphereMode(fidelity);
+        BlackoutColor blackoutColor = portal.getBlackoutColor();
+        int depth = portal.getNetworkViewDepth();
+        passInputs.eye(eye.getX(), eye.getY(), eye.getZ());
+        passInputs.local(localFrame, origin.getX(), origin.getY(), origin.getZ());
+        passInputs.remote(remoteFrame, mirror ? origin.getX() : destination.originX, mirror ? origin.getY() : destination.originY,
+            mirror ? origin.getZ() : destination.originZ);
+        passInputs.mirror(mirror, destination.mirrorRotationQuarterTurns);
+        passInputs.extent(depth, portal.getNetworkViewLateralPad(), viewFrustum.projectionDistance(observer, depth));
+        passInputs.padding(Settings.PROJECTION_APERTURE_PADDING_BLOCKS, Settings.NEAR_PLANE_PADDING);
+        passInputs.frustum(Settings.FRUSTUM_CULLING_RATIO, Settings.PROJECTION_OCCLUSION_REVEAL_MARGIN_DEGREES);
+        passInputs.limits(Settings.PROJECTION_MAX_PROJECTED_CELLS, Settings.PROJECTION_RECURSIVE_PORTAL_DEPTH);
+        passInputs.scanMode(portal.getRenderMode().scanMode());
+        passInputs.lod(fidelity == null ? LodProfile.BALANCED : fidelity.effectiveLodProfile(), FidelitySettings.lodMergeRuns,
+            FidelitySettings.lodDistanceBlocks, FidelitySettings.lodDetailCutoffBlocks);
+        passInputs.blockEntities(blockEntities(fidelity));
+        passInputs.blackout(portal.isBlackoutBackground(), blackoutColor == null ? -1 : blackoutColor.ordinal(),
+            FogPlatePolicy.applies(FidelitySettings.fogPlate, atmosphereMode));
+        passInputs.atmosphere(atmosphereMode);
+        passInputs.identity(portal.getStructure().getRevision(), destination.identity(rtpTarget));
+        return PassPlanner.revision(passInputs);
     }
 
     private void cancelPendingProjection() {
@@ -748,16 +731,9 @@ public final class PortalProjector {
 
         Frame localFrame = portal.getFrame();
         Frame remoteFrame = destination.mirrorMode ? localFrame.flipNormal() : destination.destAnchor.getFrame();
-        double localOriginX = portal.getOrigin().getX();
-        double localOriginY = portal.getOrigin().getY();
-        double localOriginZ = portal.getOrigin().getZ();
-        double facingX = localFrame.getNormal().x();
-        double facingY = localFrame.getNormal().y();
-        double facingZ = localFrame.getNormal().z();
-        double eyeRelX = eye.getX() - localOriginX;
-        double eyeRelY = eye.getY() - localOriginY;
-        double eyeRelZ = eye.getZ() - localOriginZ;
-        boolean eyeFrontSide = (eyeRelX * facingX + eyeRelY * facingY + eyeRelZ * facingZ) >= 0.0D;
+        Vec3d localOrigin = portal.getOrigin();
+        boolean eyeFrontSide = ProjectionVolume.side(localFrame, localOrigin.getX(), localOrigin.getY(), localOrigin.getZ(),
+            eye.getX(), eye.getY(), eye.getZ());
         Frame projectionLocalFrame = viewFrame(localFrame, eyeFrontSide);
         Frame projectionRemoteFrame = viewFrame(remoteFrame, eyeFrontSide);
         cellScan.updateEntityOcclusionEye(BukkitGeometry.vector(eye), destination, projectionLocalFrame, projectionRemoteFrame);
@@ -892,30 +868,16 @@ public final class PortalProjector {
         return ProjectorPlates.portalLod(fidelity);
     }
 
-    private long presentationRevision(Location eye, RtpProjectionTarget rtpTarget, boolean buriedCellCulling,
-                                      LodPolicy lod, boolean blockEntities) {
-        Frame localFrame = portal.getFrame();
-        Frame remoteFrame = rtpTarget != null ? rtpTarget.frame()
-            : destination.mirrorMode ? localFrame.flipNormal() : destination.destAnchor.getFrame();
-        double localOriginX = portal.getOrigin().getX();
-        double localOriginY = portal.getOrigin().getY();
-        double localOriginZ = portal.getOrigin().getZ();
-        double remoteOriginX = destination.mirrorMode ? localOriginX : destination.originX;
-        double remoteOriginY = destination.mirrorMode ? localOriginY : destination.originY;
-        double remoteOriginZ = destination.mirrorMode ? localOriginZ : destination.originZ;
-        Face facing = localFrame.getNormal();
-        boolean eyeFrontSide = ((eye.getX() - localOriginX) * facing.x()
-            + (eye.getY() - localOriginY) * facing.y()
-            + (eye.getZ() - localOriginZ) * facing.z()) >= 0.0D;
-        long revision = ProjectorPassRevision.transform(localFrame, remoteFrame, localOriginX, localOriginY, localOriginZ,
-            remoteOriginX, remoteOriginY, remoteOriginZ, portal.getNetworkViewDepth(), portal.getNetworkViewLateralPad(),
-            Settings.PROJECTION_APERTURE_PADDING_BLOCKS, buriedCellCulling, lod, blockEntities);
-        revision = ProjectorPassRevision.mix(revision, destination.mirrorRotationQuarterTurns);
-        return ProjectorPassRevision.mix(revision, eyeFrontSide ? 1L : 0L);
-    }
-
     FidelityPortalExtension fidelityExtension() {
         return ProjectorPlates.fidelity(portal);
+    }
+
+    private static AtmosphereMode atmosphereMode(FidelityPortalExtension fidelity) {
+        return fidelity == null ? FidelitySettings.atmosphereModeDefault : fidelity.effectiveAtmosphereMode();
+    }
+
+    private static boolean blockEntities(FidelityPortalExtension fidelity) {
+        return FidelitySettings.blockEntities && (fidelity == null || fidelity.effectiveBlockEntities());
     }
 
     private int sampleMemoBudget(long fittedCandidateWork) {
@@ -972,52 +934,6 @@ public final class PortalProjector {
         resampleReasons.reset();
     }
 
-    private int reuseBlockers(Location eye, boolean projectionInvalidated, boolean stableResample, boolean localDirty,
-                              boolean renderModeChanged) {
-        int reasons = 0;
-        if (projectionInvalidated) {
-            reasons |= ProjectorResampleReasons.INVALIDATED;
-        }
-        if (cellScan.hasUnresolvedOcclusion()) {
-            reasons |= ProjectorResampleReasons.UNRESOLVED_OCCLUSION;
-        }
-        if (stableResample) {
-            reasons |= ProjectorResampleReasons.STABLE_CADENCE;
-        }
-        if (localDirty) {
-            reasons |= ProjectorResampleReasons.LOCAL_DIRTY;
-        }
-        if (schedule.isRemoteResamplePending()) {
-            reasons |= ProjectorResampleReasons.REMOTE_PENDING;
-        }
-        if (claimArbiter.hasPendingLighting(observer) && schedule.lightingUpdatePass(firstProjectionDone)) {
-            reasons |= ProjectorResampleReasons.LIGHTING;
-        }
-        if (!firstProjectionDone || !cellScan.hasProjection() || initialFullSendPassesRemaining > 0) {
-            reasons |= ProjectorResampleReasons.FULL_SEND;
-        }
-        if (renderModeChanged || dissolve.isActive()) {
-            reasons |= ProjectorResampleReasons.PRESENTATION;
-        }
-        if (!hasCameraSnapshot || cameraLeftReuseWindow(eye)) {
-            reasons |= ProjectorResampleReasons.CAMERA;
-        }
-        return reasons;
-    }
-
-    private boolean cameraLeftReuseWindow(Location eye) {
-        double dx = eye.getX() - lastEyeX;
-        double dy = eye.getY() - lastEyeY;
-        double dz = eye.getZ() - lastEyeZ;
-        if ((dx * dx) + (dy * dy) + (dz * dz) >= GazeScheduler.REUSE_EYE_EPSILON_SQUARED) {
-            return true;
-        }
-        Face normal = portal.getFrame().getNormal();
-        double originNormal = axisValueOf(portal.getOrigin().getX(), portal.getOrigin().getY(), portal.getOrigin().getZ(), normal);
-        return (axisValueOf(eye.getX(), eye.getY(), eye.getZ(), normal) >= originNormal)
-            != (axisValueOf(lastEyeX, lastEyeY, lastEyeZ, normal) >= originNormal);
-    }
-
     private boolean exposeLosingClaims() {
         boolean resync = cellScan.losingClaimsUnsynced();
         claimArbiter.drainLosingTransitions(observer, portal.getId(), displacedClaimKeys, restoredClaimKeys, resync);
@@ -1025,96 +941,6 @@ public final class PortalProjector {
         displacedClaimKeys.clear();
         restoredClaimKeys.clear();
         return exposed;
-    }
-
-    private boolean canReuseProjection(Location eye, boolean stableResample, boolean localDirty) {
-        if (reuseInvalidated || lastCommittedGeneration != invalidationGeneration.get()) {
-            return false;
-        }
-        if (cellScan.hasUnresolvedOcclusion()) {
-            return false;
-        }
-        boolean lightingBlocked = claimArbiter.hasPendingLighting(observer) && schedule.lightingUpdatePass(firstProjectionDone);
-        Face normal = portal.getFrame().getNormal();
-        double originNormal = axisValueOf(portal.getOrigin().getX(), portal.getOrigin().getY(), portal.getOrigin().getZ(), normal);
-        boolean sideFlipped = hasCameraSnapshot
-            && (axisValueOf(eye.getX(), eye.getY(), eye.getZ(), normal) >= originNormal)
-                != (axisValueOf(lastEyeX, lastEyeY, lastEyeZ, normal) >= originNormal);
-        return canReuseProjection(firstProjectionDone, cellScan.hasProjection(), hasCameraSnapshot,
-            initialFullSendPassesRemaining, stableResample, schedule.isRemoteResamplePending(), lightingBlocked, sideFlipped,
-            localDirty,
-            eye.getX(), eye.getY(), eye.getZ(), lastEyeX, lastEyeY, lastEyeZ);
-    }
-
-    private static double axisValueOf(double x, double y, double z, Face normal) {
-        if (normal.x() != 0) {
-            return x;
-        }
-        if (normal.y() != 0) {
-            return y;
-        }
-        return z;
-    }
-
-    static boolean canReuseProjection(boolean firstProjectionDone,
-                                      boolean hasProjection,
-                                      boolean hasCameraSnapshot,
-                                      int initialFullSendPassesRemaining,
-                                      boolean stableResample,
-                                      boolean pendingRemoteResample,
-                                      boolean lightingBlocked,
-                                      boolean sideFlipped,
-                                      boolean localDirty,
-                                      double eyeX,
-                                      double eyeY,
-                                      double eyeZ,
-                                      double lastEyeX,
-                                      double lastEyeY,
-                                      double lastEyeZ) {
-        if (!firstProjectionDone || !hasProjection || !hasCameraSnapshot) {
-            return false;
-        }
-        if (initialFullSendPassesRemaining > 0 || stableResample || pendingRemoteResample || lightingBlocked) {
-            return false;
-        }
-        if (sideFlipped || localDirty) {
-            return false;
-        }
-        double dx = eyeX - lastEyeX;
-        double dy = eyeY - lastEyeY;
-        double dz = eyeZ - lastEyeZ;
-        double movedSquared = (dx * dx) + (dy * dy) + (dz * dz);
-        return movedSquared < GazeScheduler.REUSE_EYE_EPSILON_SQUARED;
-    }
-
-    static boolean requiresViewCellResample(ProjectionRenderMode renderMode,
-                                               boolean hasCameraSnapshot,
-                                               double eyeX,
-                                               double eyeY,
-                                               double eyeZ,
-                                               double lastEyeX,
-                                               double lastEyeY,
-                                               double lastEyeZ) {
-        if (renderMode == null || !renderMode.scanMode().observerOcclusion() || !hasCameraSnapshot) {
-            return false;
-        }
-        double dx = eyeX - lastEyeX;
-        double dy = eyeY - lastEyeY;
-        double dz = eyeZ - lastEyeZ;
-        return (dx * dx) + (dy * dy) + (dz * dz) >= GazeScheduler.REUSE_EYE_EPSILON_SQUARED;
-    }
-
-    static boolean shouldForceCellResample(boolean scheduledContentResample,
-                                           boolean renderModeChanged,
-                                           boolean viewCameraMoved) {
-        return scheduledContentResample || renderModeChanged || viewCameraMoved;
-    }
-
-    static boolean shouldInvalidateDestinationContentSamples(boolean scheduledContentResample,
-                                                              boolean renderModeChanged,
-                                                              boolean buriedCellCullingChanged,
-                                                              boolean recursiveSamplesCached) {
-        return scheduledContentResample || renderModeChanged || buriedCellCullingChanged || recursiveSamplesCached;
     }
 
     private void rememberCamera(Location eye) {
@@ -1260,10 +1086,9 @@ public final class PortalProjector {
     }
 
     private record PendingProjection(Location eye, ViewVolume frustum, double depthBlocks, boolean coarse,
-                                     FidelityPortalExtension fidelity, ProjectionRenderMode renderMode,
-                                     boolean forceFullSend, long presentationRevision, long destinationRevision,
-                                     ProjectionWorldView localView, ProjectionWorldView destinationView,
-                                     IPortal destinationAnchor, long contextRevision, long invalidationGeneration) {
+                                     FidelityPortalExtension fidelity, boolean forceFullSend, long revision,
+                                     long destinationRevision, ProjectionWorldView localView, ProjectionWorldView destinationView,
+                                     IPortal destinationAnchor, long invalidationGeneration) {
     }
 
     public record RtpProjectionTarget(World world, double originX, double originY, double originZ,

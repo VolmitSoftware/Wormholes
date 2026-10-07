@@ -16,6 +16,7 @@ import art.arcane.optics.volume.ViewVolume;
 
 final class ProjectorViewFrustum {
     private static final Method CLIENT_VIEW_DISTANCE_METHOD = resolveClientViewDistanceMethod();
+    private static final Object[] NO_ARGUMENTS = new Object[0];
 
     private final Method clientViewDistanceMethod;
     private final FrustumFit fitting = new FrustumFit(options());
@@ -33,7 +34,7 @@ final class ProjectorViewFrustum {
                   double portalDepth, double lateralPadBlocks) {
         fitting.setOptions(options());
         return fitting.fit(structure, frame, BukkitGeometry.vector(eye),
-            capProjectionDistance(observer, portalDepth), lateralPadBlocks);
+            projectionDistance(observer, portalDepth), lateralPadBlocks);
     }
 
     void setLodPolicy(LodPolicy policy) {
@@ -75,17 +76,17 @@ final class ProjectorViewFrustum {
         return fitting.estimateCandidateWork(structure, frame, BukkitGeometry.vector(eye), frustum, depthBlocks, limit);
     }
 
-    private static FrustumFit.Options options() {
-        return new FrustumFit.Options(Settings.PROJECTION_MAX_PROJECTED_CELLS,
-            Settings.NEAR_PLANE_PADDING, Settings.FRUSTUM_CULLING_RATIO, Settings.PROJECTION_APERTURE_PADDING_BLOCKS);
-    }
-
-    private double capProjectionDistance(Player observer, double requestedBlocks) {
+    double projectionDistance(Player observer, double requestedBlocks) {
         if (!Settings.PROJECTION_CLIENT_VIEW_DISTANCE_CAP || observer == null) {
             return requestedBlocks;
         }
         int serverChunks = Wormholes.instance == null ? 8 : Wormholes.instance.getServer().getViewDistance();
         return FrustumFit.capDistance(requestedBlocks, serverChunks, clientViewDistance(observer));
+    }
+
+    private static FrustumFit.Options options() {
+        return new FrustumFit.Options(Settings.PROJECTION_MAX_PROJECTED_CELLS,
+            Settings.NEAR_PLANE_PADDING, Settings.FRUSTUM_CULLING_RATIO, Settings.PROJECTION_APERTURE_PADDING_BLOCKS);
     }
 
     private static Method resolveClientViewDistanceMethod() {
@@ -101,7 +102,7 @@ final class ProjectorViewFrustum {
             return 0;
         }
         try {
-            Object result = clientViewDistanceMethod.invoke(observer);
+            Object result = clientViewDistanceMethod.invoke(observer, NO_ARGUMENTS);
             if (result instanceof Integer) {
                 return (Integer) result;
             }

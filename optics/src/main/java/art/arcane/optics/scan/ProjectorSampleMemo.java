@@ -246,6 +246,10 @@ public final class ProjectorSampleMemo<B, M, V extends ContentView<B, M>> {
         }
     }
 
+    public boolean localStale(boolean localDirty, long viewRevision, int budget) {
+        return localSampleMemoStale(false, localDirty, viewRevision, localRevision, localAir.size(), budget);
+    }
+
     public boolean refreshLocal(boolean forceStableCellResample, boolean localDirty, long viewRevision, int budget) {
         if (localSampleMemoStale(forceStableCellResample, localDirty, viewRevision, localRevision, localAir.size(), budget)) {
             localAir.clear();

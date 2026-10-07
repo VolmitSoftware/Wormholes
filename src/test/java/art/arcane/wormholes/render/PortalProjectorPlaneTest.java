@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.optics.frame.Frame;
-import art.arcane.wormholes.portal.ProjectionRenderMode;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.volume.PlaneWindow;
@@ -79,66 +78,5 @@ public final class PortalProjectorPlaneTest {
 		assertEquals(Face.S, back.getNormal());
 		assertEquals(Face.U, back.getUp());
 		assertEquals(Face.W, back.getRight());
-	}
-
-	@Test
-	public void reuseAllowsSmallEyeDriftForAnyNumberOfPasses() {
-		assertTrue(PortalProjector.canReuseProjection(true, true, true, 0, false, false, false, false, false,
-			12.5D, 64.62D, -3.25D, 12.5D, 64.62D, -3.25D));
-
-		assertTrue(PortalProjector.canReuseProjection(true, true, true, 0, false, false, false, false, false,
-			12.7D, 64.62D, -3.25D, 12.5D, 64.62D, -3.25D));
-		assertFalse(PortalProjector.canReuseProjection(true, true, true, 0, false, false, false, false, false,
-			12.5D + 0.3D, 64.62D, -3.25D, 12.5D, 64.62D, -3.25D));
-	}
-
-	@Test
-	public void reuseAllowsUnchangedRemoteProjection() {
-		assertTrue(PortalProjector.canReuseProjection(true, true, true, 0, false, false, false, false, false,
-			12.5D, 64.62D, -3.25D, 12.5D, 64.62D, -3.25D));
-	}
-
-	@Test
-	public void viewOcclusionResamplesCellVisibilityAfterMeaningfulEyeMovement() {
-		assertFalse(PortalProjector.requiresViewCellResample(ProjectionRenderMode.PANOPTIC, true,
-			0.25D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D));
-		assertFalse(PortalProjector.requiresViewCellResample(ProjectionRenderMode.VENTICULAR, true,
-			0.249D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D));
-		assertTrue(PortalProjector.requiresViewCellResample(ProjectionRenderMode.VENTICULAR, true,
-			0.25D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D));
-		assertFalse(PortalProjector.requiresViewCellResample(ProjectionRenderMode.VENTICULAR, false,
-			4.0D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D));
-	}
-
-	@Test
-	public void reuseDefeatedBySideFlip() {
-		assertFalse(PortalProjector.canReuseProjection(true, true, true, 0, false, false, false, true, false,
-			12.5D, 64.62D, -3.25D, 12.5D, 64.62D, -3.25D));
-	}
-
-	@Test
-	public void reuseDefeatedByLocalWorldChange() {
-		assertFalse(PortalProjector.canReuseProjection(true, true, true, 0, false, false, false, false, true,
-			12.5D, 64.62D, -3.25D, 12.5D, 64.62D, -3.25D));
-		assertFalse(PortalProjector.canReuseProjection(true, true, true, 0, false, false, false, false, true,
-			12.7D, 64.62D, -3.25D, 12.5D, 64.62D, -3.25D));
-	}
-
-	@Test
-	public void reuseDefeatedByResampleTriggers() {
-		assertFalse(PortalProjector.canReuseProjection(true, true, true, 0, true, false, false, false, false,
-			0.0D, 64.0D, 0.0D, 0.0D, 64.0D, 0.0D));
-		assertFalse(PortalProjector.canReuseProjection(true, true, true, 0, false, true, false, false, false,
-			0.0D, 64.0D, 0.0D, 0.0D, 64.0D, 0.0D));
-		assertFalse(PortalProjector.canReuseProjection(true, true, true, 1, false, false, false, false, false,
-			0.0D, 64.0D, 0.0D, 0.0D, 64.0D, 0.0D));
-		assertFalse(PortalProjector.canReuseProjection(true, true, true, 0, false, false, true, false, false,
-			0.0D, 64.0D, 0.0D, 0.0D, 64.0D, 0.0D));
-		assertFalse(PortalProjector.canReuseProjection(false, true, true, 0, false, false, false, false, false,
-			0.0D, 64.0D, 0.0D, 0.0D, 64.0D, 0.0D));
-		assertFalse(PortalProjector.canReuseProjection(true, false, true, 0, false, false, false, false, false,
-			0.0D, 64.0D, 0.0D, 0.0D, 64.0D, 0.0D));
-		assertFalse(PortalProjector.canReuseProjection(true, true, false, 0, false, false, false, false, false,
-			0.0D, 64.0D, 0.0D, 0.0D, 64.0D, 0.0D));
 	}
 }

@@ -39,6 +39,19 @@ public final class ProjectorSampleMemoTest {
     };
 
     @Test
+    public void localStaleAnswersWhatRefreshLocalWouldDoWithoutClearing() {
+        ProjectorSampleMemo<TestBlock, TestMaterial, TestView> memo = memo();
+        assertTrue(memo.localStale(false, 4L, 4096));
+        assertTrue(memo.refreshLocal(false, false, 4L, 4096));
+        assertFalse(memo.localStale(false, 4L, 4096));
+        assertTrue(memo.localStale(true, 4L, 4096));
+        assertTrue(memo.localStale(false, 5L, 4096));
+        assertFalse(memo.localStale(false, 4L, 4096), "asking must not refresh the memo");
+        assertFalse(memo.refreshLocal(false, false, 4L, 4096));
+        assertTrue(memo.refreshLocal(true, false, 4L, 4096));
+    }
+
+    @Test
     public void sampleMemoKeepsOneEntryPerViewAndCell() {
         ProjectorSampleMemo<TestBlock, TestMaterial, TestView> memo = memo();
         FakeWorldView first = new FakeWorldView();
