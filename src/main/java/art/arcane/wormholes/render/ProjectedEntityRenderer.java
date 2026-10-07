@@ -67,6 +67,8 @@ import art.arcane.optics.spi.OpticsScheduler;
 import art.arcane.optics.volume.ViewVolume;
 import art.arcane.optics.math.Angles;
 import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.math.Box;
+import org.bukkit.util.BoundingBox;
 
 public final class ProjectedEntityRenderer {
     private static final int DISPLAY_POSITION_ROTATION_INTERPOLATION_INDEX = 10;
@@ -547,7 +549,7 @@ public final class ProjectedEntityRenderer {
         boolean hanging = output.isHanging(packetType);
         EntitySnapshot visual = liveSnapshot(entity, hanging);
         boolean projected = projectionPath == null ? projection.project(visual, transform, frustum, itemFrame, hanging)
-            : projection.project(visual, projectionPath, itemFrame, hanging);
+            : projection.project(visual, projectionPath, bounds(entity.getBoundingBox()), itemFrame, hanging);
         if (!projected) {
             return false;
         }
@@ -617,6 +619,10 @@ public final class ProjectedEntityRenderer {
             entityTypeCache.put(key, resolved);
         }
         return resolved;
+    }
+
+    private static Box bounds(BoundingBox box) {
+        return new Box(box.getMinX(), box.getMaxX(), box.getMinY(), box.getMaxY(), box.getMinZ(), box.getMaxZ());
     }
 
     private EntitySnapshot liveSnapshot(Entity entity, boolean hanging) {

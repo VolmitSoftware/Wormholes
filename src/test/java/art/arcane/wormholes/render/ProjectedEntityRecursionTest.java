@@ -121,6 +121,34 @@ final class ProjectedEntityRecursionTest {
     }
 
     @Test
+    void keepsAWideEntityWhileItsBodyEdgeIsInsideTheWindow() {
+        withSettings(() -> {
+            Fixture fixture = new Fixture();
+            fixture.gate(1.5D, 8.0D);
+            fixture.entityState.put("location", new Location(fixture.finalWorld, 4.0D, 1.0D, 103.0D));
+            fixture.entityState.put("boundingBox", new BoundingBox(2.0D, 1.0D, 101.0D, 6.0D, 2.0D, 105.0D));
+            fixture.render();
+            assertEquals(1, fixture.renderer.getSpoofedCount());
+            assertEquals(4.0D, fixture.recorder.sentOfType(WrapperPlayServerSpawnEntity.class)
+                .getFirst().getPosition().getX(), 1.0E-9D);
+            fixture.close();
+        });
+    }
+
+    @Test
+    void dropsANarrowEntityOnceItsBodyLeavesTheWindow() {
+        withSettings(() -> {
+            Fixture fixture = new Fixture();
+            fixture.gate(1.5D, 8.0D);
+            fixture.entityState.put("location", new Location(fixture.finalWorld, 2.85D, 1.0D, 103.0D));
+            fixture.entityState.put("boundingBox", new BoundingBox(2.75D, 1.0D, 102.9D, 2.95D, 2.0D, 103.1D));
+            fixture.render();
+            assertEquals(0, fixture.renderer.getSpoofedCount());
+            fixture.close();
+        });
+    }
+
+    @Test
     void hidesImmediateEntitiesReplacedByANestedView() {
         withSettings(() -> {
             Fixture fixture = new Fixture();

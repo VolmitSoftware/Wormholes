@@ -6,6 +6,7 @@ import java.util.UUID;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.ViewWindow;
 import art.arcane.optics.math.Angles;
+import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.recursion.EntityPath;
 import art.arcane.optics.scan.ProjectorPassRevision;
@@ -55,6 +56,15 @@ public final class EntityProjection {
 
     public boolean project(EntitySnapshot visual, EntityPath<?, ?> path, boolean itemFrame, boolean hanging) {
         if (!path.visible(visual, visibleY(visual, hanging), point)) {
+            return false;
+        }
+        finish(visual, path.transform(), itemFrame, hanging);
+        return true;
+    }
+
+    public boolean project(EntitySnapshot visual, EntityPath<?, ?> path, Box bounds, boolean itemFrame, boolean hanging) {
+        if (!path.visibleBounds(visual.x(), visibleY(visual, hanging), visual.z(), bounds.getXa(), bounds.getYa(), bounds.getZa(),
+            bounds.getXb(), bounds.getYb(), bounds.getZb(), point)) {
             return false;
         }
         finish(visual, path.transform(), itemFrame, hanging);
