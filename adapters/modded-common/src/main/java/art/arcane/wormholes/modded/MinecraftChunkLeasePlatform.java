@@ -17,6 +17,8 @@ public final class MinecraftChunkLeasePlatform implements ChunkLeasePlatform<Ser
         TicketType.FLAG_LOADING | TicketType.FLAG_KEEP_DIMENSION_ACTIVE);
     private static final TicketType PORTAL_ARRIVAL = new TicketType(TicketType.NO_TIMEOUT,
         TicketType.FLAG_LOADING | TicketType.FLAG_SIMULATION | TicketType.FLAG_KEEP_DIMENSION_ACTIVE);
+    private static final TicketType PORTAL_HANDOVER = new TicketType(40L,
+        TicketType.FLAG_LOADING | TicketType.FLAG_SIMULATION | TicketType.FLAG_KEEP_DIMENSION_ACTIVE);
     private static final int ARRIVAL_RADIUS = 2;
 
     private final MinecraftServer server;
@@ -27,6 +29,10 @@ public final class MinecraftChunkLeasePlatform implements ChunkLeasePlatform<Ser
 
     public static void holdArrival(ServerLevel world, int chunkX, int chunkZ) {
         world.getChunkSource().addTicketWithRadius(PORTAL_ARRIVAL, new ChunkPos(chunkX, chunkZ), ARRIVAL_RADIUS);
+    }
+
+    public static void holdHandover(ServerLevel world, int chunkX, int chunkZ, int radius) {
+        world.getChunkSource().addTicketWithRadius(PORTAL_HANDOVER, new ChunkPos(chunkX, chunkZ), Math.max(ARRIVAL_RADIUS, radius));
     }
 
     public static void releaseArrival(ServerLevel world, int chunkX, int chunkZ) {

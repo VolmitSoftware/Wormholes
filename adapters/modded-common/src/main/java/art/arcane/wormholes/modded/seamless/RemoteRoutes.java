@@ -274,7 +274,11 @@ public final class RemoteRoutes implements AutoCloseable {
         runtime.requireServerThread();
         RemoteRoute forward = handOver.forward();
         if (forward != null && forward.resident()) {
-            player.setChunkTrackingView(forward.window().withRadius(Math.max(1, forward.stream().deliveredRadius())).view());
+            RouteWindow delivered = forward.window().withRadius(Math.max(1, forward.stream().deliveredRadius()));
+            MinecraftChunkLeasePlatform.holdHandover(forward.level(), delivered.centerX(), delivered.centerZ(), delivered.radius());
+            ChunkTrackingView view = delivered.view();
+            player.setChunkTrackingView(view);
+            hold(player, forward.level(), view);
         }
         List<RemoteTrackedEntityAccess> departed = trackedBy(handOver.origin(), player);
         if (forward != null) {
@@ -610,6 +614,17 @@ public final class RemoteRoutes implements AutoCloseable {
             }
         }
         route.paired().clear();
+    }
+
+    private static void hold(ServerPlayer player, ServerLevel level, ChunkTrackingView view) {
+        LongSet held = ((HeldChunkSender) player.connection.chunkSender).wormholesHeldChunks();
+        held.clear();
+        view.forEach(position -> {
+            long key = position.pack();
+            if (level.getChunkSource().chunkMap.getChunkToSend(key) == null) {
+                held.add(key);
+            }
+        });
     }
 
     private List<RemoteTrackedEntityAccess> trackedBy(ServerLevel level, ServerPlayer player) {

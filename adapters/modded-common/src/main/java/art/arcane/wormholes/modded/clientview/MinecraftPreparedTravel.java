@@ -290,6 +290,13 @@ final class MinecraftPreparedTravel {
         return preparation != null && preparation.seamless;
     }
 
+    void settleCross(ClientViewTravel<MinecraftClientViewPeer> travel, ServerPlayer player) {
+        Optional<TravelMessage.TravelCross> crossing = travel.server().takeCross();
+        if (crossing.isPresent()) {
+            crossSeamless(travel, player, crossing.get());
+        }
+    }
+
     private void seamlessTick(ClientViewTravel<MinecraftClientViewPeer> travel, ServerPlayer player) {
         UUID playerId = player.getUUID();
         RemoteRoutes routes = runtime.remoteRoutes();

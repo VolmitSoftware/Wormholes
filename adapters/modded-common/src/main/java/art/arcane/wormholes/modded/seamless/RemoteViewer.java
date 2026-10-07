@@ -35,7 +35,7 @@ public final class RemoteViewer {
         if (viewer == null) {
             return;
         }
-        boolean vanilla = seenBy.contains(player.connection);
+        boolean vanilla = !route.resident() && seenBy.contains(player.connection);
         ChunkPos chunk = entity.chunkPosition();
         Vec3d anchor = route.anchor();
         boolean visible = route.window().contains(chunk.x(), chunk.z()) && visible(new Sight(entity == player, vanilla,

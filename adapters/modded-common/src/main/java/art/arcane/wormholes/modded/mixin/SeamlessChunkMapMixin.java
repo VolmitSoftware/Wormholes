@@ -1,6 +1,7 @@
 package art.arcane.wormholes.modded.mixin;
 
 import art.arcane.wormholes.modded.WormholesModRuntime;
+import art.arcane.wormholes.modded.seamless.HeldChunkSender;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
@@ -9,6 +10,7 @@ import net.minecraft.server.level.ChunkTrackingView;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.chunk.LevelChunk;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -46,6 +48,14 @@ public abstract class SeamlessChunkMapMixin {
     private void wormholesKeepDeliveredView(ServerPlayer player, ChunkTrackingView view, Operation<Void> original) {
         if (!moving(player)) {
             original.call(player, view);
+        }
+    }
+
+    @WrapOperation(method = "onChunkReadyToSend", at = @At(value = "INVOKE",
+        target = "Lnet/minecraft/server/level/ChunkMap;markChunkPendingToSend(Lnet/minecraft/server/level/ServerPlayer;Lnet/minecraft/world/level/chunk/LevelChunk;)V"))
+    private void wormholesSkipHeldChunks(ServerPlayer player, LevelChunk chunk, Operation<Void> original) {
+        if (!((HeldChunkSender) player.connection.chunkSender).wormholesHeldChunks().remove(chunk.getPos().pack())) {
+            original.call(player, chunk);
         }
     }
 

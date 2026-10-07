@@ -178,6 +178,13 @@ public final class MinecraftClientViewService implements AutoCloseable {
         return null;
     }
 
+    public void settleCrossing(ServerPlayer player) {
+        ClientViewTravel<MinecraftClientViewPeer> travel = travel(player.getUUID());
+        if (travel != null && travel.seamlessSelected()) {
+            prepared.settleCross(travel, player);
+        }
+    }
+
     public boolean seamlessCrossing(ServerPlayer player) {
         ClientViewTravel<MinecraftClientViewPeer> travel = travel(player.getUUID());
         return travel != null && travel.seamlessSelected() && travel.server().crossing() && prepared.seamlessPreparation(player.getUUID());

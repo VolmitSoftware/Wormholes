@@ -39,13 +39,13 @@ public final class StraddleCollision {
         return kept;
     }
 
-    public static Vec3 otherSide(Entity entity, StraddleTracker.Straddle straddle, Vec3 movement, Vec3 thisSide) {
+    public static Vec3 otherSide(Entity entity, StraddleTracker.Straddle straddle, Vec3 thisSide) {
         Level destination = straddle.destination();
-        if (destination == null || movement.lengthSqr() == 0.0D) {
+        if (destination == null || thisSide.lengthSqr() == 0.0D) {
             return thisSide;
         }
         AABB mappedBox = aabb(StraddleGeometry.mappedBox(box(entity.getBoundingBox()), straddle.toward()));
-        Vec3d mappedMove = StraddleGeometry.mappedMove(new Vec3d(movement.x, movement.y, movement.z), straddle.toward());
+        Vec3d mappedMove = StraddleGeometry.mappedMove(new Vec3d(thisSide.x, thisSide.y, thisSide.z), straddle.toward());
         AABB sweep = mappedBox.expandTowards(mappedMove.x(), mappedMove.y(), mappedMove.z());
         if (!destination.hasChunksAt(Mth.floor(sweep.minX), Mth.floor(sweep.minZ), Mth.floor(sweep.maxX), Mth.floor(sweep.maxZ))) {
             return pushOut(straddle, thisSide);

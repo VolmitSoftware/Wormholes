@@ -29,9 +29,9 @@ public abstract class StraddleCollisionMixin implements StraddleHolder {
     }
 
     @ModifyReturnValue(method = "collide", at = @At("RETURN"))
-    private Vec3 wormholesStraddleCollide(Vec3 thisSide, @Local(argsOnly = true) Vec3 movement) {
+    private Vec3 wormholesStraddleCollide(Vec3 thisSide) {
         StraddleTracker.Straddle straddle = wormholes$straddle;
-        return straddle == null ? thisSide : StraddleCollision.otherSide((Entity) (Object) this, straddle, movement, thisSide);
+        return straddle == null ? thisSide : StraddleCollision.otherSide((Entity) (Object) this, straddle, thisSide);
     }
 
     @ModifyExpressionValue(method = "collectCollidersIgnoringWorldBorder(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/level/Level;Ljava/util/List;Lnet/minecraft/world/phys/AABB;)Ljava/util/List;",
