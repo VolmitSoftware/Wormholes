@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 public final class MinecraftRemoteViewGameTest {
     private static final Logger LOGGER = LoggerFactory.getLogger("WormholesGameTest");
@@ -32,10 +33,11 @@ public final class MinecraftRemoteViewGameTest {
     private final WormholesModRuntime runtime;
     private final CompletableFuture<Boolean> result = new CompletableFuture<>();
     private SeamlessGameFixture fixture;
+    private SeamlessGameFixture leaver;
     private MinecraftPortal destination;
     private ArmorStand stand;
     private BlockPos marker;
-    private Stage stage = Stage.STREAM;
+    private Stage stage = Stage.LEAVE;
     private int handle;
     private int remaining = STAGE_TICKS;
     private int routedChunks;
@@ -70,12 +72,18 @@ public final class MinecraftRemoteViewGameTest {
         helper.assertTrue(level.addFreshEntity(stand), "Remote view fixture could not spawn the destination marker entity");
         fixture.stand(source, -3.0D);
         fixture.negotiate();
+        leaver = SeamlessGameFixture.connect(runtime, level, "seamless-leaver");
+        leaver.stand(source, -3.0D);
+        leaver.negotiate();
         helper.runAfterDelay(1, this::step);
     }
 
     private void step() {
         try {
             fixture.pump();
+            if (leaver != null) {
+                leaver.pump();
+            }
             if (advance()) {
                 return;
             }
@@ -87,8 +95,23 @@ public final class MinecraftRemoteViewGameTest {
         }
     }
 
-    private boolean advance() {
+    private boolean advance() throws InterruptedException {
         switch (stage) {
+            case LEAVE -> {
+                if (runtime.remoteRoutes().routes(leaver.player().getUUID()).isEmpty()) {
+                    return false;
+                }
+                disconnectFromNetwork(leaver);
+                next(Stage.LEFT);
+            }
+            case LEFT -> {
+                if (!runtime.remoteRoutes().routes(leaver.player().getUUID()).isEmpty()) {
+                    return false;
+                }
+                leaver.close();
+                leaver = null;
+                next(Stage.STREAM);
+            }
             case STREAM -> {
                 TravelMessage.RemoteLevelOpen open = opened();
                 if (open == null || !streamed(open) || !paired(open.levelHandle(), stand.getId())) {
@@ -119,7 +142,7 @@ public final class MinecraftRemoteViewGameTest {
                     return false;
                 }
                 helper.assertTrue(!vanillaChunk(), "The destination chunk leaked into the vanilla chunk stream");
-                LOGGER.info("WORMHOLES_GAME_TEST_PASS remote_view handle={} routed_chunks={} entity={} block={} delivery={} close=true",
+                LOGGER.info("WORMHOLES_GAME_TEST_PASS remote_view handle={} routed_chunks={} entity={} block={} delivery={} close=true disconnect=network",
                     handle, routedChunks, stand.getId(), marker.toShortString(), delivery);
                 finish(null);
                 return true;
@@ -239,6 +262,22 @@ public final class MinecraftRemoteViewGameTest {
         return false;
     }
 
+    private void disconnectFromNetwork(SeamlessGameFixture leaving) throws InterruptedException {
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        Thread network = new Thread(() -> {
+            try {
+                runtime.playerDisconnected(leaving.player());
+            } catch (Throwable error) {
+                failure.set(error);
+            }
+        }, "seamless-test-network");
+        network.start();
+        network.join();
+        if (failure.get() != null) {
+            throw new IllegalStateException("A disconnect reported from the network thread failed", failure.get());
+        }
+    }
+
     private void next(Stage value) {
         stage = value;
         remaining = STAGE_TICKS;
@@ -248,6 +287,9 @@ public final class MinecraftRemoteViewGameTest {
         try {
             if (stand != null && !stand.isRemoved()) {
                 stand.remove(Entity.RemovalReason.DISCARDED);
+            }
+            if (leaver != null) {
+                leaver.close();
             }
             if (fixture != null) {
                 fixture.close();
@@ -267,6 +309,6 @@ public final class MinecraftRemoteViewGameTest {
     }
 
     private enum Stage {
-        STREAM, BLOCK, REMOVED, CLOSE
+        LEAVE, LEFT, STREAM, BLOCK, REMOVED, CLOSE
     }
 }

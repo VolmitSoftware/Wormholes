@@ -203,6 +203,11 @@ public final class WormholesClient {
     }
 
     public void disconnected() {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (!minecraft.isSameThread()) {
+            minecraft.execute(this::disconnected);
+            return;
+        }
         preparedTravel.clear();
         ClientSodiumTerrain.clear();
         reflections.clear(null, null);

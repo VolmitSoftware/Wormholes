@@ -16,6 +16,7 @@ import net.minecraft.client.Minecraft;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 
 import java.io.IOException;
@@ -27,6 +28,7 @@ import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertSame;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import art.arcane.wormholes.network.client.FxMessage;
 import art.arcane.wormholes.modded.clientview.MinecraftClientViewExtensions;
@@ -93,6 +95,7 @@ public class WormholesClientSessionTest extends MinecraftTestBase {
             List.of(ClientViewEmitters.burst("minecraft:reverse_portal", 1.5D, 65.0D, 10.5D, 12, 0.4D, 0.6D, 0.4D)));
         try (MockedStatic<Minecraft> access = mockStatic(Minecraft.class)) {
             access.when(Minecraft::getInstance).thenReturn(minecraft);
+            when(minecraft.isSameThread()).thenReturn(true);
             try {
                 when(minecraft.isPaused()).thenReturn(true);
                 when(minecraft.isWindowActive()).thenReturn(true);
@@ -130,11 +133,32 @@ public class WormholesClientSessionTest extends MinecraftTestBase {
         Minecraft minecraft = mock(Minecraft.class);
         try (MockedStatic<Minecraft> access = mockStatic(Minecraft.class)) {
             access.when(Minecraft::getInstance).thenReturn(minecraft);
+            when(minecraft.isSameThread()).thenReturn(true);
             WormholesClient.reconfiguring();
 
             assertSame(client, WormholesClient.instance());
             assertNotSame(previous, client.session());
             assertEquals(ClientViewSession.State.INIT, client.session().state());
+        }
+    }
+
+    @Test
+    public void disconnectReportedOffTheClientThreadRunsOnTheClientThread() throws IOException {
+        WormholesClient client = WormholesClient.initialize(folder.newFolder().toPath(), bytes -> { });
+        ClientViewSession previous = client.session();
+        Minecraft minecraft = mock(Minecraft.class);
+        try (MockedStatic<Minecraft> access = mockStatic(Minecraft.class)) {
+            access.when(Minecraft::getInstance).thenReturn(minecraft);
+            when(minecraft.isSameThread()).thenReturn(false);
+
+            client.disconnected();
+
+            assertSame(previous, client.session());
+            ArgumentCaptor<Runnable> scheduled = ArgumentCaptor.forClass(Runnable.class);
+            verify(minecraft).execute(scheduled.capture());
+            when(minecraft.isSameThread()).thenReturn(true);
+            scheduled.getValue().run();
+            assertNotSame(previous, client.session());
         }
     }
 }

@@ -342,23 +342,15 @@ public final class WormholesModRuntime {
     }
 
     public void playerDisconnected(ServerPlayer player) {
-        MinecraftClientProfiles.forget(player);
-        requireServerThread();
-        rules.disconnected(player);
-        rtp.disconnected(player);
-        costs.disconnected(player);
-        network.handoffs().disconnected(player);
-        chatInput.disconnected(player);
-        localization.disconnected(player);
-        menus.playerDisconnected(player);
-        lookLabels.playerDisconnected(player);
-        projections.playerDisconnected(player);
-        tools.playerDisconnected(player);
-        doors.playerDisconnected(player);
-        atlas.playerDisconnected(player);
-        portals.playerDisconnected(player);
-        remoteRoutes.forget(player.getUUID(), false);
-        seamlessMoving.remove(player.getUUID());
+        MinecraftServer current;
+        synchronized (this) {
+            current = server;
+        }
+        if (current != null && !current.isSameThread()) {
+            current.execute(() -> releasePlayer(player));
+            return;
+        }
+        releasePlayer(player);
     }
 
     public MinecraftRtpRuntime rtp() {
@@ -464,6 +456,29 @@ public final class WormholesModRuntime {
         if (!server().isSameThread()) {
             throw new IllegalStateException("Wormholes world operations require the server thread");
         }
+    }
+
+    private void releasePlayer(ServerPlayer player) {
+        if (!running()) {
+            return;
+        }
+        MinecraftClientProfiles.forget(player);
+        requireServerThread();
+        rules.disconnected(player);
+        rtp.disconnected(player);
+        costs.disconnected(player);
+        network.handoffs().disconnected(player);
+        chatInput.disconnected(player);
+        localization.disconnected(player);
+        menus.playerDisconnected(player);
+        lookLabels.playerDisconnected(player);
+        projections.playerDisconnected(player);
+        tools.playerDisconnected(player);
+        doors.playerDisconnected(player);
+        atlas.playerDisconnected(player);
+        portals.playerDisconnected(player);
+        remoteRoutes.forget(player.getUUID(), false);
+        seamlessMoving.remove(player.getUUID());
     }
 
     private void releaseServices() {
