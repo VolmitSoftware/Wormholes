@@ -31,7 +31,7 @@ public abstract class TravelPacketTap {
         shift = At.Shift.AFTER))
     private void wormholesTest$added(ClientboundAddEntityPacket packet, CallbackInfo callback) {
         if (WormholesClient.activeLevel(Minecraft.getInstance().level)) {
-            TravelTap.added(packet.getId());
+            TravelTap.added(packet.getUUID());
         }
     }
 }

@@ -3,7 +3,6 @@ package art.arcane.wormholes.clientgametest;
 import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.config.toml.WormholesConfigFile;
 import art.arcane.wormholes.util.project.config.TomlCodec;
-import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -41,7 +40,7 @@ final class ClientViewTestConfig {
     }
 
     private static void write(boolean lightingFidelity, boolean seamlessTravel) {
-        Path directory = FabricLoader.getInstance().getGameDir().resolve("config/wormholes");
+        Path directory = Path.of("config", "wormholes");
         WormholesConfigFile file = new WormholesConfigFile();
         file.clientView.enabled = true;
         file.clientView.seamlessTravel = seamlessTravel;

@@ -94,7 +94,7 @@ public final class ClientViewLightClientGameTest implements FabricClientGameTest
         assertPhase(context, server, connection, label + " after a chunk reload", destination);
 
         server.runOnServer(minecraftServer -> {
-            WormholesModRuntime runtime = runtime();
+            WormholesModRuntime runtime = runtime(minecraftServer);
             runtime.portals().link(player, scene.source(), null);
             runtime.portals().remove(player, scene.source());
             runtime.portals().remove(player, scene.destination());
@@ -206,7 +206,7 @@ public final class ClientViewLightClientGameTest implements FabricClientGameTest
     }
 
     private static Scene build(MinecraftServer server, ServerPlayer actor) {
-        WormholesModRuntime runtime = runtime();
+        WormholesModRuntime runtime = runtime(server);
         ServerLevel level = server.overworld();
         fill(level, ROOM_SHELL, Blocks.STONE.defaultBlockState());
         fill(level, ROOM, Blocks.AIR.defaultBlockState());

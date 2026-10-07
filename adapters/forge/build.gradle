@@ -165,3 +165,64 @@ apply from: '../../gradle/modded-artifact.gradle'
 tasks.named('verifyModdedArtifact').configure {
     metadata.set('META-INF/mods.toml')
 }
+
+sourceSets {
+    clientGameTest {
+        java.srcDir('../modded-common/src/clientGameTest/java')
+        java.srcDir('../modded-common/src/clientGameTestDriver/java')
+        resources.srcDir('../modded-common/src/clientGameTest/resources')
+        resources.srcDir('../modded-common/src/clientGameTestDriver/resources')
+        compileClasspath += sourceSets.main.output
+        runtimeClasspath = files()
+    }
+}
+
+configurations {
+    clientGameTestImplementation.extendsFrom(implementation)
+}
+
+minecraft {
+    runs {
+        register('client') {
+            workingDir = layout.buildDirectory.dir('run/clientGameTest')
+            systemProperty('wormholes.clientgametest', 'true')
+            systemProperty('wormholes.clientgametest.server', providers.gradleProperty('clientGameTestServer').getOrElse(''))
+            systemProperty('wormholes.clientgametest.serverSeamless', providers.gradleProperty('clientGameTestServerSeamless').getOrElse('true'))
+            systemProperty('wormholes.clientgametest.filter', providers.gradleProperty('clientGameTestFilter').getOrElse(''))
+        }
+    }
+}
+
+tasks.named('processClientGameTestResources').configure {
+    inputs.property('version', project.version)
+    inputs.property('minecraftVersion', minecraftVersion)
+    filesMatching('META-INF/mods.toml') {
+        expand('version': project.version, 'minecraftVersion': minecraftVersion)
+    }
+}
+
+TaskProvider<Jar> clientGameTestJar = tasks.register('clientGameTestJar', Jar) {
+    group = 'verification'
+    archiveFileName.set('Wormholes-ClientGameTest.jar')
+    manifest.attributes('MixinConfigs': 'wormholes_clientgametest.mixins.json,wormholes_clientgametest_driver.mixins.json')
+    from(sourceSets.clientGameTest.output)
+}
+
+TaskProvider<Sync> clientGameTestMods = tasks.register('prepareClientGameTestMods', Sync) {
+    from(tasks.named('shadowJar'), clientGameTestJar)
+    into(layout.buildDirectory.dir('run/clientGameTest/mods'))
+}
+
+tasks.matching { Task task -> task.name == 'runClientGameTestClient' }.configureEach { Task task ->
+    dependsOn(clientGameTestMods)
+    task.classpath(task.minecraftClasspath)
+    doFirst {
+        File fmlConfig = file('build/run/clientGameTest/config/fml.toml')
+        fmlConfig.parentFile.mkdirs()
+        fmlConfig.text = 'earlyWindowControl = false\nversionCheck = false\n'
+    }
+}
+
+tasks.named('check').configure {
+    dependsOn(tasks.named('clientGameTestClasses'))
+}

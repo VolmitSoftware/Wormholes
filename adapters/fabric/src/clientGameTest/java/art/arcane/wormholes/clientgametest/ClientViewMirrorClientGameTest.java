@@ -81,7 +81,7 @@ public final class ClientViewMirrorClientGameTest implements FabricClientGameTes
         assertNestedContent(context, connection);
         context.takeScreenshot("clientview-mirror-nested-" + label);
         server.runOnServer(minecraftServer -> {
-            WormholesModRuntime runtime = runtime();
+            WormholesModRuntime runtime = runtime(minecraftServer);
             runtime.portals().remove(player, child[0]);
             runtime.portals().remove(player, child[1]);
             runtime.portals().remove(player, mirrorId);
@@ -112,7 +112,7 @@ public final class ClientViewMirrorClientGameTest implements FabricClientGameTes
         assertTrue(flipped, "the ceiling reflection is not drawn upside down");
         connection.waitForChunksRender();
         context.takeScreenshot("clientview-mirror-ceiling-" + label);
-        server.runOnServer(minecraftServer -> runtime().portals().remove(player, ceilingId));
+        server.runOnServer(minecraftServer -> runtime(minecraftServer).portals().remove(player, ceilingId));
         context.waitFor(client -> WormholesClient.instance().reflections().size() == 0 && mirrorKey() == 0, STREAM_TIMEOUT_TICKS);
         int reflections = context.computeOnClient(client -> WormholesClient.instance().reflections().size());
         assertTrue(reflections == 0, "the ceiling reflection outlived its mirror");
@@ -215,7 +215,7 @@ public final class ClientViewMirrorClientGameTest implements FabricClientGameTes
     }
 
     private static UUID buildMirror(MinecraftServer server, ServerPlayer actor) {
-        WormholesModRuntime runtime = runtime();
+        WormholesModRuntime runtime = runtime(server);
         ServerLevel level = server.overworld();
         fill(level, MIRROR_MIN.offset(-6, -1, -8), 15, 10, 8, Blocks.STONE.defaultBlockState());
         fill(level, MIRROR_MIN.offset(-6, 0, 1), 15, 8, 10, Blocks.AIR.defaultBlockState());
@@ -228,7 +228,7 @@ public final class ClientViewMirrorClientGameTest implements FabricClientGameTes
     }
 
     private static UUID buildCeilingMirror(MinecraftServer server, ServerPlayer actor) {
-        WormholesModRuntime runtime = runtime();
+        WormholesModRuntime runtime = runtime(server);
         ServerLevel level = server.overworld();
         fill(level, CEILING_MIN.offset(-6, -CEILING_ROOM_HEIGHT - 1, -6), 15, 1, 15, Blocks.STONE.defaultBlockState());
         fill(level, CEILING_MIN.offset(-6, -CEILING_ROOM_HEIGHT, -6), 15, CEILING_ROOM_HEIGHT + 1, 15, Blocks.AIR.defaultBlockState());
@@ -246,7 +246,7 @@ public final class ClientViewMirrorClientGameTest implements FabricClientGameTes
     }
 
     private static UUID[] buildChild(MinecraftServer server, ServerPlayer actor) {
-        WormholesModRuntime runtime = runtime();
+        WormholesModRuntime runtime = runtime(server);
         ServerLevel level = server.overworld();
         fill(level, CHILD_DESTINATION_MIN.offset(-6, -2, -12), 15, 10, 12, Blocks.GOLD_BLOCK.defaultBlockState());
         fill(level, CHILD_DESTINATION_MIN.offset(-6, -2, 1), 15, 10, 12, Blocks.GOLD_BLOCK.defaultBlockState());

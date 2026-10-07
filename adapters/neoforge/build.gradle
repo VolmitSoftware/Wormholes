@@ -74,6 +74,14 @@ sourceSets {
             java.exclude(testClass.replace('.', '/') + '.java')
         }
     }
+    clientGameTest {
+        java.srcDir('../modded-common/src/clientGameTest/java')
+        java.srcDir('../modded-common/src/clientGameTestDriver/java')
+        resources.srcDir('../modded-common/src/clientGameTest/resources')
+        resources.srcDir('../modded-common/src/clientGameTestDriver/resources')
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
+    }
 }
 
 repositories {
@@ -146,17 +154,31 @@ evaluationDependsOn(':optics')
 
 neoForge {
     version = loaderVersion
-    runs {
-        server {
-            server()
-            programArgument('nogui')
-        }
-    }
     mods {
         wormholes {
             sourceSet(sourceSets.main)
             sourceSet(project(':core').sourceSets.main)
             sourceSet(project(':optics').sourceSets.main)
+        }
+        wormholes_clientgametest {
+            sourceSet(sourceSets.clientGameTest)
+        }
+    }
+    runs {
+        server {
+            server()
+            programArgument('nogui')
+            loadedMods = [mods.wormholes]
+        }
+        clientGameTest {
+            client()
+            sourceSet = sourceSets.clientGameTest
+            loadedMods = [mods.wormholes, mods.wormholes_clientgametest]
+            gameDirectory = file('build/run/clientGameTest')
+            systemProperty('wormholes.clientgametest', 'true')
+            systemProperty('wormholes.clientgametest.server', providers.gradleProperty('clientGameTestServer').getOrElse(''))
+            systemProperty('wormholes.clientgametest.serverSeamless', providers.gradleProperty('clientGameTestServerSeamless').getOrElse('true'))
+            systemProperty('wormholes.clientgametest.filter', providers.gradleProperty('clientGameTestFilter').getOrElse(''))
         }
     }
     unitTest {
@@ -248,4 +270,30 @@ apply from: '../game-test.gradle'
 apply from: '../../gradle/modded-artifact.gradle'
 tasks.named('verifyModdedArtifact').configure {
     metadata.set('META-INF/neoforge.mods.toml')
+}
+
+tasks.named('processClientGameTestResources').configure {
+    inputs.property('version', project.version)
+    inputs.property('minecraftVersion', minecraftVersion)
+    filesMatching('META-INF/neoforge.mods.toml') {
+        expand('version': project.version, 'minecraftVersion': minecraftVersion)
+    }
+}
+
+tasks.register('clientGameTestJar', Jar) {
+    group = 'verification'
+    archiveFileName.set('Wormholes-ClientGameTest.jar')
+    from(sourceSets.clientGameTest.output)
+}
+
+tasks.named('runClientGameTest').configure {
+    doFirst {
+        File fmlConfig = file('build/run/clientGameTest/config/fml.toml')
+        fmlConfig.parentFile.mkdirs()
+        fmlConfig.text = 'earlyWindowControl = false\nversionCheck = false\n'
+    }
+}
+
+tasks.named('check').configure {
+    dependsOn(tasks.named('clientGameTestClasses'))
 }

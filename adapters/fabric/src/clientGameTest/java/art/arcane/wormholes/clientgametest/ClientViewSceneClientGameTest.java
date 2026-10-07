@@ -80,7 +80,7 @@ public final class ClientViewSceneClientGameTest implements FabricClientGameTest
         long firedLater = context.computeOnClient(client -> WormholesClient.instance().tickState().fx().fired());
         assertTrue(firedLater > fired, "rim dust emitters did not fire locally");
         server.runOnServer(minecraftServer -> {
-            WormholesModRuntime runtime = runtime();
+            WormholesModRuntime runtime = runtime(minecraftServer);
             runtime.portals().remove(player, scene.source());
             runtime.portals().remove(player, scene.destination());
             runtime.portals().remove(player, scene.rtp());
@@ -133,7 +133,7 @@ public final class ClientViewSceneClientGameTest implements FabricClientGameTest
     }
 
     private static Scene build(MinecraftServer server, ServerPlayer actor) {
-        WormholesModRuntime runtime = runtime();
+        WormholesModRuntime runtime = runtime(server);
         ServerLevel level = server.overworld();
         fill(level, SOURCE_MIN.offset(-2, -1, 1), 6, 1, 8, Blocks.STONE.defaultBlockState());
         fill(level, DESTINATION_MIN.offset(-6, -2, -10), 13, 8, 10, Blocks.STONE.defaultBlockState());

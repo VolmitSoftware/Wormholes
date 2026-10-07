@@ -10,12 +10,15 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public final class TravelTap {
     private static final List<Frame> FRAMES = new ArrayList<>();
-    private static final IntList ADDED = new IntArrayList();
+    private static final Set<UUID> ADDED = new HashSet<>();
     private static final AtomicInteger ACCEPTS = new AtomicInteger();
     private static final IntList RESPAWN_FRAMES = new IntArrayList();
     private static final IntList POSITION_FRAMES = new IntArrayList();
@@ -55,8 +58,8 @@ public final class TravelTap {
         return "respawn frames " + RESPAWN_FRAMES + ", position frames " + POSITION_FRAMES;
     }
 
-    public static synchronized void added(int id) {
-        ADDED.add(id);
+    public static synchronized void added(UUID entity) {
+        ADDED.add(entity);
     }
 
     public static void accepted() {
@@ -105,7 +108,7 @@ public final class TravelTap {
         return positions;
     }
 
-    public static synchronized boolean addedAny(int first, int second) {
+    public static synchronized boolean addedAny(UUID first, UUID second) {
         return ADDED.contains(first) || ADDED.contains(second);
     }
 

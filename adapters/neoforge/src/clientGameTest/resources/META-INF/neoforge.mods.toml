@@ -1,0 +1,30 @@
+modLoader = "javafml"
+loaderVersion = "[3,)"
+license = "GPL-3.0"
+
+[[mods]]
+modId = "wormholes_clientgametest"
+version = "${version}"
+displayName = "Wormholes Client GameTest"
+description = "Through-portal projection and traversal."
+authors = "Volmit Software"
+
+[[dependencies.wormholes_clientgametest]]
+modId = "wormholes"
+type = "required"
+versionRange = "[${version}]"
+ordering = "AFTER"
+side = "BOTH"
+
+[[dependencies.wormholes_clientgametest]]
+modId = "minecraft"
+type = "required"
+versionRange = "[${minecraftVersion}]"
+ordering = "NONE"
+side = "BOTH"
+
+[[mixins]]
+config = "wormholes_clientgametest.mixins.json"
+
+[[mixins]]
+config = "wormholes_clientgametest_driver.mixins.json"

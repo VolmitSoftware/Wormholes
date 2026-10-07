@@ -1,20 +1,19 @@
 package art.arcane.wormholes.clientgametest;
 
-import art.arcane.wormholes.modded.client.ClientMeshSections;
-import art.arcane.wormholes.fabric.WormholesFabric;
-import art.arcane.wormholes.modded.WormholesModRuntime;
-import net.fabricmc.api.ModInitializer;
-import net.fabricmc.loader.api.FabricLoader;
-import java.lang.reflect.Field;
-import java.util.List;
-import java.util.ArrayList;
-import art.arcane.wormholes.modded.client.ClientPortal;
-import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
-import art.arcane.wormholes.modded.client.WormholesClient;
 import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.wormholes.modded.WormholesModRuntime;
+import art.arcane.wormholes.modded.client.ClientMeshSections;
+import art.arcane.wormholes.modded.client.ClientPortal;
+import art.arcane.wormholes.modded.client.WormholesClient;
+import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.block.state.BlockState;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 
 final class NativeClientViewAssertions {
     private NativeClientViewAssertions() {
@@ -112,18 +111,7 @@ final class NativeClientViewAssertions {
         return cells;
     }
 
-    static WormholesModRuntime runtime() {
-        for (ModInitializer initializer : FabricLoader.getInstance().getEntrypoints("main", ModInitializer.class)) {
-            if (initializer instanceof WormholesFabric fabric) {
-                try {
-                    Field field = WormholesFabric.class.getDeclaredField("runtime");
-                    field.setAccessible(true);
-                    return (WormholesModRuntime) field.get(fabric);
-                } catch (ReflectiveOperationException failure) {
-                    throw new IllegalStateException("Wormholes runtime is not reachable", failure);
-                }
-            }
-        }
-        throw new IllegalStateException("Wormholes main entrypoint is not loaded");
+    static WormholesModRuntime runtime(MinecraftServer server) {
+        return Objects.requireNonNull(WormholesModRuntime.forServer(server), "Wormholes runtime is not running on this server");
     }
 }

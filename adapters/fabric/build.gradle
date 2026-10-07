@@ -184,6 +184,8 @@ tasks.named('verifyModdedArtifact').configure {
 
 sourceSets {
     clientGameTest {
+        java.srcDir('../modded-common/src/clientGameTest/java')
+        resources.srcDir('../modded-common/src/clientGameTest/resources')
         compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath + sourceSets.gameTest.output
         runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath + sourceSets.gameTest.output
     }

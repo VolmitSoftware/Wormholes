@@ -84,8 +84,8 @@ public final class ClientViewClientGameTest implements FabricClientGameTest {
         assertTrue(withinBudget, "native resident content exceeded the configured memory budget");
         int key = context.computeOnClient(client -> NativeClientViewAssertions.portalKey(SOURCE_MIN));
         server.runOnServer(minecraftServer -> {
-            runtime().portals().remove(player, pair.source());
-            runtime().portals().remove(player, pair.destination());
+            runtime(minecraftServer).portals().remove(player, pair.source());
+            runtime(minecraftServer).portals().remove(player, pair.destination());
         });
         context.waitFor(client -> !WormholesClient.instance().session().portals().containsKey(key)
             && NativeClientViewAssertions.sections(key) == 0, STREAM_TIMEOUT_TICKS);
@@ -135,7 +135,7 @@ public final class ClientViewClientGameTest implements FabricClientGameTest {
     }
 
     private static PortalPair buildPair(MinecraftServer server, ServerPlayer actor) {
-        WormholesModRuntime runtime = runtime();
+        WormholesModRuntime runtime = runtime(server);
         ServerLevel level = server.overworld();
         fill(level, SOURCE_MIN.offset(-6, -1, 1), 13, 1, 10, Blocks.STONE.defaultBlockState());
         fill(level, DESTINATION_MIN.offset(-6, -2, -10), 13, 8, 10, Blocks.STONE.defaultBlockState());

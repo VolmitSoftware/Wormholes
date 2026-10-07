@@ -9,17 +9,17 @@ import art.arcane.optics.math.Angles;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.WormholesModRuntime;
+import art.arcane.wormholes.modded.client.ClientPreparedTravel;
 import art.arcane.wormholes.modded.client.WormholesClient;
 import art.arcane.wormholes.network.client.ClientViewExtensions;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.transit.OrientationPolicy;
-import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
-import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerConnection;
-import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntitySpawnReason;
@@ -36,6 +36,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -57,13 +58,17 @@ final class SeamlessScenario {
     private static final int VIEW_SETTLE_TICKS = 100;
     private static final double TURN_PIXELS = 40.0D;
     private static final float TURNING_HEAD_LAG = 1.0F;
+    private static final int MAX_LOGGED_HANDLE = 8;
 
     private SeamlessScenario() {
     }
 
-    static Route build(ServerPlayer actor, ServerLevel sourceLevel, BlockPos sourceMin, ServerLevel destinationLevel,
-                       BlockPos destinationMin, OrientationPolicy orientation) {
-        WormholesModRuntime runtime = runtime();
+    static Route build(ServerPlayer actor, MinecraftServer server, RouteSpec spec) {
+        WormholesModRuntime runtime = runtime(server);
+        ServerLevel sourceLevel = Objects.requireNonNull(server.getLevel(spec.sourceLevel()), "source level " + spec.sourceLevel());
+        ServerLevel destinationLevel = Objects.requireNonNull(server.getLevel(spec.destinationLevel()), "destination level " + spec.destinationLevel());
+        BlockPos sourceMin = spec.sourceMin();
+        BlockPos destinationMin = spec.destinationMin();
         fill(sourceLevel, sourceMin.offset(-4, 0, -6), 11, 6, 16, Blocks.AIR.defaultBlockState());
         fill(sourceLevel, sourceMin.offset(-4, -1, -6), 11, 1, 16, Blocks.STONE.defaultBlockState());
         fill(destinationLevel, destinationMin.offset(-6, 0, -12), 15, 6, 22, Blocks.AIR.defaultBlockState());
@@ -81,70 +86,78 @@ final class SeamlessScenario {
         MinecraftPortal source = runtime.portals().create(actor.getUUID(), sourceLevel, cells(sourceMin), PortalType.PORTAL, new Vec3(0, 0, -1));
         MinecraftPortal destination = runtime.portals().create(actor.getUUID(), destinationLevel, cells(destinationMin), PortalType.PORTAL, new Vec3(0, 0, -1));
         assertTrue(source != null && destination != null, "portal creation rejected");
-        source.setOrientation(orientation);
-        destination.setOrientation(orientation);
+        source.setOrientation(spec.orientation());
+        destination.setOrientation(spec.orientation());
         assertTrue(runtime.portals().link(actor, source.getId(), destination.getId()), "source link rejected");
         assertTrue(runtime.portals().link(actor, destination.getId(), source.getId()), "return link rejected");
         Vec3d approach = new Vec3d(sourceMin.getX() + 1.5D, sourceMin.getY() + 1.62D, sourceMin.getZ() + 6.5D);
-        Leg outbound = leg(source, destination, approach, orientation);
-        Leg inbound = leg(destination, source, outbound.toward().point(new Vec3d(approach.x(), approach.y(), approach.z() - 13.0D)), orientation);
-        return new Route(source.getId(), destination.getId(), sourceLevel.dimension(), sourceMin, destinationMin, outbound, inbound,
-            stand.getId(), frame.getId());
+        Leg outbound = leg(source, destination, approach, spec.orientation());
+        Leg inbound = leg(destination, source, outbound.toward().point(new Vec3d(approach.x(), approach.y(), approach.z() - 13.0D)), spec.orientation());
+        return new Route(source.getId(), destination.getId(), spec.sourceLevel(), sourceMin, destinationMin, outbound, inbound,
+            stand.getUUID(), frame.getUUID());
     }
 
-    static void approach(TestServerContext server, ServerPlayer player, Route route) {
-        server.runOnServer(minecraftServer -> player.teleportTo(minecraftServer.getLevel(route.sourceLevel()), route.sourceMin().getX() + 1.5D,
-            route.sourceMin().getY(), route.sourceMin().getZ() + 6.5D, Set.of(), 180.0F, 0.0F, false));
+    static void teleportToApproach(ServerPlayer player, ServerLevel level, BlockPos sourceMin) {
+        player.teleportTo(level, sourceMin.getX() + 1.5D, sourceMin.getY(), sourceMin.getZ() + 6.5D, Set.of(), 180.0F, 0.0F, false);
     }
 
-    static void turnBack(ClientGameTestContext context, TestServerConnection connection, Route route) {
-        context.getInput().holdKeyFor(options -> options.keyUp, STEP_AWAY_TICKS);
-        context.waitTicks(SETTLE_TICKS);
+    static void removePortal(ServerPlayer player, MinecraftServer server, UUID portal) {
+        runtime(server).portals().remove(player, portal);
+    }
+
+    static void join(SeamlessClient client) {
+        client.waitForChunksDownload();
+        client.waitFor(minecraft -> WormholesClient.instance() != null && WormholesClient.instance().session().active(), NEGOTIATION_TIMEOUT_TICKS);
+    }
+
+    static void turnBack(SeamlessClient client, Route route) {
+        client.holdForwardFor(STEP_AWAY_TICKS);
+        client.waitTicks(SETTLE_TICKS);
         Vec3d portal = route.inbound().exit().sourceOrigin();
-        Vec3 feet = context.computeOnClient(client -> client.player.position());
-        context.getInput().lookAt((float) Math.toDegrees(Math.atan2(-(portal.x() - feet.x), portal.z() - feet.z)), 0.0F);
-        context.waitTicks(SETTLE_TICKS);
-        awaitPrepared(context, connection);
+        Vec3 feet = client.computeOnClient(minecraft -> minecraft.player.position());
+        client.lookAt((float) Math.toDegrees(Math.atan2(-(portal.x() - feet.x), portal.z() - feet.z)), 0.0F);
+        client.waitTicks(SETTLE_TICKS);
+        awaitPrepared(client);
     }
 
-    static void awaitPrepared(ClientGameTestContext context, TestServerConnection connection) {
-        connection.waitForChunksRender();
-        context.waitTicks(VIEW_SETTLE_TICKS);
-        context.waitFor(client -> WormholesClient.instance().preparedTravel().readyRevision() > 0
+    static void awaitPrepared(SeamlessClient client) {
+        client.waitForChunksRender();
+        client.waitTicks(VIEW_SETTLE_TICKS);
+        client.waitFor(minecraft -> WormholesClient.instance().preparedTravel().readyRevision() > 0
             && !WormholesClient.instance().preparedTravel().adopted() && !WormholesClient.instance().preparedTravel().pendingCrossing(),
             PREPARATION_TIMEOUT_TICKS);
     }
 
-    static Crossing walkThrough(ClientGameTestContext context, String label) {
-        context.runOnClient(client -> TravelTap.reset());
-        int player = context.computeOnClient(client -> System.identityHashCode(client.player));
-        ClientLevel source = context.computeOnClient(client -> client.level);
-        context.getInput().holdKey(options -> options.keyUp);
+    static Crossing walkThrough(SeamlessClient client, String label) {
+        client.runOnClient(minecraft -> TravelTap.reset());
+        int player = client.computeOnClient(minecraft -> System.identityHashCode(minecraft.player));
+        ClientLevel source = client.computeOnClient(minecraft -> minecraft.level);
+        client.holdForward();
         try {
-            context.waitFor(client -> TravelTap.crossingFrame(CROSSING_JUMP) >= 0, CROSSING_TIMEOUT_TICKS);
+            client.waitFor(minecraft -> TravelTap.crossingFrame(CROSSING_JUMP) >= 0, CROSSING_TIMEOUT_TICKS);
         } finally {
-            context.getInput().releaseKey(options -> options.keyUp);
+            client.releaseForward();
         }
-        context.waitTicks(1);
-        int index = context.computeOnClient(client -> TravelTap.crossingFrame(CROSSING_JUMP));
+        client.waitTicks(1);
+        int index = client.computeOnClient(minecraft -> TravelTap.crossingFrame(CROSSING_JUMP));
         return new Crossing(label, index, player, source);
     }
 
-    static Crossing walkThroughTurning(ClientGameTestContext context, String label) {
-        context.runOnClient(client -> TravelTap.reset());
-        int player = context.computeOnClient(client -> System.identityHashCode(client.player));
-        ClientLevel source = context.computeOnClient(client -> client.level);
-        context.getInput().holdKey(options -> options.keyUp);
+    static Crossing walkThroughTurning(SeamlessClient client, String label) {
+        client.runOnClient(minecraft -> TravelTap.reset());
+        int player = client.computeOnClient(minecraft -> System.identityHashCode(minecraft.player));
+        ClientLevel source = client.computeOnClient(minecraft -> minecraft.level);
+        client.holdForward();
         try {
-            for (int tick = 0; tick < CROSSING_TIMEOUT_TICKS && context.computeOnClient(client -> TravelTap.crossingFrame(CROSSING_JUMP)) < 0; tick++) {
-                context.getInput().moveCursor((tick & 1) == 0 ? TURN_PIXELS : -TURN_PIXELS, 0.0D);
-                context.waitTick();
+            for (int tick = 0; tick < CROSSING_TIMEOUT_TICKS && client.computeOnClient(minecraft -> TravelTap.crossingFrame(CROSSING_JUMP)) < 0; tick++) {
+                client.moveCursor((tick & 1) == 0 ? TURN_PIXELS : -TURN_PIXELS, 0.0D);
+                client.waitTicks(1);
             }
         } finally {
-            context.getInput().releaseKey(options -> options.keyUp);
+            client.releaseForward();
         }
-        context.waitTicks(1);
-        int index = context.computeOnClient(client -> TravelTap.crossingFrame(CROSSING_JUMP));
+        client.waitTicks(1);
+        int index = client.computeOnClient(minecraft -> TravelTap.crossingFrame(CROSSING_JUMP));
         assertTrue(index >= 0, label + ": the player never crossed the portal while turning");
         float headLag = TravelTap.frames().get(index).headLag();
         LOGGER.info("[{}] crossing frame look leads the head yaw by {} degrees", label, String.format("%.3f", headLag));
@@ -152,44 +165,59 @@ final class SeamlessScenario {
         return new Crossing(label, index, player, source);
     }
 
-    static void assertSeamlessNegotiated(ClientGameTestContext context) {
-        boolean seamless = context.computeOnClient(client -> WormholesClient.instance().session().active()
+    static void assertSeamlessNegotiated(SeamlessClient client) {
+        boolean seamless = client.computeOnClient(minecraft -> WormholesClient.instance().session().active()
+            && WormholesClient.instance().session().has(ClientViewExtensions.REMOTE_VIEW)
             && WormholesClient.instance().session().has(ClientViewExtensions.SEAMLESS_TRAVEL));
-        assertTrue(seamless, "the server did not negotiate SEAMLESS_TRAVEL (capability 20) for this session");
+        assertTrue(seamless, "the server did not negotiate REMOTE_VIEW and SEAMLESS_TRAVEL for this session");
     }
 
-    static void assertPreparedTravel(ClientGameTestContext context, Crossing crossing, boolean dimensionChanged) {
-        context.waitFor(client -> !WormholesClient.instance().preparedTravel().pendingCrossing(), ACCEPT_TIMEOUT_TICKS);
-        context.waitTicks(SETTLE_TICKS);
+    static void assertPreparedTravel(SeamlessClient client, Crossing crossing, boolean dimensionChanged) {
+        client.waitFor(minecraft -> !WormholesClient.instance().preparedTravel().pendingCrossing(), ACCEPT_TIMEOUT_TICKS);
+        client.waitTicks(SETTLE_TICKS);
         reportFrameTimes(crossing);
         assertTrue(!dimensionChanged || TravelTap.respawns() > 0, crossing.label() + ": prepared travel received no respawn packet");
         assertTrue(TravelTap.positions() > 0, crossing.label() + ": prepared travel received no position packet");
         assertTrue(!TravelTap.loadingScreenShown(), crossing.label() + ": the level loading screen was shown");
-        assertSamePlayer(context, crossing);
+        assertSamePlayer(client, crossing);
     }
 
-    static void assertSeamlessTravel(ClientGameTestContext context, Route route, Crossing crossing) {
-        boolean present = context.computeOnClient(client -> client.level.getEntity(route.standId()) != null
-            && client.level.getEntity(route.frameId()) != null);
-        assertTrue(present, crossing.label() + ": destination entities were not resident on the first tick after the crossing");
-        assertSeamless(context, crossing, route.outbound(), route.destinationMin());
-        assertTrue(!TravelTap.addedAny(route.standId(), route.frameId()),
+    static void assertSeamlessTravel(SeamlessClient client, Route route, Crossing crossing) {
+        boolean present = client.computeOnClient(minecraft -> minecraft.level.getEntity(route.stand()) != null
+            && minecraft.level.getEntity(route.frame()) != null);
+        if (!present) {
+            throw new AssertionError(crossing.label() + ": destination entities were not resident on the first tick after the crossing; "
+                + client.computeOnClient(minecraft -> arrivalState(minecraft, route, crossing)));
+        }
+        assertSeamless(client, crossing, route.outbound(), route.destinationMin());
+        assertTrue(!TravelTap.addedAny(route.stand(), route.frame()),
             crossing.label() + ": destination entities were added again after the crossing");
     }
 
-    static void assertSeamlessReturn(ClientGameTestContext context, Route route, Crossing crossing) {
-        assertSeamless(context, crossing, route.inbound(), route.sourceMin());
+    static void assertSeamlessReturn(SeamlessClient client, Route route, Crossing crossing) {
+        assertSeamless(client, crossing, route.inbound(), route.sourceMin());
     }
 
-    private static void assertSeamless(ClientGameTestContext context, Crossing crossing, Leg leg, BlockPos returnPortal) {
-        context.waitFor(client -> !WormholesClient.instance().preparedTravel().pendingCrossing(), ACCEPT_TIMEOUT_TICKS);
-        boolean levelChanged = context.computeOnClient(client -> client.level != crossing.source());
-        if (levelChanged) {
-            context.waitFor(client -> WormholesClient.instance().preparedTravel().residents().handle(crossing.source()) > 0, RETURN_VIEW_TICKS);
+    static void finish(SeamlessClient client, SeamlessServer server, Route route) {
+        client.restoreDefaultGameOptions();
+        server.remove(route);
+    }
+
+    static void assertTrue(boolean condition, String message) {
+        if (!condition) {
+            throw new AssertionError(message);
         }
-        context.waitFor(client -> NativeClientViewAssertions.sections(NativeClientViewAssertions.portalKey(returnPortal)) > 0, RETURN_VIEW_TICKS);
-        context.waitTicks(SETTLE_TICKS);
-        assertTrue(context.computeOnClient(client -> !client.levelRenderer.visibleSections().isEmpty()),
+    }
+
+    private static void assertSeamless(SeamlessClient client, Crossing crossing, Leg leg, BlockPos returnPortal) {
+        client.waitFor(minecraft -> !WormholesClient.instance().preparedTravel().pendingCrossing(), ACCEPT_TIMEOUT_TICKS);
+        boolean levelChanged = client.computeOnClient(minecraft -> minecraft.level != crossing.source());
+        if (levelChanged) {
+            client.waitFor(minecraft -> WormholesClient.instance().preparedTravel().residents().handle(crossing.source()) > 0, RETURN_VIEW_TICKS);
+        }
+        client.waitFor(minecraft -> NativeClientViewAssertions.sections(NativeClientViewAssertions.portalKey(returnPortal)) > 0, RETURN_VIEW_TICKS);
+        client.waitTicks(SETTLE_TICKS);
+        assertTrue(client.computeOnClient(minecraft -> !minecraft.levelRenderer.visibleSections().isEmpty()),
             crossing.label() + ": the main renderer draws nothing of the arrival level");
         reportFrameTimes(crossing);
         assertTrue(TravelTap.respawns() == 0, crossing.label() + ": " + TravelTap.respawns() + " respawn packets were handled");
@@ -197,11 +225,11 @@ final class SeamlessScenario {
         assertTrue(TravelTap.accepts() == 0, crossing.label() + ": " + TravelTap.accepts() + " teleport acknowledgements were sent");
         assertTrue(!TravelTap.loadingScreenShown(), crossing.label() + ": the level loading screen was shown");
         assertTrue(!TravelTap.clientUnloaded(), crossing.label() + ": the client left the loaded state");
-        assertSamePlayer(context, crossing);
+        assertSamePlayer(client, crossing);
         assertPoseContinuity(leg, crossing);
     }
 
-    static void assertPoseContinuity(Leg leg, Crossing crossing) {
+    private static void assertPoseContinuity(Leg leg, Crossing crossing) {
         List<TravelTap.Frame> frames = TravelTap.frames();
         assertTrue(crossing.index() >= 2 && crossing.index() < frames.size(), crossing.label() + ": no crossing frame was recorded");
         TravelTap.Frame earlier = frames.get(crossing.index() - 2);
@@ -222,7 +250,7 @@ final class SeamlessScenario {
             crossing.label() + ": pitch " + after.pitch() + " after the crossing, expected " + expected.pitch());
     }
 
-    static void reportFrameTimes(Crossing crossing) {
+    private static void reportFrameTimes(Crossing crossing) {
         List<TravelTap.Frame> frames = TravelTap.frames();
         if (crossing.index() < 2) {
             LOGGER.info("[{}] frame timing unavailable: crossing frame {}", crossing.label(), crossing.index());
@@ -254,7 +282,7 @@ final class SeamlessScenario {
             worstFrame, slow, crossing.index(), TravelTap.events(), after);
     }
 
-    static void fill(ServerLevel level, BlockPos min, int sizeX, int sizeY, int sizeZ, BlockState state) {
+    private static void fill(ServerLevel level, BlockPos min, int sizeX, int sizeY, int sizeZ, BlockState state) {
         for (int x = 0; x < sizeX; x++) {
             for (int y = 0; y < sizeY; y++) {
                 for (int z = 0; z < sizeZ; z++) {
@@ -264,22 +292,25 @@ final class SeamlessScenario {
         }
     }
 
-    static void finish(ClientGameTestContext context, TestServerContext server, ServerPlayer player, Route route) {
-        context.restoreDefaultGameOptions();
-        server.runOnServer(minecraftServer -> {
-            runtime().portals().remove(player, route.source());
-            runtime().portals().remove(player, route.destination());
-        });
-    }
-
-    static void assertTrue(boolean condition, String message) {
-        if (!condition) {
-            throw new AssertionError(message);
+    private static String arrivalState(Minecraft minecraft, Route route, Crossing crossing) {
+        ClientPreparedTravel travel = WormholesClient.instance().preparedTravel();
+        StringBuilder state = new StringBuilder();
+        state.append("level ").append(minecraft.level.dimension().identifier()).append(minecraft.level == crossing.source() ? " (crossing source)" : " (swapped)")
+            .append(", player ").append(minecraft.player.position()).append(", pending ").append(travel.pendingCrossing())
+            .append(", adopted ").append(travel.adopted()).append(", confirmed ").append(travel.positionConfirmed());
+        for (int handle = 1; handle <= MAX_LOGGED_HANDLE; handle++) {
+            if (travel.residents().has(handle)) {
+                ClientLevel level = travel.residents().level(handle);
+                state.append(", resident ").append(handle).append(' ').append(level.dimension().identifier())
+                    .append(level == minecraft.level ? " (current)" : "").append(" stand ").append(level.getEntity(route.stand()) != null)
+                    .append(" frame ").append(level.getEntity(route.frame()) != null);
+            }
         }
+        return state.append(", ").append(TravelTap.events()).append(", re-added ").append(TravelTap.addedAny(route.stand(), route.frame())).toString();
     }
 
-    private static void assertSamePlayer(ClientGameTestContext context, Crossing crossing) {
-        int player = context.computeOnClient(client -> System.identityHashCode(client.player));
+    private static void assertSamePlayer(SeamlessClient client, Crossing crossing) {
+        int player = client.computeOnClient(minecraft -> System.identityHashCode(minecraft.player));
         assertTrue(player == crossing.player(), crossing.label() + ": the local player object was replaced");
     }
 
@@ -314,8 +345,12 @@ final class SeamlessScenario {
         return wrapped;
     }
 
+    record RouteSpec(ResourceKey<Level> sourceLevel, BlockPos sourceMin, ResourceKey<Level> destinationLevel, BlockPos destinationMin,
+                     OrientationPolicy orientation) {
+    }
+
     record Route(UUID source, UUID destination, ResourceKey<Level> sourceLevel, BlockPos sourceMin, BlockPos destinationMin,
-                 Leg outbound, Leg inbound, int standId, int frameId) {
+                 Leg outbound, Leg inbound, UUID stand, UUID frame) {
     }
 
     record Leg(OpticTransform toward, Exit exit, OrientationRule orientation) {

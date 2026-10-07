@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "art.arcane.wormholes.clientgametest.drivermixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "CursorFrameTap",
+    "QaReplyTap"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
