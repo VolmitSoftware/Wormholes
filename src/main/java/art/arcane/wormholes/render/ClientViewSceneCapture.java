@@ -155,7 +155,7 @@ public final class ClientViewSceneCapture {
         boolean itemFrame = ITEM_FRAME.equals(type) || GLOW_ITEM_FRAME.equals(type);
         boolean hanging = itemFrame || PAINTING.equals(type);
         EntityProjection.Projected projected = nativeMesh ? transform.nativeModel(visual, frame, hanging, secret)
-            : transform.project(visual, frame, hanging, itemFrame, secret);
+            : transform.project(visual, frame, hanging, itemFrame, secret, ProjectedEntityIdentity.NAMING);
         if (projected == null) {
             return;
         }

@@ -34,8 +34,11 @@ import art.arcane.optics.entity.SpoofRegistry;
 import art.arcane.optics.entity.SpoofedEntity;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.wormholes.platform.QueuedOpticsScheduler;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public final class ProjectedEntityRendererTeardownTest {
+    private static final AtomicInteger ENTITY_IDS = new AtomicInteger(1);
+
     @Test
     public void emptyOnlineTeardownDoesNotOpenOrFlushPacketBatch() {
         ProjectedEntityPacketRecorder recorder = ProjectedEntityPacketRecorder.installWithBatchUser();
@@ -68,7 +71,7 @@ public final class ProjectedEntityRendererTeardownTest {
             ProjectedEntityRenderer renderer = new ProjectedEntityRenderer(output, registry, new QueuedOpticsScheduler());
             channel.begin(observer);
             identity.sendRemotePlayerInfo(observer, null,
-                SpoofedEntity.create(true, false, true), false);
+                SpoofedEntity.create(ENTITY_IDS::getAndIncrement, true, false, true), false);
             channel.end();
 
             renderer.close(observer);
@@ -90,7 +93,7 @@ public final class ProjectedEntityRendererTeardownTest {
             EntityRenderPacketChannel channel = new EntityRenderPacketChannel();
             BukkitEntityRegistryHost output = new BukkitEntityRegistryHost(channel, BukkitEntityRegistryHost.PLUGIN_VISIBILITY);
             SpoofRegistry<Player, Vector3d> registry = new SpoofRegistry<>(output);
-            SpoofedEntity ghost = SpoofedEntity.create(false, false, true);
+            SpoofedEntity ghost = SpoofedEntity.create(ENTITY_IDS::getAndIncrement, false, false, true);
             UUID sourceId = UUID.randomUUID();
             registry.track(sourceId, ghost);
             ProjectedEntityRenderer renderer = new ProjectedEntityRenderer(output, registry, new QueuedOpticsScheduler());
@@ -115,7 +118,7 @@ public final class ProjectedEntityRendererTeardownTest {
             BukkitEntityRegistryHost output = new BukkitEntityRegistryHost(channel, BukkitEntityRegistryHost.PLUGIN_VISIBILITY);
             SpoofRegistry<Player, Vector3d> registry = new SpoofRegistry<>(output);
             UUID sourceId = UUID.randomUUID();
-            registry.track(sourceId, SpoofedEntity.create(false, false, true));
+            registry.track(sourceId, SpoofedEntity.create(ENTITY_IDS::getAndIncrement, false, false, true));
             ProjectedEntityRenderer renderer = new ProjectedEntityRenderer(output, registry, new QueuedOpticsScheduler());
 
             renderer.discard(ProjectedEntityPacketRecorder.player(false));
@@ -136,7 +139,7 @@ public final class ProjectedEntityRendererTeardownTest {
             EntityRenderPacketChannel channel = new EntityRenderPacketChannel();
             BukkitEntityRegistryHost output = new BukkitEntityRegistryHost(channel, BukkitEntityRegistryHost.PLUGIN_VISIBILITY);
             SpoofRegistry<Player, Vector3d> registry = new SpoofRegistry<>(output);
-            SpoofedEntity ghost = SpoofedEntity.create(false, false, true);
+            SpoofedEntity ghost = SpoofedEntity.create(ENTITY_IDS::getAndIncrement, false, false, true);
             UUID sourceId = UUID.randomUUID();
             registry.track(sourceId, ghost);
             ProjectedEntityRenderer renderer = new ProjectedEntityRenderer(output, registry, new QueuedOpticsScheduler());
@@ -169,7 +172,7 @@ public final class ProjectedEntityRendererTeardownTest {
             BukkitEntityRegistryHost output = new BukkitEntityRegistryHost(channel, BukkitEntityRegistryHost.PLUGIN_VISIBILITY);
             SpoofRegistry<Player, Vector3d> registry = new SpoofRegistry<>(output);
             UUID sourceId = UUID.randomUUID();
-            SpoofedEntity item = SpoofedEntity.create(false, false, false);
+            SpoofedEntity item = SpoofedEntity.create(ENTITY_IDS::getAndIncrement, false, false, false);
             registry.track(sourceId, item);
             ProjectedEntityRenderer renderer = new ProjectedEntityRenderer(output, registry, new QueuedOpticsScheduler());
             Player observer = ProjectedEntityPacketRecorder.player(true);
@@ -201,7 +204,7 @@ public final class ProjectedEntityRendererTeardownTest {
             EntityRenderPacketChannel channel = new EntityRenderPacketChannel();
             BukkitEntityRegistryHost output = new BukkitEntityRegistryHost(channel, BukkitEntityRegistryHost.PLUGIN_VISIBILITY);
             SpoofRegistry<Player, Vector3d> registry = new SpoofRegistry<>(output);
-            SpoofedEntity vehicle = SpoofedEntity.create(false, false, true);
+            SpoofedEntity vehicle = SpoofedEntity.create(ENTITY_IDS::getAndIncrement, false, false, true);
             vehicle.lastPassengers = new int[] { vehicle.fakeId + 1 };
             registry.track(UUID.randomUUID(), vehicle);
             ProjectedEntityRenderer renderer = new ProjectedEntityRenderer(output, registry, new QueuedOpticsScheduler());

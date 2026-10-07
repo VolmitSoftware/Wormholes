@@ -565,7 +565,7 @@ public final class ProjectedEntityRenderer {
         }
         if (state == null) {
             boolean playerEntity = entity instanceof Player;
-            state = SpoofedEntity.create(playerEntity, upsideDown, entity instanceof LivingEntity);
+            state = SpoofedEntity.create(output::allocateEntityId, playerEntity, upsideDown, entity instanceof LivingEntity);
             registry.track(entity.getUniqueId(), state);
             if (playerEntity) {
                 identity.sendPlayerInfo(observer, (Player) entity, state, upsideDown);
@@ -662,14 +662,14 @@ public final class ProjectedEntityRenderer {
             DISPLAY_BRIGHTNESS_INDEX,
             FULL_BRIGHT,
             TEXT_DISPLAY_TEXT_INDEX,
-            Component.text(PlayerNames.playerLabelText(label), NamedTextColor.WHITE),
+            Component.text(ProjectedEntityIdentity.NAMING.labelText(label), NamedTextColor.WHITE),
             TEXT_DISPLAY_BACKGROUND_INDEX,
             0);
     }
 
     static List<EntityData<?>> playerLabelTextMetadata(String label) {
         return List.of(new EntityData<Component>(TEXT_DISPLAY_TEXT_INDEX, EntityDataTypes.ADV_COMPONENT,
-            Component.text(PlayerNames.playerLabelText(label), NamedTextColor.WHITE)));
+            Component.text(ProjectedEntityIdentity.NAMING.labelText(label), NamedTextColor.WHITE)));
     }
 
     static <K, V> boolean removeCompletedRestores(Map<K, V> pending, Predicate<V> completed) {

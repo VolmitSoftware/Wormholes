@@ -61,7 +61,7 @@ public final class EntityProjection {
         return true;
     }
 
-    public Projected project(EntitySnapshot visual, ViewWindow window, boolean hanging, boolean itemFrame, long secret) {
+    public Projected project(EntitySnapshot visual, ViewWindow window, boolean hanging, boolean itemFrame, long secret, PlayerNaming naming) {
         Objects.requireNonNull(visual, "visual");
         OpticTransform transform = window.transform();
         transform.pointInto(visual.x(), visibleY(visual, hanging), visual.z(), point);
@@ -71,7 +71,7 @@ public final class EntityProjection {
         finish(visual, transform, itemFrame, hanging);
         UUID id = opaque(secret, visual.id());
         String playerName = visual.isPlayer() && transform.flipsWorldUp()
-            ? PlayerNames.projectedProfileName(visual.playerName(), id, true)
+            ? naming.projectedProfileName(visual.playerName(), id, true)
             : visual.playerName();
         EntitySnapshot local = new EntitySnapshot(EntitySnapshot.MODE_FULL, 0, EntitySnapshot.FIELD_ALL_FULL, id, visual.typeKey(), x, y, z,
             visual.height(), lookX, lookY, lookZ, yaw, pitch, velocityX, velocityY, velocityZ, visual.onGround(), playerName,

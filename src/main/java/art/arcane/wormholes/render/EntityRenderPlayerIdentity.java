@@ -40,13 +40,13 @@ final class EntityRenderPlayerIdentity {
 
     EntityRenderPlayerIdentity(EntityRenderPacketChannel channel, EntityOutput<Player, ?, ?, ?, ?> output) {
         this.channel = channel;
-        this.names = new PlayerNames<>(output);
+        this.names = new PlayerNames<>(output, ProjectedEntityIdentity.nextTeamName());
     }
 
     void sendPlayerInfo(Player observer, Player player, SpoofedEntity state, boolean upsideDown) {
         String sourceName = player.getName();
-        String label = PlayerNames.playerLabelText(sourceName);
-        String name = PlayerNames.projectedProfileName(sourceName, state.fakeUuid, upsideDown);
+        String label = ProjectedEntityIdentity.NAMING.labelText(sourceName);
+        String name = ProjectedEntityIdentity.NAMING.projectedProfileName(sourceName, state.fakeUuid, upsideDown);
         state.setPlayerIdentity(name, label);
         names.retain(observer, name);
         UserProfile userProfile = new UserProfile(state.fakeUuid, name);
@@ -79,8 +79,8 @@ final class EntityRenderPlayerIdentity {
     void sendRemotePlayerInfo(Player observer, EntityProfile profile, SpoofedEntity state, boolean upsideDown) {
         state.playerProfile = profile;
         String sourceName = profile == null ? null : profile.name();
-        String label = PlayerNames.playerLabelText(sourceName);
-        String name = PlayerNames.projectedProfileName(sourceName, state.fakeUuid, upsideDown);
+        String label = ProjectedEntityIdentity.NAMING.labelText(sourceName);
+        String name = ProjectedEntityIdentity.NAMING.projectedProfileName(sourceName, state.fakeUuid, upsideDown);
         state.setPlayerIdentity(name, label);
         names.retain(observer, name);
         UserProfile userProfile = new UserProfile(state.fakeUuid, name);
@@ -137,7 +137,7 @@ final class EntityRenderPlayerIdentity {
             return;
         }
         String sourceName = profile == null ? null : profile.name();
-        String label = PlayerNames.playerLabelText(sourceName);
+        String label = ProjectedEntityIdentity.NAMING.labelText(sourceName);
         if (!state.updatePlayerLabelText(label)) {
             return;
         }

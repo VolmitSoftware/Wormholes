@@ -1,5 +1,6 @@
 package art.arcane.optics.entity;
 
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -7,9 +8,11 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class EntityRenderSpoofedMotionTest {
+    private static final AtomicInteger ENTITY_IDS = new AtomicInteger(1);
+
     @Test
     void motionKeepsExistingRelativeTeleportAndSubpixelThresholds() {
-        SpoofedEntity state = SpoofedEntity.create(false, false, true);
+        SpoofedEntity state = SpoofedEntity.create(ENTITY_IDS::getAndIncrement, false, false, true);
         assertFalse(state.updatePosition(1.0D, 2.0D, 3.0D).relative);
         SpoofedEntity.Move relative = state.updatePosition(1.25D, 2.5D, 2.0D);
         assertTrue(relative.relative);
@@ -22,7 +25,7 @@ final class EntityRenderSpoofedMotionTest {
 
     @Test
     void wrappedYawAndVelocityNoiseDoNotProduceRedundantPackets() {
-        SpoofedEntity state = SpoofedEntity.create(true, false, true);
+        SpoofedEntity state = SpoofedEntity.create(ENTITY_IDS::getAndIncrement, true, false, true);
         assertTrue(state.updateRotation(359.9F, 0.0F));
         assertFalse(state.updateRotation(0.1F, 0.1F));
         assertTrue(state.updateRotation(1.0F, 0.1F));
@@ -34,7 +37,7 @@ final class EntityRenderSpoofedMotionTest {
 
     @Test
     void velocityChangesInsideTheEpsilonAreSkippedAgainstTheLastSentValue() {
-        SpoofedEntity state = SpoofedEntity.create(false, false, true);
+        SpoofedEntity state = SpoofedEntity.create(ENTITY_IDS::getAndIncrement, false, false, true);
         assertTrue(state.updateVelocity(0.1D, -0.0784D, 0.0D, 0.005D));
         assertFalse(state.updateVelocity(0.104D, -0.0784D, 0.003D, 0.005D));
         assertFalse(state.updateVelocity(0.1049D, -0.08D, 0.0049D, 0.005D));
@@ -43,7 +46,7 @@ final class EntityRenderSpoofedMotionTest {
 
     @Test
     void stoppingAlwaysSendsTheZeroVelocity() {
-        SpoofedEntity state = SpoofedEntity.create(false, false, true);
+        SpoofedEntity state = SpoofedEntity.create(ENTITY_IDS::getAndIncrement, false, false, true);
         assertTrue(state.updateVelocity(0.002D, 0.0D, -0.001D, 0.005D));
         assertTrue(state.updateVelocity(0.0D, 0.0D, 0.0D, 0.005D));
         assertFalse(state.updateVelocity(0.0D, 0.0D, 0.0D, 0.005D));

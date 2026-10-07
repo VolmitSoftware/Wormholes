@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.UUID;
 
 public interface EntityOutput<O, R, T, V, E> {
+    int allocateEntityId();
+
     T type(String key);
 
     boolean isItemFrame(T type);

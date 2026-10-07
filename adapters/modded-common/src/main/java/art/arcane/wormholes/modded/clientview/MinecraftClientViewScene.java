@@ -49,6 +49,7 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import art.arcane.wormholes.network.client.FxMessage;
+import art.arcane.wormholes.render.ProjectedEntityIdentity;
 
 public final class MinecraftClientViewScene implements EntityFrames.Scenes<MinecraftClientViewPeer>,
     ClientViewSceneFx.Effects<MinecraftClientViewPeer> {
@@ -121,7 +122,7 @@ public final class MinecraftClientViewScene implements EntityFrames.Scenes<Minec
             boolean hanging = itemFrame || type == EntityTypes.PAINTING;
             EntitySnapshot profiled = withProfile(visual, view.getProfile(visual.id()));
             EntityProjection.Projected projected = nativeMesh ? transform.nativeModel(profiled, frame, hanging, secret)
-                : transform.project(profiled, frame, hanging, itemFrame, secret);
+                : transform.project(profiled, frame, hanging, itemFrame, secret, ProjectedEntityIdentity.NAMING);
             if (projected == null) {
                 continue;
             }

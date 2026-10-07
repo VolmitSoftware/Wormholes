@@ -60,7 +60,7 @@ public final class SnapshotProjector<O, W, P extends Endpoint, R, T, V> {
             state = null;
         }
         if (state == null) {
-            state = SpoofedEntity.create(visual.isPlayer(), upsideDown,
+            state = SpoofedEntity.create(output::allocateEntityId, visual.isPlayer(), upsideDown,
                 visual.isPlayer() || output.isLiving(packetType));
             registry.track(visual.id(), state);
             if (visual.isPlayer()) {

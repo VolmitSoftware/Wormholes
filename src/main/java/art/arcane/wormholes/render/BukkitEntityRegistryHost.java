@@ -78,6 +78,11 @@ public final class BukkitEntityRegistryHost implements EntityOutput<Player, Vect
     }
 
     @Override
+    public int allocateEntityId() {
+        return ProjectedEntityIdentity.nextEntityId();
+    }
+
+    @Override
     public EntityType type(String key) {
         if (key == null || key.isBlank()) {
             return null;

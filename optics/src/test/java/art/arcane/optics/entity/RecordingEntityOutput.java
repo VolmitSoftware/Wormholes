@@ -20,7 +20,10 @@ final class RecordingEntityOutput implements EntityOutput<Object, Vec3d, String,
     final UUID observerId = UUID.randomUUID();
     boolean online = true;
     int hideFailures;
+    private int nextEntityId = 1;
 
+    @Override
+    public int allocateEntityId() { return nextEntityId++; }
     @Override
     public String type(String key) { return key; }
     @Override

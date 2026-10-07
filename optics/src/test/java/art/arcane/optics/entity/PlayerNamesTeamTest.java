@@ -10,7 +10,7 @@ final class PlayerNamesTeamTest {
     @Test
     void namesAreReferenceCountedThroughTheTeamOutput() {
         RecordingEntityOutput output = new RecordingEntityOutput();
-        PlayerNames<Object> names = new PlayerNames<>(output);
+        PlayerNames<Object> names = new PlayerNames<>(output, "team");
         names.retain(output, "Alex");
         names.retain(output, "Alex");
         names.retain(output, "Steve");

@@ -102,7 +102,7 @@ public final class ApertureCells implements CellAperture {
             if (area == null) {
                 return null;
             }
-            block = area.random();
+            block = area.random(ThreadLocalRandom.current());
         }
         return new Vec3d(Math.floor(block.x()) + 0.5D, Math.floor(block.y()) + 0.5D, Math.floor(block.z()) + 0.5D);
     }

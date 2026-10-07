@@ -6,21 +6,24 @@ import org.junit.jupiter.api.Test;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
 public final class EntityRenderSpoofRegistryTest {
+    private static final AtomicInteger ENTITY_IDS = new AtomicInteger(1);
+
     @Test
     public void animationTargetsExcludeUnspawnedAndNonLivingEntities() {
         RecordingEntityOutput host = new RecordingEntityOutput();
         SpoofRegistry<Object, Vec3d> registry = new SpoofRegistry<>(host);
         UUID source = UUID.randomUUID();
         assertEquals(-1, registry.livingId(source));
-        registry.track(source, SpoofedEntity.create(false, false, false));
+        registry.track(source, SpoofedEntity.create(ENTITY_IDS::getAndIncrement, false, false, false));
         assertEquals(-1, registry.livingId(source));
-        SpoofedEntity living = SpoofedEntity.create(false, false, true);
+        SpoofedEntity living = SpoofedEntity.create(ENTITY_IDS::getAndIncrement, false, false, true);
         registry.track(source, living);
         assertEquals(living.fakeId, registry.livingId(source));
         registry.destroyHidden(host);
@@ -34,9 +37,9 @@ public final class EntityRenderSpoofRegistryTest {
         UUID vehicle = UUID.randomUUID();
         UUID declared = UUID.randomUUID();
         UUID inferred = UUID.randomUUID();
-        SpoofedEntity vehicleState = SpoofedEntity.create(false, false, true);
-        SpoofedEntity declaredState = SpoofedEntity.create(false, false, true);
-        SpoofedEntity inferredState = SpoofedEntity.create(false, false, true);
+        SpoofedEntity vehicleState = SpoofedEntity.create(ENTITY_IDS::getAndIncrement, false, false, true);
+        SpoofedEntity declaredState = SpoofedEntity.create(ENTITY_IDS::getAndIncrement, false, false, true);
+        SpoofedEntity inferredState = SpoofedEntity.create(ENTITY_IDS::getAndIncrement, false, false, true);
         registry.track(vehicle, vehicleState);
         registry.track(declared, declaredState);
         registry.track(inferred, inferredState);
@@ -63,7 +66,7 @@ public final class EntityRenderSpoofRegistryTest {
         RecordingEntityOutput host = new RecordingEntityOutput();
         SpoofRegistry<Object, Vec3d> registry = new SpoofRegistry<>(host);
         UUID source = UUID.randomUUID();
-        SpoofedEntity state = SpoofedEntity.create(true, false, true);
+        SpoofedEntity state = SpoofedEntity.create(ENTITY_IDS::getAndIncrement, true, false, true);
         registry.track(source, state);
         registry.destroyHidden(host);
         assertFalse(registry.contains(source));
@@ -82,7 +85,7 @@ public final class EntityRenderSpoofRegistryTest {
     public void motionSelectsRelativeRotationTeleportAndRotationOnly() {
         RecordingEntityOutput host = new RecordingEntityOutput();
         SpoofRegistry<Object, Vec3d> registry = new SpoofRegistry<>(host);
-        SpoofedEntity state = SpoofedEntity.create(false, false, true);
+        SpoofedEntity state = SpoofedEntity.create(ENTITY_IDS::getAndIncrement, false, false, true);
         state.rememberPosition(0.0D, 0.0D, 0.0D);
         registry.syncMotion(host, state, state.updatePosition(1.0D, 0.0D, 0.0D), true, new Vec3d(1, 0, 0), 20, 0, false);
         registry.syncMotion(host, state, state.updatePosition(20.0D, 0.0D, 0.0D), false, new Vec3d(20, 0, 0), 20, 0, false);

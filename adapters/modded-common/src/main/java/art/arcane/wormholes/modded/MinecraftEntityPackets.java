@@ -75,6 +75,7 @@ import art.arcane.optics.entity.SpoofRegistry;
 import art.arcane.optics.entity.SpoofedEntity;
 import art.arcane.optics.view.EntityData;
 import art.arcane.wormholes.modded.mixin.ProjectionEntityMapAccess;
+import art.arcane.wormholes.render.ProjectedEntityIdentity;
 import art.arcane.wormholes.service.WormholesTelemetry;
 
 public final class MinecraftEntityPackets implements EntityOutput<ServerPlayer, Vec3, EntityType<?>,
@@ -89,7 +90,7 @@ public final class MinecraftEntityPackets implements EntityOutput<ServerPlayer, 
     private static final Map<EntityType<?>, Boolean> LIVING = new HashMap<>();
 
     private final WormholesModRuntime runtime;
-    private final PlayerNames<ServerPlayer> names = new PlayerNames<>(this);
+    private final PlayerNames<ServerPlayer> names = new PlayerNames<>(this, ProjectedEntityIdentity.nextTeamName());
     private final ProjectedMaps<ServerPlayer> maps = new ProjectedMaps<>(this);
     private final Scoreboard teams = new Scoreboard();
     private MinecraftPacketBlobs blobs;
@@ -114,8 +115,8 @@ public final class MinecraftEntityPackets implements EntityOutput<ServerPlayer, 
     public void playerInfo(ServerPlayer observer, SpoofedEntity state, EntityProfile profile) {
         state.playerProfile = profile;
         String sourceName = profile == null ? null : profile.name();
-        state.setPlayerIdentity(PlayerNames.projectedProfileName(sourceName, state.fakeUuid, state.upsideDown),
-            PlayerNames.playerLabelText(sourceName));
+        state.setPlayerIdentity(ProjectedEntityIdentity.NAMING.projectedProfileName(sourceName, state.fakeUuid, state.upsideDown),
+            ProjectedEntityIdentity.NAMING.labelText(sourceName));
         names.retain(observer, state.playerProfileName);
         send(observer, playerInfo(observer.level().registryAccess(), state, profile));
     }
@@ -300,6 +301,11 @@ public final class MinecraftEntityPackets implements EntityOutput<ServerPlayer, 
     }
 
     @Override
+    public int allocateEntityId() {
+        return ProjectedEntityIdentity.nextEntityId();
+    }
+
+    @Override
     public EntityType<?> type(String key) {
         Identifier id = key == null ? null : Identifier.tryParse(key);
         return id == null ? null : BuiltInRegistries.ENTITY_TYPE.getOptional(id).orElse(null);
@@ -411,7 +417,7 @@ public final class MinecraftEntityPackets implements EntityOutput<ServerPlayer, 
                 ? new ClientboundMoveEntityPacket.Pos(state.labelFakeId, delta(move.deltaX, move.deltaY, move.deltaZ), false)
                 : teleport(state.labelFakeId, position, 0, 0, false));
         }
-        String text = PlayerNames.playerLabelText(label.profile() == null ? null : label.profile().name());
+        String text = ProjectedEntityIdentity.NAMING.labelText(label.profile() == null ? null : label.profile().name());
         if (state.updatePlayerLabelText(text)) {
             send(observer, new ClientboundSetEntityDataPacket(state.labelFakeId,
                 List.of(new SynchedEntityData.DataValue<>(23, EntityDataSerializers.COMPONENT, labelText(text)))));
@@ -484,7 +490,7 @@ public final class MinecraftEntityPackets implements EntityOutput<ServerPlayer, 
     }
 
     private static Component labelText(String label) {
-        return Component.literal(PlayerNames.playerLabelText(label)).withColor(0xFFFFFF);
+        return Component.literal(ProjectedEntityIdentity.NAMING.labelText(label)).withColor(0xFFFFFF);
     }
 
     private static Vec3 labelPosition(SnapshotProjector.Label<Vec3> label) {

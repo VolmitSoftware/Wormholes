@@ -29,6 +29,7 @@ import art.arcane.optics.volume.ViewVolume;
 
 final class EntityProjectionGoldenTest {
     static final long SECRET = 0x5EC12E7L;
+    static final PlayerNaming NAMING = new PlayerNaming("Neutral", "np");
     static final int SAMPLES_PER_PAIR = 3;
     static final double DEPTH = 24.0D;
     private static final long SWEEP = 0x32C6C741E5604AE4L;
@@ -54,7 +55,7 @@ final class EntityProjectionGoldenTest {
             }
             ViewWindow window = window(scenario);
             digest.add(window.transform().flipsWorldUp() ? 1L : 0L);
-            EntityProjection.Projected projected = projection.project(visual, window, scenario.hanging(), scenario.itemFrame(), SECRET);
+            EntityProjection.Projected projected = projection.project(visual, window, scenario.hanging(), scenario.itemFrame(), SECRET, NAMING);
             digest.add(projected == null ? 0L : 1L);
             if (projected != null) {
                 EntitySnapshot local = projected.visual();
@@ -104,7 +105,7 @@ final class EntityProjectionGoldenTest {
             ViewWindow window = ViewWindow.between(new Vec3d(10.5D, 64, 20.5D), Frame.canonical(Face.S), new Vec3d(200.5D, 64, 200.5D),
                 Frame.fromNormalUp(Face.S, up), true, 24);
             EntitySnapshot nativeModel = projection.nativeModel(source, window, false, SECRET).visual();
-            EntitySnapshot packet = projection.project(source, window, false, false, SECRET).visual();
+            EntitySnapshot packet = projection.project(source, window, false, false, SECRET, NAMING).visual();
             assertEquals(source.x(), nativeModel.x());
             assertEquals(source.y(), nativeModel.y());
             assertEquals(source.z(), nativeModel.z());
@@ -142,7 +143,7 @@ final class EntityProjectionGoldenTest {
     void entityBehindTheDestinationLandsBehindTheLocalPortalInLocalSpace() {
         EntityProjection projection = new EntityProjection();
         EntitySnapshot visual = visual(UUID.randomUUID(), 200.5D, 64.0D, 196.5D, 0.0D, 0.0D, -1.0D);
-        EntityProjection.Projected projected = projection.project(visual, straightWindow(), false, false, SECRET);
+        EntityProjection.Projected projected = projection.project(visual, straightWindow(), false, false, SECRET, NAMING);
         assertNotNull(projected);
         EntitySnapshot local = projected.visual();
         assertEquals(10.5D, local.x(), 1.0E-6D);
@@ -158,9 +159,9 @@ final class EntityProjectionGoldenTest {
     void entityOnTheWrongSideOfTheDestinationIsCulled() {
         EntityProjection projection = new EntityProjection();
         EntitySnapshot visual = visual(UUID.randomUUID(), 200.5D, 64.0D, 204.5D, 0.0D, 0.0D, 1.0D);
-        assertNull(projection.project(visual, straightWindow(), false, false, SECRET));
+        assertNull(projection.project(visual, straightWindow(), false, false, SECRET, NAMING));
         EntitySnapshot far = visual(UUID.randomUUID(), 200.5D, 64.0D, 100.5D, 0.0D, 0.0D, 1.0D);
-        assertNull(projection.project(far, straightWindow(), false, false, SECRET), "entities past the depth are culled");
+        assertNull(projection.project(far, straightWindow(), false, false, SECRET, NAMING), "entities past the depth are culled");
     }
 
     @Test
@@ -171,7 +172,7 @@ final class EntityProjectionGoldenTest {
         EntitySnapshot visual = new EntitySnapshot(EntitySnapshot.MODE_FULL, 0, EntitySnapshot.FIELD_ALL_FULL, UUID.randomUUID(), "minecraft:pig",
             196.5D, 64.0D, 200.5D, 0.9D, -1.0D, 0.0D, 0.0D, 90.0F, 0.0F, -0.2D, 0.0D, 0.0D, true, "", "", "", null, null,
             EntitySnapshot.EMPTY, EntitySnapshot.EMPTY, EntitySnapshot.EMPTY);
-        EntityProjection.Projected projected = projection.project(visual, window, false, false, SECRET);
+        EntityProjection.Projected projected = projection.project(visual, window, false, false, SECRET, NAMING);
         assertNotNull(projected);
         EntitySnapshot local = projected.visual();
         assertEquals(10.5D, local.x(), 1.0E-6D);
@@ -195,7 +196,7 @@ final class EntityProjectionGoldenTest {
         EntitySnapshot rider = new EntitySnapshot(EntitySnapshot.MODE_FULL, 0, EntitySnapshot.FIELD_ALL_FULL, source, "minecraft:zombie",
             200.5D, 64.0D, 196.5D, 1.9D, 0.0D, 0.0D, -1.0D, 180.0F, 0.0F, 0.0D, 0.0D, 0.0D, true, "", "", "", vehicle, null,
             EntitySnapshot.EMPTY, EntitySnapshot.EMPTY, EntitySnapshot.EMPTY);
-        EntitySnapshot local = projection.project(rider, straightWindow(), false, false, SECRET).visual();
+        EntitySnapshot local = projection.project(rider, straightWindow(), false, false, SECRET, NAMING).visual();
         assertEquals(first, local.id());
         assertEquals(EntityProjection.opaque(SECRET, vehicle), local.passengerOf());
     }

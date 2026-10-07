@@ -1,4 +1,4 @@
-package art.arcane.optics.math;
+package art.arcane.wormholes.util;
 
 import java.util.Random;
 

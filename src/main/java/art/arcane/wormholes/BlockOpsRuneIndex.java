@@ -27,7 +27,7 @@ import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.portal.PortalBlock;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.util.GChunk;
-import art.arcane.optics.math.M;
+import art.arcane.wormholes.util.M;
 
 final class BlockOpsRuneIndex
 {

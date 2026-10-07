@@ -3,7 +3,7 @@ package art.arcane.wormholes.modded;
 import art.arcane.optics.entity.EntityProfile;
 import art.arcane.optics.entity.MapSnapshot;
 import art.arcane.optics.entity.SpoofedEntity;
-import art.arcane.optics.entity.PlayerNames;
+import art.arcane.wormholes.render.ProjectedEntityIdentity;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.network.protocol.game.ClientboundMapItemDataPacket;
 import net.minecraft.network.protocol.game.ClientboundAnimatePacket;
@@ -20,6 +20,7 @@ import net.minecraft.world.phys.Vec3;
 import org.junit.Test;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -27,6 +28,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class MinecraftEntityPacketsTest extends MinecraftTestBase {
+    private static final AtomicInteger ENTITY_IDS = new AtomicInteger(1);
+
     @Test
     public void projectedSwingUsesTheNativeAnimationActionAndFakeId() {
         ClientboundSwingAnimationPacket packet = (ClientboundSwingAnimationPacket) MinecraftEntityPackets.animation(1_900_000_001,
@@ -42,8 +45,8 @@ public class MinecraftEntityPacketsTest extends MinecraftTestBase {
 
     @Test
     public void playerInfoPreservesSignedSkinAndHidesTabEntry() {
-        SpoofedEntity state = SpoofedEntity.create(true, false, true);
-        state.setPlayerIdentity(PlayerNames.syntheticProfileName(state.fakeUuid), "PortalTester");
+        SpoofedEntity state = SpoofedEntity.create(ENTITY_IDS::getAndIncrement, true, false, true);
+        state.setPlayerIdentity(ProjectedEntityIdentity.NAMING.syntheticProfileName(state.fakeUuid), "PortalTester");
         ClientboundPlayerInfoUpdatePacket packet = MinecraftEntityPackets.playerInfo(RegistryAccess.EMPTY, state,
             new EntityProfile("PortalTester", "texture-value", "texture-signature"));
         ClientboundPlayerInfoUpdatePacket.Entry entry = packet.entries().getFirst();

@@ -11,7 +11,7 @@ import art.arcane.optics.entity.EntitySnapshot;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import art.arcane.wormholes.portal.effects.PortalAnimation;
 import art.arcane.optics.fidelity.AcousticsProfile;
-import art.arcane.optics.entity.PlayerNames;
+import art.arcane.wormholes.render.ProjectedEntityIdentity;
 import com.mojang.datafixers.util.Pair;
 import io.netty.buffer.Unpooled;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -334,7 +334,7 @@ public final class ClientLevelScene implements ClientSceneWorld {
                 ClientboundPlayerInfoUpdatePacket.Action.UPDATE_HAT), ClientboundPlayerInfoUpdatePacket.Action.class);
             buffer.writeVarInt(1);
             buffer.writeUUID(projectionId);
-            buffer.writeUtf(PlayerNames.playerLabelText(visual.playerName()), 16);
+            buffer.writeUtf(ProjectedEntityIdentity.NAMING.labelText(visual.playerName()), 16);
             boolean texture = visual.textureValue() != null && !visual.textureValue().isEmpty();
             buffer.writeVarInt(texture ? 1 : 0);
             if (texture) {

@@ -1,6 +1,7 @@
 package art.arcane.optics.math;
 
 import java.util.List;
+import java.util.random.RandomGenerator;
 
 
 public class Box
@@ -106,9 +107,9 @@ public class Box
 		return new Vec3d(x.x() == 1 ? xb : xa, y.y() == 1 ? yb : ya, z.z() == 1 ? zb : za);
 	}
 
-	public Vec3d random()
+	public Vec3d random(RandomGenerator random)
 	{
-		return new Vec3d(M.rand(xa, xb), M.rand(ya, yb), M.rand(za, zb));
+		return new Vec3d(between(random, xa, xb), between(random, ya, yb), between(random, za, zb));
 	}
 
 	public Vec3d center()
@@ -179,5 +180,10 @@ public class Box
 	public double volume()
 	{
 		return sizeX() * sizeY() * sizeZ();
+	}
+
+	private static double between(RandomGenerator random, double min, double max)
+	{
+		return max <= min ? min : min + random.nextDouble() * (max - min);
 	}
 }

@@ -2,41 +2,19 @@ package art.arcane.optics.entity;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Objects;
 
 public final class PlayerNames<O> {
     public static final String FLIP_NAME = "Dinnerbone";
     private static final String FLIP_NAME_ALT = "Grumm";
-    private static final String NEUTRAL_PROFILE_NAME = "PortalPlayer";
-    private static final AtomicInteger NEXT_NAME_TEAM_ID = new AtomicInteger();
-    private final String teamName = "whpn" + Integer.toUnsignedString(NEXT_NAME_TEAM_ID.getAndIncrement(), 36);
     private final Map<String, Integer> members = new HashMap<>(4);
     private final EntityOutput<O, ?, ?, ?, ?> output;
+    private final String teamName;
     private boolean sent;
 
-    public PlayerNames(EntityOutput<O, ?, ?, ?, ?> output) {
-        this.output = output;
-    }
-
-    public static String projectedProfileName(String sourceName, UUID fakeUuid, boolean upsideDown) {
-        if (upsideDown) {
-            return isFlipName(sourceName) ? NEUTRAL_PROFILE_NAME : FLIP_NAME;
-        }
-        return syntheticProfileName(fakeUuid);
-    }
-
-    public static String syntheticProfileName(UUID fakeUuid) {
-        String compact = fakeUuid.toString().replace("-", "");
-        return "wh" + compact.substring(0, 14);
-    }
-
-    public static String playerLabelText(String name) {
-        String safe = name == null || name.isBlank() ? NEUTRAL_PROFILE_NAME : name;
-        if (safe.length() <= 16) {
-            return safe;
-        }
-        return safe.substring(0, 16);
+    public PlayerNames(EntityOutput<O, ?, ?, ?, ?> output, String teamName) {
+        this.output = Objects.requireNonNull(output, "output");
+        this.teamName = Objects.requireNonNull(teamName, "teamName");
     }
 
     public static boolean isFlipName(String name) {

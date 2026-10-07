@@ -1,11 +1,9 @@
 package art.arcane.optics.entity;
 
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
-
+import java.util.function.IntSupplier;
 
 public final class SpoofedEntity {
-    private static final AtomicInteger NEXT_FAKE_ID = new AtomicInteger(1_900_000_000);
     private static final int METADATA_REFRESH_PASSES = 10;
     private static final int MAP_REFRESH_PASSES = 10;
     private static final double MIN_POSITION_DELTA_SQUARED = 1.0E-6D;
@@ -51,15 +49,15 @@ public final class SpoofedEntity {
     private int metadataRefreshPasses;
     private int mapRefreshPasses;
 
-    public static SpoofedEntity create(boolean playerEntry, boolean upsideDown, boolean living) {
-        return new SpoofedEntity(NEXT_FAKE_ID.getAndIncrement(), UUID.randomUUID(), playerEntry, upsideDown, living);
+    public static SpoofedEntity create(IntSupplier entityIds, boolean playerEntry, boolean upsideDown, boolean living) {
+        return new SpoofedEntity(entityIds, UUID.randomUUID(), playerEntry, upsideDown, living);
     }
 
-    private SpoofedEntity(int fakeId, UUID fakeUuid, boolean playerEntry, boolean upsideDown, boolean living) {
-        this.fakeId = fakeId;
+    private SpoofedEntity(IntSupplier entityIds, UUID fakeUuid, boolean playerEntry, boolean upsideDown, boolean living) {
+        this.fakeId = entityIds.getAsInt();
         this.fakeUuid = fakeUuid;
         this.playerEntry = playerEntry;
-        this.labelFakeId = playerEntry ? NEXT_FAKE_ID.getAndIncrement() : -1;
+        this.labelFakeId = playerEntry ? entityIds.getAsInt() : -1;
         this.labelFakeUuid = playerEntry ? UUID.randomUUID() : null;
         this.upsideDown = upsideDown;
         this.living = living;

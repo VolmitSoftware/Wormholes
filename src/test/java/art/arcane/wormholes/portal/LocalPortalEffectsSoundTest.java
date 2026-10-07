@@ -1,7 +1,7 @@
 package art.arcane.wormholes.portal;
 
 import art.arcane.wormholes.Settings;
-import art.arcane.optics.math.M;
+import art.arcane.wormholes.util.M;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 

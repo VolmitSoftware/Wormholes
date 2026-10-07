@@ -16,8 +16,11 @@ import art.arcane.optics.frame.AxisPermutation;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.optics.math.Face;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public final class ProjectedItemFrameTransformTest {
+    private static final AtomicInteger ENTITY_IDS = new AtomicInteger(1);
+
     private static final double EPSILON = 1.0E-12D;
     private static final Face[] DIRECTIONS = Face.values();
     private static final Vec3d ZERO = new Vec3d(0.0D, 0.0D, 0.0D);
@@ -105,7 +108,7 @@ public final class ProjectedItemFrameTransformTest {
 
     @Test
     public void changedProjectionOrientationInvalidatesRetainedMetadata() {
-        SpoofedEntity state = SpoofedEntity.create(false, false, false);
+        SpoofedEntity state = SpoofedEntity.create(ENTITY_IDS::getAndIncrement, false, false, false);
 
         assertTrue(state.updateMetadataTransform(17));
         assertFalse(state.updateMetadataTransform(17));

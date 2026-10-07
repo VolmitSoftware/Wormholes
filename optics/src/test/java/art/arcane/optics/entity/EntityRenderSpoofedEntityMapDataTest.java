@@ -3,13 +3,16 @@ package art.arcane.optics.entity;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
 
 public final class EntityRenderSpoofedEntityMapDataTest {
+    private static final AtomicInteger ENTITY_IDS = new AtomicInteger(1);
+
     @Test
     public void mapCacheComparesExactImmutableContentAndHandedness() {
-        SpoofedEntity state = SpoofedEntity.create(false, false, false);
+        SpoofedEntity state = SpoofedEntity.create(ENTITY_IDS::getAndIncrement, false, false, false);
         byte[] pixels = new byte[MapSnapshot.PIXEL_COUNT];
         pixels[0] = 1;
         MapSnapshot original = new MapSnapshot(17, (byte) 2, true, false, pixels);
