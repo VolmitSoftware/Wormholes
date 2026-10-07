@@ -619,41 +619,53 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
         TravelMessage.TravelBegin attempted = predicted ? runtime.clientViews().preparation(entity.getUUID()).orElse(null) : null;
         Departure departure = new Departure(lease, entity.level(), entity.position(), System.currentTimeMillis() + 30_000L);
         pending.put(entity.getUUID(), departure);
-        lease.ready().whenCompleteAsync((ready, failure) -> {
-            try {
-                if (failure != null) {
-                    LOGGER.error("Could not prepare Wormholes destination {}", destination.getId(), failure);
-                }
-                if (closed || !Boolean.TRUE.equals(ready) || !entity.isAlive() || portals.get(source.getId()) != source
-                    || portals.get(destination.getId()) != destination || !runtime.nexus().perTraveler(source) && !(runtime.api() != null && runtime.api().hasResolvers()) && !Objects.equals(source.getDestinationId(), destination.getId())
-                    || !source.isOpen() || !destination.isOpen() || source.isMirrorMode() || destination.isMirrorMode()
-                    || runtime.doors().travelling(entity.getUUID()) || pending.get(entity.getUUID()) != departure || entity.level() != departure.level()
-                    || entity.position().distanceToSqr(departure.point()) > 1.0D
-                    || departure.expiresAt() <= System.currentTimeMillis() || !admit(entity, source, destination)
-                    || !screenRules(entity, source) || predicted && !runtime.clientViews().crossing(entity.getUUID(), attempted)
-                    || predicted && !targetLevel.noCollision(entity, entity.getBoundingBox().move(
-                        target.x() - entity.getX(), target.y() - entity.getY(), target.z() - entity.getZ()))) {
-                    return;
-                }
-                arrive(entity, destination, crossing, targetLevel, target, source, predicted);
-            } catch (RuntimeException exception) {
-                LOGGER.error("Wormholes traversal failed from {} to {} for {}", source.getId(), destination.getId(), entity.getUUID(), exception);
-            } finally {
-                if (predicted) {
-                    for (Entity member : entity.getSelfAndPassengers().toList()) {
-                        if (member instanceof ServerPlayer player) {
-                            runtime.clientViews().cancelPreparation(player, attempted);
-                        }
-                        runtime.rules().failed(member);
-                    }
-                } else {
-                    failRules(entity.getSelfAndPassengers().toList());
-                }
-                if (pending.remove(entity.getUUID(), departure)) {
-                    lease.close();
-                }
+        Flight flight = new Flight(entity, source, destination, crossing, targetLevel, target, departure, predicted, attempted);
+        if (predicted && entity instanceof ServerPlayer player && entity.getPassengers().isEmpty() && runtime.clientViews().seamlessCrossing(player)
+            && targetLevel.getChunkSource().getChunkNow(target.getBlockX() >> 4, target.getBlockZ() >> 4) != null) {
+            land(flight, Boolean.TRUE, null);
+            return;
+        }
+        lease.ready().whenCompleteAsync((ready, failure) -> land(flight, ready, failure), runtime.server());
+    }
+
+    private void land(Flight flight, Boolean ready, Throwable failure) {
+        Entity entity = flight.entity();
+        MinecraftPortal source = flight.source();
+        MinecraftPortal destination = flight.destination();
+        Departure departure = flight.departure();
+        try {
+            if (failure != null) {
+                LOGGER.error("Could not prepare Wormholes destination {}", destination.getId(), failure);
             }
-        }, runtime.server());
+            if (closed || !Boolean.TRUE.equals(ready) || !entity.isAlive() || portals.get(source.getId()) != source
+                || portals.get(destination.getId()) != destination || !runtime.nexus().perTraveler(source) && !(runtime.api() != null && runtime.api().hasResolvers()) && !Objects.equals(source.getDestinationId(), destination.getId())
+                || !source.isOpen() || !destination.isOpen() || source.isMirrorMode() || destination.isMirrorMode()
+                || runtime.doors().travelling(entity.getUUID()) || pending.get(entity.getUUID()) != departure || entity.level() != departure.level()
+                || entity.position().distanceToSqr(departure.point()) > 1.0D
+                || departure.expiresAt() <= System.currentTimeMillis() || !admit(entity, source, destination)
+                || !screenRules(entity, source) || flight.predicted() && !runtime.clientViews().crossing(entity.getUUID(), flight.attempted())
+                || flight.predicted() && !flight.targetLevel().noCollision(entity, entity.getBoundingBox().move(
+                    flight.target().x() - entity.getX(), flight.target().y() - entity.getY(), flight.target().z() - entity.getZ()))) {
+                return;
+            }
+            arrive(entity, destination, flight.crossing(), flight.targetLevel(), flight.target(), source, flight.predicted());
+        } catch (RuntimeException exception) {
+            LOGGER.error("Wormholes traversal failed from {} to {} for {}", source.getId(), destination.getId(), entity.getUUID(), exception);
+        } finally {
+            if (flight.predicted()) {
+                for (Entity member : entity.getSelfAndPassengers().toList()) {
+                    if (member instanceof ServerPlayer player) {
+                        runtime.clientViews().cancelPreparation(player, flight.attempted());
+                    }
+                    runtime.rules().failed(member);
+                }
+            } else {
+                failRules(entity.getSelfAndPassengers().toList());
+            }
+            if (pending.remove(entity.getUUID(), departure)) {
+                departure.lease().close();
+            }
+        }
     }
 
     private boolean screenRules(Entity entity, MinecraftPortal source) {
@@ -877,6 +889,10 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
     }
 
     private record Departure(ChunkLease lease, Level level, Vec3 point, long expiresAt) {
+    }
+
+    private record Flight(Entity entity, MinecraftPortal source, MinecraftPortal destination, PlaneCrossing crossing, ServerLevel targetLevel,
+                          Vec3d target, Departure departure, boolean predicted, TravelMessage.TravelBegin attempted) {
     }
 
     static final class Arrival {

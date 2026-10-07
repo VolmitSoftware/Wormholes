@@ -820,44 +820,55 @@ public final class MinecraftDoorService implements AutoCloseable {
         }
         Flight flight = new Flight(lease, entity.level(), entity.position(), System.currentTimeMillis() + 30_000L, source, transit);
         flights.put(entity.getUUID(), flight);
-        TravelMessage.TravelBegin prepared = preparedCrossing(entity);
-        long startedGeneration = generation;
-        lease.ready().whenCompleteAsync((ready, error) -> {
-            if (closed || generation != startedGeneration) {
-                if (flights.remove(entity.getUUID(), flight)) {
-                    lease.close();
-                }
+        Landing landing = new Landing(entity, destination, flight, preparedCrossing(entity), returnTicket, generation);
+        if (landing.prepared() != null && entity instanceof ServerPlayer player && runtime.clientViews().seamlessCrossing(player)
+            && level.getChunkSource().getChunkNow(block.x() >> 4, block.z() >> 4) != null) {
+            land(landing, Boolean.TRUE, null);
+            return;
+        }
+        lease.ready().whenCompleteAsync((ready, error) -> land(landing, ready, error), server);
+    }
+
+    private void land(Landing landing, Boolean ready, Throwable error) {
+        Entity entity = landing.entity();
+        Flight flight = landing.flight();
+        ActiveDoor source = flight.source();
+        PlacedDoorEndpoint destination = landing.destination();
+        TravelMessage.TravelBegin prepared = landing.prepared();
+        if (closed || generation != landing.generation()) {
+            if (flights.remove(entity.getUUID(), flight)) {
+                flight.lease().close();
+            }
+            return;
+        }
+        boolean success = false;
+        try {
+            if (error != null) {
+                LOGGER.error("Could not prepare dimensional-door destination {}", destination.identity().itemId(), error);
+            }
+            Snapshot current = capture(source.endpoint);
+            Snapshot target = capture(destination);
+            if (!enabled() || !Boolean.TRUE.equals(ready) || !entity.isAlive() || current == null || !current.active() || target == null
+                || !current.plane().equals(flight.transit().sourcePlane()) || entity.level() != flight.level
+                || flights.get(entity.getUUID()) != flight || entity.position().distanceToSqr(flight.point) > 1.0D
+                || System.currentTimeMillis() >= flight.expiresAt || !canEnter(entity, source.endpoint) || !canAccess(entity, destination)
+                || prepared != null && !runtime.clientViews().crossing(entity.getUUID(), prepared)
+                || state.findEndpointByItem(source.endpoint.identity().itemId()).filter(source.endpoint::equals).isEmpty()
+                || state.findEndpointByItem(destination.identity().itemId()).filter(destination::equals).isEmpty()) {
                 return;
             }
-            boolean success = false;
-            try {
-                if (error != null) {
-                    LOGGER.error("Could not prepare dimensional-door destination {}", destination.identity().itemId(), error);
-                }
-                Snapshot current = capture(source.endpoint);
-                Snapshot target = capture(destination);
-                if (!enabled() || !Boolean.TRUE.equals(ready) || !entity.isAlive() || current == null || !current.active() || target == null
-                    || !current.plane().equals(transit.sourcePlane()) || entity.level() != flight.level
-                    || flights.get(entity.getUUID()) != flight || entity.position().distanceToSqr(flight.point) > 1.0D
-                    || System.currentTimeMillis() >= flight.expiresAt || !canEnter(entity, source.endpoint) || !canAccess(entity, destination)
-                    || prepared != null && !runtime.clientViews().crossing(entity.getUUID(), prepared)
-                    || state.findEndpointByItem(source.endpoint.identity().itemId()).filter(source.endpoint::equals).isEmpty()
-                    || state.findEndpointByItem(destination.identity().itemId()).filter(destination::equals).isEmpty()) {
-                    return;
-                }
-                success = arrive(entity, source, transit, target);
-                if (success && returnTicket != null) {
-                    removeTicket(entity, returnTicket);
-                }
-            } catch (RuntimeException exception) {
-                LOGGER.error("Dimensional-door traversal failed for {}", entity.getUUID(), exception);
-            } finally {
-                boolean owned = finishFlight(entity, flight, success);
-                if (owned && !success && entity instanceof ServerPlayer player && prepared != null) {
-                    runtime.clientViews().cancelPreparation(player, prepared);
-                }
+            success = arrive(entity, source, flight.transit(), target);
+            if (success && landing.returnTicket() != null) {
+                removeTicket(entity, landing.returnTicket());
             }
-        }, server);
+        } catch (RuntimeException exception) {
+            LOGGER.error("Dimensional-door traversal failed for {}", entity.getUUID(), exception);
+        } finally {
+            boolean owned = finishFlight(entity, flight, success);
+            if (owned && !success && entity instanceof ServerPlayer player && prepared != null) {
+                runtime.clientViews().cancelPreparation(player, prepared);
+            }
+        }
     }
 
     private void enterPocket(Entity entity, ActiveDoor source, Snapshot snapshot, DoorTransit transit) {
@@ -1934,4 +1945,7 @@ public final class MinecraftDoorService implements AutoCloseable {
     }
 
     private record Flight(ChunkLease lease, Level level, Vec3 point, long expiresAt, ActiveDoor source, DoorTransit transit) { }
+
+    private record Landing(Entity entity, PlacedDoorEndpoint destination, Flight flight, TravelMessage.TravelBegin prepared,
+                           ReturnTicket returnTicket, long generation) { }
 }

@@ -409,11 +409,10 @@ final class MinecraftPreparedTravel {
         if (actual != null) {
             preparation.cross = request;
             preparation.crossing = actual;
+            dispatchCross(travel.player(), player, preparation.source, preparation.destination,
+                travel.travelGeometry(preparation.source.getId()).kind(), actual);
         }
-        boolean accepted = actual != null && dispatchCross(travel.player(), player, preparation.source, preparation.destination,
-            travel.travelGeometry(preparation.source.getId()).kind(), actual)
-            && runtime.clientViews().seamlessAccepted(player.getUUID(), begin.token());
-        if (!accepted) {
+        if (actual == null || !runtime.clientViews().seamlessAccepted(player.getUUID(), begin.token())) {
             discard(travel);
             player.connection.teleport(player.getX(), player.getY(), player.getZ(), player.getYRot(), player.getXRot());
         }
