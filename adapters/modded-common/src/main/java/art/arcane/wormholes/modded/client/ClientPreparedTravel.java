@@ -1121,10 +1121,6 @@ public final class ClientPreparedTravel {
         }
         cache.bind(connection, connection.registryAccess());
         adoptPreparation(next);
-        if (value.seamless()) {
-            sourceCapture = Integer.MAX_VALUE;
-            prepareSeamlessSource(minecraft);
-        }
     }
 
     private static void prepareSeamlessSource(Minecraft minecraft) {
@@ -1154,6 +1150,10 @@ public final class ClientPreparedTravel {
         }
         if (scene != null) {
             ClientPortalRenderer.instance().prepareTravel(scene, arrivalCamera(begin.arrival()));
+        }
+        if (begin.seamless()) {
+            sourceCapture = Integer.MAX_VALUE;
+            prepareSeamlessSource(Minecraft.getInstance());
         }
     }
 
