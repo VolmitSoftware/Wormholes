@@ -39,6 +39,8 @@ tasks.withType(JavaCompile).configureEach {
 tasks.withType(Test).configureEach {
     useJUnitPlatform()
     jvmArgs '--enable-native-access=ALL-UNNAMED'
+    systemProperty 'optics.resourceRoots', (sourceSets.main.resources.srcDirs + sourceSets.main.output.resourcesDir)
+        .collect { File directory -> directory.absolutePath }.join(File.pathSeparator)
 }
 
 publishing {
