@@ -11,6 +11,7 @@ export default {
     const evidence = { jarSha256: process.env.WORMHOLES_JAR_SHA256, movingCycles, phases: [], samples: [], errors: [], blockPackets: 0, observerPackets: {} }
     context.report.horizontal = evidence
     let second
+    let failureBaseline = 0
     let closing = false
     let rejectFatal
     const fatal = new Promise((resolve, reject) => { rejectFatal = reject })
@@ -99,7 +100,7 @@ export default {
           'Both projections retain full depth and a substantial scan volume', projectors)
         context.expect(projectors.every(projector => projector.rendered > 0), 'Both viewers receive destination geometry', projectors)
       }
-      context.expect(values.failures === 0, 'Projection telemetry reports no runtime failures', values)
+      context.expect(values.failures === failureBaseline, 'Projection telemetry reports no runtime failures during the workload', { ...values, failureBaseline })
       const positions = [context.bot, second].map(bot => ({ username: bot.username, ...bot.entity.position }))
       context.expect(positions.every(position => position.y > 123.9 && position.y < 124.1 && position.x >= 0 && position.x <= 16),
         'Viewers remain on the observation platform', positions)
@@ -131,6 +132,10 @@ export default {
     try {
       watch(context.bot)
       await context.step('create horizontal portal and join second viewer', async () => {
+        const baseline = await command(context.bot, '/whtest horizontal sample', /HORIZONTAL sample time=/)
+        failureBaseline = Number(/ failures=(\d+)/.exec(baseline)?.[1])
+        context.expect(Number.isInteger(failureBaseline), 'Fixture reports the failure count before the workload', baseline)
+        evidence.failureBaseline = failureBaseline
         const setup = await command(context.bot, '/whtest horizontal setup', /HORIZONTAL ready/)
         context.expect(setup.includes('cells=37') && setup.includes('depth=64 pad=48 open=true linked=true'),
           'Fixture matches the horizontal workload', setup)
