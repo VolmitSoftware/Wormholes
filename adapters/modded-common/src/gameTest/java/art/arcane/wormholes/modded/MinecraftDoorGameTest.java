@@ -191,7 +191,7 @@ public final class MinecraftDoorGameTest {
         BlockState state = level.getBlockState(source);
         ((DoorBlock) state.getBlock()).setOpen(player, level, state, source, true);
         player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
-        player.setPos(source.getX() + 0.5, source.getY(), source.getZ() - 0.5);
+        player.snapTo(source.getX() + 0.5, source.getY(), source.getZ() - 0.5);
         player.setNoGravity(true);
         if (!playerAdded) {
             level.addNewPlayer(player);
@@ -215,7 +215,7 @@ public final class MinecraftDoorGameTest {
     private void approachReturn() {
         BlockState state = player.level().getBlockState(exit);
         ((DoorBlock) state.getBlock()).setOpen(player, player.level(), state, exit, true);
-        player.setPos(exit.getX() + 0.5, exit.getY(), exit.getZ() - 0.5);
+        player.snapTo(exit.getX() + 0.5, exit.getY(), exit.getZ() - 0.5);
     }
 
     private void crafting() {

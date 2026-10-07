@@ -31,8 +31,9 @@ import java.util.concurrent.atomic.AtomicReference;
 public final class MinecraftRemoteViewGameTest {
     private static final Logger LOGGER = LoggerFactory.getLogger("WormholesGameTest");
     private static final int STAGE_TICKS = 400;
-    private static final int DESTINATION_OFFSET = 400;
+    private static final int DESTINATION_OFFSET = 4_096;
     private static final double MARKER_OFFSET = 32.0D;
+    private static final int SETTLE_TICKS = 20;
 
     private final GameTestHelper helper;
     private final WormholesModRuntime runtime;
@@ -50,6 +51,8 @@ public final class MinecraftRemoteViewGameTest {
     private int remaining = STAGE_TICKS;
     private int routedChunks;
     private int changedAt;
+    private int settled;
+    private int settledRevision = -1;
     private String delivery = "";
 
     private MinecraftRemoteViewGameTest(GameTestHelper helper, WormholesModRuntime runtime) {
@@ -141,7 +144,7 @@ public final class MinecraftRemoteViewGameTest {
                 next(Stage.TICKING);
             }
             case TICKING -> {
-                if (!ticking(forced)) {
+                if (!settled()) {
                     return false;
                 }
                 changedAt = fixture.routed().size();
@@ -176,6 +179,20 @@ public final class MinecraftRemoteViewGameTest {
             }
         }
         return false;
+    }
+
+    private boolean settled() {
+        RemoteRoute route = runtime.remoteRoutes().route(fixture.player().getUUID(), source.getId());
+        long key = forced.pack();
+        if (route == null || !ticking(forced) || !route.stream().delivered(key)) {
+            settled = 0;
+            settledRevision = -1;
+            return false;
+        }
+        int revision = route.stream().revision(key);
+        settled = revision == settledRevision ? settled + 1 : 0;
+        settledRevision = revision;
+        return settled >= SETTLE_TICKS;
     }
 
     private boolean ticking(ChunkPos column) {

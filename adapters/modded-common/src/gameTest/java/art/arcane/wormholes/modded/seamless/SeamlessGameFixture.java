@@ -154,9 +154,10 @@ final class SeamlessGameFixture implements AutoCloseable {
     }
 
     void sendFromNetwork(TravelMessage message, List<Packet<? super ServerGamePacketListener>> following) throws ViewStreamProtocolException {
-        List<Packet<? super ServerGamePacketListener>> burst = new ArrayList<>(following.size() + 1);
+        List<Packet<? super ServerGamePacketListener>> burst = new ArrayList<>(following.size() + 2);
         burst.add(payload(message));
         burst.addAll(following);
+        burst.add(ServerboundClientTickEndPacket.INSTANCE);
         runtime.server().packetProcessor().scheduleIfPossible(player().connection, new NetworkBurst(burst));
     }
 
