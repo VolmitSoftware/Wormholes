@@ -296,12 +296,11 @@ public final class OpticTransform {
     }
 
     public Look look(Look look) {
-        double yawRadians = Math.toRadians(look.yaw());
-        double pitchRadians = Math.toRadians(look.pitch());
-        double horizontal = Math.cos(pitchRadians);
-        double x = -horizontal * Math.sin(yawRadians);
-        double y = -Math.sin(pitchRadians);
-        double z = horizontal * Math.cos(yawRadians);
+        double[] direction = new double[3];
+        Angles.directionInto(look.yaw(), look.pitch(), direction);
+        double x = direction[0];
+        double y = direction[1];
+        double z = direction[2];
         return Angles.look(signX * component(sourceX, x, y, z), signY * component(sourceY, x, y, z),
             signZ * component(sourceZ, x, y, z));
     }

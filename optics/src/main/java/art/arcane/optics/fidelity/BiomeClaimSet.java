@@ -142,8 +142,8 @@ public final class BiomeClaimSet {
         LongIterator iterator = dirtyChunks.iterator();
         while (iterator.hasNext()) {
             long chunkKey = iterator.nextLong();
-            int chunkX = (int) (chunkKey >> 32);
-            int chunkZ = (int) chunkKey;
+            int chunkX = CellKeys.chunkX(chunkKey);
+            int chunkZ = CellKeys.chunkZ(chunkKey);
             chunks.add(build(chunkX, chunkZ));
         }
         return chunks;

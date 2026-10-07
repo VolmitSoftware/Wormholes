@@ -330,7 +330,7 @@ public record ApertureDescriptor(int originX,
 
     @Override
     public String toString() {
-        return "ClientPortalGeometry[origin=" + originX + "," + originY + "," + originZ
+        return "ApertureDescriptor[origin=" + originX + "," + originY + "," + originZ
             + ", facing=" + facing + ", frontSide=" + frontSide + ", quarterTurns=" + quarterTurns + ", mirror=" + mirror
             + ", aperture=" + apertureWidth + "x" + apertureHeight + ", mask=" + Arrays.toString(apertureMask)
             + ", nearPlanePadding=" + nearPlanePadding + ", aperturePadding=" + aperturePadding

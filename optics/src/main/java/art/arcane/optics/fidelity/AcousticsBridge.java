@@ -134,10 +134,6 @@ public final class AcousticsBridge<O> {
         return false;
     }
 
-    public int apertureCount() {
-        return apertures.size();
-    }
-
     /** Relays a local destination event; returns the number of sounds played. */
     public int onEvent(SoundEvent event, long nowMillis) {
         if (event == null || event.worldId() == null) {

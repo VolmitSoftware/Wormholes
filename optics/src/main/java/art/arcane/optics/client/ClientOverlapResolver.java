@@ -67,10 +67,6 @@ public final class ClientOverlapResolver {
         return best.portalKey();
     }
 
-    public double incumbentMargin() {
-        return incumbentMargin;
-    }
-
     private static int compareMaskTier(Contender candidate, Contender current) {
         if (candidate.maskAir() == current.maskAir()) {
             return 0;

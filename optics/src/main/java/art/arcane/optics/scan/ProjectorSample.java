@@ -47,13 +47,6 @@ public final class ProjectorSample<B, V> {
         return new ProjectorSample<B, V>(kind, transformed, lightView, remoteKey);
     }
 
-    public ProjectorSample<B, V> withLightView(V view) {
-        if (view == lightView) {
-            return this;
-        }
-        return new ProjectorSample<B, V>(kind, data, view, remoteKey);
-    }
-
     public ProjectedBlockClaim<B, V> asClaim(B projectedData) {
         return asClaim(projectedData, defaultLightingPolicy());
     }

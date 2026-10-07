@@ -12,6 +12,14 @@ public final class CellKeys {
         return (((long) chunkX) << 32) | (chunkZ & 0xFFFFFFFFL);
     }
 
+    public static int chunkX(long chunkKey) {
+        return (int) (chunkKey >> 32);
+    }
+
+    public static int chunkZ(long chunkKey) {
+        return (int) chunkKey;
+    }
+
     public static long sectionKey(int sectionX, int sectionY, int sectionZ) {
         return pack(sectionX, sectionY, sectionZ);
     }

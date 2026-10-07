@@ -92,8 +92,8 @@ public final class PlateCaptureJob<B, W, S> extends ViewPlateBuilder.Job<B, W> {
         budgetBlocked = false;
         while (index < pending.size()) {
             long chunk = pending.getLong(index);
-            int chunkX = (int) (chunk >> 32);
-            int chunkZ = (int) chunk;
+            int chunkX = CellKeys.chunkX(chunk);
+            int chunkZ = CellKeys.chunkZ(chunk);
             if (plan.source().loaded(plan.world(), chunkX, chunkZ)) {
                 S snapshot = plan.source().cached(plan.world(), chunkX, chunkZ);
                 if (snapshot != null) {

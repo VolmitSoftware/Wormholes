@@ -139,7 +139,7 @@ public final class MapSnapshot {
 
     @Override
     public String toString() {
-        return "ProjectedMapData[sourceMapId=" + sourceMapId
+        return "MapSnapshot[sourceMapId=" + sourceMapId
             + ", scale=" + scale
             + ", tracking=" + tracking
             + ", locked=" + locked

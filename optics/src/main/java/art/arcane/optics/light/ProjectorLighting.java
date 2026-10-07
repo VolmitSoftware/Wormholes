@@ -87,8 +87,8 @@ public final class ProjectorLighting<O, B, V extends ContentView<?, ?>> {
                 iterator.remove();
                 continue;
             }
-            int chunkX = (int) (chunkKey >> 32);
-            int chunkZ = (int) chunkKey;
+            int chunkX = CellKeys.chunkX(chunkKey);
+            int chunkZ = CellKeys.chunkZ(chunkKey);
             IntOpenHashSet selected = selectSections(entry.getValue(), remainingSections);
             if (selected.isEmpty()) {
                 continue;
@@ -219,8 +219,8 @@ public final class ProjectorLighting<O, B, V extends ContentView<?, ?>> {
             if (stale.isEmpty()) {
                 continue;
             }
-            int chunkX = (int) (key >> 32);
-            int chunkZ = (int) key;
+            int chunkX = CellKeys.chunkX(key);
+            int chunkZ = CellKeys.chunkZ(key);
             if (!output.chunkSent(observer, chunkX, chunkZ)) {
                 entry.getValue().removeAll(stale);
             } else if (!sendLocalChunkLight(observer, localView, chunkX, chunkZ, stale)) {
@@ -255,8 +255,8 @@ public final class ProjectorLighting<O, B, V extends ContentView<?, ?>> {
         while (iterator.hasNext()) {
             Long2ObjectMap.Entry<IntOpenHashSet> entry = iterator.next();
             long key = entry.getLongKey();
-            int chunkX = (int) (key >> 32);
-            int chunkZ = (int) key;
+            int chunkX = CellKeys.chunkX(key);
+            int chunkZ = CellKeys.chunkZ(key);
             if (!output.chunkSent(observer, chunkX, chunkZ)
                 || sendLocalChunkLight(observer, localView, chunkX, chunkZ, entry.getValue())) {
                 baselineCache.remove(key);
@@ -291,8 +291,8 @@ public final class ProjectorLighting<O, B, V extends ContentView<?, ?>> {
         while (iterator.hasNext()) {
             Long2ObjectMap.Entry<IntOpenHashSet> entry = iterator.next();
             long chunkKey = entry.getLongKey();
-            int chunkX = (int) (chunkKey >> 32);
-            int chunkZ = (int) chunkKey;
+            int chunkX = CellKeys.chunkX(chunkKey);
+            int chunkZ = CellKeys.chunkZ(chunkKey);
             if (output.chunkSent(observer, chunkX, chunkZ)) {
                 continue;
             }

@@ -219,8 +219,8 @@ public final class WorldChangeTracker {
                 }
                 long key = keys[index];
                 if (columns[index]) {
-                    int chunkX = (int) (key >> 32);
-                    int chunkZ = (int) key;
+                    int chunkX = CellKeys.chunkX(key);
+                    int chunkZ = CellKeys.chunkZ(key);
                     if (inside(chunkX, chunkZ, minChunkX, minChunkZ, maxChunkX, maxChunkZ) && filter.affectsColumn(chunkX, chunkZ)) {
                         return AFFECTED;
                     }

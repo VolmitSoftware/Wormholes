@@ -103,10 +103,6 @@ public final class EntityFrames<O> implements EntityFrameSource<O> {
         return outbound;
     }
 
-    public int observedScenes() {
-        return captured.size();
-    }
-
     public int observerStates() {
         return states.size();
     }

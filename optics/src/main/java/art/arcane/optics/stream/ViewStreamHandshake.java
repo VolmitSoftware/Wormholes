@@ -15,7 +15,6 @@ public final class ViewStreamHandshake {
     private final LongSupplier salts;
     private State state;
     private Brand brand;
-    private long offeredAt;
     private long deadline;
     private ViewStreamMessage.Accept accepted;
 
@@ -65,7 +64,6 @@ public final class ViewStreamHandshake {
             throw new IllegalStateException("offer already sent in state " + state);
         }
         state = State.OFFERED;
-        offeredAt = nowMillis;
         deadline = brand == Brand.VANILLA ? nowMillis : nowMillis + policy.helloGraceMillis();
         return new ViewStreamMessage.Offer(ViewStreamLimits.WIRE_VERSION, policy.mcDataVersion(), policy.serverCaps() & ViewStreamCapability.ALL,
             ViewStreamLimits.clampMaxFrameBytes(policy.maxFrameBytes()), zeroCopyNonce);
@@ -126,10 +124,6 @@ public final class ViewStreamHandshake {
             Math.max(0, Math.min(255, policy.ackWindowFrames())));
         state = State.CLIENT_VIEW;
         return new Result(state, accepted, late);
-    }
-
-    public long offeredAtMillis() {
-        return offeredAt;
     }
 
     private ViewStreamMessage.DeclineReason declineReason(ViewStreamMessage.Hello hello, boolean capacityAvailable) {

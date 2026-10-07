@@ -137,10 +137,6 @@ public final class ProjectorHoldProof {
         return eyeInFront;
     }
 
-    public boolean eyeInFront() {
-        return eyeInFront;
-    }
-
     public Verdict verdict(int cellX, int cellY, int cellZ, LocalOccupancy local) {
         if (!eyeInFront) {
             return Verdict.BACK_SIDE;

@@ -172,8 +172,8 @@ public final class ViewPlateBuilder {
         int maxChunkX = Integer.MIN_VALUE;
         int maxChunkZ = Integer.MIN_VALUE;
         for (long chunk : dirtyChunks) {
-            int chunkX = (int) (chunk >> 32);
-            int chunkZ = (int) chunk;
+            int chunkX = CellKeys.chunkX(chunk);
+            int chunkZ = CellKeys.chunkZ(chunk);
             minChunkX = Math.min(minChunkX, chunkX - 1);
             minChunkZ = Math.min(minChunkZ, chunkZ - 1);
             maxChunkX = Math.max(maxChunkX, chunkX + 1);

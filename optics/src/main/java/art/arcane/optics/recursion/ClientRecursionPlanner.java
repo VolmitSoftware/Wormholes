@@ -31,10 +31,6 @@ public final class ClientRecursionPlanner {
         return cones;
     }
 
-    public int depthCap() {
-        return depthCap;
-    }
-
     public static boolean destinationReaches(ApertureDescriptor parent, OpticTransform transform, Box destinationArea) {
         if (destinationArea == null || transform == null) {
             return false;

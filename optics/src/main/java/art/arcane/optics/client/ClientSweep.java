@@ -18,7 +18,6 @@ import art.arcane.optics.aperture.ApertureDescriptor;
 
 public final class ClientSweep {
     public static final double EYE_STEPS_PER_BLOCK = 20.0D;
-    public static final double EYE_QUANTUM_BLOCKS = 1.0D / EYE_STEPS_PER_BLOCK;
     public static final double DEFAULT_HYSTERESIS_BLOCKS = 0.25D;
     public static final long MAX_BOUNDS_CELLS = 1L << 24;
 
@@ -188,10 +187,6 @@ public final class ClientSweep {
 
     public BlockBox bounds() {
         return layout.bounds;
-    }
-
-    public double hysteresis() {
-        return hysteresis;
     }
 
     private void clearOutput() {
