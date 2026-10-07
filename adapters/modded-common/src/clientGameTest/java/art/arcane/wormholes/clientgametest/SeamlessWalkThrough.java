@@ -39,6 +39,10 @@ final class SeamlessWalkThrough {
     private static final int LOOK_TICKS = 40;
     private static final int ARRIVAL_PAUSE_TICKS = 10;
     private static final int CROSSING_TIMEOUT_TICKS = 160;
+    private static final int PREPARE_TIMEOUT_TICKS = 600;
+    private static final int SETTLED_FRAME = 10;
+    private static final int BASELINE_FRAMES = 40;
+    private static final int SETTLE_TIMEOUT_TICKS = 100;
     private static final double CROSSING_JUMP = 4.0D;
     private static final double APPROACH_BLOCKS = 6.5D;
     private static final double FAR_APPROACH_BLOCKS = 9.0D;
@@ -122,6 +126,10 @@ final class SeamlessWalkThrough {
     }
 
     private static void walk(SeamlessClient client, String label, List<String> failures) {
+        String unprepared = prepare(client);
+        if (unprepared != null) {
+            LOGGER.info("[{}] walking before preparation finished: {}", label, unprepared);
+        }
         client.runOnClient(minecraft -> TravelTap.reset());
         String before = client.computeOnClient(minecraft -> minecraft.level.dimension().identifier().toString());
         int player = client.computeOnClient(minecraft -> System.identityHashCode(minecraft.player));
@@ -143,6 +151,10 @@ final class SeamlessWalkThrough {
             return;
         }
         client.waitTicks(ARRIVAL_PAUSE_TICKS);
+        int settled = crossing + SETTLED_FRAME + BASELINE_FRAMES;
+        for (int tick = 0; tick < SETTLE_TIMEOUT_TICKS && client.computeOnClient(minecraft -> TravelTap.frames().size()) < settled; tick++) {
+            client.waitTicks(1);
+        }
         String after = client.computeOnClient(minecraft -> minecraft.level.dimension().identifier().toString());
         int respawns = TravelTap.respawns();
         int positions = TravelTap.positions();
@@ -182,27 +194,42 @@ final class SeamlessWalkThrough {
         client.waitTicks(1);
     }
 
+    private static String prepare(SeamlessClient client) {
+        String unprepared = client.computeOnClient(minecraft -> WormholesClient.instance().preparedTravel().seamless().unprepared());
+        for (int tick = 0; tick < PREPARE_TIMEOUT_TICKS && unprepared != null; tick++) {
+            client.waitTicks(1);
+            unprepared = client.computeOnClient(minecraft -> WormholesClient.instance().preparedTravel().seamless().unprepared());
+        }
+        return unprepared;
+    }
+
     private static String frameTiming(int crossing) {
         List<TravelTap.Frame> frames = TravelTap.frames();
-        if (crossing < 2) {
+        if (crossing < 2 || frames.size() < crossing + SETTLED_FRAME + 2) {
             return "frame timing unavailable";
         }
-        long[] before = new long[crossing];
-        for (int index = 0; index < crossing; index++) {
-            before[index] = frames.get(index).tickNanos();
-        }
-        Arrays.sort(before);
-        long median = before[before.length / 2];
+        long source = median(frames, Math.max(0, crossing - BASELINE_FRAMES), crossing);
+        long destination = median(frames, crossing + SETTLED_FRAME, Math.min(frames.size(), crossing + SETTLED_FRAME + BASELINE_FRAMES));
         long worst = 0L;
-        int worstFrame = -1;
-        for (int index = crossing; index < Math.min(frames.size(), crossing + 40); index++) {
+        int worstFrame = 0;
+        for (int index = crossing - 1; index < Math.min(frames.size(), crossing + SETTLED_FRAME); index++) {
             if (frames.get(index).tickNanos() > worst) {
                 worst = frames.get(index).tickNanos();
                 worstFrame = index - crossing;
             }
         }
-        return String.format("median %.2f ms, worst %.2f ms at crossing+%d (%.1fx)", median / 1.0E6D, worst / 1.0E6D, worstFrame,
-            median == 0L ? 0.0D : (double) worst / median);
+        long baseline = Math.max(source, destination);
+        return String.format("source median %.2f ms, destination median %.2f ms, worst crossing frame %.2f ms at crossing%+d (%.1fx)",
+            source / 1.0E6D, destination / 1.0E6D, worst / 1.0E6D, worstFrame, baseline == 0L ? 0.0D : (double) worst / baseline);
+    }
+
+    private static long median(List<TravelTap.Frame> frames, int from, int to) {
+        long[] values = new long[to - from];
+        for (int index = from; index < to; index++) {
+            values[index - from] = frames.get(index).tickNanos();
+        }
+        Arrays.sort(values);
+        return values.length == 0 ? 0L : values[values.length / 2];
     }
 
     private static void fill(ServerLevel level, BlockPos min, int sizeX, int sizeY, int sizeZ, BlockState state) {

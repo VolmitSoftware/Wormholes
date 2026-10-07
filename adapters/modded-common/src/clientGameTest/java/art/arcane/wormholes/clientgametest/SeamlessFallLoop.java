@@ -38,6 +38,7 @@ final class SeamlessFallLoop {
     private static final int SETTLE_TICKS = 20;
     private static final int MIN_CROSSINGS = 15;
     private static final double TERMINAL_SPEED = 3.5D;
+    private static final double MAX_FALL_SPEED = 3.95D;
     private static final double JUMP = SHAFT * 0.5D;
     private static final double STEP_TOLERANCE = 1.0E-3D;
     private static final double FLOOR_PLANE = ENTITY_FLOOR.getY() + 0.5D;
@@ -45,6 +46,7 @@ final class SeamlessFallLoop {
     private static final double PLANE_REACH = 4.25D;
     private static final double PLANE_SLACK = 0.25D;
     private static final double HITCH = 0.5D;
+    private static final double FALL_OUT_DEPTH = 6.0D;
 
     private SeamlessFallLoop() {
     }
@@ -87,8 +89,8 @@ final class SeamlessFallLoop {
         WormholesModRuntime runtime = runtime(server);
         ServerLevel level = server.overworld();
         List<UUID> portals = new ArrayList<>(4);
-        portals.addAll(shaft(runtime, level, player, PLAYER_FLOOR));
-        portals.addAll(shaft(runtime, level, player, ENTITY_FLOOR));
+        portals.addAll(shaft(runtime, level, player, PLAYER_FLOOR, true));
+        portals.addAll(shaft(runtime, level, player, ENTITY_FLOOR, false));
         player.setGameMode(GameType.SURVIVAL);
         player.teleportTo(level, PLAYER_FLOOR.getX() + 1.5D, PLAYER_FLOOR.getY() + SHAFT - 6.0D, PLAYER_FLOOR.getZ() + 1.5D, Set.of(), 0.0F, 30.0F,
             false);
@@ -119,7 +121,7 @@ final class SeamlessFallLoop {
         }
     }
 
-    private static List<UUID> shaft(WormholesModRuntime runtime, ServerLevel level, ServerPlayer player, BlockPos floor) {
+    private static List<UUID> shaft(WormholesModRuntime runtime, ServerLevel level, ServerPlayer player, BlockPos floor, boolean builtFacingTheRoom) {
         for (int x = -2; x <= 4; x++) {
             for (int z = -2; z <= 4; z++) {
                 for (int y = -12; y <= SHAFT + 2; y++) {
@@ -137,8 +139,12 @@ final class SeamlessFallLoop {
             }
         }
         MinecraftPortal up = runtime.portals().create(player.getUUID(), level, bottom, PortalType.PORTAL, new Vec3(0, -1, 0));
-        MinecraftPortal down = runtime.portals().create(player.getUUID(), level, top, PortalType.PORTAL, new Vec3(0, -1, 0));
+        MinecraftPortal down = runtime.portals().create(player.getUUID(), level, top, PortalType.PORTAL, new Vec3(0, builtFacingTheRoom ? 1 : -1, 0));
         SeamlessScenario.assertTrue(up != null && down != null, "fall loop portal creation rejected at " + floor);
+        if (builtFacingTheRoom) {
+            SeamlessScenario.assertTrue(runtime.portals().update(player, down.getId(), portal -> portal.setFrame(portal.getFrame().flipNormal())),
+                "ceiling portal face flip rejected");
+        }
         SeamlessScenario.assertTrue(runtime.portals().link(player, up.getId(), down.getId()), "floor portal link rejected");
         SeamlessScenario.assertTrue(runtime.portals().link(player, down.getId(), up.getId()), "ceiling portal link rejected");
         return List.of(up.getId(), down.getId());
@@ -203,7 +209,10 @@ final class SeamlessFallLoop {
         if (fastest < TERMINAL_SPEED) {
             failures.add("player only reached " + String.format("%.3f", fastest) + " blocks/tick");
         }
-        if (lowest < PLAYER_FLOOR.getY() - 4.0D) {
+        if (fastest > MAX_FALL_SPEED) {
+            failures.add("player fell at " + String.format("%.3f", fastest) + " blocks/tick, faster than terminal velocity");
+        }
+        if (lowest < PLAYER_FLOOR.getY() - FALL_OUT_DEPTH) {
             failures.add("player fell out of the loop to y " + String.format("%.2f", lowest));
         }
         if (TravelTap.respawns() > 0 || TravelTap.positions() > 0 || TravelTap.accepts() > 0) {

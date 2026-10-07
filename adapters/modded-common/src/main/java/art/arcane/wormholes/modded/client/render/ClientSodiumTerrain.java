@@ -371,11 +371,15 @@ public final class ClientSodiumTerrain {
     }
 
     public static Handoff handoff(ClientLevel level) {
-        return new Handoff(level, false);
+        return new Handoff(level, HandoffKind.PREPARED);
     }
 
     public static Handoff authoritativeHandoff(ClientLevel level) {
-        return new Handoff(level, true);
+        return new Handoff(level, HandoffKind.AUTHORITATIVE);
+    }
+
+    public static Handoff residentHandoff(ClientLevel level) {
+        return new Handoff(level, HandoffKind.RESIDENT);
     }
 
     public static void beforeLevelChange(ClientLevel level) {
@@ -544,21 +548,22 @@ public final class ClientSodiumTerrain {
         private boolean installed;
         private boolean closed;
 
-        private Handoff(ClientLevel destination, boolean authoritative) {
+        private Handoff(ClientLevel destination, HandoffKind kind) {
             previous = handoff;
             this.destination = destination;
             if (AVAILABLE) {
                 rememberActive(Minecraft.getInstance());
             }
             State retained = AVAILABLE ? STATES.get(destination) : null;
-            if (authoritative) {
-                state = retained != null && retained.compatible()
+            state = switch (kind) {
+                case AUTHORITATIVE -> retained != null && retained.compatible()
                     && (!PortalShaderScope.irisPresent() || PortalIrisMainPipelines.authoritativeTerrainCompatible(destination)) ? retained : null;
-            } else {
-                state = ready(destination) || retained != null && retained.viewport != null
+                case PREPARED -> ready(destination) || retained != null && retained.viewport != null
                     && destination == Minecraft.getInstance().level && retained.compatible() && compatible(destination)
                     ? retained : null;
-            }
+                case RESIDENT -> retained != null && retained.renderer != SodiumWorldRenderer.instanceNullable() && retained.compatible()
+                    && compatible(destination) ? retained : null;
+            };
             handoff = this;
         }
 
@@ -573,6 +578,10 @@ public final class ClientSodiumTerrain {
             closed = true;
             handoff = previous;
         }
+    }
+
+    private enum HandoffKind {
+        PREPARED, AUTHORITATIVE, RESIDENT
     }
 
     enum WarmStage {

@@ -37,7 +37,6 @@ public final class ResidentLevels {
     private ClientLevel crossingSource;
     private Routing routing;
     private long clock;
-    private boolean activating;
 
     public ResidentLevels(Consumer<TravelMessage> sender, long budgetBytes) {
         this.sender = sender;
@@ -210,19 +209,6 @@ public final class ResidentLevels {
 
     public ClientLevel crossingSource() {
         return crossingSource;
-    }
-
-    public boolean activating() {
-        return activating;
-    }
-
-    public void activate(Runnable swap) {
-        activating = true;
-        try {
-            swap.run();
-        } finally {
-            activating = false;
-        }
     }
 
     public long bytes() {

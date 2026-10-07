@@ -34,7 +34,7 @@ final class ClientLevelSwitch {
         minecraft.setCameraEntity(player);
     }
 
-    static void activate(ResidentLevels residents, ClientLevel destination, Pose pose, ClientTravelMotion.Carry carry) {
+    static void activate(ClientLevel destination, Pose pose, ClientTravelMotion.Carry carry) {
         Minecraft minecraft = Minecraft.getInstance();
         LocalPlayer player = minecraft.player;
         if (minecraft.level != null) {
@@ -49,16 +49,31 @@ final class ClientLevelSwitch {
         PreparedPacketAccess connection = (PreparedPacketAccess) minecraft.getConnection();
         connection.wormholes$level(destination);
         connection.wormholes$data(destination.getLevelData());
-        residents.activate(() -> attachLevel(destination, false));
+        swap(minecraft, destination);
         destination.addEntity(player);
         minecraft.setCameraEntity(player);
     }
 
-    static void attachLevel(ClientLevel destination, boolean authoritative) {
-        Minecraft minecraft = Minecraft.getInstance();
+    private static void swap(Minecraft minecraft, ClientLevel destination) {
+        detachExtractor(minecraft, destination);
+        try (ClientSodiumTerrain.Handoff ignored = ClientSodiumTerrain.residentHandoff(destination)) {
+            minecraft.level = destination;
+            minecraft.levelExtractor.setLevel(destination);
+        }
+        minecraft.particleEngine.setLevel(destination);
+        minecraft.gameRenderer.setLevel(destination);
+        ((PreparedChunkColumns) destination.getChunkSource()).wormholes$announceColumns();
+    }
+
+    private static void detachExtractor(Minecraft minecraft, ClientLevel destination) {
         if (minecraft.level != null && minecraft.level != destination) {
             ((PreparedLevelAccess) minecraft.level).wormholes$extractor(new PreparedLevelExtractor(minecraft));
         }
+    }
+
+    static void attachLevel(ClientLevel destination, boolean authoritative) {
+        Minecraft minecraft = Minecraft.getInstance();
+        detachExtractor(minecraft, destination);
         try (ClientSodiumTerrain.Handoff ignored = authoritative
             ? ClientSodiumTerrain.authoritativeHandoff(destination) : ClientSodiumTerrain.handoff(destination)) {
             if (IRIS) {

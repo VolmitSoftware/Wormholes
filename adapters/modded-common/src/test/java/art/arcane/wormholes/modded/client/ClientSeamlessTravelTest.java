@@ -2,15 +2,19 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.optics.crossing.Pose;
 import art.arcane.optics.math.Vec3d;
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
+import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
 import art.arcane.wormholes.modded.client.render.PortalIrisMainPipelines;
+import art.arcane.wormholes.modded.clientview.MinecraftPortalEnvironment;
 import art.arcane.wormholes.modded.mixin.client.PreparedPacketAccess;
 import art.arcane.wormholes.network.client.TravelMessage;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -27,11 +31,13 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -47,7 +53,7 @@ public class ClientSeamlessTravelTest extends MinecraftTestBase {
     }
 
     @Test
-    public void acceptWithinToleranceKeepsTheSwappedLevelAndRetiresTheSource() throws ReflectiveOperationException {
+    public void acceptWithinToleranceKeepsTheSwappedLevelThePredictedMomentumAndRetiresTheSource() throws ReflectiveOperationException {
         try (Crossing crossing = new Crossing(true)) {
             crossing.travel.receive(SeamlessTravelFixtures.accept(0.0004D, 0.2F));
             assertFalse(crossing.travel.pending());
@@ -61,7 +67,7 @@ public class ClientSeamlessTravelTest extends MinecraftTestBase {
             verify(crossing.player).setYRot(185.0F);
             ArgumentCaptor<Vec3> velocity = ArgumentCaptor.forClass(Vec3.class);
             verify(crossing.player).setDeltaMovement(velocity.capture());
-            assertEquals(-0.25D, velocity.getValue().z, 0.000001D);
+            assertEquals(-0.3D, velocity.getValue().z, 0.000001D);
             verify(crossing.client).dropProjectedEntities(crossing.begin.sourceGeometry());
             assertTrue(crossing.scope.sent.stream().noneMatch(TravelMessage.TravelCancel.class::isInstance));
         }
@@ -94,10 +100,15 @@ public class ClientSeamlessTravelTest extends MinecraftTestBase {
     }
 
     @Test
-    public void anUnclaimedServerCrossingSwapsIntoTheResidentLevel() throws ReflectiveOperationException {
+    public void anUnclaimedServerCrossingSwapsIntoTheResidentLevelWithoutReloadingTheClient() throws ReflectiveOperationException {
         try (Crossing crossing = new Crossing(false)) {
             crossing.travel.receive(SeamlessTravelFixtures.accept(0.0D, 0.0F));
-            verify(crossing.scope.minecraft).setLevel(crossing.nether);
+            verify(crossing.scope.minecraft, never()).setLevel(any());
+            assertSame(crossing.nether, crossing.scope.minecraft.level);
+            verify(crossing.scope.minecraft.levelExtractor).setLevel(crossing.nether);
+            verify(crossing.scope.minecraft.particleEngine).setLevel(crossing.nether);
+            verify(crossing.scope.minecraft.gameRenderer).setLevel(crossing.nether);
+            verify(crossing.scope.minecraft.getSoundManager(), never()).stop();
             assertSame(crossing.nether, crossing.scope.connection.getLevel());
             assertTrue(crossing.residents.resident(crossing.source));
             verify(crossing.source).removeEntity(42, Entity.RemovalReason.CHANGED_DIMENSION);
@@ -114,6 +125,43 @@ public class ClientSeamlessTravelTest extends MinecraftTestBase {
             crossing.travel.receive(SeamlessTravelFixtures.accept(0.0D, 0.0F));
             assertSame(crossing.source, crossing.scope.minecraft.level);
             assertTrue(crossing.scope.sent.contains(new TravelMessage.RemoteLevelReopen(3)));
+        }
+    }
+
+    @Test
+    public void armedResidentRoutesKeepWarmingOneReturnViewOfTheCurrentLevel() throws ReflectiveOperationException {
+        try (Crossing crossing = new Crossing(false);
+             MockedStatic<MinecraftPortalEnvironment> environments = mockStatic(MinecraftPortalEnvironment.class)) {
+            EnvironmentState environment = ResidentTestFixtures.environment(ResidentTestFixtures.OVERWORLD);
+            environments.when(() -> MinecraftPortalEnvironment.capture(any(), any(), any(), anyBoolean())).thenReturn(environment);
+            when(crossing.player.getEyePosition()).thenReturn(new Vec3(100.5D, 65.62D, 99.0D));
+            when(crossing.player.getBoundingBox()).thenReturn(new AABB(100.2D, 64.0D, 98.7D, 100.8D, 65.8D, 99.3D));
+            crossing.travel.tick();
+            crossing.travel.tick();
+            environments.verify(() -> MinecraftPortalEnvironment.capture(any(), any(), any(), anyBoolean()), times(1));
+            verify(crossing.renderer, times(2)).prepareTravelSourceEnvironment(environment);
+            crossing.travel.receive(new TravelMessage.TravelCancel(SeamlessTravelFixtures.TOKEN, SeamlessTravelFixtures.GENERATION));
+            crossing.travel.tick();
+            verify(crossing.renderer).retireTravelSource();
+        }
+    }
+
+    @Test
+    public void preparationReportsWhatTheArmedDestinationStillNeeds() throws ReflectiveOperationException {
+        try (Crossing crossing = new Crossing(false)) {
+            crossing.scope.terrain.when(ClientSodiumTerrain::available).thenReturn(true);
+            crossing.scope.terrain.when(() -> ClientSodiumTerrain.ready(crossing.nether)).thenReturn(false);
+            assertEquals("destination terrain", crossing.travel.unprepared());
+            crossing.scope.terrain.when(() -> ClientSodiumTerrain.ready(crossing.nether)).thenReturn(true);
+            crossing.shaders.when(() -> PortalIrisMainPipelines.ready(crossing.nether)).thenReturn(false);
+            assertEquals("destination shaders", crossing.travel.unprepared());
+            crossing.shaders.when(() -> PortalIrisMainPipelines.ready(crossing.nether)).thenReturn(true);
+            when(crossing.renderer.travelSourceShaderReady()).thenReturn(false);
+            assertEquals("return view shaders", crossing.travel.unprepared());
+            when(crossing.renderer.travelSourceShaderReady()).thenReturn(true);
+            assertNull(crossing.travel.unprepared());
+            crossing.travel.receive(new TravelMessage.TravelCancel(SeamlessTravelFixtures.TOKEN, SeamlessTravelFixtures.GENERATION));
+            assertEquals("no armed destination", crossing.travel.unprepared());
         }
     }
 
@@ -136,6 +184,7 @@ public class ClientSeamlessTravelTest extends MinecraftTestBase {
         final WormholesClient client = mock(WormholesClient.class);
         final MockedStatic<WormholesClient> clients = mockStatic(WormholesClient.class);
         final MockedStatic<ClientPortalRenderer> renderers = mockStatic(ClientPortalRenderer.class);
+        final ClientPortalRenderer renderer = mock(ClientPortalRenderer.class);
         final ClientLevel nether;
 
         Crossing(boolean predicted) throws ReflectiveOperationException {
@@ -144,7 +193,7 @@ public class ClientSeamlessTravelTest extends MinecraftTestBase {
             when(session.has(anyLong())).thenReturn(true);
             when(client.session()).thenReturn(session);
             clients.when(WormholesClient::instance).thenReturn(client);
-            renderers.when(ClientPortalRenderer::instance).thenReturn(mock(ClientPortalRenderer.class));
+            renderers.when(ClientPortalRenderer::instance).thenReturn(renderer);
             when(player.getId()).thenReturn(42);
             scope.minecraft.player = player;
             nether = ResidentTestFixtures.level(ResidentTestFixtures.NETHER);
@@ -177,7 +226,7 @@ public class ClientSeamlessTravelTest extends MinecraftTestBase {
             Constructor<?> constructor = type.getDeclaredConstructors()[0];
             constructor.setAccessible(true);
             return constructor.newInstance(begin, from, to, before, carry, SeamlessTravelFixtures.DESTINATION, SeamlessTravelFixtures.EXPECTED_ARRIVAL,
-                System.currentTimeMillis() + 60_000L);
+                System.currentTimeMillis() + 60_000L, null);
         }
 
         @Override

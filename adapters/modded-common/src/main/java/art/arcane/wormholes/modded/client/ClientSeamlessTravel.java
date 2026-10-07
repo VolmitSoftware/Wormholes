@@ -8,8 +8,11 @@ import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Vec3d;
+import art.arcane.optics.stream.EnvironmentState;
+import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
 import art.arcane.wormholes.modded.client.render.PortalIrisMainPipelines;
+import art.arcane.wormholes.modded.clientview.MinecraftPortalEnvironment;
 import art.arcane.wormholes.modded.seamless.StraddleTracker;
 import art.arcane.wormholes.network.client.TravelMessage;
 import net.minecraft.client.Camera;
@@ -48,6 +51,8 @@ public final class ClientSeamlessTravel {
     private final Map<UUID, TravelMessage.TravelBegin> arms = new LinkedHashMap<>();
     private final ArrayDeque<Crossing> pending = new ArrayDeque<>();
     private final ClientEntityCrossings entities = new ClientEntityCrossings();
+    private ClientLevel warmedSource;
+    private EnvironmentState warmedEnvironment;
     private Vec3 previousEye;
     private UUID declined;
     private StraddleTracker.Straddle returning;
@@ -125,6 +130,7 @@ public final class ClientSeamlessTravel {
                 straddling = false;
                 StraddleTracker.clear(player);
             }
+            retireReturnView();
             return;
         }
         straddle(minecraft, player);
@@ -143,6 +149,7 @@ public final class ClientSeamlessTravel {
         arms.clear();
         pending.clear();
         entities.clear();
+        retireReturnView();
         residents.crossing(null);
         previousEye = null;
         declined = null;
@@ -237,13 +244,14 @@ public final class ClientSeamlessTravel {
         }
         OpticTransform toward = arm.destinationToSource().inverse();
         Vec3 expected = ClientTravelMotion.point(toward, feet);
+        String preparing = target == source ? null : preparing(target);
         ClientTravelMotion.Carry carry = ClientTravelMotion.carry(player);
         try {
             sender.accept(new TravelMessage.TravelCross(arm.token(), arm.generation(), CROSS_REVISION, crossingPose,
                 ClientTravelMotion.vector(previous), ClientTravelMotion.vector(eye)));
             ClientTravelMotion.Carry carried = carry.moved(before, after, toward);
             if (target != source) {
-                ClientLevelSwitch.activate(residents, target, after, carried);
+                ClientLevelSwitch.activate(target, after, carried);
             } else {
                 ClientTravelMotion.apply(player, after);
                 carried.restore(player);
@@ -252,7 +260,8 @@ public final class ClientSeamlessTravel {
             LOGGER.warn("Unable to predict seamless portal crossing", failure);
             return null;
         }
-        pending.addLast(new Crossing(arm, source, target, before, carry, after, expected, System.currentTimeMillis() + ACCEPT_TIMEOUT_MILLIS));
+        pending.addLast(new Crossing(arm, source, target, before, carry, after, expected, System.currentTimeMillis() + ACCEPT_TIMEOUT_MILLIS,
+            preparing));
         residents.crossing(pending.peekFirst().source() == pending.peekFirst().target() ? null : pending.peekFirst().source());
         declined = null;
         returning = StraddleTracker.create(destinationEndpoint(arm), sourceEndpoint(arm, arm.sourceGeometry().aperture()), source,
@@ -277,8 +286,9 @@ public final class ClientSeamlessTravel {
 
     private void confirmed(Crossing crossing, TravelMessage.TravelAccept accept) {
         TravelMessage.TravelBegin arm = crossing.arm();
-        LOGGER.info("Crossing seamless {} -> {}{}", arm.sourceWorld(), arm.world().dimension(),
-            accept.dimensionChanged() ? " (resident " + accept.levelHandle() + ")" : "");
+        LOGGER.info("Crossing seamless {} -> {}{}{}", arm.sourceWorld(), arm.world().dimension(),
+            accept.dimensionChanged() ? " (resident " + accept.levelHandle() + ")" : "",
+            crossing.preparing() == null ? "" : ", still preparing " + crossing.preparing());
         Crossing next = pending.peekFirst();
         residents.crossing(next == null || next.source() == next.target() ? null : next.source());
         if (crossing.source() != crossing.target()) {
@@ -297,12 +307,14 @@ public final class ClientSeamlessTravel {
             authoritative.z() - crossing.expected().z);
         float yaw = Mth.wrapDegrees(authoritative.yaw() - crossing.after().yaw());
         float pitch = authoritative.pitch() - crossing.after().pitch();
-        Pose reconciled = ClientTravelMotion.reconcile(ClientTravelMotion.capture(player), offset, crossing.after().velocity(), accept.velocity());
-        if (offset.lengthSquared() > POSITION_TOLERANCE * POSITION_TOLERANCE || Math.abs(yaw) > LOOK_TOLERANCE || Math.abs(pitch) > LOOK_TOLERANCE) {
-            LOGGER.warn("Seamless crossing corrected by the server: offset {} yaw {} pitch {}", offset, yaw, pitch);
-            reconciled = ClientTravelMotion.turned(reconciled, yaw, pitch);
+        Pose current = ClientTravelMotion.capture(player);
+        if (offset.lengthSquared() <= POSITION_TOLERANCE * POSITION_TOLERANCE && Math.abs(yaw) <= LOOK_TOLERANCE && Math.abs(pitch) <= LOOK_TOLERANCE) {
+            ClientTravelMotion.apply(player, current.moved(offset));
+            return;
         }
-        ClientTravelMotion.apply(player, reconciled);
+        LOGGER.warn("Seamless crossing corrected by the server: offset {} yaw {} pitch {}", offset, yaw, pitch);
+        ClientTravelMotion.apply(player, ClientTravelMotion.turned(ClientTravelMotion.reconcile(current, offset, crossing.after().velocity(),
+            accept.velocity()), yaw, pitch));
     }
 
     private void serverCrossing(TravelMessage.TravelAccept accept) {
@@ -328,7 +340,7 @@ public final class ClientSeamlessTravel {
         ClientTravelMotion.Carry carried = arm == null ? ClientTravelMotion.carry(player)
             : ClientTravelMotion.carry(player).moved(before, placed, arm.destinationToSource().inverse());
         if (target != source) {
-            ClientLevelSwitch.activate(residents, target, placed, carried);
+            ClientLevelSwitch.activate(target, placed, carried);
             residents.retire(source);
         } else {
             ClientTravelMotion.apply(player, placed);
@@ -378,7 +390,7 @@ public final class ClientSeamlessTravel {
         }
         StraddleTracker.clear(player);
         if (minecraft.level != from.source()) {
-            ClientLevelSwitch.activate(residents, from.source(), from.before(), from.carry());
+            ClientLevelSwitch.activate(from.source(), from.before(), from.carry());
         } else {
             ClientTravelMotion.apply(player, from.before());
             from.carry().restore(player);
@@ -410,10 +422,34 @@ public final class ClientSeamlessTravel {
         StraddleTracker.clear(player);
     }
 
-    private void warm(Minecraft minecraft, LocalPlayer player) {
+    public String unprepared() {
+        Minecraft minecraft = Minecraft.getInstance();
+        LocalPlayer player = minecraft.player;
+        TravelMessage.TravelBegin nearest = player == null || minecraft.level == null ? null : nearestResident(minecraft.level, player);
+        if (nearest == null) {
+            return "no armed destination";
+        }
+        ClientLevel level = residents.level(nearest.levelHandle());
+        return level == null ? "destination level" : preparing(level);
+    }
+
+    private static String preparing(ClientLevel level) {
+        if (ClientSodiumTerrain.available() && !ClientSodiumTerrain.ready(level)) {
+            return "destination terrain";
+        }
+        if (IRIS && !PortalIrisMainPipelines.ready(level)) {
+            return "destination shaders";
+        }
+        if (IRIS && !ClientPortalRenderer.instance().travelSourceShaderReady()) {
+            return "return view shaders";
+        }
+        return null;
+    }
+
+    private TravelMessage.TravelBegin nearestResident(ClientLevel current, LocalPlayer player) {
         TravelMessage.TravelBegin nearest = null;
         double nearestDistance = Double.POSITIVE_INFINITY;
-        String dimension = minecraft.level.dimension().identifier().toString();
+        String dimension = current.dimension().identifier().toString();
         for (TravelMessage.TravelBegin arm : arms.values()) {
             if (!arm.resident() || !arm.sourceWorld().equals(dimension)) {
                 continue;
@@ -424,16 +460,42 @@ public final class ClientSeamlessTravel {
                 nearestDistance = distance;
             }
         }
+        return nearest;
+    }
+
+    private void warm(Minecraft minecraft, LocalPlayer player) {
+        TravelMessage.TravelBegin nearest = nearestResident(minecraft.level, player);
         ClientLevel level = nearest == null ? null : residents.level(nearest.levelHandle());
         if (level == null) {
             return;
         }
         try {
+            if (IRIS) {
+                warmReturnView(minecraft.level, player);
+            }
             if (!IRIS || PortalIrisMainPipelines.prepare(level)) {
                 ClientSodiumTerrain.prepare(level, nearest.environment(), ClientPreparedTravel.travelCamera(nearest));
             }
         } catch (RuntimeException failure) {
             LOGGER.warn("Unable to prepare the {} terrain behind portal {}", level.dimension().identifier(), nearest.sourcePortal(), failure);
+        }
+    }
+
+    private void warmReturnView(ClientLevel level, LocalPlayer player) {
+        if (warmedSource != level) {
+            Vec3 eye = player.getEyePosition();
+            warmedEnvironment = MinecraftPortalEnvironment.capture(level, new Vec3d(eye.x, eye.y, eye.z), OpticTransform.IDENTITY,
+                ((ClientTravelWorld) level).wormholes$travelWorld().flat());
+            warmedSource = level;
+        }
+        ClientPortalRenderer.instance().prepareTravelSourceEnvironment(warmedEnvironment);
+    }
+
+    private void retireReturnView() {
+        if (warmedSource != null) {
+            warmedSource = null;
+            warmedEnvironment = null;
+            ClientPortalRenderer.instance().retireTravelSource();
         }
     }
 
@@ -477,6 +539,6 @@ public final class ClientSeamlessTravel {
     }
 
     private record Crossing(TravelMessage.TravelBegin arm, ClientLevel source, ClientLevel target, Pose before, ClientTravelMotion.Carry carry,
-                            Pose after, Vec3 expected, long deadline) {
+                            Pose after, Vec3 expected, long deadline, String preparing) {
     }
 }

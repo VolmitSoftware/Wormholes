@@ -11,6 +11,10 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientChunkCache;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientPacketListener;
+import net.minecraft.client.particle.ParticleEngine;
+import net.minecraft.client.renderer.GameRenderer;
+import net.minecraft.client.renderer.extract.LevelExtractor;
+import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
@@ -27,6 +31,7 @@ import net.minecraft.world.level.dimension.DimensionType;
 
 import org.mockito.AdditionalAnswers;
 
+import java.lang.reflect.Field;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceArray;
@@ -54,7 +59,21 @@ final class ResidentTestFixtures {
         minecraft.level = current;
         when(minecraft.getConnection()).thenReturn(connection);
         when(minecraft.isSameThread()).thenReturn(true);
+        when(minecraft.getSoundManager()).thenReturn(mock(SoundManager.class));
+        engine(minecraft, "levelExtractor", mock(LevelExtractor.class));
+        engine(minecraft, "particleEngine", mock(ParticleEngine.class));
+        engine(minecraft, "gameRenderer", mock(GameRenderer.class));
         return minecraft;
+    }
+
+    private static void engine(Minecraft minecraft, String name, Object engine) {
+        try {
+            Field field = Minecraft.class.getDeclaredField(name);
+            field.setAccessible(true);
+            field.set(minecraft, engine);
+        } catch (ReflectiveOperationException failure) {
+            throw new IllegalStateException("Minecraft test engine " + name, failure);
+        }
     }
 
     @SuppressWarnings("unchecked")
