@@ -6,15 +6,19 @@ import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.network.client.TravelMessage;
 import art.arcane.wormholes.transit.MomentumPolicy;
 import art.arcane.wormholes.transit.OrientationPolicy;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
 import org.junit.Test;
 
+import java.util.List;
 import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 
-public class MinecraftPortalArrivalTest {
+public class MinecraftPortalArrivalTest extends MinecraftTestBase {
     private static final UUID EXIT = new UUID(0, 1);
     private static final UUID OTHER = new UUID(0, 2);
 
@@ -44,6 +48,17 @@ public class MinecraftPortalArrivalTest {
         assertFalse(arrival.release(false, 100L));
         assertTrue(arrival.blocks(OTHER, false, 999L));
         assertFalse(arrival.blocks(OTHER, false, 1_000L));
+    }
+
+    @Test
+    public void entitiesWithoutAPlayerAboardCrossAgainWithoutTheTeleportCooldown() {
+        Entity pig = mock(Entity.class);
+        Entity boat = mock(Entity.class);
+        ServerPlayer rider = mock(ServerPlayer.class);
+        assertEquals(0L, MinecraftPortalRegistry.arrivalCooldown(List.of(pig), true, 1_000L));
+        assertEquals(1_000L, MinecraftPortalRegistry.arrivalCooldown(List.of(pig), false, 1_000L));
+        assertEquals(1_000L, MinecraftPortalRegistry.arrivalCooldown(List.of(boat, rider), true, 1_000L));
+        assertEquals(1_000L, MinecraftPortalRegistry.arrivalCooldown(List.of(rider), true, 1_000L));
     }
 
     @Test

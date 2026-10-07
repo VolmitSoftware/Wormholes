@@ -55,6 +55,16 @@ final class FabricSeamlessServer implements SeamlessServer {
     }
 
     @Override
+    public SeamlessFallLoop.Loop buildFallLoop() {
+        return server.computeOnServer(minecraftServer -> SeamlessFallLoop.build(minecraftServer, connection.getServerPlayer()));
+    }
+
+    @Override
+    public void removeFallLoop(SeamlessFallLoop.Loop loop) {
+        server.runOnServer(minecraftServer -> SeamlessFallLoop.remove(minecraftServer, connection.getServerPlayer(), loop));
+    }
+
+    @Override
     public void approachFrom(ResourceKey<Level> level, Vec3 position, float yaw) {
         server.runOnServer(minecraftServer -> connection.getServerPlayer().teleportTo(Objects.requireNonNull(minecraftServer.getLevel(level)),
             position.x, position.y, position.z, Set.of(), yaw, 0.0F, false));

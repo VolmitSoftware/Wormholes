@@ -1,9 +1,14 @@
 package art.arcane.wormholes.modded.clientview;
 
+import art.arcane.optics.crossing.PlaneCrossing;
+import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.WormholesModRuntime;
+import art.arcane.wormholes.modded.mixin.ProjectionEntityMapAccess;
+import art.arcane.wormholes.modded.mixin.RemoteTrackedEntityAccess;
 import art.arcane.wormholes.modded.seamless.MinecraftSeamlessMove;
+import art.arcane.wormholes.modded.seamless.RemoteViewerConnection;
 import net.minecraft.world.entity.Entity;
 import art.arcane.wormholes.modded.mixin.ServerConnectionAccess;
 import art.arcane.optics.stream.ViewStreamCapability;
@@ -32,6 +37,7 @@ import net.minecraft.network.protocol.Packet;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ConfigurationTask;
+import net.minecraft.server.network.ServerPlayerConnection;
 import net.minecraft.server.network.ServerCommonPacketListenerImpl;
 import net.minecraft.server.network.ServerConfigurationPacketListenerImpl;
 import net.minecraft.world.level.block.state.BlockState;
@@ -363,6 +369,30 @@ public final class MinecraftClientViewService implements AutoCloseable {
             LOGGER.info("Crossing teleport {} {} -> {}: {}", player.getScoreboardName(), origin.dimension().identifier(),
                 destination.dimension().identifier(), reason == null ? "not predicted" : reason);
         }
+    }
+
+    public void entityCrossed(Entity entity, PlaneCrossing crossing, OpticTransform toward, Vec3d velocity) {
+        runtime.requireServerThread();
+        if (!(entity.level() instanceof ServerLevel level)
+            || !(((ProjectionEntityMapAccess) level.getChunkSource().chunkMap).wormholesEntityMap().get(entity.getId()) instanceof RemoteTrackedEntityAccess tracked)) {
+            return;
+        }
+        for (ServerPlayerConnection connection : tracked.wormholesSeenBy()) {
+            int handle = observerHandle(connection, level);
+            ServerPlayer observer = connection.getPlayer();
+            ClientViewTravel<MinecraftClientViewPeer> travel = handle < 0 || observer == entity ? null : travel(observer.getUUID());
+            if (travel != null && travel.seamlessSelected()) {
+                travel.sendTravel(new TravelMessage.EntityCrossed(handle, entity.getId(), toward, crossing.origin(), crossing.frame().getNormal(),
+                    velocity));
+            }
+        }
+    }
+
+    static int observerHandle(ServerPlayerConnection connection, ServerLevel level) {
+        if (connection instanceof RemoteViewerConnection remote) {
+            return remote.route().resident() && remote.route().level() == level ? remote.route().handle() : -1;
+        }
+        return connection.getPlayer().level() == level ? 0 : -1;
     }
 
     public boolean receiver(ServerPlayer player) {

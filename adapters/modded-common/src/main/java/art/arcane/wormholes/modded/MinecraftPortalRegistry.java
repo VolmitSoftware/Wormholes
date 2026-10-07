@@ -3,6 +3,7 @@ package art.arcane.wormholes.modded;
 import art.arcane.optics.crossing.ArrivalMomentum;
 import art.arcane.optics.crossing.ArrivalOrientation;
 import art.arcane.optics.math.Angles;
+import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.api.traversal.TraversalKind;
 import art.arcane.wormholes.api.traversal.TraversalRefundReason;
@@ -35,8 +36,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
@@ -770,6 +769,9 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
                     }
                 }
             }
+            if (!reloadExpected) {
+                announceCrossing(rig, crossing, crossing.toward(destination.getFrame(), destination.getOrigin()), velocity);
+            }
             try (WormholesModRuntime.TeleportScope scope = runtime.beginTeleport(entity)) {
                 arrived = seamless != null ? runtime.clientViews().seamlessMove(seamless)
                     : entity.teleport(new TeleportTransition(targetLevel, vector(target), vector(velocity), look.yaw(), look.pitch(),
@@ -800,8 +802,8 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
         for (ChunkPreSendTicket<ServerLevel, ServerPlayer> ticket : preSend) {
             MinecraftTransit.arrived(runtime, source, ticket.player(), reloadExpected, ticket, prepared(preparedCommits, ticket.player().getUUID()));
         }
-        long cooldown = config.objectTransitContinuous && (arrived instanceof ItemEntity || arrived instanceof Projectile)
-            ? 0 : runtime.configuration().settings().getMain().teleportCooldownMillis;
+        long cooldown = arrivalCooldown(arrived.getSelfAndPassengers().toList(), config.objectTransitContinuous,
+            runtime.configuration().settings().getMain().teleportCooldownMillis);
         for (Entity member : arrived.getSelfAndPassengers().toList()) {
             runtime.travelArrived(member);
             runtime.rules().arrived(member, destination);
@@ -821,6 +823,30 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
                 arrivals.remove(member.getUUID());
             }
             visited.add(member.getUUID());
+        }
+    }
+
+    static long arrivalCooldown(List<Entity> rig, boolean continuous, long configured) {
+        if (!continuous) {
+            return configured;
+        }
+        for (Entity member : rig) {
+            if (member instanceof ServerPlayer) {
+                return configured;
+            }
+        }
+        return 0L;
+    }
+
+    private void announceCrossing(List<Entity> rig, PlaneCrossing crossing, OpticTransform toward, Vec3d velocity) {
+        for (Entity member : rig) {
+            Vec3d position = vector(member.position());
+            if (toward.isTranslation()) {
+                member.getInterpolation().applyPredictedMovement(vector(toward.point(position).subtract(position)));
+            } else {
+                member.getInterpolation().interpolationTracker().clear();
+            }
+            runtime.clientViews().entityCrossed(member, crossing, toward, velocity);
         }
     }
 

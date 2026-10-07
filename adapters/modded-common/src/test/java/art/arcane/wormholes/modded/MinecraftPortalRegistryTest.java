@@ -4,6 +4,9 @@ import art.arcane.wormholes.rules.RuleDocument;
 import art.arcane.wormholes.nexus.NetworkMember;
 import art.arcane.optics.plate.ChunkLease;
 import art.arcane.optics.plate.ChunkLeaseRegistry;
+import art.arcane.optics.crossing.PlaneCrossing;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.rtp.MinecraftRtpRuntime;
 import art.arcane.wormholes.network.MinecraftPlayerHandoffs;
@@ -15,6 +18,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.players.PlayerList;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.InterpolationHandler;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.phys.AABB;
@@ -22,6 +26,7 @@ import net.minecraft.world.phys.Vec3;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.mockito.InOrder;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -40,9 +45,11 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doCallRealMethod;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -128,7 +135,10 @@ public class MinecraftPortalRegistryTest extends MinecraftTestBase {
             verify(fixture.entity(), never()).teleport(any(TeleportTransition.class));
             fixture.ready().complete(true);
             fixture.tasks().removeFirst().run();
-            verify(fixture.entity()).teleport(any(TeleportTransition.class));
+            InOrder order = inOrder(fixture.runtime().clientViews(), fixture.entity());
+            order.verify(fixture.runtime().clientViews()).entityCrossed(eq(fixture.entity()), any(PlaneCrossing.class), any(OpticTransform.class),
+                eq(new Vec3d(-0.4D, 0.0D, 0.0D)));
+            order.verify(fixture.entity()).teleport(any(TeleportTransition.class));
             verify(fixture.lease()).close();
         }
     }
@@ -243,6 +253,7 @@ public class MinecraftPortalRegistryTest extends MinecraftTestBase {
         when(player.isAlive()).thenReturn(true);
         when(player.getPassengers()).thenReturn(List.of());
         when(player.getSelfAndPassengers()).thenAnswer(ignored -> Stream.of(player));
+        when(player.getInterpolation()).thenReturn(InterpolationHandler.NO_OP);
         when(player.getBoundingBox()).thenReturn(new AABB(0, 64, 0, 0.5D, 65, 0.5D));
         player.xo = 1;
         player.yo = 64.2D;
@@ -349,7 +360,7 @@ public class MinecraftPortalRegistryTest extends MinecraftTestBase {
         MinecraftNetworkService network = mock(MinecraftNetworkService.class);
         when(runtime.network()).thenReturn(network);
         when(runtime.rtp()).thenReturn(mock(MinecraftRtpRuntime.class));
-        when(runtime.clientViews()).thenReturn(new MinecraftClientViewService(runtime));
+        when(runtime.clientViews()).thenReturn(mock(MinecraftClientViewService.class));
         when(network.handoffs()).thenReturn(mock(MinecraftPlayerHandoffs.class));
         when(network.entityTransfers()).thenReturn(mock(MinecraftEntityTransfers.class));
         MinecraftRules rules = mock(MinecraftRules.class);
@@ -389,6 +400,7 @@ public class MinecraftPortalRegistryTest extends MinecraftTestBase {
         when(entity.isAlive()).thenReturn(true);
         when(entity.getPassengers()).thenReturn(List.of());
         when(entity.getSelfAndPassengers()).thenAnswer(ignored -> Stream.of(entity));
+        when(entity.getInterpolation()).thenReturn(InterpolationHandler.NO_OP);
         when(entity.getBoundingBox()).thenReturn(new AABB(0, 64, 0, 0.5, 65, 0.5));
         entity.xo = 1;
         entity.yo = 64.2;

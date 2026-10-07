@@ -31,6 +31,7 @@ public final class SeamlessQaCommand {
             .then(Commands.literal("approach").then(Commands.argument(ARGUMENT, StringArgumentType.greedyString()).executes(SeamlessQaCommand::approach)))
             .then(Commands.literal("remove").then(Commands.argument(ARGUMENT, StringArgumentType.greedyString()).executes(SeamlessQaCommand::remove)))
             .then(Commands.literal("light").then(Commands.argument(ARGUMENT, StringArgumentType.greedyString()).executes(SeamlessQaCommand::light)))
+            .then(Commands.literal("fallloop").executes(SeamlessQaCommand::fallLoop))
             .then(Commands.literal("centers").then(Commands.argument(ARGUMENT, StringArgumentType.greedyString()).executes(SeamlessQaCommand::centers)))
             .then(Commands.literal("lit").then(Commands.argument(ARGUMENT, StringArgumentType.greedyString()).executes(SeamlessQaCommand::lit)))
             .then(Commands.literal("approachfrom").then(Commands.argument(ARGUMENT, StringArgumentType.greedyString())
@@ -93,6 +94,17 @@ public final class SeamlessQaCommand {
                 RouteCodec.position(StringArgumentType.getString(context, ARGUMENT).trim())));
         } catch (RuntimeException | AssertionError failure) {
             fail(player, "lit", failure);
+        }
+        return 1;
+    }
+
+    private static int fallLoop(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        try {
+            SeamlessFallLoop.Loop loop = SeamlessFallLoop.build(context.getSource().getServer(), player);
+            reply(player, "fallloop " + RouteCodec.ids(loop.portals()) + " " + RouteCodec.ids(loop.fallers()));
+        } catch (RuntimeException | AssertionError failure) {
+            fail(player, "fallloop", failure);
         }
         return 1;
     }

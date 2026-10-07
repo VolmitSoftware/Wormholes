@@ -12,7 +12,9 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
 import java.util.UUID;
 
 final class RouteCodec {
@@ -54,6 +56,22 @@ final class RouteCodec {
         }
         return new SeamlessScenario.Route(UUID.fromString(fields[0]), UUID.fromString(fields[1]), level(fields[2]), position(fields[3]),
             position(fields[4]), leg(fields[5]), leg(fields[6]), UUID.fromString(fields[7]), UUID.fromString(fields[8]));
+    }
+
+    static String ids(List<UUID> ids) {
+        List<String> values = new ArrayList<>(ids.size());
+        for (UUID id : ids) {
+            values.add(id.toString());
+        }
+        return String.join(VALUES, values);
+    }
+
+    static List<UUID> ids(String text) {
+        List<UUID> ids = new ArrayList<>();
+        for (String value : text.split(VALUES)) {
+            ids.add(UUID.fromString(value));
+        }
+        return ids;
     }
 
     static BlockPos position(String text) {

@@ -10,6 +10,7 @@ import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.crossing.MomentumRule;
 import art.arcane.optics.crossing.OrientationRule;
 import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.EnvironmentState;
 
@@ -29,6 +30,7 @@ public sealed interface TravelMessage {
     int TRAVEL_ACCEPT = 54;
     int REMOTE_VIEW_ACK = 55;
     int REMOTE_LEVEL_REOPEN = 56;
+    int ENTITY_CROSSED = 57;
     int FIRST_ID = 41;
     int LAST_ID = 63;
 
@@ -444,6 +446,24 @@ public sealed interface TravelMessage {
         @Override
         public int id() {
             return REMOTE_LEVEL_REOPEN;
+        }
+    }
+
+    record EntityCrossed(int levelHandle, int entityId, OpticTransform toward, Vec3d planeOrigin, Face planeNormal, Vec3d velocity)
+        implements TravelMessage {
+        public EntityCrossed {
+            Objects.requireNonNull(toward, "toward");
+            Objects.requireNonNull(planeNormal, "planeNormal");
+            travelVector(planeOrigin);
+            travelVector(velocity);
+            if (levelHandle < 0 || levelHandle > MAX_LEVEL_HANDLE) {
+                throw new IllegalArgumentException("Entity crossing level handle " + levelHandle);
+            }
+        }
+
+        @Override
+        public int id() {
+            return ENTITY_CROSSED;
         }
     }
 }

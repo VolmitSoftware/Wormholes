@@ -47,6 +47,7 @@ public final class ClientSeamlessTravel {
     private final ResidentLevels residents;
     private final Map<UUID, TravelMessage.TravelBegin> arms = new LinkedHashMap<>();
     private final ArrayDeque<Crossing> pending = new ArrayDeque<>();
+    private final ClientEntityCrossings entities = new ClientEntityCrossings();
     private Vec3 previousEye;
     private UUID declined;
     private StraddleTracker.Straddle returning;
@@ -68,6 +69,11 @@ public final class ClientSeamlessTravel {
                 yield true;
             }
             case TravelMessage.TravelCancel cancel -> cancel(cancel);
+            case TravelMessage.EntityCrossed crossed -> {
+                Minecraft minecraft = Minecraft.getInstance();
+                entities.receive(crossed.levelHandle() == 0 ? minecraft.level : residents.level(crossed.levelHandle()), minecraft.player, crossed);
+                yield true;
+            }
             default -> false;
         };
     }
@@ -95,6 +101,7 @@ public final class ClientSeamlessTravel {
     }
 
     public void afterTick() {
+        entities.tick();
         Minecraft minecraft = Minecraft.getInstance();
         LocalPlayer player = minecraft.player;
         if (minecraft.level == null || player == null || minecraft.getCameraEntity() != player) {
@@ -135,6 +142,7 @@ public final class ClientSeamlessTravel {
     public void clear() {
         arms.clear();
         pending.clear();
+        entities.clear();
         residents.crossing(null);
         previousEye = null;
         declined = null;

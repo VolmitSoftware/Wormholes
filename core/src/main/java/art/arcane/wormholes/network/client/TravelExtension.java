@@ -77,6 +77,7 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
             case TravelMessage.TRAVEL_ACCEPT -> "TRAVEL_ACCEPT";
             case TravelMessage.REMOTE_VIEW_ACK -> "REMOTE_VIEW_ACK";
             case TravelMessage.REMOTE_LEVEL_REOPEN -> "REMOTE_LEVEL_REOPEN";
+            case TravelMessage.ENTITY_CROSSED -> "ENTITY_CROSSED";
             default -> "TRAVEL(" + id + ")";
         };
     }

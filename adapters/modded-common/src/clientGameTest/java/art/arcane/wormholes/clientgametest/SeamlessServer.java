@@ -21,4 +21,8 @@ interface SeamlessServer {
     List<Vec3> netherPortalCenters(BlockPos frame);
 
     void approachFrom(ResourceKey<Level> level, Vec3 position, float yaw);
+
+    SeamlessFallLoop.Loop buildFallLoop();
+
+    void removeFallLoop(SeamlessFallLoop.Loop loop);
 }

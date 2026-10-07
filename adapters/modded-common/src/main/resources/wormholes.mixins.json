@@ -66,6 +66,7 @@
   ],
   "client": [
     "client.ClientLevelMixin",
+    "client.EntityCrossingMixin",
     "client.PortalLevelRendererMixin",
     "client.IrisPortalTextureMixin",
     "client.IrisPortalGlShaderMixin",

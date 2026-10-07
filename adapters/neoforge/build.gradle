@@ -49,6 +49,7 @@ List<String> sharedClientTestClasses = [
     'art.arcane.wormholes.modded.client.ClientPreparedTravelRollbackTest',
     'art.arcane.wormholes.modded.client.ClientPreparedTravelPacketBudgetTest',
     'art.arcane.wormholes.modded.client.ClientSeamlessTravelTest',
+    'art.arcane.wormholes.modded.client.ClientEntityCrossingsTest',
     'art.arcane.wormholes.modded.client.ClientPreparedTravelNoSuppressionTest',
     'art.arcane.wormholes.modded.client.ClientPreparedTravelEntityResidencyTest',
     'art.arcane.wormholes.modded.client.ResidentLevelsOpenCloseTest',

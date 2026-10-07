@@ -4,6 +4,8 @@ import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.crossing.MomentumRule;
 import art.arcane.optics.crossing.OrientationRule;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.math.Face;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -208,7 +210,7 @@ final class TravelExtensionCodecTest {
     @Test
     void seamlessMessagesRoundTripInTheirDirection() throws ViewStreamProtocolException {
         List<TravelMessage> clientbound = List.of(remoteLevelOpen(4), new TravelMessage.RemoteLevelClose(4), routedPacket(4, 0, 1, 3),
-            travelAccept(0));
+            travelAccept(0), entityCrossed(0), entityCrossed(4));
         for (TravelMessage message : clientbound) {
             ViewStreamMessage wrapped = TravelExtension.PREPARED.wrap(message);
             byte[] frame = ClientViewFixtures.CODEC.encodeS2C(wrapped, 9, ViewStreamLimits.FLAG_LAST);
@@ -228,6 +230,31 @@ final class TravelExtensionCodecTest {
         assertThrows(ViewStreamProtocolException.class, () -> ClientViewFixtures.CODEC.encodeS2C(reopen, 0, 0));
         assertThrows(IllegalArgumentException.class, () -> new TravelMessage.RemoteLevelReopen(0));
         assertThrows(IllegalArgumentException.class, () -> new TravelMessage.RemoteLevelReopen(TravelMessage.MAX_LEVEL_HANDLE + 1));
+    }
+
+    @Test
+    void entityCrossingsCarryTheirLevelTransformAndFiniteVelocity() {
+        TravelMessage.EntityCrossed crossed = entityCrossed(7);
+        assertEquals(TravelMessage.ENTITY_CROSSED, crossed.id());
+        assertEquals(7, crossed.levelHandle());
+        assertEquals(OpticTransform.translation(0.0D, 20.0D, 0.0D), crossed.toward());
+        assertThrows(IllegalArgumentException.class, () -> entityCrossed(-1));
+        assertThrows(IllegalArgumentException.class, () -> entityCrossed(TravelMessage.MAX_LEVEL_HANDLE + 1));
+        assertEquals(Face.U, crossed.planeNormal());
+        assertThrows(NullPointerException.class, () -> new TravelMessage.EntityCrossed(0, 42, null, new Vec3d(0, 0, 0), Face.U, new Vec3d(0, 0, 0)));
+        assertThrows(NullPointerException.class, () -> new TravelMessage.EntityCrossed(0, 42, OpticTransform.IDENTITY, new Vec3d(0, 0, 0), null,
+            new Vec3d(0, 0, 0)));
+        assertThrows(IllegalArgumentException.class, () -> new TravelMessage.EntityCrossed(0, 42, OpticTransform.IDENTITY, new Vec3d(0, 0, 0),
+            Face.U, new Vec3d(Double.NaN, 0, 0)));
+        assertThrows(IllegalArgumentException.class, () -> new TravelMessage.EntityCrossed(0, 42, OpticTransform.IDENTITY,
+            new Vec3d(0, Double.POSITIVE_INFINITY, 0), Face.U, new Vec3d(0, 0, 0)));
+    }
+
+    @Test
+    void entityCrossingPlaneNormalsOutsideTheFaceRangeAreProtocolExceptions() throws ViewStreamProtocolException {
+        byte[] frame = encode(TravelExtension.PREPARED.wrap(entityCrossed(4)));
+        frame[ViewStreamLimits.S2C_HEADER_BYTES + 1 + Integer.BYTES + OpticTransform.ENCODED_BYTES + 3 * Double.BYTES] = (byte) Face.values().length;
+        assertThrows(ViewStreamProtocolException.class, () -> decode(frame, true));
     }
 
     @Test
@@ -370,7 +397,7 @@ final class TravelExtensionCodecTest {
                 assertThrows(ViewStreamProtocolException.class, () -> decode(c2s, false), "C2S " + id);
             }
         }
-        assertThrows(ViewStreamProtocolException.class, () -> TRAVEL.decode(57, null));
+        assertThrows(ViewStreamProtocolException.class, () -> TRAVEL.decode(58, null));
     }
 
     @Test
@@ -378,7 +405,7 @@ final class TravelExtensionCodecTest {
         assertEquals(ClientViewExtensions.PREPARED_TRAVEL | ClientViewExtensions.PREPARED_TRAVEL_CACHE,
             TravelExtension.PREPARED.capabilities());
         assertEquals(TravelExtension.PREPARED.capabilities() | ClientViewExtensions.FX_EMITTERS, ClientViewExtensions.CODEC.capabilities());
-        for (int id = TravelMessage.REMOTE_LEVEL_OPEN; id <= TravelMessage.REMOTE_LEVEL_REOPEN; id++) {
+        for (int id = TravelMessage.REMOTE_LEVEL_OPEN; id <= TravelMessage.ENTITY_CROSSED; id++) {
             assertFalse(TravelExtension.PREPARED.clientbound(id), "S2C " + id);
             assertFalse(TravelExtension.PREPARED.serverbound(id), "C2S " + id);
         }
@@ -405,7 +432,7 @@ final class TravelExtensionCodecTest {
             }
         }
         assertEquals(List.of(44, 46, 47, 49, 55, 56), serverbound);
-        assertEquals(List.of(41, 42, 43, 45, 46, 48, 51, 52, 53, 54), clientbound);
+        assertEquals(List.of(41, 42, 43, 45, 46, 48, 51, 52, 53, 54, 57), clientbound);
         assertEquals(41, TRAVEL.firstId());
         assertEquals(63, TRAVEL.lastId());
         assertEquals(ClientViewExtensions.PREPARED_TRAVEL | ClientViewExtensions.PREPARED_TRAVEL_CACHE | ClientViewExtensions.REMOTE_VIEW
@@ -415,7 +442,7 @@ final class TravelExtensionCodecTest {
     private static boolean identified(TravelMessage message) {
         return !(message instanceof TravelMessage.RemoteLevelOpen || message instanceof TravelMessage.RemoteLevelClose
             || message instanceof TravelMessage.RoutedPacket || message instanceof TravelMessage.RemoteViewAck
-            || message instanceof TravelMessage.RemoteLevelReopen);
+            || message instanceof TravelMessage.RemoteLevelReopen || message instanceof TravelMessage.EntityCrossed);
     }
 
     private static TravelMessage.RemoteLevelOpen remoteLevelOpen(int handle) {
@@ -430,6 +457,11 @@ final class TravelExtensionCodecTest {
     private static TravelMessage.TravelAccept travelAccept(int handle) {
         return new TravelMessage.TravelAccept(TOKEN, 3, 9, ClientViewFixtures.travelBegin().arrival(), new Vec3d(0.25D, -0.5D, 1.0D), handle,
             handle != 0, 1200L);
+    }
+
+    private static TravelMessage.EntityCrossed entityCrossed(int handle) {
+        return new TravelMessage.EntityCrossed(handle, 42, OpticTransform.translation(0.0D, 20.0D, 0.0D), new Vec3d(1.5D, 80.5D, 1.5D), Face.U,
+            new Vec3d(0.0D, -3.5D, 0.25D));
     }
 
     private static TravelMessage.TravelBegin withResidency(TravelMessage.TravelBegin base, boolean resident, int handle) {

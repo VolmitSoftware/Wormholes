@@ -1,5 +1,6 @@
 package art.arcane.wormholes.network.client;
 
+import art.arcane.optics.math.Face;
 import art.arcane.optics.stream.EnvironmentStateCodec;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.ViewStreamProtocolException;
@@ -20,7 +21,8 @@ public final class SeamlessTravelCodec implements TravelExtension.Seamless {
     @Override
     public boolean clientbound(int id) {
         return switch (id) {
-            case TravelMessage.REMOTE_LEVEL_OPEN, TravelMessage.REMOTE_LEVEL_CLOSE, TravelMessage.ROUTED_PACKET, TravelMessage.TRAVEL_ACCEPT -> true;
+            case TravelMessage.REMOTE_LEVEL_OPEN, TravelMessage.REMOTE_LEVEL_CLOSE, TravelMessage.ROUTED_PACKET, TravelMessage.TRAVEL_ACCEPT,
+                 TravelMessage.ENTITY_CROSSED -> true;
             default -> false;
         };
     }
@@ -74,8 +76,23 @@ public final class SeamlessTravelCodec implements TravelExtension.Seamless {
                 out.u8(ack.chunksPerTickHint());
             }
             case TravelMessage.RemoteLevelReopen reopen -> out.u8(reopen.levelHandle());
+            case TravelMessage.EntityCrossed crossed -> {
+                out.u8(crossed.levelHandle());
+                out.i32(crossed.entityId());
+                EnvironmentStateCodec.writeTransform(out, crossed.toward());
+                TravelExtension.vector(out, crossed.planeOrigin());
+                out.u8(crossed.planeNormal().ordinal());
+                TravelExtension.vector(out, crossed.velocity());
+            }
             default -> throw new ViewStreamProtocolException("Unexpected seamless travel message " + message.id());
         }
+    }
+
+    private static Face face(int ordinal) throws ViewStreamProtocolException {
+        if (ordinal >= Face.values().length) {
+            throw new ViewStreamProtocolException("Entity crossing plane normal " + ordinal);
+        }
+        return Face.values()[ordinal];
     }
 
     @Override
@@ -96,6 +113,8 @@ public final class SeamlessTravelCodec implements TravelExtension.Seamless {
                 TravelExtension.vector(in), in.u8(), TravelExtension.bool(in), in.i64());
             case TravelMessage.REMOTE_VIEW_ACK -> new TravelMessage.RemoteViewAck(in.u8(), in.i32(), in.u8());
             case TravelMessage.REMOTE_LEVEL_REOPEN -> new TravelMessage.RemoteLevelReopen(in.u8());
+            case TravelMessage.ENTITY_CROSSED -> new TravelMessage.EntityCrossed(in.u8(), in.i32(), EnvironmentStateCodec.readTransform(in),
+                TravelExtension.vector(in), face(in.u8()), TravelExtension.vector(in));
             default -> throw new ViewStreamProtocolException("Unknown travel message " + id);
         };
     }

@@ -17,7 +17,8 @@
       "art.arcane.wormholes.clientgametest.ClientViewMirrorClientGameTest",
       "art.arcane.wormholes.clientgametest.SeamlessSameDimensionClientGameTest",
       "art.arcane.wormholes.clientgametest.SeamlessCrossDimensionClientGameTest",
-      "art.arcane.wormholes.clientgametest.SeamlessWalkThroughClientGameTest"
+      "art.arcane.wormholes.clientgametest.SeamlessWalkThroughClientGameTest",
+      "art.arcane.wormholes.clientgametest.SeamlessFallLoopClientGameTest"
     ]
   },
   "mixins": [

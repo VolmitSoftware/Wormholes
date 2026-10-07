@@ -7,6 +7,7 @@ import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 final class CommandSeamlessServer implements SeamlessServer {
     private static final int REPLY_TIMEOUT_TICKS = 200;
@@ -51,6 +52,18 @@ final class CommandSeamlessServer implements SeamlessServer {
             result.add(new Vec3(Double.parseDouble(values[0]), Double.parseDouble(values[1]), Double.parseDouble(values[2])));
         }
         return result;
+    }
+
+    @Override
+    public SeamlessFallLoop.Loop buildFallLoop() {
+        String[] lists = client.command("wormholesqa fallloop", "fallloop", REPLY_TIMEOUT_TICKS).trim().split(" ");
+        return new SeamlessFallLoop.Loop(RouteCodec.ids(lists[0]), RouteCodec.ids(lists[1]));
+    }
+
+    @Override
+    public void removeFallLoop(SeamlessFallLoop.Loop loop) {
+        client.command("wormholesqa remove " + String.join(" ", loop.portals().stream().map(UUID::toString).toList()), "removed",
+            REPLY_TIMEOUT_TICKS);
     }
 
     @Override

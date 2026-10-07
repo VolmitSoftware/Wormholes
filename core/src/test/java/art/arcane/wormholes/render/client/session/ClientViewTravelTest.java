@@ -13,6 +13,9 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.math.Face;
+import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.plate.ViewPlate;
 import art.arcane.optics.stream.BrickLightSource;
 import art.arcane.optics.stream.SessionPalette;
@@ -77,6 +80,9 @@ final class ClientViewTravelTest {
         assertFalse(travel.sendTravel(new TravelMessage.TravelReuse(new UUID(1L, 2L), 3L, 0, 0, 1, new byte[TravelMessage.TRAVEL_HASH_BYTES])),
             "cache proofs need the cache capability");
         assertFalse(travel.sendTravel(new TravelMessage.TravelReady(new UUID(1L, 2L), 3L, 1L)), "serverbound messages are never sent");
+        assertFalse(travel.sendTravel(new TravelMessage.EntityCrossed(0, 42, OpticTransform.IDENTITY, new Vec3d(0, 0, 0), Face.U,
+            new Vec3d(0, 0, 0))),
+            "entity crossings need seamless travel");
         assertEquals(1, frames.size());
     }
 

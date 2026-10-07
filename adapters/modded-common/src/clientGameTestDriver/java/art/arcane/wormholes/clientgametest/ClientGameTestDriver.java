@@ -99,7 +99,8 @@ public final class ClientGameTestDriver {
                     label -> SeamlessCrossDimension.seamless(client, server, label, OrientationPolicy.FRAME)),
                 new Pass("cross-dimension-stress-singleplayer", true, label -> SeamlessCrossDimension.stress(client, server, label)),
                 new Pass("walk-nether-portal-singleplayer", true, label -> SeamlessWalkThrough.netherPortal(client, server, label, WALK_TRIPS)),
-                new Pass("walk-frame-portal-singleplayer", true, label -> SeamlessWalkThrough.framePortal(client, server, label, WALK_TRIPS)));
+                new Pass("walk-frame-portal-singleplayer", true, label -> SeamlessWalkThrough.framePortal(client, server, label, WALK_TRIPS)),
+                new Pass("fall-loop-singleplayer", true, label -> SeamlessFallLoop.run(client, server, label)));
         }
         if (Boolean.parseBoolean(System.getProperty(SERVER_SEAMLESS, "true"))) {
             return List.of(
