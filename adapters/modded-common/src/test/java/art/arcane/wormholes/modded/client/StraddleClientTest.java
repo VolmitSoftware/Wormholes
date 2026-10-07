@@ -6,18 +6,21 @@ import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.mixin.client.StraddleLocalPlayerMixin;
 import art.arcane.wormholes.modded.mixin.client.StraddleOverlayMixin;
+import net.minecraft.client.Camera;
+import net.minecraft.client.DeltaTracker;
+import net.minecraft.client.renderer.state.level.PlayerRenderState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import org.junit.Test;
 import org.mockito.MockedStatic;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.lang.reflect.Method;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mock;
@@ -73,10 +76,10 @@ public class StraddleClientTest extends MinecraftTestBase {
             assertFalse(suffocates(true, behind));
             assertTrue(suffocates(true, inFront));
             assertFalse(suffocates(false, inFront));
-            assertNull(overlay(stone));
+            assertNull(overlay(stone).blockOverlay);
             when(travel.straddle()).thenReturn(null);
             assertTrue(suffocates(true, behind));
-            assertSame(stone, overlay(stone));
+            assertNotNull(overlay(stone).blockOverlay);
         }
     }
 
@@ -97,9 +100,14 @@ public class StraddleClientTest extends MinecraftTestBase {
         return (boolean) method.invoke(mixin, vanilla, position);
     }
 
-    private static BlockState overlay(BlockState state) throws ReflectiveOperationException {
-        Method method = StraddleOverlayMixin.class.getDeclaredMethod("wormholes$straddleOverlay", BlockState.class);
+    private static PlayerRenderState overlay(BlockState state) throws ReflectiveOperationException {
+        PlayerRenderState rendered = new PlayerRenderState();
+        rendered.blockOverlay = new PlayerRenderState.BlockOverlay(null, 0, 0, 1, 1);
+        StraddleOverlayMixin mixin = mock(StraddleOverlayMixin.class, CALLS_REAL_METHODS);
+        Method method = StraddleOverlayMixin.class.getDeclaredMethod("wormholes$straddleOverlay", Camera.class, DeltaTracker.class, float.class,
+            PlayerRenderState.class, CallbackInfo.class);
         method.setAccessible(true);
-        return (BlockState) method.invoke(null, state);
+        method.invoke(mixin, null, null, 0.0F, rendered, mock(CallbackInfo.class));
+        return rendered;
     }
 }
