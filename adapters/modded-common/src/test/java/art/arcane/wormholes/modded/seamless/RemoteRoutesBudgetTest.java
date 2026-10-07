@@ -42,6 +42,21 @@ public class RemoteRoutesBudgetTest extends MinecraftTestBase {
     }
 
     @Test
+    public void aColumnThatFailedToSendWaitsForItsNextChangeInsteadOfCountingAsDelivered() {
+        RouteStream stream = new RouteStream(new RouteWindow(0, 0, 1));
+        long key = ChunkPos.pack(0, 0);
+
+        stream.failed(key);
+
+        assertFalse(stream.delivered(key));
+        assertFalse(stream.needs(key));
+        assertFalse(stream.plan(64).contains(key));
+        assertFalse(stream.changed(key));
+        assertTrue(stream.needs(key));
+        assertTrue(stream.plan(64).contains(key));
+    }
+
+    @Test
     public void changedColumnsAreResentWithAHigherRevision() {
         RouteStream stream = new RouteStream(new RouteWindow(0, 0, 1));
         long key = ChunkPos.pack(1, 0);

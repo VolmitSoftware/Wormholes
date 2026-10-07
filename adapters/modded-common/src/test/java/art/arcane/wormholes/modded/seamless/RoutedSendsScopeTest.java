@@ -78,6 +78,13 @@ public class RoutedSendsScopeTest extends MinecraftTestBase {
     }
 
     @Test
+    public void aRefusedTravelSendReportsTheRoutedSendAsFailed() {
+        RoutedSends sends = new RoutedSends(PROTOCOL, message -> false);
+
+        assertEquals(RoutedSends.FAILED, sends.send(route(6), new ClientboundRemoveEntitiesPacket(1)));
+    }
+
+    @Test
     public void customPayloadsAreNeverRoutedIntoResidentLevels() {
         List<TravelMessage> sent = new ArrayList<>();
         RoutedSends sends = new RoutedSends(PROTOCOL, sent::add);

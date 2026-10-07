@@ -16,9 +16,13 @@ import java.util.HashSet;
 import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class RemoteViewerPairingTest extends MinecraftTestBase {
@@ -28,6 +32,19 @@ public class RemoteViewerPairingTest extends MinecraftTestBase {
         RemoteViewer.update(fixture.route, fixture.tracked, fixture.player, mock(RoutedSends.class));
         assertTrue(fixture.seenBy.contains(fixture.viewer));
         assertTrue(fixture.paired.contains(7));
+    }
+
+    @Test
+    public void aFailedPairingSendLeavesTheEntityUnpairedForTheNextEvaluation() {
+        Fixture fixture = new Fixture(true);
+        RoutedSends sends = mock(RoutedSends.class);
+        when(sends.send(any(), any())).thenReturn(RoutedSends.FAILED);
+
+        RemoteViewer.update(fixture.route, fixture.tracked, fixture.player, sends);
+
+        assertFalse(fixture.seenBy.contains(fixture.viewer));
+        assertTrue(fixture.paired.isEmpty());
+        verify(fixture.tracked.wormholesTrackedEntity(), never()).startSeenByPlayer(fixture.player);
     }
 
     @Test

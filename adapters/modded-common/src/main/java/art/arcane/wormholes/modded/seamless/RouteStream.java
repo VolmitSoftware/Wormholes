@@ -19,6 +19,7 @@ public final class RouteStream {
     private final Long2IntOpenHashMap delivered = new Long2IntOpenHashMap();
     private final LongOpenHashSet dirty = new LongOpenHashSet();
     private final LongOpenHashSet live = new LongOpenHashSet();
+    private final LongOpenHashSet failed = new LongOpenHashSet();
     private final Long2LongOpenHashMap leaving = new Long2LongOpenHashMap();
     private RouteWindow window;
     private int hint = TravelMessage.MAX_CHUNKS_PER_TICK_HINT;
@@ -33,6 +34,7 @@ public final class RouteStream {
 
     public void window(RouteWindow next, long tick) {
         window = Objects.requireNonNull(next, "next");
+        failed.removeIf((long key) -> !next.contains(key));
         for (Long2IntMap.Entry entry : delivered.long2IntEntrySet()) {
             long key = entry.getLongKey();
             if (next.contains(key)) {
@@ -52,7 +54,7 @@ public final class RouteStream {
     }
 
     public boolean needs(long key) {
-        return window.contains(key) && (!delivered.containsKey(key) || dirty.contains(key));
+        return window.contains(key) && !failed.contains(key) && (!delivered.containsKey(key) || dirty.contains(key));
     }
 
     public boolean delivered(long key) {
@@ -67,6 +69,7 @@ public final class RouteStream {
         int revision = delivered.getOrDefault(key, 0) + 1;
         delivered.put(key, revision);
         dirty.remove(key);
+        failed.remove(key);
         if (window.contains(key)) {
             leaving.remove(key);
         }
@@ -82,8 +85,14 @@ public final class RouteStream {
         }
     }
 
+    public void failed(long key) {
+        failed.add(key);
+        live.remove(key);
+    }
+
     public boolean changed(long key) {
         live.remove(key);
+        failed.remove(key);
         if (!delivered.containsKey(key)) {
             return false;
         }
@@ -115,6 +124,7 @@ public final class RouteStream {
             delivered.remove(key);
             dirty.remove(key);
             live.remove(key);
+            failed.remove(key);
             if (forgotten == null) {
                 forgotten = new LongArrayList();
             }
@@ -172,6 +182,7 @@ public final class RouteStream {
         delivered.clear();
         dirty.clear();
         live.clear();
+        failed.clear();
         leaving.clear();
     }
 }

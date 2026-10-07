@@ -12,6 +12,7 @@ import java.util.Objects;
 import java.util.function.Predicate;
 
 public final class RoutedSends {
+    public static final int FAILED = -1;
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
 
     private final ProtocolInfo<ClientGamePacketListener> protocol;
@@ -29,7 +30,11 @@ public final class RoutedSends {
         List<Packet<? super ClientGamePacketListener>> packets = RoutedPackets.flatten(packet);
         int bytes = 0;
         for (int index = 0; index < packets.size(); index++) {
-            bytes += sendOne(route, packets.get(index));
+            int sent = sendOne(route, packets.get(index));
+            if (sent == FAILED) {
+                return FAILED;
+            }
+            bytes += sent;
         }
         return bytes;
     }
@@ -44,12 +49,12 @@ public final class RoutedSends {
             payload = RoutedPackets.bytes(protocol, packet);
         } catch (RuntimeException failure) {
             LOGGER.error("Could not route {} to resident level {} for {}", packet.type(), route.handle(), route.playerId(), failure);
-            return 0;
+            return FAILED;
         }
         List<TravelMessage.RoutedPacket> fragments = RoutedPackets.fragments(route.handle(), route.nextSequence(), payload);
         for (int index = 0; index < fragments.size(); index++) {
             if (!sink.test(fragments.get(index))) {
-                return 0;
+                return FAILED;
             }
         }
         return payload.length;

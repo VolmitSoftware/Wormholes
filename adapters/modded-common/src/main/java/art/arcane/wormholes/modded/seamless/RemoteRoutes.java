@@ -530,6 +530,10 @@ public final class RemoteRoutes implements AutoCloseable {
                 continue;
             }
             int bytes = state.sends.send(route, new ClientboundLevelChunkWithLightPacket(chunk, level.getLightEngine(), null, null));
+            if (bytes == RoutedSends.FAILED) {
+                route.stream().failed(key);
+                continue;
+            }
             route.stream().markDelivered(key);
             route.stream().live(key, ticking(level, key));
             route.viewersDirty();

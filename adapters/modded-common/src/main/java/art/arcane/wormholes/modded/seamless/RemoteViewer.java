@@ -55,7 +55,10 @@ public final class RemoteViewer {
         Entity entity = tracked.wormholesTrackedEntity();
         List<Packet<? super ClientGamePacketListener>> packets = new ArrayList<>();
         tracked.wormholesServerEntity().sendPairingData(player, packets::add);
-        sends.send(route, new ClientboundBundlePacket(packets));
+        if (sends.send(route, new ClientboundBundlePacket(packets)) == RoutedSends.FAILED) {
+            tracked.wormholesSeenBy().remove(route.viewer());
+            return;
+        }
         entity.startSeenByPlayer(player);
         route.paired().add(entity.getId());
     }
