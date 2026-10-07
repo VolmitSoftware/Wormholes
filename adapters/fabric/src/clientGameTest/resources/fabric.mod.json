@@ -14,9 +14,14 @@
       "art.arcane.wormholes.clientgametest.ClientViewClientGameTest",
       "art.arcane.wormholes.clientgametest.ClientViewSceneClientGameTest",
       "art.arcane.wormholes.clientgametest.ClientViewLightClientGameTest",
-      "art.arcane.wormholes.clientgametest.ClientViewMirrorClientGameTest"
+      "art.arcane.wormholes.clientgametest.ClientViewMirrorClientGameTest",
+      "art.arcane.wormholes.clientgametest.SeamlessSameDimensionClientGameTest",
+      "art.arcane.wormholes.clientgametest.SeamlessCrossDimensionClientGameTest"
     ]
   },
+  "mixins": [
+    "wormholes_clientgametest.mixins.json"
+  ],
   "depends": {
     "fabricloader": ">=0.19.5",
     "minecraft": "${minecraftVersion}",

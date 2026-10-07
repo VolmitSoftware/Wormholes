@@ -1,0 +1,15 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "art.arcane.wormholes.clientgametest.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "TravelConnectionTap",
+    "TravelFrameTap",
+    "TravelPacketTap",
+    "TravelTickTap"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
