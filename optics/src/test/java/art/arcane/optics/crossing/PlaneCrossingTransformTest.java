@@ -29,7 +29,7 @@ final class PlaneCrossingTransformTest {
                             PlaneCrossing crossing = new PlaneCrossing(source.view(front), origin, origin.add(point(random).multiply(0.0001D)),
                                 point(random).multiply(0.0001D), point(random).normalize(), front);
                             Vec3d exitOrigin = point(random);
-                            OpticTransform toward = CrossingFixtures.toward(crossing, exit, exitOrigin);
+                            OpticTransform toward = crossing.toward(exit, exitOrigin);
                             assertEquals(crossing.outPoint(exit, exitOrigin), toward.point(crossing.point()));
                             assertEquals(crossing.outVelocity(exit), toward.vector(crossing.velocity()));
                             assertEquals(crossing.outLook(exit), toward.vector(crossing.look()));

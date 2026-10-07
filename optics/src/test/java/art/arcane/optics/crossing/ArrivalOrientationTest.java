@@ -118,7 +118,7 @@ final class ArrivalOrientationTest {
         PlaneCrossing crossing = entering(Face.N, Angles.direction(170.0F, -20.0F), true);
         Frame exitFrame = Frame.canonical(Face.E);
         Pose source = pose(170.0F, -20.0F, 166.0F, -18.0F);
-        Pose crossed = PoseTransform.apply(source, CrossingFixtures.toward(crossing, exitFrame, EXIT_ORIGIN));
+        Pose crossed = PoseTransform.apply(source, crossing.toward(exitFrame, EXIT_ORIGIN));
 
         Pose framed = PoseTransform.arrive(crossed, crossing, exitFrame, OrientationRule.FRAME, false, null, 0.0D);
         assertAngle(crossed.yaw(), framed.yaw());
@@ -150,7 +150,7 @@ final class ArrivalOrientationTest {
         PlaneCrossing crossing = entering(Face.N, Angles.direction(180.0F, -36.869896F), true);
         Frame ceiling = Frame.canonical(Face.D);
         Pose source = pose(180.0F, -36.869896F, 176.0F, -30.0F);
-        Pose crossed = PoseTransform.apply(source, CrossingFixtures.toward(crossing, ceiling, EXIT_ORIGIN));
+        Pose crossed = PoseTransform.apply(source, crossing.toward(ceiling, EXIT_ORIGIN));
         Pose flipped = PoseTransform.arrive(crossed, crossing, ceiling, OrientationRule.FRAME, true, null, 0.0D);
 
         Angles.Look expectedCurrent = ArrivalOrientation.apply(crossing, ceiling, OrientationRule.FRAME, true);

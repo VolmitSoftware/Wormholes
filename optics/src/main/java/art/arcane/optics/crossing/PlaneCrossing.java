@@ -45,19 +45,23 @@ public record PlaneCrossing(Frame frame, Vec3d origin, Vec3d point,
         return OpticTransform.between(frame.view(distance >= 0.0D), origin, destination, destinationOrigin).point(onPlane);
     }
 
+    public OpticTransform toward(Frame destination, Vec3d destinationOrigin) {
+        return OpticTransform.between(frame, origin, destination.view(frontSide), destinationOrigin);
+    }
+
     public Vec3d outPoint(Frame destination, Vec3d destinationOrigin) {
-        return OpticTransform.between(frame, origin, destination.view(frontSide), destinationOrigin).point(point);
+        return toward(destination, destinationOrigin).point(point);
     }
 
     public Vec3d outVelocity(Frame destination) {
-        return toward(destination).vector(velocity);
+        return rotation(destination).vector(velocity);
     }
 
     public Vec3d outLook(Frame destination) {
-        return toward(destination).vector(look);
+        return rotation(destination).vector(look);
     }
 
-    private OpticTransform toward(Frame destination) {
+    private OpticTransform rotation(Frame destination) {
         return OpticTransform.of(AxisPermutation.between(frame, destination.view(frontSide)), 0.0D, 0.0D, 0.0D);
     }
 

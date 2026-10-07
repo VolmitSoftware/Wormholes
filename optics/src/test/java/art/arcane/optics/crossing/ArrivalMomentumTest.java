@@ -90,7 +90,7 @@ final class ArrivalMomentumTest {
         Frame exit = Frame.canonical(Face.E);
         Pose before = new Pose(new Vec3d(0.5D, 64.5D, 0.4D), new Vec3d(0.5D, 64.5D, 6.4D), new Vec3d(0.5D, 64.5D, 6.4D),
             new Vec3d(0.0D, 0.0D, -6.0D), 180.0F, 0.0F, 180.0F, 0.0F, 180.0F, 180.0F, 180.0F, 180.0F);
-        Pose crossed = PoseTransform.apply(before, CrossingFixtures.toward(crossing, exit, new Vec3d(100.5D, 70.0D, -3.5D)));
+        Pose crossed = PoseTransform.apply(before, crossing.toward(exit, new Vec3d(100.5D, 70.0D, -3.5D)));
         assertVector(crossing.outVelocity(exit), crossed.velocity());
         Pose clamped = PoseTransform.arrive(crossed, crossing, exit, OrientationRule.FRAME, false, rule(MomentumRule.Mode.CLAMP), CONFIG_MAX);
         assertVector(new Vec3d(4.0D, 0.0D, 0.0D), clamped.velocity());
