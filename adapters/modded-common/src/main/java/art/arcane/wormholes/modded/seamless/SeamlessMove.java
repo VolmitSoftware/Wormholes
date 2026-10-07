@@ -21,7 +21,7 @@ public final class SeamlessMove {
             }
             steps.departLevel();
             steps.enterLevel();
-            steps.handOver();
+            handOver(steps);
             steps.addToLevel();
             steps.dimensionTriggers();
             steps.levelInfo();
@@ -40,12 +40,20 @@ public final class SeamlessMove {
         if (resident) {
             steps.departView();
             steps.reposition();
-            steps.handOver();
+            handOver(steps);
         } else {
             steps.reposition();
         }
         steps.track();
         return true;
+    }
+
+    private static void handOver(Steps steps) {
+        try {
+            steps.handOver();
+        } catch (RuntimeException failure) {
+            steps.abandonHandOver(failure);
+        }
     }
 
     public interface Steps {
@@ -62,6 +70,8 @@ public final class SeamlessMove {
         void enterLevel();
 
         void handOver();
+
+        void abandonHandOver(RuntimeException failure);
 
         void addToLevel();
 

@@ -281,7 +281,7 @@ final class MinecraftPreparedTravel {
         }
         preparation.committed = true;
         return new MinecraftSeamlessMove.Context(runtime, player, world, new PositionMoveRotation(new Vec3(pose.x(), pose.y(), pose.z()),
-            new Vec3(velocity.x(), velocity.y(), velocity.z()), pose.yaw(), pose.pitch()), route, returnRoute(travel, player, preparation),
+            new Vec3(velocity.x(), velocity.y(), velocity.z()), pose.yaw(), pose.pitch()), route, returnRoute(travel, player, preparation, route.handle()),
             accept.get(), travel::sendTravel, tick);
     }
 
@@ -365,7 +365,7 @@ final class MinecraftPreparedTravel {
             }
             MinecraftPortal destination = travel.player().portals().projectionDestination(source);
             ServerLevel world = destination == null ? null : runtime.portals().resolveLevel(destination);
-            if (world == null || !eligible(travel.player(), player, source, destination)) {
+            if (world == null || RemoteRoutes.travelWorld(world).isEmpty() || !eligible(travel.player(), player, source, destination)) {
                 continue;
             }
             candidates.add(new RemoteRoutes.Candidate(source, destination, world, source.getOrigin().distance(feet)));
@@ -388,7 +388,7 @@ final class MinecraftPreparedTravel {
         Vec3d eye = feet.add(new Vec3d(0, player.getEyeHeight(), 0));
         List<TravelMessage.TravelCoordinate> coordinates = core.coordinates();
         TravelMessage.TravelBegin begin = new TravelMessage.TravelBegin(UUID.randomUUID(), ++generation, source.getId(),
-            player.level().dimension().identifier().toString(), geometry, mapped.frame().transform(), RemoteRoutes.travelWorld(world),
+            player.level().dimension().identifier().toString(), geometry, mapped.frame().transform(), RemoteRoutes.travelWorld(world).orElseThrow(),
             new TravelMessage.TravelPose(feet.x(), feet.y(), feet.z(), player.getYRot(), player.getXRot()), coordinates,
             MinecraftPortalEnvironment.capture(world, eye, OpticTransform.IDENTITY, world.isFlat()),
             TravelMessage.MAX_TRAVEL_EXPIRY_MILLIS, rules(travel.player(), source), route.resident(), route.handle(), true);
@@ -485,7 +485,8 @@ final class MinecraftPreparedTravel {
         return selected != null && selected.isLocal() && selected.portalId().equals(destination.getId());
     }
 
-    private RemoteRoutes.Return returnRoute(ClientViewTravel<MinecraftClientViewPeer> travel, ServerPlayer player, Preparation preparation) {
+    private RemoteRoutes.Return returnRoute(ClientViewTravel<MinecraftClientViewPeer> travel, ServerPlayer player, Preparation preparation,
+                                            int handle) {
         MinecraftPortal arrival = preparation.destination;
         if (runtime.portals().get(arrival.getId()) != arrival || !arrival.isOpen() || arrival.isMirrorMode()) {
             return null;
@@ -495,7 +496,9 @@ final class MinecraftPreparedTravel {
             || !back.isOpen() || back.isMirrorMode() || !runtime.portals().canDepart(player, arrival) || !runtime.portals().canArrive(player, back)) {
             return null;
         }
-        return new RemoteRoutes.Return(arrival, back);
+        TravelMessage.RemoteLevelOpen open = RemoteRoutes.openReturn(player.level(), arrival, handle,
+            RemoteRoutes.fullRadius(player.requestedViewDistance(), runtime.server().getPlayerList().getViewDistance()));
+        return open == null ? null : new RemoteRoutes.Return(arrival, back, open);
     }
 
     private TravelMessage.ArrivalRules rules(MinecraftClientViewPeer peer, MinecraftPortal source) {
@@ -554,8 +557,11 @@ final class MinecraftPreparedTravel {
         if (mapped == null || geometry.mirror()) {
             return null;
         }
+        TravelMessage.TravelWorld metadata = RemoteRoutes.travelWorld(world).orElse(null);
+        if (metadata == null) {
+            return null;
+        }
         List<TravelMessage.TravelCoordinate> coordinates = ClientTravelWindow.coordinates(feet.getBlockX() >> 4, feet.getBlockZ() >> 4, radius);
-        TravelMessage.TravelWorld metadata = RemoteRoutes.travelWorld(world);
         Vec3d eye = feet.add(new Vec3d(0, player.getEyeHeight(), 0));
         TravelMessage.TravelBegin begin = new TravelMessage.TravelBegin(UUID.randomUUID(), ++generation, source.getId(),
             player.level().dimension().identifier().toString(), geometry, mapped.frame().transform(), metadata,

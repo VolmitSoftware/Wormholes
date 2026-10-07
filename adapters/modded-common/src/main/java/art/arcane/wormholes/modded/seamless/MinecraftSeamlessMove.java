@@ -19,12 +19,16 @@ import net.minecraft.world.entity.PositionMoveRotation;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.LevelData;
 import net.minecraft.world.phys.Vec3;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
 
 public final class MinecraftSeamlessMove implements SeamlessMove.Steps {
+    private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
+
     private final Context context;
     private final ServerLevel origin;
     private ChunkTrackingView departedView = ChunkTrackingView.EMPTY;
@@ -92,6 +96,15 @@ public final class MinecraftSeamlessMove implements SeamlessMove.Steps {
         ((SeamlessChunkSenderAccess) player.connection.chunkSender).wormholesPendingChunks().clear();
         returnAdopted = context.runtime().remoteRoutes().handOver(player, new RemoteRoutes.HandOver(context.forward(), origin,
             departedView, departedPending, context.back()), context.tick());
+    }
+
+    @Override
+    public void abandonHandOver(RuntimeException failure) {
+        ServerPlayer player = context.player();
+        LOGGER.error("Seamless handover of {} from {} to {} failed; continuing with vanilla chunk and entity tracking", player.getUUID(),
+            origin.dimension().identifier(), context.destination().dimension().identifier(), failure);
+        context.runtime().remoteRoutes().abandon(player, origin, context.destination() != origin);
+        returnAdopted = false;
     }
 
     @Override

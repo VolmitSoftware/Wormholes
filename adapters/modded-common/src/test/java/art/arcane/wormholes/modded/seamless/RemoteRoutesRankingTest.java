@@ -3,9 +3,12 @@ package art.arcane.wormholes.modded.seamless;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.MinecraftTestBase;
+import net.minecraft.core.Holder;
 import net.minecraft.server.level.ChunkTrackingView;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.dimension.DimensionType;
 import org.junit.Test;
 
 import java.util.List;
@@ -30,6 +33,16 @@ public class RemoteRoutesRankingTest extends MinecraftTestBase {
         assertEquals(List.of(near, middle), ranked);
         assertEquals(List.of(near, middle, far), RemoteRoutes.rank(List.of(far, near, middle), 4));
         assertTrue(RemoteRoutes.rank(List.of(), 2).isEmpty());
+    }
+
+    @Test
+    public void levelsWithAnInlineDimensionTypeHaveNoTravelWorld() {
+        ServerLevel level = mock(ServerLevel.class);
+        Holder<DimensionType> inline = Holder.direct(mock(DimensionType.class));
+        when(level.dimensionTypeRegistration()).thenReturn(inline);
+        when(level.dimension()).thenReturn(Level.OVERWORLD);
+
+        assertTrue(RemoteRoutes.travelWorld(level).isEmpty());
     }
 
     @Test

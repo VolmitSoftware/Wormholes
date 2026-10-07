@@ -21,6 +21,27 @@ public class SeamlessMoveOrderTest {
     }
 
     @Test
+    public void failedHandOverFallsBackToVanillaTrackingAndStillJoinsTheDestination() {
+        Recorder steps = new Recorder(true, true);
+        steps.failHandOver = true;
+
+        assertTrue(SeamlessMove.crossLevel(steps));
+
+        assertEquals(List.of("moving:true", "allow", "accept", "departLevel", "enterLevel", "handOver", "abandonHandOver", "addToLevel",
+            "dimensionTriggers", "levelInfo", "levelChanged", "moving:false"), steps.calls);
+    }
+
+    @Test
+    public void failedResidentSameLevelHandOverStillTracksTheMove() {
+        Recorder steps = new Recorder(true, true);
+        steps.failHandOver = true;
+
+        assertTrue(SeamlessMove.sameLevel(steps, true));
+
+        assertEquals(List.of("accept", "departView", "reposition", "handOver", "abandonHandOver", "track"), steps.calls);
+    }
+
+    @Test
     public void cancelledLevelChangeNeverAcceptsOrMoves() {
         Recorder steps = new Recorder(false, true);
 
@@ -63,6 +84,7 @@ public class SeamlessMoveOrderTest {
         private final List<String> calls = new ArrayList<>();
         private final boolean allow;
         private final boolean sent;
+        private boolean failHandOver;
 
         private Recorder(boolean allow, boolean sent) {
             this.allow = allow;
@@ -104,6 +126,14 @@ public class SeamlessMoveOrderTest {
         @Override
         public void handOver() {
             calls.add("handOver");
+            if (failHandOver) {
+                throw new IllegalStateException("handover bookkeeping failed");
+            }
+        }
+
+        @Override
+        public void abandonHandOver(RuntimeException failure) {
+            calls.add("abandonHandOver");
         }
 
         @Override

@@ -39,6 +39,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.BiomeManager;
+import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.phys.AABB;
 
@@ -51,6 +52,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 public final class RemoteRoutes implements AutoCloseable {
@@ -107,10 +109,24 @@ public final class RemoteRoutes implements AutoCloseable {
             && (border ? route.window().border(chunkX, chunkZ) : route.window().contains(chunkX, chunkZ));
     }
 
-    public static TravelMessage.TravelWorld travelWorld(ServerLevel level) {
-        return new TravelMessage.TravelWorld(level.dimension().identifier().toString(),
-            level.dimensionTypeRegistration().unwrapKey().orElseThrow().identifier().toString(),
-            BiomeManager.obfuscateSeed(level.getSeed()), level.isDebug(), level.isFlat(), level.getSeaLevel(), level.getMinY(), level.getHeight());
+    public static Optional<TravelMessage.TravelWorld> travelWorld(ServerLevel level) {
+        Optional<ResourceKey<DimensionType>> type = level.dimensionTypeRegistration().unwrapKey();
+        if (type.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(new TravelMessage.TravelWorld(level.dimension().identifier().toString(), type.get().identifier().toString(),
+            BiomeManager.obfuscateSeed(level.getSeed()), level.isDebug(), level.isFlat(), level.getSeaLevel(), level.getMinY(), level.getHeight()));
+    }
+
+    public static TravelMessage.RemoteLevelOpen openReturn(ServerLevel origin, MinecraftPortal arrival, int handle, int radius) {
+        TravelMessage.TravelWorld world = travelWorld(origin).orElse(null);
+        if (world == null) {
+            return null;
+        }
+        Vec3d anchor = arrival.getOrigin();
+        RouteWindow window = window(anchor, radius);
+        return new TravelMessage.RemoteLevelOpen(handle, world, MinecraftPortalEnvironment.capture(origin, anchor, OpticTransform.IDENTITY,
+            origin.isFlat()), window.radius(), new TravelMessage.TravelCoordinate(window.centerX(), window.centerZ()));
     }
 
     public void update(ServerPlayer player, ClientViewTravel<?> travel, List<Candidate> candidates, long tick) {
@@ -286,7 +302,7 @@ public final class RemoteRoutes implements AutoCloseable {
             release(forward);
         }
         RemoteRoute returned = forward != null && forward.resident() && handOver.back() != null
-            ? adoptReturn(player, handOver, forward.handle(), tick) : null;
+            ? adoptReturn(player, handOver, tick) : null;
         for (int index = 0; index < departed.size(); index++) {
             RemoteTrackedEntityAccess tracked = departed.get(index);
             Entity entity = tracked.wormholesTrackedEntity();
@@ -298,6 +314,20 @@ public final class RemoteRoutes implements AutoCloseable {
             }
         }
         return returned != null;
+    }
+
+    public void abandon(ServerPlayer player, ServerLevel origin, boolean levelChanged) {
+        runtime.requireServerThread();
+        forget(player.getUUID(), true);
+        ((HeldChunkSender) player.connection.chunkSender).wormholesHeldChunks().clear();
+        if (!levelChanged) {
+            return;
+        }
+        player.setChunkTrackingView(ChunkTrackingView.EMPTY);
+        List<RemoteTrackedEntityAccess> departed = trackedBy(origin, player);
+        for (int index = 0; index < departed.size(); index++) {
+            departed.get(index).wormholesTrackedEntity().stopSeenByPlayer(player);
+        }
     }
 
     List<RemoteRoute> routes(UUID player) {
@@ -470,7 +500,7 @@ public final class RemoteRoutes implements AutoCloseable {
         ServerLevel level = route.level();
         RouteWindow window = route.window();
         if (!route.opened()) {
-            state.sends.control(new TravelMessage.RemoteLevelOpen(route.handle(), travelWorld(level),
+            state.sends.control(new TravelMessage.RemoteLevelOpen(route.handle(), travelWorld(level).orElseThrow(),
                 MinecraftPortalEnvironment.capture(level, route.anchor(), OpticTransform.IDENTITY, level.isFlat()), window.radius(),
                 new TravelMessage.TravelCoordinate(window.centerX(), window.centerZ())));
             state.sends.send(route, new ClientboundSetChunkCacheCenterPacket(window.centerX(), window.centerZ()));
@@ -650,13 +680,12 @@ public final class RemoteRoutes implements AutoCloseable {
         forward.paired().clear();
     }
 
-    private RemoteRoute adoptReturn(ServerPlayer player, HandOver handOver, int handle, long tick) {
+    private RemoteRoute adoptReturn(ServerPlayer player, HandOver handOver, long tick) {
         Return back = handOver.back();
-        Vec3d anchor = back.destination().getOrigin();
-        int full = fullRadius(player.requestedViewDistance(), runtime.server().getPlayerList().getViewDistance());
-        RouteWindow window = window(anchor, full);
+        TravelMessage.RemoteLevelOpen open = back.open();
+        RouteWindow window = new RouteWindow(open.center().x(), open.center().z(), open.viewRadius());
         RemoteRoute returned = adopt(player, new RemoteRoute.Key(player.getUUID(), back.source().getId(), back.destination().getId()),
-            handOver.origin(), anchor, window, handle);
+            handOver.origin(), back.destination().getOrigin(), window, open.levelHandle());
         if (returned == null) {
             return null;
         }
@@ -671,9 +700,7 @@ public final class RemoteRoutes implements AutoCloseable {
             returned.stream().adopt(adopted.getLong(index), tick);
         }
         PlayerRoutes state = players.get(player.getUUID());
-        state.sends.control(new TravelMessage.RemoteLevelOpen(handle, travelWorld(handOver.origin()),
-            MinecraftPortalEnvironment.capture(handOver.origin(), anchor, OpticTransform.IDENTITY, handOver.origin().isFlat()), window.radius(),
-            new TravelMessage.TravelCoordinate(window.centerX(), window.centerZ())));
+        state.sends.control(open);
         state.sends.send(returned, new ClientboundSetChunkCacheCenterPacket(window.centerX(), window.centerZ()));
         return returned;
     }
@@ -727,10 +754,11 @@ public final class RemoteRoutes implements AutoCloseable {
         }
     }
 
-    public record Return(MinecraftPortal source, MinecraftPortal destination) {
+    public record Return(MinecraftPortal source, MinecraftPortal destination, TravelMessage.RemoteLevelOpen open) {
         public Return {
             Objects.requireNonNull(source, "source");
             Objects.requireNonNull(destination, "destination");
+            Objects.requireNonNull(open, "open");
         }
     }
 
