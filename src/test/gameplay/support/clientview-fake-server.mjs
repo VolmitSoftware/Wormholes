@@ -22,10 +22,13 @@ import {
 } from './clientview-codec.mjs'
 import { wireBytes } from './clientview-client.mjs'
 
-export const DEFAULT_GOLDENS = fileURLToPath(new URL('../../../../core/src/test/resources/clientview/', import.meta.url))
+export const PROJECTION_GOLDENS = process.env.WORMHOLES_CLIENTVIEW_GOLDENS
+  ?? fileURLToPath(new URL('../../../../optics/src/test/resources/art/arcane/optics/stream/goldens/', import.meta.url))
+export const EXTENSION_GOLDENS = process.env.WORMHOLES_CLIENTVIEW_EXTENSION_GOLDENS
+  ?? fileURLToPath(new URL('../../../../core/src/test/resources/clientview/', import.meta.url))
 
-export function goldenContent(directory = DEFAULT_GOLDENS) {
-  const read = (name) => decodeS2C(Buffer.from(readFileSync(`${directory}/${name}.hex`, 'utf8').trim(), 'hex'), ALL_CAPS).message
+export function goldenContent(projection = PROJECTION_GOLDENS, extensions = EXTENSION_GOLDENS) {
+  const read = (name, directory = projection) => decodeS2C(Buffer.from(readFileSync(`${directory}/${name}.hex`, 'utf8').trim(), 'hex'), ALL_CAPS).message
   const palette = read('palette')
   const portal = read('portal')
   const begin = read('plate_begin_hashes')
@@ -36,7 +39,7 @@ export function goldenContent(directory = DEFAULT_GOLDENS) {
     bricks: read('plate_bricks').bricks,
     patch: read('plate_patch'),
     entityFrame: read('entity_frame'),
-    fx: read('fx'),
+    fx: read('fx', extensions),
     atmosphere: read('atmosphere')
   }
 }

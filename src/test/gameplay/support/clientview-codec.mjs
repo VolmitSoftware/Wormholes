@@ -1,7 +1,7 @@
 import { deflateSync, inflateSync } from 'node:zlib'
 
-export const CHANNEL = 'wormholes:v4'
-export const WIRE_VERSION = 4
+export const CHANNEL = 'wormholes:v6'
+export const WIRE_VERSION = 6
 export const S2C_HEADER_BYTES = 6
 export const FLAG_DEFLATED = 1
 export const FLAG_LAST = 2
@@ -37,7 +37,7 @@ export const MAX_FX_EMITTERS = 255
 export const WORLD_FX_KEY = 0
 export const MAX_APERTURE_MASK_WORDS = 1024
 export const MAX_NESTED_GEOMETRY = 16
-export const MAX_GEOMETRY_DEPTH = 4
+export const MAX_GEOMETRY_DEPTH = 6
 export const MAX_BRICK_MISS_WORDS = (MAX_BRICKS_PER_PLATE + 63) >> 6
 export const MAX_BRICK_MISS_PLATES = 255
 export const OP_FULL = 0
@@ -55,6 +55,19 @@ export const DECLINE_REASONS = Object.freeze(['WIRE_MISMATCH', 'DATA_VERSION_MIS
 export const RESET_REASONS = Object.freeze(['TELEPORT', 'DIMENSION', 'RESPAWN', 'DISABLED', 'PROTOCOL', 'OVERLOAD'])
 export const FX_KINDS = Object.freeze(['RIM_DUST', 'SURFACE', 'SOUND', 'DOOR_ANIM', 'ANIMATION', 'BURST'])
 export const PORTAL_KINDS = Object.freeze(['FRAME', 'RTP', 'DOOR', 'VANILLA_REPLACEMENT'])
+export const SKYBOXES = Object.freeze(['NONE', 'OVERWORLD', 'END'])
+export const CARDINAL_LIGHTING = Object.freeze(['DEFAULT', 'NETHER'])
+export const EYE_MEDIA = Object.freeze(['NONE', 'WATER', 'LAVA', 'POWDER_SNOW'])
+export const ORIENTATION_RULES = Object.freeze(['FRAME', 'LOOK', 'SNAP', 'MIRROR'])
+export const MOMENTUM_MODES = Object.freeze(['PRESERVE', 'SCALE', 'CLAMP', 'ZERO', 'IMPULSE'])
+export const AXIS_PERMUTATIONS = 48
+export const TRANSFORM_BYTES = 25
+export const MAX_MESH_LOCAL_SECTIONS = 512
+export const MAX_MESH_LOCAL_ENTITIES = 256
+export const MAX_MESH_CLAIMS = 512
+export const TRAVEL_HASH_BYTES = 32
+export const MAX_TRAVEL_CHUNKS = 1089
+export const TRAVEL_FRAGMENT_BYTES = 48 * 1024
 
 export const MESSAGE_TYPES = Object.freeze({
   OFFER: { id: 1, direction: 'S2C' },
@@ -76,12 +89,31 @@ export const MESSAGE_TYPES = Object.freeze({
   MESH_SECTION: { id: 17, direction: 'S2C' },
   MESH_DROP: { id: 18, direction: 'S2C' },
   ENVIRONMENT: { id: 19, direction: 'S2C' },
+  ENTITY_EVENT: { id: 20, direction: 'S2C' },
+  ENTITY_SELF: { id: 21, direction: 'S2C' },
   HELLO: { id: 32, direction: 'C2S' },
   BRICK_MISS: { id: 33, direction: 'C2S' },
   ACK: { id: 34, direction: 'C2S' },
   VIEW_STATS: { id: 35, direction: 'C2S' },
   PLATE_REFUSED: { id: 36, direction: 'C2S' },
-  MESH_ACK: { id: 37, direction: 'C2S' }
+  MESH_ACK: { id: 37, direction: 'C2S' },
+  MESH_LOCAL: { id: 38, direction: 'C2S' },
+  MESH_CACHED: { id: 39, direction: 'C2S' },
+  MESH_REUSE: { id: 40, direction: 'S2C' },
+  TRAVEL_BEGIN: { id: 41, direction: 'S2C' },
+  TRAVEL_CHUNK: { id: 42, direction: 'S2C' },
+  TRAVEL_END: { id: 43, direction: 'S2C' },
+  TRAVEL_READY: { id: 44, direction: 'C2S' },
+  TRAVEL_COMMIT: { id: 45, direction: 'S2C' },
+  TRAVEL_CANCEL: { id: 46, direction: 'BOTH' },
+  TRAVEL_CROSS: { id: 47, direction: 'C2S' },
+  TRAVEL_REUSE: { id: 48, direction: 'S2C' },
+  TRAVEL_CACHED: { id: 49, direction: 'C2S' },
+  REMOTE_LEVEL_OPEN: { id: 51, direction: 'S2C' },
+  REMOTE_LEVEL_CLOSE: { id: 52, direction: 'S2C' },
+  ROUTED_PACKET: { id: 53, direction: 'S2C' },
+  TRAVEL_ACCEPT: { id: 54, direction: 'S2C' },
+  REMOTE_VIEW_ACK: { id: 55, direction: 'C2S' }
 })
 
 const TYPE_BY_ID = new Map(Object.entries(MESSAGE_TYPES).map(([name, type]) => [type.id, name]))
@@ -91,7 +123,6 @@ export const CAPABILITIES = Object.freeze({
   BRICK_CACHE: 1,
   DEST_LIGHT: 2,
   ENTITY_FRAMES: 3,
-  FX_EMITTERS: 4,
   ATMOSPHERE: 5,
   ZERO_COPY: 6,
   CLIENT_RECURSION: 7,
@@ -99,10 +130,22 @@ export const CAPABILITIES = Object.freeze({
   CONFIG_PHASE: 9,
   LINK_UNCOMPRESSED: 10,
   VIEW_STATS: 11,
-  MESH_RENDER: 12
+  MESH_RENDER: 12,
+  ENTITY_EVENTS: 13,
+  LOCAL_MESH: 14,
+  MESH_REUSE: 15,
+  ENTITY_SELF: 18,
+  FX_EMITTERS: 32,
+  PREPARED_TRAVEL: 33,
+  PREPARED_TRAVEL_CACHE: 34,
+  REMOTE_VIEW: 35,
+  SEAMLESS_TRAVEL: 36
 })
 
-export const ALL_CAPS = Object.values(CAPABILITIES).reduce((set, bit) => set | (1n << BigInt(bit)), 0n)
+export const FIRST_EXTENSION_BIT = 32
+export const EXTENSION_CAPS = BigInt.asUintN(64, -1n << BigInt(FIRST_EXTENSION_BIT))
+export const ALL_CAPS = Object.values(CAPABILITIES).filter((bit) => bit < FIRST_EXTENSION_BIT)
+  .reduce((set, bit) => set | (1n << BigInt(bit)), EXTENSION_CAPS)
 
 export class ClientViewProtocolError extends Error {
   constructor(message, options) {
@@ -722,6 +765,7 @@ function readGeometry(reader, depth) {
   geometry.lightingPolicy = reader.u8()
   geometry.fidelityFlags = reader.u8()
   geometry.kind = reader.u8()
+  geometry.planeOffset = reader.f64()
   geometry.parentPortalKey = reader.varint()
   geometry.targetIdentity = reader.i64()
   const nestedCount = reader.checkedCount(reader.u8(), MAX_NESTED_GEOMETRY, 40)
@@ -754,6 +798,7 @@ function writeGeometry(writer, geometry, depth) {
   writer.u8(geometry.lightingPolicy)
   writer.u8(geometry.fidelityFlags)
   writer.u8(geometry.kind)
+  writer.f64(geometry.planeOffset ?? 0)
   writer.varint(geometry.parentPortalKey)
   writer.i64(geometry.targetIdentity)
   const nested = geometry.nested ?? []
@@ -762,32 +807,73 @@ function writeGeometry(writer, geometry, depth) {
   for (const child of nested) writeGeometry(writer, child, depth + 1)
 }
 
+function readFlag(reader, label) {
+  const value = reader.u8()
+  if (value > 1) throw new ClientViewProtocolError(`invalid ${label} flag ${value}`)
+  return value === 1
+}
+
+function finite(value, label) {
+  if (!Number.isFinite(value)) throw new ClientViewProtocolError(`${label} must be finite`)
+  return value
+}
+
+export function readTransform(reader) {
+  reader.require(TRANSFORM_BYTES)
+  const permutation = reader.u8()
+  if (permutation >= AXIS_PERMUTATIONS) throw new ClientViewProtocolError(`axis permutation ${permutation} out of range`)
+  const translation = {}
+  for (const axis of ['x', 'y', 'z']) {
+    translation[axis] = finite(reader.buffer.readDoubleBE(reader.position), 'transform translation')
+    reader.position += 8
+  }
+  return { permutation, translation }
+}
+
+export function writeTransform(writer, transform) {
+  writer.u8(transform.permutation)
+  for (const axis of ['x', 'y', 'z']) {
+    writer.ensure(8)
+    writer.buffer.writeDoubleBE(transform.translation[axis], writer.size)
+    writer.size += 8
+  }
+}
+
+const IDENTIFIER = /^[a-z0-9_.-]+:[a-z0-9_./-]+$/
+
 function readEnvironment(reader) {
   const rgb = () => ({ red: reader.f32(), green: reader.f32(), blue: reader.f32() })
   const rgba = () => ({ ...rgb(), alpha: reader.f32() })
   const gameTime = reader.i64()
-  const sky = { skybox: reader.u8(), sunAngle: reader.f32(), moonAngle: reader.f32(), starAngle: reader.f32(), starBrightness: reader.f32(),
+  const sky = { skybox: enumName(SKYBOXES, reader.u8(), 'skybox'), sunAngle: reader.f32(), moonAngle: reader.f32(), starAngle: reader.f32(), starBrightness: reader.f32(),
     sunrise: rgba(), color: rgb(), moonPhase: reader.u8(), rain: reader.f32(), thunder: reader.f32() }
   const fog = { color: rgb(), start: reader.f32(), end: reader.f32(), skyEnd: reader.f32(), cloudEnd: reader.f32(),
     waterColor: rgb(), waterStart: reader.f32(), waterEnd: reader.f32() }
   const lighting = { blockTint: rgb(), skyFactor: reader.f32(), skyColor: rgb(), ambient: rgb() }
   const clouds = { color: rgba(), height: reader.f32() }
-  const transform = { xAxis: reader.u8(), yAxis: reader.u8(), zAxis: reader.u8(), translation: { x: reader.f64(), y: reader.f64(), z: reader.f64() } }
-  const dimension = { minY: reader.i32(), height: reader.i32(), hasSkyLight: reader.u8(), cardinalLighting: reader.u8(), horizonHeight: reader.f64(), endFlashes: reader.u8() }
-  if (sky.skybox > 2 || sky.moonPhase > 7 || dimension.hasSkyLight > 1 || dimension.cardinalLighting > 1 || dimension.endFlashes > 1
-    || dimension.height <= 0 || [transform.xAxis, transform.yAxis, transform.zAxis].some(axis => axis > 5)
-    || new Set([transform.xAxis, transform.yAxis, transform.zAxis].map(axis => Math.floor(axis / 2))).size !== 3) {
+  const transform = readTransform(reader)
+  const dimension = { minY: reader.i32(), height: reader.i32(), hasSkyLight: readFlag(reader, 'sky light'),
+    cardinalLighting: enumName(CARDINAL_LIGHTING, reader.u8(), 'cardinal lighting'), horizonHeight: reader.f64(), endFlashes: readFlag(reader, 'end flashes') }
+  const world = { dimensionKey: reader.string(), clockTime: reader.i64(), biomeKey: reader.string(), seaLevel: reader.i32(), blockLight: reader.u8(),
+    skyLight: reader.u8(), logicalHeight: reader.i32(), hasCeiling: readFlag(reader, 'ceiling'), ambientLight: reader.f32(),
+    eyeMedium: enumName(EYE_MEDIA, reader.u8(), 'eye medium'), hasFixedTime: readFlag(reader, 'fixed time') }
+  const floats = [sky.sunAngle, sky.moonAngle, sky.starAngle, sky.starBrightness, sky.rain, sky.thunder, ...Object.values(sky.sunrise), ...Object.values(sky.color),
+    fog.start, fog.end, fog.skyEnd, fog.cloudEnd, fog.waterStart, fog.waterEnd, ...Object.values(fog.color), ...Object.values(fog.waterColor),
+    lighting.skyFactor, ...Object.values(lighting.blockTint), ...Object.values(lighting.skyColor), ...Object.values(lighting.ambient),
+    ...Object.values(clouds.color), clouds.height, world.ambientLight]
+  if (sky.moonPhase > 7 || dimension.height <= 0 || !Number.isFinite(dimension.horizonHeight) || floats.some((value) => !Number.isFinite(value))
+    || !IDENTIFIER.test(world.dimensionKey) || !IDENTIFIER.test(world.biomeKey) || world.blockLight > 15 || world.skyLight > 15 || world.logicalHeight < 0) {
     throw new ClientViewProtocolError('invalid destination environment')
   }
-  return { gameTime, sky, fog, lighting, clouds, transform, dimension }
+  return { gameTime, sky, fog, lighting, clouds, transform, dimension, world }
 }
 
 function writeEnvironment(writer, environment) {
   const rgb = color => { writer.f32(color.red); writer.f32(color.green); writer.f32(color.blue) }
   const rgba = color => { rgb(color); writer.f32(color.alpha) }
-  const { sky, fog, lighting, clouds, transform, dimension } = environment
+  const { sky, fog, lighting, clouds, transform, dimension, world } = environment
   writer.i64(environment.gameTime)
-  writer.u8(sky.skybox)
+  writer.u8(enumId(SKYBOXES, sky.skybox, 'skybox'))
   writer.f32(sky.sunAngle)
   writer.f32(sky.moonAngle)
   writer.f32(sky.starAngle)
@@ -808,18 +894,24 @@ function writeEnvironment(writer, environment) {
   rgb(lighting.ambient)
   rgba(clouds.color)
   writer.f32(clouds.height)
-  writer.u8(transform.xAxis)
-  writer.u8(transform.yAxis)
-  writer.u8(transform.zAxis)
-  writer.f64(transform.translation.x)
-  writer.f64(transform.translation.y)
-  writer.f64(transform.translation.z)
+  writeTransform(writer, transform)
   writer.i32(dimension.minY)
   writer.i32(dimension.height)
-  writer.u8(dimension.hasSkyLight)
-  writer.u8(dimension.cardinalLighting)
+  writer.u8(dimension.hasSkyLight ? 1 : 0)
+  writer.u8(enumId(CARDINAL_LIGHTING, dimension.cardinalLighting, 'cardinal lighting'))
   writer.f64(dimension.horizonHeight)
-  writer.u8(dimension.endFlashes)
+  writer.u8(dimension.endFlashes ? 1 : 0)
+  writer.string(world.dimensionKey)
+  writer.i64(world.clockTime)
+  writer.string(world.biomeKey)
+  writer.i32(world.seaLevel)
+  writer.u8(world.blockLight)
+  writer.u8(world.skyLight)
+  writer.i32(world.logicalHeight)
+  writer.u8(world.hasCeiling ? 1 : 0)
+  writer.f32(world.ambientLight)
+  writer.u8(enumId(EYE_MEDIA, world.eyeMedium, 'eye medium'))
+  writer.u8(world.hasFixedTime ? 1 : 0)
 }
 
 function readPatchOp(reader) {
@@ -885,6 +977,229 @@ function enumId(names, name, label) {
   const id = names.indexOf(name)
   if (id < 0) throw new ClientViewProtocolError(`unknown ${label} ${name}`)
   return id
+}
+
+function readUuid(reader) {
+  const most = reader.i64()
+  return uuidFromLongs(most, reader.i64())
+}
+
+function writeUuid(writer, uuid) {
+  const [most, least] = uuidToLongs(uuid)
+  writer.i64(most)
+  writer.i64(least)
+}
+
+function readVector(reader) {
+  return { x: reader.f64(), y: reader.f64(), z: reader.f64() }
+}
+
+function writeVector(writer, vector) {
+  writer.f64(vector.x)
+  writer.f64(vector.y)
+  writer.f64(vector.z)
+}
+
+function readPose(reader) {
+  return { x: reader.f64(), y: reader.f64(), z: reader.f64(), yaw: reader.f32(), pitch: reader.f32() }
+}
+
+function writePose(writer, pose) {
+  writer.f64(pose.x)
+  writer.f64(pose.y)
+  writer.f64(pose.z)
+  writer.f32(pose.yaw)
+  writer.f32(pose.pitch)
+}
+
+function readTravelWorld(reader) {
+  return { dimension: reader.string(), dimensionType: reader.string(), seed: reader.i64(), debug: readFlag(reader, 'travel debug'),
+    flat: readFlag(reader, 'travel flat'), seaLevel: reader.i32(), minY: reader.i32(), height: reader.i32() }
+}
+
+function writeTravelWorld(writer, world) {
+  writer.string(world.dimension)
+  writer.string(world.dimensionType)
+  writer.i64(world.seed)
+  writer.u8(world.debug ? 1 : 0)
+  writer.u8(world.flat ? 1 : 0)
+  writer.i32(world.seaLevel)
+  writer.i32(world.minY)
+  writer.i32(world.height)
+}
+
+function readArrivalRules(reader) {
+  const orientation = enumName(ORIENTATION_RULES, reader.u8(), 'orientation rule')
+  const gravityFlip = readFlag(reader, 'gravity flip')
+  const mode = enumName(MOMENTUM_MODES, reader.u8(), 'momentum mode')
+  const factor = reader.f64()
+  const maxSpeed = reader.f64()
+  const impulse = readVector(reader)
+  if (!Number.isFinite(factor) || !Number.isFinite(maxSpeed) || maxSpeed < 0) throw new ClientViewProtocolError('invalid travel arrival rules')
+  return { orientation, gravityFlip, momentum: { mode, factor, maxSpeed, impulse } }
+}
+
+function writeArrivalRules(writer, rules) {
+  writer.u8(enumId(ORIENTATION_RULES, rules.orientation, 'orientation rule'))
+  writer.u8(rules.gravityFlip ? 1 : 0)
+  writer.u8(enumId(MOMENTUM_MODES, rules.momentum.mode, 'momentum mode'))
+  writer.f64(rules.momentum.factor)
+  writer.f64(rules.momentum.maxSpeed)
+  writeVector(writer, rules.momentum.impulse)
+}
+
+function readTravelCount(reader) {
+  const count = reader.u16()
+  if (count <= 0 || count > MAX_TRAVEL_CHUNKS) throw new ClientViewProtocolError(`travel manifest count ${count}`)
+  return count
+}
+
+function readFragment(reader) {
+  const size = reader.i32()
+  if (size <= 0 || size > TRAVEL_FRAGMENT_BYTES) throw new ClientViewProtocolError(`travel fragment size ${size}`)
+  return reader.bytes(size)
+}
+
+function writeFragment(writer, payload) {
+  writer.i32(payload.length)
+  writer.bytes(payload)
+}
+
+function readMeshCount(reader, max, label) {
+  const count = reader.u16()
+  if (count > max) throw new ClientViewProtocolError(`${label} count ${count} exceeds ${max}`)
+  return count
+}
+
+function readTravel(reader, type) {
+  const token = readUuid(reader)
+  const generation = reader.i64()
+  switch (type) {
+    case 'TRAVEL_BEGIN': {
+      const sourcePortal = readUuid(reader)
+      const sourceWorld = reader.string()
+      const sourceGeometry = readGeometry(reader, 0)
+      const destinationToSource = readTransform(reader)
+      const world = readTravelWorld(reader)
+      const arrival = readPose(reader)
+      const count = readTravelCount(reader)
+      const chunks = []
+      for (let i = 0; i < count; i++) chunks.push({ x: reader.i32(), z: reader.i32() })
+      return { type, token, generation, sourcePortal, sourceWorld, sourceGeometry, destinationToSource, world, arrival, chunks,
+        environment: readEnvironment(reader), expiresMillis: reader.i32(), rules: readArrivalRules(reader), resident: readFlag(reader, 'resident'),
+        levelHandle: reader.u8(), seamless: readFlag(reader, 'seamless') }
+    }
+    case 'TRAVEL_CHUNK':
+      return { type, token, generation, chunkX: reader.i32(), chunkZ: reader.i32(), revision: reader.i32(), fragmentIndex: reader.u16(),
+        fragmentCount: reader.u16(), totalBytes: reader.i32(), payload: readFragment(reader) }
+    case 'TRAVEL_END': {
+      const contentRevision = reader.i64()
+      const count = readTravelCount(reader)
+      const chunks = []
+      for (let i = 0; i < count; i++) chunks.push({ x: reader.i32(), z: reader.i32(), revision: reader.i32() })
+      return { type, token, generation, contentRevision, chunks }
+    }
+    case 'TRAVEL_READY':
+      return { type, token, generation, contentRevision: reader.i64() }
+    case 'TRAVEL_COMMIT':
+      return { type, token, generation, contentRevision: reader.i64(), sourceWorld: reader.string(), destinationWorld: reader.string(),
+        arrival: readPose(reader), velocity: readVector(reader) }
+    case 'TRAVEL_CANCEL':
+      return { type, token, generation }
+    case 'TRAVEL_CROSS':
+      return { type, token, generation, contentRevision: reader.i64(), sourcePose: readPose(reader), previousEye: readVector(reader), currentEye: readVector(reader) }
+    case 'TRAVEL_REUSE':
+      return { type, token, generation, chunkX: reader.i32(), chunkZ: reader.i32(), revision: reader.i32(), hash: reader.bytes(TRAVEL_HASH_BYTES) }
+    case 'TRAVEL_CACHED':
+      return { type, token, generation, chunkX: reader.i32(), chunkZ: reader.i32(), revision: reader.i32(), hash: reader.bytes(TRAVEL_HASH_BYTES),
+        available: readFlag(reader, 'travel cached') }
+    case 'TRAVEL_ACCEPT':
+      return { type, token, generation, contentRevision: reader.i64(), pose: readPose(reader), velocity: readVector(reader), levelHandle: reader.u8(),
+        dimensionChanged: readFlag(reader, 'dimension changed'), serverTick: reader.i64() }
+    default:
+      throw new ClientViewProtocolError(`unknown travel message ${type}`)
+  }
+}
+
+function writeTravel(writer, message) {
+  writeUuid(writer, message.token)
+  writer.i64(message.generation)
+  switch (message.type) {
+    case 'TRAVEL_BEGIN':
+      writeUuid(writer, message.sourcePortal)
+      writer.string(message.sourceWorld)
+      writeGeometry(writer, message.sourceGeometry, 0)
+      writeTransform(writer, message.destinationToSource)
+      writeTravelWorld(writer, message.world)
+      writePose(writer, message.arrival)
+      writer.u16(message.chunks.length)
+      for (const chunk of message.chunks) {
+        writer.i32(chunk.x)
+        writer.i32(chunk.z)
+      }
+      writeEnvironment(writer, message.environment)
+      writer.i32(message.expiresMillis)
+      writeArrivalRules(writer, message.rules)
+      writer.u8(message.resident ? 1 : 0)
+      writer.u8(message.levelHandle)
+      writer.u8(message.seamless ? 1 : 0)
+      return
+    case 'TRAVEL_CHUNK':
+      writer.i32(message.chunkX)
+      writer.i32(message.chunkZ)
+      writer.i32(message.revision)
+      writer.u16(message.fragmentIndex)
+      writer.u16(message.fragmentCount)
+      writer.i32(message.totalBytes)
+      writeFragment(writer, message.payload)
+      return
+    case 'TRAVEL_END':
+      writer.i64(message.contentRevision)
+      writer.u16(message.chunks.length)
+      for (const chunk of message.chunks) {
+        writer.i32(chunk.x)
+        writer.i32(chunk.z)
+        writer.i32(chunk.revision)
+      }
+      return
+    case 'TRAVEL_READY':
+      writer.i64(message.contentRevision)
+      return
+    case 'TRAVEL_COMMIT':
+      writer.i64(message.contentRevision)
+      writer.string(message.sourceWorld)
+      writer.string(message.destinationWorld)
+      writePose(writer, message.arrival)
+      writeVector(writer, message.velocity)
+      return
+    case 'TRAVEL_CANCEL':
+      return
+    case 'TRAVEL_CROSS':
+      writer.i64(message.contentRevision)
+      writePose(writer, message.sourcePose)
+      writeVector(writer, message.previousEye)
+      writeVector(writer, message.currentEye)
+      return
+    case 'TRAVEL_REUSE':
+    case 'TRAVEL_CACHED':
+      writer.i32(message.chunkX)
+      writer.i32(message.chunkZ)
+      writer.i32(message.revision)
+      if (message.hash.length !== TRAVEL_HASH_BYTES) throw new ClientViewProtocolError(`travel hash of ${message.hash.length} bytes`)
+      writer.bytes(message.hash)
+      if (message.type === 'TRAVEL_CACHED') writer.u8(message.available ? 1 : 0)
+      return
+    case 'TRAVEL_ACCEPT':
+      writer.i64(message.contentRevision)
+      writePose(writer, message.pose)
+      writeVector(writer, message.velocity)
+      writer.u8(message.levelHandle)
+      writer.u8(message.dimensionChanged ? 1 : 0)
+      writer.i64(message.serverTick)
+      return
+    default:
+      throw new ClientViewProtocolError(`unknown travel message ${message.type}`)
+  }
 }
 
 export function readBody(reader, type, caps) {
@@ -1018,6 +1333,66 @@ export function readBody(reader, type, caps) {
     }
     case 'ENVIRONMENT':
       return { type, portalKey: reader.varint(), environment: readEnvironment(reader) }
+    case 'ENTITY_EVENT': {
+      const message = { type, portalKey: reader.varint(), eventSeq: reader.u32(), entityId: readUuid(reader), hurt: readFlag(reader, 'entity hurt'),
+        animation: reader.u8(), yaw: reader.f32() }
+      if (!Number.isFinite(message.yaw) || (!message.hurt && ![0, 2, 3, 4, 5].includes(message.animation))) throw new ClientViewProtocolError('invalid entity event')
+      return message
+    }
+    case 'ENTITY_SELF':
+      return { type, projectedId: readUuid(reader) }
+    case 'MESH_LOCAL': {
+      const portalKey = reader.varint()
+      const generation = reader.i32()
+      const sequence = reader.i32()
+      const available = reader.u8()
+      const sectionCount = readMeshCount(reader, MAX_MESH_LOCAL_SECTIONS, 'local mesh section')
+      if (generation <= 0 || sequence <= 0 || available > 1) throw new ClientViewProtocolError('invalid local mesh availability')
+      const sections = []
+      for (let i = 0; i < sectionCount; i++) sections.push({ x: reader.i32(), y: reader.i32(), z: reader.i32() })
+      const entityCount = readMeshCount(reader, MAX_MESH_LOCAL_ENTITIES, 'local mesh entity')
+      const entities = []
+      for (let i = 0; i < entityCount; i++) entities.push(readUuid(reader))
+      return { type, portalKey, generation, sequence, available: available === 1, sections, entities }
+    }
+    case 'MESH_CACHED': {
+      const portalKey = reader.varint()
+      const generation = reader.i32()
+      const sequence = reader.i32()
+      const available = reader.u8()
+      const count = readMeshCount(reader, MAX_MESH_CLAIMS, 'mesh cache claim')
+      if (generation <= 0 || sequence <= 0 || available > 1) throw new ClientViewProtocolError('invalid mesh cache claims')
+      const claims = []
+      for (let i = 0; i < count; i++) claims.push({ x: reader.i32(), y: reader.i32(), z: reader.i32(), hash: reader.i64() })
+      return { type, portalKey, generation, sequence, available: available === 1, claims }
+    }
+    case 'MESH_REUSE': {
+      const message = { type, portalKey: reader.varint(), generation: reader.i32(), sectionX: reader.i32(), sectionY: reader.i32(), sectionZ: reader.i32(),
+        revision: reader.i32(), hash: reader.i64() }
+      if (message.generation <= 0 || message.revision <= 0) throw new ClientViewProtocolError('invalid mesh reuse acknowledgment')
+      return message
+    }
+    case 'TRAVEL_BEGIN':
+    case 'TRAVEL_CHUNK':
+    case 'TRAVEL_END':
+    case 'TRAVEL_READY':
+    case 'TRAVEL_COMMIT':
+    case 'TRAVEL_CANCEL':
+    case 'TRAVEL_CROSS':
+    case 'TRAVEL_REUSE':
+    case 'TRAVEL_CACHED':
+    case 'TRAVEL_ACCEPT':
+      return readTravel(reader, type)
+    case 'REMOTE_LEVEL_OPEN':
+      return { type, levelHandle: reader.u8(), world: readTravelWorld(reader), environment: readEnvironment(reader), viewRadius: reader.u8(),
+        center: { x: reader.i32(), z: reader.i32() } }
+    case 'REMOTE_LEVEL_CLOSE':
+      return { type, levelHandle: reader.u8() }
+    case 'ROUTED_PACKET':
+      return { type, levelHandle: reader.u8(), sequence: reader.i32(), fragmentIndex: reader.u16(), fragmentCount: reader.u16(), totalBytes: reader.i32(),
+        payload: readFragment(reader) }
+    case 'REMOTE_VIEW_ACK':
+      return { type, levelHandle: reader.u8(), lastSequence: reader.i32(), chunksPerTickHint: reader.u8() }
     case 'ATMOSPHERE':
       return { type, portalKey: reader.varint(), dayTime: reader.i64(), rain: reader.f32(), thunder: reader.f32(), flags: reader.u8() }
     case 'SESSION_RESET':
@@ -1206,6 +1581,89 @@ export function writeBody(writer, message) {
       writer.varint(message.portalKey)
       writeEnvironment(writer, message.environment)
       return
+    case 'ENTITY_EVENT':
+      writer.varint(message.portalKey)
+      writer.u32(message.eventSeq)
+      writeUuid(writer, message.entityId)
+      writer.u8(message.hurt ? 1 : 0)
+      writer.u8(message.animation)
+      writer.f32(message.yaw)
+      return
+    case 'ENTITY_SELF':
+      writeUuid(writer, message.projectedId)
+      return
+    case 'MESH_LOCAL':
+      writer.varint(message.portalKey)
+      writer.i32(message.generation)
+      writer.i32(message.sequence)
+      writer.u8(message.available ? 1 : 0)
+      writer.u16(message.sections.length)
+      for (const section of message.sections) {
+        writer.i32(section.x)
+        writer.i32(section.y)
+        writer.i32(section.z)
+      }
+      writer.u16(message.entities.length)
+      for (const entity of message.entities) writeUuid(writer, entity)
+      return
+    case 'MESH_CACHED':
+      writer.varint(message.portalKey)
+      writer.i32(message.generation)
+      writer.i32(message.sequence)
+      writer.u8(message.available ? 1 : 0)
+      writer.u16(message.claims.length)
+      for (const claim of message.claims) {
+        writer.i32(claim.x)
+        writer.i32(claim.y)
+        writer.i32(claim.z)
+        writer.i64(claim.hash)
+      }
+      return
+    case 'MESH_REUSE':
+      writer.varint(message.portalKey)
+      writer.i32(message.generation)
+      writer.i32(message.sectionX)
+      writer.i32(message.sectionY)
+      writer.i32(message.sectionZ)
+      writer.i32(message.revision)
+      writer.i64(message.hash)
+      return
+    case 'TRAVEL_BEGIN':
+    case 'TRAVEL_CHUNK':
+    case 'TRAVEL_END':
+    case 'TRAVEL_READY':
+    case 'TRAVEL_COMMIT':
+    case 'TRAVEL_CANCEL':
+    case 'TRAVEL_CROSS':
+    case 'TRAVEL_REUSE':
+    case 'TRAVEL_CACHED':
+    case 'TRAVEL_ACCEPT':
+      writeTravel(writer, message)
+      return
+    case 'REMOTE_LEVEL_OPEN':
+      writer.u8(message.levelHandle)
+      writeTravelWorld(writer, message.world)
+      writeEnvironment(writer, message.environment)
+      writer.u8(message.viewRadius)
+      writer.i32(message.center.x)
+      writer.i32(message.center.z)
+      return
+    case 'REMOTE_LEVEL_CLOSE':
+      writer.u8(message.levelHandle)
+      return
+    case 'ROUTED_PACKET':
+      writer.u8(message.levelHandle)
+      writer.i32(message.sequence)
+      writer.u16(message.fragmentIndex)
+      writer.u16(message.fragmentCount)
+      writer.i32(message.totalBytes)
+      writeFragment(writer, message.payload)
+      return
+    case 'REMOTE_VIEW_ACK':
+      writer.u8(message.levelHandle)
+      writer.i32(message.lastSequence)
+      writer.u8(message.chunksPerTickHint)
+      return
     case 'ATMOSPHERE':
       writer.varint(message.portalKey)
       writer.i64(message.dayTime)
@@ -1245,7 +1703,7 @@ export function decodeS2C(payload, caps = 0n) {
   const header = new ByteReader(buffer)
   const id = header.u8()
   const type = typeName(id)
-  if (type === undefined || MESSAGE_TYPES[type].direction !== 'S2C') throw new ClientViewProtocolError(`unknown clientbound message type ${id}`)
+  if (type === undefined || MESSAGE_TYPES[type].direction === 'C2S') throw new ClientViewProtocolError(`unknown clientbound message type ${id}`)
   const seq = header.u32()
   const flags = header.u8()
   if ((flags & ~FLAG_MASK) !== 0) throw new ClientViewProtocolError(`unknown frame flags ${flags}`)
@@ -1272,7 +1730,7 @@ export function decodeC2S(payload) {
   const reader = new ByteReader(buffer)
   const id = reader.u8()
   const type = typeName(id)
-  if (type === undefined || MESSAGE_TYPES[type].direction !== 'C2S') throw new ClientViewProtocolError(`unknown serverbound message type ${id}`)
+  if (type === undefined || MESSAGE_TYPES[type].direction === 'S2C') throw new ClientViewProtocolError(`unknown serverbound message type ${id}`)
   const message = readBody(reader, type, 0n)
   reader.expectEnd()
   return message
@@ -1286,7 +1744,7 @@ export function encodeBody(message) {
 
 export function encodeS2C(message, seq, flags = 0, { deflate = false } = {}) {
   const type = MESSAGE_TYPES[message.type]
-  if (!type || type.direction !== 'S2C') throw new ClientViewProtocolError(`${message.type} is not clientbound`)
+  if (!type || type.direction === 'C2S') throw new ClientViewProtocolError(`${message.type} is not clientbound`)
   if ((flags & ~(FLAG_LAST | FLAG_RESERVED)) !== 0) throw new ClientViewProtocolError(`caller flags ${flags} are not allowed`)
   let body = encodeBody(message)
   let outFlags = flags
@@ -1308,7 +1766,7 @@ export function encodeS2C(message, seq, flags = 0, { deflate = false } = {}) {
 
 export function encodeC2S(message) {
   const type = MESSAGE_TYPES[message.type]
-  if (!type || type.direction !== 'C2S') throw new ClientViewProtocolError(`${message.type} is not serverbound`)
+  if (!type || type.direction === 'S2C') throw new ClientViewProtocolError(`${message.type} is not serverbound`)
   const writer = new ByteWriter(64)
   writer.u8(type.id)
   writeBody(writer, message)
@@ -1386,7 +1844,39 @@ export function summarize(message) {
     case 'FX':
       return { portalKey: message.portalKey, emitters: message.emitters.map((emitter) => emitter.kind) }
     case 'ENVIRONMENT':
-      return { portalKey: message.portalKey, skybox: message.environment.sky.skybox, gameTime: Number(message.environment.gameTime) }
+      return { portalKey: message.portalKey, skybox: message.environment.sky.skybox, gameTime: Number(message.environment.gameTime), dimension: message.environment.world.dimensionKey }
+    case 'ENTITY_EVENT':
+      return { portalKey: message.portalKey, eventSeq: message.eventSeq, entityId: message.entityId, hurt: message.hurt, animation: message.animation }
+    case 'ENTITY_SELF':
+      return { projectedId: message.projectedId }
+    case 'MESH_LOCAL':
+      return { portalKey: message.portalKey, generation: message.generation, sections: message.sections.length, entities: message.entities.length }
+    case 'MESH_CACHED':
+      return { portalKey: message.portalKey, generation: message.generation, claims: message.claims.length }
+    case 'MESH_REUSE':
+      return { portalKey: message.portalKey, generation: message.generation, section: [message.sectionX, message.sectionY, message.sectionZ], revision: message.revision }
+    case 'TRAVEL_BEGIN':
+      return { token: message.token, generation: Number(message.generation), sourceWorld: message.sourceWorld, destination: message.world.dimension, chunks: message.chunks.length, seamless: message.seamless }
+    case 'TRAVEL_CHUNK':
+      return { token: message.token, chunk: [message.chunkX, message.chunkZ], fragment: `${message.fragmentIndex + 1}/${message.fragmentCount}`, bytes: message.payload.length }
+    case 'TRAVEL_END':
+    case 'TRAVEL_READY':
+    case 'TRAVEL_COMMIT':
+    case 'TRAVEL_CANCEL':
+    case 'TRAVEL_CROSS':
+    case 'TRAVEL_ACCEPT':
+      return { token: message.token, generation: Number(message.generation) }
+    case 'TRAVEL_REUSE':
+    case 'TRAVEL_CACHED':
+      return { token: message.token, chunk: [message.chunkX, message.chunkZ], revision: message.revision }
+    case 'REMOTE_LEVEL_OPEN':
+      return { levelHandle: message.levelHandle, dimension: message.world.dimension, viewRadius: message.viewRadius }
+    case 'REMOTE_LEVEL_CLOSE':
+      return { levelHandle: message.levelHandle }
+    case 'ROUTED_PACKET':
+      return { levelHandle: message.levelHandle, sequence: message.sequence, bytes: message.payload.length }
+    case 'REMOTE_VIEW_ACK':
+      return { levelHandle: message.levelHandle, lastSequence: message.lastSequence }
     case 'ATMOSPHERE':
       return { portalKey: message.portalKey, dayTime: Number(message.dayTime), rain: message.rain, thunder: message.thunder, flags: message.flags }
     case 'ACK':

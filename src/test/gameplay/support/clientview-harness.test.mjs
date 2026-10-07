@@ -135,6 +135,6 @@ describe('client-view-protocol scenario against a fake ClientView server', { ski
   it('fails when the vanilla bot receives ClientView frames in play', async () => {
     const result = await run({ handshake: 'config', faults: ['leakToVanilla'] })
     assert.equal(result.report.status, 'failed')
-    assert.match(result.report.errors[0].message, /vanilla bot received 1 wormholes:v4 frames/)
+    assert.match(result.report.errors[0].message, /vanilla bot received 1 wormholes:v6 frames/)
   })
 })

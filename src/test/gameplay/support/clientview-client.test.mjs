@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
 import { ClientViewPeer } from './clientview-client.mjs'
-import { ALL_CAPS, FLAG_LAST, WORLD_FX_KEY, brickMissIndices, capabilitySet, decodeC2S, encodeS2C } from './clientview-codec.mjs'
+import { ALL_CAPS, FLAG_LAST, WIRE_VERSION, WORLD_FX_KEY, brickMissIndices, capabilitySet, decodeC2S, encodeS2C } from './clientview-codec.mjs'
 import { goldenContent } from './clientview-fake-server.mjs'
 
 const CONTENT = goldenContent()
@@ -20,7 +20,7 @@ function harness(t, peerOptions = {}) {
     t.mock.timers.tick(millis)
   }
   const accept = (caps = CAPS) => {
-    frame({ type: 'OFFER', wire: 4, mcDataVersion: 4325, serverCaps: ALL_CAPS, maxFrameBytes: 524288, zeroCopyNonce: 0n }, FLAG_LAST, 'configuration')
+    frame({ type: 'OFFER', wire: WIRE_VERSION, mcDataVersion: 4325, serverCaps: ALL_CAPS, maxFrameBytes: 524288, zeroCopyNonce: 0n }, FLAG_LAST, 'configuration')
     frame({ type: 'ACCEPT', sessionId: 1, caps, tickRate: 20, maxFrameBytes: 524288, hashSalt: 9n, ackWindowFrames: 8 }, FLAG_LAST, 'configuration')
   }
   return { peer, sent, frame, advance, accept, setSeq: (value) => { seq = value } }

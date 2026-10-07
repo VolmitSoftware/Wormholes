@@ -38,8 +38,24 @@ const CAPABILITY_GATES = Object.freeze({
   PLATE_PATCH: 'PLATES',
   PLATE_HANDLE: 'ZERO_COPY',
   ENTITY_FRAME: 'ENTITY_FRAMES',
+  ENTITY_EVENT: 'ENTITY_EVENTS',
+  ENTITY_SELF: 'ENTITY_SELF',
   FX: 'FX_EMITTERS',
-  ATMOSPHERE: 'ATMOSPHERE'
+  ATMOSPHERE: 'ATMOSPHERE',
+  MESH_BEGIN: 'MESH_RENDER',
+  MESH_SECTION: 'MESH_RENDER',
+  MESH_DROP: 'MESH_RENDER',
+  MESH_REUSE: 'MESH_REUSE',
+  TRAVEL_BEGIN: 'PREPARED_TRAVEL',
+  TRAVEL_CHUNK: 'PREPARED_TRAVEL',
+  TRAVEL_END: 'PREPARED_TRAVEL',
+  TRAVEL_COMMIT: 'PREPARED_TRAVEL',
+  TRAVEL_CANCEL: 'PREPARED_TRAVEL',
+  TRAVEL_REUSE: 'PREPARED_TRAVEL_CACHE',
+  REMOTE_LEVEL_OPEN: 'REMOTE_VIEW',
+  REMOTE_LEVEL_CLOSE: 'REMOTE_VIEW',
+  ROUTED_PACKET: 'REMOTE_VIEW',
+  TRAVEL_ACCEPT: 'SEAMLESS_TRAVEL'
 })
 const MAX_VIOLATIONS = 200
 const ACK_BUDGET_PER_SECOND = 10
@@ -209,6 +225,8 @@ export class ClientViewPeer {
       case 'FX':
         return message.portalKey === WORLD_FX_KEY ? this.onWorldFx(message) : this.requirePortal(message.type, message.portalKey)
       case 'ENTITY_FRAME':
+      case 'ENTITY_EVENT':
+      case 'ENVIRONMENT':
       case 'ATMOSPHERE':
         return this.requirePortal(message.type, message.portalKey)
       case 'SESSION_RESET': return this.onSessionReset(message, t)

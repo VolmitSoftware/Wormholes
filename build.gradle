@@ -197,6 +197,26 @@ tasks.named('check').configure {
     dependsOn(runtimeJarTestTask)
 }
 
+def clientViewHarnessTestTask = tasks.register('clientViewHarnessTest', Exec) {
+    group = 'verification'
+    description = 'Runs the gameplay ClientView codec and harness tests against the Java golden vectors.'
+    File stamp = layout.buildDirectory.file('clientview-harness-test/passed').get().asFile
+    inputs.files(fileTree('src/test/gameplay/support') { include '*.mjs' })
+    inputs.files(fileTree('optics/src/test/resources/art/arcane/optics/stream/goldens'))
+    inputs.files(fileTree('core/src/test/resources/clientview'))
+    outputs.file(stamp)
+    workingDir(projectDir)
+    commandLine('node', '--test', 'src/test/gameplay/support/*.test.mjs')
+    doLast {
+        stamp.parentFile.mkdirs()
+        stamp.text = 'passed\n'
+    }
+}
+
+tasks.named('check').configure {
+    dependsOn(clientViewHarnessTestTask)
+}
+
 configurations {
     spigotCompatibility
 }

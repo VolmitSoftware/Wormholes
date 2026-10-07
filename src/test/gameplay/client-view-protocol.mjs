@@ -8,7 +8,7 @@ import {
   installMovementFilter,
   loadHarnessModule
 } from './support/clientview-client.mjs'
-import { DECLINE_REASONS, parseCapabilities } from './support/clientview-codec.mjs'
+import { CHANNEL, DECLINE_REASONS, parseCapabilities } from './support/clientview-codec.mjs'
 
 function positiveNumber(value, fallback, label) {
   if (value === undefined || value === '') return fallback
@@ -117,7 +117,7 @@ function framesAfter(peer, entry, types) {
 
 export default {
   name: 'client-view-protocol',
-  description: 'Negotiate the Wormholes ClientView channel with a hand-encoded HELLO, record every wormholes:v4 frame with byte counts, and prove a second vanilla bot keeps the vanilla stream.',
+  description: 'Negotiate the Wormholes ClientView channel with a hand-encoded HELLO, record every ClientView channel frame with byte counts, and prove a second vanilla bot keeps the vanilla stream.',
   async run(context) {
     const settings = readSettings(process.env)
     const vanilla = context.bot
@@ -185,7 +185,7 @@ export default {
         })
       }
 
-      await context.step('observe the wormholes:v4 stream', async () => {
+      await context.step(`observe the ${CHANNEL} stream`, async () => {
         client.peer.mark('observe-start')
         client.counters.begin()
         vanillaCounters.begin()
@@ -269,7 +269,7 @@ export default {
         }
         if (settings.bots === 'ab') {
           const leaked = vanillaCounters.playWormholes
-          context.expect(leaked.frames === 0, `The vanilla bot received ${leaked.frames} wormholes:v4 frames in play`, leaked.byType)
+          context.expect(leaked.frames === 0, `The vanilla bot received ${leaked.frames} ${CHANNEL} frames in play`, leaked.byType)
         }
       })
     } finally {

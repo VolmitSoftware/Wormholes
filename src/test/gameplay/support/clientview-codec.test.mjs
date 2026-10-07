@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict'
 import { readdirSync, readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
 import { describe, it } from 'node:test'
 
 import {
@@ -29,20 +28,31 @@ import {
   packBrick,
   sectionOfBrick
 } from './clientview-codec.mjs'
+import { EXTENSION_GOLDENS, PROJECTION_GOLDENS } from './clientview-fake-server.mjs'
 
-const GOLDENS = process.env.WORMHOLES_CLIENTVIEW_GOLDENS
-  ?? fileURLToPath(new URL('../../../../core/src/test/resources/clientview/', import.meta.url))
+const GOLDEN_DIRECTORIES = [PROJECTION_GOLDENS, EXTENSION_GOLDENS]
 const HELLO_CAPS = capabilitySet('PLATES', 'BRICK_CACHE', 'DEST_LIGHT', 'ENTITY_FRAMES', 'VIEW_STATS')
+const TYPE_ALIASES = Object.freeze({
+  portal_nested: 'PORTAL',
+  plate_begin_hashes: 'PLATE_BEGIN',
+  plate_begin_plain: 'PLATE_BEGIN',
+  entity_swing: 'ENTITY_EVENT',
+  entity_hurt: 'ENTITY_EVENT',
+  entity_frame_delta: 'ENTITY_FRAME',
+  mesh_section_biomes: 'MESH_SECTION',
+  travel_begin_seamless: 'TRAVEL_BEGIN'
+})
+const TEST_UUID = '00000000-0000-000c-0000-000000000022'
 
 function manifest() {
-  return readFileSync(`${GOLDENS}/vectors.txt`, 'utf8').trim().split('\n').map((line) => {
+  return GOLDEN_DIRECTORIES.flatMap((directory) => readFileSync(`${directory}/vectors.txt`, 'utf8').trim().split('\n').map((line) => {
     const [name, direction, caps, seq, flags] = line.trim().split(/\s+/)
-    return { name, direction, caps: BigInt(`0x${caps}`), seq: Number(seq), flags: Number(flags), bytes: golden(name) }
-  })
+    return { name, directory, direction, caps: BigInt(`0x${caps}`), seq: Number(seq), flags: Number(flags), bytes: golden(directory, name) }
+  }))
 }
 
-function golden(name) {
-  return Buffer.from(readFileSync(`${GOLDENS}/${name}.hex`, 'utf8').trim(), 'hex')
+function golden(directory, name) {
+  return Buffer.from(readFileSync(`${directory}/${name}.hex`, 'utf8').trim(), 'hex')
 }
 
 function vector(name) {
@@ -73,10 +83,31 @@ function portalGeometry(nested) {
     originX: 635, originY: 64, originZ: -4682, facing: 3, frontSide: true, quarterTurns: 0, mirror: false,
     apertureWidth: 3, apertureHeight: 3, apertureMask: [0x1efn],
     nearPlanePadding: 0.25, aperturePadding: 0.75, frustumCullingRatio: f32(1.2), depthBlocks: 64, recursionDepth: 1,
-    blackoutPolicy: 1, blackoutState: 6, maskAirPolicy: 0, lightingPolicy: 1, fidelityFlags: 5, kind: 1,
+    blackoutPolicy: 1, blackoutState: 6, maskAirPolicy: 0, lightingPolicy: 1, fidelityFlags: 5, kind: 1, planeOffset: 0,
     parentPortalKey: 0, targetIdentity: 0x7a7a7a7a7a7a7a7an, nested
   }
 }
+
+function fixtureEnvironment(dimensionKey, transform) {
+  const color = { red: 0.125, green: 0.5, blue: 1.25 }
+  const alpha = { red: 0.75, green: 0.5, blue: 0.25, alpha: 0.5 }
+  return {
+    gameTime: 18000n,
+    sky: { skybox: 'OVERWORLD', sunAngle: 1.5, moonAngle: 2.5, starAngle: 3.5, starBrightness: f32(0.8), sunrise: alpha, color, moonPhase: 5, rain: 0.25, thunder: 0.5 },
+    fog: { color, start: -8, end: 96, skyEnd: 512, cloudEnd: 256, waterColor: color, waterStart: 0, waterEnd: 32 },
+    lighting: { blockTint: color, skyFactor: 0.75, skyColor: color, ambient: color },
+    clouds: { color: alpha, height: 192 },
+    transform,
+    dimension: { minY: -64, height: 384, hasSkyLight: true, cardinalLighting: 'DEFAULT', horizonHeight: 63, endFlashes: false },
+    world: { dimensionKey, clockTime: 72000n, biomeKey: 'minecraft:plains', seaLevel: 63, blockLight: 7, skyLight: 15, logicalHeight: 256, hasCeiling: true,
+      ambientLight: f32(0.1), eyeMedium: 'WATER', hasFixedTime: true }
+  }
+}
+
+const IDENTITY_TRANSFORM = { permutation: 0, translation: { x: 0, y: 0, z: 0 } }
+const TRAVEL_WORLD = { dimension: 'minecraft:overworld', dimensionType: 'minecraft:overworld', seed: 123456789n, debug: false, flat: true, seaLevel: 63, minY: -64, height: 384 }
+const TRAVEL_ARRIVAL = { x: -511.5, y: 81, z: -159.5, yaw: 90, pitch: -12 }
+const TRAVEL_HASH = Buffer.from(Array.from({ length: 32 }, (_, index) => index))
 
 function randomSource(seed) {
   let state = seed >>> 0
@@ -89,17 +120,19 @@ function randomSource(seed) {
 }
 
 describe('ClientView golden vectors', () => {
-  it('lists every golden file in the manifest and nothing else', () => {
-    const files = readdirSync(GOLDENS).filter((name) => name.endsWith('.hex')).map((name) => name.slice(0, -4)).sort()
-    const listed = manifest().map((entry) => entry.name).sort()
-    assert.deepEqual(listed, files)
+  it('lists every golden file in the manifests and nothing else', () => {
+    for (const directory of GOLDEN_DIRECTORIES) {
+      const files = readdirSync(directory).filter((name) => name.endsWith('.hex')).map((name) => name.slice(0, -4)).sort()
+      const listed = manifest().filter((entry) => entry.directory === directory).map((entry) => entry.name).sort()
+      assert.deepEqual(listed, files, directory)
+    }
   })
 
   it('decodes every golden with the envelope the manifest records and re-encodes it byte for byte', () => {
     for (const entry of manifest()) {
       if (entry.direction === 'S2C') {
         const frame = decodeS2C(entry.bytes, entry.caps)
-        assert.equal(frame.type, entry.name.startsWith('plate_begin') ? 'PLATE_BEGIN' : entry.name.startsWith('portal_nested') ? 'PORTAL' : entry.name.startsWith('entity_frame') ? 'ENTITY_FRAME' : entry.name.startsWith('mesh_section') ? 'MESH_SECTION' : entry.name.toUpperCase(), entry.name)
+        assert.equal(frame.type, TYPE_ALIASES[entry.name] ?? entry.name.toUpperCase(), entry.name)
         assert.equal(frame.seq, entry.seq, `${entry.name} seq`)
         assert.equal(frame.flags, entry.flags, `${entry.name} flags`)
         assert.equal(frame.last, (entry.flags & FLAG_LAST) !== 0, `${entry.name} last`)
@@ -107,7 +140,7 @@ describe('ClientView golden vectors', () => {
         assert.deepEqual(encodeS2C(frame.message, frame.seq, frame.flags), entry.bytes, `${entry.name} re-encodes`)
       } else {
         const message = decodeC2S(entry.bytes)
-        assert.equal(message.type, entry.name.toUpperCase(), entry.name)
+        assert.equal(message.type, TYPE_ALIASES[entry.name] ?? entry.name.toUpperCase(), entry.name)
         assert.deepEqual(encodeC2S(message), entry.bytes, `${entry.name} re-encodes`)
       }
     }
@@ -135,8 +168,8 @@ describe('ClientView golden vectors', () => {
 
   it('decodes the handshake fields', () => {
     const offer = decodeVector(vector('offer'))
-    assert.deepEqual(offer, { type: 'OFFER', wire: 4, mcDataVersion: 4325, serverCaps: ALL_CAPS, maxFrameBytes: 524288, zeroCopyNonce: 0x1122334455667788n })
-    assert.deepEqual(decodeVector(vector('hello')), { type: 'HELLO', wire: 4, mcDataVersion: 4325, clientCaps: HELLO_CAPS, maxFrameBytes: 524288, plateMemoryMb: 256, zeroCopyNonceEcho: 0x1122334455667788n, brandTag: 'fabric' })
+    assert.deepEqual(offer, { type: 'OFFER', wire: 6, mcDataVersion: 4325, serverCaps: ALL_CAPS, maxFrameBytes: 524288, zeroCopyNonce: 0x1122334455667788n })
+    assert.deepEqual(decodeVector(vector('hello')), { type: 'HELLO', wire: 6, mcDataVersion: 4325, clientCaps: HELLO_CAPS, maxFrameBytes: 524288, plateMemoryMb: 256, zeroCopyNonceEcho: 0x1122334455667788n, brandTag: 'fabric' })
     assert.deepEqual(decodeVector(vector('accept')), { type: 'ACCEPT', sessionId: 42, caps: HELLO_CAPS, tickRate: 20, maxFrameBytes: 524288, hashSalt: 0x0f1e2d3c4b5a6978n, ackWindowFrames: 8 })
     assert.deepEqual(decodeVector(vector('decline')), { type: 'DECLINE', reason: 'DATA_VERSION_MISMATCH' })
     assert.deepEqual(capabilityNames(HELLO_CAPS), ['PLATES', 'BRICK_CACHE', 'DEST_LIGHT', 'ENTITY_FRAMES', 'VIEW_STATS'])
@@ -165,7 +198,7 @@ describe('ClientView golden vectors', () => {
       originX: 2, originY: 0, originZ: 5, facing: 2, frontSide: false, quarterTurns: 1, mirror: true,
       apertureWidth: 2, apertureHeight: 2, apertureMask: [0xfn], nearPlanePadding: 0.25, aperturePadding: 0.5, frustumCullingRatio: 1,
       depthBlocks: 32, recursionDepth: 0, blackoutPolicy: 0, blackoutState: 0, maskAirPolicy: 1, lightingPolicy: 0, fidelityFlags: 0,
-      kind: 0, parentPortalKey: 7, targetIdentity: 0n, nested: []
+      kind: 0, planeOffset: 0, parentPortalKey: 7, targetIdentity: 0n, nested: []
     }
     assert.deepEqual(decodeVector(vector('portal_nested')), { type: 'PORTAL', portalKey: 8, geometryRevision: 1, geometry: portalGeometry([child]) })
     assert.deepEqual(decodeVector(vector('portal_drop')), { type: 'PORTAL_DROP', portalKey: 7 })
@@ -246,6 +279,67 @@ describe('ClientView golden vectors', () => {
     assert.deepEqual(decodeVector(vector('view_stats')), { type: 'VIEW_STATS', clientTick: 500, attended: 3, overlayCells: 250000, unknownStates: 2, sweepMicrosP50: 640, applyMicrosP50: 1900, plateMb: 96 })
     assert.deepEqual(decodeVector(vector('plate_refused')), { type: 'PLATE_REFUSED', portalKey: 7, plateRevision: 3 })
     assert.deepEqual(encodeC2S({ type: 'PLATE_REFUSED', portalKey: 7, plateRevision: 3 }), vector('plate_refused').bytes)
+  })
+
+  it('decodes entity events, the projected self identity and the environment transform', () => {
+    assert.deepEqual(decodeVector(vector('entity_swing')), { type: 'ENTITY_EVENT', portalKey: 7, eventSeq: 3, entityId: TEST_UUID, hurt: false, animation: 3, yaw: 0 })
+    assert.deepEqual(decodeVector(vector('entity_hurt')), { type: 'ENTITY_EVENT', portalKey: 7, eventSeq: 4, entityId: TEST_UUID, hurt: true, animation: 0, yaw: 179.5 })
+    assert.deepEqual(decodeVector(vector('entity_self')), { type: 'ENTITY_SELF', projectedId: TEST_UUID })
+    assert.deepEqual(decodeVector(vector('environment')), { type: 'ENVIRONMENT', portalKey: 7,
+      environment: fixtureEnvironment('test:destination', { permutation: 44, translation: { x: -128.5, y: 96, z: 33.25 } }) })
+  })
+
+  it('decodes the mesh view messages', () => {
+    assert.deepEqual(decodeVector(vector('mesh_begin')), { type: 'MESH_BEGIN', portalKey: 7, generation: 12, bounds: { minX: -512, minY: -64, minZ: -512, sizeX: 1024, sizeY: 512, sizeZ: 512 }, maxResidentSections: 1024 })
+    assert.deepEqual(decodeVector(vector('mesh_drop')), { type: 'MESH_DROP', portalKey: 7, generation: 12, sectionX: -32, sectionY: 4, sectionZ: -10 })
+    assert.deepEqual(decodeVector(vector('mesh_ack')), { type: 'MESH_ACK', portalKey: 7, generation: 12, sectionX: -32, sectionY: 4, sectionZ: -10, revision: 1 })
+    assert.deepEqual(decodeVector(vector('mesh_local')), { type: 'MESH_LOCAL', portalKey: 7, generation: 12, sequence: 1, available: true, sections: [{ x: -32, y: 4, z: -10 }], entities: [TEST_UUID] })
+    assert.deepEqual(decodeVector(vector('mesh_cached')), { type: 'MESH_CACHED', portalKey: 7, generation: 12, sequence: 1, available: true, claims: [{ x: -32, y: 4, z: -10, hash: 0x1122334455667788n }] })
+    assert.deepEqual(decodeVector(vector('mesh_reuse')), { type: 'MESH_REUSE', portalKey: 7, generation: 12, sectionX: -32, sectionY: 4, sectionZ: -10, revision: 2, hash: 0x1122334455667788n })
+  })
+
+  it('decodes prepared travel messages', () => {
+    const begin = decodeVector(vector('travel_begin'))
+    assert.deepEqual(begin, {
+      type: 'TRAVEL_BEGIN', token: TEST_UUID, generation: 3n, sourcePortal: '00000000-0000-0038-0000-00000000004e', sourceWorld: 'minecraft:the_nether',
+      sourceGeometry: portalGeometry([]), destinationToSource: begin.destinationToSource, world: TRAVEL_WORLD, arrival: TRAVEL_ARRIVAL,
+      chunks: [{ x: -32, z: -10 }], environment: fixtureEnvironment('minecraft:overworld', IDENTITY_TRANSFORM), expiresMillis: 30000,
+      rules: { orientation: 'FRAME', gravityFlip: false, momentum: begin.rules.momentum }, resident: false, levelHandle: 0, seamless: false
+    })
+    assert.deepEqual(begin.destinationToSource.translation, { x: 4, y: 0, z: 6 })
+    const seamless = decodeVector(vector('travel_begin_seamless'))
+    assert.deepEqual([seamless.resident, seamless.levelHandle, seamless.seamless], [true, 4, true])
+    assert.deepEqual(seamless.rules, { orientation: 'LOOK', gravityFlip: true, momentum: { mode: 'SCALE', factor: 0.75, maxSpeed: 3.5, impulse: { x: 0, y: 0.25, z: 0 } } })
+    assert.deepEqual(decodeVector(vector('travel_chunk')), { type: 'TRAVEL_CHUNK', token: TEST_UUID, generation: 3n, chunkX: -32, chunkZ: -10, revision: 2,
+      fragmentIndex: 0, fragmentCount: 1, totalBytes: 4, payload: Buffer.from([1, 2, 3, 4]) })
+    assert.deepEqual(decodeVector(vector('travel_end')), { type: 'TRAVEL_END', token: TEST_UUID, generation: 3n, contentRevision: 9n, chunks: [{ x: -32, z: -10, revision: 2 }] })
+    assert.deepEqual(decodeVector(vector('travel_ready')), { type: 'TRAVEL_READY', token: TEST_UUID, generation: 3n, contentRevision: 9n })
+    assert.deepEqual(decodeVector(vector('travel_commit')), { type: 'TRAVEL_COMMIT', token: TEST_UUID, generation: 3n, contentRevision: 9n,
+      sourceWorld: 'minecraft:the_nether', destinationWorld: 'minecraft:overworld', arrival: TRAVEL_ARRIVAL, velocity: { x: 0.25, y: -0.5, z: 1 } })
+    assert.deepEqual(decodeVector(vector('travel_cancel')), { type: 'TRAVEL_CANCEL', token: TEST_UUID, generation: 3n })
+    assert.deepEqual(decodeVector(vector('travel_cross')), { type: 'TRAVEL_CROSS', token: TEST_UUID, generation: 3n, contentRevision: 9n,
+      sourcePose: { x: 635.5, y: 65, z: -4681.4, yaw: 90, pitch: -12 }, previousEye: { x: 635.5, y: 66.62, z: -4681.6 }, currentEye: { x: 635.5, y: 66.62, z: -4681.4 } })
+    assert.deepEqual(decodeVector(vector('travel_reuse')), { type: 'TRAVEL_REUSE', token: TEST_UUID, generation: 3n, chunkX: -32, chunkZ: -10, revision: 2, hash: TRAVEL_HASH })
+    assert.deepEqual(decodeVector(vector('travel_cached')), { type: 'TRAVEL_CACHED', token: TEST_UUID, generation: 3n, chunkX: -32, chunkZ: -10, revision: 2, hash: TRAVEL_HASH, available: true })
+  })
+
+  it('decodes seamless travel and remote view messages', () => {
+    assert.deepEqual(decodeVector(vector('remote_level_open')), { type: 'REMOTE_LEVEL_OPEN', levelHandle: 4, world: TRAVEL_WORLD,
+      environment: fixtureEnvironment('minecraft:overworld', IDENTITY_TRANSFORM), viewRadius: 8, center: { x: -32, z: -10 } })
+    assert.deepEqual(decodeVector(vector('remote_level_close')), { type: 'REMOTE_LEVEL_CLOSE', levelHandle: 4 })
+    assert.deepEqual(decodeVector(vector('routed_packet')), { type: 'ROUTED_PACKET', levelHandle: 4, sequence: 17, fragmentIndex: 0, fragmentCount: 1, totalBytes: 4,
+      payload: Buffer.from([5, 6, 7, 8]) })
+    assert.deepEqual(decodeVector(vector('travel_accept')), { type: 'TRAVEL_ACCEPT', token: TEST_UUID, generation: 3n, contentRevision: 9n, pose: TRAVEL_ARRIVAL,
+      velocity: { x: 0.25, y: -0.5, z: 1 }, levelHandle: 4, dimensionChanged: true, serverTick: 1200n })
+    assert.deepEqual(decodeVector(vector('remote_view_ack')), { type: 'REMOTE_VIEW_ACK', levelHandle: 4, lastSequence: 17, chunksPerTickHint: 8 })
+  })
+
+  it('names the extension capabilities at the bits the server offers', () => {
+    assert.deepEqual(capabilityNames(decodeVector(vector('offer')).serverCaps), ['PLATES', 'BRICK_CACHE', 'DEST_LIGHT', 'ENTITY_FRAMES', 'ATMOSPHERE', 'ZERO_COPY', 'CLIENT_RECURSION',
+      'CLIENT_MIRROR', 'CONFIG_PHASE', 'LINK_UNCOMPRESSED', 'VIEW_STATS', 'MESH_RENDER', 'ENTITY_EVENTS', 'LOCAL_MESH', 'MESH_REUSE', 'ENTITY_SELF',
+      'FX_EMITTERS', 'PREPARED_TRAVEL', 'PREPARED_TRAVEL_CACHE', 'REMOTE_VIEW', 'SEAMLESS_TRAVEL'])
+    assert.equal(capabilitySet('FX_EMITTERS'), 1n << 32n)
+    assert.equal(capabilitySet('SEAMLESS_TRAVEL'), 1n << 36n)
   })
 
   it('inflates DEFLATED frames', () => {
