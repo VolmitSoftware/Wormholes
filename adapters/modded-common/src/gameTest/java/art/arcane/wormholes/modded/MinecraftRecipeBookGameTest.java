@@ -109,7 +109,7 @@ public final class MinecraftRecipeBookGameTest {
     }
 
     private void start() {
-        runtime.schedule(this::cleanup, 1150);
+        RuntimeBaselineEnvironment.cleanupOnTeardown(this::cleanup);
         permissions = runtime.access().register((actor, node) -> !actor.getUUID().equals(playerId) ? MinecraftAccessService.Decision.UNSET
             : node.equals(ITEMS_NODE) ? MinecraftAccessService.Decision.ALLOW
             : !node.equals(DoorAccessPolicy.CRAFT_NODE) ? MinecraftAccessService.Decision.UNSET

@@ -72,7 +72,7 @@ public final class MinecraftCostGameTest {
     }
 
     private void start() {
-        runtime.schedule(this::cleanup, 1190);
+        RuntimeBaselineEnvironment.cleanupOnTeardown(this::cleanup);
         for (int x = 0; x < 20; x++) {
             for (int z = 1; z < 8; z++) {
                 helper.setBlock(new BlockPos(x, 1, z), Blocks.STONE);

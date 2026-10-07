@@ -61,7 +61,7 @@ public final class MinecraftPortalEffectsGameTest {
     }
 
     private void start() {
-        runtime.schedule(this::cleanup, 590);
+        RuntimeBaselineEnvironment.cleanupOnTeardown(this::cleanup);
         helper.startSequence().thenIdle(6).thenExecute(() -> {
             drain();
             helper.assertTrue(spawned.size() == 2, "Consumed runes did not create two private effect displays");

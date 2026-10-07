@@ -213,14 +213,14 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
         service.claimTraversal(portal.getId(), actor).whenComplete((preparation, error) -> server.execute(() -> {
             if (error != null) {
                 LOGGER.error("Could not claim random destination for portal {}", portal.getId(), error);
-                cancel(active, TraversalRefundReason.DESTINATION_UNAVAILABLE, true);
+                cancel(active, TraversalRefundReason.DESTINATION_UNAVAILABLE, true, "claim failed");
                 return;
             }
             if (preparation.isEmpty()) {
                 if (entity instanceof ServerPlayer player && !active.finished) {
                     player.sendSystemMessage(MinecraftMenuText.text(player, WormholesMessages.PORTAL_RTP_NOT_READY, Map.of()));
                 }
-                cancel(active, TraversalRefundReason.DESTINATION_UNAVAILABLE, true);
+                cancel(active, TraversalRefundReason.DESTINATION_UNAVAILABLE, true, "no destination ready");
                 return;
             }
             active.preparation = preparation.get();
@@ -229,7 +229,7 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
                 return;
             }
             if (!valid(active)) {
-                cancel(active, TraversalRefundReason.TRAVERSAL_ABORTED, true);
+                cancel(active, TraversalRefundReason.TRAVERSAL_ABORTED, true, "traveler moved before load");
                 return;
             }
             RtpDestination destination = active.preparation.claim().destination();
@@ -243,7 +243,7 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
         runtime.requireServerThread();
         Active active = traversals.get(player.getUUID());
         if (active != null) {
-            cancel(active, TraversalRefundReason.TRAVELER_LEFT, false);
+            cancel(active, TraversalRefundReason.TRAVELER_LEFT, false, "traveler disconnected");
         }
         for (ViewKey key : List.copyOf(views.keySet())) {
             if (key.viewer().equals(player.getUUID())) {
@@ -261,7 +261,7 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
         }
         runtime.requireServerThread();
         for (Active active : List.copyOf(traversals.values())) {
-            cancel(active, TraversalRefundReason.SERVER_SHUTDOWN, false);
+            cancel(active, TraversalRefundReason.SERVER_SHUTDOWN, false, "runtime closed");
         }
         for (UUID id : List.copyOf(registrations.keySet())) {
             unregister(id);
@@ -290,7 +290,7 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
         double z = settings.getCenterMode() == RtpCenterMode.CUSTOM ? settings.getCustomCenterZ() : portal.getOrigin().z();
         for (Active active : List.copyOf(traversals.values())) {
             if (active.portal == portal) {
-                cancel(active, TraversalRefundReason.TRAVERSAL_ABORTED, true);
+                cancel(active, TraversalRefundReason.TRAVERSAL_ABORTED, true, "portal settings changed");
             }
         }
         observe(service.register(new RtpService.Registration(portal.getId(), settings, x, z,
@@ -303,7 +303,7 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
         rims.forgetPortal(id);
         for (Active active : List.copyOf(traversals.values())) {
             if (active.portal.getId().equals(id)) {
-                cancel(active, TraversalRefundReason.TRAVERSAL_ABORTED, true);
+                cancel(active, TraversalRefundReason.TRAVERSAL_ABORTED, true, "portal unregistered");
             }
         }
         observe(service.unregister(id), "unregister", id);
@@ -417,15 +417,17 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
             if (failure != null) {
                 LOGGER.error("Could not prepare random destination for portal {}", active.portal.getId(), failure);
             }
-            if (failure != null || loaded == null || !valid(active) || !safety.validate(loaded.validationRequest()).join().safe()) {
-                cancel(active, TraversalRefundReason.DESTINATION_UNAVAILABLE, true);
+            String rejection = failure != null ? "destination load failed" : loaded == null ? "destination not loaded"
+                : !valid(active) ? "traveler moved before arrival" : !safety.validate(loaded.validationRequest()).join().safe() ? "destination unsafe" : null;
+            if (rejection != null) {
+                cancel(active, TraversalRefundReason.DESTINATION_UNAVAILABLE, true, rejection);
                 return;
             }
             RtpDestination destination = active.preparation.claim().destination();
             ServerLevel level = candidates.level(destination.worldKey());
             RtpValidationRequest.EntityEnvelope envelope = envelope(active.entity);
             if (!envelope.equals(loaded.validationRequest().entityEnvelope()) || level == null) {
-                cancel(active, TraversalRefundReason.DESTINATION_UNAVAILABLE, true);
+                cancel(active, TraversalRefundReason.DESTINATION_UNAVAILABLE, true, level == null ? "destination world unavailable" : "traveler size changed");
                 return;
             }
             Vec3 target = new Vec3(destination.blockX() + 0.5D - (envelope.minimumXOffset() + envelope.maximumXOffset()) / 2D,
@@ -447,23 +449,24 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
                         Optional.of(new MinecraftTraversalContext.Destination("", null,
                             new MinecraftTraversalContext.Location(level, target, look.yaw(), look.pitch())))));
                     if (!cost.allowed()) {
-                        cancel(active, TraversalRefundReason.TRAVERSAL_ABORTED, true);
+                        cancel(active, TraversalRefundReason.TRAVERSAL_ABORTED, true, "travel cost refused");
                         return;
                     }
                     active.payments.add(cost);
                     active.preSend.add(runtime.preSend().preSend(player, level, (int) Math.floor(target.x), (int) Math.floor(target.z)));
                 }
             }
-            if (!valid(active) || !runtime.rules().reserve(active.entity, active.portal)
-                || !service.markTraversalDispatched(active.preparation).join()) {
-                cancel(active, TraversalRefundReason.TRAVERSAL_ABORTED, true);
+            String refusal = !valid(active) ? "traveler moved before dispatch" : !runtime.rules().reserve(active.entity, active.portal) ? "rules refused departure"
+                : !service.markTraversalDispatched(active.preparation).join() ? "dispatch superseded" : null;
+            if (refusal != null) {
+                cancel(active, TraversalRefundReason.TRAVERSAL_ABORTED, true, refusal);
                 return;
             }
             MinecraftTraversalCues.threshold(runtime, active.portal, active.crossing.point(), active.entity);
             Entity arrived = active.entity.teleport(new TeleportTransition(level, target, vector(velocity), look.yaw(), look.pitch(),
                 TeleportTransition.PLACE_PORTAL_TICKET));
             if (arrived == null) {
-                cancel(active, TraversalRefundReason.TELEPORT_FAILED, true);
+                cancel(active, TraversalRefundReason.TELEPORT_FAILED, true, "teleport rejected");
                 return;
             }
             active.finished = true;
@@ -483,7 +486,7 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
             }
         } catch (RuntimeException error) {
             LOGGER.error("Random traversal failed for portal {}", active.portal.getId(), error);
-            cancel(active, TraversalRefundReason.TELEPORT_FAILED, true);
+            cancel(active, TraversalRefundReason.TELEPORT_FAILED, true, "traversal failed");
         } finally {
             if (loaded != null) {
                 loaded.retention().close();
@@ -494,16 +497,17 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
     private void hold(Active active, long now) {
         Entity entity = active.entity;
         if (!valid(active)) {
-            cancel(active, TraversalRefundReason.TRAVERSAL_ABORTED, false);
+            cancel(active, TraversalRefundReason.TRAVERSAL_ABORTED, false, "traveler invalid during hold");
             return;
         }
         double drift = entity.position().distanceToSqr(active.position);
         RtpTraversalHoldPolicy.Decision decision = RtpTraversalHoldPolicy.decide(false, true, entity.level() == active.level,
             active.crossing.sourceSideDistance(geometry(entity.position())), drift, now - active.started);
         switch (decision) {
-            case STOP_ARRIVED -> cancel(active, TraversalRefundReason.TRAVERSAL_ABORTED, false);
-            case BOUNCE_FAILED, BOUNCE_TIMEOUT -> cancel(active, TraversalRefundReason.TIMED_OUT, true);
-            case CANCEL_RETREAT -> cancel(active, TraversalRefundReason.TRAVELER_RETREATED, false);
+            case STOP_ARRIVED -> cancel(active, TraversalRefundReason.TRAVERSAL_ABORTED, false, "traveler left the source area");
+            case BOUNCE_FAILED -> cancel(active, TraversalRefundReason.TIMED_OUT, true, "traversal no longer in flight");
+            case BOUNCE_TIMEOUT -> cancel(active, TraversalRefundReason.TIMED_OUT, true, "hold timed out");
+            case CANCEL_RETREAT -> cancel(active, TraversalRefundReason.TRAVELER_RETREATED, false, "traveler retreated");
             case HOLD_FREE -> { }
             case HOLD_PIN -> {
                 entity.setDeltaMovement(Vec3.ZERO);
@@ -516,11 +520,12 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
         }
     }
 
-    private void cancel(Active active, TraversalRefundReason reason, boolean bounce) {
+    private void cancel(Active active, TraversalRefundReason reason, boolean bounce, String cause) {
         if (active.finished) {
             return;
         }
         active.finished = true;
+        LOGGER.debug("RTP traversal of {} through {} cancelled: {} ({})", active.entity.getUUID(), active.portal.getId(), cause, reason);
         traversals.remove(active.entity.getUUID(), active);
         runtime.rules().failed(active.entity);
         if (active.preparation != null) {

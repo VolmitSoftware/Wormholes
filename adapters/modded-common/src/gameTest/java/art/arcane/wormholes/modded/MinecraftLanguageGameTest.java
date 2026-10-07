@@ -76,7 +76,7 @@ public final class MinecraftLanguageGameTest {
     }
 
     private void start() {
-        runtime.schedule(this::cleanup, 1190);
+        RuntimeBaselineEnvironment.cleanupOnTeardown(this::cleanup);
         GameTestSequence sequence = helper.startSequence();
         chatMenus(sequence);
         editor(sequence);

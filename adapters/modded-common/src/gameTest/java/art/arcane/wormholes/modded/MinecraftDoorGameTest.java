@@ -105,7 +105,7 @@ public final class MinecraftDoorGameTest {
         wand();
         player.setItemInHand(InteractionHand.MAIN_HAND, craftedKit);
         helper.assertTrue(runtime.useItem(player, InteractionHand.MAIN_HAND), "Door kit interaction was not consumed");
-        runtime.schedule(this::cleanup, 1190);
+        RuntimeBaselineEnvironment.cleanupOnTeardown(this::cleanup);
         helper.startSequence()
             .thenWaitUntil(this::unpacked)
             .thenExecute(() -> place(0, source))

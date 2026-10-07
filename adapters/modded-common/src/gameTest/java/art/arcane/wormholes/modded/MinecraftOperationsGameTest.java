@@ -63,7 +63,7 @@ public final class MinecraftOperationsGameTest {
     }
 
     private void start() {
-        runtime.schedule(this::cleanup, 590);
+        RuntimeBaselineEnvironment.cleanupOnTeardown(this::cleanup);
         previousConsole = runtime.configuration().settings().getOps().console;
         OpsConfig.ConsoleConfig console = new OpsConfig.ConsoleConfig();
         console.enabled = true;

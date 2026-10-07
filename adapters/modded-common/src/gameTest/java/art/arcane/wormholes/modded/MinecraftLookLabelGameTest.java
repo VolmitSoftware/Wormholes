@@ -67,7 +67,7 @@ public final class MinecraftLookLabelGameTest {
     }
 
     private void start() {
-        runtime.schedule(this::cleanup, 590);
+        RuntimeBaselineEnvironment.cleanupOnTeardown(this::cleanup);
         ServerPlayer player = connected.player();
         helper.startSequence().thenIdle(10).thenExecute(() -> {
             drain();

@@ -132,17 +132,17 @@ final class RtpTraversalPipeline
 				boolean scheduled = environment.scheduleEntity(entity,
 						() -> guard(portal, entity, admitted, null,
 								() -> prepare(portal, entity, traversive, admitted)),
-						() -> fail(portal, entity, admitted, null), 0L);
+						() -> fail(portal, entity, admitted, null, stage("traveler retired before preparation")), 0L);
 				if(!scheduled)
 				{
 					fail(portal, entity, admitted,
 							new IllegalStateException("Entity scheduler rejected RTP traversal preparation"),
-							FAILURE_SCHEDULER_REJECTED);
+							new Abort("preparation scheduling rejected", FAILURE_SCHEDULER_REJECTED, TraversalRefundReason.TRAVERSAL_ABORTED));
 				}
 			}
 			catch(RuntimeException exception)
 			{
-				fail(portal, entity, admitted, exception);
+				fail(portal, entity, admitted, exception, stage("preparation scheduling failed"));
 			}
 		});
 		return true;
@@ -155,7 +155,7 @@ final class RtpTraversalPipeline
 			Active traversal = entry.getValue();
 			if(traversal.portal().getId().equals(portalId) && active.remove(entry.getKey(), traversal))
 			{
-				cancel(traversal, TraversalRefundReason.DESTINATION_UNAVAILABLE, true);
+				cancel(traversal, TraversalRefundReason.DESTINATION_UNAVAILABLE, true, "portal removed");
 			}
 		}
 	}
@@ -165,7 +165,7 @@ final class RtpTraversalPipeline
 		Active traversal = active.remove(entityId);
 		if(traversal != null)
 		{
-			cancel(traversal, TraversalRefundReason.TRAVELER_LEFT, true);
+			cancel(traversal, TraversalRefundReason.TRAVELER_LEFT, true, "traveler left");
 		}
 	}
 
@@ -176,7 +176,7 @@ final class RtpTraversalPipeline
 			Active traversal = entry.getValue();
 			if(active.remove(entry.getKey(), traversal))
 			{
-				cancel(traversal, TraversalRefundReason.SERVER_SHUTDOWN, true);
+				cancel(traversal, TraversalRefundReason.SERVER_SHUTDOWN, true, "runtime closed");
 			}
 		}
 	}
@@ -185,12 +185,13 @@ final class RtpTraversalPipeline
 	{
 		if(active.remove(entityId, traversal))
 		{
-			cancel(traversal, TraversalRefundReason.TRAVERSAL_ABORTED, false);
+			cancel(traversal, TraversalRefundReason.TRAVERSAL_ABORTED, false, "departure hold released");
 		}
 	}
 
-	private void cancel(Active traversal, TraversalRefundReason reason, boolean releaseHold)
+	private void cancel(Active traversal, TraversalRefundReason reason, boolean releaseHold, String cause)
 	{
+		logCancellation(traversal, cause, reason);
 		traversal.cancel();
 		countTerminalFailure(FAILURE_CANCELLED);
 		refund(traversal, reason);
@@ -214,13 +215,13 @@ final class RtpTraversalPipeline
 	{
 		if(!sourceEligible(portal, entity) || !portal.canContinueRtpTraversal(entity))
 		{
-			fail(portal, entity, preparation, null);
+			fail(portal, entity, preparation, null, stage("traveler ineligible before load"));
 			return;
 		}
 		Optional<RtpService.Snapshot> snapshot = service.snapshot(portal.getId());
 		if(snapshot.isEmpty() || snapshot.get().generation() != preparation.generation())
 		{
-			fail(portal, entity, preparation, null);
+			fail(portal, entity, preparation, null, stage("portal generation changed"));
 			return;
 		}
 		RtpValidationRequest.EntityEnvelope envelope = entityEnvelope(entity);
@@ -236,14 +237,14 @@ final class RtpTraversalPipeline
 		}
 		catch(RuntimeException exception)
 		{
-			fail(portal, entity, preparation, exception);
+			fail(portal, entity, preparation, exception, stage("destination load failed"));
 			return;
 		}
 		loadStage.whenComplete((loaded, loadFailure) -> guard(portal, entity, preparation, null, () ->
 		{
 			if(loadFailure != null || loaded == null)
 			{
-				fail(portal, entity, preparation, loadFailure);
+				fail(portal, entity, preparation, loadFailure, stage(loadFailure != null ? "destination load failed" : "destination not loaded"));
 				return;
 			}
 			Retained retained = new Retained(loaded.retention());
@@ -267,7 +268,7 @@ final class RtpTraversalPipeline
 		catch(RuntimeException exception)
 		{
 			retained.close();
-			fail(portal, entity, preparation, exception);
+			fail(portal, entity, preparation, exception, stage("safety validation failed"));
 			return;
 		}
 		validationStage.whenComplete((safety, validationFailure) -> guard(portal, entity, preparation, retained, () ->
@@ -276,7 +277,8 @@ final class RtpTraversalPipeline
 					|| !preparation.claim().destination().equals(safety.destination()))
 			{
 				retained.close();
-				fail(portal, entity, preparation, validationFailure);
+				fail(portal, entity, preparation, validationFailure, stage(validationFailure != null ? "safety validation failed"
+					: safety == null ? "safety result missing" : !safety.safe() ? "destination unsafe" : "destination changed"));
 				return;
 			}
 			checkAccess(portal, entity, traversive, preparation, validationRequest.entityEnvelope(), retained);
@@ -306,7 +308,7 @@ final class RtpTraversalPipeline
 		catch(RuntimeException exception)
 		{
 			retained.close();
-			fail(portal, entity, preparation, exception);
+			fail(portal, entity, preparation, exception, stage("access check failed"));
 			return;
 		}
 		accessStage.whenComplete((access, accessFailure) -> guard(portal, entity, preparation, retained, () ->
@@ -315,7 +317,8 @@ final class RtpTraversalPipeline
 			{
 				retained.close();
 				fail(portal, entity, preparation, accessFailure != null
-						? accessFailure : access == null ? null : access.failure().orElse(null));
+						? accessFailure : access == null ? null : access.failure().orElse(null),
+						stage(accessFailure != null ? "access check failed" : "access denied"));
 				return;
 			}
 			dispatch(portal, entity, traversive, preparation, envelope, retained);
@@ -342,14 +345,14 @@ final class RtpTraversalPipeline
 			if(!sourceEligible(portal, entity) || !portal.canContinueRtpTraversal(entity))
 			{
 				retained.close();
-				fail(portal, entity, preparation, null);
+				fail(portal, entity, preparation, null, stage("traveler ineligible before dispatch"));
 				return;
 			}
 			World targetWorld = environment.resolveWorld(preparation.claim().destination().worldKey());
 			if(targetWorld == null)
 			{
 				retained.close();
-				fail(portal, entity, preparation, null);
+				fail(portal, entity, preparation, null, stage("destination world unavailable"));
 				return;
 			}
 			Frame targetFrame = RtpProjectionGeometry.targetFrameFor(portal.getFrame());
@@ -359,7 +362,7 @@ final class RtpTraversalPipeline
 				if(markFailure != null || !Boolean.TRUE.equals(marked))
 				{
 					retained.close();
-					fail(portal, entity, preparation, markFailure);
+					fail(portal, entity, preparation, markFailure, stage("dispatch superseded"));
 					return;
 				}
 				marshalDestinationDispatch(
@@ -368,14 +371,14 @@ final class RtpTraversalPipeline
 		}), () ->
 		{
 			retained.close();
-			fail(portal, entity, preparation, null);
+			fail(portal, entity, preparation, null, stage("traveler retired before dispatch"));
 		}, 0L);
 		if(!scheduled)
 		{
 			retained.close();
 			fail(portal, entity, preparation,
 					new IllegalStateException("Entity scheduler rejected RTP teleport dispatch"),
-					FAILURE_SCHEDULER_REJECTED);
+					new Abort("dispatch scheduling rejected", FAILURE_SCHEDULER_REJECTED, TraversalRefundReason.TRAVERSAL_ABORTED));
 		}
 	}
 
@@ -399,7 +402,7 @@ final class RtpTraversalPipeline
 		Runnable retired = () ->
 		{
 			retained.close();
-			fail(portal, entity, preparation, null);
+			fail(portal, entity, preparation, null, stage("traveler retired before dispatch"));
 		};
 		boolean scheduled = environment.scheduleEntity(entity, () -> guard(
 			portal, entity, preparation, retained, () -> reserveAndDispatch(
@@ -421,10 +424,11 @@ final class RtpTraversalPipeline
 		Retained retained)
 	{
 		Active current = active.get(entity.getUniqueId());
-		if(current == null || !current.matches(preparation) || !current.openTraversalCost(traversive))
+		boolean superseded = current == null || !current.matches(preparation);
+		if(superseded || !current.openTraversalCost(traversive))
 		{
 			retained.close();
-			fail(portal, entity, preparation, null);
+			fail(portal, entity, preparation, null, stage(superseded ? "traversal superseded" : "travel cost unavailable"));
 			return;
 		}
 		PortalTravelCost.Status reserveStatus = current.reserve();
@@ -432,14 +436,15 @@ final class RtpTraversalPipeline
 		{
 			portal.rejectRtpCost(entity, traversive, current.travelCost(), reserveStatus);
 			retained.close();
-			fail(portal, entity, preparation, null, FAILURE_STAGE, TraversalRefundReason.CHARGE_ROLLBACK);
+			fail(portal, entity, preparation, null,
+				new Abort("travel cost reservation " + reserveStatus, FAILURE_STAGE, TraversalRefundReason.CHARGE_ROLLBACK));
 			return;
 		}
 		BukkitChunkPreSendCapture capture = capturePreSend(current, portal);
 		if(active.get(entity.getUniqueId()) != current || !current.canProceed())
 		{
 			retained.close();
-			fail(portal, entity, preparation, null);
+			fail(portal, entity, preparation, null, stage("traversal superseded before pre-send"));
 			return;
 		}
 		if(capture == null)
@@ -457,8 +462,7 @@ final class RtpTraversalPipeline
 			retained.close();
 			fail(portal, entity, preparation,
 				new IllegalStateException("Destination region retired RTP chunk pre-send work"),
-				FAILURE_SCHEDULER_REJECTED,
-				TraversalRefundReason.DESTINATION_UNAVAILABLE);
+				new Abort("destination region retired pre-send", FAILURE_SCHEDULER_REJECTED, TraversalRefundReason.DESTINATION_UNAVAILABLE));
 		};
 		boolean destinationScheduled = environment.scheduleRegion(
 			targetWorld,
@@ -528,8 +532,7 @@ final class RtpTraversalPipeline
 			retained.close();
 			fail(portal, entity, preparation,
 				new IllegalStateException("Traveler owner retired RTP teleport work"),
-				FAILURE_SCHEDULER_REJECTED,
-				TraversalRefundReason.DESTINATION_UNAVAILABLE);
+				new Abort("traveler retired before teleport", FAILURE_SCHEDULER_REJECTED, TraversalRefundReason.DESTINATION_UNAVAILABLE));
 		};
 		boolean scheduled;
 		try
@@ -582,7 +585,7 @@ final class RtpTraversalPipeline
 			Runnable retired = () ->
 			{
 				retained.close();
-				fail(portal, entity, preparation, preparationFailure);
+				fail(portal, entity, preparation, preparationFailure, stage("departure not prepared"));
 			};
 			boolean scheduled = environment.scheduleEntity(entity, () -> guard(portal, entity, preparation, retained, () ->
 			{
@@ -614,13 +617,13 @@ final class RtpTraversalPipeline
 			|| !sourceEligible(portal, entity) || !portal.canContinueRtpTraversal(entity))
 		{
 			retained.close();
-			fail(portal, entity, preparation, null);
+			fail(portal, entity, preparation, null, stage("traveler ineligible before teleport"));
 			return;
 		}
 		if(!portal.commitDepartureHold(entity, traversive))
 		{
 			retained.close();
-			fail(portal, entity, preparation, null);
+			fail(portal, entity, preparation, null, stage("departure hold lost"));
 			return;
 		}
 		CompletableFuture<Void> departureDrain = portal.beginDepartureTeleport(entity);
@@ -633,7 +636,7 @@ final class RtpTraversalPipeline
 		{
 			departureDrain.complete(null);
 			retained.close();
-			fail(portal, entity, preparation, exception, FAILURE_STAGE, TraversalRefundReason.TELEPORT_FAILED);
+			fail(portal, entity, preparation, exception, new Abort("teleport failed", FAILURE_STAGE, TraversalRefundReason.TELEPORT_FAILED));
 			return;
 		}
 		teleportStage.whenComplete((teleported, teleportFailure) ->
@@ -644,7 +647,8 @@ final class RtpTraversalPipeline
 			if(teleportFailure != null || !Boolean.TRUE.equals(teleported))
 			{
 				retained.close();
-				fail(portal, entity, preparation, teleportFailure, FAILURE_STAGE, TraversalRefundReason.TELEPORT_FAILED);
+				fail(portal, entity, preparation, teleportFailure,
+					new Abort(teleportFailure != null ? "teleport failed" : "teleport rejected", FAILURE_STAGE, TraversalRefundReason.TELEPORT_FAILED));
 				return;
 			}
 			beginSuccessfulTeleport(
@@ -868,7 +872,7 @@ final class RtpTraversalPipeline
 			{
 				retained.close();
 			}
-			fail(portal, entity, preparation, exception);
+			fail(portal, entity, preparation, exception, stage("stage failed"));
 		}
 	}
 
@@ -876,42 +880,23 @@ final class RtpTraversalPipeline
 			LocalPortal portal,
 			Entity entity,
 			RtpService.TraversalPreparation preparation,
-			Throwable failure)
-	{
-		fail(portal, entity, preparation, failure, FAILURE_STAGE, TraversalRefundReason.TRAVERSAL_ABORTED);
-	}
-
-	private void fail(
-			LocalPortal portal,
-			Entity entity,
-			RtpService.TraversalPreparation preparation,
 			Throwable failure,
-			String reason)
-	{
-		fail(portal, entity, preparation, failure, reason, TraversalRefundReason.TRAVERSAL_ABORTED);
-	}
-
-	private void fail(
-			LocalPortal portal,
-			Entity entity,
-			RtpService.TraversalPreparation preparation,
-			Throwable failure,
-			String reason,
-			TraversalRefundReason refundReason)
+			Abort abort)
 	{
 		if(failure != null)
 		{
 			failures.report("traversal:" + portal.getId(), failure);
 		}
-		countTerminalFailure(reason);
+		countTerminalFailure(abort.metric());
 		Active current = active.get(entity.getUniqueId());
 		boolean removed = current != null
 			&& current.matches(preparation)
 			&& active.remove(entity.getUniqueId(), current);
 		if(removed)
 		{
+			logCancellation(current, abort.cause(), abort.refund());
 			current.cancel();
-			refund(current, refundReason);
+			refund(current, abort.refund());
 			portal.cancelDepartureHold(entity, current.traversive)
 				.thenRun(() -> portal.releaseDepartureClaim(entity, current.traversive));
 		}
@@ -980,6 +965,17 @@ final class RtpTraversalPipeline
 		traversal.refund(reason);
 		failures.report("cost-refund-deferred:" + traversal.portal().getId(),
 				new IllegalStateException("Retained traversal API refund for owner-dispatch retry because the entity scheduler rejected terminal work"));
+	}
+
+	private static Abort stage(String cause)
+	{
+		return new Abort(cause, FAILURE_STAGE, TraversalRefundReason.TRAVERSAL_ABORTED);
+	}
+
+	private static void logCancellation(Active traversal, String cause, TraversalRefundReason reason)
+	{
+		Wormholes.v(() -> "RTP traversal of " + traversal.entity().getUniqueId() + " through " + traversal.portal().getId()
+				+ " cancelled: " + cause + " (" + reason + ")");
 	}
 
 	private void countTerminalFailure(String reason)
@@ -1072,6 +1068,10 @@ final class RtpTraversalPipeline
 				&& Math.abs(current.getX() - target.getX()) <= ARRIVAL_TOLERANCE
 				&& Math.abs(current.getY() - target.getY()) <= ARRIVAL_TOLERANCE
 				&& Math.abs(current.getZ() - target.getZ()) <= ARRIVAL_TOLERANCE;
+	}
+
+	private record Abort(String cause, String metric, TraversalRefundReason refund)
+	{
 	}
 
 	private static final class Active
