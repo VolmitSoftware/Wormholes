@@ -33,8 +33,8 @@ final class BoundaryScanner {
         "io/papermc", "com/github/retrooper", "io/github/retrooper", "net/kyori", "art/arcane/volmlib", "com/google/gson", "io/netty",
         "org/slf4j", "com/electronwill", "com/github/luben", "org/yaml", "net/fabricmc", "net/neoforged", "net/minecraftforge",
         "org/spongepowered", "com/velocitypowered", "net/md_5");
-    private static final List<String> FORBIDDEN_NAME_PREFIXES = List.of("wormhole", "rtp", "door", "pocket", "nexus", "venticular",
-        "panoptic", "portalplayer");
+    private static final List<String> FORBIDDEN_NAME_PREFIXES = List.of("rtp", "door", "pocket", "nexus", "venticular", "panoptic",
+        "portalplayer");
     private static final List<String> FORBIDDEN_NAME_TOKENS = List.of("wh", "whpn");
     private static final List<String> FORBIDDEN_CALLS = List.of("java/lang/Class.forName", "java/lang/Class.newInstance",
         "java/lang/Class.getMethod", "java/lang/Class.getMethods", "java/lang/Class.getDeclaredMethod", "java/lang/Class.getDeclaredMethods",

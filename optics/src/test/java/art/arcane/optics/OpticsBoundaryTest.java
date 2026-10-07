@@ -125,8 +125,8 @@ final class OpticsBoundaryTest {
     @Test
     void productNameInStringConstantFails() {
         byte[] bytes = probe(builder -> builder.withMethod("name", MethodTypeDesc.of(ConstantDescs.CD_String), ClassFile.ACC_STATIC,
-            method -> method.withCode(code -> code.ldc("Wormholes-Plate-").areturn())));
-        assertViolation(bytes, "Wormholes-Plate-");
+            method -> method.withCode(code -> code.ldc("Nexus-Plate-").areturn())));
+        assertViolation(bytes, "Nexus-Plate-");
     }
 
     @Test
@@ -167,10 +167,10 @@ final class OpticsBoundaryTest {
 
     @Test
     void productNameInMethodNameFails() {
-        byte[] bytes = probe(builder -> builder.withMethod("wormholeKey", MethodTypeDesc.of(ConstantDescs.CD_void),
+        byte[] bytes = probe(builder -> builder.withMethod("nexusKey", MethodTypeDesc.of(ConstantDescs.CD_void),
             ClassFile.ACC_PUBLIC | ClassFile.ACC_ABSTRACT, method -> {
             }));
-        assertViolation(bytes, "product name wormhole in its method");
+        assertViolation(bytes, "product name nexus in its method");
     }
 
     @Test
@@ -192,6 +192,18 @@ final class OpticsBoundaryTest {
         byte[] bytes = probe(builder -> builder.withMethod("name", MethodTypeDesc.of(ConstantDescs.CD_String), ClassFile.ACC_STATIC,
             method -> method.withCode(code -> code.ldc("whpn").areturn())));
         assertViolation(bytes, "product name whpn");
+    }
+
+    @Test
+    void genericPortalDomainWordsPass() {
+        byte[] bytes = probe(builder -> builder.withFlags(ClassFile.ACC_PUBLIC | ClassFile.ACC_FINAL)
+            .withField("portalKey", ConstantDescs.CD_int, ClassFile.ACC_PRIVATE | ClassFile.ACC_FINAL)
+            .withField("GATEWAY_LIMIT", ConstantDescs.CD_int, ClassFile.ACC_PRIVATE | ClassFile.ACC_STATIC | ClassFile.ACC_FINAL)
+            .withField("wormholeLink", ConstantDescs.CD_int, ClassFile.ACC_PRIVATE | ClassFile.ACC_FINAL)
+            .withField("mirrorTurns", ConstantDescs.CD_int, ClassFile.ACC_PRIVATE | ClassFile.ACC_FINAL)
+            .withMethod("wormholeDepth", MethodTypeDesc.of(ConstantDescs.CD_String), ClassFile.ACC_STATIC,
+                method -> method.withCode(code -> code.ldc("Wormhole").areturn())));
+        assertEquals(List.of(), BoundaryScanner.violations(bytes));
     }
 
     @Test
