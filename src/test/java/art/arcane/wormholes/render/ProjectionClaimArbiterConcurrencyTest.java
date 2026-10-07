@@ -616,7 +616,7 @@ public final class ProjectionClaimArbiterConcurrencyTest {
             ProjectionWorldView sourceView = availableView(world);
             ProjectionClaimArbiter arbiter = new ProjectionClaimArbiter(
                 ignored -> localView,
-                new BukkitProjectionOutput(visibility, portalId -> List.of(), (player, chunkX, chunkZ, data) -> lightPackets.incrementAndGet()));
+                new BukkitProjectionOutput(visibility, portalId -> List.of(), (player, packet) -> lightPackets.incrementAndGet()));
             UUID sourcePortal = UUID.fromString("00000000-0000-0000-0000-000000000066");
             UUID blackoutPortal = UUID.fromString("00000000-0000-0000-0000-000000000067");
             BlockData data = blockData("shared");

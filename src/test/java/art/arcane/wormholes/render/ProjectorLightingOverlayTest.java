@@ -199,7 +199,7 @@ public final class ProjectorLightingOverlayTest {
         Settings.ADAPTIVE_LIGHTING = false;
         try {
             Map<Long, LightData> packets = new HashMap<Long, LightData>();
-            ProjectorLighting<Player, BlockData, ProjectionWorldView> lighting = new BukkitProjectionOutput((observer, chunkX, chunkZ) -> true, portalId -> List.of(), (observer, chunkX, chunkZ, data) -> packets.put(chunkKey(chunkX, chunkZ), data)).lighting();
+            ProjectorLighting<Player, BlockData, ProjectionWorldView> lighting = new BukkitProjectionOutput((observer, chunkX, chunkZ) -> true, portalId -> List.of(), (observer, packet) -> packets.put(chunkKey(packet.chunkX(), packet.chunkZ()), packet.data())).lighting();
             Player observer = (Player) Proxy.newProxyInstance(Player.class.getClassLoader(), new Class<?>[] {Player.class},
                 (proxy, method, arguments) -> "isOnline".equals(method.getName()) ? Boolean.TRUE : null);
             lighting.apply(observer, localView, claims, null, sourceLightingEnabled);

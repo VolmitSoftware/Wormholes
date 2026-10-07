@@ -71,9 +71,9 @@ public final class BukkitProjectionOutput implements ProjectionOutput<Player> {
 
     @Override
     public void light(Player observer, ProjectorLighting.ChunkLight light) {
-        lightSender.send(observer, light.chunkX(), light.chunkZ(), new LightData(true, light.blockMask(), light.skyMask(),
+        lightSender.send(observer, new LightPacket(light.chunkX(), light.chunkZ(), new LightData(true, light.blockMask(), light.skyMask(),
             light.emptyBlockMask(), light.emptySkyMask(), light.skyArrays().length, light.blockArrays().length,
-            light.skyArrays(), light.blockArrays()));
+            light.skyArrays(), light.blockArrays())));
     }
 
     @Override
@@ -113,12 +113,15 @@ public final class BukkitProjectionOutput implements ProjectionOutput<Player> {
         return observers.apply(endpointId);
     }
 
-    private static void sendLight(Player observer, int chunkX, int chunkZ, LightData data) {
-        PacketEvents.getAPI().getPlayerManager().sendPacket(observer, new WrapperPlayServerUpdateLight(chunkX, chunkZ, data));
+    private static void sendLight(Player observer, LightPacket packet) {
+        PacketEvents.getAPI().getPlayerManager().sendPacket(observer, new WrapperPlayServerUpdateLight(packet.chunkX(), packet.chunkZ(), packet.data()));
     }
 
     @FunctionalInterface
     public interface LightPacketSender {
-        void send(Player observer, int chunkX, int chunkZ, LightData data);
+        void send(Player observer, LightPacket packet);
+    }
+
+    public record LightPacket(int chunkX, int chunkZ, LightData data) {
     }
 }

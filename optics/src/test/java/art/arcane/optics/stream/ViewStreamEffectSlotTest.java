@@ -73,8 +73,8 @@ final class ViewStreamEffectSlotTest {
         Effects effects = new Effects();
         harness.scene = effects;
         Set<UUID> entityRequests = new HashSet<UUID>();
-        harness.entities = (observer, portal, key, tick, full, hideObserver) -> {
-            entityRequests.add(portal);
+        harness.entities = (observer, target, tick) -> {
+            entityRequests.add(target.portalId());
             return null;
         };
         SessionWorld world = new SessionWorld(3L);

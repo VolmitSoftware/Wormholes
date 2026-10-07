@@ -34,7 +34,11 @@ public final class EntityFrames<O> implements EntityFrameSource<O> {
     }
 
     @Override
-    public ViewStreamMessage.EntityFrame frame(O observer, UUID portal, int portalKey, long tick, boolean full, boolean hideObserver) {
+    public ViewStreamMessage.EntityFrame frame(O observer, EntityFrameTarget target, long tick) {
+        UUID portal = target.portalId();
+        int portalKey = target.portalKey();
+        boolean full = target.full();
+        boolean hideObserver = target.hideObserver();
         prune(tick);
         Object sceneKey = scenes.sceneKey(observer, portal);
         StateKey stateKey = new StateKey(observer, portal);

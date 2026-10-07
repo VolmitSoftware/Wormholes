@@ -7,7 +7,7 @@ import art.arcane.optics.entity.ProjectedEntityEvent;
 
 @FunctionalInterface
 public interface EntityFrameSource<O> {
-    ViewStreamMessage.EntityFrame frame(O observer, UUID portal, int portalKey, long tick, boolean full, boolean hideObserver);
+    ViewStreamMessage.EntityFrame frame(O observer, EntityFrameTarget target, long tick);
 
     default UUID projectedId(UUID sourceId) {
         return sourceId;
@@ -21,6 +21,6 @@ public interface EntityFrameSource<O> {
     }
 
     static <O> EntityFrameSource<O> none() {
-        return (observer, portal, portalKey, tick, full, hideObserver) -> null;
+        return (observer, target, tick) -> null;
     }
 }

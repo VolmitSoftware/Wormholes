@@ -23,6 +23,7 @@ final class ViewStreamSlot<B> {
     ApertureDescriptor baseGeometry;
     ViewPlate<B> observedPlate;
     ViewStreamSlot<B> standbySlot;
+    EntityFrameTarget entityTarget;
 
     volatile ApertureDescriptor geometry;
     volatile PlateTarget<B> target;

@@ -20,8 +20,8 @@ final class ViewStreamSessionLoadTest {
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, ViewStreamLimits.DEFAULT_ACK_WINDOW_FRAMES));
         harness.c2sSpacingNanos = 0L;
         harness.client.autoAck = true;
-        harness.entities = (observer, portal, key, tick, full, hideObserver) ->
-            new ViewStreamMessage.EntityFrame(key, (int) tick, List.of(), List.of(), true);
+        harness.entities = (observer, target, tick) ->
+            new ViewStreamMessage.EntityFrame(target.portalKey(), (int) tick, List.of(), List.of(), true);
         harness.scene = new SceneEveryTick();
         SessionWorld world = new SessionWorld(9L);
         for (int i = 0; i < PORTALS; i++) {

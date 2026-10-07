@@ -488,8 +488,8 @@ final class ViewStreamSessionStreamTest {
     void zeroCopyHandsPlatesOverByReference() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8), Runnable::run, 0x5EEDL);
         List<ViewPlate<String>> published = new ArrayList<ViewPlate<String>>();
-        harness.handoffs = (key, revision, plate, light) -> {
-            published.add(plate);
+        harness.handoffs = offer -> {
+            published.add(offer.plate());
             return 1000L + published.size();
         };
         SessionPortal a = harness.access.add(new SessionPortal("a", 0));
@@ -509,9 +509,9 @@ final class ViewStreamSessionStreamTest {
     void entityFramesStartFullAndRequestAFullFrameAfterADrop() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(false, 1));
         List<String> calls = new ArrayList<String>();
-        harness.entities = (observer, portal, key, tick, full, hideObserver) -> {
-            calls.add(key + (full ? " full" : " delta"));
-            return new ViewStreamMessage.EntityFrame(key, (int) tick, List.of(), List.of(), true);
+        harness.entities = (observer, target, tick) -> {
+            calls.add(target.portalKey() + (target.full() ? " full" : " delta"));
+            return new ViewStreamMessage.EntityFrame(target.portalKey(), (int) tick, List.of(), List.of(), true);
         };
         SessionWorld world = new SessionWorld(11L);
         SessionPortal a = harness.access.add(new SessionPortal("a", 0));

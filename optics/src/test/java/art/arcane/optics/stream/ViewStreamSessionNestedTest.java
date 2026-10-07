@@ -35,9 +35,9 @@ final class ViewStreamSessionNestedTest {
         harness.access.nested.put(first.id, List.of(second));
         harness.access.nested.put(second.id, List.of(first));
         Map<Integer, UUID> entityContexts = new HashMap<>();
-        harness.entities = (observer, portal, key, tick, full, hideObserver) -> {
-            entityContexts.put(key, portal);
-            return new ViewStreamMessage.EntityFrame(key, 1, List.of(), List.of(), true);
+        harness.entities = (observer, target, tick) -> {
+            entityContexts.put(target.portalKey(), target.portalId());
+            return new ViewStreamMessage.EntityFrame(target.portalKey(), 1, List.of(), List.of(), true);
         };
         harness.handshake(SessionHarness.NATIVE_CAPS);
         harness.tick();
@@ -261,8 +261,8 @@ final class ViewStreamSessionNestedTest {
     private static List<Boolean> hideObserverCalls(long clientCaps) throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
         List<Boolean> calls = new ArrayList<Boolean>();
-        harness.entities = (observer, portal, key, tick, full, hideObserver) -> {
-            calls.add(hideObserver);
+        harness.entities = (observer, target, tick) -> {
+            calls.add(target.hideObserver());
             return null;
         };
         mirror(harness, new SessionWorld(28L), 0);

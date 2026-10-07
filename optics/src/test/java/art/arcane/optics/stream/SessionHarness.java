@@ -61,8 +61,8 @@ final class SessionHarness {
         ViewStreamPlatform<String, String> platform = new ViewStreamPlatform<String, String>(transport, access,
             new EntityFrameSource<String>() {
                 @Override
-                public ViewStreamMessage.EntityFrame frame(String observer, UUID portal, int key, long tick, boolean full, boolean hideObserver) {
-                    return entities.frame(observer, portal, key, tick, full, hideObserver);
+                public ViewStreamMessage.EntityFrame frame(String observer, EntityFrameTarget target, long tick) {
+                    return entities.frame(observer, target, tick);
                 }
 
                 @Override
@@ -95,7 +95,7 @@ final class SessionHarness {
                     return scene.atmosphere(observer, portal, key, tick, full);
                 }
             },
-            (key, revision, plate, light) -> handoffs.publish(key, revision, plate, light), lanes, state -> state, DATA_VERSION,
+            offer -> handoffs.publish(offer), lanes, state -> state, DATA_VERSION,
             ViewStreamCapability.ALL, clock::get, (message, error) -> warnings.add(new AssertionError(message, error)),
             extensions, created -> new ViewStreamSession.Hooks<String>() {
                 @Override

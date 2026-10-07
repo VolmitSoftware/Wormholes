@@ -29,16 +29,16 @@ class EntityFramesTest {
         scene.add(visual(stand, 10.5D, 0.0D));
         scene.add(visual(pig, 12.5D, 0.0D));
         EntityFrames<String> frames = new EntityFrames<String>(scenes(scene, new AtomicInteger()));
-        ViewStreamMessage.EntityFrame first = frames.frame("observer", PORTAL, 3, 1L, true, false);
+        ViewStreamMessage.EntityFrame first = frames.frame("observer", new EntityFrameTarget(PORTAL, 3, true, false), 1L);
         assertNotNull(first);
         assertEquals(3, first.portalKey());
         assertEquals(2, first.entities().size());
         assertTrue(first.entities().stream().allMatch(EntitySnapshot::isFull));
         assertEquals(List.of(stand, pig), first.presentIds());
         assertTrue(first.presence());
-        assertNull(frames.frame("observer", PORTAL, 3, 2L, false, false), "an unchanged scene sends nothing");
+        assertNull(frames.frame("observer", new EntityFrameTarget(PORTAL, 3, false, false), 2L), "an unchanged scene sends nothing");
         scene.set(1, visual(pig, 13.0D, 0.0D));
-        ViewStreamMessage.EntityFrame moved = frames.frame("observer", PORTAL, 3, 3L, false, false);
+        ViewStreamMessage.EntityFrame moved = frames.frame("observer", new EntityFrameTarget(PORTAL, 3, false, false), 3L);
         assertEquals(1, moved.entities().size());
         EntitySnapshot delta = moved.entities().get(0);
         assertFalse(delta.isFull());
@@ -48,7 +48,7 @@ class EntityFramesTest {
         assertFalse(moved.presence(), "movement alone does not resend the presence set");
         assertTrue(moved.presentIds().isEmpty());
         scene.remove(0);
-        ViewStreamMessage.EntityFrame left = frames.frame("observer", PORTAL, 3, 4L, false, false);
+        ViewStreamMessage.EntityFrame left = frames.frame("observer", new EntityFrameTarget(PORTAL, 3, false, false), 4L);
         assertTrue(left.entities().isEmpty());
         assertTrue(left.presence());
         assertEquals(List.of(pig), left.presentIds());
@@ -82,11 +82,11 @@ class EntityFramesTest {
                 return visible[0];
             }
         });
-        frames.frame("observer", PORTAL, 7, 1, true, false);
+        frames.frame("observer", new EntityFrameTarget(PORTAL, 7, true, false), 1);
         frames.event(ProjectedEntityEvent.animation(source, 3));
         frames.event(ProjectedEntityEvent.hurt(source, 179));
         frames.event(ProjectedEntityEvent.animation(UUID.randomUUID(), 0));
-        frames.frame("observer", PORTAL, 7, 2, true, false);
+        frames.frame("observer", new EntityFrameTarget(PORTAL, 7, true, false), 2);
         List<ViewStreamMessage.EntityEvent> events = frames.events("observer", PORTAL, 7);
         assertEquals(2, events.size());
         assertEquals(opaque, events.getFirst().entityId());
@@ -94,7 +94,7 @@ class EntityFramesTest {
         assertTrue(events.getLast().hurt());
         assertEquals(179, events.getLast().yaw());
         assertTrue(frames.events("observer", PORTAL, 7).isEmpty());
-        frames.frame("observer", PORTAL, 7, 3, true, false);
+        frames.frame("observer", new EntityFrameTarget(PORTAL, 7, true, false), 3);
         frames.event(ProjectedEntityEvent.animation(source, 0));
         assertTrue(frames.events("observer", PORTAL, 7).getFirst().eventSeq() > events.getLast().eventSeq());
         frames.event(ProjectedEntityEvent.hurt(source, 0));
@@ -103,7 +103,7 @@ class EntityFramesTest {
         visible[0] = true;
         frames.event(ProjectedEntityEvent.animation(source, 0));
         scene.clear();
-        frames.frame("observer", PORTAL, 7, 4, false, false);
+        frames.frame("observer", new EntityFrameTarget(PORTAL, 7, false, false), 4);
         assertTrue(frames.events("observer", PORTAL, 7).isEmpty());
     }
 
@@ -112,14 +112,14 @@ class EntityFramesTest {
         UUID source = UUID.randomUUID();
         List<EntitySnapshot> scene = new ArrayList<>(List.of(visual(source, 10.5D, 0)));
         EntityFrames<String> frames = new EntityFrames<>(scenes(scene, new AtomicInteger()));
-        frames.frame("a", PORTAL, 1, 1, true, false);
-        frames.frame("b", PORTAL, 2, 1, true, false);
+        frames.frame("a", new EntityFrameTarget(PORTAL, 1, true, false), 1);
+        frames.frame("b", new EntityFrameTarget(PORTAL, 2, true, false), 1);
         frames.event(ProjectedEntityEvent.animation(source, 0));
         assertEquals(1, frames.events("a", PORTAL, 1).size());
         assertEquals(1, frames.events("b", PORTAL, 2).size());
         assertTrue(frames.events("a", PORTAL, 1).isEmpty());
         frames.event(ProjectedEntityEvent.hurt(source, 0));
-        frames.frame("a", PORTAL, 8, 2, false, false);
+        frames.frame("a", new EntityFrameTarget(PORTAL, 8, false, false), 2);
         assertTrue(frames.events("a", PORTAL, 8).isEmpty());
         assertEquals(1, frames.events("b", PORTAL, 2).size());
     }
@@ -129,11 +129,11 @@ class EntityFramesTest {
         AtomicInteger captures = new AtomicInteger();
         List<EntitySnapshot> scene = List.of(visual(UUID.randomUUID(), 10.5D, 0.0D));
         EntityFrames<String> frames = new EntityFrames<String>(scenes(scene, captures));
-        assertNotNull(frames.frame("a", PORTAL, 1, 7L, true, false));
-        assertNotNull(frames.frame("b", PORTAL, 4, 7L, true, false));
+        assertNotNull(frames.frame("a", new EntityFrameTarget(PORTAL, 1, true, false), 7L));
+        assertNotNull(frames.frame("b", new EntityFrameTarget(PORTAL, 4, true, false), 7L));
         assertEquals(1, captures.get());
         assertEquals(2, frames.observerStates());
-        frames.frame("a", PORTAL, 1, 8L, false, false);
+        frames.frame("a", new EntityFrameTarget(PORTAL, 1, false, false), 8L);
         assertEquals(2, captures.get());
     }
 
@@ -141,11 +141,11 @@ class EntityFramesTest {
     void fullRequestAndNewPortalKeyResendEverything() {
         UUID stand = UUID.randomUUID();
         EntityFrames<String> frames = new EntityFrames<String>(scenes(List.of(visual(stand, 10.5D, 0.0D)), new AtomicInteger()));
-        frames.frame("observer", PORTAL, 1, 1L, true, false);
-        ViewStreamMessage.EntityFrame full = frames.frame("observer", PORTAL, 1, 2L, true, false);
+        frames.frame("observer", new EntityFrameTarget(PORTAL, 1, true, false), 1L);
+        ViewStreamMessage.EntityFrame full = frames.frame("observer", new EntityFrameTarget(PORTAL, 1, true, false), 2L);
         assertEquals(1, full.entities().size());
         assertTrue(full.entities().get(0).isFull());
-        ViewStreamMessage.EntityFrame successor = frames.frame("observer", PORTAL, 9, 3L, false, false);
+        ViewStreamMessage.EntityFrame successor = frames.frame("observer", new EntityFrameTarget(PORTAL, 9, false, false), 3L);
         assertEquals(9, successor.portalKey());
         assertTrue(successor.entities().get(0).isFull());
     }
@@ -154,13 +154,13 @@ class EntityFramesTest {
     void emptyScenesSendNothingUntilEntitiesAppearAndStaleFullRequestsClearTheClient() {
         List<EntitySnapshot> scene = new ArrayList<EntitySnapshot>();
         EntityFrames<String> frames = new EntityFrames<String>(scenes(scene, new AtomicInteger()));
-        assertNull(frames.frame("observer", PORTAL, 1, 1L, true, false), "an empty first scene needs no frame");
-        assertNull(frames.frame("observer", PORTAL, 1, 2L, true, false));
+        assertNull(frames.frame("observer", new EntityFrameTarget(PORTAL, 1, true, false), 1L), "an empty first scene needs no frame");
+        assertNull(frames.frame("observer", new EntityFrameTarget(PORTAL, 1, true, false), 2L));
         UUID stand = UUID.randomUUID();
         scene.add(visual(stand, 10.5D, 0.0D));
-        assertTrue(frames.frame("observer", PORTAL, 1, 3L, true, false).entities().get(0).isFull());
+        assertTrue(frames.frame("observer", new EntityFrameTarget(PORTAL, 1, true, false), 3L).entities().get(0).isFull());
         scene.clear();
-        ViewStreamMessage.EntityFrame cleared = frames.frame("observer", PORTAL, 1, 4L, true, false);
+        ViewStreamMessage.EntityFrame cleared = frames.frame("observer", new EntityFrameTarget(PORTAL, 1, true, false), 4L);
         assertNotNull(cleared, "a full request over a populated client clears it even when the scene is empty");
         assertTrue(cleared.presentIds().isEmpty());
     }
@@ -180,12 +180,12 @@ class EntityFramesTest {
                 return scene;
             }
         });
-        frames.frame("observer", PORTAL, 1, 1L, true, false);
+        frames.frame("observer", new EntityFrameTarget(PORTAL, 1, true, false), 1L);
         visible[0] = false;
-        ViewStreamMessage.EntityFrame cleared = frames.frame("observer", PORTAL, 1, 2L, false, false);
+        ViewStreamMessage.EntityFrame cleared = frames.frame("observer", new EntityFrameTarget(PORTAL, 1, false, false), 2L);
         assertTrue(cleared.entities().isEmpty());
         assertTrue(cleared.presentIds().isEmpty());
-        assertNull(frames.frame("observer", PORTAL, 1, 3L, false, false));
+        assertNull(frames.frame("observer", new EntityFrameTarget(PORTAL, 1, false, false), 3L));
     }
 
     @Test
@@ -195,10 +195,10 @@ class EntityFramesTest {
             crowd.add(visual(UUID.randomUUID(), i, 0.0D));
         }
         EntityFrames<String> frames = new EntityFrames<String>(scenes(crowd, new AtomicInteger()));
-        ViewStreamMessage.EntityFrame first = frames.frame("observer", PORTAL, 1, 1L, true, false);
+        ViewStreamMessage.EntityFrame first = frames.frame("observer", new EntityFrameTarget(PORTAL, 1, true, false), 1L);
         assertEquals(ViewStreamLimits.MAX_ENTITIES_PER_FRAME, first.entities().size());
         assertEquals(ViewStreamLimits.MAX_ENTITIES_PER_FRAME, first.presentIds().size());
-        ViewStreamMessage.EntityFrame second = frames.frame("observer", PORTAL, 1, 2L, false, false);
+        ViewStreamMessage.EntityFrame second = frames.frame("observer", new EntityFrameTarget(PORTAL, 1, false, false), 2L);
         assertEquals(400 - ViewStreamLimits.MAX_ENTITIES_PER_FRAME, second.entities().size());
         assertEquals(400, second.presentIds().size());
         byte[] encoded = ViewStreamFixtures.CODEC.encodeS2C(second, 1, ViewStreamLimits.FLAG_LAST);
@@ -229,11 +229,11 @@ class EntityFramesTest {
                 return observer.equals("mirror") && visual.id().equals(self);
             }
         });
-        ViewStreamMessage.EntityFrame hidden = frames.frame("mirror", PORTAL, 1, 1L, true, true);
+        ViewStreamMessage.EntityFrame hidden = frames.frame("mirror", new EntityFrameTarget(PORTAL, 1, true, true), 1L);
         assertEquals(List.of(pig), hidden.presentIds(), "the observer is left out of its own client-drawn mirror");
-        ViewStreamMessage.EntityFrame shown = frames.frame("mirror", PORTAL, 2, 1L, true, false);
+        ViewStreamMessage.EntityFrame shown = frames.frame("mirror", new EntityFrameTarget(PORTAL, 2, true, false), 1L);
         assertEquals(2, shown.presentIds().size(), "a server-drawn mirror still carries the observer");
-        ViewStreamMessage.EntityFrame other = frames.frame("other", PORTAL, 1, 1L, true, true);
+        ViewStreamMessage.EntityFrame other = frames.frame("other", new EntityFrameTarget(PORTAL, 1, true, true), 1L);
         assertEquals(2, other.presentIds().size(), "only the observer itself is hidden");
     }
 

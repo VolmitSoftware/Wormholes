@@ -102,8 +102,8 @@ final class ViewStreamSessionPacingTest {
     @Test
     void sceneFramesCarryNoLastFlagAndControlFramesNeedNoAck() throws ViewStreamProtocolException {
         SessionHarness harness = withPortals(SessionHarness.options(false, 8), 1);
-        harness.entities = (observer, portal, key, tick, full, hideObserver) ->
-            new ViewStreamMessage.EntityFrame(key, (int) tick, List.of(), List.of(), true);
+        harness.entities = (observer, target, tick) ->
+            new ViewStreamMessage.EntityFrame(target.portalKey(), (int) tick, List.of(), List.of(), true);
         harness.handshake(SessionHarness.CLIENT_CAPS);
         harness.tick();
         harness.tick();

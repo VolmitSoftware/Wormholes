@@ -60,12 +60,12 @@ final class ViewStreamEntitySelfTest {
         harness.access.add(new SessionPortal("self-b", 8));
         harness.entities = new EntityFrameSource<String>() {
             @Override
-            public ViewStreamMessage.EntityFrame frame(String observer, UUID portal, int key, long tick, boolean full, boolean hideObserver) {
+            public ViewStreamMessage.EntityFrame frame(String observer, EntityFrameTarget target, long tick) {
                 UUID id = projectedId(harness.playerId);
                 EntitySnapshot visual = new EntitySnapshot(EntitySnapshot.MODE_FULL, 1, EntitySnapshot.FIELD_ALL_FULL, id,
                     "minecraft:player", 1, 64, 1, 1.8, 0, 0, 1, 0, 0, 0, 0, 0, true, "Observer", "", "", null,
                     null, EntitySnapshot.EMPTY, EntitySnapshot.EMPTY, EntitySnapshot.EMPTY);
-                return new ViewStreamMessage.EntityFrame(key, (int) tick, List.of(visual), List.of(id), true);
+                return new ViewStreamMessage.EntityFrame(target.portalKey(), (int) tick, List.of(visual), List.of(id), true);
             }
 
             @Override

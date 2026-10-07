@@ -889,8 +889,8 @@ public final class ViewStreamSession<O, B> {
         long sessionCaps = caps;
         boolean queued = false;
         if (!slot.effects && options.entityFrames() && ViewStreamCapability.ENTITY_FRAMES.in(sessionCaps)) {
-            ViewStreamMessage.EntityFrame frame = platform.entities().frame(player, slot.portalId, slot.key, serverTick, slot.needFullEntities,
-                clientMirror(slot.baseGeometry));
+            ViewStreamMessage.EntityFrame frame = platform.entities().frame(player,
+                entityTarget(slot, slot.portalId, clientMirror(slot.baseGeometry)), serverTick);
             if (frame != null) {
                 slot.needFullEntities = false;
                 inbox.add(new Scene<B>(slot, mesh.localEntities(frame)));
@@ -1087,8 +1087,8 @@ public final class ViewStreamSession<O, B> {
                 continue;
             }
             if (registry.options().entityFrames() && ViewStreamCapability.ENTITY_FRAMES.in(caps)) {
-                ViewStreamMessage.EntityFrame entities = platform.entities().frame(player, child.contextId, child.key, serverTick,
-                    child.needFullEntities, clientMirror(child.baseGeometry));
+                ViewStreamMessage.EntityFrame entities = platform.entities().frame(player,
+                    entityTarget(child, child.contextId, clientMirror(child.baseGeometry)), serverTick);
                 if (entities != null) {
                     child.needFullEntities = false;
                     inbox.add(new Scene<>(child, mesh.localEntities(entities)));
@@ -1157,6 +1157,16 @@ public final class ViewStreamSession<O, B> {
 
     private boolean clientMirror(ApertureDescriptor geometry) {
         return geometry != null && geometry.mirror() && ViewStreamCapability.CLIENT_MIRROR.in(caps) && registry.options().clientMirror();
+    }
+
+    private static EntityFrameTarget entityTarget(ViewStreamSlot<?> slot, UUID portalId, boolean hideObserver) {
+        EntityFrameTarget cached = slot.entityTarget;
+        boolean full = slot.needFullEntities;
+        if (cached == null || cached.full() != full || cached.hideObserver() != hideObserver || !cached.portalId().equals(portalId)) {
+            cached = new EntityFrameTarget(portalId, slot.key, full, hideObserver);
+            slot.entityTarget = cached;
+        }
+        return cached;
     }
 
     private static int nativeRecursionDepth(ApertureDescriptor geometry) {
@@ -1300,7 +1310,7 @@ public final class ViewStreamSession<O, B> {
         if (target != null) {
             plateRevision++;
             long handle = ViewStreamCapability.ZERO_COPY.in(laneCaps)
-                ? platform.handoffs().publish(slot.key, plateRevision, target.plate(), target.light())
+                ? platform.handoffs().publish(new PlateOffer<B>(slot.key, plateRevision, target.plate(), target.light()))
                 : 0L;
             if (handle != 0L) {
                 group.add(new ViewStreamMessage.PlateHandle(slot.key, plateRevision, handle));
