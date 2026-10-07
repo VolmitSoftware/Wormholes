@@ -44,6 +44,9 @@ public final class ResidentLevels {
     }
 
     public ClientLevel open(TravelMessage.RemoteLevelOpen open) {
+        if (Minecraft.getInstance().level == null) {
+            return null;
+        }
         ResidentLevel bound = handles.get(open.levelHandle());
         if (bound != null && bound.world().equals(open.world()) && bound.level() != activeLevel()) {
             bound.bind(open, ++clock);

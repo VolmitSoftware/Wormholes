@@ -63,6 +63,19 @@ public class ResidentLevelsOpenCloseTest extends MinecraftTestBase {
     }
 
     @Test
+    public void anOpenArrivingWithoutACurrentLevelIsDropped() {
+        ClientLevel current = ResidentTestFixtures.level(ResidentTestFixtures.OVERWORLD);
+        try (Scope scope = new Scope(current)) {
+            ResidentLevels residents = scope.residents();
+            scope.minecraft.level = null;
+
+            assertNull(residents.open(ResidentTestFixtures.open(3, ResidentTestFixtures.NETHER, 12, -4)));
+            assertFalse(residents.has(3));
+            assertTrue(scope.levels.constructed().isEmpty());
+        }
+    }
+
+    @Test
     public void closedLevelsStayCachedAndAnOverlappingReopenReusesThemWithoutStreamingAgain() {
         ClientLevel current = ResidentTestFixtures.level(ResidentTestFixtures.OVERWORLD);
         try (Scope scope = new Scope(current)) {
