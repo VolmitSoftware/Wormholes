@@ -22,9 +22,9 @@ public final class PortalSkinGeometry {
         }
         List<SkinTransform> panes = new ArrayList<SkinTransform>(cells.size());
         for (Vec3d cell : cells) {
-            int x = cell.getBlockX();
-            int y = cell.getBlockY();
-            int z = cell.getBlockZ();
+            int x = cell.blockX();
+            int y = cell.blockY();
+            int z = cell.blockZ();
             Box cellBox = new Box(x, x + 1.0D, y, y + 1.0D, z, z + 1.0D);
             panes.add(skinTransforms(cellBox, normalAxis, planeCoordinate, SURFACE_THICKNESS_BLOCKS));
         }

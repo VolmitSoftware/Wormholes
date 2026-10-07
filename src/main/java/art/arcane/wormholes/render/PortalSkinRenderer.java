@@ -632,9 +632,9 @@ public final class PortalSkinRenderer {
         Location eye = observer.getEyeLocation();
         Vec3d origin = portal.getOrigin();
         Face normal = portal.getFrame().getNormal();
-        double dot = ((eye.getX() - origin.getX()) * normal.x())
-            + ((eye.getY() - origin.getY()) * normal.y())
-            + ((eye.getZ() - origin.getZ()) * normal.z());
+        double dot = ((eye.getX() - origin.x()) * normal.x())
+            + ((eye.getY() - origin.y()) * normal.y())
+            + ((eye.getZ() - origin.z()) * normal.z());
         return Math.abs(dot);
     }
 

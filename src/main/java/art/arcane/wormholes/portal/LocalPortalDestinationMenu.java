@@ -346,9 +346,9 @@ final class LocalPortalDestinationMenu
 					LocalPortalText.arguments(
 							"portal", target.getName(),
 							"server", target.getServer().getName(),
-							"x", target.getOrigin().getBlockX(),
-							"y", target.getOrigin().getBlockY(),
-							"z", target.getOrigin().getBlockZ(),
+							"x", target.getOrigin().blockX(),
+							"y", target.getOrigin().blockY(),
+							"z", target.getOrigin().blockZ(),
 							"world", target.getServer().getWorld(),
 							"direction", LocalPortalText.directionLabel(target.getDirection()),
 							"state", LocalPortalText.localized(target.isOpen() ? WormholesMessages.LABEL_OPEN : WormholesMessages.LABEL_CLOSED)),

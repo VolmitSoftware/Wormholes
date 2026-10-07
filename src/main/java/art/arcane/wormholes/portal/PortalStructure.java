@@ -138,7 +138,7 @@ public class PortalStructure implements IWritable, CellAperture
 	private Location corner(Face x, Face y, Face z)
 	{
 		Vec3d v = getArea().getCornerVector(x, y, z);
-		return new Location(getWorld(), v.getX(), v.getY(), v.getZ());
+		return new Location(getWorld(), v.x(), v.y(), v.z());
 	}
 
 	public Box getFace(Face face)

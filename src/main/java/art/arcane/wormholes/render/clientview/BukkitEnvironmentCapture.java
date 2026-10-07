@@ -186,13 +186,13 @@ final class BukkitEnvironmentCapture implements AutoCloseable {
         private State(Request request) {
             world = request.world();
             transform = request.transform();
-            chunkX = request.eye().getBlockX() >> 4;
-            chunkZ = request.eye().getBlockZ() >> 4;
+            chunkX = request.eye().blockX() >> 4;
+            chunkZ = request.eye().blockZ() >> 4;
         }
 
         private boolean matches(Request request) {
             return world == request.world() && transform.equals(request.transform())
-                && chunkX == (request.eye().getBlockX() >> 4) && chunkZ == (request.eye().getBlockZ() >> 4);
+                && chunkX == (request.eye().blockX() >> 4) && chunkZ == (request.eye().blockZ() >> 4);
         }
 
         private synchronized void close() {

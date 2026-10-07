@@ -59,9 +59,9 @@ public final class Frustum {
         this.faceZa = face.getZa();
         this.faceZb = face.getZb();
 
-        this.originX = apex.getX();
-        this.originY = apex.getY();
-        this.originZ = apex.getZ();
+        this.originX = apex.x();
+        this.originY = apex.y();
+        this.originZ = apex.z();
         this.planeDelta = planeCoordinate - axisValue(originX, originY, originZ, normalAxis);
 
         double normalMin;
@@ -150,7 +150,7 @@ public final class Frustum {
     }
 
     public boolean contains(Vec3d v) {
-        return containsPrimitive(v.getX(), v.getY(), v.getZ());
+        return containsPrimitive(v.x(), v.y(), v.z());
     }
 
     public boolean containsPrimitive(double x, double y, double z) {

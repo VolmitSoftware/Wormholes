@@ -318,7 +318,7 @@ public final class MinecraftPlayerHandoffs implements AutoCloseable {
             UUID world = UUID.nameUUIDFromBytes(exit.getWorldKey().getBytes(StandardCharsets.UTF_8));
             for (int x = -1; x <= 1; x++) {
                 for (int z = -1; z <= 1; z++) {
-                    leases.add(runtime.leases().retain(level, world, (target.getBlockX() >> 4) + x, (target.getBlockZ() >> 4) + z));
+                    leases.add(runtime.leases().retain(level, world, (target.blockX() >> 4) + x, (target.blockZ() >> 4) + z));
                 }
             }
         } catch (RuntimeException error) {
@@ -490,7 +490,7 @@ public final class MinecraftPlayerHandoffs implements AutoCloseable {
             Angles.Look look = ArrivalOrientation.apply(crossing, exit.getFrame(),
                 OrientationPolicy.parse((String) exit.setting("transit.orientation"), OrientationPolicy.parse(config.orientationDefault, OrientationPolicy.FRAME)).rule(),
                 config.gravityFlipEnabled);
-            ticket = runtime.preSend().preSend(player, level, target.getBlockX(), target.getBlockZ());
+            ticket = runtime.preSend().preSend(player, level, target.blockX(), target.blockZ());
             if (player.teleport(new TeleportTransition(level, vector(target), vector(velocity), look.yaw(), look.pitch(),
                 TeleportTransition.PLACE_PORTAL_TICKET)) == null) {
                 runtime.preSend().rollback(ticket);

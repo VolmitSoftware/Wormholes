@@ -21,7 +21,7 @@ final class ApertureMirrorTransformTest {
     void ceilingMirrorPlacesTheReflectedBodyBelowTheMirroredFeet() {
         ApertureDescriptor ceiling = mirror(Face.U, new Box(299, 301.999D, 67, 67.999D, 299, 301.999D));
         OpticTransform space = ceiling.mirrorTransform();
-        double plane = ceiling.apertureArea().center().getY();
+        double plane = ceiling.apertureArea().center().y();
         double[] base = new double[3];
         double[] center = new double[3];
         EntityProjection.feetInto(space, 300.5D, 63.0D, 300.5D, HEIGHT, base);

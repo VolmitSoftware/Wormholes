@@ -273,7 +273,7 @@ public final class ApiBridge implements WormholesApi, TraversalObserver, Network
 
     private static PortalSnapshot remoteSnapshot(RemotePortal portal) {
         return new PortalSnapshot(portal.getId(), portal.getName(), portal.getType().name(), "",
-            portal.getOrigin().getX(), portal.getOrigin().getY(), portal.getOrigin().getZ(),
+            portal.getOrigin().x(), portal.getOrigin().y(), portal.getOrigin().z(),
             portal.getDirection() == null ? "N" : portal.getDirection().name(), portal.isOpen(), null,
             portal.getServer() == null ? null : portal.getServer().getName(), null, true);
     }

@@ -181,11 +181,11 @@ final class ProjectorDestination implements ScanDestination<ILocalPortal, Projec
             return Outcome.CLOSE;
         }
 
-        originX = rtpMode ? rtpTarget.originX() : destAnchor.getOrigin().getX();
-        originY = rtpMode ? rtpTarget.originY() : destAnchor.getOrigin().getY();
-        originZ = rtpMode ? rtpTarget.originZ() : destAnchor.getOrigin().getZ();
-        int localOriginBlockX = (int) Math.floor(portal.getOrigin().getX());
-        int localOriginBlockZ = (int) Math.floor(portal.getOrigin().getZ());
+        originX = rtpMode ? rtpTarget.originX() : destAnchor.getOrigin().x();
+        originY = rtpMode ? rtpTarget.originY() : destAnchor.getOrigin().y();
+        originZ = rtpMode ? rtpTarget.originZ() : destAnchor.getOrigin().z();
+        int localOriginBlockX = (int) Math.floor(portal.getOrigin().x());
+        int localOriginBlockZ = (int) Math.floor(portal.getOrigin().z());
         if (!localView.isChunkReady(localOriginBlockX, localOriginBlockZ)) {
             localView.requestChunk(localOriginBlockX, localOriginBlockZ);
             return Outcome.WAIT;

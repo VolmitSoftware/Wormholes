@@ -91,11 +91,11 @@ final class ViewSessionRegistry {
                 portal.getStructure().getWorld().getMinHeight(), portal.getStructure().getWorld().getMaxHeight())
                 : ViewServer.computeBox(portal, portal.getNetworkViewDepth()),
             meshDistance > 0 ? ProjectionRenderMode.PANOPTIC : portal.getRenderMode(),
-            ((int) Math.floor(portal.getOrigin().getX())) >> 4,
-            ((int) Math.floor(portal.getOrigin().getZ())) >> 4,
-            portal.getOrigin().getX(),
-            portal.getOrigin().getY(),
-            portal.getOrigin().getZ()
+            ((int) Math.floor(portal.getOrigin().x())) >> 4,
+            ((int) Math.floor(portal.getOrigin().z())) >> 4,
+            portal.getOrigin().x(),
+            portal.getOrigin().y(),
+            portal.getOrigin().z()
         ));
         session.meshDistance = Math.max(session.meshDistance, meshDistance);
         return session;

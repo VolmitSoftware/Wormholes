@@ -437,7 +437,7 @@ final class MinecraftConvoys implements AutoCloseable {
         public boolean runRegion(Destination destination, Runnable task, Runnable rejected) {
             ServerLevel level = runtime.portals().resolveLevel(destination.portal());
             UUID world = UUID.nameUUIDFromBytes(destination.portal().getWorldKey().getBytes(StandardCharsets.UTF_8));
-            ChunkLease lease = runtime.leases().retain(level, world, destination.point().getBlockX() >> 4, destination.point().getBlockZ() >> 4);
+            ChunkLease lease = runtime.leases().retain(level, world, destination.point().blockX() >> 4, destination.point().blockZ() >> 4);
             Preparation preparation = new Preparation(UUID.randomUUID(), lease, task, rejected, System.currentTimeMillis()
                 + Math.max(1L, runtime.configuration().settings().getTransit().convoyCrossServerTimeoutSec) * 1000L);
             preparations.put(preparation.id(), preparation);

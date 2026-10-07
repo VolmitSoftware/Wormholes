@@ -39,7 +39,7 @@ final class PlateSectionSpanTest {
                     ViewPlateKey key = new ViewPlateKey(UUID.fromString("00000000-0000-0000-0000-0000000000c2"), view, frontSide, 0, 0L);
                     ViewPlateBuilder.Request<String, String, ClientSweepScene.SceneView> request =
                         new ViewPlateBuilder.Request<String, String, ClientSweepScene.SceneView>(key, aperture, view, frame,
-                            Frame.canonical(Face.S), origin.getX(), origin.getY(), origin.getZ(), 200.5D, 70.5D, 90.5D,
+                            Frame.canonical(Face.S), origin.x(), origin.y(), origin.z(), 200.5D, 70.5D, 90.5D,
                             false, 0, 24, 12, APERTURE_PADDING, false, "minecraft:air", LodPolicy.NONE, false, 0L, 0L, 0L,
                             new ClientSweepScene.StringBlocks());
                     BlockBox built = ViewPlateBuilder.build(request).grid().box();

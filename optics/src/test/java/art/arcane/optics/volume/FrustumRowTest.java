@@ -50,9 +50,9 @@ final class FrustumRowTest {
                                 double depth = 0.5D + random.nextInt(64);
                                 double lateral = random.nextInt(65) - 32.0D;
                                 double[] point = new double[] {
-                                    center.getX() - normal.x() * depth + frame.getRight().x() * lateral,
-                                    center.getY() - normal.y() * depth + frame.getRight().y() * lateral,
-                                    center.getZ() - normal.z() * depth + frame.getRight().z() * lateral
+                                    center.x() - normal.x() * depth + frame.getRight().x() * lateral,
+                                    center.y() - normal.y() * depth + frame.getRight().y() * lateral,
+                                    center.z() - normal.z() * depth + frame.getRight().z() * lateral
                                 };
                                 int middle = (int) Math.floor(point[rowAxis]);
                                 int start = middle - 64;

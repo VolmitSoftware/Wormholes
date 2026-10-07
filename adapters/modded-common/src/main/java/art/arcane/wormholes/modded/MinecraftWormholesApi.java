@@ -201,7 +201,7 @@ public final class MinecraftWormholesApi implements NetworkQuery, AutoCloseable 
         List<PortalSnapshot> remotes = new ArrayList<>();
         for (RemotePortal portal : runtime.network().remotePortals().all()) {
             remotes.add(new PortalSnapshot(portal.getId(), portal.getName(), portal.getType().name(), "",
-                portal.getOrigin().getX(), portal.getOrigin().getY(), portal.getOrigin().getZ(), portal.getDirection().name(),
+                portal.getOrigin().x(), portal.getOrigin().y(), portal.getOrigin().z(), portal.getDirection().name(),
                 portal.isOpen(), null, portal.getServer() == null ? null : portal.getServer().getName(), null, true));
         }
         remote = List.copyOf(remotes);
@@ -238,7 +238,7 @@ public final class MinecraftWormholesApi implements NetworkQuery, AutoCloseable 
 
     private static PortalSnapshot snapshot(MinecraftPortal portal) {
         return new PortalSnapshot(portal.getId(), portal.getName(), portal.getType().name(), portal.getWorldKey(),
-            portal.getOrigin().getX(), portal.getOrigin().getY(), portal.getOrigin().getZ(), portal.getFrame().getNormal().name(),
+            portal.getOrigin().x(), portal.getOrigin().y(), portal.getOrigin().z(), portal.getFrame().getNormal().name(),
             portal.isOpen(), portal.getDestinationId(), portal.getDestinationServer(), portal.getOwner(), Boolean.TRUE.equals(portal.setting("publicLookLabel")));
     }
 

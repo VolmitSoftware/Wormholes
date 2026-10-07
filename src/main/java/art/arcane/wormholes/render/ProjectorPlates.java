@@ -37,9 +37,9 @@ final class ProjectorPlates {
 
     static boolean frontSide(ILocalPortal portal, Location eye) {
         Face facing = portal.getFrame().getNormal();
-        return ((eye.getX() - portal.getOrigin().getX()) * facing.x()
-            + (eye.getY() - portal.getOrigin().getY()) * facing.y()
-            + (eye.getZ() - portal.getOrigin().getZ()) * facing.z()) >= 0.0D;
+        return ((eye.getX() - portal.getOrigin().x()) * facing.x()
+            + (eye.getY() - portal.getOrigin().y()) * facing.y()
+            + (eye.getZ() - portal.getOrigin().z()) * facing.z()) >= 0.0D;
     }
 
     static FidelityPortalExtension fidelity(ILocalPortal portal) {
@@ -56,9 +56,9 @@ final class ProjectorPlates {
     static Target target(ILocalPortal portal, ProjectorDestination destination, boolean eyeFrontSide, boolean buriedCellCulling,
                          PortalProjector.RtpProjectionTarget rtpTarget, FidelityPortalExtension fidelity) {
         Frame localFrame = portal.getFrame();
-        double localOriginX = portal.getOrigin().getX();
-        double localOriginY = portal.getOrigin().getY();
-        double localOriginZ = portal.getOrigin().getZ();
+        double localOriginX = portal.getOrigin().x();
+        double localOriginY = portal.getOrigin().y();
+        double localOriginZ = portal.getOrigin().z();
         boolean mirrorMode = destination.mirrorMode;
         int quarterTurns = destination.mirrorRotationQuarterTurns;
         Frame remoteFrame = rtpTarget != null ? rtpTarget.frame()

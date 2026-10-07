@@ -50,7 +50,7 @@ public class Box
 
 	public Box(Vec3d min, Vec3d max)
 	{
-		this(min.getX(), max.getX(), min.getY(), max.getY(), min.getZ(), max.getZ());
+		this(min.x(), max.x(), min.y(), max.y(), min.z(), max.z());
 	}
 
 	public void encapsulate(Box b)
@@ -78,12 +78,12 @@ public class Box
 	{
 		for(Vec3d i : b)
 		{
-			xa = i.getX() < xa ? i.getX() : xa;
-			ya = i.getY() < ya ? i.getY() : ya;
-			za = i.getZ() < za ? i.getZ() : za;
-			xb = i.getX() > xb ? i.getX() : xb;
-			yb = i.getY() > yb ? i.getY() : yb;
-			zb = i.getZ() > zb ? i.getZ() : zb;
+			xa = i.x() < xa ? i.x() : xa;
+			ya = i.y() < ya ? i.y() : ya;
+			za = i.z() < za ? i.z() : za;
+			xb = i.x() > xb ? i.x() : xb;
+			yb = i.y() > yb ? i.y() : yb;
+			zb = i.z() > zb ? i.z() : zb;
 		}
 	}
 
@@ -154,7 +154,7 @@ public class Box
 
 	public boolean contains(Vec3d p)
 	{
-		return p.getX() >= xa && p.getX() <= xb && p.getY() >= ya && p.getY() <= yb && p.getZ() >= za && p.getZ() <= zb;
+		return p.x() >= xa && p.x() <= xb && p.y() >= ya && p.y() <= yb && p.z() >= za && p.z() <= zb;
 	}
 
 	public boolean containsPrimitive(double x, double y, double z)

@@ -614,14 +614,14 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
         Vec3d target = crossing.outPoint(destination.getFrame(), destination.getOrigin());
         ChunkLease lease = runtime.leases().retain(targetLevel,
             UUID.nameUUIDFromBytes(destination.getWorldKey().getBytes(StandardCharsets.UTF_8)),
-            target.getBlockX() >> 4, target.getBlockZ() >> 4);
+            target.blockX() >> 4, target.blockZ() >> 4);
         boolean predicted = entity instanceof ServerPlayer player && runtime.clientViews().crossing(player.getUUID());
         TravelMessage.TravelBegin attempted = predicted ? runtime.clientViews().preparation(entity.getUUID()).orElse(null) : null;
         Departure departure = new Departure(lease, entity.level(), entity.position(), System.currentTimeMillis() + 30_000L);
         pending.put(entity.getUUID(), departure);
         Flight flight = new Flight(entity, source, destination, crossing, targetLevel, target, departure, predicted, attempted);
         if (predicted && entity instanceof ServerPlayer player && entity.getPassengers().isEmpty() && runtime.clientViews().seamlessCrossing(player)
-            && targetLevel.getChunkSource().getChunkNow(target.getBlockX() >> 4, target.getBlockZ() >> 4) != null) {
+            && targetLevel.getChunkSource().getChunkNow(target.blockX() >> 4, target.blockZ() >> 4) != null) {
             land(flight, Boolean.TRUE, null);
             return;
         }
@@ -737,7 +737,7 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
                     }
                     payments.add(payment);
                     if (!seamlessCrossing) {
-                        preSend.add(runtime.preSend().preSend(player, targetLevel, target.getBlockX(), target.getBlockZ()));
+                        preSend.add(runtime.preSend().preSend(player, targetLevel, target.blockX(), target.blockZ()));
                     }
                 }
             }

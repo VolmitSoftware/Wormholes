@@ -91,7 +91,7 @@ public abstract class AbstractApertureFacade implements ILocalPortal {
     @Override
     public Location getCenter() {
         Vec3d origin = getOrigin();
-        return new Location(getWorld(), origin.getX(), origin.getY(), origin.getZ());
+        return new Location(getWorld(), origin.x(), origin.y(), origin.z());
     }
 
     @Override

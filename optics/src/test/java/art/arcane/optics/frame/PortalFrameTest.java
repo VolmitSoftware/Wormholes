@@ -160,8 +160,8 @@ public final class PortalFrameTest {
 	}
 
 	private static void assertVector(Vec3d expected, Vec3d actual) {
-		assertEquals(expected.getX(), actual.getX(), EPSILON);
-		assertEquals(expected.getY(), actual.getY(), EPSILON);
-		assertEquals(expected.getZ(), actual.getZ(), EPSILON);
+		assertEquals(expected.x(), actual.x(), EPSILON);
+		assertEquals(expected.y(), actual.y(), EPSILON);
+		assertEquals(expected.z(), actual.z(), EPSILON);
 	}
 }

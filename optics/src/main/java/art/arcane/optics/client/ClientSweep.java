@@ -92,9 +92,9 @@ public final class ClientSweep {
         this.area = aperture.getArea();
         this.frame = geometry.frame();
         Vec3d center = area.center();
-        this.originX = center.getX();
-        this.originY = center.getY();
-        this.originZ = center.getZ();
+        this.originX = center.x();
+        this.originY = center.y();
+        this.originZ = center.z();
         this.blackout = geometry.blackoutPolicy() != ApertureDescriptor.BLACKOUT_OFF;
         Layout nextLayout = new Layout(bounds, frame.getNormal().axisIndex(),
             frame.getRight().axisIndex(), frame.getUp().axisIndex());

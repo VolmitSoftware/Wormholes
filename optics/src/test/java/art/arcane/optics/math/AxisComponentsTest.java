@@ -50,6 +50,14 @@ final class AxisComponentsTest {
     }
 
     @Test
+    void vectorBlockCoordinatesFloorEachComponent() {
+        Vec3d vector = new Vec3d(-0.5D, 63.999D, 2.0D);
+        assertEquals(-1, vector.blockX());
+        assertEquals(63, vector.blockY());
+        assertEquals(2, vector.blockZ());
+    }
+
+    @Test
     void axisComponentPicksFromLooseCoordinates() {
         assertEquals(4.5D, Axis.component(0, 4.5D, -1.0D, 8.0D));
         assertEquals(-1.0D, Axis.component(1, 4.5D, -1.0D, 8.0D));

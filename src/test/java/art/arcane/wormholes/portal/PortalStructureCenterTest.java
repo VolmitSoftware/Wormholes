@@ -118,22 +118,22 @@ public final class PortalStructureCenterTest {
             Box area = structure.getArea();
             Box initial = structure.getCaptureZone();
 
-            assertEquals(area.min().getX() - 8.0D, initial.min().getX(), EPSILON);
-            assertEquals(area.max().getX() + 8.0D, initial.max().getX(), EPSILON);
+            assertEquals(area.min().x() - 8.0D, initial.min().x(), EPSILON);
+            assertEquals(area.max().x() + 8.0D, initial.max().x(), EPSILON);
 
             Settings.CAPTURE_ZONE_RADIUS = 16.0D;
             Box stale = structure.getCaptureZone();
-            assertEquals(initial.min().getX(), stale.min().getX(), EPSILON);
-            assertEquals(initial.max().getX(), stale.max().getX(), EPSILON);
+            assertEquals(initial.min().x(), stale.min().x(), EPSILON);
+            assertEquals(initial.max().x(), stale.max().x(), EPSILON);
 
             structure.rebuildCaptureZone();
             Box rebuilt = structure.getCaptureZone();
-            assertEquals(area.min().getX() - 16.0D, rebuilt.min().getX(), EPSILON);
-            assertEquals(area.max().getX() + 16.0D, rebuilt.max().getX(), EPSILON);
-            assertEquals(area.min().getY() - 16.0D, rebuilt.min().getY(), EPSILON);
-            assertEquals(area.max().getY() + 16.0D, rebuilt.max().getY(), EPSILON);
-            assertEquals(area.min().getZ() - 16.0D, rebuilt.min().getZ(), EPSILON);
-            assertEquals(area.max().getZ() + 16.0D, rebuilt.max().getZ(), EPSILON);
+            assertEquals(area.min().x() - 16.0D, rebuilt.min().x(), EPSILON);
+            assertEquals(area.max().x() + 16.0D, rebuilt.max().x(), EPSILON);
+            assertEquals(area.min().y() - 16.0D, rebuilt.min().y(), EPSILON);
+            assertEquals(area.max().y() + 16.0D, rebuilt.max().y(), EPSILON);
+            assertEquals(area.min().z() - 16.0D, rebuilt.min().z(), EPSILON);
+            assertEquals(area.max().z() + 16.0D, rebuilt.max().z(), EPSILON);
         } finally {
             Settings.CAPTURE_ZONE_RADIUS = previous;
         }

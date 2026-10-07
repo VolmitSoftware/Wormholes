@@ -53,9 +53,9 @@ public final class AmbientOutlineGeometry
 				continue;
 			}
 
-			int x = position.getBlockX();
-			int y = position.getBlockY();
-			int z = position.getBlockZ();
+			int x = position.blockX();
+			int y = position.blockY();
+			int z = position.blockZ();
 			if(occupied.add(CellKeys.pack(x, y, z)))
 			{
 				cells.add(new int[] {x, y, z});

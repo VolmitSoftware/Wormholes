@@ -52,7 +52,7 @@ public final class PortalStateCodec {
             "yb", area.getYb(), "za", area.getZa(), "zb", area.getZb()));
         List<Map<String, Object>> cells = new ArrayList<>();
         for (Vec3d cell : geometry.getBlockPositions()) {
-            cells.add(Map.of("x", cell.getBlockX(), "y", cell.getBlockY(), "z", cell.getBlockZ()));
+            cells.add(Map.of("x", cell.blockX(), "y", cell.blockY(), "z", cell.blockZ()));
         }
         result.put("blocks", cells);
         return result;

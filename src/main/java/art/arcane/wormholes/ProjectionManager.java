@@ -579,7 +579,7 @@ public class ProjectionManager implements Listener {
         }
         Face normal = portal.getFrame().getNormal();
         return ObserverGeometry.hasStablePortalSide(eye.getX(), eye.getY(), eye.getZ(),
-                portal.getOrigin().getX(), portal.getOrigin().getY(), portal.getOrigin().getZ(),
+                portal.getOrigin().x(), portal.getOrigin().y(), portal.getOrigin().z(),
                 normal.x(), normal.y(), normal.z(), minimumAbsoluteDot);
     }
 

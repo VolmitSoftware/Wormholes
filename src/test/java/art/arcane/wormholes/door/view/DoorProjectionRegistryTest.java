@@ -86,7 +86,7 @@ final class DoorProjectionRegistryTest {
 
         assertSame(first, second);
         assertEquals(1, registry.size());
-        assertEquals(70 + 1.0D, second.getOrigin().getY(), 1.0E-9D);
+        assertEquals(70 + 1.0D, second.getOrigin().y(), 1.0E-9D);
     }
 
     @Test

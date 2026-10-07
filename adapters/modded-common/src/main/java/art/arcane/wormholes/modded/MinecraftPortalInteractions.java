@@ -62,8 +62,8 @@ final class MinecraftPortalInteractions {
                 continue;
             }
             for (Vec3d cell : portal.getGeometry().getBlockPositions()) {
-                AABB bounds = new AABB(cell.getBlockX(), cell.getBlockY(), cell.getBlockZ(),
-                    cell.getBlockX() + 1, cell.getBlockY() + 1, cell.getBlockZ() + 1);
+                AABB bounds = new AABB(cell.blockX(), cell.blockY(), cell.blockZ(),
+                    cell.blockX() + 1, cell.blockY() + 1, cell.blockZ() + 1);
                 Optional<Vec3> hit = bounds.clip(eye, end);
                 double distance = bounds.contains(eye) ? 0 : hit.map(eye::distanceToSqr).orElse(Double.POSITIVE_INFINITY);
                 if (distance < closest) {

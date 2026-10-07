@@ -209,7 +209,7 @@ public final class DoorProjectionRegistry {
         Vec3d origin = adapter.getOrigin();
         double range = adapter.getEffectiveActivationRange();
         return attendance.hasPlayerWithin(
-            adapter.getWorld().getUID(), origin.getX(), origin.getY(), origin.getZ(), range * range);
+            adapter.getWorld().getUID(), origin.x(), origin.y(), origin.z(), range * range);
     }
 
     private static DoorVisualAnimationBudget<UUID> newBudget(int maxActive, int attendanceSlots) {

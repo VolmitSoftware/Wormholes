@@ -108,9 +108,9 @@ public final class RecursiveEndpoints<W, P extends Endpoint> {
         mixed = PassRevision.mix(mixed, id == null ? 0L : id.getLeastSignificantBits());
         Vec3d origin = portal.origin();
         if (origin != null) {
-            mixed = PassRevision.mix(mixed, Double.doubleToLongBits(origin.getX()));
-            mixed = PassRevision.mix(mixed, Double.doubleToLongBits(origin.getY()));
-            mixed = PassRevision.mix(mixed, Double.doubleToLongBits(origin.getZ()));
+            mixed = PassRevision.mix(mixed, Double.doubleToLongBits(origin.x()));
+            mixed = PassRevision.mix(mixed, Double.doubleToLongBits(origin.y()));
+            mixed = PassRevision.mix(mixed, Double.doubleToLongBits(origin.z()));
         }
         Frame frame = portal.frame();
         return PassRevision.mix(mixed, frame == null ? -1L
@@ -447,9 +447,9 @@ public final class RecursiveEndpoints<W, P extends Endpoint> {
 
             Box candidateView = directory.view(candidate);
             Frame frame = candidate.frame();
-            double candidateOriginX = candidate.origin().getX();
-            double candidateOriginY = candidate.origin().getY();
-            double candidateOriginZ = candidate.origin().getZ();
+            double candidateOriginX = candidate.origin().x();
+            double candidateOriginY = candidate.origin().y();
+            double candidateOriginZ = candidate.origin().z();
             double frameNormalX = frame.getNormal().x();
             double frameNormalY = frame.getNormal().y();
             double frameNormalZ = frame.getNormal().z();

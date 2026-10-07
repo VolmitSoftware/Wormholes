@@ -251,7 +251,7 @@ final class ClientViewSweepTest {
         for (int warmup = 0; warmup < 60; warmup++) {
             for (ClientSweep sweep : sweeps) {
                 sweep.clear();
-                sweep.sweep(eye.getX() + ((warmup & 3) * 0.1D), eye.getY(), eye.getZ(), 0.0D, 0.0D, 0.0D);
+                sweep.sweep(eye.x() + ((warmup & 3) * 0.1D), eye.y(), eye.z(), 0.0D, 0.0D, 0.0D);
             }
         }
         long[] firstFill = new long[21];
@@ -263,7 +263,7 @@ final class ClientViewSweepTest {
             }
             long start = System.nanoTime();
             for (ClientSweep sweep : sweeps) {
-                sweep.sweep(eye.getX(), eye.getY(), eye.getZ(), 0.0D, 0.0D, 0.0D);
+                sweep.sweep(eye.x(), eye.y(), eye.z(), 0.0D, 0.0D, 0.0D);
             }
             firstFill[run] = System.nanoTime() - start;
             cells = 0;
@@ -272,7 +272,7 @@ final class ClientViewSweepTest {
             }
             start = System.nanoTime();
             for (ClientSweep sweep : sweeps) {
-                sweep.sweep(eye.getX() + 0.15D, eye.getY() + 0.05D, eye.getZ() - 0.1D, 0.0D, 0.0D, 0.0D);
+                sweep.sweep(eye.x() + 0.15D, eye.y() + 0.05D, eye.z() - 0.1D, 0.0D, 0.0D, 0.0D);
             }
             moving[run] = System.nanoTime() - start;
         }
@@ -314,8 +314,8 @@ final class ClientViewSweepTest {
         aperture.setArea(area);
         Frame frame = Frame.canonical(facing);
         Vec3d origin = area.center();
-        boolean frontSide = ((eye.getX() - origin.getX()) * facing.x()) + ((eye.getY() - origin.getY()) * facing.y())
-            + ((eye.getZ() - origin.getZ()) * facing.z()) >= 0.0D;
+        boolean frontSide = ((eye.x() - origin.x()) * facing.x()) + ((eye.y() - origin.y()) * facing.y())
+            + ((eye.z() - origin.z()) * facing.z()) >= 0.0D;
         ApertureDescriptor geometry = ApertureDescriptor.fromPortal(new ApertureDescriptor.Source(aperture, frame, frontSide, mirror, 0,
             ClientSweepScene.NEAR_PLANE_PADDING, ClientSweepScene.APERTURE_PADDING, ClientSweepScene.CULLING_RATIO, 64, 0,
             ApertureDescriptor.BLACKOUT_OFF, 0, ApertureDescriptor.MASK_AIR_PROJECT, BlockClaim.LightingPolicy.SOURCE, 0,

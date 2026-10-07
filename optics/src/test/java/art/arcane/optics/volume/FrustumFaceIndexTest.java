@@ -94,9 +94,9 @@ final class FrustumFaceIndexTest {
                         for (double y : faceBoundaries(padded.getYa(), padded.getYb())) {
                             for (double z : faceBoundaries(padded.getZa(), padded.getZb())) {
                                 for (double scale : new double[]{1.0D, 2.0D, 8.0D}) {
-                                    double targetX = eye.getX() + (x - eye.getX()) * scale;
-                                    double targetY = eye.getY() + (y - eye.getY()) * scale;
-                                    double targetZ = eye.getZ() + (z - eye.getZ()) * scale;
+                                    double targetX = eye.x() + (x - eye.x()) * scale;
+                                    double targetY = eye.y() + (y - eye.y()) * scale;
+                                    double targetZ = eye.z() + (z - eye.z()) * scale;
                                     assertEquals(containsAny(original, targetX, targetY, targetZ),
                                         containsAny(indexes, targetX, targetY, targetZ));
                                 }

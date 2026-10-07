@@ -48,11 +48,11 @@ final class DoorApertureDestinationServiceTest {
             when(harness.transits.preparingProjection(binding)).thenReturn(false);
             DoorProjectionDestination destination = harness.service.destinationOf(source, observer, false).orElseThrow();
             DoorwayPlane targetPlane = harness.runtimes.runtime(target.identity().itemId()).plane();
-            assertEquals(targetPlane.center().x(), destination.origin().getX());
-            assertEquals(targetPlane.center().y(), destination.origin().getY());
-            assertEquals(targetPlane.center().z(), destination.origin().getZ());
+            assertEquals(targetPlane.center().x(), destination.origin().x());
+            assertEquals(targetPlane.center().y(), destination.origin().y());
+            assertEquals(targetPlane.center().z(), destination.origin().z());
             assertEquals(DoorApertureFrames.destinationFrame(source.plane(), targetPlane), destination.frame());
-            assertNotEquals(new PocketLayout(space).entry().y(), destination.origin().getY());
+            assertNotEquals(new PocketLayout(space).entry().y(), destination.origin().y());
         }
     }
 
@@ -72,9 +72,9 @@ final class DoorApertureDestinationServiceTest {
         runtime.unload();
 
         DoorProjectionDestination destination = harness.service.destinationOf(source, observer, false).orElseThrow();
-        assertEquals(captured.center().x(), destination.origin().getX());
-        assertEquals(captured.center().y(), destination.origin().getY());
-        assertEquals(captured.center().z(), destination.origin().getZ());
+        assertEquals(captured.center().x(), destination.origin().x());
+        assertEquals(captured.center().y(), destination.origin().y());
+        assertEquals(captured.center().z(), destination.origin().z());
         assertEquals(DoorApertureFrames.destinationFrame(source.plane(), captured), destination.frame());
         assertTrue(runtime.plane() == null);
         verify(harness.transits, never()).prepareProjection(source.endpoint(), observer);
@@ -120,9 +120,9 @@ final class DoorApertureDestinationServiceTest {
             when(harness.state.getReturnTicket(observer)).thenReturn(Optional.of(ticket));
 
             DoorProjectionDestination destination = harness.service.destinationOf(inside, observer, false).orElseThrow();
-            assertEquals(plane.center().x(), destination.origin().getX());
-            assertEquals(plane.center().y(), destination.origin().getY());
-            assertEquals(plane.center().z(), destination.origin().getZ());
+            assertEquals(plane.center().x(), destination.origin().x());
+            assertEquals(plane.center().y(), destination.origin().y());
+            assertEquals(plane.center().z(), destination.origin().z());
             assertEquals(DoorApertureFrames.destinationFrame(inside.plane(), plane), destination.frame());
         }
     }

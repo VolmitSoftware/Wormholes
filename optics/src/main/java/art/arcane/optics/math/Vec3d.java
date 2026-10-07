@@ -1,31 +1,19 @@
 package art.arcane.optics.math;
 
 public record Vec3d(double x, double y, double z) {
-    public double getX() {
-        return x;
-    }
-
-    public double getY() {
-        return y;
-    }
-
-    public double getZ() {
-        return z;
-    }
-
     public double component(int axis) {
         return axis == 0 ? x : axis == 1 ? y : z;
     }
 
-    public int getBlockX() {
+    public int blockX() {
         return (int) Math.floor(x);
     }
 
-    public int getBlockY() {
+    public int blockY() {
         return (int) Math.floor(y);
     }
 
-    public int getBlockZ() {
+    public int blockZ() {
         return (int) Math.floor(z);
     }
 

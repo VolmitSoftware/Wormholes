@@ -43,16 +43,16 @@ final class DoorProjectionAdapterTest {
         assertEquals(Face.U, adapter.getFrame().getUp());
 
         Vec3d origin = adapter.getOrigin();
-        assertEquals(10.5D, origin.getX(), TOLERANCE);
-        assertEquals(65.0D, origin.getY(), TOLERANCE);
-        assertEquals(10.92D, origin.getZ(), TOLERANCE);
-        assertEquals(plane.center().z(), origin.getZ(), TOLERANCE);
+        assertEquals(10.5D, origin.x(), TOLERANCE);
+        assertEquals(65.0D, origin.y(), TOLERANCE);
+        assertEquals(10.92D, origin.z(), TOLERANCE);
+        assertEquals(plane.center().z(), origin.z(), TOLERANCE);
 
         Box view = adapter.getView();
         Box area = adapter.getArea();
-        assertEquals(area.min().getX() - RANGE, view.min().getX(), TOLERANCE);
-        assertEquals(area.max().getY() + RANGE, view.max().getY(), TOLERANCE);
-        assertEquals(area.min().getZ() - RANGE, view.min().getZ(), TOLERANCE);
+        assertEquals(area.min().x() - RANGE, view.min().x(), TOLERANCE);
+        assertEquals(area.max().y() + RANGE, view.max().y(), TOLERANCE);
+        assertEquals(area.min().z() - RANGE, view.min().z(), TOLERANCE);
         assertEquals(RANGE, adapter.getActivationRange());
     }
 

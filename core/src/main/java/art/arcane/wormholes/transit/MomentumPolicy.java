@@ -71,7 +71,7 @@ public record MomentumPolicy(Mode mode, double factor, double maxSpeed, Vec3d im
 
     public String encode() {
         return mode.name() + SEPARATOR + factor + SEPARATOR + maxSpeed + SEPARATOR
-            + impulse.getX() + "," + impulse.getY() + "," + impulse.getZ();
+            + impulse.x() + "," + impulse.y() + "," + impulse.z();
     }
 
     /** Returns null for anything that is not a complete encoding. */

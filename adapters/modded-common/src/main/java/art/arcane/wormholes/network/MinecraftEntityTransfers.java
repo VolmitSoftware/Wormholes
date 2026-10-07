@@ -390,7 +390,7 @@ public final class MinecraftEntityTransfers implements AutoCloseable {
             ServerLevel level = runtime.portals().resolveLevel(arrival.exit());
             Vec3d target = arrival.target().position();
             UUID world = UUID.nameUUIDFromBytes(arrival.exit().getWorldKey().getBytes(StandardCharsets.UTF_8));
-            ChunkLease lease = runtime.leases().retain(level, world, target.getBlockX() >> 4, target.getBlockZ() >> 4);
+            ChunkLease lease = runtime.leases().retain(level, world, target.blockX() >> 4, target.blockZ() >> 4);
             Preparation preparation = new Preparation(arrival.transfer().transferId(), lease, task,
                 System.currentTimeMillis() + runtime.configuration().settings().getNetwork().handoffTimeoutMs);
             preparations.put(preparation.transferId(), preparation);

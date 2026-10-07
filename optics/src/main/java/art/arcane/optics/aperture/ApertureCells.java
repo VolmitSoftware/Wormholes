@@ -40,7 +40,7 @@ public final class ApertureCells implements CellAperture {
         blockKeys.clear();
         blockPositions.clear();
         for (Vec3d cell : cells) {
-            addBlockCell(cell.getBlockX(), cell.getBlockY(), cell.getBlockZ());
+            addBlockCell(cell.blockX(), cell.blockY(), cell.blockZ());
         }
         invalidate();
     }
@@ -58,9 +58,9 @@ public final class ApertureCells implements CellAperture {
         int yb = Integer.MIN_VALUE;
         int zb = Integer.MIN_VALUE;
         for (Vec3d cell : cells) {
-            int x = cell.getBlockX();
-            int y = cell.getBlockY();
-            int z = cell.getBlockZ();
+            int x = cell.blockX();
+            int y = cell.blockY();
+            int z = cell.blockZ();
             addBlockCell(x, y, z);
             xa = Math.min(xa, x);
             ya = Math.min(ya, y);
@@ -109,7 +109,7 @@ public final class ApertureCells implements CellAperture {
 
     public boolean contains(Vec3d point) {
         return point != null && area != null && area.containsPrimitive(point.x(), point.y(), point.z())
-            && containsBlock(point.getBlockX(), point.getBlockY(), point.getBlockZ());
+            && containsBlock(point.blockX(), point.blockY(), point.blockZ());
     }
 
     public Box captureZone(double radius) {
@@ -139,12 +139,12 @@ public final class ApertureCells implements CellAperture {
         int maxY = Integer.MIN_VALUE;
         int maxZ = Integer.MIN_VALUE;
         for (Vec3d cell : blockPositions) {
-            minX = Math.min(minX, cell.getBlockX());
-            minY = Math.min(minY, cell.getBlockY());
-            minZ = Math.min(minZ, cell.getBlockZ());
-            maxX = Math.max(maxX, cell.getBlockX());
-            maxY = Math.max(maxY, cell.getBlockY());
-            maxZ = Math.max(maxZ, cell.getBlockZ());
+            minX = Math.min(minX, cell.blockX());
+            minY = Math.min(minY, cell.blockY());
+            minZ = Math.min(minZ, cell.blockZ());
+            maxX = Math.max(maxX, cell.blockX());
+            maxY = Math.max(maxY, cell.blockY());
+            maxZ = Math.max(maxZ, cell.blockZ());
         }
         return new Vec3d((minX + (double) maxX + 1.0D) * 0.5D,
             (minY + (double) maxY + 1.0D) * 0.5D, (minZ + (double) maxZ + 1.0D) * 0.5D);
@@ -196,7 +196,7 @@ public final class ApertureCells implements CellAperture {
 		{
 			for(Vec3d block : blockPositions)
 			{
-				faces.add(getBlockBox(block.getBlockX(), block.getBlockY(), block.getBlockZ()).getFace(face));
+				faces.add(getBlockBox(block.blockX(), block.blockY(), block.blockZ()).getFace(face));
 			}
 		}
 

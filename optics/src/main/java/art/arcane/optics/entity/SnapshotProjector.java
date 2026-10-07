@@ -107,7 +107,7 @@ public final class SnapshotProjector<O, W, P extends Endpoint, R, T, V> {
         boolean upsideDown = path == null ? pass.transform().flipsWorldUp() : path.transform().flipsWorldUp();
         registry.clearVisible();
         int count = 0;
-        List<EntitySnapshot> visuals = feed.entities(pass.view(), new EntityRange(origin.getX(), origin.getY(), origin.getZ(), pass.range()));
+        List<EntitySnapshot> visuals = feed.entities(pass.view(), new EntityRange(origin.x(), origin.y(), origin.z(), pass.range()));
         for (EntitySnapshot visual : visuals) {
             if (count >= pass.limit()) {
                 break;

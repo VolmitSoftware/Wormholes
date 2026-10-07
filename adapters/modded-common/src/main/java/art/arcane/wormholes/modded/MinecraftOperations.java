@@ -318,7 +318,7 @@ public final class MinecraftOperations implements AutoCloseable {
         String key = portal.getWorldKey();
         RtpWorld world = new RtpWorld(UUID.nameUUIDFromBytes(key.getBytes(StandardCharsets.UTF_8)), key,
             level.getMinY(), level.getMaxY() + 1, level.getSeaLevel());
-        RtpDestination destination = new RtpDestination(key, front.getBlockX(), front.getBlockY(), front.getBlockZ(), 0L, 0);
+        RtpDestination destination = new RtpDestination(key, front.blockX(), front.blockY(), front.blockZ(), 0L, 0);
         RtpService.SearchRequest request = new RtpService.SearchRequest(portal.getId(), 0, RtpSettings.defaults(world), destination);
         MinecraftRtpCandidateLoader loader = new MinecraftRtpCandidateLoader(runtime);
         loader.exact(request, RtpValidationRequest.EntityEnvelope.baseline()).whenCompleteAsync((candidate, failure) -> {

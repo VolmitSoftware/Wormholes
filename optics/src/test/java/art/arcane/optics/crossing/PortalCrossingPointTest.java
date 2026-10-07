@@ -27,7 +27,7 @@ class PortalCrossingPointTest {
                         new Vec3d(0, 0, -0.1D), new Vec3d(0, 0, -1), front);
                     Vec3d arrival = outward.outPoint(destination, nether);
                     assertEquals(80.0D, arrival.y(), 0.0D);
-                    assertEquals(80, arrival.getBlockY());
+                    assertEquals(80, arrival.blockY());
                     PlaneCrossing returning = new PlaneCrossing(destination.view(front), nether, arrival,
                         outward.outVelocity(destination), outward.outLook(destination), front);
                     assertEquals(200.0D, returning.outPoint(source, overworld).y(), 0.0D);
@@ -83,7 +83,7 @@ class PortalCrossingPointTest {
                 Vec3d point = new Vec3d(-19999998.375D, sourceFloor, 20000000.25D);
                 Vec3d mapped = OpticTransform.between(frame, source, frame, target).point(point);
                 assertEquals(targetFloor, mapped.y(), 0.0D);
-                assertEquals(targetFloor, mapped.getBlockY());
+                assertEquals(targetFloor, mapped.blockY());
                 assertEquals(point, OpticTransform.between(frame, target, frame, source).point(mapped));
             }
         }
@@ -135,8 +135,8 @@ class PortalCrossingPointTest {
                             direction.y() * side * distance, direction.z() * side * distance));
                         Vec3d actual = PlaneCrossing.planePoint(source, origin, feet, destination, arrival);
                         assertEquals(expected, actual);
-                        assertEquals(expected.getBlockX() >> 4, actual.getBlockX() >> 4);
-                        assertEquals(expected.getBlockZ() >> 4, actual.getBlockZ() >> 4);
+                        assertEquals(expected.blockX() >> 4, actual.blockX() >> 4);
+                        assertEquals(expected.blockZ() >> 4, actual.blockZ() >> 4);
                     }
                 }
             }

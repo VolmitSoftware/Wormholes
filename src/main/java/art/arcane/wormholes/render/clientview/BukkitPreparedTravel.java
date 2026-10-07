@@ -279,8 +279,8 @@ final class BukkitPreparedTravel implements AutoCloseable {
         if (!preparation.busy.compareAndSet(false, true)) {
             return;
         }
-        int x = preparation.feet.getBlockX() >> 4;
-        int z = preparation.feet.getBlockZ() >> 4;
+        int x = preparation.feet.blockX() >> 4;
+        int z = preparation.feet.blockZ() >> 4;
         preparation.retain(new TravelMessage.TravelCoordinate(x, z));
         if (!FoliaScheduler.runRegion(plugin, preparation.world, x, z, () -> captureBegin(preparation))) {
             preparation.busy.set(false);
@@ -289,8 +289,8 @@ final class BukkitPreparedTravel implements AutoCloseable {
 
     private void captureBegin(Preparation preparation) {
         try {
-            if (!preparation.live.get() || !preparation.world.isChunkLoaded(preparation.feet.getBlockX() >> 4,
-                preparation.feet.getBlockZ() >> 4)) {
+            if (!preparation.live.get() || !preparation.world.isChunkLoaded(preparation.feet.blockX() >> 4,
+                preparation.feet.blockZ() >> 4)) {
                 return;
             }
             Optional<ChunkWorldContext> context = packets.context(preparation.world);
@@ -445,14 +445,14 @@ final class BukkitPreparedTravel implements AutoCloseable {
             this.eyeHeight = options.eyeHeight();
             this.sourceWorld = options.sourceWorld();
             this.generation = options.generation();
-            for (ChunkCoordinate coordinate : ChunkPreSendPlanner.ring(feet.getBlockX() >> 4, feet.getBlockZ() >> 4, 3)) {
+            for (ChunkCoordinate coordinate : ChunkPreSendPlanner.ring(feet.blockX() >> 4, feet.blockZ() >> 4, 3)) {
                 coordinates.add(new TravelMessage.TravelCoordinate(coordinate.x(), coordinate.z()));
             }
         }
 
         private boolean contains(Vec3d point) {
-            int x = point.getBlockX() >> 4;
-            int z = point.getBlockZ() >> 4;
+            int x = point.blockX() >> 4;
+            int z = point.blockZ() >> 4;
             return coordinates.contains(new TravelMessage.TravelCoordinate(x - 1, z - 1))
                 && coordinates.contains(new TravelMessage.TravelCoordinate(x + 1, z + 1));
         }

@@ -245,9 +245,9 @@ final class MinecraftPortalDestinationMenu {
             MinecraftElement element = MinecraftPortalText.localizedElement(viewer, "portal-" + index,
                 WormholesMessages.PORTAL_MENU_LOCAL_DESTINATION, MinecraftPortalText.arguments(
                     "portal", target.getName(),
-                    "x", center.getBlockX(),
-                    "y", center.getBlockY(),
-                    "z", center.getBlockZ(),
+                    "x", center.blockX(),
+                    "y", center.blockY(),
+                    "z", center.blockZ(),
                     "world", target.getWorldKey(),
                     "direction", MinecraftPortalText.directionLabel(viewer, target.getDirection())),
                 Items.ENDER_PEARL);
@@ -284,9 +284,9 @@ final class MinecraftPortalDestinationMenu {
                 WormholesMessages.PORTAL_MENU_REMOTE_DESTINATION, MinecraftPortalText.arguments(
                     "portal", target.getName(),
                     "server", target.getServer().getName(),
-                    "x", target.getOrigin().getBlockX(),
-                    "y", target.getOrigin().getBlockY(),
-                    "z", target.getOrigin().getBlockZ(),
+                    "x", target.getOrigin().blockX(),
+                    "y", target.getOrigin().blockY(),
+                    "z", target.getOrigin().blockZ(),
                     "world", target.getServer().getWorld(),
                     "direction", MinecraftPortalText.directionLabel(viewer, target.getDirection()),
                     "state", MinecraftPortalText.localized(viewer, target.isOpen() ? WormholesMessages.LABEL_OPEN : WormholesMessages.LABEL_CLOSED)),

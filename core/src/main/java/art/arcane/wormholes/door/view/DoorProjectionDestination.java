@@ -21,7 +21,7 @@ public record DoorProjectionDestination(UUID routeId, String worldKey, Vec3d ori
     /** Stable text for change detection: a different signature is a different route revision. */
     public String signature() {
         return routeId + "|" + worldKey
-            + "|" + origin.getX() + "," + origin.getY() + "," + origin.getZ()
+            + "|" + origin.x() + "," + origin.y() + "," + origin.z()
             + "|" + frame.getNormal() + "," + frame.getRight() + "," + frame.getUp();
     }
 }

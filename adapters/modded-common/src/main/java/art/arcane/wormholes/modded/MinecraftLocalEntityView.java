@@ -54,8 +54,8 @@ public final class MinecraftLocalEntityView implements ProjectionEntityData<Sync
         if (changed || candidateTick == Long.MIN_VALUE || tick - candidateTick >= Math.max(1, options.candidateCacheTicks())) {
             origin = center;
             range = queryRange;
-            candidates = level.getEntities((Entity) null, new AABB(center.getX() - range, center.getY() - range, center.getZ() - range,
-                center.getX() + range, center.getY() + range, center.getZ() + range), MinecraftLocalEntityView::eligible);
+            candidates = level.getEntities((Entity) null, new AABB(center.x() - range, center.y() - range, center.z() - range,
+                center.x() + range, center.y() + range, center.z() + range), MinecraftLocalEntityView::eligible);
             candidateTick = tick;
         }
         Set<UUID> present = new HashSet<>(candidates.size());

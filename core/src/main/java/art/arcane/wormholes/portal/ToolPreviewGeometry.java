@@ -36,9 +36,9 @@ public final class ToolPreviewGeometry {
             if (position == null) {
                 continue;
             }
-            int x = position.getBlockX();
-            int y = position.getBlockY();
-            int z = position.getBlockZ();
+            int x = position.blockX();
+            int y = position.blockY();
+            int z = position.blockZ();
             if (!occupied.add(CellKeys.pack(x, y, z))) {
                 continue;
             }

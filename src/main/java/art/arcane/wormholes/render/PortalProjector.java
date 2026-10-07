@@ -595,7 +595,7 @@ public final class PortalProjector {
             Frame portalFrame = portal.getFrame();
             Vec3d origin = portal.getOrigin();
             ApertureSlab volume = ApertureSlab.of(portal.getStructure().getArea(), portalFrame,
-                ApertureSlab.plane(portalFrame, origin.getX(), origin.getY(), origin.getZ()), true, depthBlocks, 0.0D);
+                ApertureSlab.plane(portalFrame, origin.x(), origin.y(), origin.z()), true, depthBlocks, 0.0D);
             DissolveSchedule.filter(cellScan.claims(), admitted, volume.maxDepth(), key -> Math.abs(volume.signedDistance(
                 CellKeys.unpackX(key) + 0.5D, CellKeys.unpackY(key) + 0.5D, CellKeys.unpackZ(key) + 0.5D)));
         }
@@ -675,9 +675,9 @@ public final class PortalProjector {
         BlackoutColor blackoutColor = portal.getBlackoutColor();
         int depth = portal.getNetworkViewDepth();
         passInputs.eye(eye.getX(), eye.getY(), eye.getZ());
-        passInputs.local(localFrame, origin.getX(), origin.getY(), origin.getZ());
-        passInputs.remote(remoteFrame, mirror ? origin.getX() : destination.originX, mirror ? origin.getY() : destination.originY,
-            mirror ? origin.getZ() : destination.originZ);
+        passInputs.local(localFrame, origin.x(), origin.y(), origin.z());
+        passInputs.remote(remoteFrame, mirror ? origin.x() : destination.originX, mirror ? origin.y() : destination.originY,
+            mirror ? origin.z() : destination.originZ);
         passInputs.mirror(mirror, destination.mirrorRotationQuarterTurns);
         passInputs.extent(depth, portal.getNetworkViewLateralPad(), viewFrustum.projectionDistance(observer, depth));
         passInputs.padding(Settings.PROJECTION_APERTURE_PADDING_BLOCKS, Settings.NEAR_PLANE_PADDING);
@@ -738,7 +738,7 @@ public final class PortalProjector {
         Frame localFrame = portal.getFrame();
         Frame remoteFrame = destination.mirrorMode ? localFrame.flipNormal() : destination.destAnchor.getFrame();
         Vec3d localOrigin = portal.getOrigin();
-        boolean eyeFrontSide = ApertureSlab.side(localFrame, localOrigin.getX(), localOrigin.getY(), localOrigin.getZ(),
+        boolean eyeFrontSide = ApertureSlab.side(localFrame, localOrigin.x(), localOrigin.y(), localOrigin.z(),
             eye.getX(), eye.getY(), eye.getZ());
         Frame projectionLocalFrame = viewFrame(localFrame, eyeFrontSide);
         Frame projectionRemoteFrame = viewFrame(remoteFrame, eyeFrontSide);
@@ -1018,9 +1018,9 @@ public final class PortalProjector {
         }
         endSurfaceClaims.clear();
         for (Vec3d cell : portal.getStructure().geometry().getBlockPositions()) {
-            int x = cell.getBlockX();
-            int y = cell.getBlockY();
-            int z = cell.getBlockZ();
+            int x = cell.blockX();
+            int y = cell.blockY();
+            int z = cell.blockZ();
             if (!localView.isChunkReady(x, z) || localView.material(x, y, z) != Material.END_PORTAL) {
                 continue;
             }

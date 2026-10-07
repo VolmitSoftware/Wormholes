@@ -112,8 +112,8 @@ public final class ClientSweepScene {
 
     boolean eyeFrontSide(Vec3d eye) {
         Face normal = localFrame.getNormal();
-        return ((eye.getX() - localOrigin.getX()) * normal.x()) + ((eye.getY() - localOrigin.getY()) * normal.y())
-            + ((eye.getZ() - localOrigin.getZ()) * normal.z()) >= 0.0D;
+        return ((eye.x() - localOrigin.x()) * normal.x()) + ((eye.y() - localOrigin.y()) * normal.y())
+            + ((eye.z() - localOrigin.z()) * normal.z()) >= 0.0D;
     }
 
     Long2ObjectOpenHashMap<BlockClaim<String, SceneView>> serverClaims(Vec3d eye, ScanMode mode,
@@ -176,7 +176,7 @@ public final class ClientSweepScene {
         Face normal = localFrame.getNormal();
         int normalAxis = normal.axisIndex();
         double facing = normalAxis == 0 ? normal.x() : normalAxis == 1 ? normal.y() : normal.z();
-        double originNormal = normalAxis == 0 ? origin.getX() : normalAxis == 1 ? origin.getY() : origin.getZ();
+        double originNormal = normalAxis == 0 ? origin.x() : normalAxis == 1 ? origin.y() : origin.z();
         double signedMin = frontSide ? -maxDepth : clearance;
         double signedMax = frontSide ? -clearance : maxDepth;
         double centerA = originNormal + (signedMin / facing);
@@ -503,17 +503,17 @@ public final class ClientSweepScene {
 
         @Override
         public double originX() {
-            return remoteOrigin.getX();
+            return remoteOrigin.x();
         }
 
         @Override
         public double originY() {
-            return remoteOrigin.getY();
+            return remoteOrigin.y();
         }
 
         @Override
         public double originZ() {
-            return remoteOrigin.getZ();
+            return remoteOrigin.z();
         }
 
         @Override

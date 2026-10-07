@@ -82,9 +82,9 @@ public final class FrustumFit {
         if (reusable != null
             && cachedFitStructure == structure
             && cachedFitStructureRevision == structureRevision
-            && cachedFitEyeX == eye.getX()
-            && cachedFitEyeY == eye.getY()
-            && cachedFitEyeZ == eye.getZ()
+            && cachedFitEyeX == eye.x()
+            && cachedFitEyeY == eye.y()
+            && cachedFitEyeZ == eye.z()
             && cachedFitAxial == axial
             && cachedFitLateralPad == lateralPadBlocks
             && cachedFitNormal == frame.getNormal()
@@ -114,9 +114,9 @@ public final class FrustumFit {
         cachedFit = result;
         cachedFitStructure = structure;
         cachedFitStructureRevision = structureRevision;
-        cachedFitEyeX = eye.getX();
-        cachedFitEyeY = eye.getY();
-        cachedFitEyeZ = eye.getZ();
+        cachedFitEyeX = eye.x();
+        cachedFitEyeY = eye.y();
+        cachedFitEyeZ = eye.z();
         cachedFitAxial = axial;
         cachedFitLateralPad = lateralPadBlocks;
         cachedFitNormal = frame.getNormal();
@@ -172,9 +172,9 @@ public final class FrustumFit {
         if (cached != null
             && cachedStructure == structure
             && cachedStructureRevision == structureRevision
-            && cachedEyeX == eye.getX()
-            && cachedEyeY == eye.getY()
-            && cachedEyeZ == eye.getZ()
+            && cachedEyeX == eye.x()
+            && cachedEyeY == eye.y()
+            && cachedEyeZ == eye.z()
             && cachedAxial == axial
             && cachedLateral == lateral
             && cachedNearPlanePadding == nearPlanePadding
@@ -187,9 +187,9 @@ public final class FrustumFit {
         cachedFrustum = built;
         cachedStructure = structure;
         cachedStructureRevision = structureRevision;
-        cachedEyeX = eye.getX();
-        cachedEyeY = eye.getY();
-        cachedEyeZ = eye.getZ();
+        cachedEyeX = eye.x();
+        cachedEyeY = eye.y();
+        cachedEyeZ = eye.z();
         cachedAxial = axial;
         cachedLateral = lateral;
         cachedNearPlanePadding = nearPlanePadding;
@@ -298,13 +298,13 @@ public final class FrustumFit {
         axisMax[2] = ApertureSlab.maxBlockForCenter(region.getZb());
 
         Vec3d center = structure.getArea().center();
-        double originX = center.getX();
-        double originY = center.getY();
-        double originZ = center.getZ();
-        double eyeRelX = eye.getX() - originX;
-        double eyeRelY = eye.getY() - originY;
-        double eyeRelZ = eye.getZ() - originZ;
-        boolean eyeFrontSide = ApertureSlab.side(frame, originX, originY, originZ, eye.getX(), eye.getY(), eye.getZ());
+        double originX = center.x();
+        double originY = center.y();
+        double originZ = center.z();
+        double eyeRelX = eye.x() - originX;
+        double eyeRelY = eye.y() - originY;
+        double eyeRelZ = eye.z() - originZ;
+        boolean eyeFrontSide = ApertureSlab.side(frame, originX, originY, originZ, eye.x(), eye.y(), eye.z());
         Frame projectionFrame = frame.view(eyeFrontSide);
         double projectionEyeDot = dot(eyeRelX, eyeRelY, eyeRelZ, projectionFrame.getNormal());
         ApertureSlab volume = ApertureSlab.of(structure.getArea(), frame,
@@ -336,7 +336,7 @@ public final class FrustumFit {
         long work = 0L;
         for (int n = axisMin[normalAxis]; n <= axisMax[normalAxis]; n++) {
             double slabSignedDistance = projectionFacingNormal * ((n + 0.5D) - normalOrigin);
-            if (!planeWindow.slabWindow(eye.getX(), eye.getY(), eye.getZ(), slabSignedDistance, scratchSlabWindowBounds)) {
+            if (!planeWindow.slabWindow(eye.x(), eye.y(), eye.z(), slabSignedDistance, scratchSlabWindowBounds)) {
                 continue;
             }
             int rightMin = PlaneWindow.slabBlockMin(scratchSlabWindowBounds[0], scratchSlabWindowBounds[1],

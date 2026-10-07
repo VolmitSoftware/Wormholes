@@ -50,7 +50,7 @@ public enum Face
 
 	public static Face closest(Vec3d v)
 	{
-		return closest(v.getX(), v.getY(), v.getZ());
+		return closest(v.x(), v.y(), v.z());
 	}
 
 	public static Face closest(double x, double y, double z)
@@ -140,11 +140,11 @@ public enum Face
 	public static Face getDirection(Vec3d v)
 	{
 		Vec3d normalized = v.normalize();
-		Vec3d k = new Vec3d(Math.signum(normalized.getX()), Math.signum(normalized.getY()), Math.signum(normalized.getZ()));
+		Vec3d k = new Vec3d(Math.signum(normalized.x()), Math.signum(normalized.y()), Math.signum(normalized.z()));
 
 		for(Face i : udnews())
 		{
-			if(i.x == k.getBlockX() && i.y == k.getBlockY() && i.z == k.getBlockZ())
+			if(i.x == k.blockX() && i.y == k.blockY() && i.z == k.blockZ())
 			{
 				return i;
 			}

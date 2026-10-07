@@ -45,22 +45,22 @@ public final class ViewVolume {
         Vec3d apertureCenter = aperture.center();
         Axis thinAxis = aperture.getThinAxis();
         double portalToEyeRawX = thinAxis == Axis.X || thinAxis == null
-            ? iris.getX() - apertureCenter.getX()
-            : iris.getX() - clamp(iris.getX(), aperture.getXa(), aperture.getXb());
+            ? iris.x() - apertureCenter.x()
+            : iris.x() - clamp(iris.x(), aperture.getXa(), aperture.getXb());
         double portalToEyeRawY = thinAxis == Axis.Y || thinAxis == null
-            ? iris.getY() - apertureCenter.getY()
-            : iris.getY() - clamp(iris.getY(), aperture.getYa(), aperture.getYb());
+            ? iris.y() - apertureCenter.y()
+            : iris.y() - clamp(iris.y(), aperture.getYa(), aperture.getYb());
         double portalToEyeRawZ = thinAxis == Axis.Z || thinAxis == null
-            ? iris.getZ() - apertureCenter.getZ()
-            : iris.getZ() - clamp(iris.getZ(), aperture.getZa(), aperture.getZb());
+            ? iris.z() - apertureCenter.z()
+            : iris.z() - clamp(iris.z(), aperture.getZa(), aperture.getZb());
         double distanceToPortal = Math.sqrt((portalToEyeRawX * portalToEyeRawX)
             + (portalToEyeRawY * portalToEyeRawY)
             + (portalToEyeRawZ * portalToEyeRawZ));
         if (distanceToPortal <= EPSILON) {
             Vec3d center = structure.getApertureCenter();
-            portalToEyeRawX = iris.getX() - center.getX();
-            portalToEyeRawY = iris.getY() - center.getY();
-            portalToEyeRawZ = iris.getZ() - center.getZ();
+            portalToEyeRawX = iris.x() - center.x();
+            portalToEyeRawY = iris.y() - center.y();
+            portalToEyeRawZ = iris.z() - center.z();
             distanceToPortal = Math.sqrt((portalToEyeRawX * portalToEyeRawX)
                 + (portalToEyeRawY * portalToEyeRawY)
                 + (portalToEyeRawZ * portalToEyeRawZ));
@@ -134,7 +134,7 @@ public final class ViewVolume {
     }
 
     public boolean contains(Vec3d p) {
-        return containsPrimitive(p.getX(), p.getY(), p.getZ());
+        return containsPrimitive(p.x(), p.y(), p.z());
     }
 
     public boolean containsPrimitive(double x, double y, double z) {

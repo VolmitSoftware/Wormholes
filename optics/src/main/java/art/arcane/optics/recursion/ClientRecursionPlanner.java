@@ -94,7 +94,7 @@ public final class ClientRecursionPlanner {
     private static boolean anyCornerVisible(List<Window> chain, Window window, double[] scratch) {
         Box area = window.area;
         Vec3d center = area.center();
-        window.transform.pointInto(center.getX(), center.getY(), center.getZ(), scratch);
+        window.transform.pointInto(center.x(), center.y(), center.z(), scratch);
         if (visible(chain, scratch[0], scratch[1], scratch[2])) {
             return true;
         }
@@ -200,9 +200,9 @@ public final class ClientRecursionPlanner {
             this.area = aperture.getArea();
             Frame frame = geometry.frame();
             Vec3d center = area.center();
-            this.originX = frame.getNormal().x() != 0 ? geometry.planeCoordinate() : center.getX();
-            this.originY = frame.getNormal().y() != 0 ? geometry.planeCoordinate() : center.getY();
-            this.originZ = frame.getNormal().z() != 0 ? geometry.planeCoordinate() : center.getZ();
+            this.originX = frame.getNormal().x() != 0 ? geometry.planeCoordinate() : center.x();
+            this.originY = frame.getNormal().y() != 0 ? geometry.planeCoordinate() : center.y();
+            this.originZ = frame.getNormal().z() != 0 ? geometry.planeCoordinate() : center.z();
             this.scratch = new double[3];
             content.pointInto(displayEyeX, displayEyeY, displayEyeZ, scratch);
             this.eyeX = scratch[0];

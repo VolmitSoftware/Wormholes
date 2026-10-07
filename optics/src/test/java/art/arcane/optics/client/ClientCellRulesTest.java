@@ -84,7 +84,7 @@ final class ClientCellRulesTest {
                     ApertureDescriptor geometry = scene.geometry(frontSide,
                         blackout ? ApertureDescriptor.BLACKOUT_SHELL : ApertureDescriptor.BLACKOUT_OFF);
                     ClientSweep sweep = new ClientSweep(geometry, scene.bounds(frontSide), 0.0D);
-                    sweep.sweep(eye.getX(), eye.getY(), eye.getZ(), 0.0D, 0.0D, 0.0D);
+                    sweep.sweep(eye.x(), eye.y(), eye.z(), 0.0D, 0.0D, 0.0D);
                     ClientCellRules.Policy policy = ClientCellRules.Policy.of(geometry, ClientSweepPalette.BACKING_STATE_ID);
                     ClientSweepPalette palette = new ClientSweepPalette();
                     Long2ObjectOpenHashMap<BlockClaim<String, ClientSweepScene.SceneView>> server =
@@ -133,9 +133,9 @@ final class ClientCellRulesTest {
         double up = (random.nextDouble() - 0.5D) * 2.0D;
         Vec3d origin = scene.localOrigin;
         return ClientViewSweepParityTest.quantized(
-            origin.getX() + (normal.x() * along) + (frame.getRight().x() * right) + (frame.getUp().x() * up),
-            origin.getY() + (normal.y() * along) + (frame.getRight().y() * right) + (frame.getUp().y() * up),
-            origin.getZ() + (normal.z() * along) + (frame.getRight().z() * right) + (frame.getUp().z() * up));
+            origin.x() + (normal.x() * along) + (frame.getRight().x() * right) + (frame.getUp().x() * up),
+            origin.y() + (normal.y() * along) + (frame.getRight().y() * right) + (frame.getUp().y() * up),
+            origin.z() + (normal.z() * along) + (frame.getRight().z() * right) + (frame.getUp().z() * up));
     }
 
     private static ClientCellRules.Policy policy(int blackoutPolicy, int maskAirPolicy) {

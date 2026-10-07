@@ -56,9 +56,9 @@ final class EntityRenderLocalOccluder {
         double eyeX = scratchEntityPosition[0];
         double eyeY = scratchEntityPosition[1] + observer.getEyeHeight();
         double eyeZ = scratchEntityPosition[2];
-        boolean eyeFrontSide = ApertureSlab.side(frame, origin.getX(), origin.getY(), origin.getZ(), eyeX, eyeY, eyeZ);
+        boolean eyeFrontSide = ApertureSlab.side(frame, origin.x(), origin.y(), origin.z(), eyeX, eyeY, eyeZ);
         ApertureSlab volume = ApertureSlab.of(localPortal.getStructure().getArea(), frame,
-            ApertureSlab.plane(frame, origin.getX(), origin.getY(), origin.getZ()), eyeFrontSide, projectionDepth, 0.0D);
+            ApertureSlab.plane(frame, origin.x(), origin.y(), origin.z()), eyeFrontSide, projectionDepth, 0.0D);
         double ownedRange = largestOwnedLocalEntityRange(localWorld, localCenter, volume.maxDepth());
         if (ownedRange <= 0.0D) {
             return;

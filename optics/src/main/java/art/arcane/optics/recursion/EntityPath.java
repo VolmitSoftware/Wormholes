@@ -29,7 +29,7 @@ public final class EntityPath<W, P extends Endpoint> {
         this.chain = OpticTransform.IDENTITY;
         this.transform = root.transform();
         Vec3d eye = root.eye();
-        root.transform().inverse().pointInto(eye.getX(), eye.getY(), eye.getZ(), scratch);
+        root.transform().inverse().pointInto(eye.x(), eye.y(), eye.z(), scratch);
         this.index = portals.indexFor(root.world(), scratch[0], scratch[1], scratch[2], root.remote());
     }
 

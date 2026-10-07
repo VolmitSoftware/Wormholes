@@ -29,7 +29,7 @@ public final class CandidateCache<W, E> {
             return snapshot.entities();
         }
         List<E> entities = new ArrayList<>(feed.localEntities(query.world(), query.center(), range));
-        cache.put(key, new Snapshot<>(query.world(), query.center().getBlockX(), query.center().getBlockY(), query.center().getBlockZ(), now, entities));
+        cache.put(key, new Snapshot<>(query.world(), query.center().blockX(), query.center().blockY(), query.center().blockZ(), now, entities));
         return entities;
     }
 
@@ -57,8 +57,8 @@ public final class CandidateCache<W, E> {
 
     private record Snapshot<W, E>(W world, int x, int y, int z, long createdAtMillis, List<E> entities) {
         private boolean matches(Query<W> query) {
-            return world.equals(query.world()) && x == query.center().getBlockX()
-                && y == query.center().getBlockY() && z == query.center().getBlockZ();
+            return world.equals(query.world()) && x == query.center().blockX()
+                && y == query.center().blockY() && z == query.center().blockZ();
         }
     }
 }

@@ -112,7 +112,7 @@ public final class DoorProjectionProvider implements ProjectionManager.RtpProjec
         Frame frame = adapter.getFrame();
         return new RtpProjectionView.SourceFrame(
             WorldIdentity.serialize(adapter.getWorld()),
-            new RtpProjectionView.Point3(origin.getX(), origin.getY(), origin.getZ()),
+            new RtpProjectionView.Point3(origin.x(), origin.y(), origin.z()),
             vector(frame.getRight()),
             vector(frame.getUp()),
             vector(frame.getNormal().reverse()),
@@ -126,7 +126,7 @@ public final class DoorProjectionProvider implements ProjectionManager.RtpProjec
         Frame frame = destination.frame();
         return new RtpProjectionView.Target(
             destination.worldKey(),
-            new RtpProjectionView.Point3(origin.getX(), origin.getY(), origin.getZ()),
+            new RtpProjectionView.Point3(origin.x(), origin.y(), origin.z()),
             vector(frame.getRight()),
             vector(frame.getUp()),
             vector(frame.getNormal().reverse()));

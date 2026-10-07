@@ -47,8 +47,8 @@ public final class Frame {
 		}
 		Face up = verticalFallbackUp(normal);
 		if (look != null) {
-			double x = look.getX();
-			double z = look.getZ();
+			double x = look.x();
+			double z = look.z();
 			double horizontal = Math.sqrt(x * x + z * z);
 			if (horizontal > 1e-6D) {
 				up = Face.closest(x, 0.0D, z);

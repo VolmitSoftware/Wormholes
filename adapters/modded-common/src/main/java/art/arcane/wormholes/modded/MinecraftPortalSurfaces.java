@@ -148,7 +148,7 @@ final class MinecraftPortalSurfaces implements AutoCloseable {
         }
         if (PortalSurfaceSkins.isFluid(portal.getSurfaceSkin()) || surface.withholdsDisplays) {
             for (Vec3d cell : portal.getGeometry().getBlockPositions()) {
-                surface.fluid.put(CellKeys.pack(cell.getBlockX(), cell.getBlockY(), cell.getBlockZ()),
+                surface.fluid.put(CellKeys.pack(cell.blockX(), cell.blockY(), cell.blockZ()),
                     new BlockClaim<>(block, null, BlockClaim.NO_REMOTE_KEY, false));
             }
             return;

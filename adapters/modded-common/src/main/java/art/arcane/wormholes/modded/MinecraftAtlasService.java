@@ -181,7 +181,7 @@ public final class MinecraftAtlasService implements AutoCloseable {
     private AtlasModel.Row row(ServerPlayer player, MinecraftPortal portal) {
         Vec3d center = portal.getGeometry().getApertureCenter();
         double distance = world(player).equals(portal.getWorldKey())
-            ? player.distanceToSqr(center.getX(), center.getY(), center.getZ()) : Double.MAX_VALUE;
+            ? player.distanceToSqr(center.x(), center.y(), center.z()) : Double.MAX_VALUE;
         String address = "";
         boolean listed = Boolean.TRUE.equals(portal.setting("publicLookLabel"));
         UUID networkId = networkId(portal);
@@ -234,7 +234,7 @@ public final class MinecraftAtlasService implements AutoCloseable {
         for (MinecraftPortal portal : runtime.portals().snapshot()) {
             if (!portal.isManaged()) {
                 Vec3d center = portal.getGeometry().getApertureCenter();
-                anchors.add(new AtlasProximityIndex.Anchor<>(portal.getId(), portal.getWorldKey(), center.getX(), center.getY(), center.getZ()));
+                anchors.add(new AtlasProximityIndex.Anchor<>(portal.getId(), portal.getWorldKey(), center.x(), center.y(), center.z()));
             }
         }
         index.rebuild(anchors);
@@ -249,7 +249,7 @@ public final class MinecraftAtlasService implements AutoCloseable {
             return;
         }
         Vec3d center = portal.getGeometry().getApertureCenter();
-        String bearing = AtlasGuide.bearing(player.getYRot(), center.getX() - player.getX(), center.getZ() - player.getZ());
+        String bearing = AtlasGuide.bearing(player.getYRot(), center.x() - player.getX(), center.z() - player.getZ());
         MinecraftMenuText.notice(player, MinecraftMenuText.text(player, AtlasMessages.GUIDE_BEARING,
             MinecraftPortalText.arguments("portal", portal.getName(), "value", bearing)));
     }

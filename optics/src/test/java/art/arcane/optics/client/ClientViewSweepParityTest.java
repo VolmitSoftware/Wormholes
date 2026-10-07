@@ -51,9 +51,9 @@ final class ClientViewSweepParityTest {
                             for (int step = 0; step < 3; step++) {
                                 double distance = (front ? 1.0D : -1.0D) * (1.0D + step * 3.0D);
                                 double lateral = step * 0.45D - 0.35D;
-                                Vec3d eye = quantized(origin.getX() + normal.x() * distance + frame.getRight().x() * lateral,
-                                    origin.getY() + normal.y() * distance + frame.getRight().y() * lateral,
-                                    origin.getZ() + normal.z() * distance + frame.getRight().z() * lateral);
+                                Vec3d eye = quantized(origin.x() + normal.x() * distance + frame.getRight().x() * lateral,
+                                    origin.y() + normal.y() * distance + frame.getRight().y() * lateral,
+                                    origin.z() + normal.z() * distance + frame.getRight().z() * lateral);
                                 LongOpenHashSet expected = perCellMask(geometry, bounds, eye, padding + hysteresis);
                                 assertTrue(!expected.isEmpty(), "the reference cone must include visible cells");
                                 if (hysteresis > 0.0D && !previous.isEmpty()) {
@@ -61,7 +61,7 @@ final class ClientViewSweepParityTest {
                                     retained.retainAll(previous);
                                     expected.addAll(retained);
                                 }
-                                sweep.sweep(eye.getX(), eye.getY(), eye.getZ(), 0.0D, 0.0D, 0.0D);
+                                sweep.sweep(eye.x(), eye.y(), eye.z(), 0.0D, 0.0D, 0.0D);
                                 LongArrayList actual = new LongArrayList();
                                 sweep.appliedKeys(actual);
                                 assertEquals(expected, new LongOpenHashSet(actual), normal + " rotation=" + rotation + " front=" + front
@@ -100,10 +100,10 @@ final class ClientViewSweepParityTest {
         Face localNormal = frame.getNormal();
         Frame projectionFrame = frame.view(geometry.frontSide());
         Face normal = projectionFrame.getNormal();
-        double eyeDot = dot(eye.getX() - origin.getX(), eye.getY() - origin.getY(), eye.getZ() - origin.getZ(), normal);
+        double eyeDot = dot(eye.x() - origin.x(), eye.y() - origin.y(), eye.z() - origin.z(), normal);
         double clearance = ApertureSlab.portalPlaneClearance(area, frame);
         PlaneWindow window = PlaneWindow.create(aperture, area, projectionFrame,
-            origin.getX(), origin.getY(), origin.getZ(), padding, eyeDot);
+            origin.x(), origin.y(), origin.z(), padding, eyeDot);
         ViewVolume frustum = new ViewVolume(eye, aperture, new ViewVolume.Options(geometry.depthBlocks(), geometry.depthBlocks(),
             geometry.nearPlanePadding(), geometry.frustumCullingRatio(), padding));
         Box region = frustum.getRegion();
@@ -117,13 +117,13 @@ final class ClientViewSweepParityTest {
         for (int x = minX; x <= maxX; x++) {
             for (int y = minY; y <= maxY; y++) {
                 for (int z = minZ; z <= maxZ; z++) {
-                    double cellDot = dot(x + 0.5D - origin.getX(), y + 0.5D - origin.getY(), z + 0.5D - origin.getZ(), localNormal);
+                    double cellDot = dot(x + 0.5D - origin.x(), y + 0.5D - origin.y(), z + 0.5D - origin.z(), localNormal);
                     if (!ApertureSlab.projectsBehindPortalPlane(cellDot, geometry.frontSide(), clearance)
                         || Math.abs(cellDot) > geometry.depthBlocks() + clearance) {
                         continue;
                     }
-                    double signed = dot(x + 0.5D - origin.getX(), y + 0.5D - origin.getY(), z + 0.5D - origin.getZ(), normal);
-                    if (window.containsRayIntersection(eye.getX(), eye.getY(), eye.getZ(), x + 0.5D, y + 0.5D, z + 0.5D, signed)) {
+                    double signed = dot(x + 0.5D - origin.x(), y + 0.5D - origin.y(), z + 0.5D - origin.z(), normal);
+                    if (window.containsRayIntersection(eye.x(), eye.y(), eye.z(), x + 0.5D, y + 0.5D, z + 0.5D, signed)) {
                         expected.add(CellKeys.pack(x, y, z));
                     }
                 }
@@ -145,7 +145,7 @@ final class ClientViewSweepParityTest {
                 boolean frontSide = scene.eyeFrontSide(eye);
                 ClientSweep sweep = new ClientSweep(scene.geometry(frontSide, ApertureDescriptor.BLACKOUT_OFF),
                     scene.bounds(frontSide), HYSTERESIS);
-                sweep.sweep(eye.getX(), eye.getY(), eye.getZ(), 0.0D, 0.0D, 0.0D);
+                sweep.sweep(eye.x(), eye.y(), eye.z(), 0.0D, 0.0D, 0.0D);
                 applied += sweep.appliedCount();
                 for (ScanMode mode : MODES) {
                     Long2ObjectOpenHashMap<BlockClaim<String, ClientSweepScene.SceneView>> server = scene.serverClaims(eye, mode, false);
@@ -172,10 +172,10 @@ final class ClientViewSweepParityTest {
             double velocityX = (random.nextDouble() - 0.5D) * 0.4D;
             double velocityY = (random.nextDouble() - 0.5D) * 0.1D;
             double velocityZ = (random.nextDouble() - 0.5D) * 0.4D;
-            eye = new Vec3d(clamp(eye.getX() + velocityX, 1.5D, 14.0D), clamp(eye.getY() + velocityY, 63.5D, 67.5D),
-                clamp(eye.getZ() + velocityZ, -6.0D, 6.0D));
-            sweep.sweep(eye.getX(), eye.getY(), eye.getZ(), velocityX, velocityY, velocityZ);
-            Vec3d lookahead = quantized(eye.getX() + velocityX, eye.getY() + velocityY, eye.getZ() + velocityZ);
+            eye = new Vec3d(clamp(eye.x() + velocityX, 1.5D, 14.0D), clamp(eye.y() + velocityY, 63.5D, 67.5D),
+                clamp(eye.z() + velocityZ, -6.0D, 6.0D));
+            sweep.sweep(eye.x(), eye.y(), eye.z(), velocityX, velocityY, velocityZ);
+            Vec3d lookahead = quantized(eye.x() + velocityX, eye.y() + velocityY, eye.z() + velocityZ);
             Long2ObjectOpenHashMap<BlockClaim<String, ClientSweepScene.SceneView>> server =
                 scene.serverClaims(lookahead, ClientSweepScene.OPEN_SCAN, false);
             claims += server.size();
@@ -193,9 +193,9 @@ final class ClientViewSweepParityTest {
         double right = (random.nextDouble() - 0.5D) * 24.0D;
         double up = (random.nextDouble() - 0.5D) * 16.0D;
         Vec3d origin = scene.localOrigin;
-        return quantized(origin.getX() + (normal.x() * along) + (frame.getRight().x() * right) + (frame.getUp().x() * up),
-            origin.getY() + (normal.y() * along) + (frame.getRight().y() * right) + (frame.getUp().y() * up),
-            origin.getZ() + (normal.z() * along) + (frame.getRight().z() * right) + (frame.getUp().z() * up));
+        return quantized(origin.x() + (normal.x() * along) + (frame.getRight().x() * right) + (frame.getUp().x() * up),
+            origin.y() + (normal.y() * along) + (frame.getRight().y() * right) + (frame.getUp().y() * up),
+            origin.z() + (normal.z() * along) + (frame.getRight().z() * right) + (frame.getUp().z() * up));
     }
 
     static Vec3d quantized(double x, double y, double z) {
@@ -226,23 +226,23 @@ final class ClientViewSweepParityTest {
         Face projectionNormal = projectionFrame.getNormal();
         Face localNormal = scene.localFrame.getNormal();
         Vec3d origin = scene.localOrigin;
-        double eyeDot = dot(eye.getX() - origin.getX(), eye.getY() - origin.getY(), eye.getZ() - origin.getZ(), projectionNormal);
+        double eyeDot = dot(eye.x() - origin.x(), eye.y() - origin.y(), eye.z() - origin.z(), projectionNormal);
         PlaneWindow window = PlaneWindow.create(scene.aperture, area, projectionFrame,
-            origin.getX(), origin.getY(), origin.getZ(), padding, eyeDot);
+            origin.x(), origin.y(), origin.z(), padding, eyeDot);
         double clearance = ApertureSlab.portalPlaneClearance(area, scene.localFrame);
         for (int index = 0; index < cells.size(); index++) {
             long key = cells.getLong(index);
             double x = CellKeys.unpackX(key) + 0.5D;
             double y = CellKeys.unpackY(key) + 0.5D;
             double z = CellKeys.unpackZ(key) + 0.5D;
-            double cellDot = dot(x - origin.getX(), y - origin.getY(), z - origin.getZ(), localNormal);
-            double signed = dot(x - origin.getX(), y - origin.getY(), z - origin.getZ(), projectionNormal);
+            double cellDot = dot(x - origin.x(), y - origin.y(), z - origin.z(), localNormal);
+            double signed = dot(x - origin.x(), y - origin.y(), z - origin.z(), projectionNormal);
             boolean inRegion = x >= region.getXa() - 0.5D && x <= region.getXb() + 0.5D
                 && y >= region.getYa() - 0.5D && y <= region.getYb() + 0.5D
                 && z >= region.getZa() - 0.5D && z <= region.getZb() + 0.5D;
             boolean inDepth = ApertureSlab.projectsBehindPortalPlane(cellDot, frontSide, clearance)
                 && Math.abs(cellDot) <= scene.depth + clearance;
-            boolean inWindow = window.containsRayIntersection(eye.getX(), eye.getY(), eye.getZ(), x, y, z, signed);
+            boolean inWindow = window.containsRayIntersection(eye.x(), eye.y(), eye.z(), x, y, z, signed);
             if (!inRegion || !inDepth || !inWindow) {
                 failures.add("eye=" + eye + " applied outside the frustum-depth box at " + x + "," + y + "," + z
                     + " region=" + inRegion + " depth=" + inDepth + " window=" + inWindow);

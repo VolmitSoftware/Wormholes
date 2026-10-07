@@ -96,7 +96,7 @@ final class MinecraftPreparedTravel {
         Preparation preparation = preparations.get(player.getUUID());
         Vec3d feet = mappedCrossing(player, source, destination);
         long route = travel.player().portals().routeIdentity(source);
-        LandingRoute landing = new LandingRoute(source, destination, world, route, feet.getBlockX() >> 4, feet.getBlockZ() >> 4);
+        LandingRoute landing = new LandingRoute(source, destination, world, route, feet.blockX() >> 4, feet.blockZ() >> 4);
         if (!landingReady(travel, player, landing)) {
             return;
         }
@@ -478,8 +478,8 @@ final class MinecraftPreparedTravel {
     }
 
     static boolean residentArrival(RemoteRoute route, ServerPlayer player, Vec3d arrival) {
-        int chunkX = arrival.getBlockX() >> 4;
-        int chunkZ = arrival.getBlockZ() >> 4;
+        int chunkX = arrival.blockX() >> 4;
+        int chunkZ = arrival.blockZ() >> 4;
         return route.resident() ? route.stream().delivered(ChunkPos.pack(chunkX, chunkZ))
             : player.level().getChunkSource().chunkMap.isChunkTracked(player, chunkX, chunkZ);
     }
@@ -569,7 +569,7 @@ final class MinecraftPreparedTravel {
         if (metadata == null) {
             return null;
         }
-        List<TravelMessage.TravelCoordinate> coordinates = ClientTravelWindow.coordinates(feet.getBlockX() >> 4, feet.getBlockZ() >> 4, radius);
+        List<TravelMessage.TravelCoordinate> coordinates = ClientTravelWindow.coordinates(feet.blockX() >> 4, feet.blockZ() >> 4, radius);
         Vec3d eye = feet.add(new Vec3d(0, player.getEyeHeight(), 0));
         TravelMessage.TravelBegin begin = new TravelMessage.TravelBegin(UUID.randomUUID(), ++generation, source.getId(),
             player.level().dimension().identifier().toString(), geometry, mapped.frame().transform(), metadata,
@@ -726,8 +726,8 @@ final class MinecraftPreparedTravel {
         }
 
         private boolean contains(Vec3d point) {
-            int x = point.getBlockX() >> 4;
-            int z = point.getBlockZ() >> 4;
+            int x = point.blockX() >> 4;
+            int z = point.blockZ() >> 4;
             return coordinates.contains(new TravelMessage.TravelCoordinate(x - 1, z - 1))
                 && coordinates.contains(new TravelMessage.TravelCoordinate(x + 1, z + 1));
         }

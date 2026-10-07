@@ -36,7 +36,7 @@ public final class MinecraftPortalSyncAccess implements PortalSyncAccess<Minecra
         Box area = portal.getGeometry().getArea();
         return new PortalInfo(portal.getId(), portal.getName(), portal.getWorldKey(), portal.getType().name(), portal.isOpen(),
             frame.getNormal().name(), frame.getRight().name(), frame.getUp().name(),
-            portal.getOrigin().getX(), portal.getOrigin().getY(), portal.getOrigin().getZ(),
+            portal.getOrigin().x(), portal.getOrigin().y(), portal.getOrigin().z(),
             Math.min(area.getXa(), area.getXb()), Math.min(area.getYa(), area.getYb()), Math.min(area.getZa(), area.getZb()),
             Math.max(area.getXa(), area.getXb()), Math.max(area.getYa(), area.getYb()), Math.max(area.getZa(), area.getZb()));
     }

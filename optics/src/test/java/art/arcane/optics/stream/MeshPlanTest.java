@@ -98,8 +98,8 @@ final class MeshPlanTest {
                         (corner & 2) == 0 ? area.getYa() : area.getYb(), (corner & 4) == 0 ? area.getZa() : area.getZb());
                     for (int depth : new int[] {4, 20, 60}) {
                         Vec3d projected = eye.add(point.subtract(eye).multiply(1 + depth / 5.0));
-                        MeshPlan.Coordinate expected = new MeshPlan.Coordinate(projected.getBlockX() >> 4,
-                            projected.getBlockY() >> 4, projected.getBlockZ() >> 4);
+                        MeshPlan.Coordinate expected = new MeshPlan.Coordinate(projected.blockX() >> 4,
+                            projected.blockY() >> 4, projected.blockZ() >> 4);
                         assertTrue(visible.contains(expected), direction + " front=" + front + " depth=" + depth + " " + expected);
                     }
                 }

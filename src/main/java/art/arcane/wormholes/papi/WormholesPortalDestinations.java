@@ -38,13 +38,13 @@ public final class WormholesPortalDestinations {
         ITunnel tunnel = portal.hasTunnel() ? portal.getTunnel() : null;
         IPortal destination = tunnel == null ? null : tunnel.getDestination();
         Vec3d origin = destination == null ? null : destination.getOrigin();
-        if (origin == null || !Double.isFinite(origin.getX()) || !Double.isFinite(origin.getY()) || !Double.isFinite(origin.getZ())) {
+        if (origin == null || !Double.isFinite(origin.x()) || !Double.isFinite(origin.y()) || !Double.isFinite(origin.z())) {
             return EMPTY;
         }
         return new WormholesPortalDestinations(new Destination(
-            Integer.toString((int) Math.floor(origin.getX())),
-            Integer.toString((int) Math.floor(origin.getY())),
-            Integer.toString((int) Math.floor(origin.getZ())),
+            Integer.toString((int) Math.floor(origin.x())),
+            Integer.toString((int) Math.floor(origin.y())),
+            Integer.toString((int) Math.floor(origin.z())),
             false,
             0L), Map.of());
     }

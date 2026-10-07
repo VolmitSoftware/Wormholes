@@ -553,7 +553,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
             && destination.localView() == scannedLocalView && destination.destView() == scannedDestinationView
             && scannedLocalRevision == destination.localView().getRevision()
             && scannedDestinationRevision == destination.destView().getRevision()
-            && eye.getX() == scannedEyeX && eye.getY() == scannedEyeY && eye.getZ() == scannedEyeZ
+            && eye.x() == scannedEyeX && eye.y() == scannedEyeY && eye.z() == scannedEyeZ
             && scannedRevealMargin == settings.get().revealMarginDegrees()
             && scannedBlackout == blackout.isEnabled();
     }
@@ -764,7 +764,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
     public void updateEntityOcclusionEye(Vec3d eye, ScanDestination<P, V> destination, Frame remoteFrame, boolean frontSide) {
         OpticTransform toward = ViewWindow.of(destination.mirrorMode(), QuarterTurn.of(destination.mirrorRotationQuarterTurns()), portal.origin(),
             portal.frame(), new Vec3d(destination.originX(), destination.originY(), destination.originZ()), remoteFrame, frontSide, 0.0D).toward();
-        toward.pointInto(eye.getX(), eye.getY(), eye.getZ(), scratchRemoteEye);
+        toward.pointInto(eye.x(), eye.y(), eye.z(), scratchRemoteEye);
         projectedEntityOcclusion.updateEye(scratchRemoteEye[0], scratchRemoteEye[1], scratchRemoteEye[2]);
     }
 
@@ -1304,9 +1304,9 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
             scannedFrustum = frustum;
             scannedLocalRevision = localView.getRevision();
             scannedDestinationRevision = destView.getRevision();
-            scannedEyeX = eye.getX();
-            scannedEyeY = eye.getY();
-            scannedEyeZ = eye.getZ();
+            scannedEyeX = eye.x();
+            scannedEyeY = eye.y();
+            scannedEyeZ = eye.z();
             scannedRevealMargin = settings.get().revealMarginDegrees();
             scannedBlackout = blackout.isEnabled();
 
@@ -1339,9 +1339,9 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
             Frame remoteFrame = targetFrame != null
                 ? targetFrame
                 : mirrorMode ? localFrame.flipNormal() : destination.destAnchor().frame();
-            double localOriginX = portal.origin().getX();
-            double localOriginY = portal.origin().getY();
-            double localOriginZ = portal.origin().getZ();
+            double localOriginX = portal.origin().x();
+            double localOriginY = portal.origin().y();
+            double localOriginZ = portal.origin().z();
             remoteOriginX = mirrorMode ? localOriginX : destination.originX();
             remoteOriginY = mirrorMode ? localOriginY : destination.originY();
             remoteOriginZ = mirrorMode ? localOriginZ : destination.originZ();
@@ -1349,9 +1349,9 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
             double facingX = localFrame.getNormal().x();
             double facingY = localFrame.getNormal().y();
             double facingZ = localFrame.getNormal().z();
-            eyeX = eye.getX();
-            eyeY = eye.getY();
-            eyeZ = eye.getZ();
+            eyeX = eye.x();
+            eyeY = eye.y();
+            eyeZ = eye.z();
             double eyeRelX = eyeX - localOriginX;
             double eyeRelY = eyeY - localOriginY;
             double eyeRelZ = eyeZ - localOriginZ;

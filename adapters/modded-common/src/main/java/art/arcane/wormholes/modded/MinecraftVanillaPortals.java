@@ -393,8 +393,8 @@ public final class MinecraftVanillaPortals implements AutoCloseable {
                 : !portal.getDimensionalKind().isNetherPortal())) {
                 continue;
             }
-            double dx = portal.getOrigin().getX() - center.getX();
-            double dz = portal.getOrigin().getZ() - center.getZ();
+            double dx = portal.getOrigin().x() - center.getX();
+            double dz = portal.getOrigin().z() - center.getZ();
             double distance = dx * dx + dz * dz;
             if (distance <= nearestDistance) {
                 nearest = portal;
@@ -505,7 +505,7 @@ public final class MinecraftVanillaPortals implements AutoCloseable {
     private static Shape geometry(MinecraftPortal portal) {
         List<BlockPos> cells = new ArrayList<>();
         for (Vec3d position : portal.getGeometry().getBlockPositions()) {
-            cells.add(new BlockPos((int) position.getX(), (int) position.getY(), (int) position.getZ()));
+            cells.add(new BlockPos((int) position.x(), (int) position.y(), (int) position.z()));
         }
         return bounds(cells, portal.getDimensionalKind().isManagedEndPortal(),
             Math.abs(portal.getFrame().getNormal().z()) > 0.5D);

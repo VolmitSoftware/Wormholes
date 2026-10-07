@@ -149,8 +149,8 @@ final class EndpointDirectoryRecursionTest {
         @Override
         public Box view(Gate endpoint) {
             Vec3d origin = endpoint.origin();
-            return new Box(origin.getX() - 32.0D, origin.getX() + 32.0D, origin.getY() - 32.0D, origin.getY() + 32.0D,
-                origin.getZ() - 32.0D, origin.getZ() + 32.0D);
+            return new Box(origin.x() - 32.0D, origin.x() + 32.0D, origin.y() - 32.0D, origin.y() + 32.0D,
+                origin.z() - 32.0D, origin.z() + 32.0D);
         }
 
         @Override

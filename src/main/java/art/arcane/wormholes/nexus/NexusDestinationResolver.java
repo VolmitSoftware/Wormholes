@@ -91,9 +91,9 @@ public final class NexusDestinationResolver implements DestinationResolver {
     public static boolean isFrontSide(LocalPortal portal, Vector position) {
         Face normal = portal.getFrame().getNormal();
         Vec3d origin = portal.getOrigin();
-        double dot = (position.getX() - origin.getX()) * normal.x()
-                + (position.getY() - origin.getY()) * normal.y()
-                + (position.getZ() - origin.getZ()) * normal.z();
+        double dot = (position.getX() - origin.x()) * normal.x()
+                + (position.getY() - origin.y()) * normal.y()
+                + (position.getZ() - origin.z()) * normal.z();
         return dot >= 0.0D;
     }
 
