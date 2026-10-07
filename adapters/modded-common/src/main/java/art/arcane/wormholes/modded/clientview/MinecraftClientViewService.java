@@ -3,6 +3,8 @@ package art.arcane.wormholes.modded.clientview;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.WormholesModRuntime;
+import art.arcane.wormholes.modded.seamless.MinecraftSeamlessMove;
+import net.minecraft.world.entity.Entity;
 import art.arcane.wormholes.modded.mixin.ServerConnectionAccess;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.ViewStreamMessage;
@@ -37,6 +39,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -51,7 +55,8 @@ public final class MinecraftClientViewService implements AutoCloseable {
     public static final long PLATFORM_CAPS = ViewStreamCapability.of(ViewStreamCapability.PLATES, ViewStreamCapability.BRICK_CACHE,
         ViewStreamCapability.DEST_LIGHT, ViewStreamCapability.ENTITY_FRAMES, ViewStreamCapability.ENTITY_SELF, ViewStreamCapability.ENTITY_EVENTS, ViewStreamCapability.FX_EMITTERS, ViewStreamCapability.ATMOSPHERE,
         ViewStreamCapability.ZERO_COPY, ViewStreamCapability.CONFIG_PHASE, ViewStreamCapability.LINK_UNCOMPRESSED,
-        ViewStreamCapability.VIEW_STATS, ViewStreamCapability.CLIENT_MIRROR, ViewStreamCapability.CLIENT_RECURSION, ViewStreamCapability.MESH_RENDER, ViewStreamCapability.LOCAL_MESH, ViewStreamCapability.MESH_REUSE, ViewStreamCapability.PREPARED_TRAVEL, ViewStreamCapability.PREPARED_TRAVEL_CACHE);
+        ViewStreamCapability.VIEW_STATS, ViewStreamCapability.CLIENT_MIRROR, ViewStreamCapability.CLIENT_RECURSION, ViewStreamCapability.MESH_RENDER, ViewStreamCapability.LOCAL_MESH, ViewStreamCapability.MESH_REUSE, ViewStreamCapability.PREPARED_TRAVEL, ViewStreamCapability.PREPARED_TRAVEL_CACHE,
+        ViewStreamCapability.REMOTE_VIEW, ViewStreamCapability.SEAMLESS_TRAVEL);
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
     private static final long HANDLE_PURGE_INTERVAL_TICKS = 20L;
     private static final double PARTICLE_RANGE_SQUARED = 32.0D * 32.0D;
@@ -61,6 +66,7 @@ public final class MinecraftClientViewService implements AutoCloseable {
     private final MinecraftClientViewPortalAccess portals;
     private final MinecraftPreparedTravel prepared;
     private final Map<UUID, Seamless> seamless = new HashMap<>();
+    private final Set<UUID> levelHandoffs = new HashSet<>();
     private volatile ViewStreamSessionRegistry<MinecraftClientViewPeer, BlockState> registry;
     private volatile MinecraftClientViewNegotiator negotiator;
     private ViewStreamOptions applied;
@@ -119,6 +125,9 @@ public final class MinecraftClientViewService implements AutoCloseable {
                 continue;
             }
             try {
+                if (!ClientViewTravel.of(session).seamlessSelected()) {
+                    runtime.remoteRoutes().forget(player.getUUID(), false);
+                }
                 follow(session, player);
                 session.player().meshDepth(ViewStreamCapability.MESH_RENDER.in(session.caps())
                     ? Math.clamp(player.requestedViewDistance(), 2, 32) * 16 : 0);
@@ -154,12 +163,12 @@ public final class MinecraftClientViewService implements AutoCloseable {
                                                        TravelMessage.TravelPose arrival, Vec3d velocity) {
         runtime.requireServerThread();
         ClientViewTravel<MinecraftClientViewPeer> travel = travel(player.getUUID());
-        if (travel == null || !travel.preparedTravelSelected()) {
+        if (travel == null || !travel.preparedTravelSelected() || prepared.seamlessPreparation(player.getUUID())) {
             return null;
         }
         TravelMessage.TravelCommit commit = prepared.commit(travel, player, source, destination, arrival, velocity).orElse(null);
         if (commit != null && travel.sendTravel(commit)) {
-            seamless.put(player.getUUID(), new Seamless(source, commit.token(), commit.generation(), System.currentTimeMillis() + 2_000L));
+            seamless.put(player.getUUID(), new Seamless(source, commit.token(), commit.generation(), System.currentTimeMillis() + 2_000L, false));
             return commit;
         }
         if (commit != null) {
@@ -167,6 +176,52 @@ public final class MinecraftClientViewService implements AutoCloseable {
         }
         travel.cancelTravel();
         return null;
+    }
+
+    public boolean seamlessCrossing(ServerPlayer player) {
+        ClientViewTravel<MinecraftClientViewPeer> travel = travel(player.getUUID());
+        return travel != null && travel.seamlessSelected() && travel.server().crossing() && prepared.seamlessPreparation(player.getUUID());
+    }
+
+    public SeamlessTicket seamlessArrival(ServerPlayer player, UUID source, ServerLevel destination,
+                                          TravelMessage.TravelPose arrival, Vec3d velocity) {
+        runtime.requireServerThread();
+        ClientViewTravel<MinecraftClientViewPeer> travel = travel(player.getUUID());
+        if (travel == null || !travel.seamlessSelected()) {
+            return null;
+        }
+        MinecraftSeamlessMove.Context context = prepared.seamlessArrival(travel, player, source, destination, arrival, velocity);
+        if (context == null) {
+            return null;
+        }
+        seamless.put(player.getUUID(), new Seamless(source, context.accept().token(), context.accept().generation(),
+            System.currentTimeMillis() + 2_000L, false));
+        return new SeamlessTicket(context, travel, source);
+    }
+
+    public Entity seamlessMove(SeamlessTicket ticket) {
+        runtime.requireServerThread();
+        MinecraftSeamlessMove.Context context = ticket.context();
+        ServerPlayer player = context.player();
+        boolean changed = context.destination() != player.level();
+        if (!MinecraftSeamlessMove.run(context)) {
+            seamless.remove(player.getUUID());
+            ticket.travel().sendTravel(new TravelMessage.TravelCancel(context.accept().token(), context.accept().generation()));
+            return null;
+        }
+        ticket.travel().server().seamlessCrossed(context.tick(), System.currentTimeMillis());
+        seamless.put(player.getUUID(), new Seamless(ticket.source(), context.accept().token(), context.accept().generation(),
+            System.currentTimeMillis() + 2_000L, true));
+        if (changed) {
+            levelHandoffs.add(player.getUUID());
+        }
+        prepared.complete(player.getUUID());
+        return player;
+    }
+
+    public boolean seamlessAccepted(UUID playerId, UUID token) {
+        Seamless active = seamless.get(playerId);
+        return active != null && active.accepted() && active.token().equals(token);
     }
 
     public void cancelTravel(ServerPlayer player, TravelMessage.TravelCommit commit) {
@@ -383,6 +438,8 @@ public final class MinecraftClientViewService implements AutoCloseable {
 
     public void disconnected(ServerPlayer player) {
         seamless.remove(player.getUUID());
+        levelHandoffs.remove(player.getUUID());
+        runtime.remoteRoutes().forget(player.getUUID(), false);
         prepared.complete(player.getUUID());
         portals.scene().removeObserver(player.getUUID());
         MinecraftClientViewNegotiator current = negotiator;
@@ -400,6 +457,7 @@ public final class MinecraftClientViewService implements AutoCloseable {
     public void close() {
         prepared.clear();
         seamless.clear();
+        levelHandoffs.clear();
         portals.scene().close();
         ViewStreamSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
         MinecraftClientViewNegotiator current = negotiator;
@@ -416,12 +474,15 @@ public final class MinecraftClientViewService implements AutoCloseable {
     }
 
     private void follow(ViewStreamSession<MinecraftClientViewPeer, BlockState> session, ServerPlayer player) {
-        ViewStreamMessage.ResetReason reason = session.player().follow(player, runtime);
+        ViewStreamMessage.ResetReason reason = session.player().follow(player, runtime, levelHandoffs.remove(player.getUUID()));
         if (reason != null) {
             session.reset(reason);
         }
     }
-    private record Seamless(UUID source, UUID token, long generation, long until) {
+    private record Seamless(UUID source, UUID token, long generation, long until, boolean accepted) {
+    }
+
+    public record SeamlessTicket(MinecraftSeamlessMove.Context context, ClientViewTravel<MinecraftClientViewPeer> travel, UUID source) {
     }
 
 }

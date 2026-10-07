@@ -31,6 +31,9 @@
       "file": "META-INF/jars/fabric-events-interaction-v0.jar"
     },
     {
+      "file": "META-INF/jars/fabric-entity-events-v1.jar"
+    },
+    {
       "file": "META-INF/jars/fabric-networking-api-v1.jar"
     },
     {

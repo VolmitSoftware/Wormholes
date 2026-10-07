@@ -15,11 +15,22 @@ public final class MinecraftChunkLeasePlatform implements ChunkLeasePlatform<Ser
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
     private static final TicketType PORTAL_VIEW = new TicketType(TicketType.NO_TIMEOUT,
         TicketType.FLAG_LOADING | TicketType.FLAG_KEEP_DIMENSION_ACTIVE);
+    private static final TicketType PORTAL_ARRIVAL = new TicketType(TicketType.NO_TIMEOUT,
+        TicketType.FLAG_LOADING | TicketType.FLAG_SIMULATION | TicketType.FLAG_KEEP_DIMENSION_ACTIVE);
+    private static final int ARRIVAL_RADIUS = 2;
 
     private final MinecraftServer server;
 
     public MinecraftChunkLeasePlatform(WormholesModRuntime runtime) {
         this.server = runtime.server();
+    }
+
+    public static void holdArrival(ServerLevel world, int chunkX, int chunkZ) {
+        world.getChunkSource().addTicketWithRadius(PORTAL_ARRIVAL, new ChunkPos(chunkX, chunkZ), ARRIVAL_RADIUS);
+    }
+
+    public static void releaseArrival(ServerLevel world, int chunkX, int chunkZ) {
+        world.getChunkSource().removeTicketWithRadius(PORTAL_ARRIVAL, new ChunkPos(chunkX, chunkZ), ARRIVAL_RADIUS);
     }
 
     @Override

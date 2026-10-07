@@ -35,6 +35,7 @@ public final class WormholesForge {
     private final BiConsumer<ClientViewPayload, CustomPayloadEvent.Context> clientReceiver = clientViewReceiver();
 
     public WormholesForge(FMLJavaModLoadingContext context) {
+        runtime.seamlessEvents(new ForgeSeamlessEvents());
         RegisterCommandsEvent.BUS.addListener(event -> runtime.registerCommands(event.getDispatcher()));
         ServerStartedEvent.BUS.addListener(event -> runtime.start(event.getServer()));
         TickEvent.ServerTickEvent.Post.BUS.addListener(event -> runtime.tick());

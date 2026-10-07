@@ -45,7 +45,21 @@
     "ServerPlayerRespawnInvoker",
     "EndRespawnPositionAccessor",
     "ClientBrandMixin",
-    "RoutedProtocolMixin"
+    "RemoteTrackedEntityAccess",
+    "RemoteViewerBroadcastMixin",
+    "RemoteViewerChunkMixin",
+    "RemoteViewerTrackingMixin",
+    "RoutedProtocolMixin",
+    "SeamlessChunkMapAccess",
+    "SeamlessChunkMapMixin",
+    "SeamlessChunkSenderAccess",
+    "SeamlessEntityAccess",
+    "SeamlessListenerAccess",
+    "SeamlessPlayerAccess",
+    "StraddleCollisionMixin",
+    "StraddlePoseMixin",
+    "StraddleServerMovementMixin",
+    "StraddleSuffocationMixin"
   ],
   "client": [
     "client.ClientLevelMixin",

@@ -1,5 +1,7 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.wormholes.modded.clientview.MinecraftClientViewService;
+
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.plate.ChunkLease;
 import art.arcane.wormholes.config.toml.MainConfig;
@@ -1156,7 +1158,13 @@ public final class MinecraftDoorService implements AutoCloseable {
 
     private boolean teleport(Entity entity, Arrival arrival) {
         TravelMessage.TravelBegin prepared = preparedCrossing(entity);
-        ChunkPreSendTicket<ServerLevel, ServerPlayer> ticket = entity instanceof ServerPlayer player
+        TravelMessage.TravelPose pose = new TravelMessage.TravelPose(arrival.point().x(), arrival.point().y(), arrival.point().z(),
+            arrival.yaw(), arrival.pitch());
+        Vec3d velocity = new Vec3d(arrival.velocity().x(), arrival.velocity().y(), arrival.velocity().z());
+        boolean seamlessCrossing = entity instanceof ServerPlayer traveler && prepared != null && prepared.seamless()
+            && arrival.context().isPresent() && runtime.clientViews().seamlessCrossing(traveler);
+        MinecraftClientViewService.SeamlessTicket seamless = null;
+        ChunkPreSendTicket<ServerLevel, ServerPlayer> ticket = entity instanceof ServerPlayer player && !seamlessCrossing
             ? runtime.preSend().preSend(player, arrival.level(), (int) Math.floor(arrival.point().x()), (int) Math.floor(arrival.point().z())) : null;
         MinecraftTravelCosts.Admission admission = null;
         TravelMessage.TravelCommit preparedCommit = null;
@@ -1168,18 +1176,22 @@ public final class MinecraftDoorService implements AutoCloseable {
                     return false;
                 }
             }
-            if (entity instanceof ServerPlayer player && arrival.context().isPresent()) {
-                preparedCommit = runtime.clientViews().commitTravel(player, arrival.context().get().portalId(), arrival.level(),
-                    new TravelMessage.TravelPose(arrival.point().x(), arrival.point().y(), arrival.point().z(), arrival.yaw(), arrival.pitch()),
-                    new Vec3d(arrival.velocity().x(), arrival.velocity().y(), arrival.velocity().z()));
+            if (entity instanceof ServerPlayer player && seamlessCrossing) {
+                seamless = runtime.clientViews().seamlessArrival(player, arrival.context().get().portalId(), arrival.level(), pose, velocity);
+                if (seamless == null) {
+                    return false;
+                }
+            } else if (entity instanceof ServerPlayer player && arrival.context().isPresent()) {
+                preparedCommit = runtime.clientViews().commitTravel(player, arrival.context().get().portalId(), arrival.level(), pose, velocity);
                 if (prepared != null && preparedCommit == null) {
                     runtime.clientViews().cancelPreparation(player, prepared);
                     return false;
                 }
             }
             try (WormholesModRuntime.TeleportScope scope = runtime.beginTeleport(entity)) {
-                arrived = entity.teleport(new TeleportTransition(arrival.level(), vector(arrival.point()), vector(arrival.velocity()),
-                    arrival.yaw(), arrival.pitch(), TeleportTransition.PLACE_PORTAL_TICKET));
+                arrived = seamless != null ? runtime.clientViews().seamlessMove(seamless)
+                    : entity.teleport(new TeleportTransition(arrival.level(), vector(arrival.point()), vector(arrival.velocity()),
+                        arrival.yaw(), arrival.pitch(), TeleportTransition.PLACE_PORTAL_TICKET));
             }
             if (arrived == null) {
                 if (entity instanceof ServerPlayer player) {
@@ -1210,7 +1222,7 @@ public final class MinecraftDoorService implements AutoCloseable {
         cooldowns.put(arrived.getUUID(), System.currentTimeMillis() + TRANSIT_COOLDOWN_MILLIS);
         runtime.travelArrived(arrived);
         try {
-            presentation.teleport(arrived, arrival.level(), preparedCommit != null);
+            presentation.teleport(arrived, arrival.level(), preparedCommit != null || seamless != null);
         } catch (RuntimeException failure) {
             LOGGER.error("Could not play dimensional-door arrival sound for {}", arrived.getUUID(), failure);
         }

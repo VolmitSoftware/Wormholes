@@ -26,6 +26,7 @@ public final class WormholesNeoForge {
     private final WormholesModRuntime runtime = new WormholesModRuntime();
 
     public WormholesNeoForge(IEventBus bus) {
+        runtime.seamlessEvents(new NeoForgeSeamlessEvents());
         bus.addListener(this::registerPayloads);
         bus.addListener(this::configurationTasks);
         NeoForge.EVENT_BUS.addListener(this::registerCommands);

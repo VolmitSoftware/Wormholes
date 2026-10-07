@@ -23,6 +23,8 @@ import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.DimensionalPortalKind;
 import art.arcane.wormholes.transit.MomentumPolicy;
 import art.arcane.wormholes.transit.OrientationPolicy;
+import art.arcane.optics.crossing.MomentumRule;
+import art.arcane.wormholes.modded.clientview.MinecraftClientViewService;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 import com.google.gson.Gson;
@@ -367,13 +369,7 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
                         runtime.network().handoffs().begin(player, source.getDestinationServer(), source, crossing, source.getDestinationId());
                         continue;
                     }
-                    NetworkMember selected = resolving ? api.resolve(source, root.getUUID()) : null;
-                    if (selected == null) {
-                        selected = runtime.nexus().destination(source, root, crossing);
-                    }
-                    if (selected == null && !runtime.nexus().perTraveler(source) && source.getDestinationId() != null) {
-                        selected = new NetworkMember(source.getDestinationId(), "", "", 0, source.getDestinationServer());
-                    }
+                    NetworkMember selected = resolveDestination(source, root, crossing);
                     if (selected == null) {
                         continue;
                     }
@@ -404,6 +400,47 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
     public Vec3d observedVelocity(ServerPlayer player) {
         runtime.requireServerThread();
         return observedVelocities.getOrDefault(player.getUUID(), vector(player.getDeltaMovement()));
+    }
+
+    public NetworkMember resolveDestination(MinecraftPortal source, Entity traveler, PlaneCrossing crossing) {
+        runtime.requireServerThread();
+        MinecraftWormholesApi api = runtime.api();
+        NetworkMember selected = api != null && api.hasResolvers() ? api.resolve(source, traveler.getUUID()) : null;
+        if (selected == null) {
+            selected = runtime.nexus().destination(source, traveler, crossing);
+        }
+        if (selected == null && !runtime.nexus().perTraveler(source) && source.getDestinationId() != null) {
+            selected = new NetworkMember(source.getDestinationId(), "", "", 0, source.getDestinationServer());
+        }
+        return selected;
+    }
+
+    public TravelMessage.ArrivalRules arrivalRules(MinecraftPortal source) {
+        TransitConfig config = runtime.configuration().settings().getTransit();
+        MomentumPolicy momentum = MomentumPolicy.decode((String) source.setting("transit.momentum"));
+        if (momentum == null) {
+            momentum = MomentumPolicy.of(MomentumPolicy.Mode.parse(config.momentumDefault, MomentumPolicy.Mode.PRESERVE));
+        }
+        OrientationPolicy orientation = OrientationPolicy.parse((String) source.setting("transit.orientation"),
+            OrientationPolicy.parse(config.orientationDefault, OrientationPolicy.FRAME));
+        return arrivalRules(orientation, momentum, config.gravityFlipEnabled, config.momentumMaxSpeed);
+    }
+
+    public TravelMessage.ArrivalRules doorArrivalRules() {
+        TransitConfig config = runtime.configuration().settings().getTransit();
+        return arrivalRules(OrientationPolicy.FRAME, MomentumPolicy.of(MomentumPolicy.Mode.PRESERVE), false, config.momentumMaxSpeed);
+    }
+
+    static TravelMessage.ArrivalRules arrivalRules(OrientationPolicy orientation, MomentumPolicy momentum, boolean gravityFlip, double maxSpeed) {
+        MomentumRule rule = momentum.rule();
+        return new TravelMessage.ArrivalRules(orientation.rule(), gravityFlip,
+            new MomentumRule(rule.mode(), rule.factor(), rule.maxSpeed() > 0.0D ? rule.maxSpeed() : maxSpeed, rule.impulse()));
+    }
+
+    public boolean arrivalBlocks(ServerPlayer player, MinecraftPortal source) {
+        runtime.requireServerThread();
+        Arrival arrival = arrivals.get(player.getUUID());
+        return arrival != null && arrival.blocks(source.getId(), overlaps(source, player), System.currentTimeMillis());
     }
 
     public boolean crossPrepared(ServerPlayer player, UUID sourceId, MinecraftPortal destination, PlaneCrossing crossing) {
@@ -655,20 +692,19 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
     private void arrive(Entity entity, MinecraftPortal destination, PlaneCrossing crossing, ServerLevel targetLevel,
                         Vec3d target, MinecraftPortal source, boolean predicted) {
         TransitConfig config = runtime.configuration().settings().getTransit();
-        MomentumPolicy momentum = MomentumPolicy.decode((String) source.setting("transit.momentum"));
-        if (momentum == null) {
-            momentum = MomentumPolicy.of(MomentumPolicy.Mode.parse(config.momentumDefault, MomentumPolicy.Mode.PRESERVE));
-        }
-        OrientationPolicy orientation = OrientationPolicy.parse((String) source.setting("transit.orientation"),
-            OrientationPolicy.parse(config.orientationDefault, OrientationPolicy.FRAME));
-        Vec3d velocity = ArrivalMomentum.apply(crossing.outVelocity(destination.getFrame()), momentum.rule(), config.momentumMaxSpeed);
-        Angles.Look look = ArrivalOrientation.apply(crossing, destination.getFrame(), orientation.rule(), config.gravityFlipEnabled);
+        TravelMessage.ArrivalRules rules = arrivalRules(source);
+        Vec3d velocity = ArrivalMomentum.apply(crossing.outVelocity(destination.getFrame()), rules.momentum(), config.momentumMaxSpeed);
+        Angles.Look look = ArrivalOrientation.apply(crossing, destination.getFrame(), rules.orientation(), rules.gravityFlip());
         List<ChunkPreSendTicket<ServerLevel, ServerPlayer>> preSend = new ArrayList<>();
         List<MinecraftTravelCosts.Admission> payments = new ArrayList<>();
         List<PreparedCommit> preparedCommits = new ArrayList<>();
         boolean reloadExpected = entity.level() != targetLevel;
         Entity arrived;
         List<Entity> rig = entity.getSelfAndPassengers().toList();
+        TravelMessage.TravelPose pose = new TravelMessage.TravelPose(target.x(), target.y(), target.z(), look.yaw(), look.pitch());
+        boolean seamlessCrossing = predicted && rig.size() == 1 && entity instanceof ServerPlayer traveler
+            && runtime.clientViews().seamlessCrossing(traveler);
+        MinecraftClientViewService.SeamlessTicket seamless = null;
         try {
             for (Entity member : rig) {
                 if (!runtime.rules().reserve(member, source)) {
@@ -688,14 +724,23 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
                         return;
                     }
                     payments.add(payment);
-                    preSend.add(runtime.preSend().preSend(player, targetLevel, target.getBlockX(), target.getBlockZ()));
+                    if (!seamlessCrossing) {
+                        preSend.add(runtime.preSend().preSend(player, targetLevel, target.getBlockX(), target.getBlockZ()));
+                    }
                 }
             }
             MinecraftTraversalCues.threshold(runtime, source, crossing.point(), entity);
             for (Entity member : rig) {
-                if (member instanceof ServerPlayer player) {
-                    TravelMessage.TravelCommit commit = runtime.clientViews().commitTravel(player, source.getId(), targetLevel,
-                        new TravelMessage.TravelPose(target.x(), target.y(), target.z(), look.yaw(), look.pitch()), velocity);
+                if (member instanceof ServerPlayer player && seamlessCrossing) {
+                    seamless = runtime.clientViews().seamlessArrival(player, source.getId(), targetLevel, pose, velocity);
+                    if (seamless == null) {
+                        failRules(rig);
+                        refund(payments);
+                        rollback(preSend);
+                        return;
+                    }
+                } else if (member instanceof ServerPlayer player) {
+                    TravelMessage.TravelCommit commit = runtime.clientViews().commitTravel(player, source.getId(), targetLevel, pose, velocity);
                     if (commit != null) {
                         preparedCommits.add(new PreparedCommit(player, commit));
                     } else if (predicted) {
@@ -707,8 +752,9 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
                 }
             }
             try (WormholesModRuntime.TeleportScope scope = runtime.beginTeleport(entity)) {
-                arrived = entity.teleport(new TeleportTransition(targetLevel, vector(target), vector(velocity), look.yaw(), look.pitch(),
-                    TeleportTransition.PLACE_PORTAL_TICKET));
+                arrived = seamless != null ? runtime.clientViews().seamlessMove(seamless)
+                    : entity.teleport(new TeleportTransition(targetLevel, vector(target), vector(velocity), look.yaw(), look.pitch(),
+                        TeleportTransition.PLACE_PORTAL_TICKET));
             }
         } catch (RuntimeException exception) {
             cancelPrepared(preparedCommits);
@@ -743,7 +789,7 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
                 api.emit(new MinecraftWormholesApi.Event(MinecraftWormholesApi.Kind.HANDOFF_ADMITTED, member.getUUID(), source.getId(), null, "", null, null));
                 api.emit(new MinecraftWormholesApi.Event(MinecraftWormholesApi.Kind.HANDOFF_COMPLETED, member.getUUID(), destination.getId(), null, "", null, null));
             }
-            MinecraftTraversalCues.arrival(runtime, destination, member, prepared(preparedCommits, member.getUUID()));
+            MinecraftTraversalCues.arrival(runtime, destination, member, seamless != null || prepared(preparedCommits, member.getUUID()));
             if (member instanceof ServerPlayer player) {
                 runtime.atlas().departed(player, source);
             }

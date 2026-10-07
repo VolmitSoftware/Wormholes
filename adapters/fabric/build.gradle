@@ -69,6 +69,7 @@ Map<String, String> fabricApi = [
     'fabric-lifecycle-events-v1': '4.1.9+ffef5f675d',
     'fabric-command-api-v2': '3.1.2+fcdff87f5d',
     'fabric-events-interaction-v0': '5.3.6+3434d6d95d',
+    'fabric-entity-events-v1': '6.0.4+3434d6d95d',
     'fabric-networking-api-v1': '6.3.8+fcdff87f5d',
     'fabric-resource-loader-v1': '3.0.4+fcdff87f5d',
     'fabric-registry-sync-v0': '8.0.1+fcdff87f5d'

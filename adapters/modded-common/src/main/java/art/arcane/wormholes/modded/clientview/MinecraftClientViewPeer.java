@@ -103,14 +103,14 @@ public final class MinecraftClientViewPeer {
         offered = true;
     }
 
-    ViewStreamMessage.ResetReason follow(ServerPlayer next, WormholesModRuntime runtime) {
+    ViewStreamMessage.ResetReason follow(ServerPlayer next, WormholesModRuntime runtime, boolean seamless) {
         ServerPlayer previous = player;
         ServerLevel departed = world;
         if (previous == next && departed == next.level()) {
             return null;
         }
         attach(next, previous == next ? portals : new MinecraftProjectorPortalAccess(runtime));
-        if (previous == null) {
+        if (previous == null || seamless && previous == next) {
             return null;
         }
         return departed == world ? ViewStreamMessage.ResetReason.RESPAWN : ViewStreamMessage.ResetReason.DIMENSION;

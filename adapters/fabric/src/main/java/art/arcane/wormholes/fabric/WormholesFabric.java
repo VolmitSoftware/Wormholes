@@ -34,6 +34,7 @@ public final class WormholesFabric implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        runtime.seamlessEvents(new FabricSeamlessEvents());
         PayloadTypeRegistry.clientboundConfiguration().register(ClientViewPayload.TYPE, ClientViewPayload.CODEC);
         PayloadTypeRegistry.serverboundConfiguration().register(ClientViewPayload.TYPE, ClientViewPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(ClientViewPayload.TYPE, ClientViewPayload.CODEC);

@@ -220,6 +220,7 @@ public class MinecraftPreparedTravelWarmupTest extends MinecraftTestBase {
             ApertureDescriptor geometry = new ApertureDescriptor(0, 64, 0, Face.N.ordinal(), true, 0, false,
                 2, 3, new long[]{63}, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, 0, 0.0D, 0, 11, List.of());
             when(runtime.portals()).thenReturn(registry);
+            when(registry.arrivalRules(any())).thenReturn(TravelMessage.ArrivalRules.FRAME);
             when(runtime.leases()).thenReturn(leases);
             when(runtime.server()).thenReturn(server);
             when(server.getPlayerList()).thenReturn(players);

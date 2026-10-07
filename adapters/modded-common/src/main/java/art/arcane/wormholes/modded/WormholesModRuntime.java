@@ -3,6 +3,8 @@ package art.arcane.wormholes.modded;
 import art.arcane.optics.plate.ChunkLeaseRegistry;
 import art.arcane.wormholes.modded.clientview.MinecraftClientViewCommands;
 import art.arcane.wormholes.modded.clientview.MinecraftClientViewService;
+import art.arcane.wormholes.modded.seamless.RemoteRoutes;
+import art.arcane.wormholes.modded.seamless.SeamlessMove;
 import art.arcane.wormholes.portal.rtp.MinecraftRtpRuntime;
 import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.wormholes.chunk.presend.ChunkPreSendService;
@@ -61,6 +63,9 @@ public final class WormholesModRuntime {
     private final MinecraftTravelCosts costs = new MinecraftTravelCosts(this);
     private final MinecraftNetworkTools networkTools = new MinecraftNetworkTools(this);
     private final MinecraftRecipeBook recipeBook = new MinecraftRecipeBook(this);
+    private final RemoteRoutes remoteRoutes = new RemoteRoutes(this);
+    private final Set<UUID> seamlessMoving = new HashSet<>();
+    private volatile SeamlessMove.Events seamlessEvents = SeamlessMove.Events.NONE;
     private MinecraftServer server;
     private ChunkLeaseRegistry<ServerLevel> leases;
     private ChunkPreSendService<ServerLevel, ServerPlayer> preSend;
@@ -153,6 +158,32 @@ public final class WormholesModRuntime {
         clientViews().cancelTravel(player, null);
         travelArrived(player);
         doors().cancelDeparture(player);
+    }
+
+    public RemoteRoutes remoteRoutes() {
+        requireServerThread();
+        return remoteRoutes;
+    }
+
+    public boolean seamlessMoving(ServerPlayer player) {
+        return !seamlessMoving.isEmpty() && seamlessMoving.contains(player.getUUID());
+    }
+
+    public void seamlessMoving(ServerPlayer player, boolean moving) {
+        requireServerThread();
+        if (moving) {
+            seamlessMoving.add(player.getUUID());
+        } else {
+            seamlessMoving.remove(player.getUUID());
+        }
+    }
+
+    public SeamlessMove.Events seamlessEvents() {
+        return seamlessEvents;
+    }
+
+    public void seamlessEvents(SeamlessMove.Events events) {
+        seamlessEvents = Objects.requireNonNull(events, "events");
     }
 
     public void travelArrived(Entity entity) {
@@ -326,6 +357,8 @@ public final class WormholesModRuntime {
         doors.playerDisconnected(player);
         atlas.playerDisconnected(player);
         portals.playerDisconnected(player);
+        remoteRoutes.forget(player.getUUID(), false);
+        seamlessMoving.remove(player.getUUID());
     }
 
     public MinecraftRtpRuntime rtp() {
@@ -448,6 +481,7 @@ public final class WormholesModRuntime {
             lookLabels::close,
             chatInput::close,
             clientViews::close,
+            remoteRoutes::close,
             projections::close,
             networkTools::close,
             rtp::close,
@@ -482,6 +516,7 @@ public final class WormholesModRuntime {
             ACTIVE.remove(server, this);
         }
         committingTeleports = Set.of();
+        seamlessMoving.clear();
         running = false;
         pending.clear();
         portals = null;

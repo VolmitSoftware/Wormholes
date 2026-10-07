@@ -1,5 +1,6 @@
 package art.arcane.wormholes.render.client.session;
 
+import art.arcane.optics.math.Angles;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.stream.ViewStreamLimits;
@@ -27,6 +28,11 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
     private static final long PROBE_INTERVAL_MILLIS = 1_000L / ViewStreamLimits.DEFAULT_TICK_RATE;
     private static final long PROBE_TIMEOUT_MILLIS = 1_000L;
     private static final long CROSSING_TIMEOUT_MILLIS = 2_000L;
+    private static final float HEAD_YAW_TOLERANCE_DEGREES = 1.0F;
+    private static final float BODY_YAW_LIMIT_DEGREES = 51.0F;
+    private static final long COMBO_WINDOW_TICKS = 20L;
+    private static final int COMBO_LIMIT = 3;
+    private static final Payload ROUTED = new Payload(new byte[0]);
     private final HashMap<TravelMessage.TravelCoordinate, Column> columns = new HashMap<>();
     private final LinkedHashMap<SnapshotKey, Payload> retained = new LinkedHashMap<>(16, 0.75F, true);
     private int retainedBytes;
@@ -52,6 +58,8 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
     private WorldChangeTracker changes;
     private UUID destinationWorld;
     private boolean worldInvalidated;
+    private final ArrayDeque<Long> seamlessTicks = new ArrayDeque<>(COMBO_LIMIT + 1);
+    private long seamlessMillis = Long.MIN_VALUE;
 
     public synchronized void begin(TravelMessage.TravelBegin value, long nowMillis) {
         clear();
@@ -112,6 +120,8 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
     @Override
     public synchronized void close() {
         clear();
+        seamlessTicks.clear();
+        seamlessMillis = Long.MIN_VALUE;
         retained.clear();
         retainedBytes = 0;
         pendingProbes.clear();
@@ -149,6 +159,20 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
         }
         columns.put(position, new Column(revision, snapshot(position, payload)));
         bytes = nextBytes;
+        contentRevision++;
+        return true;
+    }
+
+    public synchronized boolean routed(TravelMessage.TravelCoordinate position, int revision) {
+        Objects.requireNonNull(position);
+        if (begin == null || !begin.seamless() || worldInvalidated || revision <= 0 || !begin.chunks().contains(position)) {
+            return false;
+        }
+        Column previous = columns.get(position);
+        if (previous != null && previous.valid && previous.revision == revision) {
+            return true;
+        }
+        columns.put(position, new Column(revision, ROUTED));
         contentRevision++;
         return true;
     }
@@ -223,7 +247,7 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
             }
             announced = true;
         }
-        int remaining = Math.max(0, byteBudget);
+        int remaining = begin.seamless() ? 0 : Math.max(0, byteBudget);
         long probeStarted = System.nanoTime();
         int probedColumns = 0;
         if (probeWindowMillis == Long.MIN_VALUE || nowMillis - probeWindowMillis >= PROBE_INTERVAL_MILLIS) {
@@ -389,6 +413,43 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
         return geometry.aperture().contains(intersection);
     }
 
+    public synchronized SeamlessRejection validSeamlessCross(TravelMessage.TravelCross value, Authority authority,
+                                                             SeamlessAuthority seamless, long nowMillis) {
+        Objects.requireNonNull(seamless);
+        if (seamless.awaitingTeleport()) {
+            return SeamlessRejection.AWAITING_TELEPORT;
+        }
+        if (seamless.changingDimension()) {
+            return SeamlessRejection.CHANGING_DIMENSION;
+        }
+        if (begin == null || !begin.seamless() || !validCross(value, authority, nowMillis)) {
+            return SeamlessRejection.CROSSING;
+        }
+        float yaw = value.sourcePose().yaw();
+        if (!seamless.yawExempt() && (Math.abs(Angles.unwrap(value.headYaw(), yaw) - yaw) > HEAD_YAW_TOLERANCE_DEGREES
+            || Math.abs(Angles.unwrap(value.bodyYaw(), yaw) - yaw) > BODY_YAW_LIMIT_DEGREES)) {
+            return SeamlessRejection.YAW;
+        }
+        if (seamlessMillis != Long.MIN_VALUE && nowMillis - seamlessMillis < seamless.cooldownMillis()) {
+            return SeamlessRejection.COOLDOWN;
+        }
+        int recent = 0;
+        for (long tick : seamlessTicks) {
+            if (seamless.serverTick() - tick < COMBO_WINDOW_TICKS) {
+                recent++;
+            }
+        }
+        return recent >= COMBO_LIMIT ? SeamlessRejection.COMBO : SeamlessRejection.NONE;
+    }
+
+    public synchronized void seamlessCrossed(long serverTick, long nowMillis) {
+        seamlessMillis = nowMillis;
+        if (seamlessTicks.size() == COMBO_LIMIT) {
+            seamlessTicks.removeFirst();
+        }
+        seamlessTicks.addLast(serverTick);
+    }
+
     public synchronized void unavailable(TravelMessage.TravelCoordinate position) {
         invalidate(position);
         readyRevision = 0L;
@@ -408,15 +469,24 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
 
     public synchronized Optional<TravelMessage.TravelCommit> commit(Commit request) {
         Objects.requireNonNull(request);
-        if (begin == null || worldInvalidated || request.nowMillis() >= deadline
-            || pendingCross != null && request.nowMillis() >= crossDeadline || readyRevision <= 0L
-            || !begin.sourcePortal().equals(request.portal()) || !begin.sourceWorld().equals(request.sourceWorld())
-            || !begin.world().dimension().equals(request.destinationWorld()) || !covered(request.arrival())) {
+        if (begin == null || !committable(request)) {
             return Optional.empty();
         }
         TravelMessage.TravelCommit result = new TravelMessage.TravelCommit(begin.token(), begin.generation(),
             pendingCross == null ? readyRevision : pendingCross.contentRevision(), request.sourceWorld(), request.destinationWorld(),
             request.arrival(), request.velocity());
+        clear();
+        return Optional.of(result);
+    }
+
+    public synchronized Optional<TravelMessage.TravelAccept> accept(Commit request, int levelHandle, boolean dimensionChanged, long serverTick) {
+        Objects.requireNonNull(request);
+        if (begin == null || !begin.seamless() || !committable(request)) {
+            return Optional.empty();
+        }
+        TravelMessage.TravelAccept result = new TravelMessage.TravelAccept(begin.token(), begin.generation(),
+            pendingCross == null ? readyRevision : pendingCross.contentRevision(), request.arrival(), request.velocity(), levelHandle,
+            dimensionChanged, serverTick);
         clear();
         return Optional.of(result);
     }
@@ -428,6 +498,13 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
         TravelMessage.TravelCancel result = new TravelMessage.TravelCancel(begin.token(), begin.generation());
         clear();
         return Optional.of(result);
+    }
+
+    private boolean committable(Commit request) {
+        return !worldInvalidated && request.nowMillis() < deadline
+            && (pendingCross == null || request.nowMillis() < crossDeadline) && readyRevision > 0L
+            && begin.sourcePortal().equals(request.portal()) && begin.sourceWorld().equals(request.sourceWorld())
+            && begin.world().dimension().equals(request.destinationWorld()) && covered(request.arrival());
     }
 
     private boolean acknowledged(TravelMessage.TravelCross value) {
@@ -532,6 +609,14 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
                 throw new IllegalArgumentException("Travel authority");
             }
         }
+    }
+
+    public enum SeamlessRejection {
+        NONE, CROSSING, AWAITING_TELEPORT, CHANGING_DIMENSION, YAW, COOLDOWN, COMBO
+    }
+
+    public record SeamlessAuthority(boolean awaitingTeleport, boolean changingDimension, boolean yawExempt,
+                                    long serverTick, long cooldownMillis) {
     }
 
     private record SnapshotKey(UUID world, TravelMessage.TravelWorld metadata, TravelMessage.TravelCoordinate coordinate) {

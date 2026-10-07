@@ -1,5 +1,7 @@
 package art.arcane.wormholes.modded.clientview;
 
+import art.arcane.wormholes.modded.seamless.RemoteRoutes;
+
 import art.arcane.wormholes.modded.MinecraftTestSettings;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
@@ -61,6 +63,7 @@ public class MinecraftClientViewServiceTest extends MinecraftTestBase {
         when(configuration.settings()).thenReturn(MinecraftTestSettings.defaults());
         when(configuration.clientViewOptions()).thenAnswer(ignored -> options);
         when(runtime.projections()).thenReturn(projections);
+        when(runtime.remoteRoutes()).thenReturn(mock(RemoteRoutes.class));
         when(projections.lanes()).thenReturn(lanes);
         connection = new Connection(PacketFlow.SERVERBOUND);
         channel = new EmbeddedChannel(connection);
