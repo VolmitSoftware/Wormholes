@@ -1,4 +1,4 @@
-package art.arcane.optics.occlusion;
+package art.arcane.optics.internal.occlusion;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;

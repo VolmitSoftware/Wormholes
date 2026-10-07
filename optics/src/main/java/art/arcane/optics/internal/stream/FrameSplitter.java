@@ -1,4 +1,4 @@
-package art.arcane.optics.stream;
+package art.arcane.optics.internal.stream;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -6,6 +6,13 @@ import java.util.Objects;
 import java.util.function.IntSupplier;
 
 import art.arcane.optics.entity.EntitySnapshot;
+import art.arcane.optics.stream.Brick;
+import art.arcane.optics.stream.BrickCodec;
+import art.arcane.optics.stream.ViewStreamCodec;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.ViewStreamMessage;
+import art.arcane.optics.stream.ViewStreamProtocolException;
+import art.arcane.optics.stream.ViewStreamWriter;
 
 public final class FrameSplitter {
     private final int maxFrameBytes;

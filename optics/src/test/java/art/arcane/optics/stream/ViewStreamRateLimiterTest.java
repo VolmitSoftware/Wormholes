@@ -3,6 +3,7 @@ package art.arcane.optics.stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import art.arcane.optics.internal.stream.ViewStreamRateLimiter;
 import org.junit.jupiter.api.Test;
 
 final class ViewStreamRateLimiterTest {

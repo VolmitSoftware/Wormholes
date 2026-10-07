@@ -2,7 +2,7 @@ package art.arcane.optics.volume;
 
 import java.util.Arrays;
 
-public final class ProjectorFrustumRow {
+public final class FrustumRow {
     private static final int MAX_CELLS = 2_048;
 
     private final long[] accepted = new long[MAX_CELLS / Long.SIZE];

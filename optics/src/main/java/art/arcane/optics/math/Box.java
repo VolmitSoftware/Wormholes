@@ -23,11 +23,6 @@ public class Box
 		this.zb = Math.max(za, zb);
 	}
 
-	public Box(AlignedPoint a, AlignedPoint b)
-	{
-		this(a.getX(), b.getX(), a.getY(), b.getY(), a.getZ(), b.getZ());
-	}
-
 	public Axis getThinAxis()
 	{
 		if(sizeX() < sizeZ() && sizeX() < sizeY())
@@ -55,7 +50,7 @@ public class Box
 
 	public Box(Vec3d min, Vec3d max)
 	{
-		this(new AlignedPoint(min), new AlignedPoint(max));
+		this(min.getX(), max.getX(), min.getY(), max.getY(), min.getZ(), max.getZ());
 	}
 
 	public void encapsulate(Box b)

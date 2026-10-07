@@ -1,5 +1,6 @@
 package art.arcane.optics.occlusion;
 
+import art.arcane.optics.internal.occlusion.OccupancyOctree;
 import it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -76,7 +77,7 @@ public final class ProjectorViewOcclusion<B> {
     private boolean proofContextInitialized;
     private double revealMarginTangent;
     private LongSet eligibleBlockers;
-    private final ProjectionOccupancyOctree eligibleOctree;
+    private final OccupancyOctree eligibleOctree;
     private final double[] scratchRayStart;
 
     public ProjectorViewOcclusion(BlockStates<B, ?> blocks) {
@@ -95,7 +96,7 @@ public final class ProjectorViewOcclusion<B> {
         hiddenBlockers = new LongArrayList(8);
         this.blocks = blocks;
         this.maxVoxelStepsPerPass = Math.max(1, maxVoxelStepsPerPass);
-        this.eligibleOctree = new ProjectionOccupancyOctree();
+        this.eligibleOctree = new OccupancyOctree();
         this.scratchRayStart = new double[3];
     }
 
@@ -575,7 +576,7 @@ public final class ProjectorViewOcclusion<B> {
             if (eligibleBlockers != null) {
                 int emptyLog = eligibleOctree.largestEmptyLog(x, y, z);
                 if (emptyLog > 0) {
-                    double tExit = ProjectionOccupancyOctree.cubeExitT(
+                    double tExit = OccupancyOctree.cubeExitT(
                         x, y, z, emptyLog, startX, startY, startZ, deltaX, deltaY, deltaZ, stepX, stepY, stepZ);
                     if (tExit > 1.0D) {
                         return RayResult.CLEAR;

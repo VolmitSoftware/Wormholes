@@ -1,10 +1,13 @@
-package art.arcane.optics.stream;
+package art.arcane.optics.internal.stream;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
 import art.arcane.optics.math.BlockBox;
+import art.arcane.optics.stream.Brick;
+import art.arcane.optics.stream.PlateSectionBox;
+import art.arcane.optics.stream.ViewStreamMessage;
 
 public final class EncodedPlate {
     private final PlateSectionBox sections;
@@ -18,7 +21,7 @@ public final class EncodedPlate {
     private volatile long saltedFor;
     private volatile long[] saltedHashes;
 
-    EncodedPlate(PlateSectionBox sections, BlockBox cells, int backingState, Brick[] bricks, byte[][] bodies, int[] referencedIds,
+    public EncodedPlate(PlateSectionBox sections, BlockBox cells, int backingState, Brick[] bricks, byte[][] bodies, int[] referencedIds,
                  int[] kindCounts) {
         this.sections = Objects.requireNonNull(sections, "sections");
         this.cells = Objects.requireNonNull(cells, "cells");

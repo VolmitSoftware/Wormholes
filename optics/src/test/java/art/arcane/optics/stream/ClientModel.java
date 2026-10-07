@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Set;
 
 import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.internal.stream.PlatePatchEncoder;
 
 final class ClientModel {
     final ViewStreamCodec codec;

@@ -1,5 +1,6 @@
 package art.arcane.optics.fidelity;
 
+import art.arcane.optics.internal.fidelity.AtmosphereDominance;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;

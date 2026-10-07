@@ -1,4 +1,4 @@
-package art.arcane.optics.stream;
+package art.arcane.optics.internal.stream;
 
 public final class ViewStreamAckWindow {
     private static final int UNBOUNDED_TRACKING = 64;

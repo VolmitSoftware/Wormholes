@@ -1,5 +1,6 @@
 package art.arcane.optics.frame;
 
+import art.arcane.optics.internal.frame.Rotation16;
 import java.util.Arrays;
 import java.util.Objects;
 

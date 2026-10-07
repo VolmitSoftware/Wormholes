@@ -1,4 +1,4 @@
-package art.arcane.optics.stream;
+package art.arcane.optics.internal.stream;
 
 public final class XxHash64 {
     private static final long PRIME64_1 = 0x9E3779B185EBCA87L;

@@ -1,4 +1,4 @@
-package art.arcane.optics.fidelity;
+package art.arcane.optics.internal.fidelity;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;

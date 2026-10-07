@@ -31,6 +31,8 @@ import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.scan.ProjectorSample;
 import art.arcane.optics.fidelity.BlockEntitySample;
+import art.arcane.optics.internal.stream.EncodedPlate;
+import art.arcane.optics.internal.stream.PlateStreamEncoder;
 import art.arcane.optics.volume.LodPolicy;
 import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.plate.PlateCell;

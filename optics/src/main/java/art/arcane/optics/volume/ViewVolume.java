@@ -200,7 +200,7 @@ public final class ViewVolume {
         return false;
     }
 
-    boolean appendRow(ProjectorFrustumRow row, int axis, double x, double y, double z, int minimum, int maximum) {
+    boolean appendRow(FrustumRow row, int axis, double x, double y, double z, int minimum, int maximum) {
         if (frustums.length > 128) {
             return false;
         }

@@ -1,4 +1,4 @@
-package art.arcane.optics.occlusion;
+package art.arcane.optics.internal.occlusion;
 
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;

@@ -1,11 +1,11 @@
-package art.arcane.optics.occlusion;
+package art.arcane.optics.internal.occlusion;
 
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import art.arcane.optics.math.CellKeys;
 
-public final class ProjectionOccupancyOctree {
+public final class OccupancyOctree {
     static final int MIN_SKIP_LOG = 3;
     static final int MAX_SKIP_LOG = 6;
     private static final int LEVEL_COUNT = MAX_SKIP_LOG - MIN_SKIP_LOG + 1;
@@ -19,7 +19,7 @@ public final class ProjectionOccupancyOctree {
     private int maxY;
     private int maxZ;
 
-    ProjectionOccupancyOctree() {
+    public OccupancyOctree() {
         occupiedByLog = new LongOpenHashSet[LEVEL_COUNT];
         occupiedByLog[0] = new LongOpenHashSet(256);
         occupiedByLog[1] = new LongOpenHashSet(64);
@@ -28,7 +28,7 @@ public final class ProjectionOccupancyOctree {
         empty = true;
     }
 
-    void rebuild(LongSet cells) {
+    public void rebuild(LongSet cells) {
         for (LongOpenHashSet occupied : occupiedByLog) {
             occupied.clear();
         }
@@ -65,18 +65,18 @@ public final class ProjectionOccupancyOctree {
         }
     }
 
-    boolean isEmpty() {
+    public boolean isEmpty() {
         return empty;
     }
 
-    boolean intersectsRayBounds(int startX, int startY, int startZ, int targetX, int targetY, int targetZ) {
+    public boolean intersectsRayBounds(int startX, int startY, int startZ, int targetX, int targetY, int targetZ) {
         return !empty
             && Math.min(startX, targetX) <= maxX && Math.max(startX, targetX) >= minX
             && Math.min(startY, targetY) <= maxY && Math.max(startY, targetY) >= minY
             && Math.min(startZ, targetZ) <= maxZ && Math.max(startZ, targetZ) >= minZ;
     }
 
-    int largestEmptyLog(int x, int y, int z) {
+    public int largestEmptyLog(int x, int y, int z) {
         if (empty) {
             return MAX_SKIP_LOG;
         }
@@ -88,7 +88,7 @@ public final class ProjectionOccupancyOctree {
         return 0;
     }
 
-    static double cubeExitT(int x,
+    public static double cubeExitT(int x,
                             int y,
                             int z,
                             int logSize,

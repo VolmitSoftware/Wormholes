@@ -5,6 +5,7 @@ import java.util.UUID;
 import java.nio.ByteBuffer;
 
 import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.internal.stream.EncodedPlate;
 import art.arcane.optics.plate.ViewPlate;
 
 final class ViewStreamSlot<B> {

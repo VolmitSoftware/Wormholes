@@ -1,4 +1,4 @@
-package art.arcane.optics.frame;
+package art.arcane.optics.internal.frame;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 

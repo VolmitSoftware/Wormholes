@@ -32,7 +32,7 @@ import org.junit.jupiter.api.Test;
 import art.arcane.optics.frame.AxisPermutation;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.QuarterTurn;
-import art.arcane.optics.frame.Rotation16;
+import art.arcane.optics.internal.frame.Rotation16;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.state.BlockStateRules;
 import art.arcane.optics.state.StateProperties;

@@ -1,4 +1,4 @@
-package art.arcane.optics.fidelity;
+package art.arcane.optics.internal.fidelity;
 
 /** Volume and pitch curves for sounds relayed from the destination to the local aperture. */
 public final class SoundAttenuation {

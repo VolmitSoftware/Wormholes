@@ -1,4 +1,4 @@
-package art.arcane.optics.stream;
+package art.arcane.optics.internal.stream;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -18,6 +18,13 @@ import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.plate.PlateCell;
 import art.arcane.optics.plate.PlateGrid;
 import art.arcane.optics.plate.ViewPlate;
+import art.arcane.optics.stream.Brick;
+import art.arcane.optics.stream.BrickCodec;
+import art.arcane.optics.stream.BrickLightSource;
+import art.arcane.optics.stream.PlateSectionBox;
+import art.arcane.optics.stream.SessionPalette;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.ViewStreamProtocolException;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 

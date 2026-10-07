@@ -20,11 +20,11 @@ import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.scan.ProjectorSample;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.frame.ViewWindow;
+import art.arcane.optics.internal.plate.PlateOcclusionField;
 import art.arcane.optics.volume.LodPolicy;
 import art.arcane.optics.volume.ProjectionVolume;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Vec3d;
-import art.arcane.optics.occlusion.PlateOcclusionField;
 
 /**
  * Samples the portal-scoped volume behind one face of a portal through the destination view and

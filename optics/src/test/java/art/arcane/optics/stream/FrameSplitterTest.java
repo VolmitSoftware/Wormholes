@@ -14,6 +14,8 @@ import java.util.function.IntSupplier;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.optics.entity.EntitySnapshot;
+import art.arcane.optics.internal.stream.FrameSplitter;
+import art.arcane.optics.internal.stream.PlatePatchEncoder;
 import art.arcane.optics.math.BlockBox;
 
 final class FrameSplitterTest {

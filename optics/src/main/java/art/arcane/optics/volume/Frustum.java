@@ -215,7 +215,7 @@ public final class Frustum {
         return false;
     }
 
-    boolean appendRow(ProjectorFrustumRow row, int axis, double x, double y, double z, int minimum, int maximum) {
+    boolean appendRow(FrustumRow row, int axis, double x, double y, double z, int minimum, int maximum) {
         if (!finiteGeometry) {
             return false;
         }

@@ -9,6 +9,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import art.arcane.optics.claim.ProjectionOutput;
+import art.arcane.optics.internal.fidelity.SoundAttenuation;
 
 /**
  * Routes destination-side sound events to the observers of every portal that looks at that place,

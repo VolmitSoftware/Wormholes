@@ -19,6 +19,12 @@ import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.plate.ViewPlate;
 import art.arcane.optics.client.MeshPlan;
+import art.arcane.optics.internal.stream.EncodedPlate;
+import art.arcane.optics.internal.stream.FrameSplitter;
+import art.arcane.optics.internal.stream.PlatePatchEncoder;
+import art.arcane.optics.internal.stream.ViewStreamAckWindow;
+import art.arcane.optics.internal.stream.ViewStreamLane;
+import art.arcane.optics.internal.stream.ViewStreamRateLimiter;
 
 public final class ViewStreamSession<O, B> {
     static final long BRICK_MISS_TIMEOUT_NANOS = 5_000_000_000L;

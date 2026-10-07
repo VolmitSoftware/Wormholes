@@ -1,4 +1,4 @@
-package art.arcane.optics.occlusion;
+package art.arcane.optics.internal.plate;
 
 import art.arcane.optics.view.BlockStates;
 import art.arcane.optics.view.ContentView;

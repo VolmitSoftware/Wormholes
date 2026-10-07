@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import art.arcane.optics.internal.stream.XxHash64;
 import java.util.Arrays;
 import java.util.Random;
 

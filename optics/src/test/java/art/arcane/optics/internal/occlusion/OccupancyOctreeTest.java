@@ -1,4 +1,4 @@
-package art.arcane.optics.occlusion;
+package art.arcane.optics.internal.occlusion;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -9,42 +9,42 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import org.junit.jupiter.api.Test;
 import art.arcane.optics.math.CellKeys;
 
-final class ProjectionOccupancyOctreeTest {
+final class OccupancyOctreeTest {
     @Test
     void emptyVolumeReportsTheLargestSkip() {
-        ProjectionOccupancyOctree octree = new ProjectionOccupancyOctree();
+        OccupancyOctree octree = new OccupancyOctree();
         octree.rebuild(new LongOpenHashSet());
 
         assertTrue(octree.isEmpty());
-        assertEquals(ProjectionOccupancyOctree.MAX_SKIP_LOG, octree.largestEmptyLog(0, 0, 0));
-        assertEquals(ProjectionOccupancyOctree.MAX_SKIP_LOG, octree.largestEmptyLog(40, -3, 12));
+        assertEquals(OccupancyOctree.MAX_SKIP_LOG, octree.largestEmptyLog(0, 0, 0));
+        assertEquals(OccupancyOctree.MAX_SKIP_LOG, octree.largestEmptyLog(40, -3, 12));
     }
 
     @Test
     void occupiedCellCannotSkipItsEightCube() {
-        ProjectionOccupancyOctree octree = new ProjectionOccupancyOctree();
+        OccupancyOctree octree = new OccupancyOctree();
         LongOpenHashSet cells = new LongOpenHashSet();
         cells.add(CellKeys.pack(0, 0, 0));
         octree.rebuild(cells);
 
         assertEquals(0, octree.largestEmptyLog(0, 0, 0));
         assertEquals(0, octree.largestEmptyLog(7, 0, 0));
-        assertEquals(ProjectionOccupancyOctree.MIN_SKIP_LOG, octree.largestEmptyLog(8, 0, 0));
+        assertEquals(OccupancyOctree.MIN_SKIP_LOG, octree.largestEmptyLog(8, 0, 0));
         assertEquals(4, octree.largestEmptyLog(16, 0, 0));
         assertEquals(5, octree.largestEmptyLog(32, 0, 0));
-        assertEquals(ProjectionOccupancyOctree.MAX_SKIP_LOG, octree.largestEmptyLog(64, 0, 0));
+        assertEquals(OccupancyOctree.MAX_SKIP_LOG, octree.largestEmptyLog(64, 0, 0));
     }
 
     @Test
     void cubeExitIsTheFirstFarFaceAlongTheRay() {
-        double t = ProjectionOccupancyOctree.cubeExitT(
+        double t = OccupancyOctree.cubeExitT(
             1, 1, 1, 3, 0.5D, 1.5D, 1.5D, 1.0D, 0.0D, 0.0D, 1, 0, 0);
         assertEquals(7.5D, t, 1.0E-9D);
     }
 
     @Test
     void rayBoundsIncludeBothEndpointsAndResetAfterGeometryChanges() {
-        ProjectionOccupancyOctree octree = new ProjectionOccupancyOctree();
+        OccupancyOctree octree = new OccupancyOctree();
         LongOpenHashSet cells = new LongOpenHashSet();
         cells.add(CellKeys.pack(-3, 20, 7));
         octree.rebuild(cells);

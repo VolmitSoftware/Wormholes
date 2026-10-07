@@ -1,5 +1,6 @@
 package art.arcane.optics.stream;
 
+import art.arcane.optics.internal.stream.XxHash64;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;

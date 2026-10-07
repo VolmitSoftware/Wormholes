@@ -1,5 +1,11 @@
-package art.arcane.optics.stream;
+package art.arcane.optics.internal.stream;
 
+import art.arcane.optics.stream.Brick;
+import art.arcane.optics.stream.BrickCodec;
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.ViewStreamMessage;
+import art.arcane.optics.stream.ViewStreamProtocolException;
+import art.arcane.optics.stream.ViewStreamWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;

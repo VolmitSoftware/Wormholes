@@ -1,4 +1,4 @@
-package art.arcane.optics.fidelity;
+package art.arcane.optics.internal.fidelity;
 
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;

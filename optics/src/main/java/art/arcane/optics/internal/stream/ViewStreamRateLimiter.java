@@ -1,5 +1,6 @@
-package art.arcane.optics.stream;
+package art.arcane.optics.internal.stream;
 
+import art.arcane.optics.stream.ViewStreamLimits;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.function.IntFunction;

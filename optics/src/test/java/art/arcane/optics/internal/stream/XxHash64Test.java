@@ -1,4 +1,4 @@
-package art.arcane.optics.stream;
+package art.arcane.optics.internal.stream;
 
 import org.junit.jupiter.api.Test;
 

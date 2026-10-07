@@ -6,6 +6,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 
 
 import art.arcane.optics.claim.ProjectedBlockClaim;
+import art.arcane.optics.internal.fidelity.AtmosphereDominance;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.view.ContentView;
 

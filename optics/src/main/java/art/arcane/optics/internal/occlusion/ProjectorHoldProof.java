@@ -1,4 +1,4 @@
-package art.arcane.optics.occlusion;
+package art.arcane.optics.internal.occlusion;
 
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.math.Box;

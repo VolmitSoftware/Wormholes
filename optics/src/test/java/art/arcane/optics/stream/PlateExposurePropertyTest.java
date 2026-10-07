@@ -13,6 +13,8 @@ import org.junit.jupiter.api.Test;
 
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.aperture.ApertureCells;
+import art.arcane.optics.internal.stream.EncodedPlate;
+import art.arcane.optics.internal.stream.PlateStreamEncoder;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.scan.ProjectorSample;
 import art.arcane.optics.volume.LodPolicy;

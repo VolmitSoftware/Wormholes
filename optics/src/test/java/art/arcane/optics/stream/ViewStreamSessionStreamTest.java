@@ -18,6 +18,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.internal.stream.EncodedPlate;
 import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.plate.ViewPlate;
 import art.arcane.optics.plate.ViewPlateKey;

@@ -33,14 +33,14 @@ import art.arcane.optics.claim.ProjectedBlockClaim;
 import art.arcane.optics.claim.ProjectionBlackout;
 import art.arcane.optics.claim.ProjectionClaimSet;
 import art.arcane.optics.frame.ViewWindow;
+import art.arcane.optics.internal.occlusion.ProjectorBlackoutBoundary;
+import art.arcane.optics.internal.occlusion.ProjectorHoldProof;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.occlusion.ProjectedEntityOcclusion;
-import art.arcane.optics.occlusion.ProjectorBlackoutBoundary;
-import art.arcane.optics.occlusion.ProjectorHoldProof;
 import art.arcane.optics.occlusion.ProjectorViewOcclusion;
 import art.arcane.optics.recursion.RecursiveEndpoints;
+import art.arcane.optics.volume.FrustumRow;
 import art.arcane.optics.volume.PlaneWindow;
-import art.arcane.optics.volume.ProjectorFrustumRow;
 import art.arcane.optics.volume.ViewVolume;
 import art.arcane.optics.volume.ProjectionVolume;
 
@@ -78,7 +78,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
     private final int[] scratchCellCoords;
     private final Long2ByteOpenHashMap localChunkReadiness;
     private final ProjectorEmptyCellRuns emptyCells;
-    private final ProjectorFrustumRow frustumRow;
+    private final FrustumRow frustumRow;
     private final LongOpenHashSet blackoutGeometry;
     private final Long2LongOpenHashMap blackoutRemoteKeys;
     private LongOpenHashSet occlusionGeometry;
@@ -194,7 +194,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
         this.scratchCellCoords = new int[3];
         this.localChunkReadiness = new Long2ByteOpenHashMap(16);
         this.emptyCells = new ProjectorEmptyCellRuns();
-        this.frustumRow = new ProjectorFrustumRow();
+        this.frustumRow = new FrustumRow();
         this.blackoutGeometry = new LongOpenHashSet(256);
         this.blackoutRemoteKeys = new Long2LongOpenHashMap(256);
         this.occlusionGeometry = new LongOpenHashSet(256);

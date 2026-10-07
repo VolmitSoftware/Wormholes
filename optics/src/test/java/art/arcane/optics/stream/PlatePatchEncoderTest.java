@@ -5,6 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import art.arcane.optics.internal.stream.EncodedPlate;
+import art.arcane.optics.internal.stream.PlatePatchEncoder;
+import art.arcane.optics.internal.stream.PlateStreamEncoder;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;

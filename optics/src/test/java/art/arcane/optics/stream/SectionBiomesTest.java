@@ -1,5 +1,6 @@
 package art.arcane.optics.stream;
 
+import art.arcane.optics.internal.stream.FrameSplitter;
 import java.util.ArrayList;
 import java.util.List;
 

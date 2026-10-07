@@ -3,6 +3,9 @@ package art.arcane.optics.stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import art.arcane.optics.internal.stream.EncodedPlate;
+import art.arcane.optics.internal.stream.FrameSplitter;
+import art.arcane.optics.internal.stream.PlateStreamEncoder;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;

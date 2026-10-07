@@ -11,6 +11,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.optics.claim.RecordingProjectionOutput;
+import art.arcane.optics.internal.fidelity.SoundAttenuation;
 
 final class AcousticsBridgeTest {
     private static final UUID PORTAL = UUID.fromString("00000000-0000-0000-0000-0000000000a1");

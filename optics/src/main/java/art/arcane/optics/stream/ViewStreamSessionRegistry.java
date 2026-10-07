@@ -2,6 +2,7 @@ package art.arcane.optics.stream;
 
 import java.security.SecureRandom;
 import art.arcane.optics.entity.ProjectedEntityEvent;
+import art.arcane.optics.internal.stream.PlateStreamEncoder;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;

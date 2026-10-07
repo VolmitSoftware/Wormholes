@@ -1,5 +1,6 @@
 package art.arcane.optics.stream;
 
+import art.arcane.optics.internal.stream.XxHash64;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;

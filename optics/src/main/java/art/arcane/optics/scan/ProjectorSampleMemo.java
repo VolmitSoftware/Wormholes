@@ -1,5 +1,6 @@
 package art.arcane.optics.scan;
 
+import art.arcane.optics.internal.occlusion.ProjectorHoldProof;
 import it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 
@@ -12,7 +13,6 @@ import java.util.function.Supplier;
 
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.CellKeys;
-import art.arcane.optics.occlusion.ProjectorHoldProof;
 import art.arcane.optics.view.BlockStates;
 import art.arcane.optics.view.ContentView;
 import art.arcane.optics.view.WorldChangeTracker;
@@ -105,7 +105,7 @@ public final class ProjectorSampleMemo<B, M, V extends ContentView<B, M>> {
         return air;
     }
 
-    public ProjectorHoldProof.Occupancy localOccupancy(V view, int x, int y, int z) {
+    ProjectorHoldProof.Occupancy localOccupancy(V view, int x, int y, int z) {
         long key = CellKeys.pack(x, y, z);
         byte known = localOccupancy.get(key);
         if (known != 0) {

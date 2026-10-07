@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-final class ProjectorFrustumRowTest {
+final class FrustumRowTest {
     private double aperturePadding = 0.75D;
     private double nearPadding = 2.0D;
     private double cullingRatio = 0.2D;
@@ -25,7 +25,7 @@ final class ProjectorFrustumRowTest {
         double previousAperturePadding = aperturePadding;
         double previousNearPadding = nearPadding;
         Random random = new Random(473_816L);
-        ProjectorFrustumRow row = new ProjectorFrustumRow();
+        FrustumRow row = new FrustumRow();
         int preparedRows = 0;
         int fallbackRows = 0;
         int acceptedCells = 0;
@@ -103,7 +103,7 @@ final class ProjectorFrustumRowTest {
                 }
             }
             ViewVolume frustum = new ViewVolume(new Vec3d( 2.5D, 3.0D, 0.5D), new TestStructure(cells), new ViewVolume.Options(64.0D, 48.0D, nearPadding, cullingRatio, aperturePadding));
-            ProjectorFrustumRow row = new ProjectorFrustumRow();
+            FrustumRow row = new FrustumRow();
             assertTrue(row.prepare(frustum, 0, -20.0D, -2.5D, 0.5D, -20, 20));
             int acceptedRuns = 0;
             boolean previous = false;
@@ -133,7 +133,7 @@ final class ProjectorFrustumRowTest {
 
     @Test
     void coplanarAndTinySignedProjectionFactorsMatchScalarFaces() {
-        ProjectorFrustumRow row = new ProjectorFrustumRow();
+        FrustumRow row = new FrustumRow();
         for (Face normal : Face.values()) {
             int normalAxis = normal.getAxis().ordinal();
             int rowAxis = (normalAxis + 1) % 3;

@@ -1,4 +1,4 @@
-package art.arcane.optics.stream;
+package art.arcane.optics.internal.stream;
 
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
