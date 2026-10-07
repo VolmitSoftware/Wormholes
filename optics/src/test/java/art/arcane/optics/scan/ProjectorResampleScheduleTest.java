@@ -75,6 +75,32 @@ class ProjectorResampleScheduleTest {
     }
 
     @Test
+    void destinationChangeStaysPendingUntilTheForcedResample() {
+        WorldChangeTracker tracker = new WorldChangeTracker();
+        UUID worldId = UUID.nameUUIDFromBytes("resample-pending".getBytes(StandardCharsets.UTF_8));
+        ProjectorRemoteFootprint footprint = new ProjectorRemoteFootprint();
+        footprint.record(8, 64, 8);
+        ResampleSchedule schedule = new ResampleSchedule(() -> STANDARD_VIEW, () -> tracker, () -> CADENCE);
+        schedule.stableResample(false, 0L, false, worldId, 8.0D, 8.0D, footprint);
+        schedule.consumeForcedResample(true);
+        schedule.noteSourceViewRevision(0L);
+        schedule.beginBlockPass();
+        assertFalse(schedule.stableResample(true, 0L, false, worldId, 8.0D, 8.0D, footprint));
+        assertFalse(schedule.destinationChangePending());
+
+        tracker.markChanged(worldId, 8, 64, 8);
+        schedule.beginBlockPass();
+        assertFalse(schedule.stableResample(true, 0L, false, worldId, 8.0D, 8.0D, footprint));
+        assertTrue(schedule.destinationChangePending(), "a change inside the footprint waits for the cadence pass");
+        do {
+            schedule.beginBlockPass();
+        } while (!schedule.stableResample(true, 0L, false, worldId, 8.0D, 8.0D, footprint));
+        assertTrue(schedule.destinationChangePending());
+        schedule.consumeForcedResample(true);
+        assertFalse(schedule.destinationChangePending(), "the forced resample settles the pending change");
+    }
+
+    @Test
     void cadenceIntervalsFollowTheSuppliedRefreshInterval() {
         WorldChangeTracker tracker = new WorldChangeTracker();
         UUID worldId = UUID.nameUUIDFromBytes("resample-cadence".getBytes(StandardCharsets.UTF_8));

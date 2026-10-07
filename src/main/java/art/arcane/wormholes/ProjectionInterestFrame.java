@@ -181,13 +181,14 @@ final class ProjectionInterestFrame {
         for (ILocalPortal portal : interested) {
             boolean pendingScan = interestSet.hasPendingScan(portal.getId(), observerId);
             if (updateBlocks || pendingScan) {
-                blockCandidates.add(gazeCandidate(portal, eye, pendingScan, false));
+                blockCandidates.add(gazeCandidate(portal, eye, new GazeState(pendingScan,
+                    interestSet.destinationChangePending(portal.getId(), observerId), false)));
             }
         }
         for (PortalProjector projector : retiring) {
             boolean pendingScan = projector.hasPendingScan();
             if (updateBlocks || pendingScan) {
-                blockCandidates.add(gazeCandidate(projector.getPortal(), eye, pendingScan, true));
+                blockCandidates.add(gazeCandidate(projector.getPortal(), eye, new GazeState(pendingScan, false, true)));
             }
         }
         int desiredBlocks = observerBudget.admitsBlocks()
@@ -238,20 +239,19 @@ final class ProjectionInterestFrame {
         return new GazeScheduler.Eye(eye.getX(), eye.getY(), eye.getZ(), eye.getYaw(), eye.getPitch());
     }
 
-    private static GazeScheduler.Candidate<ILocalPortal> gazeCandidate(ILocalPortal portal, Location eye,
-                                                                               boolean pendingScan, boolean retiring) {
+    private static GazeScheduler.Candidate<ILocalPortal> gazeCandidate(ILocalPortal portal, Location eye, GazeState state) {
         Box area = portal.getArea();
         if (area != null) {
             return new GazeScheduler.Candidate<ILocalPortal>(portal, portal.getId(),
                 area.getXa(), area.getYa(), area.getZa(), area.getXb(), area.getYb(), area.getZb(),
-                pendingScan, retiring);
+                state.pendingScan(), state.destinationChanged(), state.retiring());
         }
         Location center = portal.getCenter();
         double x = center == null ? eye.getX() : center.getX();
         double y = center == null ? eye.getY() : center.getY();
         double z = center == null ? eye.getZ() : center.getZ();
         return new GazeScheduler.Candidate<ILocalPortal>(portal, portal.getId(),
-            x - 0.5D, y - 0.5D, z - 0.5D, x + 0.5D, y + 0.5D, z + 0.5D, pendingScan, retiring);
+            x - 0.5D, y - 0.5D, z - 0.5D, x + 0.5D, y + 0.5D, z + 0.5D, state.pendingScan(), state.destinationChanged(), state.retiring());
     }
 
     private void projectRetiring(Player observer, List<PortalProjector> retiring, Set<UUID> blockPortalIds,
@@ -330,5 +330,8 @@ final class ProjectionInterestFrame {
             return Double.MAX_VALUE;
         }
         return center.distanceSquared(eye);
+    }
+
+    private record GazeState(boolean pendingScan, boolean destinationChanged, boolean retiring) {
     }
 }

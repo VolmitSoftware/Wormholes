@@ -238,6 +238,10 @@ public final class MinecraftPortalProjector implements AutoCloseable {
         return schedule.passCount();
     }
 
+    public boolean destinationChangePending() {
+        return schedule.destinationChangePending();
+    }
+
     public double priorityDistance() {
         return portal.getOrigin().distance(eye());
     }

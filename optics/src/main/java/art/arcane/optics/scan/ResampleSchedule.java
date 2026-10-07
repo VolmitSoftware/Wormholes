@@ -87,6 +87,10 @@ public final class ResampleSchedule {
         return pendingRemoteResample;
     }
 
+    public boolean destinationChangePending() {
+        return pendingDestinationChange;
+    }
+
     public boolean consumeForcedResample(boolean stableResample) {
         boolean forced = stableResample || pendingRemoteResample;
         pendingRemoteResample = false;

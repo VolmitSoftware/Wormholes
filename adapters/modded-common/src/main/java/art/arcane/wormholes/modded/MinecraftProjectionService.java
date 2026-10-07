@@ -454,27 +454,27 @@ public final class MinecraftProjectionService implements AutoCloseable {
         return tick % Math.max(1, refreshIntervalTicks) == 0L;
     }
 
-    static List<GazeScheduler.Candidate<MinecraftPortal>> blockCandidates(List<MinecraftPortal> active,
-                                                                                   Predicate<MinecraftPortal> pendingScan, boolean passTick) {
+    static List<GazeScheduler.Candidate<MinecraftPortal>> blockCandidates(List<MinecraftPortal> active, Predicate<MinecraftPortal> pendingScan,
+                                                                          Predicate<MinecraftPortal> destinationChanged, boolean passTick) {
         List<GazeScheduler.Candidate<MinecraftPortal>> candidates = new ArrayList<>(active.size());
         for (MinecraftPortal portal : active) {
             boolean pending = pendingScan.test(portal);
             if (passTick || pending) {
-                candidates.add(gazeCandidate(portal, pending));
+                candidates.add(gazeCandidate(portal, pending, destinationChanged.test(portal)));
             }
         }
         return candidates;
     }
 
-    static GazeScheduler.Candidate<MinecraftPortal> gazeCandidate(MinecraftPortal portal, boolean pendingScan) {
+    static GazeScheduler.Candidate<MinecraftPortal> gazeCandidate(MinecraftPortal portal, boolean pendingScan, boolean destinationChanged) {
         Box area = portal.getGeometry().getArea();
         if (area != null) {
             return new GazeScheduler.Candidate<>(portal, portal.getId(), area.getXa(), area.getYa(), area.getZa(),
-                area.getXb(), area.getYb(), area.getZb(), pendingScan, false);
+                area.getXb(), area.getYb(), area.getZb(), pendingScan, destinationChanged, false);
         }
         Vec3d origin = portal.getOrigin();
         return new GazeScheduler.Candidate<>(portal, portal.getId(), origin.x() - 0.5D, origin.y() - 0.5D, origin.z() - 0.5D,
-            origin.x() + 0.5D, origin.y() + 0.5D, origin.z() + 0.5D, pendingScan, false);
+            origin.x() + 0.5D, origin.y() + 0.5D, origin.z() + 0.5D, pendingScan, destinationChanged, false);
     }
 
     private static GazeScheduler.Options gazeOptions(ProjectionConfig config) {
@@ -581,7 +581,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
                 }
             }
             List<GazeScheduler.Candidate<MinecraftPortal>> gazeCandidates = blockCandidates(active, this::pendingScan,
-                blockPassTick(tick, config().refreshIntervalTicks));
+                this::destinationChanged, blockPassTick(tick, config().refreshIntervalTicks));
             Vec3 eye = player.getEyePosition();
             List<MinecraftPortal> selected = gaze.select(player.getUUID(),
                 new GazeScheduler.Eye(eye.x, eye.y, eye.z, player.getYRot(), player.getXRot()),
@@ -650,6 +650,11 @@ public final class MinecraftProjectionService implements AutoCloseable {
         private boolean pendingScan(MinecraftPortal portal) {
             MinecraftPortalProjector existing = projectors.get(portal.getId());
             return existing != null && existing.scan().hasPending();
+        }
+
+        private boolean destinationChanged(MinecraftPortal portal) {
+            MinecraftPortalProjector existing = projectors.get(portal.getId());
+            return existing != null && existing.destinationChangePending();
         }
 
         private void reconcileSentChunks() {

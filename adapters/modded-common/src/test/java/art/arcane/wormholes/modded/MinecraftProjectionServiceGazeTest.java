@@ -42,7 +42,7 @@ public class MinecraftProjectionServiceGazeTest extends MinecraftTestBase {
         geometry.setArea(new Box(10.0D, 12.999D, 64.0D, 66.999D, -3.0D, -3.0D));
         MinecraftPortal portal = portal(geometry, new Vec3d(11.5D, 65.5D, -2.5D));
 
-        GazeScheduler.Candidate<MinecraftPortal> candidate = MinecraftProjectionService.gazeCandidate(portal, true);
+        GazeScheduler.Candidate<MinecraftPortal> candidate = MinecraftProjectionService.gazeCandidate(portal, true, false);
 
         assertSame(portal, candidate.value());
         assertEquals(portal.getId(), candidate.id());
@@ -60,7 +60,7 @@ public class MinecraftProjectionServiceGazeTest extends MinecraftTestBase {
     public void candidateWithoutAreaIsAUnitBoxAtTheOrigin() {
         MinecraftPortal portal = portal(new ApertureCells(), new Vec3d(4.0D, 70.0D, -8.0D));
 
-        GazeScheduler.Candidate<MinecraftPortal> candidate = MinecraftProjectionService.gazeCandidate(portal, false);
+        GazeScheduler.Candidate<MinecraftPortal> candidate = MinecraftProjectionService.gazeCandidate(portal, false, false);
 
         assertEquals(3.5D, candidate.minX(), EPSILON);
         assertEquals(69.5D, candidate.minY(), EPSILON);
@@ -82,7 +82,7 @@ public class MinecraftProjectionServiceGazeTest extends MinecraftTestBase {
         GazeScheduler scheduler = new GazeScheduler();
         UUID observer = UUID.randomUUID();
         List<GazeScheduler.Candidate<MinecraftPortal>> candidates = List.of(
-            MinecraftProjectionService.gazeCandidate(outOfView, false), MinecraftProjectionService.gazeCandidate(inView, false));
+            MinecraftProjectionService.gazeCandidate(outOfView, false, false), MinecraftProjectionService.gazeCandidate(inView, false, false));
         GazeScheduler.Options options = new GazeScheduler.Options(110.0D, 3, 20);
 
         scheduler.select(observer, eye(1L), candidates, 2, 1L, options);
@@ -97,11 +97,25 @@ public class MinecraftProjectionServiceGazeTest extends MinecraftTestBase {
         MinecraftPortal inView = portal(ahead, new Vec3d(0.5D, 65.5D, 6.5D));
         List<MinecraftPortal> active = List.of(inView);
 
-        assertTrue(MinecraftProjectionService.blockCandidates(active, ignored -> false, false).isEmpty());
-        List<GazeScheduler.Candidate<MinecraftPortal>> pending = MinecraftProjectionService.blockCandidates(active, ignored -> true, false);
+        assertTrue(MinecraftProjectionService.blockCandidates(active, ignored -> false, ignored -> false, false).isEmpty());
+        List<GazeScheduler.Candidate<MinecraftPortal>> pending = MinecraftProjectionService.blockCandidates(active, ignored -> true, ignored -> false, false);
         assertEquals(1, pending.size());
         assertTrue(pending.get(0).pendingScan());
-        assertEquals(1, MinecraftProjectionService.blockCandidates(active, ignored -> false, true).size());
+        assertEquals(1, MinecraftProjectionService.blockCandidates(active, ignored -> false, ignored -> false, true).size());
+    }
+
+    @Test
+    public void projectorsAwaitingADestinationResampleMarkTheirCandidates() {
+        ApertureCells ahead = new ApertureCells();
+        ahead.setArea(new Box(-1.0D, 1.999D, 64.0D, 66.999D, 6.0D, 6.0D));
+        MinecraftPortal inView = portal(ahead, new Vec3d(0.5D, 65.5D, 6.5D));
+        List<MinecraftPortal> active = List.of(inView);
+
+        assertFalse(MinecraftProjectionService.blockCandidates(active, ignored -> false, ignored -> false, true).get(0).destinationChanged());
+        GazeScheduler.Candidate<MinecraftPortal> changed = MinecraftProjectionService.blockCandidates(active, ignored -> false,
+            ignored -> true, true).get(0);
+        assertTrue(changed.destinationChanged());
+        assertFalse(changed.pendingScan());
     }
 
     @Test
@@ -117,14 +131,14 @@ public class MinecraftProjectionServiceGazeTest extends MinecraftTestBase {
         GazeScheduler.Eye moved = new GazeScheduler.Eye(1.0D, 65.6D, 0.5D, 0.0F, 0.0F);
         int refreshIntervalTicks = 4;
 
-        assertEquals(List.of(inView), scheduler.select(observer, first, MinecraftProjectionService.blockCandidates(active, ignored -> false,
+        assertEquals(List.of(inView), scheduler.select(observer, first, MinecraftProjectionService.blockCandidates(active, ignored -> false, ignored -> false,
             MinecraftProjectionService.blockPassTick(4L, refreshIntervalTicks)), 1, 4L, options));
         for (long tick = 5L; tick < 8L; tick++) {
-            scheduler.select(observer, moved, MinecraftProjectionService.blockCandidates(active, ignored -> false,
+            scheduler.select(observer, moved, MinecraftProjectionService.blockCandidates(active, ignored -> false, ignored -> false,
                 MinecraftProjectionService.blockPassTick(tick, refreshIntervalTicks)), 1, tick, options);
         }
 
-        assertEquals(List.of(inView), scheduler.select(observer, moved, MinecraftProjectionService.blockCandidates(active, ignored -> false,
+        assertEquals(List.of(inView), scheduler.select(observer, moved, MinecraftProjectionService.blockCandidates(active, ignored -> false, ignored -> false,
             MinecraftProjectionService.blockPassTick(8L, refreshIntervalTicks)), 1, 8L, options));
     }
 

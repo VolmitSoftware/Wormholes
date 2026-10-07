@@ -242,6 +242,10 @@ public final class PortalProjector {
         return pendingProjection != null;
     }
 
+    public boolean destinationChangePending() {
+        return schedule.destinationChangePending();
+    }
+
     public boolean isRetiring() {
         return dissolve.isRetiring();
     }

@@ -4,6 +4,7 @@ import org.bukkit.entity.Entity;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -25,6 +26,7 @@ import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.rtp.RtpRimRenderer;
@@ -34,6 +36,7 @@ import art.arcane.wormholes.render.PortalSkinRenderer;
 import art.arcane.wormholes.render.ProjectionClaimArbiter;
 import art.arcane.wormholes.render.clientview.ClientViewRouting;
 import art.arcane.optics.math.Box;
+import art.arcane.optics.volume.GazeScheduler;
 
 final class ProjectionInterestFrameBudgetTest {
     private final AtomicLong now = new AtomicLong();
@@ -187,6 +190,19 @@ final class ProjectionInterestFrameBudgetTest {
         assertEquals(2, remaining.get());
         verify(projector).project(false, true, 30_000_000L);
         verify(projector, never()).project(eq(true), eq(true), anyLong());
+    }
+
+    @Test
+    void projectorsAwaitingADestinationResampleMarkTheirGazeCandidates() {
+        when(interestSet.destinationChangePending(portal.getId(), observerId)).thenReturn(true);
+        ArgumentCaptor<List<GazeScheduler.Candidate<ILocalPortal>>> candidates = ArgumentCaptor.captor();
+
+        interestFrame.project(observer, active, new AtomicInteger(), 1, true, true, 1L,
+            false, active, ledger.beginFrame(30_000));
+
+        verify(interestSet).scheduleBlocks(eq(observerId), any(), candidates.capture(), eq(1), anyLong());
+        assertTrue(candidates.getValue().get(0).destinationChanged());
+        assertFalse(candidates.getValue().get(0).pendingScan());
     }
 
     @Test

@@ -99,7 +99,7 @@ final class ProjectionInterestSetTest {
 
     private static GazeScheduler.Candidate<ILocalPortal> candidate(ILocalPortal portal) {
         return new GazeScheduler.Candidate<ILocalPortal>(portal, UUID.nameUUIDFromBytes(portal.getName().getBytes()),
-            -1.0D, 64.0D, 5.0D, 1.0D, 66.0D, 7.0D, false, false);
+            -1.0D, 64.0D, 5.0D, 1.0D, 66.0D, 7.0D, false, false, false);
     }
 
     private static ILocalPortal only(List<ILocalPortal> slice) {

@@ -237,6 +237,28 @@ public class MinecraftPortalProjectorTest extends MinecraftTestBase {
     }
 
     @Test
+    public void destinationChangeInsideTheFootprintStaysPendingUntilResampled() {
+        Scene scene = scene(Blocks.STONE.defaultBlockState(), Blocks.AIR.defaultBlockState());
+        try (MinecraftPortalProjector projector = scene.projector()) {
+            settle(projector, 1L);
+            assertEquals(0, destinationSamples(scene, projector, 2L));
+            assertFalse(projector.destinationChangePending());
+            long remoteKey = projector.scan().claims().values().iterator().next().getLightRemoteKey();
+            scene.changes().markChanged(DESTINATION_WORLD, CellKeys.unpackX(remoteKey), CellKeys.unpackY(remoteKey),
+                CellKeys.unpackZ(remoteKey));
+            assertEquals(0, destinationSamples(scene, projector, 3L));
+            assertTrue(projector.destinationChangePending());
+            long tick = 4L;
+            while (destinationSamples(scene, projector, tick) == 0) {
+                assertTrue(projector.destinationChangePending());
+                tick++;
+                assertTrue(tick < 67L);
+            }
+            assertFalse(projector.destinationChangePending());
+        }
+    }
+
+    @Test
     public void sameWorldRetargetResamplesCellsThatWereEmptyAtTheOldDestination() {
         BlockState air = Blocks.AIR.defaultBlockState();
         BlockState stone = Blocks.STONE.defaultBlockState();

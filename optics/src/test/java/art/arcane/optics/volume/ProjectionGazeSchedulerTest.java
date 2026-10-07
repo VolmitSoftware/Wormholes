@@ -56,7 +56,7 @@ final class ProjectionGazeSchedulerTest {
         List<GazeScheduler.Candidate<String>> candidates = List.of(
             candidate("ahead", 0.0D, 5.0D, false),
             new GazeScheduler.Candidate<String>("ceiling", id("ceiling"), -2.5D, EYE_Y + 2.4D, -2.5D,
-                2.5D, EYE_Y + 3.4D, 2.5D, false, false));
+                2.5D, EYE_Y + 3.4D, 2.5D, false, false, false));
         GazeScheduler level = new GazeScheduler();
         GazeScheduler lookingUp = new GazeScheduler();
         level.select(observer, walking(1L, 0.0F, 0.0F), candidates, 2, 1L, OPTIONS);
@@ -123,6 +123,35 @@ final class ProjectionGazeSchedulerTest {
     }
 
     @Test
+    void changedDestinationKeepsASettledPortalInViewRefreshing() {
+        GazeScheduler scheduler = new GazeScheduler();
+        UUID observer = UUID.randomUUID();
+        List<GazeScheduler.Candidate<String>> unchanged = List.of(candidate("ahead", 0.0D, 5.0D, false));
+        List<GazeScheduler.Candidate<String>> changed = List.of(changedCandidate("ahead", 0.0D, 5.0D));
+        assertEquals(List.of("ahead"), scheduler.select(observer, fixedEye(0.0F), unchanged, 1, 1L, OPTIONS));
+        assertTrue(scheduler.select(observer, fixedEye(0.0F), unchanged, 1, 2L, OPTIONS).isEmpty());
+
+        for (long tick = 3L; tick <= 8L; tick++) {
+            assertEquals(List.of("ahead"), scheduler.select(observer, fixedEye(0.0F), changed, 1, tick, OPTIONS));
+        }
+    }
+
+    @Test
+    void changedDestinationBehindTheCameraStillWaitsUntilStarved() {
+        GazeScheduler scheduler = new GazeScheduler();
+        UUID observer = UUID.randomUUID();
+        List<GazeScheduler.Candidate<String>> candidates = List.of(changedCandidate("behind", 0.0D, -5.0D));
+        List<Long> behindTicks = new ArrayList<Long>();
+        for (long tick = 1L; tick <= 25L; tick++) {
+            if (scheduler.select(observer, fixedEye(0.0F), candidates, 1, tick, OPTIONS).contains("behind")) {
+                behindTicks.add(Long.valueOf(tick));
+            }
+        }
+
+        assertEquals(List.of(Long.valueOf(1L), Long.valueOf(21L)), behindTicks);
+    }
+
+    @Test
     void behindCameraPortalsKeepNoSlotsUntilStarved() {
         GazeScheduler scheduler = new GazeScheduler();
         UUID observer = UUID.randomUUID();
@@ -165,7 +194,7 @@ final class ProjectionGazeSchedulerTest {
         List<GazeScheduler.Candidate<String>> candidates = List.of(
             candidate("ahead", 0.0D, 5.0D, true),
             new GazeScheduler.Candidate<String>("retiring", id("retiring"), -1.0D, EYE_Y - 1.0D, -6.0D,
-                1.0D, EYE_Y + 1.0D, -4.0D, false, true));
+                1.0D, EYE_Y + 1.0D, -4.0D, false, false, true));
         for (long tick = 1L; tick <= 5L; tick++) {
             assertEquals(List.of("retiring"), scheduler.select(observer, walking(tick, 0.0F, 0.0F), candidates, 1, tick, OPTIONS));
         }
@@ -225,7 +254,12 @@ final class ProjectionGazeSchedulerTest {
 
     private static GazeScheduler.Candidate<String> candidate(String name, double x, double z, boolean pendingScan) {
         return new GazeScheduler.Candidate<String>(name, id(name), x - 1.0D, EYE_Y - 1.0D, z - 1.0D,
-            x + 1.0D, EYE_Y + 1.0D, z + 1.0D, pendingScan, false);
+            x + 1.0D, EYE_Y + 1.0D, z + 1.0D, pendingScan, false, false);
+    }
+
+    private static GazeScheduler.Candidate<String> changedCandidate(String name, double x, double z) {
+        return new GazeScheduler.Candidate<String>(name, id(name), x - 1.0D, EYE_Y - 1.0D, z - 1.0D,
+            x + 1.0D, EYE_Y + 1.0D, z + 1.0D, false, true, false);
     }
 
     private static GazeScheduler.Candidate<String> candidateAtYaw(String name, double yawDegrees, double distance) {

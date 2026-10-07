@@ -90,6 +90,12 @@ final class ProjectionInterestSet {
         return projector != null && projector.hasPendingScan();
     }
 
+    boolean destinationChangePending(UUID portalId, UUID observerId) {
+        Map<UUID, PortalProjector> portalProjectors = projectors.get(portalId);
+        PortalProjector projector = portalProjectors == null ? null : portalProjectors.get(observerId);
+        return projector != null && projector.destinationChangePending();
+    }
+
     PortalProjector obtain(ILocalPortal portal, Player observer) {
         Map<UUID, PortalProjector> portalProjectors = projectors.get(portal.getId());
         if (portalProjectors == null) {

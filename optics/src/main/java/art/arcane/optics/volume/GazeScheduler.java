@@ -50,7 +50,7 @@ public final class GazeScheduler {
             Slot slot = gaze.lastScheduled.get(candidate.id());
             long age = slot == null ? maxStarveTicks : Math.max(0L, frameTick - slot.tick());
             boolean starved = age >= maxStarveTicks;
-            boolean settled = slot != null && !candidate.pendingScan() && slot.sameEye(eye);
+            boolean settled = slot != null && !candidate.pendingScan() && !candidate.destinationChanged() && slot.sameEye(eye);
             double weight = Math.max(view.weight(eye, candidate), ahead.weight(eye, candidate))
                 * (settled ? PERIPHERAL_WEIGHT : 1.0D);
             double urgency = weight * (1.0D + Math.min(age, maxStarveTicks) / STALENESS_TICKS)
@@ -130,7 +130,7 @@ public final class GazeScheduler {
     }
 
     public record Candidate<T>(T value, UUID id, double minX, double minY, double minZ,
-                        double maxX, double maxY, double maxZ, boolean pendingScan, boolean retiring) {
+                        double maxX, double maxY, double maxZ, boolean pendingScan, boolean destinationChanged, boolean retiring) {
     }
 
     public record Options(double fovDegrees, int lookaheadTicks, int maxStarveTicks) {
