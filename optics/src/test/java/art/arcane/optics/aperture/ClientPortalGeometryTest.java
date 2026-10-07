@@ -144,10 +144,19 @@ final class ClientPortalGeometryTest {
         assertFalse(copy(valid, 6, valid.apertureMask(), 0).valid());
         assertFalse(copy(valid, valid.facing(), new long[] {0L}, 0).valid());
         assertFalse(copy(valid, valid.facing(), new long[] {0xFL, 0L}, 0).valid());
-        assertFalse(copy(valid, valid.facing(), valid.apertureMask(), 7).valid());
         assertEquals(ProjectedBlockClaim.LightingPolicy.SOURCE, valid.lightingPolicyType());
         assertTrue(valid.hasFidelity(ApertureDescriptor.FIDELITY_LIGHTING));
         assertFalse(valid.hasFidelity(ApertureDescriptor.FIDELITY_SOUNDS));
+    }
+
+    @Test
+    void kindIsAnOpaqueHostByte() {
+        ApertureDescriptor valid = ApertureDescriptor.fromPortal(source(flatAperture(Face.S, 2, 2),
+            Frame.canonical(Face.S), false, 0)).orElseThrow();
+        assertTrue(copy(valid, valid.facing(), valid.apertureMask(), 4).valid());
+        assertTrue(copy(valid, valid.facing(), valid.apertureMask(), 255).valid());
+        assertFalse(copy(valid, valid.facing(), valid.apertureMask(), 256).valid());
+        assertFalse(copy(valid, valid.facing(), valid.apertureMask(), -1).valid());
     }
 
     private static void assertCellMembership(CellAperture expected, ApertureDescriptor actual) {
@@ -194,7 +203,7 @@ final class ClientPortalGeometryTest {
     private static ApertureDescriptor.Source source(CellAperture aperture, Frame frame, boolean mirror, int mirrorTurns) {
         return new ApertureDescriptor.Source(aperture, frame, true, mirror, mirrorTurns, 2.0D, 0.75D, 0.2D, 64, 3,
             ApertureDescriptor.BLACKOUT_SHELL, 7, ApertureDescriptor.MASK_AIR_PROJECT, ProjectedBlockClaim.LightingPolicy.SOURCE,
-            ApertureDescriptor.FIDELITY_LIGHTING | ApertureDescriptor.FIDELITY_WEATHER, ApertureDescriptor.KIND_FRAME, 0.0D, 0, 0L,
+            ApertureDescriptor.FIDELITY_LIGHTING | ApertureDescriptor.FIDELITY_WEATHER, 0, 0.0D, 0, 0L,
             List.of());
     }
 

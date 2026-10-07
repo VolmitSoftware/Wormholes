@@ -5,8 +5,8 @@ import art.arcane.wormholes.door.DoorHalf;
 import art.arcane.wormholes.door.DoorPlanePairing;
 import art.arcane.wormholes.door.DoorwayPlane;
 import art.arcane.optics.frame.Frame;
-import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.Face;
+import art.arcane.wormholes.portal.ApertureKind;
 
 import java.util.Objects;
 
@@ -51,7 +51,7 @@ public final class DoorApertureFrames {
     }
 
     public static double geometryPlaneOffset(int kind, Frame frame) {
-        return kind == ApertureDescriptor.KIND_DOOR ? DoorwayPlane.planeOffset(frame.getNormal()) : 0.0D;
+        return kind == ApertureKind.DOOR ? DoorwayPlane.planeOffset(frame.getNormal()) : 0.0D;
     }
 
     private static Frame horizontalFrame(Face normal, Face facing) {

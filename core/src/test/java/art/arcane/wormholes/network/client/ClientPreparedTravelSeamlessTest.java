@@ -3,6 +3,7 @@ package art.arcane.wormholes.network.client;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Vec3d;
+import art.arcane.wormholes.portal.ApertureKind;
 import art.arcane.wormholes.render.client.session.ClientPreparedTravelServer;
 import org.junit.jupiter.api.Test;
 
@@ -15,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ClientPreparedTravelSeamlessTest {
     private static final ApertureDescriptor GEOMETRY = new ApertureDescriptor(0, 64, 0, Face.S.ordinal(), true, 0, false, 1, 3,
-        new long[]{7}, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, ApertureDescriptor.KIND_FRAME, 0.0D, 0, 1, List.of());
+        new long[]{7}, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, ApertureKind.FRAME, 0.0D, 0, 1, List.of());
     private static final ClientPreparedTravelServer.SeamlessAuthority STANDING =
         new ClientPreparedTravelServer.SeamlessAuthority(false, false, 100L, 1_000L);
 

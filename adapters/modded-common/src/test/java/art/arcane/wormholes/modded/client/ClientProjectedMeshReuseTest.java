@@ -49,6 +49,7 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.ArgumentMatchers.any;
 import art.arcane.wormholes.network.client.TravelMessage;
+import art.arcane.wormholes.portal.ApertureKind;
 
 public class ClientProjectedMeshReuseTest extends MinecraftTestBase {
     private static final BlockBox BOUNDS = new BlockBox(-32, -32, -32, 96, 96, 96);
@@ -317,7 +318,7 @@ public class ClientProjectedMeshReuseTest extends MinecraftTestBase {
         private Object portal(int key, ClientMeshSections.View view) throws Exception {
             scene = mock(PortalScene.class);
             ApertureDescriptor geometry = new ApertureDescriptor(0, 64, 0, Face.S.ordinal(), true, 0, true,
-                1, 2, new long[]{3}, 0, 0, 1, 64, 3, 0, 0, 0, 0, 0, ApertureDescriptor.KIND_FRAME, 0.0D, 0, 77, List.of());
+                1, 2, new long[]{3}, 0, 0, 1, 64, 3, 0, 0, 0, 0, 0, ApertureKind.FRAME, 0.0D, 0, 77, List.of());
             when(scene.geometry()).thenReturn(geometry);
             when(scene.sectionKeys()).thenReturn(new LongArrayList());
             when(scene.revision(anyLong())).thenAnswer(call -> {

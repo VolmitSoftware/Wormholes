@@ -7,6 +7,7 @@ import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.Face;
 import art.arcane.wormholes.modded.mixin.client.VanillaPortalEffectMixin;
+import art.arcane.wormholes.portal.ApertureKind;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
@@ -41,7 +42,7 @@ public class ClientVanillaPortalEffectTest extends MinecraftTestBase {
     public void onlyActiveManagedRootCellsSuppressVanillaEffects() {
         ClientViewSession session = new ClientViewSession(new WormholesClientConfig(),
             new ClientPalette(BuiltInRegistries.BLOCK), 1, "test");
-        ApertureDescriptor geometry = geometry(ApertureDescriptor.KIND_VANILLA_REPLACEMENT);
+        ApertureDescriptor geometry = geometry(ApertureKind.VANILLA_REPLACEMENT);
         session.portals().put(1, new ClientPortal(1, geometry, 1, 0.0D));
         assertFalse(session.managesVanillaPortal(10, 64, -8));
         session.accept(new ViewStreamMessage.Accept(1, ViewStreamCapability.ALL, ViewStreamLimits.DEFAULT_TICK_RATE,
@@ -52,7 +53,7 @@ public class ClientVanillaPortalEffectTest extends MinecraftTestBase {
         assertFalse(session.managesVanillaPortal(9, 64, -8));
         session.portals().put(1, new ClientPortal(1, geometry.withParent(2), 1, 0.0D));
         assertFalse(session.managesVanillaPortal(10, 64, -8));
-        session.portals().put(1, new ClientPortal(1, geometry(ApertureDescriptor.KIND_FRAME), 1, 0.0D));
+        session.portals().put(1, new ClientPortal(1, geometry(ApertureKind.FRAME), 1, 0.0D));
         assertFalse(session.managesVanillaPortal(10, 64, -8));
     }
 

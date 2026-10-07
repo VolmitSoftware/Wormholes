@@ -48,6 +48,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import art.arcane.wormholes.network.client.TravelMessage;
+import art.arcane.wormholes.portal.ApertureKind;
 
 class BukkitPreparedTravelLifecycleTest {
     @Test
@@ -173,7 +174,7 @@ class BukkitPreparedTravelLifecycleTest {
             TravelMessage.TravelPose.class, double.class, String.class, long.class);
         optionsConstructor.setAccessible(true);
         ApertureDescriptor geometry = new ApertureDescriptor(0, 64, 0, 0, true, 0, false, 1, 1, new long[]{1},
-            0, 0, 1, 64, 0, 0, 0, 0, 0, 0, ApertureDescriptor.KIND_FRAME, 0.0D, 0, 1, List.of());
+            0, 0, 1, 64, 0, 0, 0, 0, 0, 0, ApertureKind.FRAME, 0.0D, 0, 1, List.of());
         Object options = optionsConstructor.newInstance(geometry, OpticTransform.IDENTITY, UUID.randomUUID(), UUID.randomUUID(), world, new Vec3d(0, 64, 0),
             new TravelMessage.TravelPose(0, 64, 0, 0, 0), 1.62D, "minecraft:overworld", 1L);
         Class<?> preparationType = Class.forName(BukkitPreparedTravel.class.getName() + "$Preparation");

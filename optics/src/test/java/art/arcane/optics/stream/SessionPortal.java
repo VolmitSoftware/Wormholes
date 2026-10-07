@@ -57,6 +57,6 @@ final class SessionPortal {
         Arrays.fill(open, true);
         return new ApertureDescriptor(10 + offsetX, 66, 20, Face.S.ordinal(), frontSide, 0, mirror, 3, 3,
             ApertureDescriptor.apertureMask(3, 3, open), 2.0F, 0.75F, 0.2F, 24, recursionDepth, ApertureDescriptor.BLACKOUT_SHELL,
-            palette.id(BLACKOUT), ApertureDescriptor.MASK_AIR_PROJECT, 0, 0, ApertureDescriptor.KIND_FRAME, 0.0D, 0, 0L, List.of());
+            palette.id(BLACKOUT), ApertureDescriptor.MASK_AIR_PROJECT, 0, 0, 0, 0.0D, 0, 0L, List.of());
     }
 }

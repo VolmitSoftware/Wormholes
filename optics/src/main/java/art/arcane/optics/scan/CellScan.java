@@ -604,7 +604,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
     }
 
     public void run(ScanDestination<P, V> destination,
-             Frame rtpTarget,
+             Frame targetFrame,
              Vec3d eye,
              ViewVolume frustum,
              double depthBlocks,
@@ -615,14 +615,14 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
              ViewPlate<B> plate,
              boolean blockEntities,
              LodPolicy lod) {
-        begin(destination, rtpTarget, eye, frustum, depthBlocks, forceStableCellResample, forceFullSend,
+        begin(destination, targetFrame, eye, frustum, depthBlocks, forceStableCellResample, forceFullSend,
             refreshObserverVisibility, mode, plate, blockEntities, lod);
         while (!advance(Long.MAX_VALUE)) {
         }
     }
 
     public void begin(ScanDestination<P, V> destination,
-             Frame rtpTarget,
+             Frame targetFrame,
              Vec3d eye,
              ViewVolume frustum,
              double depthBlocks,
@@ -638,7 +638,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
         }
         preparedResult = false;
         reuseCommittedEntityOcclusion = false;
-        pending = new ScanPass(new ScanRequest<B, P, V>(destination, rtpTarget, eye, frustum, depthBlocks,
+        pending = new ScanPass(new ScanRequest<B, P, V>(destination, targetFrame, eye, frustum, depthBlocks,
             forceStableCellResample, forceFullSend, refreshObserverVisibility, mode, plate, blockEntities, lod));
     }
 
@@ -1150,7 +1150,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
     }
 
     private record ScanRequest<B, P extends Endpoint, V>(ScanDestination<P, V> destination,
-                               Frame rtpTarget,
+                               Frame targetFrame,
                                Vec3d eye,
                                ViewVolume frustum,
                                double depthBlocks,
@@ -1256,7 +1256,7 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
 
         private ScanPass(ScanRequest<B, P, V> request) {
             ScanDestination<P, V> destination = request.destination();
-            Frame rtpTarget = request.rtpTarget();
+            Frame targetFrame = request.targetFrame();
             Vec3d eye = request.eye();
             frustum = request.frustum();
             double depthBlocks = request.depthBlocks();
@@ -1342,8 +1342,8 @@ public final class CellScan<B, M, W, P extends Endpoint, V extends ContentView<B
             int zb = ProjectionVolume.maxBlockForCenter(area.getZb());
 
             localFrame = portal.frame();
-            Frame remoteFrame = rtpTarget != null
-                ? rtpTarget
+            Frame remoteFrame = targetFrame != null
+                ? targetFrame
                 : mirrorMode ? localFrame.flipNormal() : destination.destAnchor().frame();
             double localOriginX = portal.origin().getX();
             double localOriginY = portal.origin().getY();

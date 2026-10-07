@@ -2,6 +2,7 @@ package art.arcane.wormholes.modded.client.render;
 
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.Face;
+import art.arcane.wormholes.portal.ApertureKind;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import net.minecraft.core.BlockPos;
 import org.junit.Test;
@@ -21,7 +22,7 @@ public class ClientEndPortalSurfaceTest {
         renderer.clear();
         try {
             PortalScene scene = mock(PortalScene.class);
-            when(scene.geometry()).thenReturn(geometry(ApertureDescriptor.KIND_VANILLA_REPLACEMENT, 0));
+            when(scene.geometry()).thenReturn(geometry(ApertureKind.VANILLA_REPLACEMENT, 0));
             renderer.replaceScene(7, scene);
             Field portalsField = ClientPortalRenderer.class.getDeclaredField("portals");
             portalsField.setAccessible(true);
@@ -35,11 +36,11 @@ public class ClientEndPortalSurfaceTest {
             assertFalse(renderer.coversEndPortalSurface(new BlockPos(0, 64, 0)));
             assertFalse(renderer.coversEndPortalSurface(new BlockPos(-1, 65, 0)));
             assertFalse(renderer.coversEndPortalSurface(new BlockPos(3, 64, 0)));
-            when(scene.geometry()).thenReturn(geometry(ApertureDescriptor.KIND_FRAME, 0));
+            when(scene.geometry()).thenReturn(geometry(ApertureKind.FRAME, 0));
             assertFalse(renderer.coversEndPortalSurface(open));
-            when(scene.geometry()).thenReturn(geometry(ApertureDescriptor.KIND_VANILLA_REPLACEMENT, 9));
+            when(scene.geometry()).thenReturn(geometry(ApertureKind.VANILLA_REPLACEMENT, 9));
             assertFalse(renderer.coversEndPortalSurface(open));
-            when(scene.geometry()).thenReturn(geometry(ApertureDescriptor.KIND_VANILLA_REPLACEMENT, 0));
+            when(scene.geometry()).thenReturn(geometry(ApertureKind.VANILLA_REPLACEMENT, 0));
             renderer.featureFailed(7, new IllegalStateException("unavailable native view"));
             assertFalse(renderer.coversEndPortalSurface(open));
             renderer.remove(7);

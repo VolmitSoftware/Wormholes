@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 import art.arcane.wormholes.network.client.TravelMessage;
 import art.arcane.wormholes.network.client.FxMessage;
 import art.arcane.wormholes.modded.clientview.MinecraftClientViewExtensions;
+import art.arcane.wormholes.portal.ApertureKind;
 
 public final class ClientViewSession {
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
@@ -345,7 +346,7 @@ public final class ClientViewSession {
         }
         for (ClientPortal portal : portals.values()) {
             ApertureDescriptor geometry = portal.geometry();
-            if (!portal.nested() && geometry.kind() == ApertureDescriptor.KIND_VANILLA_REPLACEMENT
+            if (!portal.nested() && geometry.kind() == ApertureKind.VANILLA_REPLACEMENT
                 && geometry.containsCell(x, y, z)) {
                 return true;
             }

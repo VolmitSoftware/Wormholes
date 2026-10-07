@@ -18,6 +18,7 @@ import art.arcane.optics.math.Face;
 import org.junit.jupiter.api.Test;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.recursion.ClientRecursionPlanner;
+import art.arcane.wormholes.portal.ApertureKind;
 
 final class ClientRecursionPlannerTest {
     @Test
@@ -129,9 +130,9 @@ final class ClientRecursionPlannerTest {
         OpticTransform destination = OpticTransform.of(AxisPermutation.of(Face.E, Face.U, Face.S), -100, 0, 0);
         Box visible = new Box(89, 90, 64, 67, -1, 2);
         Box behind = new Box(110, 111, 64, 67, -1, 2);
-        for (int kind : new int[]{ApertureDescriptor.KIND_FRAME, ApertureDescriptor.KIND_RTP,
-            ApertureDescriptor.KIND_DOOR, ApertureDescriptor.KIND_VANILLA_REPLACEMENT}) {
-            ApertureDescriptor reflection = withKind(wall(-10, 0, 1, true, true, List.of()), ApertureDescriptor.KIND_FRAME);
+        for (int kind : new int[]{ApertureKind.FRAME, ApertureKind.RTP,
+            ApertureKind.DOOR, ApertureKind.VANILLA_REPLACEMENT}) {
+            ApertureDescriptor reflection = withKind(wall(-10, 0, 1, true, true, List.of()), ApertureKind.FRAME);
             ApertureDescriptor doorway = withKind(wall(0, 0, 3, List.of(reflection)), kind);
             assertTrue(ClientRecursionPlanner.destinationReaches(doorway, destination, visible));
             assertFalse(ClientRecursionPlanner.destinationReaches(doorway, destination, behind));
@@ -140,7 +141,7 @@ final class ClientRecursionPlannerTest {
             assertSame(reflection, cones.getFirst().geometry());
             assertTrue(cones.getFirst().visible(-12.5D, 65.5D, 0.5D));
         }
-        ApertureDescriptor door = withKind(wall(3, 0, 0, false, false, List.of()), ApertureDescriptor.KIND_DOOR);
+        ApertureDescriptor door = withKind(wall(3, 0, 0, false, false, List.of()), ApertureKind.DOOR);
         ApertureDescriptor mirror = wall(0, 0, 2, true, true, List.of(door));
         List<ClientRecursionPlanner.NestedCone> reflected = new ClientRecursionPlanner(8).plan(mirror, 6.5D, 65.5D, 0.5D);
         assertEquals(1, reflected.size());
@@ -154,7 +155,7 @@ final class ClientRecursionPlannerTest {
             geometry.apertureMask(), geometry.nearPlanePadding(), geometry.aperturePadding(), geometry.frustumCullingRatio(),
             geometry.depthBlocks(), geometry.recursionDepth(), geometry.blackoutPolicy(), geometry.blackoutState(),
             geometry.maskAirPolicy(), geometry.lightingPolicy(), geometry.fidelityFlags(), kind,
-            kind == ApertureDescriptor.KIND_DOOR ? DoorwayPlane.planeOffset(geometry.facingDirection()) : 0.0D, geometry.parentPortalKey(),
+            kind == ApertureKind.DOOR ? DoorwayPlane.planeOffset(geometry.facingDirection()) : 0.0D, geometry.parentPortalKey(),
             geometry.targetIdentity(), geometry.nested());
     }
 
@@ -168,6 +169,6 @@ final class ClientRecursionPlannerTest {
         aperture.setArea(new Box(x, x + 0.999D, 64.0D, 66.999D, z - 1.0D, z + 1.999D));
         return ApertureDescriptor.fromPortal(new ApertureDescriptor.Source(aperture, Frame.canonical(Face.E), frontSide, mirror, 0,
             2.0D, 0.75D, 0.2D, 32, recursionDepth, ApertureDescriptor.BLACKOUT_OFF, 0, ApertureDescriptor.MASK_AIR_PROJECT,
-            ProjectedBlockClaim.LightingPolicy.SOURCE, 0, ApertureDescriptor.KIND_FRAME, 0.0D, 0, 0L, nested)).orElseThrow();
+            ProjectedBlockClaim.LightingPolicy.SOURCE, 0, ApertureKind.FRAME, 0.0D, 0, 0L, nested)).orElseThrow();
     }
 }

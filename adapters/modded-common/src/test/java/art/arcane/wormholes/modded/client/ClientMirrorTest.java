@@ -43,6 +43,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import art.arcane.wormholes.modded.clientview.MinecraftClientViewExtensions;
+import art.arcane.wormholes.portal.ApertureKind;
 
 public class ClientMirrorTest {
     private static final int MIRROR_KEY = 1;
@@ -235,7 +236,7 @@ public class ClientMirrorTest {
         return new ApertureDescriptor(0, 64, MIRROR_Z, Face.S.ordinal(), true, 0, true, 3, 3,
             ApertureDescriptor.apertureMask(3, 3, open), 0.0F, 0.0F, 0.0F, 8, recursionDepth,
             ApertureDescriptor.BLACKOUT_OFF, 0, ApertureDescriptor.MASK_AIR_PROJECT, 0, 0,
-            ApertureDescriptor.KIND_FRAME, 0.0D, 0, 0L, nested);
+            ApertureKind.FRAME, 0.0D, 0, 0L, nested);
     }
 
     private static ApertureDescriptor child() {
@@ -244,7 +245,7 @@ public class ClientMirrorTest {
         return new ApertureDescriptor(0, 64, 13, Face.S.ordinal(), false, 0, false, 3, 3,
             ApertureDescriptor.apertureMask(3, 3, open), 0.0F, 0.0F, 0.0F, 8, 0,
             ApertureDescriptor.BLACKOUT_OFF, 0, ApertureDescriptor.MASK_AIR_PROJECT, 0, 0,
-            ApertureDescriptor.KIND_RTP, 0.0D, MIRROR_KEY, 7L, List.of());
+            ApertureKind.RTP, 0.0D, MIRROR_KEY, 7L, List.of());
     }
 
     private static int contentLight(int z) {

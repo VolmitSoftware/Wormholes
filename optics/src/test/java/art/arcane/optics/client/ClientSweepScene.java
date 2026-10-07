@@ -139,7 +139,7 @@ public final class ClientSweepScene {
     ApertureDescriptor geometry(boolean frontSide, int blackoutPolicy) {
         return ApertureDescriptor.fromPortal(new ApertureDescriptor.Source(aperture, localFrame, frontSide, false, 0,
             NEAR_PLANE_PADDING, APERTURE_PADDING, CULLING_RATIO, depth, 0, blackoutPolicy, ClientSweepPalette.BLACKOUT_ID,
-            ApertureDescriptor.MASK_AIR_PROJECT, ProjectedBlockClaim.LightingPolicy.SOURCE, 0, ApertureDescriptor.KIND_RTP, 0.0D, 0, 0L,
+            ApertureDescriptor.MASK_AIR_PROJECT, ProjectedBlockClaim.LightingPolicy.SOURCE, 0, 1, 0.0D, 0, 0L,
             List.of())).orElseThrow();
     }
 

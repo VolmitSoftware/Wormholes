@@ -93,6 +93,7 @@ import java.util.function.Supplier;
 
 import static net.minecraft.world.level.chunk.status.ChunkStatus.FULL;
 import art.arcane.wormholes.network.client.TravelMessage;
+import art.arcane.wormholes.portal.ApertureKind;
 
 public final class ClientPreparedTravel {
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
@@ -604,7 +605,7 @@ public final class ClientPreparedTravel {
             return false;
         }
         ApertureDescriptor aperture = retained.aperture();
-        return aperture != null && aperture.parentPortalKey() == 0 && aperture.kind() == ApertureDescriptor.KIND_VANILLA_REPLACEMENT
+        return aperture != null && aperture.parentPortalKey() == 0 && aperture.kind() == ApertureKind.VANILLA_REPLACEMENT
             && aperture.containsCell(position.getX(), position.getY(), position.getZ());
     }
 

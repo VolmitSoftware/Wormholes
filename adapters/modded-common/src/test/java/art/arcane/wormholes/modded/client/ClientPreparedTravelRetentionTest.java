@@ -68,6 +68,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.mockConstruction;
 import static org.mockito.Mockito.withSettings;
 import art.arcane.wormholes.network.client.TravelMessage;
+import art.arcane.wormholes.portal.ApertureKind;
 
 public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
     @Test
@@ -284,7 +285,7 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
     @Test
     @SuppressWarnings("unchecked")
     public void retainedManagedApertureRequiresExactWorldAuthorityAndRevokesOnDrop() throws ReflectiveOperationException {
-        for (int kind : List.of(ApertureDescriptor.KIND_FRAME, ApertureDescriptor.KIND_VANILLA_REPLACEMENT)) {
+        for (int kind : List.of(ApertureKind.FRAME, ApertureKind.VANILLA_REPLACEMENT)) {
             ClientPreparedTravel travel = ClientTravelTestFixtures.travel(ignored -> { });
             TravelMessage.TravelBegin original = begin();
             ApertureDescriptor aperture = new ApertureDescriptor(0, 0, 0, Face.N.ordinal(), true, 0, false, 2, 3,
@@ -308,7 +309,7 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
                 access.when(Minecraft::getInstance).thenReturn(minecraft);
                 invoke(travel, "retainActualWorlds", new Class<?>[0]);
                 BlockPos open = BlockPos.ZERO;
-                boolean managed = kind == ApertureDescriptor.KIND_VANILLA_REPLACEMENT;
+                boolean managed = kind == ApertureKind.VANILLA_REPLACEMENT;
                 assertEquals(managed, travel.managesVanillaPortal(level, open));
                 assertFalse(travel.managesVanillaPortal(level, new BlockPos(1, 0, 0)));
                 assertFalse(travel.managesVanillaPortal(level, new BlockPos(0, 0, 1)));

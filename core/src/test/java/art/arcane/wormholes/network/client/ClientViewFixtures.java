@@ -16,6 +16,7 @@ import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.ViewStreamCodec;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.ViewStreamMessage;
+import art.arcane.wormholes.portal.ApertureKind;
 
 public final class ClientViewFixtures {
     static final ViewStreamCodec CODEC = new ViewStreamCodec(List.of(FxExtension.INSTANCE, new TravelExtension(SeamlessTravelCodec.INSTANCE)));
@@ -118,7 +119,7 @@ public final class ClientViewFixtures {
         }
         return new ApertureDescriptor(635, 64, -4682, 3, true, 0, false, 3, 3, ApertureDescriptor.apertureMask(3, 3, open),
             0.25F, 0.75F, 1.2F, 64, 1, 1, 6, 0, 1, ApertureDescriptor.FIDELITY_DISPLAY_ENTITIES | ApertureDescriptor.FIDELITY_WEATHER,
-            ApertureDescriptor.KIND_RTP, 0.0D, 0, 0x7A7A7A7A7A7A7A7AL, List.of());
+            ApertureKind.RTP, 0.0D, 0, 0x7A7A7A7A7A7A7A7AL, List.of());
     }
 
     static FxMessage.Fx fx() {

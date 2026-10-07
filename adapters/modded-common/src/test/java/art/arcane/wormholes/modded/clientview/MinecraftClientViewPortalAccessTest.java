@@ -44,6 +44,7 @@ import art.arcane.optics.plate.PlateCaptureJob;
 import art.arcane.optics.plate.ViewPlateCache;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
+import art.arcane.wormholes.portal.ApertureKind;
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.PacketFlow;
@@ -178,7 +179,7 @@ public class MinecraftClientViewPortalAccessTest extends MinecraftTestBase {
         assertEquals(List.of(identity.itemId()), interest);
         ApertureDescriptor geometry = portals.geometry(fixture.peer(), identity.itemId(), new SessionPalette());
         assertNotNull(geometry);
-        assertEquals(ApertureDescriptor.KIND_DOOR, geometry.kind());
+        assertEquals(ApertureKind.DOOR, geometry.kind());
         assertEquals(2, geometry.openCellCount());
         assertEquals(ApertureDescriptor.BLACKOUT_OFF, geometry.blackoutPolicy());
         assertNotEquals(0L, geometry.targetIdentity());
@@ -296,7 +297,7 @@ public class MinecraftClientViewPortalAccessTest extends MinecraftTestBase {
         assertEquals(1, fixture.scheduled().size());
         assertEquals(91L, fixture.scheduled().get(0).key().targetIdentity());
         ApertureDescriptor geometry = portals.geometry(fixture.peer(), fixture.source().getId(), new SessionPalette());
-        assertEquals(ApertureDescriptor.KIND_RTP, geometry.kind());
+        assertEquals(ApertureKind.RTP, geometry.kind());
         assertNotEquals(0L, geometry.targetIdentity());
         assertNotEquals(91L, geometry.targetIdentity());
         boolean gate = FidelitySettings.rtpPlates;
@@ -349,7 +350,7 @@ public class MinecraftClientViewPortalAccessTest extends MinecraftTestBase {
         assertEquals(9, geometry.openCellCount());
         assertTrue(geometry.frontSide());
         assertEquals(8, geometry.depthBlocks());
-        assertEquals(ApertureDescriptor.KIND_FRAME, geometry.kind());
+        assertEquals(ApertureKind.FRAME, geometry.kind());
         assertEquals(0L, geometry.targetIdentity());
         assertEquals(ApertureDescriptor.BLACKOUT_SHELL, geometry.blackoutPolicy());
         assertEquals(BlockStateParser.serialize(Blocks.CONCRETE.pick(DyeColor.BLACK).defaultBlockState()), palette.state(geometry.blackoutState()));
@@ -517,7 +518,7 @@ public class MinecraftClientViewPortalAccessTest extends MinecraftTestBase {
         UUID root = identity.itemId();
         portals.prepareNested(fixture.peer(), root, null, root);
         ApertureDescriptor rootGeometry = portals.geometry(fixture.peer(), root, new SessionPalette()).withDepth(128);
-        assertEquals(ApertureDescriptor.KIND_DOOR, rootGeometry.kind());
+        assertEquals(ApertureKind.DOOR, rootGeometry.kind());
         assertEquals(fixture.runtime().configuration().settings().getProjection().recursivePortalDepth, rootGeometry.recursionDepth());
         Vec3d childOrigin = fixture.peer().nestedContext(root).transform().inverse().point(new Vec3d(2.5D, 65.0D, -4.5D));
         MinecraftPortal mirror = portal(childOrigin.x() - 1.5D);
@@ -564,7 +565,7 @@ public class MinecraftClientViewPortalAccessTest extends MinecraftTestBase {
             assertEquals(portals.nestedEye(fixture.peer(), root), fixture.peer().nestedContext(branch).sourceEye());
             ApertureDescriptor childGeometry = portals.nestedGeometry(fixture.peer(), root, childId, new SessionPalette());
             assertNotNull(childId.toString(), childGeometry);
-            assertEquals(childId.equals(childIdentity.itemId()) ? ApertureDescriptor.KIND_DOOR : ApertureDescriptor.KIND_FRAME,
+            assertEquals(childId.equals(childIdentity.itemId()) ? ApertureKind.DOOR : ApertureKind.FRAME,
                 childGeometry.kind());
             assertEquals(childId.equals(mirror.getId()), childGeometry.mirror());
             assertNotNull(portals.scene().sceneKey(fixture.peer(), branch));

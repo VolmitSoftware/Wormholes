@@ -34,6 +34,7 @@ import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.claim.ProjectedBlockClaim;
 import art.arcane.optics.scan.ProjectorPassRevision;
+import art.arcane.wormholes.portal.ApertureKind;
 
 public final class ClientViewPortalSource {
     private static final long REVISION_SEED = 1469598103934665603L;
@@ -273,15 +274,15 @@ public final class ClientViewPortalSource {
 
     private static int effectKind(ILocalPortal portal) {
         if (portal.getType() == PortalType.RTP) {
-            return ApertureDescriptor.KIND_RTP;
+            return ApertureKind.RTP;
         }
         if (portal instanceof AbstractApertureFacade) {
-            return ApertureDescriptor.KIND_DOOR;
+            return ApertureKind.DOOR;
         }
         DimensionalPortalKind dimensional = portal.getDimensionalPortalKind();
         return dimensional != null && dimensional.isManagedPortal()
-            ? ApertureDescriptor.KIND_VANILLA_REPLACEMENT
-            : ApertureDescriptor.KIND_FRAME;
+            ? ApertureKind.VANILLA_REPLACEMENT
+            : ApertureKind.FRAME;
     }
 
     private long meshTargetRevision() {
@@ -359,15 +360,15 @@ public final class ClientViewPortalSource {
 
     private int kind() {
         if (portal instanceof AbstractApertureFacade) {
-            return ApertureDescriptor.KIND_DOOR;
+            return ApertureKind.DOOR;
         }
         if (target != null) {
-            return ApertureDescriptor.KIND_RTP;
+            return ApertureKind.RTP;
         }
         DimensionalPortalKind dimensional = portal.getDimensionalPortalKind();
         return dimensional != null && dimensional.isManagedPortal()
-            ? ApertureDescriptor.KIND_VANILLA_REPLACEMENT
-            : ApertureDescriptor.KIND_FRAME;
+            ? ApertureKind.VANILLA_REPLACEMENT
+            : ApertureKind.FRAME;
     }
 
     private static AtmosphereMode atmosphereMode(FidelityPortalExtension fidelity) {

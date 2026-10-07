@@ -43,6 +43,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletionException;
 import art.arcane.wormholes.network.client.TravelMessage;
+import art.arcane.wormholes.portal.ApertureKind;
 
 final class MinecraftPreparedTravel {
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
@@ -548,7 +549,7 @@ final class MinecraftPreparedTravel {
     boolean dispatchCross(MinecraftClientViewPeer peer, ServerPlayer player, MinecraftPortal source, MinecraftPortal destination,
                           int kind, PlaneCrossing crossing) {
         boolean door = peer.door(source.getId()) == source;
-        if (door != (kind == ApertureDescriptor.KIND_DOOR) || !eligible(peer, player, source, destination)) {
+        if (door != (kind == ApertureKind.DOOR) || !eligible(peer, player, source, destination)) {
             return false;
         }
         return door ? runtime.doors().crossPrepared(player, source.getId(), crossing)

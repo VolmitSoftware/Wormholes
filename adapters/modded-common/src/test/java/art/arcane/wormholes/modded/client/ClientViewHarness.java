@@ -37,6 +37,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import art.arcane.wormholes.modded.clientview.MinecraftClientViewExtensions;
+import art.arcane.wormholes.portal.ApertureKind;
 
 final class ClientViewHarness {
     static final long PLATE_CAPS = ViewStreamCapability.ALL & ~ViewStreamCapability.MESH_RENDER.mask();
@@ -162,7 +163,7 @@ final class ClientViewHarness {
         return new ApertureDescriptor(0, 64, 10, Face.S.ordinal(), true, 0, false, 3, 3,
             ApertureDescriptor.apertureMask(3, 3, open), 0.0F, 0.0F, 0.0F, 8, 0,
             ApertureDescriptor.BLACKOUT_OFF, 0, ApertureDescriptor.MASK_AIR_PROJECT, 0, 0,
-            ApertureDescriptor.KIND_FRAME, 0.0D, 0, 0L, List.of());
+            ApertureKind.FRAME, 0.0D, 0, 0L, List.of());
     }
 
     static final class FakeSurface implements ClientViewSurface {

@@ -8,6 +8,7 @@ import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.math.Vec3d;
+import art.arcane.wormholes.portal.ApertureKind;
 import com.mojang.blaze3d.ProjectionType;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.pipeline.PipelineCache;
@@ -408,7 +409,7 @@ public final class ClientPortalRenderer {
         for (Portal portal : portals.values()) {
             ApertureDescriptor geometry = portal.scene.geometry();
             if (portal.active && portal.rendered && geometry.parentPortalKey() == 0
-                && geometry.kind() == ApertureDescriptor.KIND_VANILLA_REPLACEMENT
+                && geometry.kind() == ApertureKind.VANILLA_REPLACEMENT
                 && geometry.facingDirection().y() != 0
                 && geometry.containsCell(position.getX(), position.getY(), position.getZ())) {
                 return true;

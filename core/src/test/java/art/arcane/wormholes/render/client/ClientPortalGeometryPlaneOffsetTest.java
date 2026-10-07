@@ -17,13 +17,14 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.wormholes.portal.ApertureKind;
 
 final class ClientPortalGeometryPlaneOffsetTest {
     @Test
     void planeOffsetSurvivesTheWireBitForBit() throws ViewStreamProtocolException {
         for (Face normal : Face.values()) {
-            ApertureDescriptor child = geometry(normal, ApertureDescriptor.KIND_FRAME, 0.0D, List.of());
-            ApertureDescriptor door = geometry(normal, ApertureDescriptor.KIND_DOOR, DoorwayPlane.planeOffset(normal), List.of(child));
+            ApertureDescriptor child = geometry(normal, ApertureKind.FRAME, 0.0D, List.of());
+            ApertureDescriptor door = geometry(normal, ApertureKind.DOOR, DoorwayPlane.planeOffset(normal), List.of(child));
             ViewStreamWriter out = new ViewStreamWriter();
             ViewStreamCodec.writeGeometry(out, door, 0);
             ViewStreamReader in = new ViewStreamReader(out.toByteArray());
@@ -36,8 +37,8 @@ final class ClientPortalGeometryPlaneOffsetTest {
 
     @Test
     void planeOffsetIsPartOfTheSurfaceIdentity() {
-        ApertureDescriptor flush = geometry(Face.N, ApertureDescriptor.KIND_DOOR, 0.0D, List.of());
-        ApertureDescriptor recessed = geometry(Face.N, ApertureDescriptor.KIND_DOOR, DoorwayPlane.planeOffset(Face.N), List.of());
+        ApertureDescriptor flush = geometry(Face.N, ApertureKind.DOOR, 0.0D, List.of());
+        ApertureDescriptor recessed = geometry(Face.N, ApertureKind.DOOR, DoorwayPlane.planeOffset(Face.N), List.of());
         assertNotEquals(flush, recessed);
         assertNotEquals(flush.hashCode(), recessed.hashCode());
     }
@@ -45,7 +46,7 @@ final class ClientPortalGeometryPlaneOffsetTest {
     @Test
     void doorPlaneSitsAtTheDoorwayPlaneOffset() {
         for (Face normal : Face.values()) {
-            ApertureDescriptor door = geometry(normal, ApertureDescriptor.KIND_DOOR, DoorwayPlane.planeOffset(normal), List.of());
+            ApertureDescriptor door = geometry(normal, ApertureKind.DOOR, DoorwayPlane.planeOffset(normal), List.of());
             int origin = normal.x() != 0 ? door.originX() : normal.y() != 0 ? door.originY() : door.originZ();
             double expected = origin + 0.5D + (normal.x() + normal.y() + normal.z()) * DoorwayPlane.planeOffset(normal);
             assertEquals(expected, door.planeCoordinate(), 0.0D, normal.name());
@@ -55,8 +56,8 @@ final class ClientPortalGeometryPlaneOffsetTest {
     @Test
     void framesSitOnTheBlockCentreRegardlessOfKind() {
         for (Face normal : Face.values()) {
-            ApertureDescriptor frame = geometry(normal, ApertureDescriptor.KIND_FRAME, 0.0D, List.of());
-            ApertureDescriptor unshiftedDoor = geometry(normal, ApertureDescriptor.KIND_DOOR, 0.0D, List.of());
+            ApertureDescriptor frame = geometry(normal, ApertureKind.FRAME, 0.0D, List.of());
+            ApertureDescriptor unshiftedDoor = geometry(normal, ApertureKind.DOOR, 0.0D, List.of());
             int origin = normal.x() != 0 ? frame.originX() : normal.y() != 0 ? frame.originY() : frame.originZ();
             assertEquals(origin + 0.5D, frame.planeCoordinate(), 0.0D, normal.name());
             assertEquals(origin + 0.5D, unshiftedDoor.planeCoordinate(), 0.0D, normal.name());

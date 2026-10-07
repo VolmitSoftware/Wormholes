@@ -11,8 +11,8 @@ import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.wormholes.portal.PortalType;
-import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.Face;
+import art.arcane.wormholes.portal.ApertureKind;
 import net.minecraft.server.level.ServerPlayer;
 import org.junit.Test;
 
@@ -43,7 +43,7 @@ public class MinecraftPreparedTravelEntranceTest extends MinecraftTestBase {
         when(fixture.doors().crossPrepared(fixture.player(), door.getId(), crossing)).thenReturn(true);
         assertTrue(fixture.travel().eligible(fixture.peer(), fixture.player(), door, receiver));
         assertTrue(fixture.travel().dispatchCross(fixture.peer(), fixture.player(), door, receiver,
-            ApertureDescriptor.KIND_DOOR, crossing));
+            ApertureKind.DOOR, crossing));
         verify(fixture.registry(), never()).canDepart(any(), any());
         verify(fixture.registry(), never()).canArrive(any(), any());
         verify(fixture.registry(), never()).crossPrepared(any(), any(), any(), any());
@@ -61,7 +61,7 @@ public class MinecraftPreparedTravelEntranceTest extends MinecraftTestBase {
         PlaneCrossing crossing = crossing(portal);
         when(fixture.registry().crossPrepared(fixture.player(), portal.getId(), receiver, crossing)).thenReturn(true);
         assertTrue(fixture.travel().dispatchCross(fixture.peer(), fixture.player(), portal, receiver,
-            ApertureDescriptor.KIND_FRAME, crossing));
+            ApertureKind.FRAME, crossing));
         verify(fixture.registry()).crossPrepared(fixture.player(), portal.getId(), receiver, crossing);
         verify(fixture.doors(), never()).crossPrepared(any(), any(), any());
     }
@@ -76,7 +76,7 @@ public class MinecraftPreparedTravelEntranceTest extends MinecraftTestBase {
         when(fixture.peer().door(door.getId())).thenReturn(null);
         assertFalse(fixture.travel().eligible(fixture.peer(), fixture.player(), door, receiver));
         assertFalse(fixture.travel().dispatchCross(fixture.peer(), fixture.player(), door, receiver,
-            ApertureDescriptor.KIND_DOOR, crossing(door)));
+            ApertureKind.DOOR, crossing(door)));
         verify(fixture.registry(), never()).canDepart(any(), any());
         verify(fixture.registry(), never()).crossPrepared(any(), any(), any(), any());
         verify(fixture.doors(), never()).crossPrepared(any(), any(), any());

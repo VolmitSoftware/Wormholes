@@ -34,6 +34,7 @@ import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.view.ContentView;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
+import art.arcane.wormholes.portal.ApertureKind;
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -500,12 +501,12 @@ public final class MinecraftClientViewPortalAccess implements ViewStreamEndpoint
 
     private static int kind(MinecraftClientViewPeer peer, MinecraftPortal portal) {
         if (peer.door(portal.getId()) == portal) {
-            return ApertureDescriptor.KIND_DOOR;
+            return ApertureKind.DOOR;
         }
         if (portal.getType() == PortalType.RTP) {
-            return ApertureDescriptor.KIND_RTP;
+            return ApertureKind.RTP;
         }
-        return portal.isManaged() ? ApertureDescriptor.KIND_VANILLA_REPLACEMENT : ApertureDescriptor.KIND_FRAME;
+        return portal.isManaged() ? ApertureKind.VANILLA_REPLACEMENT : ApertureKind.FRAME;
     }
 
     private static int fidelity(MinecraftPortal portal, RenderConfig render) {

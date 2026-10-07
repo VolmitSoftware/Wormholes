@@ -39,10 +39,7 @@ public record ApertureDescriptor(int originX,
                                    int parentPortalKey,
                                    long targetIdentity,
                                    List<ApertureDescriptor> nested) {
-    public static final int KIND_FRAME = 0;
-    public static final int KIND_RTP = 1;
-    public static final int KIND_DOOR = 2;
-    public static final int KIND_VANILLA_REPLACEMENT = 3;
+    public static final int MAX_KIND = 0xFF;
     public static final int FIDELITY_DISPLAY_ENTITIES = 1;
     public static final int FIDELITY_LIGHTING = 1 << 1;
     public static final int FIDELITY_WEATHER = 1 << 2;
@@ -143,7 +140,7 @@ public record ApertureDescriptor(int originX,
             && blackoutPolicy >= BLACKOUT_OFF && blackoutPolicy <= BLACKOUT_SHELL_AND_BURIED
             && maskAirPolicy >= MASK_AIR_PROJECT && maskAirPolicy <= MASK_AIR_KEEP_REAL
             && lightingPolicy >= 0 && lightingPolicy < LIGHTING_POLICIES.length
-            && kind >= KIND_FRAME && kind <= KIND_VANILLA_REPLACEMENT
+            && kind >= 0 && kind <= MAX_KIND
             && Double.isFinite(planeOffset);
     }
 

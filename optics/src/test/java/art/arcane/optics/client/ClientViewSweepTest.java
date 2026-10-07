@@ -319,7 +319,7 @@ final class ClientViewSweepTest {
         ApertureDescriptor geometry = ApertureDescriptor.fromPortal(new ApertureDescriptor.Source(aperture, frame, frontSide, mirror, 0,
             ClientSweepScene.NEAR_PLANE_PADDING, ClientSweepScene.APERTURE_PADDING, ClientSweepScene.CULLING_RATIO, 64, 0,
             ApertureDescriptor.BLACKOUT_OFF, 0, ApertureDescriptor.MASK_AIR_PROJECT, ProjectedBlockClaim.LightingPolicy.SOURCE, 0,
-            mirror ? ApertureDescriptor.KIND_FRAME : ApertureDescriptor.KIND_RTP, 0.0D, 0, 0L, List.of())).orElseThrow();
+            mirror ? 0 : 1, 0.0D, 0, 0L, List.of())).orElseThrow();
         BlockBox bounds = ClientSweepScene.plateBox(area, frame, origin, frontSide, 64, 40, ClientSweepScene.APERTURE_PADDING);
         return new ClientSweep(geometry, bounds, HYSTERESIS);
     }

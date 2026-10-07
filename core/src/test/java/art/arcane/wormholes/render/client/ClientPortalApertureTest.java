@@ -14,6 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.aperture.AperturePolygon;
+import art.arcane.wormholes.portal.ApertureKind;
 
 class ClientPortalApertureTest {
     @Test
@@ -26,7 +27,7 @@ class ClientPortalApertureTest {
                     : new DoorwayPlane(-4, 16, -8, normal);
                 int height = normal.isVertical() ? 1 : 2;
                 ApertureDescriptor geometry = new ApertureDescriptor(-4, 16, -8, normal.ordinal(), front, 0, false, 1, height,
-                    new long[]{height == 1 ? 1 : 3}, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, ApertureDescriptor.KIND_DOOR, DoorwayPlane.planeOffset(normal), 0, 0, List.of());
+                    new long[]{height == 1 ? 1 : 3}, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, ApertureKind.DOOR, DoorwayPlane.planeOffset(normal), 0, 0, List.of());
                 AperturePolygon aperture = AperturePolygon.from(geometry);
                 Vec3d center = doorway.center();
                 Vec3d physicalCenter = new Vec3d(center.x(), center.y(), center.z());

@@ -131,7 +131,7 @@ final class ViewStreamFixtures {
         }
         return new ApertureDescriptor(635, 64, -4682, 3, true, 0, false, 3, 3, ApertureDescriptor.apertureMask(3, 3, open),
             0.25F, 0.75F, 1.2F, 64, 1, 1, 6, 0, 1, ApertureDescriptor.FIDELITY_DISPLAY_ENTITIES | ApertureDescriptor.FIDELITY_WEATHER,
-            ApertureDescriptor.KIND_RTP, 0.0D, 0, 0x7A7A7A7A7A7A7A7AL, nested);
+            1, 0.0D, 0, 0x7A7A7A7A7A7A7A7AL, nested);
     }
 
     static ViewStreamMessage.Portal portal() {
@@ -140,7 +140,7 @@ final class ViewStreamFixtures {
 
     static ViewStreamMessage.Portal portalNested() {
         ApertureDescriptor child = new ApertureDescriptor(2, 0, 5, 2, false, 1, true, 2, 2, ApertureDescriptor.apertureMask(2, 2,
-            new boolean[] {true, true, true, true}), 0.25F, 0.5F, 1.0F, 32, 0, 0, 0, 1, 0, 0, ApertureDescriptor.KIND_FRAME, 0.0D, 7, 0L, List.of());
+            new boolean[] {true, true, true, true}), 0.25F, 0.5F, 1.0F, 32, 0, 0, 0, 1, 0, 0, 0, 0.0D, 7, 0L, List.of());
         return new ViewStreamMessage.Portal(8, 1, geometry(List.of(child)));
     }
 

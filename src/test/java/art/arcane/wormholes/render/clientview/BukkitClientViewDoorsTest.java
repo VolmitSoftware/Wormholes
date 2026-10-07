@@ -16,6 +16,7 @@ import art.arcane.wormholes.render.PortalProjector;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.math.Face;
+import art.arcane.wormholes.portal.ApertureKind;
 import com.github.retrooper.packetevents.protocol.ConnectionState;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -44,7 +45,7 @@ import static org.mockito.Mockito.when;
 final class BukkitClientViewDoorsTest {
     @ParameterizedTest
     @MethodSource("crossWorldRoutes")
-    void crossWorldNestedAperturesUseTheProjectedCamera(ApertureKind rootKind, ApertureKind childKind, boolean returning) {
+    void crossWorldNestedAperturesUseTheProjectedCamera(Opening rootKind, Opening childKind, boolean returning) {
         try (ClientViewFixture fixture = new ClientViewFixture(ClientViewFixture.options(true, false, 0), ConnectionState.PLAY)) {
             World pocket = mock(World.class);
             when(pocket.getUID()).thenReturn(UUID.randomUUID());
@@ -54,15 +55,15 @@ final class BukkitClientViewDoorsTest {
             Location eye = new Location(sourceWorld, fixture.eye.getX(), fixture.eye.getY(), fixture.eye.getZ());
             ILocalPortal root = aperture(fixture, rootKind, sourceWorld, destinationWorld, 0);
             ILocalPortal child = aperture(fixture, childKind, destinationWorld, sourceWorld, 5);
-            ILocalPortal reflectedDoor = childKind == ApertureKind.MIRROR
-                ? aperture(fixture, ApertureKind.DOOR, destinationWorld, sourceWorld, -5) : null;
+            ILocalPortal reflectedDoor = childKind == Opening.MIRROR
+                ? aperture(fixture, Opening.DOOR, destinationWorld, sourceWorld, -5) : null;
             PortalProjector.RtpProjectionTarget rootTarget = target(destinationWorld);
             PortalProjector.RtpProjectionTarget childTarget = target(sourceWorld);
             Map<UUID, PortalProjector.RtpProjectionTarget> targets = new HashMap<>();
-            if (rootKind == ApertureKind.DOOR) {
+            if (rootKind == Opening.DOOR) {
                 targets.put(root.getId(), rootTarget);
             }
-            if (childKind == ApertureKind.DOOR) {
+            if (childKind == Opening.DOOR) {
                 targets.put(child.getId(), childTarget);
             }
             if (reflectedDoor != null) {
@@ -85,11 +86,11 @@ final class BukkitClientViewDoorsTest {
             access.prepareNested(observer, childContext, root.getId(), child.getId());
             ApertureDescriptor childGeometry = access.nestedGeometry(observer, root.getId(), child.getId(), new SessionPalette());
             assertNotNull(childGeometry);
-            assertEquals(childKind == ApertureKind.DOOR ? ApertureDescriptor.KIND_DOOR : ApertureDescriptor.KIND_FRAME,
+            assertEquals(childKind == Opening.DOOR ? ApertureKind.DOOR : ApertureKind.FRAME,
                 childGeometry.kind());
             assertNotNull(observer.nestedContext(childContext));
             assertSame(destinationWorld, observer.nestedContext(childContext).sourceEye().getWorld());
-            assertSame(childKind == ApertureKind.MIRROR ? destinationWorld : sourceWorld,
+            assertSame(childKind == Opening.MIRROR ? destinationWorld : sourceWorld,
                 observer.reflectedEye(childContext).getWorld());
             assertSame(sourceWorld, fixture.player.getWorld());
             if (reflectedDoor != null) {
@@ -110,7 +111,7 @@ final class BukkitClientViewDoorsTest {
         try (ClientViewFixture fixture = new ClientViewFixture(ClientViewFixture.options(true, false, 0), ConnectionState.PLAY)) {
             World pocket = mock(World.class);
             when(pocket.getUID()).thenReturn(UUID.randomUUID());
-            ILocalPortal portal = aperture(fixture, ApertureKind.MIRROR, pocket, pocket, 0);
+            ILocalPortal portal = aperture(fixture, Opening.MIRROR, pocket, pocket, 0);
             ClientViewObserver observer = new ClientViewObserver(fixture.playerId, fixture.user);
             observer.meshDepth(128);
             observer.beginFrame(fixture.player, fixture.eye, List.of(portal), List.of(portal), Map.of(), 1L);
@@ -151,7 +152,7 @@ final class BukkitClientViewDoorsTest {
         try (ClientViewFixture fixture = new ClientViewFixture(ClientViewFixture.options(true, false, 0), ConnectionState.PLAY)) {
             World pocket = mock(World.class);
             when(pocket.getUID()).thenReturn(UUID.randomUUID());
-            ILocalPortal portal = aperture(fixture, ApertureKind.MIRROR, pocket, pocket, 0);
+            ILocalPortal portal = aperture(fixture, Opening.MIRROR, pocket, pocket, 0);
             ClientViewPortalSource source = new ClientViewPortalSource(portal, fixture.views, fixture.plates);
             Location camera = new Location(pocket, fixture.eye.getX(), fixture.eye.getY(), fixture.eye.getZ());
             source.update(fixture.player, camera, null, 1L, true);
@@ -216,7 +217,7 @@ final class BukkitClientViewDoorsTest {
             observer.beginFrame(fixture.player, fixture.eye, List.of(door), List.of(door), Map.of(door.getId(), first), 1);
             ApertureDescriptor geometry = access.geometry(observer, door.getId(), new SessionPalette());
             assertNotNull(geometry);
-            assertEquals(ApertureDescriptor.KIND_DOOR, geometry.kind());
+            assertEquals(ApertureKind.DOOR, geometry.kind());
             assertEquals(ApertureDescriptor.BLACKOUT_OFF, geometry.blackoutPolicy());
             assertNotEquals(0L, geometry.targetIdentity());
             long revision = access.geometryRevision(observer, door.getId());
@@ -285,13 +286,13 @@ final class BukkitClientViewDoorsTest {
     }
 
     private static Stream<Arguments> crossWorldRoutes() {
-        return Stream.of(ApertureKind.DOOR, ApertureKind.LINKED).flatMap(root -> Stream.of(ApertureKind.values())
+        return Stream.of(Opening.DOOR, Opening.LINKED).flatMap(root -> Stream.of(Opening.values())
             .flatMap(child -> Stream.of(false, true).map(returning -> Arguments.of(root, child, returning))));
     }
 
-    private static ILocalPortal aperture(ClientViewFixture fixture, ApertureKind kind, World world, World destinationWorld, int z) {
+    private static ILocalPortal aperture(ClientViewFixture fixture, Opening kind, World world, World destinationWorld, int z) {
         ILocalPortal template = fixture.linkedPortal(z);
-        ILocalPortal aperture = kind == ApertureKind.DOOR ? mock(DoorProjectionAdapter.class) : template;
+        ILocalPortal aperture = kind == Opening.DOOR ? mock(DoorProjectionAdapter.class) : template;
         PortalStructure structure = template.getStructure();
         when(aperture.getId()).thenReturn(UUID.randomUUID());
         when(aperture.getWorld()).thenReturn(world);
@@ -302,10 +303,10 @@ final class BukkitClientViewDoorsTest {
         when(aperture.getNetworkViewDepth()).thenReturn(24);
         when(aperture.getNetworkViewLateralPad()).thenReturn(4);
         when(aperture.isOpen()).thenReturn(true);
-        if (kind == ApertureKind.MIRROR) {
+        if (kind == Opening.MIRROR) {
             when(aperture.isMirrorMode()).thenReturn(true);
             when(aperture.getMirrorRotation()).thenReturn(QuarterTurn.DEGREES_0);
-        } else if (kind == ApertureKind.LINKED) {
+        } else if (kind == Opening.LINKED) {
             ILocalPortal destination = mock(ILocalPortal.class);
             Vec3d destinationOrigin = fixture.portal.getOrigin();
             when(destination.getWorld()).thenReturn(destinationWorld);
@@ -322,7 +323,7 @@ final class BukkitClientViewDoorsTest {
             Frame.canonical(Face.S), 1L);
     }
 
-    private enum ApertureKind {
+    private enum Opening {
         DOOR,
         LINKED,
         MIRROR

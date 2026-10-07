@@ -2,6 +2,7 @@ package art.arcane.wormholes.modded.client.render;
 
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.Face;
+import art.arcane.wormholes.portal.ApertureKind;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -101,7 +102,7 @@ public class ClientPortalRendererUpdatesTest {
     private static PortalScene scene() {
         PortalScene scene = mock(PortalScene.class);
         when(scene.geometry()).thenReturn(new ApertureDescriptor(0, 64, 0, Face.S.ordinal(), true, 0, false,
-            1, 2, new long[]{3}, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, ApertureDescriptor.KIND_FRAME, 0.0D, 0, 1, List.of()));
+            1, 2, new long[]{3}, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, ApertureKind.FRAME, 0.0D, 0, 1, List.of()));
         return scene;
     }
 

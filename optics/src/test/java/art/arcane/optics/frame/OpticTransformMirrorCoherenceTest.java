@@ -75,7 +75,7 @@ final class OpticTransformMirrorCoherenceTest {
             20, normal.z() != 0 ? 20.999D : 22.999D));
         ApertureDescriptor.Source source = new ApertureDescriptor.Source(aperture, frame, true, true, turns.getQuarterTurns(), 2.0D,
             0.75D, 0.2D, 16, 1, ApertureDescriptor.BLACKOUT_OFF, 0, ApertureDescriptor.MASK_AIR_PROJECT,
-            ProjectedBlockClaim.LightingPolicy.LOCAL, 0, ApertureDescriptor.KIND_FRAME, 0.0D, 0, 0L, List.of());
+            ProjectedBlockClaim.LightingPolicy.LOCAL, 0, 0, 0.0D, 0, 0L, List.of());
         return ApertureDescriptor.fromPortal(source).orElseThrow();
     }
 }
