@@ -36,6 +36,7 @@ public final class BackupBundle {
     public static final String SIGNATURE_ENTRY = "signature";
     public static final List<String> SOURCES = List.of("portals", "doors", "atlas", "rules/templates", "mesh");
     private static final String PORTAL_PREFIX = "portals/";
+    private static final String TEMPORARY_SUFFIX = ".tmp";
 
     private final BackupManifest manifest;
     private final Map<String, byte[]> entries;
@@ -208,7 +209,7 @@ public final class BackupBundle {
             Files.walkFileTree(root, new SimpleFileVisitor<Path>() {
                 @Override
                 public FileVisitResult visitFile(Path file, BasicFileAttributes attributes) {
-                    if (attributes.isRegularFile()) {
+                    if (attributes.isRegularFile() && !file.getFileName().toString().endsWith(TEMPORARY_SUFFIX)) {
                         files.add(file);
                     }
                     return FileVisitResult.CONTINUE;

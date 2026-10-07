@@ -49,6 +49,22 @@ class BackupBundleTest {
     }
 
     @Test
+    void inFlightAtomicWriteTemporariesStayOutOfTheBundle() throws Exception {
+        Path dataFolder = dataFolderWithPortals();
+        write(dataFolder.resolve("portals/0000/aaaa/one.json16258801369897799534.tmp"), "{\"id\":\"partial\"}");
+        write(dataFolder.resolve("doors/state.json.4411.tmp"), "{}");
+        Path target = tempDir.resolve("bundle.zip");
+
+        BackupBundle.write(dataFolder, target, manifest(), signer());
+
+        BackupBundle read = BackupBundle.read(target);
+        assertEquals(2, read.entries().keySet().stream().filter(entry -> entry.startsWith("portals/")).count());
+        assertFalse(read.entries().keySet().stream().anyMatch(entry -> entry.endsWith(".tmp")),
+            "temporary files of in-flight saves are not data");
+        assertTrue(read.signatureValid());
+    }
+
+    @Test
     void aTamperedEntryFailsVerification() throws Exception {
         Path dataFolder = dataFolderWithPortals();
         Path target = tempDir.resolve("bundle.zip");
