@@ -1,10 +1,7 @@
 {
   "type": "minecraft:function",
   "function": "wormholes:remote_view",
-  "environment": {
-    "type": "minecraft:all_of",
-    "definitions": []
-  },
+  "environment": "wormholes:remote_view",
   "structure": "wormholes:empty",
   "max_ticks": 4000,
   "setup_ticks": 5,

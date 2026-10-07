@@ -1,11 +1,14 @@
 package art.arcane.wormholes.gametest;
 
 import art.arcane.wormholes.fabric.WormholesFabric;
+import art.arcane.wormholes.modded.RuntimeBaselineEnvironment;
 import art.arcane.wormholes.modded.WormholesGameTests;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.MinecraftServer;
 
 import java.lang.reflect.Field;
@@ -15,6 +18,7 @@ public final class FabricGameTests implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        Registry.register(BuiltInRegistries.TEST_ENVIRONMENT_DEFINITION_TYPE, RuntimeBaselineEnvironment.ID, RuntimeBaselineEnvironment.CODEC);
         ServerTickEvents.END_SERVER_TICK.register(this::attach);
     }
 

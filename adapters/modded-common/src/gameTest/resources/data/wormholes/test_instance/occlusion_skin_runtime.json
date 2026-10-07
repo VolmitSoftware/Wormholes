@@ -1,10 +1,7 @@
 {
   "type": "minecraft:function",
   "function": "wormholes:occlusion_skin_runtime",
-  "environment": {
-    "type": "minecraft:all_of",
-    "definitions": []
-  },
+  "environment": "wormholes:occlusion_skin_runtime",
   "structure": "wormholes:empty",
   "max_ticks": 200,
   "setup_ticks": 5,

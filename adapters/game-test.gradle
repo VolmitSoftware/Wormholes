@@ -29,10 +29,8 @@ tasks.register('gameTestJar', project.ext.shadowJarType) {
     configurations = []
     relocate('net.kyori', 'art.arcane.wormholes.shadow.kyori')
     relocate('art.arcane.volmlib', 'art.arcane.wormholes.shadow.volmlib')
-    if (project.name == 'wormholes-forge') {
-        manifest.attributes('MixinConfigs': 'wormholes.mixins.json')
-    }
     if (project.name != 'wormholes-fabric') {
+        manifest.from(tasks.named('shadowJar').get().manifest)
         from({ zipTree(tasks.named('shadowJar').get().archiveFile.get().asFile) }) {
             exclude('fabric.mod.json', 'META-INF/mods.toml', 'META-INF/neoforge.mods.toml')
             exclude('art/arcane/wormholes/fabric/**', 'art/arcane/wormholes/forge/**', 'art/arcane/wormholes/neoforge/**')

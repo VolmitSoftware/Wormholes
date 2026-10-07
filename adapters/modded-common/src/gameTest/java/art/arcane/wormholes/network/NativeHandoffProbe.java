@@ -145,7 +145,7 @@ public final class NativeHandoffProbe {
             client.start();
             NetworkManager source = client;
             WireMessage.HandoffRequest request = new WireMessage.HandoffRequest(transfer, identity.id(), identity.name(),
-                portal.getId(), true, false, true, WireTraversive.fromCrossing(crossing));
+                portal.getId(), true, server.usesAuthentication(), true, WireTraversive.fromCrossing(crossing));
             outgoing.add(request);
             await(() -> received.stream().anyMatch(message -> message instanceof WireMessage.HandoffAck ack && ack.transferId().equals(transfer)),
                 () -> pollAdmission(source, route, outgoing, received, transfer), "destination terrain admission");

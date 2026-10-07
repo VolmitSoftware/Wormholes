@@ -83,8 +83,6 @@ public final class WormholesGameTests {
             throw new IllegalStateException("GameTests require the running Wormholes server runtime");
         }
         RUNTIME = runtime;
-        RUNTIME.schedule(() -> server.getCommands().performPrefixedCommand(
-            server.createCommandSourceStack().withPosition(new Vec3(0, 100, 0)), "test run wormholes:portal_runtime"), 40);
     }
 
     public static void interactionRuntime(GameTestHelper helper) {

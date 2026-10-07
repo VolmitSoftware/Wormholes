@@ -1,10 +1,7 @@
 {
   "type": "minecraft:function",
   "function": "wormholes:menu_parity_runtime",
-  "environment": {
-    "type": "minecraft:all_of",
-    "definitions": []
-  },
+  "environment": "wormholes:menu_parity_runtime",
   "structure": "wormholes:empty",
   "max_ticks": 12000,
   "setup_ticks": 5,

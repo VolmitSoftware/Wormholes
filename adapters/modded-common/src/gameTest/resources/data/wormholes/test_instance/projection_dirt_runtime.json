@@ -1,10 +1,7 @@
 {
   "type": "minecraft:function",
   "function": "wormholes:projection_dirt_runtime",
-  "environment": {
-    "type": "minecraft:all_of",
-    "definitions": []
-  },
+  "environment": "wormholes:projection_dirt_runtime",
   "structure": "wormholes:empty",
   "max_ticks": 600,
   "setup_ticks": 5,

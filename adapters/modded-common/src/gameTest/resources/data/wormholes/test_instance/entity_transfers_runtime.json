@@ -1,10 +1,7 @@
 {
   "type": "minecraft:function",
   "function": "wormholes:entity_transfers_runtime",
-  "environment": {
-    "type": "minecraft:all_of",
-    "definitions": []
-  },
+  "environment": "wormholes:entity_transfers_runtime",
   "structure": "wormholes:empty",
   "max_ticks": 1200,
   "setup_ticks": 5,

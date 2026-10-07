@@ -4,6 +4,7 @@ import art.arcane.wormholes.modded.MinecraftProxyPayload;
 import art.arcane.wormholes.modded.clientview.ClientViewPayload;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import art.arcane.wormholes.modded.MinecraftGameTestPlayer;
+import art.arcane.wormholes.modded.RuntimeBaselineEnvironment;
 import net.neoforged.neoforge.network.registration.NetworkRegistry;
 import art.arcane.wormholes.modded.WormholesGameTests;
 import net.minecraft.core.registries.Registries;
@@ -25,6 +26,8 @@ public final class NeoForgeGameTests {
             .playToClient(MinecraftProxyPayload.TYPE, MinecraftProxyPayload.CODEC, (payload, context) -> { })
             .commonBidirectional(ClientViewPayload.TYPE, ClientViewPayload.CODEC, (payload, context) -> { }));
         MinecraftGameTestPlayer.configureConnections(NetworkRegistry::configureMockConnection);
+        bus.addListener((RegisterEvent event) -> event.register(Registries.TEST_ENVIRONMENT_DEFINITION_TYPE,
+            RuntimeBaselineEnvironment.ID, () -> RuntimeBaselineEnvironment.CODEC));
         bus.addListener((RegisterEvent event) -> event.register(Registries.TEST_FUNCTION,
             WormholesGameTests.PORTAL_RUNTIME, () -> WormholesGameTests::portalRuntime));
         bus.addListener((RegisterEvent event) -> event.register(Registries.TEST_FUNCTION,

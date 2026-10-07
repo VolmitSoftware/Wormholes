@@ -1,10 +1,7 @@
 {
   "type": "minecraft:function",
   "function": "wormholes:seamless_validation",
-  "environment": {
-    "type": "minecraft:all_of",
-    "definitions": []
-  },
+  "environment": "wormholes:seamless_validation",
   "structure": "wormholes:empty",
   "max_ticks": 4000,
   "setup_ticks": 5,

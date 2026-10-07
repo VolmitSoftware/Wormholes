@@ -1,8 +1,16 @@
 package art.arcane.wormholes.gametest;
 
+import art.arcane.wormholes.modded.MinecraftGameTestPlayer;
+import art.arcane.wormholes.modded.RuntimeBaselineEnvironment;
 import art.arcane.wormholes.modded.WormholesGameTests;
+import art.arcane.wormholes.modded.clientview.ClientViewPayload;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.GameTestTicker;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.PacketFlow;
+import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraftforge.event.network.CustomPayloadEvent;
 import net.minecraftforge.gametest.ForgeGameTestHooks;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.TickEvent;
@@ -10,11 +18,17 @@ import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.minecraftforge.network.Channel;
+import net.minecraftforge.network.ChannelBuilder;
+import net.minecraftforge.network.ForgePayload;
+import net.minecraftforge.network.NetworkProtocol;
 import net.minecraftforge.registries.RegisterEvent;
 
 @Mod("wormholes")
 public final class ForgeGameTests {
     public ForgeGameTests(FMLJavaModLoadingContext context) {
+        RegisterEvent.getBus(context.getModBusGroup()).addListener(event ->
+            event.register(Registries.TEST_ENVIRONMENT_DEFINITION_TYPE, RuntimeBaselineEnvironment.ID, () -> RuntimeBaselineEnvironment.CODEC));
         RegisterEvent.getBus(context.getModBusGroup()).addListener(event ->
             event.register(Registries.TEST_FUNCTION, WormholesGameTests.PORTAL_RUNTIME, () -> WormholesGameTests::portalRuntime));
         RegisterEvent.getBus(context.getModBusGroup()).addListener(event ->
@@ -63,10 +77,28 @@ public final class ForgeGameTests {
             event.register(Registries.TEST_FUNCTION, WormholesGameTests.SEAMLESS_VALIDATION, () -> WormholesGameTests::seamlessValidation));
         RegisterEvent.getBus(context.getModBusGroup()).addListener(event ->
             event.register(Registries.TEST_FUNCTION, WormholesGameTests.REMOTE_VIEW, () -> WormholesGameTests::remoteView));
+        Channel<CustomPacketPayload> clientView = ChannelBuilder.named(ClientViewPayload.ID).optional().payloadChannel().any()
+            .bidirectional().add(ClientViewPayload.TYPE, ClientViewPayload.CODEC, ForgeGameTests::clientViewPayload)
+            .build();
+        WormholesGameTests.RUNTIME.clientViews().packets(payload -> NetworkProtocol.PLAY.buildPacket(PacketFlow.CLIENTBOUND, clientView, payload));
+        MinecraftGameTestPlayer.configureClientboundPackets(ForgeGameTests::receivedClientView);
         RegisterCommandsEvent.BUS.addListener(event -> WormholesGameTests.RUNTIME.registerCommands(event.getDispatcher()));
         ServerStartedEvent.BUS.addListener(event -> WormholesGameTests.start(event.getServer()));
         TickEvent.ServerTickEvent.Post.BUS.addListener(event -> tick());
         ServerStoppingEvent.BUS.addListener(event -> WormholesGameTests.RUNTIME.stop());
+    }
+
+    private static void clientViewPayload(ClientViewPayload payload, CustomPayloadEvent.Context context) {
+        context.setPacketHandled(true);
+        WormholesGameTests.RUNTIME.clientViews().receive(context.getConnection(), payload.data());
+    }
+
+    private static Packet<?> receivedClientView(Packet<?> packet) {
+        if (!(packet instanceof ClientboundCustomPayloadPacket custom) || !(custom.payload() instanceof ForgePayload payload)
+            || !payload.id().equals(ClientViewPayload.ID) || payload.data() == null) {
+            return packet;
+        }
+        return new ClientboundCustomPayloadPacket(ClientViewPayload.CODEC.decode(payload.data()));
     }
 
     private void tick() {

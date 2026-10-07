@@ -1,10 +1,7 @@
 {
   "type": "minecraft:function",
   "function": "wormholes:clientview_stream",
-  "environment": {
-    "type": "minecraft:all_of",
-    "definitions": []
-  },
+  "environment": "wormholes:clientview_stream",
   "structure": "wormholes:empty",
   "max_ticks": 600,
   "setup_ticks": 5,

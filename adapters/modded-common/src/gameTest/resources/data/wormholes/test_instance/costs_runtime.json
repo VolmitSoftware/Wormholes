@@ -1,10 +1,7 @@
 {
   "type": "minecraft:function",
   "function": "wormholes:costs_runtime",
-  "environment": {
-    "type": "minecraft:all_of",
-    "definitions": []
-  },
+  "environment": "wormholes:costs_runtime",
   "structure": "wormholes:empty",
   "max_ticks": 1200,
   "setup_ticks": 5,
