@@ -99,6 +99,14 @@ public final class RouteStream {
         return dirty.add(key);
     }
 
+    public void observed(long key, boolean ticking) {
+        if (!ticking) {
+            changed(key);
+        } else if (delivered(key)) {
+            live.add(key);
+        }
+    }
+
     public void live(long key, boolean ticking) {
         if (ticking && delivered(key)) {
             live.add(key);

@@ -578,9 +578,7 @@ public final class RemoteRoutes implements AutoCloseable {
         for (int index = 0; index < dirty.size(); index++) {
             long cell = dirty.getLong(index);
             long key = ChunkPos.pack((int) (cell >> 32), (int) cell);
-            if (!route.stream().live(key) || !ticking(route.level(), key)) {
-                route.stream().changed(key);
-            }
+            route.stream().observed(key, ticking(route.level(), key));
         }
     }
 

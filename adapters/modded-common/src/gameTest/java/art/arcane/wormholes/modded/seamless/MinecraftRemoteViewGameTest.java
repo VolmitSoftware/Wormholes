@@ -3,6 +3,7 @@ package art.arcane.wormholes.modded.seamless;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.WormholesModRuntime;
+import art.arcane.wormholes.modded.mixin.SeamlessChunkMapAccess;
 import art.arcane.wormholes.network.client.TravelMessage;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -12,10 +13,13 @@ import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
 import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
 import net.minecraft.network.protocol.game.ClientboundSectionBlocksUpdatePacket;
 import net.minecraft.network.protocol.game.ClientboundSetChunkCacheCenterPacket;
+import net.minecraft.server.level.ChunkHolder;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.decoration.ArmorStand;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,15 +32,19 @@ public final class MinecraftRemoteViewGameTest {
     private static final Logger LOGGER = LoggerFactory.getLogger("WormholesGameTest");
     private static final int STAGE_TICKS = 400;
     private static final int DESTINATION_OFFSET = 400;
+    private static final double MARKER_OFFSET = 32.0D;
 
     private final GameTestHelper helper;
     private final WormholesModRuntime runtime;
     private final CompletableFuture<Boolean> result = new CompletableFuture<>();
     private SeamlessGameFixture fixture;
     private SeamlessGameFixture leaver;
+    private MinecraftPortal source;
     private MinecraftPortal destination;
     private ArmorStand stand;
     private BlockPos marker;
+    private ChunkPos forced;
+    private BlockState original;
     private Stage stage = Stage.LEAVE;
     private int handle;
     private int remaining = STAGE_TICKS;
@@ -63,7 +71,7 @@ public final class MinecraftRemoteViewGameTest {
         ServerLevel level = helper.getLevel();
         fixture = SeamlessGameFixture.connect(runtime, level, "seamless-view");
         BlockPos base = helper.absolutePos(new BlockPos(2, 2, 6));
-        MinecraftPortal source = fixture.portal(level, base);
+        source = fixture.portal(level, base);
         destination = fixture.portal(level, base.offset(DESTINATION_OFFSET, 0, 0));
         helper.assertTrue(fixture.link(source, destination), "Remote view fixture did not link portals");
         Vec3d arrival = destination.getOrigin();
@@ -118,9 +126,28 @@ public final class MinecraftRemoteViewGameTest {
                     return false;
                 }
                 handle = open.levelHandle();
-                marker = BlockPos.containing(destination.getOrigin().x(), destination.getOrigin().y(), destination.getOrigin().z() + 3.0D);
+                marker = BlockPos.containing(destination.getOrigin().x() + MARKER_OFFSET, destination.getOrigin().y(), destination.getOrigin().z() + 3.0D);
+                next(Stage.DELIVERED);
+            }
+            case DELIVERED -> {
+                RemoteRoute route = runtime.remoteRoutes().route(fixture.player().getUUID(), source.getId());
+                ChunkPos column = ChunkPos.containing(marker);
+                if (route == null || !route.stream().delivered(column.pack())) {
+                    return false;
+                }
+                helper.assertTrue(!ticking(column), "The marker column was already ticking when it was delivered");
+                forced = column;
+                helper.getLevel().setChunkForced(column.x(), column.z(), true);
+                next(Stage.TICKING);
+            }
+            case TICKING -> {
+                if (!ticking(forced)) {
+                    return false;
+                }
                 changedAt = fixture.routed().size();
-                helper.getLevel().setBlockAndUpdate(marker, Blocks.GOLD_BLOCK.defaultBlockState());
+                original = helper.getLevel().getBlockState(marker);
+                helper.getLevel().setBlockAndUpdate(marker, original.is(Blocks.GOLD_BLOCK)
+                    ? Blocks.DIAMOND_BLOCK.defaultBlockState() : Blocks.GOLD_BLOCK.defaultBlockState());
                 next(Stage.BLOCK);
             }
             case BLOCK -> {
@@ -149,6 +176,11 @@ public final class MinecraftRemoteViewGameTest {
             }
         }
         return false;
+    }
+
+    private boolean ticking(ChunkPos column) {
+        ChunkHolder holder = ((SeamlessChunkMapAccess) helper.getLevel().getChunkSource().chunkMap).wormholesVisibleChunk(column.pack());
+        return holder != null && holder.getTickingChunk() != null;
     }
 
     private boolean streamed(TravelMessage.RemoteLevelOpen open) {
@@ -211,8 +243,7 @@ public final class MinecraftRemoteViewGameTest {
             }
             if (packet.packet() instanceof ClientboundLevelChunkWithLightPacket chunk && chunk.x() == position.getX() >> 4
                 && chunk.z() == position.getZ() >> 4) {
-                delivery = "chunk_resend";
-                return true;
+                helper.fail("The block change in a delivered ticking column was re-sent as a whole chunk instead of a live update");
             }
         }
         return false;
@@ -223,11 +254,26 @@ public final class MinecraftRemoteViewGameTest {
         StringBuilder detail = new StringBuilder();
         for (int index = changedAt; index < routed.size(); index++) {
             SeamlessGameFixture.Routed packet = routed.get(index);
-            detail.append(packet.handle()).append(':').append(packet.packet().type().id().getPath()).append(' ');
+            detail.append(packet.handle()).append(':').append(packet.packet().type().id().getPath());
+            if (packet.packet() instanceof ClientboundBlockUpdatePacket update) {
+                detail.append('@').append(update.getPos().toShortString()).append('=').append(update.getBlockState());
+            }
+            detail.append(' ');
         }
         for (TravelMessage message : fixture.travel()) {
             if (message instanceof TravelMessage.RemoteLevelClose close) {
                 detail.append("close:").append(close.levelHandle()).append(' ');
+            }
+        }
+        detail.append(" marker ").append(marker == null ? "none" : marker.toShortString());
+        if (marker != null) {
+            RemoteRoute route = runtime.remoteRoutes().route(fixture.player().getUUID(), source.getId());
+            long key = ChunkPos.containing(marker).pack();
+            detail.append(" state=").append(helper.getLevel().getBlockState(marker)).append(" ticking=").append(ticking(ChunkPos.containing(marker)));
+            if (route != null) {
+                detail.append(" delivered=").append(route.stream().delivered(key)).append(" live=").append(route.stream().live(key))
+                    .append(" revision=").append(route.stream().revision(key)).append(" window=").append(route.window().centerX()).append(',')
+                    .append(route.window().centerZ()).append('r').append(route.window().radius());
             }
         }
         return detail.toString().trim();
@@ -285,6 +331,12 @@ public final class MinecraftRemoteViewGameTest {
 
     private void finish(Throwable failure) {
         try {
+            if (original != null) {
+                helper.getLevel().setBlockAndUpdate(marker, original);
+            }
+            if (forced != null) {
+                helper.getLevel().setChunkForced(forced.x(), forced.z(), false);
+            }
             if (stand != null && !stand.isRemoved()) {
                 stand.remove(Entity.RemovalReason.DISCARDED);
             }
@@ -309,6 +361,6 @@ public final class MinecraftRemoteViewGameTest {
     }
 
     private enum Stage {
-        LEAVE, LEFT, STREAM, BLOCK, REMOVED, CLOSE
+        LEAVE, LEFT, STREAM, DELIVERED, TICKING, BLOCK, REMOVED, CLOSE
     }
 }

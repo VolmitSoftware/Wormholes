@@ -57,6 +57,34 @@ public class RemoteRoutesBudgetTest extends MinecraftTestBase {
     }
 
     @Test
+    public void aColumnDeliveredBeforeItTickedGoesLiveOnItsFirstTickingChangeInsteadOfResending() {
+        RouteStream stream = new RouteStream(new RouteWindow(0, 0, 1));
+        long key = ChunkPos.pack(0, 0);
+        stream.markDelivered(key);
+        stream.live(key, false);
+
+        stream.observed(key, true);
+
+        assertTrue(stream.live(key));
+        assertTrue(stream.delivered(key));
+        assertFalse(stream.needs(key));
+        assertEquals(1, stream.revision(key));
+    }
+
+    @Test
+    public void aChangeObservedWhileTheColumnIsNotTickingResendsIt() {
+        RouteStream stream = new RouteStream(new RouteWindow(0, 0, 1));
+        long key = ChunkPos.pack(0, 0);
+        stream.markDelivered(key);
+        stream.live(key, true);
+
+        stream.observed(key, false);
+
+        assertFalse(stream.live(key));
+        assertTrue(stream.needs(key));
+    }
+
+    @Test
     public void changedColumnsAreResentWithAHigherRevision() {
         RouteStream stream = new RouteStream(new RouteWindow(0, 0, 1));
         long key = ChunkPos.pack(1, 0);
