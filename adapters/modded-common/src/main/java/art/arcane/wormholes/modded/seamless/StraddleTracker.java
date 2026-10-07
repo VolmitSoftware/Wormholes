@@ -43,9 +43,16 @@ public final class StraddleTracker {
         Face normal = viewed.getNormal();
         Vec3d behind = source.origin().subtract(new Vec3d(normal.x(), normal.y(), normal.z()).multiply(BEHIND_PROBE));
         boolean exitFront = signed(destination.frame(), destination.origin(), toward.point(behind)) > 0.0D;
-        return new Straddle(source.frame(), source.origin(), front,
+        return new Straddle(source.aperture(), source.frame(), source.origin(), front,
             StraddleGeometry.exclusionSlab(source.aperture(), source.frame(), source.origin(), front, EXCLUSION_DEPTH), toward,
             destinationLevel, destination.frame(), destination.origin(), exitFront);
+    }
+
+    public static void track(Entity entity, Endpoint source, Endpoint destination, Level destinationLevel, Vec3d eye) {
+        Straddle current = straddle(entity);
+        if (current == null || !current.matches(source, destination, destinationLevel, eye)) {
+            register(entity, create(source, destination, destinationLevel, eye));
+        }
     }
 
     public static Straddle straddle(Entity entity) {
@@ -81,7 +88,7 @@ public final class StraddleTracker {
         }
     }
 
-    public record Straddle(Frame frame, Vec3d origin, boolean frontSide, Box slab, OpticTransform toward, Level destination,
+    public record Straddle(Aperture aperture, Frame frame, Vec3d origin, boolean frontSide, Box slab, OpticTransform toward, Level destination,
                            Frame destinationFrame, Vec3d destinationOrigin, boolean exitFront) {
         public Straddle {
             Objects.requireNonNull(frame, "frame");
@@ -90,6 +97,12 @@ public final class StraddleTracker {
             Objects.requireNonNull(toward, "toward");
             Objects.requireNonNull(destinationFrame, "destinationFrame");
             Objects.requireNonNull(destinationOrigin, "destinationOrigin");
+        }
+
+        public boolean matches(Endpoint source, Endpoint target, Level level, Vec3d eye) {
+            return aperture == source.aperture() && destination == level && frame.equals(source.frame()) && origin.equals(source.origin())
+                && destinationFrame.equals(target.frame()) && destinationOrigin.equals(target.origin())
+                && frontSide == StraddleTracker.frontSide(source.frame(), source.origin(), eye);
         }
 
         public boolean excludes(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {

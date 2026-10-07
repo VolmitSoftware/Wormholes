@@ -138,18 +138,22 @@ public final class RemoteRoutes implements AutoCloseable {
         int full = fullRadius(player.requestedViewDistance(), runtime.server().getPlayerList().getViewDistance());
         for (int index = 0; index < ranked.size(); index++) {
             Candidate candidate = ranked.get(index);
-            RouteWindow window = window(candidate.destination().getOrigin(), radius(full, candidate.distance()));
-            boolean near = candidate.level() == player.level() && window.within(player.getChunkTrackingView());
-            RemoteRoute route = state.find(candidate.key(player.getUUID()));
+            Vec3d anchor = candidate.destination().getOrigin();
+            int centerX = (int) Math.floor(anchor.x()) >> 4;
+            int centerZ = (int) Math.floor(anchor.z()) >> 4;
+            int radius = radius(full, candidate.distance());
+            RemoteRoute route = state.find(player.getUUID(), candidate);
             if (route == null) {
-                open(state, player, candidate, window, near);
+                RouteWindow window = new RouteWindow(centerX, centerZ, radius);
+                open(state, player, candidate, window, candidate.level() == player.level() && window.within(player.getChunkTrackingView()));
                 continue;
             }
-            if (!route.window().sameShape(window)) {
-                route.stream().window(window, tick);
+            if (!route.window().matches(centerX, centerZ, radius)) {
+                route.stream().window(new RouteWindow(centerX, centerZ, radius), tick);
                 releaseOutside(route);
                 route.viewersDirty();
             }
+            boolean near = candidate.level() == player.level() && route.window().within(player.getChunkTrackingView());
             if (near && route.resident()) {
                 demote(state, route);
             } else if (!near && !route.resident()) {
@@ -396,8 +400,8 @@ public final class RemoteRoutes implements AutoCloseable {
             if (!StraddleTracker.qualifies(stretched, candidate.source().getGeometry())) {
                 continue;
             }
-            StraddleTracker.register(player, StraddleTracker.create(endpoint(candidate.source()), endpoint(candidate.destination()),
-                candidate.level(), new Vec3d(player.getX(), player.getEyeY(), player.getZ())));
+            StraddleTracker.track(player, endpoint(candidate.source()), endpoint(candidate.destination()), candidate.level(),
+                new Vec3d(player.getX(), player.getEyeY(), player.getZ()));
             return;
         }
         StraddleTracker.clear(player);
@@ -793,11 +797,11 @@ public final class RemoteRoutes implements AutoCloseable {
             this.sends = sends;
         }
 
-        private RemoteRoute find(RemoteRoute.Key key) {
+        private RemoteRoute find(UUID player, Candidate candidate) {
             for (int index = 0; index < routes.size(); index++) {
                 RemoteRoute route = routes.get(index);
-                if (route.playerId().equals(key.player()) && route.sourceId().equals(key.source())
-                    && route.destinationId().equals(key.destination())) {
+                if (route.playerId().equals(player) && route.sourceId().equals(candidate.source().getId())
+                    && route.destinationId().equals(candidate.destination().getId())) {
                     return route;
                 }
             }

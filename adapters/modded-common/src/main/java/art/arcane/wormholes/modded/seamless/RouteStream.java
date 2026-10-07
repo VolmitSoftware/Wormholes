@@ -23,6 +23,7 @@ public final class RouteStream {
     private final Long2LongOpenHashMap leaving = new Long2LongOpenHashMap();
     private RouteWindow window;
     private int hint = TravelMessage.MAX_CHUNKS_PER_TICK_HINT;
+    private long version;
 
     public RouteStream(RouteWindow window) {
         this.window = Objects.requireNonNull(window, "window");
@@ -65,7 +66,12 @@ public final class RouteStream {
         return delivered.getOrDefault(key, 0);
     }
 
+    public long version() {
+        return version;
+    }
+
     public int markDelivered(long key) {
+        version++;
         int revision = delivered.getOrDefault(key, 0) + 1;
         delivered.put(key, revision);
         dirty.remove(key);
@@ -79,6 +85,7 @@ public final class RouteStream {
     public void adopt(long key, long tick) {
         if (!delivered.containsKey(key)) {
             delivered.put(key, 1);
+            version++;
         }
         if (!window.contains(key) && !leaving.containsKey(key)) {
             leaving.put(key, tick);
@@ -88,15 +95,17 @@ public final class RouteStream {
     public void failed(long key) {
         failed.add(key);
         live.remove(key);
+        version++;
     }
 
     public boolean changed(long key) {
         live.remove(key);
         failed.remove(key);
-        if (!delivered.containsKey(key)) {
+        if (!delivered.containsKey(key) || !dirty.add(key)) {
             return false;
         }
-        return dirty.add(key);
+        version++;
+        return true;
     }
 
     public void observed(long key, boolean ticking) {
@@ -129,6 +138,7 @@ public final class RouteStream {
             }
             long key = entry.getLongKey();
             iterator.remove();
+            version++;
             delivered.remove(key);
             dirty.remove(key);
             live.remove(key);
@@ -187,6 +197,7 @@ public final class RouteStream {
     }
 
     public void clear() {
+        version++;
         delivered.clear();
         dirty.clear();
         live.clear();

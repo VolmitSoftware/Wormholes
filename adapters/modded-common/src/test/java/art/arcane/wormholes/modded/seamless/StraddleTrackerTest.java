@@ -69,6 +69,24 @@ public class StraddleTrackerTest extends MinecraftTestBase {
     }
 
     @Test
+    public void aStraddleIsKeptWhileItsPortalsLevelAndEyeSideAreUnchanged() {
+        ApertureCells source = aperture(0, 64, 0);
+        ApertureCells destination = aperture(100, 64, 100);
+        Level level = mock(Level.class);
+        StraddleTracker.Endpoint from = new StraddleTracker.Endpoint(source, NORTH, source.getApertureCenter());
+        StraddleTracker.Endpoint to = new StraddleTracker.Endpoint(destination, NORTH, destination.getApertureCenter());
+        StraddleTracker.Straddle straddle = StraddleTracker.create(from, to, level, new Vec3d(0.5D, 65.6D, 1.2D));
+
+        assertTrue(straddle.matches(new StraddleTracker.Endpoint(source, NORTH, source.getApertureCenter()), to, level, new Vec3d(0.6D, 65.6D, 1.1D)));
+        assertFalse(straddle.matches(from, to, level, new Vec3d(0.5D, 65.6D, -0.4D)));
+        assertFalse(straddle.matches(new StraddleTracker.Endpoint(aperture(0, 64, 0), NORTH, source.getApertureCenter()), to, level,
+            new Vec3d(0.5D, 65.6D, 1.2D)));
+        assertFalse(straddle.matches(from, to, mock(Level.class), new Vec3d(0.5D, 65.6D, 1.2D)));
+        assertFalse(straddle.matches(from, new StraddleTracker.Endpoint(destination, NORTH, new Vec3d(101.5D, 65.0D, 100.5D)), level,
+            new Vec3d(0.5D, 65.6D, 1.2D)));
+    }
+
+    @Test
     public void reverseApproachUsesTheOtherSideOfThePlane() {
         ApertureCells source = aperture(0, 64, 0);
         StraddleTracker.Straddle straddle = StraddleTracker.create(new StraddleTracker.Endpoint(source, NORTH, source.getApertureCenter()),

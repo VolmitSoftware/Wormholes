@@ -85,6 +85,32 @@ public class RemoteRoutesBudgetTest extends MinecraftTestBase {
     }
 
     @Test
+    public void theStreamVersionMovesOnlyWhenDeliveryStateChanges() {
+        RouteStream stream = new RouteStream(new RouteWindow(0, 0, 1));
+        long key = ChunkPos.pack(0, 0);
+        long initial = stream.version();
+
+        stream.markDelivered(key);
+        long delivered = stream.version();
+        stream.observed(key, true);
+        stream.live(key, true);
+
+        assertTrue(delivered != initial);
+        assertEquals(delivered, stream.version());
+        stream.changed(key);
+        assertTrue(stream.version() != delivered);
+    }
+
+    @Test
+    public void windowShapeIsComparedWithoutBuildingAWindow() {
+        RouteWindow window = new RouteWindow(3, -2, 4);
+
+        assertTrue(window.matches(3, -2, 4));
+        assertFalse(window.matches(3, -2, 5));
+        assertFalse(window.matches(4, -2, 4));
+    }
+
+    @Test
     public void changedColumnsAreResentWithAHigherRevision() {
         RouteStream stream = new RouteStream(new RouteWindow(0, 0, 1));
         long key = ChunkPos.pack(1, 0);

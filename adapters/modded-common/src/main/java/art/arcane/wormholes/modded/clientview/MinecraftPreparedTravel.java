@@ -315,14 +315,17 @@ final class MinecraftPreparedTravel {
             discard(travel);
             return;
         }
-        int full = RemoteRoutes.fullRadius(player.requestedViewDistance(), runtime.server().getPlayerList().getViewDistance());
-        RouteWindow core = RemoteRoutes.window(nearest.destination().getOrigin(), RemoteRoutes.coreRadius(full));
+        int coreRadius = RemoteRoutes.coreRadius(RemoteRoutes.fullRadius(player.requestedViewDistance(),
+            runtime.server().getPlayerList().getViewDistance()));
+        Vec3d anchor = nearest.destination().getOrigin();
+        int centerX = (int) Math.floor(anchor.x()) >> 4;
+        int centerZ = (int) Math.floor(anchor.z()) >> 4;
         Preparation preparation = preparations.get(playerId);
         if (preparation == null || !preparation.seamless || preparation.source != nearest.source() || preparation.destination != nearest.destination()
-            || preparation.world != nearest.level() || preparation.handle != route.handle() || !core.sameShape(preparation.core)
+            || preparation.world != nearest.level() || preparation.handle != route.handle() || !preparation.core.matches(centerX, centerZ, coreRadius)
             || preparation.route != travel.player().portals().routeIdentity(nearest.source()) || travel.server().preparing().isEmpty()) {
             discard(travel);
-            preparation = createSeamless(travel, player, nearest, route, core);
+            preparation = createSeamless(travel, player, nearest, route, new RouteWindow(centerX, centerZ, coreRadius));
             if (preparation == null) {
                 return;
             }
@@ -331,13 +334,16 @@ final class MinecraftPreparedTravel {
         if (preparation.committed) {
             return;
         }
-        markResident(travel, player, route, core);
+        markResident(travel, player, route, preparation);
         travel.server().tick(System.currentTimeMillis(), 0, travel::sendTravel);
     }
 
-    private void markResident(ClientViewTravel<MinecraftClientViewPeer> travel, ServerPlayer player, RemoteRoute route, RouteWindow core) {
+    private void markResident(ClientViewTravel<MinecraftClientViewPeer> travel, ServerPlayer player, RemoteRoute route, Preparation preparation) {
+        if (route.resident() && preparation.marked == route.stream().version()) {
+            return;
+        }
         ChunkMap chunks = player.level().getChunkSource().chunkMap;
-        LongList keys = core.keys();
+        LongList keys = preparation.core.keys();
         for (int index = 0; index < keys.size(); index++) {
             long key = keys.getLong(index);
             int x = ChunkPos.getX(key);
@@ -350,6 +356,7 @@ final class MinecraftPreparedTravel {
                 travel.server().invalidate(coordinate);
             }
         }
+        preparation.marked = route.resident() ? route.stream().version() : Long.MIN_VALUE;
     }
 
     private List<RemoteRoutes.Candidate> seamlessCandidates(ClientViewTravel<MinecraftClientViewPeer> travel, ServerPlayer player) {
@@ -704,6 +711,7 @@ final class MinecraftPreparedTravel {
         private boolean committed;
         private boolean seamless;
         private int handle;
+        private long marked = Long.MIN_VALUE;
         private RouteWindow core;
         private TravelMessage.TravelCross cross;
         private PlaneCrossing crossing;

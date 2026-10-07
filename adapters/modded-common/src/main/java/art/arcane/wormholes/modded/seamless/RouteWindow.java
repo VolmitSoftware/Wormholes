@@ -82,7 +82,11 @@ public final class RouteWindow {
     }
 
     public boolean sameShape(RouteWindow other) {
-        return other != null && other.centerX == centerX && other.centerZ == centerZ && other.radius == radius;
+        return other != null && matches(other.centerX, other.centerZ, other.radius);
+    }
+
+    public boolean matches(int otherCenterX, int otherCenterZ, int otherRadius) {
+        return otherCenterX == centerX && otherCenterZ == centerZ && otherRadius == radius;
     }
 
     public RouteWindow withRadius(int next) {
