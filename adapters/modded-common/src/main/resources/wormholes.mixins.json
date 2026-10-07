@@ -44,7 +44,8 @@
     "VanillaPortalTransitMixin",
     "ServerPlayerRespawnInvoker",
     "EndRespawnPositionAccessor",
-    "ClientBrandMixin"
+    "ClientBrandMixin",
+    "RoutedProtocolMixin"
   ],
   "client": [
     "client.ClientLevelMixin",
