@@ -117,10 +117,11 @@ public final class MinecraftSeamlessValidationGameTest {
         source = fixture.portal(level, base);
         destinationLevel = nether ? runtime.server().getLevel(Level.NETHER) : level;
         helper.assertTrue(destinationLevel != null, "The seamless fixture needs a nether level");
-        BlockPos target = nether ? new BlockPos(base.getX(), 70, base.getZ()) : base.offset(400, 0, 0);
+        BlockPos target = nether ? new BlockPos(base.getX() + 48, 70, base.getZ()) : base.offset(400, 0, 0);
         destination = fixture.portal(destinationLevel, target);
         helper.assertTrue(fixture.link(source, destination), "Seamless fixture did not link portals");
         if (nether) {
+            helper.assertTrue(fixture.link(destination, source), "Seamless fixture did not link the return portal");
             resident = new ArmorStand(destinationLevel, destination.getOrigin().x() + 1.0D, Math.floor(destination.getOrigin().y()) - 1.0D,
                 destination.getOrigin().z() + 2.5D);
             resident.setNoGravity(true);
@@ -273,6 +274,12 @@ public final class MinecraftSeamlessValidationGameTest {
             attempt.label + " server pose " + player.position() + " differs from the accepted pose " + accept.pose());
         helper.assertTrue(!runtime.seamlessMoving(player), attempt.label + " left the player marked as moving");
         if (levelChange) {
+            TravelMessage.RemoteLevelOpen reopened = fixture.last(TravelMessage.RemoteLevelOpen.class);
+            helper.assertTrue(reopened != null && reopened.levelHandle() == accept.levelHandle(), attempt.label + " did not reopen the handle for the return route: " + reopened + " after " + fixture.travel().size()
+                + " messages, accept handle " + accept.levelHandle());
+            helper.assertTrue(reopened.center().x() == ((int) Math.floor(source.getOrigin().x()) >> 4)
+                && reopened.center().z() == ((int) Math.floor(source.getOrigin().z()) >> 4), attempt.label + " centred the return route at "
+                + reopened.center() + " instead of the source portal");
             runtime.seamlessEvents(events.delegate);
             helper.assertTrue(events.watched > 0, attempt.label + " fired no chunk watch for the adopted destination window");
             helper.assertTrue(events.unwatched > 0, attempt.label + " fired no chunk unwatch for the departed origin view");

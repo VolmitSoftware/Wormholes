@@ -119,12 +119,12 @@ public final class RemoteRoutes implements AutoCloseable {
             BiomeManager.obfuscateSeed(level.getSeed()), level.isDebug(), level.isFlat(), level.getSeaLevel(), level.getMinY(), level.getHeight()));
     }
 
-    public static TravelMessage.RemoteLevelOpen openReturn(ServerLevel origin, MinecraftPortal arrival, int handle, int radius) {
+    public static TravelMessage.RemoteLevelOpen openReturn(ServerLevel origin, MinecraftPortal back, int handle, int radius) {
         TravelMessage.TravelWorld world = travelWorld(origin).orElse(null);
         if (world == null) {
             return null;
         }
-        Vec3d anchor = arrival.getOrigin();
+        Vec3d anchor = back.getOrigin();
         RouteWindow window = window(anchor, radius);
         return new TravelMessage.RemoteLevelOpen(handle, world, MinecraftPortalEnvironment.capture(origin, anchor, OpticTransform.IDENTITY,
             origin.isFlat()), window.radius(), new TravelMessage.TravelCoordinate(window.centerX(), window.centerZ()));

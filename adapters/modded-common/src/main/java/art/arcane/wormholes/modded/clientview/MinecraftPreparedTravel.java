@@ -503,7 +503,7 @@ final class MinecraftPreparedTravel {
             || !back.isOpen() || back.isMirrorMode() || !runtime.portals().canDepart(player, arrival) || !runtime.portals().canArrive(player, back)) {
             return null;
         }
-        TravelMessage.RemoteLevelOpen open = RemoteRoutes.openReturn(player.level(), arrival, handle,
+        TravelMessage.RemoteLevelOpen open = RemoteRoutes.openReturn(player.level(), back, handle,
             RemoteRoutes.fullRadius(player.requestedViewDistance(), runtime.server().getPlayerList().getViewDistance()));
         return open == null ? null : new RemoteRoutes.Return(arrival, back, open);
     }
