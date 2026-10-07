@@ -2,7 +2,6 @@ package art.arcane.wormholes.modded.mixin;
 
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.modded.seamless.RemoteRoute;
-import art.arcane.wormholes.modded.seamless.RoutedOnlyPlayers;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.sugar.Local;
 import net.minecraft.network.protocol.Packet;
@@ -55,6 +54,11 @@ public abstract class RemoteViewerChunkMixin {
         return changes;
     }
 
+    @ModifyExpressionValue(method = "broadcastChanges", at = @At(value = "INVOKE", target = "Ljava/util/List;isEmpty()Z"))
+    private boolean wormholesCountRoutedViewers(boolean empty) {
+        return empty && wormholes$routes.isEmpty();
+    }
+
     @Unique
     private List<ServerPlayer> wormholesRemoteViewers(List<ServerPlayer> players, LevelChunk chunk, boolean border) {
         wormholes$routes = List.of();
@@ -66,8 +70,7 @@ public abstract class RemoteViewerChunkMixin {
             return players;
         }
         ChunkPos pos = chunk.getPos();
-        List<RemoteRoute> routes = runtime.remoteRoutes().covering(level, pos.x(), pos.z(), border);
-        wormholes$routes = routes;
-        return players.isEmpty() && !routes.isEmpty() ? RoutedOnlyPlayers.INSTANCE : players;
+        wormholes$routes = runtime.remoteRoutes().covering(level, pos.x(), pos.z(), border);
+        return players;
     }
 }
