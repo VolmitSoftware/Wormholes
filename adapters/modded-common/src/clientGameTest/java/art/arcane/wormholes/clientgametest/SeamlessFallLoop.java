@@ -62,7 +62,7 @@ final class SeamlessFallLoop {
         client.waitFor(minecraft -> visible(minecraft, fallers), ARM_TIMEOUT_TICKS);
         client.runOnClient(minecraft -> TravelTap.reset());
         List<Sample> player = new ArrayList<>(LOOP_TICKS);
-        List<List<Vec3>> observed = new ArrayList<>(fallers.size());
+        List<List<Observation>> observed = new ArrayList<>(fallers.size());
         for (int index = 0; index < fallers.size(); index++) {
             observed.add(new ArrayList<>(LOOP_TICKS));
         }
@@ -71,8 +71,7 @@ final class SeamlessFallLoop {
             player.add(client.computeOnClient(minecraft -> new Sample(minecraft.player.position(), minecraft.player.getDeltaMovement().y)));
             for (int index = 0; index < fallers.size(); index++) {
                 UUID id = fallers.get(index);
-                Vec3 position = client.computeOnClient(minecraft -> position(minecraft, id));
-                observed.get(index).add(position);
+                observed.get(index).add(client.computeOnClient(minecraft -> observe(minecraft, id)));
             }
         }
         List<String> failures = new ArrayList<>();
@@ -152,17 +151,17 @@ final class SeamlessFallLoop {
 
     private static boolean visible(Minecraft minecraft, List<UUID> fallers) {
         for (UUID id : fallers) {
-            if (position(minecraft, id) == null) {
+            if (observe(minecraft, id) == null) {
                 return false;
             }
         }
         return true;
     }
 
-    private static Vec3 position(Minecraft minecraft, UUID id) {
+    private static Observation observe(Minecraft minecraft, UUID id) {
         for (Entity entity : minecraft.level.entitiesForRendering()) {
             if (entity.getUUID().equals(id)) {
-                return entity.position();
+                return new Observation(entity.position(), entity.tickCount);
             }
         }
         return null;
@@ -223,7 +222,7 @@ final class SeamlessFallLoop {
         }
     }
 
-    private static void assertEntity(String label, List<Vec3> positions, List<String> failures) {
+    private static void assertEntity(String label, List<Observation> observations, List<String> failures) {
         int crossings = 0;
         int backwards = 0;
         int missing = 0;
@@ -233,17 +232,25 @@ final class SeamlessFallLoop {
         double fastest = 0.0D;
         double lowest = Double.POSITIVE_INFINITY;
         List<String> breaks = new ArrayList<>();
-        for (int index = 1; index < positions.size(); index++) {
-            Vec3 before = positions.get(index - 1);
-            Vec3 after = positions.get(index);
-            if (before == null || after == null) {
+        Observation last = observations.getFirst();
+        for (int index = 1; index < observations.size(); index++) {
+            Observation next = observations.get(index);
+            if (last == null || next == null) {
                 missing++;
                 previousStep = Double.NaN;
+                last = next;
                 breaks.add("tick " + index + " missing");
                 continue;
             }
+            int ticks = next.tick() - last.tick();
+            if (ticks <= 0) {
+                continue;
+            }
+            Vec3 before = last.position();
+            Vec3 after = next.position();
+            last = next;
             double rise = after.y - before.y;
-            double step = rise > JUMP ? rise - SHAFT : rise;
+            double step = (rise > JUMP ? rise - SHAFT : rise) / ticks;
             if (!Double.isNaN(previousStep) && Math.abs(step - previousStep) > HITCH) {
                 hitches++;
                 breaks.add("tick " + index + " stepped " + String.format("%.3f", step) + " after " + String.format("%.3f", previousStep));
@@ -251,8 +258,8 @@ final class SeamlessFallLoop {
             previousStep = step;
             if (rise > JUMP) {
                 crossings++;
-                if (before.y - FLOOR_PLANE > PLANE_REACH || before.y < FLOOR_PLANE - PLANE_SLACK || CEILING_PLANE - after.y > PLANE_REACH
-                    || after.y > CEILING_PLANE + PLANE_SLACK) {
+                if (before.y - FLOOR_PLANE > PLANE_REACH * ticks || before.y < FLOOR_PLANE - PLANE_SLACK
+                    || CEILING_PLANE - after.y > PLANE_REACH * ticks || after.y > CEILING_PLANE + PLANE_SLACK) {
                     early++;
                     breaks.add("tick " + index + " crossed from " + String.format("%.2f", before.y) + " to " + String.format("%.2f", after.y));
                 }
@@ -260,7 +267,7 @@ final class SeamlessFallLoop {
                 backwards++;
                 breaks.add("tick " + index + " rose " + String.format("%.3f", rise) + " to " + String.format("%.2f", after.y));
             } else {
-                fastest = Math.max(fastest, -rise);
+                fastest = Math.max(fastest, -step);
             }
             lowest = Math.min(lowest, after.y);
         }
@@ -287,5 +294,8 @@ final class SeamlessFallLoop {
     }
 
     private record Sample(Vec3 position, double velocity) {
+    }
+
+    private record Observation(Vec3 position, int tick) {
     }
 }

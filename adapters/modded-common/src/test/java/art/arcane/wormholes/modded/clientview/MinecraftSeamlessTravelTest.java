@@ -139,6 +139,7 @@ public class MinecraftSeamlessTravelTest extends MinecraftTestBase {
             MinecraftServer server = mock(MinecraftServer.class);
             player.connection = mock(ServerGamePacketListenerImpl.class);
             when(runtime.portals()).thenReturn(registry);
+            when(registry.observedVelocity(player)).thenReturn(new Vec3d(0.0D, 0.0D, 0.0D));
             when(runtime.doors()).thenReturn(doors);
             when(runtime.remoteRoutes()).thenReturn(routes);
             when(runtime.leases()).thenReturn(leases);

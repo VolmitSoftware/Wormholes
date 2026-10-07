@@ -45,6 +45,7 @@ final class MinecraftSeamlessTravel {
     private static final int LATE_CLAIM_TICKS = 40;
     private static final int RETIRED_ARM_TICKS = 40;
     private static final double SIDE_HYSTERESIS_BLOCKS = 2.0D;
+    private static final double SIDE_HYSTERESIS_TICKS = 2.0D;
     private static final long ACCEPT_REVISION = 1L;
 
     private final WormholesModRuntime runtime;
@@ -94,14 +95,9 @@ final class MinecraftSeamlessTravel {
             return false;
         }
         long tick = runtime.server().getTickCount();
-        if (!source.equals(traveler.deferredSource) || tick > traveler.deferredUntil + LATE_CLAIM_TICKS) {
-            traveler.deferredSource = source;
-            traveler.deferredUntil = tick + CLAIM_GRACE_TICKS;
-        }
-        if (tick < traveler.deferredUntil) {
+        if (traveler.grace.waiting(source, tick)) {
             return true;
         }
-        traveler.deferredSource = null;
         traveler.flight = new Flight(arm, null, null, tick);
         return false;
     }
@@ -167,6 +163,7 @@ final class MinecraftSeamlessTravel {
             return;
         }
         traveler.flight = null;
+        traveler.grace.settled();
         if (flight.accepted) {
             return;
         }
@@ -227,6 +224,7 @@ final class MinecraftSeamlessTravel {
         int coreRadius = RemoteRoutes.coreRadius(RemoteRoutes.fullRadius(player.requestedViewDistance(),
             runtime.server().getPlayerList().getViewDistance()));
         MinecraftClientViewPeer peer = travel.player();
+        double speed = runtime.portals().observedVelocity(player).distance(new Vec3d(0.0D, 0.0D, 0.0D));
         for (int index = 0; index < active.size(); index++) {
             RemoteRoute route = active.get(index);
             MinecraftPortal source = portals.portal(peer, route.sourceId());
@@ -237,7 +235,7 @@ final class MinecraftSeamlessTravel {
             }
             UUID sourceId = source.getId();
             Arm current = traveler.arms.get(sourceId);
-            boolean front = current != null && nearPlane(player, source) ? current.front() : MinecraftClientViewPortalAccess.front(player, source);
+            boolean front = current != null && nearPlane(player, source, speed) ? current.front() : MinecraftClientViewPortalAccess.front(player, source);
             long identity = peer.portals().routeIdentity(source);
             if (current != null && current.matches(source, destination, route, front, identity)) {
                 live.add(sourceId);
@@ -265,12 +263,16 @@ final class MinecraftSeamlessTravel {
         traveler.retired.removeIf(retired -> retired.until() < tick);
     }
 
-    private static boolean nearPlane(ServerPlayer player, MinecraftPortal portal) {
+    private static boolean nearPlane(ServerPlayer player, MinecraftPortal portal, double speed) {
         Vec3d origin = portal.getOrigin();
         Vec3 eye = player.getEyePosition();
         double distance = (eye.x - origin.x()) * portal.getFrame().getNormal().x() + (eye.y - origin.y()) * portal.getFrame().getNormal().y()
             + (eye.z - origin.z()) * portal.getFrame().getNormal().z();
-        return Math.abs(distance) < SIDE_HYSTERESIS_BLOCKS;
+        return keepsSide(distance, speed);
+    }
+
+    static boolean keepsSide(double distance, double speed) {
+        return Math.abs(distance) < SIDE_HYSTERESIS_BLOCKS + speed * SIDE_HYSTERESIS_TICKS;
     }
 
     private Arm arm(ClientViewTravel<MinecraftClientViewPeer> travel, ServerPlayer player, MinecraftPortal source, MinecraftPortal destination,
@@ -346,6 +348,7 @@ final class MinecraftSeamlessTravel {
             return;
         }
         traveler.flight = new Flight(arm, request, refused.crossing(), tick);
+        traveler.grace.settled();
         boolean dispatched = prepared.dispatchCross(travel.player(), player, arm.source(), arm.destination(), arm.begin().sourceGeometry().kind(),
             refused.crossing());
         Flight flight = traveler.flight;
@@ -441,6 +444,27 @@ final class MinecraftSeamlessTravel {
     private record Retired(Arm arm, long until) {
     }
 
+    static final class ClaimGrace {
+        private UUID source;
+        private long until;
+
+        boolean waiting(UUID next, long tick) {
+            if (!next.equals(source)) {
+                source = next;
+                until = tick + CLAIM_GRACE_TICKS;
+            }
+            if (tick < until) {
+                return true;
+            }
+            source = null;
+            return false;
+        }
+
+        void settled() {
+            source = null;
+        }
+    }
+
     private static final class Flight {
         private final Arm arm;
         private final TravelMessage.TravelCross request;
@@ -459,9 +483,8 @@ final class MinecraftSeamlessTravel {
     private static final class Traveler {
         private final Map<UUID, Arm> arms = new HashMap<>();
         private final List<Retired> retired = new ArrayList<>();
+        private final ClaimGrace grace = new ClaimGrace();
         private Flight flight;
-        private UUID deferredSource;
-        private long deferredUntil;
         private long crossingTick = Long.MIN_VALUE;
         private int crossings;
         private UUID lateToken;
