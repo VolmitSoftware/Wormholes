@@ -23,19 +23,26 @@ import net.minecraft.world.item.Items;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.util.Mth;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 public final class MinecraftRtpGameTest {
     private static final int EDITOR_CLICK_TICKS = 2;
     private static final int EDITOR_MUTATION_TICKS = 4;
     private static final int RIM_WINDOW_TICKS = 5;
+    private static final int ANNULUS_INNER = 12;
+    private static final int ANNULUS_OUTER = 24;
+    private static final int ANNULUS_STEP = 2;
 
     private final GameTestHelper helper;
     private final WormholesModRuntime runtime;
@@ -45,6 +52,7 @@ public final class MinecraftRtpGameTest {
     private UUID previousRoute;
     private MinecraftGameTestPlayer second;
     private long rotationDeadline;
+    private String targetBiome;
     private boolean cleaned;
     private MinecraftPortal editorPortal;
     private RtpSettings editorInitial;
@@ -64,7 +72,7 @@ public final class MinecraftRtpGameTest {
             }
         }
         portal = runtime.portals().create(connection.player().getUUID(), helper.getLevel(), cells, PortalType.RTP, new Vec3(0, 0, -1));
-        RtpSettings settings = runtime.rtp().settings(portal).toBuilder().radii(12, 24).rotationMode(RtpRotationMode.STATIC).soundEnabled(false).build();
+        RtpSettings settings = runtime.rtp().settings(portal).toBuilder().radii(ANNULUS_INNER, ANNULUS_OUTER).rotationMode(RtpRotationMode.STATIC).soundEnabled(false).build();
         portal.setRtpSettings(settings);
         runtime.portals().save(portal);
     }
@@ -122,15 +130,16 @@ public final class MinecraftRtpGameTest {
             MinecraftPortal rerolled = runtime.rtp().projectionDestination(connection.player(), portal);
             helper.assertTrue(rerolled != null && !rerolled.getId().equals(previousRoute), "Manual reroll did not replace the preview route");
         }).thenExecute(() -> {
-            portal.setRtpSettings(runtime.rtp().settings(portal).toBuilder().targetBiomeKey("minecraft:plains")
+            targetBiome = commonLandBiome();
+            portal.setRtpSettings(runtime.rtp().settings(portal).toBuilder().targetBiomeKey(targetBiome)
                 .rotationMode(RtpRotationMode.TIMED).cycleDurationMillis(15_000L).build());
             runtime.portals().save(portal);
         }).thenWaitUntil(() -> {
             preview = runtime.rtp().projectionDestination(connection.player(), portal);
             helper.assertTrue(preview != null, "Biome-filtered timed destination did not become ready");
             BlockPos feet = BlockPos.containing(preview.getOrigin().x(), preview.getOrigin().y(), preview.getOrigin().z());
-            helper.assertTrue(helper.getLevel().getBiome(feet).unwrapKey().orElseThrow().identifier().toString().equals("minecraft:plains"),
-                "Biome filter selected a different biome");
+            helper.assertTrue(helper.getLevel().getBiome(feet).unwrapKey().orElseThrow().identifier().toString().equals(targetBiome),
+                "Biome filter selected a different biome than " + targetBiome);
         }).thenExecute(() -> {
             previousRoute = preview.getId();
             rotationDeadline = System.currentTimeMillis() + 22_000L;
@@ -337,6 +346,38 @@ public final class MinecraftRtpGameTest {
             }
         }
         return count;
+    }
+
+    private String commonLandBiome() {
+        ServerLevel level = helper.getLevel();
+        int centerX = Mth.floor(portal.getOrigin().x());
+        int centerZ = Mth.floor(portal.getOrigin().z());
+        Map<String, Integer> counts = new HashMap<>();
+        for (int dx = -ANNULUS_OUTER; dx <= ANNULUS_OUTER; dx += ANNULUS_STEP) {
+            for (int dz = -ANNULUS_OUTER; dz <= ANNULUS_OUTER; dz += ANNULUS_STEP) {
+                int distanceSquared = dx * dx + dz * dz;
+                if (distanceSquared < ANNULUS_INNER * ANNULUS_INNER || distanceSquared > ANNULUS_OUTER * ANNULUS_OUTER) {
+                    continue;
+                }
+                int x = centerX + dx;
+                int z = centerZ + dz;
+                BlockPos surface = new BlockPos(x, level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z), z);
+                if (!level.getFluidState(surface.below()).isEmpty()) {
+                    continue;
+                }
+                counts.merge(level.getBiome(surface).unwrapKey().orElseThrow().identifier().toString(), 1, Integer::sum);
+            }
+        }
+        String common = null;
+        int best = 0;
+        for (Map.Entry<String, Integer> entry : counts.entrySet()) {
+            if (entry.getValue() > best) {
+                common = entry.getKey();
+                best = entry.getValue();
+            }
+        }
+        helper.assertTrue(common != null, "Random destination annulus has no dry land");
+        return common;
     }
 
     private void approach() {

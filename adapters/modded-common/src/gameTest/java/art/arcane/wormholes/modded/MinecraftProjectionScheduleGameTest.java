@@ -36,12 +36,14 @@ final class MinecraftProjectionScheduleGameTest {
     private static final double WALK_STEP = 0.3D;
     private static final BlockState CHANGED = Blocks.DIAMOND_BLOCK.defaultBlockState();
     private static final int CYCLE_LENGTH = 13;
+    private static final int VIEW_HEARTBEAT_TICKS = 20;
 
     private final GameTestHelper helper;
     private final WormholesModRuntime runtime;
     private final CompletableFuture<Boolean> result = new CompletableFuture<>();
     private final List<ClientboundSectionBlocksUpdatePacket> updates = new ArrayList<>();
     private final List<PhysicalBlock> physical = new ArrayList<>();
+    private final List<BlockPos> markerPositions = new ArrayList<>();
     private final List<MinecraftPortal> created = new ArrayList<>();
     private MinecraftGameTestPlayer connection;
     private Probe ahead;
@@ -199,7 +201,7 @@ final class MinecraftProjectionScheduleGameTest {
     private void watchRetarget() {
         try {
             drain();
-            if (!showedAny(updates, retargetMarkers)) {
+            if (!showedAny(retargetMarkers)) {
                 updates.clear();
                 waitFor(this::watchRetarget, "Cells that were empty at the previous destination never showed the new destination");
                 return;
@@ -285,6 +287,7 @@ final class MinecraftProjectionScheduleGameTest {
     }
 
     private MinecraftPortal portal(int x, int z, Vec3 facing) {
+        clear(new BlockPos(x - 1, 2, z - 4), new BlockPos(x + 3, 5, z + 4));
         List<BlockPos> cells = new ArrayList<>(9);
         for (int dx = 0; dx < 3; dx++) {
             for (int y = 2; y < 5; y++) {
@@ -296,6 +299,7 @@ final class MinecraftProjectionScheduleGameTest {
         portal.setAmbientStyle(AmbientParticleStyle.OFF);
         portal.setNetworkViewDepth(8);
         portal.setNetworkViewLateralPad(8);
+        portal.setNetworkViewHeartbeatTicks(VIEW_HEARTBEAT_TICKS);
         return portal;
     }
 
@@ -307,15 +311,25 @@ final class MinecraftProjectionScheduleGameTest {
 
     private void mark(BlockPos relative, BlockState state) {
         BlockPos position = helper.absolutePos(relative);
+        markerPositions.add(position);
         track(position);
         helper.getLevel().setBlockAndUpdate(position, state);
     }
 
-    private static boolean showedAny(List<ClientboundSectionBlocksUpdatePacket> updates, List<BlockState> states) {
+    private void clear(BlockPos from, BlockPos to) {
+        BlockState air = Blocks.AIR.defaultBlockState();
+        for (BlockPos relative : BlockPos.betweenClosed(from, to)) {
+            BlockPos position = helper.absolutePos(relative);
+            track(position);
+            helper.getLevel().setBlockAndUpdate(position, air);
+        }
+    }
+
+    private boolean showedAny(List<BlockState> states) {
         boolean[] found = {false};
         for (ClientboundSectionBlocksUpdatePacket update : updates) {
             update.runUpdates((position, state) -> {
-                if (states.contains(state)) {
+                if (states.contains(state) && !markerPositions.contains(position)) {
                     found[0] = true;
                 }
             });
@@ -337,7 +351,8 @@ final class MinecraftProjectionScheduleGameTest {
 
     private void finish(Throwable failure) {
         try {
-            for (PhysicalBlock block : physical) {
+            for (int index = physical.size() - 1; index >= 0; index--) {
+                PhysicalBlock block = physical.get(index);
                 helper.getLevel().setBlockAndUpdate(block.position(), block.state());
             }
             if (connection != null) {
@@ -388,6 +403,9 @@ final class MinecraftProjectionScheduleGameTest {
             }
             for (ClientboundSectionBlocksUpdatePacket update : updates) {
                 update.runUpdates((position, state) -> {
+                    if (position.equals(markers.frontPosition()) || position.equals(markers.backPosition())) {
+                        return;
+                    }
                     if (cell == null && state == markers.front()) {
                         cell = position.immutable();
                         marker = markers.frontPosition();

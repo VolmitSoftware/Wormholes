@@ -73,11 +73,12 @@ final class MinecraftFidelityGameTest {
             }
         });
         ServerPlayer player = connection.player();
+        for (BlockPos relative : BlockPos.betweenClosed(new BlockPos(2, 2, 19), new BlockPos(22, 6, 27))) {
+            place(relative, Blocks.AIR.defaultBlockState());
+        }
         for (int x = 3; x < 6; x++) {
             for (int y = 3; y < 6; y++) {
-                BlockPos position = helper.absolutePos(new BlockPos(x, y, 25));
-                physical.add(new PhysicalBlock(position, level.getBlockState(position)));
-                level.setBlockAndUpdate(position, Blocks.STONE.defaultBlockState());
+                place(new BlockPos(x, y, 25), Blocks.STONE.defaultBlockState());
             }
         }
         source = runtime.portals().create(player.getUUID(), level, cells(3), PortalType.PORTAL, new Vec3(0, 0, -1));
@@ -134,6 +135,12 @@ final class MinecraftFidelityGameTest {
         }
     }
 
+    private void place(BlockPos relative, BlockState state) {
+        BlockPos position = helper.absolutePos(relative);
+        physical.add(new PhysicalBlock(position, helper.getLevel().getBlockState(position)));
+        helper.getLevel().setBlockAndUpdate(position, state);
+    }
+
     private List<BlockPos> cells(int x) {
         List<BlockPos> cells = new ArrayList<>();
         for (int dx = 0; dx < 3; dx++) {
@@ -151,7 +158,10 @@ final class MinecraftFidelityGameTest {
             helper.getLevel().setRainLevel(rain);
             helper.getLevel().setThunderLevel(thunder);
             FidelitySettings.weather = weather;
-            for (PhysicalBlock block : physical) { helper.getLevel().setBlockAndUpdate(block.position(), block.state()); }
+            for (int index = physical.size() - 1; index >= 0; index--) {
+                PhysicalBlock block = physical.get(index);
+                helper.getLevel().setBlockAndUpdate(block.position(), block.state());
+            }
             if (connection != null) {
                 if (source != null) { runtime.portals().remove(connection.player(), source.getId()); }
                 if (destination != null) { runtime.portals().remove(connection.player(), destination.getId()); }
