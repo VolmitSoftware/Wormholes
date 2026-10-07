@@ -211,6 +211,6 @@ public class MinecraftClientViewServiceTest extends MinecraftTestBase {
     }
 
     private static ViewStreamOptions options(boolean enabled) {
-        return new ViewStreamOptions(enabled, false, 100, 512 * 1024, 8, true, true, true, true, false, true, true, true, 5);
+        return new ViewStreamOptions(enabled, false, 100, 512 * 1024, 8, true, true, true, true, false, true, true, true, 5, ViewStreamOptions.RemoteView.DEFAULT);
     }
 }

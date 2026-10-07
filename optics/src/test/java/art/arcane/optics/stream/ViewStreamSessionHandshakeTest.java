@@ -160,7 +160,7 @@ final class ViewStreamSessionHandshakeTest {
         ViewStreamOptions on = harness.registry.options();
         ViewStreamOptions off = new ViewStreamOptions(false, on.configurationHandshake(), on.helloGraceMillis(), on.maxFrameBytes(),
             on.ackWindowFrames(), on.brickCache(), on.destinationLight(), on.entityFrames(), on.zeroCopy(), on.standbyPrestream(),
-            on.viewStats(), on.clientMirror(), on.clientRecursion(), on.interestGraceTicks());
+            on.viewStats(), on.clientMirror(), on.clientRecursion(), on.interestGraceTicks(), on.remoteView());
 
         assertFalse(harness.registry.runtimeEnabled(true));
         assertFalse(harness.registry.runtimeEnabled(false));
@@ -179,7 +179,7 @@ final class ViewStreamSessionHandshakeTest {
         ViewStreamOptions on = harness.registry.options();
         harness.registry.configure(new ViewStreamOptions(false, on.configurationHandshake(), on.helloGraceMillis(), on.maxFrameBytes(),
             on.ackWindowFrames(), on.brickCache(), on.destinationLight(), on.entityFrames(), on.zeroCopy(), on.standbyPrestream(),
-            on.viewStats(), on.clientMirror(), on.clientRecursion(), on.interestGraceTicks()));
+            on.viewStats(), on.clientMirror(), on.clientRecursion(), on.interestGraceTicks(), on.remoteView()));
         harness.pump();
         assertEquals(ViewStreamSessionState.VANILLA, harness.session.state());
         assertEquals(ViewStreamMessage.ResetReason.DISABLED,

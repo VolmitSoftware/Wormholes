@@ -121,7 +121,7 @@ final class SessionHarness {
     static ViewStreamOptions defaults() {
         return new ViewStreamOptions(true, true, ViewStreamLimits.DEFAULT_HELLO_GRACE_MILLIS, ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES,
             ViewStreamLimits.DEFAULT_ACK_WINDOW_FRAMES, true, true, true, true, false, true, true, true,
-            ViewStreamOptions.DEFAULT_INTEREST_GRACE_TICKS);
+            ViewStreamOptions.DEFAULT_INTEREST_GRACE_TICKS, ViewStreamOptions.RemoteView.DEFAULT);
     }
 
     static ViewStreamOptions options(boolean brickCache, int ackWindowFrames) {
@@ -132,7 +132,7 @@ final class SessionHarness {
         ViewStreamOptions defaults = defaults();
         return new ViewStreamOptions(true, true, defaults.helloGraceMillis(), maxFrameBytes, ackWindowFrames, brickCache,
             defaults.destinationLight(), defaults.entityFrames(), defaults.zeroCopy(), false, defaults.viewStats(), defaults.clientMirror(),
-            defaults.clientRecursion(), defaults.interestGraceTicks());
+            defaults.clientRecursion(), defaults.interestGraceTicks(), defaults.remoteView());
     }
 
     void handshake(long clientCaps) throws ViewStreamProtocolException {

@@ -38,11 +38,23 @@ public class ClientViewConfig {
     public boolean clientMirror = true;
     @ConfigDescription("Stream nested mirror and portal destination views. Native rendering supports up to three nested steps and sixteen nested views per primary view.")
     public boolean clientRecursion = true;
+    @ConfigDescription("Fabric, Forge and NeoForge servers only: let clients running the Wormholes mod walk through portals with no teleport, respawn or loading screen, with destination chunks and entities streamed ahead. Off keeps prepared travel.")
+    public boolean seamlessTravel = true;
+    @ConfigDescription("Portal destinations streamed ahead per seamless player, 1 to 4.")
+    public int remoteViewRoutes = ViewStreamOptions.RemoteView.DEFAULT.routes();
+    @ConfigDescription("Destination chunk columns streamed per seamless player per tick, 1 to 64. The client's own acknowledgement can lower it further.")
+    public int remoteViewChunksPerTick = ViewStreamOptions.RemoteView.DEFAULT.chunksPerTick();
+    @ConfigDescription("Destination bytes streamed per seamless player per tick, 16384 to 2097152.")
+    public int remoteViewBytesPerTick = ViewStreamOptions.RemoteView.DEFAULT.bytesPerTick();
 
     public void normalizeRuntimeBounds() {
         helloGraceMillis = clamp(helloGraceMillis, 0, ViewStreamLimits.MAX_HELLO_GRACE_MILLIS);
         maxFrameKb = clamp(maxFrameKb, MIN_FRAME_KB, MAX_FRAME_KB);
         ackWindowFrames = clamp(ackWindowFrames, 0, ViewStreamLimits.MAX_ACK_WINDOW_FRAMES);
+        ViewStreamOptions.RemoteView remote = remoteView();
+        remoteViewRoutes = remote.routes();
+        remoteViewChunksPerTick = remote.chunksPerTick();
+        remoteViewBytesPerTick = remote.bytesPerTick();
     }
 
     public int maxFrameBytes() {
@@ -51,7 +63,11 @@ public class ClientViewConfig {
 
     public ViewStreamOptions options(int interestGraceTicks) {
         return new ViewStreamOptions(enabled, configurationHandshake, helloGraceMillis, maxFrameBytes(), ackWindowFrames, brickCache,
-            destinationLight, entityFrames, zeroCopy, standbyPrestream, viewStats, clientMirror, clientRecursion, interestGraceTicks);
+            destinationLight, entityFrames, zeroCopy, standbyPrestream, viewStats, clientMirror, clientRecursion, interestGraceTicks, remoteView());
+    }
+
+    private ViewStreamOptions.RemoteView remoteView() {
+        return new ViewStreamOptions.RemoteView(seamlessTravel, remoteViewRoutes, remoteViewChunksPerTick, remoteViewBytesPerTick);
     }
 
     private static int clamp(int value, int minimum, int maximum) {

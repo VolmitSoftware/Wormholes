@@ -103,7 +103,7 @@ public class MinecraftClientViewNegotiatorTest extends MinecraftTestBase {
         registry.runtimeEnabled(false);
         assertNull(negotiator.configurationTask(id, "Alex", connection, () -> true));
         assertFalse(negotiator.offerPlay(id, "Alex", connection));
-        open(new ViewStreamOptions(true, false, 100, 512 * 1024, 8, true, true, true, true, false, true, true, true, 5));
+        open(new ViewStreamOptions(true, false, 100, 512 * 1024, 8, true, true, true, true, false, true, true, true, 5, ViewStreamOptions.RemoteView.DEFAULT));
         assertNull(negotiator.configurationTask(id, "Alex", connection, () -> true));
         assertTrue(negotiator.offerPlay(id, "Alex", connection));
         ViewStreamMessage.Offer offer = (ViewStreamMessage.Offer) transport.message(0);
@@ -213,7 +213,7 @@ public class MinecraftClientViewNegotiatorTest extends MinecraftTestBase {
 
     private static ViewStreamOptions options(boolean enabled) {
         return new ViewStreamOptions(enabled, true, (int) (GRACE_NANOS / 1_000_000L), 512 * 1024, 8, true, true, true, true, false, true, true,
-            true, 5);
+            true, 5, ViewStreamOptions.RemoteView.DEFAULT);
     }
 
     private static final class Recording implements ViewStreamTransport<MinecraftClientViewPeer> {

@@ -504,7 +504,7 @@ public final class ViewStreamSession<P, B> {
     private ViewStreamHandshake.Policy policy(ViewStreamPhase phase) {
         ViewStreamOptions options = registry.options();
         int grace = phase == ViewStreamPhase.PLAY ? PLAY_PHASE_GRACE_MILLIS : options.helloGraceMillis();
-        long serverCaps = (options.serverCaps(phase) | registry.codec().capabilities()) & platform.platformCaps();
+        long serverCaps = (options.serverCaps(phase) | registry.codec().capabilities()) & platform.platformCaps() & ~options.withheldCaps();
         return new ViewStreamHandshake.Policy(registry.enabled(), platform.mcDataVersion(), serverCaps, options.maxFrameBytes(), grace,
             ViewStreamLimits.DEFAULT_TICK_RATE, options.ackWindowFrames(), options.zeroCopy());
     }

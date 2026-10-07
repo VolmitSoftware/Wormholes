@@ -1,5 +1,8 @@
 package art.arcane.wormholes.config;
 
+import art.arcane.optics.stream.ViewStreamCapability;
+import art.arcane.optics.stream.ViewStreamOptions;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -95,6 +98,29 @@ class WormholesSettingsTest {
         assertEquals(250, restored.getClientView().helloGraceMillis);
         assertEquals(256, restored.getClientView().maxFrameKb);
         assertTrue(restored.getClientView().standbyPrestream);
+    }
+
+    @Test
+    void seamlessTravelKeysDefaultLoadClampAndReachTheStreamOptions() {
+        WormholesSettings defaults = WormholesSettings.loadSnapshot("schema = 3\n".getBytes(StandardCharsets.UTF_8));
+        String canonical = new String(defaults.canonicalSnapshot(), StandardCharsets.UTF_8);
+        assertTrue(canonical.contains("seamless-travel = true"));
+        assertTrue(canonical.contains("remote-view-routes = 2"));
+        assertTrue(canonical.contains("remote-view-chunks-per-tick = 8"));
+        assertTrue(canonical.contains("remote-view-bytes-per-tick = 196608"));
+        assertEquals(ViewStreamOptions.RemoteView.DEFAULT, defaults.getClientView().options(5).remoteView());
+
+        String source = "schema = 3\n[client-view]\nseamless-travel = false\nremote-view-routes = 9\nremote-view-chunks-per-tick = 0\n"
+            + "remote-view-bytes-per-tick = 5\n";
+        WormholesSettings settings = WormholesSettings.loadSnapshot(source.getBytes(StandardCharsets.UTF_8));
+        ViewStreamOptions.RemoteView remote = settings.getClientView().options(5).remoteView();
+        assertFalse(remote.enabled());
+        assertEquals(4, settings.getClientView().remoteViewRoutes);
+        assertEquals(1, settings.getClientView().remoteViewChunksPerTick);
+        assertEquals(ViewStreamOptions.RemoteView.MIN_BYTES_PER_TICK, settings.getClientView().remoteViewBytesPerTick);
+        assertEquals(new ViewStreamOptions.RemoteView(false, 4, 1, ViewStreamOptions.RemoteView.MIN_BYTES_PER_TICK), remote);
+        assertEquals(ViewStreamCapability.of(ViewStreamCapability.REMOTE_VIEW, ViewStreamCapability.SEAMLESS_TRAVEL),
+            settings.getClientView().options(5).withheldCaps());
     }
 
     @Test
