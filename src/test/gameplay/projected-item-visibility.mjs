@@ -1,6 +1,14 @@
 import { createRequire } from 'node:module'
-import { readFile, writeFile } from 'node:fs/promises'
+import { readFile, rename, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+
+const GLOSS_RELOAD_SETTLE_MILLIS = 6000
+
+async function replaceFile(file, text) {
+  const staged = `${file}.${process.pid}.staged`
+  await writeFile(staged, text)
+  await rename(staged, file)
+}
 
 export default {
   name: 'projected-item-visibility',
@@ -64,14 +72,27 @@ export default {
     const enableRealDrops = async enabled => {
       const current = await readFile(glossFile, 'utf8')
       context.expect(/^realDrops\s*=\s*(true|false)/m.test(current), 'Gloss realDrops option is present')
-      await writeFile(glossFile, current.replace(/^realDrops\s*=\s*(true|false)/m, `realDrops = ${enabled}`))
+      await replaceFile(glossFile, current.replace(/^realDrops\s*=\s*(true|false)/m, `realDrops = ${enabled}`))
+    }
+    const realDropsReleased = async () => {
+      const deadline = Date.now() + 45000
+      let releasedSince = null
+      let sample = ''
+      while (Date.now() < deadline) {
+        sample = await command(`/whdrops sample ${context.bot.username}`)
+        const released = sample.includes(' carrierDefault=true ') && sample.includes(' displays=0 ')
+        releasedSince = released ? releasedSince ?? Date.now() : null
+        if (releasedSince !== null && Date.now() - releasedSince >= GLOSS_RELOAD_SETTLE_MILLIS) return
+        await sleep(250)
+      }
+      context.expect(false, 'Gloss did not keep the carrier at default visibility', sample)
     }
     const audience = async viewerName => {
       const document = JSON.parse(await readFile(documentFile, 'utf8'))
       document.audience.when = `viewer.name == '${viewerName}'`
       document.presentation.limits.viewRange = 128
       document.revision++
-      await writeFile(documentFile, JSON.stringify(document, null, 2))
+      await replaceFile(documentFile, JSON.stringify(document, null, 2))
     }
     const visibility = (bot, visible) => command(`/whdrops visibility ${bot.username} ${visible ? 'show' : 'hide'}`)
     const watchSpawns = (bot, username) => {
@@ -145,6 +166,7 @@ export default {
           && Math.abs(second.entity.position.z - 13.5) < 0.1, 'Second observer staging failed')
         await second.look(0, 0, true)
         await enableRealDrops(false)
+        await realDropsReleased()
         await waitFor(() => [context.bot, second].every(bot => count(bot, 'item') === 1
           && projected(bot).length === 1), 'Both observers did not receive the ordinary item', 30000)
         evidence.source = await command('/whdrops sample')
@@ -203,6 +225,7 @@ export default {
       })
       await context.step('local portal occlusion cannot release another plugin hide', async () => {
         await enableRealDrops(false)
+        await realDropsReleased()
         await waitFor(() => [context.bot, second].every(bot => count(bot, 'item') === 1
           && projected(bot).length === 1), 'Ordinary item mode did not restore before local occlusion')
         const local = await command('/whdrops local create', /DROPS local=/)
@@ -258,8 +281,8 @@ export default {
     } finally {
       closing = true
       try {
-        await writeFile(glossFile, originalGloss)
-        await writeFile(documentFile, originalDocument)
+        await replaceFile(glossFile, originalGloss)
+        await replaceFile(documentFile, originalDocument)
       } finally {
         if (second && !second._client.ended) {
           let timer
