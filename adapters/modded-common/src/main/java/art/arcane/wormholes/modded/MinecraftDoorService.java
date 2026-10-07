@@ -922,8 +922,9 @@ public final class MinecraftDoorService implements AutoCloseable {
             }
             index(space);
             preparePocket(space).thenComposeAsync(prepared -> {
-                if (!valid(entity, trip)) {
-                    return CompletableFuture.failedFuture(new IllegalStateException("Pocket traversal expired"));
+                String expired = expired(entity, trip);
+                if (expired != null) {
+                    return CompletableFuture.failedFuture(new IllegalStateException("Pocket traversal expired: " + expired));
                 }
                 return pockets.load(prepared);
             }, server).whenCompleteAsync((room, error) -> {
@@ -1122,15 +1123,37 @@ public final class MinecraftDoorService implements AutoCloseable {
     }
 
     private boolean valid(Entity entity, PocketTrip trip) {
-        if (!enabled() || generation != trip.generation() || pocketTrips.get(entity.getUUID()) != trip
-            || !entity.isAlive() || entity.level() != trip.level() || entity.position().distanceToSqr(trip.point()) > 1.0D
-            || System.currentTimeMillis() >= trip.deadline() || !canEnter(entity, trip.source().endpoint)
-            || trip.prepared() != null && !runtime.clientViews().crossing(entity.getUUID(), trip.prepared())) {
-            return false;
+        return expired(entity, trip) == null;
+    }
+
+    private String expired(Entity entity, PocketTrip trip) {
+        if (!enabled() || generation != trip.generation()) {
+            return "dimensional doors were disabled or reloaded";
+        }
+        if (pocketTrips.get(entity.getUUID()) != trip) {
+            return "a newer door crossing replaced it";
+        }
+        if (!entity.isAlive() || entity.level() != trip.level()) {
+            return "the traveler died or changed worlds";
+        }
+        if (entity.position().distanceToSqr(trip.point()) > 1.0D) {
+            return "the traveler moved away from the door";
+        }
+        if (System.currentTimeMillis() >= trip.deadline()) {
+            return "the pocket took longer than 30 seconds to prepare";
+        }
+        if (!canEnter(entity, trip.source().endpoint)) {
+            return "the traveler may no longer use the door";
+        }
+        if (trip.prepared() != null && !runtime.clientViews().crossing(entity.getUUID(), trip.prepared())) {
+            return "the client crossing was cancelled";
         }
         Snapshot current = capture(trip.source().endpoint);
-        return current != null && current.active() && current.plane().equals(trip.transit().sourcePlane())
-            && state.findEndpointByItem(trip.source().endpoint.identity().itemId()).filter(trip.source().endpoint::equals).isPresent();
+        if (current == null || !current.active() || !current.plane().equals(trip.transit().sourcePlane())) {
+            return "the door closed or changed shape";
+        }
+        return state.findEndpointByItem(trip.source().endpoint.identity().itemId()).filter(trip.source().endpoint::equals).isPresent()
+            ? null : "the door was removed";
     }
 
     private void finishPocket(Entity entity, PocketTrip trip, boolean success) {

@@ -115,7 +115,7 @@ public final class MinecraftPocketRules implements AutoCloseable {
         player.clearFire();
         player.setInvulnerableTime(Math.max(player.getInvulnerableTime(), 40));
         if (decision.startsEjection() && !doors.travelling(player.getUUID())) {
-            rescue(player);
+            rescue(player, "lethal damage");
         }
         return true;
     }
@@ -177,7 +177,8 @@ public final class MinecraftPocketRules implements AutoCloseable {
             previousSpaces.put(player.getUUID(), space);
         }
         if (!player.isSpectator() && !doors.travelling(player.getUUID()) && escaped(previous, player.blockPosition())) {
-            rescue(player);
+            rescue(player, previous == null ? "not inside any pocket at " + player.blockPosition().toShortString()
+                : "outside pocket " + previous.spaceId() + " at " + player.blockPosition().toShortString());
         }
     }
 
@@ -200,10 +201,11 @@ public final class MinecraftPocketRules implements AutoCloseable {
         player.connection.send(clockPacket(player.getUUID(), server.clockManager().createFullSyncPacket()));
     }
 
-    private void rescue(ServerPlayer player) {
+    private void rescue(ServerPlayer player, String reason) {
         if (closed || rescues.containsKey(player.getUUID()) || !player.isAlive()) {
             return;
         }
+        LOGGER.info("Returning {} from the pocket dimension: {}", player.getScoreboardName(), reason);
         ReturnTicket ticket = doors.state().getReturnTicket(player.getUUID()).orElse(null);
         Rescue rescue = new Rescue(ticket, System.currentTimeMillis() + 30_000L);
         rescues.put(player.getUUID(), rescue);
