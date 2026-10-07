@@ -55,10 +55,18 @@ export function publicPlayer(context, { controller = context } = {}) {
     await wait(() => bot.entity.position.distanceTo(point(x, y, z)) < 0.3 && bot.blockAt(point(x, y - 1, z)), 'staging position and chunk')
   }
 
-  async function serverBlock(position, block) {
+  async function serverBlock(position, block, timeoutMs = 10000) {
     const marker = `QA_BLOCK_${bot.username}_${position.x}_${position.y}_${position.z}`
-    await command(`/execute if block ${position.x} ${position.y} ${position.z} ${block} run tellraw ${controller.bot.username} ${JSON.stringify({ text: marker })}`,
-      new RegExp(marker))
+    const deadline = Date.now() + timeoutMs
+    for (;;) {
+      try {
+        await command(`/execute if block ${position.x} ${position.y} ${position.z} ${block} run tellraw ${controller.bot.username} ${JSON.stringify({ text: marker })}`,
+          new RegExp(marker), 1000)
+        return
+      } catch (error) {
+        if (Date.now() >= deadline) throw error
+      }
+    }
   }
 
   async function place(position, namePattern, material) {
@@ -115,6 +123,7 @@ export function publicPlayer(context, { controller = context } = {}) {
     const source = await readFile(path.join(context.server.directory, '.server-source'), 'utf8')
     context.expect(/^isolated=true\s*$/m.test(source), 'Player construction scenarios require isolated=true')
     if (bot.game.gameMode !== 'creative') await context.command('/gamemode creative @s', /creative/i)
+    await context.command('/clear @s', /Removed|No items/i)
     await stage(0.5, 202, 0.5)
     await wait(() => [-8, 40].every(x => [-8, 12].every(z => bot.blockAt(point(x, 199, z)))),
       'arena chunks loaded', 30000)
