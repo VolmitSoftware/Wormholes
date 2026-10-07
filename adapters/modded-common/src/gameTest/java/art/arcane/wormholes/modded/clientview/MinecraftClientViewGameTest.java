@@ -71,7 +71,7 @@ public final class MinecraftClientViewGameTest {
             null, null, null, Runnable::run, BlockStateParser::serialize, dataVersion(), MinecraftClientViewService.PLATFORM_CAPS,
             System::nanoTime, (message, failure) -> LOGGER.warn(message, failure), MinecraftClientViewExtensions.ALL, ClientViewTravel::new);
         this.registry = new ViewStreamSessionRegistry<>(platform, new ViewStreamOptions(true, true, GRACE_MILLIS, 512 * 1024, 0, false,
-            false, false, false, false, true, true, true, 5, ViewStreamOptions.RemoteView.DEFAULT));
+            false, false, false, false, true, true, true, 5, ViewStreamCapability.NONE));
         this.negotiator = new MinecraftClientViewNegotiator(registry);
     }
 

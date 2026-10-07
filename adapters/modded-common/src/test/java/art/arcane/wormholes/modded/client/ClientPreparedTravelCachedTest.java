@@ -4,7 +4,7 @@ import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.network.client.ClientTravelHash;
 import art.arcane.wormholes.network.client.ClientTravelWindow;
-import art.arcane.optics.stream.ViewStreamCapability;
+import art.arcane.wormholes.network.client.ClientViewExtensions;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientPacketListener;
@@ -103,7 +103,7 @@ public class ClientPreparedTravelCachedTest {
         ClientViewSession session = mock(ClientViewSession.class);
         when(client.session()).thenReturn(session);
         when(session.active()).thenReturn(true);
-        when(session.has(ViewStreamCapability.PREPARED_TRAVEL_CACHE)).thenReturn(true);
+        when(session.has(ClientViewExtensions.PREPARED_TRAVEL_CACHE)).thenReturn(true);
         byte[] raw = {7, 1, 9};
         ClientboundLevelChunkWithLightPacket original = nativePacket(0, 0, raw);
         byte[] expected = encoded(source, original);
@@ -124,7 +124,7 @@ public class ClientPreparedTravelCachedTest {
             assertArrayEquals(expected, cache.peek("minecraft:the_nether", 0, 0));
             travel.receiveNativeChunk(source, nativePacket(128, 0, new byte[]{3}));
             assertNull(cache.peek("minecraft:the_nether", 128, 0));
-            when(session.has(ViewStreamCapability.PREPARED_TRAVEL_CACHE)).thenReturn(false);
+            when(session.has(ClientViewExtensions.PREPARED_TRAVEL_CACHE)).thenReturn(false);
             travel.receiveNativeChunk(source, nativePacket(0, 0, new byte[]{4}));
             assertArrayEquals(expected, cache.peek("minecraft:the_nether", 0, 0));
         }

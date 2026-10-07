@@ -23,6 +23,10 @@ public interface ViewStreamExtension<X> {
 
     long capabilities();
 
+    default long requires(long capability) {
+        return ViewStreamCapability.NONE;
+    }
+
     default List<X> coalesce(List<X> messages) {
         return messages;
     }

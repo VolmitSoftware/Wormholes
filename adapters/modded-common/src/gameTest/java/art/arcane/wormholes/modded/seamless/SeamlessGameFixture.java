@@ -10,6 +10,7 @@ import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.modded.clientview.ClientViewPayload;
 import art.arcane.wormholes.modded.clientview.MinecraftClientViewExtensions;
+import art.arcane.wormholes.network.client.ClientViewExtensions;
 import art.arcane.wormholes.network.client.TravelMessage;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.PortalType;
@@ -41,8 +42,8 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 final class SeamlessGameFixture implements AutoCloseable {
-    static final long CLIENT_CAPS = ViewStreamCapability.of(ViewStreamCapability.MESH_RENDER, ViewStreamCapability.PREPARED_TRAVEL,
-        ViewStreamCapability.REMOTE_VIEW, ViewStreamCapability.SEAMLESS_TRAVEL);
+    static final long CLIENT_CAPS = ViewStreamCapability.MESH_RENDER.mask() | ClientViewExtensions.PREPARED_TRAVEL | ClientViewExtensions.REMOTE_VIEW
+        | ClientViewExtensions.SEAMLESS_TRAVEL;
 
     private final WormholesModRuntime runtime;
     private final MinecraftGameTestPlayer player;
@@ -132,7 +133,7 @@ final class SeamlessGameFixture implements AutoCloseable {
                 caps = accept.caps();
             }
         }
-        if (!ViewStreamCapability.SEAMLESS_TRAVEL.in(caps)) {
+        if ((caps & ClientViewExtensions.SEAMLESS_TRAVEL) == 0L) {
             throw new IllegalStateException("Seamless travel was not negotiated: caps " + Long.toBinaryString(caps));
         }
     }

@@ -37,8 +37,8 @@ import art.arcane.wormholes.network.client.TravelMessage;
 
 final class ClientViewTravelTest {
     private static final int DATA_VERSION = 4325;
-    private static final long NATIVE_TRAVEL = ViewStreamCapability.of(ViewStreamCapability.PLATES, ViewStreamCapability.MESH_RENDER,
-        ViewStreamCapability.PREPARED_TRAVEL);
+    private static final long NATIVE_TRAVEL = ViewStreamCapability.of(ViewStreamCapability.PLATES, ViewStreamCapability.MESH_RENDER)
+        | ClientViewExtensions.PREPARED_TRAVEL;
     private static final UUID PLAYER = new UUID(3L, 4L);
 
     private final List<byte[]> frames = new ArrayList<byte[]>();

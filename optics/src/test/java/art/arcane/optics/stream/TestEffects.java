@@ -8,6 +8,7 @@ final class TestEffects implements ViewStreamExtension<TestEffects.Effect> {
     static final int ID = 13;
     static final int MAX_NAMES = 255;
     static final int WORLD_KEY = 0;
+    static final long CAPABILITY = ViewStreamCapability.extension(0);
     static final TestEffects INSTANCE = new TestEffects();
 
     private TestEffects() {
@@ -82,7 +83,7 @@ final class TestEffects implements ViewStreamExtension<TestEffects.Effect> {
 
     @Override
     public long capabilities() {
-        return ViewStreamCapability.FX_EMITTERS.mask();
+        return CAPABILITY;
     }
 
     @Override

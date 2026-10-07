@@ -1,7 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.optics.stream.ViewStreamCodec;
-import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamProtocolException;
 import org.slf4j.Logger;
@@ -13,6 +12,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
+import art.arcane.wormholes.network.client.ClientViewExtensions;
 import art.arcane.wormholes.network.client.TravelMessage;
 import art.arcane.wormholes.modded.clientview.MinecraftClientViewExtensions;
 
@@ -109,7 +109,7 @@ public final class ClientViewReceiver {
     }
 
     private void prepared(ViewStreamCodec.S2CFrame frame, TravelMessage message, int bytes) {
-        if (session.active() && session.has(ViewStreamCapability.PREPARED_TRAVEL)) {
+        if (session.active() && session.has(ClientViewExtensions.PREPARED_TRAVEL)) {
             travel.accept(message);
             enqueue(new Queued(frame, bytes, System.nanoTime()));
         }

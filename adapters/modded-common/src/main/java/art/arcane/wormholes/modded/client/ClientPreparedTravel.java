@@ -16,7 +16,7 @@ import art.arcane.wormholes.modded.mixin.client.PreparedLevelDataAccess;
 import art.arcane.wormholes.modded.mixin.client.PreparedPacketAccess;
 import art.arcane.wormholes.modded.mixin.client.PreparedEntityAccess;
 import art.arcane.wormholes.network.client.ClientTravelWindow;
-import art.arcane.optics.stream.ViewStreamCapability;
+import art.arcane.wormholes.network.client.ClientViewExtensions;
 import art.arcane.optics.aperture.Aperture;
 import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.optics.aperture.ApertureDescriptor;
@@ -1210,7 +1210,7 @@ public final class ClientPreparedTravel {
     public boolean receiveNativeChunk(ClientLevel level, ClientboundLevelChunkWithLightPacket packet) {
         WormholesClient client = WormholesClient.instance();
         if (level == null || client == null || !client.session().active()
-            || !client.session().has(ViewStreamCapability.PREPARED_TRAVEL_CACHE) || client.session().has(ViewStreamCapability.SEAMLESS_TRAVEL)) {
+            || !client.session().has(ClientViewExtensions.PREPARED_TRAVEL_CACHE) || client.session().has(ClientViewExtensions.SEAMLESS_TRAVEL)) {
             return false;
         }
         TravelMessage.TravelCoordinate coordinate = new TravelMessage.TravelCoordinate(packet.x(), packet.z());
@@ -1737,7 +1737,7 @@ public final class ClientPreparedTravel {
             return false;
         }
         WormholesClient client = WormholesClient.instance();
-        return client == null || client.session().has(ViewStreamCapability.SEAMLESS_TRAVEL);
+        return client == null || client.session().has(ClientViewExtensions.SEAMLESS_TRAVEL);
     }
 
     private ClientLevel seamlessLevel(TravelMessage.TravelBegin value) {

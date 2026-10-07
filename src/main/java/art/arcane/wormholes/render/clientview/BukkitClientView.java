@@ -66,9 +66,10 @@ import art.arcane.wormholes.network.client.FxMessage;
 
 public final class BukkitClientView implements ClientViewRouting {
     public static final long PLATFORM_CAPS = ViewStreamCapability.of(ViewStreamCapability.PLATES, ViewStreamCapability.BRICK_CACHE,
-        ViewStreamCapability.DEST_LIGHT, ViewStreamCapability.ENTITY_FRAMES, ViewStreamCapability.ENTITY_SELF, ViewStreamCapability.ENTITY_EVENTS, ViewStreamCapability.FX_EMITTERS, ViewStreamCapability.ATMOSPHERE,
+        ViewStreamCapability.DEST_LIGHT, ViewStreamCapability.ENTITY_FRAMES, ViewStreamCapability.ENTITY_SELF, ViewStreamCapability.ENTITY_EVENTS, ViewStreamCapability.ATMOSPHERE,
         ViewStreamCapability.CONFIG_PHASE, ViewStreamCapability.LINK_UNCOMPRESSED, ViewStreamCapability.VIEW_STATS,
-        ViewStreamCapability.CLIENT_MIRROR, ViewStreamCapability.CLIENT_RECURSION, ViewStreamCapability.MESH_RENDER, ViewStreamCapability.LOCAL_MESH, ViewStreamCapability.MESH_REUSE);
+        ViewStreamCapability.CLIENT_MIRROR, ViewStreamCapability.CLIENT_RECURSION, ViewStreamCapability.MESH_RENDER, ViewStreamCapability.LOCAL_MESH, ViewStreamCapability.MESH_REUSE)
+        | ClientViewExtensions.FX_EMITTERS;
     private static final long SOURCE_STALE_TICKS = 40L;
     private static final double PARTICLE_RANGE_SQUARED = 32.0D * 32.0D;
     private static final String CONFIGURE_EVENT_CLASS = "io.papermc.paper.event.connection.configuration.AsyncPlayerConnectionConfigureEvent";
@@ -101,7 +102,7 @@ public final class BukkitClientView implements ClientViewRouting {
         this.scene = portals.scene();
         this.travelPackets = NativeAdapters.find(ChunkPacketAccess.class).orElse(null);
         long platformCaps = PLATFORM_CAPS | (travelPackets != null && travelPackets.snapshotSupported()
-            ? ViewStreamCapability.PREPARED_TRAVEL.mask() | ViewStreamCapability.PREPARED_TRAVEL_CACHE.mask() : 0L);
+            ? (ClientViewExtensions.PREPARED_TRAVEL | ClientViewExtensions.PREPARED_TRAVEL_CACHE) : 0L);
         ViewStreamPlatform<ClientViewObserver, BlockData> platform = new ViewStreamPlatform<ClientViewObserver, BlockData>(transport, portals,
             new EntityFrames<ClientViewObserver>(portals.scene()), new ClientViewSceneFx<ClientViewObserver>(portals.scene()), null, lanes,
             BlockData::getAsString, options.mcDataVersion(), platformCaps, null, this::warn, ClientViewExtensions.ALL, ClientViewTravel::new);

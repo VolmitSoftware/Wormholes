@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import art.arcane.wormholes.network.client.ClientViewExtensions;
 import art.arcane.wormholes.network.client.TravelMessage;
 import art.arcane.wormholes.network.client.FxMessage;
 import art.arcane.wormholes.modded.clientview.MinecraftClientViewExtensions;
@@ -78,10 +79,11 @@ public final class ClientViewSession {
             return 0;
         }
         long capabilities = ViewStreamCapability.of(ViewStreamCapability.PLATES, ViewStreamCapability.BRICK_CACHE, ViewStreamCapability.DEST_LIGHT,
-            ViewStreamCapability.ENTITY_FRAMES, ViewStreamCapability.ENTITY_EVENTS, ViewStreamCapability.FX_EMITTERS, ViewStreamCapability.ATMOSPHERE, ViewStreamCapability.ZERO_COPY,
+            ViewStreamCapability.ENTITY_FRAMES, ViewStreamCapability.ENTITY_EVENTS, ViewStreamCapability.ATMOSPHERE, ViewStreamCapability.ZERO_COPY,
             ViewStreamCapability.CONFIG_PHASE, ViewStreamCapability.LINK_UNCOMPRESSED, ViewStreamCapability.VIEW_STATS, ViewStreamCapability.MESH_RENDER,
-            ViewStreamCapability.LOCAL_MESH, ViewStreamCapability.MESH_REUSE, ViewStreamCapability.PREPARED_TRAVEL, ViewStreamCapability.PREPARED_TRAVEL_CACHE, ViewStreamCapability.ENTITY_SELF,
-            ViewStreamCapability.REMOTE_VIEW, ViewStreamCapability.SEAMLESS_TRAVEL);
+            ViewStreamCapability.LOCAL_MESH, ViewStreamCapability.MESH_REUSE, ViewStreamCapability.ENTITY_SELF)
+            | ClientViewExtensions.FX_EMITTERS | ClientViewExtensions.PREPARED_TRAVEL | ClientViewExtensions.PREPARED_TRAVEL_CACHE
+            | ClientViewExtensions.REMOTE_VIEW | ClientViewExtensions.SEAMLESS_TRAVEL;
         if (config.clientMirror) {
             capabilities |= ViewStreamCapability.CLIENT_MIRROR.mask();
         }
@@ -373,6 +375,10 @@ public final class ClientViewSession {
 
     public boolean has(ViewStreamCapability capability) {
         return capability.in(caps);
+    }
+
+    public boolean has(long capability) {
+        return (caps & capability) != 0L;
     }
 
     public ViewStreamMessage.Accept acceptMessage() {

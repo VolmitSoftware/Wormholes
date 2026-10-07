@@ -3,7 +3,6 @@ package art.arcane.wormholes.network.client;
 import java.util.ArrayList;
 import java.util.List;
 
-import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.ViewStreamExtension;
 import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamProtocolException;
@@ -57,7 +56,7 @@ public final class FxExtension implements ViewStreamExtension<FxMessage> {
 
     @Override
     public long capabilities() {
-        return ViewStreamCapability.FX_EMITTERS.mask();
+        return ClientViewExtensions.FX_EMITTERS;
     }
 
     @Override

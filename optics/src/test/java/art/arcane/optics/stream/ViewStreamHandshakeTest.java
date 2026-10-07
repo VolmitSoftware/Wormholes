@@ -15,7 +15,7 @@ final class ViewStreamHandshakeTest {
     private static ViewStreamHandshake handshake(boolean enabled, long nonce) {
         ViewStreamHandshake.Policy policy = new ViewStreamHandshake.Policy(enabled, DATA_VERSION, ViewStreamCapability.ALL,
             ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 100, 20, 8, true);
-        return new ViewStreamHandshake(policy, nonce, () -> 7, () -> 0x1234L);
+        return new ViewStreamHandshake(policy, ViewStreamFixtures.CODEC, nonce, () -> 7, () -> 0x1234L);
     }
 
     private static ViewStreamMessage.Hello hello(ViewStreamMessage.Offer offer, long nonceFound, String brand) {

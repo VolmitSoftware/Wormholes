@@ -27,7 +27,7 @@ final class ClientViewHandshakeVersionTest {
     void offerAdvertisesSixAndAFiveHelloIsAWireMismatch() {
         ViewStreamHandshake.Policy policy = new ViewStreamHandshake.Policy(true, DATA_VERSION, ViewStreamCapability.ALL,
             ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 100, 20, 8, true);
-        ViewStreamHandshake handshake = new ViewStreamHandshake(policy, 0L, () -> 7, () -> 0x1234L);
+        ViewStreamHandshake handshake = new ViewStreamHandshake(policy, ClientViewExtensions.CODEC, 0L, () -> 7, () -> 0x1234L);
         assertEquals(6, handshake.offer(0L).wire());
         ViewStreamMessage.Hello previous = new ViewStreamMessage.Hello(5, DATA_VERSION, ViewStreamCapability.ALL, 1, 1, 0L, "fabric");
         ViewStreamMessage.Decline decline = (ViewStreamMessage.Decline) handshake.onHello(previous, 1L, true).reply();

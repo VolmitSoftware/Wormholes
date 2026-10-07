@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.client.render.PortalIrisMainPipelines;
@@ -22,6 +23,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -120,7 +122,8 @@ public class ClientPreparedTravelSeamlessAcceptTest extends MinecraftTestBase {
         Crossing() throws ReflectiveOperationException {
             when(client.preparedTravel()).thenReturn(travel);
             ClientViewSession session = mock(ClientViewSession.class);
-            when(session.has(any())).thenReturn(true);
+            when(session.has(any(ViewStreamCapability.class))).thenReturn(true);
+            when(session.has(anyLong())).thenReturn(true);
             when(client.session()).thenReturn(session);
             clients.when(WormholesClient::instance).thenReturn(client);
             renderers.when(ClientPortalRenderer::instance).thenReturn(mock(ClientPortalRenderer.class));

@@ -20,6 +20,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import art.arcane.wormholes.modded.clientview.MinecraftClientViewExtensions;
+import art.arcane.wormholes.network.client.ClientViewExtensions;
 
 public class WormholesClientConfigTest extends MinecraftTestBase {
     @Rule
@@ -42,9 +43,9 @@ public class WormholesClientConfigTest extends MinecraftTestBase {
     @Test
     public void nativeRendererOffersRemoteViewAndSeamlessTravel() {
         long capabilities = session(new WormholesClientConfig()).clientCapabilities();
-        assertTrue(ViewStreamCapability.REMOTE_VIEW.in(capabilities));
-        assertTrue(ViewStreamCapability.SEAMLESS_TRAVEL.in(capabilities));
-        assertTrue(ViewStreamCapability.PREPARED_TRAVEL.in(capabilities));
+        assertTrue((capabilities & ClientViewExtensions.REMOTE_VIEW) != 0L);
+        assertTrue((capabilities & ClientViewExtensions.SEAMLESS_TRAVEL) != 0L);
+        assertTrue((capabilities & ClientViewExtensions.PREPARED_TRAVEL) != 0L);
     }
 
     @Test

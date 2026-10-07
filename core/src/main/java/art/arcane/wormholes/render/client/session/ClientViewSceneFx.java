@@ -9,6 +9,7 @@ import art.arcane.optics.stream.EntityFrames;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamScene;
+import art.arcane.wormholes.network.client.ClientViewExtensions;
 import art.arcane.wormholes.network.client.FxExtension;
 import art.arcane.wormholes.network.client.FxMessage;
 
@@ -25,6 +26,11 @@ public final class ClientViewSceneFx<P> implements ViewStreamScene<P> {
     public ClientViewSceneFx(Effects<P> effects) {
         this.effects = Objects.requireNonNull(effects, "effects");
         this.states = new ConcurrentHashMap<StateKey, PortalState>();
+    }
+
+    @Override
+    public long effectCapability() {
+        return ClientViewExtensions.FX_EMITTERS;
     }
 
     @Override

@@ -8,8 +8,8 @@ import art.arcane.wormholes.modded.client.render.ClientTravelScene;
 import art.arcane.wormholes.modded.client.render.PortalIrisMainPipelines;
 import art.arcane.wormholes.modded.mixin.client.PreparedLevelAccess;
 import art.arcane.wormholes.modded.mixin.client.PreparedLevelDataAccess;
-import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientTravelWindow;
+import art.arcane.wormholes.network.client.ClientViewExtensions;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.Face;
 import io.netty.buffer.Unpooled;
@@ -176,7 +176,7 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
         ClientViewSession session = mock(ClientViewSession.class);
         when(client.session()).thenReturn(session);
         when(session.active()).thenReturn(true);
-        when(session.has(ViewStreamCapability.PREPARED_TRAVEL_CACHE)).thenReturn(true);
+        when(session.has(ClientViewExtensions.PREPARED_TRAVEL_CACHE)).thenReturn(true);
         AtomicReference<byte[]> physical = new AtomicReference<>(installed);
         ClientSodiumTerrain.Handoff nativeScope = mock(ClientSodiumTerrain.Handoff.class);
         PortalIrisMainPipelines.Handoff shaderScope = mock(PortalIrisMainPipelines.Handoff.class);
@@ -485,7 +485,7 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
         ClientViewSession session = mock(ClientViewSession.class);
         when(client.session()).thenReturn(session);
         when(session.active()).thenReturn(true);
-        when(session.has(ViewStreamCapability.PREPARED_TRAVEL_CACHE)).thenReturn(true);
+        when(session.has(ClientViewExtensions.PREPARED_TRAVEL_CACHE)).thenReturn(true);
         ClientboundLevelChunkWithLightPacket packet = packet();
         byte[] bytes = MinecraftChunkPacketEncoding.encode(RegistryAccess.EMPTY, packet);
         set(travel, "begin", begin);

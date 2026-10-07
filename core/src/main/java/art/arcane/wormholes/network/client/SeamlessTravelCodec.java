@@ -27,7 +27,14 @@ public final class SeamlessTravelCodec implements TravelExtension.Seamless {
 
     @Override
     public long capabilities() {
-        return ViewStreamCapability.of(ViewStreamCapability.REMOTE_VIEW, ViewStreamCapability.SEAMLESS_TRAVEL);
+        return ClientViewExtensions.REMOTE_VIEW | ClientViewExtensions.SEAMLESS_TRAVEL;
+    }
+
+    @Override
+    public long requires(long capability) {
+        return capability == ClientViewExtensions.SEAMLESS_TRAVEL
+            ? ClientViewExtensions.REMOTE_VIEW | ViewStreamCapability.MESH_RENDER.mask()
+            : ViewStreamCapability.NONE;
     }
 
     @Override

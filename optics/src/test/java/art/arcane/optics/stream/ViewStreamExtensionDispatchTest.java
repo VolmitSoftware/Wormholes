@@ -88,7 +88,7 @@ final class ViewStreamExtensionDispatchTest {
     @Test
     void codecOffersTheUnionOfExtensionCapabilities() {
         ViewStreamCodec codec = new ViewStreamCodec(List.of(Probe.range(60, 61), TestEffects.INSTANCE));
-        assertEquals(Probe.CAPABILITIES | ViewStreamCapability.FX_EMITTERS.mask(), codec.capabilities());
+        assertEquals(Probe.range(60, 61).capabilities() | TestEffects.CAPABILITY, codec.capabilities());
         assertEquals(ViewStreamCapability.NONE, new ViewStreamCodec(List.of()).capabilities());
     }
 
@@ -127,8 +127,6 @@ final class ViewStreamExtensionDispatchTest {
     }
 
     private static final class Probe implements ViewStreamExtension<Probe.Value> {
-        private static final long CAPABILITIES = ViewStreamCapability.PREPARED_TRAVEL.mask();
-
         private final int first;
         private final int last;
 
@@ -198,7 +196,7 @@ final class ViewStreamExtensionDispatchTest {
 
         @Override
         public long capabilities() {
-            return CAPABILITIES;
+            return ViewStreamCapability.extension(first % ViewStreamCapability.EXTENSION_BITS);
         }
 
         record Value(int id, int value) {

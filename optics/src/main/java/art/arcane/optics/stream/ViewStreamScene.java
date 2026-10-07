@@ -3,6 +3,10 @@ package art.arcane.optics.stream;
 import java.util.UUID;
 
 public interface ViewStreamScene<P> {
+    default long effectCapability() {
+        return ViewStreamCapability.NONE;
+    }
+
     ViewStreamMessage.Extension effects(P observer, UUID endpoint, int key, long tick, boolean full);
 
     ViewStreamMessage.Atmosphere atmosphere(P observer, UUID endpoint, int key, long tick, boolean full);

@@ -20,20 +20,41 @@ public final class ViewStreamCodec {
     private static final int MAX_CELL_BOX_EDGE = 65535;
 
     private final ViewStreamExtension<?>[] owners;
+    private final long[] prerequisites;
     private final long capabilities;
 
     public ViewStreamCodec(List<ViewStreamExtension<?>> extensions) {
         this.owners = new ViewStreamExtension<?>[ViewStreamLimits.MAX_MESSAGE_ID + 1];
+        this.prerequisites = new long[ViewStreamCapability.EXTENSION_BITS];
         long offered = ViewStreamCapability.NONE;
         for (ViewStreamExtension<?> extension : extensions) {
             register(extension);
-            offered |= extension.capabilities();
+            offered = claimCapabilities(extension, offered);
         }
-        this.capabilities = offered & ViewStreamCapability.ALL;
+        this.capabilities = offered;
     }
 
     public long capabilities() {
         return capabilities;
+    }
+
+    public long settle(long caps) {
+        long settled = caps & ViewStreamCapability.ALL;
+        boolean changed = true;
+        while (changed) {
+            changed = false;
+            long extensions = settled & ViewStreamCapability.EXTENSIONS;
+            while (extensions != 0L) {
+                int bit = Long.numberOfTrailingZeros(extensions);
+                extensions &= extensions - 1L;
+                long required = prerequisites[bit - ViewStreamCapability.FIRST_EXTENSION_BIT];
+                if ((settled & required) != required) {
+                    settled &= ~(1L << bit);
+                    changed = true;
+                }
+            }
+        }
+        return settled;
     }
 
     public boolean clientbound(ViewStreamMessage message) {
@@ -231,6 +252,26 @@ public final class ViewStreamCodec {
         for (int id = first; id <= last; id++) {
             owners[id] = extension;
         }
+    }
+
+    private long claimCapabilities(ViewStreamExtension<?> extension, long claimed) {
+        long declared = extension.capabilities();
+        if ((declared & ~ViewStreamCapability.EXTENSIONS) != 0L) {
+            throw new IllegalArgumentException("extension " + extension.firstId() + ".." + extension.lastId()
+                + " declares capabilities outside the extension range: 0x" + Long.toHexString(declared & ~ViewStreamCapability.EXTENSIONS));
+        }
+        if ((declared & claimed) != 0L) {
+            throw new IllegalArgumentException("extension " + extension.firstId() + ".." + extension.lastId()
+                + " declares capabilities another extension owns: 0x" + Long.toHexString(declared & claimed));
+        }
+        long remaining = declared;
+        while (remaining != 0L) {
+            int bit = Long.numberOfTrailingZeros(remaining);
+            remaining &= remaining - 1L;
+            long required = extension.requires(1L << bit) & ViewStreamCapability.ALL;
+            prerequisites[bit - ViewStreamCapability.FIRST_EXTENSION_BIT] = required;
+        }
+        return claimed | declared;
     }
 
     private ViewStreamExtension<?> owner(int id) {

@@ -1,6 +1,7 @@
 package art.arcane.wormholes.modded.clientview;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
+import art.arcane.wormholes.network.client.ClientViewExtensions;
 import art.arcane.optics.stream.BrickLightSource;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.ViewStreamHandshake;
@@ -70,7 +71,7 @@ public class MinecraftClientViewNegotiatorTest extends MinecraftTestBase {
         assertTrue(ViewStreamCapability.PLATES.in(offer.serverCaps()));
         assertTrue(ViewStreamCapability.DEST_LIGHT.in(offer.serverCaps()));
         assertTrue(ViewStreamCapability.ENTITY_FRAMES.in(offer.serverCaps()));
-        assertTrue(ViewStreamCapability.FX_EMITTERS.in(offer.serverCaps()));
+        assertTrue((offer.serverCaps() & ClientViewExtensions.FX_EMITTERS) != 0L);
         assertTrue(ViewStreamCapability.ATMOSPHERE.in(offer.serverCaps()));
         assertFalse(task.tick());
         assertEquals(ViewStreamInbound.HELLO_ACCEPTED, negotiator.receive(connection, hello(offer)));
@@ -103,7 +104,7 @@ public class MinecraftClientViewNegotiatorTest extends MinecraftTestBase {
         registry.runtimeEnabled(false);
         assertNull(negotiator.configurationTask(id, "Alex", connection, () -> true));
         assertFalse(negotiator.offerPlay(id, "Alex", connection));
-        open(new ViewStreamOptions(true, false, 100, 512 * 1024, 8, true, true, true, true, false, true, true, true, 5, ViewStreamOptions.RemoteView.DEFAULT));
+        open(new ViewStreamOptions(true, false, 100, 512 * 1024, 8, true, true, true, true, false, true, true, true, 5, ViewStreamCapability.NONE));
         assertNull(negotiator.configurationTask(id, "Alex", connection, () -> true));
         assertTrue(negotiator.offerPlay(id, "Alex", connection));
         ViewStreamMessage.Offer offer = (ViewStreamMessage.Offer) transport.message(0);
@@ -213,7 +214,7 @@ public class MinecraftClientViewNegotiatorTest extends MinecraftTestBase {
 
     private static ViewStreamOptions options(boolean enabled) {
         return new ViewStreamOptions(enabled, true, (int) (GRACE_NANOS / 1_000_000L), 512 * 1024, 8, true, true, true, true, false, true, true,
-            true, 5, ViewStreamOptions.RemoteView.DEFAULT);
+            true, 5, ViewStreamCapability.NONE);
     }
 
     private static final class Recording implements ViewStreamTransport<MinecraftClientViewPeer> {

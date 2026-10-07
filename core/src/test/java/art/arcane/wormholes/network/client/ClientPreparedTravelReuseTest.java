@@ -213,21 +213,21 @@ final class ClientPreparedTravelReuseTest {
     @Test
     void cacheCapabilityRequiresNativeAndPreparedParentsFromBothPeers() {
         long[] masks = new long[]{ViewStreamCapability.ALL,
-            ViewStreamCapability.ALL & ~ViewStreamCapability.PREPARED_TRAVEL.mask(),
+            ViewStreamCapability.ALL & ~ClientViewExtensions.PREPARED_TRAVEL,
             ViewStreamCapability.ALL & ~ViewStreamCapability.MESH_RENDER.mask()};
         for (long serverCaps : masks) {
             for (long clientCaps : masks) {
                 ViewStreamHandshake.Policy policy = new ViewStreamHandshake.Policy(true, 4325, serverCaps,
                     ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 100, 20, 8, false);
-                ViewStreamHandshake handshake = new ViewStreamHandshake(policy, 0L, () -> 1, () -> 1L);
+                ViewStreamHandshake handshake = new ViewStreamHandshake(policy, ClientViewExtensions.CODEC, 0L, () -> 1, () -> 1L);
                 ViewStreamMessage.Offer offer = handshake.offer(0);
                 ViewStreamMessage.Hello hello = ViewStreamHandshake.clientHello(offer, 4325, clientCaps,
                     ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 256, 0L, "fabric");
                 ViewStreamMessage.Accept accept = assertInstanceOf(ViewStreamMessage.Accept.class,
                     handshake.onHello(hello, 1, true).reply());
-                boolean expected = ViewStreamCapability.PREPARED_TRAVEL.in(serverCaps & clientCaps)
+                boolean expected = ((serverCaps & clientCaps) & ClientViewExtensions.PREPARED_TRAVEL) != 0L
                     && ViewStreamCapability.MESH_RENDER.in(serverCaps & clientCaps);
-                assertEquals(expected, ViewStreamCapability.PREPARED_TRAVEL_CACHE.in(accept.caps()));
+                assertEquals(expected, (accept.caps() & ClientViewExtensions.PREPARED_TRAVEL_CACHE) != 0L);
             }
         }
     }

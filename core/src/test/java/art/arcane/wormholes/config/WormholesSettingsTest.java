@@ -1,7 +1,7 @@
 package art.arcane.wormholes.config;
 
-import art.arcane.optics.stream.ViewStreamCapability;
-import art.arcane.optics.stream.ViewStreamOptions;
+import art.arcane.wormholes.network.client.ClientViewExtensions;
+import art.arcane.wormholes.network.client.RemoteViewOptions;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -108,18 +108,18 @@ class WormholesSettingsTest {
         assertTrue(canonical.contains("remote-view-routes = 2"));
         assertTrue(canonical.contains("remote-view-chunks-per-tick = 8"));
         assertTrue(canonical.contains("remote-view-bytes-per-tick = 196608"));
-        assertEquals(ViewStreamOptions.RemoteView.DEFAULT, defaults.getClientView().options(5).remoteView());
+        assertEquals(RemoteViewOptions.DEFAULT, defaults.getClientView().remoteView());
 
         String source = "schema = 3\n[client-view]\nseamless-travel = false\nremote-view-routes = 9\nremote-view-chunks-per-tick = 0\n"
             + "remote-view-bytes-per-tick = 5\n";
         WormholesSettings settings = WormholesSettings.loadSnapshot(source.getBytes(StandardCharsets.UTF_8));
-        ViewStreamOptions.RemoteView remote = settings.getClientView().options(5).remoteView();
+        RemoteViewOptions remote = settings.getClientView().remoteView();
         assertFalse(remote.enabled());
         assertEquals(4, settings.getClientView().remoteViewRoutes);
         assertEquals(1, settings.getClientView().remoteViewChunksPerTick);
-        assertEquals(ViewStreamOptions.RemoteView.MIN_BYTES_PER_TICK, settings.getClientView().remoteViewBytesPerTick);
-        assertEquals(new ViewStreamOptions.RemoteView(false, 4, 1, ViewStreamOptions.RemoteView.MIN_BYTES_PER_TICK), remote);
-        assertEquals(ViewStreamCapability.of(ViewStreamCapability.REMOTE_VIEW, ViewStreamCapability.SEAMLESS_TRAVEL),
+        assertEquals(RemoteViewOptions.MIN_BYTES_PER_TICK, settings.getClientView().remoteViewBytesPerTick);
+        assertEquals(new RemoteViewOptions(false, 4, 1, RemoteViewOptions.MIN_BYTES_PER_TICK), remote);
+        assertEquals(ClientViewExtensions.REMOTE_VIEW | ClientViewExtensions.SEAMLESS_TRAVEL,
             settings.getClientView().options(5).withheldCaps());
     }
 

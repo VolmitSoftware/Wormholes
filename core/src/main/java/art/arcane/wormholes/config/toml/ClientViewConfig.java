@@ -2,6 +2,7 @@ package art.arcane.wormholes.config.toml;
 
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.ViewStreamOptions;
+import art.arcane.wormholes.network.client.RemoteViewOptions;
 import art.arcane.wormholes.util.project.config.ConfigDescription;
 import art.arcane.wormholes.util.project.config.ConfigDoc;
 
@@ -41,17 +42,17 @@ public class ClientViewConfig {
     @ConfigDescription("Fabric, Forge and NeoForge servers only: let clients running the Wormholes mod walk through portals with no teleport, respawn or loading screen, with destination chunks and entities streamed ahead. Off keeps prepared travel.")
     public boolean seamlessTravel = true;
     @ConfigDescription("Portal destinations streamed ahead per seamless player, 1 to 4.")
-    public int remoteViewRoutes = ViewStreamOptions.RemoteView.DEFAULT.routes();
+    public int remoteViewRoutes = RemoteViewOptions.DEFAULT.routes();
     @ConfigDescription("Destination chunk columns streamed per seamless player per tick, 1 to 64. The client's own acknowledgement can lower it further.")
-    public int remoteViewChunksPerTick = ViewStreamOptions.RemoteView.DEFAULT.chunksPerTick();
+    public int remoteViewChunksPerTick = RemoteViewOptions.DEFAULT.chunksPerTick();
     @ConfigDescription("Destination bytes streamed per seamless player per tick, 16384 to 2097152.")
-    public int remoteViewBytesPerTick = ViewStreamOptions.RemoteView.DEFAULT.bytesPerTick();
+    public int remoteViewBytesPerTick = RemoteViewOptions.DEFAULT.bytesPerTick();
 
     public void normalizeRuntimeBounds() {
         helloGraceMillis = clamp(helloGraceMillis, 0, ViewStreamLimits.MAX_HELLO_GRACE_MILLIS);
         maxFrameKb = clamp(maxFrameKb, MIN_FRAME_KB, MAX_FRAME_KB);
         ackWindowFrames = clamp(ackWindowFrames, 0, ViewStreamLimits.MAX_ACK_WINDOW_FRAMES);
-        ViewStreamOptions.RemoteView remote = remoteView();
+        RemoteViewOptions remote = remoteView();
         remoteViewRoutes = remote.routes();
         remoteViewChunksPerTick = remote.chunksPerTick();
         remoteViewBytesPerTick = remote.bytesPerTick();
@@ -63,11 +64,12 @@ public class ClientViewConfig {
 
     public ViewStreamOptions options(int interestGraceTicks) {
         return new ViewStreamOptions(enabled, configurationHandshake, helloGraceMillis, maxFrameBytes(), ackWindowFrames, brickCache,
-            destinationLight, entityFrames, zeroCopy, standbyPrestream, viewStats, clientMirror, clientRecursion, interestGraceTicks, remoteView());
+            destinationLight, entityFrames, zeroCopy, standbyPrestream, viewStats, clientMirror, clientRecursion, interestGraceTicks,
+            remoteView().withheldCaps());
     }
 
-    private ViewStreamOptions.RemoteView remoteView() {
-        return new ViewStreamOptions.RemoteView(seamlessTravel, remoteViewRoutes, remoteViewChunksPerTick, remoteViewBytesPerTick);
+    public RemoteViewOptions remoteView() {
+        return new RemoteViewOptions(seamlessTravel, remoteViewRoutes, remoteViewChunksPerTick, remoteViewBytesPerTick);
     }
 
     private static int clamp(int value, int minimum, int maximum) {

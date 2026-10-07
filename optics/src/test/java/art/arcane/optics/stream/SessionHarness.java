@@ -81,6 +81,11 @@ final class SessionHarness {
                 }
             }, new ViewStreamScene<String>() {
                 @Override
+                public long effectCapability() {
+                    return TestEffects.CAPABILITY;
+                }
+
+                @Override
                 public ViewStreamMessage.Extension effects(String observer, UUID portal, int key, long tick, boolean full) {
                     return scene.effects(observer, portal, key, tick, full);
                 }
@@ -121,7 +126,7 @@ final class SessionHarness {
     static ViewStreamOptions defaults() {
         return new ViewStreamOptions(true, true, ViewStreamLimits.DEFAULT_HELLO_GRACE_MILLIS, ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES,
             ViewStreamLimits.DEFAULT_ACK_WINDOW_FRAMES, true, true, true, true, false, true, true, true,
-            ViewStreamOptions.DEFAULT_INTEREST_GRACE_TICKS, ViewStreamOptions.RemoteView.DEFAULT);
+            ViewStreamOptions.DEFAULT_INTEREST_GRACE_TICKS, ViewStreamCapability.NONE);
     }
 
     static ViewStreamOptions options(boolean brickCache, int ackWindowFrames) {
@@ -132,7 +137,7 @@ final class SessionHarness {
         ViewStreamOptions defaults = defaults();
         return new ViewStreamOptions(true, true, defaults.helloGraceMillis(), maxFrameBytes, ackWindowFrames, brickCache,
             defaults.destinationLight(), defaults.entityFrames(), defaults.zeroCopy(), false, defaults.viewStats(), defaults.clientMirror(),
-            defaults.clientRecursion(), defaults.interestGraceTicks(), defaults.remoteView());
+            defaults.clientRecursion(), defaults.interestGraceTicks(), defaults.withheldCaps());
     }
 
     void handshake(long clientCaps) throws ViewStreamProtocolException {

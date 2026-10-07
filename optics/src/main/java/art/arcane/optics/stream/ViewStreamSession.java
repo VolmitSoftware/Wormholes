@@ -180,7 +180,7 @@ public final class ViewStreamSession<P, B> {
     }
 
     public boolean effectsReceiver() {
-        return !closed && state == ViewStreamSessionState.CLIENT_VIEW && ViewStreamCapability.FX_EMITTERS.in(caps);
+        return !closed && state == ViewStreamSessionState.CLIENT_VIEW && effectsSelected(caps);
     }
 
     public boolean burst(ViewStreamMessage.Extension message) {
@@ -205,7 +205,7 @@ public final class ViewStreamSession<P, B> {
                 return false;
             }
             ViewStreamHandshake.Policy policy = policy(phase);
-            handshake = new ViewStreamHandshake(policy, zeroCopyNonce, registry::nextSessionId, registry::hashSalt);
+            handshake = new ViewStreamHandshake(policy, registry.codec(), zeroCopyNonce, registry::nextSessionId, registry::hashSalt);
             long now = millis();
             if (brandTag != null) {
                 handshake.brand(brandTag, now);
@@ -318,7 +318,7 @@ public final class ViewStreamSession<P, B> {
             }
             slot.lastInterestTick = serverTick;
         }
-        if (ViewStreamCapability.FX_EMITTERS.in(caps)) {
+        if (effectsSelected(caps)) {
             attachEffects(portals, serverTick);
         }
         boolean signal = recoveryReason != null || plateless || lane.stalled();
@@ -507,6 +507,11 @@ public final class ViewStreamSession<P, B> {
         long serverCaps = (options.serverCaps(phase) | registry.codec().capabilities()) & platform.platformCaps() & ~options.withheldCaps();
         return new ViewStreamHandshake.Policy(registry.enabled(), platform.mcDataVersion(), serverCaps, options.maxFrameBytes(), grace,
             ViewStreamLimits.DEFAULT_TICK_RATE, options.ackWindowFrames(), options.zeroCopy());
+    }
+
+    private boolean effectsSelected(long sessionCaps) {
+        long required = platform.scene().effectCapability();
+        return required != ViewStreamCapability.NONE && (sessionCaps & required) == required;
     }
 
     private ViewStreamInbound onHello(ViewStreamMessage.Hello hello, long now) {
@@ -905,7 +910,7 @@ public final class ViewStreamSession<P, B> {
             }
         }
         slot.needFullScene = false;
-        if (ViewStreamCapability.FX_EMITTERS.in(sessionCaps)) {
+        if (effectsSelected(sessionCaps)) {
             ViewStreamMessage.Extension effects = platform.scene().effects(player, slot.portalId, slot.key, serverTick, fullScene);
             if (effects != null) {
                 inbox.add(new Scene<B>(slot, effects));

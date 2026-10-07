@@ -5,7 +5,6 @@ import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.plate.ChunkLease;
-import art.arcane.optics.stream.ViewStreamOptions;
 import art.arcane.optics.view.WorldChangeTracker;
 import art.arcane.wormholes.modded.MinecraftChunkLeasePlatform;
 import art.arcane.wormholes.modded.MinecraftPortal;
@@ -15,6 +14,7 @@ import art.arcane.wormholes.modded.clientview.MinecraftPortalEnvironment;
 import art.arcane.wormholes.modded.mixin.ProjectionEntityMapAccess;
 import art.arcane.wormholes.modded.mixin.SeamlessChunkMapAccess;
 import art.arcane.wormholes.modded.mixin.ServerConnectionAccess;
+import art.arcane.wormholes.network.client.RemoteViewOptions;
 import art.arcane.wormholes.network.client.TravelMessage;
 import art.arcane.wormholes.render.client.session.ClientViewTravel;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
@@ -133,7 +133,7 @@ public final class RemoteRoutes implements AutoCloseable {
     public void update(ServerPlayer player, ClientViewTravel<?> travel, List<Candidate> candidates, long tick) {
         runtime.requireServerThread();
         PlayerRoutes state = state(player, travel);
-        ViewStreamOptions.RemoteView config = runtime.configuration().clientViewOptions().remoteView();
+        RemoteViewOptions config = runtime.configuration().remoteView();
         List<Candidate> ranked = rank(candidates, config.routes());
         expire(state, ranked, tick);
         int full = fullRadius(player.requestedViewDistance(), runtime.server().getPlayerList().getViewDistance());

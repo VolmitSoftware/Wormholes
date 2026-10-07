@@ -9,6 +9,7 @@ import art.arcane.wormholes.modded.MinecraftProjectionService;
 import art.arcane.wormholes.modded.WormholesModConfiguration;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.modded.mixin.ServerConnectionAccess;
+import art.arcane.wormholes.network.client.ClientViewExtensions;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.ViewStreamHandshake;
 import art.arcane.optics.stream.ViewStreamMessage;
@@ -87,8 +88,8 @@ public class MinecraftClientViewServiceTest extends MinecraftTestBase {
         ViewStreamMessage.Offer offer = (ViewStreamMessage.Offer) message(sent.get(sent.size() - 1));
         assertTrue(ViewStreamCapability.LOCAL_MESH.in(offer.serverCaps()));
         assertTrue(ViewStreamCapability.ENTITY_SELF.in(offer.serverCaps()));
-        assertTrue(ViewStreamCapability.PREPARED_TRAVEL.in(offer.serverCaps()));
-        assertTrue(ViewStreamCapability.PREPARED_TRAVEL_CACHE.in(offer.serverCaps()));
+        assertTrue((offer.serverCaps() & ClientViewExtensions.PREPARED_TRAVEL) != 0L);
+        assertTrue((offer.serverCaps() & ClientViewExtensions.PREPARED_TRAVEL_CACHE) != 0L);
 
         byte[] hello = MinecraftClientViewExtensions.CODEC.encodeC2S(ViewStreamHandshake.clientHello(offer, offer.mcDataVersion(),
             ViewStreamCapability.ALL, 512 * 1024, 256, 0L, "fabric"));
@@ -97,8 +98,8 @@ public class MinecraftClientViewServiceTest extends MinecraftTestBase {
         assertTrue(ViewStreamCapability.LOCAL_MESH.in(accept.caps()));
         assertTrue(ViewStreamCapability.ENTITY_SELF.in(accept.caps()));
         assertTrue(ViewStreamCapability.MESH_RENDER.in(accept.caps()));
-        assertTrue(ViewStreamCapability.PREPARED_TRAVEL.in(accept.caps()));
-        assertTrue(ViewStreamCapability.PREPARED_TRAVEL_CACHE.in(accept.caps()));
+        assertTrue((accept.caps() & ClientViewExtensions.PREPARED_TRAVEL) != 0L);
+        assertTrue((accept.caps() & ClientViewExtensions.PREPARED_TRAVEL_CACHE) != 0L);
     }
 
     @Test
@@ -214,6 +215,6 @@ public class MinecraftClientViewServiceTest extends MinecraftTestBase {
     }
 
     private static ViewStreamOptions options(boolean enabled) {
-        return new ViewStreamOptions(enabled, false, 100, 512 * 1024, 8, true, true, true, true, false, true, true, true, 5, ViewStreamOptions.RemoteView.DEFAULT);
+        return new ViewStreamOptions(enabled, false, 100, 512 * 1024, 8, true, true, true, true, false, true, true, true, 5, ViewStreamCapability.NONE);
     }
 }

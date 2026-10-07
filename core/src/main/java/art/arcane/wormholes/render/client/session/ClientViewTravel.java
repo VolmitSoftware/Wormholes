@@ -7,9 +7,9 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 import art.arcane.optics.aperture.ApertureDescriptor;
-import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamSession;
+import art.arcane.wormholes.network.client.ClientViewExtensions;
 import art.arcane.wormholes.network.client.TravelExtension;
 import art.arcane.wormholes.network.client.TravelMessage;
 
@@ -45,19 +45,19 @@ public final class ClientViewTravel<P> implements ViewStreamSession.Hooks<P> {
     }
 
     public boolean preparedTravelSelected() {
-        return session.nativeRendererSelected() && ViewStreamCapability.PREPARED_TRAVEL.in(session.caps());
+        return session.nativeRendererSelected() && (session.caps() & ClientViewExtensions.PREPARED_TRAVEL) != 0L;
     }
 
     public boolean preparedTravelCacheSelected() {
-        return preparedTravelSelected() && ViewStreamCapability.PREPARED_TRAVEL_CACHE.in(session.caps());
+        return preparedTravelSelected() && (session.caps() & ClientViewExtensions.PREPARED_TRAVEL_CACHE) != 0L;
     }
 
     public boolean remoteViewSelected() {
-        return preparedTravelSelected() && ViewStreamCapability.REMOTE_VIEW.in(session.caps());
+        return preparedTravelSelected() && (session.caps() & ClientViewExtensions.REMOTE_VIEW) != 0L;
     }
 
     public boolean seamlessSelected() {
-        return remoteViewSelected() && ViewStreamCapability.SEAMLESS_TRAVEL.in(session.caps());
+        return remoteViewSelected() && (session.caps() & ClientViewExtensions.SEAMLESS_TRAVEL) != 0L;
     }
 
     public void drainAcks(Consumer<TravelMessage.RemoteViewAck> consumer) {

@@ -17,17 +17,17 @@ import org.junit.jupiter.api.Test;
 
 import com.github.retrooper.packetevents.protocol.ConnectionState;
 
-import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.render.client.session.ClientViewEmitters;
 import art.arcane.optics.stream.ViewStreamInbound;
+import art.arcane.wormholes.network.client.ClientViewExtensions;
 import art.arcane.wormholes.network.client.FxMessage;
 
 final class BukkitClientViewEffectsTest {
-    private static final long FX_CAPS = ClientViewFixture.CLIENT_CAPS | ViewStreamCapability.FX_EMITTERS.mask();
+    private static final long FX_CAPS = ClientViewFixture.CLIENT_CAPS | ClientViewExtensions.FX_EMITTERS;
 
     @Test
     void particlesSkipReceiversAndHandThemTheClientEmitter() throws ViewStreamProtocolException {

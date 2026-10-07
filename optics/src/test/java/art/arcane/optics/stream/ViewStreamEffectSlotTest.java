@@ -57,9 +57,9 @@ final class ViewStreamEffectSlotTest {
     }
 
     @Test
-    void sessionsWithoutFxEmittersNeverTakeOneShots() throws ViewStreamProtocolException {
+    void sessionsWithoutTheEffectCapabilityNeverTakeOneShots() throws ViewStreamProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
-        harness.handshake(SessionHarness.CLIENT_CAPS & ~ViewStreamCapability.FX_EMITTERS.mask());
+        harness.handshake(SessionHarness.CLIENT_CAPS & ~TestEffects.CAPABILITY);
         assertEquals(ViewStreamSessionState.CLIENT_VIEW, harness.session.state());
         assertFalse(harness.session.effectsReceiver());
         assertFalse(harness.session.burst(TestEffects.burst("smoke")));

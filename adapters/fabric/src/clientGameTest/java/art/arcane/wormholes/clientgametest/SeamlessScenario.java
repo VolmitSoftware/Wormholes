@@ -7,10 +7,10 @@ import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.math.Angles;
 import art.arcane.optics.math.Vec3d;
-import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.modded.client.WormholesClient;
+import art.arcane.wormholes.network.client.ClientViewExtensions;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.transit.OrientationPolicy;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
@@ -154,7 +154,7 @@ final class SeamlessScenario {
 
     static void assertSeamlessNegotiated(ClientGameTestContext context) {
         boolean seamless = context.computeOnClient(client -> WormholesClient.instance().session().active()
-            && WormholesClient.instance().session().has(ViewStreamCapability.SEAMLESS_TRAVEL));
+            && WormholesClient.instance().session().has(ClientViewExtensions.SEAMLESS_TRAVEL));
         assertTrue(seamless, "the server did not negotiate SEAMLESS_TRAVEL (capability 20) for this session");
     }
 

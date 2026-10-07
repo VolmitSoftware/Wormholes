@@ -9,6 +9,7 @@ public final class ViewStreamHandshake {
     private static final String VANILLA_BRAND = "vanilla";
 
     private final Policy policy;
+    private final ViewStreamCodec codec;
     private final long zeroCopyNonce;
     private final IntSupplier sessionIds;
     private final LongSupplier salts;
@@ -18,8 +19,9 @@ public final class ViewStreamHandshake {
     private long deadline;
     private ViewStreamMessage.Accept accepted;
 
-    public ViewStreamHandshake(Policy policy, long zeroCopyNonce, IntSupplier sessionIds, LongSupplier salts) {
+    public ViewStreamHandshake(Policy policy, ViewStreamCodec codec, long zeroCopyNonce, IntSupplier sessionIds, LongSupplier salts) {
         this.policy = Objects.requireNonNull(policy, "policy");
+        this.codec = Objects.requireNonNull(codec, "codec");
         this.zeroCopyNonce = zeroCopyNonce;
         this.sessionIds = Objects.requireNonNull(sessionIds, "sessionIds");
         this.salts = Objects.requireNonNull(salts, "salts");
@@ -111,12 +113,6 @@ public final class ViewStreamHandshake {
             return new Result(state, new ViewStreamMessage.Decline(reason), late);
         }
         long caps = ViewStreamCapability.intersection(policy.serverCaps(), hello.clientCaps());
-        if (!ViewStreamCapability.PREPARED_TRAVEL.in(caps) || !ViewStreamCapability.MESH_RENDER.in(caps)) {
-            caps &= ~ViewStreamCapability.PREPARED_TRAVEL_CACHE.mask();
-        }
-        if (!ViewStreamCapability.REMOTE_VIEW.in(caps) || !ViewStreamCapability.MESH_RENDER.in(caps)) {
-            caps &= ~ViewStreamCapability.SEAMLESS_TRAVEL.mask();
-        }
         if (!ViewStreamCapability.ENTITY_FRAMES.in(caps)) {
             caps &= ~ViewStreamCapability.ENTITY_SELF.mask();
         }
@@ -124,6 +120,7 @@ public final class ViewStreamHandshake {
         if (!zeroCopy) {
             caps &= ~ViewStreamCapability.ZERO_COPY.mask();
         }
+        caps = codec.settle(caps);
         int maxFrameBytes = ViewStreamLimits.clampMaxFrameBytes(Math.min(policy.maxFrameBytes(), hello.maxFrameBytes()));
         accepted = new ViewStreamMessage.Accept(sessionIds.getAsInt(), caps, policy.tickRate(), maxFrameBytes, salts.getAsLong(),
             Math.max(0, Math.min(255, policy.ackWindowFrames())));

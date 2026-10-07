@@ -11,6 +11,7 @@ import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.wormholes.render.client.session.ClientViewEmitters;
 import art.arcane.wormholes.render.client.session.ClientPreparedTravelServer;
 import art.arcane.wormholes.render.client.session.ClientViewTravel;
+import art.arcane.wormholes.network.client.ClientViewExtensions;
 import art.arcane.wormholes.network.client.FxExtension;
 import art.arcane.optics.stream.EntityFrames;
 import art.arcane.optics.stream.ViewStreamInbound;
@@ -53,10 +54,11 @@ import art.arcane.wormholes.network.client.FxMessage;
 
 public final class MinecraftClientViewService implements AutoCloseable {
     public static final long PLATFORM_CAPS = ViewStreamCapability.of(ViewStreamCapability.PLATES, ViewStreamCapability.BRICK_CACHE,
-        ViewStreamCapability.DEST_LIGHT, ViewStreamCapability.ENTITY_FRAMES, ViewStreamCapability.ENTITY_SELF, ViewStreamCapability.ENTITY_EVENTS, ViewStreamCapability.FX_EMITTERS, ViewStreamCapability.ATMOSPHERE,
+        ViewStreamCapability.DEST_LIGHT, ViewStreamCapability.ENTITY_FRAMES, ViewStreamCapability.ENTITY_SELF, ViewStreamCapability.ENTITY_EVENTS, ViewStreamCapability.ATMOSPHERE,
         ViewStreamCapability.ZERO_COPY, ViewStreamCapability.CONFIG_PHASE, ViewStreamCapability.LINK_UNCOMPRESSED,
-        ViewStreamCapability.VIEW_STATS, ViewStreamCapability.CLIENT_MIRROR, ViewStreamCapability.CLIENT_RECURSION, ViewStreamCapability.MESH_RENDER, ViewStreamCapability.LOCAL_MESH, ViewStreamCapability.MESH_REUSE, ViewStreamCapability.PREPARED_TRAVEL, ViewStreamCapability.PREPARED_TRAVEL_CACHE,
-        ViewStreamCapability.REMOTE_VIEW, ViewStreamCapability.SEAMLESS_TRAVEL);
+        ViewStreamCapability.VIEW_STATS, ViewStreamCapability.CLIENT_MIRROR, ViewStreamCapability.CLIENT_RECURSION, ViewStreamCapability.MESH_RENDER, ViewStreamCapability.LOCAL_MESH, ViewStreamCapability.MESH_REUSE)
+        | ClientViewExtensions.FX_EMITTERS | ClientViewExtensions.PREPARED_TRAVEL | ClientViewExtensions.PREPARED_TRAVEL_CACHE
+        | ClientViewExtensions.REMOTE_VIEW | ClientViewExtensions.SEAMLESS_TRAVEL;
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
     private static final long HANDLE_PURGE_INTERVAL_TICKS = 20L;
     private static final double PARTICLE_RANGE_SQUARED = 32.0D * 32.0D;

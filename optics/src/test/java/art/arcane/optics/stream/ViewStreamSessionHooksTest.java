@@ -89,8 +89,9 @@ final class ViewStreamSessionHooksTest {
         harness.session.brand("fabric");
         harness.session.offer(ViewStreamPhase.CONFIGURATION);
         harness.client.receive(harness.frames);
-        assertTrue(ViewStreamCapability.PREPARED_TRAVEL.in(harness.client.offer.serverCaps()), "the echo extension offers its capability");
-        assertTrue(ViewStreamCapability.FX_EMITTERS.in(harness.client.offer.serverCaps()), "the effects extension offers its capability");
+        assertEquals(Echo.CAPABILITY, harness.client.offer.serverCaps() & Echo.CAPABILITY, "the echo extension offers its capability");
+        assertEquals(TestEffects.CAPABILITY, harness.client.offer.serverCaps() & TestEffects.CAPABILITY,
+            "the effects extension offers its capability");
     }
 
     private static SessionHarness harness() {
@@ -132,6 +133,7 @@ final class ViewStreamSessionHooksTest {
         private static final Echo INSTANCE = new Echo();
         private static final int PING = 60;
         private static final int PONG = 61;
+        private static final long CAPABILITY = ViewStreamCapability.extension(1);
 
         static ViewStreamMessage.Extension ping(int value) {
             return new ViewStreamMessage.Extension(PING, "ping " + value);
@@ -188,7 +190,7 @@ final class ViewStreamSessionHooksTest {
 
         @Override
         public long capabilities() {
-            return ViewStreamCapability.PREPARED_TRAVEL.mask();
+            return CAPABILITY;
         }
     }
 }

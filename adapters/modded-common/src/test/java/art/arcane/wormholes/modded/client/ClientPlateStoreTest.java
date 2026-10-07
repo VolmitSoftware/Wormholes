@@ -263,7 +263,7 @@ public class ClientPlateStoreTest extends MinecraftTestBase {
         for (String line : Files.readAllLines(GOLDENS.resolve("vectors.txt"), StandardCharsets.UTF_8)) {
             String[] parts = line.trim().split("\\s+");
             if (parts.length >= 3 && parts[0].equals(name)) {
-                caps = Long.parseLong(parts[2], 16);
+                caps = Long.parseUnsignedLong(parts[2], 16);
             }
         }
         String hex = Files.readString(GOLDENS.resolve(name + ".hex"), StandardCharsets.UTF_8).trim();

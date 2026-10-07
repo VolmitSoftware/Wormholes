@@ -87,8 +87,16 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
 
     @Override
     public long capabilities() {
-        return ViewStreamCapability.of(ViewStreamCapability.PREPARED_TRAVEL, ViewStreamCapability.PREPARED_TRAVEL_CACHE)
+        return ClientViewExtensions.PREPARED_TRAVEL | ClientViewExtensions.PREPARED_TRAVEL_CACHE
             | seamless.capabilities();
+    }
+
+    @Override
+    public long requires(long capability) {
+        if (capability == ClientViewExtensions.PREPARED_TRAVEL_CACHE) {
+            return ClientViewExtensions.PREPARED_TRAVEL | ViewStreamCapability.MESH_RENDER.mask();
+        }
+        return seamless.requires(capability);
     }
 
     @Override
@@ -353,6 +361,11 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
             }
 
             @Override
+            public long requires(long capability) {
+                return ViewStreamCapability.NONE;
+            }
+
+            @Override
             public void encode(TravelMessage message, ViewStreamWriter out) throws ViewStreamProtocolException {
                 throw new ViewStreamProtocolException("Seamless travel is unavailable for travel message " + message.id());
             }
@@ -368,6 +381,8 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
         boolean clientbound(int id);
 
         long capabilities();
+
+        long requires(long capability);
 
         void encode(TravelMessage message, ViewStreamWriter out) throws ViewStreamProtocolException;
 

@@ -368,9 +368,9 @@ final class TravelExtensionCodecTest {
 
     @Test
     void preparedTravelNeitherOffersNorDecodesSeamlessMessages() throws ViewStreamProtocolException {
-        assertEquals(ViewStreamCapability.of(ViewStreamCapability.PREPARED_TRAVEL, ViewStreamCapability.PREPARED_TRAVEL_CACHE),
+        assertEquals(ClientViewExtensions.PREPARED_TRAVEL | ClientViewExtensions.PREPARED_TRAVEL_CACHE,
             TravelExtension.PREPARED.capabilities());
-        assertEquals(TravelExtension.PREPARED.capabilities() | ViewStreamCapability.FX_EMITTERS.mask(), ClientViewExtensions.CODEC.capabilities());
+        assertEquals(TravelExtension.PREPARED.capabilities() | ClientViewExtensions.FX_EMITTERS, ClientViewExtensions.CODEC.capabilities());
         for (int id = TravelMessage.REMOTE_LEVEL_OPEN; id <= TravelMessage.REMOTE_VIEW_ACK; id++) {
             assertFalse(TravelExtension.PREPARED.clientbound(id), "S2C " + id);
             assertFalse(TravelExtension.PREPARED.serverbound(id), "C2S " + id);
@@ -401,8 +401,8 @@ final class TravelExtensionCodecTest {
         assertEquals(List.of(41, 42, 43, 45, 46, 48, 51, 52, 53, 54), clientbound);
         assertEquals(41, TRAVEL.firstId());
         assertEquals(63, TRAVEL.lastId());
-        assertEquals(ViewStreamCapability.of(ViewStreamCapability.PREPARED_TRAVEL, ViewStreamCapability.PREPARED_TRAVEL_CACHE,
-            ViewStreamCapability.REMOTE_VIEW, ViewStreamCapability.SEAMLESS_TRAVEL), TRAVEL.capabilities());
+        assertEquals(ClientViewExtensions.PREPARED_TRAVEL | ClientViewExtensions.PREPARED_TRAVEL_CACHE | ClientViewExtensions.REMOTE_VIEW
+            | ClientViewExtensions.SEAMLESS_TRAVEL, TRAVEL.capabilities());
     }
 
     private static boolean identified(TravelMessage message) {

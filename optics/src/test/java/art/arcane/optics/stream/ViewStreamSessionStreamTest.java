@@ -453,7 +453,7 @@ final class ViewStreamSessionStreamTest {
         ViewStreamOptions base = SessionHarness.options(true, 8);
         ViewStreamOptions prestream = new ViewStreamOptions(true, true, base.helloGraceMillis(), base.maxFrameBytes(), base.ackWindowFrames(),
             true, base.destinationLight(), base.entityFrames(), base.zeroCopy(), true, base.viewStats(), base.clientMirror(), base.clientRecursion(),
-            base.interestGraceTicks(), base.remoteView());
+            base.interestGraceTicks(), base.withheldCaps());
         SessionHarness harness = new SessionHarness(prestream);
         harness.client.allowUnannouncedPlates = true;
         SessionPortal rtp = harness.access.add(new SessionPortal("rtp", 0));

@@ -51,7 +51,7 @@ final class FxExtensionTest {
         assertEquals(burst, ClientViewExtensions.CODEC.decodeS2C(ClientViewExtensions.CODEC.encodeS2C(burst, 4, ViewStreamLimits.FLAG_LAST),
             ViewStreamCapability.ALL).message());
         assertThrows(ViewStreamProtocolException.class, () -> ClientViewExtensions.CODEC.encodeC2S(burst));
-        assertEquals(ViewStreamCapability.FX_EMITTERS.mask(), FxExtension.INSTANCE.capabilities());
+        assertEquals(ClientViewExtensions.FX_EMITTERS, FxExtension.INSTANCE.capabilities());
     }
 
     @Test
