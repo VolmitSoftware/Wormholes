@@ -1,6 +1,5 @@
 package art.arcane.wormholes.render.client.session;
 
-import art.arcane.optics.math.Angles;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.stream.ViewStreamLimits;
@@ -28,8 +27,6 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
     private static final long PROBE_INTERVAL_MILLIS = 1_000L / ViewStreamLimits.DEFAULT_TICK_RATE;
     private static final long PROBE_TIMEOUT_MILLIS = 1_000L;
     private static final long CROSSING_TIMEOUT_MILLIS = 2_000L;
-    private static final float HEAD_YAW_TOLERANCE_DEGREES = 1.0F;
-    private static final float BODY_YAW_LIMIT_DEGREES = 51.0F;
     private static final long COMBO_WINDOW_TICKS = 20L;
     private static final int COMBO_LIMIT = 3;
     private static final Payload ROUTED = new Payload(new byte[0]);
@@ -425,11 +422,6 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
         if (begin == null || !begin.seamless() || !validCross(value, authority, nowMillis)) {
             return SeamlessRejection.CROSSING;
         }
-        float yaw = value.sourcePose().yaw();
-        if (!seamless.yawExempt() && (Math.abs(Angles.unwrap(value.headYaw(), yaw) - yaw) > HEAD_YAW_TOLERANCE_DEGREES
-            || Math.abs(Angles.unwrap(value.bodyYaw(), yaw) - yaw) > BODY_YAW_LIMIT_DEGREES)) {
-            return SeamlessRejection.YAW;
-        }
         if (seamlessMillis != Long.MIN_VALUE && nowMillis - seamlessMillis < seamless.cooldownMillis()) {
             return SeamlessRejection.COOLDOWN;
         }
@@ -612,11 +604,10 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
     }
 
     public enum SeamlessRejection {
-        NONE, CROSSING, AWAITING_TELEPORT, CHANGING_DIMENSION, YAW, COOLDOWN, COMBO
+        NONE, CROSSING, AWAITING_TELEPORT, CHANGING_DIMENSION, COOLDOWN, COMBO
     }
 
-    public record SeamlessAuthority(boolean awaitingTeleport, boolean changingDimension, boolean yawExempt,
-                                    long serverTick, long cooldownMillis) {
+    public record SeamlessAuthority(boolean awaitingTeleport, boolean changingDimension, long serverTick, long cooldownMillis) {
     }
 
     private record SnapshotKey(UUID world, TravelMessage.TravelWorld metadata, TravelMessage.TravelCoordinate coordinate) {

@@ -17,7 +17,7 @@ class ClientPreparedTravelSeamlessTest {
     private static final ApertureDescriptor GEOMETRY = new ApertureDescriptor(0, 64, 0, Face.S.ordinal(), true, 0, false, 1, 3,
         new long[]{7}, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, ApertureDescriptor.KIND_FRAME, 0.0D, 0, 1, List.of());
     private static final ClientPreparedTravelServer.SeamlessAuthority STANDING =
-        new ClientPreparedTravelServer.SeamlessAuthority(false, false, false, 100L, 1_000L);
+        new ClientPreparedTravelServer.SeamlessAuthority(false, false, 100L, 1_000L);
 
     @Test
     void routedColumnsCompleteTheBarrierWithoutChunkFragments() {
@@ -56,7 +56,7 @@ class ClientPreparedTravelSeamlessTest {
     @Test
     void acceptCarriesTheResidentHandleAndEndsThePreparation() {
         Fixture fixture = ready();
-        TravelMessage.TravelCross crossing = crossing(fixture, 0.0F, 0.0F, 0.0F);
+        TravelMessage.TravelCross crossing = crossing(fixture, 0.0F);
         assertTrue(fixture.server().requestCross(crossing, 3));
         assertTrue(fixture.server().takeCross().isPresent());
         TravelMessage.TravelAccept accept = fixture.server().accept(commit(fixture, 4), 3, true, 77L).orElseThrow();
@@ -74,34 +74,27 @@ class ClientPreparedTravelSeamlessTest {
     @Test
     void validSeamlessCrossingPassesAndEachNewRejectionIsReported() {
         Fixture fixture = ready();
-        TravelMessage.TravelCross crossing = crossing(fixture, 0.0F, 30.0F, 0.0F);
+        TravelMessage.TravelCross crossing = crossing(fixture, 0.0F);
         assertTrue(fixture.server().requestCross(crossing, 3));
         assertEquals(ClientPreparedTravelServer.SeamlessRejection.NONE,
             fixture.server().validSeamlessCross(crossing, authority(fixture), STANDING, 4));
         assertEquals(ClientPreparedTravelServer.SeamlessRejection.AWAITING_TELEPORT, fixture.server().validSeamlessCross(crossing, authority(fixture),
-            new ClientPreparedTravelServer.SeamlessAuthority(true, false, false, 100L, 1_000L), 4));
+            new ClientPreparedTravelServer.SeamlessAuthority(true, false, 100L, 1_000L), 4));
         assertEquals(ClientPreparedTravelServer.SeamlessRejection.CHANGING_DIMENSION, fixture.server().validSeamlessCross(crossing, authority(fixture),
-            new ClientPreparedTravelServer.SeamlessAuthority(false, true, false, 100L, 1_000L), 4));
+            new ClientPreparedTravelServer.SeamlessAuthority(false, true, 100L, 1_000L), 4));
         assertEquals(ClientPreparedTravelServer.SeamlessRejection.CROSSING, fixture.server().validSeamlessCross(crossing,
             new ClientPreparedTravelServer.Authority("other:world", GEOMETRY, crossing.sourcePose(), new Vec3d(0, 0, 0), 1.62), STANDING, 4));
     }
 
     @Test
-    void headYawMustMatchTheLookAndBodyYawMustStayWithinTheVanillaBodyLimit() {
-        Fixture fixture = ready();
-        TravelMessage.TravelCross head = crossing(fixture, 5.0F, 0.0F, 0.0F);
-        assertTrue(fixture.server().requestCross(head, 3));
-        assertEquals(ClientPreparedTravelServer.SeamlessRejection.YAW, fixture.server().validSeamlessCross(head, authority(fixture), STANDING, 4));
-        assertEquals(ClientPreparedTravelServer.SeamlessRejection.NONE, fixture.server().validSeamlessCross(head, authority(fixture),
-            new ClientPreparedTravelServer.SeamlessAuthority(false, false, true, 100L, 1_000L), 4));
-        fixture = ready();
-        TravelMessage.TravelCross body = crossing(fixture, 0.0F, 62.0F, 0.0F);
-        assertTrue(fixture.server().requestCross(body, 3));
-        assertEquals(ClientPreparedTravelServer.SeamlessRejection.YAW, fixture.server().validSeamlessCross(body, authority(fixture), STANDING, 4));
-        fixture = ready();
-        TravelMessage.TravelCross wrapped = crossing(fixture, 359.5F, -49.0F, 0.0F);
-        assertTrue(fixture.server().requestCross(wrapped, 3));
-        assertEquals(ClientPreparedTravelServer.SeamlessRejection.NONE, fixture.server().validSeamlessCross(wrapped, authority(fixture), STANDING, 4));
+    void crossingMadeWhileTurningIsAcceptedWhateverTheFrameLook() {
+        for (float lookYaw : new float[]{6.0F, 40.0F, -170.0F}) {
+            Fixture fixture = ready();
+            TravelMessage.TravelCross turning = crossing(fixture, lookYaw);
+            assertTrue(fixture.server().requestCross(turning, 3));
+            assertEquals(ClientPreparedTravelServer.SeamlessRejection.NONE,
+                fixture.server().validSeamlessCross(turning, authority(fixture), STANDING, 4));
+        }
     }
 
     @Test
@@ -109,18 +102,18 @@ class ClientPreparedTravelSeamlessTest {
         ClientPreparedTravelServer server = ready().server();
         server.seamlessCrossed(100L, 1_000L);
         Fixture fixture = ready(server);
-        TravelMessage.TravelCross crossing = crossing(fixture, 0.0F, 0.0F, 0.0F);
+        TravelMessage.TravelCross crossing = crossing(fixture, 0.0F);
         assertTrue(fixture.server().requestCross(crossing, 1_500));
         assertEquals(ClientPreparedTravelServer.SeamlessRejection.COOLDOWN, fixture.server().validSeamlessCross(crossing, authority(fixture),
-            new ClientPreparedTravelServer.SeamlessAuthority(false, false, false, 110L, 1_000L), 1_500));
+            new ClientPreparedTravelServer.SeamlessAuthority(false, false, 110L, 1_000L), 1_500));
         assertEquals(ClientPreparedTravelServer.SeamlessRejection.NONE, fixture.server().validSeamlessCross(crossing, authority(fixture),
-            new ClientPreparedTravelServer.SeamlessAuthority(false, false, false, 110L, 1_000L), 2_000));
+            new ClientPreparedTravelServer.SeamlessAuthority(false, false, 110L, 1_000L), 2_000));
         server.seamlessCrossed(111L, 2_001L);
         server.seamlessCrossed(112L, 2_002L);
         assertEquals(ClientPreparedTravelServer.SeamlessRejection.COMBO, fixture.server().validSeamlessCross(crossing, authority(fixture),
-            new ClientPreparedTravelServer.SeamlessAuthority(false, false, false, 115L, 0L), 2_003));
+            new ClientPreparedTravelServer.SeamlessAuthority(false, false, 115L, 0L), 2_003));
         assertEquals(ClientPreparedTravelServer.SeamlessRejection.NONE, fixture.server().validSeamlessCross(crossing, authority(fixture),
-            new ClientPreparedTravelServer.SeamlessAuthority(false, false, false, 131L, 0L), 2_003));
+            new ClientPreparedTravelServer.SeamlessAuthority(false, false, 131L, 0L), 2_003));
     }
 
     private static ClientPreparedTravelServer.Commit commit(Fixture fixture, long now) {
@@ -128,10 +121,9 @@ class ClientPreparedTravelSeamlessTest {
             fixture.begin().world().dimension(), fixture.begin().arrival(), new Vec3d(0, 0, 0.2), now);
     }
 
-    private static TravelMessage.TravelCross crossing(Fixture fixture, float headYaw, float bodyYaw, float lookYaw) {
+    private static TravelMessage.TravelCross crossing(Fixture fixture, float lookYaw) {
         return new TravelMessage.TravelCross(fixture.begin().token(), fixture.begin().generation(), fixture.barrier(),
-            new TravelMessage.TravelPose(0.5, 64, 0.4, lookYaw, 0), new Vec3d(0.5, 65.62, 0.6), new Vec3d(0.5, 65.62, 0.4),
-            bodyYaw, headYaw);
+            new TravelMessage.TravelPose(0.5, 64, 0.4, lookYaw, 0), new Vec3d(0.5, 65.62, 0.6), new Vec3d(0.5, 65.62, 0.4));
     }
 
     private static ClientPreparedTravelServer.Authority authority(Fixture fixture) {

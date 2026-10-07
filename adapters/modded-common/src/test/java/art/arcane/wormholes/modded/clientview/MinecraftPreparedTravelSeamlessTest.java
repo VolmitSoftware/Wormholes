@@ -54,8 +54,7 @@ public class MinecraftPreparedTravelSeamlessTest extends MinecraftTestBase {
     public void rejectedSeamlessCrossingCancelsAndSendsTheVanillaCorrection() {
         Fixture fixture = new Fixture(true);
         when(fixture.travel.takeCross()).thenReturn(Optional.of(new TravelMessage.TravelCross(UUID.randomUUID(), 1L, 1L,
-            new TravelMessage.TravelPose(0.5D, 64.0D, 0.4D, 0.0F, 0.0F), new Vec3d(0.5D, 65.62D, 0.6D), new Vec3d(0.5D, 65.62D, 0.4D),
-            0.0F, 0.0F)));
+            new TravelMessage.TravelPose(0.5D, 64.0D, 0.4D, 0.0F, 0.0F), new Vec3d(0.5D, 65.62D, 0.6D), new Vec3d(0.5D, 65.62D, 0.4D))));
 
         fixture.prepared.tick(fixture.session, fixture.player);
 
@@ -90,7 +89,7 @@ public class MinecraftPreparedTravelSeamlessTest extends MinecraftTestBase {
         Vec3d feet = new Vec3d(0.5D, 64.0D, -0.1D);
         TravelMessage.TravelCross cross = new TravelMessage.TravelCross(UUID.randomUUID(), 1L, 1L,
             new TravelMessage.TravelPose(feet.x(), feet.y(), feet.z(), 725.0F, 10.0F), new Vec3d(0.5D, 65.62D, 0.1D),
-            new Vec3d(0.5D, 65.62D, -0.1D), 725.0F, 725.0F);
+            new Vec3d(0.5D, 65.62D, -0.1D));
         PlaneCrossing crossing = new PlaneCrossing(frame.view(true), new Vec3d(0.5D, 65.0D, 0.0D), feet, new Vec3d(0.0D, 0.0D, -0.2D),
             Angles.direction(725.0F, 10.0F), true);
         Vec3d destination = new Vec3d(400.5D, 65.0D, 0.0D);

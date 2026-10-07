@@ -235,7 +235,7 @@ public final class ClientPreparedTravel {
         try {
             prediction.deadline = System.currentTimeMillis() + CROSS_TIMEOUT_MILLIS;
             sender.accept(new TravelMessage.TravelCross(begin.token(), begin.generation(), prediction.revision,
-                crossingPose, vector(previous), vector(eye), source.bodyYaw(), source.headYaw()));
+                crossingPose, vector(previous), vector(eye)));
             ClientTravelMotion.Carry carried = prediction.carry.moved(source, destination, toward);
             if (seamless && staged != sourceLevel) {
                 residents.beginCrossing(sourceLevel);

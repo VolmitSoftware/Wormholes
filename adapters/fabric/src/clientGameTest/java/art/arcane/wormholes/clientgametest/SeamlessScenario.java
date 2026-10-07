@@ -55,6 +55,8 @@ final class SeamlessScenario {
     private static final int STEP_AWAY_TICKS = 8;
     private static final float LOOK_TOLERANCE = 0.5F;
     private static final int VIEW_SETTLE_TICKS = 100;
+    private static final double TURN_PIXELS = 40.0D;
+    private static final float TURNING_HEAD_LAG = 1.0F;
 
     private SeamlessScenario() {
     }
@@ -128,6 +130,28 @@ final class SeamlessScenario {
         return new Crossing(label, index, player, source);
     }
 
+    static Crossing walkThroughTurning(ClientGameTestContext context, String label) {
+        context.runOnClient(client -> TravelTap.reset());
+        int player = context.computeOnClient(client -> System.identityHashCode(client.player));
+        ClientLevel source = context.computeOnClient(client -> client.level);
+        context.getInput().holdKey(options -> options.keyUp);
+        try {
+            for (int tick = 0; tick < CROSSING_TIMEOUT_TICKS && context.computeOnClient(client -> TravelTap.crossingFrame(CROSSING_JUMP)) < 0; tick++) {
+                context.getInput().moveCursor((tick & 1) == 0 ? TURN_PIXELS : -TURN_PIXELS, 0.0D);
+                context.waitTick();
+            }
+        } finally {
+            context.getInput().releaseKey(options -> options.keyUp);
+        }
+        context.waitTicks(1);
+        int index = context.computeOnClient(client -> TravelTap.crossingFrame(CROSSING_JUMP));
+        assertTrue(index >= 0, label + ": the player never crossed the portal while turning");
+        float headLag = TravelTap.frames().get(index).headLag();
+        LOGGER.info("[{}] crossing frame look leads the head yaw by {} degrees", label, String.format("%.3f", headLag));
+        assertTrue(Math.abs(headLag) > TURNING_HEAD_LAG, label + ": the crossing frame was not turning (look leads head by " + headLag + ")");
+        return new Crossing(label, index, player, source);
+    }
+
     static void assertSeamlessNegotiated(ClientGameTestContext context) {
         boolean seamless = context.computeOnClient(client -> WormholesClient.instance().session().active()
             && WormholesClient.instance().session().has(ViewStreamCapability.SEAMLESS_TRAVEL));
@@ -190,7 +214,7 @@ final class SeamlessScenario {
             String.format("%.5f", gap), String.format("%.5f", step), String.format("%.4f", after.clock() - before.clock()));
         assertTrue(gap <= step + POSE_TOLERANCE, crossing.label() + ": camera moved " + gap + " blocks across the crossing frame (step " + step + ")");
         Angles.Look expected = expectedLook(leg, before);
-        float yawStep = Math.abs(wrap(before.yaw() - earlier.yaw()));
+        float yawStep = Math.max(Math.abs(wrap(before.yaw() - earlier.yaw())), Math.abs(after.headLag()));
         float pitchStep = Math.abs(before.pitch() - earlier.pitch());
         assertTrue(Math.abs(wrap(after.yaw() - expected.yaw())) <= yawStep + LOOK_TOLERANCE,
             crossing.label() + ": yaw " + after.yaw() + " after the crossing, expected " + expected.yaw());

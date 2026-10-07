@@ -154,8 +154,6 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
                 pose(out, cross.sourcePose());
                 vector(out, cross.previousEye());
                 vector(out, cross.currentEye());
-                out.f32(cross.bodyYaw());
-                out.f32(cross.headYaw());
             }
             case TravelMessage.TravelReuse reuse -> {
                 identity(out, reuse.token(), reuse.generation());
@@ -233,8 +231,7 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
                 in.bytes(TravelMessage.TRAVEL_HASH_BYTES));
             case TravelMessage.TRAVEL_CACHED -> new TravelMessage.TravelCached(token, generation, in.i32(), in.i32(), in.i32(),
                 in.bytes(TravelMessage.TRAVEL_HASH_BYTES), bool(in));
-            case TravelMessage.TRAVEL_CROSS -> new TravelMessage.TravelCross(token, generation, in.i64(), pose(in), vector(in), vector(in),
-                in.f32(), in.f32());
+            case TravelMessage.TRAVEL_CROSS -> new TravelMessage.TravelCross(token, generation, in.i64(), pose(in), vector(in), vector(in));
             default -> throw new ViewStreamProtocolException("Unknown travel message " + id);
         };
     }

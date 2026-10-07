@@ -458,7 +458,7 @@ final class MinecraftPreparedTravel {
 
     static ClientPreparedTravelServer.SeamlessAuthority seamlessAuthority(ServerPlayer player, long tick, long cooldownMillis) {
         return new ClientPreparedTravelServer.SeamlessAuthority(((SeamlessListenerAccess) player.connection).wormholesAwaitingPosition() != null,
-            player.isChangingDimension(), player.isShiftKeyDown() || player.isPassenger(), tick, cooldownMillis);
+            player.isChangingDimension(), tick, cooldownMillis);
     }
 
     static TravelMessage.TravelPose seamlessPose(TravelMessage.TravelPose arrival, TravelMessage.TravelCross cross, PlaneCrossing crossing,
@@ -467,7 +467,7 @@ final class MinecraftPreparedTravel {
         TravelMessage.TravelPose source = cross.sourcePose();
         Vec3d position = new Vec3d(source.x(), source.y(), source.z());
         Pose crossed = PoseTransform.apply(new Pose(position, position, position, crossing.velocity(), source.yaw(), source.pitch(),
-            source.yaw(), source.pitch(), cross.bodyYaw(), cross.bodyYaw(), cross.headYaw(), cross.headYaw()), toward);
+            source.yaw(), source.pitch(), source.yaw(), source.yaw(), source.yaw(), source.yaw()), toward);
         Frame view = crossing.frame();
         Frame exit = new Frame(toward.face(view.getNormal()), toward.face(view.getRight()), toward.face(view.getUp())).view(crossing.frontSide());
         Pose arrived = PoseTransform.arrive(crossed, crossing, exit, rules.orientation(), rules.gravityFlip(), rules.momentum(),

@@ -6,6 +6,7 @@ import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.LevelLoadingScreen;
 import net.minecraft.client.multiplayer.ClientPacketListener;
+import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
@@ -88,7 +89,8 @@ public final class TravelTap {
         FRAMES.add(new Frame(FRAMES.size(), camera.position(), camera.yRot(), camera.xRot(),
             minecraft.level.dimension().identifier().toString(), System.identityHashCode(minecraft.level),
             System.identityHashCode(minecraft.player), gameTicks + minecraft.getDeltaTracker().getGameTimeDeltaPartialTick(true),
-            minecraft.player.position().distanceTo(new Vec3(minecraft.player.xo, minecraft.player.yo, minecraft.player.zo)), 0L));
+            minecraft.player.position().distanceTo(new Vec3(minecraft.player.xo, minecraft.player.yo, minecraft.player.zo)),
+            Mth.wrapDegrees(minecraft.player.getYRot() - minecraft.player.yHeadRot), 0L));
     }
 
     public static synchronized List<Frame> frames() {
@@ -130,9 +132,9 @@ public final class TravelTap {
     }
 
     public record Frame(int index, Vec3 camera, float yaw, float pitch, String dimension, int level, int player, double clock, double tickSpeed,
-                        long tickNanos) {
+                        float headLag, long tickNanos) {
         Frame withTickNanos(long nanos) {
-            return new Frame(index, camera, yaw, pitch, dimension, level, player, clock, tickSpeed, nanos);
+            return new Frame(index, camera, yaw, pitch, dimension, level, player, clock, tickSpeed, headLag, nanos);
         }
     }
 }

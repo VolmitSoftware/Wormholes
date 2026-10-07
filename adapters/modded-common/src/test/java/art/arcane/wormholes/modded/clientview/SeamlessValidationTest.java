@@ -47,16 +47,10 @@ public class SeamlessValidationTest extends MinecraftTestBase {
     }
 
     @Test
-    public void changingDimensionAndSneakingOrRidingAreReported() {
+    public void changingDimensionIsReported() {
         ServerPlayer player = player();
         when(player.isChangingDimension()).thenReturn(true);
         assertTrue(MinecraftPreparedTravel.seamlessAuthority(player, 1L, 0L).changingDimension());
-        assertFalse(MinecraftPreparedTravel.seamlessAuthority(player, 1L, 0L).yawExempt());
-        when(player.isShiftKeyDown()).thenReturn(true);
-        assertTrue(MinecraftPreparedTravel.seamlessAuthority(player, 1L, 0L).yawExempt());
-        when(player.isShiftKeyDown()).thenReturn(false);
-        when(player.isPassenger()).thenReturn(true);
-        assertTrue(MinecraftPreparedTravel.seamlessAuthority(player, 1L, 0L).yawExempt());
     }
 
     @Test

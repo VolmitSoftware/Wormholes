@@ -187,7 +187,7 @@ public final class MinecraftSeamlessValidationGameTest {
         double claimed = "wrong_direction".equals(attempt.label) ? feet.z + 0.15D : plane + AFTER;
         return new TravelMessage.TravelCross(begin.token(), begin.generation(), barrier,
             new TravelMessage.TravelPose(feet.x, feet.y, claimed, player.getYRot(), player.getXRot()), new Vec3d(feet.x, feet.y + eye, feet.z),
-            new Vec3d(feet.x, feet.y + eye, claimed), player.getYRot(), player.getYRot());
+            new Vec3d(feet.x, feet.y + eye, claimed));
     }
 
     private boolean rejected() throws Exception {

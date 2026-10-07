@@ -55,7 +55,7 @@ public final class ClientViewFixtures {
             ViewStreamLimits.FLAG_LAST));
         out.add(travel("travel_cross", new TravelMessage.TravelCross(new UUID(12, 34), 3L, 9L,
             new TravelMessage.TravelPose(635.5D, 65.0D, -4681.4D, 90.0F, -12.0F),
-            new Vec3d(635.5D, 66.62D, -4681.6D), new Vec3d(635.5D, 66.62D, -4681.4D), 91.5F, 89.25F), ViewStreamCapability.NONE, 0, 0));
+            new Vec3d(635.5D, 66.62D, -4681.6D), new Vec3d(635.5D, 66.62D, -4681.4D)), ViewStreamCapability.NONE, 0, 0));
         byte[] travelHash = new byte[32];
         for (int index = 0; index < travelHash.length; index++) {
             travelHash[index] = (byte) index;

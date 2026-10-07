@@ -288,15 +288,12 @@ public sealed interface TravelMessage {
     }
 
     record TravelCross(UUID token, long generation, long contentRevision, TravelPose sourcePose,
-                       Vec3d previousEye, Vec3d currentEye, float bodyYaw, float headYaw) implements TravelMessage {
+                       Vec3d previousEye, Vec3d currentEye) implements TravelMessage {
         public TravelCross {
             travelIdentity(token, generation);
             Objects.requireNonNull(sourcePose, "sourcePose");
             travelVector(previousEye);
             travelVector(currentEye);
-            if (!Float.isFinite(bodyYaw) || !Float.isFinite(headYaw)) {
-                throw new IllegalArgumentException("Travel crossing yaw");
-            }
             if (contentRevision <= 0 || Math.abs(previousEye.x()) > 30_000_000 || Math.abs(previousEye.z()) > 30_000_000
                 || Math.abs(currentEye.x()) > 30_000_000 || Math.abs(currentEye.z()) > 30_000_000
                 || Math.abs(previousEye.y()) > 20_000_000 || Math.abs(currentEye.y()) > 20_000_000) {

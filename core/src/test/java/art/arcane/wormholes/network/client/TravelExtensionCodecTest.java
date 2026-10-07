@@ -195,9 +195,9 @@ final class TravelExtensionCodecTest {
         for (double coordinate : new double[]{Double.NaN, Double.POSITIVE_INFINITY, 30_000_001}) {
             Vec3d invalid = new Vec3d(coordinate, 0, 0);
             assertThrows(IllegalArgumentException.class, () -> new TravelMessage.TravelCross(TOKEN, 3, 9, pose,
-                invalid, new Vec3d(0, 0, 0), 0.0F, 0.0F));
+                invalid, new Vec3d(0, 0, 0)));
             assertThrows(IllegalArgumentException.class, () -> new TravelMessage.TravelCross(TOKEN, 3, 9, pose,
-                new Vec3d(0, 0, 0), invalid, 0.0F, 0.0F));
+                new Vec3d(0, 0, 0), invalid));
             if (!Double.isFinite(coordinate)) {
                 assertThrows(IllegalArgumentException.class, () -> new TravelMessage.TravelCommit(TOKEN, 3, 9,
                     "minecraft:overworld", "minecraft:overworld", pose, invalid));
@@ -240,18 +240,11 @@ final class TravelExtensionCodecTest {
     }
 
     @Test
-    void travelCrossCarriesFiniteBodyAndHeadYaw() throws ViewStreamProtocolException {
+    void travelCrossRoundTripsTheClaimedPoseAndEyeSegment() throws ViewStreamProtocolException {
         TravelMessage.TravelPose pose = ClientViewFixtures.travelBegin().arrival();
-        TravelMessage.TravelCross cross = new TravelMessage.TravelCross(TOKEN, 3, 9, pose, new Vec3d(0, 66, 0), new Vec3d(0, 66, 0.25D),
-            91.5F, 92.25F);
+        TravelMessage.TravelCross cross = new TravelMessage.TravelCross(TOKEN, 3, 9, pose, new Vec3d(0, 66, 0), new Vec3d(0, 66, 0.25D));
         ViewStreamMessage wrapped = TravelExtension.PREPARED.wrap(cross);
         assertEquals(wrapped, decode(encode(wrapped), false));
-        for (float yaw : new float[]{Float.NaN, Float.POSITIVE_INFINITY}) {
-            assertThrows(IllegalArgumentException.class, () -> new TravelMessage.TravelCross(TOKEN, 3, 9, pose, new Vec3d(0, 66, 0),
-                new Vec3d(0, 66, 0.25D), yaw, 0.0F));
-            assertThrows(IllegalArgumentException.class, () -> new TravelMessage.TravelCross(TOKEN, 3, 9, pose, new Vec3d(0, 66, 0),
-                new Vec3d(0, 66, 0.25D), 0.0F, yaw));
-        }
     }
 
     @Test
