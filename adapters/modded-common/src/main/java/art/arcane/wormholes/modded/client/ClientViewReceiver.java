@@ -14,7 +14,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import art.arcane.wormholes.network.client.TravelMessage;
-import art.arcane.wormholes.network.client.ClientViewExtensions;
+import art.arcane.wormholes.modded.clientview.MinecraftClientViewExtensions;
 
 public final class ClientViewReceiver {
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
@@ -48,7 +48,7 @@ public final class ClientViewReceiver {
         receivedBytes.addAndGet(payload.length);
         ViewStreamCodec.S2CFrame frame;
         try {
-            frame = ClientViewExtensions.CODEC.decodeS2C(payload, session.caps());
+            frame = MinecraftClientViewExtensions.CODEC.decodeS2C(payload, session.caps());
         } catch (ViewStreamProtocolException | RuntimeException failure) {
             decodeFailures.incrementAndGet();
             return;
@@ -122,11 +122,11 @@ public final class ClientViewReceiver {
 
     private boolean send(Consumer<byte[]> reply, ViewStreamMessage message) {
         try {
-            reply.accept(ClientViewExtensions.CODEC.encodeC2S(message));
+            reply.accept(MinecraftClientViewExtensions.CODEC.encodeC2S(message));
             return true;
         } catch (ViewStreamProtocolException | RuntimeException failure) {
             replyFailures.incrementAndGet();
-            LOGGER.warn("Wormholes ClientView could not answer the server offer with {}; awaiting connection recovery", ClientViewExtensions.CODEC.name(message), failure);
+            LOGGER.warn("Wormholes ClientView could not answer the server offer with {}; awaiting connection recovery", MinecraftClientViewExtensions.CODEC.name(message), failure);
             return false;
         }
     }

@@ -30,7 +30,7 @@ import java.nio.file.Path;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
-import art.arcane.wormholes.network.client.ClientViewExtensions;
+import art.arcane.wormholes.modded.clientview.MinecraftClientViewExtensions;
 import art.arcane.wormholes.network.client.TravelExtension;
 
 public final class WormholesClient {
@@ -58,7 +58,7 @@ public final class WormholesClient {
         this.config = Objects.requireNonNull(config, "config");
         this.sender = Objects.requireNonNull(sender, "sender");
         this.stats = new ClientViewStats();
-        this.preparedTravel = new ClientPreparedTravel(message -> send(TravelExtension.INSTANCE.wrap(message)));
+        this.preparedTravel = new ClientPreparedTravel(message -> send(TravelExtension.PREPARED.wrap(message)));
         this.reflections = new ClientReflectionEntity();
         this.dataVersion = SharedConstants.getCurrentVersion().dataVersion().version();
         this.brandTag = ClientBrandRetriever.getClientModName();
@@ -295,9 +295,9 @@ public final class WormholesClient {
 
     private void send(ViewStreamMessage message) {
         try {
-            sender.accept(ClientViewExtensions.CODEC.encodeC2S(message));
+            sender.accept(MinecraftClientViewExtensions.CODEC.encodeC2S(message));
         } catch (ViewStreamProtocolException failure) {
-            LOGGER.warn("Wormholes ClientView could not encode {}", ClientViewExtensions.CODEC.name(message), failure);
+            LOGGER.warn("Wormholes ClientView could not encode {}", MinecraftClientViewExtensions.CODEC.name(message), failure);
         }
     }
 

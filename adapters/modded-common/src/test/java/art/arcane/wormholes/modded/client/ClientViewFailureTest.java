@@ -18,7 +18,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertTrue;
-import art.arcane.wormholes.network.client.ClientViewExtensions;
+import art.arcane.wormholes.modded.clientview.MinecraftClientViewExtensions;
 
 public class ClientViewFailureTest extends MinecraftTestBase {
     private static final double EYE_X = ClientViewHarness.EYE_X;
@@ -124,7 +124,7 @@ public class ClientViewFailureTest extends MinecraftTestBase {
     @Test
     public void anOfferReplyThatCannotBeSentKeepsAcceptedNativeSelection() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness(ViewStreamCapability.ALL);
-        byte[] offer = ClientViewExtensions.CODEC.encodeS2C(offer(), 1, ViewStreamLimits.FLAG_LAST);
+        byte[] offer = MinecraftClientViewExtensions.CODEC.encodeS2C(offer(), 1, ViewStreamLimits.FLAG_LAST);
 
         harness.receiver.receive(offer, bytes -> {
             throw new UnsupportedOperationException("Payload " + ClientViewChannel.CHANNEL + " may not be sent to the server!");

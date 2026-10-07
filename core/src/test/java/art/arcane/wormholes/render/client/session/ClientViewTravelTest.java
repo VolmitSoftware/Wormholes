@@ -71,7 +71,7 @@ final class ClientViewTravelTest {
         assertTrue(travel.preparedTravelSelected());
         assertFalse(travel.preparedTravelCacheSelected());
         assertTrue(travel.sendTravel(cancel));
-        assertEquals(TravelExtension.INSTANCE.wrap(cancel),
+        assertEquals(TravelExtension.PREPARED.wrap(cancel),
             ClientViewExtensions.CODEC.decodeS2C(frames.getLast(), ViewStreamCapability.ALL).message());
         assertFalse(travel.sendTravel(new TravelMessage.TravelReuse(new UUID(1L, 2L), 3L, 0, 0, 1, new byte[TravelMessage.TRAVEL_HASH_BYTES])),
             "cache proofs need the cache capability");
@@ -84,7 +84,7 @@ final class ClientViewTravelTest {
         ViewStreamSession<String, String> session = open();
         ClientViewTravel<String> travel = ClientViewTravel.of(session);
         TravelMessage.TravelCancel cancel = new TravelMessage.TravelCancel(new UUID(1L, 2L), 3L);
-        byte[] payload = ClientViewExtensions.CODEC.encodeC2S(TravelExtension.INSTANCE.wrap(cancel));
+        byte[] payload = ClientViewExtensions.CODEC.encodeC2S(TravelExtension.PREPARED.wrap(cancel));
         assertEquals(ViewStreamInbound.IGNORED, session.receive(payload, 0, payload.length), "travel waits for negotiation");
 
         negotiate(session, NATIVE_TRAVEL);
@@ -105,7 +105,7 @@ final class ClientViewTravelTest {
         session.end(ViewStreamMessage.ResetReason.TELEPORT);
 
         assertTrue(travel.server().preparing().isEmpty());
-        assertEquals(TravelExtension.INSTANCE.wrap(new TravelMessage.TravelCancel(begin.token(), begin.generation())),
+        assertEquals(TravelExtension.PREPARED.wrap(new TravelMessage.TravelCancel(begin.token(), begin.generation())),
             ClientViewExtensions.CODEC.decodeS2C(frames.getFirst(), ViewStreamCapability.ALL).message());
     }
 
@@ -116,7 +116,7 @@ final class ClientViewTravelTest {
         negotiate(session, NATIVE_TRAVEL);
         TravelMessage.TravelBegin begin = ClientViewFixtures.travelBegin();
         travel.server().begin(begin, System.currentTimeMillis());
-        byte[] payload = ClientViewExtensions.CODEC.encodeC2S(TravelExtension.INSTANCE.wrap(
+        byte[] payload = ClientViewExtensions.CODEC.encodeC2S(TravelExtension.PREPARED.wrap(
             new TravelMessage.TravelCancel(begin.token(), begin.generation())));
 
         assertEquals(ViewStreamInbound.HANDLED, session.receive(payload, 0, payload.length));

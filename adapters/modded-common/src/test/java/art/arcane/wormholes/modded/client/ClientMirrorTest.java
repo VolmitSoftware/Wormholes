@@ -42,7 +42,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
-import art.arcane.wormholes.network.client.ClientViewExtensions;
+import art.arcane.wormholes.modded.clientview.MinecraftClientViewExtensions;
 
 public class ClientMirrorTest {
     private static final int MIRROR_KEY = 1;
@@ -304,8 +304,8 @@ public class ClientMirrorTest {
         }
 
         private void receive(ViewStreamMessage message, int flags) throws ViewStreamProtocolException {
-            receiver.receive(ClientViewExtensions.CODEC.encodeS2C(message, ++seq, flags), null);
-            assertEquals("decode failed for " + ClientViewExtensions.CODEC.name(message), 0L, receiver.decodeFailures());
+            receiver.receive(MinecraftClientViewExtensions.CODEC.encodeS2C(message, ++seq, flags), null);
+            assertEquals("decode failed for " + MinecraftClientViewExtensions.CODEC.name(message), 0L, receiver.decodeFailures());
         }
 
         private void streamNested() throws ViewStreamProtocolException {

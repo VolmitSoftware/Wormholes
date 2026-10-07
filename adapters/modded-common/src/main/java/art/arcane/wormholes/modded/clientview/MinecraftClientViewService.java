@@ -9,7 +9,6 @@ import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.wormholes.render.client.session.ClientViewEmitters;
 import art.arcane.wormholes.render.client.session.ClientPreparedTravelServer;
 import art.arcane.wormholes.render.client.session.ClientViewTravel;
-import art.arcane.wormholes.network.client.ClientViewExtensions;
 import art.arcane.wormholes.network.client.FxExtension;
 import art.arcane.optics.stream.EntityFrames;
 import art.arcane.optics.stream.ViewStreamInbound;
@@ -84,7 +83,7 @@ public final class MinecraftClientViewService implements AutoCloseable {
             new EntityFrames<>(portals.scene()), new ClientViewSceneFx<>(portals.scene()),
             new MinecraftClientViewHandoffs(), runtime.projections().lanes(), BlockStateParser::serialize,
             SharedConstants.getCurrentVersion().dataVersion().version(), PLATFORM_CAPS, System::nanoTime,
-            (message, failure) -> LOGGER.warn(message, failure), ClientViewExtensions.ALL, ClientViewTravel::new);
+            (message, failure) -> LOGGER.warn(message, failure), MinecraftClientViewExtensions.ALL, ClientViewTravel::new);
         ViewStreamSessionRegistry<MinecraftClientViewPeer, BlockState> created = new ViewStreamSessionRegistry<>(platform, options);
         applied = options;
         negotiator = new MinecraftClientViewNegotiator(created);

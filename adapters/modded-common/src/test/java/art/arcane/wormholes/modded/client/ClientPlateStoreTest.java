@@ -26,7 +26,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import art.arcane.wormholes.network.client.ClientViewExtensions;
+import art.arcane.wormholes.modded.clientview.MinecraftClientViewExtensions;
 
 public class ClientPlateStoreTest extends MinecraftTestBase {
     private static final Path GOLDENS = goldens();
@@ -38,8 +38,8 @@ public class ClientPlateStoreTest extends MinecraftTestBase {
         PlateSectionBox sections = new PlateSectionBox(0, 4, 0, 1, 1, 1);
         BlockBox cells = new BlockBox(0, 64, 0, 16, 16, 16);
         ViewStreamMessage.PlateBegin begin = new ViewStreamMessage.PlateBegin(7, 1, sections, cells, 3, 1, null);
-        begin = (ViewStreamMessage.PlateBegin) ClientViewExtensions.CODEC.decodeS2C(
-            ClientViewExtensions.CODEC.encodeS2C(begin, 1, 0), ViewStreamCapability.ALL).message();
+        begin = (ViewStreamMessage.PlateBegin) MinecraftClientViewExtensions.CODEC.decodeS2C(
+            MinecraftClientViewExtensions.CODEC.encodeS2C(begin, 1, 0), ViewStreamCapability.ALL).message();
         assertNull(store.begin(begin));
         assertTrue(store.pending(7));
         assertEquals(1, store.bricks(new ViewStreamMessage.PlateBricks(7, 1, List.of(brick(0, 3, 5)))));
@@ -267,7 +267,7 @@ public class ClientPlateStoreTest extends MinecraftTestBase {
             }
         }
         String hex = Files.readString(GOLDENS.resolve(name + ".hex"), StandardCharsets.UTF_8).trim();
-        return ClientViewExtensions.CODEC.decodeS2C(HexFormat.of().parseHex(hex), caps).message();
+        return MinecraftClientViewExtensions.CODEC.decodeS2C(HexFormat.of().parseHex(hex), caps).message();
     }
 
     private static Brick brick(int brickIndex, int fillId, int firstCellId) {

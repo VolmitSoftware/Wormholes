@@ -44,7 +44,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import art.arcane.wormholes.network.client.ClientViewExtensions;
 import art.arcane.wormholes.render.client.session.ClientViewTravel;
 
 public final class MinecraftClientViewGameTest {
@@ -70,7 +69,7 @@ public final class MinecraftClientViewGameTest {
         this.portals = new MinecraftClientViewPortalAccess(runtime);
         ViewStreamPlatform<MinecraftClientViewPeer, BlockState> platform = new ViewStreamPlatform<>(new MinecraftClientViewTransport(), portals,
             null, null, null, Runnable::run, BlockStateParser::serialize, dataVersion(), MinecraftClientViewService.PLATFORM_CAPS,
-            System::nanoTime, (message, failure) -> LOGGER.warn(message, failure), ClientViewExtensions.ALL, ClientViewTravel::new);
+            System::nanoTime, (message, failure) -> LOGGER.warn(message, failure), MinecraftClientViewExtensions.ALL, ClientViewTravel::new);
         this.registry = new ViewStreamSessionRegistry<>(platform, new ViewStreamOptions(true, true, GRACE_MILLIS, 512 * 1024, 0, false,
             false, false, false, false, true, true, true, 5));
         this.negotiator = new MinecraftClientViewNegotiator(registry);
@@ -234,7 +233,7 @@ public final class MinecraftClientViewGameTest {
         Object message;
         while ((message = channel.readOutbound()) != null) {
             if (message instanceof ClientboundCustomPayloadPacket packet && packet.payload() instanceof ClientViewPayload payload) {
-                frames.add(ClientViewExtensions.CODEC.decodeS2C(payload.data(), STREAM_CAPS & MinecraftClientViewService.PLATFORM_CAPS).message());
+                frames.add(MinecraftClientViewExtensions.CODEC.decodeS2C(payload.data(), STREAM_CAPS & MinecraftClientViewService.PLATFORM_CAPS).message());
             }
         }
         return frames;
@@ -279,7 +278,7 @@ public final class MinecraftClientViewGameTest {
     }
 
     private static byte[] hello(ViewStreamMessage.Offer offer, int dataVersion, long caps) throws ViewStreamProtocolException {
-        return ClientViewExtensions.CODEC.encodeC2S(ViewStreamHandshake.clientHello(offer, dataVersion, caps, 512 * 1024, 256, 0L, "fabric"));
+        return MinecraftClientViewExtensions.CODEC.encodeC2S(ViewStreamHandshake.clientHello(offer, dataVersion, caps, 512 * 1024, 256, 0L, "fabric"));
     }
 
     private static int dataVersion() {

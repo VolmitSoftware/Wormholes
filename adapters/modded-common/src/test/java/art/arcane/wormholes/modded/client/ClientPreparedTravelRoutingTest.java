@@ -87,7 +87,7 @@ public class ClientPreparedTravelRoutingTest extends MinecraftTestBase {
     }
 
     private static void receive(ClientViewHarness harness, TravelMessage message) throws ViewStreamProtocolException {
-        harness.receive(TravelExtension.INSTANCE.wrap(message), ViewStreamLimits.FLAG_LAST);
+        harness.receive(TravelExtension.PREPARED.wrap(message), ViewStreamLimits.FLAG_LAST);
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
         assertTrue(harness.session.active());
     }

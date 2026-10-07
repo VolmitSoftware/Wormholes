@@ -25,7 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import art.arcane.wormholes.network.client.TravelMessage;
 import art.arcane.wormholes.network.client.FxMessage;
-import art.arcane.wormholes.network.client.ClientViewExtensions;
+import art.arcane.wormholes.modded.clientview.MinecraftClientViewExtensions;
 
 public final class ClientViewSession {
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
@@ -262,7 +262,7 @@ public final class ClientViewSession {
                         ignoredSceneMessages++;
                     }
                 }
-                default -> throw new ViewStreamProtocolException("unexpected clientbound " + ClientViewExtensions.CODEC.name(message));
+                default -> throw new ViewStreamProtocolException("unexpected clientbound " + MinecraftClientViewExtensions.CODEC.name(message));
             }
             ViewStreamMessage.PlateRefused refused = plates.takeRefusal();
             if (refused != null) {

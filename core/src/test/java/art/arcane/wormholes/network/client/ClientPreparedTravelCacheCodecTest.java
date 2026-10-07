@@ -21,12 +21,12 @@ final class ClientPreparedTravelCacheCodecTest {
     void exactCoordinatesRevisionHashAndAvailabilityRoundTrip() throws ViewStreamProtocolException {
         byte[] hash = hash();
         TravelMessage.TravelReuse reuse = new TravelMessage.TravelReuse(TOKEN, 3, -32, -10, 9, hash);
-        byte[] frame = ClientViewExtensions.CODEC.encodeS2C(TravelExtension.INSTANCE.wrap(reuse), 5, ViewStreamLimits.FLAG_LAST, true);
-        assertEquals(TravelExtension.INSTANCE.wrap(reuse), ClientViewExtensions.CODEC.decodeS2C(frame, ViewStreamCapability.ALL).message());
+        byte[] frame = ClientViewExtensions.CODEC.encodeS2C(TravelExtension.PREPARED.wrap(reuse), 5, ViewStreamLimits.FLAG_LAST, true);
+        assertEquals(TravelExtension.PREPARED.wrap(reuse), ClientViewExtensions.CODEC.decodeS2C(frame, ViewStreamCapability.ALL).message());
         for (boolean available : new boolean[]{false, true}) {
             TravelMessage.TravelCached cached = new TravelMessage.TravelCached(TOKEN, 3, -32, -10, 9, hash, available);
-            assertEquals(TravelExtension.INSTANCE.wrap(cached),
-                ClientViewExtensions.CODEC.decodeC2S(ClientViewExtensions.CODEC.encodeC2S(TravelExtension.INSTANCE.wrap(cached))));
+            assertEquals(TravelExtension.PREPARED.wrap(cached),
+                ClientViewExtensions.CODEC.decodeC2S(ClientViewExtensions.CODEC.encodeC2S(TravelExtension.PREPARED.wrap(cached))));
         }
     }
 
@@ -48,9 +48,9 @@ final class ClientPreparedTravelCacheCodecTest {
 
     @Test
     void decoderRejectsInvalidGenerationRevisionAndAvailability() throws ViewStreamProtocolException {
-        byte[] reuse = ClientViewExtensions.CODEC.encodeS2C(TravelExtension.INSTANCE.wrap(new TravelMessage.TravelReuse(TOKEN, 3, 0, 0, 1, hash())),
+        byte[] reuse = ClientViewExtensions.CODEC.encodeS2C(TravelExtension.PREPARED.wrap(new TravelMessage.TravelReuse(TOKEN, 3, 0, 0, 1, hash())),
             5, 0, true);
-        byte[] cached = ClientViewExtensions.CODEC.encodeC2S(TravelExtension.INSTANCE.wrap(new TravelMessage.TravelCached(TOKEN, 3, 0, 0, 1, hash(), true)));
+        byte[] cached = ClientViewExtensions.CODEC.encodeC2S(TravelExtension.PREPARED.wrap(new TravelMessage.TravelCached(TOKEN, 3, 0, 0, 1, hash(), true)));
         for (boolean clientbound : new boolean[]{false, true}) {
             byte[] frame = clientbound ? reuse : cached;
             int header = clientbound ? ViewStreamLimits.S2C_HEADER_BYTES : ViewStreamLimits.C2S_HEADER_BYTES;

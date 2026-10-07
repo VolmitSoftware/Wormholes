@@ -6,7 +6,7 @@ import art.arcane.optics.stream.ViewStreamCodec;
 import art.arcane.optics.stream.ViewStreamExtension;
 
 public final class ClientViewExtensions {
-    public static final List<ViewStreamExtension<?>> ALL = List.of(FxExtension.INSTANCE, TravelExtension.INSTANCE);
+    public static final List<ViewStreamExtension<?>> ALL = List.of(FxExtension.INSTANCE, TravelExtension.PREPARED);
     public static final ViewStreamCodec CODEC = new ViewStreamCodec(ALL);
 
     private ClientViewExtensions() {

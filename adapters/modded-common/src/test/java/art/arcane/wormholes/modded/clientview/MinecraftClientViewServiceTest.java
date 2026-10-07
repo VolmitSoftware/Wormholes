@@ -36,7 +36,6 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
-import art.arcane.wormholes.network.client.ClientViewExtensions;
 
 public class MinecraftClientViewServiceTest extends MinecraftTestBase {
     private static final UUID ALEX = UUID.fromString("00000000-0000-0000-0000-00000000a1e7");
@@ -88,7 +87,7 @@ public class MinecraftClientViewServiceTest extends MinecraftTestBase {
         assertTrue(ViewStreamCapability.PREPARED_TRAVEL.in(offer.serverCaps()));
         assertTrue(ViewStreamCapability.PREPARED_TRAVEL_CACHE.in(offer.serverCaps()));
 
-        byte[] hello = ClientViewExtensions.CODEC.encodeC2S(ViewStreamHandshake.clientHello(offer, offer.mcDataVersion(),
+        byte[] hello = MinecraftClientViewExtensions.CODEC.encodeC2S(ViewStreamHandshake.clientHello(offer, offer.mcDataVersion(),
             ViewStreamCapability.ALL, 512 * 1024, 256, 0L, "fabric"));
         assertEquals(ViewStreamInbound.HELLO_ACCEPTED, service.receive(connection, hello));
         ViewStreamMessage.Accept accept = (ViewStreamMessage.Accept) message(sent.get(sent.size() - 1));
@@ -169,7 +168,7 @@ public class MinecraftClientViewServiceTest extends MinecraftTestBase {
 
     private void accept() throws ViewStreamProtocolException {
         ViewStreamMessage.Offer offer = (ViewStreamMessage.Offer) message(sent.get(sent.size() - 1));
-        byte[] hello = ClientViewExtensions.CODEC.encodeC2S(ViewStreamHandshake.clientHello(offer, offer.mcDataVersion(), HELLO_CAPS, 512 * 1024, 256, 0L,
+        byte[] hello = MinecraftClientViewExtensions.CODEC.encodeC2S(ViewStreamHandshake.clientHello(offer, offer.mcDataVersion(), HELLO_CAPS, 512 * 1024, 256, 0L,
             "fabric"));
         assertEquals(ViewStreamInbound.HELLO_ACCEPTED, service.receive(connection, hello));
     }
@@ -208,7 +207,7 @@ public class MinecraftClientViewServiceTest extends MinecraftTestBase {
     }
 
     private static ViewStreamMessage message(byte[] payload) throws ViewStreamProtocolException {
-        return ClientViewExtensions.CODEC.decodeS2C(payload, ViewStreamCapability.ALL).message();
+        return MinecraftClientViewExtensions.CODEC.decodeS2C(payload, ViewStreamCapability.ALL).message();
     }
 
     private static ViewStreamOptions options(boolean enabled) {

@@ -37,7 +37,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
-import art.arcane.wormholes.network.client.ClientViewExtensions;
 import art.arcane.wormholes.render.client.session.ClientViewTravel;
 
 public class MinecraftClientViewNegotiatorTest extends MinecraftTestBase {
@@ -200,14 +199,14 @@ public class MinecraftClientViewNegotiatorTest extends MinecraftTestBase {
 
     private byte[] hello(ViewStreamMessage.Offer offer) throws ViewStreamProtocolException {
         clock.addAndGet(60_000_000L);
-        return ClientViewExtensions.CODEC.encodeC2S(ViewStreamHandshake.clientHello(offer, DATA_VERSION, ViewStreamCapability.ALL, 512 * 1024, 256, 0L, "fabric"));
+        return MinecraftClientViewExtensions.CODEC.encodeC2S(ViewStreamHandshake.clientHello(offer, DATA_VERSION, ViewStreamCapability.ALL, 512 * 1024, 256, 0L, "fabric"));
     }
 
     private void open(ViewStreamOptions options) {
         transport = new Recording();
         ViewStreamPlatform<MinecraftClientViewPeer, BlockState> platform = new ViewStreamPlatform<>(transport, new EmptyPortals(), null, null, null,
             Runnable::run, BlockStateParser::serialize, DATA_VERSION, MinecraftClientViewService.PLATFORM_CAPS, clock::get, null,
-            ClientViewExtensions.ALL, ClientViewTravel::new);
+            MinecraftClientViewExtensions.ALL, ClientViewTravel::new);
         registry = new ViewStreamSessionRegistry<>(platform, options);
         negotiator = new MinecraftClientViewNegotiator(registry);
     }
@@ -231,7 +230,7 @@ public class MinecraftClientViewNegotiatorTest extends MinecraftTestBase {
 
         private ViewStreamMessage message(int index) {
             try {
-                return ClientViewExtensions.CODEC.decodeS2C(sent.get(index), ViewStreamCapability.ALL).message();
+                return MinecraftClientViewExtensions.CODEC.decodeS2C(sent.get(index), ViewStreamCapability.ALL).message();
             } catch (ViewStreamProtocolException failure) {
                 throw new AssertionError(failure);
             }

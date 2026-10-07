@@ -55,7 +55,7 @@ public final class ClientViewTravel<P> implements ViewStreamSession.Hooks<P> {
         if (!preparedTravelSelected() || !sendable(message)) {
             return false;
         }
-        return session.send(TravelExtension.INSTANCE.wrap(message));
+        return session.send(TravelExtension.PREPARED.wrap(message));
     }
 
     public void cancelTravel() {

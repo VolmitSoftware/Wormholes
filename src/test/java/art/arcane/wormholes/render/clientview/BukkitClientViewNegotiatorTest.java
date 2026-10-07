@@ -61,8 +61,8 @@ final class BukkitClientViewNegotiatorTest {
     void bukkitNeverOffersOrAcceptsRemoteViewOrSeamlessTravel() throws Exception {
         assertFalse(ViewStreamCapability.REMOTE_VIEW.in(BukkitClientView.PLATFORM_CAPS));
         assertFalse(ViewStreamCapability.SEAMLESS_TRAVEL.in(BukkitClientView.PLATFORM_CAPS));
-        assertTrue(ViewStreamCapability.REMOTE_VIEW.in(ClientViewExtensions.CODEC.capabilities()));
-        assertTrue(ViewStreamCapability.SEAMLESS_TRAVEL.in(ClientViewExtensions.CODEC.capabilities()));
+        assertFalse(ViewStreamCapability.REMOTE_VIEW.in(ClientViewExtensions.CODEC.capabilities()));
+        assertFalse(ViewStreamCapability.SEAMLESS_TRAVEL.in(ClientViewExtensions.CODEC.capabilities()));
         ChunkPacketAccess packets = mock(ChunkPacketAccess.class);
         when(packets.snapshotSupported()).thenReturn(true);
         try (MockedStatic<NativeAdapters> adapters = mockStatic(NativeAdapters.class)) {

@@ -29,7 +29,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 import art.arcane.wormholes.network.client.FxMessage;
-import art.arcane.wormholes.network.client.ClientViewExtensions;
+import art.arcane.wormholes.modded.clientview.MinecraftClientViewExtensions;
 import art.arcane.wormholes.network.client.FxExtension;
 
 public class WormholesClientSessionTest extends MinecraftTestBase {
@@ -96,19 +96,19 @@ public class WormholesClientSessionTest extends MinecraftTestBase {
             try {
                 when(minecraft.isPaused()).thenReturn(true);
                 when(minecraft.isWindowActive()).thenReturn(true);
-                client.receive(ClientViewExtensions.CODEC.encodeS2C(FxExtension.INSTANCE.wrap(burst), 1, ViewStreamLimits.FLAG_LAST), null);
+                client.receive(MinecraftClientViewExtensions.CODEC.encodeS2C(FxExtension.INSTANCE.wrap(burst), 1, ViewStreamLimits.FLAG_LAST), null);
                 client.tick(minecraft);
                 assertEquals(0, harness.scene.particles.size());
                 when(minecraft.isPaused()).thenReturn(false);
                 when(minecraft.isWindowActive()).thenReturn(false);
-                client.receive(ClientViewExtensions.CODEC.encodeS2C(FxExtension.INSTANCE.wrap(burst), 2, ViewStreamLimits.FLAG_LAST), null);
+                client.receive(MinecraftClientViewExtensions.CODEC.encodeS2C(FxExtension.INSTANCE.wrap(burst), 2, ViewStreamLimits.FLAG_LAST), null);
                 client.tick(minecraft);
                 assertEquals(0, harness.scene.particles.size());
-                client.receive(ClientViewExtensions.CODEC.encodeS2C(FxExtension.INSTANCE.wrap(burst), 3, ViewStreamLimits.FLAG_LAST), null);
+                client.receive(MinecraftClientViewExtensions.CODEC.encodeS2C(FxExtension.INSTANCE.wrap(burst), 3, ViewStreamLimits.FLAG_LAST), null);
                 when(minecraft.isWindowActive()).thenReturn(true);
                 client.tick(minecraft);
                 assertEquals(0, harness.scene.particles.size());
-                client.receive(ClientViewExtensions.CODEC.encodeS2C(FxExtension.INSTANCE.wrap(burst), 4, ViewStreamLimits.FLAG_LAST), null);
+                client.receive(MinecraftClientViewExtensions.CODEC.encodeS2C(FxExtension.INSTANCE.wrap(burst), 4, ViewStreamLimits.FLAG_LAST), null);
                 client.tick(minecraft);
                 assertEquals(List.of("burst minecraft:reverse_portal x12"), harness.scene.particles);
             } finally {

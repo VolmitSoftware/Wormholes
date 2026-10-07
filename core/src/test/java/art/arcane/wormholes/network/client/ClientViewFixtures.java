@@ -13,13 +13,16 @@ import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.stream.ViewStreamCapability;
+import art.arcane.optics.stream.ViewStreamCodec;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.ViewStreamMessage;
 
 public final class ClientViewFixtures {
+    static final ViewStreamCodec CODEC = new ViewStreamCodec(List.of(FxExtension.INSTANCE, new TravelExtension(SeamlessTravelCodec.INSTANCE)));
+
     record Vector(String name, ViewStreamMessage message, long caps, int seq, int flags) {
         boolean clientbound() {
-            return ClientViewExtensions.CODEC.clientbound(message);
+            return ClientViewFixtures.CODEC.clientbound(message);
         }
 
         TravelMessage travel() {
@@ -127,6 +130,6 @@ public final class ClientViewFixtures {
     }
 
     private static Vector travel(String name, TravelMessage message, long caps, int seq, int flags) {
-        return new Vector(name, TravelExtension.INSTANCE.wrap(message), caps, seq, flags);
+        return new Vector(name, TravelExtension.PREPARED.wrap(message), caps, seq, flags);
     }
 }

@@ -36,7 +36,7 @@ import java.util.UUID;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import art.arcane.wormholes.network.client.ClientViewExtensions;
+import art.arcane.wormholes.modded.clientview.MinecraftClientViewExtensions;
 
 final class ClientViewHarness {
     static final long PLATE_CAPS = ViewStreamCapability.ALL & ~ViewStreamCapability.MESH_RENDER.mask();
@@ -106,8 +106,8 @@ final class ClientViewHarness {
     void receive(ViewStreamMessage message, int flags) throws ViewStreamProtocolException {
         lastSeq = ++seq;
         long previousFailures = receiver.decodeFailures();
-        receiver.receive(ClientViewExtensions.CODEC.encodeS2C(message, lastSeq, flags), null);
-        assertEquals("decode failed for " + ClientViewExtensions.CODEC.name(message), previousFailures, receiver.decodeFailures());
+        receiver.receive(MinecraftClientViewExtensions.CODEC.encodeS2C(message, lastSeq, flags), null);
+        assertEquals("decode failed for " + MinecraftClientViewExtensions.CODEC.name(message), previousFailures, receiver.decodeFailures());
     }
 
     void tick(double eyeX, double eyeY, double eyeZ) {

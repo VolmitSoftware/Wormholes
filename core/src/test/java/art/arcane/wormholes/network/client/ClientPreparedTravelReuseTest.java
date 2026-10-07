@@ -249,7 +249,7 @@ final class ClientPreparedTravelReuseTest {
         assertEquals(TravelMessage.MAX_TRAVEL_REUSE_PROBES_PER_TICK, proofs.size());
         int proofBytes = 0;
         for (TravelMessage.TravelReuse proof : proofs) {
-            proofBytes += ClientViewExtensions.CODEC.encodeS2C(TravelExtension.INSTANCE.wrap(proof), 1, 0).length;
+            proofBytes += ClientViewExtensions.CODEC.encodeS2C(TravelExtension.PREPARED.wrap(proof), 1, 0).length;
         }
         assertTrue(proofBytes <= 128 * 1024);
         assertFalse(sent.stream().anyMatch(TravelMessage.TravelChunk.class::isInstance));
@@ -260,7 +260,7 @@ final class ClientPreparedTravelReuseTest {
         server.tick(500L, 128 * 1024, sent::add);
         int wireBytes = 0;
         for (TravelMessage message : sent) {
-            wireBytes += ClientViewExtensions.CODEC.encodeS2C(TravelExtension.INSTANCE.wrap(message), 1, 0).length;
+            wireBytes += ClientViewExtensions.CODEC.encodeS2C(TravelExtension.PREPARED.wrap(message), 1, 0).length;
         }
         assertTrue(sent.stream().anyMatch(TravelMessage.TravelChunk.class::isInstance));
         assertTrue(wireBytes <= 128 * 1024);

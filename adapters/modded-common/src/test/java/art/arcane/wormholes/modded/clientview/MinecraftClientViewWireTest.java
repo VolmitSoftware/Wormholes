@@ -26,7 +26,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
-import art.arcane.wormholes.network.client.ClientViewExtensions;
 
 public class MinecraftClientViewWireTest extends MinecraftTestBase {
     @Test
@@ -61,8 +60,8 @@ public class MinecraftClientViewWireTest extends MinecraftTestBase {
             ids[i] = palette.id(BlockStateParser.serialize(sample.get(i)));
         }
         List<ViewStreamMessage.PaletteEntry> entries = palette.cursor().pending(ids);
-        byte[] frame = ClientViewExtensions.CODEC.encodeS2C(new ViewStreamMessage.Palette(entries), 7, ViewStreamLimits.FLAG_LAST);
-        ViewStreamMessage.Palette decoded = (ViewStreamMessage.Palette) ClientViewExtensions.CODEC.decodeS2C(frame, ViewStreamCapability.ALL).message();
+        byte[] frame = MinecraftClientViewExtensions.CODEC.encodeS2C(new ViewStreamMessage.Palette(entries), 7, ViewStreamLimits.FLAG_LAST);
+        ViewStreamMessage.Palette decoded = (ViewStreamMessage.Palette) MinecraftClientViewExtensions.CODEC.decodeS2C(frame, ViewStreamCapability.ALL).message();
         for (ViewStreamMessage.PaletteEntry entry : decoded.entries()) {
             BlockState expected = sample.get(indexOf(ids, entry.id()));
             assertSame(expected, BlockStateParser.parseForBlock(BuiltInRegistries.BLOCK, entry.state(), false).blockState());

@@ -30,7 +30,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.IntFunction;
 import art.arcane.wormholes.network.client.FxMessage;
-import art.arcane.wormholes.network.client.ClientViewExtensions;
+import art.arcane.wormholes.modded.clientview.MinecraftClientViewExtensions;
 
 public final class ClientViewTick implements ClientViewSession.Sink {
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
@@ -446,7 +446,7 @@ public final class ClientViewTick implements ClientViewSession.Sink {
                 }
                 if (!handleFailureLogged) {
                     handleFailureLogged = true;
-                    LOGGER.warn("Wormholes ClientView dropped a {} message it could not apply", ClientViewExtensions.CODEC.name(queued.frame().message()), failure);
+                    LOGGER.warn("Wormholes ClientView dropped a {} message it could not apply", MinecraftClientViewExtensions.CODEC.name(queued.frame().message()), failure);
                 }
             } finally {
                 frameEffectsActive = true;
@@ -469,7 +469,7 @@ public final class ClientViewTick implements ClientViewSession.Sink {
             sendFailures++;
             if (sendFailures == 1L) {
                 LOGGER.warn("Wormholes ClientView could not send {} to the server; native views will retry when the connection is available",
-                    ClientViewExtensions.CODEC.name(message), failure);
+                    MinecraftClientViewExtensions.CODEC.name(message), failure);
             }
         }
     }

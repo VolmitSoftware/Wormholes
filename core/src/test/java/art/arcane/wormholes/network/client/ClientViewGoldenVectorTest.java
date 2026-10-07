@@ -27,8 +27,8 @@ final class ClientViewGoldenVectorTest {
         StringBuilder manifest = new StringBuilder();
         for (ClientViewFixtures.Vector vector : ClientViewFixtures.vectors()) {
             byte[] encoded = vector.clientbound()
-                ? ClientViewExtensions.CODEC.encodeS2C(vector.message(), vector.seq(), vector.flags())
-                : ClientViewExtensions.CODEC.encodeC2S(vector.message());
+                ? ClientViewFixtures.CODEC.encodeS2C(vector.message(), vector.seq(), vector.flags())
+                : ClientViewFixtures.CODEC.encodeC2S(vector.message());
             String hex = HexFormat.of().formatHex(encoded);
             manifest.append(vector.name()).append(' ').append(vector.clientbound() ? "S2C" : "C2S").append(' ')
                 .append(Long.toHexString(vector.caps())).append(' ').append(vector.seq()).append(' ').append(vector.flags()).append('\n');
@@ -40,8 +40,8 @@ final class ClientViewGoldenVectorTest {
             }
             byte[] bytes = HexFormat.of().parseHex(golden);
             ViewStreamMessage decoded = vector.clientbound()
-                ? ClientViewExtensions.CODEC.decodeS2C(bytes, vector.caps()).message()
-                : ClientViewExtensions.CODEC.decodeC2S(bytes);
+                ? ClientViewFixtures.CODEC.decodeS2C(bytes, vector.caps()).message()
+                : ClientViewFixtures.CODEC.decodeC2S(bytes);
             assertEquals(vector.message(), decoded, vector.name());
         }
         String goldenManifest = readResource("vectors.txt");
