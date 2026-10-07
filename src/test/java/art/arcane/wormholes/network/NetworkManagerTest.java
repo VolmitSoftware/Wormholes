@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.StandardProtocolFamily;
 import java.nio.channels.ServerSocketChannel;
@@ -794,7 +795,7 @@ class NetworkManagerTest {
         int rawAlpha = freePort();
         NetworkConfig alphaConfig = config(rawAlpha, ALPHA_NAME);
         alphaConfig.listenEnabled = false;
-        try (ServerSocket rejector = new ServerSocket(0)) {
+        try (ServerSocket rejector = new ServerSocket(0, 50, InetAddress.getLoopbackAddress())) {
             Thread closer = new Thread(() -> {
                 while (true) {
                     try {
