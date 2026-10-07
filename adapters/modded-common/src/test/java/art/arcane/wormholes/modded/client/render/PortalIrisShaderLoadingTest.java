@@ -47,7 +47,7 @@ public class PortalIrisShaderLoadingTest {
             assertEquals(0, loading.stats().pending());
         }
         try (loading) {
-            assertTrue(loading.advance());
+            assertTrue(loading.advance(4_000_000L));
             assertEquals(0, calls.get());
             assertEquals(0L, loading.stats().steps());
         }
@@ -74,7 +74,7 @@ public class PortalIrisShaderLoadingTest {
         }
         try (loading) {
             while (loading.stats().pending() > 0) {
-                loading.advance();
+                loading.advance(4_000_000L);
             }
             assertEquals(expected, created);
             assertTrue(created.contains(ShaderKey.CLOUDS_SODIUM));
@@ -108,7 +108,7 @@ public class PortalIrisShaderLoadingTest {
         }
         try (loading) {
             while (!loading.ready()) {
-                loading.advance();
+                loading.advance(4_000_000L);
             }
             assertEquals(18, retainedShadows);
             assertEquals(0, shadowCalls.get());
@@ -132,7 +132,7 @@ public class PortalIrisShaderLoadingTest {
         }
         try (loading) {
             while (!loading.ready()) {
-                loading.advance();
+                loading.advance(4_000_000L);
             }
             assertEquals(1, calls.get());
         }
@@ -172,7 +172,7 @@ public class PortalIrisShaderLoadingTest {
         }
         try (loading) {
             while (!loading.ready()) {
-                loading.advance();
+                loading.advance(4_000_000L);
             }
             assertEquals(EnumSet.allOf(ShaderKey.class), created);
             assertTrue(created.containsAll(UNUSED));

@@ -16,6 +16,7 @@ import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -32,6 +33,8 @@ import static org.mockito.Mockito.mockConstruction;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.any;
 
 public class PortalIrisPoolTest {
@@ -39,7 +42,9 @@ public class PortalIrisPoolTest {
 
     @Test
     public void idleReusePreservesReadinessAreaBytesAndStableTieOrder() throws ReflectiveOperationException {
-        PortalIrisRenderer pool = new PortalIrisRenderer(() -> mock(ShaderPack.class));
+        AtomicLong clock = new AtomicLong();
+        PortalShaderWarmup warmups = new PortalShaderWarmup(clock::get);
+        PortalIrisRenderer pool = new PortalIrisRenderer(() -> mock(ShaderPack.class), warmups);
         NamespacedId dimension = new NamespacedId("minecraft:overworld");
         Object unready = rankedEntry(200, 2048, 2048, false);
         Object smaller = rankedEntry(100, 512, 512, true);
@@ -58,9 +63,34 @@ public class PortalIrisPoolTest {
     }
 
     @Test
+    public void unbuiltViewSwitchesToAReadyIdleTwinInsteadOfLinkingAgain() throws ReflectiveOperationException {
+        ShaderPack pack = mock(ShaderPack.class);
+        AtomicLong clock = new AtomicLong();
+        PortalShaderWarmup warmups = new PortalShaderWarmup(clock::get);
+        PortalIrisRenderer pool = new PortalIrisRenderer(() -> pack, warmups);
+        EnvironmentState environment = mock(EnvironmentState.class);
+        NamespacedId dimension = new NamespacedId("minecraft:overworld");
+        when(pack.getProgramSet(dimension)).thenReturn(mock(ProgramSet.class));
+        field(PortalIrisRenderer.class, "pack").set(pool, pack);
+        Object unbuilt = rankedEntry(100, 512, 256, false);
+        Object ready = rankedEntry(100, 512, 256, true);
+        entries(pool).put(7, unbuilt);
+        idle(pool).add(ready);
+        try (MockedStatic<PortalIrisPipeline> dimensions = mockStatic(PortalIrisPipeline.class);
+             MockedStatic<PortalIrisResources> resources = mockStatic(PortalIrisResources.class)) {
+            dimensions.when(() -> PortalIrisPipeline.dimension(pack, environment)).thenReturn(dimension);
+            assertSame(ready, pool.acquire(7, environment, 512, 256));
+            assertEquals(List.of(unbuilt), idle(pool));
+            assertSame(ready, pool.acquire(7, environment, 512, 256));
+        }
+    }
+
+    @Test
     public void sourceReuseRequiresTheExactCapturedPackIdentity() throws ReflectiveOperationException {
         ShaderPack pack = mock(ShaderPack.class);
-        PortalIrisRenderer pool = new PortalIrisRenderer(() -> pack);
+        AtomicLong clock = new AtomicLong();
+        PortalShaderWarmup warmups = new PortalShaderWarmup(clock::get);
+        PortalIrisRenderer pool = new PortalIrisRenderer(() -> pack, warmups);
         assertFalse(pool.usesPack(pack));
         field(PortalIrisRenderer.class, "pack").set(pool, pack);
         assertTrue(pool.usesPack(pack));
@@ -72,8 +102,10 @@ public class PortalIrisPoolTest {
 
     @Test
     public void reservationEvictsReleasedViewsWhilePreservingKeyedHistoryAndActiveCapture() throws ReflectiveOperationException {
-        PortalIrisRenderer pool = new PortalIrisRenderer(() -> mock(ShaderPack.class));
-        pool.beginFrame();
+        AtomicLong clock = new AtomicLong();
+        PortalShaderWarmup warmups = new PortalShaderWarmup(clock::get);
+        PortalIrisRenderer pool = new PortalIrisRenderer(() -> mock(ShaderPack.class), warmups);
+        warmups.beginFrame();
         Map<Integer, Object> entries = entries(pool);
         Object active = entry(600 * MIB, 1);
         Object current = entry(600 * MIB, 0);
@@ -94,7 +126,9 @@ public class PortalIrisPoolTest {
 
     @Test
     public void cacheTargetNeverReclaimsOrRejectsActiveViews() throws ReflectiveOperationException {
-        PortalIrisRenderer pool = new PortalIrisRenderer(() -> mock(ShaderPack.class));
+        AtomicLong clock = new AtomicLong();
+        PortalShaderWarmup warmups = new PortalShaderWarmup(clock::get);
+        PortalIrisRenderer pool = new PortalIrisRenderer(() -> mock(ShaderPack.class), warmups);
         Object active = entry(1500 * MIB, 1);
         entries(pool).put(1, active);
         field(PortalIrisRenderer.class, "reserved").setLong(pool, 1500 * MIB);
@@ -106,8 +140,10 @@ public class PortalIrisPoolTest {
 
     @Test
     public void authoritativeOffscreenViewsDoNotConsumeTheReleasedCacheTarget() throws ReflectiveOperationException {
-        PortalIrisRenderer pool = new PortalIrisRenderer(() -> mock(ShaderPack.class));
-        pool.beginFrame();
+        AtomicLong clock = new AtomicLong();
+        PortalShaderWarmup warmups = new PortalShaderWarmup(clock::get);
+        PortalIrisRenderer pool = new PortalIrisRenderer(() -> mock(ShaderPack.class), warmups);
+        warmups.beginFrame();
         Object active = entry(2000 * MIB, 1);
         Object cached = entry(2000 * MIB, 0);
         entries(pool).put(1, active);
@@ -122,8 +158,10 @@ public class PortalIrisPoolTest {
     @Test
     public void evictionPinsSharedShadowsUntilIncomingAllocationHasItsOwnReference() throws ReflectiveOperationException {
         ShaderPack pack = mock(ShaderPack.class);
-        PortalIrisRenderer pool = new PortalIrisRenderer(() -> pack);
-        pool.beginFrame();
+        AtomicLong clock = new AtomicLong();
+        PortalShaderWarmup warmups = new PortalShaderWarmup(clock::get);
+        PortalIrisRenderer pool = new PortalIrisRenderer(() -> pack, warmups);
+        warmups.beginFrame();
         PortalSharedShadows targets = mock(PortalSharedShadows.class);
         NamespacedId dimension = new NamespacedId("minecraft:overworld");
         Object shadow = shadow(targets, 50 * MIB, 1);
@@ -165,7 +203,9 @@ public class PortalIrisPoolTest {
     @Test
     public void allocationFailureRollsBackNewSharedReservation() throws ReflectiveOperationException {
         ShaderPack pack = mock(ShaderPack.class);
-        PortalIrisRenderer pool = new PortalIrisRenderer(() -> pack);
+        AtomicLong clock = new AtomicLong();
+        PortalShaderWarmup warmups = new PortalShaderWarmup(clock::get);
+        PortalIrisRenderer pool = new PortalIrisRenderer(() -> pack, warmups);
         ProgramSet programs = mock(ProgramSet.class);
         EnvironmentState environment = mock(EnvironmentState.class);
         NamespacedId dimension = new NamespacedId("minecraft:overworld");
@@ -193,7 +233,9 @@ public class PortalIrisPoolTest {
 
     @Test
     public void shutdownReleasesRemainingEntriesAndAccountingAfterOneCloseFails() throws ReflectiveOperationException {
-        PortalIrisRenderer pool = new PortalIrisRenderer(() -> mock(ShaderPack.class));
+        AtomicLong clock = new AtomicLong();
+        PortalShaderWarmup warmups = new PortalShaderWarmup(clock::get);
+        PortalIrisRenderer pool = new PortalIrisRenderer(() -> mock(ShaderPack.class), warmups);
         Object broken = entry(100 * MIB, 0);
         Object remaining = entry(200 * MIB, 0);
         closeMethod(broken).invoke(doThrow(new IllegalStateException("close failed")).when(broken));
@@ -209,7 +251,9 @@ public class PortalIrisPoolTest {
     @Test
     public void warmupBuildsOnePipelinePerFrameAndReusesAlreadyReadySessions() throws ReflectiveOperationException {
         ShaderPack pack = mock(ShaderPack.class);
-        PortalIrisRenderer pool = new PortalIrisRenderer(() -> pack);
+        AtomicLong clock = new AtomicLong();
+        PortalShaderWarmup warmups = new PortalShaderWarmup(clock::get);
+        PortalIrisRenderer pool = new PortalIrisRenderer(() -> pack, warmups);
         EnvironmentState environment = mock(EnvironmentState.class);
         PortalShaderContext.View view = mock(PortalShaderContext.View.class);
         NamespacedId dimension = new NamespacedId("minecraft:overworld");
@@ -224,7 +268,8 @@ public class PortalIrisPoolTest {
                  AtomicBoolean ready = new AtomicBoolean();
                  when(pipeline.materials()).thenReturn(materials);
                  when(pipeline.ready()).thenAnswer(call -> ready.get());
-                 when(pipeline.warm(any())).thenAnswer(call -> {
+                 when(pipeline.warm(any(), anyLong())).thenAnswer(call -> {
+                     clock.addAndGet(5_000_000L);
                      ready.set(true);
                      return true;
                  });
@@ -232,7 +277,7 @@ public class PortalIrisPoolTest {
              MockedConstruction<PortalTextureScope> textureScopes = mockConstruction(PortalTextureScope.class);
              MockedStatic<PortalFramebufferScope> framebuffers = mockStatic(PortalFramebufferScope.class)) {
             dimensions.when(() -> PortalIrisPipeline.dimension(pack, environment)).thenReturn(dimension);
-            pool.beginFrame();
+            warmups.beginFrame();
             PortalShaderRenderer.Session first = pool.acquire(1, environment, 512, 256);
             PortalShaderRenderer.Session second = pool.acquire(2, environment, 512, 256);
             assertFalse(first.ready());
@@ -245,17 +290,17 @@ public class PortalIrisPoolTest {
             assertFalse(second.warm(view));
             assertFalse(second.ready());
             assertEquals(1, pipelines.constructed().size());
-            pool.beginFrame();
+            warmups.beginFrame();
             assertTrue(first.warm(view));
             assertTrue(first.ready());
             assertSame(materials, first.materials());
             assertTrue(first.warm(view));
             assertFalse(second.warm(view));
-            pool.beginFrame();
+            warmups.beginFrame();
             assertFalse(second.warm(view));
             assertFalse(second.ready());
             assertEquals(2, pipelines.constructed().size());
-            pool.beginFrame();
+            warmups.beginFrame();
             assertTrue(second.warm(view));
             assertTrue(second.ready());
             pool.close();
@@ -272,7 +317,9 @@ public class PortalIrisPoolTest {
     @Test
     public void steadyViewsAndResolutionChangesRetainTheirLinkedPipeline() throws ReflectiveOperationException {
         ShaderPack pack = mock(ShaderPack.class);
-        PortalIrisRenderer pool = new PortalIrisRenderer(() -> pack);
+        AtomicLong clock = new AtomicLong();
+        PortalShaderWarmup warmups = new PortalShaderWarmup(clock::get);
+        PortalIrisRenderer pool = new PortalIrisRenderer(() -> pack, warmups);
         EnvironmentState environment = mock(EnvironmentState.class);
         EnvironmentState.World world = mock(EnvironmentState.World.class);
         when(environment.world()).thenReturn(world);
@@ -296,7 +343,8 @@ public class PortalIrisPoolTest {
              MockedConstruction<PortalIrisPipeline> pipelines = mockConstruction(PortalIrisPipeline.class, (pipeline, context) -> {
                  AtomicBoolean ready = new AtomicBoolean();
                  when(pipeline.ready()).thenAnswer(call -> ready.get());
-                 when(pipeline.warm(any())).thenAnswer(call -> {
+                 when(pipeline.warm(any(), anyLong())).thenAnswer(call -> {
+                     clock.addAndGet(5_000_000L);
                      ready.set(true);
                      return true;
                  });
@@ -306,13 +354,13 @@ public class PortalIrisPoolTest {
             dimensions.when(() -> PortalIrisPipeline.dimension(pack, environment)).thenReturn(dimension);
             resources.when(() -> PortalIrisResources.targets(programs, 512, 256)).thenReturn(10 * MIB);
             resources.when(() -> PortalIrisResources.targets(programs, 1024, 512)).thenReturn(40 * MIB);
-            pool.beginFrame();
+            warmups.beginFrame();
             PortalShaderRenderer.Session session = pool.acquire(1, environment, 512, 256);
             assertFalse(session.warm(view));
-            pool.beginFrame();
+            warmups.beginFrame();
             assertTrue(session.warm(view));
             for (int frame = 0; frame < 120; frame++) {
-                pool.beginFrame();
+                warmups.beginFrame();
                 assertSame(session, pool.acquire(1, environment, 512, 256));
                 assertTrue(session.warm(view));
             }
@@ -334,7 +382,9 @@ public class PortalIrisPoolTest {
     @Test
     public void pendingResizeAndReopeningRetainTheShaderQueue() throws ReflectiveOperationException {
         ShaderPack pack = mock(ShaderPack.class);
-        PortalIrisRenderer pool = new PortalIrisRenderer(() -> pack);
+        AtomicLong clock = new AtomicLong();
+        PortalShaderWarmup warmups = new PortalShaderWarmup(clock::get);
+        PortalIrisRenderer pool = new PortalIrisRenderer(() -> pack, warmups);
         EnvironmentState environment = mock(EnvironmentState.class);
         EnvironmentState.World world = mock(EnvironmentState.World.class);
         when(environment.world()).thenReturn(world);
@@ -361,7 +411,7 @@ public class PortalIrisPoolTest {
             dimensions.when(() -> PortalIrisPipeline.dimension(pack, environment)).thenReturn(dimension);
             resources.when(() -> PortalIrisResources.targets(programs, 1024, 512)).thenReturn(40 * MIB);
             resources.when(() -> PortalIrisResources.targets(programs, 512, 256)).thenReturn(10 * MIB);
-            pool.beginFrame();
+            warmups.beginFrame();
             PortalShaderRenderer.Session pending = pool.acquire(1, environment, 1024, 512);
             assertFalse(pending.warm(view));
             PortalIrisPipeline original = pipelines.constructed().getFirst();
@@ -370,14 +420,14 @@ public class PortalIrisPoolTest {
             verify(original).resize();
             assertFalse(pending.ready());
             assertThrows(IllegalStateException.class, () -> pending.begin(view));
-            pool.beginFrame();
+            warmups.beginFrame();
             assertFalse(pending.warm(view));
-            verify(original).warm(view);
+            verify(original).warm(eq(view), anyLong());
             assertEquals(1, pipelines.constructed().size());
             pool.remove(1);
             verify(original, never()).close();
             assertEquals(10 * MIB, pool.bytes());
-            pool.beginFrame();
+            warmups.beginFrame();
             PortalShaderRenderer.Session replacement = pool.acquire(1, environment, 512, 256);
             assertSame(pending, replacement);
             assertFalse(replacement.warm(view));
@@ -394,7 +444,9 @@ public class PortalIrisPoolTest {
     @Test
     public void failedWarmupConsumesTheFramesConstructionAllowance() throws ReflectiveOperationException {
         ShaderPack pack = mock(ShaderPack.class);
-        PortalIrisRenderer pool = new PortalIrisRenderer(() -> pack);
+        AtomicLong clock = new AtomicLong();
+        PortalShaderWarmup warmups = new PortalShaderWarmup(clock::get);
+        PortalIrisRenderer pool = new PortalIrisRenderer(() -> pack, warmups);
         EnvironmentState environment = mock(EnvironmentState.class);
         PortalShaderContext.View view = mock(PortalShaderContext.View.class);
         NamespacedId dimension = new NamespacedId("minecraft:overworld");
@@ -407,7 +459,7 @@ public class PortalIrisPoolTest {
                  throw new IllegalStateException("Shader link failed");
              })) {
             dimensions.when(() -> PortalIrisPipeline.dimension(pack, environment)).thenReturn(dimension);
-            pool.beginFrame();
+            warmups.beginFrame();
             PortalShaderRenderer.Session failed = pool.acquire(1, environment, 512, 256);
             PortalShaderRenderer.Session pending = pool.acquire(2, environment, 512, 256);
             assertThrows(RuntimeException.class, () -> failed.warm(view));
@@ -420,7 +472,9 @@ public class PortalIrisPoolTest {
     @Test
     public void unusedRendererAllocatesNothingAndOnDemandViewsHaveNoStartingCountLimit() throws ReflectiveOperationException {
         ShaderPack pack = mock(ShaderPack.class);
-        PortalIrisRenderer pool = new PortalIrisRenderer(() -> pack);
+        AtomicLong clock = new AtomicLong();
+        PortalShaderWarmup warmups = new PortalShaderWarmup(clock::get);
+        PortalIrisRenderer pool = new PortalIrisRenderer(() -> pack, warmups);
         ProgramSet programs = mock(ProgramSet.class);
         NamespacedId dimension = new NamespacedId("minecraft:overworld");
         EnvironmentState environment = mock(EnvironmentState.class);
@@ -431,7 +485,8 @@ public class PortalIrisPoolTest {
              MockedConstruction<PortalIrisPipeline> pipelines = mockConstruction(PortalIrisPipeline.class, (pipeline, context) -> {
                  AtomicBoolean ready = new AtomicBoolean();
                  when(pipeline.ready()).thenAnswer(call -> ready.get());
-                 when(pipeline.warm(any())).thenAnswer(call -> {
+                 when(pipeline.warm(any(), anyLong())).thenAnswer(call -> {
+                     clock.addAndGet(5_000_000L);
                      ready.set(true);
                      return true;
                  });
@@ -442,7 +497,7 @@ public class PortalIrisPoolTest {
             assertEquals(0, pipelines.constructed().size());
             assertEquals(0, textures.constructed().size());
             PortalShaderRenderer.Session[] sessions = new PortalShaderRenderer.Session[12];
-            pool.beginFrame();
+            warmups.beginFrame();
             for (int key = 1; key <= 12; key++) {
                 sessions[key - 1] = pool.acquire(key, environment, 512, 256);
                 assertFalse(sessions[key - 1].ready());
@@ -451,7 +506,7 @@ public class PortalIrisPoolTest {
             assertEquals(0, pipelines.constructed().size());
             PortalShaderContext.View view = mock(PortalShaderContext.View.class);
             for (int frame = 0; frame < 24; frame++) {
-                pool.beginFrame();
+                warmups.beginFrame();
                 for (int key = 1; key <= 12; key++) {
                     assertSame(sessions[key - 1], pool.acquire(key, environment, 512, 256));
                     sessions[key - 1].warm(view);
@@ -475,7 +530,9 @@ public class PortalIrisPoolTest {
     @Test
     public void reopeningReusesFullSizeSlotBeforeDormantSparesAndBudgetsTheSameSlot() throws ReflectiveOperationException {
         ShaderPack pack = mock(ShaderPack.class);
-        PortalIrisRenderer pool = new PortalIrisRenderer(() -> pack);
+        AtomicLong clock = new AtomicLong();
+        PortalShaderWarmup warmups = new PortalShaderWarmup(clock::get);
+        PortalIrisRenderer pool = new PortalIrisRenderer(() -> pack, warmups);
         ProgramSet programs = mock(ProgramSet.class);
         NamespacedId dimension = new NamespacedId("minecraft:overworld");
         EnvironmentState environment = mock(EnvironmentState.class);
@@ -500,11 +557,11 @@ public class PortalIrisPoolTest {
             resources.when(() -> PortalIrisResources.targets(programs, 16, 16)).thenReturn(MIB);
             resources.when(() -> PortalIrisResources.targets(programs, 1920, 1080)).thenReturn(100 * MIB);
             PortalShaderContext.View view = mock(PortalShaderContext.View.class);
-            pool.beginFrame();
+            warmups.beginFrame();
             PortalShaderRenderer.Session smaller = pool.acquire(50, environment, 16, 16);
             assertTrue(smaller.warm(view));
             PortalShaderRenderer.Session original = pool.acquire(1, environment, 1920, 1080);
-            pool.beginFrame();
+            warmups.beginFrame();
             pool.acquire(50, environment, 16, 16);
             assertTrue(original.warm(view));
             pool.remove(50);
@@ -516,16 +573,16 @@ public class PortalIrisPoolTest {
             assertEquals(MIB, ((Long) retained.invoke(pool, demand,
                 List.of(new PortalShaderRenderer.DemandView(2, environment, 0)))).longValue());
             for (int key = 2; key <= 10; key++) {
-                pool.beginFrame();
+                warmups.beginFrame();
                 assertSame(original, pool.acquire(key, environment, 1920, 1080));
                 pool.remove(key);
             }
             assertSame(original, pool.acquire(11, environment, 1920, 1080));
             for (int frame = 0; frame < 120; frame++) {
-                pool.beginFrame();
+                warmups.beginFrame();
             }
             assertSame(original, pool.acquire(11, environment, 1920, 1080));
-            pool.beginFrame();
+            warmups.beginFrame();
             PortalShaderRenderer.Session additional = pool.acquire(12, environment, 1920, 1080);
             assertFalse(original == additional);
             assertTrue(entries(pool).containsKey(11));

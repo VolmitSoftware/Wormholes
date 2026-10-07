@@ -28,6 +28,7 @@ import net.irisshaders.iris.gl.program.ProgramSamplers;
 import net.irisshaders.iris.gl.program.ProgramUniforms;
 import net.irisshaders.iris.pipeline.IrisRenderingPipeline;
 import net.irisshaders.iris.pipeline.WorldRenderingPipeline;
+import net.irisshaders.iris.shaderpack.DimensionId;
 import net.irisshaders.iris.shaderpack.ShaderPack;
 import net.irisshaders.iris.shaderpack.materialmap.NamespacedId;
 import net.irisshaders.iris.shaderpack.materialmap.WorldRenderingSettings;
@@ -39,13 +40,18 @@ import org.slf4j.LoggerFactory;
 
 import java.util.IdentityHashMap;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Supplier;
 
 public final class PortalIrisMainPipelines {
     private static final Logger LOGGER = LoggerFactory.getLogger(PortalIrisMainPipelines.class);
     private static final Map<WorldRenderingPipeline, PortalIrisSettings> SETTINGS = new IdentityHashMap<>();
     private static final Map<IrisRenderingPipeline, Entry> HISTORIES = new IdentityHashMap<>();
+    private static final long PREPARING_NANOS = 250_000_000L;
+    private static final List<NamespacedId> STANDARD_DIMENSIONS = List.of(DimensionId.OVERWORLD, DimensionId.NETHER, DimensionId.END);
     private static Entry pending;
     private static ClientLevel destination;
     private static ClientLevel source;
@@ -56,6 +62,7 @@ public final class PortalIrisMainPipelines {
     private static Handoff handoff;
     private static boolean constructing;
     private static PortalIrisHand preparedHand;
+    private static long preparedAt;
 
     private PortalIrisMainPipelines() {
     }
@@ -90,17 +97,30 @@ public final class PortalIrisMainPipelines {
         if (retained != null) {
             return true;
         }
+        preparedAt = System.nanoTime();
+        PortalShaderWarmup warmups = PortalShaderWarmup.shared();
+        if (!warmups.permit()) {
+            return false;
+        }
         try (World world = new World(level)) {
             if (pending == null) {
-                pending = create(pack, dimension);
+                try {
+                    pending = create(pack, dimension);
+                } finally {
+                    warmups.exhaust();
+                }
+                return false;
             }
             manager.wormholes$mainPipeline(pending.pipeline);
             pending.settings.apply();
+            long started = warmups.start();
             try (PortalIrisHistory.Scope histories = pending.history.constructing();
                  PortalIrisShaderStages.Scope stages = PortalIrisShaderStages.destination()) {
-                if (!pending.loading.advance()) {
+                if (!pending.loading.advance(warmups.remaining())) {
                     return false;
                 }
+            } finally {
+                warmups.spend(started);
             }
             pending.settings = PortalIrisSettings.capture();
             trim(manager, current);
@@ -115,6 +135,10 @@ public final class PortalIrisMainPipelines {
             clearPending();
             return false;
         }
+    }
+
+    static boolean preparing() {
+        return pending != null && !pending.registered && System.nanoTime() - preparedAt < PREPARING_NANOS;
     }
 
     static int nativeFrame() {
@@ -306,10 +330,14 @@ public final class PortalIrisMainPipelines {
         try (PortalIrisHistory.Scope scope = history.constructing()) {
             created = factory.get();
             if (created instanceof IrisRenderingPipeline pipeline) {
-                Entry entry = new Entry(new Construction(Iris.getCurrentPack().orElse(null), pipeline, null, history, PortalIrisSettings.capture()));
+                ShaderPack pack = Iris.getCurrentPack().orElse(null);
+                Entry entry = new Entry(new Construction(pack, pipeline, null, history, PortalIrisSettings.capture()));
                 entry.registered = true;
                 entry.reset = false;
                 HISTORIES.put(pipeline, entry);
+                if (pack != null) {
+                    prepareProgramSets(pack);
+                }
             } else {
                 history.close();
             }
@@ -427,6 +455,18 @@ public final class PortalIrisMainPipelines {
         }
         if (failure instanceof Error error) {
             throw error;
+        }
+    }
+
+    private static void prepareProgramSets(ShaderPack pack) {
+        Set<NamespacedId> dimensions = new LinkedHashSet<>(STANDARD_DIMENSIONS);
+        dimensions.addAll(pack.getDimensionMap().keySet());
+        for (NamespacedId dimension : dimensions) {
+            try {
+                pack.getProgramSet(dimension);
+            } catch (RuntimeException failure) {
+                LOGGER.error("Unable to read the shader programs for dimension {}", dimension, failure);
+            }
         }
     }
 

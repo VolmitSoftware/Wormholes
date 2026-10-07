@@ -36,26 +36,22 @@ final class PortalIrisRenderer implements PortalShaderRenderer {
     private final Map<NamespacedId, Long> materialRevisions = new HashMap<>();
     private PortalIrisResolution resolution = new PortalIrisResolution(MAX_BYTES);
     private PortalIrisMaterials materials = new PortalIrisMaterials();
-    private final PortalShaderWarmup warmups = new PortalShaderWarmup();
+    private final PortalShaderWarmup warmups;
     private ShaderPack pack;
     private long reserved;
     private long revision;
 
-    PortalIrisRenderer(Supplier<ShaderPack> packs) {
+    PortalIrisRenderer(Supplier<ShaderPack> packs, PortalShaderWarmup warmups) {
         this.packs = packs;
+        this.warmups = warmups;
     }
 
     static PortalIrisRenderer create() {
-        return new PortalIrisRenderer(() -> Iris.getCurrentPack().orElseThrow());
+        return new PortalIrisRenderer(() -> Iris.getCurrentPack().orElseThrow(), PortalShaderWarmup.shared());
     }
 
     private NamespacedId dimension(EnvironmentState environment) {
         return PortalIrisPipeline.dimension(pack, environment);
-    }
-
-    @Override
-    public void beginFrame() {
-        warmups.beginFrame();
     }
 
     @Override
@@ -121,12 +117,12 @@ final class PortalIrisRenderer implements PortalShaderRenderer {
     public Session acquire(int key, EnvironmentState environment, int width, int height) {
         updatePack();
         Entry existing = entries.get(key);
-        if (existing != null && existing.dimension.equals(dimension(environment))) {
+        NamespacedId dimension = dimension(environment);
+        if (existing != null && existing.dimension.equals(dimension) && (existing.ready() || !readyIdle(dimension))) {
             resize(existing, entryBytes(existing, environment, width, height), width, height);
             return existing;
         }
         remove(key);
-        NamespacedId dimension = dimension(environment);
         Entry reusable = reusable(dimension);
         if (reusable != null) {
             entries.put(key, reusable);
@@ -149,6 +145,15 @@ final class PortalIrisRenderer implements PortalShaderRenderer {
             idle.remove(selected);
         }
         return selected;
+    }
+
+    private boolean readyIdle(NamespacedId dimension) {
+        for (Entry entry : idle) {
+            if (entry.dimension.equals(dimension) && entry.ready()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private List<Entry> reusableEntries(NamespacedId dimension) {
@@ -416,14 +421,23 @@ final class PortalIrisRenderer implements PortalShaderRenderer {
             if (ready()) {
                 return true;
             }
-            if (!warmups.permit()) {
+            if (PortalIrisMainPipelines.preparing() || !warmups.permit()) {
                 return false;
             }
             if (pipeline == null) {
-                construct();
+                try {
+                    construct();
+                } finally {
+                    warmups.exhaust();
+                }
                 return ready();
             }
-            return pipeline.warm(view);
+            long started = warmups.start();
+            try {
+                return pipeline.warm(view, warmups.remaining());
+            } finally {
+                warmups.spend(started);
+            }
         }
 
         private void construct() {

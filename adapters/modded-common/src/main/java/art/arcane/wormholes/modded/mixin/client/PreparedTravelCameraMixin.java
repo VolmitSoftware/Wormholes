@@ -1,6 +1,7 @@
 package art.arcane.wormholes.modded.mixin.client;
 
 import art.arcane.wormholes.modded.client.WormholesClient;
+import art.arcane.wormholes.modded.client.render.PortalShaderWarmup;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.mojang.blaze3d.pipeline.RenderTarget;
@@ -74,6 +75,7 @@ public abstract class PreparedTravelCameraMixin {
 
     @Inject(method = "update", at = @At("TAIL"))
     private void wormholes$crossing(DeltaTracker tracker, CallbackInfo callback) {
+        PortalShaderWarmup.shared().beginFrame();
         WormholesClient client = WormholesClient.instance();
         Camera camera = Minecraft.getInstance().gameRenderer.mainCamera();
         if (client != null && client.preparedTravel().beforeFrame(camera, tracker)) {

@@ -55,7 +55,7 @@ public class PortalIrisProgramLoadingTest {
 
         try (loading) {
             while (!loading.ready()) {
-                loading.advance();
+                loading.advance(4_000_000L);
             }
             assertEquals(List.of("shadow", "complete"), stages);
             assertFalse(PortalIrisShaderLoading.deferred());
@@ -89,7 +89,7 @@ public class PortalIrisProgramLoadingTest {
                 assertEquals(0, factories.get());
             }
             try (loading) {
-                assertTrue(loading.advance());
+                assertTrue(loading.advance(4_000_000L));
                 assertEquals(1, factories.get());
                 assertSame(linked, installed.get());
             }
@@ -124,7 +124,7 @@ public class PortalIrisProgramLoadingTest {
                 assertEquals(0, factories.get());
             }
             try (loading) {
-                assertTrue(loading.advance());
+                assertTrue(loading.advance(4_000_000L));
                 assertSame(linked, installed.get());
                 assertEquals(1, factories.get());
             }

@@ -14,7 +14,6 @@ import java.util.function.BiFunction;
 import java.util.Objects;
 
 public final class PortalIrisShaderLoading implements AutoCloseable {
-    private static final long FRAME_BUDGET_NANOS = 4_000_000L;
     private static PortalIrisShaderLoading current;
 
     private final PortalShaderLinkQueue queue = new PortalShaderLinkQueue(System::nanoTime);
@@ -58,8 +57,8 @@ public final class PortalIrisShaderLoading implements AutoCloseable {
         queue.add(() -> finish(programs));
     }
 
-    boolean advance() {
-        return queue.advance(FRAME_BUDGET_NANOS);
+    boolean advance(long budgetNanos) {
+        return queue.advance(budgetNanos);
     }
 
     boolean ready() {

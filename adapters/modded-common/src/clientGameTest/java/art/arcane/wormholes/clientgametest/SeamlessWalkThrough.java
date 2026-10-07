@@ -54,6 +54,7 @@ final class SeamlessWalkThrough {
         SeamlessScenario.join(client);
         SeamlessScenario.assertSeamlessNegotiated(client);
         server.lightNetherPortal(NETHER_FRAME);
+        client.runOnClient(minecraft -> TravelTap.reset());
         int waited = 0;
         while (!server.netherPortalLit(NETHER_FRAME)) {
             SeamlessScenario.assertTrue(waited++ < LIGHT_TIMEOUT_TICKS, label + ": the lit nether portal was never replaced by a Wormholes portal");
@@ -83,6 +84,7 @@ final class SeamlessWalkThrough {
             OrientationPolicy.FRAME, false));
         server.approachFrom(Level.OVERWORLD, new Vec3(FRAME_SOURCE.getX() + 1.5D, FRAME_SOURCE.getY(), FRAME_SOURCE.getZ() + FAR_APPROACH_BLOCKS), 180.0F);
         client.waitForChunksDownload();
+        client.runOnClient(minecraft -> TravelTap.reset());
         List<String> failures = new ArrayList<>();
         Vec3 source = Vec3.atLowerCornerOf(FRAME_SOURCE).add(1.5D, 1.5D, 0.5D);
         Vec3 destination = Vec3.atLowerCornerOf(FRAME_DESTINATION).add(1.5D, 1.5D, 0.5D);
@@ -130,7 +132,7 @@ final class SeamlessWalkThrough {
         if (unprepared != null) {
             LOGGER.info("[{}] walking before preparation finished: {}", label, unprepared);
         }
-        client.runOnClient(minecraft -> TravelTap.reset());
+        int approach = client.computeOnClient(minecraft -> TravelTap.frames().size());
         String before = client.computeOnClient(minecraft -> minecraft.level.dimension().identifier().toString());
         int player = client.computeOnClient(minecraft -> System.identityHashCode(minecraft.player));
         client.holdForward();
@@ -138,13 +140,14 @@ final class SeamlessWalkThrough {
         try {
             for (int tick = 0; tick < CROSSING_TIMEOUT_TICKS && crossing < 0; tick++) {
                 client.waitTicks(1);
-                crossing = client.computeOnClient(minecraft -> TravelTap.crossingFrame(CROSSING_JUMP));
+                crossing = client.computeOnClient(minecraft -> TravelTap.crossingFrame(CROSSING_JUMP, approach));
             }
         } finally {
             client.releaseForward();
         }
         if (crossing < 0) {
             failures.add(label + " never crossed");
+            client.runOnClient(minecraft -> TravelTap.reset());
             LOGGER.info("[{}] never crossed from {}: player at {} yaw {}, travel {}", label, before,
                 client.computeOnClient(minecraft -> minecraft.player.position()), client.computeOnClient(minecraft -> minecraft.player.getYRot()),
                 client.computeOnClient(SeamlessWalkThrough::travelState));
@@ -156,14 +159,16 @@ final class SeamlessWalkThrough {
             client.waitTicks(1);
         }
         String after = client.computeOnClient(minecraft -> minecraft.level.dimension().identifier().toString());
-        int respawns = TravelTap.respawns();
-        int positions = TravelTap.positions();
+        int respawns = TravelTap.respawnsSince(approach);
+        int positions = TravelTap.positionsSince(approach);
         boolean loading = TravelTap.loadingScreenShown();
         boolean replaced = client.computeOnClient(minecraft -> System.identityHashCode(minecraft.player)) != player;
         String timing = frameTiming(crossing);
+        String approaching = approachTiming(crossing);
+        client.runOnClient(minecraft -> TravelTap.reset());
         String path = respawns > 0 ? "respawn" : positions > 0 ? "corrected" : "seamless";
-        LOGGER.info("[{}] crossed {} -> {} by {}: respawns {}, positions {}, loading screen {}, player replaced {}, now at {}; {}", label, before,
-            after, path, respawns, positions, loading, replaced, client.computeOnClient(minecraft -> minecraft.player.position()), timing);
+        LOGGER.info("[{}] crossed {} -> {} by {}: respawns {}, positions {}, loading screen {}, player replaced {}, now at {}; {}; {}", label, before,
+            after, path, respawns, positions, loading, replaced, client.computeOnClient(minecraft -> minecraft.player.position()), timing, approaching);
         if (respawns > 0 || positions > 0 || loading || replaced) {
             failures.add(label + " " + path);
         }
@@ -221,6 +226,30 @@ final class SeamlessWalkThrough {
         long baseline = Math.max(source, destination);
         return String.format("source median %.2f ms, destination median %.2f ms, worst crossing frame %.2f ms at crossing%+d (%.1fx)",
             source / 1.0E6D, destination / 1.0E6D, worst / 1.0E6D, worstFrame, baseline == 0L ? 0.0D : (double) worst / baseline);
+    }
+
+    private static String approachTiming(int crossing) {
+        List<TravelTap.Frame> frames = TravelTap.frames();
+        int end = Math.min(frames.size(), crossing - 1);
+        if (end < BASELINE_FRAMES) {
+            return "approach timing unavailable";
+        }
+        long median = median(frames, 1, end);
+        long worst = 0L;
+        int worstFrame = 0;
+        int slow = 0;
+        for (int index = 1; index < end; index++) {
+            long nanos = frames.get(index).tickNanos();
+            if (nanos > worst) {
+                worst = nanos;
+                worstFrame = index;
+            }
+            if (median > 0L && nanos > median * 2L) {
+                slow++;
+            }
+        }
+        return String.format("approach %d frames, median %.2f ms, worst %.2f ms at frame %d (%.1fx), %d frames above 2x", end, median / 1.0E6D,
+            worst / 1.0E6D, worstFrame, median == 0L ? 0.0D : (double) worst / median, slow);
     }
 
     private static long median(List<TravelTap.Frame> frames, int from, int to) {

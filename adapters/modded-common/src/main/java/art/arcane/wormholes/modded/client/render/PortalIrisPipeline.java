@@ -119,7 +119,7 @@ public final class PortalIrisPipeline implements AutoCloseable {
         return loading.ready();
     }
 
-    boolean warm(PortalShaderContext.View view) {
+    boolean warm(PortalShaderContext.View view, long budgetNanos) {
         lastView = view;
         try (PortalIrisFrame frame = new PortalIrisFrame(view);
              PortalIrisHistory.Scope histories = history.constructing();
@@ -127,7 +127,7 @@ public final class PortalIrisPipeline implements AutoCloseable {
              PortalSharedShadows.Construction shadows = sharedShadows == null ? null : sharedShadows.constructing()) {
             try {
                 frame.pipeline(pipeline, settings);
-                boolean ready = loading.advance();
+                boolean ready = loading.advance(budgetNanos);
                 if (ready) {
                     PortalIrisResources.allocated(programs, ((IrisPortalRenderingAccess) pipeline).wormholes$renderTargets());
                 }

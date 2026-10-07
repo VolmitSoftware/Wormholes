@@ -3,6 +3,7 @@ package art.arcane.wormholes.modded.client;
 import art.arcane.optics.crossing.Pose;
 import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
 import art.arcane.wormholes.modded.client.render.PortalIrisMainPipelines;
+import art.arcane.wormholes.modded.client.render.PortalShaderWarmup;
 import art.arcane.wormholes.modded.mixin.client.PreparedEntityAccess;
 import art.arcane.wormholes.modded.mixin.client.PreparedLevelAccess;
 import art.arcane.wormholes.modded.mixin.client.PreparedPacketAccess;
@@ -55,6 +56,7 @@ final class ClientLevelSwitch {
     }
 
     private static void swap(Minecraft minecraft, ClientLevel destination) {
+        PortalShaderWarmup.shared().hold();
         detachExtractor(minecraft, destination);
         try (ClientSodiumTerrain.Handoff ignored = ClientSodiumTerrain.residentHandoff(destination)) {
             minecraft.level = destination;

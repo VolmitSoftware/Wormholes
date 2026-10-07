@@ -661,7 +661,6 @@ public final class ClientPortalRenderer {
         frameHeight = main.height;
         RenderDimensions dimensions = new RenderDimensions(main.width, main.height, 0);
         if (shaderRenderer != null) {
-            shaderRenderer.beginFrame();
             collectShaderDemand();
             shaderSizes = shaderRenderer.resolution(new PortalShaderRenderer.Sizing(main.width, main.height, shaderDemand));
             PortalShaderRenderer.Resolution resolution = shaderSizes.getFirst();

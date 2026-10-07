@@ -10,6 +10,7 @@ import net.irisshaders.iris.pipeline.IrisRenderingPipeline;
 import net.irisshaders.iris.pipeline.WorldRenderingPipeline;
 import net.irisshaders.iris.pipeline.PipelineManager;
 import net.irisshaders.iris.platform.IrisPlatformHelpers;
+import net.irisshaders.iris.shaderpack.DimensionId;
 import net.irisshaders.iris.shaderpack.ShaderPack;
 import net.irisshaders.iris.shaderpack.materialmap.NamespacedId;
 import net.irisshaders.iris.shaderpack.materialmap.WorldRenderingSettings;
@@ -87,6 +88,56 @@ public class PortalIrisMainPipelinesTest {
         assertEquals(1, closed.get());
         verify(pipeline, times(0)).destroy();
         assertFalse(PortalIrisHistory.capturing());
+    }
+
+    @Test
+    public void irisPipelineCreationReadsEveryDimensionsProgramsBeforeAnyPortalNeedsThem() throws ReflectiveOperationException {
+        ShaderPack pack = mock(ShaderPack.class);
+        NamespacedId modded = new NamespacedId("example:caverns");
+        when(pack.getDimensionMap()).thenReturn(Map.of(modded, "world7"));
+        IrisRenderingPipeline pipeline = mock(IrisRenderingPipeline.class);
+        assertSame(pipeline, captureWithPack(pack, pipeline));
+        verify(pack).getProgramSet(DimensionId.OVERWORLD);
+        verify(pack).getProgramSet(DimensionId.NETHER);
+        verify(pack).getProgramSet(DimensionId.END);
+        verify(pack).getProgramSet(modded);
+    }
+
+    @Test
+    public void unreadablePackDimensionStillLeavesTheIrisPipelineInPlace() throws ReflectiveOperationException {
+        ShaderPack pack = mock(ShaderPack.class);
+        when(pack.getDimensionMap()).thenReturn(Map.of());
+        when(pack.getProgramSet(DimensionId.NETHER)).thenThrow(new IllegalStateException("broken include"));
+        IrisRenderingPipeline pipeline = mock(IrisRenderingPipeline.class);
+        assertSame(pipeline, captureWithPack(pack, pipeline));
+        verify(pack).getProgramSet(DimensionId.END);
+        verify(pipeline, times(0)).destroy();
+    }
+
+    @Test
+    public void viewsWaitOnlyWhileAnUnregisteredMainPipelineIsStillBeingPrepared() throws ReflectiveOperationException {
+        Field pending = PortalIrisMainPipelines.class.getDeclaredField("pending");
+        Field preparedAt = PortalIrisMainPipelines.class.getDeclaredField("preparedAt");
+        Field registered = PortalIrisMainPipelines.Entry.class.getDeclaredField("registered");
+        pending.setAccessible(true);
+        preparedAt.setAccessible(true);
+        registered.setAccessible(true);
+        PortalIrisMainPipelines.Entry entry = new PortalIrisMainPipelines.Entry(
+            new PortalIrisMainPipelines.Construction(null, mock(IrisRenderingPipeline.class), null, new PortalIrisHistory(), null));
+        try {
+            assertFalse(PortalIrisMainPipelines.preparing());
+            pending.set(null, entry);
+            preparedAt.setLong(null, System.nanoTime());
+            assertTrue(PortalIrisMainPipelines.preparing());
+            preparedAt.setLong(null, System.nanoTime() - 1_000_000_000L);
+            assertFalse(PortalIrisMainPipelines.preparing());
+            preparedAt.setLong(null, System.nanoTime());
+            registered.setBoolean(entry, true);
+            assertFalse(PortalIrisMainPipelines.preparing());
+        } finally {
+            pending.set(null, null);
+            preparedAt.setLong(null, 0L);
+        }
     }
 
     @Test
@@ -316,6 +367,25 @@ public class PortalIrisMainPipelinesTest {
         } finally {
             histories.remove(pipeline);
             settings.remove(pipeline);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static WorldRenderingPipeline captureWithPack(ShaderPack pack, IrisRenderingPipeline pipeline) throws ReflectiveOperationException {
+        Field field = PortalIrisMainPipelines.class.getDeclaredField("HISTORIES");
+        field.setAccessible(true);
+        Map<IrisRenderingPipeline, PortalIrisMainPipelines.Entry> histories =
+            (Map<IrisRenderingPipeline, PortalIrisMainPipelines.Entry>) field.get(null);
+        try (MockedStatic<IrisPlatformHelpers> platform = mockStatic(IrisPlatformHelpers.class)) {
+            platform.when(IrisPlatformHelpers::getInstance).thenReturn(mock(IrisPlatformHelpers.class));
+            try (MockedStatic<Iris> iris = mockStatic(Iris.class);
+                 MockedStatic<PortalIrisSettings> snapshots = mockStatic(PortalIrisSettings.class)) {
+                iris.when(Iris::getCurrentPack).thenReturn(Optional.of(pack));
+                snapshots.when(PortalIrisSettings::capture).thenReturn(mock(PortalIrisSettings.class));
+                return PortalIrisMainPipelines.capture(() -> pipeline);
+            }
+        } finally {
+            histories.remove(pipeline);
         }
     }
 

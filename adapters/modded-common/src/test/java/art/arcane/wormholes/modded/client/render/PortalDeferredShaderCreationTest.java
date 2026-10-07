@@ -55,7 +55,7 @@ public class PortalDeferredShaderCreationTest {
         }
         try (loading) {
             while (loading.stats().pending() > 0) {
-                loading.advance();
+                loading.advance(4_000_000L);
             }
             assertEquals(List.of("first", "second"), created);
             assertEquals("first", first.get());
@@ -82,7 +82,7 @@ public class PortalDeferredShaderCreationTest {
         assertEquals(0, factories.get());
         assertNull(pass.get());
         assertEquals(0, loading.stats().pending());
-        assertThrows(IllegalStateException.class, loading::advance);
+        assertThrows(IllegalStateException.class, () -> loading.advance(4_000_000L));
     }
 
     @Test
@@ -106,7 +106,7 @@ public class PortalDeferredShaderCreationTest {
         try (loading) {
             assertThrows(IllegalStateException.class, () -> {
                 while (loading.stats().pending() > 0) {
-                    loading.advance();
+                    loading.advance(4_000_000L);
                 }
             });
             assertEquals("first", first.get());
@@ -128,7 +128,7 @@ public class PortalDeferredShaderCreationTest {
             assertEquals(0, pass.get().length);
         }
         try (loading) {
-            assertTrue(loading.advance());
+            assertTrue(loading.advance(4_000_000L));
             assertEquals(List.of(1, 2), List.of(pass.get()));
         }
     }

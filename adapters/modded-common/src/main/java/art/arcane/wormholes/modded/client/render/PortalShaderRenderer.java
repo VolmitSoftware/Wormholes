@@ -15,8 +15,6 @@ interface PortalShaderRenderer extends AutoCloseable {
 
     Session acquire(int key, EnvironmentState environment, int width, int height);
 
-    void beginFrame();
-
     List<Resolution> resolution(Sizing sizing);
 
     void remove(int key);

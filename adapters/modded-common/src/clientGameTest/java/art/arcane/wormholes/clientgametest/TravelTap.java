@@ -108,6 +108,14 @@ public final class TravelTap {
         return positions;
     }
 
+    public static synchronized int respawnsSince(int frame) {
+        return countSince(RESPAWN_FRAMES, frame);
+    }
+
+    public static synchronized int positionsSince(int frame) {
+        return countSince(POSITION_FRAMES, frame);
+    }
+
     public static synchronized boolean addedAny(UUID first, UUID second) {
         return ADDED.contains(first) || ADDED.contains(second);
     }
@@ -125,13 +133,27 @@ public final class TravelTap {
     }
 
     public static synchronized int crossingFrame(double jump) {
-        for (int index = 1; index < FRAMES.size(); index++) {
+        return crossingFrame(jump, 1);
+    }
+
+    public static synchronized int crossingFrame(double jump, int from) {
+        for (int index = Math.max(1, from); index < FRAMES.size(); index++) {
             if (FRAMES.get(index).camera().distanceTo(FRAMES.get(index - 1).camera()) > jump
                 || !FRAMES.get(index).dimension().equals(FRAMES.get(index - 1).dimension())) {
                 return index;
             }
         }
         return -1;
+    }
+
+    private static int countSince(IntList frames, int frame) {
+        int count = 0;
+        for (int index = 0; index < frames.size(); index++) {
+            if (frames.getInt(index) >= frame) {
+                count++;
+            }
+        }
+        return count;
     }
 
     public record Frame(int index, Vec3 camera, float yaw, float pitch, String dimension, int level, int player, double clock, double tickSpeed,
