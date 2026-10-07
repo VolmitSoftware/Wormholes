@@ -56,13 +56,12 @@ public class MinecraftPreparedTravelSeamlessTest extends MinecraftTestBase {
         when(fixture.travel.takeCross()).thenReturn(Optional.of(new TravelMessage.TravelCross(UUID.randomUUID(), 1L, 1L,
             new TravelMessage.TravelPose(0.5D, 64.0D, 0.4D, 0.0F, 0.0F), new Vec3d(0.5D, 65.62D, 0.6D), new Vec3d(0.5D, 65.62D, 0.4D))));
 
-        fixture.prepared.tick(fixture.session, fixture.player);
+        fixture.prepared.settleCross(fixture.session, fixture.player);
 
         verify(fixture.player.connection).teleport(4.0D, 64.0D, -2.0D, 30.0F, 5.0F);
         verify(fixture.session).cancelTravel();
         verify(fixture.registry, never()).crossPrepared(any(), any(), any(), any());
         verify(fixture.doors, never()).crossPrepared(any(), any(), any());
-        verify(fixture.routes, never()).update(any(), any(), any(), anyLong());
     }
 
     @Test

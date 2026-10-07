@@ -1,5 +1,7 @@
 package art.arcane.wormholes.modded.seamless;
 
+import art.arcane.optics.crossing.PlaneCrossing;
+import art.arcane.optics.math.Angles;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.api.traversal.TraversalQuote;
 import art.arcane.wormholes.api.traversal.TraversalReceipt;
@@ -12,11 +14,15 @@ import art.arcane.wormholes.modded.MinecraftTravelCosts;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.network.client.TravelMessage;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
 import net.minecraft.network.protocol.game.ClientboundRespawnPacket;
+import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
+import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
@@ -49,6 +55,7 @@ public final class MinecraftSeamlessValidationGameTest {
     private Phase phase = Phase.PREPARE;
     private TravelMessage.TravelBegin begin;
     private long barrier;
+    private BlockPos broken;
     private int remaining = STAGE_TICKS;
 
     private MinecraftSeamlessValidationGameTest(GameTestHelper helper, WormholesModRuntime runtime) {
@@ -92,7 +99,7 @@ public final class MinecraftSeamlessValidationGameTest {
             open(index == 0);
         }
         fixture.stand(source, BEFORE);
-        fixture.forget();
+        fixture.forgetResolved();
         begin = null;
         phase = attempt.expect == Expect.NO_PREPARATION ? Phase.OBSERVE : Phase.PREPARE;
         remaining = attempt.expect == Expect.NO_PREPARATION ? COOLDOWN_TICKS : STAGE_TICKS;
@@ -149,7 +156,15 @@ public final class MinecraftSeamlessValidationGameTest {
             case CROSS -> {
                 arrange();
                 fixture.forget();
-                fixture.send(crossing());
+                if (attempt.expect == Expect.ACCEPT_SAME_LEVEL) {
+                    Vec3 arrival = arrival();
+                    broken = BlockPos.containing(arrival.x, arrival.y - 1.0D, arrival.z);
+                    fixture.sendFromNetwork(crossing(), List.of(
+                        new ServerboundPlayerActionPacket(ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, broken, Direction.UP, 1),
+                        new ServerboundMovePlayerPacket.Pos(arrival, true, false)));
+                } else {
+                    fixture.send(crossing());
+                }
                 phase = Phase.RESULT;
                 remaining = STAGE_TICKS;
                 return true;
@@ -170,6 +185,7 @@ public final class MinecraftSeamlessValidationGameTest {
         switch (attempt.label) {
             case "outside_aperture" -> fixture.shift(5.0D, 0.0D);
             case "no_access" -> source.setOutgoingTraversalsEnabled(false);
+            case "same_level_accept" -> fixture.player().setGameMode(GameType.CREATIVE);
             case "no_cost" -> {
                 denying = new DenyingCost(fixture.player().getUUID());
                 costs = runtime.costs().register(new MinecraftTravelCosts.Registration(denying, "seamless-cost-test", "Wormholes test", 0, () -> true));
@@ -188,6 +204,21 @@ public final class MinecraftSeamlessValidationGameTest {
         return new TravelMessage.TravelCross(begin.token(), begin.generation(), barrier,
             new TravelMessage.TravelPose(feet.x, feet.y, claimed, player.getYRot(), player.getXRot()), new Vec3d(feet.x, feet.y + eye, feet.z),
             new Vec3d(feet.x, feet.y + eye, claimed));
+    }
+
+    private Vec3 arrival() {
+        ServerPlayer player = fixture.player();
+        Vec3 feet = player.position();
+        Vec3d previous = new Vec3d(feet.x, feet.y + player.getEyeHeight(), feet.z);
+        Vec3d origin = source.getOrigin();
+        Vec3d normal = source.getFrame().getNormal().toVector();
+        boolean front = (previous.x() - origin.x()) * normal.x() + (previous.y() - origin.y()) * normal.y()
+            + (previous.z() - origin.z()) * normal.z() > 0.0D;
+        Vec3d claimed = new Vec3d(feet.x, feet.y, origin.z() + AFTER);
+        Vec3d look = Angles.direction(player.getYRot(), player.getXRot());
+        Vec3d out = new PlaneCrossing(source.getFrame().view(front), origin, claimed, new Vec3d(0, 0, 0), look, front)
+            .outPoint(destination.getFrame(), destination.getOrigin());
+        return new Vec3(out.x(), out.y(), out.z());
     }
 
     private boolean rejected() throws Exception {
@@ -218,6 +249,12 @@ public final class MinecraftSeamlessValidationGameTest {
         helper.assertTrue(player.position().distanceTo(new Vec3(accept.pose().x(), accept.pose().y(), accept.pose().z())) < 1.0E-3D,
             attempt.label + " server pose " + player.position() + " differs from the accepted pose " + accept.pose());
         helper.assertTrue(!runtime.seamlessMoving(player), attempt.label + " left the player marked as moving");
+        if (broken != null) {
+            helper.assertTrue(destinationLevel.getBlockState(broken).isAir(), attempt.label
+                + " handled the block break sent after the crossing before the crossing itself");
+            player.setGameMode(GameType.SURVIVAL);
+            broken = null;
+        }
         pass();
         return true;
     }

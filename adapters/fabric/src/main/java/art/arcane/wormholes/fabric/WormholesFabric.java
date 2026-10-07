@@ -41,8 +41,7 @@ public final class WormholesFabric implements ModInitializer {
         PayloadTypeRegistry.serverboundPlay().register(ClientViewPayload.TYPE, ClientViewPayload.CODEC);
         ServerConfigurationNetworking.registerGlobalReceiver(ClientViewPayload.TYPE, (payload, context) ->
             runtime.clientViews().receive(context.packetListener(), payload.data()));
-        ServerPlayNetworking.registerGlobalReceiver(ClientViewPayload.TYPE, (payload, context) ->
-            runtime.clientViews().receive(context.player().connection, payload.data()));
+        ServerPlayNetworking.registerGlobalReceiver(ClientViewPayload.TYPE, (payload, context) -> { });
         ServerConfigurationConnectionEvents.CONFIGURE.register((handler, server) -> configureClientView(handler));
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> clientViewJoined(handler));
         ClientboundPlayChannelEvents.REGISTER.register((handler, sender, server, channels) -> clientViewChannels(handler, channels));

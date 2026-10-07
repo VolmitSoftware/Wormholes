@@ -301,11 +301,6 @@ final class MinecraftPreparedTravel {
         UUID playerId = player.getUUID();
         RemoteRoutes routes = runtime.remoteRoutes();
         travel.drainAcks(ack -> routes.ack(playerId, ack));
-        Optional<TravelMessage.TravelCross> crossing = travel.server().takeCross();
-        if (crossing.isPresent()) {
-            crossSeamless(travel, player, crossing.get());
-            return;
-        }
         List<RemoteRoutes.Candidate> candidates = seamlessCandidates(travel, player);
         routes.update(player, travel, candidates, runtime.server().getTickCount());
         RemoteRoutes.Candidate nearest = null;

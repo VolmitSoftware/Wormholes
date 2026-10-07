@@ -178,13 +178,6 @@ public final class MinecraftClientViewService implements AutoCloseable {
         return null;
     }
 
-    public void settleCrossing(ServerPlayer player) {
-        ClientViewTravel<MinecraftClientViewPeer> travel = travel(player.getUUID());
-        if (travel != null && travel.seamlessSelected()) {
-            prepared.settleCross(travel, player);
-        }
-    }
-
     public boolean seamlessCrossing(ServerPlayer player) {
         ClientViewTravel<MinecraftClientViewPeer> travel = travel(player.getUUID());
         return travel != null && travel.seamlessSelected() && travel.server().crossing() && prepared.seamlessPreparation(player.getUUID());
@@ -441,6 +434,16 @@ public final class MinecraftClientViewService implements AutoCloseable {
             return ViewStreamInbound.IGNORED;
         }
         return receive(access.wormholesConnection(), payload);
+    }
+
+    public ViewStreamInbound receivePlay(ServerPlayer player, byte[] payload) {
+        runtime.requireServerThread();
+        ViewStreamInbound outcome = receive(player.connection, payload);
+        ClientViewTravel<MinecraftClientViewPeer> travel = travel(player.getUUID());
+        if (travel != null && travel.seamlessSelected()) {
+            prepared.settleCross(travel, player);
+        }
+        return outcome;
     }
 
     public void disconnected(ServerPlayer player) {

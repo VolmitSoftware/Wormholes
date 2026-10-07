@@ -18,9 +18,15 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.ProtocolInfo;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket;
+import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
+import net.minecraft.network.protocol.PacketType;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraft.network.protocol.game.GamePacketTypes;
+import net.minecraft.network.protocol.game.ServerGamePacketListener;
+import net.minecraft.network.protocol.game.ServerboundClientTickEndPacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
 import net.minecraft.network.protocol.game.ServerboundAcceptTeleportationPacket;
+import net.minecraft.server.RunningOnDifferentThreadException;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.Blocks;
@@ -32,6 +38,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 final class SeamlessGameFixture implements AutoCloseable {
     static final long CLIENT_CAPS = ViewStreamCapability.of(ViewStreamCapability.MESH_RENDER, ViewStreamCapability.PREPARED_TRAVEL,
@@ -142,8 +149,14 @@ final class SeamlessGameFixture implements AutoCloseable {
     }
 
     void send(TravelMessage message) throws ViewStreamProtocolException {
-        runtime.clientViews().receive(player().connection,
-            MinecraftClientViewExtensions.CODEC.encodeC2S(new ViewStreamMessage.Extension(message.id(), message)));
+        payload(message).handle(player().connection);
+    }
+
+    void sendFromNetwork(TravelMessage message, List<Packet<? super ServerGamePacketListener>> following) throws ViewStreamProtocolException {
+        List<Packet<? super ServerGamePacketListener>> burst = new ArrayList<>(following.size() + 1);
+        burst.add(payload(message));
+        burst.addAll(following);
+        runtime.server().packetProcessor().scheduleIfPossible(player().connection, new NetworkBurst(burst));
     }
 
     List<TravelMessage> travel() {
@@ -198,6 +211,18 @@ final class SeamlessGameFixture implements AutoCloseable {
         routed.clear();
     }
 
+    void forgetResolved() {
+        int resolved = -1;
+        for (int index = 0; index < travel.size(); index++) {
+            if (travel.get(index) instanceof TravelMessage.TravelCancel || travel.get(index) instanceof TravelMessage.TravelAccept) {
+                resolved = index;
+            }
+        }
+        travel.subList(0, resolved + 1).clear();
+        vanilla.clear();
+        routed.clear();
+    }
+
     @Override
     public void close() {
         for (MinecraftPortal portal : portals) {
@@ -240,6 +265,11 @@ final class SeamlessGameFixture implements AutoCloseable {
         level.setBlockAndUpdate(position, state);
     }
 
+    private static ServerboundCustomPayloadPacket payload(TravelMessage message) throws ViewStreamProtocolException {
+        return new ServerboundCustomPayloadPacket(new ClientViewPayload(MinecraftClientViewExtensions.CODEC.encodeC2S(
+            new ViewStreamMessage.Extension(message.id(), message))));
+    }
+
     private static ViewStreamMessage frame(Object packet, long caps) {
         if (!(packet instanceof ClientboundCustomPayloadPacket custom) || !(custom.payload() instanceof ClientViewPayload payload)) {
             return null;
@@ -252,5 +282,49 @@ final class SeamlessGameFixture implements AutoCloseable {
     }
 
     record Routed(int handle, Packet<? super ClientGamePacketListener> packet) {
+    }
+
+    private record NetworkBurst(List<Packet<? super ServerGamePacketListener>> packets) implements Packet<ServerGamePacketListener> {
+        @Override
+        public PacketType<ServerboundClientTickEndPacket> type() {
+            return GamePacketTypes.SERVERBOUND_CLIENT_TICK_END;
+        }
+
+        @Override
+        public void handle(ServerGamePacketListener listener) {
+            AtomicReference<Throwable> failure = new AtomicReference<>();
+            Thread network = new Thread(() -> deliver(listener, failure), "seamless-test-network");
+            network.start();
+            try {
+                network.join();
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("Interrupted while delivering seamless test packets", interrupted);
+            }
+            if (failure.get() != null) {
+                throw new IllegalStateException("Seamless test network delivery failed", failure.get());
+            }
+        }
+
+        private void deliver(ServerGamePacketListener listener, AtomicReference<Throwable> failure) {
+            try {
+                for (Packet<? super ServerGamePacketListener> packet : packets) {
+                    handleQueued(packet, listener);
+                }
+            } catch (Throwable error) {
+                failure.set(error);
+            }
+        }
+
+        private static void handleQueued(Packet<? super ServerGamePacketListener> packet, ServerGamePacketListener listener) {
+            try {
+                packet.handle(listener);
+            } catch (RunningOnDifferentThreadException scheduled) {
+                return;
+            }
+            if (!(packet instanceof ServerboundCustomPayloadPacket)) {
+                throw new IllegalStateException(packet.type() + " was handled off the server thread instead of being queued");
+            }
+        }
     }
 }
