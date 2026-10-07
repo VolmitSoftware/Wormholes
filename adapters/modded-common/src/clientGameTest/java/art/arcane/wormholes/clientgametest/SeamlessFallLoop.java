@@ -56,10 +56,10 @@ final class SeamlessFallLoop {
         SeamlessScenario.assertSeamlessNegotiated(client);
         Loop loop = server.buildFallLoop();
         List<UUID> fallers = loop.fallers();
-        client.waitFor(SeamlessScenario::ready, ARM_TIMEOUT_TICKS);
+        ServerPacketDelivery.waitFor(client, SeamlessScenario::ready, ARM_TIMEOUT_TICKS, label + ": the fall loop portals did not arm");
         client.waitForChunksDownload();
-        client.waitTicks(SETTLE_TICKS);
-        client.waitFor(minecraft -> visible(minecraft, fallers), ARM_TIMEOUT_TICKS);
+        ServerPacketDelivery.ticks(client, SETTLE_TICKS);
+        ServerPacketDelivery.waitFor(client, minecraft -> visible(minecraft, fallers), ARM_TIMEOUT_TICKS, label + ": the fall loop entities were not visible");
         client.runOnClient(minecraft -> TravelTap.reset());
         List<Sample> player = new ArrayList<>(LOOP_TICKS);
         List<List<Observation>> observed = new ArrayList<>(fallers.size());
@@ -67,7 +67,7 @@ final class SeamlessFallLoop {
             observed.add(new ArrayList<>(LOOP_TICKS));
         }
         for (int tick = 0; tick < LOOP_TICKS; tick++) {
-            client.waitTicks(1);
+            ServerPacketDelivery.tick(client);
             player.add(client.computeOnClient(minecraft -> new Sample(minecraft.player.position(), minecraft.player.getDeltaMovement().y)));
             for (int index = 0; index < fallers.size(); index++) {
                 UUID id = fallers.get(index);
