@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.wormholes.network.client.TravelMessage;
 
 public interface ClientTravelWorld {
-    ClientViewMessage.TravelWorld wormholes$travelWorld();
+    TravelMessage.TravelWorld wormholes$travelWorld();
 }

@@ -13,7 +13,6 @@ import art.arcane.wormholes.network.MinecraftGatewayPolicies;
 import art.arcane.optics.plate.ChunkLease;
 import art.arcane.wormholes.chunk.presend.ChunkPreSendTicket;
 import art.arcane.wormholes.config.toml.TransitConfig;
-import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.portal.Portal;
 import art.arcane.wormholes.portal.PortalConstruction;
 import art.arcane.optics.crossing.PlaneCrossing;
@@ -65,6 +64,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
+import art.arcane.wormholes.network.client.TravelMessage;
 
 public final class MinecraftPortalRegistry implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
@@ -579,7 +579,7 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
             UUID.nameUUIDFromBytes(destination.getWorldKey().getBytes(StandardCharsets.UTF_8)),
             target.getBlockX() >> 4, target.getBlockZ() >> 4);
         boolean predicted = entity instanceof ServerPlayer player && runtime.clientViews().crossing(player.getUUID());
-        ClientViewMessage.TravelBegin attempted = predicted ? runtime.clientViews().preparation(entity.getUUID()).orElse(null) : null;
+        TravelMessage.TravelBegin attempted = predicted ? runtime.clientViews().preparation(entity.getUUID()).orElse(null) : null;
         Departure departure = new Departure(lease, entity.level(), entity.position(), System.currentTimeMillis() + 30_000L);
         pending.put(entity.getUUID(), departure);
         lease.ready().whenCompleteAsync((ready, failure) -> {
@@ -694,8 +694,8 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
             MinecraftTraversalCues.threshold(runtime, source, crossing.point(), entity);
             for (Entity member : rig) {
                 if (member instanceof ServerPlayer player) {
-                    ClientViewMessage.TravelCommit commit = runtime.clientViews().commitTravel(player, source.getId(), targetLevel,
-                        new ClientViewMessage.TravelPose(target.x(), target.y(), target.z(), look.yaw(), look.pitch()), velocity);
+                    TravelMessage.TravelCommit commit = runtime.clientViews().commitTravel(player, source.getId(), targetLevel,
+                        new TravelMessage.TravelPose(target.x(), target.y(), target.z(), look.yaw(), look.pitch()), velocity);
                     if (commit != null) {
                         preparedCommits.add(new PreparedCommit(player, commit));
                     } else if (predicted) {
@@ -776,7 +776,7 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
         return false;
     }
 
-    private record PreparedCommit(ServerPlayer player, ClientViewMessage.TravelCommit message) {
+    private record PreparedCommit(ServerPlayer player, TravelMessage.TravelCommit message) {
     }
 
     private void refund(List<MinecraftTravelCosts.Admission> payments) {

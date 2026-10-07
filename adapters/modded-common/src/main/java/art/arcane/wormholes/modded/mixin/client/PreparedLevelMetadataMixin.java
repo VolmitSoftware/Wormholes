@@ -1,6 +1,5 @@
 package art.arcane.wormholes.modded.mixin.client;
 
-import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.modded.client.ClientTravelWorld;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientPacketListener;
@@ -14,23 +13,24 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import art.arcane.wormholes.network.client.TravelMessage;
 
 @Mixin(ClientLevel.class)
 public abstract class PreparedLevelMetadataMixin implements ClientTravelWorld {
     @Unique
-    private ClientViewMessage.TravelWorld wormholes$travelWorld;
+    private TravelMessage.TravelWorld wormholes$travelWorld;
 
     @Inject(method = "<init>", at = @At("RETURN"))
     private void wormholesCaptureWorld(ClientPacketListener connection, ClientLevel.ClientLevelData data, ResourceKey<Level> dimension,
                                        Holder<DimensionType> type, int viewDistance, int simulationDistance, LevelExtractor extractor,
                                        boolean debug, long seed, int seaLevel, CallbackInfo callback) {
-        wormholes$travelWorld = new ClientViewMessage.TravelWorld(dimension.identifier().toString(),
+        wormholes$travelWorld = new TravelMessage.TravelWorld(dimension.identifier().toString(),
             type.unwrapKey().orElseThrow().identifier().toString(), seed, debug,
             ((PreparedLevelDataAccess) data).wormholes$flat(), seaLevel, type.value().minY(), type.value().height());
     }
 
     @Override
-    public ClientViewMessage.TravelWorld wormholes$travelWorld() {
+    public TravelMessage.TravelWorld wormholes$travelWorld() {
         return wormholes$travelWorld;
     }
 }

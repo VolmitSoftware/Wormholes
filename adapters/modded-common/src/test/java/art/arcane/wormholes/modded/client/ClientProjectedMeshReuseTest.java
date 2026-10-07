@@ -6,7 +6,7 @@ import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.wormholes.modded.client.render.PortalScene;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.ProjectionEnvironment;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.BlockBox;
@@ -48,6 +48,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.ArgumentMatchers.any;
+import art.arcane.wormholes.network.client.TravelMessage;
 
 public class ClientProjectedMeshReuseTest extends MinecraftTestBase {
     private static final BlockBox BOUNDS = new BlockBox(-32, -32, -32, 96, 96, 96);
@@ -229,9 +230,9 @@ public class ClientProjectedMeshReuseTest extends MinecraftTestBase {
             ClientMeshSections.View view = fixture.store.view(7);
             PortalScene.MeshIdentity projected = fixture.world(view, 0L).meshIdentity();
             Class<?> travelType = Class.forName("art.arcane.wormholes.modded.client.render.ClientTravelScene$MeshIdentity");
-            Constructor<?> travelConstructor = travelType.getDeclaredConstructor(ClientViewMessage.TravelWorld.class, byte[][].class);
+            Constructor<?> travelConstructor = travelType.getDeclaredConstructor(TravelMessage.TravelWorld.class, byte[][].class);
             travelConstructor.setAccessible(true);
-            PortalScene.MeshIdentity travel = (PortalScene.MeshIdentity) travelConstructor.newInstance(new ClientViewMessage.TravelWorld(
+            PortalScene.MeshIdentity travel = (PortalScene.MeshIdentity) travelConstructor.newInstance(new TravelMessage.TravelWorld(
                 "minecraft:overworld", "minecraft:overworld", 7, false, false, 63, -64, 384), new byte[][]{new byte[]{1}});
             Object portal = fixture.portal(7, view);
             when(fixture.scene.revision(anyLong())).thenReturn(1L);
@@ -292,7 +293,7 @@ public class ClientProjectedMeshReuseTest extends MinecraftTestBase {
             when(biomes.getOptional(Identifier.parse("minecraft:plains"))).thenReturn(Optional.of(biome));
             when(registry.lookupOrThrow(Registries.BIOME)).thenReturn(biomes);
             ClientPalette palette = new ClientPalette(BuiltInRegistries.BLOCK);
-            palette.apply(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(3, "minecraft:stone"))));
+            palette.apply(new ViewStreamMessage.Palette(List.of(new ViewStreamMessage.PaletteEntry(3, "minecraft:stone"))));
             store = new ClientMeshSections(palette, 1024 * 1024);
             store.epoch(1);
             store.begin(7, 1, BOUNDS, 27);
@@ -301,7 +302,7 @@ public class ClientProjectedMeshReuseTest extends MinecraftTestBase {
         }
 
         private void put(int x, int y, int z, int revision, int state) throws Exception {
-            store.put(new ClientViewMessage.MeshSection(7, 1, x, y, z, revision, state, Brick.single(0, state),
+            store.put(new ViewStreamMessage.MeshSection(7, 1, x, y, z, revision, state, Brick.single(0, state),
                 new SectionBiomes(List.of("minecraft:plains"), new byte[0])));
         }
 

@@ -9,19 +9,18 @@ import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.BrickCodec;
 import art.arcane.optics.stream.ViewStreamCapability;
-import art.arcane.wormholes.network.client.ClientViewCodec;
-import art.arcane.wormholes.network.client.ClientViewHandshake;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamHandshake;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamMessageType;
 import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.stream.ViewStreamInbound;
-import art.arcane.wormholes.render.client.session.ClientViewOptions;
-import art.arcane.wormholes.render.client.session.ClientViewPlatform;
-import art.arcane.wormholes.render.client.session.ClientViewServerSession;
-import art.arcane.wormholes.render.client.session.ClientViewSessionRegistry;
+import art.arcane.optics.stream.ViewStreamOptions;
+import art.arcane.optics.stream.ViewStreamPlatform;
+import art.arcane.optics.stream.ViewStreamSession;
+import art.arcane.optics.stream.ViewStreamSessionRegistry;
 import art.arcane.optics.stream.ViewStreamSessionState;
 import io.netty.channel.embedded.EmbeddedChannel;
 import net.minecraft.SharedConstants;
@@ -45,6 +44,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import art.arcane.wormholes.network.client.ClientViewExtensions;
+import art.arcane.wormholes.render.client.session.ClientViewTravel;
 
 public final class MinecraftClientViewGameTest {
     private static final Logger LOGGER = LoggerFactory.getLogger("WormholesGameTest");
@@ -54,7 +55,7 @@ public final class MinecraftClientViewGameTest {
 
     private final GameTestHelper helper;
     private final WormholesModRuntime runtime;
-    private final ClientViewSessionRegistry<MinecraftClientViewPeer, BlockState> registry;
+    private final ViewStreamSessionRegistry<MinecraftClientViewPeer, BlockState> registry;
     private final MinecraftClientViewNegotiator negotiator;
     private final MinecraftClientViewPortalAccess portals;
     private final List<EmbeddedChannel> channels = new ArrayList<>();
@@ -67,10 +68,10 @@ public final class MinecraftClientViewGameTest {
         this.helper = helper;
         this.runtime = runtime;
         this.portals = new MinecraftClientViewPortalAccess(runtime);
-        ClientViewPlatform<MinecraftClientViewPeer, BlockState> platform = new ClientViewPlatform<>(new MinecraftClientViewTransport(), portals,
+        ViewStreamPlatform<MinecraftClientViewPeer, BlockState> platform = new ViewStreamPlatform<>(new MinecraftClientViewTransport(), portals,
             null, null, null, Runnable::run, BlockStateParser::serialize, dataVersion(), MinecraftClientViewService.PLATFORM_CAPS,
-            System::nanoTime, (message, failure) -> LOGGER.warn(message, failure));
-        this.registry = new ClientViewSessionRegistry<>(platform, new ClientViewOptions(true, true, GRACE_MILLIS, 512 * 1024, 0, false,
+            System::nanoTime, (message, failure) -> LOGGER.warn(message, failure), ClientViewExtensions.ALL, ClientViewTravel::new);
+        this.registry = new ViewStreamSessionRegistry<>(platform, new ViewStreamOptions(true, true, GRACE_MILLIS, 512 * 1024, 0, false,
             false, false, false, false, true, true, true, 5));
         this.negotiator = new MinecraftClientViewNegotiator(registry);
     }
@@ -105,13 +106,13 @@ public final class MinecraftClientViewGameTest {
         helper.assertTrue(task != null, "Enabled ClientView added no configuration task");
         task.start(packet -> {
         });
-        ClientViewMessage.Offer offer = (ClientViewMessage.Offer) single(accepted, ViewStreamMessageType.OFFER);
+        ViewStreamMessage.Offer offer = (ViewStreamMessage.Offer) single(accepted, ViewStreamMessageType.OFFER);
         helper.assertTrue(ViewStreamCapability.CONFIG_PHASE.in(offer.serverCaps()), "Configuration OFFER lacks CONFIG_PHASE");
         helper.assertTrue(offer.mcDataVersion() == dataVersion(), "OFFER carried data version " + offer.mcDataVersion());
         helper.assertTrue(!task.tick(), "Modded-brand task finished before the HELLO grace");
         helper.assertTrue(negotiator.receive(accepted, hello(offer, dataVersion(), STREAM_CAPS)) == ViewStreamInbound.HELLO_ACCEPTED,
             "HELLO was not accepted");
-        ClientViewMessage.Accept accept = (ClientViewMessage.Accept) single(accepted, ViewStreamMessageType.ACCEPT);
+        ViewStreamMessage.Accept accept = (ViewStreamMessage.Accept) single(accepted, ViewStreamMessageType.ACCEPT);
         helper.assertTrue(accept.caps() == (STREAM_CAPS & MinecraftClientViewService.PLATFORM_CAPS), "ACCEPT caps were " + accept.caps());
         helper.assertTrue(task.tick(), "Configuration task stayed open after ACCEPT");
         helper.assertTrue(negotiator.session(acceptedId).state() == ViewStreamSessionState.CLIENT_VIEW, "Session did not reach CLIENT_VIEW");
@@ -131,11 +132,11 @@ public final class MinecraftClientViewGameTest {
         ConfigurationTask mismatchedTask = negotiator.configurationTask(mismatchedId, "cv-mismatch", mismatched, () -> true);
         mismatchedTask.start(packet -> {
         });
-        ClientViewMessage.Offer mismatchedOffer = (ClientViewMessage.Offer) single(mismatched, ViewStreamMessageType.OFFER);
+        ViewStreamMessage.Offer mismatchedOffer = (ViewStreamMessage.Offer) single(mismatched, ViewStreamMessageType.OFFER);
         helper.assertTrue(negotiator.receive(mismatched, hello(mismatchedOffer, dataVersion() + 1, STREAM_CAPS)) == ViewStreamInbound.HELLO_DECLINED,
             "Mismatched data version was not declined");
-        ClientViewMessage.Decline decline = (ClientViewMessage.Decline) single(mismatched, ViewStreamMessageType.DECLINE);
-        helper.assertTrue(decline.reason() == ClientViewMessage.DeclineReason.DATA_VERSION_MISMATCH, "DECLINE reason was " + decline.reason());
+        ViewStreamMessage.Decline decline = (ViewStreamMessage.Decline) single(mismatched, ViewStreamMessageType.DECLINE);
+        helper.assertTrue(decline.reason() == ViewStreamMessage.DeclineReason.DATA_VERSION_MISMATCH, "DECLINE reason was " + decline.reason());
         helper.assertTrue(mismatchedTask.tick(), "Declined task stayed open");
 
         Connection absent = mockConnection();
@@ -147,7 +148,7 @@ public final class MinecraftClientViewGameTest {
         Connection play = mockConnection();
         UUID playId = UUID.randomUUID();
         helper.assertTrue(negotiator.offerPlay(playId, "cv-play", play), "Play-phase fallback did not offer");
-        ClientViewMessage.Offer playOffer = (ClientViewMessage.Offer) single(play, ViewStreamMessageType.OFFER);
+        ViewStreamMessage.Offer playOffer = (ViewStreamMessage.Offer) single(play, ViewStreamMessageType.OFFER);
         helper.assertTrue(!ViewStreamCapability.CONFIG_PHASE.in(playOffer.serverCaps()), "Play-phase OFFER claimed CONFIG_PHASE");
         helper.assertTrue(negotiator.session(playId).holdsVanilla(), "Play-phase session did not hold the vanilla projector");
         helper.assertTrue(!negotiator.offerPlay(playId, "cv-play", play), "Play-phase fallback offered twice");
@@ -171,11 +172,11 @@ public final class MinecraftClientViewGameTest {
         Connection connection = mockConnection();
         UUID id = player.player().getUUID();
         helper.assertTrue(negotiator.offerPlay(id, "cv-stream", connection), "Stream fixture did not offer");
-        ClientViewMessage.Offer offer = (ClientViewMessage.Offer) single(connection, ViewStreamMessageType.OFFER);
+        ViewStreamMessage.Offer offer = (ViewStreamMessage.Offer) single(connection, ViewStreamMessageType.OFFER);
         helper.assertTrue(negotiator.receive(connection, hello(offer, dataVersion(), STREAM_CAPS)) == ViewStreamInbound.HELLO_ACCEPTED,
             "Stream HELLO was not accepted");
         single(connection, ViewStreamMessageType.ACCEPT);
-        ClientViewServerSession<MinecraftClientViewPeer, BlockState> session = negotiator.session(id);
+        ViewStreamSession<MinecraftClientViewPeer, BlockState> session = negotiator.session(id);
         session.player().attach(player.player(), new MinecraftProjectorPortalAccess(runtime));
         Stream stream = new Stream(session, connection, source, marker);
         helper.runAfterDelay(1, stream::step);
@@ -220,20 +221,20 @@ public final class MinecraftClientViewGameTest {
         return connection;
     }
 
-    private ClientViewMessage single(Connection connection, ViewStreamMessageType type) throws ViewStreamProtocolException {
-        List<ClientViewMessage> frames = frames(connection);
-        helper.assertTrue(frames.size() == 1 && frames.get(0).type() == type, "Expected one " + type + " frame but read " + types(frames));
+    private ViewStreamMessage single(Connection connection, ViewStreamMessageType type) throws ViewStreamProtocolException {
+        List<ViewStreamMessage> frames = frames(connection);
+        helper.assertTrue(frames.size() == 1 && frames.get(0).id() == type.id(), "Expected one " + type + " frame but read " + types(frames));
         return frames.get(0);
     }
 
-    private List<ClientViewMessage> frames(Connection connection) throws ViewStreamProtocolException {
+    private List<ViewStreamMessage> frames(Connection connection) throws ViewStreamProtocolException {
         EmbeddedChannel channel = channel(connection);
         channel.runPendingTasks();
-        List<ClientViewMessage> frames = new ArrayList<>();
+        List<ViewStreamMessage> frames = new ArrayList<>();
         Object message;
         while ((message = channel.readOutbound()) != null) {
             if (message instanceof ClientboundCustomPayloadPacket packet && packet.payload() instanceof ClientViewPayload payload) {
-                frames.add(ClientViewCodec.decodeS2C(payload.data(), STREAM_CAPS & MinecraftClientViewService.PLATFORM_CAPS).message());
+                frames.add(ClientViewExtensions.CODEC.decodeS2C(payload.data(), STREAM_CAPS & MinecraftClientViewService.PLATFORM_CAPS).message());
             }
         }
         return frames;
@@ -277,33 +278,33 @@ public final class MinecraftClientViewGameTest {
         }
     }
 
-    private static byte[] hello(ClientViewMessage.Offer offer, int dataVersion, long caps) throws ViewStreamProtocolException {
-        return ClientViewCodec.encodeC2S(ClientViewHandshake.clientHello(offer, dataVersion, caps, 512 * 1024, 256, 0L, "fabric"));
+    private static byte[] hello(ViewStreamMessage.Offer offer, int dataVersion, long caps) throws ViewStreamProtocolException {
+        return ClientViewExtensions.CODEC.encodeC2S(ViewStreamHandshake.clientHello(offer, dataVersion, caps, 512 * 1024, 256, 0L, "fabric"));
     }
 
     private static int dataVersion() {
         return SharedConstants.getCurrentVersion().dataVersion().version();
     }
 
-    private static List<ViewStreamMessageType> types(List<ClientViewMessage> frames) {
+    private static List<ViewStreamMessageType> types(List<ViewStreamMessage> frames) {
         List<ViewStreamMessageType> types = new ArrayList<>(frames.size());
-        for (ClientViewMessage frame : frames) {
-            types.add(frame.type());
+        for (ViewStreamMessage frame : frames) {
+            types.add(frame instanceof ViewStreamMessage.Projection projection ? projection.type() : null);
         }
         return types;
     }
 
     private final class Stream {
-        private final ClientViewServerSession<MinecraftClientViewPeer, BlockState> session;
+        private final ViewStreamSession<MinecraftClientViewPeer, BlockState> session;
         private final Connection connection;
         private final MinecraftPortal source;
         private final String marker;
-        private final List<ClientViewMessage> received = new ArrayList<>();
+        private final List<ViewStreamMessage> received = new ArrayList<>();
         private final Map<Integer, String> palette = new HashMap<>();
         private long tick;
         private int remaining = STREAM_TICKS;
 
-        private Stream(ClientViewServerSession<MinecraftClientViewPeer, BlockState> session, Connection connection, MinecraftPortal source,
+        private Stream(ViewStreamSession<MinecraftClientViewPeer, BlockState> session, Connection connection, MinecraftPortal source,
                        BlockState marker) {
             this.session = session;
             this.connection = connection;
@@ -315,10 +316,10 @@ public final class MinecraftClientViewGameTest {
             try {
                 portals.frame(runtime.portals().snapshot());
                 session.tick(++tick);
-                for (ClientViewMessage message : frames(connection)) {
+                for (ViewStreamMessage message : frames(connection)) {
                     received.add(message);
-                    if (message instanceof ClientViewMessage.Palette entries) {
-                        for (ClientViewMessage.PaletteEntry entry : entries.entries()) {
+                    if (message instanceof ViewStreamMessage.Palette entries) {
+                        for (ViewStreamMessage.PaletteEntry entry : entries.entries()) {
                             palette.put(entry.id(), entry.state());
                         }
                     }
@@ -344,13 +345,13 @@ public final class MinecraftClientViewGameTest {
             int firstPalette = index(ViewStreamMessageType.PALETTE);
             helper.assertTrue(firstPalette >= 0 && firstPalette < portal, "PALETTE did not precede PORTAL: " + summary());
             helper.assertTrue(portal < begin && begin < bricks && bricks < end, "Plate frames arrived out of order: " + summary());
-            ClientViewMessage.Portal announced = (ClientViewMessage.Portal) received.get(portal);
+            ViewStreamMessage.Portal announced = (ViewStreamMessage.Portal) received.get(portal);
             Vec3d origin = source.getOrigin();
             helper.assertTrue(announced.geometry().valid(), "PORTAL geometry is invalid");
             helper.assertTrue(Math.abs(announced.geometry().originZ() - Math.floor(origin.z())) < 1.0D, "PORTAL origin is not the local aperture");
             helper.assertTrue(announced.geometry().blackoutPolicy() == ApertureDescriptor.BLACKOUT_SHELL, "Plate stream did not announce its configured blackout shell");
             helper.assertTrue(palette.containsKey(announced.geometry().blackoutState()), "Blackout state was not in the palette before PORTAL");
-            ClientViewMessage.PlateBricks plate = (ClientViewMessage.PlateBricks) received.get(bricks);
+            ViewStreamMessage.PlateBricks plate = (ViewStreamMessage.PlateBricks) received.get(bricks);
             boolean sawMarker = false;
             for (Brick brick : plate.bricks()) {
                 int[] cells = BrickCodec.unpack(brick);
@@ -365,7 +366,7 @@ public final class MinecraftClientViewGameTest {
 
         private int index(ViewStreamMessageType type) {
             for (int i = 0; i < received.size(); i++) {
-                if (received.get(i).type() == type) {
+                if (received.get(i).id() == type.id()) {
                     return i;
                 }
             }

@@ -10,7 +10,6 @@ import art.arcane.wormholes.modded.mixin.client.PreparedLevelAccess;
 import art.arcane.wormholes.modded.mixin.client.PreparedLevelDataAccess;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientTravelWindow;
-import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.Face;
 import io.netty.buffer.Unpooled;
@@ -68,16 +67,17 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.mockConstruction;
 import static org.mockito.Mockito.withSettings;
+import art.arcane.wormholes.network.client.TravelMessage;
 
 public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
     @Test
     public void shiftedReturnKeepsNativeCacheHaloButOnlyTrustsNewManifestProof() throws ReflectiveOperationException {
-        ClientViewMessage.TravelBegin original = begin();
-        ClientViewMessage.TravelCoordinate kept = original.chunks().getFirst();
-        ClientViewMessage.TravelCoordinate added = new ClientViewMessage.TravelCoordinate(1, 0);
-        ClientViewMessage.TravelBegin shifted = new ClientViewMessage.TravelBegin(original.token(), original.generation() + 1,
+        TravelMessage.TravelBegin original = begin();
+        TravelMessage.TravelCoordinate kept = original.chunks().getFirst();
+        TravelMessage.TravelCoordinate added = new TravelMessage.TravelCoordinate(1, 0);
+        TravelMessage.TravelBegin shifted = new TravelMessage.TravelBegin(original.token(), original.generation() + 1,
             original.sourcePortal(), original.sourceWorld(), original.sourceGeometry(), original.destinationToSource(), original.world(),
-            new ClientViewMessage.TravelPose(16, original.arrival().y(), 0, 0, 0), List.of(kept, added), original.environment(), original.expiresMillis());
+            new TravelMessage.TravelPose(16, original.arrival().y(), 0, 0, 0), List.of(kept, added), original.environment(), original.expiresMillis());
         ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
         ClientPacketListener connection = mock(ClientPacketListener.class);
         when(connection.registryAccess()).thenReturn(RegistryAccess.EMPTY);
@@ -115,7 +115,7 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
              MockedStatic<ClientPortalRenderer> renderer = mockStatic(ClientPortalRenderer.class)) {
             access.when(Minecraft::getInstance).thenReturn(minecraft);
             renderer.when(ClientPortalRenderer::instance).thenReturn(mock(ClientPortalRenderer.class));
-            Object pending = invoke(travel, "preparation", new Class<?>[]{ClientViewMessage.TravelBegin.class}, shifted);
+            Object pending = invoke(travel, "preparation", new Class<?>[]{TravelMessage.TravelBegin.class}, shifted);
             assertSame(level, field(pending, "level"));
             assertNull(field(pending, "scene"));
             assertSame(bytes, map(pending, "payloads").get(kept));
@@ -135,7 +135,7 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
     @SuppressWarnings("unchecked")
     public void declinedRapidReturnKeepsActualWorldForAuthoritativeRespawnAndValidatedResends() throws ReflectiveOperationException {
         ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
-        ClientViewMessage.TravelBegin begin = begin();
+        TravelMessage.TravelBegin begin = begin();
         ClientLevel retained = mock(ClientLevel.class, withSettings().extraInterfaces(PreparedLevelAccess.class));
         when(retained.registryAccess()).thenReturn(RegistryAccess.EMPTY);
         when(retained.dimension()).thenReturn(Level.OVERWORLD);
@@ -233,7 +233,7 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
     @Test
     public void nextPreparationReusesActualWorldAfterRapidReturnProofWasDeclined() throws ReflectiveOperationException {
         ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
-        ClientViewMessage.TravelBegin begin = begin();
+        TravelMessage.TravelBegin begin = begin();
         ClientLevel retained = mock(ClientLevel.class, withSettings().extraInterfaces(PreparedLevelAccess.class));
         when(retained.registryAccess()).thenReturn(RegistryAccess.EMPTY);
         when(retained.entitiesForRendering()).thenReturn(List.of());
@@ -263,7 +263,7 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
             renderer.when(ClientPortalRenderer::instance).thenReturn(mock(ClientPortalRenderer.class));
             invoke(travel, "declinePreparation", new Class<?>[0]);
             assertNull(field(travel, "sourcePreparation"));
-            Object pending = invoke(travel, "preparation", new Class<?>[]{ClientViewMessage.TravelBegin.class}, begin);
+            Object pending = invoke(travel, "preparation", new Class<?>[]{TravelMessage.TravelBegin.class}, begin);
             assertSame(retained, field(pending, "level"));
             assertSame(installed, map(pending, "payloads").get(begin.chunks().getFirst()));
             assertEquals(Integer.valueOf(0), map(pending, "decoded").get(begin.chunks().getFirst()));
@@ -271,11 +271,11 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
             assertEquals(0L, travel.readyRevision());
             terrain.verify(() -> ClientSodiumTerrain.forget(retained), never());
             when(connection.registryAccess()).thenReturn(mock(RegistryAccess.Frozen.class));
-            Object changedRegistry = invoke(travel, "preparation", new Class<?>[]{ClientViewMessage.TravelBegin.class}, begin);
+            Object changedRegistry = invoke(travel, "preparation", new Class<?>[]{TravelMessage.TravelBegin.class}, begin);
             assertNull(field(changedRegistry, "level"));
             when(connection.registryAccess()).thenReturn(RegistryAccess.EMPTY);
             minecraft.level = retained;
-            Object active = invoke(travel, "preparation", new Class<?>[]{ClientViewMessage.TravelBegin.class}, begin);
+            Object active = invoke(travel, "preparation", new Class<?>[]{TravelMessage.TravelBegin.class}, begin);
             assertNull(field(active, "level"));
         }
     }
@@ -285,10 +285,10 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
     public void retainedManagedApertureRequiresExactWorldAuthorityAndRevokesOnDrop() throws ReflectiveOperationException {
         for (int kind : List.of(ApertureDescriptor.KIND_FRAME, ApertureDescriptor.KIND_VANILLA_REPLACEMENT)) {
             ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
-            ClientViewMessage.TravelBegin original = begin();
+            TravelMessage.TravelBegin original = begin();
             ApertureDescriptor aperture = new ApertureDescriptor(0, 0, 0, Face.N.ordinal(), true, 0, false, 2, 3,
                 new long[]{1}, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, kind, 0.0D, 0, 11, List.of());
-            ClientViewMessage.TravelBegin begin = new ClientViewMessage.TravelBegin(original.token(), original.generation(),
+            TravelMessage.TravelBegin begin = new TravelMessage.TravelBegin(original.token(), original.generation(),
                 original.sourcePortal(), original.sourceWorld(), aperture, original.destinationToSource(), original.world(),
                 original.arrival(), original.chunks(), original.environment(), original.expiresMillis());
             ClientLevel level = mock(ClientLevel.class);
@@ -327,7 +327,7 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
                 assertFalse(travel.managesVanillaPortal(level, open));
                 Class<?> type = Class.forName(ClientPreparedTravel.class.getName() + "$RetainedWorld");
                 Constructor<?> row = type.getDeclaredConstructor(ClientLevel.class, ClientPacketListener.class, Object.class,
-                    ClientViewMessage.TravelWorld.class, long.class, Map.class, ApertureDescriptor.class);
+                    TravelMessage.TravelWorld.class, long.class, Map.class, ApertureDescriptor.class);
                 row.setAccessible(true);
                 Map<Object, Object> retained = (Map<Object, Object>) field(travel, "retainedWorlds");
                 retained.put(level, row.newInstance(level, connection, RegistryAccess.EMPTY, begin.world(), 1L, Map.of(), aperture));
@@ -340,7 +340,7 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
     public void resourceAndDisconnectResetDisposeActualWorldsAfterProofCancellation() throws ReflectiveOperationException {
         for (boolean resources : List.of(false, true)) {
             ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
-            ClientViewMessage.TravelBegin begin = begin();
+            TravelMessage.TravelBegin begin = begin();
             ClientLevel retained = mock(ClientLevel.class);
             when(retained.registryAccess()).thenReturn(RegistryAccess.EMPTY);
             ClientPacketListener connection = mock(ClientPacketListener.class);
@@ -376,9 +376,9 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
     @Test
     public void nativePendingAndReadyPreparationsSkipSnapshotsAndCoverResumesThem() throws ReflectiveOperationException {
         ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
-        ClientViewMessage.TravelBegin begin = begin();
+        TravelMessage.TravelBegin begin = begin();
         Class<?> type = Class.forName(ClientPreparedTravel.class.getName() + "$PendingPreparation");
-        Constructor<?> constructor = type.getDeclaredConstructor(ClientViewMessage.TravelBegin.class);
+        Constructor<?> constructor = type.getDeclaredConstructor(TravelMessage.TravelBegin.class);
         constructor.setAccessible(true);
         Object pending = constructor.newInstance(begin);
         ClientLevel level = mock(ClientLevel.class);
@@ -410,7 +410,7 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
     @Test
     public void retainedSourceReconcilesProofWithoutSnapshotsWhileDestinationUsesNativeTerrain() throws ReflectiveOperationException {
         ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
-        ClientViewMessage.TravelBegin begin = begin();
+        TravelMessage.TravelBegin begin = begin();
         Object source = source(begin);
         ClientTravelScene scene = mock(ClientTravelScene.class);
         ClientLevel destination = mock(ClientLevel.class);
@@ -435,8 +435,8 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
     @Test
     public void inactiveSourceDeltaInvalidatesNativeTerrainAndCoverPacketProof() throws ReflectiveOperationException {
         ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
-        ClientViewMessage.TravelBegin begin = begin();
-        ClientViewMessage.TravelCoordinate coordinate = begin.chunks().getFirst();
+        TravelMessage.TravelBegin begin = begin();
+        TravelMessage.TravelCoordinate coordinate = begin.chunks().getFirst();
         Object source = source(begin);
         ClientLevel level = mock(ClientLevel.class);
         when(level.dimension()).thenReturn(Level.OVERWORLD);
@@ -465,7 +465,7 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
 
     @Test
     public void adoptedNativeBytesSurviveArrivalCompletionAndDeltasDisableSuppression() throws ReflectiveOperationException {
-        ClientViewMessage.TravelBegin begin = begin();
+        TravelMessage.TravelBegin begin = begin();
         ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
         ClientLevel level = mock(ClientLevel.class, withSettings().extraInterfaces(PreparedLevelAccess.class));
         when(((PreparedLevelAccess) level).wormholes$lightUpdates()).thenReturn(new ArrayDeque<>());
@@ -509,9 +509,9 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
 
     @Test
     public void sourceCaptureTracksDistinctColumnsAboveBitSixtyFour() throws ReflectiveOperationException {
-        ClientViewMessage.TravelBegin original = begin();
-        List<ClientViewMessage.TravelCoordinate> coordinates = ClientTravelWindow.coordinates(0, 0, 5);
-        ClientViewMessage.TravelBegin expanded = new ClientViewMessage.TravelBegin(original.token(), original.generation(), original.sourcePortal(),
+        TravelMessage.TravelBegin original = begin();
+        List<TravelMessage.TravelCoordinate> coordinates = ClientTravelWindow.coordinates(0, 0, 5);
+        TravelMessage.TravelBegin expanded = new TravelMessage.TravelBegin(original.token(), original.generation(), original.sourcePortal(),
             original.sourceWorld(), original.sourceGeometry(), original.destinationToSource(), original.world(), original.arrival(),
             coordinates, original.environment(), original.expiresMillis());
         Object source = source(expanded);
@@ -520,7 +520,7 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
         constructor.setAccessible(true);
         for (int index = 0; index < coordinates.size(); index++) {
             assertEquals(index, invoke(source, "nextCapture", new Class<?>[0]));
-            ClientViewMessage.TravelCoordinate coordinate = coordinates.get(index);
+            TravelMessage.TravelCoordinate coordinate = coordinates.get(index);
             invoke(source, "capture", new Class<?>[]{int.class, columnType}, index,
                 constructor.newInstance(coordinate.x(), coordinate.z(), 0, new byte[]{1}));
         }
@@ -528,15 +528,15 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
         assertEquals(coordinates.size(), map(source, "payloads").size());
     }
 
-    private static ClientViewMessage.TravelBegin begin() throws ReflectiveOperationException {
+    private static TravelMessage.TravelBegin begin() throws ReflectiveOperationException {
         Method method = ClientPreparedTravelPendingTest.class.getDeclaredMethod("begin", long.class);
         method.setAccessible(true);
-        return (ClientViewMessage.TravelBegin) method.invoke(null, 11L);
+        return (TravelMessage.TravelBegin) method.invoke(null, 11L);
     }
 
-    private static Object source(ClientViewMessage.TravelBegin begin) throws ReflectiveOperationException {
+    private static Object source(TravelMessage.TravelBegin begin) throws ReflectiveOperationException {
         Class<?> type = Class.forName(ClientPreparedTravel.class.getName() + "$SourcePreparation");
-        Constructor<?> constructor = type.getDeclaredConstructor(ClientViewMessage.TravelBegin.class);
+        Constructor<?> constructor = type.getDeclaredConstructor(TravelMessage.TravelBegin.class);
         constructor.setAccessible(true);
         return constructor.newInstance(begin);
     }
@@ -561,7 +561,7 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
     }
 
     @SuppressWarnings("unchecked")
-    private static Map<ClientViewMessage.TravelCoordinate, Object> map(Object target, String name) throws ReflectiveOperationException {
-        return (Map<ClientViewMessage.TravelCoordinate, Object>) field(target, name);
+    private static Map<TravelMessage.TravelCoordinate, Object> map(Object target, String name) throws ReflectiveOperationException {
+        return (Map<TravelMessage.TravelCoordinate, Object>) field(target, name);
     }
 }

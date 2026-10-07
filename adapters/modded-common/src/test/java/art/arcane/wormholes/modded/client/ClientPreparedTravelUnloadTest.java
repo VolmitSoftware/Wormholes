@@ -2,7 +2,6 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
-import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.frame.OpticTransform;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientChunkCache;
@@ -32,6 +31,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
+import art.arcane.wormholes.network.client.TravelMessage;
 
 public class ClientPreparedTravelUnloadTest extends MinecraftTestBase {
     @Test
@@ -47,7 +47,7 @@ public class ClientPreparedTravelUnloadTest extends MinecraftTestBase {
         when(cache.getChunk(anyInt(), anyInt(), eq(ChunkStatus.FULL), eq(false)))
             .thenAnswer(ignored -> resident.get() ? chunk : null);
         ClientPreparedTravel travel = adopted(source, destination);
-        ClientViewMessage.TravelBegin begin = begin();
+        TravelMessage.TravelBegin begin = begin();
         set(travel, "begin", begin);
         ClientboundForgetLevelChunkPacket forget = new ClientboundForgetLevelChunkPacket(new ChunkPos(0, 0));
         try (MockedStatic<Minecraft> access = mockStatic(Minecraft.class)) {
@@ -102,26 +102,26 @@ public class ClientPreparedTravelUnloadTest extends MinecraftTestBase {
         set(travel, "prediction", prediction);
         set(travel, "staged", destination);
         set(travel, "adopted", true);
-        set(travel, "commit", mock(ClientViewMessage.TravelCommit.class));
+        set(travel, "commit", mock(TravelMessage.TravelCommit.class));
         return travel;
     }
 
-    private static ClientViewMessage.TravelBegin begin() {
-        List<ClientViewMessage.TravelCoordinate> coordinates = new ArrayList<>(49);
+    private static TravelMessage.TravelBegin begin() {
+        List<TravelMessage.TravelCoordinate> coordinates = new ArrayList<>(49);
         for (int z = -3; z <= 3; z++) {
             for (int x = -3; x <= 3; x++) {
-                coordinates.add(new ClientViewMessage.TravelCoordinate(x, z));
+                coordinates.add(new TravelMessage.TravelCoordinate(x, z));
             }
         }
-        return new ClientViewMessage.TravelBegin(new UUID(4, 17), 8, new UUID(2, 9), "minecraft:the_nether",
+        return new TravelMessage.TravelBegin(new UUID(4, 17), 8, new UUID(2, 9), "minecraft:the_nether",
             ClientTravelTestFixtures.geometry(), OpticTransform.IDENTITY,
-            new ClientViewMessage.TravelWorld("minecraft:overworld", "minecraft:overworld", 7, false, false, 63, -64, 384),
-            new ClientViewMessage.TravelPose(0, 80, 0, 0, 0), coordinates,
+            new TravelMessage.TravelWorld("minecraft:overworld", "minecraft:overworld", 7, false, false, 63, -64, 384),
+            new TravelMessage.TravelPose(0, 80, 0, 0, 0), coordinates,
             PortalEnvironmentTest.environment(OpticTransform.IDENTITY), 30_000);
     }
 
-    private static boolean covers(ClientPreparedTravel travel, ClientViewMessage.TravelPose pose) throws ReflectiveOperationException {
-        Method method = ClientPreparedTravel.class.getDeclaredMethod("covers", ClientViewMessage.TravelPose.class);
+    private static boolean covers(ClientPreparedTravel travel, TravelMessage.TravelPose pose) throws ReflectiveOperationException {
+        Method method = ClientPreparedTravel.class.getDeclaredMethod("covers", TravelMessage.TravelPose.class);
         method.setAccessible(true);
         return (boolean) method.invoke(travel, pose);
     }

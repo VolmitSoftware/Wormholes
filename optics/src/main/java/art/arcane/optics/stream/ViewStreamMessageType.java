@@ -13,7 +13,6 @@ public enum ViewStreamMessageType {
     PLATE_PATCH(10, Direction.S2C),
     PLATE_HANDLE(11, Direction.S2C),
     ENTITY_FRAME(12, Direction.S2C),
-    FX(13, Direction.S2C),
     ATMOSPHERE(14, Direction.S2C),
     SESSION_RESET(15, Direction.S2C),
     MESH_BEGIN(16, Direction.S2C),
@@ -30,15 +29,6 @@ public enum ViewStreamMessageType {
     MESH_LOCAL(38, Direction.C2S),
     MESH_CACHED(39, Direction.C2S),
     MESH_REUSE(40, Direction.S2C),
-    TRAVEL_BEGIN(41, Direction.S2C),
-    TRAVEL_CHUNK(42, Direction.S2C),
-    TRAVEL_END(43, Direction.S2C),
-    TRAVEL_READY(44, Direction.C2S),
-    TRAVEL_COMMIT(45, Direction.S2C),
-    TRAVEL_CANCEL(46, Direction.BOTH),
-    TRAVEL_CROSS(47, Direction.C2S),
-    TRAVEL_REUSE(48, Direction.S2C),
-    TRAVEL_CACHED(49, Direction.C2S),
     ENTITY_SELF(50, Direction.S2C);
 
     private static final ViewStreamMessageType[] BY_ID = index();

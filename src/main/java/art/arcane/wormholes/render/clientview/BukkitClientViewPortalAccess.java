@@ -22,19 +22,19 @@ import art.arcane.wormholes.ProjectionManager;
 import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.stream.BrickLightSource;
 import art.arcane.optics.stream.SectionBiomes;
-import art.arcane.wormholes.network.client.SessionPalette;
+import art.arcane.optics.stream.SessionPalette;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.render.ClientViewPortalSource;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.recursion.ClientRecursionPlanner;
-import art.arcane.wormholes.render.client.session.ClientViewPortalAccess;
+import art.arcane.optics.stream.ViewStreamEndpoints;
 import art.arcane.optics.plate.ViewPlate;
 import art.arcane.optics.plate.ViewPlateCache;
 import art.arcane.wormholes.render.view.ProjectionWorldViewProvider;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.frame.OpticTransform;
 
-public final class BukkitClientViewPortalAccess implements ClientViewPortalAccess<ClientViewObserver, BlockData> {
+public final class BukkitClientViewPortalAccess implements ViewStreamEndpoints<ClientViewObserver, BlockData> {
     private final ProjectionWorldViewProvider views;
     private final ViewPlateCache<BlockData, World> plates;
     private final Function<UUID, ILocalPortal> lookup;

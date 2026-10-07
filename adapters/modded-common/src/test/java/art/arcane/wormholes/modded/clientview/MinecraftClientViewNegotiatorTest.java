@@ -3,19 +3,18 @@ package art.arcane.wormholes.modded.clientview;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.optics.stream.BrickLightSource;
 import art.arcane.optics.stream.ViewStreamCapability;
-import art.arcane.wormholes.network.client.ClientViewCodec;
-import art.arcane.wormholes.network.client.ClientViewHandshake;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamHandshake;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.stream.ViewStreamTransport;
-import art.arcane.wormholes.network.client.SessionPalette;
+import art.arcane.optics.stream.SessionPalette;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.stream.ViewStreamInbound;
-import art.arcane.wormholes.render.client.session.ClientViewOptions;
-import art.arcane.wormholes.render.client.session.ClientViewPlatform;
-import art.arcane.wormholes.render.client.session.ClientViewPortalAccess;
-import art.arcane.wormholes.render.client.session.ClientViewServerSession;
-import art.arcane.wormholes.render.client.session.ClientViewSessionRegistry;
+import art.arcane.optics.stream.ViewStreamOptions;
+import art.arcane.optics.stream.ViewStreamPlatform;
+import art.arcane.optics.stream.ViewStreamEndpoints;
+import art.arcane.optics.stream.ViewStreamSession;
+import art.arcane.optics.stream.ViewStreamSessionRegistry;
 import art.arcane.optics.stream.ViewStreamSessionState;
 import art.arcane.optics.plate.ViewPlate;
 import io.netty.channel.embedded.EmbeddedChannel;
@@ -38,6 +37,8 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
+import art.arcane.wormholes.network.client.ClientViewExtensions;
+import art.arcane.wormholes.render.client.session.ClientViewTravel;
 
 public class MinecraftClientViewNegotiatorTest extends MinecraftTestBase {
     private static final int DATA_VERSION = 4711;
@@ -46,7 +47,7 @@ public class MinecraftClientViewNegotiatorTest extends MinecraftTestBase {
     private final AtomicLong clock = new AtomicLong(1_000_000_000_000L);
     private final UUID id = UUID.nameUUIDFromBytes("negotiator".getBytes());
     private Recording transport;
-    private ClientViewSessionRegistry<MinecraftClientViewPeer, BlockState> registry;
+    private ViewStreamSessionRegistry<MinecraftClientViewPeer, BlockState> registry;
     private MinecraftClientViewNegotiator negotiator;
 
     @Before
@@ -63,7 +64,7 @@ public class MinecraftClientViewNegotiatorTest extends MinecraftTestBase {
         task.start(packet -> {
             throw new AssertionError("the task writes through the ClientView transport");
         });
-        ClientViewMessage.Offer offer = (ClientViewMessage.Offer) transport.message(0);
+        ViewStreamMessage.Offer offer = (ViewStreamMessage.Offer) transport.message(0);
         assertEquals(DATA_VERSION, offer.mcDataVersion());
         assertEquals(0L, offer.zeroCopyNonce());
         assertTrue(ViewStreamCapability.CONFIG_PHASE.in(offer.serverCaps()));
@@ -74,11 +75,11 @@ public class MinecraftClientViewNegotiatorTest extends MinecraftTestBase {
         assertTrue(ViewStreamCapability.ATMOSPHERE.in(offer.serverCaps()));
         assertFalse(task.tick());
         assertEquals(ViewStreamInbound.HELLO_ACCEPTED, negotiator.receive(connection, hello(offer)));
-        ClientViewMessage.Accept accept = (ClientViewMessage.Accept) transport.message(1);
+        ViewStreamMessage.Accept accept = (ViewStreamMessage.Accept) transport.message(1);
         assertEquals(0L, accept.caps() & ~MinecraftClientViewService.PLATFORM_CAPS);
         assertFalse(ViewStreamCapability.ZERO_COPY.in(accept.caps()));
         assertTrue(task.tick());
-        ClientViewServerSession<MinecraftClientViewPeer, BlockState> session = negotiator.session(id);
+        ViewStreamSession<MinecraftClientViewPeer, BlockState> session = negotiator.session(id);
         assertEquals(ViewStreamSessionState.CLIENT_VIEW, session.state());
         assertSame(connection, session.player().connection());
         assertEquals("Alex", session.player().name());
@@ -103,10 +104,10 @@ public class MinecraftClientViewNegotiatorTest extends MinecraftTestBase {
         registry.runtimeEnabled(false);
         assertNull(negotiator.configurationTask(id, "Alex", connection, () -> true));
         assertFalse(negotiator.offerPlay(id, "Alex", connection));
-        open(new ClientViewOptions(true, false, 100, 512 * 1024, 8, true, true, true, true, false, true, true, true, 5));
+        open(new ViewStreamOptions(true, false, 100, 512 * 1024, 8, true, true, true, true, false, true, true, true, 5));
         assertNull(negotiator.configurationTask(id, "Alex", connection, () -> true));
         assertTrue(negotiator.offerPlay(id, "Alex", connection));
-        ClientViewMessage.Offer offer = (ClientViewMessage.Offer) transport.message(0);
+        ViewStreamMessage.Offer offer = (ViewStreamMessage.Offer) transport.message(0);
         assertFalse(ViewStreamCapability.CONFIG_PHASE.in(offer.serverCaps()));
     }
 
@@ -119,10 +120,10 @@ public class MinecraftClientViewNegotiatorTest extends MinecraftTestBase {
         assertFalse(task.tick());
         clock.addAndGet(GRACE_NANOS + 1_000_000L);
         assertTrue(task.tick());
-        ClientViewServerSession<MinecraftClientViewPeer, BlockState> session = negotiator.session(id);
+        ViewStreamSession<MinecraftClientViewPeer, BlockState> session = negotiator.session(id);
         assertEquals(ViewStreamSessionState.VANILLA, session.state());
         assertFalse(session.holdsVanilla());
-        ClientViewMessage.Offer offer = (ClientViewMessage.Offer) transport.message(0);
+        ViewStreamMessage.Offer offer = (ViewStreamMessage.Offer) transport.message(0);
         assertEquals(ViewStreamInbound.HELLO_ACCEPTED, negotiator.receive(connection, hello(offer)));
         assertEquals(ViewStreamSessionState.CLIENT_VIEW, session.state());
         assertEquals(1L, session.stats().lateSwitches());
@@ -162,9 +163,9 @@ public class MinecraftClientViewNegotiatorTest extends MinecraftTestBase {
 
         registry.runtimeEnabled(true);
         assertEquals(1, negotiator.reoffer());
-        ClientViewMessage.Offer offer = (ClientViewMessage.Offer) transport.message(transport.sent.size() - 1);
+        ViewStreamMessage.Offer offer = (ViewStreamMessage.Offer) transport.message(transport.sent.size() - 1);
         assertEquals(ViewStreamInbound.HELLO_ACCEPTED, negotiator.receive(connection, hello(offer)));
-        ClientViewServerSession<MinecraftClientViewPeer, BlockState> first = negotiator.session(id);
+        ViewStreamSession<MinecraftClientViewPeer, BlockState> first = negotiator.session(id);
         assertEquals(ViewStreamSessionState.CLIENT_VIEW, first.state());
         assertEquals(0, negotiator.reoffer());
 
@@ -172,7 +173,7 @@ public class MinecraftClientViewNegotiatorTest extends MinecraftTestBase {
         assertEquals(ViewStreamSessionState.VANILLA, first.state());
         registry.runtimeEnabled(true);
         assertEquals(1, negotiator.reoffer());
-        ClientViewMessage.Offer again = (ClientViewMessage.Offer) transport.message(transport.sent.size() - 1);
+        ViewStreamMessage.Offer again = (ViewStreamMessage.Offer) transport.message(transport.sent.size() - 1);
         assertEquals(ViewStreamInbound.HELLO_ACCEPTED, negotiator.receive(connection, hello(again)));
         assertEquals(ViewStreamSessionState.CLIENT_VIEW, negotiator.session(id).state());
         assertSame(connection, negotiator.session(id).player().connection());
@@ -197,21 +198,22 @@ public class MinecraftClientViewNegotiatorTest extends MinecraftTestBase {
         channel.finishAndReleaseAll();
     }
 
-    private byte[] hello(ClientViewMessage.Offer offer) throws ViewStreamProtocolException {
+    private byte[] hello(ViewStreamMessage.Offer offer) throws ViewStreamProtocolException {
         clock.addAndGet(60_000_000L);
-        return ClientViewCodec.encodeC2S(ClientViewHandshake.clientHello(offer, DATA_VERSION, ViewStreamCapability.ALL, 512 * 1024, 256, 0L, "fabric"));
+        return ClientViewExtensions.CODEC.encodeC2S(ViewStreamHandshake.clientHello(offer, DATA_VERSION, ViewStreamCapability.ALL, 512 * 1024, 256, 0L, "fabric"));
     }
 
-    private void open(ClientViewOptions options) {
+    private void open(ViewStreamOptions options) {
         transport = new Recording();
-        ClientViewPlatform<MinecraftClientViewPeer, BlockState> platform = new ClientViewPlatform<>(transport, new EmptyPortals(), null, null, null,
-            Runnable::run, BlockStateParser::serialize, DATA_VERSION, MinecraftClientViewService.PLATFORM_CAPS, clock::get, null);
-        registry = new ClientViewSessionRegistry<>(platform, options);
+        ViewStreamPlatform<MinecraftClientViewPeer, BlockState> platform = new ViewStreamPlatform<>(transport, new EmptyPortals(), null, null, null,
+            Runnable::run, BlockStateParser::serialize, DATA_VERSION, MinecraftClientViewService.PLATFORM_CAPS, clock::get, null,
+            ClientViewExtensions.ALL, ClientViewTravel::new);
+        registry = new ViewStreamSessionRegistry<>(platform, options);
         negotiator = new MinecraftClientViewNegotiator(registry);
     }
 
-    private static ClientViewOptions options(boolean enabled) {
-        return new ClientViewOptions(enabled, true, (int) (GRACE_NANOS / 1_000_000L), 512 * 1024, 8, true, true, true, true, false, true, true,
+    private static ViewStreamOptions options(boolean enabled) {
+        return new ViewStreamOptions(enabled, true, (int) (GRACE_NANOS / 1_000_000L), 512 * 1024, 8, true, true, true, true, false, true, true,
             true, 5);
     }
 
@@ -227,16 +229,16 @@ public class MinecraftClientViewNegotiatorTest extends MinecraftTestBase {
         public void flush(MinecraftClientViewPeer player) {
         }
 
-        private ClientViewMessage message(int index) {
+        private ViewStreamMessage message(int index) {
             try {
-                return ClientViewCodec.decodeS2C(sent.get(index), ViewStreamCapability.ALL).message();
+                return ClientViewExtensions.CODEC.decodeS2C(sent.get(index), ViewStreamCapability.ALL).message();
             } catch (ViewStreamProtocolException failure) {
                 throw new AssertionError(failure);
             }
         }
     }
 
-    private static final class EmptyPortals implements ClientViewPortalAccess<MinecraftClientViewPeer, BlockState> {
+    private static final class EmptyPortals implements ViewStreamEndpoints<MinecraftClientViewPeer, BlockState> {
         @Override
         public void interested(MinecraftClientViewPeer observer, List<UUID> out) {
         }

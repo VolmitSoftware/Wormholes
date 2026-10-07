@@ -4,8 +4,7 @@ import art.arcane.optics.stream.BrickLightSource;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.BrickCodec;
 import art.arcane.optics.stream.ViewStreamCapability;
-import art.arcane.wormholes.network.client.ClientViewCodec;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.stream.PlateSectionBox;
@@ -37,6 +36,7 @@ import java.util.UUID;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import art.arcane.wormholes.network.client.ClientViewExtensions;
 
 final class ClientViewHarness {
     static final long PLATE_CAPS = ViewStreamCapability.ALL & ~ViewStreamCapability.MESH_RENDER.mask();
@@ -64,7 +64,7 @@ final class ClientViewHarness {
     final ClientViewStats stats;
     final FakeSurface surface;
     final FakeScene scene;
-    final List<ClientViewMessage> sent;
+    final List<ViewStreamMessage> sent;
     int seq;
     int lastSeq;
 
@@ -76,7 +76,7 @@ final class ClientViewHarness {
         config = new WormholesClientConfig();
         config.normalize();
         session = new ClientViewSession(config, new ClientPalette(BuiltInRegistries.BLOCK), 1, "test");
-        session.accept(new ClientViewMessage.Accept(1, caps, 20, ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 7L, 8));
+        session.accept(new ViewStreamMessage.Accept(1, caps, 20, ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 7L, 8));
         receiver = new ClientViewReceiver(session);
         stats = new ClientViewStats();
         tick = new ClientViewTick(session, receiver, config, stats);
@@ -88,8 +88,8 @@ final class ClientViewHarness {
     }
 
     void stream() throws ViewStreamProtocolException {
-        receive(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(STONE_ID, "minecraft:stone"))), 0);
-        receive(new ClientViewMessage.Portal(PORTAL_KEY, 1, geometry()), 0);
+        receive(new ViewStreamMessage.Palette(List.of(new ViewStreamMessage.PaletteEntry(STONE_ID, "minecraft:stone"))), 0);
+        receive(new ViewStreamMessage.Portal(PORTAL_KEY, 1, geometry()), 0);
         Brick[] bricks = new Brick[SECTIONS.brickCount()];
         for (int index = 0; index < bricks.length; index++) {
             bricks[index] = plateBrick(index);
@@ -98,26 +98,26 @@ final class ClientViewHarness {
         for (int index = 0; index < hashes.length; index++) {
             hashes[index] = 0x5000L + index;
         }
-        receive(new ClientViewMessage.PlateBegin(PORTAL_KEY, 1, SECTIONS, PLATE, STONE_ID, bricks.length, hashes), 0);
-        receive(new ClientViewMessage.PlateBricks(PORTAL_KEY, 1, Arrays.asList(bricks)), 0);
-        receive(new ClientViewMessage.PlateEnd(PORTAL_KEY, 1), ViewStreamLimits.FLAG_LAST);
+        receive(new ViewStreamMessage.PlateBegin(PORTAL_KEY, 1, SECTIONS, PLATE, STONE_ID, bricks.length, hashes), 0);
+        receive(new ViewStreamMessage.PlateBricks(PORTAL_KEY, 1, Arrays.asList(bricks)), 0);
+        receive(new ViewStreamMessage.PlateEnd(PORTAL_KEY, 1), ViewStreamLimits.FLAG_LAST);
     }
 
-    void receive(ClientViewMessage message, int flags) throws ViewStreamProtocolException {
+    void receive(ViewStreamMessage message, int flags) throws ViewStreamProtocolException {
         lastSeq = ++seq;
         long previousFailures = receiver.decodeFailures();
-        receiver.receive(ClientViewCodec.encodeS2C(message, lastSeq, flags), null);
-        assertEquals("decode failed for " + message.type(), previousFailures, receiver.decodeFailures());
+        receiver.receive(ClientViewExtensions.CODEC.encodeS2C(message, lastSeq, flags), null);
+        assertEquals("decode failed for " + ClientViewExtensions.CODEC.name(message), previousFailures, receiver.decodeFailures());
     }
 
     void tick(double eyeX, double eyeY, double eyeZ) {
         tick.tick(eyeX, eyeY, eyeZ, 0.0D, 0.0D, 0.0D, System.currentTimeMillis());
     }
 
-    List<ClientViewMessage.Ack> acks() {
-        List<ClientViewMessage.Ack> acks = new ArrayList<>();
-        for (ClientViewMessage message : sent) {
-            if (message instanceof ClientViewMessage.Ack ack) {
+    List<ViewStreamMessage.Ack> acks() {
+        List<ViewStreamMessage.Ack> acks = new ArrayList<>();
+        for (ViewStreamMessage message : sent) {
+            if (message instanceof ViewStreamMessage.Ack ack) {
                 acks.add(ack);
             }
         }

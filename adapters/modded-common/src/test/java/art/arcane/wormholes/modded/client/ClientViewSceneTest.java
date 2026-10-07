@@ -3,7 +3,7 @@ package art.arcane.wormholes.modded.client;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.config.VisualQualityProfile;
 import art.arcane.optics.math.Vec3d;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.entity.EntityDeltaCodec;
@@ -22,6 +22,8 @@ import java.util.UUID;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import art.arcane.wormholes.network.client.FxMessage;
+import art.arcane.wormholes.network.client.FxExtension;
 
 public class ClientViewSceneTest extends MinecraftTestBase {
     @After
@@ -37,19 +39,19 @@ public class ClientViewSceneTest extends MinecraftTestBase {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
         UUID id = UUID.randomUUID();
-        ClientViewMessage.EntityEvent swing = new ClientViewMessage.EntityEvent(1, 1, id, false, 3, 0);
+        ViewStreamMessage.EntityEvent swing = new ViewStreamMessage.EntityEvent(1, 1, id, false, 3, 0);
         harness.receive(swing, 0);
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
         assertTrue(harness.scene.entityActions.isEmpty());
         EntitySnapshot visual = stand(id, 1.5D, 64, 3);
-        harness.receive(new ClientViewMessage.EntityFrame(1, 1, List.of(visual), List.of(id), true), 0);
-        harness.receive(new ClientViewMessage.EntityEvent(1, 2, id, true, 0, 179), 0);
+        harness.receive(new ViewStreamMessage.EntityFrame(1, 1, List.of(visual), List.of(id), true), 0);
+        harness.receive(new ViewStreamMessage.EntityEvent(1, 2, id, true, 0, 179), 0);
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
         assertEquals(2, harness.scene.entityActions.size());
         assertEquals(3, harness.scene.entityActions.getFirst().animation());
         assertTrue(harness.scene.entityActions.getLast().hurt());
         harness.receive(swing, 0);
-        harness.receive(new ClientViewMessage.EntityFrame(1, 2, List.of(visual), List.of(id), true), 0);
+        harness.receive(new ViewStreamMessage.EntityFrame(1, 2, List.of(visual), List.of(id), true), 0);
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
         assertEquals(2, harness.scene.entityActions.size());
     }
@@ -59,18 +61,18 @@ public class ClientViewSceneTest extends MinecraftTestBase {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
         UUID id = UUID.randomUUID();
-        harness.receive(new ClientViewMessage.EntityEvent(1, 1, id, false, 0, 0), 0);
+        harness.receive(new ViewStreamMessage.EntityEvent(1, 1, id, false, 0, 0), 0);
         for (int index = 0; index < 21; index++) {
             harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
         }
         EntitySnapshot visual = stand(id, 1.5D, 64, 3);
-        harness.receive(new ClientViewMessage.EntityFrame(1, 1, List.of(visual), List.of(id), true), 0);
+        harness.receive(new ViewStreamMessage.EntityFrame(1, 1, List.of(visual), List.of(id), true), 0);
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
         assertTrue(harness.scene.entityActions.isEmpty());
-        harness.receive(new ClientViewMessage.EntityEvent(1, 2, id, true, 0, 0), 0);
-        harness.receive(new ClientViewMessage.EntityFrame(1, 2, List.of(), List.of(), true), 0);
+        harness.receive(new ViewStreamMessage.EntityEvent(1, 2, id, true, 0, 0), 0);
+        harness.receive(new ViewStreamMessage.EntityFrame(1, 2, List.of(), List.of(), true), 0);
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
-        harness.receive(new ClientViewMessage.EntityFrame(1, 3, List.of(visual), List.of(id), true), 0);
+        harness.receive(new ViewStreamMessage.EntityFrame(1, 3, List.of(visual), List.of(id), true), 0);
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
         assertTrue(harness.scene.entityActions.isEmpty());
     }
@@ -155,8 +157,8 @@ public class ClientViewSceneTest extends MinecraftTestBase {
         int y = CellKeys.unpackY(cell);
         int z = CellKeys.unpackZ(cell);
         assertEquals(ClientViewHarness.DESTINATION_SKY_LIGHT, harness.surface.skyLight(x, y, z));
-        harness.receive(new ClientViewMessage.Atmosphere(ClientViewHarness.PORTAL_KEY, 0L, 0.0F, 0.0F,
-            ClientViewMessage.Atmosphere.withSkyDarken(0, 4)), ViewStreamLimits.FLAG_LAST);
+        harness.receive(new ViewStreamMessage.Atmosphere(ClientViewHarness.PORTAL_KEY, 0L, 0.0F, 0.0F,
+            ViewStreamMessage.Atmosphere.withSkyDarken(0, 4)), ViewStreamLimits.FLAG_LAST);
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, 11.0D);
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
         assertEquals(ClientViewHarness.DESTINATION_SKY_LIGHT - 4, harness.surface.skyLight(x, y, z));
@@ -182,7 +184,7 @@ public class ClientViewSceneTest extends MinecraftTestBase {
         UUID outside = UUID.randomUUID();
         EntitySnapshot stand = stand(inside, CellKeys.unpackX(cell) + 0.5D, CellKeys.unpackY(cell), CellKeys.unpackZ(cell) + 0.5D);
         EntitySnapshot far = stand(outside, 500.5D, 64.0D, 500.5D);
-        harness.receive(new ClientViewMessage.EntityFrame(ClientViewHarness.PORTAL_KEY, 1, List.of(stand, far), List.of(inside, outside), true),
+        harness.receive(new ViewStreamMessage.EntityFrame(ClientViewHarness.PORTAL_KEY, 1, List.of(stand, far), List.of(inside, outside), true),
             ViewStreamLimits.FLAG_LAST);
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
         ClientProjectedEntities entities = harness.tick.entities();
@@ -193,15 +195,15 @@ public class ClientViewSceneTest extends MinecraftTestBase {
         assertEquals(stand.x(), harness.scene.entities.get(entityId).x(), 1.0E-9D);
         EntitySnapshot moved = stand(inside, stand.x(), stand.y(), stand.z() - 0.25D);
         EntitySnapshot delta = EntityDeltaCodec.buildDelta(moved, stand, 2, EntityDeltaCodec.computeMask(moved, stand));
-        harness.receive(new ClientViewMessage.EntityFrame(ClientViewHarness.PORTAL_KEY, 2, List.of(delta), List.of(), false),
+        harness.receive(new ViewStreamMessage.EntityFrame(ClientViewHarness.PORTAL_KEY, 2, List.of(delta), List.of(), false),
             ViewStreamLimits.FLAG_LAST);
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
         assertEquals(1, harness.scene.moves);
         assertEquals(moved.z(), harness.scene.entities.get(entityId).z(), 1.0E-3D);
-        harness.receive(new ClientViewMessage.EntityFrame(ClientViewHarness.PORTAL_KEY, 3, List.of(), List.of(inside), true), ViewStreamLimits.FLAG_LAST);
+        harness.receive(new ViewStreamMessage.EntityFrame(ClientViewHarness.PORTAL_KEY, 3, List.of(), List.of(inside), true), ViewStreamLimits.FLAG_LAST);
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
         assertEquals(1, entities.tracked());
-        harness.receive(new ClientViewMessage.PortalDrop(ClientViewHarness.PORTAL_KEY), ViewStreamLimits.FLAG_LAST);
+        harness.receive(new ViewStreamMessage.PortalDrop(ClientViewHarness.PORTAL_KEY), ViewStreamLimits.FLAG_LAST);
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
         assertEquals(0, entities.tracked());
         assertTrue(harness.scene.entities.isEmpty());
@@ -213,7 +215,7 @@ public class ClientViewSceneTest extends MinecraftTestBase {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
         UUID id = UUID.randomUUID();
-        harness.receive(new ClientViewMessage.EntityFrame(99, 1, List.of(stand(id, 1.5D, 64.0D, 5.5D)), List.of(id), true), ViewStreamLimits.FLAG_LAST);
+        harness.receive(new ViewStreamMessage.EntityFrame(99, 1, List.of(stand(id, 1.5D, 64.0D, 5.5D)), List.of(id), true), ViewStreamLimits.FLAG_LAST);
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
         assertEquals(0, harness.tick.entities().tracked());
         assertEquals(1L, harness.session.ignoredSceneMessages());
@@ -223,13 +225,13 @@ public class ClientViewSceneTest extends MinecraftTestBase {
     public void emittersFireOnTheirCadenceAndOneShotsFireOnce() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
-        ClientViewMessage.FxEmitter rim = new ClientViewMessage.FxEmitter(ClientViewMessage.FxKind.RIM_DUST, "", 0.0D, 64.0D, 10.0D, 0x00FF00, 1.0F,
+        FxMessage.FxEmitter rim = new FxMessage.FxEmitter(FxMessage.FxKind.RIM_DUST, "", 0.0D, 64.0D, 10.0D, 0x00FF00, 1.0F,
             5, 1);
-        ClientViewMessage.FxEmitter sparks = new ClientViewMessage.FxEmitter(ClientViewMessage.FxKind.SURFACE, ClientViewEmitters.SPARK_PARTICLE,
+        FxMessage.FxEmitter sparks = new FxMessage.FxEmitter(FxMessage.FxKind.SURFACE, ClientViewEmitters.SPARK_PARTICLE,
             0.0D, 64.0D, 10.0D, 0.3F, 0.0F, 1, ClientViewEmitters.SURFACE_OPEN_FLAG | (1 << ClientViewEmitters.SURFACE_INTERVAL_SHIFT));
-        ClientViewMessage.FxEmitter chime = new ClientViewMessage.FxEmitter(ClientViewMessage.FxKind.SOUND, "minecraft:block.note_block.chime",
+        FxMessage.FxEmitter chime = new FxMessage.FxEmitter(FxMessage.FxKind.SOUND, "minecraft:block.note_block.chime",
             1.0D, 65.0D, 10.0D, 1.0F, 1.0F, 0, 0);
-        harness.receive(new ClientViewMessage.Fx(ClientViewHarness.PORTAL_KEY, List.of(rim, sparks, chime)), ViewStreamLimits.FLAG_LAST);
+        harness.receive(FxExtension.INSTANCE.wrap(new FxMessage.Fx(ClientViewHarness.PORTAL_KEY, List.of(rim, sparks, chime))), ViewStreamLimits.FLAG_LAST);
         for (int i = 0; i < 10; i++) {
             harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
         }
@@ -239,14 +241,14 @@ public class ClientViewSceneTest extends MinecraftTestBase {
         assertEquals(10L, mycelium);
         assertEquals(1L, harness.scene.events.stream().filter(entry -> entry.startsWith("sound ")).count());
         assertEquals("one-shots never join the continuous set", 2, harness.tick.fx().emitters());
-        harness.receive(new ClientViewMessage.Fx(ClientViewHarness.PORTAL_KEY, List.of(rim, sparks)), ViewStreamLimits.FLAG_LAST);
+        harness.receive(FxExtension.INSTANCE.wrap(new FxMessage.Fx(ClientViewHarness.PORTAL_KEY, List.of(rim, sparks))), ViewStreamLimits.FLAG_LAST);
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
         assertEquals(1L, harness.scene.events.stream().filter(entry -> entry.startsWith("sound ")).count());
-        harness.receive(new ClientViewMessage.Fx(ClientViewHarness.PORTAL_KEY, List.of(rim, sparks, chime)), ViewStreamLimits.FLAG_LAST);
+        harness.receive(FxExtension.INSTANCE.wrap(new FxMessage.Fx(ClientViewHarness.PORTAL_KEY, List.of(rim, sparks, chime))), ViewStreamLimits.FLAG_LAST);
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
         assertEquals("every arriving one-shot fires", 2L, harness.scene.events.stream().filter(entry -> entry.startsWith("sound ")).count());
         assertEquals(2, harness.tick.fx().emitters());
-        harness.receive(new ClientViewMessage.Fx(ClientViewHarness.PORTAL_KEY, List.of()), ViewStreamLimits.FLAG_LAST);
+        harness.receive(FxExtension.INSTANCE.wrap(new FxMessage.Fx(ClientViewHarness.PORTAL_KEY, List.of())), ViewStreamLimits.FLAG_LAST);
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
         assertEquals(0, harness.tick.fx().emitters());
     }
@@ -255,21 +257,21 @@ public class ClientViewSceneTest extends MinecraftTestBase {
     public void suspendedParticlesKeepEmitterCadenceAndSoundsWithoutAccumulatingAnimations() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
-        ClientViewMessage.FxEmitter rim = new ClientViewMessage.FxEmitter(ClientViewMessage.FxKind.RIM_DUST, "", 0.0D, 64.0D, 10.0D,
+        FxMessage.FxEmitter rim = new FxMessage.FxEmitter(FxMessage.FxKind.RIM_DUST, "", 0.0D, 64.0D, 10.0D,
             0x00FF00, 1.0F, 5, 1);
-        ClientViewMessage.FxEmitter open = ClientViewEmitters.animation(PortalAnimation.Mode.OPEN, new Vec3d(1.5D, 65.0D, 10.5D),
+        FxMessage.FxEmitter open = ClientViewEmitters.animation(PortalAnimation.Mode.OPEN, new Vec3d(1.5D, 65.0D, 10.5D),
             new Vec3d(3.0D, 4.0D, 0.0D), VisualQualityProfile.BALANCED);
-        ClientViewMessage.FxEmitter chime = ClientViewEmitters.sound(new AcousticsBridge.Playback("minecraft:block.stone.break",
+        FxMessage.FxEmitter chime = ClientViewEmitters.sound(new AcousticsBridge.Playback("minecraft:block.stone.break",
             AcousticsProfile.SoundClass.WORLD, 1.5D, 65.0D, 10.5D, 1.0F, 0.8F), 0);
-        harness.receive(new ClientViewMessage.Fx(ClientViewHarness.PORTAL_KEY, List.of(rim)), ViewStreamLimits.FLAG_LAST);
-        harness.receive(new ClientViewMessage.Fx(ViewStreamLimits.WORLD_FX_KEY, List.of(open)), ViewStreamLimits.FLAG_LAST);
+        harness.receive(FxExtension.INSTANCE.wrap(new FxMessage.Fx(ClientViewHarness.PORTAL_KEY, List.of(rim))), ViewStreamLimits.FLAG_LAST);
+        harness.receive(FxExtension.INSTANCE.wrap(new FxMessage.Fx(FxMessage.WORLD_FX_KEY, List.of(open))), ViewStreamLimits.FLAG_LAST);
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
         assertEquals(1, harness.tick.fx().animations());
         harness.tick.effectsActive(false);
         assertEquals(0, harness.tick.fx().animations());
         int particles = harness.scene.particles.size();
         for (int index = 0; index < 201; index++) {
-            harness.receive(new ClientViewMessage.Fx(ViewStreamLimits.WORLD_FX_KEY, List.of(open, chime)), ViewStreamLimits.FLAG_LAST);
+            harness.receive(FxExtension.INSTANCE.wrap(new FxMessage.Fx(FxMessage.WORLD_FX_KEY, List.of(open, chime))), ViewStreamLimits.FLAG_LAST);
             harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
         }
         assertEquals(particles, harness.scene.particles.size());
@@ -291,15 +293,15 @@ public class ClientViewSceneTest extends MinecraftTestBase {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
         harness.tick.effectsActive(false);
-        ClientViewMessage.FxEmitter rim = new ClientViewMessage.FxEmitter(ClientViewMessage.FxKind.RIM_DUST, "", 0.0D, 64.0D, 10.0D,
+        FxMessage.FxEmitter rim = new FxMessage.FxEmitter(FxMessage.FxKind.RIM_DUST, "", 0.0D, 64.0D, 10.0D,
             0x00FF00, 1.0F, 1, 1);
-        ClientViewMessage.FxEmitter burst = ClientViewEmitters.burst("minecraft:reverse_portal", 1.5D, 65.0D, 10.5D, 12, 0.4D, 0.6D, 0.4D);
-        ClientViewMessage.FxEmitter sound = ClientViewEmitters.sound(new AcousticsBridge.Playback("minecraft:block.stone.break",
+        FxMessage.FxEmitter burst = ClientViewEmitters.burst("minecraft:reverse_portal", 1.5D, 65.0D, 10.5D, 12, 0.4D, 0.6D, 0.4D);
+        FxMessage.FxEmitter sound = ClientViewEmitters.sound(new AcousticsBridge.Playback("minecraft:block.stone.break",
             AcousticsProfile.SoundClass.WORLD, 1.5D, 65.0D, 10.5D, 1.0F, 0.8F), 0);
-        harness.receive(new ClientViewMessage.Fx(ViewStreamLimits.WORLD_FX_KEY, List.of(sound)), ViewStreamLimits.FLAG_LAST);
-        harness.receive(new ClientViewMessage.Fx(ClientViewHarness.PORTAL_KEY, List.of(rim, burst)), ViewStreamLimits.FLAG_LAST);
+        harness.receive(FxExtension.INSTANCE.wrap(new FxMessage.Fx(FxMessage.WORLD_FX_KEY, List.of(sound))), ViewStreamLimits.FLAG_LAST);
+        harness.receive(FxExtension.INSTANCE.wrap(new FxMessage.Fx(ClientViewHarness.PORTAL_KEY, List.of(rim, burst))), ViewStreamLimits.FLAG_LAST);
         for (int index = 0; index < 4100; index++) {
-            harness.receive(new ClientViewMessage.Fx(ViewStreamLimits.WORLD_FX_KEY, List.of(burst)), ViewStreamLimits.FLAG_LAST);
+            harness.receive(FxExtension.INSTANCE.wrap(new FxMessage.Fx(FxMessage.WORLD_FX_KEY, List.of(burst))), ViewStreamLimits.FLAG_LAST);
         }
         harness.tick.effectsActive(true);
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
@@ -309,7 +311,7 @@ public class ClientViewSceneTest extends MinecraftTestBase {
         assertEquals(List.of("dust ff00", "dust ff00"), harness.scene.particles);
         assertEquals(1L, harness.scene.events.stream().filter(entry -> entry.startsWith("sound ")).count());
         assertEquals(1, harness.tick.fx().emitters());
-        harness.receive(new ClientViewMessage.Fx(ViewStreamLimits.WORLD_FX_KEY, List.of(burst)), ViewStreamLimits.FLAG_LAST);
+        harness.receive(FxExtension.INSTANCE.wrap(new FxMessage.Fx(FxMessage.WORLD_FX_KEY, List.of(burst))), ViewStreamLimits.FLAG_LAST);
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
         assertEquals(1L, harness.scene.particles.stream().filter(entry -> entry.equals("burst minecraft:reverse_portal x12")).count());
     }
@@ -318,8 +320,8 @@ public class ClientViewSceneTest extends MinecraftTestBase {
     public void suspendedDestinationWeatherDoesNotEmitParticles() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
-        harness.receive(new ClientViewMessage.Atmosphere(ClientViewHarness.PORTAL_KEY, 18000L, 0.8F, 0.5F,
-            ClientViewMessage.Atmosphere.FLAG_TIME | ClientViewMessage.Atmosphere.FLAG_WEATHER), ViewStreamLimits.FLAG_LAST);
+        harness.receive(new ViewStreamMessage.Atmosphere(ClientViewHarness.PORTAL_KEY, 18000L, 0.8F, 0.5F,
+            ViewStreamMessage.Atmosphere.FLAG_TIME | ViewStreamMessage.Atmosphere.FLAG_WEATHER), ViewStreamLimits.FLAG_LAST);
         harness.tick.effectsActive(false);
         for (int index = 0; index < 200; index++) {
             harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, 11.0D);
@@ -338,17 +340,17 @@ public class ClientViewSceneTest extends MinecraftTestBase {
     public void worldOneShotsRunAnimationsAndBurstsWithoutAPortal() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
-        ClientViewMessage.FxEmitter rim = new ClientViewMessage.FxEmitter(ClientViewMessage.FxKind.RIM_DUST, "", 0.0D, 64.0D, 10.0D, 0x00FF00, 1.0F,
+        FxMessage.FxEmitter rim = new FxMessage.FxEmitter(FxMessage.FxKind.RIM_DUST, "", 0.0D, 64.0D, 10.0D, 0x00FF00, 1.0F,
             5, 1);
-        harness.receive(new ClientViewMessage.Fx(ClientViewHarness.PORTAL_KEY, List.of(rim)), ViewStreamLimits.FLAG_LAST);
-        ClientViewMessage.FxEmitter open = ClientViewEmitters.animation(PortalAnimation.Mode.OPEN, new Vec3d(1.5D, 65.0D, 10.5D),
+        harness.receive(FxExtension.INSTANCE.wrap(new FxMessage.Fx(ClientViewHarness.PORTAL_KEY, List.of(rim))), ViewStreamLimits.FLAG_LAST);
+        FxMessage.FxEmitter open = ClientViewEmitters.animation(PortalAnimation.Mode.OPEN, new Vec3d(1.5D, 65.0D, 10.5D),
             new Vec3d(3.0D, 4.0D, 0.0D), VisualQualityProfile.BALANCED);
-        ClientViewMessage.FxEmitter sync = ClientViewEmitters.burst("minecraft:reverse_portal", 1.5D, 65.0D, 10.5D, 12, 0.4D, 0.6D, 0.4D);
-        ClientViewMessage.FxEmitter glitch = ClientViewEmitters.animation(PortalAnimation.Mode.GLITCH, new Vec3d(1.5D, 65.0D, 10.5D),
+        FxMessage.FxEmitter sync = ClientViewEmitters.burst("minecraft:reverse_portal", 1.5D, 65.0D, 10.5D, 12, 0.4D, 0.6D, 0.4D);
+        FxMessage.FxEmitter glitch = ClientViewEmitters.animation(PortalAnimation.Mode.GLITCH, new Vec3d(1.5D, 65.0D, 10.5D),
             new Vec3d(1.0D, 1.0D, 1.0D), VisualQualityProfile.BALANCED);
-        ClientViewMessage.FxEmitter chime = ClientViewEmitters.sound(new AcousticsBridge.Playback("minecraft:block.stone.break",
+        FxMessage.FxEmitter chime = ClientViewEmitters.sound(new AcousticsBridge.Playback("minecraft:block.stone.break",
             AcousticsProfile.SoundClass.WORLD, 1.5D, 65.0D, 10.5D, 1.0F, 0.8F), 0);
-        harness.receive(new ClientViewMessage.Fx(ViewStreamLimits.WORLD_FX_KEY, List.of(open, sync, glitch, chime)), ViewStreamLimits.FLAG_LAST);
+        harness.receive(FxExtension.INSTANCE.wrap(new FxMessage.Fx(FxMessage.WORLD_FX_KEY, List.of(open, sync, glitch, chime))), ViewStreamLimits.FLAG_LAST);
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
 
         assertEquals(0L, harness.session.ignoredSceneMessages());
@@ -370,8 +372,8 @@ public class ClientViewSceneTest extends MinecraftTestBase {
     public void destinationSkyHoldsOnlyWhileThePortalDominates() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
-        harness.receive(new ClientViewMessage.Atmosphere(ClientViewHarness.PORTAL_KEY, 18000L, 0.8F, 0.5F,
-            ClientViewMessage.Atmosphere.FLAG_TIME | ClientViewMessage.Atmosphere.FLAG_WEATHER), ViewStreamLimits.FLAG_LAST);
+        harness.receive(new ViewStreamMessage.Atmosphere(ClientViewHarness.PORTAL_KEY, 18000L, 0.8F, 0.5F,
+            ViewStreamMessage.Atmosphere.FLAG_TIME | ViewStreamMessage.Atmosphere.FLAG_WEATHER), ViewStreamLimits.FLAG_LAST);
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, 11.0D);
         assertEquals(ClientViewHarness.PORTAL_KEY, harness.tick.atmosphere().dominant());
         assertEquals(0.8F, harness.scene.rain, 0.0F);
@@ -389,7 +391,7 @@ public class ClientViewSceneTest extends MinecraftTestBase {
         assertEquals(0.0F, harness.scene.rain, 0.0F);
         assertEquals(1000L + 20L, harness.scene.clock);
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, 11.0D);
-        harness.receive(new ClientViewMessage.PortalDrop(ClientViewHarness.PORTAL_KEY), ViewStreamLimits.FLAG_LAST);
+        harness.receive(new ViewStreamMessage.PortalDrop(ClientViewHarness.PORTAL_KEY), ViewStreamLimits.FLAG_LAST);
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, 11.0D);
         assertEquals(0.0F, harness.scene.rain, 0.0F);
         assertFalse(harness.tick.atmosphere().holds(ClientViewHarness.PORTAL_KEY));
@@ -399,8 +401,8 @@ public class ClientViewSceneTest extends MinecraftTestBase {
     public void localWeatherAndTimeThatChangeWhileAPortalDominatesSurviveTheRestore() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
-        harness.receive(new ClientViewMessage.Atmosphere(ClientViewHarness.PORTAL_KEY, 18000L, 0.8F, 0.5F,
-            ClientViewMessage.Atmosphere.FLAG_WEATHER), ViewStreamLimits.FLAG_LAST);
+        harness.receive(new ViewStreamMessage.Atmosphere(ClientViewHarness.PORTAL_KEY, 18000L, 0.8F, 0.5F,
+            ViewStreamMessage.Atmosphere.FLAG_WEATHER), ViewStreamLimits.FLAG_LAST);
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, 11.0D);
         assertEquals(ClientViewHarness.PORTAL_KEY, harness.tick.atmosphere().dominant());
         assertEquals(0.8F, harness.scene.rain, 0.0F);
@@ -422,8 +424,8 @@ public class ClientViewSceneTest extends MinecraftTestBase {
     public void aTimeOnlyPortalNeverWritesTheLocalWeatherBack() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
-        harness.receive(new ClientViewMessage.Atmosphere(ClientViewHarness.PORTAL_KEY, 18000L, 0.0F, 0.0F,
-            ClientViewMessage.Atmosphere.FLAG_TIME), ViewStreamLimits.FLAG_LAST);
+        harness.receive(new ViewStreamMessage.Atmosphere(ClientViewHarness.PORTAL_KEY, 18000L, 0.0F, 0.0F,
+            ViewStreamMessage.Atmosphere.FLAG_TIME), ViewStreamLimits.FLAG_LAST);
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, 11.0D);
         assertEquals(ClientViewHarness.PORTAL_KEY, harness.tick.atmosphere().dominant());
         assertEquals(18000L, harness.scene.clock);

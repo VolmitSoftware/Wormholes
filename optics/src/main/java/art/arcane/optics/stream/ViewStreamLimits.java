@@ -3,15 +3,10 @@ package art.arcane.optics.stream;
 import art.arcane.optics.fidelity.BlockEntitySample;
 
 public final class ViewStreamLimits {
-    public static final int TRAVEL_HASH_BYTES = 32;
-    public static final int TRAVEL_REUSE_BYTES = 74;
-    public static final int MAX_TRAVEL_REUSE_PROBES_PER_TICK = 8;
-    public static final int MAX_TRAVEL_CHUNKS = 1089;
-    public static final int MAX_TRAVEL_CHUNK_BYTES = 2 * 1024 * 1024;
-    public static final int MAX_TRAVEL_BYTES = 64 * 1024 * 1024;
-    public static final int TRAVEL_FRAGMENT_BYTES = 48 * 1024;
-    public static final int MAX_TRAVEL_EXPIRY_MILLIS = 300_000;
     public static final int WIRE_VERSION = 6;
+    public static final int MAX_MESSAGE_ID = 255;
+    public static final int MAX_HELLO_GRACE_MILLIS = 5000;
+    public static final int MAX_ACK_WINDOW_FRAMES = 255;
 
     public static final int S2C_HEADER_BYTES = 6;
     public static final int C2S_HEADER_BYTES = 1;
@@ -53,8 +48,6 @@ public final class ViewStreamLimits {
     public static final int MAX_PRESENT_IDS_PER_FRAME = 1024;
     public static final int PRESENCE_UNCHANGED = 0xFFFF;
     public static final int MAX_ENTITY_VISUAL_BYTES = 16 * 1024;
-    public static final int MAX_FX_EMITTERS = 255;
-    public static final int WORLD_FX_KEY = 0;
     public static final int MAX_APERTURE_MASK_WORDS = 1024;
     public static final int MAX_NESTED_GEOMETRY = 16;
     public static final int MAX_LINKED_GEOMETRY_DEPTH = 4;

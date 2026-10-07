@@ -8,13 +8,12 @@ import art.arcane.wormholes.modded.WormholesModConfiguration;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.modded.mixin.ServerConnectionAccess;
 import art.arcane.optics.stream.ViewStreamCapability;
-import art.arcane.wormholes.network.client.ClientViewCodec;
-import art.arcane.wormholes.network.client.ClientViewHandshake;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamHandshake;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamMessageType;
 import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.stream.ViewStreamInbound;
-import art.arcane.wormholes.render.client.session.ClientViewOptions;
+import art.arcane.optics.stream.ViewStreamOptions;
 import com.mojang.authlib.GameProfile;
 import io.netty.channel.embedded.EmbeddedChannel;
 import net.minecraft.network.Connection;
@@ -37,6 +36,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
+import art.arcane.wormholes.network.client.ClientViewExtensions;
 
 public class MinecraftClientViewServiceTest extends MinecraftTestBase {
     private static final UUID ALEX = UUID.fromString("00000000-0000-0000-0000-00000000a1e7");
@@ -45,7 +45,7 @@ public class MinecraftClientViewServiceTest extends MinecraftTestBase {
     private final List<byte[]> sent = new ArrayList<>();
     private final ServerLevel overworld = mock(ServerLevel.class);
     private final ServerLevel nether = mock(ServerLevel.class);
-    private volatile ClientViewOptions options;
+    private volatile ViewStreamOptions options;
     private Connection connection;
     private EmbeddedChannel channel;
     private MinecraftClientViewService service;
@@ -82,16 +82,16 @@ public class MinecraftClientViewServiceTest extends MinecraftTestBase {
     @Test
     public void nativeGreetingAdvertisesAndNegotiatesLocalMesh() throws ViewStreamProtocolException {
         service.channelRegistered(player(overworld));
-        ClientViewMessage.Offer offer = (ClientViewMessage.Offer) message(sent.get(sent.size() - 1));
+        ViewStreamMessage.Offer offer = (ViewStreamMessage.Offer) message(sent.get(sent.size() - 1));
         assertTrue(ViewStreamCapability.LOCAL_MESH.in(offer.serverCaps()));
         assertTrue(ViewStreamCapability.ENTITY_SELF.in(offer.serverCaps()));
         assertTrue(ViewStreamCapability.PREPARED_TRAVEL.in(offer.serverCaps()));
         assertTrue(ViewStreamCapability.PREPARED_TRAVEL_CACHE.in(offer.serverCaps()));
 
-        byte[] hello = ClientViewCodec.encodeC2S(ClientViewHandshake.clientHello(offer, offer.mcDataVersion(),
+        byte[] hello = ClientViewExtensions.CODEC.encodeC2S(ViewStreamHandshake.clientHello(offer, offer.mcDataVersion(),
             ViewStreamCapability.ALL, 512 * 1024, 256, 0L, "fabric"));
         assertEquals(ViewStreamInbound.HELLO_ACCEPTED, service.receive(connection, hello));
-        ClientViewMessage.Accept accept = (ClientViewMessage.Accept) message(sent.get(sent.size() - 1));
+        ViewStreamMessage.Accept accept = (ViewStreamMessage.Accept) message(sent.get(sent.size() - 1));
         assertTrue(ViewStreamCapability.LOCAL_MESH.in(accept.caps()));
         assertTrue(ViewStreamCapability.ENTITY_SELF.in(accept.caps()));
         assertTrue(ViewStreamCapability.MESH_RENDER.in(accept.caps()));
@@ -111,7 +111,7 @@ public class MinecraftClientViewServiceTest extends MinecraftTestBase {
         tick(player);
         tick(player);
 
-        assertEquals(List.of(ClientViewMessage.ResetReason.DIMENSION), resets(mark));
+        assertEquals(List.of(ViewStreamMessage.ResetReason.DIMENSION), resets(mark));
     }
 
     @Test
@@ -124,7 +124,7 @@ public class MinecraftClientViewServiceTest extends MinecraftTestBase {
         tick(player(overworld));
         tick(player(nether));
 
-        assertEquals(List.of(ClientViewMessage.ResetReason.RESPAWN, ClientViewMessage.ResetReason.DIMENSION), resets(mark));
+        assertEquals(List.of(ViewStreamMessage.ResetReason.RESPAWN, ViewStreamMessage.ResetReason.DIMENSION), resets(mark));
     }
 
     @Test
@@ -133,7 +133,7 @@ public class MinecraftClientViewServiceTest extends MinecraftTestBase {
         negotiate(player);
 
         service.runtimeEnabled(false);
-        assertEquals(List.of(ClientViewMessage.ResetReason.DISABLED), resets(0));
+        assertEquals(List.of(ViewStreamMessage.ResetReason.DISABLED), resets(0));
         int mark = sent.size();
         service.runtimeEnabled(true);
 
@@ -168,8 +168,8 @@ public class MinecraftClientViewServiceTest extends MinecraftTestBase {
     }
 
     private void accept() throws ViewStreamProtocolException {
-        ClientViewMessage.Offer offer = (ClientViewMessage.Offer) message(sent.get(sent.size() - 1));
-        byte[] hello = ClientViewCodec.encodeC2S(ClientViewHandshake.clientHello(offer, offer.mcDataVersion(), HELLO_CAPS, 512 * 1024, 256, 0L,
+        ViewStreamMessage.Offer offer = (ViewStreamMessage.Offer) message(sent.get(sent.size() - 1));
+        byte[] hello = ClientViewExtensions.CODEC.encodeC2S(ViewStreamHandshake.clientHello(offer, offer.mcDataVersion(), HELLO_CAPS, 512 * 1024, 256, 0L,
             "fabric"));
         assertEquals(ViewStreamInbound.HELLO_ACCEPTED, service.receive(connection, hello));
     }
@@ -189,10 +189,10 @@ public class MinecraftClientViewServiceTest extends MinecraftTestBase {
         return player;
     }
 
-    private List<ClientViewMessage.ResetReason> resets(int from) throws ViewStreamProtocolException {
-        List<ClientViewMessage.ResetReason> reasons = new ArrayList<>();
+    private List<ViewStreamMessage.ResetReason> resets(int from) throws ViewStreamProtocolException {
+        List<ViewStreamMessage.ResetReason> reasons = new ArrayList<>();
         for (int i = from; i < sent.size(); i++) {
-            if (message(sent.get(i)) instanceof ClientViewMessage.SessionReset reset) {
+            if (message(sent.get(i)) instanceof ViewStreamMessage.SessionReset reset) {
                 reasons.add(reset.reason());
             }
         }
@@ -202,16 +202,16 @@ public class MinecraftClientViewServiceTest extends MinecraftTestBase {
     private List<ViewStreamMessageType> types(int from) throws ViewStreamProtocolException {
         List<ViewStreamMessageType> types = new ArrayList<>();
         for (int i = from; i < sent.size(); i++) {
-            types.add(message(sent.get(i)).type());
+            types.add(message(sent.get(i)) instanceof ViewStreamMessage.Projection projection ? projection.type() : null);
         }
         return types;
     }
 
-    private static ClientViewMessage message(byte[] payload) throws ViewStreamProtocolException {
-        return ClientViewCodec.decodeS2C(payload, ViewStreamCapability.ALL).message();
+    private static ViewStreamMessage message(byte[] payload) throws ViewStreamProtocolException {
+        return ClientViewExtensions.CODEC.decodeS2C(payload, ViewStreamCapability.ALL).message();
     }
 
-    private static ClientViewOptions options(boolean enabled) {
-        return new ClientViewOptions(enabled, false, 100, 512 * 1024, 8, true, true, true, true, false, true, true, true, 5);
+    private static ViewStreamOptions options(boolean enabled) {
+        return new ViewStreamOptions(enabled, false, 100, 512 * 1024, 8, true, true, true, true, false, true, true, true, 5);
     }
 }

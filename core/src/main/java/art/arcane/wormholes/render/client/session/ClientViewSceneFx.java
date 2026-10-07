@@ -5,11 +5,14 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.EntityFrames;
 import art.arcane.optics.stream.ProjectionEnvironment;
-import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.ViewStreamMessage;
+import art.arcane.optics.stream.ViewStreamScene;
+import art.arcane.wormholes.network.client.FxExtension;
+import art.arcane.wormholes.network.client.FxMessage;
 
-public final class ClientViewSceneFx<P> implements ClientViewFxSource<P> {
+public final class ClientViewSceneFx<P> implements ViewStreamScene<P> {
     static final long ATMOSPHERE_RESYNC_TICKS = 600L;
     static final long DAY_TIME_DRIFT_TICKS = 40L;
     static final float WEATHER_EPSILON = 0.02F;
@@ -25,27 +28,27 @@ public final class ClientViewSceneFx<P> implements ClientViewFxSource<P> {
     }
 
     @Override
-    public ClientViewMessage.Fx fx(P observer, UUID portal, int portalKey, long tick, boolean full) {
+    public ViewStreamMessage.Extension effects(P observer, UUID portal, int portalKey, long tick, boolean full) {
         prune(tick);
         PortalState state = state(observer, portal, portalKey, tick);
         if (full) {
             state.emitters = null;
         }
-        List<ClientViewMessage.FxEmitter> emitters = effects.emitters(observer, portal, tick);
-        List<ClientViewMessage.FxEmitter> current = emitters == null ? List.of() : emitters;
-        if (current.size() > ViewStreamLimits.MAX_FX_EMITTERS) {
-            current = current.subList(0, ViewStreamLimits.MAX_FX_EMITTERS);
+        List<FxMessage.FxEmitter> emitters = effects.emitters(observer, portal, tick);
+        List<FxMessage.FxEmitter> current = emitters == null ? List.of() : emitters;
+        if (current.size() > FxMessage.MAX_FX_EMITTERS) {
+            current = current.subList(0, FxMessage.MAX_FX_EMITTERS);
         }
-        List<ClientViewMessage.FxEmitter> previous = state.emitters;
+        List<FxMessage.FxEmitter> previous = state.emitters;
         if (previous == null ? current.isEmpty() : previous.equals(current)) {
             return null;
         }
         state.emitters = List.copyOf(current);
-        return new ClientViewMessage.Fx(portalKey, state.emitters);
+        return FxExtension.INSTANCE.wrap(new FxMessage.Fx(portalKey, state.emitters));
     }
 
     @Override
-    public ClientViewMessage.Atmosphere atmosphere(P observer, UUID portal, int portalKey, long tick, boolean full) {
+    public ViewStreamMessage.Atmosphere atmosphere(P observer, UUID portal, int portalKey, long tick, boolean full) {
         PortalState state = state(observer, portal, portalKey, tick);
         if (full) {
             state.atmosphere = null;
@@ -56,18 +59,18 @@ public final class ClientViewSceneFx<P> implements ClientViewFxSource<P> {
                 return null;
             }
             state.atmosphere = null;
-            return new ClientViewMessage.Atmosphere(portalKey, 0L, 0.0F, 0.0F, ClientViewMessage.Atmosphere.FLAG_RESTORE);
+            return new ViewStreamMessage.Atmosphere(portalKey, 0L, 0.0F, 0.0F, ViewStreamMessage.Atmosphere.FLAG_RESTORE);
         }
         if (!due(state, sample, tick)) {
             return null;
         }
         state.atmosphere = sample;
         state.atmosphereTick = tick;
-        return new ClientViewMessage.Atmosphere(portalKey, sample.dayTime(), sample.rain(), sample.thunder(), sample.flags());
+        return new ViewStreamMessage.Atmosphere(portalKey, sample.dayTime(), sample.rain(), sample.thunder(), sample.flags());
     }
 
     @Override
-    public ClientViewMessage.Environment environment(P observer, UUID portal, int portalKey, long tick, boolean full) {
+    public ViewStreamMessage.Environment environment(P observer, UUID portal, int portalKey, long tick, boolean full) {
         prune(tick);
         PortalState state = state(observer, portal, portalKey, tick);
         if (!full && tick < state.nextEnvironmentTick) {
@@ -80,7 +83,7 @@ public final class ClientViewSceneFx<P> implements ClientViewFxSource<P> {
     }
 
     @Override
-    public ClientViewMessage.Environment nestedEnvironment(P observer, UUID parent, UUID portal, int portalKey, long tick, boolean full) {
+    public ViewStreamMessage.Environment nestedEnvironment(P observer, UUID parent, UUID portal, int portalKey, long tick, boolean full) {
         prune(tick);
         PortalState state = state(observer, portal, portalKey, tick);
         if (!full && tick < state.nextEnvironmentTick) {
@@ -92,13 +95,13 @@ public final class ClientViewSceneFx<P> implements ClientViewFxSource<P> {
         return environment(state, effects.nestedEnvironment(observer, parent, portal, tick), tick);
     }
 
-    private static ClientViewMessage.Environment environment(PortalState state, ProjectionEnvironment sample, long tick) {
+    private static ViewStreamMessage.Environment environment(PortalState state, ProjectionEnvironment sample, long tick) {
         state.nextEnvironmentTick = tick + 5L;
         if (sample == null || sample.equals(state.environment)) {
             return null;
         }
         state.environment = sample;
-        return new ClientViewMessage.Environment(state.portalKey, sample);
+        return new ViewStreamMessage.Environment(state.portalKey, sample);
     }
 
     @Override
@@ -142,11 +145,11 @@ public final class ClientViewSceneFx<P> implements ClientViewFxSource<P> {
             return;
         }
         nextPrune = tick + PRUNE_INTERVAL_TICKS;
-        states.values().removeIf(state -> tick - state.touched > ClientViewEntityFrames.STATE_IDLE_TICKS);
+        states.values().removeIf(state -> tick - state.touched > EntityFrames.STATE_IDLE_TICKS);
     }
 
     public interface Effects<P> {
-        List<ClientViewMessage.FxEmitter> emitters(P observer, UUID portal, long tick);
+        List<FxMessage.FxEmitter> emitters(P observer, UUID portal, long tick);
 
         Sample atmosphere(P observer, UUID portal, long tick);
 
@@ -180,7 +183,7 @@ public final class ClientViewSceneFx<P> implements ClientViewFxSource<P> {
 
     private static final class PortalState {
         private final int portalKey;
-        private List<ClientViewMessage.FxEmitter> emitters;
+        private List<FxMessage.FxEmitter> emitters;
         private Sample atmosphere;
         private ProjectionEnvironment environment;
         private long nextEnvironmentTick;

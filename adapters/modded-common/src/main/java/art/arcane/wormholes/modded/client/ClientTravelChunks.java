@@ -1,26 +1,24 @@
 package art.arcane.wormholes.modded.client;
 
-import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.optics.stream.ViewStreamLimits;
-
 import java.util.BitSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import art.arcane.wormholes.network.client.TravelMessage;
 
 final class ClientTravelChunks {
     private final UUID token;
     private final long generation;
-    private final Set<ClientViewMessage.TravelCoordinate> manifest;
-    private final Map<ClientViewMessage.TravelCoordinate, Assembly> pending = new HashMap<>();
-    private final Map<ClientViewMessage.TravelCoordinate, Integer> completed = new HashMap<>();
-    private final Map<ClientViewMessage.TravelCoordinate, Integer> sizes = new HashMap<>();
+    private final Set<TravelMessage.TravelCoordinate> manifest;
+    private final Map<TravelMessage.TravelCoordinate, Assembly> pending = new HashMap<>();
+    private final Map<TravelMessage.TravelCoordinate, Integer> completed = new HashMap<>();
+    private final Map<TravelMessage.TravelCoordinate, Integer> sizes = new HashMap<>();
     private long bytes;
-    private ClientViewMessage.TravelEnd end;
+    private TravelMessage.TravelEnd end;
 
-    ClientTravelChunks(ClientViewMessage.TravelBegin begin) {
+    ClientTravelChunks(TravelMessage.TravelBegin begin) {
         token = begin.token();
         generation = begin.generation();
         manifest = new HashSet<>(begin.chunks());
@@ -30,8 +28,8 @@ final class ClientTravelChunks {
         return token.equals(candidate) && generation == epoch;
     }
 
-    byte[] accept(ClientViewMessage.TravelChunk fragment) {
-        ClientViewMessage.TravelCoordinate coordinate = new ClientViewMessage.TravelCoordinate(fragment.chunkX(), fragment.chunkZ());
+    byte[] accept(TravelMessage.TravelChunk fragment) {
+        TravelMessage.TravelCoordinate coordinate = new TravelMessage.TravelCoordinate(fragment.chunkX(), fragment.chunkZ());
         if (!matches(fragment.token(), fragment.generation()) || !manifest.contains(coordinate)
             || completed.getOrDefault(coordinate, 0) >= fragment.revision()) {
             return null;
@@ -44,7 +42,7 @@ final class ClientTravelChunks {
             if (assembly != null) {
                 bytes -= assembly.data.length;
             }
-            if (bytes + fragment.totalBytes() > ViewStreamLimits.MAX_TRAVEL_BYTES) {
+            if (bytes + fragment.totalBytes() > TravelMessage.MAX_TRAVEL_BYTES) {
                 throw new IllegalArgumentException("Prepared travel exceeds its chunk byte budget");
             }
             assembly = new Assembly(fragment);
@@ -58,7 +56,7 @@ final class ClientTravelChunks {
             return null;
         }
         byte[] payload = fragment.payload();
-        System.arraycopy(payload, 0, assembly.data, fragment.fragmentIndex() * ViewStreamLimits.TRAVEL_FRAGMENT_BYTES, payload.length);
+        System.arraycopy(payload, 0, assembly.data, fragment.fragmentIndex() * TravelMessage.TRAVEL_FRAGMENT_BYTES, payload.length);
         assembly.received.set(fragment.fragmentIndex());
         if (assembly.received.cardinality() != assembly.fragments) {
             return null;
@@ -70,8 +68,8 @@ final class ClientTravelChunks {
         return assembly.data;
     }
 
-    boolean reuse(ClientViewMessage.TravelReuse proof, byte[] data) {
-        ClientViewMessage.TravelCoordinate coordinate = new ClientViewMessage.TravelCoordinate(proof.chunkX(), proof.chunkZ());
+    boolean reuse(TravelMessage.TravelReuse proof, byte[] data) {
+        TravelMessage.TravelCoordinate coordinate = new TravelMessage.TravelCoordinate(proof.chunkX(), proof.chunkZ());
         if (!matches(proof.token(), proof.generation()) || !manifest.contains(coordinate)) {
             return false;
         }
@@ -84,7 +82,7 @@ final class ClientTravelChunks {
             return true;
         }
         long replacementBytes = bytes - sizes.getOrDefault(coordinate, 0) - (assembly == null ? 0 : assembly.data.length) + data.length;
-        if (replacementBytes > ViewStreamLimits.MAX_TRAVEL_BYTES) {
+        if (replacementBytes > TravelMessage.MAX_TRAVEL_BYTES) {
             throw new IllegalArgumentException("Prepared travel exceeds its chunk byte budget");
         }
         pending.remove(coordinate);
@@ -94,13 +92,13 @@ final class ClientTravelChunks {
         return true;
     }
 
-    void end(ClientViewMessage.TravelEnd message) {
+    void end(TravelMessage.TravelEnd message) {
         if (!matches(message.token(), message.generation()) || end != null && end.contentRevision() >= message.contentRevision()) {
             return;
         }
-        HashSet<ClientViewMessage.TravelCoordinate> coordinates = new HashSet<>();
-        for (ClientViewMessage.TravelChunkRevision chunk : message.chunks()) {
-            coordinates.add(new ClientViewMessage.TravelCoordinate(chunk.x(), chunk.z()));
+        HashSet<TravelMessage.TravelCoordinate> coordinates = new HashSet<>();
+        for (TravelMessage.TravelChunkRevision chunk : message.chunks()) {
+            coordinates.add(new TravelMessage.TravelCoordinate(chunk.x(), chunk.z()));
         }
         if (!coordinates.equals(manifest)) {
             throw new IllegalArgumentException("Prepared travel completion changed its chunk manifest");
@@ -112,8 +110,8 @@ final class ClientTravelChunks {
         if (end == null || !pending.isEmpty()) {
             return 0;
         }
-        for (ClientViewMessage.TravelChunkRevision chunk : end.chunks()) {
-            if (completed.getOrDefault(new ClientViewMessage.TravelCoordinate(chunk.x(), chunk.z()), 0) != chunk.revision()) {
+        for (TravelMessage.TravelChunkRevision chunk : end.chunks()) {
+            if (completed.getOrDefault(new TravelMessage.TravelCoordinate(chunk.x(), chunk.z()), 0) != chunk.revision()) {
                 return 0;
             }
         }
@@ -126,7 +124,7 @@ final class ClientTravelChunks {
         private final byte[] data;
         private final BitSet received;
 
-        private Assembly(ClientViewMessage.TravelChunk fragment) {
+        private Assembly(TravelMessage.TravelChunk fragment) {
             revision = fragment.revision();
             fragments = fragment.fragmentCount();
             data = new byte[fragment.totalBytes()];

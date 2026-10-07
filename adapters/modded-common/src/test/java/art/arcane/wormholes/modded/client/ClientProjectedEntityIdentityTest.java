@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.entity.EntityDeltaCodec;
 import art.arcane.optics.entity.EntitySnapshot;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -39,7 +39,7 @@ public class ClientProjectedEntityIdentityTest extends MinecraftTestBase {
         ClientPortal portal = new ClientPortal(1, ClientViewHarness.geometry(), 1, 0);
         EntitySnapshot initial = visual(source, "minecraft:pig", 1);
         for (int key = 1; key <= 8; key++) {
-            entities.apply(new ClientViewMessage.EntityFrame(key, 1, List.of(initial), List.of(source), true));
+            entities.apply(new ViewStreamMessage.EntityFrame(key, 1, List.of(initial), List.of(source), true));
         }
         entities.tick(key -> portal, key -> true);
         assertEquals(8, entities.spawned());
@@ -57,7 +57,7 @@ public class ClientProjectedEntityIdentityTest extends MinecraftTestBase {
             EntitySnapshot delta = EntityDeltaCodec.buildDelta(updated, previous, revision,
                 EntityDeltaCodec.computeMask(updated, previous));
             for (int key = 1; key <= 8; key++) {
-                entities.apply(new ClientViewMessage.EntityFrame(key, revision, List.of(delta), List.of(source), true));
+                entities.apply(new ViewStreamMessage.EntityFrame(key, revision, List.of(delta), List.of(source), true));
             }
             entities.tick(key -> portal, key -> true);
             previous = updated;
@@ -72,7 +72,7 @@ public class ClientProjectedEntityIdentityTest extends MinecraftTestBase {
         entities.drop(1);
         assertEquals(source, scene.identities.get(42));
         assertEquals(7, entities.spawned());
-        entities.apply(new ClientViewMessage.EntityFrame(1, 41, List.of(previous), List.of(source), true));
+        entities.apply(new ViewStreamMessage.EntityFrame(1, 41, List.of(previous), List.of(source), true));
         entities.tick(key -> portal, key -> true);
         assertEquals(projections[0], scene.identities.get(entities.entityId(1, source)));
         assertEquals(ids[1], entities.entityId(2, source));

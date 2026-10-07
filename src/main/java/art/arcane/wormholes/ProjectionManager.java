@@ -66,7 +66,8 @@ import art.arcane.wormholes.render.FidelitySubsystem;
 import art.arcane.wormholes.render.ProjectionClientChunkTracker;
 import art.arcane.optics.fidelity.AcousticsBridge;
 import art.arcane.wormholes.render.bedrock.ClientProfileService;
-import art.arcane.wormholes.render.client.session.ClientViewOptions;
+import art.arcane.optics.stream.ViewStreamOptions;
+import art.arcane.wormholes.config.toml.ClientViewConfig;
 import art.arcane.wormholes.render.clientview.BukkitClientView;
 import art.arcane.wormholes.render.clientview.ClientViewRouting;
 import art.arcane.optics.plate.PlatePipeline;
@@ -730,11 +731,11 @@ public class ProjectionManager implements Listener {
         }
     }
 
-    private static ClientViewOptions clientViewOptions() {
+    private static ViewStreamOptions clientViewOptions() {
         WormholesSettings settings = Wormholes.settings;
         return settings == null
-            ? ClientViewOptions.defaults()
-            : ClientViewOptions.from(settings.getClientView(), Settings.PROJECTION_INTEREST_GRACE_TICKS);
+            ? new ClientViewConfig().options(ViewStreamOptions.DEFAULT_INTEREST_GRACE_TICKS)
+            : settings.getClientView().options(Settings.PROJECTION_INTEREST_GRACE_TICKS);
     }
 
     private static ILocalPortal localPortal(UUID portalId) {

@@ -4,7 +4,6 @@ import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.mixin.client.PreparedLevelAccess;
 import art.arcane.wormholes.modded.mixin.client.PreparedPacketAccess;
-import art.arcane.wormholes.network.client.ClientViewMessage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientPacketListener;
@@ -33,6 +32,7 @@ import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
+import art.arcane.wormholes.network.client.TravelMessage;
 
 public class ClientPreparedTravelPacketBudgetTest extends MinecraftTestBase {
     @Test
@@ -111,7 +111,7 @@ public class ClientPreparedTravelPacketBudgetTest extends MinecraftTestBase {
         private final ClientPortalRenderer renderer = mock(ClientPortalRenderer.class);
         private final ArrayDeque<Runnable> packets = new ArrayDeque<>();
         private final ArrayList<Integer> replayed = new ArrayList<>();
-        private final ArrayList<ClientViewMessage> sent = new ArrayList<>();
+        private final ArrayList<TravelMessage> sent = new ArrayList<>();
         private final long deadline = System.currentTimeMillis() + 2000;
         private final Object prediction;
         private final ClientPreparedTravel travel = new ClientPreparedTravel(sent::add);
@@ -129,7 +129,7 @@ public class ClientPreparedTravelPacketBudgetTest extends MinecraftTestBase {
             set(prediction, "protocol", GameProtocols.CLIENTBOUND_TEMPLATE.bind(RegistryFriendlyByteBuf.decorator(RegistryAccess.EMPTY)));
             set(travel, "prediction", prediction);
             set(travel, "staged", mock(ClientLevel.class));
-            ClientViewMessage.TravelBegin begin = mock(ClientViewMessage.TravelBegin.class);
+            TravelMessage.TravelBegin begin = mock(TravelMessage.TravelBegin.class);
             when(begin.token()).thenReturn(new UUID(17, 23));
             when(begin.generation()).thenReturn(7L);
             set(travel, "begin", begin);
@@ -150,7 +150,7 @@ public class ClientPreparedTravelPacketBudgetTest extends MinecraftTestBase {
             for (int index = 0; index < accepted; index++) {
                 assertEquals(index, replayed.get(index).intValue());
             }
-            assertEquals(List.of(new ClientViewMessage.TravelCancel(new UUID(17, 23), 7)), sent);
+            assertEquals(List.of(new TravelMessage.TravelCancel(new UUID(17, 23), 7)), sent);
             verify((PreparedPacketAccess) listener).wormholes$level(source);
             verify((PreparedPacketAccess) listener).wormholes$data(data);
         }

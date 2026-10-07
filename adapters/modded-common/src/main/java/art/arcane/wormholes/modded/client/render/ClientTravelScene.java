@@ -1,7 +1,6 @@
 package art.arcane.wormholes.modded.client.render;
 
 import art.arcane.optics.stream.ProjectionEnvironment;
-import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.frame.OpticTransform;
@@ -25,6 +24,7 @@ import java.util.Map;
 import java.util.Arrays;
 import java.util.function.ObjLongConsumer;
 import java.util.HashMap;
+import art.arcane.wormholes.network.client.TravelMessage;
 
 public final class ClientTravelScene implements PortalScene {
     private static final long SNAPSHOT_NANOS = 2_000_000L;
@@ -35,21 +35,21 @@ public final class ClientTravelScene implements PortalScene {
     private final Long2ObjectOpenHashMap<RenderSectionRegion> regions = new Long2ObjectOpenHashMap<>();
     private final LongOpenHashSet sections = new LongOpenHashSet();
     private final LongOpenHashSet empty = new LongOpenHashSet();
-    private final Set<ClientViewMessage.TravelCoordinate> chunks;
+    private final Set<TravelMessage.TravelCoordinate> chunks;
     private final Long2LongOpenHashMap revisions = new Long2LongOpenHashMap();
     private final LongLinkedOpenHashSet pendingSections = new LongLinkedOpenHashSet();
     private long revision = 1;
-    private final ClientViewMessage.TravelWorld travelWorld;
-    private Map<ClientViewMessage.TravelCoordinate, byte[]> nativeColumns = Map.of();
+    private final TravelMessage.TravelWorld travelWorld;
+    private Map<TravelMessage.TravelCoordinate, byte[]> nativeColumns = Map.of();
     private final Long2ObjectOpenHashMap<MeshIdentity> meshIdentities = new Long2ObjectOpenHashMap<>();
 
-    public ClientTravelScene(ClientLevel level, ClientViewMessage.TravelBegin begin) {
+    public ClientTravelScene(ClientLevel level, TravelMessage.TravelBegin begin) {
         this.level = level;
         travelWorld = begin.world();
         environment = begin.environment();
         chunks = new HashSet<>(begin.chunks());
         geometry = geometry(begin.arrival());
-        for (ClientViewMessage.TravelCoordinate column : chunks) {
+        for (TravelMessage.TravelCoordinate column : chunks) {
             if (interior(column.x(), column.z())) {
                 for (int y = level.getMinSectionY(); y < level.getMinSectionY() + level.getSectionsCount(); y++) {
                     long key = SectionPos.asLong(column.x(), y, column.z());
@@ -60,7 +60,7 @@ public final class ClientTravelScene implements PortalScene {
         }
     }
 
-    public void rebind(ClientViewMessage.TravelBegin begin) {
+    public void rebind(TravelMessage.TravelBegin begin) {
         if (!travelWorld.equals(begin.world()) || !chunks.equals(new HashSet<>(begin.chunks()))
             || !OpticTransform.IDENTITY.equals(begin.environment().transform())) {
             throw new IllegalArgumentException("Prepared return snapshot identity differs");
@@ -69,19 +69,19 @@ public final class ClientTravelScene implements PortalScene {
         geometry = geometry(begin.arrival());
     }
 
-    private static ApertureDescriptor geometry(ClientViewMessage.TravelPose arrival) {
+    private static ApertureDescriptor geometry(TravelMessage.TravelPose arrival) {
         return new ApertureDescriptor((int) Math.floor(arrival.x()), (int) Math.floor(arrival.y()),
             (int) Math.floor(arrival.z()), Face.N.ordinal(), true, 0, false, 1, 1, new long[]{1L},
             0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0.0D, 0, -1L, List.of());
     }
 
-    public void nativeColumns(Map<ClientViewMessage.TravelCoordinate, byte[]> columns) {
+    public void nativeColumns(Map<TravelMessage.TravelCoordinate, byte[]> columns) {
         nativeColumns = new HashMap<>(columns);
     }
 
     public void invalidateColumn(int x, int z) {
         if (!nativeColumns.isEmpty()) {
-            nativeColumns.remove(new ClientViewMessage.TravelCoordinate(x, z));
+            nativeColumns.remove(new TravelMessage.TravelCoordinate(x, z));
         }
     }
 
@@ -102,7 +102,7 @@ public final class ClientTravelScene implements PortalScene {
         byte[][] columns = new byte[9][];
         for (int dz = -1; dz <= 1; dz++) {
             for (int dx = -1; dx <= 1; dx++) {
-                byte[] data = nativeColumns.get(new ClientViewMessage.TravelCoordinate(x + dx, z + dz));
+                byte[] data = nativeColumns.get(new TravelMessage.TravelCoordinate(x + dx, z + dz));
                 if (data == null) {
                     return null;
                 }
@@ -178,7 +178,7 @@ public final class ClientTravelScene implements PortalScene {
     private boolean interior(int x, int z) {
         for (int dz = -1; dz <= 1; dz++) {
             for (int dx = -1; dx <= 1; dx++) {
-                if (!chunks.contains(new ClientViewMessage.TravelCoordinate(x + dx, z + dz))) {
+                if (!chunks.contains(new TravelMessage.TravelCoordinate(x + dx, z + dz))) {
                     return false;
                 }
             }
@@ -253,7 +253,7 @@ public final class ClientTravelScene implements PortalScene {
         return sections.contains(sectionKey) && !pendingSections.contains(sectionKey)
             ? revisions.get(sectionKey) : -1;
     }
-    record MeshIdentity(ClientViewMessage.TravelWorld world, byte[][] columns) implements PortalScene.MeshIdentity {
+    record MeshIdentity(TravelMessage.TravelWorld world, byte[][] columns) implements PortalScene.MeshIdentity {
         @Override
         public int contextHash() {
             return world.hashCode();

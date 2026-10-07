@@ -3,8 +3,7 @@ package art.arcane.wormholes.modded.client;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewChannel;
-import art.arcane.wormholes.network.client.ClientViewCodec;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.stream.PlateSectionBox;
@@ -19,6 +18,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertTrue;
+import art.arcane.wormholes.network.client.ClientViewExtensions;
 
 public class ClientViewFailureTest extends MinecraftTestBase {
     private static final double EYE_X = ClientViewHarness.EYE_X;
@@ -36,7 +36,7 @@ public class ClientViewFailureTest extends MinecraftTestBase {
     @Test
     public void aPlateBoxTheSweepCannotHoldIsRefusedInsteadOfCrashingTheTick() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
-        harness.receive(new ClientViewMessage.Portal(ClientViewHarness.PORTAL_KEY, 1, ClientViewHarness.geometry()), 0);
+        harness.receive(new ViewStreamMessage.Portal(ClientViewHarness.PORTAL_KEY, 1, ClientViewHarness.geometry()), 0);
         BlockBox cells = new BlockBox(-8, 56, 0, 300, 200, 300);
         assertTrue(cells.cells() > ClientSweep.MAX_BOUNDS_CELLS);
         PlateSectionBox sections = PlateSectionBox.snap(cells);
@@ -44,15 +44,15 @@ public class ClientViewFailureTest extends MinecraftTestBase {
         for (int index = 0; index < hashes.length; index++) {
             hashes[index] = 0x9000L + index;
         }
-        harness.receive(new ClientViewMessage.PlateBegin(ClientViewHarness.PORTAL_KEY, 1, sections, cells, ClientViewHarness.STONE_ID,
+        harness.receive(new ViewStreamMessage.PlateBegin(ClientViewHarness.PORTAL_KEY, 1, sections, cells, ClientViewHarness.STONE_ID,
             sections.brickCount(), hashes), 0);
-        harness.receive(new ClientViewMessage.PlateBricks(ClientViewHarness.PORTAL_KEY, 1, List.of()), 0);
-        harness.receive(new ClientViewMessage.PlateEnd(ClientViewHarness.PORTAL_KEY, 1), ViewStreamLimits.FLAG_LAST);
+        harness.receive(new ViewStreamMessage.PlateBricks(ClientViewHarness.PORTAL_KEY, 1, List.of()), 0);
+        harness.receive(new ViewStreamMessage.PlateEnd(ClientViewHarness.PORTAL_KEY, 1), ViewStreamLimits.FLAG_LAST);
 
         harness.tick(EYE_X, EYE_Y, EYE_Z);
 
-        assertTrue(harness.sent.contains(new ClientViewMessage.PlateRefused(ClientViewHarness.PORTAL_KEY, 1)));
-        assertFalse(harness.sent.stream().anyMatch(message -> message instanceof ClientViewMessage.BrickMiss));
+        assertTrue(harness.sent.contains(new ViewStreamMessage.PlateRefused(ClientViewHarness.PORTAL_KEY, 1)));
+        assertFalse(harness.sent.stream().anyMatch(message -> message instanceof ViewStreamMessage.BrickMiss));
         assertFalse(harness.session.portal(ClientViewHarness.PORTAL_KEY).ready());
         assertEquals(0, harness.session.plates().size());
     }
@@ -63,8 +63,8 @@ public class ClientViewFailureTest extends MinecraftTestBase {
         harness.stream();
         harness.tick(EYE_X, EYE_Y, EYE_Z);
         harness.scene.failGameTime = true;
-        harness.receive(new ClientViewMessage.Atmosphere(ClientViewHarness.PORTAL_KEY, 18000L, 0.8F, 0.5F,
-            ClientViewMessage.Atmosphere.FLAG_WEATHER), ViewStreamLimits.FLAG_LAST);
+        harness.receive(new ViewStreamMessage.Atmosphere(ClientViewHarness.PORTAL_KEY, 18000L, 0.8F, 0.5F,
+            ViewStreamMessage.Atmosphere.FLAG_WEATHER), ViewStreamLimits.FLAG_LAST);
 
         harness.tick(EYE_X, EYE_Y, EYE_Z);
 
@@ -110,7 +110,7 @@ public class ClientViewFailureTest extends MinecraftTestBase {
 
         blocked[0] = false;
         harness.receive(offer(), ViewStreamLimits.FLAG_LAST);
-        harness.receive(new ClientViewMessage.Accept(2, ViewStreamCapability.ALL, 20, ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 9L, 8),
+        harness.receive(new ViewStreamMessage.Accept(2, ViewStreamCapability.ALL, 20, ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 9L, 8),
             ViewStreamLimits.FLAG_LAST);
         harness.stream();
         harness.tick(EYE_X, EYE_Y, EYE_Z);
@@ -124,7 +124,7 @@ public class ClientViewFailureTest extends MinecraftTestBase {
     @Test
     public void anOfferReplyThatCannotBeSentKeepsAcceptedNativeSelection() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness(ViewStreamCapability.ALL);
-        byte[] offer = ClientViewCodec.encodeS2C(offer(), 1, ViewStreamLimits.FLAG_LAST);
+        byte[] offer = ClientViewExtensions.CODEC.encodeS2C(offer(), 1, ViewStreamLimits.FLAG_LAST);
 
         harness.receiver.receive(offer, bytes -> {
             throw new UnsupportedOperationException("Payload " + ClientViewChannel.CHANNEL + " may not be sent to the server!");
@@ -143,7 +143,7 @@ public class ClientViewFailureTest extends MinecraftTestBase {
         int acks = harness.acks().size();
 
         harness.receive(offer(), ViewStreamLimits.FLAG_LAST);
-        harness.receive(new ClientViewMessage.Accept(2, ClientViewHarness.PLATE_CAPS, 20, ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 9L, 8),
+        harness.receive(new ViewStreamMessage.Accept(2, ClientViewHarness.PLATE_CAPS, 20, ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 9L, 8),
             ViewStreamLimits.FLAG_LAST);
         harness.tick(EYE_X, EYE_Y, EYE_Z);
 
@@ -166,7 +166,7 @@ public class ClientViewFailureTest extends MinecraftTestBase {
     public void malformedNativeStreamRetriesHelloAtBoundedCadenceThenAcceptsFreshMesh() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness(ViewStreamCapability.ALL);
         harness.receive(offer(), 0);
-        harness.receive(new ClientViewMessage.Accept(2, ViewStreamCapability.ALL, 20, ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 9L, 8), 0);
+        harness.receive(new ViewStreamMessage.Accept(2, ViewStreamCapability.ALL, 20, ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 9L, 8), 0);
         harness.tick(EYE_X, EYE_Y, EYE_Z);
         harness.sent.clear();
         harness.receiver.receive(new byte[] {(byte) 255}, null);
@@ -175,21 +175,21 @@ public class ClientViewFailureTest extends MinecraftTestBase {
             assertEquals(ClientViewSession.State.NATIVE_RECOVERING, harness.session.state());
             assertTrue(harness.session.nativeSelected());
         }
-        assertEquals(2L, harness.sent.stream().filter(message -> message instanceof ClientViewMessage.Hello).count());
-        harness.receive(new ClientViewMessage.SessionReset(ClientViewMessage.ResetReason.PROTOCOL), 0);
-        harness.receive(new ClientViewMessage.Portal(ClientViewHarness.PORTAL_KEY, 2, ClientViewHarness.geometry()), 0);
-        harness.receive(new ClientViewMessage.MeshBegin(ClientViewHarness.PORTAL_KEY, 2, new BlockBox(-16, 48, -16, 48, 48, 48), 27), 0);
+        assertEquals(2L, harness.sent.stream().filter(message -> message instanceof ViewStreamMessage.Hello).count());
+        harness.receive(new ViewStreamMessage.SessionReset(ViewStreamMessage.ResetReason.PROTOCOL), 0);
+        harness.receive(new ViewStreamMessage.Portal(ClientViewHarness.PORTAL_KEY, 2, ClientViewHarness.geometry()), 0);
+        harness.receive(new ViewStreamMessage.MeshBegin(ClientViewHarness.PORTAL_KEY, 2, new BlockBox(-16, 48, -16, 48, 48, 48), 27), 0);
         harness.tick(EYE_X, EYE_Y, EYE_Z);
         assertEquals(ClientViewSession.State.CLIENT_VIEW, harness.session.state());
         assertTrue(harness.session.meshes().view(ClientViewHarness.PORTAL_KEY) != null);
         assertEquals(0, harness.surface.changedCells());
-        harness.receive(new ClientViewMessage.SessionReset(ClientViewMessage.ResetReason.OVERLOAD), 0);
+        harness.receive(new ViewStreamMessage.SessionReset(ViewStreamMessage.ResetReason.OVERLOAD), 0);
         harness.tick(EYE_X, EYE_Y, EYE_Z);
         assertEquals(ClientViewSession.State.CLIENT_VIEW, harness.session.state());
         assertTrue(harness.session.nativeSelected());
     }
 
-    private static ClientViewMessage.Offer offer() {
-        return new ClientViewMessage.Offer(ViewStreamLimits.WIRE_VERSION, 1, ViewStreamCapability.ALL, ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 0L);
+    private static ViewStreamMessage.Offer offer() {
+        return new ViewStreamMessage.Offer(ViewStreamLimits.WIRE_VERSION, 1, ViewStreamCapability.ALL, ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 0L);
     }
 }

@@ -2,7 +2,7 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.optics.stream.ViewStreamCapability;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.components.debug.DebugScreenDisplayer;
@@ -39,11 +39,11 @@ public class ClientViewConnectionStatusTest extends MinecraftTestBase {
     public void explicitMismatchDeclinesClearWhenAnotherNegotiationSucceeds() {
         ClientViewSession session = session(new WormholesClientConfig());
         session.offer(offer(ViewStreamLimits.WIRE_VERSION, 1));
-        session.decline(new ClientViewMessage.Decline(ClientViewMessage.DeclineReason.WIRE_MISMATCH));
+        session.decline(new ViewStreamMessage.Decline(ViewStreamMessage.DeclineReason.WIRE_MISMATCH));
         assertEquals(ClientViewSession.ConnectionStatus.MISMATCH, session.connectionStatus());
         session.offer(offer(ViewStreamLimits.WIRE_VERSION, 1));
         assertEquals(ClientViewSession.ConnectionStatus.DISCONNECTED, session.connectionStatus());
-        session.decline(new ClientViewMessage.Decline(ClientViewMessage.DeclineReason.DATA_VERSION_MISMATCH));
+        session.decline(new ViewStreamMessage.Decline(ViewStreamMessage.DeclineReason.DATA_VERSION_MISMATCH));
         assertEquals(ClientViewSession.ConnectionStatus.MISMATCH, session.connectionStatus());
         session.accept(accept());
         assertEquals(ClientViewSession.ConnectionStatus.CONNECTED, session.connectionStatus());
@@ -54,9 +54,9 @@ public class ClientViewConnectionStatusTest extends MinecraftTestBase {
     @Test
     public void disabledCapacityAndStandardPacketRenderingAreDisconnected() {
         ClientViewSession session = session(new WormholesClientConfig());
-        session.decline(new ClientViewMessage.Decline(ClientViewMessage.DeclineReason.DISABLED));
+        session.decline(new ViewStreamMessage.Decline(ViewStreamMessage.DeclineReason.DISABLED));
         assertEquals(ClientViewSession.ConnectionStatus.DISCONNECTED, session.connectionStatus());
-        session.decline(new ClientViewMessage.Decline(ClientViewMessage.DeclineReason.CAPACITY));
+        session.decline(new ViewStreamMessage.Decline(ViewStreamMessage.DeclineReason.CAPACITY));
         assertEquals(ClientViewSession.ConnectionStatus.DISCONNECTED, session.connectionStatus());
         WormholesClientConfig config = new WormholesClientConfig();
         config.renderer = "block-packets";
@@ -86,12 +86,12 @@ public class ClientViewConnectionStatusTest extends MinecraftTestBase {
         return new ClientViewSession(config, new ClientPalette(BuiltInRegistries.BLOCK), 1, "test");
     }
 
-    private static ClientViewMessage.Offer offer(int wire, int dataVersion) {
-        return new ClientViewMessage.Offer(wire, dataVersion, ViewStreamCapability.ALL, ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 0L);
+    private static ViewStreamMessage.Offer offer(int wire, int dataVersion) {
+        return new ViewStreamMessage.Offer(wire, dataVersion, ViewStreamCapability.ALL, ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 0L);
     }
 
-    private static ClientViewMessage.Accept accept() {
-        return new ClientViewMessage.Accept(1, ViewStreamCapability.ALL, ViewStreamLimits.DEFAULT_TICK_RATE,
+    private static ViewStreamMessage.Accept accept() {
+        return new ViewStreamMessage.Accept(1, ViewStreamCapability.ALL, ViewStreamLimits.DEFAULT_TICK_RATE,
             ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 7L, 8);
     }
 }

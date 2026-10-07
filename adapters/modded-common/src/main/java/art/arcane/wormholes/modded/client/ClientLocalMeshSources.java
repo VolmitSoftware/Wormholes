@@ -8,7 +8,7 @@ import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.BrickCodec;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.ProjectionEnvironment;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.SectionBiomes;
@@ -54,7 +54,7 @@ public final class ClientLocalMeshSources {
     private final LinkedHashMap<SnapshotKey, Snapshot> snapshots = new LinkedHashMap<>(128, 0.75F, true);
     private final LinkedHashMap<SnapshotKey, WeakReference<ClientLevel>> pendingSnapshots = new LinkedHashMap<>();
     private final Map<Integer, Route> routes = new HashMap<>();
-    private final Consumer<ClientViewMessage> sender;
+    private final Consumer<ViewStreamMessage> sender;
     private ClientLevel level;
     private int nextRoute;
     private long snapshotBytes;
@@ -62,7 +62,7 @@ public final class ClientLocalMeshSources {
     private long epoch;
     private boolean epochKnown;
 
-    public ClientLocalMeshSources(Consumer<ClientViewMessage> sender) {
+    public ClientLocalMeshSources(Consumer<ViewStreamMessage> sender) {
         this.sender = sender;
     }
 
@@ -273,7 +273,7 @@ public final class ClientLocalMeshSources {
                 }
                 continue;
             }
-            ClientViewMessage.MeshClaim claim = route.local ? null : session.meshes().preview(route.key, section, next.section);
+            ViewStreamMessage.MeshClaim claim = route.local ? null : session.meshes().preview(route.key, section, next.section);
             if (route.local ? session.meshes().local(route.key, section, next.section) : claim != null) {
                 route.put(section.longValue(), new Derived(session.meshes().view(route.key).section(section.longValue()), next.dependencies));
                 if (previous == null && route.local) {
@@ -443,7 +443,7 @@ public final class ClientLocalMeshSources {
             indices[cell * 2 + 1] = (byte) (id >> 8);
         }
         Brick brick = BrickCodec.pack(0, ids).withLight(block, sky).withBlockEntities(entities.toArray(Brick.BlockEntityCell[]::new));
-        ClientViewMessage.MeshSection message = new ClientViewMessage.MeshSection(route.key, route.generation, SectionPos.x(display),
+        ViewStreamMessage.MeshSection message = new ViewStreamMessage.MeshSection(route.key, route.generation, SectionPos.x(display),
             SectionPos.y(display), SectionPos.z(display), 1, 0, brick, new SectionBiomes(biomes, biomes.size() > 1 ? indices : new byte[0]));
         return new Derived(session.meshes().localSection(message), dependencies);
     }
@@ -502,19 +502,19 @@ public final class ClientLocalMeshSources {
         }
     }
 
-    private void flush(Route route, boolean available, List<ClientViewMessage.MeshCoordinate> sections, List<UUID> entities) {
+    private void flush(Route route, boolean available, List<ViewStreamMessage.MeshCoordinate> sections, List<UUID> entities) {
         while (!sections.isEmpty() || !entities.isEmpty()) {
-            int sectionCount = Math.min(sections.size(), ClientViewMessage.MeshLocal.MAX_SECTIONS);
-            int entityCount = Math.min(entities.size(), ClientViewMessage.MeshLocal.MAX_ENTITIES);
-            sender.accept(new ClientViewMessage.MeshLocal(route.key, route.generation, ++route.sequence, available,
+            int sectionCount = Math.min(sections.size(), ViewStreamMessage.MeshLocal.MAX_SECTIONS);
+            int entityCount = Math.min(entities.size(), ViewStreamMessage.MeshLocal.MAX_ENTITIES);
+            sender.accept(new ViewStreamMessage.MeshLocal(route.key, route.generation, ++route.sequence, available,
                 sections.subList(0, sectionCount), entities.subList(0, entityCount)));
             sections.subList(0, sectionCount).clear();
             entities.subList(0, entityCount).clear();
         }
     }
 
-    private static ClientViewMessage.MeshCoordinate coordinate(long key) {
-        return new ClientViewMessage.MeshCoordinate(SectionPos.x(key), SectionPos.y(key), SectionPos.z(key));
+    private static ViewStreamMessage.MeshCoordinate coordinate(long key) {
+        return new ViewStreamMessage.MeshCoordinate(SectionPos.x(key), SectionPos.y(key), SectionPos.z(key));
     }
 
     private static final class Route {
@@ -527,7 +527,7 @@ public final class ClientLocalMeshSources {
         private final int[] cell = new int[3];
         private final String world;
         private final boolean local;
-        private final List<ClientViewMessage.MeshClaim> cached = new ArrayList<>();
+        private final List<ViewStreamMessage.MeshClaim> cached = new ArrayList<>();
         private final List<Long> selection = new ArrayList<>();
         private final LongOpenHashSet selected = new LongOpenHashSet();
         private final LongLinkedOpenHashSet dirty = new LongLinkedOpenHashSet();
@@ -535,8 +535,8 @@ public final class ClientLocalMeshSources {
         private final Long2ObjectOpenHashMap<Derived> derived = new Long2ObjectOpenHashMap<>();
         private final Long2ObjectOpenHashMap<LongOpenHashSet> dependents = new Long2ObjectOpenHashMap<>();
         private final Set<UUID> entities = new HashSet<>();
-        private final List<ClientViewMessage.MeshCoordinate> added = new ArrayList<>();
-        private final List<ClientViewMessage.MeshCoordinate> removed = new ArrayList<>();
+        private final List<ViewStreamMessage.MeshCoordinate> added = new ArrayList<>();
+        private final List<ViewStreamMessage.MeshCoordinate> removed = new ArrayList<>();
         private final List<UUID> addedEntities = new ArrayList<>();
         private final List<UUID> removedEntities = new ArrayList<>();
         private int cursor;

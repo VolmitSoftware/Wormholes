@@ -5,7 +5,7 @@ import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.wormholes.modded.client.render.PortalScene;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.ProjectionEnvironment;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.math.Face;
@@ -183,8 +183,8 @@ public class ClientMeshProofTest extends MinecraftTestBase {
         assertFalse(changed.same(original));
     }
 
-    private static ClientViewMessage.MeshSection section(int x, int y, int z, int revision, int state) {
-        return new ClientViewMessage.MeshSection(7, 1, x, y, z, revision, state, Brick.single(0, state), SectionBiomes.NONE);
+    private static ViewStreamMessage.MeshSection section(int x, int y, int z, int revision, int state) {
+        return new ViewStreamMessage.MeshSection(7, 1, x, y, z, revision, state, Brick.single(0, state), SectionBiomes.NONE);
     }
 
     private static final class Fixture {
@@ -195,8 +195,8 @@ public class ClientMeshProofTest extends MinecraftTestBase {
         private Fixture(Options options, boolean populate) throws Exception {
             this.options = options;
             ClientPalette palette = new ClientPalette(BuiltInRegistries.BLOCK);
-            palette.apply(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(3, "minecraft:stone"),
-                new ClientViewMessage.PaletteEntry(4, "minecraft:dirt"))));
+            palette.apply(new ViewStreamMessage.Palette(List.of(new ViewStreamMessage.PaletteEntry(3, "minecraft:stone"),
+                new ViewStreamMessage.PaletteEntry(4, "minecraft:dirt"))));
             store = new ClientMeshSections(palette, 1024 * 1024);
             store.begin(7, 1, BOUNDS, 64);
             store.bind(7, new ClientMeshSections.Identity(options.environment(), options.epoch(), options.target()));

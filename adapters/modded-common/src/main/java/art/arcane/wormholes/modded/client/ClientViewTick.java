@@ -2,7 +2,7 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.optics.stream.BrickLightSource;
 import art.arcane.optics.stream.ViewStreamCapability;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.stream.PlateSectionBox;
@@ -29,6 +29,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.IntFunction;
+import art.arcane.wormholes.network.client.FxMessage;
+import art.arcane.wormholes.network.client.ClientViewExtensions;
 
 public final class ClientViewTick implements ClientViewSession.Sink {
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
@@ -48,12 +50,12 @@ public final class ClientViewTick implements ClientViewSession.Sink {
     private final LongArrayList overlaySectionCells;
     private final IntArrayList sectionPortals;
     private final LongOpenHashSet sectionSeen;
-    private final List<ClientViewMessage.BrickMiss.Plate> misses;
+    private final List<ViewStreamMessage.BrickMiss.Plate> misses;
     private final IntFunction<ClientPortal> portals;
     private final ClientLightPatches.CellLight cellLight;
     private final ClientNestedViews nested;
     private final Int2ObjectOpenHashMap<MirrorState> mirrors;
-    private Consumer<ClientViewMessage> sender;
+    private Consumer<ViewStreamMessage> sender;
     private ClientViewSurface surface;
     private ProjectionOverlay overlay;
     private ClientProjectionApplier applier;
@@ -100,8 +102,8 @@ public final class ClientViewTick implements ClientViewSession.Sink {
         this.effectsResumedAtNanos = System.nanoTime();
     }
 
-    public void sender(Consumer<ClientViewMessage> value) {
-        Consumer<ClientViewMessage> target = Objects.requireNonNull(value, "value");
+    public void sender(Consumer<ViewStreamMessage> value) {
+        Consumer<ViewStreamMessage> target = Objects.requireNonNull(value, "value");
         sender = message -> deliver(target, message);
     }
 
@@ -222,7 +224,7 @@ public final class ClientViewTick implements ClientViewSession.Sink {
         }
         if (session.state() == ClientViewSession.State.NATIVE_RECOVERING && clientTick >= nextRecoveryTick) {
             nextRecoveryTick = clientTick + 20;
-            ClientViewMessage.Hello hello = session.recoveryHello();
+            ViewStreamMessage.Hello hello = session.recoveryHello();
             if (hello != null) {
                 sender.accept(hello);
             }
@@ -324,17 +326,17 @@ public final class ClientViewTick implements ClientViewSession.Sink {
     }
 
     @Override
-    public void meshAck(ClientViewMessage.MeshAck ack) {
+    public void meshAck(ViewStreamMessage.MeshAck ack) {
         sender.accept(ack);
     }
 
     @Override
-    public void brickMiss(ClientViewMessage.BrickMiss.Plate plate) {
+    public void brickMiss(ViewStreamMessage.BrickMiss.Plate plate) {
         misses.add(plate);
     }
 
     @Override
-    public void refused(ClientViewMessage.PlateRefused refused) {
+    public void refused(ViewStreamMessage.PlateRefused refused) {
         sender.accept(refused);
     }
 
@@ -358,35 +360,35 @@ public final class ClientViewTick implements ClientViewSession.Sink {
     }
 
     @Override
-    public void entities(ClientViewMessage.EntityFrame frame) {
+    public void entities(ViewStreamMessage.EntityFrame frame) {
         if (entities != null) {
             entities.apply(frame);
         }
     }
 
     @Override
-    public void entityEvent(ClientViewMessage.EntityEvent event) {
+    public void entityEvent(ViewStreamMessage.EntityEvent event) {
         if (entities != null) {
             entities.apply(event);
         }
     }
 
     @Override
-    public void fx(ClientViewMessage.Fx message) {
+    public void fx(FxMessage.Fx message) {
         if (fx != null) {
             fx.apply(message, portals, frameEffectsActive);
         }
     }
 
     @Override
-    public void atmosphere(ClientViewMessage.Atmosphere message) {
+    public void atmosphere(ViewStreamMessage.Atmosphere message) {
         if (atmosphere != null && atmosphere.apply(message)) {
             touchedSections.addAll(light.sectionsOf(message.portalKey()));
         }
     }
 
     @Override
-    public void reset(ClientViewMessage.ResetReason reason) {
+    public void reset(ViewStreamMessage.ResetReason reason) {
         misses.clear();
         revertEverything();
         stats.reset();
@@ -444,7 +446,7 @@ public final class ClientViewTick implements ClientViewSession.Sink {
                 }
                 if (!handleFailureLogged) {
                     handleFailureLogged = true;
-                    LOGGER.warn("Wormholes ClientView dropped a {} message it could not apply", queued.frame().message().type(), failure);
+                    LOGGER.warn("Wormholes ClientView dropped a {} message it could not apply", ClientViewExtensions.CODEC.name(queued.frame().message()), failure);
                 }
             } finally {
                 frameEffectsActive = true;
@@ -460,14 +462,14 @@ public final class ClientViewTick implements ClientViewSession.Sink {
         drained.clear();
     }
 
-    private void deliver(Consumer<ClientViewMessage> target, ClientViewMessage message) {
+    private void deliver(Consumer<ViewStreamMessage> target, ViewStreamMessage message) {
         try {
             target.accept(message);
         } catch (RuntimeException failure) {
             sendFailures++;
             if (sendFailures == 1L) {
                 LOGGER.warn("Wormholes ClientView could not send {} to the server; native views will retry when the connection is available",
-                    message.type(), failure);
+                    ClientViewExtensions.CODEC.name(message), failure);
             }
         }
     }
@@ -846,7 +848,7 @@ public final class ClientViewTick implements ClientViewSession.Sink {
         if (!ackDue) {
             return;
         }
-        sender.accept(new ClientViewMessage.Ack(ackSequence, clientTick, (int) Math.min(Integer.MAX_VALUE, appliedSinceAck)));
+        sender.accept(new ViewStreamMessage.Ack(ackSequence, clientTick, (int) Math.min(Integer.MAX_VALUE, appliedSinceAck)));
         stats.ack();
         ackDue = false;
         appliedSinceAck = 0L;
@@ -861,14 +863,14 @@ public final class ClientViewTick implements ClientViewSession.Sink {
         for (int index = 0; index < misses.size(); index++) {
             int size = misses.get(index).wireBytes();
             if (index > from && (bytes + size > ViewStreamLimits.MAX_C2S_BYTES || index - from == ViewStreamLimits.MAX_BRICK_MISS_PLATES)) {
-                sender.accept(new ClientViewMessage.BrickMiss(misses.subList(from, index)));
+                sender.accept(new ViewStreamMessage.BrickMiss(misses.subList(from, index)));
                 stats.brickMiss();
                 from = index;
                 bytes = ViewStreamLimits.C2S_HEADER_BYTES + 1;
             }
             bytes += size;
         }
-        sender.accept(new ClientViewMessage.BrickMiss(misses.subList(from, misses.size())));
+        sender.accept(new ViewStreamMessage.BrickMiss(misses.subList(from, misses.size())));
         stats.brickMiss();
         misses.clear();
     }

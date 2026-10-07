@@ -1,7 +1,7 @@
 package art.arcane.wormholes.render.client;
 
 import art.arcane.wormholes.door.DoorwayPlane;
-import art.arcane.wormholes.network.client.ClientViewCodec;
+import art.arcane.optics.stream.ViewStreamCodec;
 import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.stream.ViewStreamReader;
 import art.arcane.optics.stream.ViewStreamWriter;
@@ -25,9 +25,9 @@ final class ClientPortalGeometryPlaneOffsetTest {
             ApertureDescriptor child = geometry(normal, ApertureDescriptor.KIND_FRAME, 0.0D, List.of());
             ApertureDescriptor door = geometry(normal, ApertureDescriptor.KIND_DOOR, DoorwayPlane.planeOffset(normal), List.of(child));
             ViewStreamWriter out = new ViewStreamWriter();
-            ClientViewCodec.writeGeometry(out, door, 0);
+            ViewStreamCodec.writeGeometry(out, door, 0);
             ViewStreamReader in = new ViewStreamReader(out.toByteArray());
-            ApertureDescriptor decoded = ClientViewCodec.readGeometry(in, 0);
+            ApertureDescriptor decoded = ViewStreamCodec.readGeometry(in, 0);
             in.expectEnd();
             assertEquals(door, decoded);
             assertEquals(Double.doubleToRawLongBits(door.planeOffset()), Double.doubleToRawLongBits(decoded.planeOffset()));

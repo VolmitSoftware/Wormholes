@@ -7,7 +7,7 @@ import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.math.Face;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.optics.stream.SectionBiomes;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.frame.OpticTransform;
@@ -170,12 +170,12 @@ public class ClientMeshEntitiesTest extends MinecraftTestBase {
     @Test
     public void halfBlockTranslationQueriesKeepTheCapturedCellAtExactCenterTies() throws Exception {
         ClientPalette palette = new ClientPalette(BuiltInRegistries.BLOCK);
-        palette.apply(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(3, "minecraft:chest[facing=north]"))));
+        palette.apply(new ViewStreamMessage.Palette(List.of(new ViewStreamMessage.PaletteEntry(3, "minecraft:chest[facing=north]"))));
         ClientMeshSections store = new ClientMeshSections(palette, 1_048_576);
         store.begin(7, 1, new BlockBox(0, 0, 0, 16, 16, 16), 1);
         byte[] light = new byte[2048];
         light[0] = 7;
-        store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 0, oneBlock(3).withLight(light, new byte[2048]), SectionBiomes.NONE));
+        store.put(new ViewStreamMessage.MeshSection(7, 1, 0, 0, 0, 1, 0, oneBlock(3).withLight(light, new byte[2048]), SectionBiomes.NONE));
         ClientMeshEntities scene = new ClientMeshEntities(store.view(7), mock(ClientLevel.class));
         for (Face[] axes : new Face[][] {{Face.E, Face.U, Face.S}, {Face.W, Face.D, Face.N},
             {Face.U, Face.W, Face.S}}) {
@@ -194,14 +194,14 @@ public class ClientMeshEntitiesTest extends MinecraftTestBase {
     @Test
     public void visualTicksReadCapturedDestinationFluidsAndRestoreScopeAfterFailure() throws Exception {
         ClientPalette palette = new ClientPalette(BuiltInRegistries.BLOCK);
-        palette.apply(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(3, "minecraft:water[level=0]"))));
+        palette.apply(new ViewStreamMessage.Palette(List.of(new ViewStreamMessage.PaletteEntry(3, "minecraft:water[level=0]"))));
         BlockState water = palette.state(3);
         assertSame(Blocks.WATER, water.getBlock());
         water.initCache();
         assertFalse(water.getFluidState().isEmpty());
         ClientMeshSections store = new ClientMeshSections(palette, 1_048_576);
         store.begin(7, 1, new BlockBox(0, 0, 0, 16, 16, 16), 1);
-        store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 0, oneBlock(3), SectionBiomes.NONE));
+        store.put(new ViewStreamMessage.MeshSection(7, 1, 0, 0, 0, 1, 0, oneBlock(3), SectionBiomes.NONE));
         ClientLevel level = mock(ClientLevel.class);
         ClientMeshEntities scene = new ClientMeshEntities(store.view(7), level);
         OpticTransform transform = OpticTransform.of(AxisPermutation.of(Face.W, Face.U, Face.S), 101, 0, 0);
@@ -226,9 +226,9 @@ public class ClientMeshEntitiesTest extends MinecraftTestBase {
     @Test
     public void sidewaysDoubleChestsUseNativePositionsNeighborsAndLightInsideScopedExtraction() throws Exception {
         ClientPalette palette = new ClientPalette(BuiltInRegistries.BLOCK);
-        palette.apply(new ClientViewMessage.Palette(List.of(
-            new ClientViewMessage.PaletteEntry(3, "minecraft:chest[facing=north,type=left,waterlogged=false]"),
-            new ClientViewMessage.PaletteEntry(4, "minecraft:chest[facing=north,type=right,waterlogged=false]"))));
+        palette.apply(new ViewStreamMessage.Palette(List.of(
+            new ViewStreamMessage.PaletteEntry(3, "minecraft:chest[facing=north,type=left,waterlogged=false]"),
+            new ViewStreamMessage.PaletteEntry(4, "minecraft:chest[facing=north,type=right,waterlogged=false]"))));
         ClientMeshSections store = new ClientMeshSections(palette, 1_048_576);
         store.begin(7, 1, new BlockBox(0, 0, 0, 16, 16, 16), 1);
         BlockState left = Blocks.CHEST.defaultBlockState().setValue(ChestBlock.TYPE, ChestType.LEFT);
@@ -243,7 +243,7 @@ public class ClientMeshEntitiesTest extends MinecraftTestBase {
         byte[] light = new byte[2048];
         light[firstCell >> 1] |= (byte) (3 << ((firstCell & 1) * 4));
         light[secondCell >> 1] |= (byte) (12 << ((secondCell & 1) * 4));
-        store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 0, BrickCodec.pack(0, cells).withLight(light, new byte[2048]), SectionBiomes.NONE));
+        store.put(new ViewStreamMessage.MeshSection(7, 1, 0, 0, 0, 1, 0, BrickCodec.pack(0, cells).withLight(light, new byte[2048]), SectionBiomes.NONE));
         ClientLevel level = mock(ClientLevel.class);
         ClientMeshEntities scene = new ClientMeshEntities(store.view(7), level);
         OpticTransform transform = OpticTransform.of(AxisPermutation.of(Face.U, Face.W, Face.S), 100, 50, 200);
@@ -276,11 +276,11 @@ public class ClientMeshEntitiesTest extends MinecraftTestBase {
     @Test
     public void detachedBlockEntitiesFollowSectionReplacementAndRemovalWithoutChunkWrites() throws Exception {
         ClientPalette palette = new ClientPalette(BuiltInRegistries.BLOCK);
-        palette.apply(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(3, "minecraft:chest[facing=east]"),
-            new ClientViewMessage.PaletteEntry(4, "minecraft:oak_sign[rotation=8]"))));
+        palette.apply(new ViewStreamMessage.Palette(List.of(new ViewStreamMessage.PaletteEntry(3, "minecraft:chest[facing=east]"),
+            new ViewStreamMessage.PaletteEntry(4, "minecraft:oak_sign[rotation=8]"))));
         ClientMeshSections store = new ClientMeshSections(palette, 1_048_576);
         store.begin(7, 1, new BlockBox(-16, -16, -16, 16, 16, 16), 1);
-        store.put(new ClientViewMessage.MeshSection(7, 1, -1, -1, -1, 1, 0, oneBlock(3), SectionBiomes.NONE));
+        store.put(new ViewStreamMessage.MeshSection(7, 1, -1, -1, -1, 1, 0, oneBlock(3), SectionBiomes.NONE));
         ClientLevel level = mock(ClientLevel.class);
         ClientMeshEntities scene = new ClientMeshEntities(store.view(7), level);
         BlockPos position = new BlockPos(-16, -16, -16);
@@ -291,7 +291,7 @@ public class ClientMeshEntitiesTest extends MinecraftTestBase {
         assertSame(level, chest.getLevel());
         scene.synchronize(PortalEnvironmentTest.identity());
         assertSame(chest, scene.blockEntity(position));
-        store.put(new ClientViewMessage.MeshSection(7, 1, -1, -1, -1, 2, 0, oneBlock(4), SectionBiomes.NONE));
+        store.put(new ViewStreamMessage.MeshSection(7, 1, -1, -1, -1, 2, 0, oneBlock(4), SectionBiomes.NONE));
         scene.synchronize(PortalEnvironmentTest.identity());
         assertNotSame(chest, scene.blockEntity(position));
         assertSame(Blocks.OAK_SIGN, scene.blockEntity(position).getBlockState().getBlock());
@@ -306,12 +306,12 @@ public class ClientMeshEntitiesTest extends MinecraftTestBase {
     @Test
     public void palettesWithoutEntityBlocksSkipCellDiscoveryAndMissingNbtStillCreatesEntities() throws Exception {
         ClientPalette palette = new ClientPalette(BuiltInRegistries.BLOCK);
-        palette.apply(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(3, "minecraft:chest"),
-            new ClientViewMessage.PaletteEntry(4, "minecraft:stone"))));
+        palette.apply(new ViewStreamMessage.Palette(List.of(new ViewStreamMessage.PaletteEntry(3, "minecraft:chest"),
+            new ViewStreamMessage.PaletteEntry(4, "minecraft:stone"))));
         ClientMeshSections store = new ClientMeshSections(palette, 1_048_576);
         store.begin(7, 1, new BlockBox(0, 0, 0, 32, 16, 16), 2);
-        store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 0, oneBlock(4), SectionBiomes.NONE));
-        store.put(new ClientViewMessage.MeshSection(7, 1, 1, 0, 0, 1, 0, oneBlock(3), SectionBiomes.NONE));
+        store.put(new ViewStreamMessage.MeshSection(7, 1, 0, 0, 0, 1, 0, oneBlock(4), SectionBiomes.NONE));
+        store.put(new ViewStreamMessage.MeshSection(7, 1, 1, 0, 0, 1, 0, oneBlock(3), SectionBiomes.NONE));
         long chestKey = SectionPos.asLong(1, 0, 0);
         ClientMeshSections.Section stone = mock(ClientMeshSections.Section.class, delegatesTo(store.view(7).section(0L)));
         ClientMeshSections.Section chest = store.view(7).section(chestKey);
@@ -326,7 +326,7 @@ public class ClientMeshEntitiesTest extends MinecraftTestBase {
         BlockPos position = new BlockPos(16, 0, 0);
         assertTrue(scene.blockEntity(position) instanceof ChestBlockEntity);
         verify(stone, never()).state(anyInt());
-        store.put(new ClientViewMessage.MeshSection(7, 1, 1, 0, 0, 2, 0, oneBlock(4), SectionBiomes.NONE));
+        store.put(new ViewStreamMessage.MeshSection(7, 1, 1, 0, 0, 2, 0, oneBlock(4), SectionBiomes.NONE));
         ClientMeshSections.Section replaced = mock(ClientMeshSections.Section.class, delegatesTo(store.view(7).section(chestKey)));
         when(view.section(chestKey)).thenReturn(replaced);
         scene.synchronize(PortalEnvironmentTest.identity());
@@ -339,10 +339,10 @@ public class ClientMeshEntitiesTest extends MinecraftTestBase {
     @Test
     public void poweredSkullAnimationAdvancesOncePerTickWithoutAWorldTicker() throws Exception {
         ClientPalette palette = new ClientPalette(BuiltInRegistries.BLOCK);
-        palette.apply(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(3, "minecraft:dragon_head[powered=true]"))));
+        palette.apply(new ViewStreamMessage.Palette(List.of(new ViewStreamMessage.PaletteEntry(3, "minecraft:dragon_head[powered=true]"))));
         ClientMeshSections store = new ClientMeshSections(palette, 1_048_576);
         store.begin(7, 1, new BlockBox(0, 0, 0, 16, 16, 16), 1);
-        store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 0, oneBlock(3), SectionBiomes.NONE));
+        store.put(new ViewStreamMessage.MeshSection(7, 1, 0, 0, 0, 1, 0, oneBlock(3), SectionBiomes.NONE));
         ClientLevel level = mock(ClientLevel.class);
         ClientMeshEntities scene = new ClientMeshEntities(store.view(7), level);
         scene.synchronize(PortalEnvironmentTest.identity());
@@ -359,11 +359,11 @@ public class ClientMeshEntitiesTest extends MinecraftTestBase {
     @Test
     public void unchangedFramesDoNotEnumerateSectionsAndUpdatesKeepTheActiveSetCurrent() throws Exception {
         ClientPalette palette = new ClientPalette(BuiltInRegistries.BLOCK);
-        palette.apply(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(3, "minecraft:dragon_head[powered=true]"))));
+        palette.apply(new ViewStreamMessage.Palette(List.of(new ViewStreamMessage.PaletteEntry(3, "minecraft:dragon_head[powered=true]"))));
         ClientMeshSections store = new ClientMeshSections(palette, 1_048_576);
         store.begin(7, 1, new BlockBox(0, 0, 0, 32, 16, 16), 2);
-        store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 0, Brick.empty(0), SectionBiomes.NONE));
-        store.put(new ClientViewMessage.MeshSection(7, 1, 1, 0, 0, 1, 0, oneBlock(3), SectionBiomes.NONE));
+        store.put(new ViewStreamMessage.MeshSection(7, 1, 0, 0, 0, 1, 0, Brick.empty(0), SectionBiomes.NONE));
+        store.put(new ViewStreamMessage.MeshSection(7, 1, 1, 0, 0, 1, 0, oneBlock(3), SectionBiomes.NONE));
         ClientMeshSections.View view = mock(ClientMeshSections.View.class, delegatesTo(store.view(7)));
         ClientLevel level = mock(ClientLevel.class);
         ClientMeshEntities scene = new ClientMeshEntities(view, level);
@@ -376,14 +376,14 @@ public class ClientMeshEntitiesTest extends MinecraftTestBase {
         }
         verify(view, times(1)).sectionKeys();
         assertSame(original, scene.blockEntity(position));
-        store.put(new ClientViewMessage.MeshSection(7, 1, 1, 0, 0, 2, 0, oneBlock(3), SectionBiomes.NONE));
+        store.put(new ViewStreamMessage.MeshSection(7, 1, 1, 0, 0, 2, 0, oneBlock(3), SectionBiomes.NONE));
         scene.synchronize(PortalEnvironmentTest.identity());
         SkullBlockEntity replacement = (SkullBlockEntity) scene.blockEntity(position);
         assertNotSame(original, replacement);
         scene.animate(2);
         assertEquals(1.0F, original.getAnimation(0), 0);
         assertEquals(1.0F, replacement.getAnimation(0), 0);
-        store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 2, 0, oneBlock(3), SectionBiomes.NONE));
+        store.put(new ViewStreamMessage.MeshSection(7, 1, 0, 0, 0, 2, 0, oneBlock(3), SectionBiomes.NONE));
         scene.synchronize(PortalEnvironmentTest.identity());
         SkullBlockEntity added = (SkullBlockEntity) scene.blockEntity(BlockPos.ZERO);
         assertSame(replacement, scene.blockEntity(position));
@@ -391,7 +391,7 @@ public class ClientMeshEntitiesTest extends MinecraftTestBase {
         assertEquals(1.0F, added.getAnimation(0), 0);
         assertEquals(2.0F, replacement.getAnimation(0), 0);
         store.drop(7, 1, 1, 0, 0);
-        store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 3, 0, Brick.empty(0), SectionBiomes.NONE));
+        store.put(new ViewStreamMessage.MeshSection(7, 1, 0, 0, 0, 3, 0, Brick.empty(0), SectionBiomes.NONE));
         scene.synchronize(PortalEnvironmentTest.identity());
         assertNull(scene.blockEntity(position));
         assertNull(scene.blockEntity(BlockPos.ZERO));
@@ -412,7 +412,7 @@ public class ClientMeshEntitiesTest extends MinecraftTestBase {
         EntitySnapshot stand = EntitySnapshot.full(id, "minecraft:armor_stand", -20.5D, 64.0D, -40.5D, 1.975D,
             0.0D, 0.0D, -1.0D, 180.0F, 0.0F, 0.0D, 0.0D, 0.0D, true, "", "", "", null, null,
             EntitySnapshot.EMPTY, EntitySnapshot.EMPTY, 1);
-        entities.apply(new ClientViewMessage.EntityFrame(7, 1, List.of(stand), List.of(id), true));
+        entities.apply(new ViewStreamMessage.EntityFrame(7, 1, List.of(stand), List.of(id), true));
         ClientPortal portal = mock(ClientPortal.class);
         entities.tick(key -> portal, key -> true);
         int entityId = entities.entityId(7, id);

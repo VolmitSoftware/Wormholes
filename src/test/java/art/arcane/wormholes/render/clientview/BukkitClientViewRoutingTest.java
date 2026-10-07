@@ -23,7 +23,7 @@ import org.mockito.Answers;
 import com.github.retrooper.packetevents.protocol.ConnectionState;
 
 import art.arcane.optics.stream.ViewStreamCapability;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamMessageType;
 import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.wormholes.portal.ILocalPortal;
@@ -46,7 +46,7 @@ final class BukkitClientViewRoutingTest {
             assertTrue(fixture.route().isEmpty());
             assertTrue(fixture.clientView.nativeMesh(fixture.player));
             assertTrue(fixture.session().owns(fixture.portal.getId()));
-            for (ClientViewMessage.ResetReason reason : List.of(ClientViewMessage.ResetReason.PROTOCOL, ClientViewMessage.ResetReason.OVERLOAD)) {
+            for (ViewStreamMessage.ResetReason reason : List.of(ViewStreamMessage.ResetReason.PROTOCOL, ViewStreamMessage.ResetReason.OVERLOAD)) {
                 fixture.session().end(reason);
                 assertTrue(fixture.route().isEmpty());
                 assertTrue(fixture.clientView.nativeMesh(fixture.player));
@@ -82,14 +82,14 @@ final class BukkitClientViewRoutingTest {
 
             fixture.buildPlates();
             assertTrue(fixture.route().isEmpty());
-            List<ClientViewMessage> plate = fixture.messages();
+            List<ViewStreamMessage> plate = fixture.messages();
             assertEquals(List.of(ViewStreamMessageType.PALETTE, ViewStreamMessageType.PORTAL, ViewStreamMessageType.PLATE_BEGIN,
                 ViewStreamMessageType.PLATE_BRICKS, ViewStreamMessageType.PLATE_END), types(plate));
-            ClientViewMessage.Portal portal = (ClientViewMessage.Portal) plate.get(1);
+            ViewStreamMessage.Portal portal = (ViewStreamMessage.Portal) plate.get(1);
             assertTrue(portal.geometry().mirror());
-            ClientViewMessage.Palette palette = (ClientViewMessage.Palette) plate.get(0);
+            ViewStreamMessage.Palette palette = (ViewStreamMessage.Palette) plate.get(0);
             assertTrue(palette.entries().stream().anyMatch(entry -> entry.state().equals("minecraft:stone")));
-            ClientViewMessage.PlateBegin begin = (ClientViewMessage.PlateBegin) plate.get(2);
+            ViewStreamMessage.PlateBegin begin = (ViewStreamMessage.PlateBegin) plate.get(2);
             assertEquals(portal.portalKey(), begin.portalKey());
 
             List<Player> observers = new ArrayList<Player>();
@@ -118,9 +118,9 @@ final class BukkitClientViewRoutingTest {
             fixture.messages();
 
             fixture.clientView.runtimeEnabled(false);
-            List<ClientViewMessage> reset = fixture.messages();
+            List<ViewStreamMessage> reset = fixture.messages();
             assertEquals(1, reset.size());
-            assertEquals(ClientViewMessage.ResetReason.DISABLED, ((ClientViewMessage.SessionReset) reset.get(0)).reason());
+            assertEquals(ViewStreamMessage.ResetReason.DISABLED, ((ViewStreamMessage.SessionReset) reset.get(0)).reason());
             assertEquals(ViewStreamSessionState.VANILLA, fixture.session().state());
 
             assertEquals(List.of(fixture.portal), fixture.route());
@@ -139,9 +139,9 @@ final class BukkitClientViewRoutingTest {
             for (int tick = 0; tick < 7; tick++) {
                 fixture.clientView.route(fixture.player, fixture.eye.clone(), new ArrayList<ILocalPortal>(), List.of(), Map.of(), ++fixture.tick);
             }
-            List<ClientViewMessage> dropped = fixture.messages();
+            List<ViewStreamMessage> dropped = fixture.messages();
             assertEquals(1, dropped.size());
-            assertInstanceOf(ClientViewMessage.PortalDrop.class, dropped.get(0));
+            assertInstanceOf(ViewStreamMessage.PortalDrop.class, dropped.get(0));
             assertFalse(fixture.clientView.attending());
         }
     }
@@ -178,9 +178,9 @@ final class BukkitClientViewRoutingTest {
             assertTrue(fixture.jobs.isEmpty(), "a mirror plate build was scheduled");
             assertEquals(0, fixture.plates.size());
             assertEquals(List.of(fixture.playerId + " " + fixture.portal.getId()), fixture.released);
-            List<ClientViewMessage> stream = fixture.messages();
+            List<ViewStreamMessage> stream = fixture.messages();
             assertEquals(List.of(ViewStreamMessageType.PORTAL), types(stream));
-            assertTrue(((ClientViewMessage.Portal) stream.get(0)).geometry().mirror());
+            assertTrue(((ViewStreamMessage.Portal) stream.get(0)).geometry().mirror());
             assertTrue(fixture.clientView.attending());
         }
     }
@@ -193,12 +193,12 @@ final class BukkitClientViewRoutingTest {
             fixture.routeWith(child);
             fixture.buildPlates();
             fixture.routeWith(child);
-            List<ClientViewMessage> stream = fixture.messages();
-            ClientViewMessage.Portal parent = null;
-            ClientViewMessage.Portal nested = null;
-            ClientViewMessage.Portal direct = null;
-            for (ClientViewMessage message : stream) {
-                if (message instanceof ClientViewMessage.Portal portal) {
+            List<ViewStreamMessage> stream = fixture.messages();
+            ViewStreamMessage.Portal parent = null;
+            ViewStreamMessage.Portal nested = null;
+            ViewStreamMessage.Portal direct = null;
+            for (ViewStreamMessage message : stream) {
+                if (message instanceof ViewStreamMessage.Portal portal) {
                     if (portal.geometry().mirror()) {
                         parent = portal;
                     } else if (portal.geometry().parentPortalKey() != 0) {
@@ -254,15 +254,15 @@ final class BukkitClientViewRoutingTest {
         fixture.clientView.observer(fixture.playerId, fixture.user).brand("fabric");
         assertTrue(fixture.negotiator.offerPlay(fixture.player));
         assertEquals(ViewStreamInbound.HELLO_ACCEPTED, fixture.hello(clientCaps));
-        List<ClientViewMessage> handshake = fixture.messages();
+        List<ViewStreamMessage> handshake = fixture.messages();
         assertEquals(List.of(ViewStreamMessageType.OFFER, ViewStreamMessageType.ACCEPT), types(handshake));
         return fixture;
     }
 
-    private static List<ViewStreamMessageType> types(List<ClientViewMessage> messages) {
+    private static List<ViewStreamMessageType> types(List<ViewStreamMessage> messages) {
         List<ViewStreamMessageType> types = new ArrayList<ViewStreamMessageType>(messages.size());
-        for (ClientViewMessage message : messages) {
-            types.add(message.type());
+        for (ViewStreamMessage message : messages) {
+            types.add(message instanceof ViewStreamMessage.Projection projection ? projection.type() : null);
         }
         return types;
     }

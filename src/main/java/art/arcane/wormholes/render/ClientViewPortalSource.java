@@ -12,7 +12,7 @@ import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.door.view.AbstractApertureFacade;
 import art.arcane.wormholes.door.view.DoorApertureFrames;
 import art.arcane.optics.stream.ViewStreamLimits;
-import art.arcane.wormholes.network.client.SessionPalette;
+import art.arcane.optics.stream.SessionPalette;
 import art.arcane.wormholes.portal.DimensionalPortalKind;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.IPortal;

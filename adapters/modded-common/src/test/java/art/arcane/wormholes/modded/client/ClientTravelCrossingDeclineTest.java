@@ -2,7 +2,6 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
-import art.arcane.wormholes.network.client.ClientViewMessage;
 import net.minecraft.client.Camera;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
@@ -31,6 +30,7 @@ import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import art.arcane.wormholes.network.client.TravelMessage;
 
 public class ClientTravelCrossingDeclineTest extends MinecraftTestBase {
     @Test
@@ -45,7 +45,7 @@ public class ClientTravelCrossingDeclineTest extends MinecraftTestBase {
             assertTrue(fixture.sent.isEmpty());
             assertTrue(fixture.travel.active());
             fixture.eye(new Vec3(0.5, 1.62, 0.6));
-            assertEquals(List.of(new ClientViewMessage.TravelCancel(fixture.begin.token(), fixture.begin.generation())), fixture.sent);
+            assertEquals(List.of(new TravelMessage.TravelCancel(fixture.begin.token(), fixture.begin.generation())), fixture.sent);
             assertFalse(fixture.travel.active());
             assertSame(arrival, get(fixture.travel, "arrival"));
             assertNull(get(fixture.travel, "prediction"));
@@ -97,16 +97,16 @@ public class ClientTravelCrossingDeclineTest extends MinecraftTestBase {
         private final Camera camera = mock(Camera.class);
         private final DeltaTracker tracker = mock(DeltaTracker.class);
         private final ClientPortalRenderer renderer = mock(ClientPortalRenderer.class);
-        private final List<ClientViewMessage> sent = new ArrayList<>();
+        private final List<TravelMessage> sent = new ArrayList<>();
         private final ClientPreparedTravel travel = new ClientPreparedTravel(sent::add);
-        private final ClientViewMessage.TravelBegin begin;
+        private final TravelMessage.TravelBegin begin;
         private final MockedStatic<Minecraft> minecraftAccess;
         private final MockedStatic<ClientPortalRenderer> rendererAccess;
 
         private Fixture() throws ReflectiveOperationException {
             Method fixture = ClientPreparedTravelPendingTest.class.getDeclaredMethod("begin", long.class);
             fixture.setAccessible(true);
-            begin = (ClientViewMessage.TravelBegin) fixture.invoke(null, 12L);
+            begin = (TravelMessage.TravelBegin) fixture.invoke(null, 12L);
             set(travel, "begin", begin);
             set(travel, "deadline", System.currentTimeMillis() + 30_000);
             minecraft.player = player;

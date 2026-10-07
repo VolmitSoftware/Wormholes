@@ -5,8 +5,7 @@ import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
 
 import art.arcane.wormholes.modded.mixin.client.DebugScreenEntriesAccessor;
 import art.arcane.optics.stream.ViewStreamCapability;
-import art.arcane.wormholes.network.client.ClientViewCodec;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.fidelity.BlockEntitySample;
 import net.minecraft.SharedConstants;
@@ -31,6 +30,8 @@ import java.nio.file.Path;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
+import art.arcane.wormholes.network.client.ClientViewExtensions;
+import art.arcane.wormholes.network.client.TravelExtension;
 
 public final class WormholesClient {
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
@@ -57,7 +58,7 @@ public final class WormholesClient {
         this.config = Objects.requireNonNull(config, "config");
         this.sender = Objects.requireNonNull(sender, "sender");
         this.stats = new ClientViewStats();
-        this.preparedTravel = new ClientPreparedTravel(this::send);
+        this.preparedTravel = new ClientPreparedTravel(message -> send(TravelExtension.INSTANCE.wrap(message)));
         this.reflections = new ClientReflectionEntity();
         this.dataVersion = SharedConstants.getCurrentVersion().dataVersion().version();
         this.brandTag = ClientBrandRetriever.getClientModName();
@@ -292,11 +293,11 @@ public final class WormholesClient {
         stats.reset();
     }
 
-    private void send(ClientViewMessage message) {
+    private void send(ViewStreamMessage message) {
         try {
-            sender.accept(ClientViewCodec.encodeC2S(message));
+            sender.accept(ClientViewExtensions.CODEC.encodeC2S(message));
         } catch (ViewStreamProtocolException failure) {
-            LOGGER.warn("Wormholes ClientView could not encode {}", message.type(), failure);
+            LOGGER.warn("Wormholes ClientView could not encode {}", ClientViewExtensions.CODEC.name(message), failure);
         }
     }
 

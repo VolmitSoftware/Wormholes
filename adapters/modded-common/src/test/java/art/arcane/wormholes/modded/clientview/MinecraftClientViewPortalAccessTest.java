@@ -23,7 +23,7 @@ import art.arcane.wormholes.modded.MinecraftProjectionWorldView;
 import art.arcane.wormholes.modded.MinecraftProjectorPortalAccess;
 import art.arcane.wormholes.modded.WormholesModConfiguration;
 import art.arcane.wormholes.modded.WormholesModRuntime;
-import art.arcane.wormholes.network.client.SessionPalette;
+import art.arcane.optics.stream.SessionPalette;
 import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.wormholes.portal.BlackoutColor;
 import art.arcane.optics.frame.QuarterTurn;

@@ -4,8 +4,8 @@ import art.arcane.volmlib.util.director.annotations.Director;
 import art.arcane.wormholes.ProjectionManager;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.config.toml.ClientViewConfig;
-import art.arcane.wormholes.render.client.session.ClientViewOptions;
-import art.arcane.wormholes.render.client.session.ClientViewSessionRegistry;
+import art.arcane.optics.stream.ViewStreamOptions;
+import art.arcane.optics.stream.ViewStreamSessionRegistry;
 import art.arcane.wormholes.render.clientview.BukkitClientView;
 import art.arcane.wormholes.render.clientview.ClientViewObserver;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -33,7 +33,7 @@ import static org.mockito.Mockito.when;
 final class CommandClientViewTest {
     private ProjectionManager previousManager;
     private BukkitClientView clientView;
-    private ClientViewSessionRegistry<ClientViewObserver, BlockData> registry;
+    private ViewStreamSessionRegistry<ClientViewObserver, BlockData> registry;
 
     @BeforeEach
     @SuppressWarnings("unchecked")
@@ -41,12 +41,12 @@ final class CommandClientViewTest {
         previousManager = Wormholes.projectionManager;
         ProjectionManager projections = mock(ProjectionManager.class);
         clientView = mock(BukkitClientView.class);
-        registry = mock(ClientViewSessionRegistry.class);
+        registry = mock(ViewStreamSessionRegistry.class);
         ClientViewConfig config = new ClientViewConfig();
         config.enabled = true;
         when(projections.clientView()).thenReturn(clientView);
         when(clientView.registry()).thenReturn(registry);
-        when(registry.options()).thenReturn(ClientViewOptions.from(config, ClientViewOptions.DEFAULT_INTEREST_GRACE_TICKS));
+        when(registry.options()).thenReturn(config.options(ViewStreamOptions.DEFAULT_INTEREST_GRACE_TICKS));
         when(registry.runtimeEnabled()).thenReturn(true);
         when(registry.stats()).thenReturn(List.of());
         Wormholes.projectionManager = projections;

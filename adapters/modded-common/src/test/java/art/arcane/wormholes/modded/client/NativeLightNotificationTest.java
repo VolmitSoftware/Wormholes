@@ -5,7 +5,6 @@ import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
 import art.arcane.wormholes.modded.client.render.ClientTravelScene;
 import art.arcane.wormholes.modded.mixin.client.LocalMeshChunkMixin;
-import art.arcane.wormholes.network.client.ClientViewMessage;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import net.minecraft.client.Minecraft;
@@ -27,6 +26,7 @@ import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import art.arcane.wormholes.network.client.TravelMessage;
 
 public class NativeLightNotificationTest extends MinecraftTestBase {
     @Test
@@ -79,8 +79,8 @@ public class NativeLightNotificationTest extends MinecraftTestBase {
         displayed.set(travel, scene);
         Field retained = ClientPreparedTravel.class.getDeclaredField("payloads");
         retained.setAccessible(true);
-        Map<ClientViewMessage.TravelCoordinate, byte[]> payloads = (Map<ClientViewMessage.TravelCoordinate, byte[]>) retained.get(travel);
-        ClientViewMessage.TravelCoordinate coordinate = new ClientViewMessage.TravelCoordinate(-5, 7);
+        Map<TravelMessage.TravelCoordinate, byte[]> payloads = (Map<TravelMessage.TravelCoordinate, byte[]>) retained.get(travel);
+        TravelMessage.TravelCoordinate coordinate = new TravelMessage.TravelCoordinate(-5, 7);
         payloads.put(coordinate, new byte[]{1, 2, 3});
         ClientPortalRenderer renderer = mock(ClientPortalRenderer.class);
         try (MockedStatic<ClientSodiumTerrain> terrain = mockStatic(ClientSodiumTerrain.class);

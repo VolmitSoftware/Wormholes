@@ -5,6 +5,8 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.ViewStreamHandshake;
+import art.arcane.optics.stream.ViewStreamMessage;
 
 final class ClientViewHandshakeVersionTest {
     private static final int DATA_VERSION = 4325;
@@ -23,12 +25,12 @@ final class ClientViewHandshakeVersionTest {
 
     @Test
     void offerAdvertisesSixAndAFiveHelloIsAWireMismatch() {
-        ClientViewHandshake.Policy policy = new ClientViewHandshake.Policy(true, DATA_VERSION, ViewStreamCapability.ALL,
+        ViewStreamHandshake.Policy policy = new ViewStreamHandshake.Policy(true, DATA_VERSION, ViewStreamCapability.ALL,
             ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 100, 20, 8, true);
-        ClientViewHandshake handshake = new ClientViewHandshake(policy, 0L, () -> 7, () -> 0x1234L);
+        ViewStreamHandshake handshake = new ViewStreamHandshake(policy, 0L, () -> 7, () -> 0x1234L);
         assertEquals(6, handshake.offer(0L).wire());
-        ClientViewMessage.Hello previous = new ClientViewMessage.Hello(5, DATA_VERSION, ViewStreamCapability.ALL, 1, 1, 0L, "fabric");
-        ClientViewMessage.Decline decline = (ClientViewMessage.Decline) handshake.onHello(previous, 1L, true).reply();
-        assertEquals(ClientViewMessage.DeclineReason.WIRE_MISMATCH, decline.reason());
+        ViewStreamMessage.Hello previous = new ViewStreamMessage.Hello(5, DATA_VERSION, ViewStreamCapability.ALL, 1, 1, 0L, "fabric");
+        ViewStreamMessage.Decline decline = (ViewStreamMessage.Decline) handshake.onHello(previous, 1L, true).reply();
+        assertEquals(ViewStreamMessage.DeclineReason.WIRE_MISMATCH, decline.reason());
     }
 }

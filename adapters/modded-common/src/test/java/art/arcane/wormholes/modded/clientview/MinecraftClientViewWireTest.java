@@ -2,11 +2,10 @@ package art.arcane.wormholes.modded.clientview;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.optics.stream.ViewStreamCapability;
-import art.arcane.wormholes.network.client.ClientViewCodec;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.ViewStreamProtocolException;
-import art.arcane.wormholes.network.client.SessionPalette;
+import art.arcane.optics.stream.SessionPalette;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import io.netty.channel.embedded.EmbeddedChannel;
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
@@ -27,6 +26,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
+import art.arcane.wormholes.network.client.ClientViewExtensions;
 
 public class MinecraftClientViewWireTest extends MinecraftTestBase {
     @Test
@@ -60,10 +60,10 @@ public class MinecraftClientViewWireTest extends MinecraftTestBase {
         for (int i = 0; i < sample.size(); i++) {
             ids[i] = palette.id(BlockStateParser.serialize(sample.get(i)));
         }
-        List<ClientViewMessage.PaletteEntry> entries = palette.cursor().pending(ids);
-        byte[] frame = ClientViewCodec.encodeS2C(new ClientViewMessage.Palette(entries), 7, ViewStreamLimits.FLAG_LAST);
-        ClientViewMessage.Palette decoded = (ClientViewMessage.Palette) ClientViewCodec.decodeS2C(frame, ViewStreamCapability.ALL).message();
-        for (ClientViewMessage.PaletteEntry entry : decoded.entries()) {
+        List<ViewStreamMessage.PaletteEntry> entries = palette.cursor().pending(ids);
+        byte[] frame = ClientViewExtensions.CODEC.encodeS2C(new ViewStreamMessage.Palette(entries), 7, ViewStreamLimits.FLAG_LAST);
+        ViewStreamMessage.Palette decoded = (ViewStreamMessage.Palette) ClientViewExtensions.CODEC.decodeS2C(frame, ViewStreamCapability.ALL).message();
+        for (ViewStreamMessage.PaletteEntry entry : decoded.entries()) {
             BlockState expected = sample.get(indexOf(ids, entry.id()));
             assertSame(expected, BlockStateParser.parseForBlock(BuiltInRegistries.BLOCK, entry.state(), false).blockState());
         }

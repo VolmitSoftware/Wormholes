@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
 
 import java.util.Arrays;
@@ -82,10 +82,10 @@ public final class ClientViewStats {
         return nowMillis - lastReportMillis >= ViewStreamLimits.VIEW_STATS_MIN_INTERVAL_MILLIS;
     }
 
-    public ClientViewMessage.ViewStats report(long nowMillis, int clientTick, int attended, int overlayCells, int unknownStates, int plateMb) {
+    public ViewStreamMessage.ViewStats report(long nowMillis, int clientTick, int attended, int overlayCells, int unknownStates, int plateMb) {
         lastReportMillis = nowMillis;
         statsSent++;
-        return new ClientViewMessage.ViewStats(clientTick, clamp16(attended), overlayCells, clamp16(unknownStates),
+        return new ViewStreamMessage.ViewStats(clientTick, clamp16(attended), overlayCells, clamp16(unknownStates),
             clamp16(sweepMicrosP50()), clamp16(applyMicrosP50()), clamp16(plateMb));
     }
 

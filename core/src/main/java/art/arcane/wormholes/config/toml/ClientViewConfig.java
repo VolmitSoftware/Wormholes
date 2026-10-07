@@ -1,5 +1,7 @@
 package art.arcane.wormholes.config.toml;
 
+import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.ViewStreamOptions;
 import art.arcane.wormholes.util.project.config.ConfigDescription;
 import art.arcane.wormholes.util.project.config.ConfigDoc;
 
@@ -7,10 +9,8 @@ import art.arcane.wormholes.util.project.config.ConfigDoc;
     "ClientView: clients running the Wormholes mod receive portal plates and sweep them locally instead of server-side block packets. Changes hot-reload."
 })
 public class ClientViewConfig {
-    public static final int MAX_HELLO_GRACE_MILLIS = 5000;
     public static final int MIN_FRAME_KB = 64;
     public static final int MAX_FRAME_KB = 1024;
-    public static final int MAX_ACK_WINDOW_FRAMES = 255;
 
     @ConfigDescription("Offer ClientView to clients running the Wormholes mod. Off keeps every client on the vanilla projection path.")
     public boolean enabled = true;
@@ -40,13 +40,18 @@ public class ClientViewConfig {
     public boolean clientRecursion = true;
 
     public void normalizeRuntimeBounds() {
-        helloGraceMillis = clamp(helloGraceMillis, 0, MAX_HELLO_GRACE_MILLIS);
+        helloGraceMillis = clamp(helloGraceMillis, 0, ViewStreamLimits.MAX_HELLO_GRACE_MILLIS);
         maxFrameKb = clamp(maxFrameKb, MIN_FRAME_KB, MAX_FRAME_KB);
-        ackWindowFrames = clamp(ackWindowFrames, 0, MAX_ACK_WINDOW_FRAMES);
+        ackWindowFrames = clamp(ackWindowFrames, 0, ViewStreamLimits.MAX_ACK_WINDOW_FRAMES);
     }
 
     public int maxFrameBytes() {
         return clamp(maxFrameKb, MIN_FRAME_KB, MAX_FRAME_KB) * 1024;
+    }
+
+    public ViewStreamOptions options(int interestGraceTicks) {
+        return new ViewStreamOptions(enabled, configurationHandshake, helloGraceMillis, maxFrameBytes(), ackWindowFrames, brickCache,
+            destinationLight, entityFrames, zeroCopy, standbyPrestream, viewStats, clientMirror, clientRecursion, interestGraceTicks);
     }
 
     private static int clamp(int value, int minimum, int maximum) {

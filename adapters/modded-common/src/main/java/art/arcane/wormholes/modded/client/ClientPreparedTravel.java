@@ -11,10 +11,8 @@ import art.arcane.wormholes.modded.mixin.client.PreparedLevelAccess;
 import art.arcane.wormholes.modded.mixin.client.PreparedLevelDataAccess;
 import art.arcane.wormholes.modded.mixin.client.PreparedPacketAccess;
 import art.arcane.wormholes.modded.mixin.client.PreparedEntityAccess;
-import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.network.client.ClientTravelWindow;
 import art.arcane.optics.stream.ViewStreamCapability;
-import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.OpticTransform;
@@ -88,6 +86,7 @@ import java.util.function.LongConsumer;
 import java.util.function.Supplier;
 
 import static net.minecraft.world.level.chunk.status.ChunkStatus.FULL;
+import art.arcane.wormholes.network.client.TravelMessage;
 
 public final class ClientPreparedTravel {
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
@@ -103,7 +102,7 @@ public final class ClientPreparedTravel {
     private static final boolean IRIS = ClientPreparedTravel.class.getClassLoader()
         .getResource("net/irisshaders/iris/Iris.class") != null;
     private static final ThreadLocal<AppliedColumn> APPLIED_COLUMN = new ThreadLocal<>();
-    private final Consumer<ClientViewMessage> sender;
+    private final Consumer<TravelMessage> sender;
     private final ClientTravelCache cache = new ClientTravelCache();
     private int sourceCapture;
     private boolean nativeCacheFailureReported;
@@ -113,12 +112,12 @@ public final class ClientPreparedTravel {
     private ClientLevel authoritativeDestination;
     private AuthoritativeArrival authoritativeArrival;
     private final LinkedHashMap<ClientLevel, RetainedWorld> retainedWorlds = new LinkedHashMap<>(4, 0.75F, true);
-    private final Map<ClientViewMessage.TravelCoordinate, byte[]> payloads = new HashMap<>();
+    private final Map<TravelMessage.TravelCoordinate, byte[]> payloads = new HashMap<>();
     private final ArrayDeque<Column> decoding = new ArrayDeque<>();
-    private final Map<ClientViewMessage.TravelCoordinate, Integer> decoded = new HashMap<>();
+    private final Map<TravelMessage.TravelCoordinate, Integer> decoded = new HashMap<>();
     private final LongOpenHashSet changed = new LongOpenHashSet();
-    private ClientViewMessage.TravelBegin begin;
-    private ClientViewMessage.TravelCommit commit;
+    private TravelMessage.TravelBegin begin;
+    private TravelMessage.TravelCommit commit;
     private ClientTravelChunks chunks;
     private ClientLevel staged;
     private ClientTravelScene scene;
@@ -137,7 +136,7 @@ public final class ClientPreparedTravel {
     private Arrival arrival;
     private ResidentColumns resident;
 
-    public ClientPreparedTravel(Consumer<ClientViewMessage> sender) {
+    public ClientPreparedTravel(Consumer<TravelMessage> sender) {
         this.sender = sender;
     }
 
@@ -206,13 +205,13 @@ public final class ClientPreparedTravel {
             return false;
         }
         ClientLevel sourceLevel = minecraft.level;
-        ClientViewMessage.TravelPose crossingPose = crossingPose(player, partial);
+        TravelMessage.TravelPose crossingPose = crossingPose(player, partial);
         Vec3 expectedArrival = ClientTravelMotion.point(begin.destinationToSource(), new Vec3(crossingPose.x(), crossingPose.y(), crossingPose.z()));
         prediction = new Prediction(new PredictionState(sourceLevel, source, destination, expectedArrival, acknowledgedRevision,
             ((PreparedLevelAccess) sourceLevel).wormholes$extractor(), minecraft.getConnection()));
         try {
             prediction.deadline = System.currentTimeMillis() + CROSS_TIMEOUT_MILLIS;
-            sender.accept(new ClientViewMessage.TravelCross(begin.token(), begin.generation(), prediction.revision,
+            sender.accept(new TravelMessage.TravelCross(begin.token(), begin.generation(), prediction.revision,
                 crossingPose, vector(previous), vector(eye)));
             if (begin.sourceWorld().equals(begin.world().dimension())) {
                 prepareSameWorld(sourceLevel, source, destination);
@@ -301,7 +300,7 @@ public final class ClientPreparedTravel {
         beforePosition = ClientTravelMotion.capture(Minecraft.getInstance().player);
     }
 
-    public void receive(ClientViewMessage message) {
+    public void receive(TravelMessage message) {
         Minecraft minecraft = Minecraft.getInstance();
         if (!minecraft.isSameThread()) {
             minecraft.execute(() -> receive(message));
@@ -312,16 +311,16 @@ public final class ClientPreparedTravel {
                 return;
             }
             switch (message) {
-                case ClientViewMessage.TravelBegin value -> begin(value);
-                case ClientViewMessage.TravelChunk value -> chunk(value);
-                case ClientViewMessage.TravelReuse value -> reuse(value);
-                case ClientViewMessage.TravelEnd value -> {
+                case TravelMessage.TravelBegin value -> begin(value);
+                case TravelMessage.TravelChunk value -> chunk(value);
+                case TravelMessage.TravelReuse value -> reuse(value);
+                case TravelMessage.TravelEnd value -> {
                     if (chunks != null) {
                         chunks.end(value);
                     }
                 }
-                case ClientViewMessage.TravelCommit value -> commit(value);
-                case ClientViewMessage.TravelCancel value -> {
+                case TravelMessage.TravelCommit value -> commit(value);
+                case TravelMessage.TravelCancel value -> {
                     if (chunks != null && chunks.matches(value.token(), value.generation())) {
                         clear(false);
                     }
@@ -371,7 +370,7 @@ public final class ClientPreparedTravel {
                 return;
             }
             if (minecraft.player == null || !covers(positionConfirmed
-                ? new ClientViewMessage.TravelPose(minecraft.player.getX(), minecraft.player.getY(), minecraft.player.getZ(),
+                ? new TravelMessage.TravelPose(minecraft.player.getX(), minecraft.player.getY(), minecraft.player.getZ(),
                     minecraft.player.getYRot(), minecraft.player.getXRot()) : commit.arrival())) {
                 clear(true);
                 return;
@@ -426,7 +425,7 @@ public final class ClientPreparedTravel {
             && (!IRIS || ClientPortalRenderer.instance().travelSourceShaderReady())) {
             if (acknowledgedRevision != revision) {
                 acknowledgedRevision = revision;
-                sender.accept(new ClientViewMessage.TravelReady(begin.token(), begin.generation(), revision));
+                sender.accept(new TravelMessage.TravelReady(begin.token(), begin.generation(), revision));
             }
         }
     }
@@ -524,7 +523,7 @@ public final class ClientPreparedTravel {
         if (!adopted || minecraft.level != staged || minecraft.player == null || commit == null) {
             return;
         }
-        ClientViewMessage.TravelPose arrival = commit.arrival();
+        TravelMessage.TravelPose arrival = commit.arrival();
         Vec3 position = minecraft.player.position();
         if (position.distanceToSqr(new Vec3(arrival.x(), arrival.y(), arrival.z())) > 0.000001) {
             clear(true);
@@ -630,7 +629,7 @@ public final class ClientPreparedTravel {
     }
 
     private void invalidateColumn(ClientLevel level, int x, int z) {
-        ClientViewMessage.TravelCoordinate coordinate = new ClientViewMessage.TravelCoordinate(x, z);
+        TravelMessage.TravelCoordinate coordinate = new TravelMessage.TravelCoordinate(x, z);
         cache.invalidate(level.dimension().identifier().toString(), x, z);
         SourcePreparation source = sourcePreparation;
         if (source != null && source.level == level) {
@@ -749,8 +748,8 @@ public final class ClientPreparedTravel {
         beforePosition = null;
     }
 
-    private boolean deferPreparation(ClientViewMessage message) {
-        if (message instanceof ClientViewMessage.TravelBegin next && adopted && !mainCompiled) {
+    private boolean deferPreparation(TravelMessage message) {
+        if (message instanceof TravelMessage.TravelBegin next && adopted && !mainCompiled) {
             if (begin.world().dimension().equals(next.sourceWorld())
                 && (pendingPreparation == null || !pendingPreparation.chunks.matches(next.token(), next.generation()))) {
                 discardPendingPreparation();
@@ -763,7 +762,7 @@ public final class ClientPreparedTravel {
         }
         try {
             return switch (message) {
-                case ClientViewMessage.TravelChunk value -> {
+                case TravelMessage.TravelChunk value -> {
                     if (!pendingPreparation.chunks.matches(value.token(), value.generation())) {
                         yield false;
                     }
@@ -774,40 +773,40 @@ public final class ClientPreparedTravel {
                     byte[] data = pendingPreparation.chunks.accept(value);
                     if (data != null) {
                         cache.put(pendingPreparation.begin.world().dimension(), value.chunkX(), value.chunkZ(), data);
-                        pendingPreparation.columns.put(new ClientViewMessage.TravelCoordinate(value.chunkX(), value.chunkZ()),
+                        pendingPreparation.columns.put(new TravelMessage.TravelCoordinate(value.chunkX(), value.chunkZ()),
                             new Column(value.chunkX(), value.chunkZ(), value.revision(), data));
                     }
                     yield true;
                 }
-                case ClientViewMessage.TravelReuse value -> {
+                case TravelMessage.TravelReuse value -> {
                     if (!pendingPreparation.chunks.matches(value.token(), value.generation())) {
                         yield false;
                     }
                     byte[] data = cache.get(pendingPreparation.begin.world().dimension(), value.chunkX(), value.chunkZ(), value.hash());
                     boolean available = data != null && pendingPreparation.chunks.reuse(value, data);
                     if (available) {
-                        pendingPreparation.columns.put(new ClientViewMessage.TravelCoordinate(value.chunkX(), value.chunkZ()),
+                        pendingPreparation.columns.put(new TravelMessage.TravelCoordinate(value.chunkX(), value.chunkZ()),
                             new Column(value.chunkX(), value.chunkZ(), value.revision(), data));
                     }
-                    sender.accept(new ClientViewMessage.TravelCached(value.token(), value.generation(), value.chunkX(), value.chunkZ(),
+                    sender.accept(new TravelMessage.TravelCached(value.token(), value.generation(), value.chunkX(), value.chunkZ(),
                         value.revision(), value.hash(), available));
                     yield true;
                 }
-                case ClientViewMessage.TravelEnd value -> {
+                case TravelMessage.TravelEnd value -> {
                     if (!pendingPreparation.chunks.matches(value.token(), value.generation())) {
                         yield false;
                     }
                     pendingPreparation.chunks.end(value);
                     yield true;
                 }
-                case ClientViewMessage.TravelCancel value -> {
+                case TravelMessage.TravelCancel value -> {
                     if (!pendingPreparation.chunks.matches(value.token(), value.generation())) {
                         yield false;
                     }
                     discardPendingPreparation();
                     yield true;
                 }
-                case ClientViewMessage.TravelCommit value -> pendingPreparation.chunks.matches(value.token(), value.generation());
+                case TravelMessage.TravelCommit value -> pendingPreparation.chunks.matches(value.token(), value.generation());
                 default -> false;
             };
         } catch (RuntimeException failure) {
@@ -817,7 +816,7 @@ public final class ClientPreparedTravel {
         }
     }
 
-    private PendingPreparation preparation(ClientViewMessage.TravelBegin value) {
+    private PendingPreparation preparation(TravelMessage.TravelBegin value) {
         PendingPreparation next = new PendingPreparation(value);
         SourcePreparation source = sourcePreparation;
         RetainedWorld retained = retainedWorld(value.world());
@@ -831,8 +830,8 @@ public final class ClientPreparedTravel {
                 source.scene.rebind(value);
                 next.scene = source.scene;
             }
-            Set<ClientViewMessage.TravelCoordinate> manifest = new HashSet<>(value.chunks());
-            for (Map.Entry<ClientViewMessage.TravelCoordinate, byte[]> entry : retained.payloads().entrySet()) {
+            Set<TravelMessage.TravelCoordinate> manifest = new HashSet<>(value.chunks());
+            for (Map.Entry<TravelMessage.TravelCoordinate, byte[]> entry : retained.payloads().entrySet()) {
                 if (manifest.contains(entry.getKey())) {
                     next.payloads.put(entry.getKey(), entry.getValue());
                     next.decoded.put(entry.getKey(), 0);
@@ -845,7 +844,7 @@ public final class ClientPreparedTravel {
             retireSourcePreparation();
         }
         for (Column column : cachedColumns(value)) {
-            next.columns.put(new ClientViewMessage.TravelCoordinate(column.x(), column.z()), column);
+            next.columns.put(new TravelMessage.TravelCoordinate(column.x(), column.z()), column);
         }
         return next;
     }
@@ -869,7 +868,7 @@ public final class ClientPreparedTravel {
             Iterator<Column> columns = next.columns.values().iterator();
             while (count < MAX_DECODE_COLUMNS && columns.hasNext()) {
                 Column column = columns.next();
-                ClientViewMessage.TravelCoordinate coordinate = new ClientViewMessage.TravelCoordinate(column.x(), column.z());
+                TravelMessage.TravelCoordinate coordinate = new TravelMessage.TravelCoordinate(column.x(), column.z());
                 if (next.decoded.containsKey(coordinate) && next.decoded.get(coordinate) >= column.revision()) {
                     continue;
                 }
@@ -907,7 +906,7 @@ public final class ClientPreparedTravel {
         }
     }
 
-    private ClientSodiumTerrain.Preparation prepareTerrain(ClientLevel level, ClientViewMessage.TravelBegin value, boolean complete) {
+    private ClientSodiumTerrain.Preparation prepareTerrain(ClientLevel level, TravelMessage.TravelBegin value, boolean complete) {
         if (!complete) {
             Minecraft minecraft = Minecraft.getInstance();
             RetainedWorld retained = retainedWorlds.get(level);
@@ -958,7 +957,7 @@ public final class ClientPreparedTravel {
             arrival = null;
             return;
         }
-        if (System.currentTimeMillis() >= arrival.deadline || minecraft.player == null || !covers(arrival.begin, arrival.level, new ClientViewMessage.TravelPose(
+        if (System.currentTimeMillis() >= arrival.deadline || minecraft.player == null || !covers(arrival.begin, arrival.level, new TravelMessage.TravelPose(
             minecraft.player.getX(), minecraft.player.getY(), minecraft.player.getZ(), minecraft.player.getYRot(), minecraft.player.getXRot()))
             || !ClientSodiumTerrain.ready(arrival.level) && !ClientPortalRenderer.instance().arrivalDrawable()) {
             PreparedPacketAccess access = (PreparedPacketAccess) minecraft.getConnection();
@@ -1045,7 +1044,7 @@ public final class ClientPreparedTravel {
         return true;
     }
 
-    private void begin(ClientViewMessage.TravelBegin value) {
+    private void begin(TravelMessage.TravelBegin value) {
         Minecraft minecraft = Minecraft.getInstance();
         ClientPacketListener connection = minecraft.getConnection();
         if (connection == null || minecraft.level == null
@@ -1071,7 +1070,7 @@ public final class ClientPreparedTravel {
         decoded.putAll(next.decoded);
         changed.addAll(next.changed);
         for (Column column : next.columns.values()) {
-            ClientViewMessage.TravelCoordinate coordinate = new ClientViewMessage.TravelCoordinate(column.x(), column.z());
+            TravelMessage.TravelCoordinate coordinate = new TravelMessage.TravelCoordinate(column.x(), column.z());
             if (!decoded.containsKey(coordinate) || decoded.get(coordinate) < column.revision()) {
                 decoding.add(column);
             }
@@ -1081,9 +1080,9 @@ public final class ClientPreparedTravel {
         }
     }
 
-    private List<Column> cachedColumns(ClientViewMessage.TravelBegin value) {
+    private List<Column> cachedColumns(TravelMessage.TravelBegin value) {
         List<Column> retained = new ArrayList<>(value.chunks().size());
-        for (ClientViewMessage.TravelCoordinate coordinate : value.chunks()) {
+        for (TravelMessage.TravelCoordinate coordinate : value.chunks()) {
             byte[] data = cache.peek(value.world().dimension(), coordinate.x(), coordinate.z());
             if (data != null) {
                 retained.add(new Column(coordinate.x(), coordinate.z(), 0, data));
@@ -1092,7 +1091,7 @@ public final class ClientPreparedTravel {
         return retained;
     }
 
-    private ClientLevel createLevel(ClientViewMessage.TravelBegin value) {
+    private ClientLevel createLevel(TravelMessage.TravelBegin value) {
         Minecraft minecraft = Minecraft.getInstance();
         ClientPacketListener connection = minecraft.getConnection();
         Holder<DimensionType> type = connection.registryAccess().lookupOrThrow(Registries.DIMENSION_TYPE)
@@ -1113,7 +1112,7 @@ public final class ClientPreparedTravel {
         return level;
     }
 
-    private void chunk(ClientViewMessage.TravelChunk fragment) {
+    private void chunk(TravelMessage.TravelChunk fragment) {
         if (chunks == null || adopted) {
             return;
         }
@@ -1125,16 +1124,16 @@ public final class ClientPreparedTravel {
         queueColumn(new Column(fragment.chunkX(), fragment.chunkZ(), fragment.revision(), data));
     }
 
-    private void reuse(ClientViewMessage.TravelReuse proof) {
+    private void reuse(TravelMessage.TravelReuse proof) {
         if (chunks == null || adopted || !chunks.matches(proof.token(), proof.generation())) {
             return;
         }
         byte[] data = cache.get(begin.world().dimension(), proof.chunkX(), proof.chunkZ(), proof.hash());
         boolean available = data != null && chunks.reuse(proof, data);
-        if (available && decoded.getOrDefault(new ClientViewMessage.TravelCoordinate(proof.chunkX(), proof.chunkZ()), 0) < proof.revision()) {
+        if (available && decoded.getOrDefault(new TravelMessage.TravelCoordinate(proof.chunkX(), proof.chunkZ()), 0) < proof.revision()) {
             queueColumn(new Column(proof.chunkX(), proof.chunkZ(), proof.revision(), data));
         }
-        sender.accept(new ClientViewMessage.TravelCached(proof.token(), proof.generation(), proof.chunkX(), proof.chunkZ(),
+        sender.accept(new TravelMessage.TravelCached(proof.token(), proof.generation(), proof.chunkX(), proof.chunkZ(),
             proof.revision(), proof.hash(), available));
     }
 
@@ -1149,7 +1148,7 @@ public final class ClientPreparedTravel {
             || !client.session().has(ViewStreamCapability.PREPARED_TRAVEL_CACHE)) {
             return false;
         }
-        ClientViewMessage.TravelCoordinate coordinate = new ClientViewMessage.TravelCoordinate(packet.x(), packet.z());
+        TravelMessage.TravelCoordinate coordinate = new TravelMessage.TravelCoordinate(packet.x(), packet.z());
         SourcePreparation source = sourcePreparation;
         boolean sourceColumn = source != null && source.level == level && source.begin.chunks().contains(coordinate);
         boolean destination = begin != null && begin.world().dimension().equals(level.dimension().identifier().toString())
@@ -1357,7 +1356,7 @@ public final class ClientPreparedTravel {
                 if (index < 0) {
                     break;
                 }
-                ClientViewMessage.TravelCoordinate coordinate = source.begin.chunks().get(index);
+                TravelMessage.TravelCoordinate coordinate = source.begin.chunks().get(index);
                 LevelChunk chunk = level.getChunkSource().getChunk(coordinate.x(), coordinate.z(), FULL, false);
                 if (chunk == null) {
                     continue;
@@ -1383,7 +1382,7 @@ public final class ClientPreparedTravel {
             return;
         }
         for (int index = 0; index < source.begin.chunks().size(); index++) {
-            ClientViewMessage.TravelCoordinate coordinate = source.begin.chunks().get(index);
+            TravelMessage.TravelCoordinate coordinate = source.begin.chunks().get(index);
             byte[] installed = retained.payloads().get(coordinate);
             if (installed != null && source.level.getChunkSource().getChunk(coordinate.x(), coordinate.z(), FULL, false) != null) {
                 source.capture(index, new Column(coordinate.x(), coordinate.z(), 0, installed));
@@ -1392,16 +1391,16 @@ public final class ClientPreparedTravel {
         }
     }
 
-    private ClientViewMessage.TravelBegin sourceBegin(ClientLevel level, LocalPlayer player) {
-        ClientViewMessage.TravelWorld world = ((ClientTravelWorld) level).wormholes$travelWorld();
+    private TravelMessage.TravelBegin sourceBegin(ClientLevel level, LocalPlayer player) {
+        TravelMessage.TravelWorld world = ((ClientTravelWorld) level).wormholes$travelWorld();
         int centerX = begin.sourceGeometry().originX() >> 4;
         int centerZ = begin.sourceGeometry().originZ() >> 4;
         int radius = ClientTravelWindow.radius(((PreparedPacketAccess) Minecraft.getInstance().getConnection()).wormholes$chunkRadius());
-        List<ClientViewMessage.TravelCoordinate> manifest = ClientTravelWindow.coordinates(centerX, centerZ, radius);
+        List<TravelMessage.TravelCoordinate> manifest = ClientTravelWindow.coordinates(centerX, centerZ, radius);
         Vec3 eye = player.getEyePosition();
-        return new ClientViewMessage.TravelBegin(begin.token(), begin.generation(), begin.sourcePortal(), begin.sourceWorld(),
+        return new TravelMessage.TravelBegin(begin.token(), begin.generation(), begin.sourcePortal(), begin.sourceWorld(),
             begin.sourceGeometry(), OpticTransform.IDENTITY, world,
-            new ClientViewMessage.TravelPose(player.getX(), player.getY(), player.getZ(), player.getYRot(), player.getXRot()), manifest,
+            new TravelMessage.TravelPose(player.getX(), player.getY(), player.getZ(), player.getYRot(), player.getXRot()), manifest,
             MinecraftPortalEnvironment.capture(level, vector(eye), OpticTransform.IDENTITY, world.flat()), begin.expiresMillis());
     }
 
@@ -1440,7 +1439,7 @@ public final class ClientPreparedTravel {
         sourcePreparation = null;
     }
 
-    private static void cleanRetainedLevel(ClientLevel level, ClientViewMessage.TravelPose arrival) {
+    private static void cleanRetainedLevel(ClientLevel level, TravelMessage.TravelPose arrival) {
         PreparedChunkColumns storage = (PreparedChunkColumns) level.getChunkSource();
         int centerX = (int) Math.floor(arrival.x()) >> 4;
         int centerZ = (int) Math.floor(arrival.z()) >> 4;
@@ -1468,9 +1467,9 @@ public final class ClientPreparedTravel {
     }
 
     private static void decodeChanged(ClientLevel level, ClientTravelScene scene,
-                                      Map<ClientViewMessage.TravelCoordinate, Integer> decoded, LongOpenHashSet changed,
-                                      Map<ClientViewMessage.TravelCoordinate, byte[]> payloads, Column column) {
-        ClientViewMessage.TravelCoordinate coordinate = new ClientViewMessage.TravelCoordinate(column.x(), column.z());
+                                      Map<TravelMessage.TravelCoordinate, Integer> decoded, LongOpenHashSet changed,
+                                      Map<TravelMessage.TravelCoordinate, byte[]> payloads, Column column) {
+        TravelMessage.TravelCoordinate coordinate = new TravelMessage.TravelCoordinate(column.x(), column.z());
         if (Arrays.equals(payloads.get(coordinate), column.data())) {
             decoded.put(coordinate, column.revision());
             return;
@@ -1480,7 +1479,7 @@ public final class ClientPreparedTravel {
     }
 
     private static void decode(ClientLevel staged, ClientTravelScene scene,
-                               Map<ClientViewMessage.TravelCoordinate, Integer> decoded, LongOpenHashSet changed, Column column) {
+                               Map<TravelMessage.TravelCoordinate, Integer> decoded, LongOpenHashSet changed, Column column) {
         RegistryFriendlyByteBuf buffer = new RegistryFriendlyByteBuf(Unpooled.wrappedBuffer(column.data()), staged.registryAccess());
         try {
             ClientboundLevelChunkWithLightPacket packet = ClientboundLevelChunkWithLightPacket.STREAM_CODEC.decode(buffer);
@@ -1492,7 +1491,7 @@ public final class ClientPreparedTravel {
                 && staged.getChunkSource().getChunk(packet.x(), packet.z(), FULL, false) == null
                 ? null : captureColumn(applied, ColumnPhase.FULL);
             applyPreparedChunk(staged, packet);
-            ClientViewMessage.TravelCoordinate coordinate = new ClientViewMessage.TravelCoordinate(column.x(), column.z());
+            TravelMessage.TravelCoordinate coordinate = new TravelMessage.TravelCoordinate(column.x(), column.z());
             decoded.put(coordinate, column.revision());
             if (before == null) {
                 for (int y = staged.getMinSectionY(); y <= staged.getMaxSectionY(); y++) {
@@ -1511,7 +1510,7 @@ public final class ClientPreparedTravel {
 
     private void prepareSameWorld(ClientLevel source, ClientTravelMotion original, ClientTravelMotion destination) {
         boolean missing = false;
-        for (ClientViewMessage.TravelCoordinate coordinate : begin.chunks()) {
+        for (TravelMessage.TravelCoordinate coordinate : begin.chunks()) {
             if (source.getChunkSource().getChunk(coordinate.x(), coordinate.z(), FULL, false) == null) {
                 missing = true;
                 break;
@@ -1549,7 +1548,7 @@ public final class ClientPreparedTravel {
         }
         source.getChunkSource().updateViewCenter((int) Math.floor(destination.position().x) >> 4,
             (int) Math.floor(destination.position().z) >> 4);
-        for (ClientViewMessage.TravelCoordinate coordinate : begin.chunks()) {
+        for (TravelMessage.TravelCoordinate coordinate : begin.chunks()) {
             if (source.getChunkSource().getChunk(coordinate.x(), coordinate.z(), FULL, false) != null) {
                 continue;
             }
@@ -1632,7 +1631,7 @@ public final class ClientPreparedTravel {
 
     private void declinePreparation() {
         try {
-            sender.accept(new ClientViewMessage.TravelCancel(begin.token(), begin.generation()));
+            sender.accept(new TravelMessage.TravelCancel(begin.token(), begin.generation()));
         } catch (RuntimeException failure) {
             LOGGER.warn("Unable to decline unready prepared portal crossing", failure);
         } finally {
@@ -1647,7 +1646,7 @@ public final class ClientPreparedTravel {
                 || ClientPortalRenderer.instance().travelDrawable());
     }
 
-    private void commit(ClientViewMessage.TravelCommit value) {
+    private void commit(TravelMessage.TravelCommit value) {
         if (System.currentTimeMillis() >= deadline || chunks == null || !chunks.matches(value.token(), value.generation())
             || (prediction == null ? acknowledgedRevision != value.contentRevision() : prediction.revision != value.contentRevision())
             || (prediction == null ? chunks.completeRevision() != value.contentRevision() : prediction.revision != value.contentRevision())
@@ -1729,7 +1728,7 @@ public final class ClientPreparedTravel {
             }
         }
         if (commit == null && begin != null && Minecraft.getInstance().getConnection() != null) {
-            sender.accept(new ClientViewMessage.TravelCancel(begin.token(), begin.generation()));
+            sender.accept(new TravelMessage.TravelCancel(begin.token(), begin.generation()));
             for (Runnable packet : previous.packets) {
                 packet.run();
             }
@@ -1766,21 +1765,21 @@ public final class ClientPreparedTravel {
         return new Vec3d(point.x, point.y, point.z);
     }
 
-    private static ClientViewMessage.TravelPose pose(ClientTravelMotion motion) {
-        return new ClientViewMessage.TravelPose(motion.position().x, motion.position().y, motion.position().z,
+    private static TravelMessage.TravelPose pose(ClientTravelMotion motion) {
+        return new TravelMessage.TravelPose(motion.position().x, motion.position().y, motion.position().z,
             motion.rotation().yaw(), motion.rotation().pitch());
     }
 
-    private static ClientViewMessage.TravelPose crossingPose(LocalPlayer player, float partial) {
+    private static TravelMessage.TravelPose crossingPose(LocalPlayer player, float partial) {
         Vec3 feet = player.getPosition(partial);
-        return new ClientViewMessage.TravelPose(feet.x, feet.y, feet.z, player.getYRot(), player.getXRot());
+        return new TravelMessage.TravelPose(feet.x, feet.y, feet.z, player.getYRot(), player.getXRot());
     }
 
     private boolean matches(Construction construction) {
         return matchesWorld(begin.world(), construction);
     }
 
-    private static boolean matchesWorld(ClientViewMessage.TravelWorld world, Construction construction) {
+    private static boolean matchesWorld(TravelMessage.TravelWorld world, Construction construction) {
         return world.dimension().equals(construction.dimension().identifier().toString())
             && world.dimensionType().equals(construction.type().unwrapKey().orElseThrow().identifier().toString())
             && world.seed() == construction.seed() && world.debug() == construction.debug()
@@ -1854,7 +1853,7 @@ public final class ClientPreparedTravel {
         retainedWorlds.clear();
     }
 
-    private RetainedWorld retainedWorld(ClientViewMessage.TravelWorld world) {
+    private RetainedWorld retainedWorld(TravelMessage.TravelWorld world) {
         if (sourcePreparation == null && retainedWorlds.isEmpty()) {
             return null;
         }
@@ -1901,7 +1900,7 @@ public final class ClientPreparedTravel {
 
     private ClientLevel restoreAuthoritativeLevel(RetainedWorld retained, Construction construction) {
         ClientLevel level = retained.level();
-        Map<ClientViewMessage.TravelCoordinate, byte[]> installed = new HashMap<>(retained.payloads());
+        Map<TravelMessage.TravelCoordinate, byte[]> installed = new HashMap<>(retained.payloads());
         rememberRetainedWorld(retained.withPayloads(installed));
         SourcePreparation previousSource = sourcePreparation != null && sourcePreparation.level == Minecraft.getInstance().level
             && sourcePreparation.level != level ? sourcePreparation : null;
@@ -1929,11 +1928,11 @@ public final class ClientPreparedTravel {
         return level;
     }
 
-    private boolean covers(ClientViewMessage.TravelPose arrival) {
+    private boolean covers(TravelMessage.TravelPose arrival) {
         return covers(begin, staged, arrival);
     }
 
-    private static boolean covers(ClientViewMessage.TravelBegin begin, ClientLevel staged, ClientViewMessage.TravelPose arrival) {
+    private static boolean covers(TravelMessage.TravelBegin begin, ClientLevel staged, TravelMessage.TravelPose arrival) {
         if (arrival.y() < begin.world().minY() || arrival.y() + 1.8 >= (long) begin.world().minY() + begin.world().height()) {
             return false;
         }
@@ -1942,7 +1941,7 @@ public final class ClientPreparedTravel {
         int z = (int) Math.floor(arrival.z()) >> 4;
         for (int dz = -radius; dz <= radius; dz++) {
             for (int dx = -radius; dx <= radius; dx++) {
-                if (!begin.chunks().contains(new ClientViewMessage.TravelCoordinate(x + dx, z + dz))
+                if (!begin.chunks().contains(new TravelMessage.TravelCoordinate(x + dx, z + dz))
                     || staged == null || staged.getChunkSource().getChunk(x + dx, z + dz, FULL, false) == null) {
                     return false;
                 }
@@ -2029,7 +2028,7 @@ public final class ClientPreparedTravel {
         }
     }
 
-    private static CameraRenderState travelCamera(ClientViewMessage.TravelBegin value) {
+    private static CameraRenderState travelCamera(TravelMessage.TravelBegin value) {
         Minecraft minecraft = Minecraft.getInstance();
         LocalPlayer player = minecraft.player;
         if (player != null && minecraft.level != null
@@ -2037,16 +2036,16 @@ public final class ClientPreparedTravel {
             Vec3d feet = value.destinationToSource().inverse().point(new Vec3d(player.getX(), player.getY(), player.getZ()));
             ClientTravelMotion.Rotation look = new ClientTravelMotion.Rotation(player.getYRot(), player.getXRot())
                 .transform(value.destinationToSource());
-            return arrivalCamera(new ClientViewMessage.TravelPose(feet.x(), feet.y(), feet.z(), look.yaw(), look.pitch()), eyeHeight(player));
+            return arrivalCamera(new TravelMessage.TravelPose(feet.x(), feet.y(), feet.z(), look.yaw(), look.pitch()), eyeHeight(player));
         }
         return arrivalCamera(value.arrival(), eyeHeight(player));
     }
 
-    private static CameraRenderState arrivalCamera(ClientViewMessage.TravelPose arrival) {
+    private static CameraRenderState arrivalCamera(TravelMessage.TravelPose arrival) {
         return arrivalCamera(arrival, eyeHeight(Minecraft.getInstance().player));
     }
 
-    static CameraRenderState arrivalCamera(ClientViewMessage.TravelPose arrival, float eyeHeight) {
+    static CameraRenderState arrivalCamera(TravelMessage.TravelPose arrival, float eyeHeight) {
         CameraRenderState camera = new CameraRenderState();
         camera.pos = new Vec3(arrival.x(), arrival.y() + eyeHeight, arrival.z());
         camera.blockPos = BlockPos.containing(camera.pos);
@@ -2120,7 +2119,7 @@ public final class ClientPreparedTravel {
         }
     }
 
-    private record Arrival(ClientLevel level, ClientTravelScene scene, ClientViewMessage.TravelBegin begin, long deadline) { }
+    private record Arrival(ClientLevel level, ClientTravelScene scene, TravelMessage.TravelBegin begin, long deadline) { }
 
     private enum ColumnPhase {
         FULL, BLOCKS;
@@ -2159,8 +2158,8 @@ public final class ClientPreparedTravel {
     }
 
     private record RetainedWorld(ClientLevel level, ClientPacketListener connection, Object registry,
-                                 ClientViewMessage.TravelWorld world, long deadline,
-                                 Map<ClientViewMessage.TravelCoordinate, byte[]> payloads, ApertureDescriptor aperture) {
+                                 TravelMessage.TravelWorld world, long deadline,
+                                 Map<TravelMessage.TravelCoordinate, byte[]> payloads, ApertureDescriptor aperture) {
         private boolean valid(ClientPacketListener current) {
             return current != null && current == connection && current.registryAccess() == registry
                 && level.registryAccess() == registry && System.currentTimeMillis() < deadline;
@@ -2174,37 +2173,37 @@ public final class ClientPreparedTravel {
             return new RetainedWorld(level, connection, registry, world, deadline, payloads, geometry);
         }
 
-        private RetainedWorld withPayloads(Map<ClientViewMessage.TravelCoordinate, byte[]> installed) {
+        private RetainedWorld withPayloads(Map<TravelMessage.TravelCoordinate, byte[]> installed) {
             return new RetainedWorld(level, connection, registry, world, deadline, installed, aperture);
         }
     }
 
     private record ResidentColumns(ClientLevel level, ClientPacketListener connection, Object registry, long deadline,
-                                   Map<ClientViewMessage.TravelCoordinate, byte[]> payloads) {
+                                   Map<TravelMessage.TravelCoordinate, byte[]> payloads) {
         private boolean valid(ClientPacketListener current) {
             return current != null && current == connection && current.registryAccess() == registry
                 && System.currentTimeMillis() < deadline;
         }
 
-        private void remember(ClientViewMessage.TravelCoordinate coordinate, byte[] data) {
-            if (payloads.size() >= ViewStreamLimits.MAX_TRAVEL_CHUNKS || data.length > ViewStreamLimits.MAX_TRAVEL_CHUNK_BYTES) {
+        private void remember(TravelMessage.TravelCoordinate coordinate, byte[] data) {
+            if (payloads.size() >= TravelMessage.MAX_TRAVEL_CHUNKS || data.length > TravelMessage.MAX_TRAVEL_CHUNK_BYTES) {
                 return;
             }
             long bytes = data.length;
             for (byte[] installed : payloads.values()) {
                 bytes += installed.length;
             }
-            if (bytes <= ViewStreamLimits.MAX_TRAVEL_BYTES) {
+            if (bytes <= TravelMessage.MAX_TRAVEL_BYTES) {
                 payloads.put(coordinate, data);
             }
         }
     }
 
     private static final class SourcePreparation {
-        private final ClientViewMessage.TravelBegin begin;
+        private final TravelMessage.TravelBegin begin;
         private final long deadline;
-        private final Map<ClientViewMessage.TravelCoordinate, Integer> decoded = new HashMap<>();
-        private final Map<ClientViewMessage.TravelCoordinate, byte[]> payloads = new HashMap<>();
+        private final Map<TravelMessage.TravelCoordinate, Integer> decoded = new HashMap<>();
+        private final Map<TravelMessage.TravelCoordinate, byte[]> payloads = new HashMap<>();
         private ClientLevel level;
         private ClientTravelScene scene;
         private ApertureDescriptor aperture;
@@ -2215,7 +2214,7 @@ public final class ClientPreparedTravel {
         private ClientPacketListener connection;
         private Object registry;
 
-        private SourcePreparation(ClientViewMessage.TravelBegin begin) {
+        private SourcePreparation(TravelMessage.TravelBegin begin) {
             this.begin = begin;
             aperture = begin.sourceGeometry();
             deadline = System.currentTimeMillis() + begin.expiresMillis();
@@ -2234,10 +2233,10 @@ public final class ClientPreparedTravel {
 
         private void capture(int index, Column column) {
             int length = column.data().length;
-            ClientViewMessage.TravelCoordinate coordinate = new ClientViewMessage.TravelCoordinate(column.x(), column.z());
+            TravelMessage.TravelCoordinate coordinate = new TravelMessage.TravelCoordinate(column.x(), column.z());
             byte[] previous = payloads.get(coordinate);
             int remaining = bytes - (previous == null ? 0 : previous.length);
-            if (length > ViewStreamLimits.MAX_TRAVEL_CHUNK_BYTES || length > ViewStreamLimits.MAX_TRAVEL_BYTES - remaining) {
+            if (length > TravelMessage.MAX_TRAVEL_CHUNK_BYTES || length > TravelMessage.MAX_TRAVEL_BYTES - remaining) {
                 throw new IllegalArgumentException("Native portal return snapshots exceed preparation bounds");
             }
             payloads.put(coordinate, column.data());
@@ -2249,19 +2248,19 @@ public final class ClientPreparedTravel {
     }
 
     private static final class PendingPreparation {
-        private final ClientViewMessage.TravelBegin begin;
+        private final TravelMessage.TravelBegin begin;
         private final ClientTravelChunks chunks;
-        private final Map<ClientViewMessage.TravelCoordinate, Column> columns = new HashMap<>();
+        private final Map<TravelMessage.TravelCoordinate, Column> columns = new HashMap<>();
         private final long deadline;
         private ClientLevel level;
         private ClientTravelScene scene;
         private RetainedWorld retainedWorld;
-        private final Map<ClientViewMessage.TravelCoordinate, byte[]> payloads = new HashMap<>();
-        private final Map<ClientViewMessage.TravelCoordinate, Integer> decoded = new HashMap<>();
+        private final Map<TravelMessage.TravelCoordinate, byte[]> payloads = new HashMap<>();
+        private final Map<TravelMessage.TravelCoordinate, Integer> decoded = new HashMap<>();
         private final LongOpenHashSet changed = new LongOpenHashSet();
         private long drawnRevision;
 
-        private PendingPreparation(ClientViewMessage.TravelBegin begin) {
+        private PendingPreparation(TravelMessage.TravelBegin begin) {
             this.begin = begin;
             chunks = new ClientTravelChunks(begin);
             deadline = System.currentTimeMillis() + begin.expiresMillis();

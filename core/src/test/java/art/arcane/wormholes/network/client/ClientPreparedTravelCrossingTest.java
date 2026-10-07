@@ -14,21 +14,20 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import art.arcane.optics.stream.ViewStreamLimits;
 
 class ClientPreparedTravelCrossingTest {
     @Test
     void acknowledgedCrossingIsOneShotAndCannotChooseItsDestination() {
         Fixture fixture = ready();
-        ClientViewMessage.TravelCross crossing = crossing(fixture, new ClientViewMessage.TravelPose(0.5, 64, 0.4, 0, 0),
+        TravelMessage.TravelCross crossing = crossing(fixture, new TravelMessage.TravelPose(0.5, 64, 0.4, 0, 0),
             new Vec3d(0.5, 65.62, 0.6), new Vec3d(0.5, 65.62, 0.4));
         assertTrue(fixture.server().requestCross(crossing, 3));
         assertFalse(fixture.server().requestCross(crossing, 3));
         assertEquals(crossing, fixture.server().takeCross().orElseThrow());
         assertTrue(fixture.server().takeCross().isEmpty());
         assertTrue(fixture.server().validCross(crossing, authority(fixture, fixture.begin().sourceGeometry(),
-            new ClientViewMessage.TravelPose(0.5, 64, 0.55, 0, 0)), 4));
-        ClientViewMessage.TravelCommit commit = fixture.server().commit(new ClientPreparedTravelServer.Commit(
+            new TravelMessage.TravelPose(0.5, 64, 0.55, 0, 0)), 4));
+        TravelMessage.TravelCommit commit = fixture.server().commit(new ClientPreparedTravelServer.Commit(
             fixture.begin().sourcePortal(), fixture.begin().sourceWorld(), fixture.begin().world().dimension(),
             fixture.begin().arrival(), new Vec3d(0, 0, 0.2), 4)).orElseThrow();
         assertEquals(fixture.barrier(), commit.contentRevision());
@@ -39,17 +38,17 @@ class ClientPreparedTravelCrossingTest {
     @Test
     void ordinaryDestinationChangesDoNotRevokeAnAcknowledgedDrawableCrossing() {
         Fixture fixture = ready();
-        ClientViewMessage.TravelCoordinate position = fixture.begin().chunks().getFirst();
+        TravelMessage.TravelCoordinate position = fixture.begin().chunks().getFirst();
         fixture.server().invalidate(position);
         assertTrue(fixture.server().column(position, 2, new byte[]{2}));
-        List<ClientViewMessage> sent = new ArrayList<>();
-        fixture.server().tick(3, ViewStreamLimits.TRAVEL_FRAGMENT_BYTES, sent::add);
-        assertTrue(fixture.server().ready(new ClientViewMessage.TravelReady(fixture.begin().token(), fixture.begin().generation(), fixture.barrier())));
-        ClientViewMessage.TravelCross crossing = crossing(fixture, new ClientViewMessage.TravelPose(0.5, 64, 0.4, 0, 0),
+        List<TravelMessage> sent = new ArrayList<>();
+        fixture.server().tick(3, TravelMessage.TRAVEL_FRAGMENT_BYTES, sent::add);
+        assertTrue(fixture.server().ready(new TravelMessage.TravelReady(fixture.begin().token(), fixture.begin().generation(), fixture.barrier())));
+        TravelMessage.TravelCross crossing = crossing(fixture, new TravelMessage.TravelPose(0.5, 64, 0.4, 0, 0),
             new Vec3d(0.5, 65.62, 0.6), new Vec3d(0.5, 65.62, 0.4));
         assertTrue(fixture.server().requestCross(crossing, 4));
         assertTrue(fixture.server().validCross(crossing, authority(fixture, fixture.begin().sourceGeometry(),
-            new ClientViewMessage.TravelPose(0.5, 64, 0.55, 0, 0)), 4));
+            new TravelMessage.TravelPose(0.5, 64, 0.55, 0, 0)), 4));
         assertEquals(fixture.barrier(), fixture.server().commit(new ClientPreparedTravelServer.Commit(
             fixture.begin().sourcePortal(), fixture.begin().sourceWorld(), fixture.begin().world().dimension(),
             fixture.begin().arrival(), new Vec3d(0, 0, 0), 4)).orElseThrow().contentRevision());
@@ -58,10 +57,10 @@ class ClientPreparedTravelCrossingTest {
     @Test
     void unacknowledgedAndForeignTokenRevisionOrGenerationCannotCross() {
         Fixture fixture = ready();
-        for (ClientViewMessage.TravelCross value : List.of(
-            new ClientViewMessage.TravelCross(UUID.randomUUID(), fixture.begin().generation(), fixture.barrier(), fixture.begin().arrival(), new Vec3d(0, 0, 0), new Vec3d(0, 0, 0)),
-            new ClientViewMessage.TravelCross(fixture.begin().token(), fixture.begin().generation() + 1, fixture.barrier(), fixture.begin().arrival(), new Vec3d(0, 0, 0), new Vec3d(0, 0, 0)),
-            new ClientViewMessage.TravelCross(fixture.begin().token(), fixture.begin().generation(), fixture.barrier() + 1, fixture.begin().arrival(), new Vec3d(0, 0, 0), new Vec3d(0, 0, 0)))) {
+        for (TravelMessage.TravelCross value : List.of(
+            new TravelMessage.TravelCross(UUID.randomUUID(), fixture.begin().generation(), fixture.barrier(), fixture.begin().arrival(), new Vec3d(0, 0, 0), new Vec3d(0, 0, 0)),
+            new TravelMessage.TravelCross(fixture.begin().token(), fixture.begin().generation() + 1, fixture.barrier(), fixture.begin().arrival(), new Vec3d(0, 0, 0), new Vec3d(0, 0, 0)),
+            new TravelMessage.TravelCross(fixture.begin().token(), fixture.begin().generation(), fixture.barrier() + 1, fixture.begin().arrival(), new Vec3d(0, 0, 0), new Vec3d(0, 0, 0)))) {
             assertFalse(fixture.server().requestCross(value, 3));
         }
         assertTrue(fixture.server().takeCross().isEmpty());
@@ -70,27 +69,27 @@ class ClientPreparedTravelCrossingTest {
     @Test
     void observedMovementEyeHeightAndActualApertureAreRequired() {
         Fixture fixture = ready();
-        ClientViewMessage.TravelCross valid = crossing(fixture, new ClientViewMessage.TravelPose(0.5, 64, 0.4, 0, 0),
+        TravelMessage.TravelCross valid = crossing(fixture, new TravelMessage.TravelPose(0.5, 64, 0.4, 0, 0),
             new Vec3d(0.5, 65.62, 0.6), new Vec3d(0.5, 65.62, 0.4));
         assertTrue(fixture.server().requestCross(valid, 3));
         assertFalse(fixture.server().validCross(valid, authority(fixture, fixture.begin().sourceGeometry(),
-            new ClientViewMessage.TravelPose(10, 64, 0.55, 0, 0)), 4));
+            new TravelMessage.TravelPose(10, 64, 0.55, 0, 0)), 4));
         assertFalse(fixture.server().validCross(valid, new ClientPreparedTravelServer.Authority("other:world", fixture.begin().sourceGeometry(),
-            new ClientViewMessage.TravelPose(0.5, 64, 0.55, 0, 0), new Vec3d(0, 0, 0), 1.62), 4));
+            new TravelMessage.TravelPose(0.5, 64, 0.55, 0, 0), new Vec3d(0, 0, 0), 1.62), 4));
         assertFalse(fixture.server().validCross(crossing(fixture, valid.sourcePose(), valid.previousEye(), new Vec3d(0.5, 66, 0.4)),
             authority(fixture, fixture.begin().sourceGeometry(), valid.sourcePose()), 4));
-        assertFalse(fixture.server().validCross(crossing(fixture, new ClientViewMessage.TravelPose(2, 64, 0.4, 0, 0),
+        assertFalse(fixture.server().validCross(crossing(fixture, new TravelMessage.TravelPose(2, 64, 0.4, 0, 0),
             new Vec3d(2, 65.62, 0.6), new Vec3d(2, 65.62, 0.4)),
-            authority(fixture, fixture.begin().sourceGeometry(), new ClientViewMessage.TravelPose(2, 64, 0.55, 0, 0)), 4));
+            authority(fixture, fixture.begin().sourceGeometry(), new TravelMessage.TravelPose(2, 64, 0.55, 0, 0)), 4));
         assertFalse(fixture.server().validCross(valid, authority(fixture, fixture.begin().sourceGeometry(), valid.sourcePose()), 2_003));
     }
 
     @Test
     void unloadWorldInvalidationAndScopedCancellationRevokeCrossing() {
         Fixture fixture = ready();
-        ClientViewMessage.TravelCross crossing = crossing(fixture, new ClientViewMessage.TravelPose(0.5, 64, 0.4, 0, 0),
+        TravelMessage.TravelCross crossing = crossing(fixture, new TravelMessage.TravelPose(0.5, 64, 0.4, 0, 0),
             new Vec3d(0.5, 65.62, 0.6), new Vec3d(0.5, 65.62, 0.4));
-        assertFalse(fixture.server().cancel(new ClientViewMessage.TravelCancel(UUID.randomUUID(), fixture.begin().generation())));
+        assertFalse(fixture.server().cancel(new TravelMessage.TravelCancel(UUID.randomUUID(), fixture.begin().generation())));
         fixture.server().unavailable(fixture.begin().chunks().getFirst());
         assertFalse(fixture.server().requestCross(crossing, 3));
         fixture = ready();
@@ -100,7 +99,7 @@ class ClientPreparedTravelCrossingTest {
         fixture.server().worldCleared(world);
         assertFalse(fixture.server().requestCross(crossing, 3));
         fixture = ready();
-        assertTrue(fixture.server().cancel(new ClientViewMessage.TravelCancel(fixture.begin().token(), fixture.begin().generation())));
+        assertTrue(fixture.server().cancel(new TravelMessage.TravelCancel(fixture.begin().token(), fixture.begin().generation())));
         assertFalse(fixture.server().requestCross(crossing, 3));
     }
 
@@ -121,7 +120,7 @@ class ClientPreparedTravelCrossingTest {
         Fixture fixture = ready();
         assertEquals(ClientPreparedTravelServer.AutomaticCross.DEFER,
             fixture.server().automaticCross(fixture.begin().sourcePortal(), 3));
-        assertTrue(fixture.server().cancel(new ClientViewMessage.TravelCancel(fixture.begin().token(), fixture.begin().generation())));
+        assertTrue(fixture.server().cancel(new TravelMessage.TravelCancel(fixture.begin().token(), fixture.begin().generation())));
         assertEquals(ClientPreparedTravelServer.AutomaticCross.ORDINARY,
             fixture.server().automaticCross(fixture.begin().sourcePortal(), 4));
         fixture.server().begin(fixture.begin(), 5);
@@ -132,14 +131,14 @@ class ClientPreparedTravelCrossingTest {
     @Test
     void anAcknowledgedCrossingRemainsValidWhenANewerDrawableBarrierWasAcknowledged() {
         Fixture fixture = ready();
-        ClientViewMessage.TravelCoordinate coordinate = fixture.begin().chunks().getFirst();
+        TravelMessage.TravelCoordinate coordinate = fixture.begin().chunks().getFirst();
         fixture.server().invalidate(coordinate);
         fixture.server().column(coordinate, 2, new byte[]{2});
-        List<ClientViewMessage> sent = new ArrayList<>();
-        fixture.server().tick(3, ViewStreamLimits.TRAVEL_FRAGMENT_BYTES, sent::add);
-        ClientViewMessage.TravelEnd latest = (ClientViewMessage.TravelEnd) sent.getLast();
-        assertTrue(fixture.server().ready(new ClientViewMessage.TravelReady(fixture.begin().token(), fixture.begin().generation(), latest.contentRevision())));
-        ClientViewMessage.TravelCross previous = crossing(fixture, new ClientViewMessage.TravelPose(0.5, 64, 0.4, 0, 0),
+        List<TravelMessage> sent = new ArrayList<>();
+        fixture.server().tick(3, TravelMessage.TRAVEL_FRAGMENT_BYTES, sent::add);
+        TravelMessage.TravelEnd latest = (TravelMessage.TravelEnd) sent.getLast();
+        assertTrue(fixture.server().ready(new TravelMessage.TravelReady(fixture.begin().token(), fixture.begin().generation(), latest.contentRevision())));
+        TravelMessage.TravelCross previous = crossing(fixture, new TravelMessage.TravelPose(0.5, 64, 0.4, 0, 0),
             new Vec3d(0.5, 65.62, 0.6), new Vec3d(0.5, 65.62, 0.4));
         assertTrue(fixture.server().requestCross(previous, 4));
         assertTrue(fixture.server().validCross(previous, authority(fixture, fixture.begin().sourceGeometry(), previous.sourcePose()), 4));
@@ -148,18 +147,18 @@ class ClientPreparedTravelCrossingTest {
     @Test
     void reverseAndSprintSegmentsUseThePlayerEyeAndRejectThirdPersonCameraOffsets() {
         Fixture fixture = ready();
-        ClientViewMessage.TravelCross reverse = crossing(fixture, new ClientViewMessage.TravelPose(0.5, 64, 0.8, 180, 0),
+        TravelMessage.TravelCross reverse = crossing(fixture, new TravelMessage.TravelPose(0.5, 64, 0.8, 180, 0),
             new Vec3d(0.5, 65.62, 0.3), new Vec3d(0.5, 65.62, 0.8));
         assertTrue(fixture.server().requestCross(reverse, 3));
         assertTrue(fixture.server().validCross(reverse, authority(fixture, fixture.begin().sourceGeometry(),
-            new ClientViewMessage.TravelPose(0.5, 64, 0.55, 180, 0)), 4));
+            new TravelMessage.TravelPose(0.5, 64, 0.55, 180, 0)), 4));
         fixture = ready();
-        ClientViewMessage.TravelCross sprint = crossing(fixture, new ClientViewMessage.TravelPose(0.5, 64, -0.2, 0, 0),
+        TravelMessage.TravelCross sprint = crossing(fixture, new TravelMessage.TravelPose(0.5, 64, -0.2, 0, 0),
             new Vec3d(0.5, 65.62, 1.1), new Vec3d(0.5, 65.62, -0.2));
         assertTrue(fixture.server().requestCross(sprint, 3));
         assertTrue(fixture.server().validCross(sprint, new ClientPreparedTravelServer.Authority(fixture.begin().sourceWorld(),
-            fixture.begin().sourceGeometry(), new ClientViewMessage.TravelPose(0.5, 64, 0.55, 0, 0), new Vec3d(0, 0, -0.4), 1.62), 4));
-        ClientViewMessage.TravelCross offset = crossing(fixture, sprint.sourcePose(), sprint.previousEye(), new Vec3d(0.5, 65.62, -4.2));
+            fixture.begin().sourceGeometry(), new TravelMessage.TravelPose(0.5, 64, 0.55, 0, 0), new Vec3d(0, 0, -0.4), 1.62), 4));
+        TravelMessage.TravelCross offset = crossing(fixture, sprint.sourcePose(), sprint.previousEye(), new Vec3d(0.5, 65.62, -4.2));
         assertFalse(fixture.server().validCross(offset, authority(fixture, fixture.begin().sourceGeometry(), sprint.sourcePose()), 4));
     }
 
@@ -170,22 +169,22 @@ class ClientPreparedTravelCrossingTest {
         Fixture fixture = ready(geometry, ClientViewFixtures.travelBegin().world().dimension());
         assertEquals(fixture.begin().sourceWorld(), fixture.begin().world().dimension());
         assertEquals(ClientPreparedTravelServer.AutomaticCross.DEFER, fixture.server().automaticCross(fixture.begin().sourcePortal(), 3));
-        ClientViewMessage.TravelCross crossing = crossing(fixture, new ClientViewMessage.TravelPose(0.5, 62.7, 0.5, 0, 90),
+        TravelMessage.TravelCross crossing = crossing(fixture, new TravelMessage.TravelPose(0.5, 62.7, 0.5, 0, 90),
             new Vec3d(0.5, 64.8, 0.5), new Vec3d(0.5, 64.32, 0.5));
         assertTrue(fixture.server().requestCross(crossing, 4));
         assertTrue(fixture.server().validCross(crossing, new ClientPreparedTravelServer.Authority(fixture.begin().sourceWorld(), geometry,
-            new ClientViewMessage.TravelPose(0.5, 63, 0.5, 0, 90), new Vec3d(0, -0.3, 0), 1.62), 4));
+            new TravelMessage.TravelPose(0.5, 63, 0.5, 0, 90), new Vec3d(0, -0.3, 0), 1.62), 4));
         assertTrue(fixture.server().takeCross().isPresent());
         assertTrue(fixture.server().commit(new ClientPreparedTravelServer.Commit(fixture.begin().sourcePortal(), fixture.begin().sourceWorld(),
             fixture.begin().world().dimension(), fixture.begin().arrival(), new Vec3d(0, -0.3, 0), 4)).isPresent());
     }
 
-    private static ClientViewMessage.TravelCross crossing(Fixture fixture, ClientViewMessage.TravelPose pose,
+    private static TravelMessage.TravelCross crossing(Fixture fixture, TravelMessage.TravelPose pose,
                                                           Vec3d previous, Vec3d current) {
-        return new ClientViewMessage.TravelCross(fixture.begin().token(), fixture.begin().generation(), fixture.barrier(), pose, previous, current);
+        return new TravelMessage.TravelCross(fixture.begin().token(), fixture.begin().generation(), fixture.barrier(), pose, previous, current);
     }
 
-    private static ClientPreparedTravelServer.Authority authority(Fixture fixture, ApertureDescriptor geometry, ClientViewMessage.TravelPose pose) {
+    private static ClientPreparedTravelServer.Authority authority(Fixture fixture, ApertureDescriptor geometry, TravelMessage.TravelPose pose) {
         return new ClientPreparedTravelServer.Authority(fixture.begin().sourceWorld(), geometry, pose, new Vec3d(0, 0, 0), 1.62);
     }
 
@@ -196,28 +195,28 @@ class ClientPreparedTravelCrossingTest {
     }
 
     private static Fixture ready(ApertureDescriptor geometry, String sourceWorld) {
-        ClientViewMessage.TravelBegin sample = ClientViewFixtures.travelBegin();
-        List<ClientViewMessage.TravelCoordinate> coordinates = new ArrayList<>();
+        TravelMessage.TravelBegin sample = ClientViewFixtures.travelBegin();
+        List<TravelMessage.TravelCoordinate> coordinates = new ArrayList<>();
         for (int x = -1; x <= 1; x++) {
             for (int z = -1; z <= 1; z++) {
-                coordinates.add(new ClientViewMessage.TravelCoordinate(x, z));
+                coordinates.add(new TravelMessage.TravelCoordinate(x, z));
             }
         }
-        ClientViewMessage.TravelBegin begin = new ClientViewMessage.TravelBegin(sample.token(), sample.generation(), sample.sourcePortal(),
-            sourceWorld, geometry, sample.destinationToSource(), sample.world(), new ClientViewMessage.TravelPose(0, 64, 0, 0, 0),
+        TravelMessage.TravelBegin begin = new TravelMessage.TravelBegin(sample.token(), sample.generation(), sample.sourcePortal(),
+            sourceWorld, geometry, sample.destinationToSource(), sample.world(), new TravelMessage.TravelPose(0, 64, 0, 0, 0),
             coordinates, sample.environment(), sample.expiresMillis());
         ClientPreparedTravelServer server = new ClientPreparedTravelServer();
         server.begin(begin, 0);
-        for (ClientViewMessage.TravelCoordinate coordinate : coordinates) {
+        for (TravelMessage.TravelCoordinate coordinate : coordinates) {
             server.column(coordinate, 1, new byte[]{1});
         }
-        List<ClientViewMessage> sent = new ArrayList<>();
-        server.tick(1, ViewStreamLimits.TRAVEL_FRAGMENT_BYTES * 9, sent::add);
-        ClientViewMessage.TravelEnd end = (ClientViewMessage.TravelEnd) sent.getLast();
-        assertTrue(server.ready(new ClientViewMessage.TravelReady(begin.token(), begin.generation(), end.contentRevision())));
+        List<TravelMessage> sent = new ArrayList<>();
+        server.tick(1, TravelMessage.TRAVEL_FRAGMENT_BYTES * 9, sent::add);
+        TravelMessage.TravelEnd end = (TravelMessage.TravelEnd) sent.getLast();
+        assertTrue(server.ready(new TravelMessage.TravelReady(begin.token(), begin.generation(), end.contentRevision())));
         return new Fixture(server, begin, end.contentRevision());
     }
 
-    private record Fixture(ClientPreparedTravelServer server, ClientViewMessage.TravelBegin begin, long barrier) {
+    private record Fixture(ClientPreparedTravelServer server, TravelMessage.TravelBegin begin, long barrier) {
     }
 }

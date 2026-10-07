@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.entity.EntityDeltaCodec;
 import art.arcane.optics.entity.EntitySnapshot;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
@@ -40,7 +40,7 @@ public final class ClientProjectedEntities {
         this.nextId = ClientEntityIds.PROJECTED_MAX;
     }
 
-    public void apply(ClientViewMessage.EntityFrame frame) {
+    public void apply(ViewStreamMessage.EntityFrame frame) {
         Objects.requireNonNull(frame, "frame");
         PortalEntities state = portals.computeIfAbsent(frame.portalKey(), ignored -> new PortalEntities());
         List<EntitySnapshot> visuals = frame.entities();
@@ -82,7 +82,7 @@ public final class ClientProjectedEntities {
         framesApplied++;
     }
 
-    public void apply(ClientViewMessage.EntityEvent event) {
+    public void apply(ViewStreamMessage.EntityEvent event) {
         WormholesClient client = WormholesClient.instance();
         if (client != null && client.localMeshes().localEntity(event.portalKey(), event.entityId())) {
             return;
@@ -133,7 +133,7 @@ public final class ClientProjectedEntities {
         Iterator<PendingEvent> iterator = state.events.iterator();
         while (iterator.hasNext()) {
             PendingEvent pending = iterator.next();
-            ClientViewMessage.EntityEvent event = pending.event;
+            ViewStreamMessage.EntityEvent event = pending.event;
             if (pending.expires < clientTick) {
                 iterator.remove();
             } else if (event.entityId().equals(tracked.visual.id())) {
@@ -315,7 +315,7 @@ public final class ClientProjectedEntities {
         private int eventSequence;
     }
 
-    private record PendingEvent(ClientViewMessage.EntityEvent event, int expires) {
+    private record PendingEvent(ViewStreamMessage.EntityEvent event, int expires) {
     }
 
     private static final class Tracked {

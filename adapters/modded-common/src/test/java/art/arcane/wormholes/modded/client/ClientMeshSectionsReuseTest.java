@@ -4,7 +4,7 @@ import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.ProjectionEnvironment;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.optics.math.BlockBox;
@@ -65,7 +65,7 @@ public class ClientMeshSectionsReuseTest extends MinecraftTestBase {
         assertEquals(ClientMeshSections.Result.APPLIED, store.put(section(7, 1, 1, 3)));
         assertFalse(store.canPreview(7, 0L));
         assertFalse(store.canPreview(7, nearby));
-        ClientMeshSections.Section section = store.localSection(new ClientViewMessage.MeshSection(7, 1, 1, 0, 0,
+        ClientMeshSections.Section section = store.localSection(new ViewStreamMessage.MeshSection(7, 1, 1, 0, 0,
             2, 4, Brick.single(0, 4), SectionBiomes.NONE));
         assertNull(store.preview(7, nearby, section));
         assertTrue(store.drop(7, 1, 0, 0, 0));
@@ -82,11 +82,11 @@ public class ClientMeshSectionsReuseTest extends MinecraftTestBase {
         ClientMeshSections.Section local = store.localSection(section(7, 1, 1, 3));
         assertTrue(store.local(7, 0L, local));
         long previewKey = SectionPos.asLong(1, 0, 0);
-        ClientMeshSections.Section preview = store.localSection(new ClientViewMessage.MeshSection(7, 1, 1, 0, 0,
+        ClientMeshSections.Section preview = store.localSection(new ViewStreamMessage.MeshSection(7, 1, 1, 0, 0,
             1, 3, Brick.single(0, 3), SectionBiomes.NONE));
         assertNotNull(store.preview(7, previewKey, preview));
         assertFalse(store.canPreview(7, SectionPos.asLong(-1, 0, 0)));
-        assertEquals(ClientMeshSections.Result.APPLIED, store.put(new ClientViewMessage.MeshSection(7, 1, -1, 0, 0,
+        assertEquals(ClientMeshSections.Result.APPLIED, store.put(new ViewStreamMessage.MeshSection(7, 1, -1, 0, 0,
             1, 3, Brick.single(0, 3), SectionBiomes.NONE)));
         assertSame(local, store.view(7).section(0L));
         assertNull(store.view(7).section(previewKey));
@@ -102,7 +102,7 @@ public class ClientMeshSectionsReuseTest extends MinecraftTestBase {
         assertNull(store.view(7));
         assertTrue(store.bytes() > 0);
         store.begin(9, 2, BOUNDS, 8);
-        List<ClientViewMessage.MeshClaim> claims = store.bind(9, new ClientMeshSections.Identity(ENVIRONMENT, 71, 11));
+        List<ViewStreamMessage.MeshClaim> claims = store.bind(9, new ClientMeshSections.Identity(ENVIRONMENT, 71, 11));
         assertEquals(1, claims.size());
         assertSame(original, store.view(9).section(0L));
         store.view(9).changed().clear();
@@ -126,7 +126,7 @@ public class ClientMeshSectionsReuseTest extends MinecraftTestBase {
         assertEquals(ClientMeshSections.Result.STALE, store.reuse(reuse(7, 1, 90, hash)));
         assertEquals(ClientMeshSections.Result.STALE, store.reuse(reuse(8, 2, 90, hash)));
         assertEquals(ClientMeshSections.Result.STALE, store.reuse(reuse(7, 2, 90, hash + 1)));
-        assertEquals(ClientMeshSections.Result.STALE, store.reuse(new ClientViewMessage.MeshReuse(7, 2, 1, 0, 0, 90, hash)));
+        assertEquals(ClientMeshSections.Result.STALE, store.reuse(new ViewStreamMessage.MeshReuse(7, 2, 1, 0, 0, 90, hash)));
         assertEquals(ClientMeshSections.Result.APPLIED, store.put(section(7, 2, 1, 4)));
         ClientMeshSections.Section changed = store.view(7).section(0L);
         assertNotSame(restored, changed);
@@ -171,7 +171,7 @@ public class ClientMeshSectionsReuseTest extends MinecraftTestBase {
         assertEquals(ClientMeshSections.Result.STALE, store.reuse(reuse(7, 2, 51, hash)));
         assertEquals(ClientMeshSections.Result.APPLIED, store.put(section(7, 2, 1, 4)));
         assertSame(Blocks.DIRT.defaultBlockState(), store.view(7).section(0L).state(0));
-        List<ClientViewMessage.MeshClaim> restored = store.bind(7, new ClientMeshSections.Identity(ENVIRONMENT, 71, 11));
+        List<ViewStreamMessage.MeshClaim> restored = store.bind(7, new ClientMeshSections.Identity(ENVIRONMENT, 71, 11));
         assertEquals(1, restored.size());
         assertSame(original, store.view(7).section(0L));
         assertEquals(hash, restored.getFirst().hash());
@@ -197,10 +197,10 @@ public class ClientMeshSectionsReuseTest extends MinecraftTestBase {
     @Test
     public void residentBoundsAndExplicitDropCannotBeBypassedByHistoricalReuse() throws Exception {
         ClientMeshSections store = populated();
-        store.put(new ClientViewMessage.MeshSection(7, 1, 1, 0, 0, 1, 3, Brick.single(0, 3), SectionBiomes.NONE));
+        store.put(new ViewStreamMessage.MeshSection(7, 1, 1, 0, 0, 1, 3, Brick.single(0, 3), SectionBiomes.NONE));
         store.clear();
         store.begin(7, 2, new BlockBox(0, 0, 0, 16, 16, 16), 1);
-        List<ClientViewMessage.MeshClaim> claims = store.bind(7, new ClientMeshSections.Identity(ENVIRONMENT, 71, 11));
+        List<ViewStreamMessage.MeshClaim> claims = store.bind(7, new ClientMeshSections.Identity(ENVIRONMENT, 71, 11));
         assertEquals(1, claims.size());
         assertEquals(0, claims.getFirst().x());
         assertNull(store.view(7).section(SectionPos.asLong(1, 0, 0)));
@@ -253,8 +253,8 @@ public class ClientMeshSectionsReuseTest extends MinecraftTestBase {
         }
         store.clear();
         store.begin(9, 2, bounds, 2);
-        List<ClientViewMessage.MeshClaim> claims = store.bind(9, new ClientMeshSections.Identity(ENVIRONMENT, 71, 11));
-        assertEquals(List.of(1, 2), claims.stream().map(ClientViewMessage.MeshClaim::x).toList());
+        List<ViewStreamMessage.MeshClaim> claims = store.bind(9, new ClientMeshSections.Identity(ENVIRONMENT, 71, 11));
+        assertEquals(List.of(1, 2), claims.stream().map(ViewStreamMessage.MeshClaim::x).toList());
         assertSame(first, store.view(9).identity());
         assertNull(store.view(9).section(0L));
         assertEquals(2, store.view(9).sectionKeys().size());
@@ -282,13 +282,13 @@ public class ClientMeshSectionsReuseTest extends MinecraftTestBase {
         assertEquals(sectionBytes * 3, store.bytes());
         store.begin(10, 2, bounds, 4);
         assertEquals(List.of(0), store.bind(10, new ClientMeshSections.Identity(ENVIRONMENT, 71, 7))
-            .stream().map(ClientViewMessage.MeshClaim::x).toList());
+            .stream().map(ViewStreamMessage.MeshClaim::x).toList());
         store.begin(11, 2, bounds, 4);
         assertEquals(List.of(1), store.bind(11, new ClientMeshSections.Identity(ENVIRONMENT, 71, 8))
-            .stream().map(ClientViewMessage.MeshClaim::x).toList());
+            .stream().map(ViewStreamMessage.MeshClaim::x).toList());
         store.begin(12, 2, bounds, 4);
         assertEquals(List.of(0), store.bind(12, new ClientMeshSections.Identity(ENVIRONMENT, 71, 9))
-            .stream().map(ClientViewMessage.MeshClaim::x).toList());
+            .stream().map(ViewStreamMessage.MeshClaim::x).toList());
         store.epoch(72);
         assertEquals(0, store.bytes());
         assertTrue(historyEntries(store).isEmpty());
@@ -296,7 +296,7 @@ public class ClientMeshSectionsReuseTest extends MinecraftTestBase {
 
         ClientMeshSections replacing = populated();
         Object entry = historyEntries(replacing).getFirst();
-        assertEquals(ClientMeshSections.Result.APPLIED, replacing.put(new ClientViewMessage.MeshSection(7, 1,
+        assertEquals(ClientMeshSections.Result.APPLIED, replacing.put(new ViewStreamMessage.MeshSection(7, 1,
             0, 0, 0, 2, 0, Brick.empty(0), SectionBiomes.NONE)));
         assertSame(entry, historyEntries(replacing).getFirst());
         assertEquals(replacing.view(7).section(0L).bytes() * 2, replacing.bytes());
@@ -328,7 +328,7 @@ public class ClientMeshSectionsReuseTest extends MinecraftTestBase {
         store.clear();
         store.begin(10, 2, bounds, 4);
         assertEquals(List.of(1), store.bind(10, new ClientMeshSections.Identity(ENVIRONMENT, 71, 11))
-            .stream().map(ClientViewMessage.MeshClaim::x).toList());
+            .stream().map(ViewStreamMessage.MeshClaim::x).toList());
         assertSame(recreated, store.view(10).identity());
     }
 
@@ -344,8 +344,8 @@ public class ClientMeshSectionsReuseTest extends MinecraftTestBase {
         return (Map<?, ?>) field.get(store);
     }
 
-    private static ClientViewMessage.MeshSection at(int key, int x, int revision, int state) {
-        return new ClientViewMessage.MeshSection(key, 1, x, 0, 0, revision, state, Brick.single(0, state), SectionBiomes.NONE);
+    private static ViewStreamMessage.MeshSection at(int key, int x, int revision, int state) {
+        return new ViewStreamMessage.MeshSection(key, 1, x, 0, 0, revision, state, Brick.single(0, state), SectionBiomes.NONE);
     }
 
     private static ClientMeshSections populated() throws ViewStreamProtocolException {
@@ -363,16 +363,16 @@ public class ClientMeshSectionsReuseTest extends MinecraftTestBase {
 
     private static ClientMeshSections store(long budget) throws ViewStreamProtocolException {
         ClientPalette palette = new ClientPalette(BuiltInRegistries.BLOCK);
-        palette.apply(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(3, "minecraft:stone"),
-            new ClientViewMessage.PaletteEntry(4, "minecraft:dirt"))));
+        palette.apply(new ViewStreamMessage.Palette(List.of(new ViewStreamMessage.PaletteEntry(3, "minecraft:stone"),
+            new ViewStreamMessage.PaletteEntry(4, "minecraft:dirt"))));
         return new ClientMeshSections(palette, budget);
     }
 
-    private static ClientViewMessage.MeshSection section(int key, int generation, int revision, int state) {
-        return new ClientViewMessage.MeshSection(key, generation, 0, 0, 0, revision, state, Brick.single(0, state), SectionBiomes.NONE);
+    private static ViewStreamMessage.MeshSection section(int key, int generation, int revision, int state) {
+        return new ViewStreamMessage.MeshSection(key, generation, 0, 0, 0, revision, state, Brick.single(0, state), SectionBiomes.NONE);
     }
 
-    private static ClientViewMessage.MeshReuse reuse(int key, int generation, int revision, long hash) {
-        return new ClientViewMessage.MeshReuse(key, generation, 0, 0, 0, revision, hash);
+    private static ViewStreamMessage.MeshReuse reuse(int key, int generation, int revision, long hash) {
+        return new ViewStreamMessage.MeshReuse(key, generation, 0, 0, 0, revision, hash);
     }
 }

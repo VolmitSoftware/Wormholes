@@ -1,7 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
-import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.frame.OpticTransform;
 import org.junit.Test;
 
@@ -21,15 +20,16 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import art.arcane.wormholes.network.client.TravelMessage;
 
 public class ClientPreparedTravelPendingTest {
-    private static final ClientViewMessage.TravelCoordinate COLUMN = new ClientViewMessage.TravelCoordinate(0, 0);
+    private static final TravelMessage.TravelCoordinate COLUMN = new TravelMessage.TravelCoordinate(0, 0);
 
     @Test
     public void nextBeginPreservesAdoptedArrivalUntilActualMainFrameAndKeepsLatestDataBarrier() throws ReflectiveOperationException {
         ClientPreparedTravel travel = arrival();
         Object original = field(travel, "begin");
-        ClientViewMessage.TravelBegin next = begin(4);
+        TravelMessage.TravelBegin next = begin(4);
         assertTrue(defer(travel, next));
         Object pending = field(travel, "pendingPreparation");
         long deadline = (long) field(pending, "deadline");
@@ -59,15 +59,15 @@ public class ClientPreparedTravelPendingTest {
     public void pendingCancelReplacementAndExpiryNeverCancelTheAdoptedArrival() throws ReflectiveOperationException {
         ClientPreparedTravel travel = arrival();
         Object original = field(travel, "begin");
-        ClientViewMessage.TravelBegin first = begin(4);
-        ClientViewMessage.TravelBegin second = begin(5);
+        TravelMessage.TravelBegin first = begin(4);
+        TravelMessage.TravelBegin second = begin(5);
         defer(travel, first);
         Object pending = field(travel, "pendingPreparation");
         defer(travel, first);
         assertSame(pending, field(travel, "pendingPreparation"));
         defer(travel, second);
         assertFalse(defer(travel, column(first, 1)));
-        assertTrue(defer(travel, new ClientViewMessage.TravelCancel(second.token(), second.generation())));
+        assertTrue(defer(travel, new TravelMessage.TravelCancel(second.token(), second.generation())));
         assertNull(field(travel, "pendingPreparation"));
         defer(travel, first);
         pending = field(travel, "pendingPreparation");
@@ -83,10 +83,10 @@ public class ClientPreparedTravelPendingTest {
     public void invalidPendingBarrierDropsOnlyUpcomingPreparation() throws ReflectiveOperationException {
         ClientPreparedTravel travel = arrival();
         Object original = field(travel, "begin");
-        ClientViewMessage.TravelBegin next = begin(4);
+        TravelMessage.TravelBegin next = begin(4);
         defer(travel, next);
-        assertTrue(defer(travel, new ClientViewMessage.TravelEnd(next.token(), next.generation(), 1,
-            List.of(new ClientViewMessage.TravelChunkRevision(1, 0, 1)))));
+        assertTrue(defer(travel, new TravelMessage.TravelEnd(next.token(), next.generation(), 1,
+            List.of(new TravelMessage.TravelChunkRevision(1, 0, 1)))));
         assertNull(field(travel, "pendingPreparation"));
         assertSame(original, field(travel, "begin"));
         assertTrue(travel.adopted());
@@ -97,7 +97,7 @@ public class ClientPreparedTravelPendingTest {
     public void adoptingPendingPreparationQueuesOnlyColumnsNewerThanInstalledRevisions() throws ReflectiveOperationException {
         for (int installed : new int[] {1, 2, 3}) {
             ClientPreparedTravel travel = arrival();
-            ClientViewMessage.TravelBegin begin = begin(4);
+            TravelMessage.TravelBegin begin = begin(4);
             assertTrue(defer(travel, begin));
             assertTrue(defer(travel, column(begin, 2)));
             Object pending = field(travel, "pendingPreparation");
@@ -123,8 +123,8 @@ public class ClientPreparedTravelPendingTest {
 
     private static ClientPreparedTravel arrival() throws ReflectiveOperationException {
         ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
-        ClientViewMessage.TravelBegin active = mock(ClientViewMessage.TravelBegin.class);
-        when(active.world()).thenReturn(new ClientViewMessage.TravelWorld("minecraft:the_nether", "minecraft:the_nether",
+        TravelMessage.TravelBegin active = mock(TravelMessage.TravelBegin.class);
+        when(active.world()).thenReturn(new TravelMessage.TravelWorld("minecraft:the_nether", "minecraft:the_nether",
             7, false, false, 32, 0, 256));
         set(travel, "begin", active);
         set(travel, "adopted", true);
@@ -133,24 +133,24 @@ public class ClientPreparedTravelPendingTest {
         return travel;
     }
 
-    private static ClientViewMessage.TravelBegin begin(long nonce) {
-        return new ClientViewMessage.TravelBegin(new UUID(3, nonce), nonce, new UUID(2, 9), "minecraft:the_nether",
-            ClientTravelTestFixtures.geometry(), OpticTransform.IDENTITY, new ClientViewMessage.TravelWorld("minecraft:overworld", "minecraft:overworld", 7, false, false, 63, -64, 384),
-            new ClientViewMessage.TravelPose(0, 80, 0, 0, 0), List.of(COLUMN),
+    private static TravelMessage.TravelBegin begin(long nonce) {
+        return new TravelMessage.TravelBegin(new UUID(3, nonce), nonce, new UUID(2, 9), "minecraft:the_nether",
+            ClientTravelTestFixtures.geometry(), OpticTransform.IDENTITY, new TravelMessage.TravelWorld("minecraft:overworld", "minecraft:overworld", 7, false, false, 63, -64, 384),
+            new TravelMessage.TravelPose(0, 80, 0, 0, 0), List.of(COLUMN),
             PortalEnvironmentTest.environment(OpticTransform.IDENTITY), 30_000);
     }
 
-    private static ClientViewMessage.TravelChunk column(ClientViewMessage.TravelBegin begin, int revision) {
-        return new ClientViewMessage.TravelChunk(begin.token(), begin.generation(), 0, 0, revision, 0, 1, 1, new byte[]{(byte) revision});
+    private static TravelMessage.TravelChunk column(TravelMessage.TravelBegin begin, int revision) {
+        return new TravelMessage.TravelChunk(begin.token(), begin.generation(), 0, 0, revision, 0, 1, 1, new byte[]{(byte) revision});
     }
 
-    private static ClientViewMessage.TravelEnd end(ClientViewMessage.TravelBegin begin, int revision) {
-        return new ClientViewMessage.TravelEnd(begin.token(), begin.generation(), revision,
-            List.of(new ClientViewMessage.TravelChunkRevision(0, 0, revision)));
+    private static TravelMessage.TravelEnd end(TravelMessage.TravelBegin begin, int revision) {
+        return new TravelMessage.TravelEnd(begin.token(), begin.generation(), revision,
+            List.of(new TravelMessage.TravelChunkRevision(0, 0, revision)));
     }
 
-    private static boolean defer(ClientPreparedTravel travel, ClientViewMessage message) throws ReflectiveOperationException {
-        Method method = ClientPreparedTravel.class.getDeclaredMethod("deferPreparation", ClientViewMessage.class);
+    private static boolean defer(ClientPreparedTravel travel, TravelMessage message) throws ReflectiveOperationException {
+        Method method = ClientPreparedTravel.class.getDeclaredMethod("deferPreparation", TravelMessage.class);
         method.setAccessible(true);
         return (boolean) method.invoke(travel, message);
     }

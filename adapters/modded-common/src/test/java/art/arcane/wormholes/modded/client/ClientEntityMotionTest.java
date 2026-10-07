@@ -2,7 +2,7 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.optics.entity.EntitySnapshot;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Display;
@@ -201,16 +201,16 @@ public class ClientEntityMotionTest extends MinecraftTestBase {
         ClientPortal portal = mock(ClientPortal.class);
         UUID id = UUID.randomUUID();
         if (update) {
-            entities.apply(new ClientViewMessage.EntityFrame(1, 1, List.of(usingVisual(id, 0)), List.of(id), true));
+            entities.apply(new ViewStreamMessage.EntityFrame(1, 1, List.of(usingVisual(id, 0)), List.of(id), true));
             entities.tick(ignored -> portal, ignored -> true);
         }
-        entities.apply(new ClientViewMessage.EntityFrame(1, 2, List.of(usingVisual(id, hand == InteractionHand.MAIN_HAND ? 1 : 3)),
+        entities.apply(new ViewStreamMessage.EntityFrame(1, 2, List.of(usingVisual(id, hand == InteractionHand.MAIN_HAND ? 1 : 3)),
             List.of(id), true));
         entities.tick(ignored -> portal, ignored -> true);
         assertSame(apple, living.getUseItem());
         assertEquals(32, living.getUseItemRemainingTicks());
         assertEquals(hand, living.getUsedItemHand());
-        entities.apply(new ClientViewMessage.EntityFrame(1, 3, List.of(usingVisual(id, hand == InteractionHand.MAIN_HAND ? 1 : 3)),
+        entities.apply(new ViewStreamMessage.EntityFrame(1, 3, List.of(usingVisual(id, hand == InteractionHand.MAIN_HAND ? 1 : 3)),
             List.of(id), true));
         entities.tick(ignored -> portal, ignored -> true);
         verify(living, times(update ? 2 : 1)).onSyncedDataUpdated(flags);

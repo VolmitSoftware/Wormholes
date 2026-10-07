@@ -6,7 +6,7 @@ import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.stream.Brick;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.math.BlockBox;
 import net.minecraft.core.SectionPos;
 import org.junit.Test;
@@ -23,12 +23,12 @@ public class ClientViewMeshTest extends MinecraftTestBase {
     public void streamedSectionsAreAcknowledgedWithoutChangingWorldBlocks() throws Exception {
         ClientViewHarness harness = new ClientViewHarness(ViewStreamCapability.ALL);
         begin(harness);
-        ClientViewMessage.MeshSection update = new ClientViewMessage.MeshSection(1, 1, 0, 4, 0, 1, 3, Brick.single(0, 3), SectionBiomes.NONE);
+        ViewStreamMessage.MeshSection update = new ViewStreamMessage.MeshSection(1, 1, 0, 4, 0, 1, 3, Brick.single(0, 3), SectionBiomes.NONE);
         harness.receive(update, 0);
         harness.tick(1.5, 65.5, 15.5);
 
         assertNotNull(harness.session.meshes().view(1).section(SectionPos.asLong(0, 4, 0)));
-        assertTrue(harness.sent.contains(new ClientViewMessage.MeshAck(1, 1, 0, 4, 0, 1)));
+        assertTrue(harness.sent.contains(new ViewStreamMessage.MeshAck(1, 1, 0, 4, 0, 1)));
         assertEquals(0, harness.tick.applier().writes());
         assertEquals(0, harness.tick.overlay().size());
         assertEquals(0, harness.tick.protocolFailures());
@@ -38,10 +38,10 @@ public class ClientViewMeshTest extends MinecraftTestBase {
     public void portalDropDiscardsSectionsAndIgnoresDelayedData() throws Exception {
         ClientViewHarness harness = new ClientViewHarness(ViewStreamCapability.ALL);
         begin(harness);
-        harness.receive(new ClientViewMessage.MeshSection(1, 1, 0, 4, 0, 1, 3, Brick.single(0, 3), SectionBiomes.NONE), 0);
+        harness.receive(new ViewStreamMessage.MeshSection(1, 1, 0, 4, 0, 1, 3, Brick.single(0, 3), SectionBiomes.NONE), 0);
         harness.tick(1.5, 65.5, 15.5);
-        harness.receive(new ClientViewMessage.PortalDrop(1), 0);
-        harness.receive(new ClientViewMessage.MeshSection(1, 1, 0, 4, 0, 2, 3, Brick.single(0, 3), SectionBiomes.NONE), 0);
+        harness.receive(new ViewStreamMessage.PortalDrop(1), 0);
+        harness.receive(new ViewStreamMessage.MeshSection(1, 1, 0, 4, 0, 2, 3, Brick.single(0, 3), SectionBiomes.NONE), 0);
         harness.tick(1.5, 65.5, 15.5);
 
         assertNull(harness.session.meshes().view(1));
@@ -53,13 +53,13 @@ public class ClientViewMeshTest extends MinecraftTestBase {
     public void destinationAtmosphereWorksWithoutAVoxelSweep() throws Exception {
         ClientViewHarness harness = new ClientViewHarness(ViewStreamCapability.ALL);
         begin(harness);
-        harness.receive(new ClientViewMessage.Atmosphere(1, 18000L, 0.8F, 0.5F,
-            ClientViewMessage.Atmosphere.FLAG_TIME | ClientViewMessage.Atmosphere.FLAG_WEATHER), 0);
+        harness.receive(new ViewStreamMessage.Atmosphere(1, 18000L, 0.8F, 0.5F,
+            ViewStreamMessage.Atmosphere.FLAG_TIME | ViewStreamMessage.Atmosphere.FLAG_WEATHER), 0);
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, 11.0D);
         assertEquals(1, harness.tick.atmosphere().dominant());
         assertEquals(0.8F, harness.scene.rain, 0.0F);
         assertEquals(18000L, harness.scene.clock);
-        harness.receive(new ClientViewMessage.PortalDrop(1), 0);
+        harness.receive(new ViewStreamMessage.PortalDrop(1), 0);
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, 11.0D);
         assertEquals(0, harness.tick.atmosphere().dominant());
     }
@@ -68,13 +68,13 @@ public class ClientViewMeshTest extends MinecraftTestBase {
     public void memoryFailureRefusesOnlyCurrentGenerationOnceAndKeepsNativeOwnership() throws Exception {
         ClientViewHarness harness = new ClientViewHarness(ViewStreamCapability.ALL);
         begin(harness);
-        harness.receive(new ClientViewMessage.Portal(2, 1, ClientViewHarness.geometry()), 0);
-        harness.receive(new ClientViewMessage.MeshBegin(2, 1, new BlockBox(-16, 48, -16, 48, 48, 48), 27), 0);
-        harness.receive(new ClientViewMessage.MeshBegin(1, 2, new BlockBox(-16, 48, -16, 48, 48, 48), 27), 0);
+        harness.receive(new ViewStreamMessage.Portal(2, 1, ClientViewHarness.geometry()), 0);
+        harness.receive(new ViewStreamMessage.MeshBegin(2, 1, new BlockBox(-16, 48, -16, 48, 48, 48), 27), 0);
+        harness.receive(new ViewStreamMessage.MeshBegin(1, 2, new BlockBox(-16, 48, -16, 48, 48, 48), 27), 0);
         harness.tick(1.5, 65.5, 15.5);
         harness.session.refuseMesh(1, 1, harness.tick);
         assertNotNull(harness.session.meshes().view(1));
-        assertTrue(harness.sent.stream().noneMatch(message -> message instanceof ClientViewMessage.PlateRefused));
+        assertTrue(harness.sent.stream().noneMatch(message -> message instanceof ViewStreamMessage.PlateRefused));
         harness.session.refuseMesh(1, 2, harness.tick);
         harness.session.refuseMesh(1, 2, harness.tick);
         assertNull(harness.session.meshes().view(1));
@@ -82,7 +82,7 @@ public class ClientViewMeshTest extends MinecraftTestBase {
         assertEquals(ClientViewSession.State.CLIENT_VIEW, harness.session.state());
         assertEquals(ClientViewSession.MeshFailure.MEMORY, harness.session.meshFailure(1));
         assertNotNull(harness.session.meshes().view(2));
-        assertEquals(1, harness.sent.stream().filter(message -> message.equals(new ClientViewMessage.PlateRefused(1, 2))).count());
+        assertEquals(1, harness.sent.stream().filter(message -> message.equals(new ViewStreamMessage.PlateRefused(1, 2))).count());
     }
 
     @Test
@@ -92,7 +92,7 @@ public class ClientViewMeshTest extends MinecraftTestBase {
         harness.tick(1.5, 65.5, 15.5);
         double distance = harness.session.portal(1).geometry().depthBlocks();
         harness.session.meshes().otherMemory(harness.config::plateMemoryBytes);
-        harness.receive(new ClientViewMessage.MeshSection(1, 1, 0, 4, 0, 1, 3, Brick.single(0, 3), SectionBiomes.NONE), 0);
+        harness.receive(new ViewStreamMessage.MeshSection(1, 1, 0, 4, 0, 1, 3, Brick.single(0, 3), SectionBiomes.NONE), 0);
         harness.tick(1.5, 65.5, 15.5);
         assertEquals(ClientViewSession.State.CLIENT_VIEW, harness.session.state());
         assertTrue(harness.session.nativeSelected());
@@ -100,12 +100,12 @@ public class ClientViewMeshTest extends MinecraftTestBase {
         assertEquals(distance, harness.session.portal(1).geometry().depthBlocks(), 0);
         assertEquals(0, harness.surface.changedCells());
         harness.session.meshes().otherMemory(() -> 0L);
-        harness.receive(new ClientViewMessage.MeshBegin(1, 2, new BlockBox(-16, 48, -16, 48, 48, 48), 27), 0);
-        harness.receive(new ClientViewMessage.MeshSection(1, 2, 0, 4, 0, 1, 3, Brick.single(0, 3), SectionBiomes.NONE), 0);
+        harness.receive(new ViewStreamMessage.MeshBegin(1, 2, new BlockBox(-16, 48, -16, 48, 48, 48), 27), 0);
+        harness.receive(new ViewStreamMessage.MeshSection(1, 2, 0, 4, 0, 1, 3, Brick.single(0, 3), SectionBiomes.NONE), 0);
         harness.tick(1.5, 65.5, 15.5);
         assertNull(harness.session.meshFailure(1));
         assertNotNull(harness.session.meshes().view(1).section(SectionPos.asLong(0, 4, 0)));
-        assertTrue(harness.sent.contains(new ClientViewMessage.MeshAck(1, 2, 0, 4, 0, 1)));
+        assertTrue(harness.sent.contains(new ViewStreamMessage.MeshAck(1, 2, 0, 4, 0, 1)));
         assertEquals(distance, harness.session.portal(1).geometry().depthBlocks(), 0);
         assertEquals(0, harness.surface.changedCells());
     }
@@ -114,9 +114,9 @@ public class ClientViewMeshTest extends MinecraftTestBase {
     public void nativeMirrorsAndNestedGeometryWaitForMeshDataWithoutWritingWorldBlocks() throws Exception {
         ClientViewHarness harness = new ClientViewHarness(ViewStreamCapability.ALL);
         ApertureDescriptor child = mirror(List.of()).withParent(1);
-        harness.receive(new ClientViewMessage.Portal(1, 1, mirror(List.of(child))), 0);
+        harness.receive(new ViewStreamMessage.Portal(1, 1, mirror(List.of(child))), 0);
         for (int key = 2; key <= 17; key++) {
-            harness.receive(new ClientViewMessage.Portal(key, 1, child), ViewStreamLimits.FLAG_LAST);
+            harness.receive(new ViewStreamMessage.Portal(key, 1, child), ViewStreamLimits.FLAG_LAST);
         }
         for (int tick = 0; tick < 4; tick++) {
             harness.tick(1.5, 65.5, 15.5);
@@ -132,8 +132,8 @@ public class ClientViewMeshTest extends MinecraftTestBase {
             assertNull(portal.content());
             assertNull(portal.sweep());
         }
-        harness.receive(new ClientViewMessage.MeshBegin(1, 1, new BlockBox(-16, 48, -16, 48, 48, 48), 27), 0);
-        harness.receive(new ClientViewMessage.MeshSection(1, 1, 0, 4, 0, 1, 3, Brick.single(0, 0), SectionBiomes.NONE), 0);
+        harness.receive(new ViewStreamMessage.MeshBegin(1, 1, new BlockBox(-16, 48, -16, 48, 48, 48), 27), 0);
+        harness.receive(new ViewStreamMessage.MeshSection(1, 1, 0, 4, 0, 1, 3, Brick.single(0, 0), SectionBiomes.NONE), 0);
         harness.tick(1.5, 65.5, 15.5);
         assertNotNull(harness.session.meshes().view(1).section(SectionPos.asLong(0, 4, 0)));
         assertEquals(0, harness.surface.writes.size());
@@ -143,9 +143,9 @@ public class ClientViewMeshTest extends MinecraftTestBase {
     public void nativeAcceptanceDiscardsQueuedPlateStreamAndStandbyHandles() throws Exception {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
-        harness.receive(new ClientViewMessage.PlatePatch(1, 1, 2, List.of()), 0);
-        harness.receive(new ClientViewMessage.PlateHandle(1, 2, 999L), ViewStreamLimits.FLAG_LAST);
-        harness.session.accept(new ClientViewMessage.Accept(2, ViewStreamCapability.ALL, 20,
+        harness.receive(new ViewStreamMessage.PlatePatch(1, 1, 2, List.of()), 0);
+        harness.receive(new ViewStreamMessage.PlateHandle(1, 2, 999L), ViewStreamLimits.FLAG_LAST);
+        harness.session.accept(new ViewStreamMessage.Accept(2, ViewStreamCapability.ALL, 20,
             ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 9L, 8));
         harness.tick(1.5, 65.5, 15.5);
         assertNotNull(harness.session.portal(1));
@@ -154,19 +154,19 @@ public class ClientViewMeshTest extends MinecraftTestBase {
         assertEquals(0, harness.session.plates().bytes());
         assertEquals(0, harness.tick.protocolFailures());
         assertEquals(0, harness.surface.writes.size());
-        assertTrue(harness.sent.stream().noneMatch(message -> message instanceof ClientViewMessage.BrickMiss
-            || message instanceof ClientViewMessage.PlateRefused));
+        assertTrue(harness.sent.stream().noneMatch(message -> message instanceof ViewStreamMessage.BrickMiss
+            || message instanceof ViewStreamMessage.PlateRefused));
     }
 
     @Test
     public void nativeAcceptanceRestoresExistingLegacyProjectionAndKeepsGeometryPending() throws Exception {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
-        harness.receive(new ClientViewMessage.Portal(2, 1, mirror(List.of())), ViewStreamLimits.FLAG_LAST);
+        harness.receive(new ViewStreamMessage.Portal(2, 1, mirror(List.of())), ViewStreamLimits.FLAG_LAST);
         harness.tick(1.5, 65.5, 15.5);
         assertTrue(harness.surface.changedCells() > 0);
         assertNotNull(harness.tick.mirror(2));
-        harness.session.accept(new ClientViewMessage.Accept(2, ViewStreamCapability.ALL, 20,
+        harness.session.accept(new ViewStreamMessage.Accept(2, ViewStreamCapability.ALL, 20,
             ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 9L, 8));
         harness.tick(1.5, 65.5, 15.5);
         assertEquals(2, harness.session.portals().size());
@@ -191,8 +191,8 @@ public class ClientViewMeshTest extends MinecraftTestBase {
     }
 
     private static void begin(ClientViewHarness harness) throws Exception {
-        harness.receive(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(3, "minecraft:stone"))), 0);
-        harness.receive(new ClientViewMessage.Portal(1, 1, ClientViewHarness.geometry()), 0);
-        harness.receive(new ClientViewMessage.MeshBegin(1, 1, new BlockBox(-16, 48, -16, 48, 48, 48), 27), 0);
+        harness.receive(new ViewStreamMessage.Palette(List.of(new ViewStreamMessage.PaletteEntry(3, "minecraft:stone"))), 0);
+        harness.receive(new ViewStreamMessage.Portal(1, 1, ClientViewHarness.geometry()), 0);
+        harness.receive(new ViewStreamMessage.MeshBegin(1, 1, new BlockBox(-16, 48, -16, 48, 48, 48), 27), 0);
     }
 }

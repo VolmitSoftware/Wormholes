@@ -4,7 +4,7 @@ import art.arcane.wormholes.modded.MinecraftProjectorPortalAccess;
 import art.arcane.wormholes.modded.MinecraftDoorProjectionViews;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.WormholesModRuntime;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.frame.OpticTransform;
 import net.minecraft.network.Connection;
@@ -103,7 +103,7 @@ public final class MinecraftClientViewPeer {
         offered = true;
     }
 
-    ClientViewMessage.ResetReason follow(ServerPlayer next, WormholesModRuntime runtime) {
+    ViewStreamMessage.ResetReason follow(ServerPlayer next, WormholesModRuntime runtime) {
         ServerPlayer previous = player;
         ServerLevel departed = world;
         if (previous == next && departed == next.level()) {
@@ -113,7 +113,7 @@ public final class MinecraftClientViewPeer {
         if (previous == null) {
             return null;
         }
-        return departed == world ? ClientViewMessage.ResetReason.RESPAWN : ClientViewMessage.ResetReason.DIMENSION;
+        return departed == world ? ViewStreamMessage.ResetReason.RESPAWN : ViewStreamMessage.ResetReason.DIMENSION;
     }
 
     void attach(ServerPlayer next, MinecraftProjectorPortalAccess access) {

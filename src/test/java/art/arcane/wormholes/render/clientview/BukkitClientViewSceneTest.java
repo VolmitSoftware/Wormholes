@@ -25,7 +25,7 @@ import art.arcane.wormholes.Settings;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.BrickLightSource;
 import art.arcane.optics.stream.ViewStreamCapability;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.entity.EntitySnapshot;
@@ -53,12 +53,12 @@ final class BukkitClientViewSceneTest {
             when(entities.getEntities(anyDouble(), anyDouble(), anyDouble(), anyDouble())).thenReturn(List.of(self));
             when(entities.isVisibleTo(any(Player.class), eq(fixture.playerId))).thenReturn(true);
             fixture.route();
-            List<ClientViewMessage> messages = fixture.messages();
-            ClientViewMessage.EntitySelf binding = null;
-            for (ClientViewMessage message : messages) {
-                if (message instanceof ClientViewMessage.EntitySelf found) {
+            List<ViewStreamMessage> messages = fixture.messages();
+            ViewStreamMessage.EntitySelf binding = null;
+            for (ViewStreamMessage message : messages) {
+                if (message instanceof ViewStreamMessage.EntitySelf found) {
                     binding = found;
-                } else if (message instanceof ClientViewMessage.EntityFrame frame) {
+                } else if (message instanceof ViewStreamMessage.EntityFrame frame) {
                     assertNotNull(binding, "binding must precede the observer's first frame");
                     assertEquals(List.of(binding.projectedId()), frame.presentIds());
                     assertNotEquals(fixture.playerId, binding.projectedId());
@@ -66,7 +66,7 @@ final class BukkitClientViewSceneTest {
             }
             assertNotNull(binding);
             fixture.route();
-            assertTrue(fixture.messages().stream().noneMatch(message -> message instanceof ClientViewMessage.EntitySelf));
+            assertTrue(fixture.messages().stream().noneMatch(message -> message instanceof ViewStreamMessage.EntitySelf));
         }
     }
 
@@ -79,8 +79,8 @@ final class BukkitClientViewSceneTest {
             fixture.buildPlates();
             fixture.route();
             int lit = 0;
-            for (ClientViewMessage message : fixture.messages()) {
-                if (!(message instanceof ClientViewMessage.PlateBricks bricks)) {
+            for (ViewStreamMessage message : fixture.messages()) {
+                if (!(message instanceof ViewStreamMessage.PlateBricks bricks)) {
                     continue;
                 }
                 for (Brick brick : bricks.bricks()) {
@@ -109,7 +109,7 @@ final class BukkitClientViewSceneTest {
             when(entities.getEntities(anyDouble(), anyDouble(), anyDouble(), anyDouble())).thenReturn(List.of(stand));
             when(entities.isVisibleTo(any(Player.class), eq(source))).thenReturn(true);
             fixture.route();
-            ClientViewMessage.EntityFrame frame = lastFrame(fixture.messages());
+            ViewStreamMessage.EntityFrame frame = lastFrame(fixture.messages());
             assertNotNull(frame, "no entity frame was streamed");
             assertEquals(1, frame.entities().size());
             EntitySnapshot local = frame.entities().get(0);
@@ -119,7 +119,7 @@ final class BukkitClientViewSceneTest {
             assertEquals(List.of(local.id()), frame.presentIds());
             when(entities.isVisibleTo(any(Player.class), eq(source))).thenReturn(false);
             fixture.route();
-            ClientViewMessage.EntityFrame hidden = lastFrame(fixture.messages());
+            ViewStreamMessage.EntityFrame hidden = lastFrame(fixture.messages());
             assertNotNull(hidden);
             assertTrue(hidden.presentIds().isEmpty(), "entities the observer cannot see leave the frame");
         }
@@ -144,7 +144,7 @@ final class BukkitClientViewSceneTest {
             when(entities.getEntities(anyDouble(), anyDouble(), anyDouble(), anyDouble())).thenReturn(List.of(stand));
             when(entities.isVisibleTo(any(Player.class), any(UUID.class))).thenReturn(true);
             fixture.route();
-            ClientViewMessage.EntityFrame frame = lastFrame(fixture.messages());
+            ViewStreamMessage.EntityFrame frame = lastFrame(fixture.messages());
             assertNotNull(frame);
             assertEquals(1, frame.presentIds().size(), "entities deeper than the legacy portal depth must reach mesh clients");
             verify(entities).getEntities(anyDouble(), anyDouble(), anyDouble(), eq(128.0D));
@@ -167,16 +167,16 @@ final class BukkitClientViewSceneTest {
             when(entities.getEntities(anyDouble(), anyDouble(), anyDouble(), anyDouble())).thenReturn(List.of(self, stand));
             when(entities.isVisibleTo(any(Player.class), any(UUID.class))).thenReturn(true);
             fixture.route();
-            ClientViewMessage.EntityFrame frame = lastFrame(fixture.messages());
+            ViewStreamMessage.EntityFrame frame = lastFrame(fixture.messages());
             assertNotNull(frame, "no entity frame was streamed");
             return frame.presentIds().size();
         }
     }
 
-    private static ClientViewMessage.EntityFrame lastFrame(List<ClientViewMessage> messages) {
-        ClientViewMessage.EntityFrame last = null;
-        for (ClientViewMessage message : messages) {
-            if (message instanceof ClientViewMessage.EntityFrame frame) {
+    private static ViewStreamMessage.EntityFrame lastFrame(List<ViewStreamMessage> messages) {
+        ViewStreamMessage.EntityFrame last = null;
+        for (ViewStreamMessage message : messages) {
+            if (message instanceof ViewStreamMessage.EntityFrame frame) {
                 last = frame;
             }
         }
@@ -188,7 +188,7 @@ final class BukkitClientViewSceneTest {
         fixture.clientView.observer(fixture.playerId, fixture.user).brand("fabric");
         assertTrue(fixture.negotiator.offerPlay(fixture.player));
         assertEquals(ViewStreamInbound.HELLO_ACCEPTED, fixture.hello(clientCaps));
-        List<ClientViewMessage> handshake = new ArrayList<ClientViewMessage>(fixture.messages());
+        List<ViewStreamMessage> handshake = new ArrayList<ViewStreamMessage>(fixture.messages());
         assertEquals(2, handshake.size());
         return fixture;
     }

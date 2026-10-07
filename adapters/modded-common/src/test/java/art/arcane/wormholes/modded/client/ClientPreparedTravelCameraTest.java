@@ -2,7 +2,6 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.AxisPermutation;
@@ -28,6 +27,7 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.never;
 import static org.mockito.ArgumentMatchers.any;
+import art.arcane.wormholes.network.client.TravelMessage;
 
 public class ClientPreparedTravelCameraTest {
     @BeforeClass
@@ -39,7 +39,7 @@ public class ClientPreparedTravelCameraTest {
     public void arrivalCameraMatchesNativeForwardRightAndUpAtBothYawAndPitchSigns() throws ReflectiveOperationException {
         for (float yaw : new float[]{0, 90}) {
             for (float pitch : new float[]{-15, 0, 15}) {
-                CameraRenderState camera = ClientPreparedTravel.arrivalCamera(new ClientViewMessage.TravelPose(0, 80, 0, yaw, pitch),
+                CameraRenderState camera = ClientPreparedTravel.arrivalCamera(new TravelMessage.TravelPose(0, 80, 0, yaw, pitch),
                     EntityTypes.PLAYER.getDimensions().eyeHeight());
                 double y = Math.toRadians(yaw);
                 double p = Math.toRadians(pitch);
@@ -60,14 +60,14 @@ public class ClientPreparedTravelCameraTest {
         when(player.getDefaultDimensions(any())).thenCallRealMethod();
         for (Pose pose : new Pose[]{Pose.STANDING, Pose.CROUCHING, Pose.SWIMMING}) {
             float height = player.getDefaultDimensions(pose).eyeHeight();
-            CameraRenderState camera = ClientPreparedTravel.arrivalCamera(new ClientViewMessage.TravelPose(1.5, 80, -3.5, 0, 0), height);
+            CameraRenderState camera = ClientPreparedTravel.arrivalCamera(new TravelMessage.TravelPose(1.5, 80, -3.5, 0, 0), height);
             assertEquals(new Vec3(1.5, 80 + (double) height, -3.5), camera.pos);
         }
     }
 
     @Test
     public void currentTravelCameraMapsOnlyFeetAndLookAndKeepsPostureUprightAcrossRotatedAxes() throws ReflectiveOperationException {
-        ClientViewMessage.TravelBegin original = begin();
+        TravelMessage.TravelBegin original = begin();
         Minecraft minecraft = mock(Minecraft.class);
         minecraft.level = mock(ClientLevel.class);
         when(minecraft.level.dimension()).thenReturn(Level.NETHER);
@@ -79,14 +79,14 @@ public class ClientPreparedTravelCameraTest {
         when(player.getYRot()).thenReturn(30.0F);
         when(player.getXRot()).thenReturn(20.0F);
         when(player.getDefaultDimensions(any())).thenCallRealMethod();
-        Method method = ClientPreparedTravel.class.getDeclaredMethod("travelCamera", ClientViewMessage.TravelBegin.class);
+        Method method = ClientPreparedTravel.class.getDeclaredMethod("travelCamera", TravelMessage.TravelBegin.class);
         method.setAccessible(true);
         try (MockedStatic<Minecraft> access = mockStatic(Minecraft.class)) {
             access.when(Minecraft::getInstance).thenReturn(minecraft);
             for (OpticTransform transform : new OpticTransform[]{
                 OpticTransform.of(AxisPermutation.of(Face.S, Face.U, Face.W), 100, 20, 200),
                 OpticTransform.of(AxisPermutation.of(Face.E, Face.S, Face.D), 100, 20, 200)}) {
-                ClientViewMessage.TravelBegin begin = new ClientViewMessage.TravelBegin(original.token(), original.generation(),
+                TravelMessage.TravelBegin begin = new TravelMessage.TravelBegin(original.token(), original.generation(),
                     original.sourcePortal(), original.sourceWorld(), original.sourceGeometry(), transform,
                     original.world(), original.arrival(), original.chunks(), original.environment(), original.expiresMillis());
                 for (Pose pose : new Pose[]{Pose.STANDING, Pose.CROUCHING, Pose.SWIMMING}) {
@@ -107,8 +107,8 @@ public class ClientPreparedTravelCameraTest {
 
     @Test
     public void unavailableOrForeignSourceUsesStoredArrivalAndCurrentOrNativeFallbackEyeHeight() throws ReflectiveOperationException {
-        ClientViewMessage.TravelBegin begin = begin();
-        Method method = ClientPreparedTravel.class.getDeclaredMethod("travelCamera", ClientViewMessage.TravelBegin.class);
+        TravelMessage.TravelBegin begin = begin();
+        Method method = ClientPreparedTravel.class.getDeclaredMethod("travelCamera", TravelMessage.TravelBegin.class);
         method.setAccessible(true);
         Minecraft minecraft = mock(Minecraft.class);
         LocalPlayer player = mock(LocalPlayer.class);
@@ -134,10 +134,10 @@ public class ClientPreparedTravelCameraTest {
         verify(player, never()).getYRot();
     }
 
-    private static ClientViewMessage.TravelBegin begin() throws ReflectiveOperationException {
+    private static TravelMessage.TravelBegin begin() throws ReflectiveOperationException {
         Method method = ClientPreparedTravelPendingTest.class.getDeclaredMethod("begin", long.class);
         method.setAccessible(true);
-        return (ClientViewMessage.TravelBegin) method.invoke(null, 1L);
+        return (TravelMessage.TravelBegin) method.invoke(null, 1L);
     }
 
     private static void vector(Vector3f expected, Vector3f actual) {

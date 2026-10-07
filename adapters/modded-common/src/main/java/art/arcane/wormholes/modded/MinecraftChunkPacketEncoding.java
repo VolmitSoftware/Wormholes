@@ -1,6 +1,5 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.optics.stream.ViewStreamLimits;
 import io.netty.buffer.Unpooled;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.network.FriendlyByteBuf;
@@ -9,6 +8,7 @@ import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
 import net.minecraft.world.level.levelgen.Heightmap;
 
 import java.util.Objects;
+import art.arcane.wormholes.network.client.TravelMessage;
 
 public final class MinecraftChunkPacketEncoding {
     private MinecraftChunkPacketEncoding() {
@@ -18,7 +18,7 @@ public final class MinecraftChunkPacketEncoding {
         Objects.requireNonNull(registries, "registries");
         Objects.requireNonNull(packet, "packet");
         RegistryFriendlyByteBuf buffer = new RegistryFriendlyByteBuf(
-            Unpooled.buffer(initialCapacity(packet), ViewStreamLimits.MAX_TRAVEL_CHUNK_BYTES), registries);
+            Unpooled.buffer(initialCapacity(packet), TravelMessage.MAX_TRAVEL_CHUNK_BYTES), registries);
         try {
             ClientboundLevelChunkWithLightPacket.STREAM_CODEC.encode(buffer, packet);
             if (!canonicalHeightmaps(packet)) {
@@ -48,7 +48,7 @@ public final class MinecraftChunkPacketEncoding {
         for (byte[] update : packet.lightData().blockUpdates()) {
             capacity += update.length;
         }
-        return (int) Math.min(capacity, ViewStreamLimits.MAX_TRAVEL_CHUNK_BYTES);
+        return (int) Math.min(capacity, TravelMessage.MAX_TRAVEL_CHUNK_BYTES);
     }
 
     private static boolean canonicalHeightmaps(ClientboundLevelChunkWithLightPacket packet) {

@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client.render;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.SectionBiomes;
@@ -60,6 +60,7 @@ import static org.mockito.Mockito.when;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import art.arcane.wormholes.network.client.TravelMessage;
 
 public class ClientTravelMeshReuseTest extends MinecraftTestBase {
     @Test
@@ -94,7 +95,7 @@ public class ClientTravelMeshReuseTest extends MinecraftTestBase {
         try (BulkFixture fixture = new BulkFixture()) {
             fixture.cache(0L);
             fixture.reopen();
-            fixture.store.put(new ClientViewMessage.MeshSection(11, 1, 1, 0, 0, 2, 4,
+            fixture.store.put(new ViewStreamMessage.MeshSection(11, 1, 1, 0, 0, 2, 4,
                 Brick.single(0, 4), SectionBiomes.NONE));
             set(fixture.renderer, "buildBudgetNanos", 60_000_000_000L);
             fixture.restore();
@@ -681,7 +682,7 @@ public class ClientTravelMeshReuseTest extends MinecraftTestBase {
         ClientTravelScene.MeshIdentity first = identity((byte) 1);
         assertTrue(first.same(identity((byte) 1)));
         assertFalse(first.same(identity((byte) 2)));
-        ClientViewMessage.TravelWorld world = new ClientViewMessage.TravelWorld("other", "minecraft:overworld", 7,
+        TravelMessage.TravelWorld world = new TravelMessage.TravelWorld("other", "minecraft:overworld", 7,
             false, false, 63, -64, 384);
         assertFalse(first.same(new ClientTravelScene.MeshIdentity(world, identity((byte) 1).columns())));
     }
@@ -700,15 +701,15 @@ public class ClientTravelMeshReuseTest extends MinecraftTestBase {
         private BulkFixture() throws Exception {
             renderer.clear();
             ClientPalette palette = new ClientPalette(BuiltInRegistries.BLOCK);
-            palette.apply(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(3, "minecraft:stone"),
-                new ClientViewMessage.PaletteEntry(4, "minecraft:dirt"))));
+            palette.apply(new ViewStreamMessage.Palette(List.of(new ViewStreamMessage.PaletteEntry(3, "minecraft:stone"),
+                new ViewStreamMessage.PaletteEntry(4, "minecraft:dirt"))));
             store = new ClientMeshSections(palette, 1024 * 1024);
             store.begin(7, 1, BOUNDS, 64);
             bind(7);
             for (int y = -1; y <= 1; y++) {
                 for (int z = -1; z <= 1; z++) {
                     for (int x = -1; x <= 1; x++) {
-                        store.put(new ClientViewMessage.MeshSection(7, 1, x, y, z, 1, 3,
+                        store.put(new ViewStreamMessage.MeshSection(7, 1, x, y, z, 1, 3,
                             Brick.single(0, 3), SectionBiomes.NONE));
                     }
                 }
@@ -867,7 +868,7 @@ public class ClientTravelMeshReuseTest extends MinecraftTestBase {
             columns[index] = new byte[]{1, 2, 3};
         }
         columns[8][2] = last;
-        return new ClientTravelScene.MeshIdentity(new ClientViewMessage.TravelWorld("minecraft:overworld", "minecraft:overworld",
+        return new ClientTravelScene.MeshIdentity(new TravelMessage.TravelWorld("minecraft:overworld", "minecraft:overworld",
             7, false, false, 63, -64, 384), columns);
     }
 

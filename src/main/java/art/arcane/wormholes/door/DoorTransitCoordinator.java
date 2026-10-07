@@ -5,7 +5,6 @@ import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.volmlib.util.localization.TextKey;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.portal.LocalPortal;
-import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.render.clientview.BukkitClientView;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.math.Angles;
@@ -36,6 +35,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
+import art.arcane.wormholes.network.client.TravelMessage;
 
 final class DoorTransitCoordinator
 {
@@ -959,7 +959,7 @@ final class DoorTransitCoordinator
 		BukkitClientView clientView = Wormholes.projectionManager == null ? null : Wormholes.projectionManager.clientView();
 		UUID travelerId = traveler.getUniqueId();
 		Vec3d arrivalVelocity = arrivalVelocity(prepared, target);
-		ClientViewMessage.TravelCommit preparedCommit = null;
+		TravelMessage.TravelCommit preparedCommit = null;
         if(prepared.attempted() != null && (clientView == null || !clientView.crossing(travelerId, prepared.attempted())))
         {
             rollbackChunkPreSend(prepared);
@@ -993,7 +993,7 @@ final class DoorTransitCoordinator
 			failTransit(traveler, source, WormholesMessages.DOOR_TRANSIT_START_FAILED, prepared);
 			return;
 		}
-		ClientViewMessage.TravelCommit committedTravel = preparedCommit;
+		TravelMessage.TravelCommit committedTravel = preparedCommit;
 		teleportFuture.whenComplete((success, error) ->
 		{
 			boolean moved = error == null && Boolean.TRUE.equals(success);
@@ -1454,7 +1454,7 @@ final class DoorTransitCoordinator
 		REMOVE_ON_SUCCESS
 	}
 
-    private static ClientViewMessage.TravelBegin preparedAttempt(UUID traveler) {
+    private static TravelMessage.TravelBegin preparedAttempt(UUID traveler) {
         BukkitClientView clientView = Wormholes.projectionManager == null ? null : Wormholes.projectionManager.clientView();
         return clientView != null && clientView.crossing(traveler) ? clientView.preparation(traveler).orElse(null) : null;
     }
@@ -1467,7 +1467,7 @@ final class DoorTransitCoordinator
 		DoorwayPlane destinationPlane,
 		TraversalCostGateway.Admission traversalAdmission,
 		BukkitChunkPreSendTransaction chunkPreSendTransaction,
-        ClientViewMessage.TravelBegin attempted,
+        TravelMessage.TravelBegin attempted,
         DoorRuntimeIndex.PreparedOpening opening)
 	{
 		private TransitContext
@@ -1513,7 +1513,7 @@ final class DoorTransitCoordinator
 			UUID travelerId,
 			DoorTransit transit,
 			ReturnTicket ticket,
-            ClientViewMessage.TravelBegin attempted)
+            TravelMessage.TravelBegin attempted)
 		{
 			return new TransitContext(
 				travelerId, transit, TicketAction.KEEP_ON_SUCCESS, ticket, null, null, null, attempted, null);
@@ -1523,7 +1523,7 @@ final class DoorTransitCoordinator
 			UUID travelerId,
 			DoorTransit transit,
 			ReturnTicket ticket,
-            ClientViewMessage.TravelBegin attempted)
+            TravelMessage.TravelBegin attempted)
 		{
 			return new TransitContext(
 				travelerId, transit, TicketAction.REMOVE_ON_SUCCESS, ticket, null, null, null, attempted, null);

@@ -1,8 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
-import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.network.client.ClientTravelHash;
-import art.arcane.optics.stream.ViewStreamLimits;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -17,16 +15,17 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import art.arcane.wormholes.network.client.TravelMessage;
 
 public class ClientTravelChunksTest {
     private static final UUID TOKEN = new UUID(2, 7);
     private static final long GENERATION = 11;
-    private static final ClientViewMessage.TravelCoordinate COORDINATE = new ClientViewMessage.TravelCoordinate(8, -3);
+    private static final TravelMessage.TravelCoordinate COORDINATE = new TravelMessage.TravelCoordinate(8, -3);
 
     @Test
     public void outOfOrderFragmentsRequireCompleteExactBarrierAndPreserveBytes() {
         ClientTravelChunks chunks = chunks();
-        byte[] source = new byte[ViewStreamLimits.TRAVEL_FRAGMENT_BYTES + 7];
+        byte[] source = new byte[TravelMessage.TRAVEL_FRAGMENT_BYTES + 7];
         Arrays.fill(source, (byte) 29);
         source[source.length - 1] = 91;
         chunks.end(end(1, 1));
@@ -42,9 +41,9 @@ public class ClientTravelChunksTest {
     public void foreignTokensGenerationsAndCoordinatesNeverCompleteCurrentTravel() {
         ClientTravelChunks chunks = chunks();
         byte[] source = new byte[]{42};
-        assertNull(chunks.accept(new ClientViewMessage.TravelChunk(new UUID(2, 8), GENERATION, 8, -3, 1, 0, 1, 1, source)));
-        assertNull(chunks.accept(new ClientViewMessage.TravelChunk(TOKEN, GENERATION - 1, 8, -3, 1, 0, 1, 1, source)));
-        assertNull(chunks.accept(new ClientViewMessage.TravelChunk(TOKEN, GENERATION, 8, -2, 1, 0, 1, 1, source)));
+        assertNull(chunks.accept(new TravelMessage.TravelChunk(new UUID(2, 8), GENERATION, 8, -3, 1, 0, 1, 1, source)));
+        assertNull(chunks.accept(new TravelMessage.TravelChunk(TOKEN, GENERATION - 1, 8, -3, 1, 0, 1, 1, source)));
+        assertNull(chunks.accept(new TravelMessage.TravelChunk(TOKEN, GENERATION, 8, -2, 1, 0, 1, 1, source)));
         chunks.end(end(1, 1));
         assertEquals(0, chunks.completeRevision());
         assertArrayEquals(source, chunks.accept(fragment(source, 1, 0)));
@@ -57,7 +56,7 @@ public class ClientTravelChunksTest {
         chunks.accept(fragment(new byte[]{1}, 1, 0));
         chunks.end(end(1, 1));
         assertEquals(1, chunks.completeRevision());
-        byte[] replacement = new byte[ViewStreamLimits.TRAVEL_FRAGMENT_BYTES + 1];
+        byte[] replacement = new byte[TravelMessage.TRAVEL_FRAGMENT_BYTES + 1];
         assertNull(chunks.accept(fragment(replacement, 2, 0)));
         assertEquals(0, chunks.completeRevision());
         assertArrayEquals(replacement, chunks.accept(fragment(replacement, 2, 1)));
@@ -74,14 +73,14 @@ public class ClientTravelChunksTest {
         chunks.accept(fragment(new byte[]{1}, 1, 0));
         chunks.end(end(1, 2));
         assertEquals(0, chunks.completeRevision());
-        assertThrows(IllegalArgumentException.class, () -> chunks.end(new ClientViewMessage.TravelEnd(TOKEN, GENERATION, 2,
-            List.of(new ClientViewMessage.TravelChunkRevision(8, -2, 1)))));
+        assertThrows(IllegalArgumentException.class, () -> chunks.end(new TravelMessage.TravelEnd(TOKEN, GENERATION, 2,
+            List.of(new TravelMessage.TravelChunkRevision(8, -2, 1)))));
     }
 
     @Test
     public void olderAssemblyCannotOverwriteNewerPendingColumn() {
         ClientTravelChunks chunks = chunks();
-        byte[] source = new byte[ViewStreamLimits.TRAVEL_FRAGMENT_BYTES + 7];
+        byte[] source = new byte[TravelMessage.TRAVEL_FRAGMENT_BYTES + 7];
         assertNull(chunks.accept(fragment(source, 2, 0)));
         assertNull(chunks.accept(fragment(source, 1, 1)));
         chunks.end(end(2, 2));
@@ -95,41 +94,41 @@ public class ClientTravelChunksTest {
         ClientTravelChunks chunks = chunks();
         byte[] data = {1, 2, 3};
         byte[] hash = ClientTravelHash.of(data);
-        assertFalse(chunks.reuse(new ClientViewMessage.TravelReuse(new UUID(2, 9), GENERATION,
+        assertFalse(chunks.reuse(new TravelMessage.TravelReuse(new UUID(2, 9), GENERATION,
             COORDINATE.x(), COORDINATE.z(), 1, hash), data));
         assertEquals(0, chunks.completeRevision());
-        assertTrue(chunks.reuse(new ClientViewMessage.TravelReuse(TOKEN, GENERATION,
+        assertTrue(chunks.reuse(new TravelMessage.TravelReuse(TOKEN, GENERATION,
             COORDINATE.x(), COORDINATE.z(), 1, hash), data));
         assertEquals(0, chunks.completeRevision());
         chunks.end(end(1, 1));
         assertEquals(1, chunks.completeRevision());
         chunks.end(end(2, 2));
         assertEquals(0, chunks.completeRevision());
-        assertTrue(chunks.reuse(new ClientViewMessage.TravelReuse(TOKEN, GENERATION,
+        assertTrue(chunks.reuse(new TravelMessage.TravelReuse(TOKEN, GENERATION,
             COORDINATE.x(), COORDINATE.z(), 2, hash), data));
         assertEquals(2, chunks.completeRevision());
-        assertFalse(chunks.reuse(new ClientViewMessage.TravelReuse(TOKEN, GENERATION,
+        assertFalse(chunks.reuse(new TravelMessage.TravelReuse(TOKEN, GENERATION,
             COORDINATE.x(), COORDINATE.z(), 1, hash), data));
         assertEquals(2, chunks.completeRevision());
     }
 
     private static ClientTravelChunks chunks() {
-        ClientViewMessage.TravelBegin begin = mock(ClientViewMessage.TravelBegin.class);
+        TravelMessage.TravelBegin begin = mock(TravelMessage.TravelBegin.class);
         when(begin.token()).thenReturn(TOKEN);
         when(begin.generation()).thenReturn(GENERATION);
         when(begin.chunks()).thenReturn(List.of(COORDINATE));
         return new ClientTravelChunks(begin);
     }
 
-    private static ClientViewMessage.TravelEnd end(long content, int revision) {
-        return new ClientViewMessage.TravelEnd(TOKEN, GENERATION, content,
-            List.of(new ClientViewMessage.TravelChunkRevision(COORDINATE.x(), COORDINATE.z(), revision)));
+    private static TravelMessage.TravelEnd end(long content, int revision) {
+        return new TravelMessage.TravelEnd(TOKEN, GENERATION, content,
+            List.of(new TravelMessage.TravelChunkRevision(COORDINATE.x(), COORDINATE.z(), revision)));
     }
 
-    private static ClientViewMessage.TravelChunk fragment(byte[] source, int revision, int index) {
-        int offset = index * ViewStreamLimits.TRAVEL_FRAGMENT_BYTES;
-        return new ClientViewMessage.TravelChunk(TOKEN, GENERATION, COORDINATE.x(), COORDINATE.z(), revision, index,
-            (source.length + ViewStreamLimits.TRAVEL_FRAGMENT_BYTES - 1) / ViewStreamLimits.TRAVEL_FRAGMENT_BYTES,
-            source.length, Arrays.copyOfRange(source, offset, Math.min(source.length, offset + ViewStreamLimits.TRAVEL_FRAGMENT_BYTES)));
+    private static TravelMessage.TravelChunk fragment(byte[] source, int revision, int index) {
+        int offset = index * TravelMessage.TRAVEL_FRAGMENT_BYTES;
+        return new TravelMessage.TravelChunk(TOKEN, GENERATION, COORDINATE.x(), COORDINATE.z(), revision, index,
+            (source.length + TravelMessage.TRAVEL_FRAGMENT_BYTES - 1) / TravelMessage.TRAVEL_FRAGMENT_BYTES,
+            source.length, Arrays.copyOfRange(source, offset, Math.min(source.length, offset + TravelMessage.TRAVEL_FRAGMENT_BYTES)));
     }
 }

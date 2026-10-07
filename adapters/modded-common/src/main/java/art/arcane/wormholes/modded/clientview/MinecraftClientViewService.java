@@ -5,17 +5,20 @@ import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.modded.mixin.ServerConnectionAccess;
 import art.arcane.optics.stream.ViewStreamCapability;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.wormholes.render.client.session.ClientViewEmitters;
 import art.arcane.wormholes.render.client.session.ClientPreparedTravelServer;
-import art.arcane.wormholes.render.client.session.ClientViewEntityFrames;
+import art.arcane.wormholes.render.client.session.ClientViewTravel;
+import art.arcane.wormholes.network.client.ClientViewExtensions;
+import art.arcane.wormholes.network.client.FxExtension;
+import art.arcane.optics.stream.EntityFrames;
 import art.arcane.optics.stream.ViewStreamInbound;
-import art.arcane.wormholes.render.client.session.ClientViewOptions;
-import art.arcane.wormholes.render.client.session.ClientViewPlatform;
+import art.arcane.optics.stream.ViewStreamOptions;
+import art.arcane.optics.stream.ViewStreamPlatform;
 import art.arcane.wormholes.render.client.session.ClientViewSceneFx;
-import art.arcane.wormholes.render.client.session.ClientViewServerSession;
+import art.arcane.optics.stream.ViewStreamSession;
 import art.arcane.optics.stream.ViewStreamSessionState;
-import art.arcane.wormholes.render.client.session.ClientViewSessionRegistry;
+import art.arcane.optics.stream.ViewStreamSessionRegistry;
 import com.mojang.authlib.GameProfile;
 import net.minecraft.SharedConstants;
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
@@ -42,6 +45,8 @@ import java.util.UUID;
 import art.arcane.optics.entity.ProjectedEntityEvent;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
+import art.arcane.wormholes.network.client.TravelMessage;
+import art.arcane.wormholes.network.client.FxMessage;
 
 public final class MinecraftClientViewService implements AutoCloseable {
     public static final long PLATFORM_CAPS = ViewStreamCapability.of(ViewStreamCapability.PLATES, ViewStreamCapability.BRICK_CACHE,
@@ -57,9 +62,9 @@ public final class MinecraftClientViewService implements AutoCloseable {
     private final MinecraftClientViewPortalAccess portals;
     private final MinecraftPreparedTravel prepared;
     private final Map<UUID, Seamless> seamless = new HashMap<>();
-    private volatile ClientViewSessionRegistry<MinecraftClientViewPeer, BlockState> registry;
+    private volatile ViewStreamSessionRegistry<MinecraftClientViewPeer, BlockState> registry;
     private volatile MinecraftClientViewNegotiator negotiator;
-    private ClientViewOptions applied;
+    private ViewStreamOptions applied;
 
     public MinecraftClientViewService(WormholesModRuntime runtime) {
         this.runtime = Objects.requireNonNull(runtime, "runtime");
@@ -74,25 +79,25 @@ public final class MinecraftClientViewService implements AutoCloseable {
 
     public void start() {
         runtime.requireServerThread();
-        ClientViewOptions options = runtime.configuration().clientViewOptions();
-        ClientViewPlatform<MinecraftClientViewPeer, BlockState> platform = new ClientViewPlatform<>(transport, portals,
-            new ClientViewEntityFrames<>(portals.scene()), new ClientViewSceneFx<>(portals.scene()),
+        ViewStreamOptions options = runtime.configuration().clientViewOptions();
+        ViewStreamPlatform<MinecraftClientViewPeer, BlockState> platform = new ViewStreamPlatform<>(transport, portals,
+            new EntityFrames<>(portals.scene()), new ClientViewSceneFx<>(portals.scene()),
             new MinecraftClientViewHandoffs(), runtime.projections().lanes(), BlockStateParser::serialize,
             SharedConstants.getCurrentVersion().dataVersion().version(), PLATFORM_CAPS, System::nanoTime,
-            (message, failure) -> LOGGER.warn(message, failure));
-        ClientViewSessionRegistry<MinecraftClientViewPeer, BlockState> created = new ClientViewSessionRegistry<>(platform, options);
+            (message, failure) -> LOGGER.warn(message, failure), ClientViewExtensions.ALL, ClientViewTravel::new);
+        ViewStreamSessionRegistry<MinecraftClientViewPeer, BlockState> created = new ViewStreamSessionRegistry<>(platform, options);
         applied = options;
         negotiator = new MinecraftClientViewNegotiator(created);
         registry = created;
     }
 
     public void tick(long serverTick, List<ServerPlayer> players, List<MinecraftPortal> candidates) {
-        ClientViewSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
+        ViewStreamSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
         MinecraftClientViewNegotiator current = negotiator;
         if (active == null || current == null) {
             return;
         }
-        ClientViewOptions options = runtime.configuration().clientViewOptions();
+        ViewStreamOptions options = runtime.configuration().clientViewOptions();
         if (!options.equals(applied)) {
             applied = options;
             if (active.configure(options)) {
@@ -110,7 +115,7 @@ public final class MinecraftClientViewService implements AutoCloseable {
         portals.frame(candidates);
         for (int i = 0; i < players.size(); i++) {
             ServerPlayer player = players.get(i);
-            ClientViewServerSession<MinecraftClientViewPeer, BlockState> session = active.session(player.getUUID());
+            ViewStreamSession<MinecraftClientViewPeer, BlockState> session = active.session(player.getUUID());
             if (session == null) {
                 continue;
             }
@@ -119,16 +124,16 @@ public final class MinecraftClientViewService implements AutoCloseable {
                 session.player().meshDepth(ViewStreamCapability.MESH_RENDER.in(session.caps())
                     ? Math.clamp(player.requestedViewDistance(), 2, 32) * 16 : 0);
                 session.tick(serverTick);
-                prepared.tick(session, player);
+                prepared.tick(ClientViewTravel.of(session), player);
             } catch (RuntimeException failure) {
                 LOGGER.error("Wormholes ClientView tick failed for {}", player.getUUID(), failure);
-                session.end(ClientViewMessage.ResetReason.PROTOCOL);
+                session.end(ViewStreamMessage.ResetReason.PROTOCOL);
             }
         }
     }
 
     public void runtimeEnabled(boolean enabled) {
-        ClientViewSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
+        ViewStreamSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
         MinecraftClientViewNegotiator current = negotiator;
         if (active != null && current != null && active.runtimeEnabled(enabled)) {
             current.reoffer();
@@ -136,37 +141,36 @@ public final class MinecraftClientViewService implements AutoCloseable {
     }
 
     public boolean owns(UUID player, UUID portal) {
-        ClientViewSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
+        ViewStreamSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
         return active != null && active.owns(player, portal);
     }
 
     public boolean nativeMesh(ServerPlayer player) {
-        ClientViewSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
-        ClientViewServerSession<MinecraftClientViewPeer, BlockState> session = active == null ? null : active.session(player.getUUID());
+        ViewStreamSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
+        ViewStreamSession<MinecraftClientViewPeer, BlockState> session = active == null ? null : active.session(player.getUUID());
         return session != null && session.state() == ViewStreamSessionState.CLIENT_VIEW && ViewStreamCapability.MESH_RENDER.in(session.caps());
     }
 
-    public ClientViewMessage.TravelCommit commitTravel(ServerPlayer player, UUID source, ServerLevel destination,
-                                                       ClientViewMessage.TravelPose arrival, Vec3d velocity) {
+    public TravelMessage.TravelCommit commitTravel(ServerPlayer player, UUID source, ServerLevel destination,
+                                                       TravelMessage.TravelPose arrival, Vec3d velocity) {
         runtime.requireServerThread();
-        ClientViewSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
-        ClientViewServerSession<MinecraftClientViewPeer, BlockState> session = active == null ? null : active.session(player.getUUID());
-        if (session == null || !session.preparedTravelSelected()) {
+        ClientViewTravel<MinecraftClientViewPeer> travel = travel(player.getUUID());
+        if (travel == null || !travel.preparedTravelSelected()) {
             return null;
         }
-        ClientViewMessage.TravelCommit commit = prepared.commit(session, player, source, destination, arrival, velocity).orElse(null);
-        if (commit != null && session.sendTravel(commit)) {
+        TravelMessage.TravelCommit commit = prepared.commit(travel, player, source, destination, arrival, velocity).orElse(null);
+        if (commit != null && travel.sendTravel(commit)) {
             seamless.put(player.getUUID(), new Seamless(source, commit.token(), commit.generation(), System.currentTimeMillis() + 2_000L));
             return commit;
         }
         if (commit != null) {
-            session.sendTravel(new ClientViewMessage.TravelCancel(commit.token(), commit.generation()));
+            travel.sendTravel(new TravelMessage.TravelCancel(commit.token(), commit.generation()));
         }
-        session.cancelTravel();
+        travel.cancelTravel();
         return null;
     }
 
-    public void cancelTravel(ServerPlayer player, ClientViewMessage.TravelCommit commit) {
+    public void cancelTravel(ServerPlayer player, TravelMessage.TravelCommit commit) {
         Seamless marked = seamless.get(player.getUUID());
         if (commit == null || marked != null && marked.token().equals(commit.token()) && marked.generation() == commit.generation()) {
             seamless.remove(player.getUUID());
@@ -176,29 +180,27 @@ public final class MinecraftClientViewService implements AutoCloseable {
         } else {
             prepared.complete(player.getUUID(), commit);
         }
-        ClientViewSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
-        ClientViewServerSession<MinecraftClientViewPeer, BlockState> session = active == null ? null : active.session(player.getUUID());
-        if (session != null) {
+        ClientViewTravel<MinecraftClientViewPeer> travel = travel(player.getUUID());
+        if (travel != null) {
             if (commit == null) {
-                session.cancelTravel();
+                travel.cancelTravel();
             } else {
-                session.travel().preparing().filter(begin -> begin.token().equals(commit.token())
-                    && begin.generation() == commit.generation()).ifPresent(begin -> session.cancelTravel());
-                session.sendTravel(new ClientViewMessage.TravelCancel(commit.token(), commit.generation()));
+                travel.server().preparing().filter(begin -> begin.token().equals(commit.token())
+                    && begin.generation() == commit.generation()).ifPresent(begin -> travel.cancelTravel());
+                travel.sendTravel(new TravelMessage.TravelCancel(commit.token(), commit.generation()));
             }
         }
     }
 
-    public void cancelPreparation(ServerPlayer player, ClientViewMessage.TravelBegin expected) {
+    public void cancelPreparation(ServerPlayer player, TravelMessage.TravelBegin expected) {
         if (expected == null) {
             return;
         }
         prepared.complete(player.getUUID(), expected.token(), expected.generation());
-        ClientViewSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
-        ClientViewServerSession<MinecraftClientViewPeer, BlockState> session = active == null ? null : active.session(player.getUUID());
-        ClientViewMessage.TravelCancel cancel = new ClientViewMessage.TravelCancel(expected.token(), expected.generation());
-        if (session != null && session.travel().cancel(cancel)) {
-            session.sendTravel(cancel);
+        ClientViewTravel<MinecraftClientViewPeer> travel = travel(player.getUUID());
+        TravelMessage.TravelCancel cancel = new TravelMessage.TravelCancel(expected.token(), expected.generation());
+        if (travel != null && travel.server().cancel(cancel)) {
+            travel.sendTravel(cancel);
         }
     }
 
@@ -222,60 +224,56 @@ public final class MinecraftClientViewService implements AutoCloseable {
         if (seamlessTravel(playerId) && seamless.get(playerId).source().equals(sourcePortal)) {
             return true;
         }
-        ClientViewSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
-        ClientViewServerSession<MinecraftClientViewPeer, BlockState> session = active == null ? null : active.session(playerId);
-        return session != null && session.preparedTravelSelected() && session.travel().readyRoute(sourcePortal, System.currentTimeMillis());
+        ClientViewTravel<MinecraftClientViewPeer> travel = travel(playerId);
+        return travel != null && travel.preparedTravelSelected() && travel.server().readyRoute(sourcePortal, System.currentTimeMillis());
     }
 
-    public Optional<ClientViewMessage.TravelBegin> preparation(UUID traveler) {
-        ClientViewSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
-        ClientViewServerSession<MinecraftClientViewPeer, BlockState> session = active == null ? null : active.session(traveler);
-        return session == null ? Optional.empty() : session.travel().preparing();
+    public Optional<TravelMessage.TravelBegin> preparation(UUID traveler) {
+        ClientViewTravel<MinecraftClientViewPeer> travel = travel(traveler);
+        return travel == null ? Optional.empty() : travel.server().preparing();
     }
 
-    public boolean crossing(UUID traveler, ClientViewMessage.TravelBegin expected) {
+    public boolean crossing(UUID traveler, TravelMessage.TravelBegin expected) {
         return expected != null && preparation(traveler).filter(begin -> begin.token().equals(expected.token())
             && begin.generation() == expected.generation()).isPresent() && crossing(traveler);
     }
 
     public boolean crossing(UUID traveler) {
-        ClientViewSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
-        ClientViewServerSession<MinecraftClientViewPeer, BlockState> session = active == null ? null : active.session(traveler);
-        return session != null && session.preparedTravelSelected() && session.travel().crossing();
+        ClientViewTravel<MinecraftClientViewPeer> travel = travel(traveler);
+        return travel != null && travel.preparedTravelSelected() && travel.server().crossing();
     }
 
     public boolean deferTravel(UUID traveler, UUID source) {
-        ClientViewSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
-        ClientViewServerSession<MinecraftClientViewPeer, BlockState> session = active == null ? null : active.session(traveler);
-        if (session == null || !session.preparedTravelSelected()) {
+        ClientViewTravel<MinecraftClientViewPeer> travel = travel(traveler);
+        if (travel == null || !travel.preparedTravelSelected()) {
             return false;
         }
-        ClientPreparedTravelServer.AutomaticCross result = session.travel().automaticCross(source, System.currentTimeMillis());
+        ClientPreparedTravelServer.AutomaticCross result = travel.server().automaticCross(source, System.currentTimeMillis());
         if (result == ClientPreparedTravelServer.AutomaticCross.FALLBACK) {
             prepared.complete(traveler);
-            session.cancelTravel();
+            travel.cancelTravel();
         }
         return result == ClientPreparedTravelServer.AutomaticCross.DEFER;
     }
 
     public boolean receiver(ServerPlayer player) {
-        ClientViewSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
+        ViewStreamSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
         return active != null && !active.sessions().isEmpty() && active.effectsReceiver(player.getUUID());
     }
 
     public void entityEvent(ProjectedEntityEvent event) {
-        ClientViewSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
+        ViewStreamSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
         if (active != null) {
             active.entityEvent(event);
         }
     }
 
-    public boolean oneShot(ServerPlayer player, ClientViewMessage.FxEmitter emitter) {
-        ClientViewSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
-        return active != null && active.oneShot(player.getUUID(), emitter);
+    public boolean oneShot(ServerPlayer player, FxMessage.FxEmitter emitter) {
+        ViewStreamSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
+        return active != null && active.burst(player.getUUID(), FxExtension.burst(emitter));
     }
 
-    public void oneShotNear(ServerLevel level, double x, double y, double z, ClientViewMessage.FxEmitter emitter) {
+    public void oneShotNear(ServerLevel level, double x, double y, double z, FxMessage.FxEmitter emitter) {
         if (!hasReceivers(level)) {
             return;
         }
@@ -289,7 +287,7 @@ public final class MinecraftClientViewService implements AutoCloseable {
     }
 
     public boolean particles(ServerLevel level, ParticleOptions options, double x, double y, double z, int count, double spreadX, double spreadY,
-                             double spreadZ, double speed, ClientViewMessage.FxEmitter clientEmitter) {
+                             double spreadZ, double speed, FxMessage.FxEmitter clientEmitter) {
         if (!hasReceivers(level)) {
             return false;
         }
@@ -307,7 +305,7 @@ public final class MinecraftClientViewService implements AutoCloseable {
 
     public void burst(ServerLevel level, SimpleParticleType particle, double x, double y, double z, int count, double spreadX, double spreadY,
                       double spreadZ, double speed) {
-        ClientViewMessage.FxEmitter emitter = hasReceivers(level)
+        FxMessage.FxEmitter emitter = hasReceivers(level)
             ? ClientViewEmitters.burst(BuiltInRegistries.PARTICLE_TYPE.getKey(particle).toString(), x, y, z, count, spreadX, spreadY, speed)
             : null;
         if (emitter == null || !particles(level, particle, x, y, z, count, spreadX, spreadY, spreadZ, speed, emitter)) {
@@ -316,11 +314,11 @@ public final class MinecraftClientViewService implements AutoCloseable {
     }
 
     public boolean hasReceivers(ServerLevel level) {
-        ClientViewSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
+        ViewStreamSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
         if (active == null || active.sessions().isEmpty()) {
             return false;
         }
-        for (ClientViewServerSession<MinecraftClientViewPeer, BlockState> session : active.sessions()) {
+        for (ViewStreamSession<MinecraftClientViewPeer, BlockState> session : active.sessions()) {
             ServerPlayer player = session.effectsReceiver() ? session.player().player() : null;
             if (player != null && player.level() == level) {
                 return true;
@@ -329,9 +327,15 @@ public final class MinecraftClientViewService implements AutoCloseable {
         return false;
     }
 
+    private ClientViewTravel<MinecraftClientViewPeer> travel(UUID playerId) {
+        ViewStreamSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
+        ViewStreamSession<MinecraftClientViewPeer, BlockState> session = active == null ? null : active.session(playerId);
+        return session == null ? null : ClientViewTravel.of(session);
+    }
+
     public boolean holdsVanilla(UUID player) {
-        ClientViewSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
-        ClientViewServerSession<MinecraftClientViewPeer, BlockState> session = active == null ? null : active.session(player);
+        ViewStreamSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
+        ViewStreamSession<MinecraftClientViewPeer, BlockState> session = active == null ? null : active.session(player);
         return session != null && session.holdsVanilla();
     }
 
@@ -389,7 +393,7 @@ public final class MinecraftClientViewService implements AutoCloseable {
         current.disconnected(player.getUUID(), listener.wormholesConnection());
     }
 
-    public ClientViewSessionRegistry<MinecraftClientViewPeer, BlockState> registry() {
+    public ViewStreamSessionRegistry<MinecraftClientViewPeer, BlockState> registry() {
         return registry;
     }
 
@@ -398,7 +402,7 @@ public final class MinecraftClientViewService implements AutoCloseable {
         prepared.clear();
         seamless.clear();
         portals.scene().close();
-        ClientViewSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
+        ViewStreamSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
         MinecraftClientViewNegotiator current = negotiator;
         registry = null;
         negotiator = null;
@@ -412,8 +416,8 @@ public final class MinecraftClientViewService implements AutoCloseable {
         LocalPlateHandles.clear();
     }
 
-    private void follow(ClientViewServerSession<MinecraftClientViewPeer, BlockState> session, ServerPlayer player) {
-        ClientViewMessage.ResetReason reason = session.player().follow(player, runtime);
+    private void follow(ViewStreamSession<MinecraftClientViewPeer, BlockState> session, ServerPlayer player) {
+        ViewStreamMessage.ResetReason reason = session.player().follow(player, runtime);
         if (reason != null) {
             session.reset(reason);
         }

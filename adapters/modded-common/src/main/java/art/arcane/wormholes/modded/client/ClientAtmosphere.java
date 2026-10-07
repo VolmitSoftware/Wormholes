@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.client.ClientSweep;
 import art.arcane.optics.aperture.ApertureDescriptor;
@@ -42,10 +42,10 @@ public final class ClientAtmosphere {
         this.dominanceBlocks = dominanceBlocks;
     }
 
-    public boolean apply(ClientViewMessage.Atmosphere atmosphere) {
+    public boolean apply(ViewStreamMessage.Atmosphere atmosphere) {
         Objects.requireNonNull(atmosphere, "atmosphere");
         int previous = skyDarken(atmosphere.portalKey());
-        if ((atmosphere.flags() & ClientViewMessage.Atmosphere.FLAG_RESTORE) != 0) {
+        if ((atmosphere.flags() & ViewStreamMessage.Atmosphere.FLAG_RESTORE) != 0) {
             drop(atmosphere.portalKey());
             return previous != 0;
         }
@@ -71,7 +71,7 @@ public final class ClientAtmosphere {
             if (portal == null || !portal.ready() && mesh == null) {
                 continue;
             }
-            ClientViewMessage.Atmosphere atmosphere = entry.getValue().atmosphere;
+            ViewStreamMessage.Atmosphere atmosphere = entry.getValue().atmosphere;
             if (particles) {
                 if (mesh == null) {
                     weather(portal, atmosphere);
@@ -79,7 +79,7 @@ public final class ClientAtmosphere {
                     meshWeather(portal.geometry(), mesh, atmosphere, eyeX, eyeY, eyeZ);
                 }
             }
-            if ((atmosphere.flags() & (ClientViewMessage.Atmosphere.FLAG_TIME | ClientViewMessage.Atmosphere.FLAG_WEATHER)) == 0) {
+            if ((atmosphere.flags() & (ViewStreamMessage.Atmosphere.FLAG_TIME | ViewStreamMessage.Atmosphere.FLAG_WEATHER)) == 0) {
                 continue;
             }
             double distance = Math.abs(portal.geometry().signedDistance(eyeX, eyeY, eyeZ));
@@ -140,14 +140,14 @@ public final class ClientAtmosphere {
         if (received == null) {
             return;
         }
-        ClientViewMessage.Atmosphere atmosphere = received.atmosphere;
-        if ((atmosphere.flags() & ClientViewMessage.Atmosphere.FLAG_WEATHER) != 0) {
+        ViewStreamMessage.Atmosphere atmosphere = received.atmosphere;
+        if ((atmosphere.flags() & ViewStreamMessage.Atmosphere.FLAG_WEATHER) != 0) {
             world.weather(atmosphere.rain(), atmosphere.thunder());
             saved.heldRain = world.rain();
             saved.heldThunder = world.thunder();
             saved.weatherHeld = true;
         }
-        if ((atmosphere.flags() & ClientViewMessage.Atmosphere.FLAG_TIME) != 0 && world.hasClock()) {
+        if ((atmosphere.flags() & ViewStreamMessage.Atmosphere.FLAG_TIME) != 0 && world.hasClock()) {
             world.clock(atmosphere.dayTime() + Math.max(0L, world.gameTime() - received.gameTime));
             saved.clockHeld = true;
         }
@@ -181,8 +181,8 @@ public final class ClientAtmosphere {
         }
     }
 
-    private void weather(ClientPortal portal, ClientViewMessage.Atmosphere atmosphere) {
-        if ((atmosphere.flags() & ClientViewMessage.Atmosphere.FLAG_WEATHER) == 0 || atmosphere.rain() < RAIN_THRESHOLD
+    private void weather(ClientPortal portal, ViewStreamMessage.Atmosphere atmosphere) {
+        if ((atmosphere.flags() & ViewStreamMessage.Atmosphere.FLAG_WEATHER) == 0 || atmosphere.rain() < RAIN_THRESHOLD
             || clientTick % WEATHER_BURST_TICKS != 0) {
             return;
         }
@@ -206,9 +206,9 @@ public final class ClientAtmosphere {
         }
     }
 
-    private void meshWeather(ApertureDescriptor geometry, ClientMeshSections.View mesh, ClientViewMessage.Atmosphere atmosphere,
+    private void meshWeather(ApertureDescriptor geometry, ClientMeshSections.View mesh, ViewStreamMessage.Atmosphere atmosphere,
                              double eyeX, double eyeY, double eyeZ) {
-        if ((atmosphere.flags() & ClientViewMessage.Atmosphere.FLAG_WEATHER) == 0 || atmosphere.rain() < RAIN_THRESHOLD
+        if ((atmosphere.flags() & ViewStreamMessage.Atmosphere.FLAG_WEATHER) == 0 || atmosphere.rain() < RAIN_THRESHOLD
             || clientTick % WEATHER_BURST_TICKS != 0 || mesh.sectionKeys().isEmpty()) {
             return;
         }
@@ -258,7 +258,7 @@ public final class ClientAtmosphere {
         return value >= Math.min(a, b) - LATERAL_MARGIN && value <= Math.max(a, b) + LATERAL_MARGIN;
     }
 
-    private record Received(ClientViewMessage.Atmosphere atmosphere, long gameTime) {
+    private record Received(ViewStreamMessage.Atmosphere atmosphere, long gameTime) {
     }
 
     private static final class Saved {

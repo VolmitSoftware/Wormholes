@@ -14,7 +14,7 @@ import art.arcane.wormholes.ProjectionManager;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.localization.ClientViewReplies;
 import art.arcane.wormholes.localization.WormholesMessages;
-import art.arcane.wormholes.render.client.session.ClientViewSessionRegistry;
+import art.arcane.optics.stream.ViewStreamSessionRegistry;
 import art.arcane.wormholes.render.clientview.BukkitClientView;
 import art.arcane.wormholes.render.clientview.ClientViewObserver;
 import art.arcane.wormholes.service.WormholesAudience;
@@ -31,7 +31,7 @@ public class CommandClientView {
         if (clientView == null) {
             return;
         }
-        ClientViewSessionRegistry<ClientViewObserver, BlockData> registry = clientView.registry();
+        ViewStreamSessionRegistry<ClientViewObserver, BlockData> registry = clientView.registry();
         for (ClientViewReplies.Reply reply : ClientViewReplies.status(registry.runtimeEnabled(), registry.options().enabled(),
                 registry.stats(), CommandClientView::playerName)) {
             send(sender, reply);

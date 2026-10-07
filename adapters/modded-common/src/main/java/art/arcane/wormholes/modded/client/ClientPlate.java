@@ -3,7 +3,7 @@ package art.arcane.wormholes.modded.client;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.BrickLightSource;
 import art.arcane.optics.stream.ViewStreamLimits;
-import art.arcane.wormholes.network.client.PlateHandoff;
+import art.arcane.optics.stream.PlateHandoff;
 import art.arcane.optics.stream.PlateSectionBox;
 import art.arcane.optics.math.CellKeys;
 import art.arcane.optics.scan.ProjectorSample;

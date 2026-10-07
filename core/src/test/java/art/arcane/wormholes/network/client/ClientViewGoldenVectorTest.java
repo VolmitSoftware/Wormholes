@@ -15,9 +15,11 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import art.arcane.optics.stream.ViewStreamMessage;
+
 final class ClientViewGoldenVectorTest {
     private static final String RESOURCE_ROOT = "/clientview/";
-    private static final Path CANDIDATES = Path.of("build", "clientview-goldens");
+    private static final Path CANDIDATES = Path.of("build", "clientview-extension-goldens");
 
     @Test
     void goldenVectorsMatchTheEncoderAndDecodeBackToTheFixtures() throws IOException {
@@ -25,8 +27,8 @@ final class ClientViewGoldenVectorTest {
         StringBuilder manifest = new StringBuilder();
         for (ClientViewFixtures.Vector vector : ClientViewFixtures.vectors()) {
             byte[] encoded = vector.clientbound()
-                ? ClientViewCodec.encodeS2C(vector.message(), vector.seq(), vector.flags())
-                : ClientViewCodec.encodeC2S(vector.message());
+                ? ClientViewExtensions.CODEC.encodeS2C(vector.message(), vector.seq(), vector.flags())
+                : ClientViewExtensions.CODEC.encodeC2S(vector.message());
             String hex = HexFormat.of().formatHex(encoded);
             manifest.append(vector.name()).append(' ').append(vector.clientbound() ? "S2C" : "C2S").append(' ')
                 .append(Long.toHexString(vector.caps())).append(' ').append(vector.seq()).append(' ').append(vector.flags()).append('\n');
@@ -37,9 +39,9 @@ final class ClientViewGoldenVectorTest {
                 continue;
             }
             byte[] bytes = HexFormat.of().parseHex(golden);
-            ClientViewMessage decoded = vector.clientbound()
-                ? ClientViewCodec.decodeS2C(bytes, vector.caps()).message()
-                : ClientViewCodec.decodeC2S(bytes);
+            ViewStreamMessage decoded = vector.clientbound()
+                ? ClientViewExtensions.CODEC.decodeS2C(bytes, vector.caps()).message()
+                : ClientViewExtensions.CODEC.decodeC2S(bytes);
             assertEquals(vector.message(), decoded, vector.name());
         }
         String goldenManifest = readResource("vectors.txt");

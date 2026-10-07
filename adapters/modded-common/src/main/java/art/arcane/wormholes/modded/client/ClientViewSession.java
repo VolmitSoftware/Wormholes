@@ -3,11 +3,11 @@ package art.arcane.wormholes.modded.client;
 import art.arcane.wormholes.modded.clientview.LocalPlateHandles;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.ProjectionEnvironment;
-import art.arcane.wormholes.network.client.ClientViewHandshake;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamHandshake;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.ViewStreamProtocolException;
-import art.arcane.wormholes.network.client.PlateHandoff;
+import art.arcane.optics.stream.PlateHandoff;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -23,6 +23,9 @@ import java.util.ArrayList;
 import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import art.arcane.wormholes.network.client.TravelMessage;
+import art.arcane.wormholes.network.client.FxMessage;
+import art.arcane.wormholes.network.client.ClientViewExtensions;
 
 public final class ClientViewSession {
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
@@ -34,7 +37,7 @@ public final class ClientViewSession {
     private final Int2ObjectOpenHashMap<ApertureDescriptor> meshGeometry = new Int2ObjectOpenHashMap<>();
     private final Int2ObjectOpenHashMap<ProjectionEnvironment> environments = new Int2ObjectOpenHashMap<>();
     private final IntOpenHashSet dirtyPortals;
-    private final Int2ObjectOpenHashMap<List<ClientViewMessage.MeshClaim>> pendingClaims = new Int2ObjectOpenHashMap<>();
+    private final Int2ObjectOpenHashMap<List<ViewStreamMessage.MeshClaim>> pendingClaims = new Int2ObjectOpenHashMap<>();
     private final Int2IntOpenHashMap cacheSequences = new Int2IntOpenHashMap();
     private final IntArrayList patchedBricks;
     private final int dataVersion;
@@ -43,10 +46,10 @@ public final class ClientViewSession {
     private volatile boolean nativeSelected;
     private final Int2ObjectOpenHashMap<MeshFailure> meshFailures = new Int2ObjectOpenHashMap<>();
     private volatile long caps;
-    private volatile ClientViewMessage.Offer offer;
-    private volatile ClientViewMessage.Accept accept;
-    private volatile ClientViewMessage.DeclineReason declineReason;
-    private ClientViewMessage.ResetReason lastReset;
+    private volatile ViewStreamMessage.Offer offer;
+    private volatile ViewStreamMessage.Accept accept;
+    private volatile ViewStreamMessage.DeclineReason declineReason;
+    private ViewStreamMessage.ResetReason lastReset;
     private int resets;
     private long ignoredSceneMessages;
     private long protocolFailures;
@@ -86,7 +89,7 @@ public final class ClientViewSession {
         return capabilities;
     }
 
-    public ClientViewMessage.Hello offer(ClientViewMessage.Offer received) {
+    public ViewStreamMessage.Hello offer(ViewStreamMessage.Offer received) {
         Objects.requireNonNull(received, "received");
         if (config.rendererMode() == WormholesClientConfig.Renderer.BLOCK_PACKETS) {
             nativeSelected = false;
@@ -96,11 +99,11 @@ public final class ClientViewSession {
         offer = received;
         declineReason = null;
         state = State.OFFERED;
-        return ClientViewHandshake.clientHello(received, dataVersion, clientCapabilities(), config.maxFrameBytes(),
+        return ViewStreamHandshake.clientHello(received, dataVersion, clientCapabilities(), config.maxFrameBytes(),
             config.plateMemoryMbForHello(), LocalPlateHandles.nonce(), brandTag);
     }
 
-    public void accept(ClientViewMessage.Accept received) {
+    public void accept(ViewStreamMessage.Accept received) {
         Objects.requireNonNull(received, "received");
         if (config.rendererMode() == WormholesClientConfig.Renderer.BLOCK_PACKETS) {
             nativeSelected = false;
@@ -121,7 +124,7 @@ public final class ClientViewSession {
         return selfEntityId;
     }
 
-    public void decline(ClientViewMessage.Decline received) {
+    public void decline(ViewStreamMessage.Decline received) {
         Objects.requireNonNull(received, "received");
         selfEntityId = null;
         declineReason = received.reason();
@@ -141,7 +144,7 @@ public final class ClientViewSession {
         }
         state = nativeSelected ? State.NATIVE_RECOVERING : State.VANILLA;
         selfEntityId = null;
-        sink.reset(ClientViewMessage.ResetReason.PROTOCOL);
+        sink.reset(ViewStreamMessage.ResetReason.PROTOCOL);
         clearPortals();
     }
 
@@ -149,9 +152,9 @@ public final class ClientViewSession {
         return nativeSelected;
     }
 
-    public ClientViewMessage.Hello recoveryHello() {
+    public ViewStreamMessage.Hello recoveryHello() {
         return state == State.NATIVE_RECOVERING && offer != null
-            ? ClientViewHandshake.clientHello(offer, dataVersion, clientCapabilities(), config.maxFrameBytes(),
+            ? ViewStreamHandshake.clientHello(offer, dataVersion, clientCapabilities(), config.maxFrameBytes(),
                 config.plateMemoryMbForHello(), LocalPlateHandles.nonce(), brandTag)
             : null;
     }
@@ -164,14 +167,14 @@ public final class ClientViewSession {
         return meshFailures.size();
     }
 
-    public boolean handle(ClientViewMessage message, Sink sink) throws ViewStreamProtocolException {
+    public boolean handle(ViewStreamMessage message, Sink sink) throws ViewStreamProtocolException {
         Objects.requireNonNull(message, "message");
         Objects.requireNonNull(sink, "sink");
-        if (message instanceof ClientViewMessage.Offer) {
+        if (message instanceof ViewStreamMessage.Offer) {
             restart(sink);
             return true;
         }
-        if (state == State.NATIVE_RECOVERING && message instanceof ClientViewMessage.SessionReset reset) {
+        if (state == State.NATIVE_RECOVERING && message instanceof ViewStreamMessage.SessionReset reset) {
             reset(reset.reason(), sink);
             return true;
         }
@@ -180,11 +183,11 @@ public final class ClientViewSession {
         }
         meshes.epoch(accept.hashSalt());
         if (nativeSelected && switch (message) {
-            case ClientViewMessage.PlateBegin ignored -> true;
-            case ClientViewMessage.PlateBricks ignored -> true;
-            case ClientViewMessage.PlateEnd ignored -> true;
-            case ClientViewMessage.PlatePatch ignored -> true;
-            case ClientViewMessage.PlateHandle handle -> {
+            case ViewStreamMessage.PlateBegin ignored -> true;
+            case ViewStreamMessage.PlateBricks ignored -> true;
+            case ViewStreamMessage.PlateEnd ignored -> true;
+            case ViewStreamMessage.PlatePatch ignored -> true;
+            case ViewStreamMessage.PlateHandle handle -> {
                 LocalPlateHandles.take(handle.handle());
                 yield true;
             }
@@ -194,27 +197,22 @@ public final class ClientViewSession {
         }
         try {
             switch (message) {
-                case ClientViewMessage.TravelBegin ignored -> { }
-                case ClientViewMessage.TravelChunk ignored -> { }
-                case ClientViewMessage.TravelEnd ignored -> { }
-                case ClientViewMessage.TravelCommit ignored -> { }
-                case ClientViewMessage.TravelCancel ignored -> { }
-                case ClientViewMessage.TravelReuse ignored -> { }
-                case ClientViewMessage.Palette paletteMessage -> palette.apply(paletteMessage);
-                case ClientViewMessage.Portal portal -> portal(portal);
-                case ClientViewMessage.PortalDrop drop -> drop(drop.portalKey(), sink);
-                case ClientViewMessage.MeshBegin begin -> meshBegin(begin, sink);
-                case ClientViewMessage.MeshSection section -> meshSection(section, sink);
-                case ClientViewMessage.MeshReuse reuse -> {
+                case ViewStreamMessage.Extension extension -> extension(extension, sink);
+                case ViewStreamMessage.Palette paletteMessage -> palette.apply(paletteMessage);
+                case ViewStreamMessage.Portal portal -> portal(portal);
+                case ViewStreamMessage.PortalDrop drop -> drop(drop.portalKey(), sink);
+                case ViewStreamMessage.MeshBegin begin -> meshBegin(begin, sink);
+                case ViewStreamMessage.MeshSection section -> meshSection(section, sink);
+                case ViewStreamMessage.MeshReuse reuse -> {
                     if (has(ViewStreamCapability.MESH_REUSE)) {
                         ClientMeshSections.Result result = meshes.reuse(reuse);
                         if (result == ClientMeshSections.Result.DUPLICATE) {
-                            sink.meshAck(new ClientViewMessage.MeshAck(reuse.portalKey(), reuse.generation(), reuse.sectionX(), reuse.sectionY(), reuse.sectionZ(), reuse.revision()));
+                            sink.meshAck(new ViewStreamMessage.MeshAck(reuse.portalKey(), reuse.generation(), reuse.sectionX(), reuse.sectionY(), reuse.sectionZ(), reuse.revision()));
                         }
                     }
                 }
-                case ClientViewMessage.MeshDrop drop -> meshes.drop(drop.portalKey(), drop.generation(), drop.sectionX(), drop.sectionY(), drop.sectionZ());
-                case ClientViewMessage.Environment environment -> {
+                case ViewStreamMessage.MeshDrop drop -> meshes.drop(drop.portalKey(), drop.generation(), drop.sectionX(), drop.sectionY(), drop.sectionZ());
+                case ViewStreamMessage.Environment environment -> {
                     if (portals.containsKey(environment.portalKey())) {
                         environments.put(environment.portalKey(), environment.environment());
                         if (has(ViewStreamCapability.MESH_REUSE)) {
@@ -225,55 +223,48 @@ public final class ClientViewSession {
                             if (previous != null && !previous.equals(binding)) {
                                 pendingClaims.remove(environment.portalKey());
                             }
-                            List<ClientViewMessage.MeshClaim> claims = meshes.bind(environment.portalKey(), binding);
+                            List<ViewStreamMessage.MeshClaim> claims = meshes.bind(environment.portalKey(), binding);
                             cacheClaims(environment.portalKey(), claims);
                         }
                     } else {
                         ignoredSceneMessages++;
                     }
                 }
-                case ClientViewMessage.PlateBegin begin -> begin(begin, sink);
-                case ClientViewMessage.PlateBricks bricks -> plates.bricks(bricks);
-                case ClientViewMessage.PlateEnd end -> attach(plates.end(end));
-                case ClientViewMessage.PlatePatch patch -> patch(patch);
-                case ClientViewMessage.PlateHandle handle -> handle(handle);
-                case ClientViewMessage.SessionReset reset -> reset(reset.reason(), sink);
-                case ClientViewMessage.EntityEvent event -> {
+                case ViewStreamMessage.PlateBegin begin -> begin(begin, sink);
+                case ViewStreamMessage.PlateBricks bricks -> plates.bricks(bricks);
+                case ViewStreamMessage.PlateEnd end -> attach(plates.end(end));
+                case ViewStreamMessage.PlatePatch patch -> patch(patch);
+                case ViewStreamMessage.PlateHandle handle -> handle(handle);
+                case ViewStreamMessage.SessionReset reset -> reset(reset.reason(), sink);
+                case ViewStreamMessage.EntityEvent event -> {
                     if (portals.containsKey(event.portalKey())) {
                         sink.entityEvent(event);
                     } else {
                         ignoredSceneMessages++;
                     }
                 }
-                case ClientViewMessage.EntitySelf self -> {
+                case ViewStreamMessage.EntitySelf self -> {
                     if (ViewStreamCapability.ENTITY_SELF.in(caps)) {
                         selfEntityId = self.projectedId();
                     }
                 }
-                case ClientViewMessage.EntityFrame frame -> {
+                case ViewStreamMessage.EntityFrame frame -> {
                     if (portals.containsKey(frame.portalKey())) {
                         sink.entities(frame);
                     } else {
                         ignoredSceneMessages++;
                     }
                 }
-                case ClientViewMessage.Fx fx -> {
-                    if (fx.portalKey() == ViewStreamLimits.WORLD_FX_KEY || portals.containsKey(fx.portalKey())) {
-                        sink.fx(fx);
-                    } else {
-                        ignoredSceneMessages++;
-                    }
-                }
-                case ClientViewMessage.Atmosphere atmosphere -> {
+                case ViewStreamMessage.Atmosphere atmosphere -> {
                     if (portals.containsKey(atmosphere.portalKey())) {
                         sink.atmosphere(atmosphere);
                     } else {
                         ignoredSceneMessages++;
                     }
                 }
-                default -> throw new ViewStreamProtocolException("unexpected clientbound " + message.type());
+                default -> throw new ViewStreamProtocolException("unexpected clientbound " + ClientViewExtensions.CODEC.name(message));
             }
-            ClientViewMessage.PlateRefused refused = plates.takeRefusal();
+            ViewStreamMessage.PlateRefused refused = plates.takeRefusal();
             if (refused != null) {
                 sink.refused(refused);
             }
@@ -282,6 +273,21 @@ public final class ClientViewSession {
             throw failure;
         }
         return true;
+    }
+
+    private void extension(ViewStreamMessage.Extension extension, Sink sink) throws ViewStreamProtocolException {
+        switch (extension.payload()) {
+            case TravelMessage ignored -> {
+            }
+            case FxMessage.Fx fx -> {
+                if (fx.portalKey() == FxMessage.WORLD_FX_KEY || portals.containsKey(fx.portalKey())) {
+                    sink.fx(fx);
+                } else {
+                    ignoredSceneMessages++;
+                }
+            }
+            default -> throw new ViewStreamProtocolException("unexpected clientbound extension " + extension.id());
+        }
     }
 
     public void refuseMesh(int portalKey, int generation, Sink sink) {
@@ -300,7 +306,7 @@ public final class ClientViewSession {
         if (portal != null) {
             sink.dropped(portal);
         }
-        sink.refused(new ClientViewMessage.PlateRefused(portalKey, generation));
+        sink.refused(new ViewStreamMessage.PlateRefused(portalKey, generation));
     }
 
     public void clearPlateContent() {
@@ -350,9 +356,9 @@ public final class ClientViewSession {
         if (active()) {
             return ConnectionStatus.CONNECTED;
         }
-        ClientViewMessage.Offer current = offer;
-        if (declineReason == ClientViewMessage.DeclineReason.WIRE_MISMATCH
-            || declineReason == ClientViewMessage.DeclineReason.DATA_VERSION_MISMATCH
+        ViewStreamMessage.Offer current = offer;
+        if (declineReason == ViewStreamMessage.DeclineReason.WIRE_MISMATCH
+            || declineReason == ViewStreamMessage.DeclineReason.DATA_VERSION_MISMATCH
             || current != null && (current.wire() != ViewStreamLimits.WIRE_VERSION || current.mcDataVersion() != dataVersion)) {
             return ConnectionStatus.MISMATCH;
         }
@@ -367,15 +373,15 @@ public final class ClientViewSession {
         return capability.in(caps);
     }
 
-    public ClientViewMessage.Accept acceptMessage() {
+    public ViewStreamMessage.Accept acceptMessage() {
         return accept;
     }
 
-    public ClientViewMessage.DeclineReason declineReason() {
+    public ViewStreamMessage.DeclineReason declineReason() {
         return declineReason;
     }
 
-    public ClientViewMessage.ResetReason lastReset() {
+    public ViewStreamMessage.ResetReason lastReset() {
         return lastReset;
     }
 
@@ -399,20 +405,20 @@ public final class ClientViewSession {
         return (int) Math.min(65535L, (plates.bytes() + meshes.bytes() + 1048575L) / 1048576L);
     }
 
-    public void cacheClaims(int portalKey, List<ClientViewMessage.MeshClaim> claims) {
+    public void cacheClaims(int portalKey, List<ViewStreamMessage.MeshClaim> claims) {
         if (!claims.isEmpty() && meshes.view(portalKey) != null && has(ViewStreamCapability.MESH_REUSE)) {
             pendingClaims.computeIfAbsent(portalKey, ignored -> new ArrayList<>()).addAll(claims);
         }
     }
 
-    public void flushCached(Consumer<ClientViewMessage> sender) {
+    public void flushCached(Consumer<ViewStreamMessage> sender) {
         if (!active() || !has(ViewStreamCapability.MESH_REUSE)) {
             return;
         }
         int remaining = 4;
         for (int key : pendingClaims.keySet().toIntArray()) {
             ClientMeshSections.View view = meshes.view(key);
-            List<ClientViewMessage.MeshClaim> claims = pendingClaims.get(key);
+            List<ViewStreamMessage.MeshClaim> claims = pendingClaims.get(key);
             if (view == null) {
                 pendingClaims.remove(key);
                 continue;
@@ -420,8 +426,8 @@ public final class ClientViewSession {
             if (remaining-- == 0) {
                 break;
             }
-            int count = Math.min(claims.size(), ClientViewMessage.MeshCached.MAX_CLAIMS);
-            sender.accept(new ClientViewMessage.MeshCached(key, view.generation(), nextCacheSequence(key), true, claims.subList(0, count)));
+            int count = Math.min(claims.size(), ViewStreamMessage.MeshCached.MAX_CLAIMS);
+            sender.accept(new ViewStreamMessage.MeshCached(key, view.generation(), nextCacheSequence(key), true, claims.subList(0, count)));
             claims.subList(0, count).clear();
             if (claims.isEmpty()) {
                 pendingClaims.remove(key);
@@ -467,7 +473,7 @@ public final class ClientViewSession {
         return dataVersion;
     }
 
-    private void portal(ClientViewMessage.Portal message) throws ViewStreamProtocolException {
+    private void portal(ViewStreamMessage.Portal message) throws ViewStreamProtocolException {
         if (!message.geometry().valid()) {
             throw new ViewStreamProtocolException("invalid geometry for portal " + message.portalKey());
         }
@@ -498,7 +504,7 @@ public final class ClientViewSession {
         }
     }
 
-    private void meshBegin(ClientViewMessage.MeshBegin message, Sink sink) throws ViewStreamProtocolException {
+    private void meshBegin(ViewStreamMessage.MeshBegin message, Sink sink) throws ViewStreamProtocolException {
         ClientPortal portal = portals.get(message.portalKey());
         if (portal == null) {
             ignoredSceneMessages++;
@@ -523,24 +529,24 @@ public final class ClientViewSession {
         }
     }
 
-    private void meshSection(ClientViewMessage.MeshSection message, Sink sink) throws ViewStreamProtocolException {
+    private void meshSection(ViewStreamMessage.MeshSection message, Sink sink) throws ViewStreamProtocolException {
         ClientMeshSections.Result result = meshes.put(message);
         if (result == ClientMeshSections.Result.REFUSED) {
             refuseMesh(message.portalKey(), message.generation(), sink);
         } else if (result == ClientMeshSections.Result.APPLIED || result == ClientMeshSections.Result.DUPLICATE) {
-            sink.meshAck(new ClientViewMessage.MeshAck(message.portalKey(), message.generation(), message.sectionX(), message.sectionY(),
+            sink.meshAck(new ViewStreamMessage.MeshAck(message.portalKey(), message.generation(), message.sectionX(), message.sectionY(),
                 message.sectionZ(), message.revision()));
         }
     }
 
-    private void begin(ClientViewMessage.PlateBegin begin, Sink sink) throws ViewStreamProtocolException {
-        ClientViewMessage.BrickMiss.Plate miss = plates.begin(begin);
+    private void begin(ViewStreamMessage.PlateBegin begin, Sink sink) throws ViewStreamProtocolException {
+        ViewStreamMessage.BrickMiss.Plate miss = plates.begin(begin);
         if (miss != null && has(ViewStreamCapability.BRICK_CACHE)) {
             sink.brickMiss(miss);
         }
     }
 
-    private void handle(ClientViewMessage.PlateHandle message) {
+    private void handle(ViewStreamMessage.PlateHandle message) {
         PlateHandoff<BlockState> handoff = LocalPlateHandles.take(message.handle());
         attach(plates.handle(message, handoff));
     }
@@ -552,7 +558,7 @@ public final class ClientViewSession {
         }
     }
 
-    private void patch(ClientViewMessage.PlatePatch message) throws ViewStreamProtocolException {
+    private void patch(ViewStreamMessage.PlatePatch message) throws ViewStreamProtocolException {
         patchedBricks.clear();
         ClientPlate plate = plates.patch(message, patchedBricks);
         ClientPortal portal = owner(plate);
@@ -581,16 +587,16 @@ public final class ClientViewSession {
         palette.reset();
     }
 
-    private void reset(ClientViewMessage.ResetReason reason, Sink sink) {
+    private void reset(ViewStreamMessage.ResetReason reason, Sink sink) {
         selfEntityId = null;
         lastReset = reason;
         resets++;
         sink.reset(reason);
         clearPortals();
-        if (reason == ClientViewMessage.ResetReason.DISABLED) {
+        if (reason == ViewStreamMessage.ResetReason.DISABLED) {
             nativeSelected = false;
             state = State.VANILLA;
-        } else if (reason == ClientViewMessage.ResetReason.PROTOCOL || reason == ClientViewMessage.ResetReason.OVERLOAD) {
+        } else if (reason == ViewStreamMessage.ResetReason.PROTOCOL || reason == ViewStreamMessage.ResetReason.OVERLOAD) {
             state = nativeSelected ? State.CLIENT_VIEW : State.VANILLA;
         }
     }
@@ -627,25 +633,25 @@ public final class ClientViewSession {
     public interface Sink {
         void meshStarted(ClientPortal portal);
 
-        void meshAck(ClientViewMessage.MeshAck ack);
+        void meshAck(ViewStreamMessage.MeshAck ack);
 
-        void brickMiss(ClientViewMessage.BrickMiss.Plate plate);
+        void brickMiss(ViewStreamMessage.BrickMiss.Plate plate);
 
-        void refused(ClientViewMessage.PlateRefused refused);
+        void refused(ViewStreamMessage.PlateRefused refused);
 
         void dropped(ClientPortal portal);
 
-        void reset(ClientViewMessage.ResetReason reason);
+        void reset(ViewStreamMessage.ResetReason reason);
 
         void restarted();
 
-        void entities(ClientViewMessage.EntityFrame frame);
+        void entities(ViewStreamMessage.EntityFrame frame);
 
-        default void entityEvent(ClientViewMessage.EntityEvent event) {
+        default void entityEvent(ViewStreamMessage.EntityEvent event) {
         }
 
-        void fx(ClientViewMessage.Fx fx);
+        void fx(FxMessage.Fx fx);
 
-        void atmosphere(ClientViewMessage.Atmosphere atmosphere);
+        void atmosphere(ViewStreamMessage.Atmosphere atmosphere);
     }
 }

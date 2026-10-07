@@ -11,9 +11,8 @@ import art.arcane.wormholes.modded.MinecraftProjectionWorldView;
 import art.arcane.wormholes.modded.MinecraftViewPlates;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.optics.stream.BrickLightSource;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ProjectionEnvironment;
-import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.wormholes.portal.AmbientOutlineGeometry;
 import art.arcane.wormholes.portal.PortalType;
@@ -24,7 +23,7 @@ import art.arcane.optics.entity.EntityProjection;
 import art.arcane.optics.fidelity.AcousticsBridge;
 import art.arcane.optics.fidelity.AcousticsProfile;
 import art.arcane.wormholes.render.client.session.ClientViewEmitters;
-import art.arcane.wormholes.render.client.session.ClientViewEntityFrames;
+import art.arcane.optics.stream.EntityFrames;
 import art.arcane.optics.client.PlateLight;
 import art.arcane.wormholes.render.client.session.ClientViewSceneFx;
 import art.arcane.optics.plate.ViewPlate;
@@ -49,8 +48,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import art.arcane.wormholes.network.client.FxMessage;
 
-public final class MinecraftClientViewScene implements ClientViewEntityFrames.Scenes<MinecraftClientViewPeer>,
+public final class MinecraftClientViewScene implements EntityFrames.Scenes<MinecraftClientViewPeer>,
     ClientViewSceneFx.Effects<MinecraftClientViewPeer> {
     private static final int SURFACE_CADENCE_TICKS = 5;
     private static final long METADATA_IDLE_TICKS = 200L;
@@ -158,7 +158,7 @@ public final class MinecraftClientViewScene implements ClientViewEntityFrames.Sc
     }
 
     @Override
-    public List<ClientViewMessage.FxEmitter> emitters(MinecraftClientViewPeer peer, UUID portalId, long tick) {
+    public List<FxMessage.FxEmitter> emitters(MinecraftClientViewPeer peer, UUID portalId, long tick) {
         MinecraftPortal portal = portals.portal(peer, portalId);
         ServerPlayer player = peer.player();
         if (portal == null || player == null) {
@@ -168,7 +168,7 @@ public final class MinecraftClientViewScene implements ClientViewEntityFrames.Sc
         if (!runtime.configuration().settings().getMain().enableParticles) {
             return bed == null ? List.of() : List.of(ClientViewEmitters.sound(bed, AcousticsBridge.AMBIENT_INTERVAL_TICKS));
         }
-        List<ClientViewMessage.FxEmitter> emitters = new ArrayList<ClientViewMessage.FxEmitter>(16);
+        List<FxMessage.FxEmitter> emitters = new ArrayList<FxMessage.FxEmitter>(16);
         if (portal.getType() == PortalType.RTP) {
             RtpRimRenderer.Sample sample = runtime.rtp().rimSample(player, portal);
             if (sample != null) {
@@ -185,7 +185,7 @@ public final class MinecraftClientViewScene implements ClientViewEntityFrames.Sc
         ClientViewEmitters.ambient(new ClientViewEmitters.Ambient(portal.getAmbientStyle(), portal.getAmbientColor(), portal.isOpen(),
             FidelitySettings.ambientParticleIntervalTicks, SURFACE_CADENCE_TICKS, portal.getGeometry().getArea(),
             outline.points(portal.getGeometry().getRevision(), portal.getDirection().getAxis(), portal.getGeometry())), emitters);
-        if (bed != null && emitters.size() < ViewStreamLimits.MAX_FX_EMITTERS) {
+        if (bed != null && emitters.size() < FxMessage.MAX_FX_EMITTERS) {
             emitters.add(ClientViewEmitters.sound(bed, AcousticsBridge.AMBIENT_INTERVAL_TICKS));
         }
         return emitters;
@@ -200,12 +200,12 @@ public final class MinecraftClientViewScene implements ClientViewEntityFrames.Sc
         }
         ServerLevel world = destination.world();
         if (!FidelitySettings.weather || !MinecraftViewPlates.atmosphereMode(portal).relaysWeather()) {
-            return new ClientViewSceneFx.Sample(0L, false, 0.0F, 0.0F, ClientViewMessage.Atmosphere.withSkyDarken(0, world.getSkyDarken()));
+            return new ClientViewSceneFx.Sample(0L, false, 0.0F, 0.0F, ViewStreamMessage.Atmosphere.withSkyDarken(0, world.getSkyDarken()));
         }
         boolean clock = world.dimensionType().defaultClock().isPresent();
-        int flags = ClientViewMessage.Atmosphere.FLAG_WEATHER | (clock ? ClientViewMessage.Atmosphere.FLAG_TIME : 0);
+        int flags = ViewStreamMessage.Atmosphere.FLAG_WEATHER | (clock ? ViewStreamMessage.Atmosphere.FLAG_TIME : 0);
         return new ClientViewSceneFx.Sample(clock ? world.getDefaultClockTime() : 0L, clock, world.getRainLevel(1.0F), world.getThunderLevel(1.0F),
-            ClientViewMessage.Atmosphere.withSkyDarken(flags, world.getSkyDarken()));
+            ViewStreamMessage.Atmosphere.withSkyDarken(flags, world.getSkyDarken()));
     }
 
     @Override

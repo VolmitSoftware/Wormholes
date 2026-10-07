@@ -3,7 +3,6 @@ package art.arcane.wormholes.modded.client;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.mixin.client.PreparedLevelAccess;
 import art.arcane.wormholes.modded.mixin.client.PreparedPacketAccess;
-import art.arcane.wormholes.network.client.ClientViewMessage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientPacketListener;
@@ -25,6 +24,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
+import art.arcane.wormholes.network.client.TravelMessage;
 
 public class ClientPreparedTravelRollbackTest extends MinecraftTestBase {
     @Test
@@ -56,7 +56,7 @@ public class ClientPreparedTravelRollbackTest extends MinecraftTestBase {
         ClientPreparedTravel travel = predicted(source);
         set(travel, "staged", destination);
         set(travel, "adopted", true);
-        set(travel, "commit", mock(ClientViewMessage.TravelCommit.class));
+        set(travel, "commit", mock(TravelMessage.TravelCommit.class));
         try (MockedStatic<Minecraft> access = mockStatic(Minecraft.class)) {
             access.when(Minecraft::getInstance).thenReturn(minecraft);
             rollback(travel);

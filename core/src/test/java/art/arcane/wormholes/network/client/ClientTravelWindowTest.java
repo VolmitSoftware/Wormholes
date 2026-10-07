@@ -15,7 +15,6 @@ import java.util.concurrent.Future;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import art.arcane.optics.stream.ViewStreamLimits;
 
 class ClientTravelWindowTest {
     @Test
@@ -25,21 +24,21 @@ class ClientTravelWindowTest {
         assertEquals(9, ClientTravelWindow.radius(8));
         assertEquals(16, ClientTravelWindow.radius(32));
         assertEquals(16, ClientTravelWindow.radius(Integer.MAX_VALUE));
-        assertEquals(ViewStreamLimits.MAX_TRAVEL_CHUNKS, ClientTravelWindow.count(16));
+        assertEquals(TravelMessage.MAX_TRAVEL_CHUNKS, ClientTravelWindow.count(16));
         assertThrows(IllegalArgumentException.class, () -> ClientTravelWindow.count(0));
         assertThrows(IllegalArgumentException.class, () -> ClientTravelWindow.count(17));
     }
 
     @Test
     void manifestCapturesCollisionCenterFirstAndIncludesEveryHorizonColumnOnce() {
-        List<ClientViewMessage.TravelCoordinate> coordinates = ClientTravelWindow.coordinates(-19, 37, 9);
+        List<TravelMessage.TravelCoordinate> coordinates = ClientTravelWindow.coordinates(-19, 37, 9);
 
-        assertEquals(new ClientViewMessage.TravelCoordinate(-19, 37), coordinates.getFirst());
+        assertEquals(new TravelMessage.TravelCoordinate(-19, 37), coordinates.getFirst());
         assertEquals(361, coordinates.size());
         assertEquals(coordinates.size(), new HashSet<>(coordinates).size());
-        assertTrue(coordinates.contains(new ClientViewMessage.TravelCoordinate(-28, 28)));
-        assertTrue(coordinates.contains(new ClientViewMessage.TravelCoordinate(-10, 46)));
-        for (ClientViewMessage.TravelCoordinate coordinate : coordinates.subList(0, 9)) {
+        assertTrue(coordinates.contains(new TravelMessage.TravelCoordinate(-28, 28)));
+        assertTrue(coordinates.contains(new TravelMessage.TravelCoordinate(-10, 46)));
+        for (TravelMessage.TravelCoordinate coordinate : coordinates.subList(0, 9)) {
             assertTrue(Math.abs(coordinate.x() + 19) <= 1);
             assertTrue(Math.abs(coordinate.z() - 37) <= 1);
         }
@@ -67,7 +66,7 @@ class ClientTravelWindowTest {
             int centerZ = 31 - index;
             int radius = index % 16 + 1;
             requests.add(() -> {
-                List<ClientViewMessage.TravelCoordinate> coordinates = ClientTravelWindow.coordinates(centerX, centerZ, radius);
+                List<TravelMessage.TravelCoordinate> coordinates = ClientTravelWindow.coordinates(centerX, centerZ, radius);
                 assertEquals(expected(centerX, centerZ, radius), coordinates);
                 assertThrows(UnsupportedOperationException.class, coordinates::clear);
                 return null;
@@ -80,10 +79,10 @@ class ClientTravelWindowTest {
         }
     }
 
-    private static List<ClientViewMessage.TravelCoordinate> expected(int centerX, int centerZ, int radius) {
-        List<ClientViewMessage.TravelCoordinate> expected = new ArrayList<>();
+    private static List<TravelMessage.TravelCoordinate> expected(int centerX, int centerZ, int radius) {
+        List<TravelMessage.TravelCoordinate> expected = new ArrayList<>();
         for (ChunkCoordinate coordinate : ChunkPreSendPlanner.ring(centerX, centerZ, radius)) {
-            expected.add(new ClientViewMessage.TravelCoordinate(coordinate.x(), coordinate.z()));
+            expected.add(new TravelMessage.TravelCoordinate(coordinate.x(), coordinate.z()));
         }
         return expected;
     }

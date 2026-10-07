@@ -1,6 +1,8 @@
 package art.arcane.optics.stream;
 
 import java.util.Arrays;
+import java.util.Objects;
+import java.util.function.IntFunction;
 
 public final class ViewStreamRateLimiter {
     private static final long SECOND_MILLIS = 1000L;
@@ -9,6 +11,7 @@ public final class ViewStreamRateLimiter {
     private final int maxPayloadBytes;
     private final int violationLimit;
     private final long violationWindowMillis;
+    private final IntFunction<String> names;
     private final long[] messageTimes;
     private final int[] messageTypes;
     private final long[] violationTimes;
@@ -18,12 +21,14 @@ public final class ViewStreamRateLimiter {
     private long admitted;
     private String lastViolation;
 
-    public ViewStreamRateLimiter() {
+    public ViewStreamRateLimiter(IntFunction<String> names) {
         this(ViewStreamLimits.MAX_C2S_MESSAGES_PER_SECOND, ViewStreamLimits.MAX_C2S_BYTES, ViewStreamLimits.C2S_VIOLATION_LIMIT,
-            ViewStreamLimits.C2S_VIOLATION_WINDOW_MILLIS);
+            ViewStreamLimits.C2S_VIOLATION_WINDOW_MILLIS, names);
     }
 
-    public ViewStreamRateLimiter(int maxMessagesPerSecond, int maxPayloadBytes, int violationLimit, long violationWindowMillis) {
+    public ViewStreamRateLimiter(int maxMessagesPerSecond, int maxPayloadBytes, int violationLimit, long violationWindowMillis,
+                                 IntFunction<String> names) {
+        this.names = Objects.requireNonNull(names, "names");
         this.maxMessagesPerSecond = Math.max(1, maxMessagesPerSecond);
         this.maxPayloadBytes = Math.max(1, maxPayloadBytes);
         this.violationLimit = Math.max(1, violationLimit);
@@ -108,9 +113,8 @@ public final class ViewStreamRateLimiter {
         return summary.toString();
     }
 
-    private static String messageName(int id) {
-        ViewStreamMessageType type = ViewStreamMessageType.byId(id);
-        return type == null ? "UNKNOWN(" + id + ")" : type.name();
+    private String messageName(int id) {
+        return id < 0 ? "UNKNOWN(" + id + ")" : names.apply(id);
     }
 
     public enum Verdict {

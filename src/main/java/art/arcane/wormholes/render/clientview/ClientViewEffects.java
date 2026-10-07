@@ -14,8 +14,8 @@ import org.bukkit.entity.Entity;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.ProjectionManager;
 import art.arcane.wormholes.Wormholes;
-import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.render.client.session.ClientViewEmitters;
+import art.arcane.wormholes.network.client.FxMessage;
 
 public final class ClientViewEffects {
     private static final ThreadLocal<Arrival> ARRIVAL = new ThreadLocal<>();
@@ -77,7 +77,7 @@ public final class ClientViewEffects {
     }
 
     public static void spawn(World world, double x, double y, double z, Consumer<World> everyone, Consumer<Player> viewer,
-                             ClientViewMessage.FxEmitter clientEmitter) {
+                             FxMessage.FxEmitter clientEmitter) {
         BukkitClientView view = active();
         if (view == null || !view.particles(world, x, y, z, viewer, clientEmitter)) {
             everyone.accept(world);
@@ -99,7 +99,7 @@ public final class ClientViewEffects {
             burst(world, particle, x, y, z, count, spreadX, spreadY, spreadZ, speed);
             return;
         }
-        ClientViewMessage.FxEmitter emitter = ClientViewEmitters.burst(particle.getKey().toString(), x, y, z, count,
+        FxMessage.FxEmitter emitter = ClientViewEmitters.burst(particle.getKey().toString(), x, y, z, count,
             spreadX, spreadY, speed);
         Location origin = new Location(world, x, y, z);
         for (Player receiver : Bukkit.getOnlinePlayers()) {

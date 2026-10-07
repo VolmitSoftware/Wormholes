@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.entity.EntitySnapshot;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -254,7 +254,7 @@ public class ClientMeshInteractionTest extends MinecraftTestBase {
                 EntitySnapshot visual = EntitySnapshot.full(visualId, "minecraft:pig", revision, 0, 0.5, 1, 0, 0,
                     1, 0, 0, 0, 0, 0, true, "", "", "", null, null, new byte[] {(byte) revision}, EntitySnapshot.EMPTY, revision);
                 for (int key = 1; key <= 2; key++) {
-                    projected.apply(new ClientViewMessage.EntityFrame(key, revision, List.of(visual), List.of(visualId), true));
+                    projected.apply(new ViewStreamMessage.EntityFrame(key, revision, List.of(visual), List.of(visualId), true));
                 }
                 projected.tick(key -> portal, key -> true);
                 assertEquals(2, copies.size());

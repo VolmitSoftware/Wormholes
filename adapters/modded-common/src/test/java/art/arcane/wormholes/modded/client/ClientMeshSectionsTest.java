@@ -3,7 +3,7 @@ package art.arcane.wormholes.modded.client;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.SectionBiomes;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.math.BlockBox;
@@ -32,8 +32,8 @@ public class ClientMeshSectionsTest extends MinecraftTestBase {
         assertEquals(0, store.bytes());
         assertNull(store.view(7).section(SectionPos.asLong(0, 0, 0)));
 
-        assertEquals(ClientMeshSections.Result.APPLIED, store.put(new ClientViewMessage.MeshSection(7, 1, -1, -1, -1, 1, 3, Brick.single(0, 3), SectionBiomes.NONE)));
-        assertEquals(ClientMeshSections.Result.APPLIED, store.put(new ClientViewMessage.MeshSection(7, 1, 1, 1, 1, 1, 3, Brick.empty(0), SectionBiomes.NONE)));
+        assertEquals(ClientMeshSections.Result.APPLIED, store.put(new ViewStreamMessage.MeshSection(7, 1, -1, -1, -1, 1, 3, Brick.single(0, 3), SectionBiomes.NONE)));
+        assertEquals(ClientMeshSections.Result.APPLIED, store.put(new ViewStreamMessage.MeshSection(7, 1, 1, 1, 1, 1, 3, Brick.empty(0), SectionBiomes.NONE)));
 
         assertEquals(2, store.view(7).sectionKeys().size());
         assertTrue(store.bytes() < 1024);
@@ -46,7 +46,7 @@ public class ClientMeshSectionsTest extends MinecraftTestBase {
     public void authoritativeLocalSectionsKeepTheirViewAndRendererRevisionAcrossSideGenerations() throws Exception {
         ClientMeshSections store = store(1024 * 1024);
         store.begin(7, 1, BOUNDS, 64);
-        ClientMeshSections.Section local = store.localSection(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 3,
+        ClientMeshSections.Section local = store.localSection(new ViewStreamMessage.MeshSection(7, 1, 0, 0, 0, 1, 3,
             Brick.single(0, 3), SectionBiomes.NONE));
         assertTrue(store.local(7, 0L, local));
         ClientMeshSections.View view = store.view(7);
@@ -55,9 +55,9 @@ public class ClientMeshSectionsTest extends MinecraftTestBase {
         assertSame(view, store.view(7));
         assertSame(local, view.section(0L));
         assertEquals(revision, view.section(0L).revision());
-        assertEquals(ClientMeshSections.Result.STALE, store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 999, 3,
+        assertEquals(ClientMeshSections.Result.STALE, store.put(new ViewStreamMessage.MeshSection(7, 1, 0, 0, 0, 999, 3,
             Brick.empty(0), SectionBiomes.NONE)));
-        assertEquals(ClientMeshSections.Result.APPLIED, store.put(new ClientViewMessage.MeshSection(7, 2, 0, 0, 0, 1, 3,
+        assertEquals(ClientMeshSections.Result.APPLIED, store.put(new ViewStreamMessage.MeshSection(7, 2, 0, 0, 0, 1, 3,
             Brick.empty(0), SectionBiomes.NONE)));
         assertSame(local, view.section(0L));
         assertTrue(store.local(7, 0L, null));
@@ -69,12 +69,12 @@ public class ClientMeshSectionsTest extends MinecraftTestBase {
     public void remotePacketsDoNotDirtyAnAuthoritativeLocalOverride() throws Exception {
         ClientMeshSections store = store(1024 * 1024);
         store.begin(7, 1, BOUNDS, 64);
-        ClientMeshSections.Section local = store.localSection(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 3,
+        ClientMeshSections.Section local = store.localSection(new ViewStreamMessage.MeshSection(7, 1, 0, 0, 0, 1, 3,
             Brick.single(0, 3), SectionBiomes.NONE));
         store.local(7, 0L, local);
         store.view(7).changed().clear();
         long revision = store.view(7).contentRevision();
-        assertEquals(ClientMeshSections.Result.APPLIED, store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 3, 3,
+        assertEquals(ClientMeshSections.Result.APPLIED, store.put(new ViewStreamMessage.MeshSection(7, 1, 0, 0, 0, 3, 3,
             Brick.empty(0), SectionBiomes.NONE)));
         assertTrue(store.view(7).changed().isEmpty());
         assertEquals(revision, store.view(7).contentRevision());
@@ -85,10 +85,10 @@ public class ClientMeshSectionsTest extends MinecraftTestBase {
     public void newGenerationDiscardsOldSectionsAndLateUpdates() throws Exception {
         ClientMeshSections store = store(1024 * 1024);
         store.begin(7, 1, BOUNDS, 64);
-        store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 3, Brick.single(0, 3), SectionBiomes.NONE));
+        store.put(new ViewStreamMessage.MeshSection(7, 1, 0, 0, 0, 1, 3, Brick.single(0, 3), SectionBiomes.NONE));
         assertTrue(store.begin(7, 2, BOUNDS, 64));
         assertEquals(0, store.bytes());
-        assertEquals(ClientMeshSections.Result.STALE, store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 2, 3, Brick.single(0, 3), SectionBiomes.NONE)));
+        assertEquals(ClientMeshSections.Result.STALE, store.put(new ViewStreamMessage.MeshSection(7, 1, 0, 0, 0, 2, 3, Brick.single(0, 3), SectionBiomes.NONE)));
         assertFalse(store.begin(7, 1, BOUNDS, 64));
         assertEquals(2, store.view(7).generation());
     }
@@ -97,10 +97,10 @@ public class ClientMeshSectionsTest extends MinecraftTestBase {
     public void residentLimitRefusesNewSectionsWithoutLosingExistingData() throws Exception {
         ClientMeshSections store = store(1024 * 1024);
         store.begin(7, 1, BOUNDS, 1);
-        store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 3, Brick.single(0, 3), SectionBiomes.NONE));
+        store.put(new ViewStreamMessage.MeshSection(7, 1, 0, 0, 0, 1, 3, Brick.single(0, 3), SectionBiomes.NONE));
         long bytes = store.bytes();
 
-        assertEquals(ClientMeshSections.Result.REFUSED, store.put(new ClientViewMessage.MeshSection(7, 1, 1, 0, 0, 1, 3, Brick.single(0, 3), SectionBiomes.NONE)));
+        assertEquals(ClientMeshSections.Result.REFUSED, store.put(new ViewStreamMessage.MeshSection(7, 1, 1, 0, 0, 1, 3, Brick.single(0, 3), SectionBiomes.NONE)));
         assertEquals(bytes, store.bytes());
         assertEquals(1, store.view(7).sectionKeys().size());
         assertSame(Blocks.STONE.defaultBlockState(), store.view(7).section(0L).state(0));
@@ -110,18 +110,18 @@ public class ClientMeshSectionsTest extends MinecraftTestBase {
     public void incomingWireSectionsReplaceLocalOnlyResidentsAtTheUnionLimit() throws Exception {
         ClientMeshSections store = store(1024 * 1024);
         store.begin(7, 1, BOUNDS, 1);
-        ClientMeshSections.Section local = store.localSection(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 3,
+        ClientMeshSections.Section local = store.localSection(new ViewStreamMessage.MeshSection(7, 1, 0, 0, 0, 1, 3,
             Brick.single(0, 3), SectionBiomes.NONE));
         assertTrue(store.local(7, 0L, local));
         long revision = store.view(7).contentRevision();
-        assertEquals(ClientMeshSections.Result.APPLIED, store.put(new ClientViewMessage.MeshSection(7, 1, 1, 0, 0, 1, 3,
+        assertEquals(ClientMeshSections.Result.APPLIED, store.put(new ViewStreamMessage.MeshSection(7, 1, 1, 0, 0, 1, 3,
             Brick.single(0, 3), SectionBiomes.NONE)));
         assertEquals(1, store.view(7).sectionKeys().size());
         assertNull(store.view(7).section(0L));
         assertTrue(store.view(7).contentRevision() > revision);
         assertTrue(store.view(7).changed().contains(0L));
         assertFalse(store.local(7, 0L, local));
-        assertEquals(ClientMeshSections.Result.APPLIED, store.put(new ClientViewMessage.MeshSection(7, 1, 1, 0, 0, 2, 3,
+        assertEquals(ClientMeshSections.Result.APPLIED, store.put(new ViewStreamMessage.MeshSection(7, 1, 1, 0, 0, 2, 3,
             Brick.empty(0), SectionBiomes.NONE)));
         assertEquals(1, store.view(7).sectionKeys().size());
     }
@@ -130,14 +130,14 @@ public class ClientMeshSectionsTest extends MinecraftTestBase {
     public void wireReplacementPreservesItsLocalOverrideAtTheUnionLimit() throws Exception {
         ClientMeshSections store = store(1024 * 1024);
         store.begin(7, 1, BOUNDS, 1);
-        ClientMeshSections.Section local = store.localSection(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 3,
+        ClientMeshSections.Section local = store.localSection(new ViewStreamMessage.MeshSection(7, 1, 0, 0, 0, 1, 3,
             Brick.single(0, 3), SectionBiomes.NONE));
         assertTrue(store.local(7, 0L, local));
-        assertEquals(ClientMeshSections.Result.APPLIED, store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 3,
+        assertEquals(ClientMeshSections.Result.APPLIED, store.put(new ViewStreamMessage.MeshSection(7, 1, 0, 0, 0, 1, 3,
             Brick.empty(0), SectionBiomes.NONE)));
         assertSame(local, store.view(7).section(0L));
         long bytes = store.bytes();
-        assertEquals(ClientMeshSections.Result.REFUSED, store.put(new ClientViewMessage.MeshSection(7, 1, 1, 0, 0, 1, 3,
+        assertEquals(ClientMeshSections.Result.REFUSED, store.put(new ViewStreamMessage.MeshSection(7, 1, 1, 0, 0, 1, 3,
             Brick.empty(0), SectionBiomes.NONE)));
         assertEquals(bytes, store.bytes());
         assertSame(local, store.view(7).section(0L));
@@ -152,7 +152,7 @@ public class ClientMeshSectionsTest extends MinecraftTestBase {
         light[0] = 1;
         Brick litAir = Brick.empty(0).withLight(light, light);
 
-        assertEquals(ClientMeshSections.Result.REFUSED, store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 3, litAir, SectionBiomes.NONE)));
+        assertEquals(ClientMeshSections.Result.REFUSED, store.put(new ViewStreamMessage.MeshSection(7, 1, 0, 0, 0, 1, 3, litAir, SectionBiomes.NONE)));
         assertEquals(0, store.bytes());
         assertTrue(store.view(7).sectionKeys().isEmpty());
     }
@@ -166,7 +166,7 @@ public class ClientMeshSectionsTest extends MinecraftTestBase {
         Arrays.fill(block, (byte) 0x73);
         Arrays.fill(sky, (byte) 0xFF);
         Brick brick = Brick.empty(0).withLight(block, sky);
-        assertEquals(ClientMeshSections.Result.APPLIED, store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 3, brick, SectionBiomes.NONE)));
+        assertEquals(ClientMeshSections.Result.APPLIED, store.put(new ViewStreamMessage.MeshSection(7, 1, 0, 0, 0, 1, 3, brick, SectionBiomes.NONE)));
         assertTrue(store.bytes() < 256);
         ClientMeshSections.Section section = store.view(7).section(0L);
         Arrays.fill(brick.blockLight(), (byte) 0);
@@ -191,7 +191,7 @@ public class ClientMeshSectionsTest extends MinecraftTestBase {
             block[index] = (byte) index;
         }
         Brick brick = Brick.empty(0).withLight(block, sky);
-        store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 3, brick, SectionBiomes.NONE));
+        store.put(new ViewStreamMessage.MeshSection(7, 1, 0, 0, 0, 1, 3, brick, SectionBiomes.NONE));
         assertTrue(store.bytes() < 2500);
         ClientMeshSections.Section section = store.view(7).section(0L);
         Arrays.fill(brick.blockLight(), (byte) 0);
@@ -205,10 +205,10 @@ public class ClientMeshSectionsTest extends MinecraftTestBase {
     public void replacementsAndDropsRespectRevisionAndMemoryAccounting() throws Exception {
         ClientMeshSections store = store(1024 * 1024);
         store.begin(7, 1, BOUNDS, 64);
-        store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 2, 3, Brick.single(0, 3), SectionBiomes.NONE));
+        store.put(new ViewStreamMessage.MeshSection(7, 1, 0, 0, 0, 2, 3, Brick.single(0, 3), SectionBiomes.NONE));
         long bytes = store.bytes();
-        assertEquals(ClientMeshSections.Result.DUPLICATE, store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 2, 3, Brick.single(0, 3), SectionBiomes.NONE)));
-        assertEquals(ClientMeshSections.Result.STALE, store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 3, Brick.empty(0), SectionBiomes.NONE)));
+        assertEquals(ClientMeshSections.Result.DUPLICATE, store.put(new ViewStreamMessage.MeshSection(7, 1, 0, 0, 0, 2, 3, Brick.single(0, 3), SectionBiomes.NONE)));
+        assertEquals(ClientMeshSections.Result.STALE, store.put(new ViewStreamMessage.MeshSection(7, 1, 0, 0, 0, 1, 3, Brick.empty(0), SectionBiomes.NONE)));
         assertEquals(bytes, store.bytes());
         assertFalse(store.drop(7, 0, 0, 0, 0));
         assertTrue(store.drop(7, 1, 0, 0, 0));
@@ -220,9 +220,9 @@ public class ClientMeshSectionsTest extends MinecraftTestBase {
     public void rejectsUnknownPaletteAndOutOfBoundsCoordinates() throws Exception {
         ClientMeshSections store = store(1024 * 1024);
         store.begin(7, 1, BOUNDS, 64);
-        assertThrows(ViewStreamProtocolException.class, () -> store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 3, Brick.single(0, 99), SectionBiomes.NONE)));
-        assertThrows(ViewStreamProtocolException.class, () -> store.put(new ClientViewMessage.MeshSection(7, 1, 100, 0, 0, 1, 3, Brick.single(0, 3), SectionBiomes.NONE)));
-        assertThrows(ViewStreamProtocolException.class, () -> store.put(new ClientViewMessage.MeshSection(7, 1, 1 << 22, 0, 0, 1, 3, Brick.single(0, 3), SectionBiomes.NONE)));
+        assertThrows(ViewStreamProtocolException.class, () -> store.put(new ViewStreamMessage.MeshSection(7, 1, 0, 0, 0, 1, 3, Brick.single(0, 99), SectionBiomes.NONE)));
+        assertThrows(ViewStreamProtocolException.class, () -> store.put(new ViewStreamMessage.MeshSection(7, 1, 100, 0, 0, 1, 3, Brick.single(0, 3), SectionBiomes.NONE)));
+        assertThrows(ViewStreamProtocolException.class, () -> store.put(new ViewStreamMessage.MeshSection(7, 1, 1 << 22, 0, 0, 1, 3, Brick.single(0, 3), SectionBiomes.NONE)));
         assertEquals(0, store.bytes());
     }
 
@@ -231,9 +231,9 @@ public class ClientMeshSectionsTest extends MinecraftTestBase {
         ClientMeshSections store = store(1024 * 1024);
         store.begin(7, 1, BOUNDS, 64);
         store.begin(8, 1, BOUNDS, 64);
-        store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 3, Brick.single(0, 3), SectionBiomes.NONE));
+        store.put(new ViewStreamMessage.MeshSection(7, 1, 0, 0, 0, 1, 3, Brick.single(0, 3), SectionBiomes.NONE));
         long first = store.bytes();
-        store.put(new ClientViewMessage.MeshSection(8, 1, 0, 0, 0, 1, 3, Brick.single(0, 3), SectionBiomes.NONE));
+        store.put(new ViewStreamMessage.MeshSection(8, 1, 0, 0, 0, 1, 3, Brick.single(0, 3), SectionBiomes.NONE));
         assertEquals(first * 2, store.bytes());
         store.remove(7);
         assertEquals(first, store.bytes());
@@ -248,10 +248,10 @@ public class ClientMeshSectionsTest extends MinecraftTestBase {
         ClientMeshSections store = store(1024);
         store.otherMemory(() -> 1000L);
         store.begin(7, 1, BOUNDS, 64);
-        assertEquals(ClientMeshSections.Result.REFUSED, store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 3, Brick.single(0, 3), SectionBiomes.NONE)));
+        assertEquals(ClientMeshSections.Result.REFUSED, store.put(new ViewStreamMessage.MeshSection(7, 1, 0, 0, 0, 1, 3, Brick.single(0, 3), SectionBiomes.NONE)));
         assertEquals(0, store.bytes());
         store.otherMemory(() -> 0L);
-        assertEquals(ClientMeshSections.Result.APPLIED, store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 3, Brick.single(0, 3), SectionBiomes.NONE)));
+        assertEquals(ClientMeshSections.Result.APPLIED, store.put(new ViewStreamMessage.MeshSection(7, 1, 0, 0, 0, 1, 3, Brick.single(0, 3), SectionBiomes.NONE)));
     }
 
     @Test
@@ -260,17 +260,17 @@ public class ClientMeshSectionsTest extends MinecraftTestBase {
         store.begin(7, 1, BOUNDS, 1);
         ClientMeshSections.View view = store.view(7);
         assertEquals(0, view.contentRevision());
-        store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 2, 3, Brick.single(0, 3), SectionBiomes.NONE));
+        store.put(new ViewStreamMessage.MeshSection(7, 1, 0, 0, 0, 2, 3, Brick.single(0, 3), SectionBiomes.NONE));
         assertEquals(1, view.contentRevision());
-        store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 2, 3, Brick.single(0, 3), SectionBiomes.NONE));
-        store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 3, Brick.empty(0), SectionBiomes.NONE));
-        store.put(new ClientViewMessage.MeshSection(7, 0, 0, 0, 0, 3, 3, Brick.empty(0), SectionBiomes.NONE));
-        store.put(new ClientViewMessage.MeshSection(7, 1, 1, 0, 0, 3, 3, Brick.empty(0), SectionBiomes.NONE));
+        store.put(new ViewStreamMessage.MeshSection(7, 1, 0, 0, 0, 2, 3, Brick.single(0, 3), SectionBiomes.NONE));
+        store.put(new ViewStreamMessage.MeshSection(7, 1, 0, 0, 0, 1, 3, Brick.empty(0), SectionBiomes.NONE));
+        store.put(new ViewStreamMessage.MeshSection(7, 0, 0, 0, 0, 3, 3, Brick.empty(0), SectionBiomes.NONE));
+        store.put(new ViewStreamMessage.MeshSection(7, 1, 1, 0, 0, 3, 3, Brick.empty(0), SectionBiomes.NONE));
         assertFalse(store.drop(7, 0, 0, 0, 0));
         assertFalse(store.drop(7, 1, 1, 0, 0));
         view.changed().clear();
         assertEquals(1, view.contentRevision());
-        store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 3, 3, Brick.empty(0), SectionBiomes.NONE));
+        store.put(new ViewStreamMessage.MeshSection(7, 1, 0, 0, 0, 3, 3, Brick.empty(0), SectionBiomes.NONE));
         assertEquals(2, view.contentRevision());
         assertTrue(store.drop(7, 1, 0, 0, 0));
         assertEquals(3, view.contentRevision());
@@ -281,7 +281,7 @@ public class ClientMeshSectionsTest extends MinecraftTestBase {
 
     private static ClientMeshSections store(long bytes) throws ViewStreamProtocolException {
         ClientPalette palette = new ClientPalette(BuiltInRegistries.BLOCK);
-        palette.apply(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(3, "minecraft:stone"))));
+        palette.apply(new ViewStreamMessage.Palette(List.of(new ViewStreamMessage.PaletteEntry(3, "minecraft:stone"))));
         return new ClientMeshSections(palette, bytes);
     }
 }

@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.ViewStreamProtocolException;
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
@@ -29,9 +29,9 @@ public class ClientPaletteTest extends MinecraftTestBase {
         BlockState stairs = Blocks.OAK_STAIRS.defaultBlockState()
             .setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.EAST)
             .setValue(BlockStateProperties.HALF, Half.TOP);
-        int applied = palette.apply(new ClientViewMessage.Palette(List.of(
-            new ClientViewMessage.PaletteEntry(3, BlockStateParser.serialize(Blocks.STONE.defaultBlockState())),
-            new ClientViewMessage.PaletteEntry(4, BlockStateParser.serialize(stairs)))));
+        int applied = palette.apply(new ViewStreamMessage.Palette(List.of(
+            new ViewStreamMessage.PaletteEntry(3, BlockStateParser.serialize(Blocks.STONE.defaultBlockState())),
+            new ViewStreamMessage.PaletteEntry(4, BlockStateParser.serialize(stairs)))));
         assertEquals(2, applied);
         assertSame(Blocks.STONE.defaultBlockState(), palette.state(3));
         assertSame(stairs, palette.state(4));
@@ -44,9 +44,9 @@ public class ClientPaletteTest extends MinecraftTestBase {
     @Test
     public void unknownStatesResolveToAirAndAreCounted() throws ViewStreamProtocolException {
         ClientPalette palette = new ClientPalette(BuiltInRegistries.BLOCK);
-        palette.apply(new ClientViewMessage.Palette(List.of(
-            new ClientViewMessage.PaletteEntry(3, "wormholes:not_a_block"),
-            new ClientViewMessage.PaletteEntry(4, "minecraft:stone[missing=true]"))));
+        palette.apply(new ViewStreamMessage.Palette(List.of(
+            new ViewStreamMessage.PaletteEntry(3, "wormholes:not_a_block"),
+            new ViewStreamMessage.PaletteEntry(4, "minecraft:stone[missing=true]"))));
         assertSame(palette.air(), palette.state(3));
         assertSame(palette.air(), palette.state(4));
         assertEquals(2, palette.unknownStates());
@@ -59,7 +59,7 @@ public class ClientPaletteTest extends MinecraftTestBase {
         for (int id : new int[] {ViewStreamLimits.PALETTE_AIR, ViewStreamLimits.PALETTE_OCCLUDED, ViewStreamLimits.PALETTE_BACKING,
             ViewStreamLimits.MAX_SESSION_PALETTE_SIZE}) {
             try {
-                palette.apply(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(id, "minecraft:stone"))));
+                palette.apply(new ViewStreamMessage.Palette(List.of(new ViewStreamMessage.PaletteEntry(id, "minecraft:stone"))));
                 fail("palette accepted id " + id);
             } catch (ViewStreamProtocolException expected) {
                 assertTrue(expected.getMessage().contains(Integer.toString(id)));
@@ -105,7 +105,7 @@ public class ClientPaletteTest extends MinecraftTestBase {
     @Test
     public void resetForgetsEverything() throws ViewStreamProtocolException {
         ClientPalette palette = new ClientPalette(BuiltInRegistries.BLOCK);
-        palette.apply(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(3, "minecraft:stone"))));
+        palette.apply(new ViewStreamMessage.Palette(List.of(new ViewStreamMessage.PaletteEntry(3, "minecraft:stone"))));
         palette.localId(Blocks.GOLD_BLOCK.defaultBlockState());
         palette.reset();
         assertEquals(ViewStreamLimits.RESERVED_PALETTE_IDS, palette.size());

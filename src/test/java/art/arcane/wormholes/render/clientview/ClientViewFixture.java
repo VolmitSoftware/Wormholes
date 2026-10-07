@@ -27,8 +27,7 @@ import com.github.retrooper.packetevents.protocol.ConnectionState;
 
 import art.arcane.wormholes.config.toml.ClientViewConfig;
 import art.arcane.optics.stream.ViewStreamCapability;
-import art.arcane.wormholes.network.client.ClientViewCodec;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.math.Vec3d;
@@ -42,8 +41,8 @@ import art.arcane.wormholes.portal.ProjectionRenderMode;
 import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.optics.fidelity.AtmosphereMode;
 import art.arcane.optics.stream.ViewStreamInbound;
-import art.arcane.wormholes.render.client.session.ClientViewOptions;
-import art.arcane.wormholes.render.client.session.ClientViewServerSession;
+import art.arcane.optics.stream.ViewStreamOptions;
+import art.arcane.optics.stream.ViewStreamSession;
 import art.arcane.optics.plate.ViewPlateBuilder;
 import art.arcane.optics.plate.ViewPlateCache;
 import art.arcane.wormholes.render.view.ProjectionEntityView;
@@ -52,6 +51,7 @@ import art.arcane.wormholes.render.view.ProjectionWorldViewProvider;
 import art.arcane.wormholes.util.BukkitGeometry;
 import art.arcane.wormholes.util.Cuboid;
 import art.arcane.optics.math.Face;
+import art.arcane.wormholes.network.client.ClientViewExtensions;
 
 final class ClientViewFixture implements AutoCloseable {
     static final int DATA_VERSION = 4555;
@@ -82,7 +82,7 @@ final class ClientViewFixture implements AutoCloseable {
     long caps;
     long tick;
 
-    ClientViewFixture(ClientViewOptions options, ConnectionState state) {
+    ClientViewFixture(ViewStreamOptions options, ConnectionState state) {
         FidelitySettings.sharedPlate = true;
         FidelitySettings.blockEntities = false;
         FidelitySettings.atmosphereModeDefault = AtmosphereMode.OFF;
@@ -149,15 +149,15 @@ final class ClientViewFixture implements AutoCloseable {
         negotiator = clientView.negotiator();
     }
 
-    static ClientViewOptions options(boolean enabled, boolean brickCache, int helloGraceMillis) {
+    static ViewStreamOptions options(boolean enabled, boolean brickCache, int helloGraceMillis) {
         ClientViewConfig config = new ClientViewConfig();
         config.enabled = enabled;
         config.brickCache = brickCache;
         config.helloGraceMillis = helloGraceMillis;
-        return ClientViewOptions.from(config, 5);
+        return config.options(5);
     }
 
-    ClientViewServerSession<ClientViewObserver, BlockData> session() {
+    ViewStreamSession<ClientViewObserver, BlockData> session() {
         return clientView.registry().session(playerId);
     }
 
@@ -166,7 +166,7 @@ final class ClientViewFixture implements AutoCloseable {
     }
 
     ViewStreamInbound hello(long clientCaps) throws ViewStreamProtocolException {
-        return c2s(new ClientViewMessage.Hello(ViewStreamLimits.WIRE_VERSION, DATA_VERSION, clientCaps, ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES,
+        return c2s(new ViewStreamMessage.Hello(ViewStreamLimits.WIRE_VERSION, DATA_VERSION, clientCaps, ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES,
             256, 0L, "fabric"));
     }
 
@@ -207,8 +207,8 @@ final class ClientViewFixture implements AutoCloseable {
         return interested;
     }
 
-    ViewStreamInbound c2s(ClientViewMessage message) throws ViewStreamProtocolException {
-        byte[] payload = ClientViewCodec.encodeC2S(message);
+    ViewStreamInbound c2s(ViewStreamMessage message) throws ViewStreamProtocolException {
+        byte[] payload = ClientViewExtensions.CODEC.encodeC2S(message);
         return session().receive(payload, 0, payload.length);
     }
 
@@ -216,14 +216,14 @@ final class ClientViewFixture implements AutoCloseable {
         return user.drain();
     }
 
-    List<ClientViewMessage> messages() throws ViewStreamProtocolException {
-        List<ClientViewMessage> messages = new ArrayList<ClientViewMessage>();
+    List<ViewStreamMessage> messages() throws ViewStreamProtocolException {
+        List<ViewStreamMessage> messages = new ArrayList<ViewStreamMessage>();
         for (ClientViewPacketEvents.Sent sent : drain()) {
             if (!ClientViewChannel.CHANNEL.equals(sent.channel())) {
                 continue;
             }
-            ClientViewMessage message = ClientViewCodec.decodeS2C(sent.data(), caps == 0L ? ViewStreamCapability.ALL : caps).message();
-            if (message instanceof ClientViewMessage.Accept accept) {
+            ViewStreamMessage message = ClientViewExtensions.CODEC.decodeS2C(sent.data(), caps == 0L ? ViewStreamCapability.ALL : caps).message();
+            if (message instanceof ViewStreamMessage.Accept accept) {
                 caps = accept.caps();
             }
             messages.add(message);

@@ -30,11 +30,12 @@ import com.github.retrooper.packetevents.protocol.ConnectionState;
 
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewChannel;
-import art.arcane.wormholes.network.client.ClientViewCodec;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamMessageType;
 import art.arcane.optics.stream.ViewStreamInbound;
 import art.arcane.optics.stream.ViewStreamSessionState;
+import art.arcane.wormholes.network.client.ClientViewExtensions;
+import art.arcane.wormholes.render.client.session.ClientViewTravel;
 
 final class BukkitClientViewNegotiatorTest {
     @Test
@@ -44,10 +45,10 @@ final class BukkitClientViewNegotiatorTest {
             assertTrue(fixture.negotiator.offerPlay(fixture.player));
             assertEquals(ViewStreamInbound.HELLO_ACCEPTED, fixture.hello(ViewStreamCapability.ALL));
 
-            List<ClientViewMessage> messages = fixture.messages();
+            List<ViewStreamMessage> messages = fixture.messages();
             assertEquals(List.of(ViewStreamMessageType.OFFER, ViewStreamMessageType.ACCEPT), types(messages));
-            ClientViewMessage.Offer offer = (ClientViewMessage.Offer) messages.get(0);
-            ClientViewMessage.Accept accept = (ClientViewMessage.Accept) messages.get(1);
+            ViewStreamMessage.Offer offer = (ViewStreamMessage.Offer) messages.get(0);
+            ViewStreamMessage.Accept accept = (ViewStreamMessage.Accept) messages.get(1);
             assertTrue(ViewStreamCapability.LOCAL_MESH.in(offer.serverCaps()));
             assertTrue(ViewStreamCapability.ENTITY_SELF.in(offer.serverCaps()));
             assertTrue(ViewStreamCapability.LOCAL_MESH.in(accept.caps()));
@@ -68,14 +69,14 @@ final class BukkitClientViewNegotiatorTest {
                     assertTrue(fixture.negotiator.offerPlay(fixture.player));
                     long caps = cache ? ViewStreamCapability.ALL : ViewStreamCapability.ALL & ~ViewStreamCapability.PREPARED_TRAVEL_CACHE.mask();
                     assertEquals(ViewStreamInbound.HELLO_ACCEPTED, fixture.hello(caps));
-                    List<ClientViewMessage> messages = fixture.messages();
-                    ClientViewMessage.Offer offer = (ClientViewMessage.Offer) messages.get(0);
-                    ClientViewMessage.Accept accept = (ClientViewMessage.Accept) messages.get(1);
+                    List<ViewStreamMessage> messages = fixture.messages();
+                    ViewStreamMessage.Offer offer = (ViewStreamMessage.Offer) messages.get(0);
+                    ViewStreamMessage.Accept accept = (ViewStreamMessage.Accept) messages.get(1);
                     assertTrue(ViewStreamCapability.PREPARED_TRAVEL.in(offer.serverCaps()));
                     assertTrue(ViewStreamCapability.PREPARED_TRAVEL_CACHE.in(offer.serverCaps()));
                     assertTrue(ViewStreamCapability.PREPARED_TRAVEL.in(accept.caps()));
                     assertEquals(cache, ViewStreamCapability.PREPARED_TRAVEL_CACHE.in(accept.caps()));
-                    assertEquals(cache, fixture.session().preparedTravelCacheSelected());
+                    assertEquals(cache, ClientViewTravel.of(fixture.session()).preparedTravelCacheSelected());
                 }
             }
         }
@@ -110,7 +111,7 @@ final class BukkitClientViewNegotiatorTest {
             assertEquals(PacketEventsClientViewTransport.REGISTER_CHANNEL, sent.get(0).channel());
             assertArrayEquals(ClientViewChannel.CHANNEL.getBytes(StandardCharsets.UTF_8), sent.get(0).data());
             assertTrue(sent.get(1).configuration());
-            ClientViewMessage.Offer offer = (ClientViewMessage.Offer) ClientViewCodec.decodeS2C(sent.get(1).data(), ViewStreamCapability.ALL).message();
+            ViewStreamMessage.Offer offer = (ViewStreamMessage.Offer) ClientViewExtensions.CODEC.decodeS2C(sent.get(1).data(), ViewStreamCapability.ALL).message();
             assertEquals(ClientViewFixture.DATA_VERSION, offer.mcDataVersion());
             assertTrue(ViewStreamCapability.CONFIG_PHASE.in(offer.serverCaps()));
             assertFalse(ViewStreamCapability.ZERO_COPY.in(offer.serverCaps()));
@@ -136,9 +137,9 @@ final class BukkitClientViewNegotiatorTest {
             assertEquals(ViewStreamInbound.HELLO_ACCEPTED, fixture.hello());
 
             assertEquals(ViewStreamSessionState.CLIENT_VIEW, handshake.get(5L, TimeUnit.SECONDS));
-            List<ClientViewMessage> messages = fixture.messages();
+            List<ViewStreamMessage> messages = fixture.messages();
             assertEquals(List.of(ViewStreamMessageType.OFFER, ViewStreamMessageType.ACCEPT), types(messages));
-            ClientViewMessage.Accept accept = (ClientViewMessage.Accept) messages.get(1);
+            ViewStreamMessage.Accept accept = (ViewStreamMessage.Accept) messages.get(1);
             assertTrue(ViewStreamCapability.PLATES.in(accept.caps()));
             assertTrue(ViewStreamCapability.CONFIG_PHASE.in(accept.caps()));
             assertTrue(ViewStreamCapability.ENTITY_FRAMES.in(accept.caps()));
@@ -197,7 +198,7 @@ final class BukkitClientViewNegotiatorTest {
             assertEquals(PacketEventsClientViewTransport.REGISTER_CHANNEL, sent.get(0).channel());
             assertFalse(sent.get(1).configuration());
             assertEquals(ViewStreamMessageType.OFFER,
-                ClientViewCodec.decodeS2C(sent.get(1).data(), ViewStreamCapability.ALL).message().type());
+                ((ViewStreamMessage.Projection) ClientViewExtensions.CODEC.decodeS2C(sent.get(1).data(), ViewStreamCapability.ALL).message()).type());
             assertEquals(List.of(Long.valueOf(BukkitClientViewNegotiator.PLAY_EXPIRY_TICKS)), fixture.expiries);
             assertTrue(fixture.clientView.holdsVanilla(fixture.player, 1L));
 
@@ -355,10 +356,10 @@ final class BukkitClientViewNegotiatorTest {
         return event;
     }
 
-    private static List<ViewStreamMessageType> types(List<ClientViewMessage> messages) {
+    private static List<ViewStreamMessageType> types(List<ViewStreamMessage> messages) {
         List<ViewStreamMessageType> types = new ArrayList<ViewStreamMessageType>(messages.size());
-        for (ClientViewMessage message : messages) {
-            types.add(message.type());
+        for (ViewStreamMessage message : messages) {
+            types.add(message instanceof ViewStreamMessage.Projection projection ? projection.type() : null);
         }
         return types;
     }

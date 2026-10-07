@@ -27,6 +27,7 @@ import art.arcane.optics.stream.ProjectionEnvironmentCodec;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.AxisPermutation;
+import art.arcane.optics.stream.ViewStreamMessage;
 
 class ClientViewEnvironmentTest {
     @Test
@@ -60,8 +61,8 @@ class ClientViewEnvironmentTest {
 
     @Test
     void completeSnapshotPreservesFloatColorsAndNegativeTransform() throws Exception {
-        ClientViewMessage.Environment message = new ClientViewMessage.Environment(71, ClientViewFixtures.environment());
-        assertEquals(message, ClientViewCodec.decodeS2C(ClientViewCodec.encodeS2C(message, 3, 0), ViewStreamCapability.ALL).message());
+        ViewStreamMessage.Environment message = new ViewStreamMessage.Environment(71, ClientViewFixtures.environment());
+        assertEquals(message, ClientViewExtensions.CODEC.decodeS2C(ClientViewExtensions.CODEC.encodeS2C(message, 3, 0), ViewStreamCapability.ALL).message());
         assertEquals(1.25F, message.environment().lighting().blockTint().blue());
         assertEquals(new ProjectionEnvironment.World("test:destination", 72000L, "minecraft:plains", 63, 7, 15, 256, true, 0.1F, ProjectionEnvironment.EyeMedium.WATER, true), message.environment().world());
     }
@@ -109,7 +110,7 @@ class ClientViewEnvironmentTest {
         private int samples;
 
         @Override
-        public List<ClientViewMessage.FxEmitter> emitters(String observer, UUID portal, long tick) {
+        public List<FxMessage.FxEmitter> emitters(String observer, UUID portal, long tick) {
             return List.of();
         }
 

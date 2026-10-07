@@ -4,8 +4,7 @@ import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.BrickCodec;
 import art.arcane.optics.stream.ViewStreamCapability;
-import art.arcane.wormholes.network.client.ClientViewCodec;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.stream.PlateSectionBox;
@@ -27,6 +26,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import art.arcane.wormholes.network.client.ClientViewExtensions;
 
 public class ClientPlateStoreTest extends MinecraftTestBase {
     private static final Path GOLDENS = goldens();
@@ -37,13 +37,13 @@ public class ClientPlateStoreTest extends MinecraftTestBase {
         ClientPlateStore store = new ClientPlateStore(new ClientPalette(BuiltInRegistries.BLOCK), GENEROUS_BUDGET);
         PlateSectionBox sections = new PlateSectionBox(0, 4, 0, 1, 1, 1);
         BlockBox cells = new BlockBox(0, 64, 0, 16, 16, 16);
-        ClientViewMessage.PlateBegin begin = new ClientViewMessage.PlateBegin(7, 1, sections, cells, 3, 1, null);
-        begin = (ClientViewMessage.PlateBegin) ClientViewCodec.decodeS2C(
-            ClientViewCodec.encodeS2C(begin, 1, 0), ViewStreamCapability.ALL).message();
+        ViewStreamMessage.PlateBegin begin = new ViewStreamMessage.PlateBegin(7, 1, sections, cells, 3, 1, null);
+        begin = (ViewStreamMessage.PlateBegin) ClientViewExtensions.CODEC.decodeS2C(
+            ClientViewExtensions.CODEC.encodeS2C(begin, 1, 0), ViewStreamCapability.ALL).message();
         assertNull(store.begin(begin));
         assertTrue(store.pending(7));
-        assertEquals(1, store.bricks(new ClientViewMessage.PlateBricks(7, 1, List.of(brick(0, 3, 5)))));
-        ClientPlate plate = store.end(new ClientViewMessage.PlateEnd(7, 1));
+        assertEquals(1, store.bricks(new ViewStreamMessage.PlateBricks(7, 1, List.of(brick(0, 3, 5)))));
+        ClientPlate plate = store.end(new ViewStreamMessage.PlateEnd(7, 1));
         assertNotNull(plate);
         assertFalse(store.pending(7));
         assertEquals(plate, store.plate(7));
@@ -59,10 +59,10 @@ public class ClientPlateStoreTest extends MinecraftTestBase {
     @Test
     public void staleBricksAndEndsAreIgnored() throws ViewStreamProtocolException {
         ClientPlateStore store = new ClientPlateStore(new ClientPalette(BuiltInRegistries.BLOCK), GENEROUS_BUDGET);
-        store.begin(new ClientViewMessage.PlateBegin(7, 2, new PlateSectionBox(0, 0, 0, 1, 1, 1), new BlockBox(0, 0, 0, 16, 16, 16), 3, 1, null));
-        assertEquals(0, store.bricks(new ClientViewMessage.PlateBricks(7, 1, List.of(brick(0, 3, 3)))));
-        assertNull(store.end(new ClientViewMessage.PlateEnd(7, 1)));
-        assertNull(store.end(new ClientViewMessage.PlateEnd(8, 2)));
+        store.begin(new ViewStreamMessage.PlateBegin(7, 2, new PlateSectionBox(0, 0, 0, 1, 1, 1), new BlockBox(0, 0, 0, 16, 16, 16), 3, 1, null));
+        assertEquals(0, store.bricks(new ViewStreamMessage.PlateBricks(7, 1, List.of(brick(0, 3, 3)))));
+        assertNull(store.end(new ViewStreamMessage.PlateEnd(7, 1)));
+        assertNull(store.end(new ViewStreamMessage.PlateEnd(8, 2)));
         assertEquals(3, store.staleMessages());
         assertTrue(store.pending(7));
     }
@@ -73,19 +73,19 @@ public class ClientPlateStoreTest extends MinecraftTestBase {
         PlateSectionBox sections = new PlateSectionBox(0, 0, 0, 2, 1, 1);
         BlockBox cells = new BlockBox(0, 0, 0, 32, 16, 16);
         long[] hashes = {0x1111L, 0x2222L};
-        ClientViewMessage.BrickMiss.Plate first = store.begin(new ClientViewMessage.PlateBegin(1, 1, sections, cells, 3, 2, hashes));
+        ViewStreamMessage.BrickMiss.Plate first = store.begin(new ViewStreamMessage.PlateBegin(1, 1, sections, cells, 3, 2, hashes));
         assertNotNull(first);
         assertTrue(first.missed(0));
         assertTrue(first.missed(1));
-        store.bricks(new ClientViewMessage.PlateBricks(1, 1, List.of(brick(0, 3, 4), brick(1, 5, 6))));
-        assertNotNull(store.end(new ClientViewMessage.PlateEnd(1, 1)));
+        store.bricks(new ViewStreamMessage.PlateBricks(1, 1, List.of(brick(0, 3, 4), brick(1, 5, 6))));
+        assertNotNull(store.end(new ViewStreamMessage.PlateEnd(1, 1)));
         assertEquals(2, store.cachedBricks());
-        ClientViewMessage.BrickMiss.Plate second = store.begin(new ClientViewMessage.PlateBegin(2, 9, sections, cells, 3, 2, new long[] {0x2222L, 0x9999L}));
+        ViewStreamMessage.BrickMiss.Plate second = store.begin(new ViewStreamMessage.PlateBegin(2, 9, sections, cells, 3, 2, new long[] {0x2222L, 0x9999L}));
         assertNotNull(second);
         assertFalse(second.missed(0));
         assertTrue(second.missed(1));
-        store.bricks(new ClientViewMessage.PlateBricks(2, 9, List.of(brick(1, 7, 8))));
-        ClientPlate second9 = store.end(new ClientViewMessage.PlateEnd(2, 9));
+        store.bricks(new ViewStreamMessage.PlateBricks(2, 9, List.of(brick(1, 7, 8))));
+        ClientPlate second9 = store.end(new ViewStreamMessage.PlateEnd(2, 9));
         assertNotNull(second9);
         assertEquals(5, second9.paletteIdAt(0, 0, 0));
         assertEquals(6, second9.paletteIdAt(1, 0, 0));
@@ -99,13 +99,13 @@ public class ClientPlateStoreTest extends MinecraftTestBase {
         ClientPlateStore store = new ClientPlateStore(new ClientPalette(BuiltInRegistries.BLOCK), GENEROUS_BUDGET);
         PlateSectionBox sections = new PlateSectionBox(0, 0, 0, 2, 1, 1);
         BlockBox cells = new BlockBox(0, 0, 0, 32, 16, 16);
-        store.begin(new ClientViewMessage.PlateBegin(3, 1, sections, cells, 3, 2, null));
-        store.bricks(new ClientViewMessage.PlateBricks(3, 1, List.of(brick(0, 3, 3), brick(1, 4, 4))));
-        assertNotNull(store.end(new ClientViewMessage.PlateEnd(3, 1)));
+        store.begin(new ViewStreamMessage.PlateBegin(3, 1, sections, cells, 3, 2, null));
+        store.bricks(new ViewStreamMessage.PlateBricks(3, 1, List.of(brick(0, 3, 3), brick(1, 4, 4))));
+        assertNotNull(store.end(new ViewStreamMessage.PlateEnd(3, 1)));
         IntArrayList touched = new IntArrayList();
-        ClientViewMessage.PlatePatch patch = new ClientViewMessage.PlatePatch(3, 1, 2, List.of(
-            new ClientViewMessage.SparseOp(0, new int[] {ViewStreamLimits.brickCellIndex(2, 3, 4)}, new int[] {9}),
-            new ClientViewMessage.ClearOp(1)));
+        ViewStreamMessage.PlatePatch patch = new ViewStreamMessage.PlatePatch(3, 1, 2, List.of(
+            new ViewStreamMessage.SparseOp(0, new int[] {ViewStreamLimits.brickCellIndex(2, 3, 4)}, new int[] {9}),
+            new ViewStreamMessage.ClearOp(1)));
         ClientPlate patched = store.patch(patch, touched);
         assertNotNull(patched);
         assertEquals(2, patched.revision());
@@ -113,8 +113,8 @@ public class ClientPlateStoreTest extends MinecraftTestBase {
         assertEquals(3, patched.paletteIdAt(0, 0, 0));
         assertEquals(ViewStreamLimits.PALETTE_AIR, patched.paletteIdAt(16, 0, 0));
         assertEquals(List.of(0, 1), touched);
-        assertNull(store.patch(new ClientViewMessage.PlatePatch(3, 1, 3, List.of(new ClientViewMessage.ClearOp(0))), new IntArrayList()));
-        ClientPlate full = store.patch(new ClientViewMessage.PlatePatch(3, 2, 3, List.of(new ClientViewMessage.FullOp(brick(1, 6, 6)))), new IntArrayList());
+        assertNull(store.patch(new ViewStreamMessage.PlatePatch(3, 1, 3, List.of(new ViewStreamMessage.ClearOp(0))), new IntArrayList()));
+        ClientPlate full = store.patch(new ViewStreamMessage.PlatePatch(3, 2, 3, List.of(new ViewStreamMessage.FullOp(brick(1, 6, 6)))), new IntArrayList());
         assertNotNull(full);
         assertEquals(6, full.paletteIdAt(17, 0, 0));
         assertEquals(3, store.plate(3).revision());
@@ -126,26 +126,26 @@ public class ClientPlateStoreTest extends MinecraftTestBase {
         ClientPlateStore store = new ClientPlateStore(new ClientPalette(BuiltInRegistries.BLOCK), budget);
         PlateSectionBox big = new PlateSectionBox(0, 0, 0, 4, 4, 4);
         BlockBox bigCells = new BlockBox(0, 0, 0, 64, 64, 64);
-        store.begin(new ClientViewMessage.PlateBegin(1, 1, big, bigCells, 3, 64, null));
+        store.begin(new ViewStreamMessage.PlateBegin(1, 1, big, bigCells, 3, 64, null));
         Brick[] noisy = new Brick[64];
         for (int index = 0; index < noisy.length; index++) {
             noisy[index] = noisyBrick(index);
         }
-        store.bricks(new ClientViewMessage.PlateBricks(1, 1, List.of(noisy)));
-        assertNull(store.end(new ClientViewMessage.PlateEnd(1, 1)));
+        store.bricks(new ViewStreamMessage.PlateBricks(1, 1, List.of(noisy)));
+        assertNull(store.end(new ViewStreamMessage.PlateEnd(1, 1)));
         assertEquals(1, store.refusedPlates());
         assertEquals(0, store.size());
         assertTrue(store.bytes() <= budget);
         PlateSectionBox small = new PlateSectionBox(0, 0, 0, 1, 1, 1);
-        store.begin(new ClientViewMessage.PlateBegin(2, 1, small, new BlockBox(0, 0, 0, 16, 16, 16), 3, 1, new long[] {42L}));
-        store.bricks(new ClientViewMessage.PlateBricks(2, 1, List.of(noisyBrick(0))));
-        assertNotNull(store.end(new ClientViewMessage.PlateEnd(2, 1)));
+        store.begin(new ViewStreamMessage.PlateBegin(2, 1, small, new BlockBox(0, 0, 0, 16, 16, 16), 3, 1, new long[] {42L}));
+        store.bricks(new ViewStreamMessage.PlateBricks(2, 1, List.of(noisyBrick(0))));
+        assertNotNull(store.end(new ViewStreamMessage.PlateEnd(2, 1)));
         assertTrue(store.bytes() <= budget);
         for (int round = 0; round < 40; round++) {
             long hash = 1000L + round;
-            store.begin(new ClientViewMessage.PlateBegin(2, 2 + round, small, new BlockBox(0, 0, 0, 16, 16, 16), 3, 1, new long[] {hash}));
-            store.bricks(new ClientViewMessage.PlateBricks(2, 2 + round, List.of(noisyBrick(0, round))));
-            assertNotNull(store.end(new ClientViewMessage.PlateEnd(2, 2 + round)));
+            store.begin(new ViewStreamMessage.PlateBegin(2, 2 + round, small, new BlockBox(0, 0, 0, 16, 16, 16), 3, 1, new long[] {hash}));
+            store.bricks(new ViewStreamMessage.PlateBricks(2, 2 + round, List.of(noisyBrick(0, round))));
+            assertNotNull(store.end(new ViewStreamMessage.PlateEnd(2, 2 + round)));
             assertTrue("round " + round + " bytes " + store.bytes(), store.bytes() <= budget);
         }
         assertTrue(store.cachedBricks() > 0);
@@ -159,10 +159,10 @@ public class ClientPlateStoreTest extends MinecraftTestBase {
         ClientPlateStore store = new ClientPlateStore(new ClientPalette(BuiltInRegistries.BLOCK), 1024L * 1024L);
         PlateSectionBox sections = new PlateSectionBox(0, 0, 0, 16, 16, 16);
         BlockBox cells = new BlockBox(0, 0, 0, 256, 256, 256);
-        store.begin(new ClientViewMessage.PlateBegin(4, 2, sections, cells, 3, sections.brickCount(), null));
-        assertNull(store.end(new ClientViewMessage.PlateEnd(4, 2)));
+        store.begin(new ViewStreamMessage.PlateBegin(4, 2, sections, cells, 3, sections.brickCount(), null));
+        assertNull(store.end(new ViewStreamMessage.PlateEnd(4, 2)));
         assertEquals(1, store.refusedPlates());
-        assertEquals(new ClientViewMessage.PlateRefused(4, 2), store.takeRefusal());
+        assertEquals(new ViewStreamMessage.PlateRefused(4, 2), store.takeRefusal());
         assertNull(store.takeRefusal());
         assertTrue(store.bytes() <= store.budgetBytes());
     }
@@ -173,11 +173,11 @@ public class ClientPlateStoreTest extends MinecraftTestBase {
         BlockBox cells = new BlockBox(0, 0, 0, 300, 200, 300);
         PlateSectionBox sections = PlateSectionBox.snap(cells);
         long[] hashes = new long[sections.brickCount()];
-        assertNull(store.begin(new ClientViewMessage.PlateBegin(5, 1, sections, cells, 3, sections.brickCount(), hashes)));
+        assertNull(store.begin(new ViewStreamMessage.PlateBegin(5, 1, sections, cells, 3, sections.brickCount(), hashes)));
         assertFalse(store.pending(5));
-        assertEquals(new ClientViewMessage.PlateRefused(5, 1), store.takeRefusal());
-        assertEquals(0, store.bricks(new ClientViewMessage.PlateBricks(5, 1, List.of(brick(0, 3, 3)))));
-        assertNull(store.end(new ClientViewMessage.PlateEnd(5, 1)));
+        assertEquals(new ViewStreamMessage.PlateRefused(5, 1), store.takeRefusal());
+        assertEquals(0, store.bricks(new ViewStreamMessage.PlateBricks(5, 1, List.of(brick(0, 3, 3)))));
+        assertNull(store.end(new ViewStreamMessage.PlateEnd(5, 1)));
         assertEquals(1, store.refusedPlates());
     }
 
@@ -186,40 +186,40 @@ public class ClientPlateStoreTest extends MinecraftTestBase {
         long budget = 256L * 1024L;
         ClientPlateStore store = new ClientPlateStore(new ClientPalette(BuiltInRegistries.BLOCK), budget);
         PlateSectionBox big = new PlateSectionBox(0, 0, 0, 4, 4, 4);
-        store.begin(new ClientViewMessage.PlateBegin(1, 1, big, new BlockBox(0, 0, 0, 64, 64, 64), 3, 64, null));
+        store.begin(new ViewStreamMessage.PlateBegin(1, 1, big, new BlockBox(0, 0, 0, 64, 64, 64), 3, 64, null));
         int accepted = 0;
         for (int index = 0; index < 64 && store.pending(1); index++) {
-            accepted += store.bricks(new ClientViewMessage.PlateBricks(1, 1, List.of(noisyBrick(index))));
+            accepted += store.bricks(new ViewStreamMessage.PlateBricks(1, 1, List.of(noisyBrick(index))));
             assertTrue("brick " + index + " bytes " + store.bytes(), store.bytes() <= budget);
         }
         assertFalse(store.pending(1));
         assertTrue("accepted " + accepted, accepted > 0 && accepted < 64);
-        assertEquals(new ClientViewMessage.PlateRefused(1, 1), store.takeRefusal());
-        assertEquals(0, store.bricks(new ClientViewMessage.PlateBricks(1, 1, List.of(noisyBrick(63)))));
-        assertNull(store.end(new ClientViewMessage.PlateEnd(1, 1)));
+        assertEquals(new ViewStreamMessage.PlateRefused(1, 1), store.takeRefusal());
+        assertEquals(0, store.bricks(new ViewStreamMessage.PlateBricks(1, 1, List.of(noisyBrick(63)))));
+        assertNull(store.end(new ViewStreamMessage.PlateEnd(1, 1)));
         assertEquals(1, store.refusedPlates());
         assertEquals(0L, store.bytes());
     }
 
     @Test
     public void goldenPlateVectorsDecodeIntoTheStore() throws IOException, ViewStreamProtocolException {
-        ClientViewMessage.PlateBegin goldenBegin = (ClientViewMessage.PlateBegin) golden("plate_begin_plain");
-        ClientViewMessage.PlateBricks goldenBricks = (ClientViewMessage.PlateBricks) golden("plate_bricks");
-        ClientViewMessage.PlateEnd goldenEnd = (ClientViewMessage.PlateEnd) golden("plate_end");
-        ClientViewMessage.PlateBegin hashed = (ClientViewMessage.PlateBegin) golden("plate_begin_hashes");
+        ViewStreamMessage.PlateBegin goldenBegin = (ViewStreamMessage.PlateBegin) golden("plate_begin_plain");
+        ViewStreamMessage.PlateBricks goldenBricks = (ViewStreamMessage.PlateBricks) golden("plate_bricks");
+        ViewStreamMessage.PlateEnd goldenEnd = (ViewStreamMessage.PlateEnd) golden("plate_end");
+        ViewStreamMessage.PlateBegin hashed = (ViewStreamMessage.PlateBegin) golden("plate_begin_hashes");
         assertTrue(hashed.hasHashes());
         assertFalse(goldenBegin.hasHashes());
         assertEquals(goldenBegin.sections().brickCount(), goldenBegin.brickCount());
         int portalKey = goldenBricks.portalKey();
         int revision = goldenBricks.plateRevision();
-        ClientViewMessage.PlateBegin begin = new ClientViewMessage.PlateBegin(portalKey, revision, goldenBegin.sections(), goldenBegin.cells(),
+        ViewStreamMessage.PlateBegin begin = new ViewStreamMessage.PlateBegin(portalKey, revision, goldenBegin.sections(), goldenBegin.cells(),
             goldenBegin.backingState(), goldenBegin.brickCount(), null);
         ClientPlateStore store = new ClientPlateStore(new ClientPalette(BuiltInRegistries.BLOCK), GENEROUS_BUDGET);
         assertNull(store.begin(begin));
         assertEquals(goldenBricks.bricks().size(), store.bricks(goldenBricks));
-        ClientViewMessage.PlateEnd end = goldenEnd.portalKey() == portalKey && goldenEnd.plateRevision() == revision
+        ViewStreamMessage.PlateEnd end = goldenEnd.portalKey() == portalKey && goldenEnd.plateRevision() == revision
             ? goldenEnd
-            : new ClientViewMessage.PlateEnd(portalKey, revision);
+            : new ViewStreamMessage.PlateEnd(portalKey, revision);
         ClientPlate plate = store.end(end);
         assertNotNull(plate);
         PlateSectionBox sections = plate.sections();
@@ -246,7 +246,7 @@ public class ClientPlateStoreTest extends MinecraftTestBase {
     }
 
     private static Path goldens() {
-        Path relative = Path.of("core", "src", "test", "resources", "clientview");
+        Path relative = Path.of("optics", "src", "test", "resources", "art", "arcane", "optics", "stream", "goldens");
         Path cursor = Path.of("").toAbsolutePath();
         for (int depth = 0; depth < 8 && cursor != null; depth++) {
             Path candidate = cursor.resolve(relative);
@@ -258,7 +258,7 @@ public class ClientPlateStoreTest extends MinecraftTestBase {
         throw new IllegalStateException("ClientView golden vectors not found above " + Path.of("").toAbsolutePath());
     }
 
-    private static ClientViewMessage golden(String name) throws IOException, ViewStreamProtocolException {
+    private static ViewStreamMessage golden(String name) throws IOException, ViewStreamProtocolException {
         long caps = ViewStreamCapability.ALL;
         for (String line : Files.readAllLines(GOLDENS.resolve("vectors.txt"), StandardCharsets.UTF_8)) {
             String[] parts = line.trim().split("\\s+");
@@ -267,7 +267,7 @@ public class ClientPlateStoreTest extends MinecraftTestBase {
             }
         }
         String hex = Files.readString(GOLDENS.resolve(name + ".hex"), StandardCharsets.UTF_8).trim();
-        return ClientViewCodec.decodeS2C(HexFormat.of().parseHex(hex), caps).message();
+        return ClientViewExtensions.CODEC.decodeS2C(HexFormat.of().parseHex(hex), caps).message();
     }
 
     private static Brick brick(int brickIndex, int fillId, int firstCellId) {

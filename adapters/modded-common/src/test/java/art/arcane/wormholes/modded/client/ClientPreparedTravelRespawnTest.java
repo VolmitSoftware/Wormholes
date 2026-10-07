@@ -6,7 +6,6 @@ import art.arcane.wormholes.modded.client.render.PortalIrisMainPipelines;
 import art.arcane.wormholes.modded.mixin.client.PreparedTravelPacketMixin;
 import art.arcane.wormholes.modded.mixin.client.PreparedLevelAccess;
 import art.arcane.wormholes.modded.mixin.client.PreparedPacketAccess;
-import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import net.minecraft.client.renderer.extract.LevelExtractor;
 import org.mockito.ArgumentCaptor;
@@ -50,6 +49,7 @@ import static net.minecraft.world.level.chunk.status.ChunkStatus.FULL;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
+import art.arcane.wormholes.network.client.TravelMessage;
 
 public class ClientPreparedTravelRespawnTest extends MinecraftTestBase {
     @Test
@@ -251,7 +251,7 @@ public class ClientPreparedTravelRespawnTest extends MinecraftTestBase {
     private static ClientPreparedTravel fallback(ClientLevel level, ClientPacketListener connection) throws ReflectiveOperationException {
         Class<?> retainedType = Class.forName(ClientPreparedTravel.class.getName() + "$RetainedWorld");
         Constructor<?> retained = retainedType.getDeclaredConstructor(ClientLevel.class, ClientPacketListener.class, Object.class,
-            ClientViewMessage.TravelWorld.class, long.class, Map.class, ApertureDescriptor.class);
+            TravelMessage.TravelWorld.class, long.class, Map.class, ApertureDescriptor.class);
         retained.setAccessible(true);
         Object provenance = retained.newInstance(level, connection, RegistryAccess.EMPTY, null, System.currentTimeMillis() + 60_000, Map.of(), null);
         Class<?> arrivalType = Class.forName(ClientPreparedTravel.class.getName() + "$AuthoritativeArrival");

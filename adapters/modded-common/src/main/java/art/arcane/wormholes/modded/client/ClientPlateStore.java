@@ -2,10 +2,10 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.BrickCodec;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.ViewStreamProtocolException;
-import art.arcane.wormholes.network.client.PlateHandoff;
+import art.arcane.optics.stream.PlateHandoff;
 import art.arcane.optics.client.ClientSweep;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -30,7 +30,7 @@ public final class ClientPlateStore {
     private int cacheHits;
     private int cacheMisses;
     private int staleMessages;
-    private ClientViewMessage.PlateRefused refusal;
+    private ViewStreamMessage.PlateRefused refusal;
 
     public ClientPlateStore(ClientPalette palette, long budgetBytes) {
         this.palette = Objects.requireNonNull(palette, "palette");
@@ -44,7 +44,7 @@ public final class ClientPlateStore {
         otherMemory = Objects.requireNonNull(usage);
     }
 
-    public ClientViewMessage.BrickMiss.Plate begin(ClientViewMessage.PlateBegin begin) throws ViewStreamProtocolException {
+    public ViewStreamMessage.BrickMiss.Plate begin(ViewStreamMessage.PlateBegin begin) throws ViewStreamProtocolException {
         if (begin.brickCount() != begin.sections().brickCount()) {
             throw new ViewStreamProtocolException("plate begin of " + begin.brickCount() + " bricks for " + begin.sections().brickCount() + " sections");
         }
@@ -72,11 +72,11 @@ public final class ClientPlateStore {
             plate.received[index] = true;
             cacheHits++;
         }
-        return new ClientViewMessage.BrickMiss.Plate(begin.portalKey(), begin.plateRevision(),
-            ClientViewMessage.BrickMiss.Plate.bitsetFor(hashes.length, missed));
+        return new ViewStreamMessage.BrickMiss.Plate(begin.portalKey(), begin.plateRevision(),
+            ViewStreamMessage.BrickMiss.Plate.bitsetFor(hashes.length, missed));
     }
 
-    public int bricks(ClientViewMessage.PlateBricks message) throws ViewStreamProtocolException {
+    public int bricks(ViewStreamMessage.PlateBricks message) throws ViewStreamProtocolException {
         PendingPlate plate = pending.get(message.portalKey());
         if (plate == null || plate.revision != message.plateRevision()) {
             staleMessages++;
@@ -102,7 +102,7 @@ public final class ClientPlateStore {
         return bricks.size();
     }
 
-    public ClientPlate end(ClientViewMessage.PlateEnd message) {
+    public ClientPlate end(ViewStreamMessage.PlateEnd message) {
         PendingPlate plate = pending.get(message.portalKey());
         if (plate == null || plate.revision != message.plateRevision()) {
             staleMessages++;
@@ -120,24 +120,24 @@ public final class ClientPlateStore {
         return built;
     }
 
-    public ClientPlate patch(ClientViewMessage.PlatePatch message, IntArrayList touchedBricks) throws ViewStreamProtocolException {
+    public ClientPlate patch(ViewStreamMessage.PlatePatch message, IntArrayList touchedBricks) throws ViewStreamProtocolException {
         ClientPlate current = plates.get(message.portalKey());
         if (current == null || current.zeroCopy() || current.revision() != message.fromRevision()) {
             staleMessages++;
             return null;
         }
         Brick[] bricks = current.bricksCopy();
-        List<ClientViewMessage.PatchOp> ops = message.ops();
+        List<ViewStreamMessage.PatchOp> ops = message.ops();
         for (int index = 0; index < ops.size(); index++) {
-            ClientViewMessage.PatchOp op = ops.get(index);
+            ViewStreamMessage.PatchOp op = ops.get(index);
             int brickIndex = op.brickIndex();
             if (brickIndex < 0 || brickIndex >= bricks.length) {
                 throw new ViewStreamProtocolException("patch brick " + brickIndex + " outside a plate of " + bricks.length);
             }
             switch (op) {
-                case ClientViewMessage.FullOp full -> bricks[brickIndex] = full.brick().isEmpty() ? null : full.brick();
-                case ClientViewMessage.SparseOp sparse -> bricks[brickIndex] = sparse(bricks[brickIndex], brickIndex, sparse);
-                case ClientViewMessage.ClearOp clear -> bricks[brickIndex] = null;
+                case ViewStreamMessage.FullOp full -> bricks[brickIndex] = full.brick().isEmpty() ? null : full.brick();
+                case ViewStreamMessage.SparseOp sparse -> bricks[brickIndex] = sparse(bricks[brickIndex], brickIndex, sparse);
+                case ViewStreamMessage.ClearOp clear -> bricks[brickIndex] = null;
             }
             touchedBricks.add(brickIndex);
         }
@@ -146,7 +146,7 @@ public final class ClientPlateStore {
         return commit(built) ? built : null;
     }
 
-    public ClientPlate handle(ClientViewMessage.PlateHandle message, PlateHandoff<BlockState> handoff) {
+    public ClientPlate handle(ViewStreamMessage.PlateHandle message, PlateHandoff<BlockState> handoff) {
         if (handoff == null || handoff.portalKey() != message.portalKey() || handoff.plateRevision() != message.plateRevision()) {
             staleMessages++;
             return null;
@@ -193,8 +193,8 @@ public final class ClientPlateStore {
         refusal = null;
     }
 
-    public ClientViewMessage.PlateRefused takeRefusal() {
-        ClientViewMessage.PlateRefused taken = refusal;
+    public ViewStreamMessage.PlateRefused takeRefusal() {
+        ViewStreamMessage.PlateRefused taken = refusal;
         refusal = null;
         return taken;
     }
@@ -268,7 +268,7 @@ public final class ClientPlateStore {
 
     private void refuse(int portalKey, int revision) {
         refusedPlates++;
-        refusal = new ClientViewMessage.PlateRefused(portalKey, revision);
+        refusal = new ViewStreamMessage.PlateRefused(portalKey, revision);
     }
 
     private boolean commit(ClientPlate built) {
@@ -318,7 +318,7 @@ public final class ClientPlateStore {
         }
     }
 
-    private static Brick sparse(Brick current, int brickIndex, ClientViewMessage.SparseOp op) throws ViewStreamProtocolException {
+    private static Brick sparse(Brick current, int brickIndex, ViewStreamMessage.SparseOp op) throws ViewStreamProtocolException {
         int[] cells = current == null ? new int[ViewStreamLimits.BRICK_CELLS] : BrickCodec.unpack(current);
         int[] cellIndices = op.cellIndices();
         int[] paletteIds = op.paletteIds();
@@ -340,14 +340,14 @@ public final class ClientPlateStore {
     }
 
     private static final class PendingPlate {
-        private final ClientViewMessage.PlateBegin begin;
+        private final ViewStreamMessage.PlateBegin begin;
         private final int portalKey;
         private final int revision;
         private final Brick[] bricks;
         private final boolean[] received;
         private long bytes;
 
-        private PendingPlate(ClientViewMessage.PlateBegin begin) {
+        private PendingPlate(ViewStreamMessage.PlateBegin begin) {
             this.begin = begin;
             this.portalKey = begin.portalKey();
             this.revision = begin.plateRevision();

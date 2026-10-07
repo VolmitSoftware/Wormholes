@@ -3,7 +3,7 @@ package art.arcane.wormholes.modded;
 import art.arcane.wormholes.chunk.presend.ChunkPreSendOptions;
 import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.config.toml.MainConfig;
-import art.arcane.wormholes.render.client.session.ClientViewOptions;
+import art.arcane.optics.stream.ViewStreamOptions;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -45,7 +45,7 @@ public final class WormholesModConfiguration implements AutoCloseable {
         return current.preSendOptions();
     }
 
-    public ClientViewOptions clientViewOptions() {
+    public ViewStreamOptions clientViewOptions() {
         return current.clientViewOptions();
     }
 
@@ -186,12 +186,12 @@ public final class WormholesModConfiguration implements AutoCloseable {
         }
     }
 
-    private record Snapshot(WormholesSettings settings, ChunkPreSendOptions preSendOptions, ClientViewOptions clientViewOptions) {
+    private record Snapshot(WormholesSettings settings, ChunkPreSendOptions preSendOptions, ViewStreamOptions clientViewOptions) {
         private static Snapshot from(WormholesSettings settings) {
             MainConfig main = settings.getMain();
             return new Snapshot(settings, ChunkPreSendOptions.of(main.chunkPreSendEnabled,
                 main.chunkPreSendRadiusChunks, main.chunkPreSendMaxChunks, main.chunkPreSendBudgetMicros),
-                ClientViewOptions.from(settings.getClientView(), settings.getProjection().interestGraceTicks));
+                settings.getClientView().options(settings.getProjection().interestGraceTicks));
         }
     }
 }

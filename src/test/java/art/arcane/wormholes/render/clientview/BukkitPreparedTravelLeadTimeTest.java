@@ -3,10 +3,8 @@ package art.arcane.wormholes.render.clientview;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.render.ClientViewPortalSource;
-import art.arcane.wormholes.render.client.session.ClientViewServerSession;
 import org.bukkit.Location;
 import org.bukkit.World;
-import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.Test;
 
@@ -18,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import art.arcane.wormholes.render.client.session.ClientViewTravel;
 
 class BukkitPreparedTravelLeadTimeTest {
     @Test
@@ -29,7 +28,7 @@ class BukkitPreparedTravelLeadTimeTest {
         when(player.getWorld()).thenReturn(sourceWorld);
         when(player.getLocation()).thenReturn(new Location(sourceWorld, 0.5D, 64.0D, 48.5D));
         ClientViewObserver observer = mock(ClientViewObserver.class);
-        ClientViewServerSession<ClientViewObserver, BlockData> session = mock(ClientViewServerSession.class);
+        ClientViewTravel<ClientViewObserver> session = mock(ClientViewTravel.class);
         when(session.player()).thenReturn(observer);
         ILocalPortal portal = mock(ILocalPortal.class);
         ILocalPortal destination = mock(ILocalPortal.class);
@@ -42,7 +41,7 @@ class BukkitPreparedTravelLeadTimeTest {
         when(route.destinationWorld()).thenReturn(destinationWorld);
         when(route.destinationAnchor()).thenReturn(destination);
         when(observer.source(id)).thenReturn(route);
-        Method nearest = BukkitPreparedTravel.class.getDeclaredMethod("nearest", ClientViewServerSession.class, Player.class, List.class);
+        Method nearest = BukkitPreparedTravel.class.getDeclaredMethod("nearest", ClientViewTravel.class, Player.class, List.class);
         nearest.setAccessible(true);
         assertSame(portal, nearest.invoke(null, session, player, List.of(portal)));
         assertNull(nearest.invoke(null, session, player, List.of()));

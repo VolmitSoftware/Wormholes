@@ -8,7 +8,6 @@ import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.math.Vec3d;
-import art.arcane.wormholes.network.client.ClientViewMessage;
 import com.mojang.blaze3d.ProjectionType;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.pipeline.PipelineCache;

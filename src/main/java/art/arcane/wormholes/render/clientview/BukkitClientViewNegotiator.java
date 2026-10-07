@@ -24,12 +24,12 @@ import org.bukkit.plugin.messaging.PluginMessageListener;
 
 import com.github.retrooper.packetevents.protocol.player.User;
 
-import art.arcane.wormholes.network.client.ClientViewHandshake;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamHandshake;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.ViewStreamPhase;
-import art.arcane.wormholes.render.client.session.ClientViewServerSession;
-import art.arcane.wormholes.render.client.session.ClientViewSessionRegistry;
+import art.arcane.optics.stream.ViewStreamSession;
+import art.arcane.optics.stream.ViewStreamSessionRegistry;
 import art.arcane.optics.stream.ViewStreamSessionState;
 
 public final class BukkitClientViewNegotiator implements Listener, PluginMessageListener {
@@ -49,16 +49,16 @@ public final class BukkitClientViewNegotiator implements Listener, PluginMessage
     }
 
     public ViewStreamSessionState configure(UUID playerId, User user) {
-        ClientViewSessionRegistry<ClientViewObserver, BlockData> registry = view.registry();
+        ViewStreamSessionRegistry<ClientViewObserver, BlockData> registry = view.registry();
         if (user == null || !registry.enabled() || !registry.options().configurationHandshake()) {
             return ViewStreamSessionState.VANILLA;
         }
         ClientViewObserver observer = view.observer(playerId, user);
-        if (brand(observer) == ClientViewHandshake.Brand.VANILLA) {
+        if (brand(observer) == ViewStreamHandshake.Brand.VANILLA) {
             return ViewStreamSessionState.VANILLA;
         }
         long started = System.nanoTime();
-        ClientViewServerSession<ClientViewObserver, BlockData> session = registry.open(playerId, observer, 0L);
+        ViewStreamSession<ClientViewObserver, BlockData> session = registry.open(playerId, observer, 0L);
         String brand = observer.brand();
         if (brand != null) {
             session.brand(brand);
@@ -82,7 +82,7 @@ public final class BukkitClientViewNegotiator implements Listener, PluginMessage
     }
 
     public boolean offerPlay(Player player) {
-        ClientViewSessionRegistry<ClientViewObserver, BlockData> registry = view.registry();
+        ViewStreamSessionRegistry<ClientViewObserver, BlockData> registry = view.registry();
         if (!registry.enabled()) {
             return false;
         }
@@ -92,7 +92,7 @@ public final class BukkitClientViewNegotiator implements Listener, PluginMessage
         if (observer.offered() || observer.user() == null) {
             return false;
         }
-        ClientViewServerSession<ClientViewObserver, BlockData> session = registry.session(playerId);
+        ViewStreamSession<ClientViewObserver, BlockData> session = registry.session(playerId);
         if (session == null || session.player() != observer) {
             session = registry.open(playerId, observer, 0L);
         }
@@ -100,7 +100,7 @@ public final class BukkitClientViewNegotiator implements Listener, PluginMessage
     }
 
     public int reoffer(Collection<? extends Player> online) {
-        ClientViewSessionRegistry<ClientViewObserver, BlockData> registry = view.registry();
+        ViewStreamSessionRegistry<ClientViewObserver, BlockData> registry = view.registry();
         if (!registry.enabled()) {
             return 0;
         }
@@ -109,7 +109,7 @@ public final class BukkitClientViewNegotiator implements Listener, PluginMessage
             UUID playerId = player.getUniqueId();
             ClientViewObserver observer = view.observer(playerId, users.apply(player));
             observer.player(player);
-            ClientViewServerSession<ClientViewObserver, BlockData> session = registry.session(playerId);
+            ViewStreamSession<ClientViewObserver, BlockData> session = registry.session(playerId);
             if (observer.user() == null || !capable(player, observer) || (session != null && session.state() != ViewStreamSessionState.VANILLA)) {
                 continue;
             }
@@ -122,7 +122,7 @@ public final class BukkitClientViewNegotiator implements Listener, PluginMessage
 
     void brandArrived(ClientViewObserver observer) {
         Player player = observer.player();
-        if (player == null || observer.offered() || brand(observer) != ClientViewHandshake.Brand.MODDED || !view.registry().enabled()) {
+        if (player == null || observer.offered() || brand(observer) != ViewStreamHandshake.Brand.MODDED || !view.registry().enabled()) {
             return;
         }
         scheduler.later(player, () -> offerPlay(player), 1L);
@@ -133,7 +133,7 @@ public final class BukkitClientViewNegotiator implements Listener, PluginMessage
         Player player = event.getPlayer();
         ClientViewObserver observer = view.observer(player.getUniqueId(), users.apply(player));
         observer.player(player);
-        if (!observer.offered() && brand(observer) == ClientViewHandshake.Brand.MODDED) {
+        if (!observer.offered() && brand(observer) == ViewStreamHandshake.Brand.MODDED) {
             offerPlay(player);
         }
     }
@@ -157,12 +157,12 @@ public final class BukkitClientViewNegotiator implements Listener, PluginMessage
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void on(PlayerChangedWorldEvent event) {
-        reset(event.getPlayer(), ClientViewMessage.ResetReason.DIMENSION);
+        reset(event.getPlayer(), ViewStreamMessage.ResetReason.DIMENSION);
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void on(PlayerRespawnEvent event) {
-        reset(event.getPlayer(), ClientViewMessage.ResetReason.RESPAWN);
+        reset(event.getPlayer(), ViewStreamMessage.ResetReason.RESPAWN);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -173,7 +173,7 @@ public final class BukkitClientViewNegotiator implements Listener, PluginMessage
             return;
         }
         if (from.distanceSquared(to) > TELEPORT_RESET_DISTANCE_SQUARED) {
-            reset(event.getPlayer(), ClientViewMessage.ResetReason.TELEPORT);
+            reset(event.getPlayer(), ViewStreamMessage.ResetReason.TELEPORT);
         }
     }
 
@@ -182,13 +182,13 @@ public final class BukkitClientViewNegotiator implements Listener, PluginMessage
         if (!ClientViewChannel.CHANNEL.equals(channel) || message == null) {
             return;
         }
-        ClientViewServerSession<ClientViewObserver, BlockData> session = view.registry().session(player.getUniqueId());
+        ViewStreamSession<ClientViewObserver, BlockData> session = view.registry().session(player.getUniqueId());
         if (session != null) {
             session.receive(message, 0, message.length);
         }
     }
 
-    private boolean offer(Player player, ClientViewObserver observer, ClientViewServerSession<ClientViewObserver, BlockData> session) {
+    private boolean offer(Player player, ClientViewObserver observer, ViewStreamSession<ClientViewObserver, BlockData> session) {
         String brand = observer.brand();
         if (brand != null) {
             session.brand(brand);
@@ -205,15 +205,15 @@ public final class BukkitClientViewNegotiator implements Listener, PluginMessage
     }
 
     private static boolean capable(Player player, ClientViewObserver observer) {
-        return brand(observer) == ClientViewHandshake.Brand.MODDED || player.getListeningPluginChannels().contains(ClientViewChannel.CHANNEL);
+        return brand(observer) == ViewStreamHandshake.Brand.MODDED || player.getListeningPluginChannels().contains(ClientViewChannel.CHANNEL);
     }
 
-    private static ClientViewHandshake.Brand brand(ClientViewObserver observer) {
-        return ClientViewHandshake.classifyBrand(observer.brand());
+    private static ViewStreamHandshake.Brand brand(ClientViewObserver observer) {
+        return ViewStreamHandshake.classifyBrand(observer.brand());
     }
 
-    private void reset(Player player, ClientViewMessage.ResetReason reason) {
-        ClientViewServerSession<ClientViewObserver, BlockData> session = view.registry().session(player.getUniqueId());
+    private void reset(Player player, ViewStreamMessage.ResetReason reason) {
+        ViewStreamSession<ClientViewObserver, BlockData> session = view.registry().session(player.getUniqueId());
         if (session != null && session.state() == ViewStreamSessionState.CLIENT_VIEW) {
             session.reset(reason);
         }

@@ -5,7 +5,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.EncoderException;
 import art.arcane.wormholes.modded.MinecraftChunkPacketEncoding;
-import art.arcane.optics.stream.ViewStreamLimits;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.protocol.game.ClientboundLevelChunkPacketData;
@@ -44,6 +43,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import art.arcane.wormholes.network.client.TravelMessage;
 
 public class ClientPreparedTravelSerializationTest {
     @BeforeClass
@@ -134,7 +134,7 @@ public class ClientPreparedTravelSerializationTest {
         AtomicReference<ByteBuf> allocated = new AtomicReference<>();
         AtomicInteger initialCapacity = new AtomicInteger();
         try (MockedStatic<Unpooled> buffers = mockStatic(Unpooled.class, CALLS_REAL_METHODS)) {
-            buffers.when(() -> Unpooled.buffer(anyInt(), eq(ViewStreamLimits.MAX_TRAVEL_CHUNK_BYTES)))
+            buffers.when(() -> Unpooled.buffer(anyInt(), eq(TravelMessage.MAX_TRAVEL_CHUNK_BYTES)))
                 .thenAnswer(call -> {
                     ByteBuf buffer = spy((ByteBuf) call.callRealMethod());
                     allocated.set(buffer);
@@ -145,7 +145,7 @@ public class ClientPreparedTravelSerializationTest {
         }
         ByteBuf buffer = allocated.get();
         assertTrue(initialCapacity.get() >= expected.length);
-        assertEquals(ViewStreamLimits.MAX_TRAVEL_CHUNK_BYTES, buffer.maxCapacity());
+        assertEquals(TravelMessage.MAX_TRAVEL_CHUNK_BYTES, buffer.maxCapacity());
         assertEquals(0, buffer.refCnt());
         verify(buffer, never()).capacity(anyInt());
         assertArrayEquals(expected, encode(packet));
@@ -155,7 +155,7 @@ public class ClientPreparedTravelSerializationTest {
 
     @Test
     public void oversizedEncodedPacketStillFailsAtTheTravelChunkLimit() throws ReflectiveOperationException {
-        ClientboundLevelChunkWithLightPacket packet = packet(chunkData(new byte[ViewStreamLimits.MAX_TRAVEL_CHUNK_BYTES]));
+        ClientboundLevelChunkWithLightPacket packet = packet(chunkData(new byte[TravelMessage.MAX_TRAVEL_CHUNK_BYTES]));
         assertThrows(IndexOutOfBoundsException.class, () -> MinecraftChunkPacketEncoding.encode(RegistryAccess.EMPTY, packet));
     }
 

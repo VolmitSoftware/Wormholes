@@ -5,7 +5,7 @@ import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.ProjectionEnvironment;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.SectionBiomes;
@@ -84,7 +84,7 @@ public class ClientLocalMeshSourcesTest extends MinecraftTestBase {
             int populatedKey = history ? 1 : 2;
             fixture.add(populatedKey);
             if (!history) {
-                fixture.session.handle(new ClientViewMessage.MeshSection(populatedKey, 1, 0, 0, 0,
+                fixture.session.handle(new ViewStreamMessage.MeshSection(populatedKey, 1, 0, 0, 0,
                     1, 0, Brick.empty(0), SectionBiomes.NONE), fixture.sink);
             }
             ClientMeshSections.Section populated = fixture.session.meshes().view(populatedKey).section(0L);
@@ -152,16 +152,16 @@ public class ClientLocalMeshSourcesTest extends MinecraftTestBase {
         assertNotNull(preview);
         assertSame(Blocks.STONE.defaultBlockState(), preview.state(0));
         assertEquals(capturedBytes, fixture.sources.bytes());
-        assertFalse(fixture.messages.stream().anyMatch(message -> message instanceof ClientViewMessage.MeshLocal local && local.available()));
+        assertFalse(fixture.messages.stream().anyMatch(message -> message instanceof ViewStreamMessage.MeshLocal local && local.available()));
         fixture.sources.update(fixture.session, destination, 0, 0, 0);
-        ClientViewMessage.MeshCached claim = (ClientViewMessage.MeshCached) fixture.messages.stream()
-            .filter(message -> message instanceof ClientViewMessage.MeshCached).findFirst().orElseThrow();
-        fixture.session.handle(new ClientViewMessage.MeshReuse(2, 1, 0, 0, 0, 1, claim.claims().getFirst().hash()), fixture.sink);
+        ViewStreamMessage.MeshCached claim = (ViewStreamMessage.MeshCached) fixture.messages.stream()
+            .filter(message -> message instanceof ViewStreamMessage.MeshCached).findFirst().orElseThrow();
+        fixture.session.handle(new ViewStreamMessage.MeshReuse(2, 1, 0, 0, 0, 1, claim.claims().getFirst().hash()), fixture.sink);
         assertSame(preview, fixture.session.meshes().view(2).section(0L));
-        verify(fixture.sink).meshAck(new ClientViewMessage.MeshAck(2, 1, 0, 0, 0, 1));
+        verify(fixture.sink).meshAck(new ViewStreamMessage.MeshAck(2, 1, 0, 0, 0, 1));
         fixture.sources.clear();
         fixture.session.clearPortals();
-        fixture.session.accept(new ClientViewMessage.Accept(2, ViewStreamCapability.ALL, 20, ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 8, 8));
+        fixture.session.accept(new ViewStreamMessage.Accept(2, ViewStreamCapability.ALL, 20, ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 8, 8));
         fixture.add(3);
         fixture.sources.update(fixture.session, destination, 0, 0, 0);
         assertEquals(0, fixture.sources.bytes());
@@ -192,7 +192,7 @@ public class ClientLocalMeshSourcesTest extends MinecraftTestBase {
         ProjectionEnvironment.World unvisited = new ProjectionEnvironment.World("test:unvisited_pocket", previous.clockTime(),
             previous.biomeKey(), previous.seaLevel(), previous.blockLight(), previous.skyLight(), previous.logicalHeight(),
             previous.hasCeiling(), previous.ambientLight(), previous.eyeMedium(), previous.hasFixedTime());
-        fixture.session.handle(new ClientViewMessage.Environment(2, new ProjectionEnvironment(original.gameTime(), original.sky(),
+        fixture.session.handle(new ViewStreamMessage.Environment(2, new ProjectionEnvironment(original.gameTime(), original.sky(),
             original.fog(), original.lighting(), original.clouds(), original.transform(), original.dimension(), unvisited)), fixture.sink);
         fixture.messages.clear();
         for (int tick = 0; tick < 20; tick++) {
@@ -200,7 +200,7 @@ public class ClientLocalMeshSourcesTest extends MinecraftTestBase {
         }
         assertEquals(copiedBytes, fixture.sources.bytes());
         assertNull(fixture.session.meshes().view(2).section(0L));
-        assertFalse(fixture.messages.stream().anyMatch(message -> message instanceof ClientViewMessage.MeshCached));
+        assertFalse(fixture.messages.stream().anyMatch(message -> message instanceof ViewStreamMessage.MeshCached));
     }
 
     @Test
@@ -245,7 +245,7 @@ public class ClientLocalMeshSourcesTest extends MinecraftTestBase {
             originalWorld.biomeKey(), originalWorld.seaLevel(), originalWorld.blockLight(), originalWorld.skyLight(),
             originalWorld.logicalHeight(), originalWorld.hasCeiling(), originalWorld.ambientLight(), originalWorld.eyeMedium(),
             originalWorld.hasFixedTime());
-        active.session.handle(new ClientViewMessage.Environment(1, new ProjectionEnvironment(environment.gameTime(),
+        active.session.handle(new ViewStreamMessage.Environment(1, new ProjectionEnvironment(environment.gameTime(),
             environment.sky(), environment.fog(), environment.lighting(), environment.clouds(), environment.transform(),
             environment.dimension(), nether)), active.sink);
         for (int tick = 0; tick < 100 && active.session.meshes().view(1).section(0L) == null; tick++) {
@@ -313,9 +313,9 @@ public class ClientLocalMeshSourcesTest extends MinecraftTestBase {
     public void localFootprintMatchesTheSenderAndReplansAfterCameraMovement() throws Exception {
         Fixture fixture = new Fixture();
         ApertureDescriptor geometry = fixture.session.portal(1).geometry().withDepth(128);
-        fixture.session.handle(new ClientViewMessage.Portal(1, 2, geometry), fixture.sink);
-        fixture.session.handle(new ClientViewMessage.MeshBegin(1, 2, MeshPlan.bounds(geometry), MeshPlan.capacity(geometry)), fixture.sink);
-        fixture.session.handle(new ClientViewMessage.Environment(1, PortalEnvironmentTest.environment(PortalEnvironmentTest.identity())), fixture.sink);
+        fixture.session.handle(new ViewStreamMessage.Portal(1, 2, geometry), fixture.sink);
+        fixture.session.handle(new ViewStreamMessage.MeshBegin(1, 2, MeshPlan.bounds(geometry), MeshPlan.capacity(geometry)), fixture.sink);
+        fixture.session.handle(new ViewStreamMessage.Environment(1, PortalEnvironmentTest.environment(PortalEnvironmentTest.identity())), fixture.sink);
         Vec3d firstEye = new Vec3d(0.5, 0.5, 5);
         fixture.sources.update(fixture.session, fixture.level, firstEye.x(), firstEye.y(), firstEye.z());
         List<Long> first = selection(fixture);
@@ -381,7 +381,7 @@ public class ClientLocalMeshSourcesTest extends MinecraftTestBase {
         Fixture fixture = new Fixture();
         fixture.marker.set(Blocks.DIRT.defaultBlockState());
         OpticTransform transform = OpticTransform.of(AxisPermutation.of(Face.S, Face.U, Face.E), 4, 0, 6);
-        fixture.session.handle(new ClientViewMessage.Environment(1, PortalEnvironmentTest.environment(transform)), fixture.sink);
+        fixture.session.handle(new ViewStreamMessage.Environment(1, PortalEnvironmentTest.environment(transform)), fixture.sink);
         fixture.awaitSection();
         ClientMeshSections.Section original = fixture.session.meshes().view(1).section(0L);
         int displayCell = 1 << 8 | 8 << 4 | 7;
@@ -399,7 +399,7 @@ public class ClientLocalMeshSourcesTest extends MinecraftTestBase {
     @Test
     public void nativePeersWithoutLocalCapabilityStillRenderLocalUpdatesWithoutSendingNewMessages() throws Exception {
         Fixture fixture = new Fixture();
-        fixture.session.accept(new ClientViewMessage.Accept(1, ViewStreamCapability.ALL & ~ViewStreamCapability.LOCAL_MESH.mask(),
+        fixture.session.accept(new ViewStreamMessage.Accept(1, ViewStreamCapability.ALL & ~ViewStreamCapability.LOCAL_MESH.mask(),
             20, ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 7, 8));
         fixture.awaitSection();
         ClientMeshSections.Section original = fixture.session.meshes().view(1).section(0L);
@@ -419,7 +419,7 @@ public class ClientLocalMeshSourcesTest extends MinecraftTestBase {
         ClientMeshSections.Section original = fixture.session.meshes().view(1).section(0L);
         assertSame(Blocks.STONE.defaultBlockState(), original.state(0));
         assertEquals("minecraft:plains", original.biomes().biome(0));
-        assertTrue(fixture.messages.stream().anyMatch(message -> message instanceof ClientViewMessage.MeshLocal local && local.available()));
+        assertTrue(fixture.messages.stream().anyMatch(message -> message instanceof ViewStreamMessage.MeshLocal local && local.available()));
         fixture.state.set(Blocks.DIRT.defaultBlockState());
         fixture.sources.blockChanged(fixture.level, net.minecraft.core.BlockPos.ZERO);
         fixture.update();
@@ -430,7 +430,7 @@ public class ClientLocalMeshSourcesTest extends MinecraftTestBase {
         fixture.sources.chunkChanged(fixture.level, 0, 0);
         fixture.update();
         assertSame(changed, fixture.session.meshes().view(1).section(0L));
-        assertTrue(fixture.messages.stream().anyMatch(message -> message instanceof ClientViewMessage.MeshLocal local && !local.available()));
+        assertTrue(fixture.messages.stream().anyMatch(message -> message instanceof ViewStreamMessage.MeshLocal local && !local.available()));
     }
 
     @Test
@@ -550,7 +550,7 @@ public class ClientLocalMeshSourcesTest extends MinecraftTestBase {
         final AtomicReference<BlockState> state = new AtomicReference<>(Blocks.STONE.defaultBlockState());
         private final AtomicReference<BlockState> marker = new AtomicReference<>();
         private final AtomicReference<Holder<Biome>> biome = new AtomicReference<>();
-        private final List<ClientViewMessage> messages = new ArrayList<>();
+        private final List<ViewStreamMessage> messages = new ArrayList<>();
         final ClientLocalMeshSources sources = new ClientLocalMeshSources(messages::add);
         final ClientViewSession session;
         final ClientViewSession.Sink sink = mock(ClientViewSession.Sink.class);
@@ -559,7 +559,7 @@ public class ClientLocalMeshSourcesTest extends MinecraftTestBase {
             WormholesClientConfig config = new WormholesClientConfig();
             config.normalize();
             session = new ClientViewSession(config, new ClientPalette(BuiltInRegistries.BLOCK), 1, "test");
-            session.accept(new ClientViewMessage.Accept(1, ViewStreamCapability.ALL, 20, ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 7, 8));
+            session.accept(new ViewStreamMessage.Accept(1, ViewStreamCapability.ALL, 20, ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 7, 8));
             when(level.dimension()).thenReturn(Level.OVERWORLD);
             when(level.getMinY()).thenReturn(-64);
             when(level.getMaxY()).thenReturn(320);
@@ -608,9 +608,9 @@ public class ClientLocalMeshSourcesTest extends MinecraftTestBase {
         private void add(int key) throws Exception {
             ApertureDescriptor geometry = new ApertureDescriptor(0, 0, 0, Face.S.ordinal(), true, 0, true, 1, 1,
                 new long[] {1}, 0, 0, 0, 16, 0, 0, 0, 0, 0, 0, 0, 0.0D, 0, key, List.of());
-            session.handle(new ClientViewMessage.Portal(key, 1, geometry), sink);
-            session.handle(new ClientViewMessage.MeshBegin(key, 1, BOUNDS, 1), sink);
-            session.handle(new ClientViewMessage.Environment(key, PortalEnvironmentTest.environment(PortalEnvironmentTest.identity())), sink);
+            session.handle(new ViewStreamMessage.Portal(key, 1, geometry), sink);
+            session.handle(new ViewStreamMessage.MeshBegin(key, 1, BOUNDS, 1), sink);
+            session.handle(new ViewStreamMessage.Environment(key, PortalEnvironmentTest.environment(PortalEnvironmentTest.identity())), sink);
         }
 
         private void update() throws Exception {

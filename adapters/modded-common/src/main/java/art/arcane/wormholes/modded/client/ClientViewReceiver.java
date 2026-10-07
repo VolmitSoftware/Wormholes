@@ -1,8 +1,8 @@
 package art.arcane.wormholes.modded.client;
 
-import art.arcane.wormholes.network.client.ClientViewCodec;
+import art.arcane.optics.stream.ViewStreamCodec;
 import art.arcane.optics.stream.ViewStreamCapability;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamProtocolException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,12 +13,14 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
+import art.arcane.wormholes.network.client.TravelMessage;
+import art.arcane.wormholes.network.client.ClientViewExtensions;
 
 public final class ClientViewReceiver {
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
 
     private final ClientViewSession session;
-    private Consumer<ClientViewMessage> travel = ignored -> { };
+    private Consumer<TravelMessage> travel = ignored -> { };
     private final ConcurrentLinkedQueue<Queued> queue;
     private final AtomicInteger queued;
     private final AtomicLong decodeFailures;
@@ -36,7 +38,7 @@ public final class ClientViewReceiver {
         this.receivedBytes = new AtomicLong();
     }
 
-    public void travel(Consumer<ClientViewMessage> receiver) {
+    public void travel(Consumer<TravelMessage> receiver) {
         travel = Objects.requireNonNull(receiver);
     }
 
@@ -44,29 +46,25 @@ public final class ClientViewReceiver {
         Objects.requireNonNull(payload, "payload");
         received.incrementAndGet();
         receivedBytes.addAndGet(payload.length);
-        ClientViewCodec.S2CFrame frame;
+        ViewStreamCodec.S2CFrame frame;
         try {
-            frame = ClientViewCodec.decodeS2C(payload, session.caps());
+            frame = ClientViewExtensions.CODEC.decodeS2C(payload, session.caps());
         } catch (ViewStreamProtocolException | RuntimeException failure) {
             decodeFailures.incrementAndGet();
             return;
         }
         switch (frame.message()) {
-            case ClientViewMessage.Offer offer -> {
-                ClientViewMessage.Hello hello = session.offer(offer);
-                enqueue(new Queued(new ClientViewCodec.S2CFrame(frame.seq(), 0, offer), payload.length, System.nanoTime()));
+            case ViewStreamMessage.Offer offer -> {
+                ViewStreamMessage.Hello hello = session.offer(offer);
+                enqueue(new Queued(new ViewStreamCodec.S2CFrame(frame.seq(), 0, offer), payload.length, System.nanoTime()));
                 if (hello != null && reply != null && !send(reply, hello)) {
                     session.unanswered();
                 }
             }
-            case ClientViewMessage.Accept accept -> session.accept(accept);
-            case ClientViewMessage.Decline decline -> session.decline(decline);
-            case ClientViewMessage.TravelBegin ignored -> prepared(frame, payload.length);
-            case ClientViewMessage.TravelChunk ignored -> prepared(frame, payload.length);
-            case ClientViewMessage.TravelEnd ignored -> prepared(frame, payload.length);
-            case ClientViewMessage.TravelCommit ignored -> prepared(frame, payload.length);
-            case ClientViewMessage.TravelCancel ignored -> prepared(frame, payload.length);
-            case ClientViewMessage.TravelReuse ignored -> prepared(frame, payload.length);
+            case ViewStreamMessage.Accept accept -> session.accept(accept);
+            case ViewStreamMessage.Decline decline -> session.decline(decline);
+            case ViewStreamMessage.Extension extension when extension.payload() instanceof TravelMessage message ->
+                prepared(frame, message, payload.length);
             default -> enqueue(new Queued(frame, payload.length, System.nanoTime()));
         }
     }
@@ -110,9 +108,9 @@ public final class ClientViewReceiver {
         return replyFailures.get();
     }
 
-    private void prepared(ClientViewCodec.S2CFrame frame, int bytes) {
+    private void prepared(ViewStreamCodec.S2CFrame frame, TravelMessage message, int bytes) {
         if (session.active() && session.has(ViewStreamCapability.PREPARED_TRAVEL)) {
-            travel.accept(frame.message());
+            travel.accept(message);
             enqueue(new Queued(frame, bytes, System.nanoTime()));
         }
     }
@@ -122,17 +120,17 @@ public final class ClientViewReceiver {
         queued.incrementAndGet();
     }
 
-    private boolean send(Consumer<byte[]> reply, ClientViewMessage message) {
+    private boolean send(Consumer<byte[]> reply, ViewStreamMessage message) {
         try {
-            reply.accept(ClientViewCodec.encodeC2S(message));
+            reply.accept(ClientViewExtensions.CODEC.encodeC2S(message));
             return true;
         } catch (ViewStreamProtocolException | RuntimeException failure) {
             replyFailures.incrementAndGet();
-            LOGGER.warn("Wormholes ClientView could not answer the server offer with {}; awaiting connection recovery", message.type(), failure);
+            LOGGER.warn("Wormholes ClientView could not answer the server offer with {}; awaiting connection recovery", ClientViewExtensions.CODEC.name(message), failure);
             return false;
         }
     }
 
-    public record Queued(ClientViewCodec.S2CFrame frame, int bytes, long receivedNanos) {
+    public record Queued(ViewStreamCodec.S2CFrame frame, int bytes, long receivedNanos) {
     }
 }

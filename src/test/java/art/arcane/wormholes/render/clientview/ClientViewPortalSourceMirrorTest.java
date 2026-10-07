@@ -13,7 +13,7 @@ import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.optics.frame.ViewWindow;
-import art.arcane.wormholes.network.client.SessionPalette;
+import art.arcane.optics.stream.SessionPalette;
 import art.arcane.wormholes.render.ClientViewPortalSource;
 
 final class ClientViewPortalSourceMirrorTest {

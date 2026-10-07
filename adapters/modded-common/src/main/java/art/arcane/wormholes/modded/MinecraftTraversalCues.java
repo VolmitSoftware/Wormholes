@@ -2,7 +2,6 @@ package art.arcane.wormholes.modded;
 
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.portal.PortalType;
-import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.render.client.session.ClientViewEmitters;
 import art.arcane.wormholes.transit.TransitionProfile;
 import art.arcane.optics.math.Face;
@@ -21,6 +20,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
+import art.arcane.wormholes.network.client.FxMessage;
 
 public final class MinecraftTraversalCues {
     private MinecraftTraversalCues() { }
@@ -44,7 +44,7 @@ public final class MinecraftTraversalCues {
                     TraversalCues.THRESHOLD_SPREAD, TraversalCues.THRESHOLD_SPREAD, TraversalCues.THRESHOLD_SPREAD,
                     TraversalCues.THRESHOLD_SPEED);
             } else {
-                ClientViewMessage.FxEmitter emitter = ClientViewEmitters.burst(BuiltInRegistries.PARTICLE_TYPE.getKey(particle).toString(),
+                FxMessage.FxEmitter emitter = ClientViewEmitters.burst(BuiltInRegistries.PARTICLE_TYPE.getKey(particle).toString(),
                     point.x(), point.y(), point.z(), TraversalCues.THRESHOLD_PARTICLES, TraversalCues.THRESHOLD_SPREAD,
                     TraversalCues.THRESHOLD_SPREAD, TraversalCues.THRESHOLD_SPEED);
                 for (ServerPlayer receiver : level.players()) {

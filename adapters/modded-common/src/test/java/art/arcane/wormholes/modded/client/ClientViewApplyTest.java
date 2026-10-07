@@ -2,7 +2,7 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.optics.stream.Brick;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.math.CellKeys;
@@ -93,7 +93,7 @@ public class ClientViewApplyTest {
         ClientViewHarness.FakeSurface surface = new ClientViewHarness.FakeSurface();
         ProjectionOverlay overlay = new ProjectionOverlay(new Object());
         ClientPalette palette = new ClientPalette(BuiltInRegistries.BLOCK);
-        palette.apply(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(SIGN_ID, "minecraft:oak_sign"))));
+        palette.apply(new ViewStreamMessage.Palette(List.of(new ViewStreamMessage.PaletteEntry(SIGN_ID, "minecraft:oak_sign"))));
         ClientProjectionApplier applier = new ClientProjectionApplier(surface, overlay, palette);
         BlockEntitySample sample = new BlockEntitySample("minecraft:sign", new byte[] {10, 0, 0, 0});
         ClientPortalContent content = new ClientPortalContent() {
@@ -163,7 +163,7 @@ public class ClientViewApplyTest {
         harness.stream();
         harness.tick(EYE_X, EYE_Y, EYE_Z);
         assertTrue(harness.tick.overlay().size() > 0);
-        harness.receive(new ClientViewMessage.PortalDrop(PORTAL_KEY), ViewStreamLimits.FLAG_LAST);
+        harness.receive(new ViewStreamMessage.PortalDrop(PORTAL_KEY), ViewStreamLimits.FLAG_LAST);
         harness.tick(EYE_X, EYE_Y, EYE_Z);
         assertEquals(0, harness.tick.overlay().size());
         assertEquals(0, harness.surface.changedCells());
@@ -172,7 +172,7 @@ public class ClientViewApplyTest {
         harness.stream();
         harness.tick(EYE_X, EYE_Y, EYE_Z);
         assertTrue(harness.tick.overlay().size() > 0);
-        harness.receive(new ClientViewMessage.SessionReset(ClientViewMessage.ResetReason.DISABLED), ViewStreamLimits.FLAG_LAST);
+        harness.receive(new ViewStreamMessage.SessionReset(ViewStreamMessage.ResetReason.DISABLED), ViewStreamLimits.FLAG_LAST);
         harness.tick(EYE_X, EYE_Y, EYE_Z);
         assertEquals(0, harness.surface.changedCells());
         assertEquals(ClientViewSession.State.VANILLA, harness.session.state());
@@ -212,10 +212,10 @@ public class ClientViewApplyTest {
         harness.stream();
         harness.tick(EYE_X, EYE_Y, EYE_Z);
         int before = harness.tick.overlay().size();
-        harness.receive(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(GOLD_ID, "minecraft:gold_block"))), 0);
-        harness.receive(new ClientViewMessage.PlatePatch(PORTAL_KEY, 1, 2, List.of(new ClientViewMessage.FullOp(ClientViewHarness.brick(0, GOLD_ID)),
-            new ClientViewMessage.FullOp(ClientViewHarness.brick(1, GOLD_ID)), new ClientViewMessage.FullOp(ClientViewHarness.brick(2, GOLD_ID)),
-            new ClientViewMessage.FullOp(ClientViewHarness.brick(3, GOLD_ID)))),
+        harness.receive(new ViewStreamMessage.Palette(List.of(new ViewStreamMessage.PaletteEntry(GOLD_ID, "minecraft:gold_block"))), 0);
+        harness.receive(new ViewStreamMessage.PlatePatch(PORTAL_KEY, 1, 2, List.of(new ViewStreamMessage.FullOp(ClientViewHarness.brick(0, GOLD_ID)),
+            new ViewStreamMessage.FullOp(ClientViewHarness.brick(1, GOLD_ID)), new ViewStreamMessage.FullOp(ClientViewHarness.brick(2, GOLD_ID)),
+            new ViewStreamMessage.FullOp(ClientViewHarness.brick(3, GOLD_ID)))),
             ViewStreamLimits.FLAG_LAST);
         harness.tick(EYE_X, EYE_Y, EYE_Z);
         ClientPortal portal = harness.session.portal(PORTAL_KEY);
@@ -241,9 +241,9 @@ public class ClientViewApplyTest {
         assertEquals(ClientViewHarness.DESTINATION_BLOCK_LIGHT, harness.surface.blockLight(AIR_COLUMN_X, y, REAL_AIR_Z));
         int brick = ClientViewHarness.SECTIONS.index(AIR_COLUMN_X >> 4, y >> 4, REAL_AIR_Z >> 4);
         int cell = ViewStreamLimits.brickCellIndex(AIR_COLUMN_X, y, REAL_AIR_Z);
-        harness.receive(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(GOLD_ID, "minecraft:gold_block"))), 0);
-        harness.receive(new ClientViewMessage.PlatePatch(PORTAL_KEY, 1, 2,
-            List.of(new ClientViewMessage.SparseOp(brick, new int[] {cell}, new int[] {GOLD_ID}))), ViewStreamLimits.FLAG_LAST);
+        harness.receive(new ViewStreamMessage.Palette(List.of(new ViewStreamMessage.PaletteEntry(GOLD_ID, "minecraft:gold_block"))), 0);
+        harness.receive(new ViewStreamMessage.PlatePatch(PORTAL_KEY, 1, 2,
+            List.of(new ViewStreamMessage.SparseOp(brick, new int[] {cell}, new int[] {GOLD_ID}))), ViewStreamLimits.FLAG_LAST);
         harness.tick(EYE_X, EYE_Y, EYE_Z);
         assertSame(GOLD, harness.surface.state(AIR_COLUMN_X, y, REAL_AIR_Z));
         assertEquals(PORTAL_KEY, harness.tick.overlay().get(CellKeys.pack(AIR_COLUMN_X, y, REAL_AIR_Z)).portalKey());
@@ -257,17 +257,17 @@ public class ClientViewApplyTest {
         harness.tick(EYE_X, EYE_Y, EYE_Z);
         int y = (int) Math.floor(EYE_Y);
         assertSame(AIR, harness.surface.state(AIR_COLUMN_X, y, REAL_AIR_Z));
-        harness.receive(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(GOLD_ID, "minecraft:gold_block"))), 0);
+        harness.receive(new ViewStreamMessage.Palette(List.of(new ViewStreamMessage.PaletteEntry(GOLD_ID, "minecraft:gold_block"))), 0);
         List<Brick> bricks = new ArrayList<>();
         long[] hashes = new long[ClientViewHarness.SECTIONS.brickCount()];
         for (int index = 0; index < hashes.length; index++) {
             bricks.add(ClientViewHarness.brick(index, GOLD_ID));
             hashes[index] = 0x6000L + index;
         }
-        harness.receive(new ClientViewMessage.PlateBegin(PORTAL_KEY, 2, ClientViewHarness.SECTIONS, ClientViewHarness.PLATE,
+        harness.receive(new ViewStreamMessage.PlateBegin(PORTAL_KEY, 2, ClientViewHarness.SECTIONS, ClientViewHarness.PLATE,
             ClientViewHarness.STONE_ID, hashes.length, hashes), 0);
-        harness.receive(new ClientViewMessage.PlateBricks(PORTAL_KEY, 2, bricks), 0);
-        harness.receive(new ClientViewMessage.PlateEnd(PORTAL_KEY, 2), ViewStreamLimits.FLAG_LAST);
+        harness.receive(new ViewStreamMessage.PlateBricks(PORTAL_KEY, 2, bricks), 0);
+        harness.receive(new ViewStreamMessage.PlateEnd(PORTAL_KEY, 2), ViewStreamLimits.FLAG_LAST);
         harness.tick(EYE_X, EYE_Y, EYE_Z);
         assertEquals(2, harness.session.portal(PORTAL_KEY).plate().revision());
         assertSame(GOLD, harness.surface.state(AIR_COLUMN_X, y, REAL_AIR_Z));
@@ -283,9 +283,9 @@ public class ClientViewApplyTest {
         int brick = ClientViewHarness.SECTIONS.index(AIR_COLUMN_X >> 4, sectionY, REAL_AIR_Z >> 4);
         assertTrue("the cone must cover other bricks too", cellsOutsideSection(harness.tick.overlay(), AIR_COLUMN_X >> 4, sectionY, REAL_AIR_Z >> 4) > 0);
         long before = harness.tick.applier().appliedCells();
-        harness.receive(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(GOLD_ID, "minecraft:gold_block"))), 0);
-        harness.receive(new ClientViewMessage.PlatePatch(PORTAL_KEY, 1, 2,
-            List.of(new ClientViewMessage.FullOp(ClientViewHarness.brick(brick, GOLD_ID)))), ViewStreamLimits.FLAG_LAST);
+        harness.receive(new ViewStreamMessage.Palette(List.of(new ViewStreamMessage.PaletteEntry(GOLD_ID, "minecraft:gold_block"))), 0);
+        harness.receive(new ViewStreamMessage.PlatePatch(PORTAL_KEY, 1, 2,
+            List.of(new ViewStreamMessage.FullOp(ClientViewHarness.brick(brick, GOLD_ID)))), ViewStreamLimits.FLAG_LAST);
         harness.tick(EYE_X, EYE_Y, EYE_Z);
         ClientPortal portal = harness.session.portal(PORTAL_KEY);
         int coneCells = 0;

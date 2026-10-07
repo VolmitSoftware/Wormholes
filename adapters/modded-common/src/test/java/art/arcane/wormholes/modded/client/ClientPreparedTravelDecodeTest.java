@@ -4,7 +4,6 @@ import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.MinecraftChunkPacketEncoding;
 import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
 import art.arcane.wormholes.modded.client.render.ClientTravelScene;
-import art.arcane.wormholes.network.client.ClientViewMessage;
 import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.client.Minecraft;
@@ -50,6 +49,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import art.arcane.wormholes.network.client.TravelMessage;
 
 public class ClientPreparedTravelDecodeTest extends MinecraftTestBase {
     @Test
@@ -91,8 +91,8 @@ public class ClientPreparedTravelDecodeTest extends MinecraftTestBase {
         Minecraft minecraft = mock(Minecraft.class);
         minecraft.level = level;
         when(minecraft.getConnection()).thenReturn(connection);
-        Map<ClientViewMessage.TravelCoordinate, byte[]> installed = new HashMap<>();
-        installed.put(new ClientViewMessage.TravelCoordinate(0, 0), new byte[]{1});
+        Map<TravelMessage.TravelCoordinate, byte[]> installed = new HashMap<>();
+        installed.put(new TravelMessage.TravelCoordinate(0, 0), new byte[]{1});
         resident(travel, level, connection, installed);
         AtomicBoolean blocksApplied = new AtomicBoolean();
         AtomicBoolean lightApplied = new AtomicBoolean();
@@ -185,7 +185,7 @@ public class ClientPreparedTravelDecodeTest extends MinecraftTestBase {
     }
 
     private static void resident(ClientPreparedTravel travel, ClientLevel level, ClientPacketListener connection,
-                                  Map<ClientViewMessage.TravelCoordinate, byte[]> payloads) throws ReflectiveOperationException {
+                                  Map<TravelMessage.TravelCoordinate, byte[]> payloads) throws ReflectiveOperationException {
         Class<?> type = Class.forName(ClientPreparedTravel.class.getName() + "$ResidentColumns");
         Constructor<?> constructor = type.getDeclaredConstructor(ClientLevel.class, ClientPacketListener.class, Object.class, long.class, Map.class);
         constructor.setAccessible(true);
@@ -223,7 +223,7 @@ public class ClientPreparedTravelDecodeTest extends MinecraftTestBase {
         }).when(engine).runLightUpdates();
         ClientTravelSectionState original = new ClientTravelSectionState(new byte[]{1}, null, new byte[]{0}, Map.of());
         ClientTravelSectionState updated = new ClientTravelSectionState(new byte[]{1}, null, new byte[]{1}, Map.of());
-        Map<ClientViewMessage.TravelCoordinate, Integer> decoded = new HashMap<>();
+        Map<TravelMessage.TravelCoordinate, Integer> decoded = new HashMap<>();
         LongOpenHashSet changed = new LongOpenHashSet();
         Class<?> type = Class.forName(ClientPreparedTravel.class.getName() + "$Column");
         Constructor<?> constructor = type.getDeclaredConstructor(int.class, int.class, int.class, byte[].class);
@@ -239,7 +239,7 @@ public class ClientPreparedTravelDecodeTest extends MinecraftTestBase {
             states.when(() -> ClientTravelSectionState.capture(eq(level), eq(0), anyInt(), eq(0)))
                 .thenAnswer(call -> lightChanged && applied.get() && call.<Integer>getArgument(2) == 1 ? updated : original);
             decode.invoke(null, level, null, decoded, changed, column);
-            assertEquals(Integer.valueOf(7), decoded.get(new ClientViewMessage.TravelCoordinate(0, 0)));
+            assertEquals(Integer.valueOf(7), decoded.get(new TravelMessage.TravelCoordinate(0, 0)));
             verify(level, never()).setSectionRangeDirty(anyInt(), anyInt(), anyInt(), anyInt(), anyInt(), anyInt());
             verify(engine).runLightUpdates();
             sodium.verify(() -> ClientPreparedTravel.SodiumChunks.lightReady(level, 0, 0));

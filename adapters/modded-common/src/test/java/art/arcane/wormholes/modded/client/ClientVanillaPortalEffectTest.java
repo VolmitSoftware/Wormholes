@@ -2,7 +2,7 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.optics.stream.ViewStreamCapability;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.Face;
@@ -44,7 +44,7 @@ public class ClientVanillaPortalEffectTest extends MinecraftTestBase {
         ApertureDescriptor geometry = geometry(ApertureDescriptor.KIND_VANILLA_REPLACEMENT);
         session.portals().put(1, new ClientPortal(1, geometry, 1, 0.0D));
         assertFalse(session.managesVanillaPortal(10, 64, -8));
-        session.accept(new ClientViewMessage.Accept(1, ViewStreamCapability.ALL, ViewStreamLimits.DEFAULT_TICK_RATE,
+        session.accept(new ViewStreamMessage.Accept(1, ViewStreamCapability.ALL, ViewStreamLimits.DEFAULT_TICK_RATE,
             ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 7L, 8));
         assertTrue(session.managesVanillaPortal(10, 64, -8));
         assertFalse(session.managesVanillaPortal(11, 65, -8));

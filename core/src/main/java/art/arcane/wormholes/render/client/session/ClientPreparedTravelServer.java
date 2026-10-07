@@ -2,7 +2,6 @@ package art.arcane.wormholes.render.client.session;
 
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.aperture.ApertureDescriptor;
-import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.wormholes.network.client.ClientTravelHash;
 import art.arcane.optics.view.WorldChangeTracker;
@@ -18,28 +17,29 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Predicate;
+import art.arcane.wormholes.network.client.TravelMessage;
 
 public final class ClientPreparedTravelServer implements WorldChangeTracker.ChangeListener, AutoCloseable {
     private static final int MAX_RETAINED_COLUMNS = 256;
-    private static final int MAX_RETAINED_BYTES = ViewStreamLimits.MAX_TRAVEL_BYTES;
+    private static final int MAX_RETAINED_BYTES = TravelMessage.MAX_TRAVEL_BYTES;
     private static final int MAX_SENT_BARRIERS = 16;
     private static final long PROBE_BUDGET_NANOS = 2_000_000L;
     private static final long PROBE_INTERVAL_MILLIS = 1_000L / ViewStreamLimits.DEFAULT_TICK_RATE;
     private static final long PROBE_TIMEOUT_MILLIS = 1_000L;
     private static final long CROSSING_TIMEOUT_MILLIS = 2_000L;
-    private final HashMap<ClientViewMessage.TravelCoordinate, Column> columns = new HashMap<>();
+    private final HashMap<TravelMessage.TravelCoordinate, Column> columns = new HashMap<>();
     private final LinkedHashMap<SnapshotKey, Payload> retained = new LinkedHashMap<>(16, 0.75F, true);
     private int retainedBytes;
     private final ArrayDeque<Long> emittedBarriers = new ArrayDeque<>(MAX_SENT_BARRIERS);
     private final ArrayDeque<Long> acknowledgedBarriers = new ArrayDeque<>(MAX_SENT_BARRIERS);
-    private final ArrayDeque<Probe> pendingProbes = new ArrayDeque<>(ViewStreamLimits.MAX_TRAVEL_REUSE_PROBES_PER_TICK);
+    private final ArrayDeque<Probe> pendingProbes = new ArrayDeque<>(TravelMessage.MAX_TRAVEL_REUSE_PROBES_PER_TICK);
     private long probeWindowMillis = Long.MIN_VALUE;
     private int probesInWindow;
-    private ClientViewMessage.TravelCross pendingCross;
+    private TravelMessage.TravelCross pendingCross;
     private long crossDeadline;
     private boolean crossClaimed;
     private long automaticDeadline;
-    private ClientViewMessage.TravelBegin begin;
+    private TravelMessage.TravelBegin begin;
     private long deadline;
     private long contentRevision;
     private long sentRevision;
@@ -53,7 +53,7 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
     private UUID destinationWorld;
     private boolean worldInvalidated;
 
-    public synchronized void begin(ClientViewMessage.TravelBegin value, long nowMillis) {
+    public synchronized void begin(TravelMessage.TravelBegin value, long nowMillis) {
         clear();
         begin = Objects.requireNonNull(value);
         deadline = nowMillis + value.expiresMillis();
@@ -64,13 +64,13 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
         reuseSelected = value;
     }
 
-    public synchronized boolean cached(ClientViewMessage.TravelCached value) {
+    public synchronized boolean cached(TravelMessage.TravelCached value) {
         releaseProbe(value);
         if (!reuseSelected || begin == null || worldInvalidated || !begin.token().equals(value.token())
             || begin.generation() != value.generation()) {
             return false;
         }
-        Column column = columns.get(new ClientViewMessage.TravelCoordinate(value.chunkX(), value.chunkZ()));
+        Column column = columns.get(new TravelMessage.TravelCoordinate(value.chunkX(), value.chunkZ()));
         if (column == null || !column.valid || column.revision != value.revision() || !column.probed
             || !Arrays.equals(column.hash(), value.hash())) {
             return false;
@@ -83,7 +83,7 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
         return true;
     }
 
-    public synchronized Optional<ClientViewMessage.TravelBegin> preparing() {
+    public synchronized Optional<TravelMessage.TravelBegin> preparing() {
         return Optional.ofNullable(begin);
     }
 
@@ -132,11 +132,11 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
         }
     }
 
-    public synchronized boolean column(ClientViewMessage.TravelCoordinate position, int revision, byte[] payload) {
+    public synchronized boolean column(TravelMessage.TravelCoordinate position, int revision, byte[] payload) {
         Objects.requireNonNull(position);
         Objects.requireNonNull(payload);
         if (begin == null || worldInvalidated || !begin.chunks().contains(position) || revision <= 0 || payload.length == 0
-            || payload.length > ViewStreamLimits.MAX_TRAVEL_CHUNK_BYTES) {
+            || payload.length > TravelMessage.MAX_TRAVEL_CHUNK_BYTES) {
             return false;
         }
         Column previous = columns.get(position);
@@ -144,7 +144,7 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
             return false;
         }
         int nextBytes = bytes - (previous == null ? 0 : previous.payload.length) + payload.length;
-        if (nextBytes > ViewStreamLimits.MAX_TRAVEL_BYTES) {
+        if (nextBytes > TravelMessage.MAX_TRAVEL_BYTES) {
             return false;
         }
         columns.put(position, new Column(revision, snapshot(position, payload)));
@@ -153,7 +153,7 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
         return true;
     }
 
-    private Payload snapshot(ClientViewMessage.TravelCoordinate coordinate, byte[] current) {
+    private Payload snapshot(TravelMessage.TravelCoordinate coordinate, byte[] current) {
         if (destinationWorld == null) {
             return new Payload(current.clone());
         }
@@ -171,7 +171,7 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
         return next;
     }
 
-    public synchronized void invalidate(ClientViewMessage.TravelCoordinate position) {
+    public synchronized void invalidate(TravelMessage.TravelCoordinate position) {
         Column column = columns.get(position);
         if (column != null && column.valid) {
             column.valid = false;
@@ -179,12 +179,12 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
         }
     }
 
-    public synchronized boolean needs(ClientViewMessage.TravelCoordinate position) {
+    public synchronized boolean needs(TravelMessage.TravelCoordinate position) {
         Column column = columns.get(position);
         return begin != null && !worldInvalidated && (column == null || !column.valid);
     }
 
-    public synchronized ClientViewMessage.TravelCoordinate nextCapture() {
+    public synchronized TravelMessage.TravelCoordinate nextCapture() {
         if (begin == null || worldInvalidated) {
             return null;
         }
@@ -193,7 +193,7 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
             if (captureCursor >= begin.chunks().size()) {
                 captureCursor = 0;
             }
-            ClientViewMessage.TravelCoordinate coordinate = begin.chunks().get(captureCursor++);
+            TravelMessage.TravelCoordinate coordinate = begin.chunks().get(captureCursor++);
             Column column = columns.get(coordinate);
             if (column == null || !column.valid) {
                 return coordinate;
@@ -202,18 +202,18 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
         return null;
     }
 
-    public synchronized int nextRevision(ClientViewMessage.TravelCoordinate position) {
+    public synchronized int nextRevision(TravelMessage.TravelCoordinate position) {
         Column column = columns.get(position);
         return column == null ? 1 : Math.incrementExact(column.revision);
     }
 
-    public synchronized void tick(long nowMillis, int byteBudget, Predicate<ClientViewMessage> sender) {
+    public synchronized void tick(long nowMillis, int byteBudget, Predicate<TravelMessage> sender) {
         Objects.requireNonNull(sender);
         if (begin == null) {
             return;
         }
         if (worldInvalidated || nowMillis >= deadline || pendingCross != null && nowMillis >= crossDeadline) {
-            sender.test(new ClientViewMessage.TravelCancel(begin.token(), begin.generation()));
+            sender.test(new TravelMessage.TravelCancel(begin.token(), begin.generation()));
             clear();
             return;
         }
@@ -231,32 +231,32 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
             probesInWindow = 0;
         }
         int checks = begin.chunks().size();
-        while (checks-- > 0 && remaining >= ViewStreamLimits.TRAVEL_REUSE_BYTES) {
+        while (checks-- > 0 && remaining >= TravelMessage.TRAVEL_REUSE_BYTES) {
             if (cursor >= begin.chunks().size()) {
                 cursor = 0;
             }
-            ClientViewMessage.TravelCoordinate position = begin.chunks().get(cursor++);
+            TravelMessage.TravelCoordinate position = begin.chunks().get(cursor++);
             Column column = columns.get(position);
             if (column == null || !column.valid || column.sent()) {
                 continue;
             }
             if (reuseSelected && !column.cacheAnswered) {
                 if (!column.probed) {
-                    if (pendingProbes.size() >= ViewStreamLimits.MAX_TRAVEL_REUSE_PROBES_PER_TICK) {
+                    if (pendingProbes.size() >= TravelMessage.MAX_TRAVEL_REUSE_PROBES_PER_TICK) {
                         if (nowMillis - pendingProbes.getFirst().sentMillis() < PROBE_TIMEOUT_MILLIS) {
                             continue;
                         }
                         column.cacheAnswered = true;
                     } else {
-                        if (probedColumns >= ViewStreamLimits.MAX_TRAVEL_REUSE_PROBES_PER_TICK
-                            || probesInWindow >= ViewStreamLimits.MAX_TRAVEL_REUSE_PROBES_PER_TICK
+                        if (probedColumns >= TravelMessage.MAX_TRAVEL_REUSE_PROBES_PER_TICK
+                            || probesInWindow >= TravelMessage.MAX_TRAVEL_REUSE_PROBES_PER_TICK
                             || probedColumns > 0 && System.nanoTime() - probeStarted >= PROBE_BUDGET_NANOS) {
                             continue;
                         }
                         probedColumns++;
                         column.probed = true;
                         column.probedAt = nowMillis;
-                        Probe probe = new Probe(new ClientViewMessage.TravelReuse(begin.token(), begin.generation(), position.x(),
+                        Probe probe = new Probe(new TravelMessage.TravelReuse(begin.token(), begin.generation(), position.x(),
                             position.z(), column.revision, column.hash()), nowMillis);
                         pendingProbes.addLast(probe);
                         if (!sender.test(probe.offer())) {
@@ -265,7 +265,7 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
                             return;
                         }
                         probesInWindow++;
-                        remaining -= ViewStreamLimits.TRAVEL_REUSE_BYTES;
+                        remaining -= TravelMessage.TRAVEL_REUSE_BYTES;
                         continue;
                     }
                 } else if (nowMillis - column.probedAt >= PROBE_TIMEOUT_MILLIS) {
@@ -275,16 +275,16 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
                     continue;
                 }
             }
-            if (remaining < ViewStreamLimits.TRAVEL_FRAGMENT_BYTES) {
+            if (remaining < TravelMessage.TRAVEL_FRAGMENT_BYTES) {
                 continue;
             }
-            int fragments = (column.payload.length + ViewStreamLimits.TRAVEL_FRAGMENT_BYTES - 1)
-                / ViewStreamLimits.TRAVEL_FRAGMENT_BYTES;
-            int offset = column.fragment * ViewStreamLimits.TRAVEL_FRAGMENT_BYTES;
-            int length = Math.min(ViewStreamLimits.TRAVEL_FRAGMENT_BYTES, column.payload.length - offset);
+            int fragments = (column.payload.length + TravelMessage.TRAVEL_FRAGMENT_BYTES - 1)
+                / TravelMessage.TRAVEL_FRAGMENT_BYTES;
+            int offset = column.fragment * TravelMessage.TRAVEL_FRAGMENT_BYTES;
+            int length = Math.min(TravelMessage.TRAVEL_FRAGMENT_BYTES, column.payload.length - offset);
             byte[] payload = new byte[length];
             System.arraycopy(column.payload, offset, payload, 0, length);
-            ClientViewMessage.TravelChunk chunk = new ClientViewMessage.TravelChunk(begin.token(), begin.generation(),
+            TravelMessage.TravelChunk chunk = new TravelMessage.TravelChunk(begin.token(), begin.generation(),
                 position.x(), position.z(), column.revision, column.fragment, fragments, column.payload.length, payload);
             if (!sender.test(chunk)) {
                 return;
@@ -293,11 +293,11 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
             column.fragment++;
         }
         if (sentRevision != contentRevision && complete()) {
-            List<ClientViewMessage.TravelChunkRevision> manifest = new ArrayList<>(begin.chunks().size());
-            for (ClientViewMessage.TravelCoordinate position : begin.chunks()) {
-                manifest.add(new ClientViewMessage.TravelChunkRevision(position.x(), position.z(), columns.get(position).revision));
+            List<TravelMessage.TravelChunkRevision> manifest = new ArrayList<>(begin.chunks().size());
+            for (TravelMessage.TravelCoordinate position : begin.chunks()) {
+                manifest.add(new TravelMessage.TravelChunkRevision(position.x(), position.z(), columns.get(position).revision));
             }
-            if (sender.test(new ClientViewMessage.TravelEnd(begin.token(), begin.generation(), contentRevision, manifest))) {
+            if (sender.test(new TravelMessage.TravelEnd(begin.token(), begin.generation(), contentRevision, manifest))) {
                 sentRevision = contentRevision;
                 if (emittedBarriers.size() == MAX_SENT_BARRIERS) {
                     emittedBarriers.removeFirst();
@@ -307,7 +307,7 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
         }
     }
 
-    public synchronized boolean ready(ClientViewMessage.TravelReady value) {
+    public synchronized boolean ready(TravelMessage.TravelReady value) {
         if (begin == null || worldInvalidated || !begin.token().equals(value.token()) || begin.generation() != value.generation()
             || !emittedBarriers.contains(value.contentRevision())) {
             return false;
@@ -322,7 +322,7 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
         return true;
     }
 
-    public synchronized boolean requestCross(ClientViewMessage.TravelCross value, long nowMillis) {
+    public synchronized boolean requestCross(TravelMessage.TravelCross value, long nowMillis) {
         if (!acknowledged(value) || pendingCross != null || nowMillis >= deadline) {
             return false;
         }
@@ -354,7 +354,7 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
         ORDINARY, DEFER, FALLBACK
     }
 
-    public synchronized Optional<ClientViewMessage.TravelCross> takeCross() {
+    public synchronized Optional<TravelMessage.TravelCross> takeCross() {
         if (pendingCross == null || crossClaimed) {
             return Optional.empty();
         }
@@ -362,7 +362,7 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
         return Optional.of(pendingCross);
     }
 
-    public synchronized boolean validCross(ClientViewMessage.TravelCross value, Authority authority, long nowMillis) {
+    public synchronized boolean validCross(TravelMessage.TravelCross value, Authority authority, long nowMillis) {
         Objects.requireNonNull(authority);
         if (!acknowledged(value) || nowMillis >= deadline || nowMillis >= crossDeadline
             || !begin.sourceWorld().equals(authority.world())
@@ -389,7 +389,7 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
         return geometry.aperture().contains(intersection);
     }
 
-    public synchronized void unavailable(ClientViewMessage.TravelCoordinate position) {
+    public synchronized void unavailable(TravelMessage.TravelCoordinate position) {
         invalidate(position);
         readyRevision = 0L;
         emittedBarriers.clear();
@@ -398,7 +398,7 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
         crossClaimed = false;
     }
 
-    public synchronized boolean cancel(ClientViewMessage.TravelCancel value) {
+    public synchronized boolean cancel(TravelMessage.TravelCancel value) {
         if (begin == null || !begin.token().equals(value.token()) || begin.generation() != value.generation()) {
             return false;
         }
@@ -406,7 +406,7 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
         return true;
     }
 
-    public synchronized Optional<ClientViewMessage.TravelCommit> commit(Commit request) {
+    public synchronized Optional<TravelMessage.TravelCommit> commit(Commit request) {
         Objects.requireNonNull(request);
         if (begin == null || worldInvalidated || request.nowMillis() >= deadline
             || pendingCross != null && request.nowMillis() >= crossDeadline || readyRevision <= 0L
@@ -414,31 +414,31 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
             || !begin.world().dimension().equals(request.destinationWorld()) || !covered(request.arrival())) {
             return Optional.empty();
         }
-        ClientViewMessage.TravelCommit result = new ClientViewMessage.TravelCommit(begin.token(), begin.generation(),
+        TravelMessage.TravelCommit result = new TravelMessage.TravelCommit(begin.token(), begin.generation(),
             pendingCross == null ? readyRevision : pendingCross.contentRevision(), request.sourceWorld(), request.destinationWorld(),
             request.arrival(), request.velocity());
         clear();
         return Optional.of(result);
     }
 
-    public synchronized Optional<ClientViewMessage.TravelCancel> cancel() {
+    public synchronized Optional<TravelMessage.TravelCancel> cancel() {
         if (begin == null) {
             return Optional.empty();
         }
-        ClientViewMessage.TravelCancel result = new ClientViewMessage.TravelCancel(begin.token(), begin.generation());
+        TravelMessage.TravelCancel result = new TravelMessage.TravelCancel(begin.token(), begin.generation());
         clear();
         return Optional.of(result);
     }
 
-    private boolean acknowledged(ClientViewMessage.TravelCross value) {
+    private boolean acknowledged(TravelMessage.TravelCross value) {
         return begin != null && !worldInvalidated && begin.token().equals(value.token()) && begin.generation() == value.generation()
             && (acknowledgedBarriers.contains(value.contentRevision()) || pendingCross != null && pendingCross.equals(value));
     }
 
-    private void releaseProbe(ClientViewMessage.TravelCached value) {
+    private void releaseProbe(TravelMessage.TravelCached value) {
         byte[] hash = value.hash();
         for (Iterator<Probe> iterator = pendingProbes.iterator(); iterator.hasNext();) {
-            ClientViewMessage.TravelReuse offer = iterator.next().offer();
+            TravelMessage.TravelReuse offer = iterator.next().offer();
             if (offer.token().equals(value.token()) && offer.generation() == value.generation()
                 && offer.chunkX() == value.chunkX() && offer.chunkZ() == value.chunkZ() && offer.revision() == value.revision()
                 && Arrays.equals(offer.hash(), hash)) {
@@ -468,7 +468,7 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
         return true;
     }
 
-    private boolean covered(ClientViewMessage.TravelPose pose) {
+    private boolean covered(TravelMessage.TravelPose pose) {
         int x = (int) Math.floor(pose.x()) >> 4;
         int z = (int) Math.floor(pose.z()) >> 4;
         if (pose.y() < begin.world().minY() || pose.y() >= begin.world().minY() + begin.world().height()) {
@@ -476,7 +476,7 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
         }
         for (int dx = -1; dx <= 1; dx++) {
             for (int dz = -1; dz <= 1; dz++) {
-                if (!columns.containsKey(new ClientViewMessage.TravelCoordinate(x + dx, z + dz))) {
+                if (!columns.containsKey(new TravelMessage.TravelCoordinate(x + dx, z + dz))) {
                     return false;
                 }
             }
@@ -510,7 +510,7 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
     }
 
     public record Commit(UUID portal, String sourceWorld, String destinationWorld,
-                         ClientViewMessage.TravelPose arrival, Vec3d velocity, long nowMillis) {
+                         TravelMessage.TravelPose arrival, Vec3d velocity, long nowMillis) {
         public Commit {
             Objects.requireNonNull(portal);
             Objects.requireNonNull(sourceWorld);
@@ -520,7 +520,7 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
         }
     }
 
-    public record Authority(String world, ApertureDescriptor geometry, ClientViewMessage.TravelPose pose,
+    public record Authority(String world, ApertureDescriptor geometry, TravelMessage.TravelPose pose,
                             Vec3d velocity, double eyeHeight) {
         public Authority {
             Objects.requireNonNull(world);
@@ -534,10 +534,10 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
         }
     }
 
-    private record SnapshotKey(UUID world, ClientViewMessage.TravelWorld metadata, ClientViewMessage.TravelCoordinate coordinate) {
+    private record SnapshotKey(UUID world, TravelMessage.TravelWorld metadata, TravelMessage.TravelCoordinate coordinate) {
     }
 
-    private record Probe(ClientViewMessage.TravelReuse offer, long sentMillis) {
+    private record Probe(TravelMessage.TravelReuse offer, long sentMillis) {
     }
 
     private static final class Payload {
@@ -578,7 +578,7 @@ public final class ClientPreparedTravelServer implements WorldChangeTracker.Chan
         }
 
         private boolean sent() {
-            return reused || fragment * ViewStreamLimits.TRAVEL_FRAGMENT_BYTES >= payload.length;
+            return reused || fragment * TravelMessage.TRAVEL_FRAGMENT_BYTES >= payload.length;
         }
     }
 }

@@ -10,12 +10,12 @@ import art.arcane.wormholes.modded.MinecraftAccessService;
 import art.arcane.wormholes.modded.MinecraftLocalization;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.optics.stream.ViewStreamCapability;
-import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.render.client.session.ClientViewOptions;
-import art.arcane.wormholes.render.client.session.ClientViewServerSession;
-import art.arcane.wormholes.render.client.session.ClientViewSessionRegistry;
+import art.arcane.optics.stream.ViewStreamMessage;
+import art.arcane.optics.stream.ViewStreamOptions;
+import art.arcane.optics.stream.ViewStreamSession;
+import art.arcane.optics.stream.ViewStreamSessionRegistry;
 import art.arcane.optics.stream.ViewStreamSessionState;
-import art.arcane.wormholes.render.client.session.ClientViewSessionStats;
+import art.arcane.optics.stream.ViewStreamSessionStats;
 import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -49,8 +49,8 @@ public class MinecraftClientViewCommandsTest extends MinecraftTestBase {
     private static final UUID ALEX = UUID.fromString("00000000-0000-0000-0000-00000000a1e7");
 
     private MinecraftClientViewService clientViews;
-    private ClientViewSessionRegistry<MinecraftClientViewPeer, BlockState> registry;
-    private ClientViewServerSession<MinecraftClientViewPeer, BlockState> session;
+    private ViewStreamSessionRegistry<MinecraftClientViewPeer, BlockState> registry;
+    private ViewStreamSession<MinecraftClientViewPeer, BlockState> session;
     private CommandSourceStack admin;
     private CommandSourceStack projectionAdmin;
     private CommandDispatcher<CommandSourceStack> dispatcher;
@@ -65,8 +65,8 @@ public class MinecraftClientViewCommandsTest extends MinecraftTestBase {
         MinecraftServer server = mock(MinecraftServer.class);
         PlayerList players = mock(PlayerList.class);
         ServerPlayer alex = mock(ServerPlayer.class);
-        registry = mock(ClientViewSessionRegistry.class);
-        session = mock(ClientViewServerSession.class);
+        registry = mock(ViewStreamSessionRegistry.class);
+        session = mock(ViewStreamSession.class);
         admin = mock(CommandSourceStack.class);
         projectionAdmin = mock(CommandSourceStack.class);
         ClientViewConfig config = new ClientViewConfig();
@@ -80,7 +80,7 @@ public class MinecraftClientViewCommandsTest extends MinecraftTestBase {
         when(localization.snapshot(null)).thenReturn(LocalizationSnapshot.create(LocalizationCandidate.english(
             WormholesMessages.catalog(), PluralSelector.oneOther())));
         when(clientViews.registry()).thenReturn(registry);
-        when(registry.options()).thenReturn(ClientViewOptions.from(config, ClientViewOptions.DEFAULT_INTEREST_GRACE_TICKS));
+        when(registry.options()).thenReturn(config.options(ViewStreamOptions.DEFAULT_INTEREST_GRACE_TICKS));
         when(registry.runtimeEnabled()).thenReturn(true);
         when(registry.stats()).thenReturn(List.of());
         when(server.getPlayerList()).thenReturn(players);
@@ -94,7 +94,7 @@ public class MinecraftClientViewCommandsTest extends MinecraftTestBase {
 
     @Test
     public void statusPrintsTheSharedCatalogRepliesForEverySession() throws CommandSyntaxException {
-        when(registry.stats()).thenReturn(List.of(new ClientViewSessionStats(ALEX, 1, ViewStreamSessionState.CLIENT_VIEW,
+        when(registry.stats()).thenReturn(List.of(new ViewStreamSessionStats(ALEX, 1, ViewStreamSessionState.CLIENT_VIEW,
             ViewStreamCapability.of(ViewStreamCapability.PLATES), 2, 7L, 3072L, 5L, 1, 4L, 12_500L, 900L, 30L, 0L, 0L, 0L, 0L, null)));
         when(registry.session(ALEX)).thenReturn(session);
 
@@ -133,7 +133,7 @@ public class MinecraftClientViewCommandsTest extends MinecraftTestBase {
         when(session.state()).thenReturn(ViewStreamSessionState.CLIENT_VIEW);
         assertEquals(1, dispatcher.execute("wormholes clientview reset Alex", admin));
 
-        verify(session).reset(ClientViewMessage.ResetReason.TELEPORT);
+        verify(session).reset(ViewStreamMessage.ResetReason.TELEPORT);
         assertEquals(List.of("No online player is named Steve.", "Alex has no active ClientView session.",
             "Restarting the ClientView stream for Alex."), messages(admin));
     }

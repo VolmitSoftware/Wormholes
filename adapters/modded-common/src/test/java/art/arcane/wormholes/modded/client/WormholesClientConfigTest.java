@@ -2,8 +2,7 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.optics.stream.ViewStreamCapability;
-import art.arcane.wormholes.network.client.ClientViewCodec;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
 import net.minecraft.core.registries.BuiltInRegistries;
 import org.junit.Rule;
@@ -20,6 +19,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+import art.arcane.wormholes.network.client.ClientViewExtensions;
 
 public class WormholesClientConfigTest extends MinecraftTestBase {
     @Rule
@@ -47,12 +47,12 @@ public class WormholesClientConfigTest extends MinecraftTestBase {
         ClientViewSession session = session(config);
         ClientViewReceiver receiver = new ClientViewReceiver(session);
         List<byte[]> replies = new ArrayList<>();
-        receiver.receive(ClientViewCodec.encodeS2C(offer(), 1, 0), replies::add);
-        receiver.receive(ClientViewCodec.encodeS2C(offer(), 2, 0), replies::add);
+        receiver.receive(ClientViewExtensions.CODEC.encodeS2C(offer(), 1, 0), replies::add);
+        receiver.receive(ClientViewExtensions.CODEC.encodeS2C(offer(), 2, 0), replies::add);
         assertTrue(replies.isEmpty());
         assertEquals(0, session.clientCapabilities());
         assertEquals(ClientViewSession.State.VANILLA, session.state());
-        receiver.receive(ClientViewCodec.encodeS2C(new ClientViewMessage.Accept(1, ViewStreamCapability.ALL, 20,
+        receiver.receive(ClientViewExtensions.CODEC.encodeS2C(new ViewStreamMessage.Accept(1, ViewStreamCapability.ALL, 20,
             ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 7L, 8), 3, 0), replies::add);
         assertEquals(ClientViewSession.State.VANILLA, session.state());
         assertFalse(session.active());
@@ -65,9 +65,9 @@ public class WormholesClientConfigTest extends MinecraftTestBase {
         ClientViewSession session = session(new WormholesClientConfig());
         ClientViewReceiver receiver = new ClientViewReceiver(session);
         List<byte[]> replies = new ArrayList<>();
-        receiver.receive(ClientViewCodec.encodeS2C(offer(), 1, 0), replies::add);
+        receiver.receive(ClientViewExtensions.CODEC.encodeS2C(offer(), 1, 0), replies::add);
         assertEquals(1, replies.size());
-        ClientViewMessage.Hello hello = (ClientViewMessage.Hello) ClientViewCodec.decodeC2S(replies.getFirst());
+        ViewStreamMessage.Hello hello = (ViewStreamMessage.Hello) ClientViewExtensions.CODEC.decodeC2S(replies.getFirst());
         assertTrue(ViewStreamCapability.MESH_RENDER.in(hello.clientCaps()));
         assertTrue(ViewStreamCapability.ENTITY_FRAMES.in(hello.clientCaps()));
         assertTrue(ViewStreamCapability.CLIENT_MIRROR.in(hello.clientCaps()));
@@ -77,8 +77,8 @@ public class WormholesClientConfigTest extends MinecraftTestBase {
         return new ClientViewSession(config, new ClientPalette(BuiltInRegistries.BLOCK), 1, "test");
     }
 
-    private static ClientViewMessage.Offer offer() {
-        return new ClientViewMessage.Offer(ViewStreamLimits.WIRE_VERSION, 1, ViewStreamCapability.ALL,
+    private static ViewStreamMessage.Offer offer() {
+        return new ViewStreamMessage.Offer(ViewStreamLimits.WIRE_VERSION, 1, ViewStreamCapability.ALL,
             ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 0);
     }
 }

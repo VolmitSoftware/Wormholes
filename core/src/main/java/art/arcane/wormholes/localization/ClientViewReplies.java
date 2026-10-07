@@ -4,8 +4,8 @@ import art.arcane.volmlib.util.localization.MessageArgs;
 import art.arcane.volmlib.util.localization.MessageArgument;
 import art.arcane.volmlib.util.localization.TextKey;
 import art.arcane.optics.stream.ViewStreamCapability;
-import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.render.client.session.ClientViewSessionStats;
+import art.arcane.optics.stream.ViewStreamMessage;
+import art.arcane.optics.stream.ViewStreamSessionStats;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,7 +18,7 @@ public final class ClientViewReplies {
     private ClientViewReplies() {
     }
 
-    public static List<Reply> status(boolean runtimeEnabled, boolean configured, List<ClientViewSessionStats> sessions,
+    public static List<Reply> status(boolean runtimeEnabled, boolean configured, List<ViewStreamSessionStats> sessions,
                                      Function<UUID, String> names) {
         List<Reply> replies = new ArrayList<>(sessions.size() + 1);
         replies.add(new Reply(ClientViewMessages.HEADER, arguments(
@@ -29,7 +29,7 @@ public final class ClientViewReplies {
             replies.add(new Reply(ClientViewMessages.NONE, MessageArgs.empty()));
             return replies;
         }
-        for (ClientViewSessionStats stats : sessions) {
+        for (ViewStreamSessionStats stats : sessions) {
             String name = names.apply(stats.playerId());
             replies.add(new Reply(ClientViewMessages.ROW, arguments(
                 MessageArgument.untrusted("name", name == null ? stats.playerId().toString() : name),
@@ -55,7 +55,7 @@ public final class ClientViewReplies {
         return new Reply(ClientViewMessages.PLAYER_MISSING, name(name));
     }
 
-    static String describe(ClientViewSessionStats stats) {
+    static String describe(ViewStreamSessionStats stats) {
         StringJoiner caps = new StringJoiner(",");
         for (ViewStreamCapability capability : ViewStreamCapability.decode(stats.caps())) {
             caps.add(capability.name().toLowerCase(Locale.ROOT));
@@ -68,7 +68,7 @@ public final class ClientViewReplies {
             .append(" unacked ").append(stats.outstandingGroups())
             .append(" rtt ").append(stats.ackRttMicros() / 1000L).append("ms")
             .append(" cells ").append(stats.appliedCells());
-        ClientViewMessage.ViewStats view = stats.viewStats();
+        ViewStreamMessage.ViewStats view = stats.viewStats();
         if (view != null) {
             line.append(" plate ").append(view.plateMb()).append("MB")
                 .append(" sweep ").append(view.sweepMicrosP50()).append("us")

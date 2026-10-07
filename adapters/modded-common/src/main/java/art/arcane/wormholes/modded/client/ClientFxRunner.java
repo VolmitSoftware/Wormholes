@@ -1,8 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.optics.math.Vec3d;
-import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.wormholes.portal.AmbientSparkCadence;
 import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.wormholes.portal.effects.PortalAnimation;
@@ -16,6 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.IntFunction;
+import art.arcane.wormholes.network.client.FxMessage;
 
 public final class ClientFxRunner {
     public static final int MAX_ANIMATIONS = 64;
@@ -35,19 +34,19 @@ public final class ClientFxRunner {
         this.host = new AnimationHost(world);
     }
 
-    public void apply(ClientViewMessage.Fx fx, IntFunction<ClientPortal> lookup, boolean oneShots) {
+    public void apply(FxMessage.Fx fx, IntFunction<ClientPortal> lookup, boolean oneShots) {
         Objects.requireNonNull(fx, "fx");
-        List<ClientViewMessage.FxEmitter> emitters = fx.emitters();
-        List<ClientViewMessage.FxEmitter> continuous = new ArrayList<>(emitters.size());
+        List<FxMessage.FxEmitter> emitters = fx.emitters();
+        List<FxMessage.FxEmitter> continuous = new ArrayList<>(emitters.size());
         ClientPortal portal = null;
         boolean resolved = false;
         for (int index = 0; index < emitters.size(); index++) {
-            ClientViewMessage.FxEmitter emitter = emitters.get(index);
+            FxMessage.FxEmitter emitter = emitters.get(index);
             if (!ClientViewEmitters.oneShot(emitter)) {
                 continuous.add(emitter);
                 continue;
             }
-            if (!oneShots && emitter.kind() != ClientViewMessage.FxKind.SOUND) {
+            if (!oneShots && emitter.kind() != FxMessage.FxKind.SOUND) {
                 continue;
             }
             if (!resolved) {
@@ -56,7 +55,7 @@ public final class ClientFxRunner {
             }
             fire(new Active(emitter), portal);
         }
-        if (fx.portalKey() == ViewStreamLimits.WORLD_FX_KEY && continuous.isEmpty()) {
+        if (fx.portalKey() == FxMessage.WORLD_FX_KEY && continuous.isEmpty()) {
             return;
         }
         replace(fx.portalKey(), continuous);
@@ -123,9 +122,9 @@ public final class ClientFxRunner {
     }
 
     private void fire(Active active, ClientPortal portal) {
-        ClientViewMessage.FxEmitter emitter = active.emitter;
-        if (!particlesActive && emitter.kind() != ClientViewMessage.FxKind.SOUND) {
-            if (emitter.kind() == ClientViewMessage.FxKind.SURFACE) {
+        FxMessage.FxEmitter emitter = active.emitter;
+        if (!particlesActive && emitter.kind() != FxMessage.FxKind.SOUND) {
+            if (emitter.kind() == FxMessage.FxKind.SURFACE) {
                 active.cursor++;
             }
             return;
@@ -156,7 +155,7 @@ public final class ClientFxRunner {
         animations.clear();
     }
 
-    private void replace(int portalKey, List<ClientViewMessage.FxEmitter> emitters) {
+    private void replace(int portalKey, List<FxMessage.FxEmitter> emitters) {
         if (emitters.isEmpty()) {
             portals.remove(portalKey);
             return;
@@ -164,7 +163,7 @@ public final class ClientFxRunner {
         PortalFx previous = portals.get(portalKey);
         PortalFx next = new PortalFx(emitters.size());
         for (int index = 0; index < emitters.size(); index++) {
-            ClientViewMessage.FxEmitter emitter = emitters.get(index);
+            FxMessage.FxEmitter emitter = emitters.get(index);
             Active active = new Active(emitter);
             if (previous != null && index < previous.active.size() && previous.active.get(index).emitter.equals(emitter)) {
                 active.cursor = previous.active.get(index).cursor;
@@ -174,7 +173,7 @@ public final class ClientFxRunner {
         portals.put(portalKey, next);
     }
 
-    private void animate(ClientViewMessage.FxEmitter emitter) {
+    private void animate(FxMessage.FxEmitter emitter) {
         ClientViewEmitters.Animation animation = ClientViewEmitters.animation(emitter);
         if (animation == null || animations.size() >= MAX_ANIMATIONS) {
             return;
@@ -187,7 +186,7 @@ public final class ClientFxRunner {
     }
 
     private void surface(Active active, ClientPortal portal) {
-        ClientViewMessage.FxEmitter emitter = active.emitter;
+        FxMessage.FxEmitter emitter = active.emitter;
         boolean open = (emitter.flags() & ClientViewEmitters.SURFACE_OPEN_FLAG) != 0;
         int interval = (emitter.flags() >>> ClientViewEmitters.SURFACE_INTERVAL_SHIFT) & ClientViewEmitters.MAX_SURFACE_INTERVAL;
         int count = AmbientSparkCadence.burst(active.cursor++, interval, open);
@@ -240,12 +239,12 @@ public final class ClientFxRunner {
     }
 
     private static final class Active {
-        private final ClientViewMessage.FxEmitter emitter;
+        private final FxMessage.FxEmitter emitter;
         private long cursor;
         private ApertureDescriptor apertureOf;
         private ApertureCells aperture;
 
-        private Active(ClientViewMessage.FxEmitter emitter) {
+        private Active(FxMessage.FxEmitter emitter) {
             this.emitter = emitter;
         }
 

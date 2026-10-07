@@ -19,7 +19,6 @@ import net.minecraft.world.level.chunk.LevelChunk;
 import static net.minecraft.world.level.chunk.status.ChunkStatus.FULL;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
-import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.renderpearl.api.textures.GpuTexture;
@@ -61,6 +60,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
+import art.arcane.wormholes.network.client.TravelMessage;
 
 public class ClientPreparedTravelFrameTest extends MinecraftTestBase {
     @Test
@@ -113,14 +113,14 @@ public class ClientPreparedTravelFrameTest extends MinecraftTestBase {
             ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
             Method fixture = ClientPreparedTravelPendingTest.class.getDeclaredMethod("begin", long.class);
             fixture.setAccessible(true);
-            ClientViewMessage.TravelBegin begin = (ClientViewMessage.TravelBegin) fixture.invoke(null, 9L);
+            TravelMessage.TravelBegin begin = (TravelMessage.TravelBegin) fixture.invoke(null, 9L);
             field(travel, "begin", begin);
             field(travel, "staged", destination);
             field(travel, "deadline", System.currentTimeMillis() + 300_000L);
             field(travel, "acknowledgedRevision", 42L);
-            ClientViewMessage.TravelCommit commit = mock(ClientViewMessage.TravelCommit.class);
+            TravelMessage.TravelCommit commit = mock(TravelMessage.TravelCommit.class);
             when(commit.contentRevision()).thenReturn(42L);
-            when(commit.arrival()).thenReturn(new ClientViewMessage.TravelPose(48.5, 64, 112.5, 0, 0));
+            when(commit.arrival()).thenReturn(new TravelMessage.TravelPose(48.5, 64, 112.5, 0, 0));
             field(travel, "commit", commit);
             ClientLevel.ClientLevelData data = mock(ClientLevel.ClientLevelData.class, withSettings().extraInterfaces(PreparedLevelDataAccess.class));
             DimensionType dimension = mock(DimensionType.class);
@@ -202,17 +202,17 @@ public class ClientPreparedTravelFrameTest extends MinecraftTestBase {
             ClientChunkCache chunks = mock(ClientChunkCache.class);
             when(level.getChunkSource()).thenReturn(chunks);
             LevelChunk chunk = mock(LevelChunk.class);
-            List<ClientViewMessage.TravelCoordinate> coordinates = new ArrayList<>();
+            List<TravelMessage.TravelCoordinate> coordinates = new ArrayList<>();
             for (int z = -1; z <= 1; z++) {
                 for (int x = -1; x <= 1; x++) {
-                    coordinates.add(new ClientViewMessage.TravelCoordinate(x, z));
+                    coordinates.add(new TravelMessage.TravelCoordinate(x, z));
                     when(chunks.getChunk(x, z, FULL, false)).thenReturn(chunk);
                 }
             }
             Method fixture = ClientPreparedTravelPendingTest.class.getDeclaredMethod("begin", long.class);
             fixture.setAccessible(true);
-            ClientViewMessage.TravelBegin original = (ClientViewMessage.TravelBegin) fixture.invoke(null, 9L);
-            ClientViewMessage.TravelBegin begin = new ClientViewMessage.TravelBegin(original.token(), original.generation(),
+            TravelMessage.TravelBegin original = (TravelMessage.TravelBegin) fixture.invoke(null, 9L);
+            TravelMessage.TravelBegin begin = new TravelMessage.TravelBegin(original.token(), original.generation(),
                 original.sourcePortal(), original.sourceWorld(), original.sourceGeometry(), original.destinationToSource(),
                 original.world(), original.arrival(), coordinates, original.environment(), original.expiresMillis());
             ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
@@ -237,7 +237,7 @@ public class ClientPreparedTravelFrameTest extends MinecraftTestBase {
                 when(chunks.getChunk(1, 1, FULL, false)).thenReturn(null);
             }
             ClientPortalRenderer renderer = mock(ClientPortalRenderer.class);
-            ClientViewMessage.TravelCommit commit = mock(ClientViewMessage.TravelCommit.class);
+            TravelMessage.TravelCommit commit = mock(TravelMessage.TravelCommit.class);
             when(commit.token()).thenReturn(begin.token());
             when(commit.generation()).thenReturn(begin.generation());
             when(commit.contentRevision()).thenReturn(42L);
@@ -298,7 +298,7 @@ public class ClientPreparedTravelFrameTest extends MinecraftTestBase {
                     Object arrival = field(travel, "authoritativeArrival");
                     Class<?> type = field(arrival, "retained").getClass();
                     Constructor<?> constructor = type.getDeclaredConstructor(ClientLevel.class, ClientPacketListener.class,
-                        Object.class, ClientViewMessage.TravelWorld.class, long.class, Map.class, ApertureDescriptor.class);
+                        Object.class, TravelMessage.TravelWorld.class, long.class, Map.class, ApertureDescriptor.class);
                     constructor.setAccessible(true);
                     field(arrival, "retained", constructor.newInstance(minecraft.level, minecraft.getConnection(),
                         RegistryAccess.EMPTY, null, 1L, Map.of(), null));

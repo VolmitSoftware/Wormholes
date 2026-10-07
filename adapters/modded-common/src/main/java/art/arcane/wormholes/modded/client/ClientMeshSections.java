@@ -1,10 +1,10 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.optics.stream.Brick;
-import art.arcane.wormholes.network.client.ClientMeshHash;
+import art.arcane.optics.stream.MeshHash;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.stream.ViewStreamLimits;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.fidelity.BlockEntitySample;
@@ -89,7 +89,7 @@ public final class ClientMeshSections {
         return true;
     }
 
-    public Result put(ClientViewMessage.MeshSection message) throws ViewStreamProtocolException {
+    public Result put(ViewStreamMessage.MeshSection message) throws ViewStreamProtocolException {
         int portalKey = message.portalKey();
         int generation = message.generation();
         int sectionX = message.sectionX();
@@ -158,7 +158,7 @@ public final class ClientMeshSections {
         return true;
     }
 
-    public Section localSection(ClientViewMessage.MeshSection message) throws ViewStreamProtocolException {
+    public Section localSection(ViewStreamMessage.MeshSection message) throws ViewStreamProtocolException {
         return new Section(message, palette, ++revision, epoch);
     }
 
@@ -312,7 +312,7 @@ public final class ClientMeshSections {
         epochKnown = true;
     }
 
-    List<ClientViewMessage.MeshClaim> bind(int portalKey, Identity identity) {
+    List<ViewStreamMessage.MeshClaim> bind(int portalKey, Identity identity) {
         epoch(identity.epoch);
         View view = views.get(portalKey);
         if (view == null) {
@@ -348,7 +348,7 @@ public final class ClientMeshSections {
         History context = historyByIdentity.get(sameIdentity ? view.identity : identity);
         view.identity = context == null ? identity : context.identity;
         view.needsClaims = false;
-        List<ClientViewMessage.MeshClaim> claims = new ArrayList<>();
+        List<ViewStreamMessage.MeshClaim> claims = new ArrayList<>();
         if (context != null) {
             for (HistoryEntry entry : context.sections.values()) {
                 long key = entry.key;
@@ -369,7 +369,7 @@ public final class ClientMeshSections {
                 view.bytes += section.bytes;
                 bytes += section.bytes;
                 view.claimed.put(key, Long.valueOf(section.hash));
-                claims.add(new ClientViewMessage.MeshClaim(SectionPos.x(key), SectionPos.y(key), SectionPos.z(key), section.hash));
+                claims.add(new ViewStreamMessage.MeshClaim(SectionPos.x(key), SectionPos.y(key), SectionPos.z(key), section.hash));
             }
         }
         for (long key : view.sections.keySet()) {
@@ -377,7 +377,7 @@ public final class ClientMeshSections {
             if (view.wireRevisions.get(key) == 0 && !view.claimed.containsKey(key)
                 && view.intersects(SectionPos.x(key), SectionPos.y(key), SectionPos.z(key))) {
                 view.claimed.put(key, Long.valueOf(section.hash));
-                claims.add(new ClientViewMessage.MeshClaim(SectionPos.x(key), SectionPos.y(key), SectionPos.z(key), section.hash));
+                claims.add(new ViewStreamMessage.MeshClaim(SectionPos.x(key), SectionPos.y(key), SectionPos.z(key), section.hash));
             }
             remember(view, key, section);
         }
@@ -388,7 +388,7 @@ public final class ClientMeshSections {
         return canPreview(views.get(portalKey), key);
     }
 
-    public ClientViewMessage.MeshClaim preview(int portalKey, long key, Section section) {
+    public ViewStreamMessage.MeshClaim preview(int portalKey, long key, Section section) {
         View view = views.get(portalKey);
         if (!canPreview(view, key)
             || section.bytes > budget - bytes - historyBytes - otherMemory.getAsLong()) {
@@ -402,10 +402,10 @@ public final class ClientMeshSections {
         bytes += section.bytes;
         view.claimed.put(key, Long.valueOf(section.hash));
         remember(view, key, section);
-        return new ClientViewMessage.MeshClaim(SectionPos.x(key), SectionPos.y(key), SectionPos.z(key), section.hash);
+        return new ViewStreamMessage.MeshClaim(SectionPos.x(key), SectionPos.y(key), SectionPos.z(key), section.hash);
     }
 
-    public Result reuse(ClientViewMessage.MeshReuse message) throws ViewStreamProtocolException {
+    public Result reuse(ViewStreamMessage.MeshReuse message) throws ViewStreamProtocolException {
         View view = views.get(message.portalKey());
         if (view == null || view.generation != message.generation()) {
             return Result.STALE;
@@ -600,10 +600,10 @@ public final class ClientMeshSections {
         private final long bytes;
         private final SectionBiomes biomes;
 
-        private Section(ClientViewMessage.MeshSection message, ClientPalette palette, int revision, long epoch) throws ViewStreamProtocolException {
+        private Section(ViewStreamMessage.MeshSection message, ClientPalette palette, int revision, long epoch) throws ViewStreamProtocolException {
             Brick brick = message.brick();
             this.revision = revision;
-            this.hash = ClientMeshHash.resolved(message, epoch, id -> BlockStateParser.serialize(palette.state(id)));
+            this.hash = MeshHash.resolved(message, epoch, id -> BlockStateParser.serialize(palette.state(id)));
             this.biomes = message.biomes();
             this.bitsPerIndex = brick.bitsPerIndex();
             this.indices = brick.packedIndices().clone();

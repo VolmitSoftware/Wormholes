@@ -4,7 +4,7 @@ import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.client.render.PortalScene;
 import art.arcane.optics.stream.ProjectionEnvironment;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.optics.aperture.ApertureDescriptor;
@@ -457,15 +457,15 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
     public void consumedFreshHistoryChangesStillRejectACompiledMeshWithAChangedNeighbor() throws Exception {
         Fixture fixture = new Fixture();
         ClientPalette palette = new ClientPalette(BuiltInRegistries.BLOCK);
-        palette.apply(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(3, "minecraft:stone"),
-            new ClientViewMessage.PaletteEntry(4, "minecraft:dirt"))));
+        palette.apply(new ViewStreamMessage.Palette(List.of(new ViewStreamMessage.PaletteEntry(3, "minecraft:stone"),
+            new ViewStreamMessage.PaletteEntry(4, "minecraft:dirt"))));
         ClientMeshSections store = new ClientMeshSections(palette, 1024 * 1024);
         BlockBox bounds = fixture.view.bounds();
         ClientMeshSections.Identity identity = new ClientMeshSections.Identity(fixture.environment, 1, 1);
         store.begin(7, 1, bounds, 64);
         store.bind(7, identity);
-        store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 3, Brick.single(0, 3), SectionBiomes.NONE));
-        store.put(new ClientViewMessage.MeshSection(7, 1, 1, 0, 0, 1, 3, Brick.single(0, 3), SectionBiomes.NONE));
+        store.put(new ViewStreamMessage.MeshSection(7, 1, 0, 0, 0, 1, 3, Brick.single(0, 3), SectionBiomes.NONE));
+        store.put(new ViewStreamMessage.MeshSection(7, 1, 1, 0, 0, 1, 3, Brick.single(0, 3), SectionBiomes.NONE));
         ClientMeshSections.View previous = store.view(7);
         PortalScene.MeshIdentity compiled = ClientMeshWorld.meshIdentity(new ClientMeshWorld.Snapshot(previous, 0L,
             RegistryAccess.EMPTY, fixture.environment, 1));
@@ -474,7 +474,7 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
         store.bind(7, identity);
         ClientMeshSections.View current = store.view(7);
         assertSame(previous.section(0L), current.section(0L));
-        store.put(new ClientViewMessage.MeshSection(7, 2, 1, 0, 0, 2, 4, Brick.single(0, 4), SectionBiomes.NONE));
+        store.put(new ViewStreamMessage.MeshSection(7, 2, 1, 0, 0, 2, 4, Brick.single(0, 4), SectionBiomes.NONE));
         assertFalse(current.changed().isEmpty());
         when(fixture.meshes.view(7)).thenReturn(current);
         try (MockedStatic<ClientPortalRenderer> renderers = mockStatic(ClientPortalRenderer.class);

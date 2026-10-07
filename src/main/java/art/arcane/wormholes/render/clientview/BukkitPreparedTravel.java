@@ -13,8 +13,6 @@ import art.arcane.wormholes.chunk.presend.ChunkCoordinate;
 import art.arcane.wormholes.chunk.presend.ChunkPreSendPlanner;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ProjectionEnvironment;
-import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.LocalPortal;
 import art.arcane.optics.crossing.PlaneCrossing;
@@ -26,10 +24,9 @@ import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.ViewWindow;
 import art.arcane.wormholes.render.client.session.ClientPreparedTravelServer;
-import art.arcane.wormholes.render.client.session.ClientViewServerSession;
+import art.arcane.wormholes.render.client.session.ClientViewTravel;
 import org.bukkit.Location;
 import org.bukkit.World;
-import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
@@ -45,6 +42,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
+import art.arcane.wormholes.network.client.TravelMessage;
 
 final class BukkitPreparedTravel implements AutoCloseable {
     private static final int MAX_CAPTURE_COLUMNS = 4;
@@ -60,28 +58,28 @@ final class BukkitPreparedTravel implements AutoCloseable {
         this.packets = packets;
     }
 
-    void tick(ClientViewServerSession<ClientViewObserver, BlockData> session, Player player, List<ILocalPortal> interested) {
-        if (!session.preparedTravelSelected()) {
-            discard(session);
+    void tick(ClientViewTravel<ClientViewObserver> travel, Player player, List<ILocalPortal> interested) {
+        if (!travel.preparedTravelSelected()) {
+            discard(travel);
             return;
         }
-        Optional<ClientViewMessage.TravelCross> crossing = session.travel().takeCross();
+        Optional<TravelMessage.TravelCross> crossing = travel.server().takeCross();
         if (crossing.isPresent()) {
-            cross(session, player, interested, crossing.get());
+            cross(travel, player, interested, crossing.get());
             return;
         }
         Long retry = retryAfter.get(player.getUniqueId());
         if (retry != null && System.currentTimeMillis() < retry) {
             return;
         }
-        ILocalPortal source = nearest(session, player, interested);
-        ClientViewPortalSource route = source == null ? null : session.player().source(source.getId());
+        ILocalPortal source = nearest(travel, player, interested);
+        ClientViewPortalSource route = source == null ? null : travel.player().source(source.getId());
         World world = route == null ? null : route.destinationWorld();
         ViewWindow frame = route == null ? null : route.transformFrame();
         if (world == null || frame == null || frame.mirror()
             || route.destinationAnchor() == null || route.destinationAnchor().isRemote()
             || route.destinationAnchor() instanceof ILocalPortal anchor && !anchor.canArrive(player)) {
-            discard(session);
+            discard(travel);
             return;
         }
         Location location = player.getLocation();
@@ -90,26 +88,26 @@ final class BukkitPreparedTravel implements AutoCloseable {
         Preparation preparation = preparations.get(player.getUniqueId());
         if (preparation != null && preparation.failed) {
             retryAfter.put(player.getUniqueId(), System.currentTimeMillis() + 30_000L);
-            discard(session);
+            discard(travel);
             return;
         }
         if (preparation == null || preparation.world != world || !preparation.source.equals(source.getId())
             || !preparation.destination.equals(route.destinationAnchor().getId()) || !preparation.contains(feet) || !preparation.live.get()) {
-            discard(session);
+            discard(travel);
             Optional<ChunkWorldContext> sourceContext = packets.context(player.getWorld());
             if (sourceContext.isEmpty()) {
                 return;
             }
-            ApertureDescriptor geometry = session.travelGeometry(source.getId());
+            ApertureDescriptor geometry = travel.travelGeometry(source.getId());
             if (geometry == null || geometry.mirror()) {
                 return;
             }
             preparation = new Preparation(new PreparationOptions(geometry, frame.transform().normalized(), source.getId(), route.destinationAnchor().getId(), world, feet,
-                new ClientViewMessage.TravelPose(feet.x(), feet.y(), feet.z(), location.getYaw(), location.getPitch()),
+                new TravelMessage.TravelPose(feet.x(), feet.y(), feet.z(), location.getYaw(), location.getPitch()),
                 player.getEyeHeight(), sourceContext.get().dimension(), generation.incrementAndGet()));
             preparations.put(player.getUniqueId(), preparation);
         }
-        if (!drain(session, preparation)) {
+        if (!drain(travel, preparation)) {
             return;
         }
         if (preparation.committed) {
@@ -119,49 +117,49 @@ final class BukkitPreparedTravel implements AutoCloseable {
             scheduleBegin(preparation);
             return;
         }
-        if (session.travel().preparing().isEmpty()) {
-            session.travel().begin(preparation.begin, System.currentTimeMillis());
-            session.travel().reuseSelected(session.preparedTravelCacheSelected());
-            session.travel().watchWorld(Wormholes.projectionChangeTracker, preparation.world.getUID());
+        if (travel.server().preparing().isEmpty()) {
+            travel.server().begin(preparation.begin, System.currentTimeMillis());
+            travel.server().reuseSelected(travel.preparedTravelCacheSelected());
+            travel.server().watchWorld(Wormholes.projectionChangeTracker, preparation.world.getUID());
         }
-        validate(session, preparation);
-        scheduleColumns(session.travel(), preparation);
-        session.travel().tick(System.currentTimeMillis(), 128 * 1024, session::sendTravel);
-        if (session.travel().preparing().isEmpty()) {
-            discard(session);
+        validate(travel, preparation);
+        scheduleColumns(travel.server(), preparation);
+        travel.server().tick(System.currentTimeMillis(), 128 * 1024, travel::sendTravel);
+        if (travel.server().preparing().isEmpty()) {
+            discard(travel);
         }
     }
 
-    ClientViewMessage.TravelCommit commit(ClientViewServerSession<ClientViewObserver, BlockData> session,
+    TravelMessage.TravelCommit commit(ClientViewTravel<ClientViewObserver> travel,
                                          Player player, UUID source, Location target, Vec3d velocity) {
         Preparation preparation = preparations.get(player.getUniqueId());
-        if (preparation == null || preparation.begin == null || preparation.world != target.getWorld() || !session.travel().crossing()) {
+        if (preparation == null || preparation.begin == null || preparation.world != target.getWorld() || !travel.server().crossing()) {
             return null;
         }
-        if (!drain(session, preparation)) {
+        if (!drain(travel, preparation)) {
             return null;
         }
-        validate(session, preparation);
+        validate(travel, preparation);
         Optional<ChunkWorldContext> origin = packets.context(player.getWorld());
         if (origin.isEmpty()) {
             return null;
         }
-        ClientViewMessage.TravelCommit commit = session.travel().commit(new ClientPreparedTravelServer.Commit(source,
+        TravelMessage.TravelCommit commit = travel.server().commit(new ClientPreparedTravelServer.Commit(source,
             origin.get().dimension(), preparation.begin.world().dimension(),
-            new ClientViewMessage.TravelPose(target.getX(), target.getY(), target.getZ(), target.getYaw(), target.getPitch()),
+            new TravelMessage.TravelPose(target.getX(), target.getY(), target.getZ(), target.getYaw(), target.getPitch()),
             velocity, System.currentTimeMillis())).orElse(null);
-        if (commit != null && session.sendTravel(commit)) {
+        if (commit != null && travel.sendTravel(commit)) {
             preparation.committed = true;
             return commit;
         }
         if (commit != null) {
-            session.sendTravel(new ClientViewMessage.TravelCancel(commit.token(), commit.generation()));
+            travel.sendTravel(new TravelMessage.TravelCancel(commit.token(), commit.generation()));
         }
         return null;
     }
 
-    private void cross(ClientViewServerSession<ClientViewObserver, BlockData> session, Player player,
-                       List<ILocalPortal> interested, ClientViewMessage.TravelCross request) {
+    private void cross(ClientViewTravel<ClientViewObserver> travel, Player player,
+                       List<ILocalPortal> interested, TravelMessage.TravelCross request) {
         Preparation preparation = preparations.get(player.getUniqueId());
         ILocalPortal source = null;
         if (preparation != null) {
@@ -172,8 +170,8 @@ final class BukkitPreparedTravel implements AutoCloseable {
                 }
             }
         }
-        ClientViewPortalSource route = source == null ? null : session.player().source(source.getId());
-        ApertureDescriptor geometry = source == null ? null : session.travelGeometry(source.getId());
+        ClientViewPortalSource route = source == null ? null : travel.player().source(source.getId());
+        ApertureDescriptor geometry = source == null ? null : travel.travelGeometry(source.getId());
         Optional<ChunkWorldContext> context = packets.context(player.getWorld());
         Location location = player.getLocation();
         Vec3d feet = BukkitGeometry.vector(location);
@@ -187,10 +185,10 @@ final class BukkitPreparedTravel implements AutoCloseable {
             && route.destinationAnchor() instanceof ILocalPortal anchor && anchor.canArrive(player)
             && player.getVehicle() == null && player.getPassengers().isEmpty();
         if (allowed) {
-            allowed = drain(session, preparation);
-            validate(session, preparation);
-            allowed &= session.travel().validCross(request, new ClientPreparedTravelServer.Authority(context.get().dimension(), geometry,
-                new ClientViewMessage.TravelPose(feet.x(), feet.y(), feet.z(), location.getYaw(), location.getPitch()), velocity,
+            allowed = drain(travel, preparation);
+            validate(travel, preparation);
+            allowed &= travel.server().validCross(request, new ClientPreparedTravelServer.Authority(context.get().dimension(), geometry,
+                new TravelMessage.TravelPose(feet.x(), feet.y(), feet.z(), location.getYaw(), location.getPitch()), velocity,
                 player.getEyeHeight()), System.currentTimeMillis());
         }
         if (allowed) {
@@ -205,7 +203,7 @@ final class BukkitPreparedTravel implements AutoCloseable {
                     && Wormholes.dimensionalDoorManager.crossPrepared(player, source.getId(), actual);
         }
         if (!allowed) {
-            discard(session);
+            discard(travel);
             WormholesPlatform.teleport(plugin, player, location, PlayerTeleportEvent.TeleportCause.PLUGIN).whenComplete((moved, failure) -> {
                 if (failure != null) {
                     plugin.getLogger().log(Level.WARNING, "Could not correct rejected portal crossing for " + player.getUniqueId(), failure);
@@ -214,7 +212,7 @@ final class BukkitPreparedTravel implements AutoCloseable {
         }
     }
 
-    void complete(UUID player, ClientViewMessage.TravelCommit commit) {
+    void complete(UUID player, TravelMessage.TravelCommit commit) {
         if (commit != null) {
             complete(player, commit.token(), commit.generation());
         }
@@ -247,32 +245,32 @@ final class BukkitPreparedTravel implements AutoCloseable {
         retryAfter.clear();
     }
 
-    private boolean drain(ClientViewServerSession<ClientViewObserver, BlockData> session, Preparation preparation) {
+    private boolean drain(ClientViewTravel<ClientViewObserver> travel, Preparation preparation) {
         if (!preparation.live.get()) {
-            discard(session);
+            discard(travel);
             return false;
         }
         Snapshot snapshot;
         while ((snapshot = preparation.completed.poll()) != null) {
-            if (session.travel().column(snapshot.coordinate(), snapshot.revision(), snapshot.packet().payload())) {
+            if (travel.server().column(snapshot.coordinate(), snapshot.revision(), snapshot.packet().payload())) {
                 preparation.stamps.put(snapshot.coordinate(), snapshot.stamp());
             } else {
-                discard(session);
+                discard(travel);
                 return false;
             }
         }
         return preparation.live.get();
     }
 
-    private void validate(ClientViewServerSession<ClientViewObserver, BlockData> session, Preparation preparation) {
-        for (Map.Entry<ClientViewMessage.TravelCoordinate, Long> entry : preparation.stamps.entrySet()) {
-            ClientViewMessage.TravelCoordinate coordinate = entry.getKey();
+    private void validate(ClientViewTravel<ClientViewObserver> travel, Preparation preparation) {
+        for (Map.Entry<TravelMessage.TravelCoordinate, Long> entry : preparation.stamps.entrySet()) {
+            TravelMessage.TravelCoordinate coordinate = entry.getKey();
             ChunkLease lease = preparation.leases.get(coordinate);
             if (lease == null || !lease.isValid()) {
-                session.travel().unavailable(coordinate);
+                travel.server().unavailable(coordinate);
             } else if (Wormholes.projectionChangeTracker.dirtySince(preparation.world.getUID(), coordinate.x(), coordinate.z(),
                 coordinate.x(), coordinate.z(), entry.getValue())) {
-                session.travel().invalidate(coordinate);
+                travel.server().invalidate(coordinate);
             }
         }
     }
@@ -283,7 +281,7 @@ final class BukkitPreparedTravel implements AutoCloseable {
         }
         int x = preparation.feet.getBlockX() >> 4;
         int z = preparation.feet.getBlockZ() >> 4;
-        preparation.retain(new ClientViewMessage.TravelCoordinate(x, z));
+        preparation.retain(new TravelMessage.TravelCoordinate(x, z));
         if (!FoliaScheduler.runRegion(plugin, preparation.world, x, z, () -> captureBegin(preparation))) {
             preparation.busy.set(false);
         }
@@ -303,10 +301,10 @@ final class BukkitPreparedTravel implements AutoCloseable {
             Vec3d eye = preparation.feet.add(new Vec3d(0, preparation.eyeHeight, 0));
             ProjectionEnvironment environment = authoritativeEnvironment(BukkitPortalEnvironment.capture(preparation.world, eye,
                 OpticTransform.IDENTITY), metadata);
-            preparation.begin = new ClientViewMessage.TravelBegin(UUID.randomUUID(), preparation.generation, preparation.source,
-                preparation.sourceWorld, preparation.sourceGeometry, preparation.destinationToSource, new ClientViewMessage.TravelWorld(metadata.dimension(), metadata.dimensionType(), metadata.seed(),
+            preparation.begin = new TravelMessage.TravelBegin(UUID.randomUUID(), preparation.generation, preparation.source,
+                preparation.sourceWorld, preparation.sourceGeometry, preparation.destinationToSource, new TravelMessage.TravelWorld(metadata.dimension(), metadata.dimensionType(), metadata.seed(),
                     metadata.debug(), metadata.flat(), metadata.seaLevel(), metadata.minY(), metadata.height()), preparation.arrival,
-                preparation.coordinates, environment, ViewStreamLimits.MAX_TRAVEL_EXPIRY_MILLIS);
+                preparation.coordinates, environment, TravelMessage.MAX_TRAVEL_EXPIRY_MILLIS);
         } catch (RuntimeException failure) {
             plugin.getLogger().log(Level.SEVERE, "Could not prepare portal destination " + preparation.destination, failure);
             preparation.failed = true;
@@ -330,7 +328,7 @@ final class BukkitPreparedTravel implements AutoCloseable {
                 || scheduled > 0 && System.nanoTime() >= deadline) {
                 break;
             }
-            ClientViewMessage.TravelCoordinate coordinate = travel.nextCapture();
+            TravelMessage.TravelCoordinate coordinate = travel.nextCapture();
             if (coordinate == null) {
                 break;
             }
@@ -341,7 +339,7 @@ final class BukkitPreparedTravel implements AutoCloseable {
         }
     }
 
-    private void scheduleColumn(Preparation preparation, ClientViewMessage.TravelCoordinate coordinate, int revision) {
+    private void scheduleColumn(Preparation preparation, TravelMessage.TravelCoordinate coordinate, int revision) {
         if (!preparation.live.get() || !preparation.capturing.add(coordinate)) {
             return;
         }
@@ -352,7 +350,7 @@ final class BukkitPreparedTravel implements AutoCloseable {
         }
     }
 
-    private void captureColumn(Preparation preparation, ClientViewMessage.TravelCoordinate coordinate, int revision) {
+    private void captureColumn(Preparation preparation, TravelMessage.TravelCoordinate coordinate, int revision) {
         try {
             if (!preparation.live.get()) {
                 return;
@@ -370,12 +368,12 @@ final class BukkitPreparedTravel implements AutoCloseable {
         }
     }
 
-    private void discard(ClientViewServerSession<ClientViewObserver, BlockData> session) {
-        complete(session.playerId());
-        session.cancelTravel();
+    private void discard(ClientViewTravel<ClientViewObserver> travel) {
+        complete(travel.playerId());
+        travel.cancelTravel();
     }
 
-    private static ILocalPortal nearest(ClientViewServerSession<ClientViewObserver, BlockData> session,
+    private static ILocalPortal nearest(ClientViewTravel<ClientViewObserver> travel,
                                        Player player, List<ILocalPortal> interested) {
         Location point = player.getLocation();
         Vec3d feet = new Vec3d(point.getX(), point.getY(), point.getZ());
@@ -385,7 +383,7 @@ final class BukkitPreparedTravel implements AutoCloseable {
             if (portal.isMirrorMode() || !portal.isOpen() || !portal.canDepart(player)) {
                 continue;
             }
-            ClientViewPortalSource route = session.player().source(portal.getId());
+            ClientViewPortalSource route = travel.player().source(portal.getId());
             if (route == null || route.destinationWorld() == null
                 || route.destinationAnchor() == null || route.destinationAnchor().isRemote()) {
                 continue;
@@ -407,11 +405,11 @@ final class BukkitPreparedTravel implements AutoCloseable {
                 world.hasCeiling(), world.ambientLight(), world.eyeMedium(), world.hasFixedTime()));
     }
 
-    private record Snapshot(ClientViewMessage.TravelCoordinate coordinate, int revision, ChunkPacketSnapshot packet, long stamp) {
+    private record Snapshot(TravelMessage.TravelCoordinate coordinate, int revision, ChunkPacketSnapshot packet, long stamp) {
     }
 
     private record PreparationOptions(ApertureDescriptor sourceGeometry, OpticTransform destinationToSource, UUID source, UUID destination, World world, Vec3d feet,
-                                      ClientViewMessage.TravelPose arrival, double eyeHeight, String sourceWorld, long generation) {
+                                      TravelMessage.TravelPose arrival, double eyeHeight, String sourceWorld, long generation) {
     }
 
     private static final class Preparation implements AutoCloseable {
@@ -421,18 +419,18 @@ final class BukkitPreparedTravel implements AutoCloseable {
         private final UUID destination;
         private final World world;
         private final Vec3d feet;
-        private final ClientViewMessage.TravelPose arrival;
+        private final TravelMessage.TravelPose arrival;
         private final double eyeHeight;
         private final String sourceWorld;
         private final long generation;
-        private final List<ClientViewMessage.TravelCoordinate> coordinates = new ArrayList<>(49);
-        private final Map<ClientViewMessage.TravelCoordinate, ChunkLease> leases = new ConcurrentHashMap<>();
-        private final Map<ClientViewMessage.TravelCoordinate, Long> stamps = new HashMap<>();
-        private final Set<ClientViewMessage.TravelCoordinate> capturing = ConcurrentHashMap.newKeySet();
+        private final List<TravelMessage.TravelCoordinate> coordinates = new ArrayList<>(49);
+        private final Map<TravelMessage.TravelCoordinate, ChunkLease> leases = new ConcurrentHashMap<>();
+        private final Map<TravelMessage.TravelCoordinate, Long> stamps = new HashMap<>();
+        private final Set<TravelMessage.TravelCoordinate> capturing = ConcurrentHashMap.newKeySet();
         private final ConcurrentLinkedQueue<Snapshot> completed = new ConcurrentLinkedQueue<>();
         private final AtomicBoolean busy = new AtomicBoolean();
         private final AtomicBoolean live = new AtomicBoolean(true);
-        private volatile ClientViewMessage.TravelBegin begin;
+        private volatile TravelMessage.TravelBegin begin;
         private boolean committed;
         private volatile boolean failed;
 
@@ -448,18 +446,18 @@ final class BukkitPreparedTravel implements AutoCloseable {
             this.sourceWorld = options.sourceWorld();
             this.generation = options.generation();
             for (ChunkCoordinate coordinate : ChunkPreSendPlanner.ring(feet.getBlockX() >> 4, feet.getBlockZ() >> 4, 3)) {
-                coordinates.add(new ClientViewMessage.TravelCoordinate(coordinate.x(), coordinate.z()));
+                coordinates.add(new TravelMessage.TravelCoordinate(coordinate.x(), coordinate.z()));
             }
         }
 
         private boolean contains(Vec3d point) {
             int x = point.getBlockX() >> 4;
             int z = point.getBlockZ() >> 4;
-            return coordinates.contains(new ClientViewMessage.TravelCoordinate(x - 1, z - 1))
-                && coordinates.contains(new ClientViewMessage.TravelCoordinate(x + 1, z + 1));
+            return coordinates.contains(new TravelMessage.TravelCoordinate(x - 1, z - 1))
+                && coordinates.contains(new TravelMessage.TravelCoordinate(x + 1, z + 1));
         }
 
-        private synchronized void retain(ClientViewMessage.TravelCoordinate coordinate) {
+        private synchronized void retain(TravelMessage.TravelCoordinate coordinate) {
             if (!live.get()) {
                 return;
             }

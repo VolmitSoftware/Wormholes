@@ -18,8 +18,7 @@ import art.arcane.wormholes.Settings;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.stream.BrickLightSource;
-import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.entity.EntitySnapshot;
 import art.arcane.wormholes.portal.AmbientOutlineGeometry;
 import art.arcane.wormholes.portal.ILocalPortal;
@@ -31,14 +30,15 @@ import art.arcane.wormholes.render.ClientViewSceneCapture;
 import art.arcane.wormholes.render.FidelitySubsystem;
 import art.arcane.optics.fidelity.AcousticsBridge;
 import art.arcane.wormholes.render.client.session.ClientViewEmitters;
-import art.arcane.wormholes.render.client.session.ClientViewEntityFrames;
+import art.arcane.optics.stream.EntityFrames;
 import art.arcane.wormholes.render.client.session.ClientViewSceneFx;
 import art.arcane.optics.plate.ViewPlate;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.ViewWindow;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
+import art.arcane.wormholes.network.client.FxMessage;
 
-final class BukkitClientViewScene implements ClientViewEntityFrames.Scenes<ClientViewObserver>, ClientViewSceneFx.Effects<ClientViewObserver> {
+final class BukkitClientViewScene implements EntityFrames.Scenes<ClientViewObserver>, ClientViewSceneFx.Effects<ClientViewObserver> {
     private static final int AMBIENT_CADENCE_TICKS = 1;
 
     private final BukkitClientViewPortalAccess portals;
@@ -93,7 +93,7 @@ final class BukkitClientViewScene implements ClientViewEntityFrames.Scenes<Clien
     }
 
     @Override
-    public List<ClientViewMessage.FxEmitter> emitters(ClientViewObserver observer, UUID portalId, long tick) {
+    public List<FxMessage.FxEmitter> emitters(ClientViewObserver observer, UUID portalId, long tick) {
         ILocalPortal portal = portals.portal(observer, portalId);
         if (portal == null) {
             return List.of();
@@ -103,7 +103,7 @@ final class BukkitClientViewScene implements ClientViewEntityFrames.Scenes<Clien
         if (!Settings.ENABLE_PARTICLES || structure == null || structure.getArea() == null) {
             return bed == null ? List.of() : List.of(ClientViewEmitters.sound(bed, AcousticsBridge.AMBIENT_INTERVAL_TICKS));
         }
-        List<ClientViewMessage.FxEmitter> emitters = new ArrayList<ClientViewMessage.FxEmitter>(16);
+        List<FxMessage.FxEmitter> emitters = new ArrayList<FxMessage.FxEmitter>(16);
         RtpRimRenderer.Sample rim = observer.rim(portalId);
         if (rim != null) {
             RtpRimRenderer.Color color = rim.color();
@@ -116,7 +116,7 @@ final class BukkitClientViewScene implements ClientViewEntityFrames.Scenes<Clien
         }
         ClientViewEmitters.ambient(new ClientViewEmitters.Ambient(portal.getAmbientStyle(), portal.getAmbientColor(), portal.isOpen(),
             Settings.AMBIENT_PARTICLE_INTERVAL_TICKS, AMBIENT_CADENCE_TICKS, structure.getArea(), outline), emitters);
-        if (bed != null && emitters.size() < ViewStreamLimits.MAX_FX_EMITTERS) {
+        if (bed != null && emitters.size() < FxMessage.MAX_FX_EMITTERS) {
             emitters.add(ClientViewEmitters.sound(bed, AcousticsBridge.AMBIENT_INTERVAL_TICKS));
         }
         return emitters;
@@ -138,21 +138,21 @@ final class BukkitClientViewScene implements ClientViewEntityFrames.Scenes<Clien
             }
             boolean weather = source.relaysWeather();
             boolean clock = weather && environment.sky().skybox() == ProjectionEnvironment.Skybox.OVERWORLD;
-            int flags = (weather ? ClientViewMessage.Atmosphere.FLAG_WEATHER : 0) | (clock ? ClientViewMessage.Atmosphere.FLAG_TIME : 0);
+            int flags = (weather ? ViewStreamMessage.Atmosphere.FLAG_WEATHER : 0) | (clock ? ViewStreamMessage.Atmosphere.FLAG_TIME : 0);
             return new ClientViewSceneFx.Sample(clock ? environment.gameTime() : 0L, clock,
                 weather ? environment.sky().rain() : 0.0F, weather ? environment.sky().thunder() : 0.0F,
-                ClientViewMessage.Atmosphere.withSkyDarken(flags, darken));
+                ViewStreamMessage.Atmosphere.withSkyDarken(flags, darken));
         }
         if (world == null) {
             return null;
         }
         if (!source.relaysWeather()) {
-            return new ClientViewSceneFx.Sample(0L, false, 0.0F, 0.0F, ClientViewMessage.Atmosphere.withSkyDarken(0, darken));
+            return new ClientViewSceneFx.Sample(0L, false, 0.0F, 0.0F, ViewStreamMessage.Atmosphere.withSkyDarken(0, darken));
         }
         boolean clock = world.getEnvironment() == World.Environment.NORMAL;
-        int flags = ClientViewMessage.Atmosphere.FLAG_WEATHER | (clock ? ClientViewMessage.Atmosphere.FLAG_TIME : 0);
+        int flags = ViewStreamMessage.Atmosphere.FLAG_WEATHER | (clock ? ViewStreamMessage.Atmosphere.FLAG_TIME : 0);
         return new ClientViewSceneFx.Sample(clock ? world.getFullTime() : 0L, clock, world.hasStorm() ? 1.0F : 0.0F,
-            world.isThundering() ? 1.0F : 0.0F, ClientViewMessage.Atmosphere.withSkyDarken(flags, darken));
+            world.isThundering() ? 1.0F : 0.0F, ViewStreamMessage.Atmosphere.withSkyDarken(flags, darken));
     }
 
     @Override

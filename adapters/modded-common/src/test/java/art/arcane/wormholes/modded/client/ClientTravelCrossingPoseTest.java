@@ -1,7 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.AxisPermutation;
@@ -24,11 +23,12 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
+import art.arcane.wormholes.network.client.TravelMessage;
 
 public class ClientTravelCrossingPoseTest extends MinecraftTestBase {
     @Test
     public void standingReverseCrossingPreservesExactFeetAboveDestinationFloor() throws ReflectiveOperationException {
-        ClientViewMessage.TravelPose pose = pose(new Vec3(1001.5, 200, 0.4), 0.75f);
+        TravelMessage.TravelPose pose = pose(new Vec3(1001.5, 200, 0.4), 0.75f);
         OpticTransform transform = OpticTransform.of(AxisPermutation.of(Face.E, Face.U, Face.S), -102, 120, 0);
         Vec3 destination = ClientTravelMotion.point(transform, new Vec3(pose.x(), pose.y(), pose.z()));
         assertEquals(200, pose.y(), 0);
@@ -38,7 +38,7 @@ public class ClientTravelCrossingPoseTest extends MinecraftTestBase {
     @Test
     public void fractionalInterpolatedFeetAreNotReconstructedFromTheEye() throws ReflectiveOperationException {
         Vec3 feet = new Vec3(1001.3125, 200.375, 0.4375);
-        ClientViewMessage.TravelPose pose = pose(feet, 0.375f);
+        TravelMessage.TravelPose pose = pose(feet, 0.375f);
         assertEquals(feet.x, pose.x(), 0);
         assertEquals(feet.y, pose.y(), 0);
         assertEquals(feet.z, pose.z(), 0);
@@ -89,13 +89,13 @@ public class ClientTravelCrossingPoseTest extends MinecraftTestBase {
         verifyNoInteractions(tracker);
     }
 
-    private static ClientViewMessage.TravelPose pose(Vec3 feet, float partial) throws ReflectiveOperationException {
+    private static TravelMessage.TravelPose pose(Vec3 feet, float partial) throws ReflectiveOperationException {
         LocalPlayer player = mock(LocalPlayer.class);
         when(player.getPosition(partial)).thenReturn(feet);
         when(player.getYRot()).thenReturn(180f);
         when(player.getXRot()).thenReturn(15f);
         Method method = ClientPreparedTravel.class.getDeclaredMethod("crossingPose", LocalPlayer.class, float.class);
         method.setAccessible(true);
-        return (ClientViewMessage.TravelPose) method.invoke(null, player, partial);
+        return (TravelMessage.TravelPose) method.invoke(null, player, partial);
     }
 }

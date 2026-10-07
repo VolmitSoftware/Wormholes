@@ -12,44 +12,43 @@ import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.config.VisualQualityProfile;
 import art.arcane.optics.math.Vec3d;
-import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.AmbientSparkCadence;
 import art.arcane.wormholes.portal.effects.PortalAnimation;
 import art.arcane.optics.fidelity.AcousticsBridge;
 import art.arcane.optics.fidelity.AcousticsProfile;
 import art.arcane.optics.math.Box;
+import art.arcane.wormholes.network.client.FxMessage;
 
 class ClientViewEmittersTest {
     private static final Box AREA = new Box(10.0D, 13.0D, 64.0D, 67.0D, 20.0D, 21.0D);
 
     @Test
     void rimCoversEveryCornerWithAQuantizedColor() {
-        List<ClientViewMessage.FxEmitter> out = new ArrayList<ClientViewMessage.FxEmitter>();
+        List<FxMessage.FxEmitter> out = new ArrayList<FxMessage.FxEmitter>();
         ClientViewEmitters.rim(AREA, 250, 7, 0, 10, out);
         assertEquals(8, out.size());
-        for (ClientViewMessage.FxEmitter emitter : out) {
-            assertEquals(ClientViewMessage.FxKind.RIM_DUST, emitter.kind());
+        for (FxMessage.FxEmitter emitter : out) {
+            assertEquals(FxMessage.FxKind.RIM_DUST, emitter.kind());
             assertEquals(0xFF0000, (int) emitter.paramA());
             assertEquals(10, emitter.ticks());
             assertTrue(emitter.x() == 10.0D || emitter.x() == 13.0D);
             assertTrue(emitter.y() == 64.0D || emitter.y() == 67.0D);
         }
-        List<ClientViewMessage.FxEmitter> timed = new ArrayList<ClientViewMessage.FxEmitter>();
+        List<FxMessage.FxEmitter> timed = new ArrayList<FxMessage.FxEmitter>();
         ClientViewEmitters.rim(AREA, 129, 255, 0, 10, timed);
-        List<ClientViewMessage.FxEmitter> step = new ArrayList<ClientViewMessage.FxEmitter>();
+        List<FxMessage.FxEmitter> step = new ArrayList<FxMessage.FxEmitter>();
         ClientViewEmitters.rim(AREA, 131, 255, 0, 10, step);
         assertEquals(timed, step, "colors inside one progress step produce the same emitter set");
     }
 
     @Test
     void sparksCarryTheirCadenceInFlags() {
-        List<ClientViewMessage.FxEmitter> out = new ArrayList<ClientViewMessage.FxEmitter>();
+        List<FxMessage.FxEmitter> out = new ArrayList<FxMessage.FxEmitter>();
         ClientViewEmitters.ambient(new ClientViewEmitters.Ambient(AmbientParticleStyle.SPARKS, 0xFFFFFF, true, 3, 5, AREA, List.of()), out);
         assertEquals(1, out.size());
-        ClientViewMessage.FxEmitter sparks = out.get(0);
-        assertEquals(ClientViewMessage.FxKind.SURFACE, sparks.kind());
+        FxMessage.FxEmitter sparks = out.get(0);
+        assertEquals(FxMessage.FxKind.SURFACE, sparks.kind());
         assertEquals(ClientViewEmitters.SPARK_PARTICLE, sparks.key());
         assertEquals(5, sparks.ticks());
         assertEquals(ClientViewEmitters.SURFACE_OPEN_FLAG, sparks.flags() & ClientViewEmitters.SURFACE_OPEN_FLAG);
@@ -59,7 +58,7 @@ class ClientViewEmittersTest {
 
     @Test
     void rotatingStylesSpreadEachPointOverTheirWindow() {
-        List<ClientViewMessage.FxEmitter> closedCorners = new ArrayList<ClientViewMessage.FxEmitter>();
+        List<FxMessage.FxEmitter> closedCorners = new ArrayList<FxMessage.FxEmitter>();
         ClientViewEmitters.ambient(new ClientViewEmitters.Ambient(AmbientParticleStyle.CORNERS, 0x123456, false, 1, 5, AREA, List.of()), closedCorners);
         assertEquals(8, closedCorners.size());
         assertEquals(20, closedCorners.get(0).ticks(), "two corners per step visit all eight corners every four steps");
@@ -67,11 +66,11 @@ class ClientViewEmittersTest {
         for (int i = 0; i < 400; i++) {
             outline.add(new double[] {i, 64.0D, 20.0D});
         }
-        List<ClientViewMessage.FxEmitter> open = new ArrayList<ClientViewMessage.FxEmitter>();
+        List<FxMessage.FxEmitter> open = new ArrayList<FxMessage.FxEmitter>();
         ClientViewEmitters.ambient(new ClientViewEmitters.Ambient(AmbientParticleStyle.OUTLINE, 0x123456, true, 1, 1, AREA, outline), open);
-        assertEquals(ViewStreamLimits.MAX_FX_EMITTERS, open.size());
+        assertEquals(FxMessage.MAX_FX_EMITTERS, open.size());
         assertEquals(13, open.get(0).ticks());
-        List<ClientViewMessage.FxEmitter> off = new ArrayList<ClientViewMessage.FxEmitter>();
+        List<FxMessage.FxEmitter> off = new ArrayList<FxMessage.FxEmitter>();
         ClientViewEmitters.ambient(new ClientViewEmitters.Ambient(AmbientParticleStyle.OFF, 0, true, 1, 1, AREA, outline), off);
         assertTrue(off.isEmpty());
     }
@@ -84,8 +83,8 @@ class ClientViewEmittersTest {
             for (VisualQualityProfile quality : VisualQualityProfile.values()) {
                 for (Vec3d size : sizes) {
                     Vec3d center = new Vec3d(10.5D, 66.25D, -20.5D);
-                    ClientViewMessage.FxEmitter emitter = ClientViewEmitters.animation(mode, center, size, quality);
-                    assertEquals(ClientViewMessage.FxKind.ANIMATION, emitter.kind());
+                    FxMessage.FxEmitter emitter = ClientViewEmitters.animation(mode, center, size, quality);
+                    assertEquals(FxMessage.FxKind.ANIMATION, emitter.kind());
                     assertTrue(ClientViewEmitters.oneShot(emitter));
                     ClientViewEmitters.Animation decoded = ClientViewEmitters.animation(emitter);
                     assertEquals(mode, decoded.mode());
@@ -100,16 +99,16 @@ class ClientViewEmittersTest {
                 }
             }
         }
-        assertNull(ClientViewEmitters.animation(new ClientViewMessage.FxEmitter(ClientViewMessage.FxKind.ANIMATION, "", 0.0D, 0.0D, 0.0D, 1.0F, 1.0F,
+        assertNull(ClientViewEmitters.animation(new FxMessage.FxEmitter(FxMessage.FxKind.ANIMATION, "", 0.0D, 0.0D, 0.0D, 1.0F, 1.0F,
             0, 0x07)), "an unknown mode is ignored");
-        assertNull(ClientViewEmitters.animation(new ClientViewMessage.FxEmitter(ClientViewMessage.FxKind.ANIMATION, "", 0.0D, 0.0D, 0.0D, Float.NaN,
+        assertNull(ClientViewEmitters.animation(new FxMessage.FxEmitter(FxMessage.FxKind.ANIMATION, "", 0.0D, 0.0D, 0.0D, Float.NaN,
             1.0F, 0, 0)), "a non-finite plane is ignored");
     }
 
     @Test
     void burstsCarryCountSpreadsAndSpeed() {
-        ClientViewMessage.FxEmitter burst = ClientViewEmitters.burst("minecraft:reverse_portal", 1.0D, 2.0D, 3.0D, 12, 0.4D, 0.6D, 0.4D);
-        assertEquals(ClientViewMessage.FxKind.BURST, burst.kind());
+        FxMessage.FxEmitter burst = ClientViewEmitters.burst("minecraft:reverse_portal", 1.0D, 2.0D, 3.0D, 12, 0.4D, 0.6D, 0.4D);
+        assertEquals(FxMessage.FxKind.BURST, burst.kind());
         assertEquals(12, burst.ticks());
         assertEquals(0.4F, burst.paramA());
         assertEquals(0.6F, burst.paramB());
@@ -123,17 +122,17 @@ class ClientViewEmittersTest {
     void soundsAndDustFireOnceOnlyWithoutAnInterval() {
         AcousticsBridge.Playback playback = new AcousticsBridge.Playback("minecraft:block.stone.break", AcousticsProfile.SoundClass.WORLD, 1.0D,
             2.0D, 3.0D, 0.5F, 0.8F);
-        ClientViewMessage.FxEmitter event = ClientViewEmitters.sound(playback, 0);
+        FxMessage.FxEmitter event = ClientViewEmitters.sound(playback, 0);
         assertTrue(ClientViewEmitters.oneShot(event));
         assertEquals(AcousticsProfile.SoundClass.WORLD, ClientViewEmitters.soundClass(event));
-        ClientViewMessage.FxEmitter bed = ClientViewEmitters.sound(playback, AcousticsBridge.AMBIENT_INTERVAL_TICKS);
+        FxMessage.FxEmitter bed = ClientViewEmitters.sound(playback, AcousticsBridge.AMBIENT_INTERVAL_TICKS);
         assertFalse(ClientViewEmitters.oneShot(bed));
         assertEquals(AcousticsBridge.AMBIENT_INTERVAL_TICKS, bed.ticks());
-        ClientViewMessage.FxEmitter dust = ClientViewEmitters.dust(1.0D, 2.0D, 3.0D, 255, 70, 70);
-        assertEquals(ClientViewMessage.FxKind.RIM_DUST, dust.kind());
+        FxMessage.FxEmitter dust = ClientViewEmitters.dust(1.0D, 2.0D, 3.0D, 255, 70, 70);
+        assertEquals(FxMessage.FxKind.RIM_DUST, dust.kind());
         assertEquals(0xFF4646, (int) dust.paramA());
         assertTrue(ClientViewEmitters.oneShot(dust));
-        List<ClientViewMessage.FxEmitter> rim = new ArrayList<ClientViewMessage.FxEmitter>();
+        List<FxMessage.FxEmitter> rim = new ArrayList<FxMessage.FxEmitter>();
         ClientViewEmitters.rim(AREA, 255, 0, 0, 5, rim);
         assertFalse(ClientViewEmitters.oneShot(rim.get(0)));
     }

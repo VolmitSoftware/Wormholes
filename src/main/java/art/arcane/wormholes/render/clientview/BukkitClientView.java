@@ -42,22 +42,27 @@ import art.arcane.volmlib.nativelib.chunk.ChunkPacketAccess;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.network.client.ClientViewChannel;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.wormholes.portal.ArrivalWarmer;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.rtp.RtpRimRenderer;
 import art.arcane.wormholes.render.PortalProjector;
-import art.arcane.wormholes.render.client.session.ClientViewEntityFrames;
+import art.arcane.optics.stream.EntityFrames;
 import art.arcane.optics.stream.ViewStreamInbound;
-import art.arcane.wormholes.render.client.session.ClientViewOptions;
-import art.arcane.wormholes.render.client.session.ClientViewPlatform;
+import art.arcane.optics.stream.ViewStreamOptions;
+import art.arcane.optics.stream.ViewStreamPlatform;
 import art.arcane.wormholes.render.client.session.ClientViewSceneFx;
-import art.arcane.wormholes.render.client.session.ClientViewServerSession;
+import art.arcane.optics.stream.ViewStreamSession;
 import art.arcane.wormholes.render.client.session.ClientPreparedTravelServer;
-import art.arcane.wormholes.render.client.session.ClientViewSessionRegistry;
+import art.arcane.wormholes.render.client.session.ClientViewTravel;
+import art.arcane.wormholes.network.client.ClientViewExtensions;
+import art.arcane.wormholes.network.client.FxExtension;
+import art.arcane.optics.stream.ViewStreamSessionRegistry;
 import art.arcane.optics.stream.ViewStreamSessionState;
 import art.arcane.optics.plate.ViewPlateCache;
 import art.arcane.wormholes.render.view.ProjectionWorldViewProvider;
+import art.arcane.wormholes.network.client.TravelMessage;
+import art.arcane.wormholes.network.client.FxMessage;
 
 public final class BukkitClientView implements ClientViewRouting {
     public static final long PLATFORM_CAPS = ViewStreamCapability.of(ViewStreamCapability.PLATES, ViewStreamCapability.BRICK_CACHE,
@@ -69,7 +74,7 @@ public final class BukkitClientView implements ClientViewRouting {
     private static final String CONFIGURE_EVENT_CLASS = "io.papermc.paper.event.connection.configuration.AsyncPlayerConnectionConfigureEvent";
     private static final String CONFIGURE_LISTENER_CLASS = "art.arcane.wormholes.render.clientview.PaperClientViewConfigureListener";
 
-    private final ClientViewSessionRegistry<ClientViewObserver, BlockData> registry;
+    private final ViewStreamSessionRegistry<ClientViewObserver, BlockData> registry;
     private final ConcurrentHashMap<UUID, ClientViewObserver> observers;
     private final PacketEventsClientViewTransport transport;
     private final ShutdownAwareLanes lanes;
@@ -97,10 +102,10 @@ public final class BukkitClientView implements ClientViewRouting {
         this.travelPackets = NativeAdapters.find(ChunkPacketAccess.class).orElse(null);
         long platformCaps = PLATFORM_CAPS | (travelPackets != null && travelPackets.snapshotSupported()
             ? ViewStreamCapability.PREPARED_TRAVEL.mask() | ViewStreamCapability.PREPARED_TRAVEL_CACHE.mask() : 0L);
-        ClientViewPlatform<ClientViewObserver, BlockData> platform = new ClientViewPlatform<ClientViewObserver, BlockData>(transport, portals,
-            new ClientViewEntityFrames<ClientViewObserver>(portals.scene()), new ClientViewSceneFx<ClientViewObserver>(portals.scene()), null, lanes,
-            BlockData::getAsString, options.mcDataVersion(), platformCaps, null, this::warn);
-        this.registry = new ClientViewSessionRegistry<ClientViewObserver, BlockData>(platform, options.settings());
+        ViewStreamPlatform<ClientViewObserver, BlockData> platform = new ViewStreamPlatform<ClientViewObserver, BlockData>(transport, portals,
+            new EntityFrames<ClientViewObserver>(portals.scene()), new ClientViewSceneFx<ClientViewObserver>(portals.scene()), null, lanes,
+            BlockData::getAsString, options.mcDataVersion(), platformCaps, null, this::warn, ClientViewExtensions.ALL, ClientViewTravel::new);
+        this.registry = new ViewStreamSessionRegistry<ClientViewObserver, BlockData>(platform, options.settings());
         this.verbose = Objects.requireNonNull(options.verbose(), "verbose");
         this.negotiator = new BukkitClientViewNegotiator(this, options.users(), options.scheduler(), verbose);
         this.folia = options.folia();
@@ -150,7 +155,7 @@ public final class BukkitClientView implements ClientViewRouting {
         return null;
     }
 
-    public ClientViewSessionRegistry<ClientViewObserver, BlockData> registry() {
+    public ViewStreamSessionRegistry<ClientViewObserver, BlockData> registry() {
         return registry;
     }
 
@@ -162,7 +167,7 @@ public final class BukkitClientView implements ClientViewRouting {
         return negotiator;
     }
 
-    public void configure(ClientViewOptions options) {
+    public void configure(ViewStreamOptions options) {
         if (registry.configure(options)) {
             negotiator.reoffer(Bukkit.getOnlinePlayers());
         }
@@ -175,26 +180,26 @@ public final class BukkitClientView implements ClientViewRouting {
     }
 
     public boolean reset(Player player) {
-        ClientViewServerSession<ClientViewObserver, BlockData> session = registry.session(player.getUniqueId());
+        ViewStreamSession<ClientViewObserver, BlockData> session = registry.session(player.getUniqueId());
         Plugin owner = plugin;
         if (owner == null || session == null || session.state() != ViewStreamSessionState.CLIENT_VIEW) {
             return false;
         }
-        return FoliaScheduler.runEntity(owner, player, () -> session.reset(ClientViewMessage.ResetReason.TELEPORT));
+        return FoliaScheduler.runEntity(owner, player, () -> session.reset(ViewStreamMessage.ResetReason.TELEPORT));
     }
 
-    public ClientViewMessage.TravelCommit commitTravel(Player player, UUID source, Location destination, Vec3d velocity) {
-        ClientViewServerSession<ClientViewObserver, BlockData> session = registry.session(player.getUniqueId());
+    public TravelMessage.TravelCommit commitTravel(Player player, UUID source, Location destination, Vec3d velocity) {
+        ClientViewTravel<ClientViewObserver> travel = travel(player.getUniqueId());
         BukkitPreparedTravel current = prepared;
-        ClientViewMessage.TravelCommit commit = session == null || current == null || !session.preparedTravelSelected()
-            ? null : current.commit(session, player, source, destination, velocity);
+        TravelMessage.TravelCommit commit = travel == null || current == null || !travel.preparedTravelSelected()
+            ? null : current.commit(travel, player, source, destination, velocity);
         if (commit != null) {
             seamless.put(player.getUniqueId(), new Seamless(source, commit.token(), commit.generation(), System.currentTimeMillis() + 2_000L));
         }
         return commit;
     }
 
-    public void completeTravel(UUID player, ClientViewMessage.TravelCommit commit, boolean success) {
+    public void completeTravel(UUID player, TravelMessage.TravelCommit commit, boolean success) {
         if (commit == null) {
             return;
         }
@@ -206,9 +211,9 @@ public final class BukkitClientView implements ClientViewRouting {
         if (current != null) {
             current.complete(player, commit);
         }
-        ClientViewServerSession<ClientViewObserver, BlockData> session = registry.session(player);
-        if (!success && session != null && commit != null) {
-            session.sendTravel(new ClientViewMessage.TravelCancel(commit.token(), commit.generation()));
+        ClientViewTravel<ClientViewObserver> travel = travel(player);
+        if (!success && travel != null && commit != null) {
+            travel.sendTravel(new TravelMessage.TravelCancel(commit.token(), commit.generation()));
         }
     }
 
@@ -229,26 +234,26 @@ public final class BukkitClientView implements ClientViewRouting {
         if (active != null && active.until() > System.currentTimeMillis() && active.source().equals(sourcePortal)) {
             return true;
         }
-        ClientViewServerSession<ClientViewObserver, BlockData> session = registry.session(playerId);
-        return session != null && session.preparedTravelSelected() && session.travel().readyRoute(sourcePortal, System.currentTimeMillis());
+        ClientViewTravel<ClientViewObserver> travel = travel(playerId);
+        return travel != null && travel.preparedTravelSelected() && travel.server().readyRoute(sourcePortal, System.currentTimeMillis());
     }
 
-    public Optional<ClientViewMessage.TravelBegin> preparation(UUID traveler) {
-        ClientViewServerSession<ClientViewObserver, BlockData> session = registry.session(traveler);
-        return session == null ? Optional.empty() : session.travel().preparing();
+    public Optional<TravelMessage.TravelBegin> preparation(UUID traveler) {
+        ClientViewTravel<ClientViewObserver> travel = travel(traveler);
+        return travel == null ? Optional.empty() : travel.server().preparing();
     }
 
-    public boolean crossing(UUID traveler, ClientViewMessage.TravelBegin expected) {
+    public boolean crossing(UUID traveler, TravelMessage.TravelBegin expected) {
         return expected != null && preparation(traveler).filter(begin -> begin.token().equals(expected.token())
             && begin.generation() == expected.generation()).isPresent() && crossing(traveler);
     }
 
     public boolean crossing(UUID traveler) {
-        ClientViewServerSession<ClientViewObserver, BlockData> session = registry.session(traveler);
-        return session != null && session.preparedTravelSelected() && session.travel().crossing();
+        ClientViewTravel<ClientViewObserver> travel = travel(traveler);
+        return travel != null && travel.preparedTravelSelected() && travel.server().crossing();
     }
 
-    public void cancelPreparation(UUID traveler, ClientViewMessage.TravelBegin expected) {
+    public void cancelPreparation(UUID traveler, TravelMessage.TravelBegin expected) {
         if (expected == null) {
             return;
         }
@@ -256,10 +261,10 @@ public final class BukkitClientView implements ClientViewRouting {
         if (current != null) {
             current.complete(traveler, expected.token(), expected.generation());
         }
-        ClientViewServerSession<ClientViewObserver, BlockData> session = registry.session(traveler);
-        ClientViewMessage.TravelCancel cancel = new ClientViewMessage.TravelCancel(expected.token(), expected.generation());
-        if (session != null && session.travel().cancel(cancel)) {
-            session.sendTravel(cancel);
+        ClientViewTravel<ClientViewObserver> travel = travel(traveler);
+        TravelMessage.TravelCancel cancel = new TravelMessage.TravelCancel(expected.token(), expected.generation());
+        if (travel != null && travel.server().cancel(cancel)) {
+            travel.sendTravel(cancel);
         }
     }
 
@@ -269,30 +274,35 @@ public final class BukkitClientView implements ClientViewRouting {
         if (current != null) {
             current.complete(traveler);
         }
-        ClientViewServerSession<ClientViewObserver, BlockData> session = registry.session(traveler);
-        if (session != null) {
-            session.cancelTravel();
+        ClientViewTravel<ClientViewObserver> travel = travel(traveler);
+        if (travel != null) {
+            travel.cancelTravel();
         }
     }
 
     public boolean deferTravel(UUID traveler, UUID source) {
-        ClientViewServerSession<ClientViewObserver, BlockData> session = registry.session(traveler);
-        if (session == null || !session.preparedTravelSelected()) {
+        ClientViewTravel<ClientViewObserver> travel = travel(traveler);
+        if (travel == null || !travel.preparedTravelSelected()) {
             return false;
         }
-        ClientPreparedTravelServer.AutomaticCross result = session.travel().automaticCross(source, System.currentTimeMillis());
+        ClientPreparedTravelServer.AutomaticCross result = travel.server().automaticCross(source, System.currentTimeMillis());
         if (result == ClientPreparedTravelServer.AutomaticCross.FALLBACK) {
             BukkitPreparedTravel current = prepared;
             if (current != null) {
                 current.complete(traveler);
             }
-            session.cancelTravel();
+            travel.cancelTravel();
         }
         return result == ClientPreparedTravelServer.AutomaticCross.DEFER;
     }
 
     public ClientViewObserver observer(UUID playerId) {
         return observers.get(playerId);
+    }
+
+    private ClientViewTravel<ClientViewObserver> travel(UUID playerId) {
+        ViewStreamSession<ClientViewObserver, BlockData> session = registry.session(playerId);
+        return session == null ? null : ClientViewTravel.of(session);
     }
 
     public ClientViewObserver observer(UUID playerId, User user) {
@@ -359,7 +369,7 @@ public final class BukkitClientView implements ClientViewRouting {
     }
 
     public boolean nativeMesh(Player player) {
-        ClientViewServerSession<ClientViewObserver, BlockData> session = registry.session(player.getUniqueId());
+        ViewStreamSession<ClientViewObserver, BlockData> session = registry.session(player.getUniqueId());
         return session != null && session.nativeRendererSelected();
     }
 
@@ -372,8 +382,8 @@ public final class BukkitClientView implements ClientViewRouting {
         registry.entityEvent(event);
     }
 
-    public boolean oneShot(Player player, ClientViewMessage.FxEmitter emitter) {
-        return registry.oneShot(player.getUniqueId(), emitter);
+    public boolean oneShot(Player player, FxMessage.FxEmitter emitter) {
+        return registry.burst(player.getUniqueId(), FxExtension.burst(emitter));
     }
 
     public boolean hasReceivers(World world) {
@@ -389,14 +399,14 @@ public final class BukkitClientView implements ClientViewRouting {
         return false;
     }
 
-    public void oneShotNear(World world, double x, double y, double z, ClientViewMessage.FxEmitter emitter) {
+    public void oneShotNear(World world, double x, double y, double z, FxMessage.FxEmitter emitter) {
         if (!hasReceivers(world)) {
             return;
         }
         for (ClientViewObserver observer : observers.values()) {
             Player player = observer.player();
             if (player != null && world.equals(player.getWorld()) && near(player, x, y, z) && registry.effectsReceiver(observer.id())) {
-                registry.oneShot(observer.id(), emitter);
+                registry.burst(observer.id(), FxExtension.burst(emitter));
             }
         }
     }
@@ -414,14 +424,14 @@ public final class BukkitClientView implements ClientViewRouting {
         }
     }
 
-    public boolean particles(World world, double x, double y, double z, Consumer<Player> vanilla, ClientViewMessage.FxEmitter clientEmitter) {
+    public boolean particles(World world, double x, double y, double z, Consumer<Player> vanilla, FxMessage.FxEmitter clientEmitter) {
         if (!hasReceivers(world)) {
             return false;
         }
         for (Player player : world.getPlayers()) {
             if (registry.effectsReceiver(player.getUniqueId())) {
                 if (clientEmitter != null && near(player, x, y, z)) {
-                    registry.oneShot(player.getUniqueId(), clientEmitter);
+                    registry.burst(player.getUniqueId(), FxExtension.burst(clientEmitter));
                 }
                 continue;
             }
@@ -443,7 +453,7 @@ public final class BukkitClientView implements ClientViewRouting {
 
     @Override
     public boolean holdsVanilla(Player observer, long frameTick) {
-        ClientViewServerSession<ClientViewObserver, BlockData> session = registry.session(observer.getUniqueId());
+        ViewStreamSession<ClientViewObserver, BlockData> session = registry.session(observer.getUniqueId());
         if (session == null || session.state() != ViewStreamSessionState.PENDING) {
             return false;
         }
@@ -453,7 +463,7 @@ public final class BukkitClientView implements ClientViewRouting {
     @Override
     public void route(Player player, Location eye, List<ILocalPortal> interested, List<ILocalPortal> projectable,
                       Map<UUID, PortalProjector.RtpProjectionTarget> rtpTargets, long frameTick) {
-        ClientViewServerSession<ClientViewObserver, BlockData> session = registry.session(player.getUniqueId());
+        ViewStreamSession<ClientViewObserver, BlockData> session = registry.session(player.getUniqueId());
         if (session == null) {
             updateDoorVisibility(player, Set.of());
             return;
@@ -479,7 +489,7 @@ public final class BukkitClientView implements ClientViewRouting {
         session.tick(frameTick);
         BukkitPreparedTravel currentPrepared = prepared;
         if (currentPrepared != null) {
-            currentPrepared.tick(session, player, interested);
+            currentPrepared.tick(ClientViewTravel.of(session), player, interested);
         }
         for (int i = interested.size() - 1; i >= 0; i--) {
             if (session.owns(interested.get(i).getId())) {
@@ -521,7 +531,7 @@ public final class BukkitClientView implements ClientViewRouting {
         }
         updateDoorVisibility(observer.player(), Set.of());
         scene.removeObserver(playerId);
-        ClientViewServerSession<ClientViewObserver, BlockData> session = registry.session(playerId);
+        ViewStreamSession<ClientViewObserver, BlockData> session = registry.session(playerId);
         if (session != null && session.player() == observer) {
             registry.forget(playerId);
         }
@@ -568,7 +578,7 @@ public final class BukkitClientView implements ClientViewRouting {
             UUID playerId = user.getUUID();
             ClientViewObserver observer = observer(playerId, user);
             observer.brand(brand);
-            ClientViewServerSession<ClientViewObserver, BlockData> session = registry.session(playerId);
+            ViewStreamSession<ClientViewObserver, BlockData> session = registry.session(playerId);
             if (session != null) {
                 session.brand(brand);
             }
@@ -577,7 +587,7 @@ public final class BukkitClientView implements ClientViewRouting {
 
         @Override
         public void payload(User user, byte[] payload) {
-            ClientViewServerSession<ClientViewObserver, BlockData> session = registry.session(user.getUUID());
+            ViewStreamSession<ClientViewObserver, BlockData> session = registry.session(user.getUUID());
             if (session == null) {
                 return;
             }
@@ -590,7 +600,7 @@ public final class BukkitClientView implements ClientViewRouting {
 
         @Override
         public void pong(User user) {
-            ClientViewServerSession<ClientViewObserver, BlockData> session = registry.session(user.getUUID());
+            ViewStreamSession<ClientViewObserver, BlockData> session = registry.session(user.getUUID());
             if (session != null) {
                 session.pong();
             }
@@ -635,7 +645,7 @@ public final class BukkitClientView implements ClientViewRouting {
                           BiConsumer<UUID, UUID> releaseVanilla,
                           Executor workers,
                           int mcDataVersion,
-                          ClientViewOptions settings,
+                          ViewStreamOptions settings,
                           Function<Player, User> users,
                           BukkitClientViewNegotiator.Scheduler scheduler,
                           Logger logger,

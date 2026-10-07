@@ -26,8 +26,8 @@ public final class ClientTravelWindow {
         return diameter * diameter;
     }
 
-    public static List<ClientViewMessage.TravelCoordinate> coordinates(int centerX, int centerZ, int radius) {
-        List<ClientViewMessage.TravelCoordinate> coordinates = new ArrayList<>(count(radius));
+    public static List<TravelMessage.TravelCoordinate> coordinates(int centerX, int centerZ, int radius) {
+        List<TravelMessage.TravelCoordinate> coordinates = new ArrayList<>(count(radius));
         int offsetX = centerX;
         int offsetZ = centerZ;
         List<ChunkCoordinate> ordered;
@@ -40,7 +40,7 @@ public final class ClientTravelWindow {
             ordered = relativeWindow(radius);
         }
         for (ChunkCoordinate coordinate : ordered) {
-            coordinates.add(new ClientViewMessage.TravelCoordinate(coordinate.x() + offsetX, coordinate.z() + offsetZ));
+            coordinates.add(new TravelMessage.TravelCoordinate(coordinate.x() + offsetX, coordinate.z() + offsetZ));
         }
         return List.copyOf(coordinates);
     }

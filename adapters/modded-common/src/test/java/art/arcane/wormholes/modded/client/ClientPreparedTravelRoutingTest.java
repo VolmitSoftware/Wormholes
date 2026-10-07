@@ -3,7 +3,6 @@ package art.arcane.wormholes.modded.client;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.optics.stream.ViewStreamCapability;
-import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.ViewStreamProtocolException;
@@ -20,6 +19,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import art.arcane.wormholes.network.client.TravelMessage;
+import art.arcane.wormholes.network.client.TravelExtension;
 
 public class ClientPreparedTravelRoutingTest extends MinecraftTestBase {
     @After
@@ -33,18 +34,18 @@ public class ClientPreparedTravelRoutingTest extends MinecraftTestBase {
     @Test
     public void completeTravelDispatchesOnceAndOrdinaryTickKeepsSessionAccountingActive() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness(ViewStreamCapability.ALL);
-        List<ClientViewMessage.TravelCoordinate> coordinates = new ArrayList<>(49);
-        List<ClientViewMessage.TravelChunkRevision> revisions = new ArrayList<>(49);
+        List<TravelMessage.TravelCoordinate> coordinates = new ArrayList<>(49);
+        List<TravelMessage.TravelChunkRevision> revisions = new ArrayList<>(49);
         for (int z = -3; z <= 3; z++) {
             for (int x = -3; x <= 3; x++) {
-                coordinates.add(new ClientViewMessage.TravelCoordinate(x, z));
-                revisions.add(new ClientViewMessage.TravelChunkRevision(x, z, 1));
+                coordinates.add(new TravelMessage.TravelCoordinate(x, z));
+                revisions.add(new TravelMessage.TravelChunkRevision(x, z, 1));
             }
         }
         UUID token = new UUID(4, 17);
-        ClientViewMessage.TravelBegin begin = new ClientViewMessage.TravelBegin(token, 8, new UUID(2, 9),
-            "minecraft:the_nether", ClientTravelTestFixtures.geometry(), OpticTransform.IDENTITY, new ClientViewMessage.TravelWorld("minecraft:overworld", "minecraft:overworld",
-            7, false, false, 63, -64, 384), new ClientViewMessage.TravelPose(0, 80, 0, 0, 0), coordinates,
+        TravelMessage.TravelBegin begin = new TravelMessage.TravelBegin(token, 8, new UUID(2, 9),
+            "minecraft:the_nether", ClientTravelTestFixtures.geometry(), OpticTransform.IDENTITY, new TravelMessage.TravelWorld("minecraft:overworld", "minecraft:overworld",
+            7, false, false, 63, -64, 384), new TravelMessage.TravelPose(0, 80, 0, 0, 0), coordinates,
             PortalEnvironmentTest.environment(OpticTransform.IDENTITY), 30_000);
         AtomicReference<ClientTravelChunks> chunks = new AtomicReference<>();
         AtomicInteger deliveries = new AtomicInteger();
@@ -53,28 +54,28 @@ public class ClientPreparedTravelRoutingTest extends MinecraftTestBase {
         harness.receiver.travel(message -> {
             deliveries.incrementAndGet();
             switch (message) {
-                case ClientViewMessage.TravelBegin value -> chunks.set(new ClientTravelChunks(value));
-                case ClientViewMessage.TravelChunk value -> {
+                case TravelMessage.TravelBegin value -> chunks.set(new ClientTravelChunks(value));
+                case TravelMessage.TravelChunk value -> {
                     byte[] column = chunks.get().accept(value);
                     if (column != null) {
                         assertArrayEquals(payload, column);
                         columns.incrementAndGet();
                     }
                 }
-                case ClientViewMessage.TravelEnd value -> chunks.get().end(value);
+                case TravelMessage.TravelEnd value -> chunks.get().end(value);
                 default -> { }
             }
         });
         receive(harness, begin);
-        for (ClientViewMessage.TravelCoordinate coordinate : coordinates) {
-            receive(harness, new ClientViewMessage.TravelChunk(token, 8, coordinate.x(), coordinate.z(), 1,
+        for (TravelMessage.TravelCoordinate coordinate : coordinates) {
+            receive(harness, new TravelMessage.TravelChunk(token, 8, coordinate.x(), coordinate.z(), 1,
                 0, 1, payload.length, payload));
         }
-        receive(harness, new ClientViewMessage.TravelEnd(token, 8, 12, revisions));
+        receive(harness, new TravelMessage.TravelEnd(token, 8, 12, revisions));
         assertEquals(49, columns.get());
         assertEquals(12, chunks.get().completeRevision());
-        receive(harness, new ClientViewMessage.TravelCommit(token, 8, 12, begin.sourceWorld(), begin.world().dimension(), begin.arrival(), new Vec3d(0, 0, 0)));
-        receive(harness, new ClientViewMessage.TravelCancel(token, 8));
+        receive(harness, new TravelMessage.TravelCommit(token, 8, 12, begin.sourceWorld(), begin.world().dimension(), begin.arrival(), new Vec3d(0, 0, 0)));
+        receive(harness, new TravelMessage.TravelCancel(token, 8));
         assertEquals(53, deliveries.get());
         assertEquals(53, harness.stats.framesReceived());
         assertEquals(harness.receiver.receivedBytes(), harness.stats.bytesReceived());
@@ -85,8 +86,8 @@ public class ClientPreparedTravelRoutingTest extends MinecraftTestBase {
         assertEquals(0, harness.session.protocolFailures());
     }
 
-    private static void receive(ClientViewHarness harness, ClientViewMessage message) throws ViewStreamProtocolException {
-        harness.receive(message, ViewStreamLimits.FLAG_LAST);
+    private static void receive(ClientViewHarness harness, TravelMessage message) throws ViewStreamProtocolException {
+        harness.receive(TravelExtension.INSTANCE.wrap(message), ViewStreamLimits.FLAG_LAST);
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
         assertTrue(harness.session.active());
     }

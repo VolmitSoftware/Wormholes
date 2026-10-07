@@ -4,7 +4,7 @@ import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.ProjectionEnvironment;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.stream.SectionBiomes;
@@ -127,13 +127,13 @@ public class ClientMeshLocalContentTest extends MinecraftTestBase {
     }
 
     private static ClientMeshSections.Section capture(ClientMeshSections store, Brick brick, SectionBiomes biomes) throws ViewStreamProtocolException {
-        return store.localSection(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 0, brick, biomes));
+        return store.localSection(new ViewStreamMessage.MeshSection(7, 1, 0, 0, 0, 1, 0, brick, biomes));
     }
 
     private static ClientMeshSections store() throws ViewStreamProtocolException {
         ClientPalette palette = new ClientPalette(BuiltInRegistries.BLOCK);
-        palette.apply(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(3, "minecraft:stone"),
-            new ClientViewMessage.PaletteEntry(4, "minecraft:dirt"))));
+        palette.apply(new ViewStreamMessage.Palette(List.of(new ViewStreamMessage.PaletteEntry(3, "minecraft:stone"),
+            new ViewStreamMessage.PaletteEntry(4, "minecraft:dirt"))));
         ClientMeshSections store = new ClientMeshSections(palette, 1024 * 1024);
         store.epoch(71);
         store.begin(7, 1, BOUNDS, 8);

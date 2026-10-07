@@ -4,7 +4,7 @@ import art.arcane.wormholes.Settings;
 
 import art.arcane.wormholes.door.view.DoorProjectionAdapter;
 import art.arcane.optics.math.Vec3d;
-import art.arcane.wormholes.network.client.SessionPalette;
+import art.arcane.optics.stream.SessionPalette;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.ITunnel;
 import art.arcane.optics.frame.QuarterTurn;

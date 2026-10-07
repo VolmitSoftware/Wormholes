@@ -14,7 +14,6 @@ import art.arcane.optics.plate.ChunkLeasePlatform;
 import art.arcane.optics.plate.ChunkLeaseRegistry;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.frame.OpticTransform;
-import art.arcane.wormholes.network.client.ClientViewMessage;
 import org.bukkit.World;
 import org.junit.jupiter.api.Test;
 
@@ -48,6 +47,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import art.arcane.wormholes.network.client.TravelMessage;
 
 class BukkitPreparedTravelLifecycleTest {
     @Test
@@ -60,7 +60,7 @@ class BukkitPreparedTravelLifecycleTest {
             World world = mock(World.class);
             when(world.getUID()).thenReturn(UUID.randomUUID());
             AutoCloseable preparation = preparation(world);
-            Method retain = preparation.getClass().getDeclaredMethod("retain", ClientViewMessage.TravelCoordinate.class);
+            Method retain = preparation.getClass().getDeclaredMethod("retain", TravelMessage.TravelCoordinate.class);
             retain.setAccessible(true);
             CountDownLatch closing = new CountDownLatch(1);
             CountDownLatch closed = new CountDownLatch(1);
@@ -92,7 +92,7 @@ class BukkitPreparedTravelLifecycleTest {
         UUID player = UUID.randomUUID();
         AutoCloseable successor = preparation(mock(World.class));
         UUID token = UUID.randomUUID();
-        ClientViewMessage.TravelBegin begin = mock(ClientViewMessage.TravelBegin.class);
+        TravelMessage.TravelBegin begin = mock(TravelMessage.TravelBegin.class);
         when(begin.token()).thenReturn(token);
         when(begin.generation()).thenReturn(7L);
         Field beginField = successor.getClass().getDeclaredField("begin");
@@ -105,15 +105,15 @@ class BukkitPreparedTravelLifecycleTest {
         Field liveField = successor.getClass().getDeclaredField("live");
         liveField.setAccessible(true);
         AtomicBoolean live = (AtomicBoolean) liveField.get(successor);
-        ClientViewMessage.TravelPose pose = new ClientViewMessage.TravelPose(0, 64, 0, 0, 0);
-        manager.complete(player, new ClientViewMessage.TravelCommit(UUID.randomUUID(), 6L, 1L,
+        TravelMessage.TravelPose pose = new TravelMessage.TravelPose(0, 64, 0, 0, 0);
+        manager.complete(player, new TravelMessage.TravelCommit(UUID.randomUUID(), 6L, 1L,
             "minecraft:overworld", "minecraft:the_nether", pose, new Vec3d(0, 0, 0)));
-        manager.complete(player, new ClientViewMessage.TravelCommit(token, 6L, 1L,
+        manager.complete(player, new TravelMessage.TravelCommit(token, 6L, 1L,
             "minecraft:overworld", "minecraft:the_nether", pose, new Vec3d(0, 0, 0)));
         manager.complete(player, null);
         assertSame(successor, preparations.get(player));
         assertTrue(live.get());
-        manager.complete(player, new ClientViewMessage.TravelCommit(token, 7L, 1L,
+        manager.complete(player, new TravelMessage.TravelCommit(token, 7L, 1L,
             "minecraft:overworld", "minecraft:the_nether", pose, new Vec3d(0, 0, 0)));
         assertTrue(preparations.isEmpty());
         assertFalse(live.get());
@@ -131,7 +131,7 @@ class BukkitPreparedTravelLifecycleTest {
         ClientPreparedTravelServer travel = mock(ClientPreparedTravelServer.class);
         AtomicInteger captureCursor = new AtomicInteger();
         when(travel.nextCapture()).thenAnswer(invocation ->
-            new ClientViewMessage.TravelCoordinate(captureCursor.getAndIncrement(), 0));
+            new TravelMessage.TravelCoordinate(captureCursor.getAndIncrement(), 0));
         when(travel.nextRevision(any())).thenReturn(1);
         ChunkLeaseRegistry<World> registry = mock(ChunkLeaseRegistry.class);
         ChunkLease lease = mock(ChunkLease.class);
@@ -142,7 +142,7 @@ class BukkitPreparedTravelLifecycleTest {
         schedule.setAccessible(true);
         Field capturingField = preparation.getClass().getDeclaredField("capturing");
         capturingField.setAccessible(true);
-        Set<ClientViewMessage.TravelCoordinate> capturing = (Set<ClientViewMessage.TravelCoordinate>) capturingField.get(preparation);
+        Set<TravelMessage.TravelCoordinate> capturing = (Set<TravelMessage.TravelCoordinate>) capturingField.get(preparation);
         try (MockedStatic<BukkitChunkLeaseProvider> leases = mockStatic(BukkitChunkLeaseProvider.class);
              MockedStatic<FoliaScheduler> scheduler = mockStatic(FoliaScheduler.class)) {
             leases.when(BukkitChunkLeaseProvider::registry).thenReturn(registry);
@@ -170,12 +170,12 @@ class BukkitPreparedTravelLifecycleTest {
     private static AutoCloseable preparation(World world) throws ReflectiveOperationException {
         Class<?> optionsType = Class.forName(BukkitPreparedTravel.class.getName() + "$PreparationOptions");
         Constructor<?> optionsConstructor = optionsType.getDeclaredConstructor(ApertureDescriptor.class, OpticTransform.class, UUID.class, UUID.class, World.class, Vec3d.class,
-            ClientViewMessage.TravelPose.class, double.class, String.class, long.class);
+            TravelMessage.TravelPose.class, double.class, String.class, long.class);
         optionsConstructor.setAccessible(true);
         ApertureDescriptor geometry = new ApertureDescriptor(0, 64, 0, 0, true, 0, false, 1, 1, new long[]{1},
             0, 0, 1, 64, 0, 0, 0, 0, 0, 0, ApertureDescriptor.KIND_FRAME, 0.0D, 0, 1, List.of());
         Object options = optionsConstructor.newInstance(geometry, OpticTransform.IDENTITY, UUID.randomUUID(), UUID.randomUUID(), world, new Vec3d(0, 64, 0),
-            new ClientViewMessage.TravelPose(0, 64, 0, 0, 0), 1.62D, "minecraft:overworld", 1L);
+            new TravelMessage.TravelPose(0, 64, 0, 0, 0), 1.62D, "minecraft:overworld", 1L);
         Class<?> preparationType = Class.forName(BukkitPreparedTravel.class.getName() + "$Preparation");
         Constructor<?> constructor = preparationType.getDeclaredConstructor(optionsType);
         constructor.setAccessible(true);
@@ -184,7 +184,7 @@ class BukkitPreparedTravelLifecycleTest {
 
     private static void invokeRetain(Method method, AutoCloseable preparation) {
         try {
-            method.invoke(preparation, new ClientViewMessage.TravelCoordinate(0, 0));
+            method.invoke(preparation, new TravelMessage.TravelCoordinate(0, 0));
         } catch (ReflectiveOperationException failure) {
             throw new AssertionError(failure);
         }

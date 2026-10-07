@@ -18,13 +18,13 @@ import org.junit.jupiter.api.Test;
 import com.github.retrooper.packetevents.protocol.ConnectionState;
 
 import art.arcane.optics.stream.ViewStreamCapability;
-import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.optics.stream.ViewStreamLimits;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.render.client.session.ClientViewEmitters;
 import art.arcane.optics.stream.ViewStreamInbound;
+import art.arcane.wormholes.network.client.FxMessage;
 
 final class BukkitClientViewEffectsTest {
     private static final long FX_CAPS = ClientViewFixture.CLIENT_CAPS | ViewStreamCapability.FX_EMITTERS.mask();
@@ -36,16 +36,16 @@ final class BukkitClientViewEffectsTest {
             Player far = vanilla(fixture, 90.0D);
             when(fixture.world.getPlayers()).thenReturn(List.of(fixture.player, nearby, far));
             List<Player> vanilla = new ArrayList<Player>();
-            ClientViewMessage.FxEmitter burst = ClientViewEmitters.burst("minecraft:portal", 1.0D, 65.0D, 1.0D, 4, 0.45D, 0.65D, 0.18D);
+            FxMessage.FxEmitter burst = ClientViewEmitters.burst("minecraft:portal", 1.0D, 65.0D, 1.0D, 4, 0.45D, 0.65D, 0.18D);
 
             assertTrue(fixture.clientView.receiver(fixture.player));
             assertFalse(fixture.clientView.receiver(nearby));
             assertTrue(fixture.clientView.particles(fixture.world, 1.0D, 65.0D, 1.0D, vanilla::add, burst));
 
             assertEquals(List.of(nearby), vanilla, "vanilla players inside particle range keep their packets");
-            List<ClientViewMessage.Fx> fx = fx(fixture.messages());
+            List<FxMessage.Fx> fx = fx(fixture.messages());
             assertEquals(1, fx.size());
-            assertEquals(ViewStreamLimits.WORLD_FX_KEY, fx.get(0).portalKey());
+            assertEquals(FxMessage.WORLD_FX_KEY, fx.get(0).portalKey());
             assertEquals(List.of(burst), fx.get(0).emitters());
         }
     }
@@ -69,19 +69,19 @@ final class BukkitClientViewEffectsTest {
 
             fixture.clientView.route(fixture.player, fixture.eye.clone(), new ArrayList<ILocalPortal>(), List.of(), Map.of(), ++fixture.tick);
 
-            List<ClientViewMessage> messages = fixture.messages();
-            ClientViewMessage.Portal portal = null;
-            for (ClientViewMessage message : messages) {
-                if (message instanceof ClientViewMessage.Portal announced) {
+            List<ViewStreamMessage> messages = fixture.messages();
+            ViewStreamMessage.Portal portal = null;
+            for (ViewStreamMessage message : messages) {
+                if (message instanceof ViewStreamMessage.Portal announced) {
                     portal = announced;
                 }
             }
             assertTrue(portal != null, "the effect slot announces the aperture: " + messages);
             assertFalse(portal.geometry().mirror());
-            List<ClientViewMessage.Fx> fx = fx(messages);
+            List<FxMessage.Fx> fx = fx(messages);
             assertEquals(1, fx.size());
             assertEquals(portal.portalKey(), fx.get(0).portalKey());
-            assertEquals(ClientViewMessage.FxKind.SURFACE, fx.get(0).emitters().get(0).kind());
+            assertEquals(FxMessage.FxKind.SURFACE, fx.get(0).emitters().get(0).kind());
             assertFalse(fixture.session().owns(fixture.portal.getId()));
             assertTrue(fixture.released.isEmpty(), "an effect slot never releases the vanilla projector");
             assertTrue(fixture.clientView.observer(fixture.playerId).attending());
@@ -96,10 +96,10 @@ final class BukkitClientViewEffectsTest {
         return player;
     }
 
-    private static List<ClientViewMessage.Fx> fx(List<ClientViewMessage> messages) {
-        List<ClientViewMessage.Fx> out = new ArrayList<ClientViewMessage.Fx>();
-        for (ClientViewMessage message : messages) {
-            if (message instanceof ClientViewMessage.Fx fx) {
+    private static List<FxMessage.Fx> fx(List<ViewStreamMessage> messages) {
+        List<FxMessage.Fx> out = new ArrayList<FxMessage.Fx>();
+        for (ViewStreamMessage message : messages) {
+            if (message instanceof ViewStreamMessage.Extension extension && extension.payload() instanceof FxMessage.Fx fx) {
                 out.add(fx);
             }
         }

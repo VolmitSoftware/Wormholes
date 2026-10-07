@@ -1,8 +1,8 @@
 package art.arcane.wormholes.render.clientview;
 
-import art.arcane.wormholes.network.client.SessionPalette;
+import art.arcane.optics.stream.SessionPalette;
 import art.arcane.optics.stream.ViewStreamCapability;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.wormholes.portal.BlackoutColor;
 import art.arcane.optics.frame.QuarterTurn;
@@ -109,7 +109,7 @@ class BukkitClientViewMeshGeometryTest {
                 fixture.hello(mesh ? ClientViewFixture.CLIENT_CAPS | ViewStreamCapability.MESH_RENDER.mask()
                     : ClientViewFixture.CLIENT_CAPS & ~ViewStreamCapability.MESH_RENDER.mask());
                 assertEquals(mesh, fixture.clientView.nativeMesh(fixture.player));
-                fixture.session().end(ClientViewMessage.ResetReason.DISABLED);
+                fixture.session().end(ViewStreamMessage.ResetReason.DISABLED);
                 assertFalse(fixture.clientView.nativeMesh(fixture.player));
             }
         }

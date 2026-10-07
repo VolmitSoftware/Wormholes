@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.ViewStreamProtocolException;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -46,11 +46,11 @@ public final class ClientPalette {
         }
     }
 
-    public int apply(ClientViewMessage.Palette palette) throws ViewStreamProtocolException {
-        List<ClientViewMessage.PaletteEntry> entries = palette.entries();
+    public int apply(ViewStreamMessage.Palette palette) throws ViewStreamProtocolException {
+        List<ViewStreamMessage.PaletteEntry> entries = palette.entries();
         int applied = 0;
         for (int index = 0; index < entries.size(); index++) {
-            ClientViewMessage.PaletteEntry entry = entries.get(index);
+            ViewStreamMessage.PaletteEntry entry = entries.get(index);
             int id = entry.id();
             if (id < ViewStreamLimits.RESERVED_PALETTE_IDS || id >= ViewStreamLimits.MAX_SESSION_PALETTE_SIZE) {
                 throw new ViewStreamProtocolException("palette id " + id + " is reserved or out of range");

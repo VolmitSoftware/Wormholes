@@ -4,9 +4,9 @@ import art.arcane.volmlib.util.localization.LocalizationSnapshot;
 import art.arcane.wormholes.localization.ClientViewReplies;
 import art.arcane.wormholes.modded.MinecraftMenuText;
 import art.arcane.wormholes.modded.WormholesModRuntime;
-import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.wormholes.render.client.session.ClientViewServerSession;
-import art.arcane.wormholes.render.client.session.ClientViewSessionRegistry;
+import art.arcane.optics.stream.ViewStreamMessage;
+import art.arcane.optics.stream.ViewStreamSession;
+import art.arcane.optics.stream.ViewStreamSessionRegistry;
 import art.arcane.optics.stream.ViewStreamSessionState;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -41,7 +41,7 @@ public final class MinecraftClientViewCommands {
     }
 
     private int status(CommandSourceStack source) {
-        ClientViewSessionRegistry<MinecraftClientViewPeer, BlockState> registry = runtime.clientViews().registry();
+        ViewStreamSessionRegistry<MinecraftClientViewPeer, BlockState> registry = runtime.clientViews().registry();
         if (registry == null) {
             return 0;
         }
@@ -55,7 +55,7 @@ public final class MinecraftClientViewCommands {
     }
 
     private int on(CommandSourceStack source) {
-        ClientViewSessionRegistry<MinecraftClientViewPeer, BlockState> registry = runtime.clientViews().registry();
+        ViewStreamSessionRegistry<MinecraftClientViewPeer, BlockState> registry = runtime.clientViews().registry();
         if (registry == null) {
             return 0;
         }
@@ -65,7 +65,7 @@ public final class MinecraftClientViewCommands {
     }
 
     private int off(CommandSourceStack source) {
-        ClientViewSessionRegistry<MinecraftClientViewPeer, BlockState> registry = runtime.clientViews().registry();
+        ViewStreamSessionRegistry<MinecraftClientViewPeer, BlockState> registry = runtime.clientViews().registry();
         if (registry == null) {
             return 0;
         }
@@ -75,7 +75,7 @@ public final class MinecraftClientViewCommands {
     }
 
     private int reset(CommandSourceStack source, String name) {
-        ClientViewSessionRegistry<MinecraftClientViewPeer, BlockState> registry = runtime.clientViews().registry();
+        ViewStreamSessionRegistry<MinecraftClientViewPeer, BlockState> registry = runtime.clientViews().registry();
         if (registry == null) {
             return 0;
         }
@@ -84,10 +84,10 @@ public final class MinecraftClientViewCommands {
             send(source, snapshot(source), ClientViewReplies.playerMissing(name));
             return 0;
         }
-        ClientViewServerSession<MinecraftClientViewPeer, BlockState> session = registry.session(player.getUUID());
+        ViewStreamSession<MinecraftClientViewPeer, BlockState> session = registry.session(player.getUUID());
         boolean restarted = session != null && session.state() == ViewStreamSessionState.CLIENT_VIEW;
         if (restarted) {
-            session.reset(ClientViewMessage.ResetReason.TELEPORT);
+            session.reset(ViewStreamMessage.ResetReason.TELEPORT);
         }
         send(source, snapshot(source), ClientViewReplies.reset(player.getGameProfile().name(), restarted));
         return restarted ? 1 : 0;
@@ -97,8 +97,8 @@ public final class MinecraftClientViewCommands {
         return runtime.localization().snapshot(source.getPlayer());
     }
 
-    private static String name(ClientViewSessionRegistry<MinecraftClientViewPeer, BlockState> registry, UUID playerId) {
-        ClientViewServerSession<MinecraftClientViewPeer, BlockState> session = registry.session(playerId);
+    private static String name(ViewStreamSessionRegistry<MinecraftClientViewPeer, BlockState> registry, UUID playerId) {
+        ViewStreamSession<MinecraftClientViewPeer, BlockState> session = registry.session(playerId);
         return session == null ? null : session.player().name();
     }
 

@@ -11,7 +11,6 @@ import art.arcane.wormholes.api.traversal.TraversalRefundReason;
 import art.arcane.wormholes.door.DoorProjectionState;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.door.view.DoorApertureFrames;
-import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.wormholes.door.PocketBinding;
@@ -119,6 +118,7 @@ import static net.minecraft.core.Direction.EAST;
 import static net.minecraft.core.Direction.WEST;
 import static net.minecraft.core.Direction.UP;
 import static net.minecraft.core.Direction.DOWN;
+import art.arcane.wormholes.network.client.TravelMessage;
 
 public final class MinecraftDoorService implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
@@ -818,7 +818,7 @@ public final class MinecraftDoorService implements AutoCloseable {
         }
         Flight flight = new Flight(lease, entity.level(), entity.position(), System.currentTimeMillis() + 30_000L, source, transit);
         flights.put(entity.getUUID(), flight);
-        ClientViewMessage.TravelBegin prepared = preparedCrossing(entity);
+        TravelMessage.TravelBegin prepared = preparedCrossing(entity);
         long startedGeneration = generation;
         lease.ready().whenCompleteAsync((ready, error) -> {
             if (closed || generation != startedGeneration) {
@@ -1102,7 +1102,7 @@ public final class MinecraftDoorService implements AutoCloseable {
         }
     }
 
-    private ClientViewMessage.TravelBegin preparedCrossing(Entity entity) {
+    private TravelMessage.TravelBegin preparedCrossing(Entity entity) {
         return entity instanceof ServerPlayer && runtime.clientViews().crossing(entity.getUUID())
             ? runtime.clientViews().preparation(entity.getUUID()).orElse(null) : null;
     }
@@ -1155,11 +1155,11 @@ public final class MinecraftDoorService implements AutoCloseable {
     }
 
     private boolean teleport(Entity entity, Arrival arrival) {
-        ClientViewMessage.TravelBegin prepared = preparedCrossing(entity);
+        TravelMessage.TravelBegin prepared = preparedCrossing(entity);
         ChunkPreSendTicket<ServerLevel, ServerPlayer> ticket = entity instanceof ServerPlayer player
             ? runtime.preSend().preSend(player, arrival.level(), (int) Math.floor(arrival.point().x()), (int) Math.floor(arrival.point().z())) : null;
         MinecraftTravelCosts.Admission admission = null;
-        ClientViewMessage.TravelCommit preparedCommit = null;
+        TravelMessage.TravelCommit preparedCommit = null;
         Entity arrived = null;
         try {
             if (arrival.context().isPresent()) {
@@ -1170,7 +1170,7 @@ public final class MinecraftDoorService implements AutoCloseable {
             }
             if (entity instanceof ServerPlayer player && arrival.context().isPresent()) {
                 preparedCommit = runtime.clientViews().commitTravel(player, arrival.context().get().portalId(), arrival.level(),
-                    new ClientViewMessage.TravelPose(arrival.point().x(), arrival.point().y(), arrival.point().z(), arrival.yaw(), arrival.pitch()),
+                    new TravelMessage.TravelPose(arrival.point().x(), arrival.point().y(), arrival.point().z(), arrival.yaw(), arrival.pitch()),
                     new Vec3d(arrival.velocity().x(), arrival.velocity().y(), arrival.velocity().z()));
                 if (prepared != null && preparedCommit == null) {
                     runtime.clientViews().cancelPreparation(player, prepared);
@@ -1906,7 +1906,7 @@ public final class MinecraftDoorService implements AutoCloseable {
     }
 
     private record PocketTrip(ActiveDoor source, DoorTransit transit, Level level, Vec3 point, long generation,
-                              long deadline, ReturnTicket ticket, ClientViewMessage.TravelBegin prepared) { }
+                              long deadline, ReturnTicket ticket, TravelMessage.TravelBegin prepared) { }
     private record Position(ServerLevel level, Vec3 point) { }
     private record DeferredCrossing(ServerPlayer player, ActiveDoor source, ServerLevel level, DoorTransit transit) { }
     private static final class EndpointProjection {

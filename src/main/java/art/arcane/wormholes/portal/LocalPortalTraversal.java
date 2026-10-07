@@ -27,7 +27,6 @@ import org.bukkit.util.Vector;
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.TraversableManager.Movement;
 import art.arcane.wormholes.Wormholes;
-import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.render.clientview.BukkitClientView;
 import art.arcane.wormholes.render.clientview.ClientViewEffects;
 import art.arcane.wormholes.access.PortalAccessDiagnostics;
@@ -65,6 +64,7 @@ import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.optics.frame.Frame;
+import art.arcane.wormholes.network.client.TravelMessage;
 
 final class LocalPortalTraversal
 {
@@ -1120,7 +1120,7 @@ final class LocalPortalTraversal
 			}
 
             BukkitClientView views = Wormholes.projectionManager == null ? null : Wormholes.projectionManager.clientView();
-            ClientViewMessage.TravelBegin attempted = views != null && views.crossing(entityId) ? views.preparation(entityId).orElse(null) : null;
+            TravelMessage.TravelBegin attempted = views != null && views.crossing(entityId) ? views.preparation(entityId).orElse(null) : null;
             boolean predicted = attempted != null;
             Location observed = p.getLocation();
             BoundingBox arrivalBounds = predicted ? p.getBoundingBox().clone().shift(target.getX() - observed.getX(),
@@ -1206,7 +1206,7 @@ final class LocalPortalTraversal
 		boolean reloadExpected,
 		BukkitChunkPreSendCapture capture,
 		BukkitChunkPreSendTransaction preSend,
-        ClientViewMessage.TravelBegin attempted)
+        TravelMessage.TravelBegin attempted)
 	{
 		AtomicBoolean travelerPending = new AtomicBoolean(true);
 		Runnable retired = () ->
@@ -1245,11 +1245,11 @@ final class LocalPortalTraversal
 		boolean reloadExpected,
 		BukkitChunkPreSendCapture capture,
 		BukkitChunkPreSendTransaction preSend,
-        ClientViewMessage.TravelBegin attempted)
+        TravelMessage.TravelBegin attempted)
 	{
 		CompletionStage<Boolean> teleportStage;
 		BukkitClientView clientView = Wormholes.projectionManager == null ? null : Wormholes.projectionManager.clientView();
-		ClientViewMessage.TravelCommit preparedCommit = null;
+		TravelMessage.TravelCommit preparedCommit = null;
         if(attempted != null && (clientView == null || !clientView.crossing(entityId, attempted)))
         {
             recoverFailedTeleportNow(entity, traversive, reservation, traversalAdmission, entityId, preSend, null,
@@ -1281,7 +1281,7 @@ final class LocalPortalTraversal
 					entityId, capture, preSend, exception, TraversalRefundReason.TELEPORT_FAILED);
 			return;
 		}
-		ClientViewMessage.TravelCommit committedTravel = preparedCommit;
+		TravelMessage.TravelCommit committedTravel = preparedCommit;
 		teleportStage.whenComplete((success, error) ->
 			{
 				if(clientView != null)

@@ -1,7 +1,6 @@
 package art.arcane.wormholes.modded.client.render;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ProjectionEnvironment;
 import art.arcane.optics.frame.OpticTransform;
 import it.unimi.dsi.fastutil.longs.LongIterator;
@@ -35,6 +34,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockConstruction;
 import static org.mockito.Mockito.when;
+import art.arcane.wormholes.network.client.TravelMessage;
 
 public class ClientTravelSceneTest extends MinecraftTestBase {
     @Test
@@ -43,8 +43,8 @@ public class ClientTravelSceneTest extends MinecraftTestBase {
         LevelChunk chunk = level.getChunkSource().getChunk(0, 0, ChunkStatus.FULL, false);
         LevelChunkSection section = chunk.getSection(0);
         when(section.hasOnlyAir()).thenReturn(false);
-        ClientViewMessage.TravelBegin original = begin();
-        ClientViewMessage.TravelWorld world = new ClientViewMessage.TravelWorld("minecraft:overworld", "minecraft:overworld",
+        TravelMessage.TravelBegin original = begin();
+        TravelMessage.TravelWorld world = new TravelMessage.TravelWorld("minecraft:overworld", "minecraft:overworld",
             9, false, false, 63, 0, 256);
         when(original.world()).thenReturn(world);
         ProjectionEnvironment initial = PortalEnvironmentTest.environment(OpticTransform.IDENTITY);
@@ -53,8 +53,8 @@ public class ClientTravelSceneTest extends MinecraftTestBase {
         try (MockedConstruction<RenderRegionCache> caches = mockConstruction(RenderRegionCache.class,
             (cache, context) -> when(cache.createRegion(eq(level), anyLong())).thenReturn(region))) {
             ClientTravelScene scene = new ClientTravelScene(level, original);
-            Map<ClientViewMessage.TravelCoordinate, byte[]> payloads = new HashMap<>();
-            for (ClientViewMessage.TravelCoordinate coordinate : original.chunks()) {
+            Map<TravelMessage.TravelCoordinate, byte[]> payloads = new HashMap<>();
+            for (TravelMessage.TravelCoordinate coordinate : original.chunks()) {
                 payloads.put(coordinate, new byte[]{1});
             }
             scene.nativeColumns(payloads);
@@ -67,14 +67,14 @@ public class ClientTravelSceneTest extends MinecraftTestBase {
             long stable = scene.revision(far);
             ClientTravelScene.MeshIdentity identity = scene.meshIdentity(key);
             int constructed = caches.constructed().size();
-            ClientViewMessage.TravelBegin next = mock(ClientViewMessage.TravelBegin.class);
+            TravelMessage.TravelBegin next = mock(TravelMessage.TravelBegin.class);
             when(next.world()).thenReturn(world);
-            List<ClientViewMessage.TravelCoordinate> manifest = original.chunks();
+            List<TravelMessage.TravelCoordinate> manifest = original.chunks();
             when(next.chunks()).thenReturn(manifest);
             ProjectionEnvironment current = new ProjectionEnvironment(initial.gameTime() + 20, initial.sky(), initial.fog(),
                 initial.lighting(), initial.clouds(), initial.transform(), initial.dimension(), initial.world());
             when(next.environment()).thenReturn(current);
-            when(next.arrival()).thenReturn(new ClientViewMessage.TravelPose(1.5, 80, 0.5, 180, 15));
+            when(next.arrival()).thenReturn(new TravelMessage.TravelPose(1.5, 80, 0.5, 180, 15));
             scene.rebind(next);
             assertSame(current, scene.environment());
             assertSame(region, scene.world(key));
@@ -83,7 +83,7 @@ public class ClientTravelSceneTest extends MinecraftTestBase {
             assertTrue(scene.complete());
             scene.advance();
             assertEquals(constructed, caches.constructed().size());
-            payloads.put(new ClientViewMessage.TravelCoordinate(0, 0), new byte[]{2});
+            payloads.put(new TravelMessage.TravelCoordinate(0, 0), new byte[]{2});
             scene.nativeColumns(payloads);
             scene.changedSection(key);
             assertEquals(-1, scene.revision(key));
@@ -92,7 +92,7 @@ public class ClientTravelSceneTest extends MinecraftTestBase {
             assertTrue(scene.revision(key) > revision);
             assertFalse(identity.same(scene.meshIdentity(key)));
             assertEquals(stable, scene.revision(far));
-            when(next.world()).thenReturn(new ClientViewMessage.TravelWorld("minecraft:overworld", "minecraft:overworld",
+            when(next.world()).thenReturn(new TravelMessage.TravelWorld("minecraft:overworld", "minecraft:overworld",
                 10, false, false, 63, 0, 256));
             assertThrows(IllegalArgumentException.class, () -> scene.rebind(next));
             assertSame(current, scene.environment());
@@ -210,15 +210,15 @@ public class ClientTravelSceneTest extends MinecraftTestBase {
         ClientLevel level = level();
         LevelChunk chunk = level.getChunkSource().getChunk(0, 0, ChunkStatus.FULL, false);
         when(chunk.getSection(0).hasOnlyAir()).thenReturn(false);
-        ClientViewMessage.TravelBegin begin = begin();
-        when(begin.world()).thenReturn(new ClientViewMessage.TravelWorld("minecraft:overworld", "minecraft:overworld",
+        TravelMessage.TravelBegin begin = begin();
+        when(begin.world()).thenReturn(new TravelMessage.TravelWorld("minecraft:overworld", "minecraft:overworld",
             9, false, false, 63, 0, 256));
         RenderSectionRegion region = mock(RenderSectionRegion.class);
         try (MockedConstruction<RenderRegionCache> ignored = mockConstruction(RenderRegionCache.class,
             (cache, context) -> when(cache.createRegion(eq(level), anyLong())).thenReturn(region))) {
             ClientTravelScene scene = new ClientTravelScene(level, begin);
-            Map<ClientViewMessage.TravelCoordinate, byte[]> columns = new HashMap<>();
-            for (ClientViewMessage.TravelCoordinate coordinate : begin.chunks()) {
+            Map<TravelMessage.TravelCoordinate, byte[]> columns = new HashMap<>();
+            for (TravelMessage.TravelCoordinate coordinate : begin.chunks()) {
                 columns.put(coordinate, new byte[]{1});
             }
             scene.nativeColumns(columns);
@@ -239,7 +239,7 @@ public class ClientTravelSceneTest extends MinecraftTestBase {
             assertSame(region, scene.world(affected));
             assertNull(scene.meshIdentity(affected));
             assertSame(unchanged, scene.meshIdentity(stable));
-            columns.put(new ClientViewMessage.TravelCoordinate(0, 0), new byte[]{2});
+            columns.put(new TravelMessage.TravelCoordinate(0, 0), new byte[]{2});
             scene.nativeColumns(columns);
             scene.changedSection(affected);
             advance(scene, Long.MAX_VALUE);
@@ -286,12 +286,12 @@ public class ClientTravelSceneTest extends MinecraftTestBase {
         AtomicBoolean halo = new AtomicBoolean(true);
         when(level.getChunkSource().getChunk(1, 0, ChunkStatus.FULL, false))
             .thenAnswer(call -> halo.get() ? loaded : null);
-        ClientViewMessage.TravelBegin begin = begin();
+        TravelMessage.TravelBegin begin = begin();
         try (MockedConstruction<RenderRegionCache> ignored = mockConstruction(RenderRegionCache.class,
             (cache, context) -> when(cache.createRegion(eq(level), anyLong())).thenReturn(region))) {
             ClientTravelScene scene = new ClientTravelScene(level, begin);
-            Map<ClientViewMessage.TravelCoordinate, byte[]> columns = new HashMap<>();
-            for (ClientViewMessage.TravelCoordinate coordinate : begin.chunks()) {
+            Map<TravelMessage.TravelCoordinate, byte[]> columns = new HashMap<>();
+            for (TravelMessage.TravelCoordinate coordinate : begin.chunks()) {
                 columns.put(coordinate, new byte[]{1});
             }
             scene.nativeColumns(columns);
@@ -358,16 +358,16 @@ public class ClientTravelSceneTest extends MinecraftTestBase {
         return level;
     }
 
-    private static ClientViewMessage.TravelBegin begin() {
-        ClientViewMessage.TravelBegin begin = mock(ClientViewMessage.TravelBegin.class);
-        List<ClientViewMessage.TravelCoordinate> columns = new ArrayList<>();
+    private static TravelMessage.TravelBegin begin() {
+        TravelMessage.TravelBegin begin = mock(TravelMessage.TravelBegin.class);
+        List<TravelMessage.TravelCoordinate> columns = new ArrayList<>();
         for (int z = -3; z <= 3; z++) {
             for (int x = -3; x <= 3; x++) {
-                columns.add(new ClientViewMessage.TravelCoordinate(x, z));
+                columns.add(new TravelMessage.TravelCoordinate(x, z));
             }
         }
         when(begin.chunks()).thenReturn(columns);
-        when(begin.arrival()).thenReturn(new ClientViewMessage.TravelPose(0, 80, 0, 0, 0));
+        when(begin.arrival()).thenReturn(new TravelMessage.TravelPose(0, 80, 0, 0, 0));
         return begin;
     }
 }

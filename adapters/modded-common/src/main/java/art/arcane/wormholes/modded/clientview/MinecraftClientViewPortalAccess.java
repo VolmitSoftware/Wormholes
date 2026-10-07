@@ -16,7 +16,7 @@ import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.optics.stream.BrickLightSource;
 import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.optics.stream.ViewStreamLimits;
-import art.arcane.wormholes.network.client.SessionPalette;
+import art.arcane.optics.stream.SessionPalette;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.OpticTransform;
@@ -28,7 +28,7 @@ import art.arcane.optics.scan.ProjectorPassRevision;
 import art.arcane.optics.fidelity.AcousticsProfile;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.recursion.ClientRecursionPlanner;
-import art.arcane.wormholes.render.client.session.ClientViewPortalAccess;
+import art.arcane.optics.stream.ViewStreamEndpoints;
 import art.arcane.optics.plate.ViewPlate;
 import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.view.ContentView;
@@ -46,7 +46,7 @@ import java.util.ArrayList;
 import java.util.Objects;
 import java.util.UUID;
 
-public final class MinecraftClientViewPortalAccess implements ClientViewPortalAccess<MinecraftClientViewPeer, BlockState> {
+public final class MinecraftClientViewPortalAccess implements ViewStreamEndpoints<MinecraftClientViewPeer, BlockState> {
     private static final String UNIVERSAL_TUNNEL = "UNIVERSAL";
 
     private final WormholesModRuntime runtime;

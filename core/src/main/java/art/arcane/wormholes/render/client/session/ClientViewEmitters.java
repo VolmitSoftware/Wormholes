@@ -4,14 +4,13 @@ import java.util.List;
 
 import art.arcane.wormholes.config.VisualQualityProfile;
 import art.arcane.optics.math.Vec3d;
-import art.arcane.wormholes.network.client.ClientViewMessage;
-import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.AmbientSparkCadence;
 import art.arcane.wormholes.portal.effects.PortalAnimation;
 import art.arcane.optics.fidelity.AcousticsBridge;
 import art.arcane.optics.fidelity.AcousticsProfile;
 import art.arcane.optics.math.Box;
+import art.arcane.wormholes.network.client.FxMessage;
 
 public final class ClientViewEmitters {
     public static final String SPARK_PARTICLE = "minecraft:mycelium";
@@ -35,19 +34,19 @@ public final class ClientViewEmitters {
     private ClientViewEmitters() {
     }
 
-    public static void rim(Box area, int red, int green, int blue, int intervalTicks, List<ClientViewMessage.FxEmitter> out) {
+    public static void rim(Box area, int red, int green, int blue, int intervalTicks, List<FxMessage.FxEmitter> out) {
         if (area == null) {
             return;
         }
         int rgb = (quantize(red) << 16) | (quantize(green) << 8) | quantize(blue);
         int ticks = Math.max(1, intervalTicks);
         for (int corner = 0; corner < 8; corner++) {
-            out.add(new ClientViewMessage.FxEmitter(ClientViewMessage.FxKind.RIM_DUST, "", (corner & 1) == 0 ? area.getXa() : area.getXb(),
+            out.add(new FxMessage.FxEmitter(FxMessage.FxKind.RIM_DUST, "", (corner & 1) == 0 ? area.getXa() : area.getXb(),
                 (corner & 2) == 0 ? area.getYa() : area.getYb(), (corner & 4) == 0 ? area.getZa() : area.getZb(), rgb, 1.0F, ticks, 1));
         }
     }
 
-    public static void ambient(Ambient ambient, List<ClientViewMessage.FxEmitter> out) {
+    public static void ambient(Ambient ambient, List<FxMessage.FxEmitter> out) {
         AmbientParticleStyle style = ambient.style();
         if (style == null || style == AmbientParticleStyle.OFF || ambient.area() == null) {
             return;
@@ -57,7 +56,7 @@ public final class ClientViewEmitters {
         if (style == AmbientParticleStyle.SPARKS) {
             int interval = Math.max(1, Math.min(MAX_SURFACE_INTERVAL, ambient.intervalTicks()));
             int flags = (ambient.open() ? SURFACE_OPEN_FLAG : 0) | (interval << SURFACE_INTERVAL_SHIFT);
-            out.add(new ClientViewMessage.FxEmitter(ClientViewMessage.FxKind.SURFACE, SPARK_PARTICLE, area.getXa(), area.getYa(), area.getZa(),
+            out.add(new FxMessage.FxEmitter(FxMessage.FxKind.SURFACE, SPARK_PARTICLE, area.getXa(), area.getYa(), area.getZa(),
                 (float) AmbientSparkCadence.CELL_SPREAD, 0.0F, cadence, flags));
             return;
         }
@@ -74,7 +73,7 @@ public final class ClientViewEmitters {
         if (points == null || points.isEmpty()) {
             return;
         }
-        int limit = Math.min(points.size(), ViewStreamLimits.MAX_FX_EMITTERS - out.size());
+        int limit = Math.min(points.size(), FxMessage.MAX_FX_EMITTERS - out.size());
         int window = ambient.open() ? OPEN_OUTLINE_WINDOW : CLOSED_OUTLINE_WINDOW;
         int ticks = rotation(points.size(), window, cadence);
         for (int index = 0; index < limit; index++) {
@@ -83,22 +82,22 @@ public final class ClientViewEmitters {
         }
     }
 
-    public static boolean oneShot(ClientViewMessage.FxEmitter emitter) {
-        ClientViewMessage.FxKind kind = emitter.kind();
-        return kind == ClientViewMessage.FxKind.ANIMATION || kind == ClientViewMessage.FxKind.BURST || emitter.ticks() == 0;
+    public static boolean oneShot(FxMessage.FxEmitter emitter) {
+        FxMessage.FxKind kind = emitter.kind();
+        return kind == FxMessage.FxKind.ANIMATION || kind == FxMessage.FxKind.BURST || emitter.ticks() == 0;
     }
 
-    public static ClientViewMessage.FxEmitter animation(PortalAnimation.Mode mode, Vec3d center, Vec3d size,
+    public static FxMessage.FxEmitter animation(PortalAnimation.Mode mode, Vec3d center, Vec3d size,
                                                         VisualQualityProfile quality) {
         int normal = PortalAnimation.normalAxis(size);
         double[] extent = {size.x(), size.y(), size.z()};
         int flags = mode.ordinal() | (normal << ANIMATION_NORMAL_SHIFT) | (quality.ordinal() << ANIMATION_QUALITY_SHIFT);
-        return new ClientViewMessage.FxEmitter(ClientViewMessage.FxKind.ANIMATION, "", center.x(), center.y(), center.z(),
+        return new FxMessage.FxEmitter(FxMessage.FxKind.ANIMATION, "", center.x(), center.y(), center.z(),
             (float) extent[PortalAnimation.planeA(normal)], (float) extent[PortalAnimation.planeB(normal)], 0, flags);
     }
 
-    public static Animation animation(ClientViewMessage.FxEmitter emitter) {
-        if (emitter.kind() != ClientViewMessage.FxKind.ANIMATION) {
+    public static Animation animation(FxMessage.FxEmitter emitter) {
+        if (emitter.kind() != FxMessage.FxKind.ANIMATION) {
             return null;
         }
         int flags = emitter.flags();
@@ -114,34 +113,34 @@ public final class ClientViewEmitters {
             PortalAnimation.planeSize(normal, emitter.paramA(), emitter.paramB()), qualities[quality]);
     }
 
-    public static ClientViewMessage.FxEmitter burst(String particle, double x, double y, double z, int count, double spreadHorizontal,
+    public static FxMessage.FxEmitter burst(String particle, double x, double y, double z, int count, double spreadHorizontal,
                                                     double spreadVertical, double speed) {
         int flags = (int) Math.max(0L, Math.min(MAX_FLAGS, Math.round(speed * BURST_SPEED_SCALE)));
-        return new ClientViewMessage.FxEmitter(ClientViewMessage.FxKind.BURST, particle, x, y, z, (float) spreadHorizontal, (float) spreadVertical,
+        return new FxMessage.FxEmitter(FxMessage.FxKind.BURST, particle, x, y, z, (float) spreadHorizontal, (float) spreadVertical,
             Math.max(1, Math.min(MAX_BURST_COUNT, count)), flags);
     }
 
-    public static double burstSpeed(ClientViewMessage.FxEmitter emitter) {
+    public static double burstSpeed(FxMessage.FxEmitter emitter) {
         return (double) emitter.flags() / BURST_SPEED_SCALE;
     }
 
-    public static ClientViewMessage.FxEmitter sound(AcousticsBridge.Playback sound, int intervalTicks) {
-        return new ClientViewMessage.FxEmitter(ClientViewMessage.FxKind.SOUND, sound.soundKey(), sound.x(), sound.y(), sound.z(), sound.volume(),
+    public static FxMessage.FxEmitter sound(AcousticsBridge.Playback sound, int intervalTicks) {
+        return new FxMessage.FxEmitter(FxMessage.FxKind.SOUND, sound.soundKey(), sound.x(), sound.y(), sound.z(), sound.volume(),
             sound.pitch(), Math.max(0, Math.min(0xFFFF, intervalTicks)), sound.soundClass().ordinal());
     }
 
-    public static AcousticsProfile.SoundClass soundClass(ClientViewMessage.FxEmitter emitter) {
+    public static AcousticsProfile.SoundClass soundClass(FxMessage.FxEmitter emitter) {
         AcousticsProfile.SoundClass[] classes = AcousticsProfile.SoundClass.values();
         int index = emitter.flags() & SOUND_CLASS_MASK;
         return index < classes.length ? classes[index] : AcousticsProfile.SoundClass.AMBIENT;
     }
 
-    public static ClientViewMessage.FxEmitter dust(double x, double y, double z, int red, int green, int blue) {
+    public static FxMessage.FxEmitter dust(double x, double y, double z, int red, int green, int blue) {
         return dust(x, y, z, ((red & 0xFF) << 16) | ((green & 0xFF) << 8) | (blue & 0xFF), 0);
     }
 
-    private static ClientViewMessage.FxEmitter dust(double x, double y, double z, int rgb, int ticks) {
-        return new ClientViewMessage.FxEmitter(ClientViewMessage.FxKind.RIM_DUST, "", x, y, z, rgb & 0xFFFFFF, 1.0F, ticks, 1);
+    private static FxMessage.FxEmitter dust(double x, double y, double z, int rgb, int ticks) {
+        return new FxMessage.FxEmitter(FxMessage.FxKind.RIM_DUST, "", x, y, z, rgb & 0xFFFFFF, 1.0F, ticks, 1);
     }
 
     private static int rotation(int points, int window, int cadence) {

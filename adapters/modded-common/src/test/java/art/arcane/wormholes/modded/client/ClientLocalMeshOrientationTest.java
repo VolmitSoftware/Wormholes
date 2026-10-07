@@ -3,7 +3,7 @@ package art.arcane.wormholes.modded.client;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.AxisPermutation;
@@ -39,7 +39,7 @@ public class ClientLocalMeshOrientationTest extends MinecraftTestBase {
                 ClientLocalMeshSourcesTest.Fixture fixture = new ClientLocalMeshSourcesTest.Fixture();
                 fixture.state.set(original);
                 OpticTransform transform = OpticTransform.of(AxisPermutation.of(x, y, z), translation.x(), translation.y(), translation.z());
-                fixture.session.handle(new ClientViewMessage.Environment(1, PortalEnvironmentTest.environment(transform)), fixture.sink);
+                fixture.session.handle(new ViewStreamMessage.Environment(1, PortalEnvironmentTest.environment(transform)), fixture.sink);
                 fixture.awaitSection();
                 ClientMeshSections.Section section = fixture.session.meshes().view(1).section(0L);
                 for (int cell = 0; cell < 4096; cell++) {

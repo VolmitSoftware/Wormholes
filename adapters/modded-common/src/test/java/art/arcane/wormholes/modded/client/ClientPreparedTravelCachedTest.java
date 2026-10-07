@@ -4,9 +4,7 @@ import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.network.client.ClientTravelHash;
 import art.arcane.wormholes.network.client.ClientTravelWindow;
-import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.stream.ViewStreamCapability;
-import art.arcane.optics.stream.ViewStreamLimits;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientPacketListener;
@@ -71,6 +69,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static net.minecraft.world.level.chunk.status.ChunkStatus.FULL;
+import art.arcane.wormholes.network.client.TravelMessage;
 
 public class ClientPreparedTravelCachedTest {
     @BeforeClass
@@ -135,11 +134,11 @@ public class ClientPreparedTravelCachedTest {
     public void sourceCaptureSerializesPhysicalChunkInsteadOfPendingNativePacketBytes() throws ReflectiveOperationException {
         Method fixture = ClientPreparedTravelPendingTest.class.getDeclaredMethod("begin", long.class);
         fixture.setAccessible(true);
-        ClientViewMessage.TravelBegin begin = (ClientViewMessage.TravelBegin) fixture.invoke(null, 12L);
+        TravelMessage.TravelBegin begin = (TravelMessage.TravelBegin) fixture.invoke(null, 12L);
         ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
         set(travel, "begin", begin);
         Class<?> sourceType = Class.forName(ClientPreparedTravel.class.getName() + "$SourcePreparation");
-        Constructor<?> constructor = sourceType.getDeclaredConstructor(ClientViewMessage.TravelBegin.class);
+        Constructor<?> constructor = sourceType.getDeclaredConstructor(TravelMessage.TravelBegin.class);
         constructor.setAccessible(true);
         Object preparation = constructor.newInstance(begin);
         set(travel, "sourcePreparation", preparation);
@@ -192,15 +191,15 @@ public class ClientPreparedTravelCachedTest {
     private static void assertSourceSeeding(int mismatch) throws ReflectiveOperationException {
         Method fixture = ClientPreparedTravelPendingTest.class.getDeclaredMethod("begin", long.class);
         fixture.setAccessible(true);
-        ClientViewMessage.TravelBegin begin = (ClientViewMessage.TravelBegin) fixture.invoke(null, 12L);
+        TravelMessage.TravelBegin begin = (TravelMessage.TravelBegin) fixture.invoke(null, 12L);
         ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
         set(travel, "begin", begin);
-        ClientViewMessage.TravelCoordinate coordinate = begin.chunks().getFirst();
+        TravelMessage.TravelCoordinate coordinate = begin.chunks().getFirst();
         byte[] installed = {8, 3, 5};
         byte[] fresh = {4, 2};
-        Map<ClientViewMessage.TravelCoordinate, byte[]> installedPayloads = new HashMap<>();
+        Map<TravelMessage.TravelCoordinate, byte[]> installedPayloads = new HashMap<>();
         installedPayloads.put(coordinate, installed);
-        installedPayloads.put(new ClientViewMessage.TravelCoordinate(123, -11), new byte[]{9});
+        installedPayloads.put(new TravelMessage.TravelCoordinate(123, -11), new byte[]{9});
         ClientLevel level = mock(ClientLevel.class, withSettings().extraInterfaces(ClientTravelWorld.class));
         when(((ClientTravelWorld) level).wormholes$travelWorld()).thenReturn(begin.world());
         when(level.dimension()).thenReturn(Level.OVERWORLD);
@@ -221,11 +220,11 @@ public class ClientPreparedTravelCachedTest {
         when(minecraft.getConnection()).thenReturn(connection);
         Class<?> retainedType = Class.forName(ClientPreparedTravel.class.getName() + "$RetainedWorld");
         Constructor<?> retainedConstructor = retainedType.getDeclaredConstructor(ClientLevel.class, ClientPacketListener.class,
-            Object.class, ClientViewMessage.TravelWorld.class, long.class, Map.class,
+            Object.class, TravelMessage.TravelWorld.class, long.class, Map.class,
             ApertureDescriptor.class);
         retainedConstructor.setAccessible(true);
-        ClientViewMessage.TravelWorld retainedWorld = mismatch == 6
-            ? new ClientViewMessage.TravelWorld(begin.world().dimension(), begin.world().dimensionType(), begin.world().seed() + 1,
+        TravelMessage.TravelWorld retainedWorld = mismatch == 6
+            ? new TravelMessage.TravelWorld(begin.world().dimension(), begin.world().dimensionType(), begin.world().seed() + 1,
                 begin.world().debug(), begin.world().flat(), begin.world().seaLevel(), begin.world().minY(), begin.world().height())
             : begin.world();
         Map<ClientLevel, Object> retainedWorlds = (Map<ClientLevel, Object>) get(travel, "retainedWorlds");
@@ -252,7 +251,7 @@ public class ClientPreparedTravelCachedTest {
             }
             capture.invoke(travel);
             Object source = get(travel, "sourcePreparation");
-            Map<ClientViewMessage.TravelCoordinate, byte[]> payloads = (Map<ClientViewMessage.TravelCoordinate, byte[]>) get(source, "payloads");
+            Map<TravelMessage.TravelCoordinate, byte[]> payloads = (Map<TravelMessage.TravelCoordinate, byte[]>) get(source, "payloads");
             assertEquals(0L, travel.readyRevision());
             assertEquals(mismatch == 2 ? 0 : 1, get(travel, "sourceCapture"));
             assertEquals(mismatch == 2 ? 0 : 1, payloads.size());
@@ -309,9 +308,9 @@ public class ClientPreparedTravelCachedTest {
     public void rendererInvalidationRestartsOnlyActiveUnpredictedSourcePreparation() throws ReflectiveOperationException {
         Method fixture = ClientPreparedTravelPendingTest.class.getDeclaredMethod("begin", long.class);
         fixture.setAccessible(true);
-        ClientViewMessage.TravelBegin begin = (ClientViewMessage.TravelBegin) fixture.invoke(null, 12L);
+        TravelMessage.TravelBegin begin = (TravelMessage.TravelBegin) fixture.invoke(null, 12L);
         Class<?> sourceType = Class.forName(ClientPreparedTravel.class.getName() + "$SourcePreparation");
-        Constructor<?> constructor = sourceType.getDeclaredConstructor(ClientViewMessage.TravelBegin.class);
+        Constructor<?> constructor = sourceType.getDeclaredConstructor(TravelMessage.TravelBegin.class);
         constructor.setAccessible(true);
         Class<?> predictionType = Class.forName(ClientPreparedTravel.class.getName() + "$Prediction");
         for (int state = 0; state < 4; state++) {
@@ -343,11 +342,11 @@ public class ClientPreparedTravelCachedTest {
     public void matchingReturnConsumesSourceSnapshotsButRequiresFreshNativeBarrier() throws ReflectiveOperationException {
         Method fixture = ClientPreparedTravelPendingTest.class.getDeclaredMethod("begin", long.class);
         fixture.setAccessible(true);
-        ClientViewMessage.TravelBegin old = (ClientViewMessage.TravelBegin) fixture.invoke(null, 12L);
-        ClientViewMessage.TravelBegin next = (ClientViewMessage.TravelBegin) fixture.invoke(null, 13L);
+        TravelMessage.TravelBegin old = (TravelMessage.TravelBegin) fixture.invoke(null, 12L);
+        TravelMessage.TravelBegin next = (TravelMessage.TravelBegin) fixture.invoke(null, 13L);
         ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
         Class<?> sourceType = Class.forName(ClientPreparedTravel.class.getName() + "$SourcePreparation");
-        Constructor<?> constructor = sourceType.getDeclaredConstructor(ClientViewMessage.TravelBegin.class);
+        Constructor<?> constructor = sourceType.getDeclaredConstructor(TravelMessage.TravelBegin.class);
         constructor.setAccessible(true);
         Object source = constructor.newInstance(old);
         ClientLevel level = mock(ClientLevel.class, withSettings().extraInterfaces(PreparedLevelAccess.class));
@@ -367,11 +366,11 @@ public class ClientPreparedTravelCachedTest {
         Minecraft minecraft = mock(Minecraft.class);
         when(minecraft.getConnection()).thenReturn(connection);
         byte[] payload = {1, 2, 3};
-        ClientViewMessage.TravelCoordinate coordinate = old.chunks().getFirst();
-        ((Map<ClientViewMessage.TravelCoordinate, byte[]>) get(source, "payloads")).put(coordinate, payload);
-        ((Map<ClientViewMessage.TravelCoordinate, Integer>) get(source, "decoded")).put(coordinate, 7);
+        TravelMessage.TravelCoordinate coordinate = old.chunks().getFirst();
+        ((Map<TravelMessage.TravelCoordinate, byte[]>) get(source, "payloads")).put(coordinate, payload);
+        ((Map<TravelMessage.TravelCoordinate, Integer>) get(source, "decoded")).put(coordinate, 7);
         set(travel, "sourcePreparation", source);
-        Method prepare = ClientPreparedTravel.class.getDeclaredMethod("preparation", ClientViewMessage.TravelBegin.class);
+        Method prepare = ClientPreparedTravel.class.getDeclaredMethod("preparation", TravelMessage.TravelBegin.class);
         prepare.setAccessible(true);
         ClientPortalRenderer renderer = mock(ClientPortalRenderer.class);
         try (MockedStatic<ClientPortalRenderer> renderers = mockStatic(ClientPortalRenderer.class);
@@ -388,11 +387,11 @@ public class ClientPreparedTravelCachedTest {
             verify(renderer).retireTravelSource();
             ClientTravelChunks chunks = (ClientTravelChunks) get(pending, "chunks");
             assertEquals(0L, chunks.completeRevision());
-            assertTrue(chunks.reuse(new ClientViewMessage.TravelReuse(next.token(), next.generation(), coordinate.x(), coordinate.z(),
+            assertTrue(chunks.reuse(new TravelMessage.TravelReuse(next.token(), next.generation(), coordinate.x(), coordinate.z(),
                 1, ClientTravelHash.of(payload)), payload));
             assertEquals(0L, chunks.completeRevision());
-            chunks.end(new ClientViewMessage.TravelEnd(next.token(), next.generation(), 1,
-                List.of(new ClientViewMessage.TravelChunkRevision(coordinate.x(), coordinate.z(), 1))));
+            chunks.end(new TravelMessage.TravelEnd(next.token(), next.generation(), 1,
+                List.of(new TravelMessage.TravelChunkRevision(coordinate.x(), coordinate.z(), 1))));
             assertEquals(1L, chunks.completeRevision());
             assertEquals(0L, travel.readyRevision());
         }
@@ -402,11 +401,11 @@ public class ClientPreparedTravelCachedTest {
     public void differentWorldConnectionOrExpiredSourceLevelsAreRetiredWithoutTransfer() throws ReflectiveOperationException {
         Method fixture = ClientPreparedTravelPendingTest.class.getDeclaredMethod("begin", long.class);
         fixture.setAccessible(true);
-        ClientViewMessage.TravelBegin old = (ClientViewMessage.TravelBegin) fixture.invoke(null, 12L);
+        TravelMessage.TravelBegin old = (TravelMessage.TravelBegin) fixture.invoke(null, 12L);
         Class<?> sourceType = Class.forName(ClientPreparedTravel.class.getName() + "$SourcePreparation");
-        Constructor<?> constructor = sourceType.getDeclaredConstructor(ClientViewMessage.TravelBegin.class);
+        Constructor<?> constructor = sourceType.getDeclaredConstructor(TravelMessage.TravelBegin.class);
         constructor.setAccessible(true);
-        Method prepare = ClientPreparedTravel.class.getDeclaredMethod("preparation", ClientViewMessage.TravelBegin.class);
+        Method prepare = ClientPreparedTravel.class.getDeclaredMethod("preparation", TravelMessage.TravelBegin.class);
         prepare.setAccessible(true);
         for (int mismatch = 0; mismatch < 3; mismatch++) {
             ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
@@ -415,16 +414,16 @@ public class ClientPreparedTravelCachedTest {
             set(source, "level", mock(ClientLevel.class));
             set(source, "scene", scene);
             @SuppressWarnings("unchecked")
-            Map<ClientViewMessage.TravelCoordinate, Integer> decoded = (Map<ClientViewMessage.TravelCoordinate, Integer>) get(source, "decoded");
+            Map<TravelMessage.TravelCoordinate, Integer> decoded = (Map<TravelMessage.TravelCoordinate, Integer>) get(source, "decoded");
             decoded.put(old.chunks().getFirst(), 0);
-            ClientViewMessage.TravelBegin next = mock(ClientViewMessage.TravelBegin.class);
+            TravelMessage.TravelBegin next = mock(TravelMessage.TravelBegin.class);
             when(next.token()).thenReturn(old.token());
             when(next.generation()).thenReturn(old.generation() + 1);
             when(next.expiresMillis()).thenReturn(30_000);
             when(next.world()).thenReturn(mismatch == 0
-                ? new ClientViewMessage.TravelWorld("minecraft:overworld", "minecraft:overworld", 8, false, false, 63, -64, 384)
+                ? new TravelMessage.TravelWorld("minecraft:overworld", "minecraft:overworld", 8, false, false, 63, -64, 384)
                 : old.world());
-            when(next.chunks()).thenReturn(mismatch == 1 ? List.of(new ClientViewMessage.TravelCoordinate(1, 0)) : old.chunks());
+            when(next.chunks()).thenReturn(mismatch == 1 ? List.of(new TravelMessage.TravelCoordinate(1, 0)) : old.chunks());
             if (mismatch == 2) {
                 set(source, "deadline", 1L);
             }
@@ -455,12 +454,12 @@ public class ClientPreparedTravelCachedTest {
     @Test
     public void unloadedSourceColumnIsRetriedAfterOtherPositionsAreCaptured() throws ReflectiveOperationException {
         Class<?> sourceType = Class.forName(ClientPreparedTravel.class.getName() + "$SourcePreparation");
-        Constructor<?> sourceConstructor = sourceType.getDeclaredConstructor(ClientViewMessage.TravelBegin.class);
+        Constructor<?> sourceConstructor = sourceType.getDeclaredConstructor(TravelMessage.TravelBegin.class);
         sourceConstructor.setAccessible(true);
         Method fixture = ClientPreparedTravelPendingTest.class.getDeclaredMethod("begin", long.class);
         fixture.setAccessible(true);
-        ClientViewMessage.TravelBegin template = (ClientViewMessage.TravelBegin) fixture.invoke(null, 12L);
-        ClientViewMessage.TravelBegin manifest = new ClientViewMessage.TravelBegin(template.token(), template.generation(),
+        TravelMessage.TravelBegin template = (TravelMessage.TravelBegin) fixture.invoke(null, 12L);
+        TravelMessage.TravelBegin manifest = new TravelMessage.TravelBegin(template.token(), template.generation(),
             template.sourcePortal(), template.sourceWorld(), template.sourceGeometry(), template.destinationToSource(), template.world(),
             template.arrival(), ClientTravelWindow.coordinates(0, 0, 3),
             template.environment(), template.expiresMillis());
@@ -485,23 +484,23 @@ public class ClientPreparedTravelCachedTest {
     @Test
     public void sourcePayloadBoundsRejectBeforeAddingColumnsAndAcceptExactTotalLimit() throws ReflectiveOperationException {
         Class<?> sourceType = Class.forName(ClientPreparedTravel.class.getName() + "$SourcePreparation");
-        Constructor<?> sourceConstructor = sourceType.getDeclaredConstructor(ClientViewMessage.TravelBegin.class);
+        Constructor<?> sourceConstructor = sourceType.getDeclaredConstructor(TravelMessage.TravelBegin.class);
         sourceConstructor.setAccessible(true);
-        Object source = sourceConstructor.newInstance(mock(ClientViewMessage.TravelBegin.class));
+        Object source = sourceConstructor.newInstance(mock(TravelMessage.TravelBegin.class));
         Class<?> columnType = Class.forName(ClientPreparedTravel.class.getName() + "$Column");
         Constructor<?> columnConstructor = columnType.getDeclaredConstructor(int.class, int.class, int.class, byte[].class);
         columnConstructor.setAccessible(true);
         Method capture = sourceType.getDeclaredMethod("capture", int.class, columnType);
         capture.setAccessible(true);
-        Object oversized = columnConstructor.newInstance(0, 0, 0, new byte[ViewStreamLimits.MAX_TRAVEL_CHUNK_BYTES + 1]);
+        Object oversized = columnConstructor.newInstance(0, 0, 0, new byte[TravelMessage.MAX_TRAVEL_CHUNK_BYTES + 1]);
         assertTrue(assertThrows(InvocationTargetException.class,
             () -> capture.invoke(source, 0, oversized)).getCause() instanceof IllegalArgumentException);
         assertEquals(0, ((Map<?, ?>) get(source, "payloads")).size());
         assertEquals(0, get(source, "bytes"));
-        set(source, "bytes", ViewStreamLimits.MAX_TRAVEL_BYTES - 1);
+        set(source, "bytes", TravelMessage.MAX_TRAVEL_BYTES - 1);
         Object column = columnConstructor.newInstance(0, 0, 0, new byte[]{1});
         capture.invoke(source, 0, column);
-        assertEquals(ViewStreamLimits.MAX_TRAVEL_BYTES, get(source, "bytes"));
+        assertEquals(TravelMessage.MAX_TRAVEL_BYTES, get(source, "bytes"));
         assertTrue(assertThrows(InvocationTargetException.class,
             () -> capture.invoke(source, 1, columnConstructor.newInstance(1, 0, 0, new byte[]{1}))).getCause() instanceof IllegalArgumentException);
         assertEquals(1, ((Map<?, ?>) get(source, "payloads")).size());
@@ -511,11 +510,11 @@ public class ClientPreparedTravelCachedTest {
     public void sourcePreparationUsesExactNativeWorldMetadataAndOnlyItsRouteNeighborhood() throws ReflectiveOperationException {
         Method fixture = ClientPreparedTravelPendingTest.class.getDeclaredMethod("begin", long.class);
         fixture.setAccessible(true);
-        ClientViewMessage.TravelBegin destination = (ClientViewMessage.TravelBegin) fixture.invoke(null, 12L);
+        TravelMessage.TravelBegin destination = (TravelMessage.TravelBegin) fixture.invoke(null, 12L);
         ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
         set(travel, "begin", destination);
         ClientLevel level = mock(ClientLevel.class, withSettings().extraInterfaces(ClientTravelWorld.class));
-        ClientViewMessage.TravelWorld world = new ClientViewMessage.TravelWorld("minecraft:the_nether", "minecraft:the_nether",
+        TravelMessage.TravelWorld world = new TravelMessage.TravelWorld("minecraft:the_nether", "minecraft:the_nether",
             93217562L, true, true, 72, 0, 256);
         when(((ClientTravelWorld) level).wormholes$travelWorld()).thenReturn(world);
         LocalPlayer player = mock(LocalPlayer.class);
@@ -551,14 +550,14 @@ public class ClientPreparedTravelCachedTest {
             renderers.when(ClientPortalRenderer::instance).thenReturn(renderer);
             environments.when(() -> MinecraftPortalEnvironment.capture(level, eye, OpticTransform.IDENTITY, true))
                 .thenReturn(environment);
-            ClientViewMessage.TravelBegin source = (ClientViewMessage.TravelBegin) capture.invoke(travel, level, player);
+            TravelMessage.TravelBegin source = (TravelMessage.TravelBegin) capture.invoke(travel, level, player);
             assertSame(world, source.world());
             assertSame(environment, source.environment());
             assertEquals(destination.token(), source.token());
             assertEquals(destination.sourcePortal(), source.sourcePortal());
             assertEquals(49, source.chunks().size());
-            assertTrue(source.chunks().contains(new ClientViewMessage.TravelCoordinate(-3, -3)));
-            assertTrue(source.chunks().contains(new ClientViewMessage.TravelCoordinate(3, 3)));
+            assertTrue(source.chunks().contains(new TravelMessage.TravelCoordinate(-3, -3)));
+            assertTrue(source.chunks().contains(new TravelMessage.TravelCoordinate(3, 3)));
             assertEquals(85.5, source.arrival().y(), 0.0);
             assertEquals(OpticTransform.IDENTITY, source.destinationToSource());
             Method initialize = ClientPreparedTravel.class.getDeclaredMethod("captureSource");
@@ -588,20 +587,20 @@ public class ClientPreparedTravelCachedTest {
     private static void assertEarlyPreparation(int mismatch, boolean deferred) throws ReflectiveOperationException {
         Method fixture = ClientPreparedTravelPendingTest.class.getDeclaredMethod("begin", long.class);
         fixture.setAccessible(true);
-        ClientViewMessage.TravelBegin original = (ClientViewMessage.TravelBegin) fixture.invoke(null, 9L);
-        List<ClientViewMessage.TravelCoordinate> manifest = new ArrayList<>(10);
+        TravelMessage.TravelBegin original = (TravelMessage.TravelBegin) fixture.invoke(null, 9L);
+        List<TravelMessage.TravelCoordinate> manifest = new ArrayList<>(10);
         for (int z = -1; z <= 1; z++) {
             for (int x = -1; x <= 1; x++) {
-                manifest.add(new ClientViewMessage.TravelCoordinate(x, z));
+                manifest.add(new TravelMessage.TravelCoordinate(x, z));
             }
         }
-        ClientViewMessage.TravelCoordinate missing = new ClientViewMessage.TravelCoordinate(4, 4);
+        TravelMessage.TravelCoordinate missing = new TravelMessage.TravelCoordinate(4, 4);
         manifest.add(missing);
-        ClientViewMessage.TravelBegin begin = new ClientViewMessage.TravelBegin(original.token(), original.generation(),
+        TravelMessage.TravelBegin begin = new TravelMessage.TravelBegin(original.token(), original.generation(),
             original.sourcePortal(), original.sourceWorld(), original.sourceGeometry(), original.destinationToSource(),
             original.world(), original.arrival(), manifest, original.environment(), original.expiresMillis());
         ProjectionEnvironment environment = begin.environment();
-        List<ClientViewMessage> sent = new ArrayList<>();
+        List<TravelMessage> sent = new ArrayList<>();
         ClientPreparedTravel travel = new ClientPreparedTravel(sent::add);
         Minecraft minecraft = mock(Minecraft.class);
         ClientPacketListener connection = mock(ClientPacketListener.class);
@@ -621,7 +620,7 @@ public class ClientPreparedTravelCachedTest {
         Object preparation = travel;
         if (deferred) {
             Class<?> pendingType = Class.forName(ClientPreparedTravel.class.getName() + "$PendingPreparation");
-            Constructor<?> constructor = pendingType.getDeclaredConstructor(ClientViewMessage.TravelBegin.class);
+            Constructor<?> constructor = pendingType.getDeclaredConstructor(TravelMessage.TravelBegin.class);
             constructor.setAccessible(true);
             preparation = constructor.newInstance(begin);
             set(preparation, "level", level);
@@ -633,9 +632,9 @@ public class ClientPreparedTravelCachedTest {
             set(travel, "deadline", System.currentTimeMillis() + 30_000L);
             set(travel, "sourceCapture", Integer.MAX_VALUE);
         }
-        Map<ClientViewMessage.TravelCoordinate, byte[]> payloads = (Map<ClientViewMessage.TravelCoordinate, byte[]>) get(preparation, "payloads");
-        Map<ClientViewMessage.TravelCoordinate, Integer> decoded = (Map<ClientViewMessage.TravelCoordinate, Integer>) get(preparation, "decoded");
-        for (ClientViewMessage.TravelCoordinate coordinate : manifest) {
+        Map<TravelMessage.TravelCoordinate, byte[]> payloads = (Map<TravelMessage.TravelCoordinate, byte[]>) get(preparation, "payloads");
+        Map<TravelMessage.TravelCoordinate, Integer> decoded = (Map<TravelMessage.TravelCoordinate, Integer>) get(preparation, "decoded");
+        for (TravelMessage.TravelCoordinate coordinate : manifest) {
             if (!coordinate.equals(missing)) {
                 decoded.put(coordinate, 0);
                 payloads.put(coordinate, new byte[]{1});
@@ -644,11 +643,11 @@ public class ClientPreparedTravelCachedTest {
         if (mismatch != 1) {
             Class<?> retainedType = Class.forName(ClientPreparedTravel.class.getName() + "$RetainedWorld");
             Constructor<?> constructor = retainedType.getDeclaredConstructor(ClientLevel.class, ClientPacketListener.class,
-                Object.class, ClientViewMessage.TravelWorld.class, long.class, Map.class, ApertureDescriptor.class);
+                Object.class, TravelMessage.TravelWorld.class, long.class, Map.class, ApertureDescriptor.class);
             constructor.setAccessible(true);
-            ClientViewMessage.TravelWorld world = begin.world();
+            TravelMessage.TravelWorld world = begin.world();
             if (mismatch == 5) {
-                world = new ClientViewMessage.TravelWorld(world.dimension(), world.dimensionType(), world.seed() + 1,
+                world = new TravelMessage.TravelWorld(world.dimension(), world.dimensionType(), world.seed() + 1,
                     world.debug(), world.flat(), world.seaLevel(), world.minY(), world.height());
             }
             Object retained = constructor.newInstance(mismatch == 7 ? mock(ClientLevel.class) : level,
@@ -679,7 +678,7 @@ public class ClientPreparedTravelCachedTest {
             assertNull(get(preparation, "scene"));
             terrain.verify(() -> ClientSodiumTerrain.prepare(eq(level), eq(environment), any()), times(mismatch == 0 ? 1 : 0));
             if (mismatch == 0) {
-                ClientViewMessage.TravelCoordinate center = new ClientViewMessage.TravelCoordinate(0, 0);
+                TravelMessage.TravelCoordinate center = new TravelMessage.TravelCoordinate(0, 0);
                 travel.sectionChanged(level, 0, 5, 0);
                 assertNull(payloads.get(center));
                 terrain.verify(() -> ClientSodiumTerrain.dirty(level, SectionPos.asLong(0, 5, 0)));
@@ -708,37 +707,37 @@ public class ClientPreparedTravelCachedTest {
     public void alreadyVerifiedColumnsCannotStarveRemainingManifestAcrossFrames() throws ReflectiveOperationException {
         Method fixture = ClientPreparedTravelPendingTest.class.getDeclaredMethod("begin", long.class);
         fixture.setAccessible(true);
-        ClientViewMessage.TravelBegin original = (ClientViewMessage.TravelBegin) fixture.invoke(null, 9L);
-        List<ClientViewMessage.TravelCoordinate> manifest = new ArrayList<>(49);
+        TravelMessage.TravelBegin original = (TravelMessage.TravelBegin) fixture.invoke(null, 9L);
+        List<TravelMessage.TravelCoordinate> manifest = new ArrayList<>(49);
         for (int z = 0; z < 7; z++) {
             for (int x = 0; x < 7; x++) {
-                manifest.add(new ClientViewMessage.TravelCoordinate(x, z));
+                manifest.add(new TravelMessage.TravelCoordinate(x, z));
             }
         }
-        ClientViewMessage.TravelBegin begin = new ClientViewMessage.TravelBegin(original.token(), original.generation(),
+        TravelMessage.TravelBegin begin = new TravelMessage.TravelBegin(original.token(), original.generation(),
             original.sourcePortal(), original.sourceWorld(), original.sourceGeometry(), original.destinationToSource(),
             original.world(), original.arrival(), manifest, original.environment(), original.expiresMillis());
         ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
         Class<?> pendingType = Class.forName(ClientPreparedTravel.class.getName() + "$PendingPreparation");
-        Constructor<?> pendingConstructor = pendingType.getDeclaredConstructor(ClientViewMessage.TravelBegin.class);
+        Constructor<?> pendingConstructor = pendingType.getDeclaredConstructor(TravelMessage.TravelBegin.class);
         pendingConstructor.setAccessible(true);
         Object pending = pendingConstructor.newInstance(begin);
         set(pending, "level", mock(ClientLevel.class));
         set(travel, "pendingPreparation", pending);
-        Map<ClientViewMessage.TravelCoordinate, Object> columns = (Map<ClientViewMessage.TravelCoordinate, Object>) get(pending, "columns");
-        Map<ClientViewMessage.TravelCoordinate, Integer> decoded = (Map<ClientViewMessage.TravelCoordinate, Integer>) get(pending, "decoded");
-        Map<ClientViewMessage.TravelCoordinate, byte[]> payloads = (Map<ClientViewMessage.TravelCoordinate, byte[]>) get(pending, "payloads");
+        Map<TravelMessage.TravelCoordinate, Object> columns = (Map<TravelMessage.TravelCoordinate, Object>) get(pending, "columns");
+        Map<TravelMessage.TravelCoordinate, Integer> decoded = (Map<TravelMessage.TravelCoordinate, Integer>) get(pending, "decoded");
+        Map<TravelMessage.TravelCoordinate, byte[]> payloads = (Map<TravelMessage.TravelCoordinate, byte[]>) get(pending, "payloads");
         Class<?> columnType = Class.forName(ClientPreparedTravel.class.getName() + "$Column");
         Constructor<?> columnConstructor = columnType.getDeclaredConstructor(int.class, int.class, int.class, byte[].class);
         columnConstructor.setAccessible(true);
-        for (ClientViewMessage.TravelCoordinate coordinate : manifest) {
+        for (TravelMessage.TravelCoordinate coordinate : manifest) {
             byte[] data = {(byte) coordinate.x(), (byte) coordinate.z()};
             payloads.put(coordinate, data);
             decoded.put(coordinate, 0);
             columns.put(coordinate, columnConstructor.newInstance(coordinate.x(), coordinate.z(), 1, data));
         }
         int visited = 0;
-        for (ClientViewMessage.TravelCoordinate coordinate : columns.keySet()) {
+        for (TravelMessage.TravelCoordinate coordinate : columns.keySet()) {
             if (visited++ < 16) {
                 decoded.put(coordinate, 1);
             }
@@ -755,7 +754,7 @@ public class ClientPreparedTravelCachedTest {
             }
         }
         assertSame(pending, get(travel, "pendingPreparation"));
-        for (ClientViewMessage.TravelCoordinate coordinate : manifest) {
+        for (TravelMessage.TravelCoordinate coordinate : manifest) {
             assertEquals(Integer.valueOf(1), decoded.get(coordinate));
         }
         assertEquals(0L, ((ClientTravelChunks) get(pending, "chunks")).completeRevision());
@@ -766,14 +765,14 @@ public class ClientPreparedTravelCachedTest {
     public void cachedWarmColumnsRemainUnacknowledgedUntilCurrentProofAndEnd() throws ReflectiveOperationException {
         Method fixture = ClientPreparedTravelPendingTest.class.getDeclaredMethod("begin", long.class);
         fixture.setAccessible(true);
-        ClientViewMessage.TravelBegin begin = (ClientViewMessage.TravelBegin) fixture.invoke(null, 8L);
+        TravelMessage.TravelBegin begin = (TravelMessage.TravelBegin) fixture.invoke(null, 8L);
         ClientPreparedTravel travel = new ClientPreparedTravel(ignored -> { });
         Field cacheField = ClientPreparedTravel.class.getDeclaredField("cache");
         cacheField.setAccessible(true);
         ClientTravelCache cache = (ClientTravelCache) cacheField.get(travel);
         byte[] bytes = {1, 2, 3};
         cache.put(begin.world().dimension(), 0, 0, bytes);
-        Method warm = ClientPreparedTravel.class.getDeclaredMethod("cachedColumns", ClientViewMessage.TravelBegin.class);
+        Method warm = ClientPreparedTravel.class.getDeclaredMethod("cachedColumns", TravelMessage.TravelBegin.class);
         warm.setAccessible(true);
         List<?> columns = (List<?>) warm.invoke(travel, begin);
         assertEquals(1, columns.size());
@@ -783,21 +782,21 @@ public class ClientPreparedTravelCachedTest {
         assertEquals(0L, travel.readyRevision());
         ClientTravelChunks chunks = new ClientTravelChunks(begin);
         assertEquals(0L, chunks.completeRevision());
-        ClientViewMessage.TravelReuse proof = new ClientViewMessage.TravelReuse(begin.token(), begin.generation(), 0, 0, 1,
+        TravelMessage.TravelReuse proof = new TravelMessage.TravelReuse(begin.token(), begin.generation(), 0, 0, 1,
             ClientTravelHash.of(bytes));
         assertTrue(chunks.reuse(proof, cache.get(begin.world().dimension(), 0, 0, proof.hash())));
         assertEquals(0L, chunks.completeRevision());
-        chunks.end(new ClientViewMessage.TravelEnd(begin.token(), begin.generation(), 1L,
-            List.of(new ClientViewMessage.TravelChunkRevision(0, 0, 1))));
+        chunks.end(new TravelMessage.TravelEnd(begin.token(), begin.generation(), 1L,
+            List.of(new TravelMessage.TravelChunkRevision(0, 0, 1))));
         assertEquals(1L, chunks.completeRevision());
         assertEquals(0L, travel.readyRevision());
     }
 
     @Test
     public void matchingServerProofAdvancesRevisionWithoutApplyingNativeDataAgain() throws ReflectiveOperationException {
-        ClientViewMessage.TravelCoordinate coordinate = new ClientViewMessage.TravelCoordinate(0, 0);
-        Map<ClientViewMessage.TravelCoordinate, Integer> decoded = new HashMap<>();
-        Map<ClientViewMessage.TravelCoordinate, byte[]> payloads = new HashMap<>();
+        TravelMessage.TravelCoordinate coordinate = new TravelMessage.TravelCoordinate(0, 0);
+        Map<TravelMessage.TravelCoordinate, Integer> decoded = new HashMap<>();
+        Map<TravelMessage.TravelCoordinate, byte[]> payloads = new HashMap<>();
         byte[] bytes = {1, 2, 3};
         decoded.put(coordinate, 0);
         payloads.put(coordinate, bytes);

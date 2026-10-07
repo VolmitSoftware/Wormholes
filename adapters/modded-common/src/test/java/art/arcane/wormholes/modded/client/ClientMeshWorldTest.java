@@ -4,7 +4,7 @@ import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.BrickCodec;
-import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.SectionBiomes;
 import art.arcane.optics.math.BlockBox;
@@ -45,9 +45,9 @@ public class ClientMeshWorldTest extends MinecraftTestBase {
     @Test
     public void destinationNeighborsFluidsAndLightRoundTripAcrossRotatedSectionEdges() throws Exception {
         ClientPalette palette = new ClientPalette(BuiltInRegistries.BLOCK);
-        palette.apply(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(3, "minecraft:stone"),
-            new ClientViewMessage.PaletteEntry(4, "minecraft:water[level=0]"),
-            new ClientViewMessage.PaletteEntry(5, "minecraft:oak_stairs[facing=north,half=bottom,shape=straight,waterlogged=false]"))));
+        palette.apply(new ViewStreamMessage.Palette(List.of(new ViewStreamMessage.PaletteEntry(3, "minecraft:stone"),
+            new ViewStreamMessage.PaletteEntry(4, "minecraft:water[level=0]"),
+            new ViewStreamMessage.PaletteEntry(5, "minecraft:oak_stairs[facing=north,half=bottom,shape=straight,waterlogged=false]"))));
         ClientMeshSections store = new ClientMeshSections(palette, 65536);
         store.begin(7, 1, new BlockBox(-16, -16, -16, 32, 32, 32), 8);
         int[] cells = new int[4096];
@@ -64,7 +64,7 @@ public class ClientMeshWorldTest extends MinecraftTestBase {
         for (int x = -1; x <= 0; x++) {
             for (int y = -1; y <= 0; y++) {
                 for (int z = -1; z <= 0; z++) {
-                    store.put(new ClientViewMessage.MeshSection(7, 1, x, y, z, 1, 3,
+                    store.put(new ViewStreamMessage.MeshSection(7, 1, x, y, z, 1, 3,
                         BrickCodec.pack(0, cells).withLight(block, sky), new SectionBiomes(List.of("minecraft:plains"), new byte[0])));
                 }
             }
@@ -108,7 +108,7 @@ public class ClientMeshWorldTest extends MinecraftTestBase {
         byte[] sky = new byte[ViewStreamLimits.LIGHT_NIBBLE_BYTES];
         Arrays.fill(block, (byte) 0x22);
         Arrays.fill(sky, (byte) 0xFF);
-        store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 3, Brick.single(0, 3).withLight(block, sky),
+        store.put(new ViewStreamMessage.MeshSection(7, 1, 0, 0, 0, 1, 3, Brick.single(0, 3).withLight(block, sky),
             new SectionBiomes(List.of("minecraft:plains"), new byte[0])));
         ClientMeshWorld snapshot = snapshot(store, 0L, PortalEnvironmentTest.identity(), 0);
         store.drop(7, 1, 0, 0, 0);
@@ -124,7 +124,7 @@ public class ClientMeshWorldTest extends MinecraftTestBase {
         ClientMeshSections store = store();
         byte[] indices = new byte[SectionBiomes.INDEX_BYTES];
         indices[SectionBiomes.cell(15, 15, 15) * 2] = 1;
-        store.put(new ClientViewMessage.MeshSection(7, 1, -1, -1, -1, 1, 3, Brick.single(0, 3),
+        store.put(new ViewStreamMessage.MeshSection(7, 1, -1, -1, -1, 1, 3, Brick.single(0, 3),
             new SectionBiomes(List.of("minecraft:plains", "minecraft:desert"), indices)));
         OpticTransform transform = OpticTransform.of(AxisPermutation.of(Face.E, Face.U, Face.S), 100, 0, 200);
         ClientMeshWorld snapshot = snapshot(store, SectionPos.asLong(-1, -1, -1), transform, 0);
@@ -148,7 +148,7 @@ public class ClientMeshWorldTest extends MinecraftTestBase {
                 }
             }
         }
-        store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 3, Brick.single(0, 3),
+        store.put(new ViewStreamMessage.MeshSection(7, 1, 0, 0, 0, 1, 3, Brick.single(0, 3),
             new SectionBiomes(List.of("minecraft:plains", "minecraft:desert"), indices)));
         OpticTransform transform = OpticTransform.of(AxisPermutation.of(Face.U, Face.E, Face.S), 0, 0, 0);
         ClientMeshWorld snapshot = snapshot(store, 0L, transform, 1);
@@ -171,7 +171,7 @@ public class ClientMeshWorldTest extends MinecraftTestBase {
             }
         }
         ClientMeshSections store = store();
-        store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 3, Brick.single(0, 3),
+        store.put(new ViewStreamMessage.MeshSection(7, 1, 0, 0, 0, 1, 3, Brick.single(0, 3),
             new SectionBiomes(List.of("minecraft:plains", "minecraft:desert"), indices)));
         BlockColors colors = BlockColors.createDefault();
         for (Face[] axes : new Face[][] {{Face.E, Face.U, Face.S},
@@ -196,7 +196,7 @@ public class ClientMeshWorldTest extends MinecraftTestBase {
     @Test
     public void nativeFoliageTintKeepsCutoutQuadAlphaOpaque() throws Exception {
         ClientMeshSections store = store();
-        store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 3, Brick.single(0, 3),
+        store.put(new ViewStreamMessage.MeshSection(7, 1, 0, 0, 0, 1, 3, Brick.single(0, 3),
             new SectionBiomes(List.of("minecraft:plains"), new byte[0])));
         ClientMeshWorld snapshot = snapshot(store, 0L, PortalEnvironmentTest.identity(), 1);
         BlockColors colors = BlockColors.createDefault();
@@ -236,7 +236,7 @@ public class ClientMeshWorldTest extends MinecraftTestBase {
 
     private static ClientMeshSections store() throws Exception {
         ClientPalette palette = new ClientPalette(BuiltInRegistries.BLOCK);
-        palette.apply(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(3, "minecraft:stone"))));
+        palette.apply(new ViewStreamMessage.Palette(List.of(new ViewStreamMessage.PaletteEntry(3, "minecraft:stone"))));
         ClientMeshSections store = new ClientMeshSections(palette, 65536);
         store.begin(7, 1, new BlockBox(-16, -16, -16, 32, 32, 32), 8);
         return store;

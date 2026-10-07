@@ -12,14 +12,12 @@ import art.arcane.wormholes.modded.MinecraftProjectionWorldView;
 import art.arcane.wormholes.modded.MinecraftProjectorPortalAccess;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
-import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.ViewWindow;
 import art.arcane.optics.view.WorldChangeTracker;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.wormholes.render.client.session.ClientPreparedTravelServer;
-import art.arcane.wormholes.render.client.session.ClientViewServerSession;
 import art.arcane.optics.math.Face;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
@@ -32,7 +30,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.players.PlayerList;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.dimension.DimensionType;
 import org.junit.Test;
@@ -61,6 +58,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import art.arcane.wormholes.network.client.TravelMessage;
+import art.arcane.wormholes.render.client.session.ClientViewTravel;
 
 public class MinecraftPreparedTravelWarmupTest extends MinecraftTestBase {
     @Test
@@ -80,10 +79,10 @@ public class MinecraftPreparedTravelWarmupTest extends MinecraftTestBase {
             fixture.ready.complete(true);
             fixture.tick();
 
-            ArgumentCaptor<ClientViewMessage.TravelBegin> begin = ArgumentCaptor.forClass(ClientViewMessage.TravelBegin.class);
+            ArgumentCaptor<TravelMessage.TravelBegin> begin = ArgumentCaptor.forClass(TravelMessage.TravelBegin.class);
             verify(fixture.travel).begin(begin.capture(), anyLong());
             assertEquals(169, begin.getValue().chunks().size());
-            assertEquals(new ClientViewMessage.TravelCoordinate(0, 0), begin.getValue().chunks().getFirst());
+            assertEquals(new TravelMessage.TravelCoordinate(0, 0), begin.getValue().chunks().getFirst());
             verify(fixture.lease, never()).close();
             fixture.prepared.clear();
             verify(fixture.lease).close();
@@ -148,7 +147,7 @@ public class MinecraftPreparedTravelWarmupTest extends MinecraftTestBase {
     @Test
     public void rejectedChunkBudgetReleasesTransferredLeasesAndBacksOffAnotherPreparation() {
         Fixture fixture = new Fixture();
-        ClientViewMessage.TravelCoordinate coordinate = new ClientViewMessage.TravelCoordinate(0, 0);
+        TravelMessage.TravelCoordinate coordinate = new TravelMessage.TravelCoordinate(0, 0);
         when(fixture.travel.nextCapture()).thenReturn(coordinate);
         when(fixture.travel.nextRevision(coordinate)).thenReturn(1);
         try (MockedStatic<MinecraftPortalEnvironment> environment = environment(fixture);
@@ -204,7 +203,7 @@ public class MinecraftPreparedTravelWarmupTest extends MinecraftTestBase {
         @SuppressWarnings("unchecked")
         private final ChunkLeaseRegistry<ServerLevel> leases = mock(ChunkLeaseRegistry.class);
         @SuppressWarnings("unchecked")
-        private final ClientViewServerSession<MinecraftClientViewPeer, BlockState> session = mock(ClientViewServerSession.class);
+        private final ClientViewTravel<MinecraftClientViewPeer> session = mock(ClientViewTravel.class);
         private final MinecraftPreparedTravel prepared = new MinecraftPreparedTravel(runtime, portals);
 
         @SuppressWarnings("unchecked")
@@ -244,7 +243,7 @@ public class MinecraftPreparedTravelWarmupTest extends MinecraftTestBase {
             when(registry.canArrive(player, destination)).thenReturn(true);
             when(session.player()).thenReturn(peer);
             when(session.playerId()).thenReturn(playerId);
-            when(session.travel()).thenReturn(travel);
+            when(session.server()).thenReturn(travel);
             when(session.preparedTravelSelected()).thenReturn(true);
             when(session.travelGeometry(source.getId())).thenReturn(geometry);
             when(travel.takeCross()).thenReturn(Optional.empty());
