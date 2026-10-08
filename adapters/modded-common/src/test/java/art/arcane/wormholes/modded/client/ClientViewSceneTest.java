@@ -237,6 +237,37 @@ public class ClientViewSceneTest extends MinecraftTestBase {
     }
 
     @Test
+    public void copiesOfTheLocalPlayerLeaveEveryViewWhileACrossingAwaitsTheServer() throws ViewStreamProtocolException {
+        ClientViewHarness harness = new ClientViewHarness();
+        harness.stream();
+        harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
+        long cell = harness.tick.overlay().keys().getLong(0);
+        double x = CellKeys.unpackX(cell) + 0.5D;
+        double y = CellKeys.unpackY(cell);
+        double z = CellKeys.unpackZ(cell) + 0.5D;
+        UUID self = UUID.randomUUID();
+        UUID other = UUID.randomUUID();
+        harness.receive(new ViewStreamMessage.EntitySelf(self), 0);
+        harness.receive(new ViewStreamMessage.EntityFrame(ClientViewHarness.PORTAL_KEY, 1, List.of(player(self, x, y, z), stand(other, x, y, z)),
+            List.of(self, other), true), ViewStreamLimits.FLAG_LAST);
+        harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
+        ClientProjectedEntities entities = harness.tick.entities();
+        assertEquals(2, entities.spawned());
+        assertTrue(entities.presentPlayer(ClientViewHarness.PORTAL_KEY, self));
+        int otherId = entities.entityId(ClientViewHarness.PORTAL_KEY, other);
+        harness.tick.travelPending(true);
+        harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
+        assertEquals(0, entities.entityId(ClientViewHarness.PORTAL_KEY, self));
+        assertFalse(entities.presentPlayer(ClientViewHarness.PORTAL_KEY, self));
+        assertEquals(otherId, entities.entityId(ClientViewHarness.PORTAL_KEY, other));
+        assertEquals(List.of(otherId), List.copyOf(harness.scene.entities.keySet()));
+        harness.tick.travelPending(false);
+        harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
+        assertEquals(2, entities.spawned());
+        assertTrue(entities.presentPlayer(ClientViewHarness.PORTAL_KEY, self));
+    }
+
+    @Test
     public void entityFramesForUnknownPortalsAreIgnored() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();
@@ -462,6 +493,11 @@ public class ClientViewSceneTest extends MinecraftTestBase {
         assertEquals(0, harness.tick.atmosphere().dominant());
         assertEquals(0.6F, harness.scene.rain, 0.0F);
         assertEquals(1000L, harness.scene.clock);
+    }
+
+    private static EntitySnapshot player(UUID id, double x, double y, double z) {
+        return EntitySnapshot.full(id, "minecraft:player", x, y, z, 1.8D, 0.0D, 0.0D, -1.0D, 180.0F, 0.0F, 0.0D, 0.0D, 0.0D, true, "Projected", "",
+            "", null, null, EntitySnapshot.EMPTY, EntitySnapshot.EMPTY, 1);
     }
 
     private static EntitySnapshot stand(UUID id, double x, double y, double z) {

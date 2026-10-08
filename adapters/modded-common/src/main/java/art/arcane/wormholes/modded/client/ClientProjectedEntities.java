@@ -28,6 +28,7 @@ public final class ClientProjectedEntities {
     private final ClientSceneWorld world;
     private final Int2ObjectOpenHashMap<PortalEntities> portals;
     private final IntOpenHashSet meshIds = new IntOpenHashSet();
+    private UUID hidden;
     private int nextId;
     private int clientTick;
     private long framesApplied;
@@ -97,6 +98,10 @@ public final class ClientProjectedEntities {
         }
     }
 
+    public void hide(UUID source) {
+        hidden = source;
+    }
+
     public void tick(IntFunction<ClientPortal> lookup, IntPredicate meshPortal) {
         clientTick++;
         ObjectIterator<Int2ObjectMap.Entry<PortalEntities>> portalIterator = portals.int2ObjectEntrySet().fastIterator();
@@ -105,7 +110,8 @@ public final class ClientProjectedEntities {
             ClientPortal portal = lookup.apply(entry.getIntKey());
             boolean mesh = meshPortal.test(entry.getIntKey());
             for (Tracked tracked : entry.getValue().tracked.values()) {
-                boolean visible = portal != null && (mesh || portal.ready() && inCone(portal, tracked.visual));
+                boolean visible = portal != null && !tracked.visual.id().equals(hidden)
+                    && (mesh || portal.ready() && inCone(portal, tracked.visual));
                 if (!visible) {
                     despawn(tracked);
                     continue;
@@ -228,7 +234,7 @@ public final class ClientProjectedEntities {
     public boolean presentPlayer(int portalKey, UUID id) {
         PortalEntities state = portals.get(portalKey);
         Tracked tracked = state == null ? null : state.tracked.get(id);
-        return tracked != null && tracked.present && tracked.visual.isPlayer();
+        return tracked != null && tracked.present && tracked.visual.isPlayer() && !id.equals(hidden);
     }
 
     public long framesApplied() {
