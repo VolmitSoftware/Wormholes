@@ -120,6 +120,8 @@ final class ResidentLevel {
         center = open.center();
         used = stamp;
         level.getChunkSource().updateViewCenter(center.x(), center.z());
+        level.setRainLevel(open.environment().sky().rain());
+        level.setThunderLevel(open.environment().sky().thunder());
     }
 
     void unbind(long stamp) {

@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
 import art.arcane.wormholes.network.client.TravelMessage;
@@ -148,6 +149,26 @@ public class ResidentLevelsOpenCloseTest extends MinecraftTestBase {
     }
 
     @Test
+    public void reusedLevelsTakeTheServerWeatherFromTheOpen() {
+        ClientLevel current = ResidentTestFixtures.level(ResidentTestFixtures.OVERWORLD);
+        try (Scope scope = new Scope(current)) {
+            ResidentLevels residents = scope.residents();
+            ClientLevel nether = residents.open(ResidentTestFixtures.open(3, ResidentTestFixtures.NETHER, 12, -4));
+            residents.crossing(current);
+            scope.minecraft.level = nether;
+            residents.crossing(null);
+            residents.retire(current);
+            ResidentTestFixtures.loaded(current, 1, 1);
+            assertSame(current, residents.open(weather(5, ResidentTestFixtures.OVERWORLD, 1, 2, 0.0F, 0.0F)));
+            verify(current).setRainLevel(0.0F);
+            verify(current).setThunderLevel(0.0F);
+            assertSame(current, residents.open(weather(5, ResidentTestFixtures.OVERWORLD, 1, 3, 0.6F, 0.2F)));
+            verify(current).setRainLevel(0.6F);
+            verify(current).setThunderLevel(0.2F);
+        }
+    }
+
+    @Test
     public void rejectedCrossingLeavesTheSourceUnretired() {
         ClientLevel current = ResidentTestFixtures.level(ResidentTestFixtures.OVERWORLD);
         try (Scope scope = new Scope(current)) {
@@ -203,6 +224,17 @@ public class ResidentLevelsOpenCloseTest extends MinecraftTestBase {
             ClientLevel reopened = residents.open(ResidentTestFixtures.open(1, ResidentTestFixtures.NETHER, 0, 13));
             assertFalse(reopened == nether);
         }
+    }
+
+    private static TravelMessage.RemoteLevelOpen weather(int handle, TravelMessage.TravelWorld world, int x, int z, float rain, float thunder) {
+        TravelMessage.RemoteLevelOpen open = ResidentTestFixtures.open(handle, world, x, z);
+        EnvironmentState environment = open.environment();
+        EnvironmentState.Sky sky = environment.sky();
+        EnvironmentState.Sky weather = new EnvironmentState.Sky(sky.skybox(), sky.sunAngle(), sky.moonAngle(), sky.starAngle(), sky.starBrightness(),
+            sky.sunrise(), sky.color(), sky.moonPhase(), rain, thunder);
+        return new TravelMessage.RemoteLevelOpen(handle, world, new EnvironmentState(environment.gameTime(), weather, environment.fog(),
+            environment.lighting(), environment.clouds(), environment.transform(), environment.dimension(), environment.world(), environment.scale()),
+            open.viewRadius(), open.center());
     }
 
     static final class Scope implements AutoCloseable {
