@@ -66,6 +66,8 @@
   ],
   "client": [
     "client.ClientLevelMixin",
+    "client.ProjectedEntitySelectorMixin",
+    "client.ProjectedEntitySpawnMixin",
     "client.EntityCrossingMixin",
     "client.PortalLevelRendererMixin",
     "client.IrisPortalTextureMixin",

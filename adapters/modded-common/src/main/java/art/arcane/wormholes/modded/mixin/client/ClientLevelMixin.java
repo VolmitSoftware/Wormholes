@@ -2,6 +2,7 @@ package art.arcane.wormholes.modded.mixin.client;
 
 import art.arcane.wormholes.modded.client.ProjectionOverlay;
 import art.arcane.wormholes.modded.client.ClientMeshEntities;
+import art.arcane.wormholes.modded.client.ProjectedEntityGuard;
 import art.arcane.wormholes.modded.client.WormholesClient;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -25,6 +26,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class ClientLevelMixin {
     @ModifyReturnValue(method = "getPushableEntities", at = @At("RETURN"))
     private List<Entity> wormholesVisualPushTargets(List<Entity> entities, Entity source, AABB bounds) {
+        if (ProjectedEntityGuard.projected(source)) {
+            return List.of();
+        }
         return ClientMeshEntities.worldPushableEntities(source, entities);
     }
 
