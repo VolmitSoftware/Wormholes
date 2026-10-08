@@ -197,6 +197,16 @@ tasks.named('check').configure {
     dependsOn(runtimeJarTestTask)
 }
 
+File nodeExecutable = [providers.gradleProperty('nodeExecutable').orNull, providers.environmentVariable('NODE').orNull]
+    .findResult { String path -> path ? new File(path) : null } ?: {
+        String home = System.getProperty('user.home')
+        List<String> nvm = ((new File(home, '.nvm/versions/node').listFiles() ?: new File[0]) as List<File>)
+            .sort { File version -> version.name }.reverse().collect { File version -> new File(version, 'bin').path }
+        List<String> directories = (System.getenv('PATH') ?: '').tokenize(File.pathSeparator) +
+            ['/usr/local/bin', '/opt/homebrew/bin', "${home}/.local/bin".toString()] + nvm
+        directories.collect { String directory -> new File(directory, 'node') }.find { File candidate -> candidate.canExecute() }
+    }()
+
 def clientViewHarnessTestTask = tasks.register('clientViewHarnessTest', Exec) {
     group = 'verification'
     description = 'Runs the gameplay ClientView codec and harness tests against the Java golden vectors.'
@@ -206,7 +216,13 @@ def clientViewHarnessTestTask = tasks.register('clientViewHarnessTest', Exec) {
     inputs.files(fileTree('core/src/test/resources/clientview'))
     outputs.file(stamp)
     workingDir(projectDir)
-    commandLine('node', '--test', 'src/test/gameplay/support/*.test.mjs')
+    onlyIf('Node.js is installed') {
+        if (nodeExecutable == null) {
+            logger.warn('clientViewHarnessTest skipped: node was not found on PATH or in /usr/local/bin, /opt/homebrew/bin, ~/.local/bin or ~/.nvm; set -PnodeExecutable=<path>')
+        }
+        nodeExecutable != null
+    }
+    commandLine(nodeExecutable?.absolutePath ?: 'node', '--test', 'src/test/gameplay/support/*.test.mjs')
     doLast {
         stamp.parentFile.mkdirs()
         stamp.text = 'passed\n'
