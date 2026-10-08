@@ -1,5 +1,7 @@
 package art.arcane.wormholes.modded.clientview;
 
+import art.arcane.optics.crossing.ScaleRule;
+import art.arcane.wormholes.network.client.TravelMessage;
 import org.junit.Test;
 
 import java.util.UUID;
@@ -58,11 +60,25 @@ public class SeamlessArmTimingTest {
     }
 
     @Test
+    public void anArmIsResentWhenThePortalArrivalRulesOrTravelScaleChange() {
+        TravelMessage.ArrivalRules ratio = withScale(ScaleRule.ratio(0.25D, 4.0D));
+        TravelMessage.ArrivalRules motion = withScale(ScaleRule.motion());
+        assertTrue(MinecraftSeamlessTravel.armedWith(ratio, 3.0F, withScale(ScaleRule.ratio(0.25D, 4.0D)), 3.0D));
+        assertFalse(MinecraftSeamlessTravel.armedWith(ratio, 3.0F, motion, 3.0D));
+        assertFalse(MinecraftSeamlessTravel.armedWith(motion, 1.0F, motion, 3.0D));
+    }
+
+    @Test
     public void aDifferentPortalStartsAFreshGrace() {
         MinecraftSeamlessTravel.ClaimGrace grace = new MinecraftSeamlessTravel.ClaimGrace();
         assertTrue(grace.waiting(FLOOR, 10L));
         assertTrue(grace.waiting(CEILING, 12L));
         assertTrue(grace.waiting(CEILING, 14L));
         assertFalse(grace.waiting(CEILING, 15L));
+    }
+
+    private static TravelMessage.ArrivalRules withScale(ScaleRule scale) {
+        TravelMessage.ArrivalRules frame = TravelMessage.ArrivalRules.FRAME;
+        return new TravelMessage.ArrivalRules(frame.orientation(), frame.gravityFlip(), frame.momentum(), scale);
     }
 }

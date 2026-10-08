@@ -243,7 +243,9 @@ final class MinecraftSeamlessTravel {
             Arm current = traveler.arms.get(sourceId);
             boolean front = traveler.sides.front(current != null, current != null && current.front(), planeDistance(player, source), speed);
             long identity = peer.portals().routeIdentity(source);
-            if (current != null && current.matches(source, destination, route, front, identity)) {
+            if (current != null && current.matches(source, destination, route, front, identity)
+                && armedWith(current.begin().rules(), current.begin().scale(), prepared.rules(peer, source),
+                MinecraftPortalRegistry.travelScale(source, destination))) {
                 live.add(sourceId);
                 continue;
             }
@@ -275,6 +277,10 @@ final class MinecraftSeamlessTravel {
         Vec3 eye = player.getEyePosition();
         return (eye.x - origin.x()) * portal.getFrame().getNormal().x() + (eye.y - origin.y()) * portal.getFrame().getNormal().y()
             + (eye.z - origin.z()) * portal.getFrame().getNormal().z();
+    }
+
+    static boolean armedWith(TravelMessage.ArrivalRules armed, float armedScale, TravelMessage.ArrivalRules rules, double travelScale) {
+        return armed.equals(rules) && armedScale == (float) travelScale;
     }
 
     static boolean keepsSide(double distance, double speed) {
