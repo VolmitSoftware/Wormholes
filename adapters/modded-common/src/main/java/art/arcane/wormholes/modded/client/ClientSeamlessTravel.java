@@ -14,7 +14,6 @@ import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
-import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
 import art.arcane.wormholes.modded.client.render.PortalIrisMainPipelines;
 import art.arcane.wormholes.modded.client.world.ClientWorldLoader;
 import art.arcane.wormholes.modded.MinecraftScaleAccess;
@@ -27,17 +26,11 @@ import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.culling.Frustum;
-import net.minecraft.client.renderer.state.level.CameraRenderState;
-import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import org.joml.Matrix4f;
-import org.joml.Quaternionf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -545,9 +538,6 @@ public final class ClientSeamlessTravel {
     }
 
     private static String preparing(ClientLevel level) {
-        if (ClientSodiumTerrain.available() && !ClientSodiumTerrain.covered(level) && !ClientSodiumTerrain.ready(level)) {
-            return "destination terrain";
-        }
         if (IRIS && !PortalIrisMainPipelines.ready(level)) {
             return "destination shaders";
         }
@@ -575,20 +565,19 @@ public final class ClientSeamlessTravel {
     }
 
     private void warm(Minecraft minecraft, LocalPlayer player) {
+        if (!IRIS) {
+            return;
+        }
         TravelMessage.TravelBegin nearest = nearestResident(minecraft.level, player);
         ClientLevel level = nearest == null ? null : residents.level(nearest.levelHandle());
         if (level == null) {
             return;
         }
         try {
-            if (IRIS) {
-                warmReturnView(minecraft.level, player);
-            }
-            if (!IRIS || PortalIrisMainPipelines.prepare(level)) {
-                ClientSodiumTerrain.prepare(level, nearest.environment(), travelCamera(nearest));
-            }
+            warmReturnView(minecraft.level, player);
+            PortalIrisMainPipelines.prepare(level);
         } catch (RuntimeException failure) {
-            LOGGER.warn("Unable to prepare the {} terrain behind portal {}", level.dimension().identifier(), nearest.sourcePortal(), failure);
+            LOGGER.warn("Unable to prepare the {} shaders behind portal {}", level.dimension().identifier(), nearest.sourcePortal(), failure);
         }
     }
 
@@ -639,34 +628,6 @@ public final class ClientSeamlessTravel {
         Vec3 motion = ClientTravelMotion.position(toward.vector(ClientTravelMotion.vector(eye.subtract(previous))));
         Vec3 mapped = ClientTravelMotion.point(toward, crossing);
         return motion.lengthSqr() == 0.0D ? mapped : mapped.add(motion.normalize().scale(CHECKPOINT_NUDGE));
-    }
-
-    private static CameraRenderState travelCamera(TravelMessage.TravelBegin value) {
-        Minecraft minecraft = Minecraft.getInstance();
-        LocalPlayer player = minecraft.player;
-        float eyeHeight = player == null ? EntityTypes.PLAYER.getDimensions().eyeHeight() : player.getEyeHeight();
-        if (player == null || minecraft.level == null || !value.sourceWorld().equals(minecraft.level.dimension().identifier().toString())) {
-            return arrivalCamera(value.arrival(), eyeHeight);
-        }
-        Vec3d feet = value.sourceToDestination().point(new Vec3d(player.getX(), player.getY(), player.getZ()));
-        Angles.Look look = ClientTravelMotion.look(value.destinationToSource().inverse(), player.getYRot(), player.getXRot());
-        return arrivalCamera(new TravelMessage.TravelPose(feet.x(), feet.y(), feet.z(), look.yaw(), look.pitch()), eyeHeight);
-    }
-
-    private static CameraRenderState arrivalCamera(TravelMessage.TravelPose arrival, float eyeHeight) {
-        CameraRenderState camera = new CameraRenderState();
-        camera.pos = new Vec3(arrival.x(), arrival.y() + eyeHeight, arrival.z());
-        camera.blockPos = BlockPos.containing(camera.pos);
-        camera.xRot = arrival.pitch();
-        camera.yRot = arrival.yaw();
-        camera.orientation = new Quaternionf().rotationYXZ((float) (Math.PI - Math.toRadians(arrival.yaw())),
-            (float) Math.toRadians(-arrival.pitch()), 0);
-        camera.viewRotationMatrix = new Matrix4f().rotation(camera.orientation).transpose();
-        camera.projectionMatrix = new Matrix4f();
-        camera.cullFrustum = new Frustum(camera.viewRotationMatrix, camera.projectionMatrix);
-        camera.cullFrustum.prepare(camera.pos.x, camera.pos.y, camera.pos.z);
-        camera.initialized = true;
-        return camera;
     }
 
     private static Vec3d planePoint(ApertureDescriptor geometry) {

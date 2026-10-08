@@ -1,7 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
-import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
 import art.arcane.wormholes.modded.client.render.stencil.PortalStencilRenderer;
 import art.arcane.wormholes.modded.client.render.stencil.PortalViews;
 
@@ -125,11 +124,6 @@ public final class WormholesClient {
         }
     }
 
-    public static void localChunkUnloaded(ClientLevel level, int x, int z) {
-        ClientSodiumTerrain.columnUnloaded(level, x, z);
-        localChunkChanged(level, x, z);
-    }
-
     public static void localSectionChanged(ClientLevel level, int x, int y, int z) {
         Minecraft minecraft = Minecraft.getInstance();
         if (!minecraft.isSameThread()) {
@@ -209,7 +203,6 @@ public final class WormholesClient {
         seamlessTravel.clear();
         portalViews.clear();
         PortalStencilRenderer.instance().clear();
-        ClientSodiumTerrain.clear();
         reflections.clear(null, null);
         detach();
         meshViews.clear();

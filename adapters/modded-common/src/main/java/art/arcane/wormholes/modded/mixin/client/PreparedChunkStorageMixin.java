@@ -45,7 +45,7 @@ public abstract class PreparedChunkStorageMixin implements PreparedChunkStorage 
         int x = chunk.getPos().x();
         int z = chunk.getPos().z();
         if (level.getChunkSource().getChunk(x, z, FULL, false) != chunk) {
-            WormholesClient.localChunkUnloaded(level, x, z);
+            WormholesClient.localChunkChanged(level, x, z);
         }
     }
 

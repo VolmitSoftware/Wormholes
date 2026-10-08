@@ -6,7 +6,6 @@
  */
 package art.arcane.wormholes.modded.client.world;
 
-import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
 import art.arcane.wormholes.modded.client.render.sodium.SodiumSectionDiscovery;
 import art.arcane.wormholes.modded.mixin.client.ClientWorldCloudAccess;
 import art.arcane.wormholes.modded.mixin.client.ClientWorldExtractorAccess;
@@ -153,8 +152,6 @@ public final class ClientWorldLoader {
         access.wormholes$levelRenderer(next.renderer);
         access.wormholes$levelExtractor(next.extractor);
         next.attach(minecraft.gameRenderer.mainRenderTarget());
-        ClientSodiumTerrain.disown(source);
-        ClientSodiumTerrain.disown(destination);
         FogRendererContext.onPlayerTeleport(destination);
         mainLevel = destination;
     }
@@ -307,7 +304,6 @@ public final class ClientWorldLoader {
         WorldRenderer world = new WorldRenderer(renderer, extractor, state, main.width, main.height);
         ((ClientWorldCloudAccess) renderer.cloudRenderer()).wormholes$texture(
             ((ClientWorldCloudAccess) minecraft.levelRenderer.cloudRenderer()).wormholes$texture());
-        ClientSodiumTerrain.forget(level);
         ((PreparedLevelAccess) level).wormholes$extractor(extractor);
         withWorldRenderer(level, world, () -> extractor.setLevel(level));
         return world;

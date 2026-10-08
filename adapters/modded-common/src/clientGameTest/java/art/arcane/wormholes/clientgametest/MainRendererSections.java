@@ -1,6 +1,6 @@
 package art.arcane.wormholes.clientgametest;
 
-import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
+import art.arcane.wormholes.modded.client.render.stencil.PortalBackends;
 import net.caffeinemc.mods.sodium.client.render.SodiumWorldRenderer;
 import net.minecraft.client.Minecraft;
 
@@ -9,7 +9,7 @@ final class MainRendererSections {
     }
 
     static int visible(Minecraft minecraft) {
-        if (!ClientSodiumTerrain.available()) {
+        if (!PortalBackends.sodium()) {
             return minecraft.levelRenderer.visibleSections().size();
         }
         SodiumWorldRenderer renderer = SodiumWorldRenderer.instanceNullable();

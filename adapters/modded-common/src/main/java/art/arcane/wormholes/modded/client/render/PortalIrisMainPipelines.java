@@ -1,29 +1,10 @@
 package art.arcane.wormholes.modded.client.render;
 
 import art.arcane.wormholes.modded.mixin.client.PreparedLevelAccess;
-import art.arcane.optics.stream.EnvironmentState;
-import art.arcane.optics.frame.OpticTransform;
-import com.mojang.blaze3d.ProjectionType;
-import com.mojang.blaze3d.pipeline.TextureTarget;
-import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
-import com.mojang.renderpearl.api.commands.RenderPass;
-import net.caffeinemc.mods.sodium.client.render.SodiumWorldRenderer;
-import net.caffeinemc.mods.sodium.client.render.chunk.ChunkRenderMatrices;
-import net.caffeinemc.mods.sodium.client.render.chunk.terrain.DefaultTerrainRenderPasses;
-import net.caffeinemc.mods.sodium.client.render.chunk.terrain.TerrainRenderPass;
-import net.caffeinemc.mods.sodium.client.util.GameRendererStorage;
-import net.caffeinemc.mods.sodium.client.util.FogParameters;
-import net.irisshaders.iris.pipeline.WorldRenderingPhase;
-import net.minecraft.client.TextureFilteringMethod;
-import net.minecraft.client.renderer.state.level.CameraRenderState;
-import org.joml.Matrix4fc;
-import java.util.Optional;
-import java.util.OptionalDouble;
 import art.arcane.wormholes.modded.mixin.client.IrisPortalDhAccess;
 import art.arcane.wormholes.modded.mixin.client.IrisPortalRenderingAccess;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.irisshaders.iris.Iris;
-import net.irisshaders.iris.uniforms.SystemTimeUniforms;
 import net.irisshaders.iris.gl.program.ProgramSamplers;
 import net.irisshaders.iris.gl.program.ProgramUniforms;
 import net.irisshaders.iris.pipeline.IrisRenderingPipeline;
@@ -61,7 +42,6 @@ public final class PortalIrisMainPipelines {
     private static ClientLevel failed;
     private static Handoff handoff;
     private static boolean constructing;
-    private static PortalIrisHand preparedHand;
     private static long preparedAt;
 
     private PortalIrisMainPipelines() {
@@ -139,133 +119,6 @@ public final class PortalIrisMainPipelines {
 
     static boolean preparing() {
         return pending != null && !pending.registered && System.nanoTime() - preparedAt < PREPARING_NANOS;
-    }
-
-    static int nativeFrame() {
-        return SystemTimeUniforms.COUNTER.getAsInt();
-    }
-
-    static Object nativePipeline(ClientLevel level) {
-        return retainedPipeline(level);
-    }
-
-    static boolean warmNative(NativeDraw draw) {
-        IrisRenderingPipeline pipeline = (IrisRenderingPipeline) retainedPipeline(draw.level());
-        if (pipeline == null) {
-            return false;
-        }
-        Entry entry = HISTORIES.get(pipeline);
-        Minecraft minecraft = Minecraft.getInstance();
-        Matrix4fc projection = ((GameRendererStorage) minecraft.gameRenderer).sodium$getProjectionMatrix();
-        if (projection == null) {
-            return false;
-        }
-        ClientPortalRenderer renderer = ClientPortalRenderer.instance();
-        TextureTarget target = renderer.nativeTravelTarget();
-        EnvironmentState environment = draw.environment().withTransform(OpticTransform.IDENTITY);
-        PortalShaderCamera camera = new PortalShaderCamera(environment, draw.camera());
-        PortalShaderContext.View view = new PortalShaderContext.View(environment, camera, target,
-            draw.camera().viewRotationMatrix, projection);
-        IrisPortalRenderingAccess access = (IrisPortalRenderingAccess) pipeline;
-        DrawState lifecycle = new DrawState(access.wormholes$renderingWorld(), access.wormholes$mainBound(),
-            pipeline.isBeforeTranslucent);
-        GpuBufferSlice previousProjection = RenderSystem.getProjectionMatrixBuffer();
-        GpuBufferSlice previousFog = RenderSystem.getShaderFog();
-        ProjectionType previousType = RenderSystem.getProjectionType();
-        try (World world = new World(draw.level());
-             PortalIrisFrame frame = new PortalIrisFrame(view)) {
-            frame.pipeline(pipeline, entry.settings);
-            try {
-                renderer.prepareNativeSky(environment, draw.camera());
-                try (PortalLightmapScope lightmap = new PortalLightmapScope(renderer.nativeEnvironment().lightmap())) {
-                    RenderSystem.setProjectionMatrix(renderer.nativeProjection(projection), previousType);
-                    RenderSystem.setShaderFog(renderer.nativeEnvironment().fogBuffer());
-                    pipeline.beginLevelRendering();
-                    access.wormholes$prepareRenderer().renderAll();
-                    if (draw.stage() == ClientSodiumTerrain.WarmStage.SKY) {
-                        pipeline.setPhase(WorldRenderingPhase.SKY);
-                        renderer.renderNativeSky();
-                    } else if (draw.stage() == ClientSodiumTerrain.WarmStage.POST) {
-                        pipeline.beginHand();
-                        pipeline.beginTranslucents();
-                        pipeline.setPhase(WorldRenderingPhase.NONE);
-                        pipeline.finalizeLevelRendering();
-                    } else if (draw.stage() == ClientSodiumTerrain.WarmStage.HAND_SOLID
-                        || draw.stage() == ClientSodiumTerrain.WarmStage.HAND_TRANSLUCENT) {
-                        if (preparedHand == null) {
-                            preparedHand = new PortalIrisHand();
-                        }
-                        if (!preparedHand.draw(pipeline, draw.camera(), draw.stage() == ClientSodiumTerrain.WarmStage.HAND_TRANSLUCENT)) {
-                            return false;
-                        }
-                    } else {
-                        warmTerrain(draw, pipeline, projection, target);
-                    }
-                }
-            } finally {
-                entry.reset = true;
-                lifecycle.restore(pipeline);
-            }
-        } finally {
-            RenderSystem.setProjectionMatrix(previousProjection, previousType);
-            RenderSystem.setShaderFog(previousFog);
-            if (renderer.nativeEnvironment() != null) {
-                renderer.nativeEnvironment().endFrame();
-            }
-        }
-        return true;
-    }
-
-    private static void warmTerrain(NativeDraw draw, IrisRenderingPipeline pipeline, Matrix4fc projection, TextureTarget target) {
-        NativeTerrain terrain = switch (draw.stage()) {
-            case SOLID -> new NativeTerrain(DefaultTerrainRenderPasses.SOLID, WorldRenderingPhase.TERRAIN_SOLID);
-            case CUTOUT -> new NativeTerrain(DefaultTerrainRenderPasses.CUTOUT, WorldRenderingPhase.TERRAIN_CUTOUT);
-            case TRANSLUCENT -> new NativeTerrain(DefaultTerrainRenderPasses.TRANSLUCENT, WorldRenderingPhase.TERRAIN_TRANSLUCENT);
-            default -> throw new IllegalArgumentException("Invalid native terrain warm stage");
-        };
-        if (draw.stage() == ClientSodiumTerrain.WarmStage.TRANSLUCENT) {
-            pipeline.beginHand();
-            pipeline.beginTranslucents();
-        }
-        pipeline.setPhase(terrain.phase());
-        ChunkRenderMatrices matrices = new ChunkRenderMatrices(projection, draw.camera().viewRotationMatrix);
-        double x = draw.camera().pos.x;
-        double y = draw.camera().pos.y;
-        double z = draw.camera().pos.z;
-        draw.renderer().prepareChunkRendering(matrices, x, y, z);
-        Minecraft minecraft = Minecraft.getInstance();
-        int anisotropy = minecraft.options.textureFiltering().get() == TextureFilteringMethod.ANISOTROPIC
-            ? minecraft.options.maxAnisotropyValue() : 1;
-        FogParameters fog = new FogParameters(draw.environment().fog().color().red(), draw.environment().fog().color().green(),
-            draw.environment().fog().color().blue(), 1, Float.NaN, Float.NaN, 0,
-            (minecraft.options.getEffectiveRenderDistance() + 1) * 16.0f);
-        try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(() -> "Wormholes prepared native terrain",
-            target.getColorTextureView(), Optional.empty(), target.getDepthTextureView(), OptionalDouble.empty())) {
-            draw.renderer().renderLayer(matrices, terrain.pass(), x, y, z, fog, PortalIrisTerrain.sampler(anisotropy), pass, null);
-        }
-    }
-
-    record DrawState(boolean renderingWorld, boolean mainBound, boolean beforeTranslucent) {
-        void restore(IrisRenderingPipeline pipeline) {
-            IrisPortalRenderingAccess access = (IrisPortalRenderingAccess) pipeline;
-            try {
-                if (access.wormholes$phase() != WorldRenderingPhase.NONE) {
-                    pipeline.setPhase(WorldRenderingPhase.NONE);
-                }
-                pipeline.removePhaseIfNeeded();
-            } finally {
-                access.wormholes$renderingWorld(renderingWorld);
-                access.wormholes$mainBound(mainBound);
-                pipeline.isBeforeTranslucent = beforeTranslucent;
-            }
-        }
-    }
-
-    private record NativeTerrain(TerrainRenderPass pass, WorldRenderingPhase phase) {
-    }
-
-    record NativeDraw(ClientLevel level, EnvironmentState environment, CameraRenderState camera,
-                      SodiumWorldRenderer renderer, ClientSodiumTerrain.WarmStage stage) {
     }
 
     public static boolean ready(ClientLevel level) {
@@ -373,12 +226,6 @@ public final class PortalIrisMainPipelines {
         }
     }
 
-    public static void drawn(IrisRenderingPipeline pipeline) {
-        if (PortalShaderContext.target() == null && !constructing) {
-            ClientSodiumTerrain.mainDrawn(pipeline);
-        }
-    }
-
     public static void begin(IrisRenderingPipeline pipeline) {
         if (PortalShaderContext.target() != null || constructing) {
             return;
@@ -408,13 +255,6 @@ public final class PortalIrisMainPipelines {
     public static void destroyed() {
         Throwable failure = null;
         try {
-            if (!ClientSodiumTerrain.retainUnshadedHandoff()) {
-                ClientSodiumTerrain.clear();
-            }
-        } catch (RuntimeException | Error cleanup) {
-            failure = cleanup;
-        }
-        try {
             clearPending();
         } catch (RuntimeException | Error cleanup) {
             if (failure == null) {
@@ -424,19 +264,6 @@ public final class PortalIrisMainPipelines {
             }
         }
         SETTINGS.clear();
-        if (preparedHand != null) {
-            PortalIrisHand hand = preparedHand;
-            preparedHand = null;
-            try {
-                hand.close();
-            } catch (RuntimeException | Error cleanup) {
-                if (failure == null) {
-                    failure = cleanup;
-                } else {
-                    failure.addSuppressed(cleanup);
-                }
-            }
-        }
         for (Entry entry : HISTORIES.values()) {
             try {
                 entry.releaseHistory();

@@ -1,8 +1,6 @@
 package art.arcane.wormholes.modded.client.render;
 
 import art.arcane.wormholes.modded.mixin.client.IrisPortalSettingsAccess;
-import art.arcane.wormholes.modded.mixin.client.IrisPortalRenderingAccess;
-import net.irisshaders.iris.pipeline.WorldRenderingPhase;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.irisshaders.iris.Iris;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
@@ -43,27 +41,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class PortalIrisMainPipelinesTest {
-    @Test
-    public void nativeDrawCleanupConsumesOnlyAnOutstandingPhaseAndRestoresFlagsOnFailure() {
-        IrisRenderingPipeline pipeline = mock(IrisRenderingPipeline.class, withSettings().extraInterfaces(IrisPortalRenderingAccess.class));
-        IrisPortalRenderingAccess access = (IrisPortalRenderingAccess) pipeline;
-        PortalIrisMainPipelines.DrawState state = new PortalIrisMainPipelines.DrawState(false, true, true);
-        when(access.wormholes$phase()).thenReturn(WorldRenderingPhase.NONE);
-        state.restore(pipeline);
-        verify(pipeline, times(0)).setPhase(WorldRenderingPhase.NONE);
-        verify(pipeline).removePhaseIfNeeded();
-        verify(access).wormholes$renderingWorld(false);
-        verify(access).wormholes$mainBound(true);
-        assertTrue(pipeline.isBeforeTranslucent);
-        when(access.wormholes$phase()).thenReturn(WorldRenderingPhase.TERRAIN_SOLID);
-        doThrow(new IllegalStateException("phase cleanup failed")).when(pipeline).removePhaseIfNeeded();
-        assertThrows(IllegalStateException.class, () -> state.restore(pipeline));
-        verify(pipeline).setPhase(WorldRenderingPhase.NONE);
-        verify(access, times(2)).wormholes$renderingWorld(false);
-        verify(access, times(2)).wormholes$mainBound(true);
-        assertTrue(pipeline.isBeforeTranslucent);
-    }
-
     @Test
     public void failedNormalFactoryClosesHistoryAndRestoresConstructionScope() {
         AtomicInteger closed = new AtomicInteger();
@@ -223,7 +200,7 @@ public class PortalIrisMainPipelinesTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void failedTerrainCleanupStillReleasesAllRegisteredPipelineHistories() throws ReflectiveOperationException {
+    public void aFailedHistoryReleaseStillReleasesAllRegisteredPipelineHistories() throws ReflectiveOperationException {
         Field field = PortalIrisMainPipelines.class.getDeclaredField("HISTORIES");
         field.setAccessible(true);
         Map<IrisRenderingPipeline, PortalIrisMainPipelines.Entry> entries =
@@ -238,38 +215,9 @@ public class PortalIrisMainPipelinesTest {
             entries.put(pipeline, new PortalIrisMainPipelines.Entry(
                 new PortalIrisMainPipelines.Construction(null, pipeline, null, history, null)));
         }
-        AssertionError expected = new AssertionError("terrain cleanup failed");
-        try (MockedStatic<ClientSodiumTerrain> terrain = mockStatic(ClientSodiumTerrain.class)) {
-            terrain.when(ClientSodiumTerrain::clear).thenThrow(expected);
-            assertSame(expected, assertThrows(AssertionError.class, PortalIrisMainPipelines::destroyed));
-            assertEquals(1, expected.getSuppressed().length);
+        try {
+            assertEquals("history failed", assertThrows(IllegalStateException.class, PortalIrisMainPipelines::destroyed).getMessage());
             assertEquals(2, closed.get());
-            assertTrue(entries.isEmpty());
-        } finally {
-            entries.clear();
-        }
-    }
-
-    @Test
-    @SuppressWarnings("unchecked")
-    public void unshadedPreparedAttachKeepsNativeTerrainWhileStillRetiringShaderHistories() throws ReflectiveOperationException {
-        Field field = PortalIrisMainPipelines.class.getDeclaredField("HISTORIES");
-        field.setAccessible(true);
-        Map<IrisRenderingPipeline, PortalIrisMainPipelines.Entry> entries =
-            (Map<IrisRenderingPipeline, PortalIrisMainPipelines.Entry>) field.get(null);
-        AtomicInteger closed = new AtomicInteger();
-        PortalIrisHistory history = new PortalIrisHistory();
-        try (PortalIrisHistory.Scope scope = history.constructing()) {
-            PortalIrisHistory.register(state(closed, false));
-        }
-        IrisRenderingPipeline pipeline = mock(IrisRenderingPipeline.class);
-        entries.put(pipeline, new PortalIrisMainPipelines.Entry(
-            new PortalIrisMainPipelines.Construction(null, pipeline, null, history, null)));
-        try (MockedStatic<ClientSodiumTerrain> terrain = mockStatic(ClientSodiumTerrain.class)) {
-            terrain.when(ClientSodiumTerrain::retainUnshadedHandoff).thenReturn(true);
-            PortalIrisMainPipelines.destroyed();
-            terrain.verify(ClientSodiumTerrain::clear, times(0));
-            assertEquals(1, closed.get());
             assertTrue(entries.isEmpty());
         } finally {
             entries.clear();

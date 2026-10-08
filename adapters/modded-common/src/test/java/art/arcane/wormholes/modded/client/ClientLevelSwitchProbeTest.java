@@ -2,7 +2,6 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
 import art.arcane.wormholes.modded.client.world.ClientWorldLoader;
 import art.arcane.wormholes.modded.mixin.client.ClientWorldCameraAccess;
 import art.arcane.wormholes.modded.mixin.client.ClientWorldCloudAccess;
@@ -88,7 +87,6 @@ public class ClientLevelSwitchProbeTest extends MinecraftTestBase {
         engine(minecraft, "gameRenderer", gameRenderer);
         Class<?> fogContext = Class.forName("art.arcane.wormholes.modded.client.world.FogRendererContext");
         try (MockedStatic<Minecraft> access = mockStatic(Minecraft.class);
-             MockedStatic<ClientSodiumTerrain> terrain = mockStatic(ClientSodiumTerrain.class);
              MockedStatic<?> fog = mockStatic(fogContext);
              MockedConstruction<Lightmap> lightmaps = mockConstruction(Lightmap.class);
              MockedConstruction<EnvironmentAttributeProbe> probes = mockConstruction(EnvironmentAttributeProbe.class)) {

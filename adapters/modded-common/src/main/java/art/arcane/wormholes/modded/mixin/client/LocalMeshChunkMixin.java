@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.mixin.client;
 
 import art.arcane.wormholes.modded.client.WormholesClient;
-import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
+import art.arcane.wormholes.modded.client.world.ClientWorldLoader;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.minecraft.client.Minecraft;
@@ -30,11 +30,13 @@ public abstract class LocalMeshChunkMixin {
     @WrapOperation(method = "onLightUpdate", at = @At(value = "INVOKE",
         target = "Lnet/minecraft/client/renderer/extract/LevelExtractor;setSectionDirty(III)V"))
     private void wormholesLightGeometry(LevelExtractor extractor, int x, int y, int z, Operation<Void> original) {
-        boolean vanillaUpdated = level == Minecraft.getInstance().level;
-        if (vanillaUpdated) {
+        if (level == Minecraft.getInstance().level) {
             original.call(extractor, x, y, z);
+            return;
         }
-        ClientSodiumTerrain.lightChanged(level, SectionPos.asLong(x, y, z), vanillaUpdated);
+        if (ClientWorldLoader.residentRenderer(level) != null) {
+            ClientWorldLoader.withWorldRenderer(level, () -> original.call(Minecraft.getInstance().levelExtractor, x, y, z));
+        }
     }
 
     @Inject(method = "onLightUpdate", at = @At("RETURN"))

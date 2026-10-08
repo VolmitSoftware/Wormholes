@@ -125,7 +125,6 @@ public final class ClientPortalRenderer {
     private ByteBufferBuilder translucentSorting;
     private boolean rgss;
     private int anisotropy;
-    private PortalEnvironmentRenderer nativeEnvironment;
     private boolean ambientOcclusion;
 
     private ClientPortalRenderer() {
@@ -267,7 +266,6 @@ public final class ClientPortalRenderer {
     }
 
     public void clear() {
-        ClientSodiumTerrain.clear();
         clearRetainedMeshes();
         travelSource = null;
         travelSourceEnvironment = null;
@@ -316,7 +314,6 @@ public final class ClientPortalRenderer {
     }
 
     public void resourceReload() {
-        ClientSodiumTerrain.clear();
         clearRetainedMeshes();
         buildDemand.clear();
         releaseFrameTargets();
@@ -457,7 +454,6 @@ public final class ClientPortalRenderer {
             }
         }
         warmTravelSource(dimensions);
-        ClientSodiumTerrain.warmPrepared();
         dispatchBuilds();
         for (Portal portal : portals.values()) {
             if (!portal.rendered) {
@@ -466,30 +462,6 @@ public final class ClientPortalRenderer {
         }
         targets.endFrame();
         this.camera = rootCamera;
-    }
-
-    TextureTarget nativeTravelTarget() {
-        RenderTarget main = Minecraft.getInstance().gameRenderer.mainRenderTarget();
-        return targets.travel(-4, main.width, main.height);
-    }
-
-    void prepareNativeSky(EnvironmentState environment, CameraRenderState camera) {
-        if (nativeEnvironment == null) {
-            nativeEnvironment = new PortalEnvironmentRenderer();
-        }
-        nativeEnvironment.prepare(environment, camera);
-    }
-
-    PortalEnvironmentRenderer nativeEnvironment() {
-        return nativeEnvironment;
-    }
-
-    void renderNativeSky() {
-        nativeEnvironment.renderSky(targets.travelSky(-4));
-    }
-
-    GpuBufferSlice nativeProjection(Matrix4fc projection) {
-        return targets.projection(PortalRenderTargets.DEPTHS - 1).getBuffer(new Matrix4f(projection));
     }
 
     private void warmTravelSource(RenderDimensions dimensions) {
@@ -1538,10 +1510,6 @@ public final class ClientPortalRenderer {
             translucentSorting = null;
         }
         targets.close();
-        if (nativeEnvironment != null) {
-            nativeEnvironment.close();
-            nativeEnvironment = null;
-        }
         portalLayer = null;
         if (layerMesh != null) {
             layerMesh.close();

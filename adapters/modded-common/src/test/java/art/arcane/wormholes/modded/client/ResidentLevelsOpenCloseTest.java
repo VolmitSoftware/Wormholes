@@ -3,7 +3,6 @@ package art.arcane.wormholes.modded.client;
 import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.wormholes.modded.client.world.PreparedLevelExtractor;
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
 import art.arcane.wormholes.modded.client.world.ClientWorldLoader;
 import art.arcane.wormholes.network.client.TravelMessage;
 import net.minecraft.client.Minecraft;
@@ -208,8 +207,8 @@ public class ResidentLevelsOpenCloseTest extends MinecraftTestBase {
             residents.clear(far);
             assertFalse(residents.has(3));
             assertFalse(residents.resident(far));
-            scope.terrain.verify(() -> ClientSodiumTerrain.forget(nether));
-            scope.terrain.verify(() -> ClientSodiumTerrain.forget(far), never());
+            scope.worlds.verify(() -> ClientWorldLoader.forget(nether));
+            scope.worlds.verify(() -> ClientWorldLoader.forget(far), never());
         }
     }
 
@@ -244,7 +243,6 @@ public class ResidentLevelsOpenCloseTest extends MinecraftTestBase {
         final ClientPacketListener connection;
         final List<TravelMessage> sent = new ArrayList<>();
         final MockedStatic<Minecraft> access;
-        final MockedStatic<ClientSodiumTerrain> terrain;
         final MockedStatic<ClientWorldLoader> worlds;
         final MockedConstruction<ClientLevel> levels;
         final MockedConstruction<PreparedLevelExtractor> extractors;
@@ -256,7 +254,6 @@ public class ResidentLevelsOpenCloseTest extends MinecraftTestBase {
             minecraft = ResidentTestFixtures.minecraft(current, connection);
             access = mockStatic(Minecraft.class);
             access.when(Minecraft::getInstance).thenReturn(minecraft);
-            terrain = mockStatic(ClientSodiumTerrain.class);
             worlds = mockStatic(ClientWorldLoader.class);
             worlds.when(() -> ClientWorldLoader.withWorldRenderer(any(), any())).thenAnswer(call -> {
                 call.<Runnable>getArgument(1).run();
@@ -281,7 +278,6 @@ public class ResidentLevelsOpenCloseTest extends MinecraftTestBase {
             levels.close();
             extractors.close();
             worlds.close();
-            terrain.close();
             access.close();
         }
 

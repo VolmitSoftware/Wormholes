@@ -1,6 +1,5 @@
 package art.arcane.wormholes.modded.client;
 
-import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
 import art.arcane.wormholes.modded.client.world.ClientWorldLoader;
 import art.arcane.wormholes.modded.mixin.client.PreparedPacketAccess;
 import art.arcane.wormholes.modded.seamless.RoutedPackets;
@@ -383,7 +382,6 @@ public final class ResidentLevels {
     private void forget(ClientLevel level) {
         particles.forget(level);
         ClientWorldLoader.forget(level);
-        ClientSodiumTerrain.forget(level);
         ResidentLevel.discardEntities(level);
     }
 

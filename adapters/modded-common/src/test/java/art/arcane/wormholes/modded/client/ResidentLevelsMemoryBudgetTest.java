@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
+import art.arcane.wormholes.modded.client.world.ClientWorldLoader;
 import art.arcane.wormholes.network.client.TravelMessage;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.level.chunk.LevelChunk;
@@ -47,8 +47,8 @@ public class ResidentLevelsMemoryBudgetTest extends MinecraftTestBase {
             assertFalse(residents.resident(first));
             assertTrue(residents.resident(second));
             assertTrue(residents.resident(third));
-            scope.terrain.verify(() -> ClientSodiumTerrain.forget(first));
-            scope.terrain.verify(() -> ClientSodiumTerrain.forget(second), never());
+            scope.worlds.verify(() -> ClientWorldLoader.forget(first));
+            scope.worlds.verify(() -> ClientWorldLoader.forget(second), never());
             assertEquals(20L * column, residents.bytes());
         }
     }
@@ -74,7 +74,7 @@ public class ResidentLevelsMemoryBudgetTest extends MinecraftTestBase {
             assertFalse(residents.resident(open));
             assertFalse(residents.resident(other));
             assertFalse(residents.resident(current));
-            scope.terrain.verify(() -> ClientSodiumTerrain.forget(open), never());
+            scope.worlds.verify(() -> ClientWorldLoader.forget(open), never());
         }
     }
 

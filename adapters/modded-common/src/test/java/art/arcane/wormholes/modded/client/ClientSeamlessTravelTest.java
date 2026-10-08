@@ -7,7 +7,6 @@ import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.mixin.client.ParticleEngineAccess;
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
-import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
 import art.arcane.wormholes.modded.client.world.ClientWorldLoader;
 import art.arcane.wormholes.modded.client.render.PortalIrisMainPipelines;
 import art.arcane.wormholes.modded.clientview.MinecraftPortalEnvironment;
@@ -158,10 +157,6 @@ public class ClientSeamlessTravelTest extends MinecraftTestBase {
     @Test
     public void preparationReportsWhatTheArmedDestinationStillNeeds() throws ReflectiveOperationException {
         try (Crossing crossing = new Crossing(false)) {
-            crossing.scope.terrain.when(ClientSodiumTerrain::available).thenReturn(true);
-            crossing.scope.terrain.when(() -> ClientSodiumTerrain.ready(crossing.nether)).thenReturn(false);
-            assertEquals("destination terrain", crossing.travel.unprepared());
-            crossing.scope.terrain.when(() -> ClientSodiumTerrain.ready(crossing.nether)).thenReturn(true);
             crossing.shaders.when(() -> PortalIrisMainPipelines.ready(crossing.nether)).thenReturn(false);
             assertEquals("destination shaders", crossing.travel.unprepared());
             crossing.shaders.when(() -> PortalIrisMainPipelines.ready(crossing.nether)).thenReturn(true);
@@ -171,20 +166,6 @@ public class ClientSeamlessTravelTest extends MinecraftTestBase {
             assertNull(crossing.travel.unprepared());
             crossing.travel.receive(new TravelMessage.TravelCancel(SeamlessTravelFixtures.TOKEN, SeamlessTravelFixtures.GENERATION));
             assertEquals("no armed destination", crossing.travel.unprepared());
-        }
-    }
-
-    @Test
-    public void terrainThatTheMainRendererCoversIsNeverAwaited() throws ReflectiveOperationException {
-        try (Crossing crossing = new Crossing(false)) {
-            crossing.scope.terrain.when(ClientSodiumTerrain::available).thenReturn(true);
-            crossing.scope.terrain.when(() -> ClientSodiumTerrain.ready(crossing.nether)).thenReturn(false);
-            crossing.scope.terrain.when(() -> ClientSodiumTerrain.covered(crossing.nether)).thenReturn(true);
-            crossing.shaders.when(() -> PortalIrisMainPipelines.ready(crossing.nether)).thenReturn(true);
-            when(crossing.renderer.travelSourceShaderReady()).thenReturn(true);
-            assertNull(crossing.travel.unprepared());
-            crossing.scope.terrain.when(() -> ClientSodiumTerrain.covered(crossing.nether)).thenReturn(false);
-            assertEquals("destination terrain", crossing.travel.unprepared());
         }
     }
 
