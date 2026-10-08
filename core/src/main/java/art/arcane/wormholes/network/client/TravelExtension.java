@@ -2,7 +2,6 @@ package art.arcane.wormholes.network.client;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.UUID;
 
 import art.arcane.optics.aperture.ApertureDescriptor;
@@ -10,6 +9,7 @@ import art.arcane.optics.crossing.MomentumRule;
 import art.arcane.optics.crossing.OrientationRule;
 import art.arcane.optics.crossing.ScaleRule;
 import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.EnvironmentStateCodec;
 import art.arcane.optics.stream.ViewStreamCapability;
@@ -20,12 +20,9 @@ import art.arcane.optics.stream.ViewStreamReader;
 import art.arcane.optics.stream.ViewStreamWriter;
 
 public final class TravelExtension implements ViewStreamExtension<TravelMessage> {
-    public static final TravelExtension PREPARED = new TravelExtension(Seamless.NONE);
+    public static final TravelExtension INSTANCE = new TravelExtension();
 
-    private final Seamless seamless;
-
-    public TravelExtension(Seamless seamless) {
-        this.seamless = Objects.requireNonNull(seamless, "seamless");
+    private TravelExtension() {
     }
 
     @Override
@@ -41,8 +38,8 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
     @Override
     public boolean serverbound(int id) {
         return switch (id) {
-            case TravelMessage.TRAVEL_READY, TravelMessage.TRAVEL_CANCEL, TravelMessage.TRAVEL_CROSS, TravelMessage.TRAVEL_CACHED -> true;
-            default -> seamless.serverbound(id);
+            case TravelMessage.TRAVEL_CROSS, TravelMessage.REMOTE_VIEW_ACK, TravelMessage.REMOTE_LEVEL_REOPEN -> true;
+            default -> false;
         };
     }
 
@@ -50,8 +47,9 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
     public boolean clientbound(int id) {
         return switch (id) {
             case TravelMessage.TRAVEL_BEGIN, TravelMessage.TRAVEL_CHUNK, TravelMessage.TRAVEL_END, TravelMessage.TRAVEL_COMMIT,
-                 TravelMessage.TRAVEL_CANCEL, TravelMessage.TRAVEL_REUSE -> true;
-            default -> seamless.clientbound(id);
+                 TravelMessage.TRAVEL_CANCEL, TravelMessage.TRAVEL_REUSE, TravelMessage.REMOTE_LEVEL_OPEN, TravelMessage.REMOTE_LEVEL_CLOSE,
+                 TravelMessage.ROUTED_PACKET, TravelMessage.TRAVEL_ACCEPT, TravelMessage.ENTITY_CROSSED -> true;
+            default -> false;
         };
     }
 
@@ -66,12 +64,10 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
             case TravelMessage.TRAVEL_BEGIN -> "TRAVEL_BEGIN";
             case TravelMessage.TRAVEL_CHUNK -> "TRAVEL_CHUNK";
             case TravelMessage.TRAVEL_END -> "TRAVEL_END";
-            case TravelMessage.TRAVEL_READY -> "TRAVEL_READY";
             case TravelMessage.TRAVEL_COMMIT -> "TRAVEL_COMMIT";
             case TravelMessage.TRAVEL_CANCEL -> "TRAVEL_CANCEL";
             case TravelMessage.TRAVEL_CROSS -> "TRAVEL_CROSS";
             case TravelMessage.TRAVEL_REUSE -> "TRAVEL_REUSE";
-            case TravelMessage.TRAVEL_CACHED -> "TRAVEL_CACHED";
             case TravelMessage.REMOTE_LEVEL_OPEN -> "REMOTE_LEVEL_OPEN";
             case TravelMessage.REMOTE_LEVEL_CLOSE -> "REMOTE_LEVEL_CLOSE";
             case TravelMessage.ROUTED_PACKET -> "ROUTED_PACKET";
@@ -90,16 +86,14 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
 
     @Override
     public long capabilities() {
-        return ClientViewExtensions.PREPARED_TRAVEL | ClientViewExtensions.PREPARED_TRAVEL_CACHE
-            | seamless.capabilities();
+        return ClientViewExtensions.REMOTE_VIEW | ClientViewExtensions.SEAMLESS_TRAVEL;
     }
 
     @Override
     public long requires(long capability) {
-        if (capability == ClientViewExtensions.PREPARED_TRAVEL_CACHE) {
-            return ClientViewExtensions.PREPARED_TRAVEL | ViewStreamCapability.MESH_RENDER.mask();
-        }
-        return seamless.requires(capability);
+        return capability == ClientViewExtensions.SEAMLESS_TRAVEL
+            ? ClientViewExtensions.REMOTE_VIEW | ViewStreamCapability.MESH_RENDER.mask()
+            : ViewStreamCapability.NONE;
     }
 
     @Override
@@ -124,7 +118,6 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
                 rules(out, begin.rules());
                 out.u8(begin.resident() ? 1 : 0);
                 out.u8(begin.levelHandle());
-                out.u8(begin.seamless() ? 1 : 0);
             }
             case TravelMessage.TravelChunk chunk -> {
                 identity(out, chunk.token(), chunk.generation());
@@ -148,10 +141,6 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
                     out.i32(chunk.revision());
                 }
             }
-            case TravelMessage.TravelReady ready -> {
-                identity(out, ready.token(), ready.generation());
-                out.i64(ready.contentRevision());
-            }
             case TravelMessage.TravelCommit commit -> {
                 identity(out, commit.token(), commit.generation());
                 out.i64(commit.contentRevision());
@@ -174,16 +163,49 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
                 out.i32(reuse.revision());
                 out.bytes(reuse.hash());
             }
-            case TravelMessage.TravelCached cached -> {
-                identity(out, cached.token(), cached.generation());
-                out.i32(cached.chunkX());
-                out.i32(cached.chunkZ());
-                out.i32(cached.revision());
-                out.bytes(cached.hash());
-                out.u8(cached.available() ? 1 : 0);
-            }
             case TravelMessage.TravelCancel cancel -> identity(out, cancel.token(), cancel.generation());
-            default -> seamless.encode(message, out);
+            case TravelMessage.RemoteLevelOpen open -> {
+                out.u8(open.levelHandle());
+                world(out, open.world());
+                EnvironmentStateCodec.write(out, open.environment());
+                out.u8(open.viewRadius());
+                out.i32(open.center().x());
+                out.i32(open.center().z());
+            }
+            case TravelMessage.RemoteLevelClose close -> out.u8(close.levelHandle());
+            case TravelMessage.RoutedPacket packet -> {
+                out.u8(packet.levelHandle());
+                out.i32(packet.sequence());
+                out.u16(packet.fragmentIndex());
+                out.u16(packet.fragmentCount());
+                out.i32(packet.totalBytes());
+                byte[] payload = packet.payload();
+                out.i32(payload.length);
+                out.bytes(payload);
+            }
+            case TravelMessage.TravelAccept accept -> {
+                identity(out, accept.token(), accept.generation());
+                out.i64(accept.contentRevision());
+                pose(out, accept.pose());
+                vector(out, accept.velocity());
+                out.u8(accept.levelHandle());
+                out.u8(accept.dimensionChanged() ? 1 : 0);
+                out.i64(accept.serverTick());
+            }
+            case TravelMessage.RemoteViewAck ack -> {
+                out.u8(ack.levelHandle());
+                out.i32(ack.lastSequence());
+                out.u8(ack.chunksPerTickHint());
+            }
+            case TravelMessage.RemoteLevelReopen reopen -> out.u8(reopen.levelHandle());
+            case TravelMessage.EntityCrossed crossed -> {
+                out.u8(crossed.levelHandle());
+                out.i32(crossed.entityId());
+                EnvironmentStateCodec.writeTransform(out, crossed.toward());
+                vector(out, crossed.planeOrigin());
+                out.u8(crossed.planeNormal().ordinal());
+                vector(out, crossed.velocity());
+            }
         }
     }
 
@@ -191,10 +213,25 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
     public TravelMessage decode(int id, ViewStreamReader in) throws ViewStreamProtocolException {
         try {
             return switch (id) {
-                case TravelMessage.TRAVEL_BEGIN, TravelMessage.TRAVEL_CHUNK, TravelMessage.TRAVEL_END, TravelMessage.TRAVEL_READY,
-                     TravelMessage.TRAVEL_COMMIT, TravelMessage.TRAVEL_CANCEL, TravelMessage.TRAVEL_CROSS, TravelMessage.TRAVEL_REUSE,
-                     TravelMessage.TRAVEL_CACHED -> decodeTravel(id, uuid(in), in.i64(), in);
-                default -> seamless.decode(id, in);
+                case TravelMessage.TRAVEL_BEGIN, TravelMessage.TRAVEL_CHUNK, TravelMessage.TRAVEL_END, TravelMessage.TRAVEL_COMMIT,
+                     TravelMessage.TRAVEL_CANCEL, TravelMessage.TRAVEL_CROSS, TravelMessage.TRAVEL_REUSE, TravelMessage.TRAVEL_ACCEPT
+                    -> decodeTravel(id, uuid(in), in.i64(), in);
+                case TravelMessage.REMOTE_LEVEL_OPEN -> new TravelMessage.RemoteLevelOpen(in.u8(), world(in), EnvironmentStateCodec.read(in), in.u8(),
+                    new TravelMessage.TravelCoordinate(in.i32(), in.i32()));
+                case TravelMessage.REMOTE_LEVEL_CLOSE -> new TravelMessage.RemoteLevelClose(in.u8());
+                case TravelMessage.ROUTED_PACKET -> {
+                    int handle = in.u8();
+                    int sequence = in.i32();
+                    int index = in.u16();
+                    int fragments = in.u16();
+                    int total = in.i32();
+                    yield new TravelMessage.RoutedPacket(handle, sequence, index, fragments, total, fragment(in));
+                }
+                case TravelMessage.REMOTE_VIEW_ACK -> new TravelMessage.RemoteViewAck(in.u8(), in.i32(), in.u8());
+                case TravelMessage.REMOTE_LEVEL_REOPEN -> new TravelMessage.RemoteLevelReopen(in.u8());
+                case TravelMessage.ENTITY_CROSSED -> new TravelMessage.EntityCrossed(in.u8(), in.i32(), EnvironmentStateCodec.readTransform(in),
+                    vector(in), face(in.u8()), vector(in));
+                default -> throw new ViewStreamProtocolException("Unknown travel message " + id);
             };
         } catch (IllegalArgumentException invalid) {
             throw new ViewStreamProtocolException("Invalid travel message " + name(id), invalid);
@@ -217,7 +254,7 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
                     chunks.add(new TravelMessage.TravelCoordinate(in.i32(), in.i32()));
                 }
                 yield new TravelMessage.TravelBegin(token, generation, portal, source, geometry, transform, scale, world, pose, chunks,
-                    EnvironmentStateCodec.read(in), in.i32(), rules(in), bool(in), in.u8(), bool(in));
+                    EnvironmentStateCodec.read(in), in.i32(), rules(in), bool(in), in.u8());
             }
             case TravelMessage.TRAVEL_CHUNK -> {
                 int x = in.i32();
@@ -237,19 +274,25 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
                 }
                 yield new TravelMessage.TravelEnd(token, generation, revision, chunks);
             }
-            case TravelMessage.TRAVEL_READY -> new TravelMessage.TravelReady(token, generation, in.i64());
             case TravelMessage.TRAVEL_COMMIT -> new TravelMessage.TravelCommit(token, generation, in.i64(), in.string(), in.string(), pose(in), vector(in));
             case TravelMessage.TRAVEL_CANCEL -> new TravelMessage.TravelCancel(token, generation);
             case TravelMessage.TRAVEL_REUSE -> new TravelMessage.TravelReuse(token, generation, in.i32(), in.i32(), in.i32(),
                 in.bytes(TravelMessage.TRAVEL_HASH_BYTES));
-            case TravelMessage.TRAVEL_CACHED -> new TravelMessage.TravelCached(token, generation, in.i32(), in.i32(), in.i32(),
-                in.bytes(TravelMessage.TRAVEL_HASH_BYTES), bool(in));
             case TravelMessage.TRAVEL_CROSS -> new TravelMessage.TravelCross(token, generation, in.i64(), pose(in), vector(in), vector(in));
+            case TravelMessage.TRAVEL_ACCEPT -> new TravelMessage.TravelAccept(token, generation, in.i64(), pose(in), vector(in), in.u8(), bool(in),
+                in.i64());
             default -> throw new ViewStreamProtocolException("Unknown travel message " + id);
         };
     }
 
-    static byte[] fragment(ViewStreamReader in) throws ViewStreamProtocolException {
+    private static Face face(int ordinal) throws ViewStreamProtocolException {
+        if (ordinal >= Face.values().length) {
+            throw new ViewStreamProtocolException("Entity crossing plane normal " + ordinal);
+        }
+        return Face.values()[ordinal];
+    }
+
+    private static byte[] fragment(ViewStreamReader in) throws ViewStreamProtocolException {
         int size = in.i32();
         if (size <= 0 || size > TravelMessage.TRAVEL_FRAGMENT_BYTES) {
             throw new ViewStreamProtocolException("Travel fragment size");
@@ -297,21 +340,21 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
         return count;
     }
 
-    static void identity(ViewStreamWriter out, UUID token, long generation) {
+    private static void identity(ViewStreamWriter out, UUID token, long generation) {
         uuid(out, token);
         out.i64(generation);
     }
 
-    static void uuid(ViewStreamWriter out, UUID value) {
+    private static void uuid(ViewStreamWriter out, UUID value) {
         out.i64(value.getMostSignificantBits());
         out.i64(value.getLeastSignificantBits());
     }
 
-    static UUID uuid(ViewStreamReader in) throws ViewStreamProtocolException {
+    private static UUID uuid(ViewStreamReader in) throws ViewStreamProtocolException {
         return new UUID(in.i64(), in.i64());
     }
 
-    static void world(ViewStreamWriter out, TravelMessage.TravelWorld world) throws ViewStreamProtocolException {
+    private static void world(ViewStreamWriter out, TravelMessage.TravelWorld world) throws ViewStreamProtocolException {
         out.string(world.dimension());
         out.string(world.dimensionType());
         out.i64(world.seed());
@@ -322,11 +365,11 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
         out.i32(world.height());
     }
 
-    static TravelMessage.TravelWorld world(ViewStreamReader in) throws ViewStreamProtocolException {
+    private static TravelMessage.TravelWorld world(ViewStreamReader in) throws ViewStreamProtocolException {
         return new TravelMessage.TravelWorld(in.string(), in.string(), in.i64(), bool(in), bool(in), in.i32(), in.i32(), in.i32());
     }
 
-    static boolean bool(ViewStreamReader in) throws ViewStreamProtocolException {
+    private static boolean bool(ViewStreamReader in) throws ViewStreamProtocolException {
         int value = in.u8();
         if (value > 1) {
             throw new ViewStreamProtocolException("Travel boolean");
@@ -334,17 +377,17 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
         return value == 1;
     }
 
-    static void vector(ViewStreamWriter out, Vec3d vector) {
+    private static void vector(ViewStreamWriter out, Vec3d vector) {
         out.f64(vector.x());
         out.f64(vector.y());
         out.f64(vector.z());
     }
 
-    static Vec3d vector(ViewStreamReader in) throws ViewStreamProtocolException {
+    private static Vec3d vector(ViewStreamReader in) throws ViewStreamProtocolException {
         return new Vec3d(in.f64(), in.f64(), in.f64());
     }
 
-    static void pose(ViewStreamWriter out, TravelMessage.TravelPose pose) {
+    private static void pose(ViewStreamWriter out, TravelMessage.TravelPose pose) {
         out.f64(pose.x());
         out.f64(pose.y());
         out.f64(pose.z());
@@ -352,53 +395,7 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
         out.f32(pose.pitch());
     }
 
-    static TravelMessage.TravelPose pose(ViewStreamReader in) throws ViewStreamProtocolException {
+    private static TravelMessage.TravelPose pose(ViewStreamReader in) throws ViewStreamProtocolException {
         return new TravelMessage.TravelPose(in.f64(), in.f64(), in.f64(), in.f32(), in.f32());
-    }
-
-    public interface Seamless {
-        Seamless NONE = new Seamless() {
-            @Override
-            public boolean serverbound(int id) {
-                return false;
-            }
-
-            @Override
-            public boolean clientbound(int id) {
-                return false;
-            }
-
-            @Override
-            public long capabilities() {
-                return ViewStreamCapability.NONE;
-            }
-
-            @Override
-            public long requires(long capability) {
-                return ViewStreamCapability.NONE;
-            }
-
-            @Override
-            public void encode(TravelMessage message, ViewStreamWriter out) throws ViewStreamProtocolException {
-                throw new ViewStreamProtocolException("Seamless travel is unavailable for travel message " + message.id());
-            }
-
-            @Override
-            public TravelMessage decode(int id, ViewStreamReader in) throws ViewStreamProtocolException {
-                throw new ViewStreamProtocolException("Unknown travel message " + id);
-            }
-        };
-
-        boolean serverbound(int id);
-
-        boolean clientbound(int id);
-
-        long capabilities();
-
-        long requires(long capability);
-
-        void encode(TravelMessage message, ViewStreamWriter out) throws ViewStreamProtocolException;
-
-        TravelMessage decode(int id, ViewStreamReader in) throws ViewStreamProtocolException;
     }
 }

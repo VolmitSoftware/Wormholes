@@ -234,7 +234,7 @@ public final class MinecraftDoorService implements AutoCloseable {
         }
     }
 
-    public boolean canPrepare(ServerPlayer player, UUID sourceId, UUID destinationId) {
+    public boolean canArm(ServerPlayer player, UUID sourceId, UUID destinationId) {
         runtime.requireServerThread();
         if (!enabled() || !player.isAlive() || player.hasDisconnected()) {
             return false;
@@ -605,7 +605,7 @@ public final class MinecraftDoorService implements AutoCloseable {
         }
     }
 
-    public boolean crossPrepared(ServerPlayer player, UUID source, PlaneCrossing crossing) {
+    public boolean crossSeamless(ServerPlayer player, UUID source, PlaneCrossing crossing) {
         runtime.requireServerThread();
         if (!enabled() || !player.isAlive() || player.isPassenger() || player.isVehicle()
             || travelling(player.getUUID()) || runtime.portals().travelling(player.getUUID()) || cooldowns.containsKey(player.getUUID())) {
@@ -1196,13 +1196,12 @@ public final class MinecraftDoorService implements AutoCloseable {
         TravelMessage.TravelPose pose = new TravelMessage.TravelPose(arrival.point().x(), arrival.point().y(), arrival.point().z(),
             arrival.yaw(), arrival.pitch());
         Vec3d velocity = new Vec3d(arrival.velocity().x(), arrival.velocity().y(), arrival.velocity().z());
-        boolean seamlessCrossing = entity instanceof ServerPlayer traveler && prepared != null && prepared.seamless()
+        boolean seamlessCrossing = entity instanceof ServerPlayer traveler && prepared != null
             && arrival.context().isPresent() && runtime.clientViews().seamlessCrossing(traveler);
         MinecraftClientViewService.SeamlessTicket seamless = null;
         ChunkPreSendTicket<ServerLevel, ServerPlayer> ticket = entity instanceof ServerPlayer player && !seamlessCrossing
             ? runtime.preSend().preSend(player, arrival.level(), (int) Math.floor(arrival.point().x()), (int) Math.floor(arrival.point().z())) : null;
         MinecraftTravelCosts.Admission admission = null;
-        TravelMessage.TravelCommit preparedCommit = null;
         ServerLevel originLevel = (ServerLevel) entity.level();
         Entity arrived = null;
         try {
@@ -1217,12 +1216,9 @@ public final class MinecraftDoorService implements AutoCloseable {
                 if (seamless == null) {
                     return false;
                 }
-            } else if (entity instanceof ServerPlayer player && arrival.context().isPresent()) {
-                preparedCommit = runtime.clientViews().commitTravel(player, arrival.context().get().portalId(), arrival.level(), pose, velocity);
-                if (prepared != null && preparedCommit == null) {
-                    runtime.clientViews().cancelPreparation(player, prepared);
-                    return false;
-                }
+            } else if (entity instanceof ServerPlayer player && prepared != null && arrival.context().isPresent()) {
+                runtime.clientViews().cancelPreparation(player, prepared);
+                return false;
             }
             try (WormholesModRuntime.TeleportScope scope = runtime.beginTeleport(entity)) {
                 arrived = seamless != null ? runtime.clientViews().seamlessMove(seamless)
@@ -1231,7 +1227,7 @@ public final class MinecraftDoorService implements AutoCloseable {
             }
             if (arrived == null) {
                 if (entity instanceof ServerPlayer player) {
-                    runtime.clientViews().cancelTravel(player, preparedCommit);
+                    runtime.clientViews().cancelTravel(player);
                 }
                 return false;
             }
@@ -1239,8 +1235,7 @@ public final class MinecraftDoorService implements AutoCloseable {
                 admission.commit();
             }
             if (entity instanceof ServerPlayer player) {
-                runtime.clientViews().crossed(player, originLevel, arrival.level(), seamless != null, preparedCommit != null);
-                runtime.clientViews().completeTravel(player);
+                runtime.clientViews().crossed(player, originLevel, arrival.level(), seamless != null);
             }
         } finally {
             if (arrived == null) {
@@ -1259,7 +1254,7 @@ public final class MinecraftDoorService implements AutoCloseable {
         cooldowns.put(arrived.getUUID(), System.currentTimeMillis() + TRANSIT_COOLDOWN_MILLIS);
         runtime.travelArrived(arrived);
         try {
-            presentation.teleport(arrived, arrival.level(), preparedCommit != null || seamless != null);
+            presentation.teleport(arrived, arrival.level(), seamless != null);
         } catch (RuntimeException failure) {
             LOGGER.error("Could not play dimensional-door arrival sound for {}", arrived.getUUID(), failure);
         }

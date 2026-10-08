@@ -31,7 +31,7 @@ final class SeamlessTravelFixtures {
     private SeamlessTravelFixtures() {
     }
 
-    static TravelMessage.TravelBegin begin(boolean resident, boolean seamless) {
+    static TravelMessage.TravelBegin begin(boolean resident) {
         List<TravelMessage.TravelCoordinate> coordinates = new ArrayList<>();
         for (int z = 4; z <= 8; z++) {
             for (int x = 4; x <= 8; x++) {
@@ -41,7 +41,7 @@ final class SeamlessTravelFixtures {
         return new TravelMessage.TravelBegin(TOKEN, GENERATION, new UUID(1, 3), "minecraft:overworld", ClientTravelTestFixtures.geometry(),
             OpticTransform.translation(-100, -64, -100), 1.0F, ResidentTestFixtures.NETHER, new TravelMessage.TravelPose(100.5, 64, 99.2, 180, 10),
             coordinates, ResidentTestFixtures.environment(ResidentTestFixtures.NETHER), 30_000, TravelMessage.ArrivalRules.FRAME,
-            resident, resident ? 3 : 0, seamless);
+            resident, resident ? 3 : 0);
     }
 
     static TravelMessage.TravelAccept accept(double offset, float yaw) {

@@ -82,7 +82,7 @@ public final class ClientViewSession {
             ViewStreamCapability.ENTITY_FRAMES, ViewStreamCapability.ENTITY_EVENTS, ViewStreamCapability.ATMOSPHERE, ViewStreamCapability.ZERO_COPY,
             ViewStreamCapability.CONFIG_PHASE, ViewStreamCapability.LINK_UNCOMPRESSED, ViewStreamCapability.VIEW_STATS, ViewStreamCapability.MESH_RENDER,
             ViewStreamCapability.LOCAL_MESH, ViewStreamCapability.MESH_REUSE, ViewStreamCapability.ENTITY_SELF)
-            | ClientViewExtensions.FX_EMITTERS | ClientViewExtensions.PREPARED_TRAVEL | ClientViewExtensions.PREPARED_TRAVEL_CACHE
+            | ClientViewExtensions.FX_EMITTERS
             | ClientViewExtensions.REMOTE_VIEW | ClientViewExtensions.SEAMLESS_TRAVEL;
         if (config.clientMirror) {
             capabilities |= ViewStreamCapability.CLIENT_MIRROR.mask();

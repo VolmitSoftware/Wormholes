@@ -45,7 +45,6 @@ public class WormholesClientConfigTest extends MinecraftTestBase {
         long capabilities = session(new WormholesClientConfig()).clientCapabilities();
         assertTrue((capabilities & ClientViewExtensions.REMOTE_VIEW) != 0L);
         assertTrue((capabilities & ClientViewExtensions.SEAMLESS_TRAVEL) != 0L);
-        assertTrue((capabilities & ClientViewExtensions.PREPARED_TRAVEL) != 0L);
     }
 
     @Test

@@ -28,8 +28,6 @@ import art.arcane.optics.math.Face;
 import art.arcane.wormholes.api.traversal.internal.TraversalCostGateway;
 import art.arcane.wormholes.util.F;
 import art.arcane.volmlib.util.json.JSONObject;
-import art.arcane.optics.crossing.PlaneCrossing;
-import art.arcane.optics.math.Angles;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.QuarterTurn;
 import art.arcane.optics.shape.ShapeDescriptor;
@@ -83,11 +81,6 @@ public class LocalPortal extends Portal implements ILocalPortal, Listener, Porta
 	{
 		return effects;
 	}
-
-    public boolean crossPrepared(Player player, PlaneCrossing crossing, Angles.Look rotation)
-    {
-        return traversal.crossPrepared(player, crossing, rotation);
-    }
 
 	LocalPortalTraversal traversal()
 	{
@@ -260,16 +253,6 @@ public class LocalPortal extends Portal implements ILocalPortal, Listener, Porta
 	public void playEffect(PortalEffect effect, Location location)
 	{
 		effects.playEffect(effect, location);
-	}
-
-	public void playEffect(PortalEffect effect, Location location, Entity traveler)
-	{
-		effects.playEffect(effect, location, traveler);
-	}
-
-	public void playEffect(PortalEffect effect, Location location, Entity traveler, boolean seamless)
-	{
-		effects.playEffect(effect, location, traveler, seamless);
 	}
 
 	public void playEffect(PortalEffect effect)

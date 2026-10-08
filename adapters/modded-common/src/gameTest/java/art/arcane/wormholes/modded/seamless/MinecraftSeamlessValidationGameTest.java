@@ -154,7 +154,7 @@ public final class MinecraftSeamlessValidationGameTest {
                 if (latest == null || !arrivalDelivered()) {
                     return false;
                 }
-                helper.assertTrue(latest.seamless() && latest.resident(), attempt.label + " armed a far route without a resident level");
+                helper.assertTrue(latest.resident(), attempt.label + " armed a far route without a resident level");
                 if (attempt.expect == Expect.ACCEPT_LEVEL_CHANGE && !residentPaired()) {
                     return false;
                 }

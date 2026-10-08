@@ -34,7 +34,7 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
 public class StraddleClientTest extends MinecraftTestBase {
-    private static final TravelMessage.TravelBegin BEGIN = SeamlessTravelFixtures.begin(true, true);
+    private static final TravelMessage.TravelBegin BEGIN = SeamlessTravelFixtures.begin(true);
     private static final ApertureDescriptor GEOMETRY = BEGIN.sourceGeometry();
 
     @Test

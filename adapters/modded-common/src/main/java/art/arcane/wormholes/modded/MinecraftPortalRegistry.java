@@ -473,7 +473,7 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
         return arrival != null && arrival.blocks(source.getId(), overlaps(source, player), System.currentTimeMillis());
     }
 
-    public boolean crossPrepared(ServerPlayer player, UUID sourceId, MinecraftPortal destination, PlaneCrossing crossing) {
+    public boolean crossSeamless(ServerPlayer player, UUID sourceId, MinecraftPortal destination, PlaneCrossing crossing) {
         runtime.requireServerThread();
         MinecraftPortal source = portals.get(sourceId);
         if (closed || source == null || !source.isOpen() || source.isMirrorMode() || source.getType() == PortalType.RTP
@@ -742,7 +742,6 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
         Vec3d velocity = landed.velocity();
         List<ChunkPreSendTicket<ServerLevel, ServerPlayer>> preSend = new ArrayList<>();
         List<MinecraftTravelCosts.Admission> payments = new ArrayList<>();
-        List<PreparedCommit> preparedCommits = new ArrayList<>();
         boolean reloadExpected = entity.level() != targetLevel;
         ServerLevel originLevel = (ServerLevel) entity.level();
         Entity arrived;
@@ -786,16 +785,11 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
                         rollback(preSend);
                         return;
                     }
-                } else if (member instanceof ServerPlayer player) {
-                    TravelMessage.TravelCommit commit = runtime.clientViews().commitTravel(player, source.getId(), targetLevel, pose, velocity);
-                    if (commit != null) {
-                        preparedCommits.add(new PreparedCommit(player, commit));
-                    } else if (predicted) {
-                        failRules(rig);
-                        refund(payments);
-                        rollback(preSend);
-                        return;
-                    }
+                } else if (member instanceof ServerPlayer && predicted) {
+                    failRules(rig);
+                    refund(payments);
+                    rollback(preSend);
+                    return;
                 }
             }
             if (!reloadExpected) {
@@ -809,31 +803,26 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
             }
         } catch (RuntimeException exception) {
             restoreScales(rig, departureScales);
-            cancelPrepared(preparedCommits);
             refund(payments);
             rollback(preSend);
             throw exception;
         }
         if (arrived == null) {
             restoreScales(rig, departureScales);
-            cancelPrepared(preparedCommits);
             refund(payments);
             rollback(preSend);
             return;
         }
         MinecraftArrivalPose.apply(arrived, landed);
         if (arrived instanceof ServerPlayer player) {
-            runtime.clientViews().crossed(player, originLevel, targetLevel, seamless != null, prepared(preparedCommits, player.getUUID()));
-        }
-        for (PreparedCommit commit : preparedCommits) {
-            runtime.clientViews().completeTravel(commit.player());
+            runtime.clientViews().crossed(player, originLevel, targetLevel, seamless != null);
         }
         for (MinecraftTravelCosts.Admission payment : payments) {
             payment.commit();
         }
         long now = System.currentTimeMillis();
         for (ChunkPreSendTicket<ServerLevel, ServerPlayer> ticket : preSend) {
-            MinecraftTransit.arrived(runtime, source, ticket.player(), reloadExpected, ticket, prepared(preparedCommits, ticket.player().getUUID()));
+            MinecraftTransit.arrived(runtime, source, ticket.player(), reloadExpected, ticket);
         }
         long cooldown = arrivalCooldown(arrived.getSelfAndPassengers().toList(), config.objectTransitContinuous,
             runtime.configuration().settings().getMain().teleportCooldownMillis);
@@ -846,7 +835,7 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
                 api.emit(new MinecraftWormholesApi.Event(MinecraftWormholesApi.Kind.HANDOFF_ADMITTED, member.getUUID(), source.getId(), null, "", null, null));
                 api.emit(new MinecraftWormholesApi.Event(MinecraftWormholesApi.Kind.HANDOFF_COMPLETED, member.getUUID(), destination.getId(), null, "", null, null));
             }
-            MinecraftTraversalCues.arrival(runtime, destination, member, seamless != null || prepared(preparedCommits, member.getUUID()));
+            MinecraftTraversalCues.arrival(runtime, destination, member, seamless != null);
             if (member instanceof ServerPlayer player) {
                 runtime.atlas().departed(player, source);
             }
@@ -902,28 +891,10 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
     private void failRules(List<Entity> travelers) {
         for (Entity traveler : travelers) {
             if (traveler instanceof ServerPlayer player) {
-                runtime.clientViews().cancelTravel(player, null);
+                runtime.clientViews().cancelTravel(player);
             }
             runtime.rules().failed(traveler);
         }
-    }
-
-    private void cancelPrepared(List<PreparedCommit> commits) {
-        for (PreparedCommit commit : commits) {
-            runtime.clientViews().cancelTravel(commit.player(), commit.message());
-        }
-    }
-
-    private static boolean prepared(List<PreparedCommit> commits, UUID traveler) {
-        for (PreparedCommit commit : commits) {
-            if (commit.player().getUUID().equals(traveler)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private record PreparedCommit(ServerPlayer player, TravelMessage.TravelCommit message) {
     }
 
     private void refund(List<MinecraftTravelCosts.Admission> payments) {

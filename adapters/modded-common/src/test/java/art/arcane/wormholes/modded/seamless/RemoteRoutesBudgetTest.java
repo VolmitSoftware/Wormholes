@@ -170,8 +170,8 @@ public class RemoteRoutesBudgetTest extends MinecraftTestBase {
 
         assertTrue(stream.delivered(inside));
         assertTrue(stream.delivered(outside));
-        assertTrue(stream.forgets(109L).isEmpty());
-        assertEquals(1, stream.forgets(110L).size());
+        assertTrue(stream.forgets(101L).isEmpty());
+        assertEquals(1, stream.forgets(102L).size());
         assertTrue(stream.delivered(inside));
     }
 

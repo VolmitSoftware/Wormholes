@@ -197,7 +197,7 @@ public class ClientSeamlessTravelTest extends MinecraftTestBase {
         final ResidentLevelsOpenCloseTest.Scope scope = new ResidentLevelsOpenCloseTest.Scope(source);
         final ResidentLevels residents = new ResidentLevels(scope.sent::add, 512L << 20);
         final ClientSeamlessTravel travel = new ClientSeamlessTravel(scope.sent::add, residents);
-        final TravelMessage.TravelBegin begin = SeamlessTravelFixtures.begin(true, true);
+        final TravelMessage.TravelBegin begin = SeamlessTravelFixtures.begin(true);
         final LocalPlayer player = SeamlessTravelFixtures.player();
         final MockedStatic<PortalIrisMainPipelines> shaders = mockStatic(PortalIrisMainPipelines.class);
         final WormholesClient client = mock(WormholesClient.class);

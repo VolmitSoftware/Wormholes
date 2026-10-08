@@ -14,7 +14,7 @@ import it.unimi.dsi.fastutil.objects.ObjectIterator;
 import java.util.Objects;
 
 public final class RouteStream {
-    public static final int FORGET_HYSTERESIS_TICKS = 60;
+    public static final int FORGET_HYSTERESIS_TICKS = 52;
 
     private final Long2IntOpenHashMap delivered = new Long2IntOpenHashMap();
     private final LongOpenHashSet dirty = new LongOpenHashSet();

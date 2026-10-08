@@ -184,7 +184,7 @@ public final class MinecraftSeamlessMove implements SeamlessMove.Steps {
             context.sink().test(new TravelMessage.RemoteLevelClose(context.accept().levelHandle()));
         }
         RemoteRoutes.Return back = context.back();
-        if (back == null) {
+        if (back == null || !returnAdopted || !back.traversable()) {
             StraddleTracker.clear(player);
             return;
         }

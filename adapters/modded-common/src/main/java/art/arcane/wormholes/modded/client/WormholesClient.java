@@ -60,7 +60,7 @@ public final class WormholesClient {
         this.config = Objects.requireNonNull(config, "config");
         this.sender = Objects.requireNonNull(sender, "sender");
         this.stats = new ClientViewStats();
-        Consumer<TravelMessage> travel = message -> send(TravelExtension.PREPARED.wrap(message));
+        Consumer<TravelMessage> travel = message -> send(TravelExtension.INSTANCE.wrap(message));
         this.preparedTravel = new ClientPreparedTravel(travel, new ResidentLevels(travel, config.residentLevelMemoryBytes()));
         this.reflections = new ClientReflectionEntity();
         this.dataVersion = SharedConstants.getCurrentVersion().dataVersion().version();

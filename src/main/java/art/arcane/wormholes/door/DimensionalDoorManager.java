@@ -22,8 +22,6 @@ import art.arcane.wormholes.platform.BukkitRegionTaskProvider;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.optics.math.Vec3d;
-import art.arcane.wormholes.render.clientview.BukkitClientView;
-import art.arcane.wormholes.render.clientview.ClientViewEffects;
 import art.arcane.wormholes.service.WormholesAudience;
 import art.arcane.wormholes.survival.doors.dimension.PocketWorldService;
 import org.bukkit.GameMode;
@@ -118,7 +116,6 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 	private final DoorRuntimeIndex runtimes;
 	private final DoorTransitLedger ledger;
 	private final DoorTransitCoordinator transits;
-	private final Map<UUID, DoorTransitAttempt> deferredCrossings = new ConcurrentHashMap<>();
 	private final PocketRescueService rescues;
 	private final PocketResizeService resizes;
 	private final PocketMutationJournal mutationJournal;
@@ -1596,9 +1593,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 	@EventHandler(priority = EventPriority.MONITOR)
 	public void onQuit(PlayerQuitEvent event)
 	{
-		deferredCrossings.remove(event.getPlayer().getUniqueId());
 		runtimes.forgetNativeObserver(event.getPlayer().getUniqueId());
-        runtimes.forgetPreparedArrival(event.getPlayer().getUniqueId());
 		ledger.forget(event.getPlayer());
 		accessFeedback.forget(event.getPlayer().getUniqueId());
 	}
@@ -1645,12 +1640,6 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		rescues.begin(player);
 	}
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onTeleport(PlayerTeleportEvent event)
-    {
-        deferredCrossings.remove(event.getPlayer().getUniqueId());
-    }
-
 	@EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
 	public void onMove(PlayerMoveEvent event)
 	{
@@ -1683,7 +1672,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		}
 		UUID travelerId = traveler.getUniqueId();
 		if(ledger.isTraveling(travelerId) || LocalPortal.isTeleportInFlight(travelerId, System.currentTimeMillis())
-			|| ledger.hasCooldown(travelerId, System.nanoTime()) || deferredCrossings.containsKey(travelerId))
+			|| ledger.hasCooldown(travelerId, System.nanoTime()))
 		{
 			return;
 		}
@@ -1701,18 +1690,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 			maybeEjectEscapedTraveler(traveler, fromLocation, toLocation);
 			return;
 		}
-		DoorTransitAttempt attempt = prepared.get();
-		BukkitClientView clientView = ClientViewEffects.active();
-		if(traveler instanceof Player && clientView != null
-			&& clientView.deferTravel(travelerId, attempt.runtime().endpoint().identity().itemId()))
-		{
-			if(deferredCrossings.putIfAbsent(travelerId, attempt) == null)
-			{
-				scheduleCrossingRetry(attempt);
-			}
-			return;
-		}
-		dispatchCrossing(attempt);
+		dispatchCrossing(prepared.get());
 	}
 
     public boolean isTravelling(UUID travelerId)
@@ -1720,84 +1698,12 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
         return ledger.isTraveling(travelerId);
     }
 
-	public boolean crossPrepared(Player player, UUID source, PlaneCrossing crossing)
-	{
-		UUID travelerId = player.getUniqueId();
-		if(guard.closed() || player.isDead() || !player.isValid() || player.isInsideVehicle() || !player.getPassengers().isEmpty()
-			|| ledger.isTraveling(travelerId) || LocalPortal.isTeleportInFlight(travelerId, System.currentTimeMillis()) || ledger.hasCooldown(travelerId, System.nanoTime()))
-		{
-			return false;
-		}
-		RuntimeDoor runtime = runtimes.runtime(source);
-		World world = player.getWorld();
-		if(runtime == null || !runtime.endpoint().position().worldId().equals(world.getUID())
-			|| !canTravelerEnter(runtime.endpoint().identity().kind(), player)
-			|| !WormholesPlatform.isOwnedByCurrentRegion(world, runtime.endpoint().position().x() >> 4,
-				runtime.endpoint().position().z() >> 4))
-		{
-			return false;
-		}
-		Optional<VanillaDoorSnapshot> captured = runtimes.capture(runtime.endpoint(), world);
-		if(captured.isEmpty() || !captured.get().portalLive())
-		{
-			return false;
-		}
-		VanillaDoorSnapshot snapshot = captured.get();
-		runtime.update(snapshot);
-		Optional<PlaneCrossing> entry = DoorTransitGate.prepared(snapshot.plane(), crossing, player.getWidth() / 2.0D, player.getHeight());
-		if(entry.isEmpty())
-		{
-			return false;
-		}
-		Location location = player.getLocation();
-		DoorTransit transit = new DoorTransit(snapshot.plane(), entry.get(), location.getYaw(), location.getPitch(),
-			player.getWidth() / 2.0D, player.getHeight(), DoorTravelerClass.LIVING,
-			new Vec3d(crossing.velocity().x(), crossing.velocity().y(), crossing.velocity().z()), crossing);
-		deferredCrossings.remove(travelerId);
-		dispatchCrossing(new DoorTransitAttempt(player, travelerId, world, runtime, snapshot, transit));
-		return true;
-	}
-
 	private void dispatchCrossing(DoorTransitAttempt attempt)
 	{
 		accessAuthorizer.resolve(
 			attempt.traveler(),
 			credentials -> transits.begin(attempt, credentials),
 			NO_OP);
-	}
-
-	private void scheduleCrossingRetry(DoorTransitAttempt attempt)
-	{
-		if(!FoliaScheduler.runEntity(plugin, attempt.traveler(), () -> retryCrossing(attempt), 1L,
-			() -> deferredCrossings.remove(attempt.travelerId(), attempt)))
-		{
-			deferredCrossings.remove(attempt.travelerId(), attempt);
-		}
-	}
-
-	private void retryCrossing(DoorTransitAttempt attempt)
-	{
-		Entity traveler = attempt.traveler();
-		if(deferredCrossings.get(attempt.travelerId()) != attempt)
-		{
-			return;
-		}
-		UUID source = attempt.runtime().endpoint().identity().itemId();
-		if(guard.closed() || traveler.isDead() || !traveler.isValid() || traveler.getWorld() != attempt.sourceWorld()
-			|| ledger.isTraveling(attempt.travelerId()) || LocalPortal.isTeleportInFlight(attempt.travelerId(), System.currentTimeMillis()) || ledger.hasCooldown(attempt.travelerId(), System.nanoTime())
-			|| runtimes.runtime(source) != attempt.runtime() || !attempt.transit().sourcePlane().equals(attempt.runtime().plane()))
-		{
-			deferredCrossings.remove(attempt.travelerId(), attempt);
-			return;
-		}
-		BukkitClientView clientView = ClientViewEffects.active();
-		if(clientView != null && clientView.deferTravel(attempt.travelerId(), source))
-		{
-			scheduleCrossingRetry(attempt);
-			return;
-		}
-		deferredCrossings.remove(attempt.travelerId(), attempt);
-		dispatchCrossing(attempt);
 	}
 
 	private Optional<DoorTransitAttempt> prepareTransitAttempt(
@@ -2093,7 +1999,6 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		closeStep("door projections", projectionRegistry::close);
 		closeStep("door runtimes", runtimes::close);
 		closeStep("transit ledger", ledger::clear);
-		deferredCrossings.clear();
 		pockets.clear();
 		accessFeedback.clear();
 	}

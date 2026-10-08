@@ -6,13 +6,11 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -21,10 +19,7 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRegisterChannelEvent;
 import org.junit.jupiter.api.Test;
-import org.mockito.MockedStatic;
 
-import art.arcane.volmlib.nativelib.NativeAdapters;
-import art.arcane.volmlib.nativelib.chunk.ChunkPacketAccess;
 
 import com.github.retrooper.packetevents.protocol.ConnectionState;
 
@@ -35,7 +30,6 @@ import art.arcane.optics.stream.ViewStreamMessageType;
 import art.arcane.optics.stream.ViewStreamInbound;
 import art.arcane.optics.stream.ViewStreamSessionState;
 import art.arcane.wormholes.network.client.ClientViewExtensions;
-import art.arcane.wormholes.render.client.session.ClientViewTravel;
 
 final class BukkitClientViewNegotiatorTest {
     @Test
@@ -58,53 +52,19 @@ final class BukkitClientViewNegotiatorTest {
     }
 
     @Test
-    void bukkitNeverOffersOrAcceptsRemoteViewOrSeamlessTravel() throws Exception {
-        assertFalse((BukkitClientView.PLATFORM_CAPS & ClientViewExtensions.REMOTE_VIEW) != 0L);
-        assertFalse((BukkitClientView.PLATFORM_CAPS & ClientViewExtensions.SEAMLESS_TRAVEL) != 0L);
-        assertFalse((ClientViewExtensions.CODEC.capabilities() & ClientViewExtensions.REMOTE_VIEW) != 0L);
-        assertFalse((ClientViewExtensions.CODEC.capabilities() & ClientViewExtensions.SEAMLESS_TRAVEL) != 0L);
-        ChunkPacketAccess packets = mock(ChunkPacketAccess.class);
-        when(packets.snapshotSupported()).thenReturn(true);
-        try (MockedStatic<NativeAdapters> adapters = mockStatic(NativeAdapters.class)) {
-            adapters.when(() -> NativeAdapters.find(ChunkPacketAccess.class)).thenReturn(Optional.of(packets));
-            try (ClientViewFixture fixture = new ClientViewFixture(ClientViewFixture.options(true, false, 100), ConnectionState.PLAY)) {
-                fixture.clientView.observer(fixture.playerId, fixture.user).brand("fabric");
-                assertTrue(fixture.negotiator.offerPlay(fixture.player));
-                assertEquals(ViewStreamInbound.HELLO_ACCEPTED, fixture.hello(ViewStreamCapability.ALL));
-                List<ViewStreamMessage> messages = fixture.messages();
-                ViewStreamMessage.Offer offer = (ViewStreamMessage.Offer) messages.get(0);
-                ViewStreamMessage.Accept accept = (ViewStreamMessage.Accept) messages.get(1);
-                assertTrue((accept.caps() & ClientViewExtensions.PREPARED_TRAVEL) != 0L);
-                assertFalse((offer.serverCaps() & ClientViewExtensions.REMOTE_VIEW) != 0L);
-                assertFalse((offer.serverCaps() & ClientViewExtensions.SEAMLESS_TRAVEL) != 0L);
-                assertFalse((accept.caps() & ClientViewExtensions.REMOTE_VIEW) != 0L);
-                assertFalse((accept.caps() & ClientViewExtensions.SEAMLESS_TRAVEL) != 0L);
-            }
-        }
-    }
-
-    @Test
-    void exactNativeSnapshotCapabilityNegotiatesReuseAndOldPreparedPeersKeepNativeTransfer() throws Exception {
-        ChunkPacketAccess packets = mock(ChunkPacketAccess.class);
-        when(packets.snapshotSupported()).thenReturn(true);
-        try (MockedStatic<NativeAdapters> adapters = mockStatic(NativeAdapters.class)) {
-            adapters.when(() -> NativeAdapters.find(ChunkPacketAccess.class)).thenReturn(Optional.of(packets));
-            for (boolean cache : new boolean[]{true, false}) {
-                try (ClientViewFixture fixture = new ClientViewFixture(ClientViewFixture.options(true, false, 100), ConnectionState.PLAY)) {
-                    fixture.clientView.observer(fixture.playerId, fixture.user).brand("fabric");
-                    assertTrue(fixture.negotiator.offerPlay(fixture.player));
-                    long caps = cache ? ViewStreamCapability.ALL : ViewStreamCapability.ALL & ~ClientViewExtensions.PREPARED_TRAVEL_CACHE;
-                    assertEquals(ViewStreamInbound.HELLO_ACCEPTED, fixture.hello(caps));
-                    List<ViewStreamMessage> messages = fixture.messages();
-                    ViewStreamMessage.Offer offer = (ViewStreamMessage.Offer) messages.get(0);
-                    ViewStreamMessage.Accept accept = (ViewStreamMessage.Accept) messages.get(1);
-                    assertTrue((offer.serverCaps() & ClientViewExtensions.PREPARED_TRAVEL) != 0L);
-                    assertTrue((offer.serverCaps() & ClientViewExtensions.PREPARED_TRAVEL_CACHE) != 0L);
-                    assertTrue((accept.caps() & ClientViewExtensions.PREPARED_TRAVEL) != 0L);
-                    assertEquals(cache, (accept.caps() & ClientViewExtensions.PREPARED_TRAVEL_CACHE) != 0L);
-                    assertEquals(cache, ClientViewTravel.of(fixture.session()).preparedTravelCacheSelected());
-                }
-            }
+    void bukkitNeverOffersOrAcceptsTravel() throws Exception {
+        long travel = ClientViewExtensions.REMOTE_VIEW | ClientViewExtensions.SEAMLESS_TRAVEL;
+        assertEquals(0L, BukkitClientView.PLATFORM_CAPS & travel);
+        assertEquals(0L, ClientViewExtensions.CODEC.capabilities() & travel);
+        try (ClientViewFixture fixture = new ClientViewFixture(ClientViewFixture.options(true, false, 100), ConnectionState.PLAY)) {
+            fixture.clientView.observer(fixture.playerId, fixture.user).brand("fabric");
+            assertTrue(fixture.negotiator.offerPlay(fixture.player));
+            assertEquals(ViewStreamInbound.HELLO_ACCEPTED, fixture.hello(ViewStreamCapability.ALL));
+            List<ViewStreamMessage> messages = fixture.messages();
+            ViewStreamMessage.Offer offer = (ViewStreamMessage.Offer) messages.get(0);
+            ViewStreamMessage.Accept accept = (ViewStreamMessage.Accept) messages.get(1);
+            assertEquals(0L, offer.serverCaps() & travel);
+            assertEquals(0L, accept.caps() & travel);
         }
     }
 

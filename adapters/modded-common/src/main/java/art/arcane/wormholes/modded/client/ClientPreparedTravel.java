@@ -465,10 +465,7 @@ public final class ClientPreparedTravel {
         if (terrain != ClientSodiumTerrain.Preparation.PENDING
             && (terrain == ClientSodiumTerrain.Preparation.READY || ClientPortalRenderer.instance().travelCovered()) && revision != 0
             && (!IRIS || ClientPortalRenderer.instance().travelSourceShaderReady())) {
-            if (acknowledgedRevision != revision) {
-                acknowledgedRevision = revision;
-                sender.accept(new TravelMessage.TravelReady(begin.token(), begin.generation(), revision));
-            }
+            acknowledgedRevision = revision;
         }
     }
 
@@ -862,8 +859,6 @@ public final class ClientPreparedTravel {
                         pendingPreparation.columns.put(new TravelMessage.TravelCoordinate(value.chunkX(), value.chunkZ()),
                             new Column(value.chunkX(), value.chunkZ(), value.revision(), data));
                     }
-                    sender.accept(new TravelMessage.TravelCached(value.token(), value.generation(), value.chunkX(), value.chunkZ(),
-                        value.revision(), value.hash(), available));
                     yield true;
                 }
                 case TravelMessage.TravelEnd value -> {
@@ -1191,8 +1186,6 @@ public final class ClientPreparedTravel {
         if (available && decoded.getOrDefault(new TravelMessage.TravelCoordinate(proof.chunkX(), proof.chunkZ()), 0) < proof.revision()) {
             queueColumn(new Column(proof.chunkX(), proof.chunkZ(), proof.revision(), data));
         }
-        sender.accept(new TravelMessage.TravelCached(proof.token(), proof.generation(), proof.chunkX(), proof.chunkZ(),
-            proof.revision(), proof.hash(), available));
     }
 
     private void queueColumn(Column column) {
@@ -1202,8 +1195,7 @@ public final class ClientPreparedTravel {
 
     public boolean receiveNativeChunk(ClientLevel level, ClientboundLevelChunkWithLightPacket packet) {
         WormholesClient client = WormholesClient.instance();
-        if (level == null || client == null || !client.session().active()
-            || !client.session().has(ClientViewExtensions.PREPARED_TRAVEL_CACHE) || client.session().has(ClientViewExtensions.SEAMLESS_TRAVEL)) {
+        if (level == null || client == null || !client.session().active() || client.session().has(ClientViewExtensions.SEAMLESS_TRAVEL)) {
             return false;
         }
         TravelMessage.TravelCoordinate coordinate = new TravelMessage.TravelCoordinate(packet.x(), packet.z());
@@ -1459,7 +1451,7 @@ public final class ClientPreparedTravel {
         return new TravelMessage.TravelBegin(begin.token(), begin.generation(), begin.sourcePortal(), begin.sourceWorld(),
             begin.sourceGeometry(), OpticTransform.IDENTITY, 1.0F, world,
             new TravelMessage.TravelPose(player.getX(), player.getY(), player.getZ(), player.getYRot(), player.getXRot()), manifest,
-            MinecraftPortalEnvironment.capture(level, vector(eye), OpticTransform.IDENTITY, world.flat()), begin.expiresMillis(), TravelMessage.ArrivalRules.FRAME, false, 0, false);
+            MinecraftPortalEnvironment.capture(level, vector(eye), OpticTransform.IDENTITY, world.flat()), begin.expiresMillis(), TravelMessage.ArrivalRules.FRAME, false, 0);
     }
 
     private void advanceSourcePreparation() {

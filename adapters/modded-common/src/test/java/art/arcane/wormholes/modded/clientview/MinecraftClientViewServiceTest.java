@@ -88,8 +88,8 @@ public class MinecraftClientViewServiceTest extends MinecraftTestBase {
         ViewStreamMessage.Offer offer = (ViewStreamMessage.Offer) message(sent.get(sent.size() - 1));
         assertTrue(ViewStreamCapability.LOCAL_MESH.in(offer.serverCaps()));
         assertTrue(ViewStreamCapability.ENTITY_SELF.in(offer.serverCaps()));
-        assertTrue((offer.serverCaps() & ClientViewExtensions.PREPARED_TRAVEL) != 0L);
-        assertTrue((offer.serverCaps() & ClientViewExtensions.PREPARED_TRAVEL_CACHE) != 0L);
+        assertTrue((offer.serverCaps() & ClientViewExtensions.REMOTE_VIEW) != 0L);
+        assertTrue((offer.serverCaps() & ClientViewExtensions.SEAMLESS_TRAVEL) != 0L);
 
         byte[] hello = MinecraftClientViewExtensions.CODEC.encodeC2S(ViewStreamHandshake.clientHello(offer, offer.mcDataVersion(),
             ViewStreamCapability.ALL, 512 * 1024, 256, 0L, "fabric"));
@@ -98,8 +98,8 @@ public class MinecraftClientViewServiceTest extends MinecraftTestBase {
         assertTrue(ViewStreamCapability.LOCAL_MESH.in(accept.caps()));
         assertTrue(ViewStreamCapability.ENTITY_SELF.in(accept.caps()));
         assertTrue(ViewStreamCapability.MESH_RENDER.in(accept.caps()));
-        assertTrue((accept.caps() & ClientViewExtensions.PREPARED_TRAVEL) != 0L);
-        assertTrue((accept.caps() & ClientViewExtensions.PREPARED_TRAVEL_CACHE) != 0L);
+        assertTrue((accept.caps() & ClientViewExtensions.REMOTE_VIEW) != 0L);
+        assertTrue((accept.caps() & ClientViewExtensions.SEAMLESS_TRAVEL) != 0L);
     }
 
     @Test

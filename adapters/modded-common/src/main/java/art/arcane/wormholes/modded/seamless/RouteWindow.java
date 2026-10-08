@@ -10,7 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class RouteWindow {
-    public static final int MAX_RADIUS = 15;
+    public static final int MAX_RADIUS = TravelMessage.MAX_REMOTE_VIEW_RADIUS;
 
     private final int centerX;
     private final int centerZ;

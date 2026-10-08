@@ -7,6 +7,7 @@ import art.arcane.optics.crossing.PoseTransform;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.Similarity;
+import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.MinecraftPortalRegistry;
@@ -19,6 +20,7 @@ import art.arcane.wormholes.modded.seamless.RouteWindow;
 import art.arcane.wormholes.network.MinecraftGatewayPolicies;
 import art.arcane.wormholes.network.client.TravelMessage;
 import art.arcane.wormholes.nexus.NetworkMember;
+import art.arcane.wormholes.portal.ApertureKind;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.render.client.session.ClientViewTravel;
 import art.arcane.wormholes.render.client.session.SeamlessCrossCheck;
@@ -52,15 +54,13 @@ final class MinecraftSeamlessTravel {
 
     private final WormholesModRuntime runtime;
     private final MinecraftClientViewPortalAccess portals;
-    private final MinecraftPreparedTravel prepared;
     private final Map<UUID, Traveler> travelers = new HashMap<>();
     private final List<UUID> interested = new ArrayList<>();
     private long generation;
 
-    MinecraftSeamlessTravel(WormholesModRuntime runtime, MinecraftClientViewPortalAccess portals, MinecraftPreparedTravel prepared) {
+    MinecraftSeamlessTravel(WormholesModRuntime runtime, MinecraftClientViewPortalAccess portals) {
         this.runtime = runtime;
         this.portals = portals;
-        this.prepared = prepared;
     }
 
     void tick(ClientViewTravel<MinecraftClientViewPeer> travel, ServerPlayer player) {
@@ -136,6 +136,10 @@ final class MinecraftSeamlessTravel {
         if (route == null || route.level() != world || route.handle() != flight.arm.handle() || changed && !route.resident()) {
             return null;
         }
+        if (flight.request == null && !residentArrival(route, player, new Vec3d(arrival.x(), arrival.y(), arrival.z()))) {
+            LOGGER.info("Crossing held {}: the arrival column has not reached the client yet", player.getScoreboardName());
+            return null;
+        }
         long tick = runtime.server().getTickCount();
         TravelMessage.TravelPose pose = flight.request == null ? arrival : pose(arrival, flight.request, flight.crossing,
             flight.arm.begin().rules(), flight.arm.destination().getFrame(), flight.arm.destination().getOrigin());
@@ -173,7 +177,7 @@ final class MinecraftSeamlessTravel {
             LOGGER.info("Crossing abandoned {}: the server crossing could not land", player.getScoreboardName());
             return;
         }
-        reject(travel, player, flight.request, "the crossing could not land");
+        reject(travel, player, flight.request, "the crossing could not land", true);
     }
 
     void rearm(ClientViewTravel<MinecraftClientViewPeer> travel, ServerPlayer player) {
@@ -236,7 +240,8 @@ final class MinecraftSeamlessTravel {
             MinecraftPortal source = portals.portal(peer, route.sourceId());
             MinecraftPortal destination = source == null ? null : peer.portals().projectionDestination(source);
             if (destination == null || !destination.getId().equals(route.destinationId()) || route.resident() && !route.opened()
-                || runtime.portals().resolveLevel(source) != player.level() && peer.door(source.getId()) != source) {
+                || runtime.portals().resolveLevel(source) != player.level() && peer.door(source.getId()) != source
+                || !eligible(peer, player, source, destination)) {
                 continue;
             }
             UUID sourceId = source.getId();
@@ -244,7 +249,7 @@ final class MinecraftSeamlessTravel {
             boolean front = traveler.sides.front(current != null, current != null && current.front(), planeDistance(player, source), speed);
             long identity = peer.portals().routeIdentity(source);
             if (current != null && current.matches(source, destination, route, front, identity)
-                && armedWith(current.begin().rules(), current.begin().scale(), prepared.rules(peer, source),
+                && armedWith(current.begin().rules(), current.begin().scale(), rules(peer, source),
                 MinecraftPortalRegistry.travelScale(source, destination))) {
                 live.add(sourceId);
                 continue;
@@ -308,7 +313,7 @@ final class MinecraftSeamlessTravel {
             player.level().dimension().identifier().toString(), geometry, destinationToSource, (float) toward.scale(), metadata,
             new TravelMessage.TravelPose(feet.x(), feet.y(), feet.z(), player.getYRot(), player.getXRot()), core.coordinates(),
             MinecraftPortalEnvironment.capture(world, eye, OpticTransform.IDENTITY, world.isFlat()), TravelMessage.MAX_TRAVEL_EXPIRY_MILLIS,
-            prepared.rules(peer, source), route.resident(), route.handle(), true);
+            rules(peer, source), route.resident(), route.handle());
         return new Arm(source, destination, world, front, identity, route.handle(), begin);
     }
 
@@ -325,10 +330,12 @@ final class MinecraftSeamlessTravel {
             }
             MinecraftPortal destination = travel.player().portals().projectionDestination(source);
             ServerLevel world = destination == null ? null : runtime.portals().resolveLevel(destination);
-            if (world == null || RemoteRoutes.travelWorld(world).isEmpty() || !prepared.eligible(travel.player(), player, source, destination)) {
+            if (world == null || RemoteRoutes.travelWorld(world).isEmpty() || !eligible(travel.player(), player, source, destination)) {
                 continue;
             }
-            candidates.add(new RemoteRoutes.Candidate(source, destination, world, source.getOrigin().distance(feet)));
+            Box area = source.getGeometry().getArea();
+            candidates.add(new RemoteRoutes.Candidate(source, destination, world,
+                area == null ? source.getOrigin().distance(feet) : RemoteRoutes.distance(area, feet)));
         }
         return candidates;
     }
@@ -341,11 +348,11 @@ final class MinecraftSeamlessTravel {
         }
         Arm arm = traveler.find(request.token(), request.generation());
         if (arm == null) {
-            reject(travel, player, request, "route not armed");
+            reject(travel, player, request, "route not armed", true);
             return;
         }
         if (traveler.flight != null) {
-            reject(travel, player, request, "another crossing is in flight");
+            reject(travel, player, request, "another crossing is in flight", true);
             return;
         }
         if (traveler.crossingTick != tick) {
@@ -353,17 +360,17 @@ final class MinecraftSeamlessTravel {
             traveler.crossings = 0;
         }
         if (++traveler.crossings > MAX_CROSSINGS_PER_TICK) {
-            reject(travel, player, request, "more than " + MAX_CROSSINGS_PER_TICK + " crossings in one tick");
+            reject(travel, player, request, "more than " + MAX_CROSSINGS_PER_TICK + " crossings in one tick", true);
             return;
         }
         Refused refused = refusal(travel, player, arm, request);
         if (refused.reason() != null) {
-            reject(travel, player, request, refused.reason());
+            reject(travel, player, request, refused.reason(), refused.resync());
             return;
         }
         traveler.flight = new Flight(arm, request, refused.crossing(), tick);
         traveler.grace.settled();
-        boolean dispatched = prepared.dispatchCross(travel.player(), player, arm.source(), arm.destination(), arm.begin().sourceGeometry().kind(),
+        boolean dispatched = dispatchCross(travel.player(), player, arm.source(), arm.destination(), arm.begin().sourceGeometry().kind(),
             refused.crossing());
         Flight flight = traveler.flight;
         if (flight == null) {
@@ -376,7 +383,7 @@ final class MinecraftSeamlessTravel {
                 rearm(travel, player);
                 return;
             }
-            reject(travel, player, request, dispatched ? "the departure was refused" : "admission refused the crossing");
+            reject(travel, player, request, dispatched ? "the departure was refused" : "admission refused the crossing", true);
         }
     }
 
@@ -384,14 +391,14 @@ final class MinecraftSeamlessTravel {
         MinecraftClientViewPeer peer = travel.player();
         RemoteRoute route = runtime.remoteRoutes().route(player.getUUID(), arm.source().getId());
         if (route == null || route.level() != arm.world() || route.handle() != arm.handle()) {
-            return new Refused(null, "route changed");
+            return new Refused(null, "route changed", true);
         }
         if (player.level() != runtime.portals().resolveLevel(arm.source()) || peer.portals().projectionDestination(arm.source()) != arm.destination()
             || peer.portals().routeIdentity(arm.source()) != arm.identity()) {
-            return new Refused(null, "destination changed");
+            return new Refused(null, "destination changed", true);
         }
         if (player.getVehicle() != null || !player.getPassengers().isEmpty()) {
-            return new Refused(null, "riding");
+            return new Refused(null, "riding", true);
         }
         Vec3d feet = new Vec3d(player.getX(), player.getY(), player.getZ());
         Vec3d velocity = runtime.portals().observedVelocity(player);
@@ -400,17 +407,17 @@ final class MinecraftSeamlessTravel {
         if (check != SeamlessCrossCheck.Refusal.NONE) {
             return new Refused(null, check.name().toLowerCase(Locale.ROOT).replace('_', ' ') + String.format(Locale.ROOT,
                 " (claimed %.2f %.2f %.2f, server %.2f %.2f %.2f, speed %.2f)", request.sourcePose().x(), request.sourcePose().y(),
-                request.sourcePose().z(), feet.x(), feet.y(), feet.z(), velocity.distance(new Vec3d(0, 0, 0))));
+                request.sourcePose().z(), feet.x(), feet.y(), feet.z(), velocity.distance(new Vec3d(0, 0, 0))), true);
         }
         boolean front = arm.begin().sourceGeometry().frontSide();
         Vec3 look = Vec3.directionFromRotation(request.sourcePose().pitch(), request.sourcePose().yaw());
         PlaneCrossing crossing = new PlaneCrossing(arm.source().getFrame().view(front), arm.source().getOrigin(),
             new Vec3d(request.sourcePose().x(), request.sourcePose().y(), request.sourcePose().z()), velocity, new Vec3d(look.x, look.y, look.z), front);
         if (!residentArrival(route, player, MinecraftPortalRegistry.passage(arm.source(), arm.destination(), crossing).toward().point(crossing.point()))) {
-            return new Refused(null, "arrival column not delivered");
+            return new Refused(null, "arrival column not delivered", false);
         }
         return destinationMatches(peer, player, arm.source(), arm.destination(), crossing)
-            ? new Refused(crossing, null) : new Refused(null, "destination resolves elsewhere");
+            ? new Refused(crossing, null, false) : new Refused(null, "destination resolves elsewhere", true);
     }
 
     boolean destinationMatches(MinecraftClientViewPeer peer, ServerPlayer player, MinecraftPortal source, MinecraftPortal destination,
@@ -422,25 +429,47 @@ final class MinecraftSeamlessTravel {
         return selected != null && selected.isLocal() && selected.portalId().equals(destination.getId());
     }
 
-    private void reject(ClientViewTravel<MinecraftClientViewPeer> travel, ServerPlayer player, TravelMessage.TravelCross request, String reason) {
+    TravelMessage.ArrivalRules rules(MinecraftClientViewPeer peer, MinecraftPortal source) {
+        return peer.door(source.getId()) == source ? runtime.portals().doorArrivalRules() : runtime.portals().arrivalRules(source);
+    }
+
+    boolean eligible(MinecraftClientViewPeer peer, ServerPlayer player, MinecraftPortal source, MinecraftPortal destination) {
+        if (peer.door(source.getId()) == source) {
+            return destination != null && runtime.doors().canArm(player, source.getId(), destination.getId());
+        }
+        return runtime.portals().get(source.getId()) == source
+            && runtime.portals().canDepart(player, source) && runtime.portals().canArrive(player, destination);
+    }
+
+    private boolean dispatchCross(MinecraftClientViewPeer peer, ServerPlayer player, MinecraftPortal source, MinecraftPortal destination,
+                                  int kind, PlaneCrossing crossing) {
+        boolean door = peer.door(source.getId()) == source;
+        if (door != (kind == ApertureKind.DOOR) || !eligible(peer, player, source, destination)) {
+            return false;
+        }
+        return door ? runtime.doors().crossSeamless(player, source.getId(), crossing)
+            : runtime.portals().crossSeamless(player, source.getId(), destination, crossing);
+    }
+
+    private void reject(ClientViewTravel<MinecraftClientViewPeer> travel, ServerPlayer player, TravelMessage.TravelCross request, String reason,
+                        boolean resync) {
         LOGGER.info("Crossing rejected {}: {}", player.getScoreboardName(), reason);
         travel.sendTravel(new TravelMessage.TravelCancel(request.token(), request.generation()));
-        player.connection.teleport(player.getX(), player.getY(), player.getZ(), player.getYRot(), player.getXRot());
+        if (resync) {
+            player.connection.teleport(player.getX(), player.getY(), player.getZ(), player.getYRot(), player.getXRot());
+        }
     }
 
     private RemoteRoutes.Return returnRoute(ClientViewTravel<MinecraftClientViewPeer> travel, ServerPlayer player, Arm arm, int handle) {
         MinecraftPortal arrival = arm.destination();
-        if (runtime.portals().get(arrival.getId()) != arrival || !arrival.isOpen() || arrival.isMirrorMode()) {
-            return null;
-        }
         MinecraftPortal back = travel.player().portals().projectionDestination(arrival);
-        if (back == null || runtime.portals().get(back.getId()) != back || runtime.portals().resolveLevel(back) != player.level()
-            || !back.isOpen() || back.isMirrorMode() || !runtime.portals().canDepart(player, arrival) || !runtime.portals().canArrive(player, back)) {
-            return null;
-        }
-        TravelMessage.RemoteLevelOpen open = RemoteRoutes.openReturn(player.level(), back, handle,
+        boolean traversable = back != null && runtime.portals().get(arrival.getId()) == arrival && arrival.isOpen() && !arrival.isMirrorMode()
+            && runtime.portals().get(back.getId()) == back && runtime.portals().resolveLevel(back) == player.level() && back.isOpen()
+            && !back.isMirrorMode() && runtime.portals().canDepart(player, arrival) && runtime.portals().canArrive(player, back);
+        MinecraftPortal anchor = traversable ? back : arm.source();
+        TravelMessage.RemoteLevelOpen open = RemoteRoutes.openReturn(player.level(), anchor, handle,
             RemoteRoutes.fullRadius(player.requestedViewDistance(), runtime.server().getPlayerList().getViewDistance()));
-        return open == null ? null : new RemoteRoutes.Return(arrival, back, open);
+        return open == null ? null : new RemoteRoutes.Return(arrival, anchor, open, traversable);
     }
 
     private record Arm(MinecraftPortal source, MinecraftPortal destination, ServerLevel world, boolean front, long identity, int handle,
@@ -452,7 +481,7 @@ final class MinecraftSeamlessTravel {
         }
     }
 
-    private record Refused(PlaneCrossing crossing, String reason) {
+    private record Refused(PlaneCrossing crossing, String reason, boolean resync) {
     }
 
     private record Retired(Arm arm, long until) {

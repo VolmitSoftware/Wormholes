@@ -80,7 +80,7 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
         TravelMessage.TravelCoordinate added = new TravelMessage.TravelCoordinate(1, 0);
         TravelMessage.TravelBegin shifted = new TravelMessage.TravelBegin(original.token(), original.generation() + 1,
             original.sourcePortal(), original.sourceWorld(), original.sourceGeometry(), original.destinationToSource(), 1.0F, original.world(),
-            new TravelMessage.TravelPose(16, original.arrival().y(), 0, 0, 0), List.of(kept, added), original.environment(), original.expiresMillis(), TravelMessage.ArrivalRules.FRAME, false, 0, false);
+            new TravelMessage.TravelPose(16, original.arrival().y(), 0, 0, 0), List.of(kept, added), original.environment(), original.expiresMillis(), TravelMessage.ArrivalRules.FRAME, false, 0);
         ClientPreparedTravel travel = ClientTravelTestFixtures.travel(ignored -> { });
         ClientPacketListener connection = mock(ClientPacketListener.class);
         when(connection.registryAccess()).thenReturn(RegistryAccess.EMPTY);
@@ -178,7 +178,6 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
         ClientViewSession session = mock(ClientViewSession.class);
         when(client.session()).thenReturn(session);
         when(session.active()).thenReturn(true);
-        when(session.has(ClientViewExtensions.PREPARED_TRAVEL_CACHE)).thenReturn(true);
         AtomicReference<byte[]> physical = new AtomicReference<>(installed);
         ClientSodiumTerrain.Handoff nativeScope = mock(ClientSodiumTerrain.Handoff.class);
         PortalIrisMainPipelines.Handoff shaderScope = mock(PortalIrisMainPipelines.Handoff.class);
@@ -294,7 +293,7 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
                 new long[]{1}, ShapeDescriptor.FULL, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, kind, 0.0D, 0, 11, List.of());
             TravelMessage.TravelBegin begin = new TravelMessage.TravelBegin(original.token(), original.generation(),
                 original.sourcePortal(), original.sourceWorld(), aperture, original.destinationToSource(), 1.0F, original.world(),
-                original.arrival(), original.chunks(), original.environment(), original.expiresMillis(), TravelMessage.ArrivalRules.FRAME, false, 0, false);
+                original.arrival(), original.chunks(), original.environment(), original.expiresMillis(), TravelMessage.ArrivalRules.FRAME, false, 0);
             ClientLevel level = mock(ClientLevel.class);
             when(level.registryAccess()).thenReturn(RegistryAccess.EMPTY);
             ClientPacketListener connection = mock(ClientPacketListener.class);
@@ -487,7 +486,6 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
         ClientViewSession session = mock(ClientViewSession.class);
         when(client.session()).thenReturn(session);
         when(session.active()).thenReturn(true);
-        when(session.has(ClientViewExtensions.PREPARED_TRAVEL_CACHE)).thenReturn(true);
         ClientboundLevelChunkWithLightPacket packet = packet();
         byte[] bytes = MinecraftChunkPacketEncoding.encode(RegistryAccess.EMPTY, packet);
         set(travel, "begin", begin);
@@ -517,7 +515,7 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
         List<TravelMessage.TravelCoordinate> coordinates = ClientTravelWindow.coordinates(0, 0, 5);
         TravelMessage.TravelBegin expanded = new TravelMessage.TravelBegin(original.token(), original.generation(), original.sourcePortal(),
             original.sourceWorld(), original.sourceGeometry(), original.destinationToSource(), 1.0F, original.world(), original.arrival(),
-            coordinates, original.environment(), original.expiresMillis(), TravelMessage.ArrivalRules.FRAME, false, 0, false);
+            coordinates, original.environment(), original.expiresMillis(), TravelMessage.ArrivalRules.FRAME, false, 0);
         Object source = source(expanded);
         Class<?> columnType = Class.forName(ClientPreparedTravel.class.getName() + "$Column");
         Constructor<?> constructor = columnType.getDeclaredConstructor(int.class, int.class, int.class, byte[].class);

@@ -92,10 +92,10 @@ public class ClientTravelMotionTest extends MinecraftTestBase {
     }
 
     static TravelMessage.TravelBegin begin(OpticTransform destinationToSource) {
-        TravelMessage.TravelBegin base = SeamlessTravelFixtures.begin(false, true);
+        TravelMessage.TravelBegin base = SeamlessTravelFixtures.begin(false);
         return new TravelMessage.TravelBegin(base.token(), base.generation(), base.sourcePortal(), base.sourceWorld(), base.sourceGeometry(),
             destinationToSource, 1.0F, base.world(), base.arrival(), base.chunks(), base.environment(), base.expiresMillis(), base.rules(),
-            base.resident(), base.levelHandle(), base.seamless());
+            base.resident(), base.levelHandle());
     }
 
     static Pose motion(float yaw, float previousYaw) {

@@ -137,7 +137,7 @@ public class ClientPreparedTravelPendingTest {
         return new TravelMessage.TravelBegin(new UUID(3, nonce), nonce, new UUID(2, 9), "minecraft:the_nether",
             ClientTravelTestFixtures.geometry(), OpticTransform.IDENTITY, 1.0F, new TravelMessage.TravelWorld("minecraft:overworld", "minecraft:overworld", 7, false, false, 63, -64, 384),
             new TravelMessage.TravelPose(0, 80, 0, 0, 0), List.of(COLUMN),
-            PortalEnvironmentTest.environment(OpticTransform.IDENTITY), 30_000, TravelMessage.ArrivalRules.FRAME, false, 0, false);
+            PortalEnvironmentTest.environment(OpticTransform.IDENTITY), 30_000, TravelMessage.ArrivalRules.FRAME, false, 0);
     }
 
     private static TravelMessage.TravelChunk column(TravelMessage.TravelBegin begin, int revision) {

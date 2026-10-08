@@ -2,9 +2,6 @@ package art.arcane.wormholes.door;
 
 import art.arcane.wormholes.Settings;
 import org.bukkit.entity.Player;
-import org.bukkit.entity.Entity;
-import org.bukkit.util.BoundingBox;
-import java.util.Map;
 import java.util.Set;
 import art.arcane.wormholes.door.view.DoorProjectionRegistry;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
@@ -42,7 +39,6 @@ final class DoorRuntimeIndex implements AutoCloseable
 	private final DoorAutoCloseBook autoClose;
 	private final DoorSpatialIndex<RuntimeDoor> spatialIndex;
 	private final ConcurrentHashMap<UUID, RuntimeDoor> runtimes;
-    private final ConcurrentHashMap<UUID, ConcurrentHashMap<UUID, Entity>> preparedArrivalBodies = new ConcurrentHashMap<>();
 
 	// Null until the doors subsystem starts, and again once it stops; every projection call is
 	// guarded so an unstarted or stopped lane leaves door behavior exactly as it was.
@@ -106,7 +102,6 @@ final class DoorRuntimeIndex implements AutoCloseable
 		visuals.hide(doorId);
 		sweep.stop(doorId);
 		autoClose.forget(doorId);
-		preparedArrivalBodies.remove(doorId);
 		removeProjection(doorId);
 	}
 
@@ -328,7 +323,6 @@ final class DoorRuntimeIndex implements AutoCloseable
 		}
 		setPhysicalDoorOpen(world, plane, false);
 		autoClose.forget(doorId);
-		preparedArrivalBodies.remove(doorId);
 		sweep.stop(doorId);
 		RuntimeDoor runtime = runtimes.get(doorId);
 		if(runtime != null)
@@ -372,111 +366,7 @@ final class DoorRuntimeIndex implements AutoCloseable
 		}
 	}
 
-    void closePreparedSource(RuntimeDoor runtime, DoorTransit transit) {
-        PlacedDoorEndpoint endpoint = runtime.endpoint();
-        World world = world(endpoint.position());
-        if (world == null) {
-            return;
-        }
-        FoliaScheduler.runRegion(plugin, world, endpoint.position().x() >> 4, endpoint.position().z() >> 4, () -> {
-            if (guard.closed() || runtimes.get(endpoint.identity().itemId()) != runtime
-                || runtime.cycle().phase() != DoorOpenCycle.Phase.CONSUMED) {
-                return;
-            }
-            Optional<VanillaDoorSnapshot> current = capture(endpoint, world);
-            if (current.isPresent() && current.get().plane().equals(transit.sourcePlane()) && !current.get().powered()
-                && !preparedArrivalOccupied(endpoint.identity().itemId(), world, current.get().plane())) {
-                closePhysicalDoor(world, current.get().plane(), endpoint.identity().itemId());
-                hideTransitVisual(endpoint.identity().itemId());
-            }
-        });
-    }
-
-    PreparedOpening openPreparedArrival(PlacedDoorEndpoint endpoint, World world, VanillaDoorSnapshot snapshot) {
-        if (guard.closed() || snapshot.open() || snapshot.plane().form() != DoorForm.DOOR
-            || snapshot.plane().openState() != DoorOpenState.OPEN) {
-            return null;
-        }
-        long token = openAndArm(endpoint, world, snapshot, endpoint.identity().itemId());
-        return token == 0L ? null : new PreparedOpening(endpoint, world, snapshot, token);
-    }
-
-    void rollbackPreparedArrival(PreparedOpening opening) {
-        if (opening == null) {
-            return;
-        }
-        Runnable restore = () -> {
-            UUID door = opening.endpoint().identity().itemId();
-            if (guard.closed() || !autoClose.isCurrent(door, opening.token())) {
-                return;
-            }
-            Optional<VanillaDoorSnapshot> current = capture(opening.endpoint(), opening.world());
-            if (current.isPresent() && current.get().powered() != opening.snapshot().powered()) {
-                autoClose.forget(door);
-                preparedArrivalBodies.remove(door);
-                return;
-            }
-            if (current.isPresent() && current.get().plane().equals(opening.snapshot().plane()) && current.get().open()) {
-                setPhysicalDoorOpen(opening.world(), current.get().plane(), opening.snapshot().open());
-                autoClose.forget(door);
-                preparedArrivalBodies.remove(door);
-                RuntimeDoor runtime = runtimes.get(door);
-                if (runtime != null) {
-                    reconcile(runtime);
-                }
-            }
-        };
-        if (WormholesPlatform.isOwnedByCurrentRegion(opening.world(), opening.endpoint().position().x() >> 4,
-            opening.endpoint().position().z() >> 4)) {
-            restore.run();
-        } else {
-            FoliaScheduler.runRegion(plugin, opening.world(), opening.endpoint().position().x() >> 4,
-                opening.endpoint().position().z() >> 4, restore);
-        }
-    }
-
-    record PreparedOpening(PlacedDoorEndpoint endpoint, World world, VanillaDoorSnapshot snapshot, long token) {
-    }
-
-    void protectPreparedArrival(Entity traveler, DoorwayPlane plane) {
-        World world = traveler.getWorld();
-        guard.state().findEndpoint(world.getUID(), plane.blockX(), plane.blockY(), plane.blockZ())
-            .filter(endpoint -> autoClose.isArmed(endpoint.identity().itemId()))
-            .ifPresent(endpoint -> preparedArrivalBodies.computeIfAbsent(endpoint.identity().itemId(), ignored -> new ConcurrentHashMap<>())
-                .put(traveler.getUniqueId(), traveler));
-    }
-
-    void forgetPreparedArrival(UUID traveler) {
-        for (ConcurrentHashMap<UUID, Entity> bodies : preparedArrivalBodies.values()) {
-            bodies.remove(traveler);
-        }
-        preparedArrivalBodies.values().removeIf(Map::isEmpty);
-    }
-
-    private boolean preparedArrivalOccupied(UUID door, World world, DoorwayPlane plane) {
-        ConcurrentHashMap<UUID, Entity> travelers = preparedArrivalBodies.get(door);
-        if (travelers == null) {
-            return false;
-        }
-        BoundingBox doorway = new BoundingBox(plane.blockX(), plane.blockY(), plane.blockZ(),
-            plane.blockX() + 1, plane.blockY() + (plane.horizontal() ? 1 : 2), plane.blockZ() + 1);
-        for (Map.Entry<UUID, Entity> entry : travelers.entrySet()) {
-            Entity traveler = entry.getValue();
-            if (!WormholesPlatform.isOwnedByCurrentRegion(traveler)) {
-                continue;
-            }
-            if (!traveler.isValid() || traveler.getWorld() != world || !traveler.getBoundingBox().overlaps(doorway)) {
-                travelers.remove(entry.getKey(), traveler);
-            }
-        }
-        if (travelers.isEmpty()) {
-            preparedArrivalBodies.remove(door, travelers);
-            return false;
-        }
-        return true;
-    }
-
-	private long openAndArm(PlacedDoorEndpoint endpoint, World world, VanillaDoorSnapshot snapshot, UUID doorId)
+	private void openAndArm(PlacedDoorEndpoint endpoint, World world, VanillaDoorSnapshot snapshot, UUID doorId)
 	{
 		try
 		{
@@ -485,14 +375,13 @@ final class DoorRuntimeIndex implements AutoCloseable
 		catch(Throwable ex)
 		{
 			plugin.getLogger().log(Level.WARNING, "Could not open a destination dimensional door", ex);
-			return 0L;
+			return;
 		}
 		// Armed first so a reconcile that finds the door gone also drops the pending close.
 		long token = autoClose.arm(doorId);
 		reconcile(runtimes.get(doorId));
 		Wormholes.v("[door] ARRIVAL open door=" + doorId + " token=" + token);
 		scheduleAutoClose(endpoint, token, 0);
-        return token;
 	}
 
 	private void scheduleAutoClose(PlacedDoorEndpoint endpoint, long token, int deferrals)
@@ -504,7 +393,6 @@ final class DoorRuntimeIndex implements AutoCloseable
 			() -> runAutoClose(endpoint, token, deferrals), DoorAutoCloseBook.ARRIVAL_AUTO_CLOSE_TICKS))
 		{
 			autoClose.forget(doorId);
-			preparedArrivalBodies.remove(doorId);
 		}
 	}
 
@@ -516,14 +404,12 @@ final class DoorRuntimeIndex implements AutoCloseable
 		if(guard.closed() || runtime == null || world == null)
 		{
 			autoClose.forget(doorId);
-			preparedArrivalBodies.remove(doorId);
 			return;
 		}
 		// Capturing would force-load an unloaded chunk; the reload reconcile re-reads the door anyway.
 		if(!world.isChunkLoaded(endpoint.position().x() >> 4, endpoint.position().z() >> 4))
 		{
 			autoClose.forget(doorId);
-			preparedArrivalBodies.remove(doorId);
 			return;
 		}
 		Optional<VanillaDoorSnapshot> captured = capture(endpoint, world);
@@ -531,26 +417,21 @@ final class DoorRuntimeIndex implements AutoCloseable
 			doorId,
 			token,
 			captured.isPresent() && captured.get().portalLive(),
-			runtime.cycle().phase() == DoorOpenCycle.Phase.IN_TRANSIT
-                || captured.isPresent() && preparedArrivalOccupied(doorId, world, captured.get().plane()),
+			runtime.cycle().phase() == DoorOpenCycle.Phase.IN_TRANSIT,
 			deferrals);
 		switch(decision)
 		{
 			case CLOSE ->
 			{
-                preparedArrivalBodies.remove(doorId);
 				closePhysicalDoor(world, captured.get().plane(), doorId);
 				reconcile(runtime);
 				Wormholes.v("[door] ARRIVAL close door=" + doorId + " token=" + token);
 			}
 			case DEFER -> scheduleAutoClose(endpoint, token, deferrals + 1);
-			case ABANDONED -> {
-                preparedArrivalBodies.remove(doorId);
-                Wormholes.v("[door] ARRIVAL close abandoned door=" + doorId + " token=" + token);
-            }
-            case ALREADY_CLOSED -> preparedArrivalBodies.remove(doorId);
-            case SUPERSEDED -> {
-            }
+			case ABANDONED -> Wormholes.v("[door] ARRIVAL close abandoned door=" + doorId + " token=" + token);
+			case ALREADY_CLOSED, SUPERSEDED ->
+			{
+			}
 		}
 	}
 
@@ -628,7 +509,6 @@ final class DoorRuntimeIndex implements AutoCloseable
 	{
 		closeStep("door entity sweep", sweep::close);
 		autoClose.clear();
-        preparedArrivalBodies.clear();
 		closeStep("door visuals", visuals::close);
 		spatialIndex.clear();
 		runtimes.clear();

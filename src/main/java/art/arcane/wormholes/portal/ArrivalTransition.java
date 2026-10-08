@@ -20,13 +20,7 @@ public final class ArrivalTransition
 	/** Masks the arrival for {@code ticks}; the transit lane passes the adaptive size, callers without one pass the fixed setting. */
 	public static void apply(Player player, boolean reloadExpected, int ticks)
 	{
-		apply(player, reloadExpected, ticks, false);
-	}
-
-	public static void apply(Player player, boolean reloadExpected, int ticks, boolean seamless)
-	{
-		if(player == null || !reloadExpected || !Settings.ARRIVAL_TRANSITION_MASK || ticks <= 0
-			|| seamless)
+		if(player == null || !reloadExpected || !Settings.ARRIVAL_TRANSITION_MASK || ticks <= 0)
 		{
 			return;
 		}

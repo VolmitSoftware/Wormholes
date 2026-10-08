@@ -6,11 +6,8 @@ import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.math.Face;
 import org.junit.jupiter.api.Test;
-import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public final class DoorPreparedArrivalTest {
     @Test
@@ -70,17 +67,6 @@ public final class DoorPreparedArrivalTest {
         assertEquals(DoorArrivals.arrivalFacing(destination, transit, 1), DoorArrivals.destinationFacing(destination, transit, 1));
         assertEquals(DoorPlanePairing.mapVectorToSide(destination, transit, transit.velocity(), 1),
             DoorArrivals.destinationVelocity(destination, transit, 1));
-    }
-
-    @Test
-    public void supersedingArrivalTokenCannotBeRolledBackByTheFailedEarlierOpening() {
-        DoorAutoCloseBook book = new DoorAutoCloseBook();
-        UUID door = UUID.randomUUID();
-        long first = book.arm(door);
-        assertTrue(book.isCurrent(door, first));
-        long successor = book.arm(door);
-        assertFalse(book.isCurrent(door, first));
-        assertTrue(book.isCurrent(door, successor));
     }
 
     private static DoorTransit prepared(DoorwayPlane source, Vec3d feet, boolean front, Vec3d velocity, Vec3d look) {

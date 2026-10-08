@@ -22,12 +22,10 @@ public sealed interface TravelMessage {
     int TRAVEL_BEGIN = 41;
     int TRAVEL_CHUNK = 42;
     int TRAVEL_END = 43;
-    int TRAVEL_READY = 44;
     int TRAVEL_COMMIT = 45;
     int TRAVEL_CANCEL = 46;
     int TRAVEL_CROSS = 47;
     int TRAVEL_REUSE = 48;
-    int TRAVEL_CACHED = 49;
     int REMOTE_LEVEL_OPEN = 51;
     int REMOTE_LEVEL_CLOSE = 52;
     int ROUTED_PACKET = 53;
@@ -39,8 +37,6 @@ public sealed interface TravelMessage {
     int LAST_ID = 63;
 
     int TRAVEL_HASH_BYTES = 32;
-    int TRAVEL_REUSE_BYTES = 74;
-    int MAX_TRAVEL_REUSE_PROBES_PER_TICK = 8;
     int MAX_TRAVEL_CHUNKS = 1089;
     int MAX_TRAVEL_CHUNK_BYTES = 2 * 1024 * 1024;
     int MAX_TRAVEL_BYTES = 64 * 1024 * 1024;
@@ -123,7 +119,7 @@ public sealed interface TravelMessage {
 
     record TravelBegin(UUID token, long generation, UUID sourcePortal, String sourceWorld, ApertureDescriptor sourceGeometry,
                        OpticTransform destinationToSource, float scale, TravelWorld world, TravelPose arrival, List<TravelCoordinate> chunks,
-                       EnvironmentState environment, int expiresMillis, ArrivalRules rules, boolean resident, int levelHandle, boolean seamless)
+                       EnvironmentState environment, int expiresMillis, ArrivalRules rules, boolean resident, int levelHandle)
         implements TravelMessage {
         public TravelBegin {
             travelIdentity(token, generation);
@@ -242,41 +238,6 @@ public sealed interface TravelMessage {
         }
     }
 
-    record TravelCached(UUID token, long generation, int chunkX, int chunkZ, int revision, byte[] hash, boolean available) implements TravelMessage {
-        public TravelCached {
-            travelIdentity(token, generation);
-            Objects.requireNonNull(hash, "hash");
-            if (revision <= 0 || hash.length != TRAVEL_HASH_BYTES) {
-                throw new IllegalArgumentException("Travel cache proof");
-            }
-            hash = hash.clone();
-        }
-
-        @Override
-        public byte[] hash() {
-            return hash.clone();
-        }
-
-        @Override
-        public boolean equals(Object other) {
-            return other instanceof TravelCached that && token.equals(that.token) && generation == that.generation
-                && chunkX == that.chunkX && chunkZ == that.chunkZ && revision == that.revision && available == that.available
-                && Arrays.equals(hash, that.hash);
-        }
-
-        @Override
-        public int hashCode() {
-            int result = Objects.hash(token, generation, chunkX, chunkZ, revision);
-            result = 31 * result + Boolean.hashCode(available);
-            return 31 * result + Arrays.hashCode(hash);
-        }
-
-        @Override
-        public int id() {
-            return TRAVEL_CACHED;
-        }
-    }
-
     record TravelEnd(UUID token, long generation, long contentRevision, List<TravelChunkRevision> chunks) implements TravelMessage {
         public TravelEnd {
             travelIdentity(token, generation);
@@ -295,20 +256,6 @@ public sealed interface TravelMessage {
         @Override
         public int id() {
             return TRAVEL_END;
-        }
-    }
-
-    record TravelReady(UUID token, long generation, long contentRevision) implements TravelMessage {
-        public TravelReady {
-            travelIdentity(token, generation);
-            if (contentRevision <= 0) {
-                throw new IllegalArgumentException("Travel ready revision");
-            }
-        }
-
-        @Override
-        public int id() {
-            return TRAVEL_READY;
         }
     }
 

@@ -6,7 +6,6 @@ import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
-import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.stream.ViewStreamHooks;
 import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamSession;
@@ -19,14 +18,12 @@ public final class ClientViewTravel<P> implements ViewStreamHooks<P> {
     private static final int MAX_PENDING_CROSSES = 16;
 
     private final ViewStreamSession<P, ?> session;
-    private final ClientPreparedTravelServer server;
     private final ArrayDeque<TravelMessage.RemoteViewAck> acks = new ArrayDeque<>();
     private final ArrayDeque<TravelMessage.TravelCross> crosses = new ArrayDeque<>();
     private final ArrayDeque<TravelMessage.RemoteLevelReopen> reopens = new ArrayDeque<>();
 
     public ClientViewTravel(ViewStreamSession<P, ?> session) {
         this.session = Objects.requireNonNull(session, "session");
-        this.server = new ClientPreparedTravelServer();
     }
 
     public static <P> ClientViewTravel<P> of(ViewStreamSession<P, ?> session) {
@@ -34,10 +31,6 @@ public final class ClientViewTravel<P> implements ViewStreamHooks<P> {
             return travel;
         }
         throw new IllegalStateException("ClientView session for " + session.playerId() + " has no travel hooks");
-    }
-
-    public ClientPreparedTravelServer server() {
-        return server;
     }
 
     public P player() {
@@ -48,16 +41,8 @@ public final class ClientViewTravel<P> implements ViewStreamHooks<P> {
         return session.playerId();
     }
 
-    public boolean preparedTravelSelected() {
-        return session.nativeRendererSelected() && (session.caps() & ClientViewExtensions.PREPARED_TRAVEL) != 0L;
-    }
-
-    public boolean preparedTravelCacheSelected() {
-        return preparedTravelSelected() && (session.caps() & ClientViewExtensions.PREPARED_TRAVEL_CACHE) != 0L;
-    }
-
     public boolean remoteViewSelected() {
-        return preparedTravelSelected() && (session.caps() & ClientViewExtensions.REMOTE_VIEW) != 0L;
+        return session.nativeRendererSelected() && (session.caps() & ClientViewExtensions.REMOTE_VIEW) != 0L;
     }
 
     public boolean seamlessSelected() {
@@ -96,29 +81,14 @@ public final class ClientViewTravel<P> implements ViewStreamHooks<P> {
         }
     }
 
-    public ApertureDescriptor travelGeometry(UUID portal) {
-        return session.endpointGeometry(portal);
-    }
-
     public boolean sendTravel(TravelMessage message) {
-        if (!preparedTravelSelected() || !sendable(message)) {
-            return false;
-        }
-        return session.send(TravelExtension.PREPARED.wrap(message));
-    }
-
-    public void cancelTravel() {
-        server.cancel().ifPresent(this::sendTravel);
+        return sendable(message) && session.send(TravelExtension.INSTANCE.wrap(message));
     }
 
     @Override
     public boolean onExtension(P peer, Object payload) {
         return switch (payload) {
-            case TravelMessage.TravelCross cross -> seamlessSelected() ? queue(cross)
-                : preparedTravelSelected() && server.requestCross(cross, System.currentTimeMillis());
-            case TravelMessage.TravelCancel cancel -> preparedTravelSelected() && server.cancel(cancel);
-            case TravelMessage.TravelCached cached -> preparedTravelCacheSelected() && server.cached(cached);
-            case TravelMessage.TravelReady ready -> preparedTravelSelected() && server.ready(ready);
+            case TravelMessage.TravelCross cross -> seamlessSelected() && queue(cross);
             case TravelMessage.RemoteViewAck ack -> remoteViewSelected() && queue(ack);
             case TravelMessage.RemoteLevelReopen reopen -> remoteViewSelected() && queue(reopen);
             default -> false;
@@ -131,13 +101,10 @@ public final class ClientViewTravel<P> implements ViewStreamHooks<P> {
 
     @Override
     public void onReset(P peer) {
-        cancelTravel();
     }
 
     @Override
     public void onClose(P peer) {
-        cancelTravel();
-        server.close();
         synchronized (acks) {
             acks.clear();
         }
@@ -151,17 +118,13 @@ public final class ClientViewTravel<P> implements ViewStreamHooks<P> {
 
     private boolean sendable(TravelMessage message) {
         return switch (message) {
-            case TravelMessage.TravelBegin ignored -> true;
-            case TravelMessage.TravelChunk ignored -> true;
-            case TravelMessage.TravelEnd ignored -> true;
-            case TravelMessage.TravelCommit ignored -> true;
-            case TravelMessage.TravelCancel ignored -> true;
-            case TravelMessage.TravelReuse ignored -> preparedTravelCacheSelected();
+            case TravelMessage.TravelBegin ignored -> seamlessSelected();
+            case TravelMessage.TravelCancel ignored -> seamlessSelected();
+            case TravelMessage.TravelAccept ignored -> seamlessSelected();
+            case TravelMessage.EntityCrossed ignored -> seamlessSelected();
             case TravelMessage.RemoteLevelOpen ignored -> remoteViewSelected();
             case TravelMessage.RemoteLevelClose ignored -> remoteViewSelected();
             case TravelMessage.RoutedPacket ignored -> remoteViewSelected();
-            case TravelMessage.TravelAccept ignored -> seamlessSelected();
-            case TravelMessage.EntityCrossed ignored -> seamlessSelected();
             default -> false;
         };
     }

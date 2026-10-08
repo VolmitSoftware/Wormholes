@@ -47,22 +47,17 @@ final class DoorArrivalResolver
 				failure.run();
 				return;
 			}
-            DoorRuntimeIndex.PreparedOpening opening = transit.preparedCrossing() == null ? null
-                : runtimes.openPreparedArrival(endpoint, world, captured.get());
 			DoorwayPlane destinationPlane = captured.get().plane();
 			Optional<Location> safe = safeDestinationDoorArrival(world, destinationPlane, transit);
 			if(safe.isEmpty())
 			{
-                runtimes.rollbackPreparedArrival(opening);
 				failure.run();
 				return;
 			}
 			// Already on the destination region thread with the chunk held, which is
 			// the only place the far door may be swung open for the arrival.
-            if (opening == null) {
-                runtimes.openForArrival(endpoint, world, captured.get());
-            }
-			success.accept(new DoorArrival(safe.get(), destinationPlane, opening));
+			runtimes.openForArrival(endpoint, world, captured.get());
+			success.accept(new DoorArrival(safe.get(), destinationPlane));
 		}, failure);
 	}
 
@@ -116,7 +111,7 @@ final class DoorArrivalResolver
 	}
 
 	/** Where a traveler lands, plus the plane it came out of so momentum can be mapped. */
-	record DoorArrival(Location location, DoorwayPlane plane, DoorRuntimeIndex.PreparedOpening opening)
+	record DoorArrival(Location location, DoorwayPlane plane)
 	{
 		DoorArrival
 		{
@@ -133,14 +128,6 @@ final class DoorArrivalResolver
 		DoorwayPlane destination,
 		int sideSign)
 	{
-        if (transit.preparedCrossing() != null) {
-            Location candidate = new Location(world, nominal.x(), nominal.y(), nominal.z(), facing.yaw(), facing.pitch());
-            boolean throughAperture = destination.horizontal() && !destination.contactSurface();
-            boolean fits = destination.horizontal() && destination.contactSurface()
-                ? fitsClosedTrapdoorSurface(candidate, transit, destination, sideSign)
-                : fitsArrival(candidate, transit, throughAperture);
-            return fits ? Optional.of(candidate) : Optional.empty();
-        }
 		boolean closedTrapdoorSurface = destination.horizontal() && destination.contactSurface();
 		if(transit.travelerClass() == DoorTravelerClass.OBJECT || closedTrapdoorSurface)
 		{

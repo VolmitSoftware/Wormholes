@@ -42,8 +42,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 final class SeamlessGameFixture implements AutoCloseable {
-    static final long CLIENT_CAPS = ViewStreamCapability.MESH_RENDER.mask() | ClientViewExtensions.PREPARED_TRAVEL | ClientViewExtensions.REMOTE_VIEW
-        | ClientViewExtensions.SEAMLESS_TRAVEL;
+    static final long CLIENT_CAPS = ViewStreamCapability.MESH_RENDER.mask() | ClientViewExtensions.REMOTE_VIEW | ClientViewExtensions.SEAMLESS_TRAVEL;
 
     private final WormholesModRuntime runtime;
     private final MinecraftGameTestPlayer player;

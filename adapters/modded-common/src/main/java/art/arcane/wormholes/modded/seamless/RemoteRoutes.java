@@ -64,8 +64,8 @@ public final class RemoteRoutes implements AutoCloseable {
     private static final int LINGER_TICKS = RouteStream.FORGET_HYSTERESIS_TICKS;
     private static final int MAX_LEASES_PER_TICK = 16;
     private static final int MAX_NEAR_ROUTES = 16;
-    private static final double FULL_RADIUS_BLOCKS = 8.0D;
-    private static final double PARTIAL_RADIUS_BLOCKS = 24.0D;
+    private static final double FULL_RADIUS_BLOCKS = 5.0D;
+    private static final double PARTIAL_RADIUS_BLOCKS = 15.0D;
     private static final Comparator<Candidate> NEAREST = Comparator.comparingDouble(Candidate::distance);
 
     private final WormholesModRuntime runtime;
@@ -91,13 +91,20 @@ public final class RemoteRoutes implements AutoCloseable {
     }
 
     public static int radius(int fullRadius, double distance) {
-        if (distance <= FULL_RADIUS_BLOCKS) {
+        if (distance < FULL_RADIUS_BLOCKS) {
             return fullRadius;
         }
-        if (distance <= PARTIAL_RADIUS_BLOCKS) {
-            return Math.max(1, (fullRadius * 2 + 2) / 3);
+        if (distance < PARTIAL_RADIUS_BLOCKS) {
+            return Math.max(1, fullRadius * 2 / 3);
         }
-        return Math.max(1, (fullRadius + 2) / 3);
+        return Math.max(1, fullRadius / 3);
+    }
+
+    public static double distance(Box area, Vec3d point) {
+        double x = point.x() - Math.clamp(point.x(), area.getXa(), area.getXb());
+        double y = point.y() - Math.clamp(point.y(), area.getYa(), area.getYb());
+        double z = point.z() - Math.clamp(point.z(), area.getZa(), area.getZb());
+        return Math.sqrt(x * x + y * y + z * z);
     }
 
     public static int coreRadius(int fullRadius) {
@@ -864,7 +871,7 @@ public final class RemoteRoutes implements AutoCloseable {
         }
     }
 
-    public record Return(MinecraftPortal source, MinecraftPortal destination, TravelMessage.RemoteLevelOpen open) {
+    public record Return(MinecraftPortal source, MinecraftPortal destination, TravelMessage.RemoteLevelOpen open, boolean traversable) {
         public Return {
             Objects.requireNonNull(source, "source");
             Objects.requireNonNull(destination, "destination");

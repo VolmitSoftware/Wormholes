@@ -84,37 +84,6 @@ interface LocalPortalRuntime
 		return true;
 	}
 
-    static boolean destinationCollisionFree(World world, BoundingBox bounds)
-    {
-        int minX = (int) Math.floor(bounds.getMinX() + 1.0E-7D);
-        int maxX = (int) Math.floor(bounds.getMaxX() - 1.0E-7D);
-        int minY = (int) Math.floor(bounds.getMinY() + 1.0E-7D);
-        int maxY = (int) Math.floor(bounds.getMaxY() - 1.0E-7D);
-        int minZ = (int) Math.floor(bounds.getMinZ() + 1.0E-7D);
-        int maxZ = (int) Math.floor(bounds.getMaxZ() - 1.0E-7D);
-        if(minY < world.getMinHeight() || maxY >= world.getMaxHeight())
-        {
-            return false;
-        }
-        for(int x = minX; x <= maxX; x++)
-        {
-            for(int z = minZ; z <= maxZ; z++)
-            {
-                if(!world.isChunkLoaded(x >> 4, z >> 4))
-                {
-                    return false;
-                }
-                for(int y = minY; y <= maxY; y++)
-                {
-                    if(!world.getBlockAt(x, y, z).isPassable())
-                    {
-                        return false;
-                    }
-                }
-            }
-        }
-        return true;
-    }
 
 	boolean dispatch(Entity entity, Runnable task, Runnable retired, long delayTicks);
 

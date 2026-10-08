@@ -46,7 +46,7 @@ public class ClientPreparedTravelRoutingTest extends MinecraftTestBase {
         TravelMessage.TravelBegin begin = new TravelMessage.TravelBegin(token, 8, new UUID(2, 9),
             "minecraft:the_nether", ClientTravelTestFixtures.geometry(), OpticTransform.IDENTITY, 1.0F, new TravelMessage.TravelWorld("minecraft:overworld", "minecraft:overworld",
             7, false, false, 63, -64, 384), new TravelMessage.TravelPose(0, 80, 0, 0, 0), coordinates,
-            PortalEnvironmentTest.environment(OpticTransform.IDENTITY), 30_000, TravelMessage.ArrivalRules.FRAME, false, 0, false);
+            PortalEnvironmentTest.environment(OpticTransform.IDENTITY), 30_000, TravelMessage.ArrivalRules.FRAME, false, 0);
         AtomicReference<ClientTravelChunks> chunks = new AtomicReference<>();
         AtomicInteger deliveries = new AtomicInteger();
         AtomicInteger columns = new AtomicInteger();
@@ -87,7 +87,7 @@ public class ClientPreparedTravelRoutingTest extends MinecraftTestBase {
     }
 
     private static void receive(ClientViewHarness harness, TravelMessage message) throws ViewStreamProtocolException {
-        harness.receive(TravelExtension.PREPARED.wrap(message), ViewStreamLimits.FLAG_LAST);
+        harness.receive(TravelExtension.INSTANCE.wrap(message), ViewStreamLimits.FLAG_LAST);
         harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
         assertTrue(harness.session.active());
     }

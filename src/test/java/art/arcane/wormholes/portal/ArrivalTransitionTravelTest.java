@@ -20,18 +20,18 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 class ArrivalTransitionTravelTest {
     @Test
-    void authorizedSeamlessArrivalSkipsOnlyItsOwnDarknessMask() {
-        Player seamless = mock(Player.class);
-        Player ordinary = mock(Player.class);
+    void onlyAWorldReloadingArrivalIsMasked() {
+        Player sameWorld = mock(Player.class);
+        Player reloading = mock(Player.class);
         boolean enabled = Settings.ARRIVAL_TRANSITION_MASK;
         Settings.ARRIVAL_TRANSITION_MASK = true;
         try (MockedStatic<RegistryAccess> registries = mockStatic(RegistryAccess.class)) {
             RegistryAccess access = mock(RegistryAccess.class, invocation -> registry(invocation.getArgument(0)));
             registries.when(RegistryAccess::registryAccess).thenReturn(access);
-            ArrivalTransition.apply(seamless, true, 5, true);
-            ArrivalTransition.apply(ordinary, true, 5, false);
-            verifyNoInteractions(seamless);
-            verify(ordinary).addPotionEffect(new PotionEffect(PotionEffectType.DARKNESS, 5, 0, false, false, false));
+            ArrivalTransition.apply(sameWorld, false, 5);
+            ArrivalTransition.apply(reloading, true, 5);
+            verifyNoInteractions(sameWorld);
+            verify(reloading).addPotionEffect(new PotionEffect(PotionEffectType.DARKNESS, 5, 0, false, false, false));
         } finally {
             Settings.ARRIVAL_TRANSITION_MASK = enabled;
         }

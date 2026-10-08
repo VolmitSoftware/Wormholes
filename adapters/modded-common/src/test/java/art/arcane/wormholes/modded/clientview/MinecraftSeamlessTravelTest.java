@@ -13,7 +13,6 @@ import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.modded.seamless.RemoteRoutes;
 import art.arcane.wormholes.network.client.TravelMessage;
-import art.arcane.wormholes.render.client.session.ClientPreparedTravelServer;
 import art.arcane.wormholes.render.client.session.ClientViewTravel;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -23,15 +22,12 @@ import net.minecraft.server.players.PlayerList;
 import org.junit.Test;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyDouble;
-import static org.mockito.ArgumentMatchers.anyFloat;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
@@ -42,19 +38,18 @@ import static org.mockito.Mockito.when;
 
 public class MinecraftSeamlessTravelTest extends MinecraftTestBase {
     @Test
-    public void seamlessSessionArmsRoutesInsteadOfCapturingPreparedChunks() {
-        Fixture fixture = new Fixture(true);
+    public void seamlessSessionArmsRemoteRoutesWithoutCapturingChunks() {
+        Fixture fixture = new Fixture();
 
         fixture.seamless.tick(fixture.session, fixture.player);
 
         verify(fixture.routes).update(eq(fixture.player), eq(fixture.session), eq(List.of()), anyLong());
         verify(fixture.leases, never()).retain(any(), any(), anyInt(), anyInt());
-        verify(fixture.session, never()).cancelTravel();
     }
 
     @Test
     public void aCrossingForAnUnarmedRouteIsRejectedWithTheVanillaCorrection() {
-        Fixture fixture = new Fixture(true);
+        Fixture fixture = new Fixture();
         TravelMessage.TravelCross cross = new TravelMessage.TravelCross(UUID.randomUUID(), 1L, 1L,
             new TravelMessage.TravelPose(0.5D, 64.0D, 0.4D, 0.0F, 0.0F), new Vec3d(0.5D, 65.62D, 0.6D), new Vec3d(0.5D, 65.62D, 0.4D));
         when(fixture.session.takeSeamlessCross()).thenReturn(cross, (TravelMessage.TravelCross) null);
@@ -63,13 +58,13 @@ public class MinecraftSeamlessTravelTest extends MinecraftTestBase {
 
         verify(fixture.player.connection).teleport(4.0D, 64.0D, -2.0D, 30.0F, 5.0F);
         verify(fixture.session).sendTravel(new TravelMessage.TravelCancel(cross.token(), cross.generation()));
-        verify(fixture.registry, never()).crossPrepared(any(), any(), any(), any());
-        verify(fixture.doors, never()).crossPrepared(any(), any(), any());
+        verify(fixture.registry, never()).crossSeamless(any(), any(), any(), any());
+        verify(fixture.doors, never()).crossSeamless(any(), any(), any());
     }
 
     @Test
     public void serverDetectedCrossingsThroughUnarmedPortalsKeepTheOrdinaryPath() {
-        Fixture fixture = new Fixture(true);
+        Fixture fixture = new Fixture();
 
         fixture.seamless.tick(fixture.session, fixture.player);
 
@@ -78,18 +73,8 @@ public class MinecraftSeamlessTravelTest extends MinecraftTestBase {
     }
 
     @Test
-    public void preparedSessionWithoutSeamlessNeverTouchesRemoteRoutes() {
-        Fixture fixture = new Fixture(false);
-
-        fixture.prepared.tick(fixture.session, fixture.player);
-
-        verify(fixture.runtime, never()).remoteRoutes();
-        verify(fixture.player.connection, never()).teleport(anyDouble(), anyDouble(), anyDouble(), anyFloat(), anyFloat());
-    }
-
-    @Test
     public void arrivalStaysOnTheTeleportPathWithoutACrossingInFlight() {
-        Fixture fixture = new Fixture(true);
+        Fixture fixture = new Fixture();
 
         assertNull(fixture.seamless.arrival(fixture.session, fixture.player, UUID.randomUUID(), fixture.level,
             new TravelMessage.TravelPose(0, 64, 0, 0, 0), new Vec3d(0, 0, 0)));
@@ -126,15 +111,13 @@ public class MinecraftSeamlessTravelTest extends MinecraftTestBase {
         private final MinecraftClientViewPeer peer = mock(MinecraftClientViewPeer.class);
         private final ServerPlayer player = mock(ServerPlayer.class);
         private final ServerLevel level = mock(ServerLevel.class);
-        private final ClientPreparedTravelServer travel = mock(ClientPreparedTravelServer.class);
         @SuppressWarnings("unchecked")
         private final ChunkLeaseRegistry<ServerLevel> leases = mock(ChunkLeaseRegistry.class);
         @SuppressWarnings("unchecked")
         private final ClientViewTravel<MinecraftClientViewPeer> session = mock(ClientViewTravel.class);
-        private final MinecraftPreparedTravel prepared = new MinecraftPreparedTravel(runtime, portals);
-        private final MinecraftSeamlessTravel seamless = new MinecraftSeamlessTravel(runtime, portals, prepared);
+        private final MinecraftSeamlessTravel seamless = new MinecraftSeamlessTravel(runtime, portals);
 
-        private Fixture(boolean seamless) {
+        private Fixture() {
             UUID playerId = UUID.randomUUID();
             MinecraftServer server = mock(MinecraftServer.class);
             player.connection = mock(ServerGamePacketListenerImpl.class);
@@ -154,11 +137,7 @@ public class MinecraftSeamlessTravelTest extends MinecraftTestBase {
             when(player.level()).thenReturn(level);
             when(session.player()).thenReturn(peer);
             when(session.playerId()).thenReturn(playerId);
-            when(session.server()).thenReturn(travel);
-            when(session.preparedTravelSelected()).thenReturn(true);
-            when(session.seamlessSelected()).thenReturn(seamless);
-            when(travel.takeCross()).thenReturn(Optional.empty());
-            when(travel.preparing()).thenReturn(Optional.empty());
+            when(session.seamlessSelected()).thenReturn(true);
             when(routes.routes(playerId)).thenReturn(List.of());
             PlayerList list = mock(PlayerList.class);
             when(server.getPlayerList()).thenReturn(list);

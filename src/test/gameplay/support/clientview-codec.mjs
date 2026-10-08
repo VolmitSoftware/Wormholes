@@ -105,12 +105,10 @@ export const MESSAGE_TYPES = Object.freeze({
   TRAVEL_BEGIN: { id: 41, direction: 'S2C' },
   TRAVEL_CHUNK: { id: 42, direction: 'S2C' },
   TRAVEL_END: { id: 43, direction: 'S2C' },
-  TRAVEL_READY: { id: 44, direction: 'C2S' },
   TRAVEL_COMMIT: { id: 45, direction: 'S2C' },
-  TRAVEL_CANCEL: { id: 46, direction: 'BOTH' },
+  TRAVEL_CANCEL: { id: 46, direction: 'S2C' },
   TRAVEL_CROSS: { id: 47, direction: 'C2S' },
   TRAVEL_REUSE: { id: 48, direction: 'S2C' },
-  TRAVEL_CACHED: { id: 49, direction: 'C2S' },
   REMOTE_LEVEL_OPEN: { id: 51, direction: 'S2C' },
   REMOTE_LEVEL_CLOSE: { id: 52, direction: 'S2C' },
   ROUTED_PACKET: { id: 53, direction: 'S2C' },
@@ -138,8 +136,6 @@ export const CAPABILITIES = Object.freeze({
   MESH_REUSE: 15,
   ENTITY_SELF: 18,
   FX_EMITTERS: 32,
-  PREPARED_TRAVEL: 33,
-  PREPARED_TRAVEL_CACHE: 34,
   REMOTE_VIEW: 35,
   SEAMLESS_TRAVEL: 36
 })
@@ -1104,7 +1100,7 @@ function readTravel(reader, type) {
       for (let i = 0; i < count; i++) chunks.push({ x: reader.i32(), z: reader.i32() })
       return { type, token, generation, sourcePortal, sourceWorld, sourceGeometry, destinationToSource, scale, world, arrival, chunks,
         environment: readEnvironment(reader), expiresMillis: reader.i32(), rules: readArrivalRules(reader), resident: readFlag(reader, 'resident'),
-        levelHandle: reader.u8(), seamless: readFlag(reader, 'seamless') }
+        levelHandle: reader.u8() }
     }
     case 'TRAVEL_CHUNK':
       return { type, token, generation, chunkX: reader.i32(), chunkZ: reader.i32(), revision: reader.i32(), fragmentIndex: reader.u16(),
@@ -1116,8 +1112,6 @@ function readTravel(reader, type) {
       for (let i = 0; i < count; i++) chunks.push({ x: reader.i32(), z: reader.i32(), revision: reader.i32() })
       return { type, token, generation, contentRevision, chunks }
     }
-    case 'TRAVEL_READY':
-      return { type, token, generation, contentRevision: reader.i64() }
     case 'TRAVEL_COMMIT':
       return { type, token, generation, contentRevision: reader.i64(), sourceWorld: reader.string(), destinationWorld: reader.string(),
         arrival: readPose(reader), velocity: readVector(reader) }
@@ -1127,9 +1121,6 @@ function readTravel(reader, type) {
       return { type, token, generation, contentRevision: reader.i64(), sourcePose: readPose(reader), previousEye: readVector(reader), currentEye: readVector(reader) }
     case 'TRAVEL_REUSE':
       return { type, token, generation, chunkX: reader.i32(), chunkZ: reader.i32(), revision: reader.i32(), hash: reader.bytes(TRAVEL_HASH_BYTES) }
-    case 'TRAVEL_CACHED':
-      return { type, token, generation, chunkX: reader.i32(), chunkZ: reader.i32(), revision: reader.i32(), hash: reader.bytes(TRAVEL_HASH_BYTES),
-        available: readFlag(reader, 'travel cached') }
     case 'TRAVEL_ACCEPT':
       return { type, token, generation, contentRevision: reader.i64(), pose: readPose(reader), velocity: readVector(reader), levelHandle: reader.u8(),
         dimensionChanged: readFlag(reader, 'dimension changed'), serverTick: reader.i64() }
@@ -1160,7 +1151,6 @@ function writeTravel(writer, message) {
       writeArrivalRules(writer, message.rules)
       writer.u8(message.resident ? 1 : 0)
       writer.u8(message.levelHandle)
-      writer.u8(message.seamless ? 1 : 0)
       return
     case 'TRAVEL_CHUNK':
       writer.i32(message.chunkX)
@@ -1180,9 +1170,6 @@ function writeTravel(writer, message) {
         writer.i32(chunk.revision)
       }
       return
-    case 'TRAVEL_READY':
-      writer.i64(message.contentRevision)
-      return
     case 'TRAVEL_COMMIT':
       writer.i64(message.contentRevision)
       writer.string(message.sourceWorld)
@@ -1199,13 +1186,11 @@ function writeTravel(writer, message) {
       writeVector(writer, message.currentEye)
       return
     case 'TRAVEL_REUSE':
-    case 'TRAVEL_CACHED':
       writer.i32(message.chunkX)
       writer.i32(message.chunkZ)
       writer.i32(message.revision)
       if (message.hash.length !== TRAVEL_HASH_BYTES) throw new ClientViewProtocolError(`travel hash of ${message.hash.length} bytes`)
       writer.bytes(message.hash)
-      if (message.type === 'TRAVEL_CACHED') writer.u8(message.available ? 1 : 0)
       return
     case 'TRAVEL_ACCEPT':
       writer.i64(message.contentRevision)
@@ -1393,12 +1378,10 @@ export function readBody(reader, type, caps) {
     case 'TRAVEL_BEGIN':
     case 'TRAVEL_CHUNK':
     case 'TRAVEL_END':
-    case 'TRAVEL_READY':
     case 'TRAVEL_COMMIT':
     case 'TRAVEL_CANCEL':
     case 'TRAVEL_CROSS':
     case 'TRAVEL_REUSE':
-    case 'TRAVEL_CACHED':
     case 'TRAVEL_ACCEPT':
       return readTravel(reader, type)
     case 'REMOTE_LEVEL_OPEN':
@@ -1649,12 +1632,10 @@ export function writeBody(writer, message) {
     case 'TRAVEL_BEGIN':
     case 'TRAVEL_CHUNK':
     case 'TRAVEL_END':
-    case 'TRAVEL_READY':
     case 'TRAVEL_COMMIT':
     case 'TRAVEL_CANCEL':
     case 'TRAVEL_CROSS':
     case 'TRAVEL_REUSE':
-    case 'TRAVEL_CACHED':
     case 'TRAVEL_ACCEPT':
       writeTravel(writer, message)
       return
@@ -1874,18 +1855,16 @@ export function summarize(message) {
     case 'MESH_REUSE':
       return { portalKey: message.portalKey, generation: message.generation, section: [message.sectionX, message.sectionY, message.sectionZ], revision: message.revision }
     case 'TRAVEL_BEGIN':
-      return { token: message.token, generation: Number(message.generation), sourceWorld: message.sourceWorld, destination: message.world.dimension, chunks: message.chunks.length, seamless: message.seamless }
+      return { token: message.token, generation: Number(message.generation), sourceWorld: message.sourceWorld, destination: message.world.dimension, chunks: message.chunks.length, resident: message.resident }
     case 'TRAVEL_CHUNK':
       return { token: message.token, chunk: [message.chunkX, message.chunkZ], fragment: `${message.fragmentIndex + 1}/${message.fragmentCount}`, bytes: message.payload.length }
     case 'TRAVEL_END':
-    case 'TRAVEL_READY':
     case 'TRAVEL_COMMIT':
     case 'TRAVEL_CANCEL':
     case 'TRAVEL_CROSS':
     case 'TRAVEL_ACCEPT':
       return { token: message.token, generation: Number(message.generation) }
     case 'TRAVEL_REUSE':
-    case 'TRAVEL_CACHED':
       return { token: message.token, chunk: [message.chunkX, message.chunkZ], revision: message.revision }
     case 'REMOTE_LEVEL_OPEN':
       return { levelHandle: message.levelHandle, dimension: message.world.dimension, viewRadius: message.viewRadius }

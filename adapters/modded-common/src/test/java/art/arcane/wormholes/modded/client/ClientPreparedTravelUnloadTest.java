@@ -117,7 +117,7 @@ public class ClientPreparedTravelUnloadTest extends MinecraftTestBase {
             ClientTravelTestFixtures.geometry(), OpticTransform.IDENTITY, 1.0F,
             new TravelMessage.TravelWorld("minecraft:overworld", "minecraft:overworld", 7, false, false, 63, -64, 384),
             new TravelMessage.TravelPose(0, 80, 0, 0, 0), coordinates,
-            PortalEnvironmentTest.environment(OpticTransform.IDENTITY), 30_000, TravelMessage.ArrivalRules.FRAME, false, 0, false);
+            PortalEnvironmentTest.environment(OpticTransform.IDENTITY), 30_000, TravelMessage.ArrivalRules.FRAME, false, 0);
     }
 
     private static boolean covers(ClientPreparedTravel travel, TravelMessage.TravelPose pose) throws ReflectiveOperationException {

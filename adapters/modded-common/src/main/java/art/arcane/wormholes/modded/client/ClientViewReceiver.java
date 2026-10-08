@@ -112,7 +112,7 @@ public final class ClientViewReceiver {
     }
 
     private void prepared(ViewStreamCodec.S2CFrame frame, TravelMessage message, int bytes) {
-        if (session.active() && session.has(ClientViewExtensions.PREPARED_TRAVEL)) {
+        if (session.active() && session.has(ClientViewExtensions.REMOTE_VIEW)) {
             travel.accept(message);
             enqueue(new Queued(frame, bytes, System.nanoTime()));
         }

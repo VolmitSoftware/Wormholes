@@ -9,7 +9,6 @@ import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.portal.LocalPortal;
 import art.arcane.wormholes.portal.TransitBridge;
-import art.arcane.wormholes.render.clientview.ClientViewEffects;
 
 /** A sound matched to the destination dimension, played to the arriving player on their own thread. */
 public final class ArrivalCue {
@@ -24,7 +23,7 @@ public final class ArrivalCue {
         if (Wormholes.instance == null || !TransitSubsystem.config().cinematicsEnabled || !(traveler instanceof Player player)) {
             return;
         }
-        if (ClientViewEffects.arrivalSeamless(player) || !TransitBridge.portalSoundEnabled(destination)) {
+        if (!TransitBridge.portalSoundEnabled(destination)) {
             return;
         }
         World world = exit == null ? null : exit.getWorld();

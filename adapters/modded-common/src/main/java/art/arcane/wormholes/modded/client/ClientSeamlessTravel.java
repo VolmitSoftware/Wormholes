@@ -73,7 +73,7 @@ public final class ClientSeamlessTravel {
 
     public boolean receive(TravelMessage message) {
         return switch (message) {
-            case TravelMessage.TravelBegin begin when begin.seamless() -> {
+            case TravelMessage.TravelBegin begin -> {
                 arms.put(begin.sourcePortal(), begin);
                 yield true;
             }

@@ -103,7 +103,6 @@ public class ClientPreparedTravelCachedTest {
         ClientViewSession session = mock(ClientViewSession.class);
         when(client.session()).thenReturn(session);
         when(session.active()).thenReturn(true);
-        when(session.has(ClientViewExtensions.PREPARED_TRAVEL_CACHE)).thenReturn(true);
         byte[] raw = {7, 1, 9};
         ClientboundLevelChunkWithLightPacket original = nativePacket(0, 0, raw);
         byte[] expected = encoded(source, original);
@@ -124,7 +123,7 @@ public class ClientPreparedTravelCachedTest {
             assertArrayEquals(expected, cache.peek("minecraft:the_nether", 0, 0));
             travel.receiveNativeChunk(source, nativePacket(128, 0, new byte[]{3}));
             assertNull(cache.peek("minecraft:the_nether", 128, 0));
-            when(session.has(ClientViewExtensions.PREPARED_TRAVEL_CACHE)).thenReturn(false);
+            when(session.has(ClientViewExtensions.SEAMLESS_TRAVEL)).thenReturn(true);
             travel.receiveNativeChunk(source, nativePacket(0, 0, new byte[]{4}));
             assertArrayEquals(expected, cache.peek("minecraft:the_nether", 0, 0));
         }
@@ -462,7 +461,7 @@ public class ClientPreparedTravelCachedTest {
         TravelMessage.TravelBegin manifest = new TravelMessage.TravelBegin(template.token(), template.generation(),
             template.sourcePortal(), template.sourceWorld(), template.sourceGeometry(), template.destinationToSource(), 1.0F, template.world(),
             template.arrival(), ClientTravelWindow.coordinates(0, 0, 3),
-            template.environment(), template.expiresMillis(), TravelMessage.ArrivalRules.FRAME, false, 0, false);
+            template.environment(), template.expiresMillis(), TravelMessage.ArrivalRules.FRAME, false, 0);
         Object source = sourceConstructor.newInstance(manifest);
         Method next = sourceType.getDeclaredMethod("nextCapture");
         next.setAccessible(true);
@@ -598,7 +597,7 @@ public class ClientPreparedTravelCachedTest {
         manifest.add(missing);
         TravelMessage.TravelBegin begin = new TravelMessage.TravelBegin(original.token(), original.generation(),
             original.sourcePortal(), original.sourceWorld(), original.sourceGeometry(), original.destinationToSource(), 1.0F,
-            original.world(), original.arrival(), manifest, original.environment(), original.expiresMillis(), TravelMessage.ArrivalRules.FRAME, false, 0, false);
+            original.world(), original.arrival(), manifest, original.environment(), original.expiresMillis(), TravelMessage.ArrivalRules.FRAME, false, 0);
         EnvironmentState environment = begin.environment();
         List<TravelMessage> sent = new ArrayList<>();
         ClientPreparedTravel travel = ClientTravelTestFixtures.travel(sent::add);
@@ -716,7 +715,7 @@ public class ClientPreparedTravelCachedTest {
         }
         TravelMessage.TravelBegin begin = new TravelMessage.TravelBegin(original.token(), original.generation(),
             original.sourcePortal(), original.sourceWorld(), original.sourceGeometry(), original.destinationToSource(), 1.0F,
-            original.world(), original.arrival(), manifest, original.environment(), original.expiresMillis(), TravelMessage.ArrivalRules.FRAME, false, 0, false);
+            original.world(), original.arrival(), manifest, original.environment(), original.expiresMillis(), TravelMessage.ArrivalRules.FRAME, false, 0);
         ClientPreparedTravel travel = ClientTravelTestFixtures.travel(ignored -> { });
         Class<?> pendingType = Class.forName(ClientPreparedTravel.class.getName() + "$PendingPreparation");
         Constructor<?> pendingConstructor = pendingType.getDeclaredConstructor(TravelMessage.TravelBegin.class);

@@ -483,7 +483,7 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
             traversals.remove(active.entity.getUUID(), active);
             active.payments.forEach(MinecraftTravelCosts.Admission::commit);
             for (ChunkPreSendTicket<ServerLevel, ServerPlayer> ticket : active.preSend) {
-                MinecraftTransit.arrived(runtime, active.portal, ticket.player(), active.level != level, ticket, false);
+                MinecraftTransit.arrived(runtime, active.portal, ticket.player(), active.level != level, ticket);
             }
             runtime.rules().arrived(arrived, active.portal);
             observe(service.completeTraversal(active.preparation, true), "complete", active.portal.getId());

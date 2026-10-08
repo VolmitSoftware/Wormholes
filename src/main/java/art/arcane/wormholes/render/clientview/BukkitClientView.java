@@ -1,14 +1,11 @@
 package art.arcane.wormholes.render.clientview;
 
-import art.arcane.optics.math.Vec3d;
-
 import java.lang.reflect.Constructor;
 import java.security.SecureRandom;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import art.arcane.optics.entity.EntityAnimation;
@@ -36,8 +33,6 @@ import com.github.retrooper.packetevents.protocol.ConnectionState;
 import com.github.retrooper.packetevents.protocol.player.User;
 
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
-import art.arcane.volmlib.nativelib.NativeAdapters;
-import art.arcane.volmlib.nativelib.chunk.ChunkPacketAccess;
 
 import art.arcane.wormholes.Wormholes;
 import art.arcane.optics.stream.ViewStreamCapability;
@@ -53,15 +48,12 @@ import art.arcane.optics.stream.ViewStreamOptions;
 import art.arcane.optics.stream.ViewStreamPlatform;
 import art.arcane.wormholes.render.client.session.ClientViewSceneFx;
 import art.arcane.optics.stream.ViewStreamSession;
-import art.arcane.wormholes.render.client.session.ClientPreparedTravelServer;
-import art.arcane.wormholes.render.client.session.ClientViewTravel;
 import art.arcane.wormholes.network.client.ClientViewExtensions;
 import art.arcane.wormholes.network.client.FxExtension;
 import art.arcane.optics.stream.ViewStreamSessionRegistry;
 import art.arcane.optics.stream.ViewStreamSessionState;
 import art.arcane.optics.plate.ViewPlateCache;
 import art.arcane.wormholes.render.view.ProjectionWorldViewProvider;
-import art.arcane.wormholes.network.client.TravelMessage;
 import art.arcane.wormholes.network.client.FxMessage;
 
 public final class BukkitClientView implements ClientViewRouting {
@@ -84,9 +76,6 @@ public final class BukkitClientView implements ClientViewRouting {
     private final BukkitClientViewNegotiator negotiator;
     private final BukkitClientViewScene scene;
     private final boolean folia;
-    private final ChunkPacketAccess travelPackets;
-    private BukkitPreparedTravel prepared;
-    private final ConcurrentHashMap<UUID, Seamless> seamless = new ConcurrentHashMap<>();
     private Plugin plugin;
     private PacketListenerCommon packetListener;
 
@@ -100,12 +89,9 @@ public final class BukkitClientView implements ClientViewRouting {
         BukkitClientViewPortalAccess portals = new BukkitClientViewPortalAccess(options.views(), options.plates(), options.lookup(),
             options.releaseVanilla(), () -> identitySalt);
         this.scene = portals.scene();
-        this.travelPackets = NativeAdapters.find(ChunkPacketAccess.class).orElse(null);
-        long platformCaps = PLATFORM_CAPS | (travelPackets != null && travelPackets.snapshotSupported()
-            ? (ClientViewExtensions.PREPARED_TRAVEL | ClientViewExtensions.PREPARED_TRAVEL_CACHE) : 0L);
         ViewStreamPlatform<ClientViewObserver, BlockData> platform = new ViewStreamPlatform<ClientViewObserver, BlockData>(transport, portals,
             new EntityFrames<ClientViewObserver>(portals.scene()), new ClientViewSceneFx<ClientViewObserver>(portals.scene()), null, lanes,
-            BlockData::getAsString, options.mcDataVersion(), platformCaps, null, this::warn, ClientViewExtensions.ALL, ClientViewTravel::new);
+            BlockData::getAsString, options.mcDataVersion(), PLATFORM_CAPS, null, this::warn, ClientViewExtensions.ALL, null);
         this.registry = new ViewStreamSessionRegistry<ClientViewObserver, BlockData>(platform, options.settings());
         this.verbose = Objects.requireNonNull(options.verbose(), "verbose");
         this.negotiator = new BukkitClientViewNegotiator(this, options.users(), options.scheduler(), verbose);
@@ -114,9 +100,6 @@ public final class BukkitClientView implements ClientViewRouting {
 
     public void start(Plugin owner) {
         plugin = Objects.requireNonNull(owner, "owner");
-        if (travelPackets != null && travelPackets.snapshotSupported()) {
-            prepared = new BukkitPreparedTravel(owner, travelPackets);
-        }
         owner.getServer().getPluginManager().registerEvents(negotiator, owner);
         Messenger messenger = owner.getServer().getMessenger();
         messenger.registerOutgoingPluginChannel(owner, ClientViewChannel.CHANNEL);
@@ -187,114 +170,6 @@ public final class BukkitClientView implements ClientViewRouting {
             return false;
         }
         return FoliaScheduler.runEntity(owner, player, () -> session.reset(ViewStreamMessage.ResetReason.TELEPORT));
-    }
-
-    public TravelMessage.TravelCommit commitTravel(Player player, UUID source, Location destination, Vec3d velocity) {
-        ClientViewTravel<ClientViewObserver> travel = travel(player.getUniqueId());
-        BukkitPreparedTravel current = prepared;
-        TravelMessage.TravelCommit commit = travel == null || current == null || !travel.preparedTravelSelected()
-            ? null : current.commit(travel, player, source, destination, velocity);
-        if (commit != null) {
-            seamless.put(player.getUniqueId(), new Seamless(source, commit.token(), commit.generation(), System.currentTimeMillis() + 2_000L));
-        }
-        return commit;
-    }
-
-    public void completeTravel(UUID player, TravelMessage.TravelCommit commit, boolean success) {
-        if (commit == null) {
-            return;
-        }
-        Seamless active = seamless.get(player);
-        if (!success && active != null && active.token().equals(commit.token()) && active.generation() == commit.generation()) {
-            seamless.remove(player, active);
-        }
-        BukkitPreparedTravel current = prepared;
-        if (current != null) {
-            current.complete(player, commit);
-        }
-        ClientViewTravel<ClientViewObserver> travel = travel(player);
-        if (!success && travel != null && commit != null) {
-            travel.sendTravel(new TravelMessage.TravelCancel(commit.token(), commit.generation()));
-        }
-    }
-
-    public boolean seamlessTravel(UUID playerId) {
-        Seamless active = seamless.get(playerId);
-        if (active == null) {
-            return false;
-        }
-        if (active.until() <= System.currentTimeMillis()) {
-            seamless.remove(playerId, active);
-            return false;
-        }
-        return true;
-    }
-
-    public boolean seamlessTravel(UUID playerId, UUID sourcePortal) {
-        Seamless active = seamless.get(playerId);
-        if (active != null && active.until() > System.currentTimeMillis() && active.source().equals(sourcePortal)) {
-            return true;
-        }
-        ClientViewTravel<ClientViewObserver> travel = travel(playerId);
-        return travel != null && travel.preparedTravelSelected() && travel.server().readyRoute(sourcePortal, System.currentTimeMillis());
-    }
-
-    public Optional<TravelMessage.TravelBegin> preparation(UUID traveler) {
-        ClientViewTravel<ClientViewObserver> travel = travel(traveler);
-        return travel == null ? Optional.empty() : travel.server().preparing();
-    }
-
-    public boolean crossing(UUID traveler, TravelMessage.TravelBegin expected) {
-        return expected != null && preparation(traveler).filter(begin -> begin.token().equals(expected.token())
-            && begin.generation() == expected.generation()).isPresent() && crossing(traveler);
-    }
-
-    public boolean crossing(UUID traveler) {
-        ClientViewTravel<ClientViewObserver> travel = travel(traveler);
-        return travel != null && travel.preparedTravelSelected() && travel.server().crossing();
-    }
-
-    public void cancelPreparation(UUID traveler, TravelMessage.TravelBegin expected) {
-        if (expected == null) {
-            return;
-        }
-        BukkitPreparedTravel current = prepared;
-        if (current != null) {
-            current.complete(traveler, expected.token(), expected.generation());
-        }
-        ClientViewTravel<ClientViewObserver> travel = travel(traveler);
-        TravelMessage.TravelCancel cancel = new TravelMessage.TravelCancel(expected.token(), expected.generation());
-        if (travel != null && travel.server().cancel(cancel)) {
-            travel.sendTravel(cancel);
-        }
-    }
-
-    public void cancelTravel(UUID traveler) {
-        seamless.remove(traveler);
-        BukkitPreparedTravel current = prepared;
-        if (current != null) {
-            current.complete(traveler);
-        }
-        ClientViewTravel<ClientViewObserver> travel = travel(traveler);
-        if (travel != null) {
-            travel.cancelTravel();
-        }
-    }
-
-    public boolean deferTravel(UUID traveler, UUID source) {
-        ClientViewTravel<ClientViewObserver> travel = travel(traveler);
-        if (travel == null || !travel.preparedTravelSelected()) {
-            return false;
-        }
-        ClientPreparedTravelServer.AutomaticCross result = travel.server().automaticCross(source, System.currentTimeMillis());
-        if (result == ClientPreparedTravelServer.AutomaticCross.FALLBACK) {
-            BukkitPreparedTravel current = prepared;
-            if (current != null) {
-                current.complete(traveler);
-            }
-            travel.cancelTravel();
-        }
-        return result == ClientPreparedTravelServer.AutomaticCross.DEFER;
     }
 
     public ClientViewObserver observer(UUID playerId) {
@@ -483,10 +358,6 @@ public final class BukkitClientView implements ClientViewRouting {
             }
         }
         session.tick(frameTick);
-        BukkitPreparedTravel currentPrepared = prepared;
-        if (currentPrepared != null) {
-            currentPrepared.tick(ClientViewTravel.of(session), player, interested);
-        }
         for (int i = interested.size() - 1; i >= 0; i--) {
             if (session.owns(interested.get(i).getId())) {
                 interested.remove(i);
@@ -504,15 +375,9 @@ public final class BukkitClientView implements ClientViewRouting {
     }
 
     public void shutdown() {
-        BukkitPreparedTravel currentPrepared = prepared;
-        prepared = null;
-        if (currentPrepared != null) {
-            currentPrepared.close();
-        }
         for (ClientViewObserver observer : observers.values()) {
             updateDoorVisibility(observer.player(), Set.of());
         }
-        seamless.clear();
         scene.close();
         lanes.inline();
         registry.runtimeEnabled(false);
@@ -520,16 +385,7 @@ public final class BukkitClientView implements ClientViewRouting {
         observers.clear();
     }
 
-    private ClientViewTravel<ClientViewObserver> travel(UUID playerId) {
-        ViewStreamSession<ClientViewObserver, BlockData> session = registry.session(playerId);
-        return session == null ? null : ClientViewTravel.of(session);
-    }
-
     private void retire(UUID playerId, ClientViewObserver observer) {
-        BukkitPreparedTravel currentPrepared = prepared;
-        if (currentPrepared != null) {
-            currentPrepared.complete(playerId);
-        }
         updateDoorVisibility(observer.player(), Set.of());
         scene.removeObserver(playerId);
         ViewStreamSession<ClientViewObserver, BlockData> session = registry.session(playerId);
@@ -609,7 +465,6 @@ public final class BukkitClientView implements ClientViewRouting {
 
         @Override
         public void disconnected(User user) {
-            seamless.remove(user.getUUID());
             UUID playerId = user.getUUID();
             ClientViewObserver observer = observers.get(playerId);
             if (observer != null && observer.user() == user) {
@@ -653,7 +508,4 @@ public final class BukkitClientView implements ClientViewRouting {
                           Consumer<String> verbose,
                           boolean folia) {
     }
-    private record Seamless(UUID source, UUID token, long generation, long until) {
-    }
-
 }

@@ -2,6 +2,7 @@ package art.arcane.wormholes.render.client.session;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -20,7 +21,9 @@ import art.arcane.optics.plate.ViewPlate;
 import art.arcane.optics.stream.BrickLightSource;
 import art.arcane.optics.stream.SessionPalette;
 import art.arcane.optics.stream.ViewStreamCapability;
+import art.arcane.optics.stream.ViewStreamCodec;
 import art.arcane.optics.stream.ViewStreamEndpoints;
+import art.arcane.optics.stream.ViewStreamExtension;
 import art.arcane.optics.stream.ViewStreamHandshake;
 import art.arcane.optics.stream.ViewStreamHooksFactory;
 import art.arcane.optics.stream.ViewStreamInbound;
@@ -34,15 +37,18 @@ import art.arcane.optics.stream.ViewStreamSession;
 import art.arcane.optics.stream.ViewStreamSessionRegistry;
 import art.arcane.optics.stream.ViewStreamTransport;
 import art.arcane.wormholes.config.toml.ClientViewConfig;
-import art.arcane.wormholes.network.client.ClientViewFixtures;
 import art.arcane.wormholes.network.client.ClientViewExtensions;
+import art.arcane.wormholes.network.client.FxExtension;
 import art.arcane.wormholes.network.client.TravelExtension;
 import art.arcane.wormholes.network.client.TravelMessage;
 
 final class ClientViewTravelTest {
     private static final int DATA_VERSION = 4325;
-    private static final long NATIVE_TRAVEL = ViewStreamCapability.of(ViewStreamCapability.PLATES, ViewStreamCapability.MESH_RENDER)
-        | ClientViewExtensions.PREPARED_TRAVEL;
+    private static final long REMOTE_VIEW = ViewStreamCapability.of(ViewStreamCapability.PLATES, ViewStreamCapability.MESH_RENDER)
+        | ClientViewExtensions.REMOTE_VIEW;
+    private static final long SEAMLESS = REMOTE_VIEW | ClientViewExtensions.SEAMLESS_TRAVEL;
+    private static final List<ViewStreamExtension<?>> EXTENSIONS = List.of(FxExtension.INSTANCE, TravelExtension.INSTANCE);
+    private static final ViewStreamCodec CODEC = new ViewStreamCodec(EXTENSIONS);
     private static final UUID PLAYER = new UUID(3L, 4L);
 
     private final List<byte[]> frames = new ArrayList<byte[]>();
@@ -64,70 +70,85 @@ final class ClientViewTravelTest {
     }
 
     @Test
-    void travelMessagesSendOnlyAfterPreparedTravelIsNegotiated() throws ViewStreamProtocolException {
+    void aVanillaSessionCarriesNoTravel() {
+        ClientViewTravel<String> travel = ClientViewTravel.of(open());
+
+        assertFalse(travel.remoteViewSelected());
+        assertFalse(travel.sendTravel(cancel()));
+        assertFalse(travel.sendTravel(new TravelMessage.RemoteLevelClose(4)));
+        assertTrue(frames.isEmpty());
+    }
+
+    @Test
+    void remoteViewWithoutSeamlessTravelStreamsRoutesButSendsNoArms() throws ViewStreamProtocolException {
         ViewStreamSession<String, String> session = open();
         ClientViewTravel<String> travel = ClientViewTravel.of(session);
-        TravelMessage.TravelCancel cancel = new TravelMessage.TravelCancel(new UUID(1L, 2L), 3L);
-        assertFalse(travel.sendTravel(cancel), "a vanilla session carries no travel");
-
-        negotiate(session, NATIVE_TRAVEL);
+        negotiate(session, REMOTE_VIEW);
         frames.clear();
-        assertTrue(travel.preparedTravelSelected());
-        assertFalse(travel.preparedTravelCacheSelected());
-        assertTrue(travel.sendTravel(cancel));
-        assertEquals(TravelExtension.PREPARED.wrap(cancel),
-            ClientViewExtensions.CODEC.decodeS2C(frames.getLast(), ViewStreamCapability.ALL).message());
-        assertFalse(travel.sendTravel(new TravelMessage.TravelReuse(new UUID(1L, 2L), 3L, 0, 0, 1, new byte[TravelMessage.TRAVEL_HASH_BYTES])),
-            "cache proofs need the cache capability");
-        assertFalse(travel.sendTravel(new TravelMessage.TravelReady(new UUID(1L, 2L), 3L, 1L)), "serverbound messages are never sent");
-        assertFalse(travel.sendTravel(new TravelMessage.EntityCrossed(0, 42, OpticTransform.IDENTITY, new Vec3d(0, 0, 0), Face.U,
-            new Vec3d(0, 0, 0))),
-            "entity crossings need seamless travel");
+
+        assertTrue(travel.remoteViewSelected());
+        assertFalse(travel.seamlessSelected());
+        assertTrue(travel.sendTravel(new TravelMessage.RemoteLevelClose(4)));
+        assertFalse(travel.sendTravel(cancel()), "arms need seamless travel");
         assertEquals(1, frames.size());
     }
 
     @Test
-    void serverboundTravelReachesThePreparedTravelServer() throws ViewStreamProtocolException {
+    void seamlessSessionsSendArmsButNeverPreparedTravel() throws ViewStreamProtocolException {
         ViewStreamSession<String, String> session = open();
         ClientViewTravel<String> travel = ClientViewTravel.of(session);
-        TravelMessage.TravelCancel cancel = new TravelMessage.TravelCancel(new UUID(1L, 2L), 3L);
-        byte[] payload = ClientViewExtensions.CODEC.encodeC2S(TravelExtension.PREPARED.wrap(cancel));
-        assertEquals(ViewStreamInbound.IGNORED, session.receive(payload, 0, payload.length), "travel waits for negotiation");
-
-        negotiate(session, NATIVE_TRAVEL);
-        assertEquals(ViewStreamInbound.IGNORED, session.receive(payload, 0, payload.length), "nothing is being prepared");
-        assertEquals(0L, session.stats().c2sDropped());
-        assertFalse(travel.onExtension("observer", "not travel"));
-    }
-
-    @Test
-    void endingTheSessionCancelsPreparedTravel() throws ViewStreamProtocolException {
-        ViewStreamSession<String, String> session = open();
-        ClientViewTravel<String> travel = ClientViewTravel.of(session);
-        negotiate(session, NATIVE_TRAVEL);
-        TravelMessage.TravelBegin begin = ClientViewFixtures.travelBegin();
-        travel.server().begin(begin, System.currentTimeMillis());
+        negotiate(session, SEAMLESS);
         frames.clear();
 
-        session.end(ViewStreamMessage.ResetReason.TELEPORT);
-
-        assertTrue(travel.server().preparing().isEmpty());
-        assertEquals(TravelExtension.PREPARED.wrap(new TravelMessage.TravelCancel(begin.token(), begin.generation())),
-            ClientViewExtensions.CODEC.decodeS2C(frames.getFirst(), ViewStreamCapability.ALL).message());
+        assertTrue(travel.seamlessSelected());
+        assertTrue(travel.sendTravel(cancel()));
+        assertEquals(TravelExtension.INSTANCE.wrap(cancel()), CODEC.decodeS2C(frames.getLast(), ViewStreamCapability.ALL).message());
+        assertFalse(travel.sendTravel(new TravelMessage.TravelReuse(new UUID(1L, 2L), 3L, 0, 0, 1, new byte[TravelMessage.TRAVEL_HASH_BYTES])),
+            "prepared travel is never sent");
+        assertTrue(travel.sendTravel(new TravelMessage.EntityCrossed(0, 42, OpticTransform.IDENTITY, new Vec3d(0, 0, 0), Face.U,
+            new Vec3d(0, 0, 0))));
+        assertEquals(2, frames.size());
     }
 
     @Test
-    void serverboundCancelMatchingThePreparationIsHandled() throws ViewStreamProtocolException {
+    void serverboundCrossesQueueOnlyForSeamlessSessions() throws ViewStreamProtocolException {
+        byte[] payload = CODEC.encodeC2S(TravelExtension.INSTANCE.wrap(cross()));
+        ViewStreamSession<String, String> routes = open();
+        assertEquals(ViewStreamInbound.IGNORED, routes.receive(payload, 0, payload.length), "travel waits for negotiation");
+        negotiate(routes, REMOTE_VIEW);
+        assertEquals(ViewStreamInbound.IGNORED, routes.receive(payload, 0, payload.length), "crossings need seamless travel");
+        assertNull(ClientViewTravel.of(routes).takeSeamlessCross());
+
+        ViewStreamSession<String, String> seamless = open();
+        negotiate(seamless, SEAMLESS);
+        assertEquals(ViewStreamInbound.HANDLED, seamless.receive(payload, 0, payload.length));
+        assertEquals(cross(), ClientViewTravel.of(seamless).takeSeamlessCross());
+        assertFalse(ClientViewTravel.of(seamless).onExtension("observer", "not travel"));
+    }
+
+    @Test
+    void closingTheSessionDropsQueuedTravel() throws ViewStreamProtocolException {
         ViewStreamSession<String, String> session = open();
         ClientViewTravel<String> travel = ClientViewTravel.of(session);
-        negotiate(session, NATIVE_TRAVEL);
-        TravelMessage.TravelBegin begin = ClientViewFixtures.travelBegin();
-        travel.server().begin(begin, System.currentTimeMillis());
-        byte[] payload = ClientViewExtensions.CODEC.encodeC2S(TravelExtension.PREPARED.wrap(
-            new TravelMessage.TravelCancel(begin.token(), begin.generation())));
+        negotiate(session, SEAMLESS);
+        assertTrue(travel.onExtension("observer", cross()));
+        assertTrue(travel.onExtension("observer", new TravelMessage.RemoteViewAck(4, 0, 8)));
 
-        assertEquals(ViewStreamInbound.HANDLED, session.receive(payload, 0, payload.length));
-        assertTrue(travel.server().preparing().isEmpty());
+        travel.onClose("observer");
+
+        assertNull(travel.takeSeamlessCross());
+        List<TravelMessage.RemoteViewAck> acks = new ArrayList<TravelMessage.RemoteViewAck>();
+        travel.drainAcks(acks::add);
+        assertTrue(acks.isEmpty());
+    }
+
+    private static TravelMessage.TravelCancel cancel() {
+        return new TravelMessage.TravelCancel(new UUID(1L, 2L), 3L);
+    }
+
+    private static TravelMessage.TravelCross cross() {
+        return new TravelMessage.TravelCross(new UUID(1L, 2L), 3L, 1L, new TravelMessage.TravelPose(0.5D, 64.0D, 0.5D, 0.0F, 0.0F),
+            new Vec3d(0.5D, 65.62D, 0.4D), new Vec3d(0.5D, 65.62D, 0.6D));
     }
 
     private ViewStreamSession<String, String> open() {
@@ -138,9 +159,9 @@ final class ClientViewTravelTest {
     private void negotiate(ViewStreamSession<String, String> session, long clientCaps) throws ViewStreamProtocolException {
         session.brand("fabric");
         session.offer(ViewStreamPhase.CONFIGURATION);
-        ViewStreamMessage.Offer offer = (ViewStreamMessage.Offer) ClientViewExtensions.CODEC.decodeS2C(frames.getLast(),
+        ViewStreamMessage.Offer offer = (ViewStreamMessage.Offer) CODEC.decodeS2C(frames.getLast(),
             ViewStreamCapability.NONE).message();
-        byte[] hello = ClientViewExtensions.CODEC.encodeC2S(ViewStreamHandshake.clientHello(offer, DATA_VERSION, clientCaps,
+        byte[] hello = CODEC.encodeC2S(ViewStreamHandshake.clientHello(offer, DATA_VERSION, clientCaps,
             ViewStreamLimits.DEFAULT_MAX_FRAME_BYTES, 256, 0L, "fabric"));
         assertEquals(ViewStreamInbound.HELLO_ACCEPTED, session.receive(hello, 0, hello.length));
     }
@@ -156,7 +177,7 @@ final class ClientViewTravelTest {
             public void flush(String player) {
             }
         }, new NoEndpoints(), null, null, null, Runnable::run, state -> state, DATA_VERSION, ViewStreamCapability.ALL, null, null,
-            ClientViewExtensions.ALL, hooks);
+            EXTENSIONS, hooks);
     }
 
     private static ViewStreamOptions options() {

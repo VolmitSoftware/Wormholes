@@ -12,7 +12,6 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -23,7 +22,7 @@ public class MinecraftAuthoritativeTeleportTest extends MinecraftTestBase {
     public void externalSameWorldTeleportCancelsOldDepartureAndReseedsBothHistories() throws Exception {
         Fixture fixture = fixture();
         fixture.runtime().authoritativeTeleport(fixture.player(), fixture.level(), new Vec3(0, 80, 2));
-        verify(fixture.views()).cancelTravel(fixture.player(), null);
+        verify(fixture.views()).cancelTravel(fixture.player());
         verify(fixture.portals()).recordTeleport(fixture.player());
         verify(fixture.doors()).recordTeleport(fixture.player());
         verify(fixture.doors()).cancelDeparture(fixture.player());
@@ -45,17 +44,17 @@ public class MinecraftAuthoritativeTeleportTest extends MinecraftTestBase {
             }
             fixture.runtime().authoritativeTeleport(fixture.player(), fixture.level(), new Vec3(0, 80, 2));
         }
-        verify(fixture.views(), never()).cancelTravel(any(ServerPlayer.class), isNull());
+        verify(fixture.views(), never()).cancelTravel(any(ServerPlayer.class));
         verify(fixture.portals(), never()).recordTeleport(any(ServerPlayer.class));
         fixture.runtime().authoritativeTeleport(fixture.player(), fixture.level(), new Vec3(0, 80, 2));
-        verify(fixture.views()).cancelTravel(fixture.player(), null);
+        verify(fixture.views()).cancelTravel(fixture.player());
     }
 
     @Test
     public void samePoseCorrectionDoesNotDiscardACapturedCrossing() throws Exception {
         Fixture fixture = fixture();
         fixture.runtime().authoritativeTeleport(fixture.player(), fixture.level(), fixture.player().position());
-        verify(fixture.views(), never()).cancelTravel(any(ServerPlayer.class), isNull());
+        verify(fixture.views(), never()).cancelTravel(any(ServerPlayer.class));
         verify(fixture.portals(), never()).recordTeleport(any(ServerPlayer.class));
     }
 

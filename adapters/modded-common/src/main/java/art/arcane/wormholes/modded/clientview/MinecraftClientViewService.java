@@ -14,7 +14,6 @@ import art.arcane.wormholes.modded.mixin.ServerConnectionAccess;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.wormholes.render.client.session.ClientViewEmitters;
-import art.arcane.wormholes.render.client.session.ClientPreparedTravelServer;
 import art.arcane.wormholes.render.client.session.ClientViewTravel;
 import art.arcane.wormholes.network.client.ClientViewExtensions;
 import art.arcane.wormholes.network.client.FxExtension;
@@ -63,8 +62,7 @@ public final class MinecraftClientViewService implements AutoCloseable {
         ViewStreamCapability.DEST_LIGHT, ViewStreamCapability.ENTITY_FRAMES, ViewStreamCapability.ENTITY_SELF, ViewStreamCapability.ENTITY_EVENTS, ViewStreamCapability.ATMOSPHERE,
         ViewStreamCapability.ZERO_COPY, ViewStreamCapability.CONFIG_PHASE, ViewStreamCapability.LINK_UNCOMPRESSED,
         ViewStreamCapability.VIEW_STATS, ViewStreamCapability.CLIENT_MIRROR, ViewStreamCapability.CLIENT_RECURSION, ViewStreamCapability.MESH_RENDER, ViewStreamCapability.LOCAL_MESH, ViewStreamCapability.MESH_REUSE)
-        | ClientViewExtensions.FX_EMITTERS | ClientViewExtensions.PREPARED_TRAVEL | ClientViewExtensions.PREPARED_TRAVEL_CACHE
-        | ClientViewExtensions.REMOTE_VIEW | ClientViewExtensions.SEAMLESS_TRAVEL;
+        | ClientViewExtensions.FX_EMITTERS | ClientViewExtensions.REMOTE_VIEW | ClientViewExtensions.SEAMLESS_TRAVEL;
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
     private static final long HANDLE_PURGE_INTERVAL_TICKS = 20L;
     private static final double PARTICLE_RANGE_SQUARED = 32.0D * 32.0D;
@@ -72,7 +70,6 @@ public final class MinecraftClientViewService implements AutoCloseable {
     private final WormholesModRuntime runtime;
     private final MinecraftClientViewTransport transport;
     private final MinecraftClientViewPortalAccess portals;
-    private final MinecraftPreparedTravel prepared;
     private final MinecraftSeamlessTravel seamlessTravel;
     private final Map<UUID, Seamless> seamless = new HashMap<>();
     private final Set<UUID> levelHandoffs = new HashSet<>();
@@ -85,8 +82,7 @@ public final class MinecraftClientViewService implements AutoCloseable {
         this.runtime = Objects.requireNonNull(runtime, "runtime");
         this.transport = new MinecraftClientViewTransport();
         this.portals = new MinecraftClientViewPortalAccess(runtime);
-        this.prepared = new MinecraftPreparedTravel(runtime, portals);
-        this.seamlessTravel = new MinecraftSeamlessTravel(runtime, portals, prepared);
+        this.seamlessTravel = new MinecraftSeamlessTravel(runtime, portals);
     }
 
     public void packets(Function<ClientViewPayload, Packet<?>> factory) {
@@ -147,8 +143,6 @@ public final class MinecraftClientViewService implements AutoCloseable {
                 session.tick(serverTick);
                 if (travel.seamlessSelected()) {
                     seamlessTravel.tick(travel, player);
-                } else {
-                    prepared.tick(travel, player);
                 }
             } catch (RuntimeException failure) {
                 LOGGER.error("Wormholes ClientView tick failed for {}", player.getUUID(), failure);
@@ -174,25 +168,6 @@ public final class MinecraftClientViewService implements AutoCloseable {
         ViewStreamSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
         ViewStreamSession<MinecraftClientViewPeer, BlockState> session = active == null ? null : active.session(player.getUUID());
         return session != null && session.state() == ViewStreamSessionState.CLIENT_VIEW && ViewStreamCapability.MESH_RENDER.in(session.caps());
-    }
-
-    public TravelMessage.TravelCommit commitTravel(ServerPlayer player, UUID source, ServerLevel destination,
-                                                       TravelMessage.TravelPose arrival, Vec3d velocity) {
-        runtime.requireServerThread();
-        ClientViewTravel<MinecraftClientViewPeer> travel = travel(player.getUUID());
-        if (travel == null || !travel.preparedTravelSelected() || travel.seamlessSelected()) {
-            return null;
-        }
-        TravelMessage.TravelCommit commit = prepared.commit(travel, player, source, destination, arrival, velocity).orElse(null);
-        if (commit != null && travel.sendTravel(commit)) {
-            seamless.put(player.getUUID(), new Seamless(source, commit.token(), commit.generation(), System.currentTimeMillis() + 2_000L, false));
-            return commit;
-        }
-        if (commit != null) {
-            travel.sendTravel(new TravelMessage.TravelCancel(commit.token(), commit.generation()));
-        }
-        travel.cancelTravel();
-        return null;
     }
 
     public boolean seamlessCrossing(ServerPlayer player) {
@@ -235,49 +210,15 @@ public final class MinecraftClientViewService implements AutoCloseable {
         return player;
     }
 
-    public void cancelTravel(ServerPlayer player, TravelMessage.TravelCommit commit) {
-        Seamless marked = seamless.get(player.getUUID());
-        if (commit == null || marked != null && marked.token().equals(commit.token()) && marked.generation() == commit.generation()) {
-            seamless.remove(player.getUUID());
-        }
-        if (commit == null) {
-            prepared.complete(player.getUUID());
-        } else {
-            prepared.complete(player.getUUID(), commit);
-        }
-        ClientViewTravel<MinecraftClientViewPeer> travel = travel(player.getUUID());
-        if (travel != null) {
-            if (commit == null) {
-                travel.cancelTravel();
-            } else {
-                travel.server().preparing().filter(begin -> begin.token().equals(commit.token())
-                    && begin.generation() == commit.generation()).ifPresent(begin -> travel.cancelTravel());
-                travel.sendTravel(new TravelMessage.TravelCancel(commit.token(), commit.generation()));
-            }
-        }
+    public void cancelTravel(ServerPlayer player) {
+        seamless.remove(player.getUUID());
     }
 
     public void cancelPreparation(ServerPlayer player, TravelMessage.TravelBegin expected) {
-        if (expected == null) {
-            return;
-        }
-        if (seamlessTravel.owns(player.getUUID(), expected)) {
-            ClientViewTravel<MinecraftClientViewPeer> travel = travel(player.getUUID());
-            if (travel != null) {
-                seamlessTravel.finish(travel, player, expected);
-            }
-            return;
-        }
-        prepared.complete(player.getUUID(), expected.token(), expected.generation());
         ClientViewTravel<MinecraftClientViewPeer> travel = travel(player.getUUID());
-        TravelMessage.TravelCancel cancel = new TravelMessage.TravelCancel(expected.token(), expected.generation());
-        if (travel != null && travel.server().cancel(cancel)) {
-            travel.sendTravel(cancel);
+        if (expected != null && travel != null && seamlessTravel.owns(player.getUUID(), expected)) {
+            seamlessTravel.finish(travel, player, expected);
         }
-    }
-
-    public void completeTravel(ServerPlayer player) {
-        prepared.complete(player.getUUID());
     }
 
     public boolean seamlessTravel(UUID playerId) {
@@ -297,21 +238,12 @@ public final class MinecraftClientViewService implements AutoCloseable {
             return true;
         }
         ClientViewTravel<MinecraftClientViewPeer> travel = travel(playerId);
-        if (travel != null && travel.seamlessSelected()) {
-            return seamlessTravel.armed(playerId, sourcePortal);
-        }
-        return travel != null && travel.preparedTravelSelected() && travel.server().readyRoute(sourcePortal, System.currentTimeMillis());
+        return travel != null && travel.seamlessSelected() && seamlessTravel.armed(playerId, sourcePortal);
     }
 
     public Optional<TravelMessage.TravelBegin> preparation(UUID traveler) {
         ClientViewTravel<MinecraftClientViewPeer> travel = travel(traveler);
-        if (travel == null) {
-            return Optional.empty();
-        }
-        if (travel.seamlessSelected()) {
-            return Optional.ofNullable(seamlessTravel.attempted(traveler));
-        }
-        return travel.server().preparing();
+        return travel != null && travel.seamlessSelected() ? Optional.ofNullable(seamlessTravel.attempted(traveler)) : Optional.empty();
     }
 
     public boolean crossing(UUID traveler, TravelMessage.TravelBegin expected) {
@@ -321,10 +253,7 @@ public final class MinecraftClientViewService implements AutoCloseable {
 
     public boolean crossing(UUID traveler) {
         ClientViewTravel<MinecraftClientViewPeer> travel = travel(traveler);
-        if (travel != null && travel.seamlessSelected()) {
-            return seamlessTravel.crossing(traveler);
-        }
-        return travel != null && travel.preparedTravelSelected() && travel.server().crossing();
+        return travel != null && travel.seamlessSelected() && seamlessTravel.crossing(traveler);
     }
 
     public boolean seamlessEye(UUID traveler, UUID source) {
@@ -334,38 +263,23 @@ public final class MinecraftClientViewService implements AutoCloseable {
 
     public boolean deferTravel(UUID traveler, UUID source) {
         ClientViewTravel<MinecraftClientViewPeer> travel = travel(traveler);
-        if (travel == null || !travel.preparedTravelSelected()) {
-            fallbacks.put(traveler, travel == null ? "no ClientView session" : "prepared travel not negotiated");
+        if (travel == null || !travel.seamlessSelected()) {
+            fallbacks.put(traveler, travel == null ? "no ClientView session" : "seamless travel not negotiated");
             return false;
         }
-        if (travel.seamlessSelected()) {
-            ServerPlayer player = runtime.server().getPlayerList().getPlayer(traveler);
-            boolean deferred = player != null && seamlessTravel.defer(player, source);
-            if (!deferred && !seamlessTravel.crossing(traveler)) {
-                fallbacks.put(traveler, "no seamless route armed for this portal");
-            }
-            return deferred;
+        ServerPlayer player = runtime.server().getPlayerList().getPlayer(traveler);
+        boolean deferred = player != null && seamlessTravel.defer(player, source);
+        if (!deferred && !seamlessTravel.crossing(traveler)) {
+            fallbacks.put(traveler, "no seamless route armed for this portal");
         }
-        ClientPreparedTravelServer.AutomaticCross result = travel.server().automaticCross(source, System.currentTimeMillis());
-        if (result == ClientPreparedTravelServer.AutomaticCross.FALLBACK) {
-            fallbacks.put(traveler, "client did not cross within the deferral");
-            prepared.complete(traveler);
-            travel.cancelTravel();
-        } else if (result == ClientPreparedTravelServer.AutomaticCross.ORDINARY) {
-            fallbacks.put(traveler, travel.server().preparing().filter(begin -> begin.sourcePortal().equals(source)).isPresent()
-                ? "destination not ready on the client" : "no preparation for this portal");
-        }
-        return result == ClientPreparedTravelServer.AutomaticCross.DEFER;
+        return deferred;
     }
 
-    public void crossed(ServerPlayer player, ServerLevel origin, ServerLevel destination, boolean seamlessMove, boolean masked) {
+    public void crossed(ServerPlayer player, ServerLevel origin, ServerLevel destination, boolean seamlessMove) {
         seamlessTravel.relocated(player.getUUID());
         String reason = fallbacks.remove(player.getUUID());
         if (seamlessMove) {
             LOGGER.info("Crossing seamless {} {} -> {}", player.getScoreboardName(), origin.dimension().identifier(), destination.dimension().identifier());
-        } else if (masked) {
-            LOGGER.info("Crossing prepared {} {} -> {}: masked teleport", player.getScoreboardName(), origin.dimension().identifier(),
-                destination.dimension().identifier());
         } else {
             LOGGER.info("Crossing teleport {} {} -> {}: {}", player.getScoreboardName(), origin.dimension().identifier(),
                 destination.dimension().identifier(), reason == null ? "not predicted" : reason);
@@ -532,7 +446,6 @@ public final class MinecraftClientViewService implements AutoCloseable {
         fallbacks.remove(player.getUUID());
         seamlessTravel.forget(player.getUUID());
         runtime.remoteRoutes().forget(player.getUUID(), false);
-        prepared.complete(player.getUUID());
         portals.scene().removeObserver(player.getUUID());
         MinecraftClientViewNegotiator current = negotiator;
         if (current == null || !(player.connection instanceof ServerConnectionAccess listener)) {
@@ -547,7 +460,6 @@ public final class MinecraftClientViewService implements AutoCloseable {
 
     @Override
     public void close() {
-        prepared.clear();
         seamlessTravel.clear();
         seamless.clear();
         levelHandoffs.clear();

@@ -3,13 +3,11 @@ package art.arcane.wormholes.door;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.door.view.DoorProjectionRegistry;
 import org.bukkit.event.HandlerList;
-import org.bukkit.entity.Entity;
 import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
 import java.lang.reflect.Field;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
@@ -38,7 +36,6 @@ final class DoorShutdownFailureTest {
         DoorTransitLedger ledger = mock(DoorTransitLedger.class);
         PocketSpaceIndex pockets = mock(PocketSpaceIndex.class);
         DoorAccessFeedback feedback = mock(DoorAccessFeedback.class);
-        Map<UUID, DoorTransitAttempt> crossings = new ConcurrentHashMap<UUID, DoorTransitAttempt>();
         IllegalStateException recipeFailure = new IllegalStateException("recipe failure");
         IllegalStateException projectionFailure = new IllegalStateException("projection failure");
         doThrow(recipeFailure).when(items).unregisterRecipes();
@@ -51,7 +48,6 @@ final class DoorShutdownFailureTest {
         set(manager, "ledger", ledger);
         set(manager, "pockets", pockets);
         set(manager, "accessFeedback", feedback);
-        set(manager, "deferredCrossings", crossings);
         try (MockedStatic<HandlerList> handlers = mockStatic(HandlerList.class)) {
             manager.close();
             manager.close();
@@ -87,7 +83,6 @@ final class DoorShutdownFailureTest {
         set(index, "autoClose", autoClose);
         set(index, "spatialIndex", spatial);
         set(index, "runtimes", runtimes);
-        set(index, "preparedArrivalBodies", new ConcurrentHashMap<UUID, ConcurrentHashMap<UUID, Entity>>());
         index.close();
         assertTrue(runtimes.isEmpty());
         verify(autoClose).clear();

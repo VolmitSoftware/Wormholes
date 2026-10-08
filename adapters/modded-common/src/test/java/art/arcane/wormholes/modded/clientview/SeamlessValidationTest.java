@@ -72,7 +72,7 @@ public class SeamlessValidationTest extends MinecraftTestBase {
         MinecraftPortalRegistry registry = mock(MinecraftPortalRegistry.class);
         when(runtime.portals()).thenReturn(registry);
         MinecraftClientViewPortalAccess access = mock(MinecraftClientViewPortalAccess.class);
-        MinecraftSeamlessTravel travel = new MinecraftSeamlessTravel(runtime, access, new MinecraftPreparedTravel(runtime, access));
+        MinecraftSeamlessTravel travel = new MinecraftSeamlessTravel(runtime, access);
         MinecraftClientViewPeer peer = mock(MinecraftClientViewPeer.class);
         ServerPlayer player = player();
         MinecraftPortal source = portal();

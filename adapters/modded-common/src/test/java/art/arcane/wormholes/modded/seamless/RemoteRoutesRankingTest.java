@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.seamless;
 
+import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.MinecraftTestBase;
@@ -46,22 +47,34 @@ public class RemoteRoutesRankingTest extends MinecraftTestBase {
     }
 
     @Test
-    public void windowRadiusShrinksWithDistanceFromTheSourcePortal() {
+    public void windowRadiusFollowsTheImmersivePortalsLoaderTiers() {
         assertEquals(12, RemoteRoutes.radius(12, 0.0D));
-        assertEquals(12, RemoteRoutes.radius(12, 8.0D));
-        assertEquals(8, RemoteRoutes.radius(12, 8.5D));
-        assertEquals(8, RemoteRoutes.radius(12, 24.0D));
-        assertEquals(4, RemoteRoutes.radius(12, 24.5D));
+        assertEquals(12, RemoteRoutes.radius(12, 4.9D));
+        assertEquals(8, RemoteRoutes.radius(12, 5.0D));
+        assertEquals(8, RemoteRoutes.radius(12, 14.9D));
+        assertEquals(4, RemoteRoutes.radius(12, 15.0D));
+        assertEquals(5, RemoteRoutes.radius(16, 40.0D));
+        assertEquals(1, RemoteRoutes.radius(2, 10.0D));
         assertEquals(1, RemoteRoutes.radius(2, 100.0D));
-        assertEquals(2, RemoteRoutes.radius(2, 20.0D));
     }
 
     @Test
-    public void fullRadiusFollowsTheVanillaViewDistanceAndNeverExceedsTheWindowCap() {
+    public void distanceIsMeasuredToTheNearestPointOfThePortal() {
+        Box area = new Box(10.0D, 13.0D, 64.0D, 67.0D, 5.0D, 5.0D);
+
+        assertEquals(0.0D, RemoteRoutes.distance(area, new Vec3d(11.0D, 65.0D, 5.0D)), 1.0E-9D);
+        assertEquals(4.0D, RemoteRoutes.distance(area, new Vec3d(12.0D, 64.0D, 9.0D)), 1.0E-9D);
+        assertEquals(5.0D, RemoteRoutes.distance(area, new Vec3d(16.0D, 66.0D, 9.0D)), 1.0E-9D);
+        assertEquals(2.0D, RemoteRoutes.distance(area, new Vec3d(11.0D, 62.0D, 5.0D)), 1.0E-9D);
+    }
+
+    @Test
+    public void fullRadiusFollowsTheVanillaViewDistanceAndIsCappedAtSixteen() {
         assertEquals(10, RemoteRoutes.fullRadius(10, 12));
         assertEquals(12, RemoteRoutes.fullRadius(32, 12));
         assertEquals(2, RemoteRoutes.fullRadius(0, 12));
-        assertEquals(RouteWindow.MAX_RADIUS, RemoteRoutes.fullRadius(32, 32));
+        assertEquals(16, RemoteRoutes.fullRadius(32, 32));
+        assertEquals(16, RouteWindow.MAX_RADIUS);
         assertEquals(RemoteRoutes.MIN_CORE_RADIUS, RemoteRoutes.coreRadius(2));
         assertEquals(5, RemoteRoutes.coreRadius(15));
         assertEquals(2, RemoteRoutes.coreRadius(3));

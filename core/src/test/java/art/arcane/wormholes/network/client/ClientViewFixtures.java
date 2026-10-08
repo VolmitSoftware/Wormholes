@@ -21,7 +21,7 @@ import art.arcane.optics.shape.ShapeDescriptor;
 import art.arcane.wormholes.portal.ApertureKind;
 
 public final class ClientViewFixtures {
-    static final ViewStreamCodec CODEC = new ViewStreamCodec(List.of(FxExtension.INSTANCE, new TravelExtension(SeamlessTravelCodec.INSTANCE)));
+    static final ViewStreamCodec CODEC = new ViewStreamCodec(List.of(FxExtension.INSTANCE, TravelExtension.INSTANCE));
 
     record Vector(String name, ViewStreamMessage message, long caps, int seq, int flags) {
         boolean clientbound() {
@@ -50,7 +50,6 @@ public final class ClientViewFixtures {
             4, new byte[] {1, 2, 3, 4}), ViewStreamCapability.ALL, 19, 0));
         out.add(travel("travel_end", new TravelMessage.TravelEnd(new UUID(12, 34), 3L, 9L,
             List.of(new TravelMessage.TravelChunkRevision(-32, -10, 2))), ViewStreamCapability.ALL, 20, ViewStreamLimits.FLAG_LAST));
-        out.add(travel("travel_ready", new TravelMessage.TravelReady(new UUID(12, 34), 3L, 9L), ViewStreamCapability.NONE, 0, 0));
         out.add(travel("travel_commit", new TravelMessage.TravelCommit(new UUID(12, 34), 3L, 9L,
             "minecraft:the_nether", "minecraft:overworld", travelBegin().arrival(), new Vec3d(0.25D, -0.5D, 1.0D)), ViewStreamCapability.ALL, 21,
             ViewStreamLimits.FLAG_LAST));
@@ -65,9 +64,7 @@ public final class ClientViewFixtures {
         }
         out.add(travel("travel_reuse", new TravelMessage.TravelReuse(new UUID(12, 34), 3L, -32, -10, 2, travelHash),
             ViewStreamCapability.ALL, 23, ViewStreamLimits.FLAG_LAST));
-        out.add(travel("travel_cached", new TravelMessage.TravelCached(new UUID(12, 34), 3L, -32, -10, 2, travelHash, true),
-            ViewStreamCapability.NONE, 0, 0));
-        out.add(travel("travel_begin_seamless", seamlessBegin(), ViewStreamCapability.ALL, 25, 0));
+        out.add(travel("travel_begin_resident", residentBegin(), ViewStreamCapability.ALL, 25, 0));
         out.add(travel("remote_level_open", new TravelMessage.RemoteLevelOpen(4, travelBegin().world(), travelBegin().environment(), 8,
             new TravelMessage.TravelCoordinate(-32, -10)), ViewStreamCapability.ALL, 26, 0));
         out.add(travel("remote_level_close", new TravelMessage.RemoteLevelClose(4), ViewStreamCapability.ALL, 27, ViewStreamLimits.FLAG_LAST));
@@ -79,13 +76,13 @@ public final class ClientViewFixtures {
         return out;
     }
 
-    static TravelMessage.TravelBegin seamlessBegin() {
+    static TravelMessage.TravelBegin residentBegin() {
         TravelMessage.TravelBegin base = travelBegin();
         return new TravelMessage.TravelBegin(base.token(), base.generation(), base.sourcePortal(), base.sourceWorld(),
             base.sourceGeometry().withShape(ShapeDescriptor.parse("circle")), base.destinationToSource(), 3.0F, base.world(), base.arrival(),
             base.chunks(), base.environment().withScale(1.0F / 3.0F), base.expiresMillis(),
             new TravelMessage.ArrivalRules(OrientationRule.LOOK, true, new MomentumRule(MomentumRule.Mode.SCALE, 0.75D, 3.5D,
-                new Vec3d(0.0D, 0.25D, 0.0D)), ScaleRule.ratio(0.25D, 4.0D)), true, 4, true);
+                new Vec3d(0.0D, 0.25D, 0.0D)), ScaleRule.ratio(0.25D, 4.0D)), true, 4);
     }
 
     public static TravelMessage.TravelBegin travelBegin() {
@@ -100,7 +97,7 @@ public final class ClientViewFixtures {
             geometry(), OpticTransform.of(AxisPermutation.of(Face.S, Face.U, Face.E), 4, 0, 6), 1.0F,
             new TravelMessage.TravelWorld("minecraft:overworld", "minecraft:overworld", 123456789L, false, true, 63, -64, 384),
             new TravelMessage.TravelPose(-511.5D, 81.0D, -159.5D, 90.0F, -12.0F),
-            List.of(new TravelMessage.TravelCoordinate(-32, -10)), environment, 30_000, TravelMessage.ArrivalRules.FRAME, false, 0, false);
+            List.of(new TravelMessage.TravelCoordinate(-32, -10)), environment, 30_000, TravelMessage.ArrivalRules.FRAME, false, 0);
     }
 
     static EnvironmentState environment() {
@@ -134,6 +131,6 @@ public final class ClientViewFixtures {
     }
 
     private static Vector travel(String name, TravelMessage message, long caps, int seq, int flags) {
-        return new Vector(name, TravelExtension.PREPARED.wrap(message), caps, seq, flags);
+        return new Vector(name, TravelExtension.INSTANCE.wrap(message), caps, seq, flags);
     }
 }

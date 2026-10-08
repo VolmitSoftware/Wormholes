@@ -19,7 +19,6 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.same;
 
 public final class LocalPortalChunkPreSendTest {
     @Test
@@ -36,7 +35,7 @@ public final class LocalPortalChunkPreSendTest {
             new Vector(0.5D, 65.0D, 1.0D)
         );
         AtomicReference<String> owner = new AtomicReference<String>("source");
-        doNothing().when(portal).playEffect(eq(PortalEffect.PUSH), any(Location.class), same(traveler.entity()), eq(false));
+        doNothing().when(portal).playEffect(eq(PortalEffect.PUSH), any(Location.class));
 
         try (RecordingBukkitChunkPreSend recording = RecordingBukkitChunkPreSend.install(owner::get)) {
             new LocalPortalTraversal(portal, runtime(recording, true, owner)).receive(traversive);

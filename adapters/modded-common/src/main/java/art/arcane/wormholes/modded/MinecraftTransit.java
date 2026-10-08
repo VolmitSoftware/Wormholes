@@ -44,9 +44,9 @@ public final class MinecraftTransit {
     }
 
     public static void arrived(WormholesModRuntime runtime, MinecraftPortal source, ServerPlayer player,
-                               boolean reloadExpected, ChunkPreSendTicket<ServerLevel, ServerPlayer> ticket, boolean seamless) {
+                               boolean reloadExpected, ChunkPreSendTicket<ServerLevel, ServerPlayer> ticket) {
         MainConfig main = runtime.configuration().settings().getMain();
-        if (!reloadExpected || !main.arrivalTransitionMask || seamless) {
+        if (!reloadExpected || !main.arrivalTransitionMask) {
             return;
         }
         TransitConfig transit = runtime.configuration().settings().getTransit();

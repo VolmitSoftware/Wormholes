@@ -508,7 +508,7 @@ public final class MinecraftPlayerHandoffs implements AutoCloseable {
             }
             MinecraftArrivalPose.apply(placed, landed);
             MinecraftTraversalCues.arrival(runtime, exit, player, false);
-            MinecraftTransit.arrived(runtime, exit, player, true, ticket, false);
+            MinecraftTransit.arrived(runtime, exit, player, true, ticket);
             runtime.portals().recordArrival(player, exit);
             runtime.network().entityTransfers().playerPlaced(player, exit, crossing);
             finish(reservation, true, "portal arrival completed");

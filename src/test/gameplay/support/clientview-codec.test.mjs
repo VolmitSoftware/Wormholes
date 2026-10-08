@@ -40,7 +40,7 @@ const TYPE_ALIASES = Object.freeze({
   entity_hurt: 'ENTITY_EVENT',
   entity_frame_delta: 'ENTITY_FRAME',
   mesh_section_biomes: 'MESH_SECTION',
-  travel_begin_seamless: 'TRAVEL_BEGIN'
+  travel_begin_resident: 'TRAVEL_BEGIN'
 })
 const TEST_UUID = '00000000-0000-000c-0000-000000000022'
 
@@ -302,34 +302,32 @@ describe('ClientView golden vectors', () => {
     assert.deepEqual(decodeVector(vector('mesh_reuse')), { type: 'MESH_REUSE', portalKey: 7, generation: 12, sectionX: -32, sectionY: 4, sectionZ: -10, revision: 2, hash: 0x1122334455667788n })
   })
 
-  it('decodes prepared travel messages', () => {
+  it('decodes travel messages', () => {
     const begin = decodeVector(vector('travel_begin'))
     assert.deepEqual(begin, {
       type: 'TRAVEL_BEGIN', token: TEST_UUID, generation: 3n, sourcePortal: '00000000-0000-0038-0000-00000000004e', sourceWorld: 'minecraft:the_nether',
       sourceGeometry: portalGeometry([], FULL_SHAPE), destinationToSource: begin.destinationToSource, scale: 1, world: TRAVEL_WORLD, arrival: TRAVEL_ARRIVAL,
       chunks: [{ x: -32, z: -10 }], environment: fixtureEnvironment('minecraft:overworld', IDENTITY_TRANSFORM), expiresMillis: 30000,
       rules: { orientation: 'FRAME', gravityFlip: false, momentum: begin.rules.momentum, scale: { mode: 'OFF', min: 0.0625, max: 16 } },
-      resident: false, levelHandle: 0, seamless: false
+      resident: false, levelHandle: 0
     })
     assert.deepEqual(begin.destinationToSource.translation, { x: 4, y: 0, z: 6 })
-    const seamless = decodeVector(vector('travel_begin_seamless'))
-    assert.deepEqual([seamless.resident, seamless.levelHandle, seamless.seamless], [true, 4, true])
-    assert.deepEqual(seamless.sourceGeometry, portalGeometry([], CIRCLE_SHAPE))
-    assert.deepEqual(seamless.rules, { orientation: 'LOOK', gravityFlip: true, momentum: { mode: 'SCALE', factor: 0.75, maxSpeed: 3.5, impulse: { x: 0, y: 0.25, z: 0 } },
+    const resident = decodeVector(vector('travel_begin_resident'))
+    assert.deepEqual([resident.resident, resident.levelHandle], [true, 4])
+    assert.deepEqual(resident.sourceGeometry, portalGeometry([], CIRCLE_SHAPE))
+    assert.deepEqual(resident.rules, { orientation: 'LOOK', gravityFlip: true, momentum: { mode: 'SCALE', factor: 0.75, maxSpeed: 3.5, impulse: { x: 0, y: 0.25, z: 0 } },
       scale: { mode: 'RATIO', min: 0.25, max: 4 } })
-    assert.equal(seamless.scale, 3)
-    assert.equal(seamless.environment.scale, f32(1 / 3))
+    assert.equal(resident.scale, 3)
+    assert.equal(resident.environment.scale, f32(1 / 3))
     assert.deepEqual(decodeVector(vector('travel_chunk')), { type: 'TRAVEL_CHUNK', token: TEST_UUID, generation: 3n, chunkX: -32, chunkZ: -10, revision: 2,
       fragmentIndex: 0, fragmentCount: 1, totalBytes: 4, payload: Buffer.from([1, 2, 3, 4]) })
     assert.deepEqual(decodeVector(vector('travel_end')), { type: 'TRAVEL_END', token: TEST_UUID, generation: 3n, contentRevision: 9n, chunks: [{ x: -32, z: -10, revision: 2 }] })
-    assert.deepEqual(decodeVector(vector('travel_ready')), { type: 'TRAVEL_READY', token: TEST_UUID, generation: 3n, contentRevision: 9n })
     assert.deepEqual(decodeVector(vector('travel_commit')), { type: 'TRAVEL_COMMIT', token: TEST_UUID, generation: 3n, contentRevision: 9n,
       sourceWorld: 'minecraft:the_nether', destinationWorld: 'minecraft:overworld', arrival: TRAVEL_ARRIVAL, velocity: { x: 0.25, y: -0.5, z: 1 } })
     assert.deepEqual(decodeVector(vector('travel_cancel')), { type: 'TRAVEL_CANCEL', token: TEST_UUID, generation: 3n })
     assert.deepEqual(decodeVector(vector('travel_cross')), { type: 'TRAVEL_CROSS', token: TEST_UUID, generation: 3n, contentRevision: 9n,
       sourcePose: { x: 635.5, y: 65, z: -4681.4, yaw: 90, pitch: -12 }, previousEye: { x: 635.5, y: 66.62, z: -4681.6 }, currentEye: { x: 635.5, y: 66.62, z: -4681.4 } })
     assert.deepEqual(decodeVector(vector('travel_reuse')), { type: 'TRAVEL_REUSE', token: TEST_UUID, generation: 3n, chunkX: -32, chunkZ: -10, revision: 2, hash: TRAVEL_HASH })
-    assert.deepEqual(decodeVector(vector('travel_cached')), { type: 'TRAVEL_CACHED', token: TEST_UUID, generation: 3n, chunkX: -32, chunkZ: -10, revision: 2, hash: TRAVEL_HASH, available: true })
   })
 
   it('decodes seamless travel and remote view messages', () => {
@@ -346,7 +344,7 @@ describe('ClientView golden vectors', () => {
   it('names the extension capabilities at the bits the server offers', () => {
     assert.deepEqual(capabilityNames(decodeVector(vector('offer')).serverCaps), ['PLATES', 'BRICK_CACHE', 'DEST_LIGHT', 'ENTITY_FRAMES', 'ATMOSPHERE', 'ZERO_COPY', 'CLIENT_RECURSION',
       'CLIENT_MIRROR', 'CONFIG_PHASE', 'LINK_UNCOMPRESSED', 'VIEW_STATS', 'MESH_RENDER', 'ENTITY_EVENTS', 'LOCAL_MESH', 'MESH_REUSE', 'ENTITY_SELF',
-      'FX_EMITTERS', 'PREPARED_TRAVEL', 'PREPARED_TRAVEL_CACHE', 'REMOTE_VIEW', 'SEAMLESS_TRAVEL'])
+      'FX_EMITTERS', 'REMOTE_VIEW', 'SEAMLESS_TRAVEL'])
     assert.equal(capabilitySet('FX_EMITTERS'), 1n << 32n)
     assert.equal(capabilitySet('SEAMLESS_TRAVEL'), 1n << 36n)
   })

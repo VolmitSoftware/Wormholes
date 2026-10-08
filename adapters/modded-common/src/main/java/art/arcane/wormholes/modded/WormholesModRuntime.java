@@ -158,7 +158,7 @@ public final class WormholesModRuntime {
             || player.level() == previousLevel && player.position().equals(previousPosition)) {
             return;
         }
-        clientViews().cancelTravel(player, null);
+        clientViews().cancelTravel(player);
         travelArrived(player);
         doors().cancelDeparture(player);
     }
