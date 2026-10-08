@@ -8,7 +8,7 @@ import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.mixin.client.ParticleEngineAccess;
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
-import art.arcane.wormholes.modded.client.render.ClientWorldLoader;
+import art.arcane.wormholes.modded.client.world.ClientWorldLoader;
 import art.arcane.wormholes.modded.client.render.PortalIrisMainPipelines;
 import art.arcane.wormholes.modded.clientview.MinecraftPortalEnvironment;
 import art.arcane.wormholes.modded.mixin.client.PreparedPacketAccess;

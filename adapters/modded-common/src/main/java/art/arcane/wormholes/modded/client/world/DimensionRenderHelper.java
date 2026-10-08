@@ -1,17 +1,15 @@
 /*
  * Derived from Immersive Portals (https://github.com/iPortalTeam/ImmersivePortalsMod),
  * Copyright 2020 qouteall, licensed under the Apache License, Version 2.0.
- * Modified for Wormholes: holds the 26.x light map, environment attribute probe and fog buffer of one client level.
+ * Modified for Wormholes: holds the 26.x light map and environment attribute probe of one client level.
  */
-package art.arcane.wormholes.modded.client.render;
+package art.arcane.wormholes.modded.client.world;
 
 import art.arcane.wormholes.modded.mixin.client.ClientWorldCameraAccess;
 import art.arcane.wormholes.modded.mixin.client.ClientWorldGameRendererAccess;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.Lightmap;
-import net.minecraft.client.renderer.fog.FogRenderer;
-import net.minecraft.client.renderer.state.LightmapRenderState;
 import net.minecraft.world.attribute.EnvironmentAttributeProbe;
 import net.minecraft.world.phys.Vec3;
 
@@ -21,10 +19,9 @@ final class DimensionRenderHelper implements AutoCloseable {
     private final ClientLevel level;
     private final Lightmap lightmap;
     private final EnvironmentAttributeProbe probe;
-    private final LightmapRenderState lightmapState = new LightmapRenderState();
-    private FogRenderer fogRenderer;
     private long tickedAt;
     private boolean ticked;
+    private Vec3 renderedCamera;
     private boolean closed;
 
     private DimensionRenderHelper(ClientLevel level, Lightmap lightmap, EnvironmentAttributeProbe probe) {
@@ -47,29 +44,25 @@ final class DimensionRenderHelper implements AutoCloseable {
         return level;
     }
 
-    Lightmap lightmap() {
-        return lightmap;
-    }
-
-    LightmapRenderState lightmapState() {
-        return lightmapState;
-    }
-
     EnvironmentAttributeProbe probe() {
         return probe;
-    }
-
-    FogRenderer fogRenderer() {
-        if (fogRenderer == null) {
-            fogRenderer = new FogRenderer();
-        }
-        return fogRenderer;
     }
 
     void tick(Vec3 position) {
         probe.tick(level, position);
         tickedAt = System.nanoTime();
         ticked = true;
+    }
+
+    void rendered(Vec3 camera) {
+        renderedCamera = camera;
+    }
+
+    void tickRendered() {
+        if (renderedCamera != null) {
+            tick(renderedCamera);
+            renderedCamera = null;
+        }
     }
 
     void enter(Vec3 position) {
@@ -90,27 +83,14 @@ final class DimensionRenderHelper implements AutoCloseable {
         ((ClientWorldCameraAccess) minecraft.gameRenderer.mainCamera()).wormholes$attributeProbe(probe);
     }
 
-    void endFrame() {
-        if (fogRenderer != null) {
-            fogRenderer.endFrame();
-        }
-    }
-
     @Override
     public void close() {
         if (closed) {
             return;
         }
         closed = true;
-        try {
-            if (!installedInGame()) {
-                lightmap.close();
-            }
-        } finally {
-            if (fogRenderer != null) {
-                fogRenderer.close();
-                fogRenderer = null;
-            }
+        if (!installedInGame()) {
+            lightmap.close();
         }
     }
 }

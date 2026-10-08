@@ -1,4 +1,4 @@
-package art.arcane.wormholes.modded.client.render;
+package art.arcane.wormholes.modded.client.world;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import net.minecraft.client.multiplayer.ClientLevel;

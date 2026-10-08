@@ -86,6 +86,7 @@
     "client.IrisPortalCompositeMixin",
     "client.IrisPortalPipelineAccess",
     "client.IrisPortalMainPipelineMixin",
+    "client.IrisPortalMainMinecraftMixin",
     "client.IrisPortalMainRenderingMixin",
     "client.IrisPortalDhAccess",
     "client.IrisPortalSettingsAccess",
@@ -186,7 +187,8 @@
     "client.ClientWorldExtractorAccess",
     "client.ClientWorldExtractorMixin",
     "client.ClientWorldSkyAccess",
-    "client.ClientWorldCloudAccess"
+    "client.ClientWorldCloudAccess",
+    "client.ClientWorldOcclusionAccess"
   ],
   "injectors": {
     "defaultRequire": 1

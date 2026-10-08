@@ -16,9 +16,12 @@ import net.caffeinemc.mods.sodium.client.render.viewport.CameraTransform;
 import net.caffeinemc.mods.sodium.client.render.viewport.ViewportProvider;
 import net.caffeinemc.mods.sodium.client.util.FogParameters;
 import net.caffeinemc.mods.sodium.client.util.GameRendererStorage;
+import net.caffeinemc.mods.sodium.client.world.LevelRendererExtension;
+import art.arcane.wormholes.modded.client.world.ClientWorldLoader;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.core.SectionPos;
@@ -81,7 +84,13 @@ public final class ClientSodiumTerrain {
             forget(level);
             state = null;
         }
-        if (state == null) {
+        LevelRenderer resident = state == null ? ClientWorldLoader.residentRenderer(level) : null;
+        if (resident != null) {
+            trim(minecraft.level);
+            state = new State(new Ownership(level, ((LevelRendererExtension) resident).sodium$getWorldRenderer(), currentSettings(),
+                minecraft.options.getEffectiveRenderDistance()));
+            STATES.put(level, state);
+        } else if (state == null) {
             trim(minecraft.level);
             SodiumWorldRenderer renderer = new SodiumWorldRenderer(minecraft);
             state = new State(new Ownership(level, renderer, currentSettings(), minecraft.options.getEffectiveRenderDistance()));
@@ -258,7 +267,7 @@ public final class ClientSodiumTerrain {
         }
     }
 
-    static void disown(ClientLevel level) {
+    public static void disown(ClientLevel level) {
         if (!AVAILABLE || STATES.isEmpty()) {
             return;
         }
@@ -462,6 +471,19 @@ public final class ClientSodiumTerrain {
         for (int y = level.getMinSectionY(); y < level.getMinSectionY() + level.getSectionsCount(); y++) {
             manager.onSectionRemoved(x, y, z);
         }
+    }
+
+    private static boolean attached(SodiumWorldRenderer renderer) {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft != null && minecraft.levelRenderer instanceof LevelRendererExtension main && main.sodium$getWorldRenderer() == renderer) {
+            return true;
+        }
+        for (LevelRenderer levelRenderer : ClientWorldLoader.levelRenderers()) {
+            if (((LevelRendererExtension) levelRenderer).sodium$getWorldRenderer() == renderer) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static void releaseColumns(State state) {
@@ -672,8 +694,12 @@ public final class ClientSodiumTerrain {
                 closed = true;
                 ready = false;
                 uniformFramePending = false;
-                parkedColumns.clear();
-                renderer.setLevel(null);
+                if (attached(renderer)) {
+                    releaseColumns(this);
+                } else {
+                    parkedColumns.clear();
+                    renderer.setLevel(null);
+                }
             }
         }
     }

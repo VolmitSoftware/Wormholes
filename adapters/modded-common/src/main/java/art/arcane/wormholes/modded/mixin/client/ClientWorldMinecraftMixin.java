@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded.mixin.client;
 
-import art.arcane.wormholes.modded.client.render.ClientWorldLoader;
+import art.arcane.wormholes.modded.client.world.ClientWorldLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import org.spongepowered.asm.mixin.Mixin;

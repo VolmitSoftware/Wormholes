@@ -3,7 +3,7 @@
  * Copyright 2020 qouteall, licensed under the Apache License, Version 2.0.
  * Modified for Wormholes: carries the 26.x atmospheric rain fog state per client level.
  */
-package art.arcane.wormholes.modded.client.render;
+package art.arcane.wormholes.modded.client.world;
 
 import art.arcane.wormholes.modded.mixin.client.ClientWorldAtmosphereAccess;
 import art.arcane.wormholes.modded.mixin.client.ClientWorldFogAccess;

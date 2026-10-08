@@ -1,6 +1,5 @@
 package art.arcane.wormholes.modded.client.render;
 
-import art.arcane.wormholes.modded.mixin.client.ClientWorldMinecraftAccess;
 import art.arcane.wormholes.modded.mixin.client.PreparedLevelAccess;
 import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.frame.OpticTransform;
@@ -642,14 +641,14 @@ public final class PortalIrisMainPipelines {
 
         private World(ClientLevel level) {
             LevelExtractor extractor = ((PreparedLevelAccess) level).wormholes$extractor();
-            ((ClientWorldMinecraftAccess) minecraft).wormholes$levelExtractor(extractor);
+            ((PortalMainWorldAccess) minecraft).wormholes$mainExtractor(extractor);
             minecraft.level = level;
         }
 
         @Override
         public void close() {
             minecraft.level = previousLevel;
-            ((ClientWorldMinecraftAccess) minecraft).wormholes$levelExtractor(previousExtractor);
+            ((PortalMainWorldAccess) minecraft).wormholes$mainExtractor(previousExtractor);
             manager().wormholes$mainPipeline(previousPipeline);
             try {
                 settings.apply();

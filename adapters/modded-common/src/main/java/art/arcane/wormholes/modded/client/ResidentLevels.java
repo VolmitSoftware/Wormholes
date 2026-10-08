@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
-import art.arcane.wormholes.modded.client.render.ClientWorldLoader;
+import art.arcane.wormholes.modded.client.world.ClientWorldLoader;
 import art.arcane.wormholes.modded.mixin.client.PreparedPacketAccess;
 import art.arcane.wormholes.modded.seamless.RoutedPackets;
 import art.arcane.wormholes.network.client.TravelMessage;
@@ -61,6 +61,7 @@ public final class ResidentLevels {
         if (resident == null) {
             resident = new ResidentLevel(ResidentLevel.create(open.world(), open.environment(), open.center()), open.world());
             levels.add(resident);
+            ClientWorldLoader.worldRenderer(resident.level());
         }
         resident.bind(open, ++clock);
         handles.put(open.levelHandle(), resident);
@@ -162,6 +163,7 @@ public final class ResidentLevels {
             }
             withLevel(level, () -> tickLevel(level));
         }
+        ClientWorldLoader.tick();
         acknowledge();
     }
 

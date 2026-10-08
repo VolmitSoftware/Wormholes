@@ -3,7 +3,7 @@
  * Copyright 2020 qouteall, licensed under the Apache License, Version 2.0.
  * Modified for Wormholes: contexts are keyed by client level instead of dimension.
  */
-package art.arcane.wormholes.modded.client.render;
+package art.arcane.wormholes.modded.client.world;
 
 import net.minecraft.client.multiplayer.ClientLevel;
 

@@ -24,7 +24,7 @@ import static org.junit.Assert.assertTrue;
 
 public class PreparedChunkCacheTest {
     @Test
-    public void onlyTheCurrentlyAttachedWorldPublishesMainRendererLightUpdates() throws IOException {
+    public void onlyTheAttachedOrSwitchedWorldPublishesRendererLightUpdates() throws IOException {
         MethodNode method = method("art/arcane/wormholes/modded/mixin/client/PreparedChunkCacheMixin", "wormholesPreparedLight");
         List<AbstractInsnNode> instructions = new ArrayList<>();
         List<Integer> opcodes = new ArrayList<>();
@@ -34,25 +34,17 @@ public class PreparedChunkCacheTest {
                 opcodes.add(instruction.getOpcode());
             }
         }
-        assertEquals(List.of(Opcodes.ALOAD, Opcodes.GETFIELD, Opcodes.INVOKESTATIC, Opcodes.IFNE, Opcodes.ALOAD,
-            Opcodes.INVOKEVIRTUAL, Opcodes.RETURN), opcodes);
-        assertEquals(0, ((VarInsnNode) instructions.get(0)).var);
+        assertEquals(List.of(Opcodes.ALOAD, Opcodes.GETFIELD, Opcodes.INVOKESTATIC, Opcodes.IFNE, Opcodes.ALOAD, Opcodes.GETFIELD,
+            Opcodes.INVOKESTATIC, Opcodes.IFNE, Opcodes.ALOAD, Opcodes.INVOKEVIRTUAL, Opcodes.RETURN), opcodes);
         FieldInsnNode owner = (FieldInsnNode) instructions.get(1);
         assertEquals("art/arcane/wormholes/modded/mixin/client/PreparedChunkCacheMixin", owner.owner);
         assertEquals("level", owner.name);
-        MethodInsnNode active = (MethodInsnNode) instructions.get(2);
-        assertEquals("art/arcane/wormholes/modded/client/WormholesClient", active.owner);
-        assertEquals("activeLevel", active.name);
-        assertEquals("(" + owner.desc + ")Z", active.desc);
-        assertEquals(3, ((VarInsnNode) instructions.get(4)).var);
-        MethodInsnNode cancel = (MethodInsnNode) instructions.get(5);
+        assertGuard(instructions, 2, "art/arcane/wormholes/modded/client/WormholesClient", "activeLevel", owner.desc);
+        assertGuard(instructions, 6, "art/arcane/wormholes/modded/client/world/ClientWorldLoader", "switchedTo", owner.desc);
+        assertEquals(3, ((VarInsnNode) instructions.get(8)).var);
+        MethodInsnNode cancel = (MethodInsnNode) instructions.get(9);
         assertEquals("org/spongepowered/asm/mixin/injection/callback/CallbackInfo", cancel.owner);
         assertEquals("cancel", cancel.name);
-        AbstractInsnNode target = ((JumpInsnNode) instructions.get(3)).label;
-        while (target.getOpcode() < 0) {
-            target = target.getNext();
-        }
-        assertSame(instructions.getLast(), target);
     }
 
     @Test
@@ -108,6 +100,19 @@ public class PreparedChunkCacheTest {
             }
         }
         assertEquals(2, noOpBranches);
+    }
+
+    private static void assertGuard(List<AbstractInsnNode> instructions, int index, String owner, String name, String levelDesc) {
+        assertEquals(0, ((VarInsnNode) instructions.get(index - 2)).var);
+        MethodInsnNode guard = (MethodInsnNode) instructions.get(index);
+        assertEquals(owner, guard.owner);
+        assertEquals(name, guard.name);
+        assertEquals("(" + levelDesc + ")Z", guard.desc);
+        AbstractInsnNode target = ((JumpInsnNode) instructions.get(index + 1)).label;
+        while (target.getOpcode() < 0) {
+            target = target.getNext();
+        }
+        assertSame(instructions.getLast(), target);
     }
 
     private static MethodNode method(String owner, String name) throws IOException {

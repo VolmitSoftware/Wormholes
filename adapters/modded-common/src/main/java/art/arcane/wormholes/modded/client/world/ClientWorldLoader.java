@@ -4,25 +4,34 @@
  * Modified for Wormholes: render state is kept per resident client level, built on the 26.x level extractor and
  * level renderer pair, and swapped by the seamless level switch.
  */
-package art.arcane.wormholes.modded.client.render;
+package art.arcane.wormholes.modded.client.world;
 
-import art.arcane.optics.math.Vec3d;
+import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
 import art.arcane.wormholes.modded.mixin.client.ClientWorldCloudAccess;
 import art.arcane.wormholes.modded.mixin.client.ClientWorldExtractorAccess;
 import art.arcane.wormholes.modded.mixin.client.ClientWorldGameRendererAccess;
 import art.arcane.wormholes.modded.mixin.client.ClientWorldLevelRendererAccess;
 import art.arcane.wormholes.modded.mixin.client.ClientWorldLightmapAccess;
 import art.arcane.wormholes.modded.mixin.client.ClientWorldMinecraftAccess;
+import art.arcane.wormholes.modded.mixin.client.ClientWorldOcclusionAccess;
 import art.arcane.wormholes.modded.mixin.client.ClientWorldSkyAccess;
 import art.arcane.wormholes.modded.mixin.client.PreparedLevelAccess;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.logging.LogUtils;
+import net.caffeinemc.mods.sodium.client.world.LevelRendererExtension;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.client.renderer.SectionOcclusionGraph;
 import net.minecraft.client.renderer.SkyRenderer;
+import net.minecraft.client.renderer.ViewArea;
+import net.minecraft.client.renderer.chunk.SectionRenderDispatcher;
 import net.minecraft.client.renderer.extract.LevelExtractor;
+import net.minecraft.client.renderer.state.level.CameraRenderState;
+import net.minecraft.client.renderer.state.level.ChunkLoadingRenderState;
 import net.minecraft.client.renderer.state.level.LevelRenderState;
+import net.minecraft.core.SectionPos;
+import net.minecraft.world.attribute.EnvironmentAttributeProbe;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 
@@ -30,14 +39,19 @@ import java.util.ArrayList;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
 public final class ClientWorldLoader {
     private static final Logger LOGGER = LogUtils.getLogger();
+    private static final boolean SODIUM = ClientWorldLoader.class.getClassLoader()
+        .getResource("net/caffeinemc/mods/sodium/client/render/SodiumWorldRenderer.class") != null;
     private static final Map<ClientLevel, DimensionRenderHelper> RENDER_HELPER_MAP = new IdentityHashMap<>();
     private static final Map<ClientLevel, WorldRenderer> WORLD_RENDERER_MAP = new IdentityHashMap<>();
     private static ClientLevel mainLevel;
     private static ClientLevel switchedLevel;
     private static boolean reloadingOtherWorldRenderers;
+    private static boolean forceFullSectionDiscovery;
 
     private ClientWorldLoader() {
     }
@@ -56,21 +70,43 @@ public final class ClientWorldLoader {
         FogRendererContext.initialize(level);
     }
 
-    public static void tick(List<PortalWorldView> views, Vec3 camera) {
-        Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.level == null || camera == null) {
-            return;
-        }
+    public static WorldRenderer worldRenderer(ClientLevel level) {
         initializeIfNeeded();
-        Vec3d eye = new Vec3d(camera.x, camera.y, camera.z);
+        WorldRenderer world = WORLD_RENDERER_MAP.get(level);
+        if (world == null) {
+            world = createWorldRenderer(level);
+            WORLD_RENDERER_MAP.put(level, world);
+        }
+        return world;
+    }
+
+    public static LevelRenderer residentRenderer(ClientLevel level) {
+        WorldRenderer world = level == mainLevel ? null : WORLD_RENDERER_MAP.get(level);
+        return world == null ? null : world.renderer;
+    }
+
+    public static List<LevelRenderer> levelRenderers() {
+        List<LevelRenderer> renderers = new ArrayList<>(WORLD_RENDERER_MAP.size());
+        for (WorldRenderer world : WORLD_RENDERER_MAP.values()) {
+            renderers.add(world.renderer);
+        }
+        return renderers;
+    }
+
+    public static EnvironmentAttributeProbe probe(ClientLevel level) {
+        return helper(level).probe();
+    }
+
+    public static void renderedThroughPortal(ClientLevel level, Vec3 camera) {
+        if (level != mainLevel) {
+            helper(level).rendered(camera);
+        }
+    }
+
+    public static void tick() {
         for (DimensionRenderHelper helper : RENDER_HELPER_MAP.values()) {
-            if (helper.level() == mainLevel) {
-                continue;
-            }
-            PortalWorldView view = nearest(views, helper.level(), eye);
-            if (view != null) {
-                Vec3d mapped = view.levelPoint(eye);
-                helper.tick(new Vec3(mapped.x(), mapped.y(), mapped.z()));
+            if (helper.level() != mainLevel) {
+                helper.tickRendered();
             }
         }
     }
@@ -101,8 +137,43 @@ public final class ClientWorldLoader {
         mainLevel = destination;
     }
 
-    public static boolean hasWorldRenderer(ClientLevel level) {
-        return WORLD_RENDERER_MAP.containsKey(level);
+    public static void forceFullSectionDiscovery() {
+        forceFullSectionDiscovery = true;
+    }
+
+    public static void beforeExtract(LevelExtractor extractor) {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (!forceFullSectionDiscovery || switchedLevel != null || extractor != minecraft.levelExtractor) {
+            return;
+        }
+        forceFullSectionDiscovery = false;
+        if (SODIUM && Sodium.scheduleTerrainUpdate(minecraft.levelRenderer)) {
+            return;
+        }
+        LevelRenderer renderer = minecraft.levelRenderer;
+        ViewArea viewArea = renderer.viewArea();
+        SectionRenderDispatcher dispatcher = renderer.sectionRenderDispatcher();
+        CameraRenderState camera = minecraft.gameRenderer.gameRenderState().levelRenderState.cameraRenderState;
+        if (viewArea == null || dispatcher == null || !camera.initialized) {
+            return;
+        }
+        viewArea.repositionCamera(SectionPos.of(camera.pos));
+        dispatcher.setCameraPosition(camera.pos);
+        SectionOcclusionGraph graph = renderer.sectionOcclusionGraph();
+        graph.invalidate();
+        graph.update(camera, minecraft.options.fov().get(), new ChunkLoadingRenderState());
+        Future<?> discovery = ((ClientWorldOcclusionAccess) graph).wormholes$fullUpdateTask();
+        if (discovery == null) {
+            return;
+        }
+        try {
+            discovery.get();
+        } catch (InterruptedException failure) {
+            Thread.currentThread().interrupt();
+            LOGGER.error("Interrupted while discovering the sections around a crossing", failure);
+        } catch (ExecutionException failure) {
+            LOGGER.error("Unable to discover the sections around a crossing", failure);
+        }
     }
 
     public static boolean switchedTo(ClientLevel level) {
@@ -124,8 +195,7 @@ public final class ClientWorldLoader {
 
     public static void worldRendererReloaded(LevelExtractor extractor) {
         Minecraft minecraft = Minecraft.getInstance();
-        if (reloadingOtherWorldRenderers || switchedLevel != null || extractor != minecraft.levelExtractor
-            || mainLevel == null) {
+        if (reloadingOtherWorldRenderers || switchedLevel != null || extractor != minecraft.levelExtractor || mainLevel == null) {
             return;
         }
         reloadingOtherWorldRenderers = true;
@@ -163,6 +233,7 @@ public final class ClientWorldLoader {
         WORLD_RENDERER_MAP.clear();
         RENDER_HELPER_MAP.clear();
         mainLevel = null;
+        forceFullSectionDiscovery = false;
         FogRendererContext.clear();
         RuntimeException failure = null;
         for (Map.Entry<ClientLevel, WorldRenderer> entry : worlds) {
@@ -194,28 +265,11 @@ public final class ClientWorldLoader {
                 world.renderer.endFrame();
             }
         }
-        for (DimensionRenderHelper helper : RENDER_HELPER_MAP.values()) {
-            helper.endFrame();
-        }
     }
 
     static DimensionRenderHelper helper(ClientLevel level) {
         initializeIfNeeded();
         return RENDER_HELPER_MAP.computeIfAbsent(level, DimensionRenderHelper::create);
-    }
-
-    static WorldRenderer worldRenderer(ClientLevel level) {
-        initializeIfNeeded();
-        WorldRenderer world = WORLD_RENDERER_MAP.get(level);
-        if (world == null) {
-            world = createWorldRenderer(level);
-            WORLD_RENDERER_MAP.put(level, world);
-        }
-        return world;
-    }
-
-    static ClientLevel mainLevel() {
-        return mainLevel;
     }
 
     private static WorldRenderer createWorldRenderer(ClientLevel level) {
@@ -233,7 +287,6 @@ public final class ClientWorldLoader {
         ClientSodiumTerrain.forget(level);
         ((PreparedLevelAccess) level).wormholes$extractor(extractor);
         withWorldRenderer(level, world, () -> extractor.setLevel(level));
-        LOGGER.info("Created the level renderer for resident level {}", level.dimension().identifier());
         return world;
     }
 
@@ -275,24 +328,7 @@ public final class ClientWorldLoader {
         return failure;
     }
 
-    private static PortalWorldView nearest(List<PortalWorldView> views, ClientLevel level, Vec3d eye) {
-        PortalWorldView nearest = null;
-        double distance = Double.POSITIVE_INFINITY;
-        for (int index = 0; index < views.size(); index++) {
-            PortalWorldView view = views.get(index);
-            if (view.level() != level) {
-                continue;
-            }
-            double candidate = view.surface().point(view.geometry().apertureArea().center()).subtract(eye).lengthSquared();
-            if (candidate < distance) {
-                distance = candidate;
-                nearest = view;
-            }
-        }
-        return nearest;
-    }
-
-    static final class WorldRenderer {
+    public static final class WorldRenderer {
         private final LevelRenderer renderer;
         private final LevelExtractor extractor;
         private LevelRenderState state;
@@ -308,23 +344,23 @@ public final class ClientWorldLoader {
             this.height = height;
         }
 
-        LevelRenderer renderer() {
+        public LevelRenderer renderer() {
             return renderer;
         }
 
-        LevelExtractor extractor() {
+        public LevelExtractor extractor() {
             return extractor;
         }
 
-        LevelRenderState state() {
+        public LevelRenderState state() {
             return state;
         }
 
-        void rendered() {
+        public void rendered() {
             rendered = true;
         }
 
-        void attach(RenderTarget target) {
+        public void attach(RenderTarget target) {
             if (width != target.width || height != target.height) {
                 renderer.resize(target.width, target.height);
                 width = target.width;
@@ -340,6 +376,16 @@ public final class ClientWorldLoader {
             ((ClientWorldLevelRendererAccess) renderer).wormholes$levelRenderState(next);
             ((ClientWorldExtractorAccess) extractor).wormholes$levelRenderState(next);
             state = next;
+        }
+    }
+
+    private static final class Sodium {
+        private static boolean scheduleTerrainUpdate(LevelRenderer renderer) {
+            if (!(renderer instanceof LevelRendererExtension extension)) {
+                return false;
+            }
+            extension.sodium$getWorldRenderer().scheduleTerrainUpdate();
+            return true;
         }
     }
 }

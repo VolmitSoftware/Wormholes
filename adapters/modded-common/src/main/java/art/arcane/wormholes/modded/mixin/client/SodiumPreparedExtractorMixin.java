@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.mixin.client;
 
 import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
-import art.arcane.wormholes.modded.client.render.ClientWorldLoader;
+import art.arcane.wormholes.modded.client.world.ClientWorldLoader;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import net.minecraft.client.Minecraft;

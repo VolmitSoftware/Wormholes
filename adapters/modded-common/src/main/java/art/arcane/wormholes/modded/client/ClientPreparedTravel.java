@@ -8,7 +8,9 @@ import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.client.render.ClientTravelScene;
 import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
 import art.arcane.wormholes.modded.client.render.PortalIrisMainPipelines;
+import art.arcane.wormholes.modded.client.world.PreparedLevelExtractor;
 import art.arcane.wormholes.modded.clientview.MinecraftPortalEnvironment;
+import art.arcane.wormholes.modded.mixin.client.PreparedEntityAccess;
 import art.arcane.wormholes.modded.mixin.client.PreparedLevelAccess;
 import art.arcane.wormholes.modded.mixin.client.PreparedLevelDataAccess;
 import art.arcane.wormholes.modded.mixin.client.PreparedPacketAccess;
@@ -51,6 +53,7 @@ import net.minecraft.network.protocol.game.ClientboundForgetLevelChunkPacket;
 import net.minecraft.network.protocol.game.ClientboundLightUpdatePacketData;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.LightLayer;
@@ -242,7 +245,7 @@ public final class ClientPreparedTravel {
                 ClientTravelMotion.apply(player, destination);
                 carried.restore(player);
             } else {
-                ClientLevelSwitch.attachPlayer(staged, destination, carried);
+                attachPlayer(staged, destination, carried);
             }
             ClientPortalRenderer.instance().transitionTravel(true);
             arrival = null;
@@ -505,7 +508,7 @@ public final class ClientPreparedTravel {
     public boolean attachRespawnLevel(ClientLevel destination) {
         if (authoritativeDestination != null && destination == authoritativeDestination) {
             if (Minecraft.getInstance().level != destination) {
-                ClientLevelSwitch.attachLevel(destination, true);
+                attachLevel(destination, true);
             }
             return true;
         }
@@ -513,7 +516,7 @@ public final class ClientPreparedTravel {
             return false;
         }
         if (Minecraft.getInstance().level != destination) {
-            ClientLevelSwitch.attachLevel(destination, false);
+            attachLevel(destination, false);
         }
         return true;
     }
@@ -1768,7 +1771,7 @@ public final class ClientPreparedTravel {
                     ClientTravelMotion.apply(Minecraft.getInstance().player, previous.motion);
                     previous.carry.restore(Minecraft.getInstance().player);
                 } else {
-                    ClientLevelSwitch.attachPlayer(previous.source, previous.motion, previous.carry);
+                    attachPlayer(previous.source, previous.motion, previous.carry);
                 }
             }
         }
@@ -2111,6 +2114,39 @@ public final class ClientPreparedTravel {
         }
     }
 
+    private static void attachPlayer(ClientLevel destination, Pose pose, ClientTravelMotion.Carry carry) {
+        Minecraft minecraft = Minecraft.getInstance();
+        LocalPlayer player = minecraft.player;
+        if (minecraft.level != null) {
+            minecraft.level.removeEntity(player.getId(), Entity.RemovalReason.CHANGED_DIMENSION);
+        }
+        PreparedEntityAccess access = (PreparedEntityAccess) player;
+        access.wormholes$level(destination);
+        access.wormholes$restore();
+        ClientTravelMotion.apply(player, pose);
+        carry.restore(player);
+        ((PreparedLevelAccess) destination).wormholes$extractor(minecraft.levelExtractor);
+        attachLevel(destination, false);
+        destination.addEntity(player);
+        minecraft.setCameraEntity(player);
+    }
+
+    private static void attachLevel(ClientLevel destination, boolean authoritative) {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.level != null && minecraft.level != destination) {
+            ((PreparedLevelAccess) minecraft.level).wormholes$extractor(new PreparedLevelExtractor(minecraft));
+        }
+        try (ClientSodiumTerrain.Handoff ignored = authoritative
+            ? ClientSodiumTerrain.authoritativeHandoff(destination) : ClientSodiumTerrain.handoff(destination)) {
+            if (IRIS) {
+                IrisMain.attach(minecraft, destination, authoritative);
+            } else {
+                minecraft.setLevel(destination);
+            }
+        }
+        ((PreparedChunkColumns) destination.getChunkSource()).wormholes$announceColumns();
+    }
+
     static final class SodiumChunks {
         static void lightReady(ClientLevel level, int x, int z) {
             ChunkTrackerHolder.get(level).onChunkStatusAdded(x, z, ChunkStatus.FLAG_HAS_LIGHT_DATA);
@@ -2128,6 +2164,13 @@ public final class ClientPreparedTravel {
 
         private static void clearPending() {
             PortalIrisMainPipelines.clearPending();
+        }
+
+        private static void attach(Minecraft minecraft, ClientLevel level, boolean authoritative) {
+            try (PortalIrisMainPipelines.Handoff ignored = authoritative
+                ? PortalIrisMainPipelines.authoritativeHandoff(level) : PortalIrisMainPipelines.handoff(level)) {
+                minecraft.setLevel(level);
+            }
         }
     }
 

@@ -14,7 +14,7 @@ abstract class VerifyModdedArtifact extends DefaultTask {
     private static final Set<String> portalRenderMixins = ['client.PortalLevelRendererMixin', 'client.PortalProjectionMixin', 'client.PortalLightmapMixin',
                                      'client.MeshLevelExtractorMixin', 'client.MeshEntityRendererMixin', 'client.MeshFeatureWindingMixin',
                                      'client.EndPortalSurfaceMixin', 'client.MeshBlockModelLighterMixin', 'client.MeshFluidLightingMixin',
-                                     'client.PortalShaderGameRendererMixin',
+                                     'client.PortalShaderGameRendererMixin', 'client.IrisPortalMainMinecraftMixin',
                                      'client.PreparedSectionFadeMixin', 'client.PreparedLevelAccess',
                                      'client.PreparedLevelMetadataMixin', 'client.PreparedTravelPacketMixin',
                                      'client.PreparedTravelCameraMixin', 'client.SodiumPreparedRendererMixin',
@@ -26,7 +26,7 @@ abstract class VerifyModdedArtifact extends DefaultTask {
                                      'client.ClientWorldMinecraftAccess', 'client.ClientWorldMinecraftMixin',
                                      'client.ClientWorldLevelRendererAccess', 'client.ClientWorldExtractorAccess',
                                      'client.ClientWorldExtractorMixin', 'client.ClientWorldSkyAccess',
-                                     'client.ClientWorldCloudAccess'] as Set
+                                     'client.ClientWorldCloudAccess', 'client.ClientWorldOcclusionAccess'] as Set
 
     @InputFile
     @PathSensitive(PathSensitivity.NONE)
@@ -75,6 +75,7 @@ abstract class VerifyModdedArtifact extends DefaultTask {
                     for (String renderHook : renderHooks) {
                         if (constants.contains(renderHook) && (opticsClass
                             || !entry.name.startsWith('art/arcane/wormholes/modded/client/render/')
+                            && !entry.name.startsWith('art/arcane/wormholes/modded/client/world/')
                             && !(entry.name == 'art/arcane/wormholes/modded/client/ClientPreparedTravel.class'
                                 && renderHook == 'net/minecraft/client/renderer/LevelRenderer')
                             && !portalRenderMixins.any { String name -> entry.name == "art/arcane/wormholes/modded/mixin/${name.replace('.', '/')}.class" })) {

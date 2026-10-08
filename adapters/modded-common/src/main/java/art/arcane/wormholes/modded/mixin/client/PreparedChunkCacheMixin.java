@@ -1,6 +1,6 @@
 package art.arcane.wormholes.modded.mixin.client;
 
-import art.arcane.wormholes.modded.client.render.ClientWorldLoader;
+import art.arcane.wormholes.modded.client.world.ClientWorldLoader;
 import art.arcane.wormholes.modded.client.PreparedChunkColumns;
 import art.arcane.wormholes.modded.client.PreparedChunkStorage;
 import art.arcane.wormholes.modded.client.WormholesClient;

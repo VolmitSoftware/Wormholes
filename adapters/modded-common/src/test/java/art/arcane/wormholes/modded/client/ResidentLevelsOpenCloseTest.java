@@ -1,10 +1,10 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.optics.stream.EnvironmentState;
-import art.arcane.wormholes.modded.client.render.PreparedLevelExtractor;
+import art.arcane.wormholes.modded.client.world.PreparedLevelExtractor;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
-import art.arcane.wormholes.modded.client.render.ClientWorldLoader;
+import art.arcane.wormholes.modded.client.world.ClientWorldLoader;
 import art.arcane.wormholes.network.client.TravelMessage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientChunkCache;
