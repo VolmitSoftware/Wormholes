@@ -6,6 +6,7 @@ import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.math.Angles;
+import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.WormholesModRuntime;
@@ -53,7 +54,7 @@ final class SeamlessScenario {
     private static final int ACCEPT_TIMEOUT_TICKS = 100;
     private static final int SETTLE_TICKS = 60;
     static final int RETURN_VIEW_TICKS = 20;
-    static final int LOADED_RETURN_VIEW_TICKS = 100;
+    static final int LOADED_RETURN_VIEW_TICKS = 300;
     private static final double CROSSING_JUMP = 4.0D;
     private static final double POSE_TOLERANCE = 1.0E-3D;
     private static final int STEP_AWAY_TICKS = 8;
@@ -119,9 +120,14 @@ final class SeamlessScenario {
     }
 
     static void turnBack(SeamlessClient client, Route route) {
+        Exit exit = route.inbound().exit();
+        Vec3d portal = exit.sourceOrigin();
+        Vec3 arrived = client.computeOnClient(minecraft -> minecraft.player.position());
+        Face normal = exit.sourceView().getNormal();
+        double side = Math.signum((arrived.x - portal.x()) * normal.x() + (arrived.y - portal.y()) * normal.y() + (arrived.z - portal.z()) * normal.z());
+        client.lookAt(Angles.yaw(normal.x() * side, normal.z() * side), 0.0F);
         client.holdForwardFor(STEP_AWAY_TICKS);
         client.waitTicks(SETTLE_TICKS);
-        Vec3d portal = route.inbound().exit().sourceOrigin();
         Vec3 feet = client.computeOnClient(minecraft -> minecraft.player.position());
         client.lookAt((float) Math.toDegrees(Math.atan2(-(portal.x() - feet.x), portal.z() - feet.z)), 0.0F);
         client.waitTicks(SETTLE_TICKS);
