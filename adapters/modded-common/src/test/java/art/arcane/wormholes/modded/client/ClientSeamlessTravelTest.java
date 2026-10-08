@@ -84,6 +84,7 @@ public class ClientSeamlessTravelTest extends MinecraftTestBase {
             assertPosition(crossing.player, 101.0D, 99.0D);
             verify(crossing.player).setYRot(195.0F);
             assertSame(crossing.nether, crossing.scope.minecraft.level);
+            crossing.scope.worlds.verify(ClientWorldLoader::forceFullSectionDiscovery);
         }
     }
 
@@ -99,6 +100,7 @@ public class ClientSeamlessTravelTest extends MinecraftTestBase {
             verify(crossing.nether).removeEntity(42, Entity.RemovalReason.CHANGED_DIMENSION);
             verify(crossing.source).addEntity(crossing.player);
             verify((PreparedChunkColumns) crossing.source.getChunkSource()).wormholes$announceColumns();
+            crossing.scope.worlds.verify(ClientWorldLoader::forceFullSectionDiscovery);
         }
     }
 
@@ -120,6 +122,7 @@ public class ClientSeamlessTravelTest extends MinecraftTestBase {
             verify(crossing.nether).addEntity(crossing.player);
             assertPosition(crossing.player, SeamlessTravelFixtures.EXPECTED_ARRIVAL.x, SeamlessTravelFixtures.EXPECTED_ARRIVAL.z);
             verify(crossing.client).dropProjectedEntities(crossing.begin.sourceGeometry());
+            crossing.scope.worlds.verify(ClientWorldLoader::forceFullSectionDiscovery);
         }
     }
 
@@ -130,6 +133,7 @@ public class ClientSeamlessTravelTest extends MinecraftTestBase {
             crossing.travel.receive(SeamlessTravelFixtures.accept(0.0D, 0.0F));
             assertSame(crossing.source, crossing.scope.minecraft.level);
             assertTrue(crossing.scope.sent.contains(new TravelMessage.RemoteLevelReopen(3)));
+            crossing.scope.worlds.verify(ClientWorldLoader::forceFullSectionDiscovery, never());
         }
     }
 

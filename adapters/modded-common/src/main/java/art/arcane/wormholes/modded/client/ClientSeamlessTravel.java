@@ -16,6 +16,7 @@ import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
 import art.arcane.wormholes.modded.client.render.PortalIrisMainPipelines;
+import art.arcane.wormholes.modded.client.world.ClientWorldLoader;
 import art.arcane.wormholes.modded.MinecraftScaleAccess;
 import art.arcane.wormholes.modded.clientview.MinecraftPortalEnvironment;
 import art.arcane.wormholes.modded.seamless.StraddleTracker;
@@ -326,6 +327,7 @@ public final class ClientSeamlessTravel {
                 ClientTravelMotion.apply(player, after);
                 carried.restore(player);
             }
+            ClientWorldLoader.forceFullSectionDiscovery();
         } catch (RuntimeException failure) {
             LOGGER.warn("Unable to predict seamless portal crossing", failure);
             TRAVELLER_SCALE.set(player, scaleBefore);
@@ -387,6 +389,7 @@ public final class ClientSeamlessTravel {
             authoritative.pitch(), crossing.after().yaw(), crossing.after().pitch());
         ClientTravelMotion.apply(player, ClientTravelMotion.turned(ClientTravelMotion.reconcile(current, offset, crossing.after().velocity(),
             accept.velocity()), Angles.unwrap(authoritative.yaw() - crossing.after().yaw(), 0.0F), authoritative.pitch() - crossing.after().pitch()));
+        ClientWorldLoader.forceFullSectionDiscovery();
     }
 
     private static boolean lookMatches(TravelMessage.TravelPose authoritative, Pose predicted) {
@@ -427,6 +430,7 @@ public final class ClientSeamlessTravel {
             ClientTravelMotion.apply(player, placed);
             carried.restore(player);
         }
+        ClientWorldLoader.forceFullSectionDiscovery();
         previousEye = null;
         LOGGER.info("Crossing seamless {} -> {} by the server{}", arm == null ? source.dimension().identifier() : arm.sourceWorld(),
             target.dimension().identifier(), accept.dimensionChanged() ? " (resident " + accept.levelHandle() + ")" : "");
@@ -480,6 +484,7 @@ public final class ClientSeamlessTravel {
             ClientTravelMotion.apply(player, from.before());
             from.carry().restore(player);
         }
+        ClientWorldLoader.forceFullSectionDiscovery();
     }
 
     private void straddle(Minecraft minecraft, LocalPlayer player) {
