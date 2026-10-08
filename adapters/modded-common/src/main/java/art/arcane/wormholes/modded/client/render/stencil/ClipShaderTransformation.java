@@ -2,7 +2,7 @@
  * Derived from Immersive Portals (https://github.com/iPortalTeam/ImmersivePortalsMod),
  * Copyright 2020 qouteall, licensed under the Apache License, Version 2.0.
  * Modified for Wormholes: ShaderCodeTransformation rewritten for 26.x GLSL, carrying the clip plane in the Projection
- * uniform block and writing gl_ClipDistance after each vertex shader's own main.
+ * uniform block or Sodium's globals block and writing gl_ClipDistance after each vertex shader's own main.
  */
 package art.arcane.wormholes.modded.client.render.stencil;
 
@@ -15,6 +15,7 @@ public final class ClipShaderTransformation {
     public static final String CLIP_PLANE = "WormholesClipPlane";
     public static final String CLIP_PLANE_DEFINE = "WORMHOLES_CLIP_PLANE";
     public static final String PROJECTION_INCLUDE = "#include <minecraft:projection.glsl>";
+    public static final String SODIUM_GLOBALS_INCLUDE = "#include <sodium:globals.glsl>";
     private static final Pattern PROJECTION_MATRIX = Pattern.compile("uniform\\s+Projection\\s*\\{[^}]*?mat4\\s+ProjMat\\s*;");
     private static final Pattern MAIN = Pattern.compile("\\bvoid\\s+main\\s*\\(\\s*(?:void)?\\s*\\)");
     private static final Set<String> UNCLIPPED = Set.of("minecraft:core/sky", "minecraft:core/stars", "minecraft:core/panorama");
@@ -46,12 +47,13 @@ public final class ClipShaderTransformation {
         if (matcher.find()) {
             return Optional.empty();
         }
-        String distance = clipped(id, source) ? "dot(gl_Position, " + CLIP_PLANE + ")" : "1.0";
+        String distance = clipped(id, source) ? "#ifdef " + CLIP_PLANE_DEFINE + "\n    gl_ClipDistance[0] = dot(gl_Position, " + CLIP_PLANE
+            + ");\n#else\n    gl_ClipDistance[0] = 1.0;\n#endif\n" : "    gl_ClipDistance[0] = 1.0;\n";
         return Optional.of(source.substring(0, start) + RENAMED_MAIN + source.substring(end)
-            + "\nvoid main() {\n    wormholes_main();\n    gl_ClipDistance[0] = " + distance + ";\n}\n");
+            + "\nvoid main() {\n    wormholes_main();\n" + distance + "}\n");
     }
 
     private static boolean clipped(String id, String source) {
-        return source.contains(PROJECTION_INCLUDE) && !UNCLIPPED.contains(id);
+        return (source.contains(PROJECTION_INCLUDE) || source.contains(SODIUM_GLOBALS_INCLUDE)) && !UNCLIPPED.contains(id);
     }
 }

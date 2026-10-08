@@ -1,6 +1,7 @@
 package art.arcane.wormholes.modded.client.render.stencil;
 
 import art.arcane.wormholes.modded.client.render.PortalShaderScope;
+import art.arcane.wormholes.modded.client.render.sodium.SodiumTerrainBackend;
 
 public final class PortalBackends {
     private static final boolean SODIUM = PortalBackends.class.getClassLoader()
@@ -9,8 +10,12 @@ public final class PortalBackends {
     private PortalBackends() {
     }
 
+    public static boolean sodium() {
+        return SODIUM;
+    }
+
     public static TerrainBackend terrain() {
-        return SODIUM ? null : VanillaTerrainBackend.INSTANCE;
+        return SODIUM ? SodiumTerrainBackend.INSTANCE : VanillaTerrainBackend.INSTANCE;
     }
 
     public static PipelineBackend pipeline() {
@@ -18,17 +23,15 @@ public final class PortalBackends {
     }
 
     public static boolean stencilBuffer() {
-        return PortalClipShaders.openGl() && terrain() != null;
+        return PortalClipShaders.openGl();
     }
 
     public static boolean available() {
-        TerrainBackend terrain = terrain();
-        return terrain != null && terrain.clipsTerrain() && pipeline() != null && PortalClipShaders.ready();
+        return terrain().clipsTerrain() && pipeline() != null && PortalClipShaders.ready();
     }
 
     public static String describe() {
-        TerrainBackend terrain = terrain();
         PipelineBackend pipeline = pipeline();
-        return (terrain == null ? "none" : terrain.name()) + "/" + (pipeline == null ? "none" : pipeline.name());
+        return terrain().name() + "/" + (pipeline == null ? "none" : pipeline.name());
     }
 }

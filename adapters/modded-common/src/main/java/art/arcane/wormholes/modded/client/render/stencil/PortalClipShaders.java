@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client.render.stencil;
 
+import art.arcane.wormholes.modded.client.render.sodium.SodiumClipShaders;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.logging.LogUtils;
 import com.mojang.renderpearl.api.device.GpuDevice;
@@ -25,6 +26,7 @@ public final class PortalClipShaders {
     }
 
     public static void beginLoad(ResourceManager manager) {
+        SodiumClipShaders.reset();
         loading = openGl() && transformable(manager);
     }
 
@@ -48,10 +50,13 @@ public final class PortalClipShaders {
     }
 
     public static String include(Identifier location, String contents) {
-        if (!loading || !PROJECTION.equals(location)) {
+        if (!loading) {
             return contents;
         }
-        return ClipShaderTransformation.projection(contents).orElse(contents);
+        if (SodiumClipShaders.GLOBALS.equals(location)) {
+            return SodiumClipShaders.include(contents);
+        }
+        return PROJECTION.equals(location) ? ClipShaderTransformation.projection(contents).orElse(contents) : contents;
     }
 
     public static String shader(Identifier location, ShaderType type, String contents) {

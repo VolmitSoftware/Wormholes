@@ -7,6 +7,7 @@
 package art.arcane.wormholes.modded.client.world;
 
 import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
+import art.arcane.wormholes.modded.client.render.sodium.SodiumSectionDiscovery;
 import art.arcane.wormholes.modded.mixin.client.ClientWorldCloudAccess;
 import art.arcane.wormholes.modded.mixin.client.ClientWorldExtractorAccess;
 import art.arcane.wormholes.modded.mixin.client.ClientWorldGameRendererAccess;
@@ -18,7 +19,6 @@ import art.arcane.wormholes.modded.mixin.client.ClientWorldSkyAccess;
 import art.arcane.wormholes.modded.mixin.client.PreparedLevelAccess;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.logging.LogUtils;
-import net.caffeinemc.mods.sodium.client.world.LevelRendererExtension;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.LevelRenderer;
@@ -169,7 +169,8 @@ public final class ClientWorldLoader {
             return;
         }
         forceFullSectionDiscovery = false;
-        if (SODIUM && Sodium.scheduleTerrainUpdate(minecraft.levelRenderer)) {
+        if (SODIUM) {
+            SodiumSectionDiscovery.request(minecraft.levelRenderer);
             return;
         }
         LevelRenderer renderer = minecraft.levelRenderer;
@@ -398,16 +399,6 @@ public final class ClientWorldLoader {
             ((ClientWorldLevelRendererAccess) renderer).wormholes$levelRenderState(next);
             ((ClientWorldExtractorAccess) extractor).wormholes$levelRenderState(next);
             state = next;
-        }
-    }
-
-    private static final class Sodium {
-        private static boolean scheduleTerrainUpdate(LevelRenderer renderer) {
-            if (!(renderer instanceof LevelRendererExtension extension)) {
-                return false;
-            }
-            extension.sodium$getWorldRenderer().scheduleTerrainUpdate();
-            return true;
         }
     }
 }

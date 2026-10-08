@@ -16,7 +16,7 @@ abstract class VerifyModdedArtifact extends DefaultTask {
                                      'client.EndPortalSurfaceMixin', 'client.MeshBlockModelLighterMixin', 'client.MeshFluidLightingMixin',
                                      'client.PortalShaderGameRendererMixin', 'client.IrisPortalMainMinecraftMixin',
                                      'client.PreparedLevelAccess', 'client.PreparedLevelMetadataMixin',
-                                     'client.CrossingCameraMixin', 'client.SodiumPreparedRendererMixin',
+                                     'client.CrossingCameraMixin', 'client.SodiumPortalUniformsMixin', 'client.SodiumPreparedRendererMixin',
                                      'client.SodiumPreparedExtractorMixin', 'client.IrisPortalHandAccess',
                                      'client.IrisPortalHandBuffersAccess', 'client.IrisPortalHandFrameAccess',
                                      'client.LocalMeshChunkMixin', 'client.StraddleOverlayMixin',

@@ -53,6 +53,32 @@ public class ClipShaderTransformationTest {
     }
 
     @Test
+    public void clippedShadersOnlyUseThePlaneWhenTheirIncludeDefinesIt() {
+        String source = ClipShaderTransformation.vertex("minecraft:core/terrain", TERRAIN).orElseThrow();
+        int guard = source.indexOf("#ifdef " + ClipShaderTransformation.CLIP_PLANE_DEFINE);
+        int clipped = source.indexOf("gl_ClipDistance[0] = dot(gl_Position, " + ClipShaderTransformation.CLIP_PLANE + ");");
+        int fallback = source.indexOf("#else");
+        assertTrue(guard >= 0 && guard < clipped && clipped < fallback);
+        assertTrue(source.indexOf("gl_ClipDistance[0] = 1.0;", fallback) > fallback);
+        assertTrue(source.indexOf("#endif", fallback) > fallback);
+    }
+
+    @Test
+    public void sodiumTerrainIsClippedThroughItsGlobalsInclude() {
+        String sodium = """
+            #version 330
+            #extension GL_ARB_separate_shader_objects : require
+            #include <sodium:globals.glsl>
+            void main() {
+                gl_Position = u_ProjectionMatrix * u_ModelViewMatrix * vec4(0.0, 0.0, 0.0, 1.0);
+            }
+            """;
+        String source = ClipShaderTransformation.vertex("sodium:blocks/block_layer_opaque", sodium).orElseThrow();
+        assertTrue(source.contains("gl_ClipDistance[0] = dot(gl_Position, " + ClipShaderTransformation.CLIP_PLANE + ");"));
+        assertTrue(source.contains("void wormholes_main()"));
+    }
+
+    @Test
     public void skyAndShadersWithoutTheProjectionIncludeAreNeverClipped() {
         assertTrue(ClipShaderTransformation.vertex("minecraft:core/sky", TERRAIN).orElseThrow().contains("gl_ClipDistance[0] = 1.0;"));
         String screen = "#version 330\nvoid main(void) {\n    gl_Position = vec4(0.0);\n}\n";

@@ -8,7 +8,7 @@ Wormholes includes source code derived from the following third-party project.
 - Copyright 2020 qouteall
 - License: Apache License, Version 2.0 (reproduced below)
 
-The Wormholes modded client ports Immersive Portals' per-dimension client world state: a level renderer, light map, environment attribute probe and fog context kept for every client level, and switching the client into another level in place without a respawn. It also ports the view-bobbing reduction near portals, the cross-portal view for a camera that is already through a portal, and portal rendering: the destination level drawn by its own level renderer under a stencil mask, the clip plane injected into the world's shaders, visible section discovery for the portal camera and cross-portal entity rendering. The code was adapted to Minecraft 26.3 and modified for Wormholes. Each derived file carries a header that names Immersive Portals and states that it was modified.
+The Wormholes modded client ports Immersive Portals' per-dimension client world state: a level renderer, light map, environment attribute probe and fog context kept for every client level, and switching the client into another level in place without a respawn. It also ports the view-bobbing reduction near portals, the cross-portal view for a camera that is already through a portal, and portal rendering: the destination level drawn by its own level renderer under a stencil mask, the clip plane injected into the world's shaders, visible section discovery for the portal camera and cross-portal entity rendering, and the Sodium terrain path: per-layer render lists and draw batches on each level's Sodium renderer, the clip plane in Sodium's terrain shader and frustum, and a synchronous section rebuild after a crossing. The code was adapted to Minecraft 26.3 and modified for Wormholes. Each derived file carries a header that names Immersive Portals and states that it was modified.
 
 Derived files (paths relative to `adapters/modded-common/src/main/java/art/arcane/wormholes/modded/`):
 
@@ -26,8 +26,15 @@ Derived files (paths relative to `adapters/modded-common/src/main/java/art/arcan
 - `client/render/stencil/PortalWorldRenderer.java` (from `render/MyGameRenderer`)
 - `client/render/stencil/StencilLayers.java` (portal layer stack, from `render/context_management/PortalRendering`)
 - `client/render/stencil/VanillaTerrainBackend.java` (from `render/VisibleSectionDiscovery`)
+- `client/render/sodium/LayerContextStack.java` (from `compat/sodium_compatibility/SodiumInterface` and `SodiumRenderingContext`)
+- `client/render/sodium/PortalClipFrustum.java` (from `render/FrustumCuller` and `compat/mixin/sodium/MixinSodiumViewport`)
+- `client/render/sodium/SodiumClipShaders.java` (from `compat/mixin/sodium/MixinSodiumShaderLoader` and `MixinSodiumDefaultShaderInterface`)
+- `client/render/sodium/SodiumLayerTerrain.java` (from `compat/sodium_compatibility/SodiumInterface` and `compat/mixin/sodium/MixinSodiumRenderSectionManager`)
+- `client/render/sodium/SodiumRegionLayers.java` (from `compat/mixin/sodium/MixinSodiumRenderRegion`)
+- `client/render/sodium/SodiumSectionDiscovery.java` (from `render/ForceMainThreadRebuild` and `compat/mixin/sodium/MixinSodiumFlawlessFrames`)
 - `client/world/StaticFieldsSwappingManager.java` (from `render/context_management/StaticFieldsSwappingManager`)
 - `mixin/client/CrossingCameraMixin.java` (view-bobbing translation scaling, from `mixin/client/render/MixinGameRenderer`)
+- `mixin/client/SodiumPortalRegionMixin.java` (from `compat/mixin/sodium/MixinSodiumRenderRegion`)
 
 ## Apache License, Version 2.0
 
