@@ -38,18 +38,6 @@ class NetworkManagerListenPortFallbackTest {
         }
     }
 
-    private static int freeBasePort() throws IOException {
-        for (int port = 20_000; port <= 65_000; port += 97) {
-            try (ServerSocket probe = new ServerSocket()) {
-                probe.setReuseAddress(false);
-                probe.bind(new InetSocketAddress("0.0.0.0", port));
-                return port;
-            } catch (IOException ignored) {
-            }
-        }
-        throw new IOException("could not find a free base port with fallback-range headroom under 65535");
-    }
-
     @Test
     void fallbackWindowStopsAtMaximumTcpPort() {
         assertEquals(65_535, PeerListener.fallbackUpperPort(65_530));
@@ -58,11 +46,8 @@ class NetworkManagerListenPortFallbackTest {
 
     @Test
     void listenPortAutoFallsBackOverRange() throws IOException {
-        int basePort = freeBasePort();
-
-        blocker = new ServerSocket();
-        blocker.setReuseAddress(false);
-        blocker.bind(new InetSocketAddress("0.0.0.0", basePort));
+        blocker = reserveContiguousPorts(1)[0];
+        int basePort = blocker.getLocalPort();
 
         NetworkConfig config = new NetworkConfig();
         config.enabled = true;
