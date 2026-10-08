@@ -6,7 +6,6 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.optics.crossing.Pose;
-import art.arcane.wormholes.modded.client.render.PortalShaderWarmup;
 import art.arcane.wormholes.modded.client.world.ClientWorldLoader;
 import art.arcane.wormholes.modded.mixin.client.ParticleEngineAccess;
 import art.arcane.wormholes.modded.mixin.client.PreparedEntityAccess;
@@ -35,7 +34,6 @@ final class ClientLevelSwitch {
         access.wormholes$restore();
         ClientTravelMotion.apply(player, pose);
         carry.restore(player);
-        PortalShaderWarmup.shared().hold();
         minecraft.level = destination;
         ClientWorldLoader.changeLevel(destination, player.getEyePosition());
         residents.particles().swap((ParticleEngineAccess) minecraft.particleEngine, destination);

@@ -14,7 +14,7 @@ abstract class VerifyModdedArtifact extends DefaultTask {
     private static final Set<String> portalRenderMixins = ['client.PortalLevelRendererMixin', 'client.PortalProjectionMixin', 'client.PortalLightmapMixin',
                                      'client.MeshLevelExtractorMixin', 'client.MeshEntityRendererMixin', 'client.MeshFeatureWindingMixin',
                                      'client.EndPortalSurfaceMixin', 'client.MeshBlockModelLighterMixin', 'client.MeshFluidLightingMixin',
-                                     'client.PortalShaderGameRendererMixin', 'client.IrisPortalMainMinecraftMixin',
+                                     'client.PortalShaderGameRendererMixin',
                                      'client.PreparedLevelAccess', 'client.PreparedLevelMetadataMixin',
                                      'client.CrossingCameraMixin', 'client.SodiumPortalUniformsMixin',
                                      'client.LocalMeshChunkMixin', 'client.StraddleOverlayMixin',

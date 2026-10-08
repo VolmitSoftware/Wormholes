@@ -2,20 +2,16 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.optics.crossing.Pose;
 import art.arcane.optics.math.Vec3d;
-import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.mixin.client.ParticleEngineAccess;
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.client.world.ClientWorldLoader;
-import art.arcane.wormholes.modded.client.render.PortalIrisMainPipelines;
-import art.arcane.wormholes.modded.clientview.MinecraftPortalEnvironment;
 import art.arcane.wormholes.modded.mixin.client.PreparedPacketAccess;
 import art.arcane.wormholes.network.client.TravelMessage;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -32,14 +28,12 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -137,32 +131,8 @@ public class ClientSeamlessTravelTest extends MinecraftTestBase {
     }
 
     @Test
-    public void armedResidentRoutesKeepWarmingOneReturnViewOfTheCurrentLevel() throws ReflectiveOperationException {
-        try (Crossing crossing = new Crossing(false);
-             MockedStatic<MinecraftPortalEnvironment> environments = mockStatic(MinecraftPortalEnvironment.class)) {
-            EnvironmentState environment = ResidentTestFixtures.environment(ResidentTestFixtures.OVERWORLD);
-            environments.when(() -> MinecraftPortalEnvironment.capture(any(), any(), any(), anyBoolean())).thenReturn(environment);
-            when(crossing.player.getEyePosition()).thenReturn(new Vec3(100.5D, 65.62D, 99.0D));
-            when(crossing.player.getBoundingBox()).thenReturn(new AABB(100.2D, 64.0D, 98.7D, 100.8D, 65.8D, 99.3D));
-            crossing.travel.tick();
-            crossing.travel.tick();
-            environments.verify(() -> MinecraftPortalEnvironment.capture(any(), any(), any(), anyBoolean()), times(1));
-            verify(crossing.renderer, times(2)).prepareTravelSourceEnvironment(environment);
-            crossing.travel.receive(new TravelMessage.TravelCancel(SeamlessTravelFixtures.TOKEN, SeamlessTravelFixtures.GENERATION));
-            crossing.travel.tick();
-            verify(crossing.renderer).retireTravelSource();
-        }
-    }
-
-    @Test
-    public void preparationReportsWhatTheArmedDestinationStillNeeds() throws ReflectiveOperationException {
+    public void preparationReportsOnlyAMissingArmedDestinationLevel() throws ReflectiveOperationException {
         try (Crossing crossing = new Crossing(false)) {
-            crossing.shaders.when(() -> PortalIrisMainPipelines.ready(crossing.nether)).thenReturn(false);
-            assertEquals("destination shaders", crossing.travel.unprepared());
-            crossing.shaders.when(() -> PortalIrisMainPipelines.ready(crossing.nether)).thenReturn(true);
-            when(crossing.renderer.travelSourceShaderReady()).thenReturn(false);
-            assertEquals("return view shaders", crossing.travel.unprepared());
-            when(crossing.renderer.travelSourceShaderReady()).thenReturn(true);
             assertNull(crossing.travel.unprepared());
             crossing.travel.receive(new TravelMessage.TravelCancel(SeamlessTravelFixtures.TOKEN, SeamlessTravelFixtures.GENERATION));
             assertEquals("no armed destination", crossing.travel.unprepared());
@@ -184,7 +154,6 @@ public class ClientSeamlessTravelTest extends MinecraftTestBase {
         final ClientSeamlessTravel travel = new ClientSeamlessTravel(scope.sent::add, residents);
         final TravelMessage.TravelBegin begin = SeamlessTravelFixtures.begin(true);
         final LocalPlayer player = SeamlessTravelFixtures.player();
-        final MockedStatic<PortalIrisMainPipelines> shaders = mockStatic(PortalIrisMainPipelines.class);
         final WormholesClient client = mock(WormholesClient.class);
         final MockedStatic<WormholesClient> clients = mockStatic(WormholesClient.class);
         final MockedStatic<ClientPortalRenderer> renderers = mockStatic(ClientPortalRenderer.class);
@@ -230,13 +199,12 @@ public class ClientSeamlessTravelTest extends MinecraftTestBase {
             Constructor<?> constructor = type.getDeclaredConstructors()[0];
             constructor.setAccessible(true);
             return constructor.newInstance(begin, from, to, before, carry, SeamlessTravelFixtures.DESTINATION, SeamlessTravelFixtures.EXPECTED_ARRIVAL,
-                System.currentTimeMillis() + 60_000L, null, 1.0D);
+                System.currentTimeMillis() + 60_000L, 1.0D);
         }
 
         @Override
         public void close() {
             renderers.close();
-            shaders.close();
             clients.close();
             scope.close();
         }

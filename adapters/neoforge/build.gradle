@@ -32,11 +32,6 @@ java {
 
 List<String> sharedClientTestClasses = [
     'art.arcane.wormholes.modded.client.NativeLightNotificationTest',
-    'art.arcane.wormholes.modded.client.render.PortalIrisProgramLoadingTest',
-    'art.arcane.wormholes.modded.client.render.PortalIrisShaderLoadingTest',
-    'art.arcane.wormholes.modded.client.render.PortalIrisTerrainTest',
-    'art.arcane.wormholes.modded.client.render.PortalIrisMainPipelinesTest',
-    'art.arcane.wormholes.modded.client.render.PortalIrisDepthTargetTest',
     'art.arcane.wormholes.modded.client.ClientSeamlessTravelTest',
     'art.arcane.wormholes.modded.client.ClientTravelCrossingDeclineTest',
     'art.arcane.wormholes.modded.client.ClientSeamlessTravelScaleTest',

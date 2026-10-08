@@ -7,17 +7,12 @@ import art.arcane.optics.aperture.SizeRatio;
 import art.arcane.optics.crossing.Pose;
 import art.arcane.optics.crossing.ScaleRule;
 import art.arcane.optics.frame.Frame;
-import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.math.Angles;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Vec3d;
-import art.arcane.optics.stream.EnvironmentState;
-import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
-import art.arcane.wormholes.modded.client.render.PortalIrisMainPipelines;
 import art.arcane.wormholes.modded.client.world.ClientWorldLoader;
 import art.arcane.wormholes.modded.MinecraftScaleAccess;
-import art.arcane.wormholes.modded.clientview.MinecraftPortalEnvironment;
 import art.arcane.wormholes.modded.seamless.StraddleTracker;
 import art.arcane.wormholes.network.client.TravelMessage;
 import art.arcane.wormholes.transit.TravellerScale;
@@ -45,7 +40,6 @@ import java.util.function.Consumer;
 
 public final class ClientSeamlessTravel {
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
-    private static final boolean IRIS = ClientSeamlessTravel.class.getClassLoader().getResource("net/irisshaders/iris/Iris.class") != null;
     private static final long ACCEPT_TIMEOUT_MILLIS = 2_000L;
     private static final int MAX_CROSSINGS_PER_FRAME = 3;
     private static final double CHECKPOINT_NUDGE = 0.001D;
@@ -62,8 +56,6 @@ public final class ClientSeamlessTravel {
     private final ClientEntityCrossings entities = new ClientEntityCrossings();
     private final ClientCameraRoll cameraRoll = new ClientCameraRoll();
     private final ClientCrossingView view;
-    private ClientLevel warmedSource;
-    private EnvironmentState warmedEnvironment;
     private Vec3 previousEye;
     private UUID declined;
     private StraddleTracker.Straddle returning;
@@ -191,11 +183,9 @@ public final class ClientSeamlessTravel {
                 straddling = false;
                 StraddleTracker.clear(player);
             }
-            retireReturnView();
             return;
         }
         straddle(minecraft, player);
-        warm(minecraft, player);
     }
 
     public void serverPosition() {
@@ -210,7 +200,6 @@ public final class ClientSeamlessTravel {
         arms.clear();
         pending.clear();
         entities.clear();
-        retireReturnView();
         view.clear();
         residents.clear();
         previousEye = null;
@@ -324,7 +313,6 @@ public final class ClientSeamlessTravel {
         }
         Similarity toward = arm.sourceToDestination();
         Vec3 expected = ClientTravelMotion.point(toward, feet);
-        String preparing = target == source ? null : preparing(target);
         ClientTravelMotion.Carry carry = ClientTravelMotion.carry(player);
         double scaleBefore = TRAVELLER_SCALE.factor(player);
         try {
@@ -349,7 +337,7 @@ public final class ClientSeamlessTravel {
         }
         long now = System.currentTimeMillis();
         cameraRoll.start(ClientTravelMotion.roll(arm, before, crossingFeet), rollSeconds(), now);
-        pending.addLast(new Crossing(arm, source, target, before, carry, after, expected, now + ACCEPT_TIMEOUT_MILLIS, preparing, scaleBefore));
+        pending.addLast(new Crossing(arm, source, target, before, carry, after, expected, now + ACCEPT_TIMEOUT_MILLIS, scaleBefore));
         residents.crossing(pending.peekFirst().source() == pending.peekFirst().target() ? null : pending.peekFirst().source());
         declined = null;
         returning = StraddleTracker.create(destinationEndpoint(arm), sourceEndpoint(arm, arm.sourceGeometry().aperture()), source,
@@ -374,9 +362,8 @@ public final class ClientSeamlessTravel {
 
     private void confirmed(Crossing crossing, TravelMessage.TravelAccept accept) {
         TravelMessage.TravelBegin arm = crossing.arm();
-        LOGGER.info("Crossing seamless {} -> {}{}{}", arm.sourceWorld(), arm.world().dimension(),
-            accept.dimensionChanged() ? " (resident " + accept.levelHandle() + ")" : "",
-            crossing.preparing() == null ? "" : ", still preparing " + crossing.preparing());
+        LOGGER.info("Crossing seamless {} -> {}{}", arm.sourceWorld(), arm.world().dimension(),
+            accept.dimensionChanged() ? " (resident " + accept.levelHandle() + ")" : "");
         Crossing next = pending.peekFirst();
         residents.crossing(next == null || next.source() == next.target() ? null : next.source());
         if (crossing.source() != crossing.target()) {
@@ -534,17 +521,7 @@ public final class ClientSeamlessTravel {
             return "no armed destination";
         }
         ClientLevel level = residents.level(nearest.levelHandle());
-        return level == null ? "destination level" : preparing(level);
-    }
-
-    private static String preparing(ClientLevel level) {
-        if (IRIS && !PortalIrisMainPipelines.ready(level)) {
-            return "destination shaders";
-        }
-        if (IRIS && !ClientPortalRenderer.instance().travelSourceShaderReady()) {
-            return "return view shaders";
-        }
-        return null;
+        return level == null ? "destination level" : null;
     }
 
     private TravelMessage.TravelBegin nearestResident(ClientLevel current, LocalPlayer player) {
@@ -562,41 +539,6 @@ public final class ClientSeamlessTravel {
             }
         }
         return nearest;
-    }
-
-    private void warm(Minecraft minecraft, LocalPlayer player) {
-        if (!IRIS) {
-            return;
-        }
-        TravelMessage.TravelBegin nearest = nearestResident(minecraft.level, player);
-        ClientLevel level = nearest == null ? null : residents.level(nearest.levelHandle());
-        if (level == null) {
-            return;
-        }
-        try {
-            warmReturnView(minecraft.level, player);
-            PortalIrisMainPipelines.prepare(level);
-        } catch (RuntimeException failure) {
-            LOGGER.warn("Unable to prepare the {} shaders behind portal {}", level.dimension().identifier(), nearest.sourcePortal(), failure);
-        }
-    }
-
-    private void warmReturnView(ClientLevel level, LocalPlayer player) {
-        if (warmedSource != level) {
-            Vec3 eye = player.getEyePosition();
-            warmedEnvironment = MinecraftPortalEnvironment.capture(level, new Vec3d(eye.x, eye.y, eye.z), OpticTransform.IDENTITY,
-                ((ClientTravelWorld) level).wormholes$travelWorld().flat());
-            warmedSource = level;
-        }
-        ClientPortalRenderer.instance().prepareTravelSourceEnvironment(warmedEnvironment);
-    }
-
-    private void retireReturnView() {
-        if (warmedSource != null) {
-            warmedSource = null;
-            warmedEnvironment = null;
-            ClientPortalRenderer.instance().retireTravelSource();
-        }
     }
 
     private TravelMessage.TravelBegin arm(UUID token, long generation) {
@@ -645,6 +587,6 @@ public final class ClientSeamlessTravel {
     }
 
     private record Crossing(TravelMessage.TravelBegin arm, ClientLevel source, ClientLevel target, Pose before, ClientTravelMotion.Carry carry,
-                            Pose after, Vec3 expected, long deadline, String preparing, double scaleBefore) {
+                            Pose after, Vec3 expected, long deadline, double scaleBefore) {
     }
 }
