@@ -1416,6 +1416,15 @@ membrane = ["&6&lKalvo: {state}&r", "&7Vain etupuoli päästää matkaajat sisä
 bounce = ["&6&lKimmoke: {state}&r", "&7Heijasta matkaajat takaisin sen sijaan että siirtäisit heidät.", "&eVasen klikkaus vaihtaa"]
 profile = ["&6&lSiirtymätehosteet&r", "&7Kynnys {mode}", "&7Saapuminen {state}", "&eVasen klikkaus: kynnystehoste, Oikea klikkaus: saapumisääni", "&eVaihto + vasen klikkaus: maskin tikit"]
 prompt = "&bKirjoita uusi arvo chattiin (tai '{cancel}'):"
+scale = ["&6&lMatkaajan koko: {mode}&r", "&7Kokoalue {value}. Sovittaa matkan erikokoisten porttien välillä.", "&eVasen napsautus vaihtaa tilaa", "&eOikea napsautus: minimi, Vaihto + oikea napsautus: maksimi"]
+
+[transit.scale]
+current = "&8[&6Wormholes&8] &f{portal}&7 matkaajan koko: &f{mode}&7 ({value})"
+set = "&8[&6Wormholes&8] &f{portal}&a matkaajan koko asetettu: &f{mode}&a ({value})."
+invalid = "&8[&6Wormholes&8] &cMatkaajan kokoa ei voitu lukea: {reason}"
+reset = "&8[&6Wormholes&8] &aPalautettiin {count} olion normaali koko."
+reset_radius = "&8[&6Wormholes&8] &ctarget=all tarvitsee säteen väliltä 1-{value}."
+reset_player = "&8[&6Wormholes&8] &cPelaajaa {name} ei ole paikalla."
 # ---- end lane:transit ----
 
 # ---- lane:view (fidelity.*) ----
@@ -1528,6 +1537,15 @@ portals = "Listaa, tarkastele ja muokkaa portaaleja joukolla"
 "portals.shape" = "Nayta tai aseta portaalin aukon muoto"
 "portals.shape.portal" = "Portaalin nimi tai tunnus"
 "portals.shape.shape" = "Muototeksti, esimerkiksi circle, flower(petals=7) tai full; tyhja nayttaa nykyisen muodon"
+"portals.scale" = "Nayta tai aseta portin matkaajan kokosaanto"
+"portals.scale.portal" = "Portin nimi tai id"
+"portals.scale.mode" = "off, motion tai ratio; ilman arvoja nayttaa nykyisen saannon"
+"portals.scale.min" = "Pienin kokokerroin, johon ratio-ylitys voi paasta (0.0625-16)"
+"portals.scale.max" = "Suurin kokokerroin, johon ratio-ylitys voi paasta (0.0625-16)"
+"scale" = "Palauta porttien muuttamien matkaajien normaali koko"
+"scale.reset" = "Poista porttikoko pelaajalta tai kaikilta lahella olevilta olioilta"
+"scale.reset.target" = "self, pelaajan nimi tai all"
+"scale.reset.radius" = "Hakusade kuutioina, kun target=all (1-256)"
 # ---- end lane:ops ----
 
 # ---- lane:clientview (clientview.*) ----

@@ -177,14 +177,18 @@ final class BukkitClientViewScene implements EntityScenes<ClientViewObserver>, C
         }
         OpticTransform transform = source.transformFrame().transform().normalized();
         if (source.destinationView() instanceof RemoteWorldView remote) {
-            return remote.environment(transform);
+            return scaled(remote.environment(transform), source.viewScale());
         }
         if (source.destinationWorld() == null) {
             return null;
         }
         Vec3d destinationEye = transform.inverse().point(new Vec3d(eye.getX(), eye.getY(), eye.getZ()));
-        return environments.capture(new BukkitEnvironmentCapture.Request(observer.id(), parent, portalId, source.destinationWorld(),
-            destinationEye, transform, tick));
+        return scaled(environments.capture(new BukkitEnvironmentCapture.Request(observer.id(), parent, portalId, source.destinationWorld(),
+            destinationEye, transform, tick)), source.viewScale());
+    }
+
+    private static EnvironmentState scaled(EnvironmentState environment, float scale) {
+        return environment == null || scale == 1.0F ? environment : environment.withScale(scale);
     }
 
     private static ViewWindow frame(ClientViewObserver observer, ClientViewPortalSource source) {

@@ -1416,6 +1416,15 @@ membrane = ["&6&lMembrana: {state}&r", "&7Tylko przód wpuszcza podróżnych; ty
 bounce = ["&6&lOdbicie: {state}&r", "&7Odbijaj podróżnych zamiast ich przenosić.", "&eLewy przycisk przełącza"]
 profile = ["&6&lEfekty przejścia&r", "&7Próg {mode}", "&7Przybycie {state}", "&eLewy przycisk: efekt progu, Prawy przycisk: dźwięk przybycia", "&eShift + lewy: tiki maski"]
 prompt = "&bWpisz nową wartość na czacie (lub '{cancel}'):"
+scale = ["&6&lSkala podróżnika: {mode}&r", "&7Zakres rozmiaru {value}. Dopasowuje podróż między portalami różnej wielkości.", "&eLewy przycisk zmienia tryb", "&ePrawy przycisk: minimum, Shift + prawy przycisk: maksimum"]
+
+[transit.scale]
+current = "&8[&6Wormholes&8] &f{portal}&7 skala podróżnika: &f{mode}&7 ({value})"
+set = "&8[&6Wormholes&8] &f{portal}&a skala podróżnika ustawiona na &f{mode}&a ({value})."
+invalid = "&8[&6Wormholes&8] &cNie można odczytać skali podróżnika: {reason}"
+reset = "&8[&6Wormholes&8] &aPrzywrócono normalny rozmiar {count} istot."
+reset_radius = "&8[&6Wormholes&8] &ctarget=all wymaga promienia od 1 do {value}."
+reset_player = "&8[&6Wormholes&8] &cBrak gracza online o nazwie {name}."
 # ---- end lane:transit ----
 
 # ---- lane:view (fidelity.*) ----
@@ -1528,6 +1537,15 @@ portals = "Wypisuj, sprawdzaj i masowo edytuj portale"
 "portals.shape" = "Pokaz lub ustaw ksztalt otworu portalu"
 "portals.shape.portal" = "Nazwa lub identyfikator portalu"
 "portals.shape.shape" = "Tekst ksztaltu, np. circle, flower(petals=7) lub full; puste pokazuje biezacy ksztalt"
+"portals.scale" = "Pokaz lub ustaw regule skali podroznika portalu"
+"portals.scale.portal" = "Nazwa lub id portalu"
+"portals.scale.mode" = "off, motion lub ratio; bez wartosci pokazuje biezaca regule"
+"portals.scale.min" = "Najmniejszy wspolczynnik rozmiaru, jaki moze osiagnac przejscie ratio (0.0625-16)"
+"portals.scale.max" = "Najwiekszy wspolczynnik rozmiaru, jaki moze osiagnac przejscie ratio (0.0625-16)"
+"scale" = "Przywroc normalny rozmiar podroznikow przeskalowanych przez portale"
+"scale.reset" = "Usun skale portalu z gracza lub ze wszystkich pobliskich istot"
+"scale.reset.target" = "self, nazwa gracza lub all"
+"scale.reset.radius" = "Promien wyszukiwania w blokach przy target=all (1-256)"
 # ---- end lane:ops ----
 
 # ---- lane:clientview (clientview.*) ----

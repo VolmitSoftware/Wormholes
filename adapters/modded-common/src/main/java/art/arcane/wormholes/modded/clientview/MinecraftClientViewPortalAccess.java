@@ -7,6 +7,7 @@ import art.arcane.wormholes.config.toml.RenderConfig;
 import art.arcane.wormholes.door.view.DoorApertureFrames;
 import art.arcane.optics.view.WorldChangeTracker;
 import art.arcane.wormholes.modded.MinecraftPortal;
+import art.arcane.wormholes.modded.MinecraftPortalRegistry;
 import art.arcane.wormholes.modded.MinecraftProjectionService;
 import art.arcane.wormholes.modded.MinecraftProjectionWorldView;
 import art.arcane.wormholes.modded.MinecraftProjectorBlocks;
@@ -79,6 +80,13 @@ public final class MinecraftClientViewPortalAccess implements ViewStreamEndpoint
         id = context == null ? id : context.portal();
         MinecraftPortal portal = runtime.portals().get(id);
         return portal == null ? peer.door(id) : portal;
+    }
+
+    float viewScale(MinecraftClientViewPeer peer, UUID portalId) {
+        MinecraftPortal source = portal(peer, portalId);
+        MinecraftProjectorPortalAccess access = peer.portals();
+        MinecraftPortal destination = source == null || source.isMirrorMode() || access == null ? null : access.projectionDestination(source);
+        return destination == null ? 1.0F : (float) (1.0D / MinecraftPortalRegistry.travelScale(source, destination));
     }
 
     private List<MinecraftPortal> candidates(MinecraftClientViewPeer peer) {

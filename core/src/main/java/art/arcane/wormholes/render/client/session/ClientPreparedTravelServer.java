@@ -2,6 +2,7 @@ package art.arcane.wormholes.render.client.session;
 
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.crossing.ScaleRule;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.wormholes.network.client.ClientTravelHash;
 import art.arcane.optics.view.WorldChangeListener;
@@ -28,6 +29,7 @@ public final class ClientPreparedTravelServer implements WorldChangeListener, Au
     private static final long PROBE_INTERVAL_MILLIS = 1_000L / ViewStreamLimits.DEFAULT_TICK_RATE;
     private static final long PROBE_TIMEOUT_MILLIS = 1_000L;
     private static final long CROSSING_TIMEOUT_MILLIS = 2_000L;
+    private static final double MAX_EYE_HEIGHT = 4.0D * ScaleRule.ATTRIBUTE_MAX;
     private final HashMap<TravelMessage.TravelCoordinate, Column> columns = new HashMap<>();
     private final LinkedHashMap<SnapshotKey, Payload> retained = new LinkedHashMap<>(16, 0.75F, true);
     private int retainedBytes;
@@ -351,7 +353,7 @@ public final class ClientPreparedTravelServer implements WorldChangeListener, Au
         Vec3d feet = new Vec3d(value.sourcePose().x(), value.sourcePose().y(), value.sourcePose().z());
         Vec3d observed = new Vec3d(authority.pose().x(), authority.pose().y(), authority.pose().z());
         double speed = authority.velocity().distance(new Vec3d(0, 0, 0));
-        double tolerance = Math.clamp(0.75D + speed * 3.0D, 0.75D, 2.0D);
+        double tolerance = Math.clamp(0.75D + speed * 3.0D, 0.75D, 2.0D) * Math.max(1.0D, begin.scale());
         if (feet.distance(observed) > tolerance || value.previousEye().distance(value.currentEye()) > 4.0D
             || value.previousEye().distance(observed.add(new Vec3d(0, authority.eyeHeight(), 0))) > tolerance + 1.0D
             || value.currentEye().distance(feet.add(new Vec3d(0, authority.eyeHeight(), 0))) > 0.125D) {
@@ -532,7 +534,7 @@ public final class ClientPreparedTravelServer implements WorldChangeListener, Au
             Objects.requireNonNull(geometry);
             Objects.requireNonNull(pose);
             Objects.requireNonNull(velocity);
-            if (!Double.isFinite(eyeHeight) || eyeHeight <= 0.0D || eyeHeight > 4.0D
+            if (!Double.isFinite(eyeHeight) || eyeHeight <= 0.0D || eyeHeight > MAX_EYE_HEIGHT
                 || !Double.isFinite(velocity.x()) || !Double.isFinite(velocity.y()) || !Double.isFinite(velocity.z())) {
                 throw new IllegalArgumentException("Travel authority");
             }

@@ -16,6 +16,7 @@ import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.LocalPortal;
 import art.arcane.optics.crossing.PlaneCrossing;
+import art.arcane.optics.math.Angles;
 import art.arcane.wormholes.util.BukkitGeometry;
 import art.arcane.wormholes.door.view.DoorProjectionAdapter;
 import org.bukkit.event.player.PlayerTeleportEvent;
@@ -198,7 +199,7 @@ final class BukkitPreparedTravel implements AutoCloseable {
                 request.sourcePose().yaw(), request.sourcePose().pitch());
             PlaneCrossing actual = new PlaneCrossing(source.getFrame().view(front), source.getOrigin(), admittedFeet, velocity,
                 BukkitGeometry.vector(admitted.getDirection()), front);
-            allowed = source instanceof LocalPortal local ? local.crossPrepared(player, actual)
+            allowed = source instanceof LocalPortal local ? local.crossPrepared(player, actual, new Angles.Look(request.sourcePose().yaw(), request.sourcePose().pitch()))
                 : source instanceof DoorProjectionAdapter && Wormholes.dimensionalDoorManager != null
                     && Wormholes.dimensionalDoorManager.crossPrepared(player, source.getId(), actual);
         }
@@ -302,7 +303,7 @@ final class BukkitPreparedTravel implements AutoCloseable {
             EnvironmentState environment = authoritativeEnvironment(BukkitPortalEnvironment.capture(preparation.world, eye,
                 OpticTransform.IDENTITY), metadata);
             preparation.begin = new TravelMessage.TravelBegin(UUID.randomUUID(), preparation.generation, preparation.source,
-                preparation.sourceWorld, preparation.sourceGeometry, preparation.destinationToSource, new TravelMessage.TravelWorld(metadata.dimension(), metadata.dimensionType(), metadata.seed(),
+                preparation.sourceWorld, preparation.sourceGeometry, preparation.destinationToSource, 1.0F, new TravelMessage.TravelWorld(metadata.dimension(), metadata.dimensionType(), metadata.seed(),
                     metadata.debug(), metadata.flat(), metadata.seaLevel(), metadata.minY(), metadata.height()), preparation.arrival,
                 preparation.coordinates, environment, TravelMessage.MAX_TRAVEL_EXPIRY_MILLIS, TravelMessage.ArrivalRules.FRAME, false, 0, false);
         } catch (RuntimeException failure) {
@@ -402,7 +403,7 @@ final class BukkitPreparedTravel implements AutoCloseable {
         return new EnvironmentState(metadata.gameTime(), environment.sky(), environment.fog(), environment.lighting(),
             environment.clouds(), environment.transform(), environment.dimension(), new EnvironmentState.World(metadata.dimension(),
                 metadata.clockTime(), world.biomeKey(), metadata.seaLevel(), world.blockLight(), world.skyLight(), world.logicalHeight(),
-                world.hasCeiling(), world.ambientLight(), world.eyeMedium(), world.hasFixedTime()));
+                world.hasCeiling(), world.ambientLight(), world.eyeMedium(), world.hasFixedTime()), 1.0F);
     }
 
     private record Snapshot(TravelMessage.TravelCoordinate coordinate, int revision, ChunkPacketSnapshot packet, long stamp) {

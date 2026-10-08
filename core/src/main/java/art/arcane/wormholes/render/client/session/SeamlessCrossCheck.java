@@ -1,6 +1,7 @@
 package art.arcane.wormholes.render.client.session;
 
 import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.crossing.ScaleRule;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.network.client.TravelMessage;
 
@@ -15,6 +16,7 @@ public final class SeamlessCrossCheck {
     private static final double SPEED_SEGMENT = 2.0D;
     private static final double EYE_DRIFT = 0.125D;
     private static final double EYE_SLACK = 0.5D;
+    private static final double MAX_EYE_HEIGHT = 4.0D * ScaleRule.ATTRIBUTE_MAX;
 
     private SeamlessCrossCheck() {
     }
@@ -37,7 +39,7 @@ public final class SeamlessCrossCheck {
             return Refusal.CHANGED_SURFACE;
         }
         double speed = server.velocity().distance(new Vec3d(0, 0, 0));
-        double tolerance = Math.min(MAX_TOLERANCE, BASE_TOLERANCE + speed * SPEED_TOLERANCE);
+        double tolerance = Math.min(MAX_TOLERANCE, BASE_TOLERANCE + speed * SPEED_TOLERANCE) * Math.max(1.0D, arm.scale());
         TravelMessage.TravelPose claimed = cross.sourcePose();
         Vec3d feet = new Vec3d(claimed.x(), claimed.y(), claimed.z());
         Vec3d observed = new Vec3d(server.pose().x(), server.pose().y(), server.pose().z());
@@ -84,7 +86,7 @@ public final class SeamlessCrossCheck {
             Objects.requireNonNull(world, "world");
             Objects.requireNonNull(pose, "pose");
             Objects.requireNonNull(velocity, "velocity");
-            if (!Double.isFinite(eyeHeight) || eyeHeight <= 0.0D || eyeHeight > 4.0D || !Double.isFinite(velocity.x())
+            if (!Double.isFinite(eyeHeight) || eyeHeight <= 0.0D || eyeHeight > MAX_EYE_HEIGHT || !Double.isFinite(velocity.x())
                 || !Double.isFinite(velocity.y()) || !Double.isFinite(velocity.z())) {
                 throw new IllegalArgumentException("Seamless crossing authority");
             }

@@ -2,6 +2,7 @@ package art.arcane.wormholes.modded;
 
 import art.arcane.optics.crossing.MomentumRule;
 import art.arcane.optics.crossing.OrientationRule;
+import art.arcane.optics.crossing.ScaleRule;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.network.client.TravelMessage;
 import art.arcane.wormholes.transit.MomentumPolicy;
@@ -70,19 +71,20 @@ public class MinecraftPortalArrivalTest extends MinecraftTestBase {
 
     @Test
     public void arrivalRulesCarryThePortalOrientationAndTheEffectiveMomentumCeiling() {
-        TravelMessage.ArrivalRules look = MinecraftPortalRegistry.arrivalRules(OrientationPolicy.LOOK,
-            MomentumPolicy.of(MomentumPolicy.Mode.CLAMP), true, 4.0D);
+        TravelMessage.ArrivalRules look = TravelMessage.ArrivalRules.of(OrientationPolicy.LOOK,
+            MomentumPolicy.of(MomentumPolicy.Mode.CLAMP), true, 4.0D, ScaleRule.ratio(0.5D, 2.0D));
 
         assertEquals(OrientationRule.LOOK, look.orientation());
         assertTrue(look.gravityFlip());
         assertEquals(MomentumRule.Mode.CLAMP, look.momentum().mode());
         assertEquals(4.0D, look.momentum().maxSpeed(), 0.0D);
+        assertEquals(ScaleRule.ratio(0.5D, 2.0D), look.scale());
     }
 
     @Test
     public void portalMomentumCeilingOverridesTheConfiguredDefault() {
-        TravelMessage.ArrivalRules scaled = MinecraftPortalRegistry.arrivalRules(OrientationPolicy.SNAP,
-            new MomentumPolicy(MomentumPolicy.Mode.SCALE, 2.0D, 1.5D, new Vec3d(0, 0, 0)), false, 4.0D);
+        TravelMessage.ArrivalRules scaled = TravelMessage.ArrivalRules.of(OrientationPolicy.SNAP,
+            new MomentumPolicy(MomentumPolicy.Mode.SCALE, 2.0D, 1.5D, new Vec3d(0, 0, 0)), false, 4.0D, ScaleRule.OFF);
 
         assertEquals(OrientationRule.SNAP, scaled.orientation());
         assertFalse(scaled.gravityFlip());

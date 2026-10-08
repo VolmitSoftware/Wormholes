@@ -6,6 +6,7 @@ import java.util.function.Consumer;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 
+import art.arcane.optics.crossing.ScaleRule;
 import art.arcane.volmlib.util.data.MaterialBlock;
 import art.arcane.volmlib.util.inventorygui.UIElement;
 import art.arcane.volmlib.util.inventorygui.UIPaneDecorator;
@@ -55,6 +56,7 @@ public final class TransitMenu {
         window.setElement(0, 1, membraneElement(window, viewer, transit));
         window.setElement(1, 1, bounceElement(window, viewer, transit));
         window.setElement(2, 1, profileElement(window, viewer, transit));
+        window.setElement(3, 1, scaleElement(window, viewer, transit));
         window.setElement(0, 2, backElement(window, viewer));
         window.setVisible(true);
     }
@@ -170,6 +172,42 @@ public final class TransitMenu {
             MessageArgument.untrusted("mode", labelOrDefault(profile.thresholdEffect())),
             MessageArgument.untrusted("state", labelOrDefault(profile.arrivalSound())
                 + (profile.overridesMask() ? " / " + profile.maskOverrideTicks() + "t" : ""))));
+    }
+
+    private UIElement scaleElement(Window window, Player viewer, TransitPortalExtension transit) {
+        UIElement element = new UIElement("transit-scale");
+        element.setMaterial(new MaterialBlock(Material.SPYGLASS));
+        applyScale(element, transit);
+        element.onLeftClick(event -> {
+            ScaleRule current = transit.scaleRule();
+            transit.setScaleRule(ScaleRuleSettings.withMode(current, ScaleRuleSettings.next(current.mode())));
+            changed(transit);
+            applyScale(element, transit);
+            window.updateInventory();
+        });
+        element.onRightClick(event -> prompt(window, viewer, text -> {
+            Double bound = ScaleRuleSettings.bound(text);
+            if (bound != null) {
+                transit.setScaleRule(ScaleRuleSettings.withMin(transit.scaleRule(), bound.doubleValue()));
+                changed(transit);
+            }
+        }));
+        element.onShiftRightClick(event -> prompt(window, viewer, text -> {
+            Double bound = ScaleRuleSettings.bound(text);
+            if (bound != null) {
+                transit.setScaleRule(ScaleRuleSettings.withMax(transit.scaleRule(), bound.doubleValue()));
+                changed(transit);
+            }
+        }));
+        return element;
+    }
+
+    private void applyScale(UIElement element, TransitPortalExtension transit) {
+        ScaleRule rule = transit.scaleRule();
+        element.setEnchanted(!ScaleRuleSettings.isDefault(rule));
+        Wormholes.text().apply(element, TransitMessages.MENU_SCALE, args(
+            MessageArgument.untrusted("mode", ScaleRuleChange.mode(rule)),
+            MessageArgument.untrusted("value", ScaleRuleChange.range(rule))));
     }
 
     private UIElement backElement(Window window, Player viewer) {

@@ -3,11 +3,12 @@ package art.arcane.wormholes.modded.clientview;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.optics.crossing.Pose;
-import art.arcane.optics.crossing.PoseTransform;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftPortal;
+import art.arcane.wormholes.modded.MinecraftPortalRegistry;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.modded.mixin.SeamlessListenerAccess;
 import art.arcane.wormholes.modded.seamless.MinecraftSeamlessMove;
@@ -20,6 +21,7 @@ import art.arcane.wormholes.nexus.NetworkMember;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.render.client.session.ClientViewTravel;
 import art.arcane.wormholes.render.client.session.SeamlessCrossCheck;
+import art.arcane.wormholes.transit.ArrivalPose;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.PositionMoveRotation;
@@ -188,15 +190,11 @@ final class MinecraftSeamlessTravel {
 
     static TravelMessage.TravelPose pose(TravelMessage.TravelPose arrival, TravelMessage.TravelCross cross, PlaneCrossing crossing,
                                          TravelMessage.ArrivalRules rules, Frame destination, Vec3d destinationOrigin) {
-        OpticTransform toward = crossing.toward(destination, destinationOrigin);
         TravelMessage.TravelPose source = cross.sourcePose();
         Vec3d position = new Vec3d(source.x(), source.y(), source.z());
-        Pose crossed = PoseTransform.apply(new Pose(position, position, position, crossing.velocity(), source.yaw(), source.pitch(),
-            source.yaw(), source.pitch(), source.yaw(), source.yaw(), source.yaw(), source.yaw()), toward);
-        Frame view = crossing.frame();
-        Frame exit = new Frame(toward.face(view.getNormal()), toward.face(view.getRight()), toward.face(view.getUp())).view(crossing.frontSide());
-        Pose arrived = PoseTransform.arrive(crossed, crossing, exit, rules.orientation(), rules.gravityFlip(), rules.momentum(),
-            rules.momentum().maxSpeed());
+        Pose departed = new Pose(position, position, position, crossing.velocity(), source.yaw(), source.pitch(),
+            source.yaw(), source.pitch(), source.yaw(), source.yaw(), source.yaw(), source.yaw());
+        Pose arrived = ArrivalPose.arrive(departed, crossing, Similarity.of(crossing.toward(destination, destinationOrigin), 1.0D), destination, rules);
         return new TravelMessage.TravelPose(arrival.x(), arrival.y(), arrival.z(), arrived.yaw(), arrived.pitch());
     }
 
@@ -290,8 +288,10 @@ final class MinecraftSeamlessTravel {
         Vec3d eye = feet.add(new Vec3d(0, player.getEyeHeight(), 0));
         Vec3d anchor = destination.getOrigin();
         RouteWindow core = new RouteWindow((int) Math.floor(anchor.x()) >> 4, (int) Math.floor(anchor.z()) >> 4, coreRadius);
+        Similarity toward = MinecraftPortalRegistry.towardDestination(source, destination, front);
+        OpticTransform destinationToSource = toward.isRigid() ? mapped.frame().transform() : TravelMessage.TravelBegin.destinationToSource(toward);
         TravelMessage.TravelBegin begin = new TravelMessage.TravelBegin(UUID.randomUUID(), ++generation, source.getId(),
-            player.level().dimension().identifier().toString(), geometry, mapped.frame().transform(), metadata,
+            player.level().dimension().identifier().toString(), geometry, destinationToSource, (float) toward.scale(), metadata,
             new TravelMessage.TravelPose(feet.x(), feet.y(), feet.z(), player.getYRot(), player.getXRot()), core.coordinates(),
             MinecraftPortalEnvironment.capture(world, eye, OpticTransform.IDENTITY, world.isFlat()), TravelMessage.MAX_TRAVEL_EXPIRY_MILLIS,
             prepared.rules(peer, source), route.resident(), route.handle(), true);
@@ -392,7 +392,7 @@ final class MinecraftSeamlessTravel {
         Vec3 look = Vec3.directionFromRotation(request.sourcePose().pitch(), request.sourcePose().yaw());
         PlaneCrossing crossing = new PlaneCrossing(arm.source().getFrame().view(front), arm.source().getOrigin(),
             new Vec3d(request.sourcePose().x(), request.sourcePose().y(), request.sourcePose().z()), velocity, new Vec3d(look.x, look.y, look.z), front);
-        if (!residentArrival(route, player, crossing.outPoint(arm.destination().getFrame(), arm.destination().getOrigin()))) {
+        if (!residentArrival(route, player, MinecraftPortalRegistry.passage(arm.source(), arm.destination(), crossing).toward().point(crossing.point()))) {
             return new Refused(null, "arrival column not delivered");
         }
         return destinationMatches(peer, player, arm.source(), arm.destination(), crossing)

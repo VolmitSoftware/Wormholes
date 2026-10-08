@@ -14,6 +14,7 @@ import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.AxisPermutation;
+import art.arcane.optics.math.Angles;
 
 public class Traversive
 {
@@ -26,6 +27,7 @@ public class Traversive
 	private final Vector inLook;
 	private final boolean frontSide;
 	private final UUID sourcePortalId;
+	private final Angles.Look inRotation;
 
 	public Traversive(Object o, TraversableType type, Face inDirection, Vector inOrigin, Vector inPoint, Vector inVelocity, Vector inLook)
 	{
@@ -44,6 +46,11 @@ public class Traversive
 
 	public Traversive(Object o, TraversableType type, Frame inFrame, Vector inOrigin, Vector inPoint, Vector inVelocity, Vector inLook, boolean frontSide, UUID sourcePortalId)
 	{
+		this(o, type, inFrame, inOrigin, inPoint, inVelocity, inLook, frontSide, sourcePortalId, Angles.look(inLook.getX(), inLook.getY(), inLook.getZ()));
+	}
+
+	public Traversive(Object o, TraversableType type, Frame inFrame, Vector inOrigin, Vector inPoint, Vector inVelocity, Vector inLook, boolean frontSide, UUID sourcePortalId, Angles.Look inRotation)
+	{
 		this.object = o;
 		this.type = type;
 		this.inFrame = inFrame;
@@ -53,6 +60,7 @@ public class Traversive
 		this.inLook = inLook.clone();
 		this.frontSide = frontSide;
 		this.sourcePortalId = sourcePortalId;
+		this.inRotation = inRotation;
 	}
 
 	public Traversive(Entity entity, Face inDirection, Vector inOrigin, Vector inPoint, Vector inVelocity, Vector inLook)
@@ -96,7 +104,7 @@ public class Traversive
 	/** A copy of this crossing for another rig member at {@code memberPoint}, keeping frame, velocity, look, and source. */
 	public Traversive forMember(Object member, Vector memberPoint)
 	{
-		return new Traversive(member, TraversableType.ENTITY, inFrame, inOrigin, memberPoint, inVelocity, inLook, frontSide, sourcePortalId);
+		return new Traversive(member, TraversableType.ENTITY, inFrame, inOrigin, memberPoint, inVelocity, inLook, frontSide, sourcePortalId, inRotation);
 	}
 
     public PlaneCrossing crossing() {
@@ -153,6 +161,11 @@ public class Traversive
 	public Vector getInLook()
 	{
 		return inLook;
+	}
+
+	public Angles.Look getInRotation()
+	{
+		return inRotation;
 	}
 
 	public Vector getInOffset()

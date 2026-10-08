@@ -1,9 +1,9 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.optics.crossing.ArrivalMomentum;
-import art.arcane.optics.crossing.ArrivalOrientation;
-import art.arcane.optics.math.Angles;
-import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.aperture.SizeRatio;
+import art.arcane.optics.crossing.Pose;
+import art.arcane.optics.crossing.ScaleRule;
+import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.api.traversal.TraversalKind;
 import art.arcane.wormholes.api.traversal.TraversalRefundReason;
@@ -22,9 +22,10 @@ import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.wormholes.portal.PortalStateCodec;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.DimensionalPortalKind;
+import art.arcane.wormholes.transit.ArrivalPose;
 import art.arcane.wormholes.transit.MomentumPolicy;
 import art.arcane.wormholes.transit.OrientationPolicy;
-import art.arcane.optics.crossing.MomentumRule;
+import art.arcane.wormholes.transit.TravellerScale;
 import art.arcane.wormholes.modded.clientview.MinecraftClientViewService;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
@@ -71,6 +72,7 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
     private static final Gson JSON = new GsonBuilder().setPrettyPrinting().create();
     private static final TypeToken<Map<String, Object>> DOCUMENT = new TypeToken<>() { };
+    private static final TravellerScale<Entity> TRAVELLER_SCALE = new TravellerScale<>(MinecraftScaleAccess.scaleAttribute());
 
     private final WormholesModRuntime runtime;
     private final Options options;
@@ -428,18 +430,41 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
         }
         OrientationPolicy orientation = OrientationPolicy.parse((String) source.setting("transit.orientation"),
             OrientationPolicy.parse(config.orientationDefault, OrientationPolicy.FRAME));
-        return arrivalRules(orientation, momentum, config.gravityFlipEnabled, config.momentumMaxSpeed);
+        return TravelMessage.ArrivalRules.of(orientation, momentum, config.gravityFlipEnabled, config.momentumMaxSpeed, source.getScaleRule());
     }
 
     public TravelMessage.ArrivalRules doorArrivalRules() {
         TransitConfig config = runtime.configuration().settings().getTransit();
-        return arrivalRules(OrientationPolicy.FRAME, MomentumPolicy.of(MomentumPolicy.Mode.PRESERVE), false, config.momentumMaxSpeed);
+        return TravelMessage.ArrivalRules.of(OrientationPolicy.FRAME, MomentumPolicy.of(MomentumPolicy.Mode.PRESERVE), false, config.momentumMaxSpeed,
+            ScaleRule.OFF);
     }
 
-    static TravelMessage.ArrivalRules arrivalRules(OrientationPolicy orientation, MomentumPolicy momentum, boolean gravityFlip, double maxSpeed) {
-        MomentumRule rule = momentum.rule();
-        return new TravelMessage.ArrivalRules(orientation.rule(), gravityFlip,
-            new MomentumRule(rule.mode(), rule.factor(), rule.maxSpeed() > 0.0D ? rule.maxSpeed() : maxSpeed, rule.impulse()));
+    public static Passage passage(MinecraftPortal source, MinecraftPortal destination, PlaneCrossing crossing) {
+        ScaleRule rule = source.getScaleRule();
+        SizeRatio ratio = sizeRatio(source, destination, rule);
+        return new Passage(crossing.toward(destination.getFrame(), destination.getOrigin(), rule.travelScale(ratio)), rule, ratio);
+    }
+
+    public static Similarity towardDestination(MinecraftPortal source, MinecraftPortal destination, boolean front) {
+        return Similarity.between(source.getFrame().view(front), source.getOrigin(), destination.getFrame().view(front), destination.getOrigin(),
+            travelScale(source, destination));
+    }
+
+    public static double travelScale(MinecraftPortal source, MinecraftPortal destination) {
+        ScaleRule rule = source.getScaleRule();
+        return rule.travelScale(sizeRatio(source, destination, rule));
+    }
+
+    private static SizeRatio sizeRatio(MinecraftPortal source, MinecraftPortal destination, ScaleRule rule) {
+        if (rule.mode() == ScaleRule.Mode.OFF) {
+            return SizeRatio.UNIT;
+        }
+        Box sourceArea = source.getGeometry().getArea();
+        Box destinationArea = destination.getGeometry().getArea();
+        if (sourceArea == null || destinationArea == null) {
+            return SizeRatio.UNIT;
+        }
+        return SizeRatio.between(source.getFrame(), sourceArea, destination.getFrame(), destinationArea);
     }
 
     public boolean arrivalBlocks(ServerPlayer player, MinecraftPortal source) {
@@ -465,7 +490,7 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
             return false;
         }
         ServerLevel targetLevel = resolveLevel(destination);
-        Vec3d target = crossing.outPoint(destination.getFrame(), destination.getOrigin());
+        Vec3d target = passage(source, destination, crossing).toward().point(crossing.point());
         if (targetLevel == null || !targetLevel.noCollision(player, player.getBoundingBox().move(
             target.x() - player.getX(), target.y() - player.getY(), target.z() - player.getZ()))
             || !MinecraftTransit.depart(runtime, source, player, crossing)) {
@@ -616,7 +641,8 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
                 return;
             }
         }
-        Vec3d target = crossing.outPoint(destination.getFrame(), destination.getOrigin());
+        Passage passage = passage(source, destination, crossing);
+        Vec3d target = passage.toward().point(crossing.point());
         ChunkLease lease = runtime.leases().retain(targetLevel,
             UUID.nameUUIDFromBytes(destination.getWorldKey().getBytes(StandardCharsets.UTF_8)),
             target.blockX() >> 4, target.blockZ() >> 4);
@@ -624,7 +650,7 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
         TravelMessage.TravelBegin attempted = predicted ? runtime.clientViews().preparation(entity.getUUID()).orElse(null) : null;
         Departure departure = new Departure(lease, entity.level(), entity.position(), System.currentTimeMillis() + 30_000L);
         pending.put(entity.getUUID(), departure);
-        Flight flight = new Flight(entity, source, destination, crossing, targetLevel, target, departure, predicted, attempted);
+        Flight flight = new Flight(entity, source, destination, crossing, targetLevel, passage, target, departure, predicted, attempted);
         if (predicted && entity instanceof ServerPlayer player && entity.getPassengers().isEmpty() && runtime.clientViews().seamlessCrossing(player)
             && targetLevel.getChunkSource().getChunkNow(target.blockX() >> 4, target.blockZ() >> 4) != null) {
             land(flight, Boolean.TRUE, null);
@@ -653,7 +679,7 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
                     flight.target().x() - entity.getX(), flight.target().y() - entity.getY(), flight.target().z() - entity.getZ()))) {
                 return;
             }
-            arrive(entity, destination, flight.crossing(), flight.targetLevel(), flight.target(), source, flight.predicted());
+            arrive(entity, destination, flight.crossing(), flight.targetLevel(), flight.passage(), source, flight.predicted());
         } catch (RuntimeException exception) {
             LOGGER.error("Wormholes traversal failed from {} to {} for {}", source.getId(), destination.getId(), entity.getUUID(), exception);
         } finally {
@@ -707,11 +733,12 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
     }
 
     private void arrive(Entity entity, MinecraftPortal destination, PlaneCrossing crossing, ServerLevel targetLevel,
-                        Vec3d target, MinecraftPortal source, boolean predicted) {
+                        Passage passage, MinecraftPortal source, boolean predicted) {
         TransitConfig config = runtime.configuration().settings().getTransit();
         TravelMessage.ArrivalRules rules = arrivalRules(source);
-        Vec3d velocity = ArrivalMomentum.apply(crossing.outVelocity(destination.getFrame()), rules.momentum(), config.momentumMaxSpeed);
-        Angles.Look look = ArrivalOrientation.apply(crossing, destination.getFrame(), rules.orientation(), rules.gravityFlip());
+        Pose landed = ArrivalPose.arrive(MinecraftArrivalPose.departure(entity, crossing), crossing, passage.toward(), destination.getFrame(), rules);
+        Vec3d target = landed.position();
+        Vec3d velocity = landed.velocity();
         List<ChunkPreSendTicket<ServerLevel, ServerPlayer>> preSend = new ArrayList<>();
         List<MinecraftTravelCosts.Admission> payments = new ArrayList<>();
         List<PreparedCommit> preparedCommits = new ArrayList<>();
@@ -719,7 +746,8 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
         ServerLevel originLevel = (ServerLevel) entity.level();
         Entity arrived;
         List<Entity> rig = entity.getSelfAndPassengers().toList();
-        TravelMessage.TravelPose pose = new TravelMessage.TravelPose(target.x(), target.y(), target.z(), look.yaw(), look.pitch());
+        TravelMessage.TravelPose pose = new TravelMessage.TravelPose(target.x(), target.y(), target.z(), landed.yaw(), landed.pitch());
+        List<Double> departureScales = new ArrayList<>(rig.size());
         boolean seamlessCrossing = predicted && rig.size() == 1 && entity instanceof ServerPlayer traveler
             && runtime.clientViews().seamlessCrossing(traveler);
         MinecraftClientViewService.SeamlessTicket seamless = null;
@@ -735,7 +763,7 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
                     MinecraftTravelCosts.Admission payment = runtime.costs().open(new MinecraftTraversalContext(UUID.randomUUID(),
                         TraversalKind.LOCAL, player, source.getId(), source.getName(), MinecraftTraversalContext.Location.of(player),
                         Optional.of(new MinecraftTraversalContext.Destination("", destination.getId(),
-                            new MinecraftTraversalContext.Location(targetLevel, vector(target), look.yaw(), look.pitch())))));
+                            new MinecraftTraversalContext.Location(targetLevel, vector(target), landed.yaw(), landed.pitch())))));
                     if (!payment.allowed()) {
                         refund(payments);
                         rollback(preSend);
@@ -770,25 +798,29 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
                 }
             }
             if (!reloadExpected) {
-                announceCrossing(rig, crossing, crossing.toward(destination.getFrame(), destination.getOrigin()), velocity);
+                announceCrossing(rig, crossing, passage.toward(), velocity);
             }
+            grow(rig, rules.scale(), passage.ratio(), departureScales);
             try (WormholesModRuntime.TeleportScope scope = runtime.beginTeleport(entity)) {
                 arrived = seamless != null ? runtime.clientViews().seamlessMove(seamless)
-                    : entity.teleport(new TeleportTransition(targetLevel, vector(target), vector(velocity), look.yaw(), look.pitch(),
+                    : entity.teleport(new TeleportTransition(targetLevel, vector(target), vector(velocity), landed.yaw(), landed.pitch(),
                         TeleportTransition.PLACE_PORTAL_TICKET));
             }
         } catch (RuntimeException exception) {
+            restoreScales(rig, departureScales);
             cancelPrepared(preparedCommits);
             refund(payments);
             rollback(preSend);
             throw exception;
         }
         if (arrived == null) {
+            restoreScales(rig, departureScales);
             cancelPrepared(preparedCommits);
             refund(payments);
             rollback(preSend);
             return;
         }
+        MinecraftArrivalPose.apply(arrived, landed);
         if (arrived instanceof ServerPlayer player) {
             runtime.clientViews().crossed(player, originLevel, targetLevel, seamless != null, prepared(preparedCommits, player.getUUID()));
         }
@@ -838,15 +870,31 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
         return 0L;
     }
 
-    private void announceCrossing(List<Entity> rig, PlaneCrossing crossing, OpticTransform toward, Vec3d velocity) {
+    private void announceCrossing(List<Entity> rig, PlaneCrossing crossing, Similarity toward, Vec3d velocity) {
         for (Entity member : rig) {
             Vec3d position = vector(member.position());
-            if (toward.isTranslation()) {
+            if (toward.isRigid() && toward.rigid().isTranslation()) {
                 member.getInterpolation().applyPredictedMovement(vector(toward.point(position).subtract(position)));
             } else {
                 member.getInterpolation().interpolationTracker().clear();
             }
-            runtime.clientViews().entityCrossed(member, crossing, toward, velocity);
+            runtime.clientViews().entityCrossed(member, crossing, toward.rigid(), velocity);
+        }
+    }
+
+    private static void grow(List<Entity> rig, ScaleRule rule, SizeRatio ratio, List<Double> departureScales) {
+        if (!rule.changesEntity()) {
+            return;
+        }
+        for (Entity member : rig) {
+            departureScales.add(TRAVELLER_SCALE.factor(member));
+            TRAVELLER_SCALE.cross(member, rule, ratio);
+        }
+    }
+
+    private static void restoreScales(List<Entity> rig, List<Double> departureScales) {
+        for (int index = 0; index < departureScales.size(); index++) {
+            TRAVELLER_SCALE.set(rig.get(index), departureScales.get(index));
         }
     }
 
@@ -932,7 +980,10 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
     }
 
     private record Flight(Entity entity, MinecraftPortal source, MinecraftPortal destination, PlaneCrossing crossing, ServerLevel targetLevel,
-                          Vec3d target, Departure departure, boolean predicted, TravelMessage.TravelBegin attempted) {
+                          Passage passage, Vec3d target, Departure departure, boolean predicted, TravelMessage.TravelBegin attempted) {
+    }
+
+    public record Passage(Similarity toward, ScaleRule rule, SizeRatio ratio) {
     }
 
     static final class Arrival {

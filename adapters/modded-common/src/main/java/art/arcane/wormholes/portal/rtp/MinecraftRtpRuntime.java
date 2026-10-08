@@ -1,13 +1,15 @@
 package art.arcane.wormholes.portal.rtp;
 
-import art.arcane.optics.crossing.ArrivalMomentum;
-import art.arcane.optics.crossing.ArrivalOrientation;
+import art.arcane.optics.crossing.Pose;
+import art.arcane.optics.crossing.ScaleRule;
+import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.math.Angles;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.api.traversal.TraversalKind;
 import art.arcane.wormholes.api.traversal.TraversalRefundReason;
 import art.arcane.wormholes.chunk.presend.ChunkPreSendTicket;
 import art.arcane.wormholes.config.toml.TransitConfig;
+import art.arcane.wormholes.modded.MinecraftArrivalPose;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.MinecraftMenuText;
 import art.arcane.wormholes.localization.WormholesMessages;
@@ -26,6 +28,8 @@ import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.wormholes.portal.PortalStateCodec;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.render.FidelitySettings;
+import art.arcane.wormholes.network.client.TravelMessage;
+import art.arcane.wormholes.transit.ArrivalPose;
 import art.arcane.wormholes.transit.MomentumPolicy;
 import art.arcane.wormholes.transit.OrientationPolicy;
 import net.minecraft.server.MinecraftServer;
@@ -440,8 +444,12 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
             }
             OrientationPolicy orientation = OrientationPolicy.parse((String) active.portal.setting("transit.orientation"),
                 OrientationPolicy.parse(config.orientationDefault, OrientationPolicy.FRAME));
-            Vec3d velocity = ArrivalMomentum.apply(active.crossing.outVelocity(frame), momentum.rule(), config.momentumMaxSpeed);
-            Angles.Look look = ArrivalOrientation.apply(active.crossing, frame, orientation.rule(), config.gravityFlipEnabled);
+            TravelMessage.ArrivalRules rules = TravelMessage.ArrivalRules.of(orientation, momentum, config.gravityFlipEnabled, config.momentumMaxSpeed,
+                ScaleRule.OFF);
+            Pose landed = ArrivalPose.arrive(MinecraftArrivalPose.departure(active.entity, active.crossing), active.crossing,
+                Similarity.of(active.crossing.toward(frame, new Vec3d(target.x, target.y, target.z)), 1.0D), frame, rules);
+            Vec3d velocity = landed.velocity();
+            Angles.Look look = new Angles.Look(landed.yaw(), landed.pitch());
             for (Entity member : active.entity.getSelfAndPassengers().toList()) {
                 if (member instanceof ServerPlayer player) {
                     MinecraftTravelCosts.Admission cost = runtime.costs().open(new MinecraftTraversalContext(UUID.randomUUID(), TraversalKind.RANDOM_TELEPORT,
@@ -469,6 +477,7 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
                 cancel(active, TraversalRefundReason.TELEPORT_FAILED, true, "teleport rejected");
                 return;
             }
+            MinecraftArrivalPose.apply(arrived, landed);
             active.finished = true;
             traversals.remove(active.entity.getUUID(), active);
             active.payments.forEach(MinecraftTravelCosts.Admission::commit);

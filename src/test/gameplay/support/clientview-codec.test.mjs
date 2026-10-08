@@ -91,7 +91,7 @@ function portalGeometry(nested, shape) {
   }
 }
 
-function fixtureEnvironment(dimensionKey, transform) {
+function fixtureEnvironment(dimensionKey, transform, scale = 1) {
   const color = { red: 0.125, green: 0.5, blue: 1.25 }
   const alpha = { red: 0.75, green: 0.5, blue: 0.25, alpha: 0.5 }
   return {
@@ -101,6 +101,7 @@ function fixtureEnvironment(dimensionKey, transform) {
     lighting: { blockTint: color, skyFactor: 0.75, skyColor: color, ambient: color },
     clouds: { color: alpha, height: 192 },
     transform,
+    scale,
     dimension: { minY: -64, height: 384, hasSkyLight: true, cardinalLighting: 'DEFAULT', horizonHeight: 63, endFlashes: false },
     world: { dimensionKey, clockTime: 72000n, biomeKey: 'minecraft:plains', seaLevel: 63, blockLight: 7, skyLight: 15, logicalHeight: 256, hasCeiling: true,
       ambientLight: f32(0.1), eyeMedium: 'WATER', hasFixedTime: true }
@@ -289,7 +290,7 @@ describe('ClientView golden vectors', () => {
     assert.deepEqual(decodeVector(vector('entity_hurt')), { type: 'ENTITY_EVENT', portalKey: 7, eventSeq: 4, entityId: TEST_UUID, hurt: true, animation: 0, yaw: 179.5 })
     assert.deepEqual(decodeVector(vector('entity_self')), { type: 'ENTITY_SELF', projectedId: TEST_UUID })
     assert.deepEqual(decodeVector(vector('environment')), { type: 'ENVIRONMENT', portalKey: 7,
-      environment: fixtureEnvironment('test:destination', { permutation: 44, translation: { x: -128.5, y: 96, z: 33.25 } }) })
+      environment: fixtureEnvironment('test:destination', { permutation: 44, translation: { x: -128.5, y: 96, z: 33.25 } }, 0.5) })
   })
 
   it('decodes the mesh view messages', () => {
@@ -305,15 +306,19 @@ describe('ClientView golden vectors', () => {
     const begin = decodeVector(vector('travel_begin'))
     assert.deepEqual(begin, {
       type: 'TRAVEL_BEGIN', token: TEST_UUID, generation: 3n, sourcePortal: '00000000-0000-0038-0000-00000000004e', sourceWorld: 'minecraft:the_nether',
-      sourceGeometry: portalGeometry([], FULL_SHAPE), destinationToSource: begin.destinationToSource, world: TRAVEL_WORLD, arrival: TRAVEL_ARRIVAL,
+      sourceGeometry: portalGeometry([], FULL_SHAPE), destinationToSource: begin.destinationToSource, scale: 1, world: TRAVEL_WORLD, arrival: TRAVEL_ARRIVAL,
       chunks: [{ x: -32, z: -10 }], environment: fixtureEnvironment('minecraft:overworld', IDENTITY_TRANSFORM), expiresMillis: 30000,
-      rules: { orientation: 'FRAME', gravityFlip: false, momentum: begin.rules.momentum }, resident: false, levelHandle: 0, seamless: false
+      rules: { orientation: 'FRAME', gravityFlip: false, momentum: begin.rules.momentum, scale: { mode: 'OFF', min: 0.0625, max: 16 } },
+      resident: false, levelHandle: 0, seamless: false
     })
     assert.deepEqual(begin.destinationToSource.translation, { x: 4, y: 0, z: 6 })
     const seamless = decodeVector(vector('travel_begin_seamless'))
     assert.deepEqual([seamless.resident, seamless.levelHandle, seamless.seamless], [true, 4, true])
     assert.deepEqual(seamless.sourceGeometry, portalGeometry([], CIRCLE_SHAPE))
-    assert.deepEqual(seamless.rules, { orientation: 'LOOK', gravityFlip: true, momentum: { mode: 'SCALE', factor: 0.75, maxSpeed: 3.5, impulse: { x: 0, y: 0.25, z: 0 } } })
+    assert.deepEqual(seamless.rules, { orientation: 'LOOK', gravityFlip: true, momentum: { mode: 'SCALE', factor: 0.75, maxSpeed: 3.5, impulse: { x: 0, y: 0.25, z: 0 } },
+      scale: { mode: 'RATIO', min: 0.25, max: 4 } })
+    assert.equal(seamless.scale, 3)
+    assert.equal(seamless.environment.scale, f32(1 / 3))
     assert.deepEqual(decodeVector(vector('travel_chunk')), { type: 'TRAVEL_CHUNK', token: TEST_UUID, generation: 3n, chunkX: -32, chunkZ: -10, revision: 2,
       fragmentIndex: 0, fragmentCount: 1, totalBytes: 4, payload: Buffer.from([1, 2, 3, 4]) })
     assert.deepEqual(decodeVector(vector('travel_end')), { type: 'TRAVEL_END', token: TEST_UUID, generation: 3n, contentRevision: 9n, chunks: [{ x: -32, z: -10, revision: 2 }] })

@@ -66,6 +66,19 @@ public class PortalEnvironmentTest {
     }
 
     @Test
+    public void scaledViewsKeepTheDestinationFogBecauseTheirContentIsDrawnInDestinationUnits() {
+        CameraRenderState camera = new CameraRenderState();
+        FogData full = PortalEnvironment.fog(environment(identity()), camera, 13, 12);
+        FogData scaled = PortalEnvironment.fog(environment(identity()).withScale(1.0f / 3.0f), camera, 13, 12);
+        assertEquals(full.environmentalStart, scaled.environmentalStart, 0);
+        assertEquals(full.environmentalEnd, scaled.environmentalEnd, 0);
+        assertEquals(full.renderDistanceStart, scaled.renderDistanceStart, 0);
+        assertEquals(full.renderDistanceEnd, scaled.renderDistanceEnd, 0);
+        assertEquals(full.skyEnd, scaled.skyEnd, 0);
+        assertEquals(full.cloudEnd, scaled.cloudEnd, 0);
+    }
+
+    @Test
     public void skyDirectionUsesTheSameSignedAxesAsDestinationGeometry() {
         OpticTransform transform = OpticTransform.of(AxisPermutation.of(Face.U, Face.E, Face.S), 100, 200, 300);
         Vector3f mapped = PortalProjection.rotation(transform).transformDirection(new Vector3f(2, 3, 4));
@@ -88,6 +101,6 @@ public class PortalEnvironmentTest {
                 new EnvironmentState.Color(0, 0, 0)),
             new EnvironmentState.Clouds(new EnvironmentState.ColorAlpha(1, 1, 1, 1), 192), transform,
             new EnvironmentState.Dimension(-64, 384, true, EnvironmentState.CardinalLighting.DEFAULT, 63, false),
-            new EnvironmentState.World("minecraft:overworld", 6000, "minecraft:plains", 63, 7, 15, 256, true, 0.1F, EnvironmentState.EyeMedium.NONE, false));
+            new EnvironmentState.World("minecraft:overworld", 6000, "minecraft:plains", 63, 7, 15, 256, true, 0.1F, EnvironmentState.EyeMedium.NONE, false), 1.0F);
     }
 }

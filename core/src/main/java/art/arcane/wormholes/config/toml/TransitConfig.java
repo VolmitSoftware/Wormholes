@@ -13,8 +13,8 @@ public class TransitConfig {
     public double momentumMaxSpeed = 4.0D;
     @ConfigDescription("Orientation policy for portals that set none of their own: frame (existing behaviour), look, snap, or mirror.")
     public String orientationDefault = "frame";
-    @ConfigDescription("Rotate the traveler's look when the exit points up or down so their up vector follows the exit frame.")
-    public boolean gravityFlipEnabled = true;
+    @ConfigDescription("Arrive upright through exits that point up or down instead of carrying the look rigidly through the portal pair.")
+    public boolean gravityFlipEnabled = false;
     @ConfigDescription("Projectiles and dropped items keep their velocity and arc through local tunnels without a reentry cooldown.")
     public boolean objectTransitContinuous = true;
     @ConfigDescription("Move vehicles, passengers, and leashed mobs through a portal as one rig, or refuse the whole rig.")

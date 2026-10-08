@@ -112,7 +112,7 @@ public class ClientMeshProofTest extends MinecraftTestBase {
         EnvironmentState changed = new EnvironmentState(ENVIRONMENT.gameTime(), ENVIRONMENT.sky(), ENVIRONMENT.fog(),
             ENVIRONMENT.lighting(), ENVIRONMENT.clouds(), ENVIRONMENT.transform(),
             new EnvironmentState.Dimension(dimension.minY(), dimension.height(), dimension.hasSkyLight(),
-                EnvironmentState.CardinalLighting.NETHER, dimension.horizonHeight(), dimension.endFlashes()), ENVIRONMENT.world());
+                EnvironmentState.CardinalLighting.NETHER, dimension.horizonHeight(), dimension.endFlashes()), ENVIRONMENT.world(), 1.0F);
         assertMismatch(original, ClientMeshWorld.meshIdentity(new ClientMeshWorld.Snapshot(fixture.store.view(7), 0L,
             fixture.registry, changed, 0)));
         assertTrue(fixture.store.retainLocal(7, 2, new BlockBox(-32, -48, -32, 64, 80, 64), 64));
@@ -128,7 +128,7 @@ public class ClientMeshProofTest extends MinecraftTestBase {
             ENVIRONMENT.lighting(), ENVIRONMENT.clouds(), ENVIRONMENT.transform(), ENVIRONMENT.dimension(),
             new EnvironmentState.World("minecraft:the_nether", world.clockTime(), world.biomeKey(), world.seaLevel(),
                 world.blockLight(), world.skyLight(), world.logicalHeight(), world.hasCeiling(), world.ambientLight(),
-                world.eyeMedium(), world.hasFixedTime()));
+                world.eyeMedium(), world.hasFixedTime()), 1.0F);
         EnvironmentState translated = ENVIRONMENT.withTransform(OpticTransform.of(AxisPermutation.of(Face.E, Face.U, Face.S), 16, 0, 0));
         for (Options options : List.of(new Options(otherWorld, 71, 11), new Options(translated, 71, 11),
             new Options(ENVIRONMENT, 72, 11), new Options(ENVIRONMENT, 71, 12),

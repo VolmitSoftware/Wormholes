@@ -1,18 +1,17 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.optics.aperture.ApertureDescriptor;
-import art.arcane.optics.crossing.MomentumRule;
 import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.optics.crossing.Pose;
-import art.arcane.optics.crossing.PoseTransform;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.math.Angles;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.mixin.client.ClientAvatarStateAccess;
 import art.arcane.wormholes.network.client.TravelMessage;
+import art.arcane.wormholes.transit.ArrivalPose;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
 final class ClientTravelMotion {
@@ -40,21 +39,21 @@ final class ClientTravelMotion {
         player.yHeadRotO = pose.previousHeadYaw();
     }
 
-    static Pose toward(OpticTransform destinationToSource, Pose source) {
-        return PoseTransform.apply(source, destinationToSource.inverse());
+    static Pose toward(TravelMessage.TravelBegin begin, Pose source) {
+        return ArrivalPose.carry(source, begin.sourceToDestination());
     }
 
     static Pose arrive(TravelMessage.TravelBegin begin, Pose source, Vec3d crossingPoint) {
-        OpticTransform toward = begin.destinationToSource().inverse();
-        ApertureDescriptor geometry = begin.sourceGeometry();
-        boolean front = geometry.frontSide();
-        Frame sourceView = geometry.frame().view(front);
-        PlaneCrossing crossing = new PlaneCrossing(sourceView, crossingPoint, crossingPoint, source.velocity(),
-            Angles.direction(source.yaw(), source.pitch()), front);
+        Similarity toward = begin.sourceToDestination();
+        PlaneCrossing crossing = crossing(begin, source, crossingPoint);
+        return ArrivalPose.arrive(source, crossing, toward, exitFrame(crossing.frame(), toward.rigid(), crossing.frontSide()), begin.rules());
+    }
+
+    static float roll(TravelMessage.TravelBegin begin, Pose source, Vec3d crossingPoint) {
+        PlaneCrossing crossing = crossing(begin, source, crossingPoint);
         TravelMessage.ArrivalRules rules = begin.rules();
-        MomentumRule momentum = rules.momentum();
-        return PoseTransform.arrive(PoseTransform.apply(source, toward), crossing, exitFrame(sourceView, toward, front),
-            rules.orientation(), rules.gravityFlip(), momentum, momentum.maxSpeed());
+        return ArrivalPose.roll(source, crossing, exitFrame(crossing.frame(), begin.sourceToDestination().rigid(), crossing.frontSide()),
+            rules.orientation(), rules.gravityFlip());
     }
 
     static Frame exitFrame(Frame sourceView, OpticTransform toward, boolean front) {
@@ -68,11 +67,11 @@ final class ClientTravelMotion {
 
     static Pose turned(Pose pose, float yaw, float pitch) {
         return new Pose(pose.position(), pose.previousPosition(), pose.oldPosition(), pose.velocity(), pose.yaw() + yaw,
-            Mth.clamp(pose.pitch() + pitch, -90.0F, 90.0F), pose.previousYaw() + yaw, Mth.clamp(pose.previousPitch() + pitch, -90.0F, 90.0F),
+            Math.clamp(pose.pitch() + pitch, -90.0F, 90.0F), pose.previousYaw() + yaw, Math.clamp(pose.previousPitch() + pitch, -90.0F, 90.0F),
             pose.bodyYaw() + yaw, pose.previousBodyYaw() + yaw, pose.headYaw() + yaw, pose.previousHeadYaw() + yaw);
     }
 
-    static Vec3 point(OpticTransform toward, Vec3 point) {
+    static Vec3 point(Similarity toward, Vec3 point) {
         return position(toward.point(vector(point)));
     }
 
@@ -98,8 +97,15 @@ final class ClientTravelMotion {
         return new Vec3(point.x(), point.y(), point.z());
     }
 
+    private static PlaneCrossing crossing(TravelMessage.TravelBegin begin, Pose source, Vec3d crossingPoint) {
+        ApertureDescriptor geometry = begin.sourceGeometry();
+        boolean front = geometry.frontSide();
+        return new PlaneCrossing(geometry.frame().view(front), crossingPoint, crossingPoint, source.velocity(),
+            Angles.direction(source.yaw(), source.pitch()), front);
+    }
+
     record Carry(float yBob, float xBob, float yBobO, float xBobO, Vec3d cloak, Vec3d previousCloak) {
-        Carry moved(Pose from, Pose to, OpticTransform toward) {
+        Carry moved(Pose from, Pose to, Similarity toward) {
             return new Carry(yBob + to.yaw() - from.yaw(), xBob + to.pitch() - from.pitch(),
                 yBobO + to.previousYaw() - from.previousYaw(), xBobO + to.previousPitch() - from.previousPitch(),
                 toward.point(cloak), toward.point(previousCloak));

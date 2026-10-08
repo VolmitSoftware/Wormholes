@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.seamless;
 
+import art.arcane.wormholes.modded.MinecraftPortalRegistry;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.modded.mixin.SeamlessChunkSenderAccess;
@@ -186,7 +187,7 @@ public final class MinecraftSeamlessMove implements SeamlessMove.Steps {
             return;
         }
         StraddleTracker.register(player, StraddleTracker.create(RemoteRoutes.endpoint(back.source()), RemoteRoutes.endpoint(back.destination()),
-            origin, new Vec3d(player.getX(), player.getEyeY(), player.getZ())));
+            origin, new Vec3d(player.getX(), player.getEyeY(), player.getZ()), MinecraftPortalRegistry.travelScale(back.source(), back.destination())));
     }
 
     public record Context(WormholesModRuntime runtime, ServerPlayer player, ServerLevel destination, PositionMoveRotation pose,

@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.wormholes.transit.ScaleRuleSettings;
 import art.arcane.volmlib.util.localization.LinesKey;
 import art.arcane.wormholes.localization.TransitMessages;
 import net.minecraft.server.level.ServerPlayer;
@@ -34,7 +35,7 @@ public final class MinecraftTransitMenuEntry implements MinecraftPortalMenuEntry
     public boolean enchanted(MinecraftPortal portal, ServerPlayer viewer) {
         return MinecraftTransitMenu.momentum(portal) != null || MinecraftTransitMenu.orientation(portal) != null
             || MinecraftTransitMenu.membrane(portal) || MinecraftTransitMenu.bounce(portal)
-            || !MinecraftTransitMenu.profile(portal).isNone();
+            || !MinecraftTransitMenu.profile(portal).isNone() || !ScaleRuleSettings.isDefault(portal.getScaleRule());
     }
 
     @Override

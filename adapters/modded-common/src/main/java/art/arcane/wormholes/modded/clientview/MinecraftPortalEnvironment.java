@@ -47,7 +47,7 @@ public final class MinecraftPortalEnvironment {
             new EnvironmentState.World(world.dimension().identifier().toString(), world.getDefaultClockTime(),
                 world.getBiome(eyeBlock).unwrapKey().orElseThrow().identifier().toString(), world.getSeaLevel(),
                 world.getBrightness(LightLayer.BLOCK, eyeBlock), world.getBrightness(LightLayer.SKY, eyeBlock), dimension.logicalHeight(), dimension.hasCeiling(), dimension.ambientLight(),
-                eyeMedium(world, eye, eyeBlock), dimension.hasFixedTime()));
+                eyeMedium(world, eye, eyeBlock), dimension.hasFixedTime()), 1.0F);
     }
 
     private static EnvironmentState.EyeMedium eyeMedium(Level world, Vec3 eye, BlockPos position) {

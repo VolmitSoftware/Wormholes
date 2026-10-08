@@ -8,6 +8,7 @@ import java.util.UUID;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.crossing.MomentumRule;
 import art.arcane.optics.crossing.OrientationRule;
+import art.arcane.optics.crossing.ScaleRule;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.EnvironmentStateCodec;
@@ -110,6 +111,7 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
                 out.string(begin.sourceWorld());
                 ViewStreamCodec.writeGeometry(out, begin.sourceGeometry(), 0);
                 EnvironmentStateCodec.writeTransform(out, begin.destinationToSource());
+                out.f32(begin.scale());
                 world(out, begin.world());
                 pose(out, begin.arrival());
                 out.u16(begin.chunks().size());
@@ -206,6 +208,7 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
                 String source = in.string();
                 ApertureDescriptor geometry = ViewStreamCodec.readGeometry(in, 0);
                 OpticTransform transform = EnvironmentStateCodec.readTransform(in);
+                float scale = in.f32();
                 TravelMessage.TravelWorld world = world(in);
                 TravelMessage.TravelPose pose = pose(in);
                 int count = count(in);
@@ -213,7 +216,7 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
                 for (int index = 0; index < count; index++) {
                     chunks.add(new TravelMessage.TravelCoordinate(in.i32(), in.i32()));
                 }
-                yield new TravelMessage.TravelBegin(token, generation, portal, source, geometry, transform, world, pose, chunks,
+                yield new TravelMessage.TravelBegin(token, generation, portal, source, geometry, transform, scale, world, pose, chunks,
                     EnvironmentStateCodec.read(in), in.i32(), rules(in), bool(in), in.u8(), bool(in));
             }
             case TravelMessage.TRAVEL_CHUNK -> {
@@ -261,6 +264,9 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
         out.f64(rules.momentum().factor());
         out.f64(rules.momentum().maxSpeed());
         vector(out, rules.momentum().impulse());
+        out.u8(rules.scale().mode().ordinal());
+        out.f32((float) rules.scale().min());
+        out.f32((float) rules.scale().max());
     }
 
     private static TravelMessage.ArrivalRules rules(ViewStreamReader in) throws ViewStreamProtocolException {
@@ -270,12 +276,17 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
         double factor = in.f64();
         double maxSpeed = in.f64();
         Vec3d impulse = vector(in);
+        int scaleMode = in.u8();
+        float scaleMin = in.f32();
+        float scaleMax = in.f32();
         if (orientation >= OrientationRule.values().length || mode >= MomentumRule.Mode.values().length || !Double.isFinite(factor)
-            || !Double.isFinite(maxSpeed) || maxSpeed < 0.0D) {
+            || !Double.isFinite(maxSpeed) || maxSpeed < 0.0D || scaleMode >= ScaleRule.Mode.values().length
+            || !Float.isFinite(scaleMin) || !Float.isFinite(scaleMax) || scaleMin > scaleMax) {
             throw new ViewStreamProtocolException("Travel arrival rules");
         }
         return new TravelMessage.ArrivalRules(OrientationRule.values()[orientation], gravityFlip,
-            new MomentumRule(MomentumRule.Mode.values()[mode], factor, maxSpeed, impulse));
+            new MomentumRule(MomentumRule.Mode.values()[mode], factor, maxSpeed, impulse),
+            new ScaleRule(ScaleRule.Mode.values()[scaleMode], scaleMin, scaleMax));
     }
 
     private static int count(ViewStreamReader in) throws ViewStreamProtocolException {

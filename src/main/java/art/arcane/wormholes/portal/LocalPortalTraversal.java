@@ -1,8 +1,10 @@
 package art.arcane.wormholes.portal;
 
 import art.arcane.wormholes.access.PortalAdmission;
-import art.arcane.optics.crossing.ArrivalMomentum;
-import art.arcane.optics.crossing.ArrivalOrientation;
+import art.arcane.optics.aperture.SizeRatio;
+import art.arcane.optics.crossing.Pose;
+import art.arcane.optics.crossing.ScaleRule;
+import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.math.Angles;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.util.BukkitGeometry;
@@ -19,11 +21,13 @@ import org.bukkit.Location;
 import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.util.BoundingBox;
 import org.bukkit.util.Vector;
 
+import art.arcane.wormholes.PortalManager;
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.TraversableManager.Movement;
 import art.arcane.wormholes.Wormholes;
@@ -51,7 +55,10 @@ import art.arcane.wormholes.portal.LocalPortalTransitRegistry.ReentryLatch;
 import art.arcane.wormholes.portal.rtp.BukkitRtpRuntime;
 import art.arcane.wormholes.service.WormholesHud;
 import art.arcane.wormholes.service.WormholesTelemetry;
+import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.transit.AdaptiveArrivalMask;
+import art.arcane.wormholes.transit.ArrivalPose;
+import art.arcane.wormholes.transit.BukkitScaleAccess;
 import art.arcane.wormholes.transit.ConvoyGraph;
 import art.arcane.wormholes.transit.ConvoyLocalTraversal;
 import art.arcane.wormholes.transit.MomentumPolicy;
@@ -59,6 +66,7 @@ import art.arcane.wormholes.transit.ObjectTransit;
 import art.arcane.wormholes.transit.OrientationPolicy;
 import art.arcane.wormholes.transit.TransitPortalExtension;
 import art.arcane.wormholes.transit.TransitSubsystem;
+import art.arcane.wormholes.transit.TravellerScale;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
@@ -72,6 +80,7 @@ final class LocalPortalTraversal
 	private static final double DEPARTURE_COMMITMENT_RADIUS_SQUARED = 256.0D;
 	private static final int RETIRED_SETTLEMENT_ATTEMPTS = 4;
 	private static final long RETIRED_SETTLEMENT_RETRY_TICKS = 1L;
+	private static final TravellerScale<Entity> TRAVELLER_SCALE = new TravellerScale<>(BukkitScaleAccess.scaleAttribute());
 
 	private final LocalPortal portal;
 	private final LocalPortalRuntime runtime;
@@ -327,7 +336,7 @@ final class LocalPortalTraversal
         admitCrossing(i, activeTunnel, now, rtp, traversive);
     }
 
-    boolean crossPrepared(Player player, PlaneCrossing crossing)
+    boolean crossPrepared(Player player, PlaneCrossing crossing, Angles.Look rotation)
     {
         long now = System.currentTimeMillis();
         if(!player.isValid() || !portal.isOpen() || portal.isMirrorMode() || portal.getType() == PortalType.RTP
@@ -339,9 +348,9 @@ final class LocalPortalTraversal
             return false;
         }
         deferredCrossings.remove(player.getUniqueId());
-        Traversive traversive = new Traversive(player, crossing.frame(), BukkitGeometry.bukkit(crossing.origin()),
+        Traversive traversive = new Traversive(player, TraversableType.ENTITY, crossing.frame(), BukkitGeometry.bukkit(crossing.origin()),
             BukkitGeometry.bukkit(crossing.point()), BukkitGeometry.bukkit(crossing.velocity()), BukkitGeometry.bukkit(crossing.look()),
-            crossing.frontSide(), portal.getId());
+            crossing.frontSide(), portal.getId(), rotation);
         return admitCrossing(player, portal.getTunnel(), now, false, traversive);
     }
 
@@ -604,7 +613,11 @@ final class LocalPortalTraversal
 	void settleConvoyArrival(Entity member, Traversive memberTraversive, boolean reloadExpected)
 	{
 		ExitPlacement placement = exitPlacement(memberTraversive);
-		settleArrival(member, member.getUniqueId(), placement.outVelocity(), placement.exit(), reloadExpected, arrivalMaskTicks(memberTraversive, reloadExpected, null), false);
+		if(placement.scale().changesEntity())
+		{
+			TRAVELLER_SCALE.cross(member, placement.scale(), placement.ratio());
+		}
+		settleArrival(member, member.getUniqueId(), placement, reloadExpected, arrivalMaskTicks(memberTraversive, reloadExpected, null), false);
 	}
 
 	private void rejectConvoyMemberTraversal(Entity entity, Traversive traversive)
@@ -803,8 +816,8 @@ final class LocalPortalTraversal
         PlaneCrossing crossing = PlaneCrossing.create(portal.getFrame(), portal.getOrigin(),
             new PlaneCrossing.Motion(BukkitGeometry.vector(start), BukkitGeometry.vector(inPoint),
                 BukkitGeometry.vector(velocity), BukkitGeometry.vector(start.getDirection())));
-        return new Traversive(i, crossing.frame(), BukkitGeometry.bukkit(crossing.origin()), inPoint, velocity,
-            start.getDirection(), crossing.frontSide(), portal.getId());
+        return new Traversive(i, TraversableType.ENTITY, crossing.frame(), BukkitGeometry.bukkit(crossing.origin()), inPoint, velocity,
+            start.getDirection(), crossing.frontSide(), portal.getId(), new Angles.Look(start.getYaw(), start.getPitch()));
 	}
 
 	/** Arrival mask length: a source profile override wins, then the adaptive size from the pre-send, then the fixed setting. */
@@ -827,26 +840,51 @@ final class LocalPortalTraversal
                 TransitSubsystem.config().arrivalMaskMinTicks, Settings.ARRIVAL_TRANSITION_MASK_TICKS);
 	}
 
-	/** Exit geometry for a crossing: the source portal's momentum and orientation policies applied to the frame transform. */
-	private record ExitPlacement(Location target, Location exit, Vector outVelocity)
+	record ExitPlacement(Location target, Location exit, Vector outVelocity, float bodyYaw, ScaleRule scale, SizeRatio ratio)
 	{
 	}
 
-	private ExitPlacement exitPlacement(Traversive t)
+	ExitPlacement exitPlacement(Traversive t)
 	{
 		Frame frame = portal.getFrame();
 		TransitConfig transit = TransitSubsystem.config();
 		TransitPortalExtension source = TransitPortalExtension.of(t.getSourcePortalId());
 		MomentumPolicy momentum = source == null ? TransitPortalExtension.defaultMomentum(transit) : source.effectiveMomentum(transit);
 		OrientationPolicy orientation = source == null ? TransitPortalExtension.defaultOrientation(transit) : source.effectiveOrientation(transit);
-		Vector frameVelocity = t.getOutVelocity(frame);
-		Vector outVelocity = BukkitGeometry.bukkit(ArrivalMomentum.apply(BukkitGeometry.vector(frameVelocity), momentum.rule(), transit.momentumMaxSpeed));
-		Location exit = t.getOutPoint(frame, BukkitGeometry.bukkit(portal.getOrigin())).toLocation(portal.getStructure().getWorld());
+		ScaleRule scale = source == null ? ScaleRule.OFF : source.scaleRule();
+		SizeRatio ratio = scale.mode() == ScaleRule.Mode.OFF ? SizeRatio.UNIT : sizeRatio(t, frame);
+		PlaneCrossing crossing = t.crossing();
+		Similarity toward = crossing.toward(frame, portal.getOrigin(), scale.travelScale(ratio));
+		TravelMessage.ArrivalRules rules = TravelMessage.ArrivalRules.of(orientation, momentum, transit.gravityFlipEnabled, transit.momentumMaxSpeed, scale);
+		Pose arrived = ArrivalPose.arrive(departurePose(t), crossing, toward, frame, rules);
+		Location exit = BukkitGeometry.bukkit(arrived.position()).toLocation(portal.getStructure().getWorld());
 		Location target = exit.clone();
-		Angles.Look look = ArrivalOrientation.apply(t.crossing(), frame, orientation.rule(), transit.gravityFlipEnabled);
-		target.setYaw(look.yaw());
-		target.setPitch(look.pitch());
-		return new ExitPlacement(target, exit, outVelocity);
+		target.setYaw(arrived.yaw());
+		target.setPitch(arrived.pitch());
+		return new ExitPlacement(target, exit, BukkitGeometry.bukkit(arrived.velocity()), arrived.bodyYaw(), scale, ratio);
+	}
+
+	private SizeRatio sizeRatio(Traversive t, Frame frame)
+	{
+		PortalManager manager = Wormholes.portalManager;
+		ILocalPortal source = manager == null || t.getSourcePortalId() == null ? null : manager.getLocalPortal(t.getSourcePortalId());
+		Box sourceArea = source == null ? null : source.getArea();
+		Box destinationArea = portal.getArea();
+		if(sourceArea == null || destinationArea == null)
+		{
+			return SizeRatio.UNIT;
+		}
+		return SizeRatio.between(t.crossing().frame(), sourceArea, frame.view(t.isFrontSide()), destinationArea);
+	}
+
+	private static Pose departurePose(Traversive t)
+	{
+		Vec3d point = BukkitGeometry.vector(t.getInPoint());
+		Angles.Look rotation = t.getInRotation();
+		float bodyYaw = t.getSourcePortalId() != null && t.getObject() instanceof LivingEntity living && !(living instanceof Player)
+			? WormholesPlatform.bodyYaw(living, rotation.yaw()) : rotation.yaw();
+		return new Pose(point, point, point, BukkitGeometry.vector(t.getInVelocity()), rotation.yaw(), rotation.pitch(), rotation.yaw(),
+			rotation.pitch(), bodyYaw, bodyYaw, rotation.yaw(), rotation.yaw());
 	}
 
 	private boolean canUseTunnel(Entity entity, ITunnel activeTunnel, boolean reportDenial)
@@ -1096,8 +1134,6 @@ final class LocalPortalTraversal
 				return;
 			}
 			ExitPlacement placement = exitPlacement(t);
-			Vector outVelocity = placement.outVelocity();
-			Location exit = placement.exit();
 			Location target = placement.target();
 
 			boolean reloadExpected = target.getWorld() != null && !target.getWorld().equals(p.getWorld());
@@ -1163,8 +1199,8 @@ final class LocalPortalTraversal
                                     traversalAdmission, null, TraversalRefundReason.DESTINATION_REJECTED));
                                 return;
                             }
-							dispatchPreparedTeleport(p, target, t, reservation, traversalAdmission, entityId,
-								outVelocity, exit, reloadExpected, capture, preSend(capture, p, target), attempted);
+							dispatchPreparedTeleport(p, placement, t, reservation, traversalAdmission, entityId,
+								reloadExpected, capture, preSend(capture, p, target), attempted);
 						}
 					},
 					retired,
@@ -1183,8 +1219,8 @@ final class LocalPortalTraversal
                     TraversalRefundReason.DESTINATION_UNAVAILABLE);
                 return;
             }
-			beginTeleport(p, target, t, reservation, traversalAdmission, entityId,
-				outVelocity, exit, reloadExpected, null, null, null);
+			beginTeleport(p, placement, t, reservation, traversalAdmission, entityId,
+				reloadExpected, null, null, null);
 			return;
 		}
 		refund(reservation);
@@ -1196,13 +1232,11 @@ final class LocalPortalTraversal
 
 	private void dispatchPreparedTeleport(
 		Entity entity,
-		Location target,
+		ExitPlacement placement,
 		Traversive traversive,
 		PortalTravelCost.Reservation reservation,
 		TraversalCostGateway.Admission traversalAdmission,
 		UUID entityId,
-		Vector outVelocity,
-		Location exit,
 		boolean reloadExpected,
 		BukkitChunkPreSendCapture capture,
 		BukkitChunkPreSendTransaction preSend,
@@ -1223,8 +1257,8 @@ final class LocalPortalTraversal
 		{
 			if(travelerPending.compareAndSet(true, false))
 			{
-				beginTeleport(entity, target, traversive, reservation, traversalAdmission, entityId,
-					outVelocity, exit, reloadExpected, capture, preSend, attempted);
+				beginTeleport(entity, placement, traversive, reservation, traversalAdmission, entityId,
+					reloadExpected, capture, preSend, attempted);
 			}
 		}, retired, 0L);
 		if(!scheduled)
@@ -1235,13 +1269,11 @@ final class LocalPortalTraversal
 
 	private void beginTeleport(
 		Entity entity,
-		Location target,
+		ExitPlacement placement,
 		Traversive traversive,
 		PortalTravelCost.Reservation reservation,
 		TraversalCostGateway.Admission traversalAdmission,
 		UUID entityId,
-		Vector outVelocity,
-		Location exit,
 		boolean reloadExpected,
 		BukkitChunkPreSendCapture capture,
 		BukkitChunkPreSendTransaction preSend,
@@ -1250,6 +1282,10 @@ final class LocalPortalTraversal
 		CompletionStage<Boolean> teleportStage;
 		BukkitClientView clientView = Wormholes.projectionManager == null ? null : Wormholes.projectionManager.clientView();
 		TravelMessage.TravelCommit preparedCommit = null;
+		Location target = placement.target();
+		Vector outVelocity = placement.outVelocity();
+		boolean scales = placement.scale().changesEntity();
+		double departureScale = scales ? TRAVELLER_SCALE.factor(entity) : 1.0D;
         if(attempted != null && (clientView == null || !clientView.crossing(entityId, attempted)))
         {
             recoverFailedTeleportNow(entity, traversive, reservation, traversalAdmission, entityId, preSend, null,
@@ -1269,6 +1305,10 @@ final class LocalPortalTraversal
                     TraversalRefundReason.DESTINATION_REJECTED);
                 return;
             }
+			if(scales)
+			{
+				TRAVELLER_SCALE.cross(entity, placement.scale(), placement.ratio());
+			}
 			teleportStage = Objects.requireNonNull(runtime.teleport(entity, target), "teleport stage");
 		}
 		catch(RuntimeException exception)
@@ -1276,6 +1316,10 @@ final class LocalPortalTraversal
 			if(clientView != null)
 			{
 				clientView.completeTravel(entityId, preparedCommit, false);
+			}
+			if(scales)
+			{
+				restoreScale(entity, departureScale);
 			}
 				recoverFailedTeleport(entity, traversive, reservation, traversalAdmission,
 					entityId, capture, preSend, exception, TraversalRefundReason.TELEPORT_FAILED);
@@ -1290,6 +1334,10 @@ final class LocalPortalTraversal
 				}
 				if(error != null || !Boolean.TRUE.equals(success))
 				{
+					if(scales && !runtime.dispatch(entity, () -> restoreScale(entity, departureScale), () -> { }, 0L))
+					{
+						Wormholes.w("Entity scheduler rejected the scale restore for " + entityId);
+					}
 					recoverFailedTeleport(entity, traversive, reservation, traversalAdmission,
 						entityId, capture, preSend, error, TraversalRefundReason.TELEPORT_FAILED);
 					return;
@@ -1304,7 +1352,7 @@ final class LocalPortalTraversal
 					commitPreSend(preSend);
 					commit(reservation);
 					commit(traversalAdmission);
-					settleArrival(entity, entityId, outVelocity, exit, reloadExpected, arrivalMaskTicks(traversive, reloadExpected, preSend), committedTravel != null);
+					settleArrival(entity, entityId, placement, reloadExpected, arrivalMaskTicks(traversive, reloadExpected, preSend), committedTravel != null);
 				};
 				AtomicBoolean retirementStarted = new AtomicBoolean(false);
 				Runnable retired = () ->
@@ -1644,8 +1692,14 @@ final class LocalPortalTraversal
 		}
 	}
 
-	private void settleArrival(Entity entity, UUID entityId, Vector outVelocity, Location exit, boolean reloadExpected, int maskTicks, boolean seamless)
+	private void settleArrival(Entity entity, UUID entityId, ExitPlacement placement, boolean reloadExpected, int maskTicks, boolean seamless)
 	{
+		Vector outVelocity = placement.outVelocity();
+		Location exit = placement.exit();
+		if(entity instanceof LivingEntity living && !(living instanceof Player))
+		{
+			WormholesPlatform.setBodyYaw(living, placement.bodyYaw());
+		}
 		boolean continuousObject = ObjectTransit.continuous(entity);
 		if(continuousObject)
 		{
@@ -1669,6 +1723,14 @@ final class LocalPortalTraversal
 			}
 		}
 		notifyArrived(entity, exit, seamless);
+	}
+
+	private static void restoreScale(Entity entity, double factor)
+	{
+		if(TRAVELLER_SCALE.factor(entity) != factor && !TRAVELLER_SCALE.set(entity, factor))
+		{
+			Wormholes.w("Could not restore the portal scale of " + entity.getUniqueId());
+		}
 	}
 
 	private void logTeleportFailure(Entity entity, String action, Throwable error)

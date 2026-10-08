@@ -194,7 +194,7 @@ public class ClientLocalMeshSourcesTest extends MinecraftTestBase {
             previous.biomeKey(), previous.seaLevel(), previous.blockLight(), previous.skyLight(), previous.logicalHeight(),
             previous.hasCeiling(), previous.ambientLight(), previous.eyeMedium(), previous.hasFixedTime());
         fixture.session.handle(new ViewStreamMessage.Environment(2, new EnvironmentState(original.gameTime(), original.sky(),
-            original.fog(), original.lighting(), original.clouds(), original.transform(), original.dimension(), unvisited)), fixture.sink);
+            original.fog(), original.lighting(), original.clouds(), original.transform(), original.dimension(), unvisited, 1.0F)), fixture.sink);
         fixture.messages.clear();
         for (int tick = 0; tick < 20; tick++) {
             fixture.sources.update(fixture.session, current, 0, 0, 0);
@@ -248,7 +248,7 @@ public class ClientLocalMeshSourcesTest extends MinecraftTestBase {
             originalWorld.hasFixedTime());
         active.session.handle(new ViewStreamMessage.Environment(1, new EnvironmentState(environment.gameTime(),
             environment.sky(), environment.fog(), environment.lighting(), environment.clouds(), environment.transform(),
-            environment.dimension(), nether)), active.sink);
+            environment.dimension(), nether, 1.0F)), active.sink);
         for (int tick = 0; tick < 100 && active.session.meshes().view(1).section(0L) == null; tick++) {
             source.sources.update(active.session, active.level, 0, 0, 0);
         }

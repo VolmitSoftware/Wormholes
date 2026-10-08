@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.crossing.ScaleRule;
 import art.arcane.wormholes.network.PortalSettingsTarget;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
@@ -16,6 +17,7 @@ import art.arcane.optics.fidelity.AcousticsProfile;
 import art.arcane.optics.volume.LodProfile;
 import art.arcane.wormholes.transit.MomentumPolicy;
 import art.arcane.wormholes.transit.OrientationPolicy;
+import art.arcane.wormholes.transit.ScaleRuleSettings;
 import art.arcane.wormholes.transit.TransitionProfile;
 import art.arcane.wormholes.portal.PortalPermissionMode;
 import art.arcane.wormholes.portal.PortalSurfaceSkins;
@@ -637,6 +639,17 @@ public final class MinecraftPortal extends Portal implements PortalSettingsTarge
         values.put("transit.bounce", enabled);
     }
 
+    public ScaleRule getScaleRule() {
+        return ScaleRuleSettings.parse(text(ScaleRuleSettings.MODE), text(ScaleRuleSettings.MIN), text(ScaleRuleSettings.MAX));
+    }
+
+    public void setScaleRule(ScaleRule rule) {
+        boolean standard = rule == null || ScaleRuleSettings.isDefault(rule);
+        setOverride(ScaleRuleSettings.MODE, standard ? null : ScaleRuleSettings.format(rule.mode()));
+        setOverride(ScaleRuleSettings.MIN, standard ? null : ScaleRuleSettings.format(rule.min()));
+        setOverride(ScaleRuleSettings.MAX, standard ? null : ScaleRuleSettings.format(rule.max()));
+    }
+
     public void setTransitionProfile(TransitionProfile profile) {
         setOverride("transit.profile", profile == null || profile.isNone() ? null : profile.encode());
     }
@@ -651,6 +664,10 @@ public final class MinecraftPortal extends Portal implements PortalSettingsTarge
 
     public Object setting(String key) {
         return values.get(key);
+    }
+
+    private String text(String key) {
+        return values.get(key) instanceof String value ? value : "";
     }
 
     void link(MinecraftPortal destination) {

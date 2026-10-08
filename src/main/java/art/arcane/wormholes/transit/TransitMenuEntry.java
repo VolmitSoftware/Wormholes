@@ -37,7 +37,7 @@ public final class TransitMenuEntry implements PortalMenuEntry {
     public boolean enchanted(LocalPortal portal, Player viewer) {
         TransitPortalExtension transit = portal.extension(TransitPortalExtension.class);
         return transit != null && (transit.momentum() != null || transit.orientation() != null
-            || transit.isMembrane() || transit.isBounce() || !transit.profile().isNone());
+            || transit.isMembrane() || transit.isBounce() || !transit.profile().isNone() || !ScaleRuleSettings.isDefault(transit.scaleRule()));
     }
 
     @Override

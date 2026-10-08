@@ -1416,6 +1416,15 @@ membrane = ["&6&lקרום: {state}&r", "&7רק הצד הקדמי מכניס נו
 bounce = ["&6&lהדיפה: {state}&r", "&7להדוף נוסעים במקום להעביר אותם.", "&eלחיצה שמאלית להחלפה"]
 profile = ["&6&lאפקטי מעבר&r", "&7סף {mode}", "&7הגעה {state}", "&eלחיצה שמאלית: אפקט סף, לחיצה ימנית: צליל הגעה", "&eShift + לחיצה שמאלית: טיקים של מסכה"]
 prompt = "&bהקלד את הערך החדש בצ'אט (או '{cancel}'):"
+scale = ["&6&lקנה מידה של נוסע: {mode}&r", "&7טווח גודל {value}. ממפה מסע בין פורטלים בגדלים שונים.", "&eקליק שמאלי למעבר בין מצבים", "&eקליק ימני: מינימום, Shift + קליק ימני: מקסימום"]
+
+[transit.scale]
+current = "&8[&6Wormholes&8] &f{portal}&7 קנה מידה של נוסע: &f{mode}&7 ({value})"
+set = "&8[&6Wormholes&8] &f{portal}&a קנה המידה של הנוסע הוגדר ל-&f{mode}&a ({value})."
+invalid = "&8[&6Wormholes&8] &cלא ניתן לקרוא את קנה המידה של הנוסע: {reason}"
+reset = "&8[&6Wormholes&8] &aהגודל הרגיל שוחזר עבור {count} ישויות."
+reset_radius = "&8[&6Wormholes&8] &ctarget=all דורש רדיוס בין 1 ל-{value}."
+reset_player = "&8[&6Wormholes&8] &cאין שחקן מחובר בשם {name}."
 # ---- end lane:transit ----
 
 # ---- lane:view (fidelity.*) ----
@@ -1528,6 +1537,15 @@ portals = "הצגה, בדיקה ועריכה מרוכזת של שערים"
 "portals.shape" = "הצגה או הגדרה של צורת הפתח של שער"
 "portals.shape.portal" = "שם השער או המזהה"
 "portals.shape.shape" = "טקסט צורה כמו circle, flower(petals=7) או full; ריק מציג את הצורה הנוכחית"
+"portals.scale" = "הצגה או הגדרה של כלל קנה המידה של נוסעים בפורטל"
+"portals.scale.portal" = "שם הפורטל או מזהה"
+"portals.scale.mode" = "off, motion או ratio; בלי ערכים מוצג הכלל הנוכחי"
+"portals.scale.min" = "מקדם הגודל הקטן ביותר שמעבר ratio יכול להגיע אליו (0.0625-16)"
+"portals.scale.max" = "מקדם הגודל הגדול ביותר שמעבר ratio יכול להגיע אליו (0.0625-16)"
+"scale" = "שחזור הגודל הרגיל של נוסעים שפורטלים שינו את גודלם"
+"scale.reset" = "הסרת קנה המידה של פורטל משחקן או מכל הישויות הסמוכות"
+"scale.reset.target" = "self, שם שחקן או all"
+"scale.reset.radius" = "רדיוס חיפוש בבלוקים עם target=all (1-256)"
 # ---- end lane:ops ----
 
 # ---- lane:clientview (clientview.*) ----

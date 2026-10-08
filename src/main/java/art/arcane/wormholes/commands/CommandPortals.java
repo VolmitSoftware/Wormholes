@@ -12,6 +12,7 @@ import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.PortalManager;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.localization.OpsMessages;
+import art.arcane.wormholes.localization.TransitMessages;
 import art.arcane.wormholes.localization.WormholesLocalization;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.network.RemotePortalRegistry;
@@ -26,6 +27,8 @@ import art.arcane.wormholes.portal.ITunnel;
 import art.arcane.wormholes.portal.LocalPortal;
 import art.arcane.wormholes.portal.UniversalTunnel;
 import art.arcane.wormholes.service.WormholesAudience;
+import art.arcane.wormholes.transit.ScaleRuleChange;
+import art.arcane.wormholes.transit.TransitPortalExtension;
 import art.arcane.optics.shape.Shapes;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
@@ -227,6 +230,46 @@ public class CommandPortals {
             case TOO_SMALL -> WormholesLocalization.args(MessageArgument.untrusted("shape", change.shape().format()));
         };
         send(sender, message, arguments);
+    }
+
+    @Director(name = "scale", sync = true, descriptionKey = OpsMessages.PORTALS_SCALE_HELP,
+            description = "Show or set the traveller scale rule of a portal")
+    public void scale(@Param(name = "sender", contextual = true) CommandSender sender,
+                      @Param(name = "portal", descriptionKey = OpsMessages.PORTALS_SCALE_PORTAL_HELP,
+                              description = "Portal name or id") String portal,
+                      @Param(name = "mode", descriptionKey = OpsMessages.PORTALS_SCALE_MODE_HELP,
+                              description = "off, motion or ratio; omit every value to show the current rule",
+                              defaultValue = "") String mode,
+                      @Param(name = "min", descriptionKey = OpsMessages.PORTALS_SCALE_MIN_HELP,
+                              description = "Smallest size factor a ratio crossing may reach (0.0625-16)", defaultValue = "") String min,
+                      @Param(name = "max", descriptionKey = OpsMessages.PORTALS_SCALE_MAX_HELP,
+                              description = "Largest size factor a ratio crossing may reach (0.0625-16)", defaultValue = "") String max) {
+        if (!allowed(sender)) {
+            return;
+        }
+        ILocalPortal found = require(sender, portal);
+        if (found == null) {
+            return;
+        }
+        if (!(found instanceof LocalPortal local) || local.extension(TransitPortalExtension.class) == null) {
+            send(sender, OpsMessages.PORTALS_NOT_FOUND, WormholesLocalization.args(MessageArgument.untrusted("name", portal)));
+            return;
+        }
+        TransitPortalExtension transit = local.extension(TransitPortalExtension.class);
+        ScaleRuleChange change = ScaleRuleChange.request(mode, min, max, transit.scaleRule());
+        if (change.status() == ScaleRuleChange.Status.INVALID) {
+            send(sender, TransitMessages.SCALE_INVALID, WormholesLocalization.args(MessageArgument.untrusted("reason", change.reason())));
+            return;
+        }
+        if (change.status() == ScaleRuleChange.Status.SET) {
+            transit.setScaleRule(change.rule());
+            local.save();
+            local.refreshOpenMenus();
+        }
+        send(sender, change.status() == ScaleRuleChange.Status.SET ? TransitMessages.SCALE_SET : TransitMessages.SCALE_CURRENT,
+                WormholesLocalization.args(MessageArgument.untrusted("portal", found.getName()),
+                        MessageArgument.untrusted("mode", ScaleRuleChange.mode(change.rule())),
+                        MessageArgument.untrusted("value", ScaleRuleChange.range(change.rule()))));
     }
 
     @Director(name = "prune", sync = true, descriptionKey = OpsMessages.PORTALS_PRUNE_HELP,

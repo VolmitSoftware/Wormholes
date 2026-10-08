@@ -1416,6 +1416,15 @@ membrane = ["&6&lMembrana: {state}&r", "&7Solo il lato anteriore fa entrare i vi
 bounce = ["&6&lRimbalzo: {state}&r", "&7Respingi i viaggiatori invece di spostarli.", "&eClic sinistro per attivare o disattivare"]
 profile = ["&6&lEffetti di transizione&r", "&7Soglia {mode}", "&7Arrivo {state}", "&eClic sinistro: effetto di soglia, Clic destro: suono di arrivo", "&eMaiusc + Clic sinistro: tick della maschera"]
 prompt = "&bScrivi il nuovo valore in chat (oppure '{cancel}'):"
+scale = ["&6&lScala del viaggiatore: {mode}&r", "&7Intervallo di dimensione {value}. Adatta il viaggio tra portali di dimensioni diverse.", "&eClic sinistro per cambiare modalità", "&eClic destro: minimo, Maiusc + clic destro: massimo"]
+
+[transit.scale]
+current = "&8[&6Wormholes&8] &f{portal}&7 scala del viaggiatore: &f{mode}&7 ({value})"
+set = "&8[&6Wormholes&8] &f{portal}&a scala del viaggiatore impostata su &f{mode}&a ({value})."
+invalid = "&8[&6Wormholes&8] &cImpossibile leggere la scala del viaggiatore: {reason}"
+reset = "&8[&6Wormholes&8] &aRipristinata la dimensione normale di {count} entità."
+reset_radius = "&8[&6Wormholes&8] &ctarget=all richiede un raggio da 1 a {value}."
+reset_player = "&8[&6Wormholes&8] &cNessun giocatore online di nome {name}."
 # ---- end lane:transit ----
 
 # ---- lane:view (fidelity.*) ----
@@ -1528,6 +1537,15 @@ portals = "Elencare, ispezionare e modificare i portali in blocco"
 "portals.shape" = "Mostrare o impostare la forma dell'apertura di un portale"
 "portals.shape.portal" = "Nome o id del portale"
 "portals.shape.shape" = "Testo della forma come circle, flower(petals=7) o full; vuoto mostra la forma attuale"
+"portals.scale" = "Mostra o imposta la regola di scala del viaggiatore di un portale"
+"portals.scale.portal" = "Nome o id del portale"
+"portals.scale.mode" = "off, motion o ratio; senza valori mostra la regola attuale"
+"portals.scale.min" = "Fattore di dimensione minimo raggiungibile da un passaggio ratio (0.0625-16)"
+"portals.scale.max" = "Fattore di dimensione massimo raggiungibile da un passaggio ratio (0.0625-16)"
+"scale" = "Ripristina la dimensione normale dei viaggiatori scalati dai portali"
+"scale.reset" = "Rimuovi la scala del portale da un giocatore o da tutte le entità vicine"
+"scale.reset.target" = "self, un nome di giocatore o all"
+"scale.reset.radius" = "Raggio di ricerca in blocchi con target=all (1-256)"
 # ---- end lane:ops ----
 
 # ---- lane:clientview (clientview.*) ----

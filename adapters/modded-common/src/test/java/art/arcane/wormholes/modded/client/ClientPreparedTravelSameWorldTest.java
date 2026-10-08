@@ -43,7 +43,7 @@ public class ClientPreparedTravelSameWorldTest extends MinecraftTestBase {
             }
         }
         TravelMessage.TravelBegin begin = new TravelMessage.TravelBegin(new UUID(1, 2), 1, new UUID(2, 3),
-            "minecraft:overworld", ClientTravelTestFixtures.geometry(), OpticTransform.IDENTITY,
+            "minecraft:overworld", ClientTravelTestFixtures.geometry(), OpticTransform.IDENTITY, 1.0F,
             new TravelMessage.TravelWorld("minecraft:overworld", "minecraft:overworld", 1, false, false, 63, -64, 384),
             new TravelMessage.TravelPose(0, 80, 0, 0, 0), coordinates,
             PortalEnvironmentTest.environment(OpticTransform.IDENTITY), 30_000, TravelMessage.ArrivalRules.FRAME, false, 0, false);

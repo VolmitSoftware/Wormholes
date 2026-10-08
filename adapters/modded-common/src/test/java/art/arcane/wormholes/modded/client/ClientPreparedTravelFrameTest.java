@@ -214,7 +214,7 @@ public class ClientPreparedTravelFrameTest extends MinecraftTestBase {
             fixture.setAccessible(true);
             TravelMessage.TravelBegin original = (TravelMessage.TravelBegin) fixture.invoke(null, 9L);
             TravelMessage.TravelBegin begin = new TravelMessage.TravelBegin(original.token(), original.generation(),
-                original.sourcePortal(), original.sourceWorld(), original.sourceGeometry(), original.destinationToSource(),
+                original.sourcePortal(), original.sourceWorld(), original.sourceGeometry(), original.destinationToSource(), 1.0F,
                 original.world(), original.arrival(), coordinates, original.environment(), original.expiresMillis(), TravelMessage.ArrivalRules.FRAME, false, 0, false);
             ClientPreparedTravel travel = ClientTravelTestFixtures.travel(ignored -> { });
             field(travel, "begin", begin);

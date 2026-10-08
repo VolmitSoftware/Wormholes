@@ -1416,6 +1416,15 @@ membrane = ["&6&lMembraan: {state}&r", "&7Alleen de voorkant laat reizigers binn
 bounce = ["&6&lTerugkaatsing: {state}&r", "&7Reizigers terugkaatsen in plaats van verplaatsen.", "&eLinkerklik om te schakelen"]
 profile = ["&6&lOvergangseffecten&r", "&7Drempel {mode}", "&7Aankomst {state}", "&eLinkerklik: drempeleffect, Rechterklik: aankomstgeluid", "&eShift + Linkerklik: maskerticks"]
 prompt = "&bTyp de nieuwe waarde in de chat (of '{cancel}'):"
+scale = ["&6&lReizigersschaal: {mode}&r", "&7Groottebereik {value}. Past reizen tussen portalen van verschillende grootte aan.", "&eLinksklik om de modus te wisselen", "&eRechtsklik: minimum, Shift + rechtsklik: maximum"]
+
+[transit.scale]
+current = "&8[&6Wormholes&8] &f{portal}&7 reizigersschaal: &f{mode}&7 ({value})"
+set = "&8[&6Wormholes&8] &f{portal}&a reizigersschaal ingesteld op &f{mode}&a ({value})."
+invalid = "&8[&6Wormholes&8] &cKon de reizigersschaal niet lezen: {reason}"
+reset = "&8[&6Wormholes&8] &aDe normale grootte van {count} entiteiten is hersteld."
+reset_radius = "&8[&6Wormholes&8] &ctarget=all heeft een straal van 1 tot {value} nodig."
+reset_player = "&8[&6Wormholes&8] &cGeen online speler met de naam {name}."
 # ---- end lane:transit ----
 
 # ---- lane:view (fidelity.*) ----
@@ -1528,6 +1537,15 @@ portals = "Portalen tonen, bekijken en in bulk bewerken"
 "portals.shape" = "De openingsvorm van een portaal tonen of instellen"
 "portals.shape.portal" = "Portaalnaam of id"
 "portals.shape.shape" = "Vormtekst zoals circle, flower(petals=7) of full; leeg toont de huidige vorm"
+"portals.scale" = "De reizigersschaalregel van een portaal tonen of instellen"
+"portals.scale.portal" = "Portaalnaam of id"
+"portals.scale.mode" = "off, motion of ratio; zonder waarden wordt de huidige regel getoond"
+"portals.scale.min" = "Kleinste groottefactor die een ratio-doorgang mag bereiken (0.0625-16)"
+"portals.scale.max" = "Grootste groottefactor die een ratio-doorgang mag bereiken (0.0625-16)"
+"scale" = "De normale grootte herstellen van reizigers die door portalen geschaald zijn"
+"scale.reset" = "De portaalschaal van een speler of van alle entiteiten in de buurt verwijderen"
+"scale.reset.target" = "self, een spelernaam of all"
+"scale.reset.radius" = "Zoekstraal in blokken bij target=all (1-256)"
 # ---- end lane:ops ----
 
 # ---- lane:clientview (clientview.*) ----

@@ -78,8 +78,12 @@ public abstract class PreparedTravelCameraMixin {
         PortalShaderWarmup.shared().beginFrame();
         WormholesClient client = WormholesClient.instance();
         Camera camera = Minecraft.getInstance().gameRenderer.mainCamera();
-        if (client != null && client.preparedTravel().beforeFrame(camera, tracker)) {
+        if (client == null) {
+            return;
+        }
+        if (client.preparedTravel().beforeFrame(camera, tracker)) {
             camera.update(tracker);
         }
+        client.preparedTravel().seamless().cameraRoll().apply(camera, System.currentTimeMillis());
     }
 }

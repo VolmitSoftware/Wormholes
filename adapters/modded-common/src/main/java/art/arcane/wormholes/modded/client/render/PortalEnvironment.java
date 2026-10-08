@@ -64,7 +64,7 @@ final class PortalEnvironment {
         EnvironmentState.Sky sky = environment.sky();
         Vector3fc color = vector(source.color());
         Vector3f forwards = new Vector3f(0.0f, 0.0f, -1.0f);
-        new Matrix4f(camera.viewRotationMatrix).mul(PortalProjection.rotation(environment.transform())).invert().transformDirection(forwards);
+        new Matrix4f(camera.viewRotationMatrix).mul(PortalProjection.rotation(environment.transform())).invert().transformDirection(forwards).normalize();
         float sunriseDirection = Math.sin(sky.sunAngle()) > 0.0 ? -1.0f : 1.0f;
         float sunrise = Math.max(0.0f, forwards.x * sunriseDirection) * sky.sunrise().alpha();
         if (distance >= 4 && sunrise > 0.0f) {

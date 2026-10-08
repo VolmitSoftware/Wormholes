@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.clientview;
 
+import art.arcane.optics.crossing.ScaleRule;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.optics.plate.ChunkLease;
 import art.arcane.optics.plate.ChunkLeaseRegistry;
@@ -182,6 +183,7 @@ public class MinecraftPreparedTravelWarmupTest extends MinecraftTestBase {
         when(portal.getOrigin()).thenReturn(new Vec3d(0, 64, 0));
         when(portal.getFrame()).thenReturn(Frame.canonical(Face.N));
         when(portal.isOpen()).thenReturn(true);
+        when(portal.getScaleRule()).thenReturn(ScaleRule.OFF);
         return portal;
     }
 

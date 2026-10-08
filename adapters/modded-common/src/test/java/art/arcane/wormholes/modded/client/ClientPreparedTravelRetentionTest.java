@@ -78,7 +78,7 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
         TravelMessage.TravelCoordinate kept = original.chunks().getFirst();
         TravelMessage.TravelCoordinate added = new TravelMessage.TravelCoordinate(1, 0);
         TravelMessage.TravelBegin shifted = new TravelMessage.TravelBegin(original.token(), original.generation() + 1,
-            original.sourcePortal(), original.sourceWorld(), original.sourceGeometry(), original.destinationToSource(), original.world(),
+            original.sourcePortal(), original.sourceWorld(), original.sourceGeometry(), original.destinationToSource(), 1.0F, original.world(),
             new TravelMessage.TravelPose(16, original.arrival().y(), 0, 0, 0), List.of(kept, added), original.environment(), original.expiresMillis(), TravelMessage.ArrivalRules.FRAME, false, 0, false);
         ClientPreparedTravel travel = ClientTravelTestFixtures.travel(ignored -> { });
         ClientPacketListener connection = mock(ClientPacketListener.class);
@@ -292,7 +292,7 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
             ApertureDescriptor aperture = new ApertureDescriptor(0, 0, 0, Face.N.ordinal(), true, 0, false, 2, 3,
                 new long[]{1}, ShapeDescriptor.FULL, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, kind, 0.0D, 0, 11, List.of());
             TravelMessage.TravelBegin begin = new TravelMessage.TravelBegin(original.token(), original.generation(),
-                original.sourcePortal(), original.sourceWorld(), aperture, original.destinationToSource(), original.world(),
+                original.sourcePortal(), original.sourceWorld(), aperture, original.destinationToSource(), 1.0F, original.world(),
                 original.arrival(), original.chunks(), original.environment(), original.expiresMillis(), TravelMessage.ArrivalRules.FRAME, false, 0, false);
             ClientLevel level = mock(ClientLevel.class);
             when(level.registryAccess()).thenReturn(RegistryAccess.EMPTY);
@@ -515,7 +515,7 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
         TravelMessage.TravelBegin original = begin();
         List<TravelMessage.TravelCoordinate> coordinates = ClientTravelWindow.coordinates(0, 0, 5);
         TravelMessage.TravelBegin expanded = new TravelMessage.TravelBegin(original.token(), original.generation(), original.sourcePortal(),
-            original.sourceWorld(), original.sourceGeometry(), original.destinationToSource(), original.world(), original.arrival(),
+            original.sourceWorld(), original.sourceGeometry(), original.destinationToSource(), 1.0F, original.world(), original.arrival(),
             coordinates, original.environment(), original.expiresMillis(), TravelMessage.ArrivalRules.FRAME, false, 0, false);
         Object source = source(expanded);
         Class<?> columnType = Class.forName(ClientPreparedTravel.class.getName() + "$Column");

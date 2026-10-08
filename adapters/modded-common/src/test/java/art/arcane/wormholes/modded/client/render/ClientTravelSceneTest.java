@@ -72,7 +72,7 @@ public class ClientTravelSceneTest extends MinecraftTestBase {
             List<TravelMessage.TravelCoordinate> manifest = original.chunks();
             when(next.chunks()).thenReturn(manifest);
             EnvironmentState current = new EnvironmentState(initial.gameTime() + 20, initial.sky(), initial.fog(),
-                initial.lighting(), initial.clouds(), initial.transform(), initial.dimension(), initial.world());
+                initial.lighting(), initial.clouds(), initial.transform(), initial.dimension(), initial.world(), 1.0F);
             when(next.environment()).thenReturn(current);
             when(next.arrival()).thenReturn(new TravelMessage.TravelPose(1.5, 80, 0.5, 180, 15));
             scene.rebind(next);

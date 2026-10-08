@@ -35,6 +35,10 @@ import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.claim.BlockClaim;
 import art.arcane.optics.scan.PassRevision;
 import art.arcane.wormholes.portal.ApertureKind;
+import art.arcane.wormholes.portal.LocalPortal;
+import art.arcane.wormholes.transit.TransitPortalExtension;
+import art.arcane.optics.aperture.SizeRatio;
+import art.arcane.optics.crossing.ScaleRule;
 
 public final class ClientViewPortalSource {
     private static final long REVISION_SEED = 1469598103934665603L;
@@ -200,6 +204,16 @@ public final class ClientViewPortalSource {
 
     public IPortal destinationAnchor() {
         return outcome == ProjectorDestination.Outcome.READY ? destination.destAnchor : null;
+    }
+
+    public float viewScale() {
+        TransitPortalExtension transit = portal instanceof LocalPortal local ? local.extension(TransitPortalExtension.class) : null;
+        ScaleRule rule = transit == null ? ScaleRule.OFF : transit.scaleRule();
+        if (rule.mode() == ScaleRule.Mode.OFF || !(destinationAnchor() instanceof ILocalPortal anchor) || portal.getFrame() == null
+            || anchor.getFrame() == null || portal.getArea() == null || anchor.getArea() == null) {
+            return 1.0F;
+        }
+        return (float) (1.0D / rule.travelScale(SizeRatio.between(portal.getFrame(), portal.getArea(), anchor.getFrame(), anchor.getArea())));
     }
 
     public BlockClaim.LightingPolicy lightingPolicy() {

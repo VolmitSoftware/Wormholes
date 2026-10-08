@@ -7,6 +7,7 @@ import java.util.UUID;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.crossing.MomentumRule;
 import art.arcane.optics.crossing.OrientationRule;
+import art.arcane.optics.crossing.ScaleRule;
 import art.arcane.optics.frame.AxisPermutation;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.math.Face;
@@ -81,10 +82,10 @@ public final class ClientViewFixtures {
     static TravelMessage.TravelBegin seamlessBegin() {
         TravelMessage.TravelBegin base = travelBegin();
         return new TravelMessage.TravelBegin(base.token(), base.generation(), base.sourcePortal(), base.sourceWorld(),
-            base.sourceGeometry().withShape(ShapeDescriptor.parse("circle")), base.destinationToSource(), base.world(), base.arrival(),
-            base.chunks(), base.environment(), base.expiresMillis(),
+            base.sourceGeometry().withShape(ShapeDescriptor.parse("circle")), base.destinationToSource(), 3.0F, base.world(), base.arrival(),
+            base.chunks(), base.environment().withScale(1.0F / 3.0F), base.expiresMillis(),
             new TravelMessage.ArrivalRules(OrientationRule.LOOK, true, new MomentumRule(MomentumRule.Mode.SCALE, 0.75D, 3.5D,
-                new Vec3d(0.0D, 0.25D, 0.0D))), true, 4, true);
+                new Vec3d(0.0D, 0.25D, 0.0D)), ScaleRule.ratio(0.25D, 4.0D)), true, 4, true);
     }
 
     public static TravelMessage.TravelBegin travelBegin() {
@@ -94,9 +95,9 @@ public final class ClientViewFixtures {
             base.clouds(), OpticTransform.IDENTITY, base.dimension(),
             new EnvironmentState.World("minecraft:overworld", world.clockTime(), world.biomeKey(), world.seaLevel(),
                 world.blockLight(), world.skyLight(), world.logicalHeight(), world.hasCeiling(), world.ambientLight(),
-                world.eyeMedium(), world.hasFixedTime()));
+                world.eyeMedium(), world.hasFixedTime()), 1.0F);
         return new TravelMessage.TravelBegin(new UUID(12, 34), 3L, new UUID(56, 78), "minecraft:the_nether",
-            geometry(), OpticTransform.of(AxisPermutation.of(Face.S, Face.U, Face.E), 4, 0, 6),
+            geometry(), OpticTransform.of(AxisPermutation.of(Face.S, Face.U, Face.E), 4, 0, 6), 1.0F,
             new TravelMessage.TravelWorld("minecraft:overworld", "minecraft:overworld", 123456789L, false, true, 63, -64, 384),
             new TravelMessage.TravelPose(-511.5D, 81.0D, -159.5D, 90.0F, -12.0F),
             List.of(new TravelMessage.TravelCoordinate(-32, -10)), environment, 30_000, TravelMessage.ArrivalRules.FRAME, false, 0, false);
@@ -111,7 +112,7 @@ public final class ClientViewFixtures {
             new EnvironmentState.Lighting(color, 0.75F, color, color), new EnvironmentState.Clouds(alpha, 192.0F),
             OpticTransform.of(AxisPermutation.of(Face.N, Face.U, Face.E), -128.5D, 96.0D, 33.25D),
             new EnvironmentState.Dimension(-64, 384, true, EnvironmentState.CardinalLighting.DEFAULT, 63.0D, false),
-            new EnvironmentState.World("test:destination", 72000L, "minecraft:plains", 63, 7, 15, 256, true, 0.1F, EnvironmentState.EyeMedium.WATER, true));
+            new EnvironmentState.World("test:destination", 72000L, "minecraft:plains", 63, 7, 15, 256, true, 0.1F, EnvironmentState.EyeMedium.WATER, true), 1.0F);
     }
 
     static ApertureDescriptor geometry() {

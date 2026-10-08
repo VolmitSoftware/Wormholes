@@ -5,6 +5,7 @@ import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
 import art.arcane.optics.crossing.ArrivalOrientation;
 import art.arcane.optics.crossing.MomentumRule;
 import art.arcane.optics.crossing.OrientationRule;
+import art.arcane.optics.crossing.ScaleRule;
 import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.optics.crossing.Pose;
 import art.arcane.optics.crossing.PoseTransform;
@@ -13,6 +14,7 @@ import art.arcane.optics.math.Angles;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.frame.AxisPermutation;
 import net.minecraft.client.Camera;
 import net.minecraft.client.DeltaTracker;
@@ -48,7 +50,7 @@ public class ClientTravelCrossingPoseTest extends MinecraftTestBase {
     public void standingReverseCrossingPreservesExactFeetAboveDestinationFloor() throws ReflectiveOperationException {
         TravelMessage.TravelPose pose = pose(new Vec3(1001.5, 200, 0.4), 0.75f);
         OpticTransform transform = OpticTransform.of(AxisPermutation.of(Face.E, Face.U, Face.S), -102, 120, 0);
-        Vec3 destination = ClientTravelMotion.point(transform.inverse(), new Vec3(pose.x(), pose.y(), pose.z()));
+        Vec3 destination = ClientTravelMotion.point(Similarity.of(transform.inverse(), 1.0D), new Vec3(pose.x(), pose.y(), pose.z()));
         assertEquals(200, pose.y(), 0);
         assertEquals(80, destination.y, 0);
     }
@@ -193,10 +195,10 @@ public class ClientTravelCrossingPoseTest extends MinecraftTestBase {
         Frame source = ClientTravelTestFixtures.geometry().frame();
         OpticTransform destinationToSource = OpticTransform.between(destination, new Vec3d(100, 64, 100), source, new Vec3d(0, 0, 0));
         return new TravelMessage.TravelBegin(new UUID(1, 2), 3, new UUID(4, 5), "minecraft:overworld", ClientTravelTestFixtures.geometry(),
-            destinationToSource, new TravelMessage.TravelWorld("minecraft:overworld", "minecraft:overworld", 7, false, false, 63, -64, 384),
+            destinationToSource, 1.0F, new TravelMessage.TravelWorld("minecraft:overworld", "minecraft:overworld", 7, false, false, 63, -64, 384),
             new TravelMessage.TravelPose(100, 64, 100, 0, 0), List.of(new TravelMessage.TravelCoordinate(6, 6)),
             PortalEnvironmentTest.environment(OpticTransform.IDENTITY), 30_000,
-            new TravelMessage.ArrivalRules(orientation, gravityFlip, momentum), true, 1, true);
+            new TravelMessage.ArrivalRules(orientation, gravityFlip, momentum, ScaleRule.OFF), true, 1, true);
     }
 
     private static PlaneCrossing crossing(Frame source, float yaw, float pitch) {

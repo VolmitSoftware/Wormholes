@@ -1,8 +1,8 @@
 package art.arcane.wormholes.network;
 
-import art.arcane.optics.crossing.ArrivalMomentum;
-import art.arcane.optics.crossing.ArrivalOrientation;
-import art.arcane.optics.math.Angles;
+import art.arcane.optics.crossing.Pose;
+import art.arcane.optics.crossing.ScaleRule;
+import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.api.traversal.TraversalKind;
 import art.arcane.wormholes.api.traversal.TraversalRefundReason;
@@ -13,6 +13,7 @@ import art.arcane.wormholes.config.toml.TransitConfig;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.modded.MinecraftMenuText;
 import art.arcane.wormholes.modded.MinecraftWormholesApi;
+import art.arcane.wormholes.modded.MinecraftArrivalPose;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.MinecraftProxyPayload;
 import art.arcane.wormholes.modded.MinecraftTravelCosts;
@@ -23,6 +24,8 @@ import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.modded.mixin.ServerConnectionAccess;
 import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.wormholes.portal.DepartureHoldPolicy;
+import art.arcane.wormholes.network.client.TravelMessage;
+import art.arcane.wormholes.transit.ArrivalPose;
 import art.arcane.wormholes.transit.MomentumPolicy;
 import art.arcane.wormholes.transit.OrientationPolicy;
 import net.minecraft.commands.Commands;
@@ -31,6 +34,7 @@ import net.minecraft.network.protocol.common.ClientboundTransferPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.server.players.NameAndId;
 import net.minecraft.server.players.PlayerList;
 import net.minecraft.world.level.portal.TeleportTransition;
@@ -486,17 +490,22 @@ public final class MinecraftPlayerHandoffs implements AutoCloseable {
             if (momentum == null) {
                 momentum = MomentumPolicy.of(MomentumPolicy.Mode.parse(config.momentumDefault, MomentumPolicy.Mode.PRESERVE));
             }
-            Vec3d velocity = ArrivalMomentum.apply(crossing.outVelocity(exit.getFrame()), momentum.rule(), config.momentumMaxSpeed);
-            Angles.Look look = ArrivalOrientation.apply(crossing, exit.getFrame(),
-                OrientationPolicy.parse((String) exit.setting("transit.orientation"), OrientationPolicy.parse(config.orientationDefault, OrientationPolicy.FRAME)).rule(),
-                config.gravityFlipEnabled);
+            OrientationPolicy orientation = OrientationPolicy.parse((String) exit.setting("transit.orientation"),
+                OrientationPolicy.parse(config.orientationDefault, OrientationPolicy.FRAME));
+            TravelMessage.ArrivalRules rules = TravelMessage.ArrivalRules.of(orientation, momentum, config.gravityFlipEnabled, config.momentumMaxSpeed,
+                ScaleRule.OFF);
+            Pose landed = ArrivalPose.arrive(MinecraftArrivalPose.departure(crossing), crossing,
+                Similarity.of(crossing.toward(exit.getFrame(), exit.getOrigin()), 1.0D), exit.getFrame(), rules);
+            Vec3d velocity = landed.velocity();
             ticket = runtime.preSend().preSend(player, level, target.blockX(), target.blockZ());
-            if (player.teleport(new TeleportTransition(level, vector(target), vector(velocity), look.yaw(), look.pitch(),
-                TeleportTransition.PLACE_PORTAL_TICKET)) == null) {
+            Entity placed = player.teleport(new TeleportTransition(level, vector(target), vector(velocity), landed.yaw(), landed.pitch(),
+                TeleportTransition.PLACE_PORTAL_TICKET));
+            if (placed == null) {
                 runtime.preSend().rollback(ticket);
                 finish(reservation, false, "destination teleport was rejected");
                 return;
             }
+            MinecraftArrivalPose.apply(placed, landed);
             MinecraftTraversalCues.arrival(runtime, exit, player, false);
             MinecraftTransit.arrived(runtime, exit, player, true, ticket, false);
             runtime.portals().recordArrival(player, exit);

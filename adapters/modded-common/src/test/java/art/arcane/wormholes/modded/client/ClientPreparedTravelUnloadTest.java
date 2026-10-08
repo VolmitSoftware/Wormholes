@@ -114,7 +114,7 @@ public class ClientPreparedTravelUnloadTest extends MinecraftTestBase {
             }
         }
         return new TravelMessage.TravelBegin(new UUID(4, 17), 8, new UUID(2, 9), "minecraft:the_nether",
-            ClientTravelTestFixtures.geometry(), OpticTransform.IDENTITY,
+            ClientTravelTestFixtures.geometry(), OpticTransform.IDENTITY, 1.0F,
             new TravelMessage.TravelWorld("minecraft:overworld", "minecraft:overworld", 7, false, false, 63, -64, 384),
             new TravelMessage.TravelPose(0, 80, 0, 0, 0), coordinates,
             PortalEnvironmentTest.environment(OpticTransform.IDENTITY), 30_000, TravelMessage.ArrivalRules.FRAME, false, 0, false);

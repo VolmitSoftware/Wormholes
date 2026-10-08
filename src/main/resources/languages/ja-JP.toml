@@ -1416,6 +1416,15 @@ membrane = ["&6&l膜: {state}&r", "&7正面からのみ進入でき、裏面は�
 bounce = ["&6&l跳ね返り: {state}&r", "&7旅行者を移動させずに跳ね返します。", "&e左クリックで切り替え"]
 profile = ["&6&l遷移演出&r", "&7境界 {mode}", "&7到着 {state}", "&e左クリック: 境界エフェクト、右クリック: 到着音", "&eShift + 左クリック: マスクのティック数"]
 prompt = "&b新しい値をチャットに入力してください（または '{cancel}'）:"
+scale = ["&6&l旅行者スケール: {mode}&r", "&7サイズ範囲 {value}。大きさの違うポータル間の移動を対応付けます。", "&e左クリックでモード切替", "&e右クリック: 最小、Shift + 右クリック: 最大"]
+
+[transit.scale]
+current = "&8[&6Wormholes&8] &f{portal}&7 の旅行者スケール: &f{mode}&7 ({value})"
+set = "&8[&6Wormholes&8] &f{portal}&a の旅行者スケールを &f{mode}&a ({value}) に設定しました。"
+invalid = "&8[&6Wormholes&8] &c旅行者スケールを読み取れません: {reason}"
+reset = "&8[&6Wormholes&8] &a{count} 体のエンティティを通常サイズに戻しました。"
+reset_radius = "&8[&6Wormholes&8] &ctarget=all には 1 から {value} の半径が必要です。"
+reset_player = "&8[&6Wormholes&8] &c{name} という名前のオンラインプレイヤーはいません。"
 # ---- end lane:transit ----
 
 # ---- lane:view (fidelity.*) ----
@@ -1528,6 +1537,15 @@ portals = "ポータルの一覧、確認、一括編集"
 "portals.shape" = "ポータルの開口部の形状を表示または設定する"
 "portals.shape.portal" = "ポータル名または ID"
 "portals.shape.shape" = "circle、flower(petals=7)、full などの形状テキスト。空なら現在の形状を表示する"
+"portals.scale" = "ポータルの旅行者スケール規則を表示または設定する"
+"portals.scale.portal" = "ポータル名または id"
+"portals.scale.mode" = "off、motion、ratio のいずれか。値を省略すると現在の規則を表示"
+"portals.scale.min" = "ratio の通過で到達できる最小サイズ倍率 (0.0625-16)"
+"portals.scale.max" = "ratio の通過で到達できる最大サイズ倍率 (0.0625-16)"
+"scale" = "ポータルで拡大縮小された旅行者を通常サイズに戻す"
+"scale.reset" = "プレイヤー 1 人または周囲のすべてのエンティティからポータルスケールを外す"
+"scale.reset.target" = "self、プレイヤー名、または all"
+"scale.reset.radius" = "target=all のときの検索半径 (ブロック、1-256)"
 # ---- end lane:ops ----
 
 # ---- lane:clientview (clientview.*) ----

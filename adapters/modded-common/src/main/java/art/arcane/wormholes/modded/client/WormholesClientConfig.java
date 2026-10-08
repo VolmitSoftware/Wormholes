@@ -24,6 +24,8 @@ public class WormholesClientConfig {
     public static final int DEFAULT_PORTAL_SHAPE_SUBDIVISIONS = 8;
     public static final int MAX_PORTAL_SHAPE_SUBDIVISIONS = 16;
     public static final double MAX_PORTAL_EDGE_FEATHER = 2.0D;
+    public static final double DEFAULT_CAMERA_ROLL_EASE_SECONDS = 0.35D;
+    public static final double MAX_CAMERA_ROLL_EASE_SECONDS = 2.0D;
 
     @ConfigDescription("Portal renderer: native uses ClientView; block-packets uses the server's standard block and entity packets. Restart the game after changing it.")
     public String renderer = Renderer.NATIVE.key();
@@ -51,6 +53,8 @@ public class WormholesClientConfig {
     public int portalShapeSubdivisions = DEFAULT_PORTAL_SHAPE_SUBDIVISIONS;
     @ConfigDescription("Width in blocks of a band inside the edge of shaped portals tinted with the destination's fog color, 0 to 2. 0 disables the band.")
     public double portalEdgeFeather = 0.0D;
+    @ConfigDescription("Seconds over which the camera tilt left over from crossing a twisted or upside-down portal pair eases back to level, 0 to 2. 0 levels the camera at once.")
+    public double cameraRollEaseSeconds = DEFAULT_CAMERA_ROLL_EASE_SECONDS;
 
     public static WormholesClientConfig load(Path configDirectory) {
         WormholesClientConfig loaded = TomlCodec.loadOrCreate(configDirectory.resolve(FILE_NAME).toFile(), WormholesClientConfig.class);
@@ -76,6 +80,10 @@ public class WormholesClientConfig {
             portalEdgeFeather = 0.0D;
         }
         portalEdgeFeather = Math.min(MAX_PORTAL_EDGE_FEATHER, portalEdgeFeather);
+        if (!Double.isFinite(cameraRollEaseSeconds) || cameraRollEaseSeconds < 0.0D) {
+            cameraRollEaseSeconds = 0.0D;
+        }
+        cameraRollEaseSeconds = Math.min(MAX_CAMERA_ROLL_EASE_SECONDS, cameraRollEaseSeconds);
     }
 
     public Renderer rendererMode() {

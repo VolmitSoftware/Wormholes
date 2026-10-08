@@ -217,6 +217,21 @@ public final class ClientSodiumTerrain {
             && state.warmed() && state.compatible() && compatible(level);
     }
 
+    public static boolean covered(ClientLevel level) {
+        if (!AVAILABLE) {
+            return true;
+        }
+        Minecraft minecraft = Minecraft.getInstance();
+        if (level == minecraft.level) {
+            return false;
+        }
+        if (minecraft.level != null && level.dimension().equals(minecraft.level.dimension()) || !compatible(level)) {
+            return true;
+        }
+        State state = STATES.get(level);
+        return state != null && state.warmFailed;
+    }
+
     public static boolean usesPreparedTerrain(ClientLevel level) {
         State state = AVAILABLE ? STATES.get(level) : null;
         return state != null && !state.warmFailed && (state.viewport != null || level != Minecraft.getInstance().level)

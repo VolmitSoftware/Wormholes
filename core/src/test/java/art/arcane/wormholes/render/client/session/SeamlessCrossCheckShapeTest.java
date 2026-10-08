@@ -63,7 +63,7 @@ final class SeamlessCrossCheckShapeTest {
     private static TravelMessage.TravelBegin arm(ApertureDescriptor geometry) {
         TravelMessage.TravelBegin sample = ClientViewFixtures.travelBegin();
         return new TravelMessage.TravelBegin(sample.token(), sample.generation(), sample.sourcePortal(), sample.sourceWorld(), geometry,
-            sample.destinationToSource(), sample.world(), sample.arrival(), sample.chunks(), sample.environment(), sample.expiresMillis(),
+            sample.destinationToSource(), 1.0F, sample.world(), sample.arrival(), sample.chunks(), sample.environment(), sample.expiresMillis(),
             TravelMessage.ArrivalRules.FRAME, true, 2, true);
     }
 }

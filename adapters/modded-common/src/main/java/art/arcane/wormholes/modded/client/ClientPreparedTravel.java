@@ -16,6 +16,7 @@ import art.arcane.wormholes.network.client.ClientTravelWindow;
 import art.arcane.wormholes.network.client.ClientViewExtensions;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.Similarity;
 import io.netty.buffer.Unpooled;
 import io.netty.buffer.ByteBuf;
 import it.unimi.dsi.fastutil.longs.LongIterator;
@@ -200,7 +201,7 @@ public final class ClientPreparedTravel {
             return false;
         }
         if (begin != null && !adopted && prediction == null) {
-            ClientPortalRenderer.instance().updateTravelCamera(camera, begin.destinationToSource());
+            ClientPortalRenderer.instance().updateTravelCamera(camera, begin.sourceToDestination());
         }
         float partial = camera.getCameraEntityPartialTicks(tracker);
         Vec3 eye = player.getEyePosition(partial);
@@ -227,7 +228,7 @@ public final class ClientPreparedTravel {
             return false;
         }
         ClientLevel sourceLevel = minecraft.level;
-        OpticTransform toward = begin.destinationToSource().inverse();
+        Similarity toward = begin.sourceToDestination();
         Vec3 expectedArrival = ClientTravelMotion.point(toward, new Vec3(crossingPose.x(), crossingPose.y(), crossingPose.z()));
         prediction = new Prediction(new PredictionState(sourceLevel, source, ClientTravelMotion.carry(player), destination, expectedArrival,
             acknowledgedRevision, ((PreparedLevelAccess) sourceLevel).wormholes$extractor(), minecraft.getConnection()));
@@ -1453,7 +1454,7 @@ public final class ClientPreparedTravel {
         List<TravelMessage.TravelCoordinate> manifest = ClientTravelWindow.coordinates(centerX, centerZ, radius);
         Vec3 eye = player.getEyePosition();
         return new TravelMessage.TravelBegin(begin.token(), begin.generation(), begin.sourcePortal(), begin.sourceWorld(),
-            begin.sourceGeometry(), OpticTransform.IDENTITY, world,
+            begin.sourceGeometry(), OpticTransform.IDENTITY, 1.0F, world,
             new TravelMessage.TravelPose(player.getX(), player.getY(), player.getZ(), player.getYRot(), player.getXRot()), manifest,
             MinecraftPortalEnvironment.capture(level, vector(eye), OpticTransform.IDENTITY, world.flat()), begin.expiresMillis(), TravelMessage.ArrivalRules.FRAME, false, 0, false);
     }
@@ -2067,7 +2068,7 @@ public final class ClientPreparedTravel {
         LocalPlayer player = minecraft.player;
         if (player != null && minecraft.level != null
             && value.sourceWorld().equals(minecraft.level.dimension().identifier().toString())) {
-            Vec3d feet = value.destinationToSource().inverse().point(new Vec3d(player.getX(), player.getY(), player.getZ()));
+            Vec3d feet = value.sourceToDestination().point(new Vec3d(player.getX(), player.getY(), player.getZ()));
             Angles.Look look = ClientTravelMotion.look(value.destinationToSource().inverse(), player.getYRot(), player.getXRot());
             return arrivalCamera(new TravelMessage.TravelPose(feet.x(), feet.y(), feet.z(), look.yaw(), look.pitch()), eyeHeight(player));
         }

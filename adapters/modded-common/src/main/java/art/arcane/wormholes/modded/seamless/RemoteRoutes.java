@@ -9,6 +9,7 @@ import art.arcane.optics.plate.ChunkLease;
 import art.arcane.optics.view.WorldChangeTracker;
 import art.arcane.wormholes.modded.MinecraftChunkLeasePlatform;
 import art.arcane.wormholes.modded.MinecraftPortal;
+import art.arcane.wormholes.modded.MinecraftPortalRegistry;
 import art.arcane.wormholes.modded.MinecraftProjectionWorldView;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.modded.clientview.MinecraftPortalEnvironment;
@@ -450,7 +451,7 @@ public final class RemoteRoutes implements AutoCloseable {
                 continue;
             }
             StraddleTracker.track(player, endpoint(candidate.source()), endpoint(candidate.destination()), candidate.level(),
-                new Vec3d(player.getX(), player.getEyeY(), player.getZ()));
+                new Vec3d(player.getX(), player.getEyeY(), player.getZ()), MinecraftPortalRegistry.travelScale(candidate.source(), candidate.destination()));
             return;
         }
         StraddleTracker.clear(player);

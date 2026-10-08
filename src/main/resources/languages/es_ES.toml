@@ -1416,6 +1416,15 @@ membrane = ["&6&lMembrana: {state}&r", "&7Solo el frente deja pasar a los viajer
 bounce = ["&6&lRebote: {state}&r", "&7Rechazar a los viajeros en lugar de moverlos.", "&eClic izquierdo para alternar"]
 profile = ["&6&lEfectos de transición&r", "&7Umbral {mode}", "&7Llegada {state}", "&eClic izquierdo: efecto de umbral, Clic derecho: sonido de llegada", "&eMayús + Clic izquierdo: ticks de máscara"]
 prompt = "&bEscribe el nuevo valor en el chat (o '{cancel}'):"
+scale = ["&6&lEscala del viajero: {mode}&r", "&7Rango de tamaño {value}. Ajusta el viaje entre portales de distinto tamaño.", "&eClic izquierdo para cambiar el modo", "&eClic derecho: mínimo, Mayús + clic derecho: máximo"]
+
+[transit.scale]
+current = "&8[&6Wormholes&8] &f{portal}&7 escala del viajero: &f{mode}&7 ({value})"
+set = "&8[&6Wormholes&8] &f{portal}&a escala del viajero cambiada a &f{mode}&a ({value})."
+invalid = "&8[&6Wormholes&8] &cNo se pudo leer la escala del viajero: {reason}"
+reset = "&8[&6Wormholes&8] &aSe restauró el tamaño normal de {count} entidades."
+reset_radius = "&8[&6Wormholes&8] &ctarget=all necesita un radio de 1 a {value}."
+reset_player = "&8[&6Wormholes&8] &cNo hay ningún jugador conectado llamado {name}."
 # ---- end lane:transit ----
 
 # ---- lane:view (fidelity.*) ----
@@ -1528,6 +1537,15 @@ portals = "Listar, inspeccionar y editar portales en masa"
 "portals.shape" = "Mostrar o establecer la forma de la abertura de un portal"
 "portals.shape.portal" = "Nombre o id del portal"
 "portals.shape.shape" = "Texto de forma como circle, flower(petals=7) o full; vacio muestra la forma actual"
+"portals.scale" = "Mostrar o fijar la regla de escala del viajero de un portal"
+"portals.scale.portal" = "Nombre o id del portal"
+"portals.scale.mode" = "off, motion o ratio; sin valores muestra la regla actual"
+"portals.scale.min" = "Factor de tamaño mínimo que puede alcanzar un cruce ratio (0.0625-16)"
+"portals.scale.max" = "Factor de tamaño máximo que puede alcanzar un cruce ratio (0.0625-16)"
+"scale" = "Restaurar el tamaño normal de los viajeros escalados por portales"
+"scale.reset" = "Quitar la escala de portal de un jugador o de todas las entidades cercanas"
+"scale.reset.target" = "self, un nombre de jugador o all"
+"scale.reset.radius" = "Radio de búsqueda en bloques con target=all (1-256)"
 # ---- end lane:ops ----
 
 # ---- lane:clientview (clientview.*) ----

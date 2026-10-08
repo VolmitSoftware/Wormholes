@@ -1,15 +1,18 @@
 package art.arcane.wormholes.network;
 
-import art.arcane.optics.crossing.ArrivalMomentum;
-import art.arcane.optics.crossing.ArrivalOrientation;
-import art.arcane.optics.math.Angles;
+import art.arcane.optics.crossing.Pose;
+import art.arcane.optics.crossing.ScaleRule;
+import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.nexus.NetworkMember;
 import art.arcane.optics.plate.ChunkLease;
 import art.arcane.wormholes.config.toml.TransitConfig;
+import art.arcane.wormholes.modded.MinecraftArrivalPose;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.optics.crossing.PlaneCrossing;
+import art.arcane.wormholes.network.client.TravelMessage;
+import art.arcane.wormholes.transit.ArrivalPose;
 import art.arcane.wormholes.transit.MomentumPolicy;
 import art.arcane.wormholes.transit.OrientationPolicy;
 import net.minecraft.core.component.DataComponents;
@@ -439,13 +442,14 @@ public final class MinecraftEntityTransfers implements AutoCloseable {
             if (momentum == null) {
                 momentum = MomentumPolicy.of(MomentumPolicy.Mode.parse(config.momentumDefault, MomentumPolicy.Mode.PRESERVE));
             }
-            Vec3d velocity = ArrivalMomentum.apply(crossing.outVelocity(portal.getFrame()), momentum.rule(), config.momentumMaxSpeed);
-            Angles.Look look = ArrivalOrientation.apply(crossing, portal.getFrame(),
-                OrientationPolicy.parse((String) portal.setting("transit.orientation"), OrientationPolicy.parse(config.orientationDefault, OrientationPolicy.FRAME)).rule(),
-                config.gravityFlipEnabled);
-            entity.setYRot(look.yaw());
-            entity.setXRot(look.pitch());
-            entity.setDeltaMovement(vector(velocity));
+            OrientationPolicy orientation = OrientationPolicy.parse((String) portal.setting("transit.orientation"),
+                OrientationPolicy.parse(config.orientationDefault, OrientationPolicy.FRAME));
+            TravelMessage.ArrivalRules rules = TravelMessage.ArrivalRules.of(orientation, momentum, config.gravityFlipEnabled, config.momentumMaxSpeed,
+                ScaleRule.OFF);
+            Pose landed = ArrivalPose.arrive(MinecraftArrivalPose.departure(crossing), crossing,
+                Similarity.of(crossing.toward(portal.getFrame(), portal.getOrigin()), 1.0D), portal.getFrame(), rules);
+            MinecraftArrivalPose.apply(entity, landed);
+            entity.setDeltaMovement(vector(landed.velocity()));
             for (Entity member : entity.getSelfAndPassengers().toList()) {
                 runtime.portals().recordArrival(member, portal);
                 runtime.rules().arrived(member, portal);

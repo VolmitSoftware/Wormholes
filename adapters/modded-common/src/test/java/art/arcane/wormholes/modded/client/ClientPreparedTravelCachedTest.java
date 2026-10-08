@@ -460,7 +460,7 @@ public class ClientPreparedTravelCachedTest {
         fixture.setAccessible(true);
         TravelMessage.TravelBegin template = (TravelMessage.TravelBegin) fixture.invoke(null, 12L);
         TravelMessage.TravelBegin manifest = new TravelMessage.TravelBegin(template.token(), template.generation(),
-            template.sourcePortal(), template.sourceWorld(), template.sourceGeometry(), template.destinationToSource(), template.world(),
+            template.sourcePortal(), template.sourceWorld(), template.sourceGeometry(), template.destinationToSource(), 1.0F, template.world(),
             template.arrival(), ClientTravelWindow.coordinates(0, 0, 3),
             template.environment(), template.expiresMillis(), TravelMessage.ArrivalRules.FRAME, false, 0, false);
         Object source = sourceConstructor.newInstance(manifest);
@@ -529,7 +529,7 @@ public class ClientPreparedTravelCachedTest {
             new EnvironmentState.Dimension(world.minY(), world.height(), false,
                 EnvironmentState.CardinalLighting.DEFAULT, 0.0, false),
             new EnvironmentState.World(world.dimension(), 6000, "minecraft:nether_wastes", world.seaLevel(),
-                7, 0, 128, true, 0.1F, EnvironmentState.EyeMedium.NONE, false));
+                7, 0, 128, true, 0.1F, EnvironmentState.EyeMedium.NONE, false), 1.0F);
         Method capture = ClientPreparedTravel.class.getDeclaredMethod("sourceBegin", ClientLevel.class, LocalPlayer.class);
         capture.setAccessible(true);
         Minecraft minecraft = mock(Minecraft.class);
@@ -597,7 +597,7 @@ public class ClientPreparedTravelCachedTest {
         TravelMessage.TravelCoordinate missing = new TravelMessage.TravelCoordinate(4, 4);
         manifest.add(missing);
         TravelMessage.TravelBegin begin = new TravelMessage.TravelBegin(original.token(), original.generation(),
-            original.sourcePortal(), original.sourceWorld(), original.sourceGeometry(), original.destinationToSource(),
+            original.sourcePortal(), original.sourceWorld(), original.sourceGeometry(), original.destinationToSource(), 1.0F,
             original.world(), original.arrival(), manifest, original.environment(), original.expiresMillis(), TravelMessage.ArrivalRules.FRAME, false, 0, false);
         EnvironmentState environment = begin.environment();
         List<TravelMessage> sent = new ArrayList<>();
@@ -715,7 +715,7 @@ public class ClientPreparedTravelCachedTest {
             }
         }
         TravelMessage.TravelBegin begin = new TravelMessage.TravelBegin(original.token(), original.generation(),
-            original.sourcePortal(), original.sourceWorld(), original.sourceGeometry(), original.destinationToSource(),
+            original.sourcePortal(), original.sourceWorld(), original.sourceGeometry(), original.destinationToSource(), 1.0F,
             original.world(), original.arrival(), manifest, original.environment(), original.expiresMillis(), TravelMessage.ArrivalRules.FRAME, false, 0, false);
         ClientPreparedTravel travel = ClientTravelTestFixtures.travel(ignored -> { });
         Class<?> pendingType = Class.forName(ClientPreparedTravel.class.getName() + "$PendingPreparation");

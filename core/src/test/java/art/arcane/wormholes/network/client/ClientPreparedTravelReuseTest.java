@@ -614,7 +614,7 @@ final class ClientPreparedTravelReuseTest {
     private static TravelMessage.TravelBegin withCoordinates(TravelMessage.TravelBegin begin,
                                                                  List<TravelMessage.TravelCoordinate> coordinates) {
         return new TravelMessage.TravelBegin(begin.token(), begin.generation(), begin.sourcePortal(), begin.sourceWorld(),
-            begin.sourceGeometry(), begin.destinationToSource(), begin.world(), begin.arrival(), coordinates,
+            begin.sourceGeometry(), begin.destinationToSource(), 1.0F, begin.world(), begin.arrival(), coordinates,
             begin.environment(), begin.expiresMillis(), TravelMessage.ArrivalRules.FRAME, false, 0, false);
     }
 
@@ -627,7 +627,7 @@ final class ClientPreparedTravelReuseTest {
             }
         }
         return new TravelMessage.TravelBegin(new UUID(0, generation), generation, fixture.sourcePortal(), fixture.sourceWorld(),
-            fixture.sourceGeometry(), fixture.destinationToSource(), fixture.world(), new TravelMessage.TravelPose(0, 64, 0, 0, 0),
+            fixture.sourceGeometry(), fixture.destinationToSource(), 1.0F, fixture.world(), new TravelMessage.TravelPose(0, 64, 0, 0, 0),
             coordinates, fixture.environment(), fixture.expiresMillis(), TravelMessage.ArrivalRules.FRAME, false, 0, false);
     }
 }

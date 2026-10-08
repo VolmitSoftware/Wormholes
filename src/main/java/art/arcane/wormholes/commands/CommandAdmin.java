@@ -19,6 +19,7 @@ import java.util.logging.Level;
 public class CommandAdmin {
     private CommandBackup backup = new CommandBackup();
     private CommandPortals portals = new CommandPortals();
+    private CommandScale scale = new CommandScale();
 
     @Director(name = "deleteallportals", sync = true, descriptionKey = "command.help.admin.delete_portals", description = "Delete every local portal and saved portal link")
     public void deleteAllPortals(@Param(name = "sender", contextual = true) CommandSender sender) {

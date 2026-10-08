@@ -1416,6 +1416,15 @@ membrane = ["&6&lMembran: {state}&r", "&7Nur die Vorderseite lässt Reisende hin
 bounce = ["&6&lAbprall: {state}&r", "&7Reisende zurückwerfen, statt sie zu bewegen.", "&eLinksklick zum Umschalten"]
 profile = ["&6&lÜbergangseffekte&r", "&7Schwelle {mode}", "&7Ankunft {state}", "&eLinksklick: Schwelleneffekt, Rechtsklick: Ankunftsklang", "&eUmschalt + Linksklick: Masken-Ticks"]
 prompt = "&bGib den neuen Wert im Chat ein (oder '{cancel}'):"
+scale = ["&6&lReisendengröße: {mode}&r", "&7Größenbereich {value}. Bildet Reisen zwischen Portalen unterschiedlicher Größe ab.", "&eLinksklick zum Wechseln des Modus", "&eRechtsklick: Minimum, Umschalt + Rechtsklick: Maximum"]
+
+[transit.scale]
+current = "&8[&6Wormholes&8] &f{portal}&7 Reisendengröße: &f{mode}&7 ({value})"
+set = "&8[&6Wormholes&8] &f{portal}&a Reisendengröße auf &f{mode}&a ({value}) gesetzt."
+invalid = "&8[&6Wormholes&8] &cReisendengröße nicht lesbar: {reason}"
+reset = "&8[&6Wormholes&8] &aStandardgröße von {count} Wesen wiederhergestellt."
+reset_radius = "&8[&6Wormholes&8] &ctarget=all braucht einen Radius von 1 bis {value}."
+reset_player = "&8[&6Wormholes&8] &cKein Spieler namens {name} ist online."
 # ---- end lane:transit ----
 
 # ---- lane:view (fidelity.*) ----
@@ -1528,6 +1537,15 @@ portals = "Portale auflisten, ansehen und in Menge bearbeiten"
 "portals.shape" = "Die Oeffnungsform eines Portals anzeigen oder festlegen"
 "portals.shape.portal" = "Portalname oder Id"
 "portals.shape.shape" = "Formtext wie circle, flower(petals=7) oder full; leer zeigt die aktuelle Form"
+"portals.scale" = "Die Reisendengröße eines Portals anzeigen oder festlegen"
+"portals.scale.portal" = "Portalname oder Id"
+"portals.scale.mode" = "off, motion oder ratio; ohne Werte wird die aktuelle Regel gezeigt"
+"portals.scale.min" = "Kleinster Größenfaktor, den ein ratio-Durchgang erreichen darf (0.0625-16)"
+"portals.scale.max" = "Größter Größenfaktor, den ein ratio-Durchgang erreichen darf (0.0625-16)"
+"scale" = "Die Standardgröße von Reisenden wiederherstellen, die Portale verändert haben"
+"scale.reset" = "Die Portalgröße von einem Spieler oder allen Wesen in der Nähe entfernen"
+"scale.reset.target" = "self, ein Spielername oder all"
+"scale.reset.radius" = "Suchradius in Blöcken bei target=all (1-256)"
 # ---- end lane:ops ----
 
 # ---- lane:clientview (clientview.*) ----

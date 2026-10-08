@@ -7,7 +7,8 @@ import art.arcane.wormholes.modded.client.WormholesClientConfig;
 import art.arcane.optics.aperture.AperturePolygon;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.stream.EnvironmentState;
-import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.shape.ShapeMesh;
 import art.arcane.wormholes.portal.ApertureKind;
@@ -220,7 +221,7 @@ public final class ClientPortalRenderer {
         return !PortalShaderScope.shaders() || travelSourceShaders != null && travelSourceShaders.ready();
     }
 
-    public void updateTravelCamera(Camera source, OpticTransform destinationToSource) {
+    public void updateTravelCamera(Camera source, Similarity sourceToDestination) {
         if (travel == null || travelTransition || !source.isInitialized()) {
             return;
         }
@@ -235,7 +236,7 @@ public final class ClientPortalRenderer {
         travelDisplayCamera.hudFov = source.getFov();
         travelDisplayCamera.isFirstPerson = !source.isDetached();
         travelDisplayCamera.initialized = true;
-        travelCamera = transformedCamera(travelDisplayCamera, PortalProjection.destinationToSource(destinationToSource), travelDisplayCamera.projectionMatrix);
+        travelCamera = transformedCamera(travelDisplayCamera, PortalProjection.matrix(sourceToDestination.inverse()), travelDisplayCamera.projectionMatrix);
         travel.cullFrustum = new Frustum(travelCamera.viewRotationMatrix, travelCamera.projectionMatrix);
         travel.cullFrustum.prepare(travelCamera.pos.x, travelCamera.pos.y, travelCamera.pos.z);
     }
@@ -802,6 +803,7 @@ public final class ClientPortalRenderer {
             arrival.depthFar = rootCamera.depthFar;
         }
         portal.camera = transformedCamera(arrival, new Matrix4d(), frameProjection);
+        portal.contentCamera = portal.camera;
         camera = portal.camera;
         portal.cullFrustum = new Frustum(camera.viewRotationMatrix, frameProjection);
         portal.cullFrustum.prepare(camera.pos.x, camera.pos.y, camera.pos.z);
@@ -894,9 +896,11 @@ public final class ClientPortalRenderer {
         }
         try {
             PortalShaderRenderer.Session session = shaderRenderer.acquire(portal.key, portal.scene.environment(), dimensions.width(), dimensions.height());
-            CameraRenderState display = transformedCamera(rootCamera, toRoot, frameProjection);
+            Matrix4d content = contentSpace(portal, toRoot);
+            CameraRenderState display = transformedCamera(rootCamera, content, frameProjection);
             camera = display;
             portal.camera = display;
+            portal.contentCamera = display;
             portal.cullFrustum = display.cullFrustum;
             if (portal.cullFrustum == null) {
                 portal.cullFrustum = new Frustum(display.viewRotationMatrix, frameProjection);
@@ -909,7 +913,7 @@ public final class ClientPortalRenderer {
                 session.warm(view);
                 return true;
             }
-            Matrix4d childSpace = new Matrix4d(toRoot).mul(PortalProjection.destinationToSource(portal.scene.environment().transform()));
+            Matrix4d childSpace = new Matrix4d(content).mul(PortalProjection.destinationToSource(portal.scene.environment().transform()));
             for (Portal child : portals.values()) {
                 if (child.scene.geometry().parentPortalKey() == portal.key && prewarmTree(child, childSpace,
                     childDimensions(dimensions))) {
@@ -1054,7 +1058,9 @@ public final class ClientPortalRenderer {
             portal.parentClip = null;
         }
         portal.toRoot.set(toRoot);
+        portal.contentToRoot.set(contentSpace(portal, toRoot));
         portal.camera = transformedCamera(rootCamera, toRoot, frameProjection);
+        portal.contentCamera = portal.contentToRoot.equals(toRoot) ? portal.camera : transformedCamera(rootCamera, portal.contentToRoot, frameProjection);
         camera = portal.camera;
         Vec3d eye = new Vec3d(camera.pos.x, camera.pos.y, camera.pos.z);
         if (!portal.aperture.servesEye(eye)) {
@@ -1074,6 +1080,7 @@ public final class ClientPortalRenderer {
             return false;
         }
         portal.viewport = viewport;
+        camera = portal.contentCamera;
         portal.cullFrustum = viewport.frustum(camera, frameProjection, dimensions.width(), dimensions.height());
         portal.rendering = true;
         if (!renderPortal(portal, dimensions)) {
@@ -1083,6 +1090,29 @@ public final class ClientPortalRenderer {
         portal.rendered = true;
         recovered(portal, Failure.FRAME);
         return true;
+    }
+
+    static Matrix4d contentSpace(Matrix4d toRoot, ApertureDescriptor geometry, float scale) {
+        Matrix4d content = new Matrix4d(toRoot);
+        if (scale == 1.0F) {
+            return content;
+        }
+        Vec3d center = scaleCenter(geometry);
+        Frame frame = geometry.frame();
+        return content.mul(PortalProjection.matrix(Similarity.between(frame, center, frame, center, scale)));
+    }
+
+    static Vec3d scaleCenter(ApertureDescriptor geometry) {
+        Frame canonical = Frame.canonical(geometry.facingDirection());
+        double[] center = {geometry.originX(), geometry.originY(), geometry.originZ()};
+        center[canonical.getRight().axisIndex()] += geometry.apertureWidth() / 2.0D;
+        center[canonical.getUp().axisIndex()] += geometry.apertureHeight() / 2.0D;
+        center[geometry.facingDirection().axisIndex()] = geometry.planeCoordinate();
+        return new Vec3d(center[0], center[1], center[2]);
+    }
+
+    private static Matrix4d contentSpace(Portal portal, Matrix4d toRoot) {
+        return contentSpace(toRoot, portal.scene.geometry(), portal.scene.environment().scale());
     }
 
     static CameraRenderState transformedCamera(CameraRenderState rootCamera, Matrix4d toRoot, Matrix4f projection) {
@@ -1098,7 +1128,7 @@ public final class ClientPortalRenderer {
         if (billboardView.determinant3x3() < 0) {
             billboardView.m00(-billboardView.m00()).m10(-billboardView.m10()).m20(-billboardView.m20());
         }
-        result.orientation = new Quaternionf().setFromNormalized(billboardView.invert());
+        result.orientation = new Quaternionf().setFromUnnormalized(billboardView.invert());
         result.projectionMatrix = projection;
         result.cullFrustum = new Frustum(result.viewRotationMatrix, projection);
         result.cullFrustum.prepare(position.x, position.y, position.z);
@@ -1281,7 +1311,7 @@ public final class ClientPortalRenderer {
                 if (portal == null) {
                     return;
                 }
-                camera = portal.camera;
+                camera = portal.contentCamera;
                 portal.nextSection = resident ? portal.residentSection : portal.initialSection;
                 int before = pendingBuilds;
                 schedule(portal, portal.nextSection);
@@ -1459,7 +1489,7 @@ public final class ClientPortalRenderer {
             for (Portal portal : portals.values()) {
                 for (Section section : portal.sections.values()) {
                     CameraRenderState current = camera;
-                    camera = portal.camera == null ? rootCamera : portal.camera;
+                    camera = portal.contentCamera == null ? rootCamera : portal.contentCamera;
                     double candidate = distance(section.key);
                     camera = current;
                     if (candidate > distance) {
@@ -1531,7 +1561,7 @@ public final class ClientPortalRenderer {
 
     private void renderShaderPortal(Portal portal, RenderDimensions dimensions) {
         renderShaderChildren(portal, dimensions);
-        camera = portal.camera;
+        camera = portal.contentCamera;
         GpuBufferSlice previousProjection = RenderSystem.getProjectionMatrixBuffer();
         GpuBufferSlice previousFog = RenderSystem.getShaderFog();
         ProjectionType projectionType = RenderSystem.getProjectionType();
@@ -1546,7 +1576,7 @@ public final class ClientPortalRenderer {
              PortalShaderRenderer.Frame frame = portal.shader.begin(view)) {
             maintain(portal);
             renderDestinationShadows(portal, features);
-            camera = portal.camera;
+            camera = portal.contentCamera;
             portal.shader.prepare();
             RenderSystem.setProjectionMatrix(targets.projection(dimensions.depth()).getBuffer(frameProjection), projectionType);
             portal.environment.renderSky(portal.shader.sky());
@@ -1618,7 +1648,7 @@ public final class ClientPortalRenderer {
             try {
                 features.closeFrame();
             } finally {
-                camera = portal.camera;
+                camera = portal.contentCamera;
                 if (replacedSections) {
                     portal.drawSections.clear();
                     for (Section section : orderedSections(portal)) {
@@ -1647,7 +1677,7 @@ public final class ClientPortalRenderer {
     }
 
     private void renderShaderChildren(Portal portal, RenderDimensions dimensions) {
-        Matrix4d childSpace = new Matrix4d(portal.toRoot)
+        Matrix4d childSpace = new Matrix4d(portal.contentToRoot)
             .mul(PortalProjection.destinationToSource(portal.scene.environment().transform()));
         for (Portal child : portals.values()) {
             if (child.scene.geometry().parentPortalKey() == portal.key) {
@@ -1655,7 +1685,7 @@ public final class ClientPortalRenderer {
                     childDimensions(dimensions));
             }
         }
-        camera = portal.camera;
+        camera = portal.contentCamera;
     }
 
     private void compositeShaderChildren(Portal portal) {
@@ -1667,7 +1697,7 @@ public final class ClientPortalRenderer {
                 }
             }
         }
-        camera = portal.camera;
+        camera = portal.contentCamera;
     }
 
     private void materialContext(Portal portal, PortalTerrainMaterials materials) {
@@ -1782,7 +1812,7 @@ public final class ClientPortalRenderer {
     }
 
     private void drawNestedDestinations(Portal portal, RenderDimensions dimensions) {
-        Matrix4d childSpace = new Matrix4d(portal.toRoot)
+        Matrix4d childSpace = new Matrix4d(portal.contentToRoot)
             .mul(PortalProjection.destinationToSource(portal.scene.environment().transform()));
         for (Portal child : portals.values()) {
             if (child.scene.geometry().parentPortalKey() == portal.key && renderTree(child, childSpace, childViewport(portal, dimensions),
@@ -1791,7 +1821,7 @@ public final class ClientPortalRenderer {
                     composite(child, portal, pass);
                 }
             }
-            camera = portal.camera;
+            camera = portal.contentCamera;
         }
     }
 
@@ -2297,11 +2327,13 @@ public final class ClientPortalRenderer {
         private PortalScene scene;
         private ApertureDescriptor geometry;
         private final Matrix4d toRoot = new Matrix4d();
+        private final Matrix4d contentToRoot = new Matrix4d();
         private final List<Section> drawSections = new ArrayList<>();
         private final List<Section> sortedSections = new ArrayList<>();
         private Vec3 sortPosition;
         private boolean orderDirty = true;
         private CameraRenderState camera;
+        private CameraRenderState contentCamera;
         private Frustum cullFrustum;
         private boolean rendered;
         private boolean rendering;

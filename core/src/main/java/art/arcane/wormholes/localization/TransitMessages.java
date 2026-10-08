@@ -58,6 +58,24 @@ public final class TransitMessages {
         "&eLeft-click: threshold effect, Right-click: arrival sound",
         "&eShift + Left-click: mask ticks");
 
+    public static final LinesKey MENU_SCALE = GROUP.lines("transit.menu.scale",
+        "&6&lTraveller scale: {mode}&r",
+        "&7Size range {value}. Maps travel between portals of different sizes.",
+        "&eLeft-click to cycle the mode",
+        "&eRight-click: minimum, Shift + Right-click: maximum");
+    public static final TextKey SCALE_CURRENT = GROUP.text("transit.scale.current",
+        "&8[&6Wormholes&8] &f{portal}&7 traveller scale: &f{mode}&7 ({value})");
+    public static final TextKey SCALE_SET = GROUP.text("transit.scale.set",
+        "&8[&6Wormholes&8] &f{portal}&a traveller scale set to &f{mode}&a ({value}).");
+    public static final TextKey SCALE_INVALID = GROUP.text("transit.scale.invalid",
+        "&8[&6Wormholes&8] &cCould not read the traveller scale: {reason}");
+    public static final TextKey SCALE_RESET = GROUP.text("transit.scale.reset",
+        "&8[&6Wormholes&8] &aRestored the default size of {count} entities.");
+    public static final TextKey SCALE_RESET_RADIUS = GROUP.text("transit.scale.reset_radius",
+        "&8[&6Wormholes&8] &ctarget=all needs a radius from 1 to {value}.");
+    public static final TextKey SCALE_RESET_PLAYER = GROUP.text("transit.scale.reset_player",
+        "&8[&6Wormholes&8] &cNo online player named {name}.");
+
     private TransitMessages() {
     }
 

@@ -1416,6 +1416,15 @@ membrane = ["&6&lZar: {state}&r", "&7Yalnızca ön taraf yolcuları içeri alır
 bounce = ["&6&lSekme: {state}&r", "&7Yolcuları taşımak yerine geri sektir.", "&eAçıp kapatmak için sol tık"]
 profile = ["&6&lGeçiş efektleri&r", "&7Eşik {mode}", "&7Varış {state}", "&eSol tık: eşik efekti, Sağ tık: varış sesi", "&eShift + Sol tık: maske tikleri"]
 prompt = "&bYeni değeri sohbete yazın (veya '{cancel}'):"
+scale = ["&6&lYolcu ölçeği: {mode}&r", "&7Boyut aralığı {value}. Farklı boyuttaki portallar arasındaki yolculuğu eşler.", "&eModu değiştirmek için sol tık", "&eSağ tık: en az, Shift + sağ tık: en çok"]
+
+[transit.scale]
+current = "&8[&6Wormholes&8] &f{portal}&7 yolcu ölçeği: &f{mode}&7 ({value})"
+set = "&8[&6Wormholes&8] &f{portal}&a yolcu ölçeği &f{mode}&a ({value}) olarak ayarlandı."
+invalid = "&8[&6Wormholes&8] &cYolcu ölçeği okunamadı: {reason}"
+reset = "&8[&6Wormholes&8] &a{count} varlığın normal boyutu geri yüklendi."
+reset_radius = "&8[&6Wormholes&8] &ctarget=all için 1 ile {value} arasında bir yarıçap gerekir."
+reset_player = "&8[&6Wormholes&8] &c{name} adında çevrimiçi oyuncu yok."
 # ---- end lane:transit ----
 
 # ---- lane:view (fidelity.*) ----
@@ -1528,6 +1537,15 @@ portals = "Portallari listele, incele ve toplu duzenle"
 "portals.shape" = "Bir portalin aciklik seklini goster veya ayarla"
 "portals.shape.portal" = "Portal adi veya kimligi"
 "portals.shape.shape" = "circle, flower(petals=7) veya full gibi sekil metni; bos birakilirsa gecerli sekil gosterilir"
+"portals.scale" = "Bir portalin yolcu olcegi kuralini goster veya ayarla"
+"portals.scale.portal" = "Portal adi veya id"
+"portals.scale.mode" = "off, motion veya ratio; deger verilmezse gecerli kural gosterilir"
+"portals.scale.min" = "Bir ratio gecisinin ulasabilecegi en kucuk boyut carpani (0.0625-16)"
+"portals.scale.max" = "Bir ratio gecisinin ulasabilecegi en buyuk boyut carpani (0.0625-16)"
+"scale" = "Portallarin olceklendirdigi yolcularin normal boyutunu geri yukle"
+"scale.reset" = "Portal olcegini bir oyuncudan veya yakindaki tum varliklardan kaldir"
+"scale.reset.target" = "self, bir oyuncu adi veya all"
+"scale.reset.radius" = "target=all icin blok cinsinden arama yaricapi (1-256)"
 # ---- end lane:ops ----
 
 # ---- lane:clientview (clientview.*) ----

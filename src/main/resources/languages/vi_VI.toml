@@ -1416,6 +1416,15 @@ membrane = ["&6&lMàng: {state}&r", "&7Chỉ mặt trước cho người đi và
 bounce = ["&6&lBật lại: {state}&r", "&7Đẩy người đi ngược lại thay vì dịch chuyển họ.", "&eNhấp trái để bật hoặc tắt"]
 profile = ["&6&lHiệu ứng chuyển tiếp&r", "&7Ngưỡng {mode}", "&7Đến nơi {state}", "&eNhấp trái: hiệu ứng ngưỡng, Nhấp phải: âm đến nơi", "&eShift + Nhấp trái: tick mặt nạ"]
 prompt = "&bNhập giá trị mới vào khung chat (hoặc '{cancel}'):"
+scale = ["&6&lTỉ lệ người du hành: {mode}&r", "&7Khoảng kích thước {value}. Ánh xạ chuyến đi giữa các cổng có kích thước khác nhau.", "&eChuột trái để đổi chế độ", "&eChuột phải: tối thiểu, Shift + chuột phải: tối đa"]
+
+[transit.scale]
+current = "&8[&6Wormholes&8] &f{portal}&7 tỉ lệ người du hành: &f{mode}&7 ({value})"
+set = "&8[&6Wormholes&8] &f{portal}&a đã đặt tỉ lệ người du hành thành &f{mode}&a ({value})."
+invalid = "&8[&6Wormholes&8] &cKhông đọc được tỉ lệ người du hành: {reason}"
+reset = "&8[&6Wormholes&8] &aĐã khôi phục kích thước gốc cho {count} thực thể."
+reset_radius = "&8[&6Wormholes&8] &ctarget=all cần bán kính từ 1 đến {value}."
+reset_player = "&8[&6Wormholes&8] &cKhông có người chơi trực tuyến tên {name}."
 # ---- end lane:transit ----
 
 # ---- lane:view (fidelity.*) ----
@@ -1528,6 +1537,15 @@ portals = "Liet ke, xem va sua cong hang loat"
 "portals.shape" = "Hien thi hoac dat hinh dang lo mo cua mot cong"
 "portals.shape.portal" = "Ten hoac id cong"
 "portals.shape.shape" = "Van ban hinh dang nhu circle, flower(petals=7) hoac full; de trong se hien thi hinh dang hien tai"
+"portals.scale" = "Hiện hoặc đặt quy tắc tỉ lệ người du hành của một cổng"
+"portals.scale.portal" = "Tên hoặc id cổng"
+"portals.scale.mode" = "off, motion hoặc ratio; bỏ trống mọi giá trị để xem quy tắc hiện tại"
+"portals.scale.min" = "Hệ số kích thước nhỏ nhất mà một lần đi qua ratio có thể đạt (0.0625-16)"
+"portals.scale.max" = "Hệ số kích thước lớn nhất mà một lần đi qua ratio có thể đạt (0.0625-16)"
+"scale" = "Khôi phục kích thước gốc của người du hành bị cổng thay đổi tỉ lệ"
+"scale.reset" = "Gỡ tỉ lệ cổng khỏi một người chơi hoặc mọi thực thể ở gần"
+"scale.reset.target" = "self, tên người chơi hoặc all"
+"scale.reset.radius" = "Bán kính tìm kiếm theo khối khi target=all (1-256)"
 # ---- end lane:ops ----
 
 # ---- lane:clientview (clientview.*) ----

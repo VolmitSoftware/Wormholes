@@ -28,7 +28,7 @@ final class TransitConfigTest {
         assertTrue(emitted.contains("momentum-default = \"preserve\""));
         assertTrue(emitted.contains("momentum-max-speed = 4.0"));
         assertTrue(emitted.contains("orientation-default = \"frame\""));
-        assertTrue(emitted.contains("gravity-flip-enabled = true"));
+        assertTrue(emitted.contains("gravity-flip-enabled = false"));
         assertTrue(emitted.contains("object-transit-continuous = true"));
         assertTrue(emitted.contains("convoy-enabled = true"));
         assertTrue(emitted.contains("convoy-max-entities = 16"));
@@ -43,7 +43,7 @@ final class TransitConfigTest {
         assertEquals("preserve", transit.momentumDefault);
         assertEquals(4.0D, transit.momentumMaxSpeed);
         assertEquals("frame", transit.orientationDefault);
-        assertTrue(transit.gravityFlipEnabled);
+        assertFalse(transit.gravityFlipEnabled);
         assertTrue(transit.objectTransitContinuous);
         assertTrue(transit.convoyEnabled);
         assertEquals(16, transit.convoyMaxEntities);

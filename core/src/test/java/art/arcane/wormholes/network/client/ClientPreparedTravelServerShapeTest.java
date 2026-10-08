@@ -73,7 +73,7 @@ final class ClientPreparedTravelServerShapeTest {
             }
         }
         TravelMessage.TravelBegin begin = new TravelMessage.TravelBegin(sample.token(), sample.generation(), sample.sourcePortal(),
-            sample.sourceWorld(), geometry, sample.destinationToSource(), sample.world(), new TravelMessage.TravelPose(0, 64, 0, 0, 0),
+            sample.sourceWorld(), geometry, sample.destinationToSource(), 1.0F, sample.world(), new TravelMessage.TravelPose(0, 64, 0, 0, 0),
             coordinates, sample.environment(), sample.expiresMillis(), TravelMessage.ArrivalRules.FRAME, false, 0, false);
         ClientPreparedTravelServer server = new ClientPreparedTravelServer();
         server.begin(begin, 0);

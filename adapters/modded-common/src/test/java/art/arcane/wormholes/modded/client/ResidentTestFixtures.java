@@ -137,7 +137,7 @@ final class ResidentTestFixtures {
         EnvironmentState.World source = base.world();
         return new EnvironmentState(base.gameTime(), base.sky(), base.fog(), base.lighting(), base.clouds(), base.transform(), base.dimension(),
             new EnvironmentState.World(world.dimension(), source.clockTime(), source.biomeKey(), source.seaLevel(), source.blockLight(),
-                source.skyLight(), source.logicalHeight(), source.hasCeiling(), source.ambientLight(), source.eyeMedium(), source.hasFixedTime()));
+                source.skyLight(), source.logicalHeight(), source.hasCeiling(), source.ambientLight(), source.eyeMedium(), source.hasFixedTime()), 1.0F);
     }
 
     static List<TravelMessage.RoutedPacket> routed(int handle, int sequence, Packet<? super ClientGamePacketListener> packet) {

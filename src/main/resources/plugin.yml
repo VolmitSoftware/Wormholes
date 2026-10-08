@@ -51,6 +51,7 @@ permissions:
       wormholes.admin.access: true
       wormholes.admin.nexus: true
       wormholes.admin.portals: true
+      wormholes.admin.scale: true
       wormholes.admin.backup: true
       wormholes.doors.bypass: true
       wormholes.rules.bypass: true
@@ -92,6 +93,9 @@ permissions:
     default: op
   wormholes.admin.backup:
     description: Allows creating, restoring, exporting, and importing portal backups.
+    default: op
+  wormholes.admin.scale:
+    description: Allows restoring the default size of travellers scaled by portals.
     default: op
   wormholes.doors.craft:
     description: Allows crafting and reskinning dimensional doors.

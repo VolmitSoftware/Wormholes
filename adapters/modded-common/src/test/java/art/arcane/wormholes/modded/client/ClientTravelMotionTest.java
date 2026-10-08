@@ -3,10 +3,12 @@ package art.arcane.wormholes.modded.client;
 import art.arcane.optics.crossing.Pose;
 import art.arcane.optics.frame.AxisPermutation;
 import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.mixin.client.ClientAvatarStateAccess;
+import art.arcane.wormholes.network.client.TravelMessage;
 import net.minecraft.client.entity.ClientAvatarState;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.phys.Vec3;
@@ -23,20 +25,20 @@ public class ClientTravelMotionTest extends MinecraftTestBase {
 
     @Test
     public void continuousPositionsHistoryAndVelocityUseTheSourceToDestinationTransform() {
-        Pose destination = ClientTravelMotion.toward(DESTINATION_TO_SOURCE, motion(30, 28));
+        Pose destination = ClientTravelMotion.toward(begin(DESTINATION_TO_SOURCE), motion(30, 28));
         assertEquals(new Vec3d(6, 3, -2), destination.position());
         assertEquals(new Vec3d(5.5, 3, -1.5), destination.previousPosition());
         assertEquals(new Vec3d(5, 3, -1), destination.oldPosition());
         assertEquals(new Vec3d(-0.25, 0.1, -0.5), destination.velocity());
-        assertEquals(new Vec3(6, 3, -2), ClientTravelMotion.point(DESTINATION_TO_SOURCE.inverse(), new Vec3(102, 23, 206)));
+        assertEquals(new Vec3(6, 3, -2), ClientTravelMotion.point(Similarity.of(DESTINATION_TO_SOURCE.inverse(), 1.0D), new Vec3(102, 23, 206)));
     }
 
     @Test
     public void identityAndRotatedCrossingsPreserveYawInterpolationAcrossTheWrap() {
-        Pose identity = ClientTravelMotion.toward(OpticTransform.IDENTITY, motion(181, 179));
+        Pose identity = ClientTravelMotion.toward(begin(OpticTransform.IDENTITY), motion(181, 179));
         assertEquals(181, identity.yaw(), 0.00001);
         assertEquals(179, identity.previousYaw(), 0.00001);
-        Pose rotated = ClientTravelMotion.toward(OpticTransform.of(AxisPermutation.of(Face.S, Face.U, Face.W), 0, 0, 0), motion(181, 179));
+        Pose rotated = ClientTravelMotion.toward(begin(OpticTransform.of(AxisPermutation.of(Face.S, Face.U, Face.W), 0, 0, 0)), motion(181, 179));
         assertEquals(2, rotated.yaw() - rotated.previousYaw(), 0.0001);
         assertEquals(2, rotated.bodyYaw() - rotated.previousBodyYaw(), 0.0001);
         assertEquals(2, rotated.headYaw() - rotated.previousHeadYaw(), 0.0001);
@@ -75,7 +77,7 @@ public class ClientTravelMotionTest extends MinecraftTestBase {
         Pose source = motion(30, 28);
         Pose destination = new Pose(source.position(), source.previousPosition(), source.oldPosition(), source.velocity(),
             120, 5, 118, 4, 120, 118, 120, 118);
-        ClientTravelMotion.Carry carried = ClientTravelMotion.carry(player).moved(source, destination, DESTINATION_TO_SOURCE.inverse());
+        ClientTravelMotion.Carry carried = ClientTravelMotion.carry(player).moved(source, destination, Similarity.of(DESTINATION_TO_SOURCE.inverse(), 1.0D));
         carried.restore(player);
         assertEquals(115, player.yBob, 0.0001);
         assertEquals(114, player.yBobO, 0.0001);
@@ -87,6 +89,13 @@ public class ClientTravelMotionTest extends MinecraftTestBase {
         verify(cloak).wormholes$xCloakO(5.0);
         verify(cloak).wormholes$yCloakO(3.0);
         verify(cloak).wormholes$zCloakO(-1.0);
+    }
+
+    static TravelMessage.TravelBegin begin(OpticTransform destinationToSource) {
+        TravelMessage.TravelBegin base = SeamlessTravelFixtures.begin(false, true);
+        return new TravelMessage.TravelBegin(base.token(), base.generation(), base.sourcePortal(), base.sourceWorld(), base.sourceGeometry(),
+            destinationToSource, 1.0F, base.world(), base.arrival(), base.chunks(), base.environment(), base.expiresMillis(), base.rules(),
+            base.resident(), base.levelHandle(), base.seamless());
     }
 
     static Pose motion(float yaw, float previousYaw) {

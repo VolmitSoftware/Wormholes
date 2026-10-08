@@ -4,6 +4,7 @@ import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.plate.ChunkLease;
 import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.wormholes.modded.MinecraftPortal;
+import art.arcane.wormholes.modded.MinecraftPortalRegistry;
 import art.arcane.wormholes.modded.MinecraftChunkPacketEncoding;
 import art.arcane.wormholes.modded.MinecraftProjectionWorldView;
 import art.arcane.wormholes.modded.WormholesModRuntime;
@@ -11,6 +12,7 @@ import art.arcane.wormholes.modded.seamless.RemoteRoutes;
 import art.arcane.wormholes.network.client.ClientTravelWindow;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.Similarity;
 import art.arcane.wormholes.render.client.session.ClientPreparedTravelServer;
 import art.arcane.wormholes.render.client.session.ClientViewTravel;
 import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
@@ -303,8 +305,10 @@ final class MinecraftPreparedTravel {
         }
         List<TravelMessage.TravelCoordinate> coordinates = ClientTravelWindow.coordinates(feet.blockX() >> 4, feet.blockZ() >> 4, radius);
         Vec3d eye = feet.add(new Vec3d(0, player.getEyeHeight(), 0));
+        Similarity toward = MinecraftPortalRegistry.towardDestination(source, destination, geometry.frontSide());
+        OpticTransform destinationToSource = toward.isRigid() ? mapped.frame().transform() : TravelMessage.TravelBegin.destinationToSource(toward);
         TravelMessage.TravelBegin begin = new TravelMessage.TravelBegin(UUID.randomUUID(), ++generation, source.getId(),
-            player.level().dimension().identifier().toString(), geometry, mapped.frame().transform(), metadata,
+            player.level().dimension().identifier().toString(), geometry, destinationToSource, (float) toward.scale(), metadata,
             new TravelMessage.TravelPose(feet.x(), feet.y(), feet.z(), player.getYRot(), player.getXRot()), coordinates,
             MinecraftPortalEnvironment.capture(world, eye, OpticTransform.IDENTITY, world.isFlat()),
             TravelMessage.MAX_TRAVEL_EXPIRY_MILLIS, rules(travel.player(), source), false, 0, false);

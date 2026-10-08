@@ -1416,6 +1416,15 @@ membrane = ["&6&lMembrana: {state}&r", "&7Tik priekinė pusė įleidžia keliaut
 bounce = ["&6&lAtšokimas: {state}&r", "&7Atstumti keliautojus, o ne juos perkelti.", "&eKairysis spustelėjimas perjungia"]
 profile = ["&6&lPerėjimo efektai&r", "&7Slenkstis {mode}", "&7Atvykimas {state}", "&eKairysis spustelėjimas: slenksčio efektas, Dešinysis: atvykimo garsas", "&eShift + kairysis: kaukės tikai"]
 prompt = "&bĮveskite naują reikšmę pokalbyje (arba '{cancel}'):"
+scale = ["&6&lKeliautojo mastelis: {mode}&r", "&7Dydžio intervalas {value}. Pritaiko kelionę tarp skirtingo dydžio portalų.", "&eKairysis spustelėjimas keičia režimą", "&eDešinysis spustelėjimas: minimumas, Shift + dešinysis: maksimumas"]
+
+[transit.scale]
+current = "&8[&6Wormholes&8] &f{portal}&7 keliautojo mastelis: &f{mode}&7 ({value})"
+set = "&8[&6Wormholes&8] &f{portal}&a keliautojo mastelis nustatytas į &f{mode}&a ({value})."
+invalid = "&8[&6Wormholes&8] &cNepavyko perskaityti keliautojo mastelio: {reason}"
+reset = "&8[&6Wormholes&8] &aAtkurtas įprastas {count} esybių dydis."
+reset_radius = "&8[&6Wormholes&8] &ctarget=all reikia spindulio nuo 1 iki {value}."
+reset_player = "&8[&6Wormholes&8] &cNėra prisijungusio žaidėjo vardu {name}."
 # ---- end lane:transit ----
 
 # ---- lane:view (fidelity.*) ----
@@ -1528,6 +1537,15 @@ portals = "Isvardyti, perziureti ir masiskai keisti portalus"
 "portals.shape" = "Rodyti arba nustatyti portalo angos forma"
 "portals.shape.portal" = "Portalo pavadinimas arba identifikatorius"
 "portals.shape.shape" = "Formos tekstas, pvz., circle, flower(petals=7) arba full; tuscias rodo dabartine forma"
+"portals.scale" = "Rodyti arba nustatyti portalo keliautojo mastelio taisykle"
+"portals.scale.portal" = "Portalo pavadinimas arba id"
+"portals.scale.mode" = "off, motion arba ratio; be reiksmiu rodo dabartine taisykle"
+"portals.scale.min" = "Maziausias dydzio koeficientas, kuri gali pasiekti ratio perejimas (0.0625-16)"
+"portals.scale.max" = "Didziausias dydzio koeficientas, kuri gali pasiekti ratio perejimas (0.0625-16)"
+"scale" = "Atkurti iprasta keliautoju, kuriu dydi pakeite portalai, dydi"
+"scale.reset" = "Pasalinti portalo masteli nuo zaidejo arba nuo visu netoliese esanciu esybiu"
+"scale.reset.target" = "self, zaidejo vardas arba all"
+"scale.reset.radius" = "Paieskos spindulys blokais, kai target=all (1-256)"
 # ---- end lane:ops ----
 
 # ---- lane:clientview (clientview.*) ----

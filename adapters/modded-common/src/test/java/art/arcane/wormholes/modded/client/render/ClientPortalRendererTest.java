@@ -3,6 +3,7 @@ package art.arcane.wormholes.modded.client.render;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.frame.AxisPermutation;
 import art.arcane.optics.stream.EnvironmentState;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
@@ -197,6 +198,7 @@ public class ClientPortalRendererTest extends MinecraftTestBase {
         set(portal, "cullFrustum", frustum);
         CameraRenderState camera = new CameraRenderState();
         set(portal, "camera", camera);
+        set(portal, "contentCamera", camera);
         set(renderer, "camera", camera);
         Object selected = new Object();
         List<Object> normal = (List<Object>) get(portal, "drawSections");
@@ -265,6 +267,7 @@ public class ClientPortalRendererTest extends MinecraftTestBase {
         when(shadow.cullFrustum.isVisible(any(AABB.class))).thenAnswer(call -> ((AABB) call.getArgument(0)).minX > 16);
         set(portal, "cullFrustum", mainFrustum);
         set(portal, "camera", main);
+        set(portal, "contentCamera", main);
         set(renderer, "camera", main);
         set(portal, "viewport", new PortalViewport(0, 0, 1, 1));
         set(portal, "target", mock(TextureTarget.class));
@@ -355,7 +358,7 @@ public class ClientPortalRendererTest extends MinecraftTestBase {
         when(replacement.geometry()).thenReturn(geometry);
         when(initial.environment()).thenReturn(environment);
         EnvironmentState sameEnvironment = new EnvironmentState(environment.gameTime(), environment.sky(), environment.fog(),
-            environment.lighting(), environment.clouds(), environment.transform(), environment.dimension(), environment.world());
+            environment.lighting(), environment.clouds(), environment.transform(), environment.dimension(), environment.world(), 1.0F);
         when(replacement.environment()).thenReturn(sameEnvironment);
         set(renderer, "shaderRenderer", shaders);
         try {
@@ -1096,7 +1099,7 @@ public class ClientPortalRendererTest extends MinecraftTestBase {
         when(source.getViewRotationMatrix(any())).thenAnswer(call -> ((Matrix4f) call.getArgument(0)).identity());
         when(source.getViewRotationProjectionMatrix(any())).thenAnswer(call -> ((Matrix4f) call.getArgument(0)).set(projection));
         try {
-            renderer.updateTravelCamera(source, OpticTransform.of(AxisPermutation.of(Face.S, Face.U, Face.W), 100, 0, 0));
+            renderer.updateTravelCamera(source, Similarity.of(OpticTransform.of(AxisPermutation.of(Face.S, Face.U, Face.W), 100, 0, 0).inverse(), 1.0D));
             CameraRenderState destination = (CameraRenderState) get(renderer, "travelCamera");
             assertEquals(new Vec3(0, 88, 0), destination.pos);
             assertEquals(projection, destination.projectionMatrix);
@@ -1240,6 +1243,7 @@ public class ClientPortalRendererTest extends MinecraftTestBase {
             when(frustum.isVisible(any(AABB.class))).thenReturn(true);
             set(renderer, "camera", camera);
             set(rejoined, "camera", camera);
+            set(rejoined, "contentCamera", camera);
             set(rejoined, "cullFrustum", frustum);
             maintain.invoke(renderer, rejoined);
             dispatch.invoke(renderer);
@@ -1396,6 +1400,7 @@ public class ClientPortalRendererTest extends MinecraftTestBase {
         camera.blockPos = BlockPos.containing(camera.pos);
         set(renderer, "camera", camera);
         set(portal, "camera", camera);
+        set(portal, "contentCamera", camera);
         set(portal, "viewport", new PortalViewport(0, 0, 1920, 1080));
         set(portal, "target", mock(TextureTarget.class));
         PortalShaderRenderer.Session shader = mock(PortalShaderRenderer.Session.class);
@@ -1772,6 +1777,7 @@ public class ClientPortalRendererTest extends MinecraftTestBase {
             set(renderer, "shaderSizes", List.of(new PortalShaderRenderer.Resolution(1920, 1080),
                 new PortalShaderRenderer.Resolution(1920, 1080)));
             set(portal, "camera", camera);
+            set(portal, "contentCamera", camera);
             set(portal, "viewport", new PortalViewport(0, 0, 1920, 1080));
             PortalFeatureRenderer features = mock(PortalFeatureRenderer.class);
             ((PortalFeatureRenderer[]) get(get(renderer, "targets"), "features"))[0] = features;
@@ -2040,6 +2046,7 @@ public class ClientPortalRendererTest extends MinecraftTestBase {
         Frustum frustum = mock(Frustum.class);
         when(frustum.isVisible(any(AABB.class))).thenReturn(true);
         set(portal, "camera", camera);
+        set(portal, "contentCamera", camera);
         set(portal, "cullFrustum", frustum);
         Class<?> portalType = Class.forName(ClientPortalRenderer.class.getName() + "$Portal");
         Method maintain = ClientPortalRenderer.class.getDeclaredMethod("maintain", portalType);
@@ -2092,6 +2099,7 @@ public class ClientPortalRendererTest extends MinecraftTestBase {
                 Frustum frustum = mock(Frustum.class);
                 when(frustum.isVisible(any(AABB.class))).thenReturn(true);
                 set(portal, "camera", camera);
+                set(portal, "contentCamera", camera);
                 set(portal, "cullFrustum", frustum);
                 ((Long2ObjectOpenHashMap<Object>) get(portal, "sections")).put(resident,
                     constructor.newInstance(resident, 1L));

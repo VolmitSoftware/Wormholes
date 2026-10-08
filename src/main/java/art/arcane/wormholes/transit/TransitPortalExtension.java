@@ -7,6 +7,7 @@ import java.util.function.Supplier;
 
 import org.bukkit.entity.Entity;
 
+import art.arcane.optics.crossing.ScaleRule;
 import art.arcane.volmlib.util.json.JSONObject;
 import art.arcane.wormholes.PortalManager;
 import art.arcane.wormholes.Wormholes;
@@ -42,6 +43,7 @@ public final class TransitPortalExtension implements PortalExtension {
     private volatile boolean membrane;
     private volatile boolean bounce;
     private volatile TransitionProfile profile = TransitionProfile.NONE;
+    private volatile ScaleRule scale = ScaleRuleSettings.DEFAULT;
     private final ConcurrentHashMap<UUID, CachedConvoy> convoys = new ConcurrentHashMap<UUID, CachedConvoy>();
 
     /** The extension of a loaded local portal, or null when the portal is unknown or the manager is down. */
@@ -97,6 +99,14 @@ public final class TransitPortalExtension implements PortalExtension {
 
     public void setProfile(TransitionProfile next) {
         profile = next == null ? TransitionProfile.NONE : next;
+    }
+
+    public ScaleRule scaleRule() {
+        return scale;
+    }
+
+    public void setScaleRule(ScaleRule rule) {
+        scale = rule == null ? ScaleRuleSettings.DEFAULT : rule;
     }
 
     /** The momentum policy in force, falling back to the configured default. */
@@ -179,6 +189,12 @@ public final class TransitPortalExtension implements PortalExtension {
         if (!savedProfile.isNone()) {
             portalJson.put(PROFILE, savedProfile.encode());
         }
+        ScaleRule savedScale = scale;
+        if (!ScaleRuleSettings.isDefault(savedScale)) {
+            portalJson.put(ScaleRuleSettings.MODE, ScaleRuleSettings.format(savedScale.mode()));
+            portalJson.put(ScaleRuleSettings.MIN, ScaleRuleSettings.format(savedScale.min()));
+            portalJson.put(ScaleRuleSettings.MAX, ScaleRuleSettings.format(savedScale.max()));
+        }
     }
 
     @Override
@@ -188,6 +204,8 @@ public final class TransitPortalExtension implements PortalExtension {
         membrane = portalJson.optBoolean(MEMBRANE, false);
         bounce = portalJson.optBoolean(BOUNCE, false);
         profile = TransitionProfile.decode(portalJson.optString(PROFILE, ""));
+        scale = ScaleRuleSettings.parse(portalJson.optString(ScaleRuleSettings.MODE, ""), portalJson.optString(ScaleRuleSettings.MIN, ""),
+            portalJson.optString(ScaleRuleSettings.MAX, ""));
     }
 
     @Override

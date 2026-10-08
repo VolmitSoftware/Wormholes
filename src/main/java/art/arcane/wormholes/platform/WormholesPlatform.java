@@ -95,6 +95,7 @@ public final class WormholesPlatform {
         EquipmentSlot.class
     );
     private static final MethodHandle LIVING_BODY_YAW = unreflectNoThrow(resolveMethod(LivingEntity.class, "getBodyYaw"));
+    private static final MethodHandle LIVING_SET_BODY_YAW = unreflectNoThrow(resolveMethod(LivingEntity.class, "setBodyYaw", float.class));
     private static final Method LIVING_IS_LEASHED = resolveMethod(LivingEntity.class, "isLeashed");
     private static final Method ENTITY_GET_SCHEDULER = resolveMethod(Entity.class, "getScheduler");
     private static final Method ENTITY_SCHEDULER_EXECUTE = ENTITY_GET_SCHEDULER == null
@@ -331,6 +332,17 @@ public final class WormholesPlatform {
             return (float) LIVING_BODY_YAW.invokeExact(entity);
         } catch (Throwable failure) {
             throw propagate("Entity body rotation capture failed", failure);
+        }
+    }
+
+    public static void setBodyYaw(LivingEntity entity, float yaw) {
+        if (LIVING_SET_BODY_YAW == null) {
+            return;
+        }
+        try {
+            LIVING_SET_BODY_YAW.invokeExact(entity, yaw);
+        } catch (Throwable failure) {
+            throw propagate("Entity body rotation update failed", failure);
         }
     }
 

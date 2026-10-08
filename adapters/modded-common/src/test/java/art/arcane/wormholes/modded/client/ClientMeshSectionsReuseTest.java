@@ -151,7 +151,7 @@ public class ClientMeshSectionsReuseTest extends MinecraftTestBase {
             previous.biomeKey(), previous.seaLevel(), previous.blockLight(), previous.skyLight(), previous.logicalHeight(),
             previous.hasCeiling(), previous.ambientLight(), previous.eyeMedium(), previous.hasFixedTime());
         EnvironmentState otherWorld = new EnvironmentState(ENVIRONMENT.gameTime(), ENVIRONMENT.sky(), ENVIRONMENT.fog(),
-            ENVIRONMENT.lighting(), ENVIRONMENT.clouds(), ENVIRONMENT.transform(), ENVIRONMENT.dimension(), nether);
+            ENVIRONMENT.lighting(), ENVIRONMENT.clouds(), ENVIRONMENT.transform(), ENVIRONMENT.dimension(), nether, 1.0F);
         assertTrue(store.bind(7, new ClientMeshSections.Identity(otherWorld, 71, 11)).isEmpty());
         assertNull(store.view(7).section(0L));
         assertEquals(1, store.bind(7, new ClientMeshSections.Identity(ENVIRONMENT, 71, 11)).size());

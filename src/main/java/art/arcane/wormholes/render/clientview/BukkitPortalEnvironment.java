@@ -47,7 +47,7 @@ public final class BukkitPortalEnvironment {
         EnvironmentState.Dimension dimension = new EnvironmentState.Dimension(sourceDimension.minY(), sourceDimension.height(),
             sourceDimension.hasSkyLight(), EnvironmentState.CardinalLighting.valueOf(sourceDimension.cardinalLighting().name()),
             sourceDimension.horizonHeight(), sourceDimension.hasEndFlashes());
-        return new EnvironmentState(environment.gameTime(), sky, fog, lighting, clouds, transform, dimension, world);
+        return new EnvironmentState(environment.gameTime(), sky, fog, lighting, clouds, transform, dimension, world, 1.0F);
     }
 
     private static EnvironmentState.Color rgb(WorldEnvironment.Color color) {

@@ -1,14 +1,21 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.crossing.ScaleRule;
 import art.arcane.optics.shape.Shapes;
 import art.arcane.volmlib.util.localization.MessageArgs;
 import art.arcane.volmlib.util.localization.TextKey;
 import art.arcane.wormholes.WandSelectionGeometry;
 import art.arcane.wormholes.portal.ApertureShapeChange;
 import art.arcane.wormholes.portal.PortalType;
+import art.arcane.wormholes.localization.TransitMessages;
+import art.arcane.wormholes.transit.ScaleResetRequest;
+import art.arcane.wormholes.transit.ScaleRuleChange;
+import art.arcane.wormholes.transit.ScaleRuleSettings;
+import art.arcane.wormholes.transit.TravellerScale;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.arguments.BoolArgumentType;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -24,6 +31,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Prediction;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ItemStackTemplate;
 import net.minecraft.world.item.Items;
@@ -35,6 +43,7 @@ import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.ShapedRecipe;
 import net.minecraft.world.item.crafting.ShapedRecipePattern;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
@@ -51,6 +60,7 @@ import java.util.UUID;
 
 public final class MinecraftPortalTools implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
+    private static final TravellerScale<Entity> TRAVELLER_SCALE = new TravellerScale<>(MinecraftScaleAccess.scaleAttribute());
     static final CompoundTag WAND_IDENTITY = wandIdentity();
     public static final ResourceKey<Recipe<?>> WAND_RECIPE = ResourceKey.create(Registries.RECIPE, Identifier.fromNamespaceAndPath("wormholes", "portal_wand"));
 
@@ -104,7 +114,29 @@ public final class MinecraftPortalTools implements AutoCloseable {
                         }
                         return suggestions.buildFuture();
                     }).executes(context -> shape(context.getSource(), UuidArgument.getUuid(context, "portal"),
-                        StringArgumentType.getString(context, "shape"))))))));
+                        StringArgumentType.getString(context, "shape"))))))
+                .then(Commands.literal("scale").then(Commands.argument("portal", UuidArgument.uuid())
+                    .executes(context -> scale(context.getSource(), UuidArgument.getUuid(context, "portal"), "", "", ""))
+                    .then(Commands.argument("mode", StringArgumentType.word()).suggests((context, suggestions) -> {
+                        for (ScaleRule.Mode mode : ScaleRule.Mode.values()) {
+                            suggestions.suggest(ScaleRuleSettings.format(mode));
+                        }
+                        return suggestions.buildFuture();
+                    }).executes(context -> scale(context.getSource(), UuidArgument.getUuid(context, "portal"),
+                        StringArgumentType.getString(context, "mode"), "", ""))
+                        .then(Commands.argument("min", StringArgumentType.word()).executes(context -> scale(context.getSource(),
+                            UuidArgument.getUuid(context, "portal"), StringArgumentType.getString(context, "mode"), StringArgumentType.getString(context, "min"), ""))
+                            .then(Commands.argument("max", StringArgumentType.word()).executes(context -> scale(context.getSource(),
+                                UuidArgument.getUuid(context, "portal"), StringArgumentType.getString(context, "mode"), StringArgumentType.getString(context, "min"),
+                                StringArgumentType.getString(context, "max")))))))))
+            .then(Commands.literal("scale").requires(source -> runtime.access().permission(source, "wormholes.admin.scale"))
+                .then(Commands.literal("reset")
+                    .executes(context -> resetScale(context.getSource(), List.of(context.getSource().getPlayerOrException())))
+                    .then(Commands.literal("self").executes(context -> resetScale(context.getSource(), List.of(context.getSource().getPlayerOrException()))))
+                    .then(Commands.literal("player").then(Commands.argument("name", StringArgumentType.word())
+                        .executes(context -> resetPlayer(context.getSource(), StringArgumentType.getString(context, "name")))))
+                    .then(Commands.literal("all").then(Commands.argument("radius", IntegerArgumentType.integer(1, ScaleResetRequest.MAX_RADIUS))
+                        .executes(context -> resetNear(context.getSource(), IntegerArgumentType.getInteger(context, "radius"))))))));
     }
 
     public void suppressSwing(ServerPlayer player) {
@@ -382,6 +414,54 @@ public final class MinecraftPortalTools implements AutoCloseable {
         }
         source.sendSuccess(() -> reply, change.status() == ApertureShapeChange.Status.SET);
         return 1;
+    }
+
+    private int scale(CommandSourceStack source, UUID id, String mode, String min, String max) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        MinecraftPortal portal = runtime.portals().get(id);
+        if (portal == null || !runtime.portals().canManage(player, portal)) {
+            return changed(source, false, "");
+        }
+        ScaleRuleChange change = ScaleRuleChange.request(mode, min, max, portal.getScaleRule());
+        if (change.status() == ScaleRuleChange.Status.INVALID) {
+            source.sendFailure(runtime.localization().text(player, TransitMessages.SCALE_INVALID, Map.of("reason", change.reason())));
+            return 0;
+        }
+        boolean set = change.status() == ScaleRuleChange.Status.SET;
+        if (set && !runtime.portals().update(player, id, target -> target.setScaleRule(change.rule()))) {
+            return changed(source, false, "");
+        }
+        if (set) {
+            runtime.menus().refresh(id);
+        }
+        Component reply = runtime.localization().text(player, set ? TransitMessages.SCALE_SET : TransitMessages.SCALE_CURRENT,
+            Map.of("portal", portal.getName(), "mode", ScaleRuleChange.mode(change.rule()), "value", ScaleRuleChange.range(change.rule())));
+        source.sendSuccess(() -> reply, set);
+        return 1;
+    }
+
+    private int resetPlayer(CommandSourceStack source, String name) {
+        ServerPlayer target = runtime.server().getPlayerList().getPlayerByName(name);
+        if (target == null) {
+            source.sendFailure(runtime.localization().text(source.getPlayer(), TransitMessages.SCALE_RESET_PLAYER, Map.of("name", name)));
+            return 0;
+        }
+        return resetScale(source, List.of(target));
+    }
+
+    private int resetNear(CommandSourceStack source, int radius) {
+        Vec3 center = source.getPosition();
+        double limit = (double) radius * radius;
+        List<Entity> nearby = source.getLevel().getEntities((Entity) null, AABB.ofSize(center, radius * 2.0D, radius * 2.0D, radius * 2.0D),
+            entity -> entity.distanceToSqr(center) <= limit);
+        return resetScale(source, nearby);
+    }
+
+    private int resetScale(CommandSourceStack source, List<? extends Entity> targets) {
+        int restored = TRAVELLER_SCALE.resetAll(targets, new ArrayList<>(targets.size()));
+        Component reply = runtime.localization().text(source.getPlayer(), TransitMessages.SCALE_RESET, Map.of("count", restored));
+        source.sendSuccess(() -> reply, true);
+        return restored;
     }
 
     private static int changed(CommandSourceStack source, boolean changed, String message) {

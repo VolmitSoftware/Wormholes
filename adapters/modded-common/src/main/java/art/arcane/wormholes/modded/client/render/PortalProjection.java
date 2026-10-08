@@ -6,8 +6,14 @@ import org.joml.Matrix4fc;
 import org.joml.Vector4f;
 import org.joml.Vector4fc;
 import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.Similarity;
+import art.arcane.optics.math.Vec3d;
 
 final class PortalProjection {
+    private static final Vec3d ORIGIN = new Vec3d(0.0D, 0.0D, 0.0D);
+    private static final Vec3d UNIT_X = new Vec3d(1.0D, 0.0D, 0.0D);
+    private static final Vec3d UNIT_Y = new Vec3d(0.0D, 1.0D, 0.0D);
+    private static final Vec3d UNIT_Z = new Vec3d(0.0D, 0.0D, 1.0D);
     private PortalProjection() {
     }
 
@@ -22,6 +28,17 @@ final class PortalProjection {
             .m10(transform.permutation().y().x()).m11(transform.permutation().y().y()).m12(transform.permutation().y().z())
             .m20(transform.permutation().z().x()).m21(transform.permutation().z().y()).m22(transform.permutation().z().z())
             .m30(transform.translationX()).m31(transform.translationY()).m32(transform.translationZ());
+    }
+
+    static Matrix4d matrix(Similarity similarity) {
+        Vec3d origin = similarity.point(ORIGIN);
+        Vec3d x = similarity.vector(UNIT_X);
+        Vec3d y = similarity.vector(UNIT_Y);
+        Vec3d z = similarity.vector(UNIT_Z);
+        return new Matrix4d().m00(x.x()).m01(x.y()).m02(x.z())
+            .m10(y.x()).m11(y.y()).m12(y.z())
+            .m20(z.x()).m21(z.y()).m22(z.z())
+            .m30(origin.x()).m31(origin.y()).m32(origin.z());
     }
 
     static Vector4f clipDistance(Matrix4fc projection, Matrix4fc viewRotation, Vector4fc cameraPlane) {

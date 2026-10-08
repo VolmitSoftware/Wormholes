@@ -3,24 +3,30 @@ package art.arcane.wormholes.modded.client;
 import art.arcane.optics.aperture.Aperture;
 import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.aperture.SizeRatio;
 import art.arcane.optics.crossing.Pose;
+import art.arcane.optics.crossing.ScaleRule;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.Similarity;
+import art.arcane.optics.math.Angles;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
 import art.arcane.wormholes.modded.client.render.PortalIrisMainPipelines;
+import art.arcane.wormholes.modded.MinecraftScaleAccess;
 import art.arcane.wormholes.modded.clientview.MinecraftPortalEnvironment;
 import art.arcane.wormholes.modded.seamless.StraddleTracker;
 import art.arcane.wormholes.network.client.TravelMessage;
+import art.arcane.wormholes.transit.TravellerScale;
 import net.minecraft.client.Camera;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.util.Mth;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.phys.AABB;
@@ -45,12 +51,14 @@ public final class ClientSeamlessTravel {
     private static final float LOOK_TOLERANCE = 0.5F;
     private static final long CROSS_REVISION = 1L;
     private static final float TICK_END_PARTIAL = 0.0F;
+    private static final TravellerScale<Entity> TRAVELLER_SCALE = new TravellerScale<>(MinecraftScaleAccess.scaleAttribute());
 
     private final Consumer<TravelMessage> sender;
     private final ResidentLevels residents;
     private final Map<UUID, TravelMessage.TravelBegin> arms = new LinkedHashMap<>();
     private final ArrayDeque<Crossing> pending = new ArrayDeque<>();
     private final ClientEntityCrossings entities = new ClientEntityCrossings();
+    private final ClientCameraRoll cameraRoll = new ClientCameraRoll();
     private ClientLevel warmedSource;
     private EnvironmentState warmedEnvironment;
     private Vec3 previousEye;
@@ -85,6 +93,10 @@ public final class ClientSeamlessTravel {
 
     public boolean armed() {
         return !arms.isEmpty();
+    }
+
+    public ClientCameraRoll cameraRoll() {
+        return cameraRoll;
     }
 
     public boolean pending() {
@@ -165,7 +177,7 @@ public final class ClientSeamlessTravel {
         if (!StraddleTracker.qualifies(stretched, aperture)) {
             return null;
         }
-        return StraddleTracker.create(sourceEndpoint(value, aperture), destinationEndpoint(value), destination, eye);
+        return StraddleTracker.create(sourceEndpoint(value, aperture), destinationEndpoint(value), destination, eye, value.scale());
     }
 
     static StraddleTracker.Endpoint sourceEndpoint(TravelMessage.TravelBegin value, Aperture aperture) {
@@ -175,10 +187,10 @@ public final class ClientSeamlessTravel {
 
     static StraddleTracker.Endpoint destinationEndpoint(TravelMessage.TravelBegin value) {
         ApertureDescriptor geometry = value.sourceGeometry();
-        OpticTransform toward = value.destinationToSource().inverse();
+        Similarity toward = value.sourceToDestination();
         ApertureCells aperture = new ApertureCells();
         aperture.setArea(toward.box(geometry.apertureArea()));
-        Frame exit = ClientTravelMotion.exitFrame(geometry.frame().view(geometry.frontSide()), toward, geometry.frontSide());
+        Frame exit = ClientTravelMotion.exitFrame(geometry.frame().view(geometry.frontSide()), toward.rigid(), geometry.frontSide());
         return new StraddleTracker.Endpoint(aperture, exit, toward.point(planePoint(geometry)));
     }
 
@@ -231,8 +243,9 @@ public final class ClientSeamlessTravel {
         ClientLevel target = arm.resident() ? residents.level(arm.levelHandle()) : source;
         Pose before = ClientTravelMotion.capture(player);
         Vec3 feet = player.getPosition(partial);
+        Vec3d crossingFeet = new Vec3d(feet.x, feet.y, feet.z);
         TravelMessage.TravelPose crossingPose = new TravelMessage.TravelPose(feet.x, feet.y, feet.z, player.getYRot(), player.getXRot());
-        Pose after = ClientTravelMotion.arrive(arm, before, new Vec3d(feet.x, feet.y, feet.z));
+        Pose after = ClientTravelMotion.arrive(arm, before, crossingFeet);
         String refusal = target == null ? "resident level " + arm.levelHandle() + " is not open"
             : arrivalLoaded(target, after.position()) ? null : "arrival terrain not received";
         if (refusal != null) {
@@ -242,13 +255,18 @@ public final class ClientSeamlessTravel {
             }
             return null;
         }
-        OpticTransform toward = arm.destinationToSource().inverse();
+        Similarity toward = arm.sourceToDestination();
         Vec3 expected = ClientTravelMotion.point(toward, feet);
         String preparing = target == source ? null : preparing(target);
         ClientTravelMotion.Carry carry = ClientTravelMotion.carry(player);
+        double scaleBefore = TRAVELLER_SCALE.factor(player);
         try {
             sender.accept(new TravelMessage.TravelCross(arm.token(), arm.generation(), CROSS_REVISION, crossingPose,
                 ClientTravelMotion.vector(previous), ClientTravelMotion.vector(eye)));
+            ScaleRule rule = arm.rules().scale();
+            if (rule.changesEntity()) {
+                TRAVELLER_SCALE.cross(player, rule, new SizeRatio(arm.scale(), true));
+            }
             ClientTravelMotion.Carry carried = carry.moved(before, after, toward);
             if (target != source) {
                 ClientLevelSwitch.activate(residents, target, after, carried);
@@ -258,14 +276,16 @@ public final class ClientSeamlessTravel {
             }
         } catch (RuntimeException failure) {
             LOGGER.warn("Unable to predict seamless portal crossing", failure);
+            TRAVELLER_SCALE.set(player, scaleBefore);
             return null;
         }
-        pending.addLast(new Crossing(arm, source, target, before, carry, after, expected, System.currentTimeMillis() + ACCEPT_TIMEOUT_MILLIS,
-            preparing));
+        long now = System.currentTimeMillis();
+        cameraRoll.start(ClientTravelMotion.roll(arm, before, crossingFeet), rollSeconds(), now);
+        pending.addLast(new Crossing(arm, source, target, before, carry, after, expected, now + ACCEPT_TIMEOUT_MILLIS, preparing, scaleBefore));
         residents.crossing(pending.peekFirst().source() == pending.peekFirst().target() ? null : pending.peekFirst().source());
         declined = null;
         returning = StraddleTracker.create(destinationEndpoint(arm), sourceEndpoint(arm, arm.sourceGeometry().aperture()), source,
-            ClientTravelMotion.vector(player.getEyePosition()));
+            ClientTravelMotion.vector(player.getEyePosition()), 1.0D / arm.scale());
         StraddleTracker.register(player, returning);
         straddling = true;
         return checkpoint(arm, toward, previous, eye);
@@ -305,16 +325,21 @@ public final class ClientSeamlessTravel {
         TravelMessage.TravelPose authoritative = accept.pose();
         Vec3d offset = new Vec3d(authoritative.x() - crossing.expected().x, authoritative.y() - crossing.expected().y,
             authoritative.z() - crossing.expected().z);
-        float yaw = Mth.wrapDegrees(authoritative.yaw() - crossing.after().yaw());
-        float pitch = authoritative.pitch() - crossing.after().pitch();
         Pose current = ClientTravelMotion.capture(player);
-        if (offset.lengthSquared() <= POSITION_TOLERANCE * POSITION_TOLERANCE && Math.abs(yaw) <= LOOK_TOLERANCE && Math.abs(pitch) <= LOOK_TOLERANCE) {
+        double tolerance = POSITION_TOLERANCE * Math.max(1.0D, arm.scale());
+        if (offset.lengthSquared() <= tolerance * tolerance && lookMatches(authoritative, crossing.after())) {
             ClientTravelMotion.apply(player, current.moved(offset));
             return;
         }
-        LOGGER.warn("Seamless crossing corrected by the server: offset {} yaw {} pitch {}", offset, yaw, pitch);
+        LOGGER.warn("Seamless crossing corrected by the server: offset {} look {} {} predicted {} {}", offset, authoritative.yaw(),
+            authoritative.pitch(), crossing.after().yaw(), crossing.after().pitch());
         ClientTravelMotion.apply(player, ClientTravelMotion.turned(ClientTravelMotion.reconcile(current, offset, crossing.after().velocity(),
-            accept.velocity()), yaw, pitch));
+            accept.velocity()), Angles.unwrap(authoritative.yaw() - crossing.after().yaw(), 0.0F), authoritative.pitch() - crossing.after().pitch()));
+    }
+
+    private static boolean lookMatches(TravelMessage.TravelPose authoritative, Pose predicted) {
+        return Math.abs(Angles.unwrap(authoritative.yaw() - predicted.yaw(), 0.0F)) <= LOOK_TOLERANCE
+            && Math.abs(authoritative.pitch() - predicted.pitch()) <= LOOK_TOLERANCE;
     }
 
     private void serverCrossing(TravelMessage.TravelAccept accept) {
@@ -332,13 +357,17 @@ public final class ClientSeamlessTravel {
             return;
         }
         Pose before = ClientTravelMotion.capture(player);
-        Pose mapped = arm == null ? before : ClientTravelMotion.toward(arm.destinationToSource(), before);
+        Pose mapped = arm == null ? before : ClientTravelMotion.arrive(arm, before, before.position());
         TravelMessage.TravelPose pose = accept.pose();
         Vec3d offset = new Vec3d(pose.x() - mapped.position().x(), pose.y() - mapped.position().y(), pose.z() - mapped.position().z());
-        Pose placed = ClientTravelMotion.turned(mapped.moved(offset).withVelocity(accept.velocity()), Mth.wrapDegrees(pose.yaw() - mapped.yaw()),
-            pose.pitch() - mapped.pitch());
+        Pose moved = mapped.moved(offset).withVelocity(accept.velocity());
+        Pose placed = lookMatches(pose, moved) ? moved
+            : ClientTravelMotion.turned(moved, Angles.unwrap(pose.yaw() - moved.yaw(), 0.0F), pose.pitch() - moved.pitch());
         ClientTravelMotion.Carry carried = arm == null ? ClientTravelMotion.carry(player)
-            : ClientTravelMotion.carry(player).moved(before, placed, arm.destinationToSource().inverse());
+            : ClientTravelMotion.carry(player).moved(before, placed, arm.sourceToDestination());
+        if (arm != null) {
+            cameraRoll.start(ClientTravelMotion.roll(arm, before, before.position()), rollSeconds(), System.currentTimeMillis());
+        }
         if (target != source) {
             ClientLevelSwitch.activate(residents, target, placed, carried);
             residents.retire(source);
@@ -389,6 +418,10 @@ public final class ClientSeamlessTravel {
             return;
         }
         StraddleTracker.clear(player);
+        cameraRoll.cancel();
+        if (TRAVELLER_SCALE.factor(player) != from.scaleBefore()) {
+            TRAVELLER_SCALE.set(player, from.scaleBefore());
+        }
         if (minecraft.level != from.source()) {
             ClientLevelSwitch.activate(residents, from.source(), from.before(), from.carry());
         } else {
@@ -434,7 +467,7 @@ public final class ClientSeamlessTravel {
     }
 
     private static String preparing(ClientLevel level) {
-        if (ClientSodiumTerrain.available() && !ClientSodiumTerrain.ready(level)) {
+        if (ClientSodiumTerrain.available() && !ClientSodiumTerrain.covered(level) && !ClientSodiumTerrain.ready(level)) {
             return "destination terrain";
         }
         if (IRIS && !PortalIrisMainPipelines.ready(level)) {
@@ -514,7 +547,13 @@ public final class ClientSeamlessTravel {
         return level.getChunkSource().getChunk(x, z, ChunkStatus.FULL, false) != null;
     }
 
-    private static Vec3 checkpoint(TravelMessage.TravelBegin value, OpticTransform toward, Vec3 previous, Vec3 eye) {
+    private static double rollSeconds() {
+        WormholesClient client = WormholesClient.instance();
+        WormholesClientConfig config = client == null ? null : client.config();
+        return config == null ? WormholesClientConfig.DEFAULT_CAMERA_ROLL_EASE_SECONDS : config.cameraRollEaseSeconds;
+    }
+
+    private static Vec3 checkpoint(TravelMessage.TravelBegin value, Similarity toward, Vec3 previous, Vec3 eye) {
         ApertureDescriptor geometry = value.sourceGeometry();
         double before = geometry.signedDistance(previous.x, previous.y, previous.z);
         double after = geometry.signedDistance(eye.x, eye.y, eye.z);
@@ -539,6 +578,6 @@ public final class ClientSeamlessTravel {
     }
 
     private record Crossing(TravelMessage.TravelBegin arm, ClientLevel source, ClientLevel target, Pose before, ClientTravelMotion.Carry carry,
-                            Pose after, Vec3 expected, long deadline, String preparing) {
+                            Pose after, Vec3 expected, long deadline, String preparing, double scaleBefore) {
     }
 }

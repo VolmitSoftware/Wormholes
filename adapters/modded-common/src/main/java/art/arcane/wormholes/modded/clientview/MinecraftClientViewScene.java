@@ -231,8 +231,10 @@ public final class MinecraftClientViewScene implements EntityScenes<MinecraftCli
             return null;
         }
         OpticTransform affine = destination.frame().transform().normalized();
-        return environments.capture(new MinecraftEnvironmentCapture.Request(peer.id(), null, portalId, destination.world(),
+        EnvironmentState captured = environments.capture(new MinecraftEnvironmentCapture.Request(peer.id(), null, portalId, destination.world(),
             affine.inverse().point(new Vec3d(player.getX(), player.getEyeY(), player.getZ())), affine, tick));
+        float scale = portals.viewScale(peer, portalId);
+        return captured == null || scale == 1.0F ? captured : captured.withScale(scale);
     }
 
     @Override

@@ -1416,6 +1416,15 @@ membrane = ["&6&l單向膜：{state}&r", "&7只有正面允許進入；背面會
 bounce = ["&6&l反彈：{state}&r", "&7將旅行者彈回而不是傳送。", "&e左鍵切換"]
 profile = ["&6&l過渡效果&r", "&7臨界 {mode}", "&7抵達 {state}", "&e左鍵：臨界效果，右鍵：抵達音效", "&eShift + 左鍵：遮罩刻數"]
 prompt = "&b在聊天中輸入新值（或輸入 '{cancel}'）："
+scale = ["&6&l旅行者縮放：{mode}&r", "&7尺寸範圍 {value}。在不同大小的傳送門之間對應旅行。", "&e左鍵切換模式", "&e右鍵：最小值，Shift + 右鍵：最大值"]
+
+[transit.scale]
+current = "&8[&6Wormholes&8] &f{portal}&7 旅行者縮放：&f{mode}&7（{value}）"
+set = "&8[&6Wormholes&8] &f{portal}&a 旅行者縮放已設為 &f{mode}&a（{value}）。"
+invalid = "&8[&6Wormholes&8] &c無法讀取旅行者縮放：{reason}"
+reset = "&8[&6Wormholes&8] &a已恢復 {count} 個實體的預設大小。"
+reset_radius = "&8[&6Wormholes&8] &ctarget=all 需要 1 到 {value} 的半徑。"
+reset_player = "&8[&6Wormholes&8] &c沒有名為 {name} 的線上玩家。"
 # ---- end lane:transit ----
 
 # ---- lane:view (fidelity.*) ----
@@ -1528,6 +1537,15 @@ portals = "列出、檢視並批次編輯傳送門"
 "portals.shape" = "顯示或設定傳送門的開口形狀"
 "portals.shape.portal" = "傳送門名稱或 id"
 "portals.shape.shape" = "形狀文字，例如 circle、flower(petals=7) 或 full；留空則顯示目前形狀"
+"portals.scale" = "查看或設定傳送門的旅行者縮放規則"
+"portals.scale.portal" = "傳送門名稱或 id"
+"portals.scale.mode" = "off、motion 或 ratio；全部省略則顯示目前規則"
+"portals.scale.min" = "ratio 穿越可達到的最小尺寸倍數（0.0625-16）"
+"portals.scale.max" = "ratio 穿越可達到的最大尺寸倍數（0.0625-16）"
+"scale" = "恢復被傳送門縮放的旅行者的預設大小"
+"scale.reset" = "移除某位玩家或附近所有實體的傳送門縮放"
+"scale.reset.target" = "self、玩家名稱或 all"
+"scale.reset.radius" = "target=all 時的搜尋半徑（方塊，1-256）"
 # ---- end lane:ops ----
 
 # ---- lane:clientview (clientview.*) ----

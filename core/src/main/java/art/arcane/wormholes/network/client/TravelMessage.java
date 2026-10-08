@@ -9,10 +9,14 @@ import java.util.UUID;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.crossing.MomentumRule;
 import art.arcane.optics.crossing.OrientationRule;
+import art.arcane.optics.crossing.ScaleRule;
 import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.EnvironmentState;
+import art.arcane.wormholes.transit.MomentumPolicy;
+import art.arcane.wormholes.transit.OrientationPolicy;
 
 public sealed interface TravelMessage {
     int TRAVEL_BEGIN = 41;
@@ -99,23 +103,34 @@ public sealed interface TravelMessage {
         }
     }
 
-    record ArrivalRules(OrientationRule orientation, boolean gravityFlip, MomentumRule momentum) {
+    record ArrivalRules(OrientationRule orientation, boolean gravityFlip, MomentumRule momentum, ScaleRule scale) {
         public static final ArrivalRules FRAME = new ArrivalRules(OrientationRule.FRAME, false,
-            new MomentumRule(MomentumRule.Mode.PRESERVE, 1.0D, 0.0D, new Vec3d(0.0D, 0.0D, 0.0D)));
+            new MomentumRule(MomentumRule.Mode.PRESERVE, 1.0D, 0.0D, new Vec3d(0.0D, 0.0D, 0.0D)), ScaleRule.OFF);
 
         public ArrivalRules {
             Objects.requireNonNull(orientation, "orientation");
             Objects.requireNonNull(momentum, "momentum");
+            Objects.requireNonNull(scale, "scale");
             travelVector(momentum.impulse());
+        }
+
+        public static ArrivalRules of(OrientationPolicy orientation, MomentumPolicy momentum, boolean gravityFlip, double maxSpeed, ScaleRule scale) {
+            MomentumRule rule = momentum.rule();
+            return new ArrivalRules(orientation.rule(), gravityFlip,
+                new MomentumRule(rule.mode(), rule.factor(), rule.maxSpeed() > 0.0D ? rule.maxSpeed() : maxSpeed, rule.impulse()), scale);
         }
     }
 
     record TravelBegin(UUID token, long generation, UUID sourcePortal, String sourceWorld, ApertureDescriptor sourceGeometry,
-                       OpticTransform destinationToSource, TravelWorld world, TravelPose arrival, List<TravelCoordinate> chunks, EnvironmentState environment,
-                       int expiresMillis, ArrivalRules rules, boolean resident, int levelHandle, boolean seamless) implements TravelMessage {
+                       OpticTransform destinationToSource, float scale, TravelWorld world, TravelPose arrival, List<TravelCoordinate> chunks,
+                       EnvironmentState environment, int expiresMillis, ArrivalRules rules, boolean resident, int levelHandle, boolean seamless)
+        implements TravelMessage {
         public TravelBegin {
             travelIdentity(token, generation);
             Objects.requireNonNull(rules, "rules");
+            if (!Float.isFinite(scale) || scale <= 0.0F) {
+                throw new IllegalArgumentException("Travel scale " + scale);
+            }
             if (resident ? !residentHandle(levelHandle) : levelHandle != 0) {
                 throw new IllegalArgumentException("Travel level handle " + levelHandle);
             }
@@ -137,6 +152,15 @@ public sealed interface TravelMessage {
                 || !environment.transform().isIdentity()) {
                 throw new IllegalArgumentException("Travel preparation");
             }
+        }
+
+        public static OpticTransform destinationToSource(Similarity sourceToDestination) {
+            Vec3d anchor = sourceToDestination.point(new Vec3d(0.0D, 0.0D, 0.0D));
+            return OpticTransform.of(sourceToDestination.rigid().permutation(), anchor.x(), anchor.y(), anchor.z()).inverse();
+        }
+
+        public Similarity sourceToDestination() {
+            return Similarity.of(destinationToSource.inverse().normalized(), scale);
         }
 
         @Override

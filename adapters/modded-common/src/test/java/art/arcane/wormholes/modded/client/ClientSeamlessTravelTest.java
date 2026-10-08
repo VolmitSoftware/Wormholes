@@ -167,6 +167,20 @@ public class ClientSeamlessTravelTest extends MinecraftTestBase {
         }
     }
 
+    @Test
+    public void terrainThatTheMainRendererCoversIsNeverAwaited() throws ReflectiveOperationException {
+        try (Crossing crossing = new Crossing(false)) {
+            crossing.scope.terrain.when(ClientSodiumTerrain::available).thenReturn(true);
+            crossing.scope.terrain.when(() -> ClientSodiumTerrain.ready(crossing.nether)).thenReturn(false);
+            crossing.scope.terrain.when(() -> ClientSodiumTerrain.covered(crossing.nether)).thenReturn(true);
+            crossing.shaders.when(() -> PortalIrisMainPipelines.ready(crossing.nether)).thenReturn(true);
+            when(crossing.renderer.travelSourceShaderReady()).thenReturn(true);
+            assertNull(crossing.travel.unprepared());
+            crossing.scope.terrain.when(() -> ClientSodiumTerrain.covered(crossing.nether)).thenReturn(false);
+            assertEquals("destination terrain", crossing.travel.unprepared());
+        }
+    }
+
     private static void assertPosition(LocalPlayer player, double x, double z) {
         ArgumentCaptor<Vec3> position = ArgumentCaptor.forClass(Vec3.class);
         verify(player, atLeastOnce()).setPos(position.capture());
@@ -228,7 +242,7 @@ public class ClientSeamlessTravelTest extends MinecraftTestBase {
             Constructor<?> constructor = type.getDeclaredConstructors()[0];
             constructor.setAccessible(true);
             return constructor.newInstance(begin, from, to, before, carry, SeamlessTravelFixtures.DESTINATION, SeamlessTravelFixtures.EXPECTED_ARRIVAL,
-                System.currentTimeMillis() + 60_000L, null);
+                System.currentTimeMillis() + 60_000L, null, 1.0D);
         }
 
         @Override

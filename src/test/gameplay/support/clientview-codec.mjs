@@ -61,6 +61,7 @@ export const CARDINAL_LIGHTING = Object.freeze(['DEFAULT', 'NETHER'])
 export const EYE_MEDIA = Object.freeze(['NONE', 'WATER', 'LAVA', 'POWDER_SNOW'])
 export const ORIENTATION_RULES = Object.freeze(['FRAME', 'LOOK', 'SNAP', 'MIRROR'])
 export const MOMENTUM_MODES = Object.freeze(['PRESERVE', 'SCALE', 'CLAMP', 'ZERO', 'IMPULSE'])
+export const SCALE_MODES = Object.freeze(['OFF', 'MOTION', 'RATIO'])
 export const AXIS_PERMUTATIONS = 48
 export const TRANSFORM_BYTES = 25
 export const MAX_MESH_LOCAL_SECTIONS = 512
@@ -858,6 +859,7 @@ function readEnvironment(reader) {
   const lighting = { blockTint: rgb(), skyFactor: reader.f32(), skyColor: rgb(), ambient: rgb() }
   const clouds = { color: rgba(), height: reader.f32() }
   const transform = readTransform(reader)
+  const scale = reader.f32()
   const dimension = { minY: reader.i32(), height: reader.i32(), hasSkyLight: readFlag(reader, 'sky light'),
     cardinalLighting: enumName(CARDINAL_LIGHTING, reader.u8(), 'cardinal lighting'), horizonHeight: reader.f64(), endFlashes: readFlag(reader, 'end flashes') }
   const world = { dimensionKey: reader.string(), clockTime: reader.i64(), biomeKey: reader.string(), seaLevel: reader.i32(), blockLight: reader.u8(),
@@ -868,16 +870,17 @@ function readEnvironment(reader) {
     lighting.skyFactor, ...Object.values(lighting.blockTint), ...Object.values(lighting.skyColor), ...Object.values(lighting.ambient),
     ...Object.values(clouds.color), clouds.height, world.ambientLight]
   if (sky.moonPhase > 7 || dimension.height <= 0 || !Number.isFinite(dimension.horizonHeight) || floats.some((value) => !Number.isFinite(value))
+    || !Number.isFinite(scale) || scale <= 0
     || !IDENTIFIER.test(world.dimensionKey) || !IDENTIFIER.test(world.biomeKey) || world.blockLight > 15 || world.skyLight > 15 || world.logicalHeight < 0) {
     throw new ClientViewProtocolError('invalid destination environment')
   }
-  return { gameTime, sky, fog, lighting, clouds, transform, dimension, world }
+  return { gameTime, sky, fog, lighting, clouds, transform, scale, dimension, world }
 }
 
 function writeEnvironment(writer, environment) {
   const rgb = color => { writer.f32(color.red); writer.f32(color.green); writer.f32(color.blue) }
   const rgba = color => { rgb(color); writer.f32(color.alpha) }
-  const { sky, fog, lighting, clouds, transform, dimension, world } = environment
+  const { sky, fog, lighting, clouds, transform, scale, dimension, world } = environment
   writer.i64(environment.gameTime)
   writer.u8(enumId(SKYBOXES, sky.skybox, 'skybox'))
   writer.f32(sky.sunAngle)
@@ -901,6 +904,7 @@ function writeEnvironment(writer, environment) {
   rgba(clouds.color)
   writer.f32(clouds.height)
   writeTransform(writer, transform)
+  writer.f32(scale)
   writer.i32(dimension.minY)
   writer.i32(dimension.height)
   writer.u8(dimension.hasSkyLight ? 1 : 0)
@@ -1041,8 +1045,10 @@ function readArrivalRules(reader) {
   const factor = reader.f64()
   const maxSpeed = reader.f64()
   const impulse = readVector(reader)
-  if (!Number.isFinite(factor) || !Number.isFinite(maxSpeed) || maxSpeed < 0) throw new ClientViewProtocolError('invalid travel arrival rules')
-  return { orientation, gravityFlip, momentum: { mode, factor, maxSpeed, impulse } }
+  const scale = { mode: enumName(SCALE_MODES, reader.u8(), 'scale mode'), min: reader.f32(), max: reader.f32() }
+  if (!Number.isFinite(factor) || !Number.isFinite(maxSpeed) || maxSpeed < 0 || !Number.isFinite(scale.min) || !Number.isFinite(scale.max)
+    || scale.min > scale.max) throw new ClientViewProtocolError('invalid travel arrival rules')
+  return { orientation, gravityFlip, momentum: { mode, factor, maxSpeed, impulse }, scale }
 }
 
 function writeArrivalRules(writer, rules) {
@@ -1052,6 +1058,9 @@ function writeArrivalRules(writer, rules) {
   writer.f64(rules.momentum.factor)
   writer.f64(rules.momentum.maxSpeed)
   writeVector(writer, rules.momentum.impulse)
+  writer.u8(enumId(SCALE_MODES, rules.scale.mode, 'scale mode'))
+  writer.f32(rules.scale.min)
+  writer.f32(rules.scale.max)
 }
 
 function readTravelCount(reader) {
@@ -1086,12 +1095,14 @@ function readTravel(reader, type) {
       const sourceWorld = reader.string()
       const sourceGeometry = readGeometry(reader, 0)
       const destinationToSource = readTransform(reader)
+      const scale = reader.f32()
+      if (!Number.isFinite(scale) || scale <= 0) throw new ClientViewProtocolError('invalid travel scale')
       const world = readTravelWorld(reader)
       const arrival = readPose(reader)
       const count = readTravelCount(reader)
       const chunks = []
       for (let i = 0; i < count; i++) chunks.push({ x: reader.i32(), z: reader.i32() })
-      return { type, token, generation, sourcePortal, sourceWorld, sourceGeometry, destinationToSource, world, arrival, chunks,
+      return { type, token, generation, sourcePortal, sourceWorld, sourceGeometry, destinationToSource, scale, world, arrival, chunks,
         environment: readEnvironment(reader), expiresMillis: reader.i32(), rules: readArrivalRules(reader), resident: readFlag(reader, 'resident'),
         levelHandle: reader.u8(), seamless: readFlag(reader, 'seamless') }
     }
@@ -1136,6 +1147,7 @@ function writeTravel(writer, message) {
       writer.string(message.sourceWorld)
       writeGeometry(writer, message.sourceGeometry, 0)
       writeTransform(writer, message.destinationToSource)
+      writer.f32(message.scale)
       writeTravelWorld(writer, message.world)
       writePose(writer, message.arrival)
       writer.u16(message.chunks.length)

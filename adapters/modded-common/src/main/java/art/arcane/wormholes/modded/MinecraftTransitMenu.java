@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.crossing.ScaleRule;
 import art.arcane.volmlib.util.localization.LinesKey;
 import art.arcane.volmlib.util.localization.MessageArgs;
 import art.arcane.volmlib.util.localization.TextKey;
@@ -8,6 +9,8 @@ import art.arcane.wormholes.localization.TransitMessages;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.transit.MomentumPolicy;
 import art.arcane.wormholes.transit.OrientationPolicy;
+import art.arcane.wormholes.transit.ScaleRuleChange;
+import art.arcane.wormholes.transit.ScaleRuleSettings;
 import art.arcane.wormholes.transit.TransitionProfile;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.Items;
@@ -39,6 +42,7 @@ public final class MinecraftTransitMenu {
         window.setElement(0, 1, membraneElement(window, viewer));
         window.setElement(1, 1, bounceElement(window, viewer));
         window.setElement(2, 1, profileElement(window, viewer));
+        window.setElement(3, 1, scaleElement(window, viewer));
         window.setElement(0, 2, backElement(window, viewer));
         window.setVisible(true);
     }
@@ -207,6 +211,42 @@ public final class MinecraftTransitMenu {
             "mode", labelOrDefault(profile.thresholdEffect()),
             "state", labelOrDefault(profile.arrivalSound())
                 + (profile.overridesMask() ? " / " + profile.maskOverrideTicks() + "t" : "")));
+    }
+
+    private MinecraftElement scaleElement(MinecraftWindow window, ServerPlayer viewer) {
+        MinecraftElement element = new MinecraftElement("transit-scale");
+        element.setMaterial(Items.SPYGLASS);
+        applyScale(element, viewer);
+        element.onLeftClick(event -> {
+            ScaleRule current = portal.getScaleRule();
+            ScaleRule next = ScaleRuleSettings.withMode(current, ScaleRuleSettings.next(current.mode()));
+            changed(viewer, target -> target.setScaleRule(next));
+            applyScale(element, viewer);
+            window.updateInventory();
+        });
+        element.onRightClick(event -> prompt(window, viewer, text -> {
+            Double bound = ScaleRuleSettings.bound(text);
+            if (bound != null) {
+                ScaleRule next = ScaleRuleSettings.withMin(portal.getScaleRule(), bound);
+                changed(viewer, target -> target.setScaleRule(next));
+            }
+        }));
+        element.onShiftRightClick(event -> prompt(window, viewer, text -> {
+            Double bound = ScaleRuleSettings.bound(text);
+            if (bound != null) {
+                ScaleRule next = ScaleRuleSettings.withMax(portal.getScaleRule(), bound);
+                changed(viewer, target -> target.setScaleRule(next));
+            }
+        }));
+        return element;
+    }
+
+    private void applyScale(MinecraftElement element, ServerPlayer viewer) {
+        ScaleRule rule = portal.getScaleRule();
+        element.setEnchanted(!ScaleRuleSettings.isDefault(rule));
+        MinecraftLegacyText.apply(viewer, element, TransitMessages.MENU_SCALE, MinecraftPortalText.arguments(
+            "mode", ScaleRuleChange.mode(rule),
+            "value", ScaleRuleChange.range(rule)));
     }
 
     private MinecraftElement backElement(MinecraftWindow window, ServerPlayer viewer) {

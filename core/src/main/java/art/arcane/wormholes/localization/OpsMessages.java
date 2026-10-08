@@ -135,6 +135,15 @@ public final class OpsMessages {
     public static final String PORTALS_SHAPE_HELP = "ops.command.help.portals.shape";
     public static final String PORTALS_SHAPE_PORTAL_HELP = "ops.command.help.portals.shape.portal";
     public static final String PORTALS_SHAPE_SHAPE_HELP = "ops.command.help.portals.shape.shape";
+    public static final String PORTALS_SCALE_HELP = "ops.command.help.portals.scale";
+    public static final String PORTALS_SCALE_PORTAL_HELP = "ops.command.help.portals.scale.portal";
+    public static final String PORTALS_SCALE_MODE_HELP = "ops.command.help.portals.scale.mode";
+    public static final String PORTALS_SCALE_MIN_HELP = "ops.command.help.portals.scale.min";
+    public static final String PORTALS_SCALE_MAX_HELP = "ops.command.help.portals.scale.max";
+    public static final String SCALE_HELP = "ops.command.help.scale";
+    public static final String SCALE_RESET_HELP = "ops.command.help.scale.reset";
+    public static final String SCALE_RESET_TARGET_HELP = "ops.command.help.scale.reset.target";
+    public static final String SCALE_RESET_RADIUS_HELP = "ops.command.help.scale.reset.radius";
 
     static {
         GROUP.text(BACKUP_HELP, "Create, list, restore, and exchange portal backups");
@@ -187,6 +196,15 @@ public final class OpsMessages {
         GROUP.text(PORTALS_SHAPE_HELP, "Show or set the aperture shape of a portal");
         GROUP.text(PORTALS_SHAPE_PORTAL_HELP, "Portal name or id");
         GROUP.text(PORTALS_SHAPE_SHAPE_HELP, "Shape text such as circle, flower(petals=7) or full; omit to show the current shape");
+        GROUP.text(PORTALS_SCALE_HELP, "Show or set the traveller scale rule of a portal");
+        GROUP.text(PORTALS_SCALE_PORTAL_HELP, "Portal name or id");
+        GROUP.text(PORTALS_SCALE_MODE_HELP, "off, motion or ratio; omit every value to show the current rule");
+        GROUP.text(PORTALS_SCALE_MIN_HELP, "Smallest size factor a ratio crossing may reach (0.0625-16)");
+        GROUP.text(PORTALS_SCALE_MAX_HELP, "Largest size factor a ratio crossing may reach (0.0625-16)");
+        GROUP.text(SCALE_HELP, "Restore the default size of travellers scaled by portals");
+        GROUP.text(SCALE_RESET_HELP, "Remove the portal scale from a player or from every entity nearby");
+        GROUP.text(SCALE_RESET_TARGET_HELP, "self, a player name, or all");
+        GROUP.text(SCALE_RESET_RADIUS_HELP, "Search radius in blocks when target=all (1-256)");
     }
 
     private OpsMessages() {

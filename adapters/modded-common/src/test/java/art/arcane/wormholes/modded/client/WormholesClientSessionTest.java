@@ -58,7 +58,7 @@ public class WormholesClientSessionTest extends MinecraftTestBase {
                     environment.lighting(), environment.clouds(), environment.transform(), environment.dimension(),
                     new EnvironmentState.World("minecraft:the_nether", world.clockTime(), world.biomeKey(),
                         world.seaLevel(), world.blockLight(), world.skyLight(), world.logicalHeight(), world.hasCeiling(),
-                        world.ambientLight(), world.eyeMedium(), world.hasFixedTime()));
+                        world.ambientLight(), world.eyeMedium(), world.hasFixedTime()), 1.0F);
             } else if (change == 2) {
                 next = environment.withTransform(OpticTransform.of(AxisPermutation.of(Face.E, Face.U, Face.S), 16, 0, 0));
             } else if (change == 3) {

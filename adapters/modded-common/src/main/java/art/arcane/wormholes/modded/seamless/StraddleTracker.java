@@ -3,7 +3,7 @@ package art.arcane.wormholes.modded.seamless;
 import art.arcane.optics.aperture.Aperture;
 import art.arcane.optics.crossing.StraddleGeometry;
 import art.arcane.optics.frame.Frame;
-import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Vec3d;
@@ -36,10 +36,10 @@ public final class StraddleTracker {
         return signed(frame, origin, eye) > 0.0D;
     }
 
-    public static Straddle create(Endpoint source, Endpoint destination, Level destinationLevel, Vec3d eye) {
+    public static Straddle create(Endpoint source, Endpoint destination, Level destinationLevel, Vec3d eye, double scale) {
         boolean front = frontSide(source.frame(), source.origin(), eye);
         Frame viewed = source.frame().view(front);
-        OpticTransform toward = OpticTransform.between(viewed, source.origin(), destination.frame().view(front), destination.origin());
+        Similarity toward = Similarity.between(viewed, source.origin(), destination.frame().view(front), destination.origin(), scale);
         Face normal = viewed.getNormal();
         Vec3d behind = source.origin().subtract(new Vec3d(normal.x(), normal.y(), normal.z()).multiply(BEHIND_PROBE));
         boolean exitFront = signed(destination.frame(), destination.origin(), toward.point(behind)) > 0.0D;
@@ -48,10 +48,10 @@ public final class StraddleTracker {
             destinationLevel, destination.frame(), destination.origin(), exitFront);
     }
 
-    public static void track(Entity entity, Endpoint source, Endpoint destination, Level destinationLevel, Vec3d eye) {
+    public static void track(Entity entity, Endpoint source, Endpoint destination, Level destinationLevel, Vec3d eye, double scale) {
         Straddle current = straddle(entity);
-        if (current == null || !current.matches(source, destination, destinationLevel, eye)) {
-            register(entity, create(source, destination, destinationLevel, eye));
+        if (current == null || !current.matches(source, destination, destinationLevel, eye) || current.toward().scale() != scale) {
+            register(entity, create(source, destination, destinationLevel, eye, scale));
         }
     }
 
@@ -88,7 +88,7 @@ public final class StraddleTracker {
         }
     }
 
-    public record Straddle(Aperture aperture, Frame frame, Vec3d origin, boolean frontSide, Box slab, OpticTransform toward, Level destination,
+    public record Straddle(Aperture aperture, Frame frame, Vec3d origin, boolean frontSide, Box slab, Similarity toward, Level destination,
                            Frame destinationFrame, Vec3d destinationOrigin, boolean exitFront) {
         public Straddle {
             Objects.requireNonNull(frame, "frame");
