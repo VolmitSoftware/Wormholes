@@ -5,7 +5,7 @@ import org.lwjgl.opengl.GL11C;
 import org.lwjgl.opengl.GL20C;
 import org.lwjgl.opengl.GL30C;
 
-final class PortalFramebufferScope implements AutoCloseable {
+public final class PortalFramebufferScope implements AutoCloseable {
     private static final Bindings OPEN_GL = new OpenGlBindings();
 
     private final Bindings bindings;
@@ -27,7 +27,7 @@ final class PortalFramebufferScope implements AutoCloseable {
         }
     }
 
-    static PortalFramebufferScope capture() {
+    public static PortalFramebufferScope capture() {
         return PortalShaderScope.shaders() ? new PortalFramebufferScope(OPEN_GL) : null;
     }
 

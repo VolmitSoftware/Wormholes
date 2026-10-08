@@ -1,6 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
+import art.arcane.wormholes.modded.mixin.SeamlessEntityAccess;
 import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.entity.EntityDeltaCodec;
 import art.arcane.optics.entity.EntitySnapshot;
@@ -32,6 +33,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 
 public class ClientProjectedEntityIdentityTest extends MinecraftTestBase {
     @Test
@@ -149,8 +151,9 @@ public class ClientProjectedEntityIdentityTest extends MinecraftTestBase {
         when(level.registryAccess()).thenReturn(RegistryAccess.EMPTY);
         when(connection.getLevel()).thenReturn(level);
         UUID projection = UUID.randomUUID();
-        Entity stale = mock(Entity.class);
+        Entity stale = mock(Entity.class, withSettings().extraInterfaces(SeamlessEntityAccess.class));
         when(stale.getId()).thenReturn(ClientEntityIds.PROJECTED_MAX);
+        when(((SeamlessEntityAccess) stale).wormholesEntityId()).thenReturn(ClientEntityIds.PROJECTED_MAX);
         when(level.getEntity(projection)).thenReturn(stale);
         when(level.getEntity(ClientEntityIds.PROJECTED_MAX)).thenReturn(stale);
         when(level.getEntity(ClientEntityIds.PROJECTED_MAX - 1)).thenReturn(mock(Entity.class));
@@ -168,8 +171,9 @@ public class ClientProjectedEntityIdentityTest extends MinecraftTestBase {
         when(level.registryAccess()).thenReturn(RegistryAccess.EMPTY);
         when(connection.getLevel()).thenReturn(level);
         UUID projection = UUID.randomUUID();
-        Entity real = mock(Entity.class);
+        Entity real = mock(Entity.class, withSettings().extraInterfaces(SeamlessEntityAccess.class));
         when(real.getId()).thenReturn(12);
+        when(((SeamlessEntityAccess) real).wormholesEntityId()).thenReturn(12);
         when(level.getEntity(projection)).thenReturn(real);
         ClientLevelScene scene = new ClientLevelScene(level, () -> connection);
         assertFalse(scene.spawn(ClientEntityIds.PROJECTED_MAX, projection, visual(UUID.randomUUID(), "minecraft:player", 1)));

@@ -12,7 +12,7 @@ import org.lwjgl.opengl.GL30C;
 import org.lwjgl.opengl.GL33C;
 import org.lwjgl.opengl.GL43C;
 
-final class PortalTextureScope implements AutoCloseable {
+public final class PortalTextureScope implements AutoCloseable {
     private static final int[] TARGETS = {GL11C.GL_TEXTURE_1D, GL11C.GL_TEXTURE_2D, GL13C.GL_TEXTURE_3D,
         GL13C.GL_TEXTURE_CUBE_MAP, GL30C.GL_TEXTURE_2D_ARRAY, GL31C.GL_TEXTURE_RECTANGLE};
     private static final int[] BINDINGS = {GL11C.GL_TEXTURE_BINDING_1D, GL11C.GL_TEXTURE_BINDING_2D, GL13C.GL_TEXTURE_BINDING_3D,
@@ -31,7 +31,7 @@ final class PortalTextureScope implements AutoCloseable {
     private final int indexBuffer;
     private boolean closed;
 
-    PortalTextureScope() {
+    public PortalTextureScope() {
         this(OPEN_GL);
     }
 

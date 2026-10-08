@@ -85,6 +85,50 @@ public final class PortalFactoryOneWayTest
 	}
 
 	@Test
+	public void bidirectionalLinkDoesNotPairWhenForwardDestinationIsRefused()
+	{
+		PortalState firstState = new PortalState();
+		PortalState secondState = new PortalState();
+		firstState.refuseDestination = true;
+
+		assertFalse(PortalFactory.linkBidirectional(firstState.proxy(), secondState.proxy()));
+		assertNull(firstState.destination);
+		assertNull(secondState.destination);
+		assertNull(firstState.dimensionalCounterpartId);
+		assertNull(secondState.dimensionalCounterpartId);
+		assertEquals(0, secondState.mutations);
+	}
+
+	@Test
+	public void bidirectionalLinkClearsForwardDestinationWhenReturnDestinationIsRefused()
+	{
+		PortalState firstState = new PortalState();
+		PortalState secondState = new PortalState();
+		secondState.refuseDestination = true;
+
+		assertFalse(PortalFactory.linkBidirectional(firstState.proxy(), secondState.proxy()));
+		assertNull(firstState.destination);
+		assertNull(secondState.destination);
+		assertTrue(firstState.unlinked);
+		assertNull(firstState.dimensionalCounterpartId);
+		assertNull(secondState.dimensionalCounterpartId);
+	}
+
+	@Test
+	public void oneWayLinkLeavesBothEndpointsUnchangedWhenDestinationIsRefused()
+	{
+		PortalState sourceState = new PortalState();
+		PortalState destinationState = new PortalState();
+		sourceState.refuseDestination = true;
+
+		assertFalse(PortalFactory.linkOneWay(sourceState.proxy(), destinationState.proxy()));
+		assertNull(sourceState.destination);
+		assertNull(destinationState.dimensionalCounterpartId);
+		assertFalse(destinationState.unlinked);
+		assertEquals(0, destinationState.mutations);
+	}
+
+	@Test
 	public void dimensionalLinksRejectSelfLinks()
 	{
 		PortalState state = new PortalState();
@@ -148,6 +192,7 @@ public final class PortalFactoryOneWayTest
 		private PortalType type = PortalType.PORTAL;
 		private ITunnel tunnel;
 		private int mutations;
+		private boolean refuseDestination;
 
 		private ILocalPortal proxy()
 		{
@@ -180,6 +225,10 @@ public final class PortalFactoryOneWayTest
 
 		private Object assignDestination(Object[] arguments)
 		{
+			if(refuseDestination)
+			{
+				return Boolean.FALSE;
+			}
 			mutations++;
 			destination = (IPortal) arguments[0];
 			return Boolean.TRUE;
@@ -217,6 +266,9 @@ public final class PortalFactoryOneWayTest
 		{
 			mutations++;
 			unlinked = true;
+			destination = null;
+			tunnel = null;
+			dimensionalCounterpartId = null;
 			return null;
 		}
 	}

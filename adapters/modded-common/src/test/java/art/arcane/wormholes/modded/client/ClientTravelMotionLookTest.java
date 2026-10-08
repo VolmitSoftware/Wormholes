@@ -104,7 +104,7 @@ public class ClientTravelMotionLookTest extends MinecraftTestBase {
             TravelMessage.TravelBegin.destinationToSource(toward), (float) scale,
             new TravelMessage.TravelWorld("minecraft:overworld", "minecraft:overworld", 7, false, false, 63, -64, 384),
             new TravelMessage.TravelPose(100, 80, 100, 0, 0), PortalEnvironmentTest.environment(OpticTransform.IDENTITY),
-            new TravelMessage.ArrivalRules(OrientationRule.FRAME, false, PRESERVE, scale == 1.0D ? ScaleRule.OFF : ScaleRule.motion()), true, 1);
+            new TravelMessage.ArrivalRules(OrientationRule.FRAME, false, PRESERVE, scale == 1.0D ? ScaleRule.OFF : ScaleRule.motion()), true, 1, null);
     }
 
     private static ApertureDescriptor floor() {

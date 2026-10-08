@@ -1,6 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
+import art.arcane.wormholes.modded.mixin.SeamlessEntityAccess;
 import art.arcane.wormholes.render.ProjectedEntityIdentity;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -26,6 +27,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 
 public class ClientProjectedPlayerPhysicsTest extends MinecraftTestBase {
     private static final double SCALED_ARRIVAL_SPEED = 0.0393D;
@@ -137,8 +139,9 @@ public class ClientProjectedPlayerPhysicsTest extends MinecraftTestBase {
     }
 
     private static RemotePlayer copy(ClientLevel level, int id, double x) {
-        RemotePlayer entity = mock(RemotePlayer.class);
+        RemotePlayer entity = mock(RemotePlayer.class, withSettings().extraInterfaces(SeamlessEntityAccess.class));
         when(entity.getId()).thenReturn(id);
+        when(((SeamlessEntityAccess) entity).wormholesEntityId()).thenReturn(id);
         when(entity.level()).thenReturn(level);
         when(entity.getX()).thenReturn(x);
         when(entity.getBoundingBox()).thenReturn(new AABB(x - 0.3, 0, -0.3, x + 0.3, 2, 0.3));

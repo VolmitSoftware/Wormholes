@@ -4,6 +4,7 @@ import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.MinecraftTestBase;
+import art.arcane.wormholes.network.client.TravelMessage;
 import net.minecraft.core.Holder;
 import net.minecraft.server.level.ChunkTrackingView;
 import net.minecraft.server.level.ServerLevel;
@@ -17,6 +18,7 @@ import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -34,6 +36,20 @@ public class RemoteRoutesRankingTest extends MinecraftTestBase {
         assertEquals(List.of(near, middle), ranked);
         assertEquals(List.of(near, middle, far), RemoteRoutes.rank(List.of(far, near, middle), 4));
         assertTrue(RemoteRoutes.rank(List.of(), 2).isEmpty());
+    }
+
+    @Test
+    public void rankingPreservesTheExactDestinationDoorCollisionTarget() {
+        ServerLevel level = mock(ServerLevel.class);
+        RemoteRoutes.Candidate portal = candidate(level, 8.0D);
+        RemoteRoutes.Candidate source = candidate(level, 3.0D);
+        TravelMessage.DoorCollisionTarget target = new TravelMessage.DoorCollisionTarget(-17, 70, 33, true);
+        RemoteRoutes.Candidate door = new RemoteRoutes.Candidate(source.source(), source.destination(), level, 3.0D, target);
+
+        List<RemoteRoutes.Candidate> ranked = RemoteRoutes.rank(List.of(portal, door), 2);
+
+        assertEquals(target, ranked.getFirst().doorCollision());
+        assertNull(ranked.getLast().doorCollision());
     }
 
     @Test
@@ -108,6 +124,6 @@ public class RemoteRoutesRankingTest extends MinecraftTestBase {
         MinecraftPortal destination = mock(MinecraftPortal.class);
         when(source.getId()).thenReturn(UUID.randomUUID());
         when(destination.getId()).thenReturn(UUID.randomUUID());
-        return new RemoteRoutes.Candidate(source, destination, level, distance);
+        return new RemoteRoutes.Candidate(source, destination, level, distance, null);
     }
 }

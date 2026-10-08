@@ -82,8 +82,15 @@ public final class PortalFactory
 		{
 			return false;
 		}
-		a.setDestination(b);
-		b.setDestination(a);
+		if(!a.setDestination(b))
+		{
+			return false;
+		}
+		if(!b.setDestination(a))
+		{
+			a.unlink();
+			return false;
+		}
 		if(!canLinkEndpoint(a) || !canLinkEndpoint(b))
 		{
 			a.unlink();
@@ -113,7 +120,10 @@ public final class PortalFactory
 		{
 			return false;
 		}
-		source.setDestination(destination);
+		if(!source.setDestination(destination))
+		{
+			return false;
+		}
 		source.setOutgoingTraversalsEnabled(true);
 		source.setIncomingTraversalsEnabled(false);
 		destination.unlink();

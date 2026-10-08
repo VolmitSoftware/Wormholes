@@ -17,8 +17,15 @@ public final class PortalSkinGeometry {
         Axis normalAxis = frame.getNormal().getAxis();
         double planeCoordinate = axisComponent(origin, normalAxis);
         List<Vec3d> cells = structure.getBlockPositions();
-        if (structure.isFullCuboid() || cells.isEmpty() || cells.size() > MAX_PER_CELL_PANES) {
+        if (cells.isEmpty()) {
             return List.of(skinTransforms(structure.getArea(), normalAxis, planeCoordinate, SURFACE_THICKNESS_BLOCKS));
+        }
+        if (structure.isFullCuboid() || cells.size() > MAX_PER_CELL_PANES) {
+            Box area = structure.getArea();
+            Box cellBounds = new Box(Math.floor(area.getXa()), Math.floor(area.getXb()) + 1.0D,
+                Math.floor(area.getYa()), Math.floor(area.getYb()) + 1.0D,
+                Math.floor(area.getZa()), Math.floor(area.getZb()) + 1.0D);
+            return List.of(skinTransforms(cellBounds, normalAxis, planeCoordinate, SURFACE_THICKNESS_BLOCKS));
         }
         List<SkinTransform> panes = new ArrayList<SkinTransform>(cells.size());
         for (Vec3d cell : cells) {

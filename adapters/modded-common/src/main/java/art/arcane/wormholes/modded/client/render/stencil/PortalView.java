@@ -93,7 +93,7 @@ public final class PortalView implements AutoCloseable {
         if (mesh != null && meshSubdivisions == subdivisions) {
             return mesh;
         }
-        close();
+        closeMesh();
         ShapeMesh shape = aperture.planeShape().mesh(subdivisions, PortalApertureMesh.renderMask(geometry, aperture.planeShape()));
         mesh = PortalApertureMesh.shaped(shape, aperture, geometry);
         meshSubdivisions = subdivisions;
@@ -102,6 +102,11 @@ public final class PortalView implements AutoCloseable {
 
     @Override
     public void close() {
+        PortalBackends.pipeline().closeView(this);
+        closeMesh();
+    }
+
+    private void closeMesh() {
         if (mesh != null) {
             mesh.close();
             mesh = null;

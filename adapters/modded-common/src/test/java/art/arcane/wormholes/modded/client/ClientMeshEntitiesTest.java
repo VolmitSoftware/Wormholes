@@ -1,6 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
+import art.arcane.wormholes.modded.mixin.SeamlessEntityAccess;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.BrickCodec;
 import art.arcane.optics.math.Vec3d;
@@ -59,8 +60,37 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 
 public class ClientMeshEntitiesTest extends MinecraftTestBase {
+    @Test
+    public void meshOwnershipWaitsForIdAssignmentAndUsesTheAssignedId() {
+        Entity entity = mock(Entity.class, withSettings().extraInterfaces(SeamlessEntityAccess.class));
+        SeamlessEntityAccess access = (SeamlessEntityAccess) entity;
+        doThrow(new IllegalStateException("Tried to access entity ID before ID assignment")).when(entity).getId();
+        WormholesClient client = mock(WormholesClient.class);
+        ClientViewTick tick = mock(ClientViewTick.class);
+        ClientProjectedEntities projected = mock(ClientProjectedEntities.class);
+        ClientReflectionEntity reflections = mock(ClientReflectionEntity.class);
+        when(client.tickState()).thenReturn(tick);
+        when(tick.entities()).thenReturn(projected);
+        when(client.reflections()).thenReturn(reflections);
+        int assignedId = ClientEntityIds.PROJECTED_MAX;
+        when(projected.meshEntity(assignedId)).thenReturn(true);
+        try (MockedStatic<WormholesClient> clients = mockStatic(WormholesClient.class)) {
+            clients.when(WormholesClient::instance).thenReturn(client);
+            assertFalse(ClientMeshEntities.hiddenFromWorld(entity));
+            verifyNoInteractions(tick, projected, reflections);
+            when(access.wormholesEntityId()).thenReturn(assignedId);
+            assertTrue(ClientMeshEntities.hiddenFromWorld(entity));
+            when(projected.meshEntity(assignedId)).thenReturn(false);
+            assertFalse(ClientMeshEntities.hiddenFromWorld(entity));
+            when(reflections.meshEntity(assignedId)).thenReturn(true);
+            assertTrue(ClientMeshEntities.hiddenFromWorld(entity));
+        }
+        verify(entity, never()).getId();
+    }
+
     @Test
     public void localEntitiesUseIndependentRenderStatesWithoutTickingOrMutatingSourceEntities() {
         ClientLevel level = mock(ClientLevel.class);

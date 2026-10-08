@@ -69,7 +69,7 @@ public final class ClientViewFixtures {
             base.sourceGeometry().withShape(ShapeDescriptor.parse("circle")), base.destinationToSource(), 3.0F, base.world(), base.arrival(),
             base.environment().withScale(1.0F / 3.0F),
             new TravelMessage.ArrivalRules(OrientationRule.LOOK, true, new MomentumRule(MomentumRule.Mode.SCALE, 0.75D, 3.5D,
-                new Vec3d(0.0D, 0.25D, 0.0D)), ScaleRule.ratio(0.25D, 4.0D)), true, 4);
+                new Vec3d(0.0D, 0.25D, 0.0D)), ScaleRule.ratio(0.25D, 4.0D)), true, 4, base.doorCollision());
     }
 
     public static TravelMessage.TravelBegin travelBegin() {
@@ -84,7 +84,7 @@ public final class ClientViewFixtures {
             geometry(), OpticTransform.of(AxisPermutation.of(Face.S, Face.U, Face.E), 4, 0, 6), 1.0F,
             new TravelMessage.TravelWorld("minecraft:overworld", "minecraft:overworld", 123456789L, false, true, 63, -64, 384),
             new TravelMessage.TravelPose(-511.5D, 81.0D, -159.5D, 90.0F, -12.0F),
-            environment, TravelMessage.ArrivalRules.FRAME, false, 0);
+            environment, TravelMessage.ArrivalRules.FRAME, false, 0, null);
     }
 
     static EnvironmentState environment() {

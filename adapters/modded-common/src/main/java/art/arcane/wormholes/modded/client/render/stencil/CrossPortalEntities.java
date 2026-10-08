@@ -12,6 +12,7 @@ import art.arcane.optics.math.Vec3d;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
+import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
 import net.minecraft.client.renderer.state.level.LevelRenderState;
@@ -25,6 +26,7 @@ import java.util.List;
 final class CrossPortalEntities {
     private static final double REACH_BLOCKS = 2.0D;
     private static final double YAW_EPSILON = 1.0E-6D;
+    private static final double POSITION_EPSILON_SQUARED = 1.0E-10D;
     private static final Vec3d SOUTH = new Vec3d(0.0D, 0.0D, 1.0D);
     private static final Vec3d UP = new Vec3d(0.0D, 1.0D, 0.0D);
 
@@ -57,7 +59,7 @@ final class CrossPortalEntities {
         Minecraft minecraft = Minecraft.getInstance();
         EntityRenderDispatcher dispatcher = minecraft.getEntityRenderDispatcher();
         for (Entity entity : from.getEntities((Entity) null, reach, EntitySelector.ENTITY_STILL_ALIVE)) {
-            if (entity == minecraft.player) {
+            if (entity == minecraft.player && minecraft.options.getCameraType().isFirstPerson()) {
                 continue;
             }
             AABB bounds = entity.getBoundingBox();
@@ -66,6 +68,9 @@ final class CrossPortalEntities {
             }
             Vec3 position = entity.getPosition(partialTicks);
             Vec3d mapped = transform.point(new Vec3d(position.x, position.y, position.z));
+            if (entity == minecraft.player && playerAlreadyVisible(state.entityRenderStates, entity.getId(), mapped)) {
+                continue;
+            }
             EntityRenderState copy = dispatcher.extractEntity(entity, partialTicks);
             if (copy instanceof LivingEntityRenderState living) {
                 living.bodyRot += yaw;
@@ -81,6 +86,21 @@ final class CrossPortalEntities {
         }
     }
 
+
+    static boolean playerAlreadyVisible(List<EntityRenderState> states, int playerId, Vec3d position) {
+        for (EntityRenderState state : states) {
+            if (!(state instanceof AvatarRenderState avatar) || avatar.id != playerId) {
+                continue;
+            }
+            double dx = state.x - position.x();
+            double dy = state.y - position.y();
+            double dz = state.z - position.z();
+            if (dx * dx + dy * dy + dz * dz <= POSITION_EPSILON_SQUARED) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     private static boolean yawOnly(Similarity transform) {
         return !transform.rigid().reflects() && Math.abs(transform.direction(UP).y() - 1.0D) <= YAW_EPSILON;

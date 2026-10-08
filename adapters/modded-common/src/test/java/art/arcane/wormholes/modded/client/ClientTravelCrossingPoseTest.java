@@ -195,7 +195,7 @@ public class ClientTravelCrossingPoseTest extends MinecraftTestBase {
         return new TravelMessage.TravelBegin(new UUID(1, 2), 3, new UUID(4, 5), "minecraft:overworld", ClientTravelTestFixtures.geometry(),
             destinationToSource, 1.0F, new TravelMessage.TravelWorld("minecraft:overworld", "minecraft:overworld", 7, false, false, 63, -64, 384),
             new TravelMessage.TravelPose(100, 64, 100, 0, 0), PortalEnvironmentTest.environment(OpticTransform.IDENTITY),
-            new TravelMessage.ArrivalRules(orientation, gravityFlip, momentum, ScaleRule.OFF), true, 1);
+            new TravelMessage.ArrivalRules(orientation, gravityFlip, momentum, ScaleRule.OFF), true, 1, null);
     }
 
     private static PlaneCrossing crossing(Frame source, float yaw, float pitch) {

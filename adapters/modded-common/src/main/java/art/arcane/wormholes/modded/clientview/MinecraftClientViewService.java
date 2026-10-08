@@ -279,7 +279,7 @@ public final class MinecraftClientViewService implements AutoCloseable {
         seamlessTravel.relocated(player.getUUID());
         String reason = fallbacks.remove(player.getUUID());
         if (seamlessMove) {
-            LOGGER.info("Crossing seamless {} {} -> {}", player.getScoreboardName(), origin.dimension().identifier(), destination.dimension().identifier());
+            LOGGER.debug("Crossing seamless {} {} -> {}", player.getScoreboardName(), origin.dimension().identifier(), destination.dimension().identifier());
         } else {
             LOGGER.info("Crossing teleport {} {} -> {}: {}", player.getScoreboardName(), origin.dimension().identifier(),
                 destination.dimension().identifier(), reason == null ? "not predicted" : reason);

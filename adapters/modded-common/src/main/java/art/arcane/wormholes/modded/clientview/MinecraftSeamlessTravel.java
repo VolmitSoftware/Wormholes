@@ -8,6 +8,7 @@ import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.MinecraftPortalRegistry;
@@ -38,6 +39,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -243,15 +245,19 @@ final class MinecraftSeamlessTravel {
             }
             UUID sourceId = source.getId();
             Arm current = traveler.arms.get(sourceId);
-            boolean front = traveler.sides.front(current != null, current != null && current.front(), planeDistance(player, source), speed);
+            Vec3 eye = player.getEyePosition();
+            boolean withinAperture = current != null && projectsIntoAperture(current.begin().sourceGeometry(), new Vec3d(eye.x, eye.y, eye.z));
+            boolean front = traveler.sides.front(current != null, current != null && current.front(), planeDistance(eye, source), speed,
+                withinAperture);
             long identity = peer.portals().routeIdentity(source);
-            if (current != null && current.matches(source, destination, route, front, identity)
+            TravelMessage.DoorCollisionTarget doorCollision = collisionTarget(peer, source, destination);
+            if (current != null && current.matches(source, destination, route, front, identity, doorCollision)
                 && armedWith(current.begin().rules(), current.begin().scale(), rules(peer, source),
                 MinecraftPortalRegistry.travelScale(source, destination))) {
                 live.add(sourceId);
                 continue;
             }
-            Arm next = arm(travel, player, source, destination, route, front, identity);
+            Arm next = arm(travel, player, source, destination, route, front, identity, doorCollision);
             if (next != null && travel.sendTravel(next.begin())) {
                 if (current != null) {
                     traveler.retire(current, tick);
@@ -274,9 +280,8 @@ final class MinecraftSeamlessTravel {
         traveler.sides.evaluated();
     }
 
-    private static double planeDistance(ServerPlayer player, MinecraftPortal portal) {
+    private static double planeDistance(Vec3 eye, MinecraftPortal portal) {
         Vec3d origin = portal.getOrigin();
-        Vec3 eye = player.getEyePosition();
         return (eye.x - origin.x()) * portal.getFrame().getNormal().x() + (eye.y - origin.y()) * portal.getFrame().getNormal().y()
             + (eye.z - origin.z()) * portal.getFrame().getNormal().z();
     }
@@ -289,8 +294,14 @@ final class MinecraftSeamlessTravel {
         return Math.abs(distance) < SIDE_HYSTERESIS_BLOCKS + speed * SIDE_HYSTERESIS_TICKS;
     }
 
+    static boolean projectsIntoAperture(ApertureDescriptor geometry, Vec3d eye) {
+        Face normal = geometry.facingDirection();
+        double distance = geometry.signedDistance(eye.x(), eye.y(), eye.z());
+        return geometry.containsPoint(eye.x() - distance * normal.x(), eye.y() - distance * normal.y(), eye.z() - distance * normal.z());
+    }
+
     private Arm arm(ClientViewTravel<MinecraftClientViewPeer> travel, ServerPlayer player, MinecraftPortal source, MinecraftPortal destination,
-                    RemoteRoute route, boolean front, long identity) {
+                    RemoteRoute route, boolean front, long identity, TravelMessage.DoorCollisionTarget doorCollision) {
         MinecraftClientViewPeer peer = travel.player();
         ServerLevel world = route.level();
         ApertureDescriptor geometry = portals.travelGeometry(peer, source, front);
@@ -308,7 +319,7 @@ final class MinecraftSeamlessTravel {
             player.level().dimension().identifier().toString(), geometry, destinationToSource, (float) toward.scale(), metadata,
             new TravelMessage.TravelPose(feet.x(), feet.y(), feet.z(), player.getYRot(), player.getXRot()),
             MinecraftPortalEnvironment.capture(world, eye, OpticTransform.IDENTITY, world.isFlat()), rules(peer, source), route.resident(),
-            route.handle());
+            route.handle(), doorCollision);
         return new Arm(source, destination, world, front, identity, route.handle(), begin);
     }
 
@@ -330,7 +341,8 @@ final class MinecraftSeamlessTravel {
             }
             Box area = source.getGeometry().getArea();
             candidates.add(new RemoteRoutes.Candidate(source, destination, world,
-                area == null ? source.getOrigin().distance(feet) : RemoteRoutes.distance(area, feet)));
+                area == null ? source.getOrigin().distance(feet) : RemoteRoutes.distance(area, feet),
+                collisionTarget(travel.player(), source, destination)));
         }
         return candidates;
     }
@@ -436,6 +448,11 @@ final class MinecraftSeamlessTravel {
             && runtime.portals().canDepart(player, source) && runtime.portals().canArrive(player, destination);
     }
 
+    private TravelMessage.DoorCollisionTarget collisionTarget(MinecraftClientViewPeer peer, MinecraftPortal source,
+                                                              MinecraftPortal destination) {
+        return peer.door(source.getId()) == source ? runtime.doors().collisionTarget(destination.getId()) : null;
+    }
+
     private boolean dispatchCross(MinecraftClientViewPeer peer, ServerPlayer player, MinecraftPortal source, MinecraftPortal destination,
                                   int kind, PlaneCrossing crossing) {
         boolean door = peer.door(source.getId()) == source;
@@ -470,9 +487,9 @@ final class MinecraftSeamlessTravel {
     private record Arm(MinecraftPortal source, MinecraftPortal destination, ServerLevel world, boolean front, long identity, int handle,
                        TravelMessage.TravelBegin begin) {
         private boolean matches(MinecraftPortal nextSource, MinecraftPortal nextDestination, RemoteRoute route, boolean nextFront,
-                                long nextIdentity) {
+                                long nextIdentity, TravelMessage.DoorCollisionTarget nextDoorCollision) {
             return source == nextSource && destination == nextDestination && world == route.level() && front == nextFront
-                && identity == nextIdentity && handle == route.handle();
+                && identity == nextIdentity && handle == route.handle() && Objects.equals(begin.doorCollision(), nextDoorCollision);
         }
     }
 
@@ -506,8 +523,8 @@ final class MinecraftSeamlessTravel {
     static final class SideMemory {
         private boolean relocated;
 
-        boolean front(boolean armed, boolean remembered, double distance, double speed) {
-            return armed && !relocated && keepsSide(distance, speed) ? remembered : distance >= 0.0D;
+        boolean front(boolean armed, boolean remembered, double distance, double speed, boolean withinAperture) {
+            return armed && !relocated && withinAperture && keepsSide(distance, speed) ? remembered : distance >= 0.0D;
         }
 
         void relocated() {

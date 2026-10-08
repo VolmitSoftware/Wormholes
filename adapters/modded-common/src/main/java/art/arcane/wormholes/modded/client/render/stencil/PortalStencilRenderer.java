@@ -237,6 +237,7 @@ public final class PortalStencilRenderer {
             shadedCamera = null;
         }
         deferred.composite(main, 1, 0);
+        deferred.writeDepth(0, aperture, shaped, apertureView, projection, null);
     }
 
     public boolean clearLayer(Vector4fc fogColor) {
@@ -385,7 +386,10 @@ public final class PortalStencilRenderer {
         if (mesh == null) {
             return;
         }
-        deferred.mark(outer, mesh, view.shaped(), apertureView(camera, view.surface()), projection, outer == 0 ? null : world.clipPlane());
+        boolean shaped = view.shaped();
+        Matrix4f aperture = apertureView(camera, view.surface());
+        Vector4fc clipPlane = outer == 0 ? null : world.clipPlane();
+        deferred.mark(outer, mesh, shaped, aperture, projection, clipPlane);
         boolean outerMirrored = layers.mirrored();
         int inner = layers.enter(PortalLayerMath.mirrored(view.toDestination()));
         deferred.forget(inner);
@@ -395,6 +399,7 @@ public final class PortalStencilRenderer {
             layers.exit();
         }
         deferred.composite(main, inner, outer);
+        deferred.writeDepth(outer, mesh, shaped, aperture, projection, clipPlane);
     }
 
     private static void fill(RenderTarget main, RenderPipeline pipeline, String label) {

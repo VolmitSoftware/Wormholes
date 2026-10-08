@@ -10,6 +10,7 @@ import org.joml.Vector4fc;
 
 public final class PortalLayer {
     private final int depth;
+    private final PortalView view;
     private final ClientLevel level;
     private final LevelRenderer renderer;
     private final boolean shared;
@@ -19,10 +20,11 @@ public final class PortalLayer {
     private final ObjectArrayList<SectionRenderDispatcher.RenderSection> visibleSections;
     private final ObjectArrayList<SectionRenderDispatcher.RenderSection> nearbySections;
 
-    PortalLayer(int depth, ClientLevel level, LevelRenderer renderer, boolean shared, CameraRenderState camera, Vector4dc worldClipPlane,
+    PortalLayer(int depth, PortalView view, ClientLevel level, LevelRenderer renderer, boolean shared, CameraRenderState camera, Vector4dc worldClipPlane,
                 Vector4fc clipSpacePlane, ObjectArrayList<SectionRenderDispatcher.RenderSection> visibleSections,
                 ObjectArrayList<SectionRenderDispatcher.RenderSection> nearbySections) {
         this.depth = depth;
+        this.view = view;
         this.level = level;
         this.renderer = renderer;
         this.shared = shared;
@@ -35,6 +37,10 @@ public final class PortalLayer {
 
     public int depth() {
         return depth;
+    }
+
+    public PortalView view() {
+        return view;
     }
 
     public ClientLevel level() {

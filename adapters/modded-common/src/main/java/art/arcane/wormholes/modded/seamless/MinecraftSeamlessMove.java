@@ -188,7 +188,7 @@ public final class MinecraftSeamlessMove implements SeamlessMove.Steps {
             StraddleTracker.clear(player);
             return;
         }
-        StraddleTracker.register(player, StraddleTracker.create(RemoteRoutes.endpoint(back.source()), RemoteRoutes.endpoint(back.destination()),
+        StraddleTracker.register(player, StraddleTracker.create(RemoteRoutes.endpoint(back.source(), null), RemoteRoutes.endpoint(back.destination(), null),
             origin, new Vec3d(player.getX(), player.getEyeY(), player.getZ()), MinecraftPortalRegistry.travelScale(back.source(), back.destination())));
     }
 

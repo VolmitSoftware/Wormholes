@@ -9,6 +9,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.BlockCollisions;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -51,7 +52,9 @@ public final class StraddleCollision {
             return pushOut(straddle, thisSide);
         }
         List<VoxelShape> shapes = new ArrayList<>();
-        for (VoxelShape shape : destination.getBlockCollisions(null, sweep)) {
+        Iterable<VoxelShape> collisions = straddle.doorCollision() == null ? destination.getBlockCollisions(null, sweep)
+            : () -> new BlockCollisions<>(destination, new DoorCollisionContext(straddle.doorCollision()), sweep, false, (position, shape) -> shape);
+        for (VoxelShape shape : collisions) {
             VoxelShape clipped = exitSide(shape, straddle);
             if (!clipped.isEmpty()) {
                 shapes.add(clipped);

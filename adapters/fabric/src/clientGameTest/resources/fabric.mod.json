@@ -15,14 +15,21 @@
       "art.arcane.wormholes.clientgametest.ClientViewSceneClientGameTest",
       "art.arcane.wormholes.clientgametest.ClientViewLightClientGameTest",
       "art.arcane.wormholes.clientgametest.ClientViewMirrorClientGameTest",
+      "art.arcane.wormholes.clientgametest.MirrorWaterClientGameTest",
       "art.arcane.wormholes.clientgametest.ApertureShapeClientGameTest",
       "art.arcane.wormholes.clientgametest.SeamlessSameDimensionClientGameTest",
+      "art.arcane.wormholes.clientgametest.FourFaceSingleplayerClientGameTest",
       "art.arcane.wormholes.clientgametest.SeamlessCrossDimensionClientGameTest",
       "art.arcane.wormholes.clientgametest.SeamlessWalkThroughClientGameTest",
+      "art.arcane.wormholes.clientgametest.DimensionalDoorClientGameTest",
       "art.arcane.wormholes.clientgametest.SeamlessFallLoopClientGameTest",
       "art.arcane.wormholes.clientgametest.LookContinuityClientGameTest",
       "art.arcane.wormholes.clientgametest.ScaledPairClientGameTest",
       "art.arcane.wormholes.clientgametest.SingleplayerStoreClientGameTest"
+    ],
+    "wormholes-shader-gametest": [
+      "art.arcane.wormholes.clientgametest.ShaderOcclusionClientGameTest",
+      "art.arcane.wormholes.clientgametest.ShaderHistoryClientGameTest"
     ]
   },
   "mixins": [

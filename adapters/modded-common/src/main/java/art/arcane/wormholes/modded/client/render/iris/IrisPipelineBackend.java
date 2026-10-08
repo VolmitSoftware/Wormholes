@@ -9,6 +9,7 @@ package art.arcane.wormholes.modded.client.render.iris;
 
 import art.arcane.wormholes.modded.client.render.stencil.PipelineBackend;
 import art.arcane.wormholes.modded.client.render.stencil.PortalLayer;
+import art.arcane.wormholes.modded.client.render.stencil.PortalView;
 import art.arcane.wormholes.modded.mixin.client.IrisPortalPipelineAccess;
 import com.mojang.logging.LogUtils;
 import net.irisshaders.iris.Iris;
@@ -49,28 +50,68 @@ public final class IrisPipelineBackend implements PipelineBackend {
         LevelRenderer renderer = layer.renderer();
         VarHandle slot = rendererPipeline();
         WorldRenderingPipeline rendering = slot == null ? null : (WorldRenderingPipeline) slot.get(renderer);
-        IrisShadowUniforms shadows = deferred() ? IrisShadowUniforms.reset(renderer) : null;
-        layers.push(new Layer(renderer, manager.getPipelineNullable(), rendering, shadows));
-        if (slot != null) {
-            slot.set(renderer, (WorldRenderingPipeline) null);
+        IrisViewPipelines.Scope history = deferred() ? IrisViewPipelines.open(layer.view()) : null;
+        IrisShadowUniforms shadows = null;
+        boolean pushed = false;
+        boolean clipped = false;
+        try {
+            shadows = deferred() ? IrisShadowUniforms.reset(renderer) : null;
+            layers.push(new Layer(renderer, manager.getPipelineNullable(), rendering, shadows, history));
+            pushed = true;
+            if (slot != null) {
+                slot.set(renderer, (WorldRenderingPipeline) null);
+            }
+            IrisClipPlanes.push(layer.clipSpacePlane());
+            clipped = true;
+            IrisLayerUniforms.transition();
+        } catch (RuntimeException | Error failure) {
+            try {
+                if (clipped) {
+                    IrisClipPlanes.pop();
+                }
+                if (slot != null) {
+                    slot.set(renderer, rendering);
+                }
+                if (shadows != null) {
+                    shadows.restore();
+                }
+                if (pushed) {
+                    layers.pop();
+                }
+                if (history != null) {
+                    history.close();
+                }
+            } catch (RuntimeException | Error restoreFailure) {
+                failure.addSuppressed(restoreFailure);
+            }
+            throw failure;
         }
-        IrisClipPlanes.push(layer.clipSpacePlane());
-        IrisLayerUniforms.transition();
     }
 
     @Override
     public void endLayer(PortalLayer layer) {
         Layer entered = layers.pop();
-        IrisClipPlanes.pop();
-        IrisLayerUniforms.transition();
-        if (entered.shadows() != null) {
-            entered.shadows().restore();
+        try {
+            IrisClipPlanes.pop();
+            IrisLayerUniforms.transition();
+            if (entered.shadows() != null) {
+                entered.shadows().restore();
+            }
+            VarHandle slot = rendererPipeline();
+            if (slot != null) {
+                slot.set(entered.renderer(), entered.rendering());
+            }
+        } finally {
+            ((IrisPortalPipelineAccess) Iris.getPipelineManager()).wormholes$pipeline(entered.selected());
+            if (entered.history() != null) {
+                entered.history().close();
+            }
         }
-        VarHandle slot = rendererPipeline();
-        if (slot != null) {
-            slot.set(entered.renderer(), entered.rendering());
-        }
-        ((IrisPortalPipelineAccess) Iris.getPipelineManager()).wormholes$pipeline(entered.selected());
+    }
+
+    @Override
+    public void closeView(PortalView view) {
+        IrisViewPipelines.forget(view);
     }
 
     private VarHandle rendererPipeline() {
@@ -87,6 +128,7 @@ public final class IrisPipelineBackend implements PipelineBackend {
         return rendererPipeline;
     }
 
-    private record Layer(LevelRenderer renderer, WorldRenderingPipeline selected, WorldRenderingPipeline rendering, IrisShadowUniforms shadows) {
+    private record Layer(LevelRenderer renderer, WorldRenderingPipeline selected, WorldRenderingPipeline rendering, IrisShadowUniforms shadows,
+                         IrisViewPipelines.Scope history) {
     }
 }

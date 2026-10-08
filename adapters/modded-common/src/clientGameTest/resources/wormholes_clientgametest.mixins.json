@@ -2,13 +2,16 @@
   "required": true,
   "minVersion": "0.8",
   "package": "art.arcane.wormholes.clientgametest.mixin",
+  "plugin": "art.arcane.wormholes.clientgametest.mixin.ClientGameTestMixinPlugin",
   "compatibilityLevel": "JAVA_21",
   "client": [
     "TravelConnectionTap",
     "TravelFrameTap",
     "TravelPacketTap",
     "TravelTickTap",
-    "ParticleGroupTap"
+    "ParticleGroupTap",
+    "IrisHistoryPipelineTap",
+    "IrisHistoryLayerTap"
   ],
   "injectors": {
     "defaultRequire": 1

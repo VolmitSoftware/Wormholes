@@ -52,8 +52,8 @@ public class StraddleTrackerTest extends MinecraftTestBase {
     public void straddleKeepsTheEyeSideAndExcludesOnlyShapesFullyBehindThePlane() {
         ApertureCells source = aperture(0, 64, 0);
         ApertureCells destination = aperture(100, 64, 100);
-        StraddleTracker.Straddle straddle = StraddleTracker.create(new StraddleTracker.Endpoint(source, NORTH, source.getApertureCenter()),
-            new StraddleTracker.Endpoint(destination, NORTH, destination.getApertureCenter()), null, new Vec3d(0.5D, 65.6D, 1.2D), 1.0D);
+        StraddleTracker.Straddle straddle = StraddleTracker.create(new StraddleTracker.Endpoint(source, NORTH, source.getApertureCenter(), null),
+            new StraddleTracker.Endpoint(destination, NORTH, destination.getApertureCenter(), null), null, new Vec3d(0.5D, 65.6D, 1.2D), 1.0D);
 
         assertFalse(straddle.frontSide());
         List<VoxelShape> shapes = new ArrayList<>();
@@ -73,24 +73,24 @@ public class StraddleTrackerTest extends MinecraftTestBase {
         ApertureCells source = aperture(0, 64, 0);
         ApertureCells destination = aperture(100, 64, 100);
         Level level = mock(Level.class);
-        StraddleTracker.Endpoint from = new StraddleTracker.Endpoint(source, NORTH, source.getApertureCenter());
-        StraddleTracker.Endpoint to = new StraddleTracker.Endpoint(destination, NORTH, destination.getApertureCenter());
+        StraddleTracker.Endpoint from = new StraddleTracker.Endpoint(source, NORTH, source.getApertureCenter(), null);
+        StraddleTracker.Endpoint to = new StraddleTracker.Endpoint(destination, NORTH, destination.getApertureCenter(), null);
         StraddleTracker.Straddle straddle = StraddleTracker.create(from, to, level, new Vec3d(0.5D, 65.6D, 1.2D), 1.0D);
 
-        assertTrue(straddle.matches(new StraddleTracker.Endpoint(source, NORTH, source.getApertureCenter()), to, level, new Vec3d(0.6D, 65.6D, 1.1D)));
+        assertTrue(straddle.matches(new StraddleTracker.Endpoint(source, NORTH, source.getApertureCenter(), null), to, level, new Vec3d(0.6D, 65.6D, 1.1D)));
         assertFalse(straddle.matches(from, to, level, new Vec3d(0.5D, 65.6D, -0.4D)));
-        assertFalse(straddle.matches(new StraddleTracker.Endpoint(aperture(0, 64, 0), NORTH, source.getApertureCenter()), to, level,
+        assertFalse(straddle.matches(new StraddleTracker.Endpoint(aperture(0, 64, 0), NORTH, source.getApertureCenter(), null), to, level,
             new Vec3d(0.5D, 65.6D, 1.2D)));
         assertFalse(straddle.matches(from, to, mock(Level.class), new Vec3d(0.5D, 65.6D, 1.2D)));
-        assertFalse(straddle.matches(from, new StraddleTracker.Endpoint(destination, NORTH, new Vec3d(101.5D, 65.0D, 100.5D)), level,
+        assertFalse(straddle.matches(from, new StraddleTracker.Endpoint(destination, NORTH, new Vec3d(101.5D, 65.0D, 100.5D), null), level,
             new Vec3d(0.5D, 65.6D, 1.2D)));
     }
 
     @Test
     public void reverseApproachUsesTheOtherSideOfThePlane() {
         ApertureCells source = aperture(0, 64, 0);
-        StraddleTracker.Straddle straddle = StraddleTracker.create(new StraddleTracker.Endpoint(source, NORTH, source.getApertureCenter()),
-            new StraddleTracker.Endpoint(source, NORTH, source.getApertureCenter()), null, new Vec3d(0.5D, 65.6D, -0.4D), 1.0D);
+        StraddleTracker.Straddle straddle = StraddleTracker.create(new StraddleTracker.Endpoint(source, NORTH, source.getApertureCenter(), null),
+            new StraddleTracker.Endpoint(source, NORTH, source.getApertureCenter(), null), null, new Vec3d(0.5D, 65.6D, -0.4D), 1.0D);
 
         assertTrue(straddle.frontSide());
         assertTrue(straddle.excludes(0, 64, 1, 1, 65, 2));
@@ -105,8 +105,8 @@ public class StraddleTrackerTest extends MinecraftTestBase {
         when(destinationLevel.hasChunksAt(anyInt(), anyInt(), anyInt(), anyInt())).thenReturn(true);
         when(destinationLevel.getBlockCollisions(isNull(), any(AABB.class)))
             .thenReturn(List.of(Shapes.block().move(100, 63, 100), Shapes.block().move(100, 63, 101)));
-        StraddleTracker.Straddle straddle = StraddleTracker.create(new StraddleTracker.Endpoint(source, NORTH, source.getApertureCenter()),
-            new StraddleTracker.Endpoint(destination, NORTH, destination.getApertureCenter()), destinationLevel, new Vec3d(0.5D, 65.62D, 0.8D), 1.0D);
+        StraddleTracker.Straddle straddle = StraddleTracker.create(new StraddleTracker.Endpoint(source, NORTH, source.getApertureCenter(), null),
+            new StraddleTracker.Endpoint(destination, NORTH, destination.getApertureCenter(), null), destinationLevel, new Vec3d(0.5D, 65.62D, 0.8D), 1.0D);
         Entity walker = mock(Entity.class);
         when(walker.getBoundingBox()).thenReturn(new AABB(0.2D, 64.0D, 0.5D, 0.8D, 65.8D, 1.1D));
         Vec3 grounded = new Vec3(0.0D, 0.0D, -0.1D);

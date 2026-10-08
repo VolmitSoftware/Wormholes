@@ -28,4 +28,7 @@ public interface PipelineBackend {
     void beginLayer(PortalLayer layer);
 
     void endLayer(PortalLayer layer);
+
+    default void closeView(PortalView view) {
+    }
 }

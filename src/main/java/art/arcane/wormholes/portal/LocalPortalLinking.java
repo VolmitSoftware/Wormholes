@@ -155,6 +155,13 @@ final class LocalPortalLinking
 		{
 			return false;
 		}
+		ITunnel activeTunnel = tunnel;
+		if(destinationPortal instanceof ILocalPortal
+				&& (activeTunnel instanceof LocalTunnel || activeTunnel instanceof DimensionalTunnel)
+				&& destinationPortal.getId().equals(activeTunnel.getDestinationId()))
+		{
+			return true;
+		}
 		detachDimensionalPairIdentity();
 		if(destinationPortal instanceof ILocalPortal)
 		{

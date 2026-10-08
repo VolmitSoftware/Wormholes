@@ -1,6 +1,6 @@
 import { deflateSync, inflateSync } from 'node:zlib'
 
-export const CHANNEL = 'wormholes:v7'
+export const CHANNEL = 'wormholes:v9'
 export const WIRE_VERSION = 8
 export const S2C_HEADER_BYTES = 6
 export const FLAG_DEFLATED = 1
@@ -1026,6 +1026,30 @@ function writeTravelWorld(writer, world) {
   writer.i32(world.height)
 }
 
+function validateDoorCollision(target) {
+  if (!Number.isInteger(target.x) || Math.abs(target.x) > 30_000_000
+    || !Number.isInteger(target.y) || Math.abs(target.y) > 20_000_000
+    || !Number.isInteger(target.z) || Math.abs(target.z) > 30_000_000
+    || typeof target.open !== 'boolean') throw new ClientViewProtocolError('invalid door collision target')
+  return target
+}
+
+function readDoorCollision(reader) {
+  return readFlag(reader, 'door collision present')
+    ? validateDoorCollision({ x: reader.i32(), y: reader.i32(), z: reader.i32(), open: readFlag(reader, 'door collision open') })
+    : null
+}
+
+function writeDoorCollision(writer, target) {
+  writer.u8(target == null ? 0 : 1)
+  if (target == null) return
+  validateDoorCollision(target)
+  writer.i32(target.x)
+  writer.i32(target.y)
+  writer.i32(target.z)
+  writer.u8(target.open ? 1 : 0)
+}
+
 function readArrivalRules(reader) {
   const orientation = enumName(ORIENTATION_RULES, reader.u8(), 'orientation rule')
   const gravityFlip = readFlag(reader, 'gravity flip')
@@ -1082,7 +1106,8 @@ function readTravel(reader, type) {
       const world = readTravelWorld(reader)
       const arrival = readPose(reader)
       return { type, token, generation, sourcePortal, sourceWorld, sourceGeometry, destinationToSource, scale, world, arrival,
-        environment: readEnvironment(reader), rules: readArrivalRules(reader), resident: readFlag(reader, 'resident'), levelHandle: reader.u8() }
+        environment: readEnvironment(reader), rules: readArrivalRules(reader), resident: readFlag(reader, 'resident'), levelHandle: reader.u8(),
+        doorCollision: readDoorCollision(reader) }
     }
     case 'TRAVEL_CANCEL':
       return { type, token, generation }
@@ -1112,6 +1137,7 @@ function writeTravel(writer, message) {
       writeArrivalRules(writer, message.rules)
       writer.u8(message.resident ? 1 : 0)
       writer.u8(message.levelHandle)
+      writeDoorCollision(writer, message.doorCollision)
       return
     case 'TRAVEL_CANCEL':
       return

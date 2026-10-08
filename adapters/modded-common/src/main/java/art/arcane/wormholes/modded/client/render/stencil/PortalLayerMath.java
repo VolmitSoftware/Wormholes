@@ -59,6 +59,14 @@ public final class PortalLayerMath {
         return new Matrix4f(projection).invert().transpose().transform(new Vector4f(viewPlane));
     }
 
+    public static Matrix4f cullingProjection(Matrix4fc projection, boolean zeroToOne) {
+        return new Matrix4f(projection)
+            .m02((zeroToOne ? projection.m03() : 0.0F) - projection.m02())
+            .m12((zeroToOne ? projection.m13() : 0.0F) - projection.m12())
+            .m22((zeroToOne ? projection.m23() : 0.0F) - projection.m22())
+            .m32((zeroToOne ? projection.m33() : 0.0F) - projection.m32());
+    }
+
     public static Matrix4f rotation(AxisPermutation permutation) {
         Face x = permutation.x();
         Face y = permutation.y();

@@ -98,6 +98,25 @@ final class DeferredLayers implements AutoCloseable {
         }
     }
 
+    void writeDepth(int depth, PortalGpuMesh mesh, boolean shaped, Matrix4f aperture, Matrix4fc projectionMatrix, Vector4fc clipPlane) {
+        GpuBufferSlice previousProjection = RenderSystem.getProjectionMatrixBuffer();
+        ProjectionType previousType = RenderSystem.getProjectionType();
+        RenderSystem.setProjectionMatrix(projection(projectionMatrix, clipPlane == null ? NO_PLANE : clipPlane), ProjectionType.PERSPECTIVE);
+        PortalStencil.clipping(clipPlane != null);
+        try (PortalShaderScope scope = PortalShaderScope.rendering();
+             RenderPass pass = open(targets[depth], "Wormholes deferred portal depth")) {
+            PortalStencil.limit(depth + 1);
+            pass.setPipeline(RenderSystem.getCompiledPipeline(StencilPipelines.depth(shaped)));
+            RenderSystem.bindDefaultUniforms(pass);
+            pass.setUniform("DynamicTransforms", RenderSystem.getDynamicUniforms().writeTransform(aperture));
+            mesh.draw(pass);
+        } finally {
+            PortalStencil.clipping(false);
+            PortalStencil.restore(0);
+            RenderSystem.setProjectionMatrix(previousProjection, previousType);
+        }
+    }
+
     void finish(RenderTarget main) {
         TextureTarget layer = targets[0];
         CommandEncoder encoder = RenderSystem.getDevice().createCommandEncoder();

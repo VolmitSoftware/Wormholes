@@ -2,6 +2,7 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.render.ProjectedEntityIdentity;
+import art.arcane.wormholes.modded.mixin.SeamlessEntityAccess;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.AABB;
@@ -19,13 +20,28 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doCallRealMethod;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 
 public class ProjectedEntityGuardTest extends MinecraftTestBase {
     private static final int[] COPY_IDS = {ClientEntityIds.REFLECTION_MIN, ClientEntityIds.REFLECTION_MAX, ClientEntityIds.PROJECTED_MIN,
         ClientEntityIds.PROJECTED_MAX, ProjectedEntityIdentity.MIN_ENTITY_ID, ProjectedEntityIdentity.MAX_ENTITY_ID};
     private static final int[] REAL_IDS = {1, 417, -1, ProjectedEntityIdentity.MAX_ENTITY_ID + 1};
+
+    @Test
+    public void unassignedEntitiesKeepVanillaSelectionAndPushTargets() {
+        Entity unassigned = entity(Entity.INVALID_ENTITY_ID, new AABB(0, 0, 0, 1, 1, 1));
+        doThrow(new IllegalStateException("Tried to access entity ID before ID assignment")).when(unassigned).getId();
+        List<Entity> targets = List.of(unassigned);
+        assertFalse(ProjectedEntityGuard.visualCopy(unassigned));
+        assertTrue(ProjectedEntityGuard.excluding(entity -> true).test(unassigned));
+        assertSame(targets, ProjectedEntityGuard.pushTargets(unassigned, targets));
+        verify(unassigned, never()).getId();
+    }
 
     @Test
     public void spawnReusingTheLocalPlayerIdIsRefused() {
@@ -96,8 +112,9 @@ public class ProjectedEntityGuardTest extends MinecraftTestBase {
     }
 
     private static Entity entity(int id, AABB bounds) {
-        Entity entity = mock(Entity.class);
+        Entity entity = mock(Entity.class, withSettings().extraInterfaces(SeamlessEntityAccess.class));
         when(entity.getId()).thenReturn(id);
+        when(((SeamlessEntityAccess) entity).wormholesEntityId()).thenReturn(id);
         when(entity.getBoundingBox()).thenReturn(bounds);
         when(entity.isPickable()).thenReturn(true);
         return entity;

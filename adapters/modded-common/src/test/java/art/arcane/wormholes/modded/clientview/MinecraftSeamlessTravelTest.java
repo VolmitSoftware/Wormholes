@@ -8,10 +8,13 @@ import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.plate.ChunkLeaseRegistry;
 import art.arcane.wormholes.modded.MinecraftDoorService;
+import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.MinecraftPortalRegistry;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.modded.seamless.RemoteRoutes;
+import art.arcane.wormholes.modded.seamless.RemoteRoute;
+import art.arcane.wormholes.modded.seamless.RouteWindow;
 import art.arcane.wormholes.network.client.TravelMessage;
 import art.arcane.wormholes.render.client.session.ClientViewTravel;
 import net.minecraft.server.MinecraftServer;
@@ -23,10 +26,13 @@ import org.junit.Test;
 
 import java.util.List;
 import java.util.UUID;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -100,6 +106,54 @@ public class MinecraftSeamlessTravelTest extends MinecraftTestBase {
         assertEquals(look.pitch(), pose.pitch(), 1.0E-3F);
         assertEquals(arrived.x(), pose.x(), 0.0D);
         assertEquals(arrived.z(), pose.z(), 0.0D);
+    }
+
+    @Test
+    public void aGenericPortalNeverUsesDoorCollisionMetadataFromACoincidentDestinationId() throws Exception {
+        Fixture fixture = new Fixture();
+        MinecraftPortal source = mock(MinecraftPortal.class);
+        MinecraftPortal destination = mock(MinecraftPortal.class);
+        UUID sourceId = UUID.randomUUID();
+        UUID destinationId = UUID.randomUUID();
+        when(source.getId()).thenReturn(sourceId);
+        when(destination.getId()).thenReturn(destinationId);
+        TravelMessage.DoorCollisionTarget target = new TravelMessage.DoorCollisionTarget(4, 70, 9, true);
+        when(fixture.doors.collisionTarget(destinationId)).thenReturn(target);
+        Method metadata = MinecraftSeamlessTravel.class.getDeclaredMethod("collisionTarget", MinecraftClientViewPeer.class,
+            MinecraftPortal.class, MinecraftPortal.class);
+        metadata.setAccessible(true);
+
+        assertNull(metadata.invoke(fixture.seamless, fixture.peer, source, destination));
+        verify(fixture.doors, never()).collisionTarget(destinationId);
+        when(fixture.peer.door(sourceId)).thenReturn(source);
+        assertEquals(target, metadata.invoke(fixture.seamless, fixture.peer, source, destination));
+    }
+
+    @Test
+    public void changedDoorCollisionMetadataInvalidatesAnOtherwiseIdenticalArm() throws Exception {
+        MinecraftPortal source = mock(MinecraftPortal.class);
+        MinecraftPortal destination = mock(MinecraftPortal.class);
+        ServerLevel level = mock(ServerLevel.class);
+        RemoteRoute route = new RemoteRoute(new RemoteRoute.Key(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID()), level,
+            new Vec3d(4, 70, 9), new RouteWindow(0, 0, 2), 3);
+        TravelMessage.DoorCollisionTarget target = new TravelMessage.DoorCollisionTarget(4, 70, 9, true);
+        TravelMessage.TravelBegin begin = mock(TravelMessage.TravelBegin.class);
+        when(begin.doorCollision()).thenReturn(target);
+        Class<?> armType = Class.forName(MinecraftSeamlessTravel.class.getName() + "$Arm");
+        Constructor<?> constructor = armType.getDeclaredConstructor(MinecraftPortal.class, MinecraftPortal.class, ServerLevel.class,
+            boolean.class, long.class, int.class, TravelMessage.TravelBegin.class);
+        constructor.setAccessible(true);
+        Object arm = constructor.newInstance(source, destination, level, true, 7L, 3, begin);
+        Method matches = armType.getDeclaredMethod("matches", MinecraftPortal.class, MinecraftPortal.class, RemoteRoute.class,
+            boolean.class, long.class, TravelMessage.DoorCollisionTarget.class);
+        matches.setAccessible(true);
+
+        assertTrue((boolean) matches.invoke(arm, source, destination, route, true, 7L, target));
+        assertFalse((boolean) matches.invoke(arm, source, destination, route, true, 7L,
+            new TravelMessage.DoorCollisionTarget(4, 70, 9, false)));
+        assertFalse((boolean) matches.invoke(arm, source, destination, route, true, 7L,
+            new TravelMessage.DoorCollisionTarget(5, 70, 9, true)));
+        assertFalse((boolean) matches.invoke(arm, source, destination, route, true, 7L, null));
     }
 
     private static final class Fixture {

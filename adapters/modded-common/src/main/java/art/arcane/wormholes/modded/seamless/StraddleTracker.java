@@ -7,6 +7,7 @@ import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Vec3d;
+import art.arcane.wormholes.network.client.TravelMessage;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 
@@ -45,7 +46,7 @@ public final class StraddleTracker {
         boolean exitFront = signed(destination.frame(), destination.origin(), toward.point(behind)) > 0.0D;
         return new Straddle(source.aperture(), source.frame(), source.origin(), front,
             StraddleGeometry.exclusionSlab(source.aperture(), source.frame(), source.origin(), front, EXCLUSION_DEPTH), toward,
-            destinationLevel, destination.frame(), destination.origin(), exitFront);
+            destinationLevel, destination.frame(), destination.origin(), exitFront, destination.doorCollision());
     }
 
     public static void track(Entity entity, Endpoint source, Endpoint destination, Level destinationLevel, Vec3d eye, double scale) {
@@ -81,7 +82,7 @@ public final class StraddleTracker {
         return (point.x() - origin.x()) * normal.x() + (point.y() - origin.y()) * normal.y() + (point.z() - origin.z()) * normal.z();
     }
 
-    public record Endpoint(Aperture aperture, Frame frame, Vec3d origin) {
+    public record Endpoint(Aperture aperture, Frame frame, Vec3d origin, TravelMessage.DoorCollisionTarget doorCollision) {
         public Endpoint {
             Objects.requireNonNull(frame, "frame");
             Objects.requireNonNull(origin, "origin");
@@ -89,7 +90,7 @@ public final class StraddleTracker {
     }
 
     public record Straddle(Aperture aperture, Frame frame, Vec3d origin, boolean frontSide, Box slab, Similarity toward, Level destination,
-                           Frame destinationFrame, Vec3d destinationOrigin, boolean exitFront) {
+                           Frame destinationFrame, Vec3d destinationOrigin, boolean exitFront, TravelMessage.DoorCollisionTarget doorCollision) {
         public Straddle {
             Objects.requireNonNull(frame, "frame");
             Objects.requireNonNull(origin, "origin");
@@ -102,6 +103,7 @@ public final class StraddleTracker {
         public boolean matches(Endpoint source, Endpoint target, Level level, Vec3d eye) {
             return aperture == source.aperture() && destination == level && frame.equals(source.frame()) && origin.equals(source.origin())
                 && destinationFrame.equals(target.frame()) && destinationOrigin.equals(target.origin())
+                && Objects.equals(doorCollision, target.doorCollision())
                 && frontSide == StraddleTracker.frontSide(source.frame(), source.origin(), eye);
         }
 

@@ -244,7 +244,7 @@ public final class ClientSeamlessTravel {
 
     static StraddleTracker.Endpoint sourceEndpoint(TravelMessage.TravelBegin value, Aperture aperture) {
         ApertureDescriptor geometry = value.sourceGeometry();
-        return new StraddleTracker.Endpoint(aperture, geometry.frame(), planePoint(geometry));
+        return new StraddleTracker.Endpoint(aperture, geometry.frame(), planePoint(geometry), null);
     }
 
     static StraddleTracker.Endpoint destinationEndpoint(TravelMessage.TravelBegin value) {
@@ -253,7 +253,7 @@ public final class ClientSeamlessTravel {
         ApertureCells aperture = new ApertureCells();
         aperture.setArea(toward.box(geometry.apertureArea()));
         Frame exit = ClientTravelMotion.exitFrame(geometry.frame().view(geometry.frontSide()), toward.rigid(), geometry.frontSide());
-        return new StraddleTracker.Endpoint(aperture, exit, toward.point(planePoint(geometry)));
+        return new StraddleTracker.Endpoint(aperture, exit, toward.point(planePoint(geometry)), value.doorCollision());
     }
 
     private boolean detect(LocalPlayer player, float partial) {
@@ -368,7 +368,7 @@ public final class ClientSeamlessTravel {
 
     private void confirmed(Crossing crossing, TravelMessage.TravelAccept accept) {
         TravelMessage.TravelBegin arm = crossing.arm();
-        LOGGER.info("Crossing seamless {} -> {}{}", arm.sourceWorld(), arm.world().dimension(),
+        LOGGER.debug("Crossing seamless {} -> {}{}", arm.sourceWorld(), arm.world().dimension(),
             accept.dimensionChanged() ? " (resident " + accept.levelHandle() + ")" : "");
         Crossing next = pending.peekFirst();
         residents.crossing(next == null || next.source() == next.target() ? null : next.source());
@@ -439,7 +439,7 @@ public final class ClientSeamlessTravel {
         }
         ClientWorldLoader.forceFullSectionDiscovery();
         previousEye = null;
-        LOGGER.info("Crossing seamless {} -> {} by the server{}", arm == null ? source.dimension().identifier() : arm.sourceWorld(),
+        LOGGER.debug("Crossing seamless {} -> {} by the server{}", arm == null ? source.dimension().identifier() : arm.sourceWorld(),
             target.dimension().identifier(), accept.dimensionChanged() ? " (resident " + accept.levelHandle() + ")" : "");
         WormholesClient client = WormholesClient.instance();
         if (client != null && arm != null) {

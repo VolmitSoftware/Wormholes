@@ -241,15 +241,29 @@ public final class MinecraftDoorService implements AutoCloseable {
         }
         ActiveDoor source = doors.get(sourceId);
         Snapshot snapshot = source == null ? null : capture(source.endpoint);
-        if (snapshot == null || !snapshot.active() || snapshot.level() != player.level() || !canEnter(player, source.endpoint)) {
+        if (snapshot == null || source.endpoint.openState() != DoorOpenState.OPEN || !snapshot.active()
+            || snapshot.level() != player.level() || !canEnter(player, source.endpoint)) {
             return false;
         }
         if (source.endpoint.identity().kind() == DoorKind.PAIR) {
             PlacedDoorEndpoint mate = state.findMate(source.endpoint.identity()).orElse(null);
-            return mate != null && mate.identity().itemId().equals(destinationId) && canAccess(player, mate);
+            return mate != null && mate.openState() == DoorOpenState.OPEN && mate.identity().itemId().equals(destinationId)
+                && canAccess(player, mate) && capture(mate) != null;
         }
         return projectionDestination(new DoorView(snapshot.endpoint(), snapshot.level(), snapshot.plane(), snapshot.active()), player.getUUID())
-            .filter(destination -> destination.id().equals(destinationId)).isPresent();
+            .filter(destination -> destination.id().equals(destinationId)).isPresent()
+            && state.findEndpointByItem(destinationId).map(endpoint -> endpoint.openState() == DoorOpenState.OPEN).orElse(true);
+    }
+
+    public TravelMessage.DoorCollisionTarget collisionTarget(UUID destinationId) {
+        runtime.requireServerThread();
+        if (!enabled()) {
+            return null;
+        }
+        PlacedDoorEndpoint endpoint = state.findEndpointByItem(destinationId).orElse(null);
+        Snapshot snapshot = endpoint == null ? null : capture(endpoint);
+        return snapshot == null ? null : new TravelMessage.DoorCollisionTarget(snapshot.block().getX(), snapshot.block().getY(),
+            snapshot.block().getZ(), endpoint.openState() == DoorOpenState.OPEN);
     }
 
     public boolean canCraft(ServerPlayer player) {

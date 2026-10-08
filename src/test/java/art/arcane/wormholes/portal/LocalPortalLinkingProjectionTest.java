@@ -2,6 +2,7 @@ package art.arcane.wormholes.portal;
 
 import art.arcane.optics.plate.PlateWorkers;
 import art.arcane.wormholes.ProjectionManager;
+import art.arcane.wormholes.PortalManager;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.platform.BukkitOpticsScheduler;
 
@@ -20,14 +21,17 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 final class LocalPortalLinkingProjectionTest {
     private ProjectionManager previousManager;
+    private PortalManager previousPortals;
     private RecordingProjectionManager projections;
 
     @BeforeEach
     void setUp() throws ReflectiveOperationException {
         previousManager = Wormholes.projectionManager;
+        previousPortals = Wormholes.portalManager;
         Class<?> allocatorType = Class.forName("sun.misc.Unsafe");
         Field singleton = allocatorType.getDeclaredField("theUnsafe");
         singleton.setAccessible(true);
@@ -40,6 +44,7 @@ final class LocalPortalLinkingProjectionTest {
     @AfterEach
     void tearDown() {
         Wormholes.projectionManager = previousManager;
+        Wormholes.portalManager = previousPortals;
     }
 
     @Test
@@ -88,6 +93,23 @@ final class LocalPortalLinkingProjectionTest {
 
         assertEquals(beforeRejected, projections.invalidations);
         assertEquals(first.getId(), ((LocalTunnel) source.getTunnel()).getDestinationId());
+    }
+
+    @Test
+    void addingReturnLinkPreservesExistingCrossWorldDestination() {
+        LocalPortal source = LocalPortalTestSupport.portal(LocalPortalTestSupport.world("cross-world-source"), PortalType.PORTAL);
+        LocalPortal destination = LocalPortalTestSupport.portal(LocalPortalTestSupport.world("cross-world-destination"), PortalType.PORTAL);
+        PortalManager portals = mock(PortalManager.class);
+        when(portals.getLocalPortal(source.getId())).thenReturn(source);
+        when(portals.getLocalPortal(destination.getId())).thenReturn(destination);
+        Wormholes.portalManager = portals;
+
+        assertTrue(destination.setDestination(source));
+        assertTrue(source.setDestination(destination));
+        assertTrue(destination.setDestination(source));
+
+        assertEquals(destination.getId(), source.getTunnel().getDestinationId());
+        assertEquals(source.getId(), destination.getTunnel().getDestinationId());
     }
 
     private static final class RecordingProjectionManager extends ProjectionManager {

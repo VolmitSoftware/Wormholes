@@ -426,8 +426,8 @@ public final class RemoteRoutes implements AutoCloseable {
         }
     }
 
-    static StraddleTracker.Endpoint endpoint(MinecraftPortal portal) {
-        return new StraddleTracker.Endpoint(portal.getGeometry(), portal.getFrame(), portal.getOrigin());
+    static StraddleTracker.Endpoint endpoint(MinecraftPortal portal, TravelMessage.DoorCollisionTarget doorCollision) {
+        return new StraddleTracker.Endpoint(portal.getGeometry(), portal.getFrame(), portal.getOrigin(), doorCollision);
     }
 
     private PlayerRoutes state(ServerPlayer player, ClientViewTravel<?> travel) {
@@ -453,7 +453,7 @@ public final class RemoteRoutes implements AutoCloseable {
             if (!StraddleTracker.qualifies(stretched, candidate.source().getGeometry())) {
                 continue;
             }
-            StraddleTracker.track(player, endpoint(candidate.source()), endpoint(candidate.destination()), candidate.level(),
+            StraddleTracker.track(player, endpoint(candidate.source(), null), endpoint(candidate.destination(), candidate.doorCollision()), candidate.level(),
                 new Vec3d(player.getX(), player.getEyeY(), player.getZ()), MinecraftPortalRegistry.travelScale(candidate.source(), candidate.destination()));
             return;
         }
@@ -854,7 +854,8 @@ public final class RemoteRoutes implements AutoCloseable {
         }
     }
 
-    public record Candidate(MinecraftPortal source, MinecraftPortal destination, ServerLevel level, double distance) {
+    public record Candidate(MinecraftPortal source, MinecraftPortal destination, ServerLevel level, double distance,
+                            TravelMessage.DoorCollisionTarget doorCollision) {
         public Candidate {
             Objects.requireNonNull(source, "source");
             Objects.requireNonNull(destination, "destination");

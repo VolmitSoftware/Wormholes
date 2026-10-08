@@ -5,6 +5,7 @@ import { describe, it } from 'node:test'
 import {
   ALL_CAPS,
   BRICK_CELLS,
+  CHANNEL,
   ClientViewProtocolError,
   FLAG_DEFLATED,
   FLAG_LAST,
@@ -307,11 +308,12 @@ describe('ClientView golden vectors', () => {
       sourceGeometry: portalGeometry([], FULL_SHAPE), destinationToSource: begin.destinationToSource, scale: 1, world: TRAVEL_WORLD, arrival: TRAVEL_ARRIVAL,
       environment: fixtureEnvironment('minecraft:overworld', IDENTITY_TRANSFORM),
       rules: { orientation: 'FRAME', gravityFlip: false, momentum: begin.rules.momentum, scale: { mode: 'OFF', min: 0.0625, max: 16 } },
-      resident: false, levelHandle: 0
+      resident: false, levelHandle: 0, doorCollision: null
     })
     assert.deepEqual(begin.destinationToSource.translation, { x: 4, y: 0, z: 6 })
     const resident = decodeVector(vector('travel_begin_resident'))
     assert.deepEqual([resident.resident, resident.levelHandle], [true, 4])
+    assert.equal(resident.doorCollision, null)
     assert.deepEqual(resident.sourceGeometry, portalGeometry([], CIRCLE_SHAPE))
     assert.deepEqual(resident.rules, { orientation: 'LOOK', gravityFlip: true, momentum: { mode: 'SCALE', factor: 0.75, maxSpeed: 3.5, impulse: { x: 0, y: 0.25, z: 0 } },
       scale: { mode: 'RATIO', min: 0.25, max: 4 } })
@@ -320,6 +322,40 @@ describe('ClientView golden vectors', () => {
     assert.deepEqual(decodeVector(vector('travel_cancel')), { type: 'TRAVEL_CANCEL', token: TEST_UUID, generation: 3n })
     assert.deepEqual(decodeVector(vector('travel_cross')), { type: 'TRAVEL_CROSS', token: TEST_UUID, generation: 3n, contentRevision: 9n,
       sourcePose: { x: 635.5, y: 65, z: -4681.4, yaw: 90, pitch: -12 }, previousEye: { x: 635.5, y: 66.62, z: -4681.6 }, currentEye: { x: 635.5, y: 66.62, z: -4681.4 } })
+  })
+
+  it('uses the current native channel and round-trips bounded door collision targets', () => {
+    assert.equal(CHANNEL, 'wormholes:v9')
+    const base = decodeVector(vector('travel_begin'))
+    for (const doorCollision of [null, { x: 48, y: 70, z: 20, open: true },
+      { x: -30_000_000, y: -20_000_000, z: 30_000_000, open: false }]) {
+      const message = { ...base, doorCollision }
+      assert.deepEqual(decodeS2C(encodeS2C(message, 18), ALL_CAPS).message, message)
+    }
+    for (const doorCollision of [{ x: 30_000_001, y: 70, z: 20, open: true },
+      { x: 48, y: -20_000_001, z: 20, open: true }, { x: 48, y: 70, z: -30_000_001, open: false },
+      { x: 48.5, y: 70, z: 20, open: true }, { x: 48, y: 70, z: 20, open: 1 }]) {
+      assert.throws(() => encodeS2C({ ...base, doorCollision }, 18), ClientViewProtocolError)
+    }
+  })
+
+  it('rejects malformed and truncated door collision payloads', () => {
+    const base = decodeVector(vector('travel_begin'))
+    const frame = encodeS2C({ ...base, doorCollision: { x: 48, y: 70, z: 20, open: true } }, 18)
+    const offset = frame.length - 14
+    for (const index of [offset, frame.length - 1]) {
+      const invalid = Buffer.from(frame)
+      invalid[index] = 2
+      assert.throws(() => decodeS2C(invalid, ALL_CAPS), ClientViewProtocolError)
+    }
+    for (let axis = 0; axis < 3; axis++) {
+      const invalid = Buffer.from(frame)
+      invalid.writeInt32LE(-2_147_483_648, offset + 1 + axis * 4)
+      assert.throws(() => decodeS2C(invalid, ALL_CAPS), ClientViewProtocolError)
+    }
+    for (let length = offset; length < frame.length; length++) {
+      assert.throws(() => decodeS2C(frame.subarray(0, length), ALL_CAPS), ClientViewProtocolError)
+    }
   })
 
   it('decodes seamless travel and remote view messages', () => {

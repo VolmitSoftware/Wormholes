@@ -28,7 +28,7 @@ final class SeamlessTravelFixtures {
     static TravelMessage.TravelBegin begin(boolean resident) {
         return new TravelMessage.TravelBegin(TOKEN, GENERATION, new UUID(1, 3), "minecraft:overworld", ClientTravelTestFixtures.geometry(),
             OpticTransform.translation(-100, -64, -100), 1.0F, ResidentTestFixtures.NETHER, new TravelMessage.TravelPose(100.5, 64, 99.2, 180, 10),
-            ResidentTestFixtures.environment(ResidentTestFixtures.NETHER), TravelMessage.ArrivalRules.FRAME, resident, resident ? 3 : 0);
+            ResidentTestFixtures.environment(ResidentTestFixtures.NETHER), TravelMessage.ArrivalRules.FRAME, resident, resident ? 3 : 0, null);
     }
 
     static TravelMessage.TravelAccept accept(double offset, float yaw) {

@@ -57,7 +57,7 @@ import java.util.IdentityHashMap;
 import java.util.Set;
 
 final class PortalWorldRenderer {
-    private static final double CLIP_MARGIN = 0.01D;
+    static final double CLIP_MARGIN = 1.0E-5D;
     private static final double SELF_HIDE_BLOCKS = 1.0D;
 
     private final LayerResources[] resources;
@@ -145,7 +145,8 @@ final class PortalWorldRenderer {
         Matrix4f view3 = PortalLayerMath.innerView(outer.viewRotationMatrix, toDestination);
         Vector4d worldPlane = PortalLayerMath.destinationPlane(view.surface(), toDestination, CLIP_MARGIN);
         Vector4f clipPlane = PortalLayerMath.clipPlane(PortalLayerMath.viewPlane(worldPlane, inner, view3), projection);
-        Frustum frustum = new Frustum(view3, projection);
+        Frustum frustum = new Frustum(view3,
+            PortalLayerMath.cullingProjection(projection, RenderSystem.getDevice().getDeviceInfo().isZZeroToOne()));
         frustum.prepare(inner.x(), inner.y(), inner.z());
         EnvironmentAttributeProbe probe = ClientWorldLoader.portalProbe(destination, innerPosition);
         LocalPlayer player = minecraft.player;
@@ -220,7 +221,7 @@ final class PortalWorldRenderer {
                 PortalStencil.clipping(true);
                 PortalStencil.limit(depth);
             }
-            portalLayer = new PortalLayer(depth, destination, renderer, sharedRenderer, state.cameraRenderState, worldPlane, clipPlane,
+            portalLayer = new PortalLayer(depth, view, destination, renderer, sharedRenderer, state.cameraRenderState, worldPlane, clipPlane,
                 layer.visible(), layer.nearby());
             terrain.beginLayer(portalLayer);
             terrainStarted = true;
@@ -324,10 +325,15 @@ final class PortalWorldRenderer {
     }
 
     private static boolean showsPlayer(PortalView view, LocalPlayer player, ClientLevel destination, Vec3 camera) {
-        return switch (view.kind()) {
-            case MIRROR -> WormholesClient.instance().config().selfReflection && detached(player, destination, camera);
-            case CROSSING -> detached(player, destination, camera);
-            case ARM, RETURN -> false;
+        return selfVisible(view.kind(), Minecraft.getInstance().options.getCameraType().isFirstPerson(),
+            WormholesClient.instance().config().selfReflection) && detached(player, destination, camera);
+    }
+
+    static boolean selfVisible(PortalView.Kind kind, boolean firstPerson, boolean selfReflection) {
+        return switch (kind) {
+            case MIRROR -> selfReflection;
+            case CROSSING -> true;
+            case ARM, RETURN -> !firstPerson;
         };
     }
 

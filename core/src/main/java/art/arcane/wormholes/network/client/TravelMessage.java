@@ -98,9 +98,18 @@ public sealed interface TravelMessage {
         }
     }
 
+    record DoorCollisionTarget(int x, int y, int z, boolean open) {
+        public DoorCollisionTarget {
+            if (x < -30_000_000 || x > 30_000_000 || z < -30_000_000 || z > 30_000_000
+                || y < -20_000_000 || y > 20_000_000) {
+                throw new IllegalArgumentException("Door collision target");
+            }
+        }
+    }
+
     record TravelBegin(UUID token, long generation, UUID sourcePortal, String sourceWorld, ApertureDescriptor sourceGeometry,
                        OpticTransform destinationToSource, float scale, TravelWorld world, TravelPose arrival, EnvironmentState environment,
-                       ArrivalRules rules, boolean resident, int levelHandle)
+                       ArrivalRules rules, boolean resident, int levelHandle, DoorCollisionTarget doorCollision)
         implements TravelMessage {
         public TravelBegin {
             travelIdentity(token, generation);

@@ -88,6 +88,8 @@
     "client.IrisPortalUniformFrameMixin",
     "client.IrisPortalCompositeMixin",
     "client.IrisPortalPipelineAccess",
+    "client.IrisPortalViewPipelineMixin",
+    "client.IrisPortalSettingsAccess",
     "client.IrisPortalTerrainLightingMixin",
     "client.MeshBlockModelLighterMixin",
     "client.MeshFluidLightingMixin",

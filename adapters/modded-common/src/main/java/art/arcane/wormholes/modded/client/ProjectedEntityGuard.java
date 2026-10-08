@@ -1,6 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.render.ProjectedEntityIdentity;
+import art.arcane.wormholes.modded.mixin.SeamlessEntityAccess;
 import net.minecraft.world.entity.Entity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,8 +18,12 @@ public final class ProjectedEntityGuard {
     }
 
     public static boolean visualCopy(Entity entity) {
-        int id = entity.getId();
+        int id = entityId(entity);
         return ProjectedEntityIdentity.isEntityId(id) || ClientEntityIds.isProjected(id) || ClientEntityIds.isReflection(id);
+    }
+
+    static int entityId(Entity entity) {
+        return ((SeamlessEntityAccess) entity).wormholesEntityId();
     }
 
     public static List<Entity> pushTargets(Entity source, List<Entity> targets) {

@@ -81,9 +81,32 @@ public class PortalLayerMathTest {
     public void destinationPlaneMarginClipsSurfacesLyingInThePlane() {
         PortalSurface surface = PortalSurface.of(portal(Face.S, true));
         Similarity transform = Similarity.of(OpticTransform.of(AxisPermutation.of(Face.W, Face.U, Face.N), 400.0D, 10.0D, 90.0D), 1.0D);
-        Vector4d plane = PortalLayerMath.destinationPlane(surface, transform, 0.01D);
+        Vector4d plane = PortalLayerMath.destinationPlane(surface, transform, PortalWorldRenderer.CLIP_MARGIN);
         Vec3d inPlane = transform.point(surface.planePoint());
         assertTrue(distance(plane, inPlane) < 0.0D);
+    }
+
+    @Test
+    public void exitClippingRetainsSurfacesImmediatelyBeyondEveryPortalFace() {
+        Matrix4f projection = projection();
+        Matrix4f outerView = view(YAW, PITCH);
+        for (Face facing : Face.values()) {
+            for (boolean front : new boolean[]{true, false}) {
+                PortalSurface surface = PortalSurface.of(portal(facing, front));
+                Vec3d beyond = surface.planePoint().subtract(surface.servedNormal().multiply(0.001D));
+                for (Similarity transform : transforms()) {
+                    Vector4d plane = PortalLayerMath.destinationPlane(surface, transform, PortalWorldRenderer.CLIP_MARGIN);
+                    Vec3d mapped = transform.point(beyond);
+                    assertTrue(distance(plane, transform.point(surface.planePoint())) < 0.0D);
+                    assertTrue(distance(plane, mapped) > 0.0D);
+
+                    Vec3d camera = PortalLayerMath.innerCamera(transform, EYE);
+                    Matrix4f innerView = PortalLayerMath.innerView(outerView, transform);
+                    Vector4f clipPlane = PortalLayerMath.clipPlane(PortalLayerMath.viewPlane(plane, camera, innerView), projection);
+                    assertTrue(clipPlane.dot(clip(projection, innerView, camera, mapped)) > 0.0F);
+                }
+            }
+        }
     }
 
     @Test

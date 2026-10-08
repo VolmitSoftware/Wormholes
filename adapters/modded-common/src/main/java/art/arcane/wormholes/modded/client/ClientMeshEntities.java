@@ -93,8 +93,12 @@ public final class ClientMeshEntities {
         if (client == null) {
             return false;
         }
+        int entityId = ProjectedEntityGuard.entityId(entity);
+        if (entityId == Entity.INVALID_ENTITY_ID) {
+            return false;
+        }
         ClientProjectedEntities projected = client.tickState().entities();
-        return projected != null && projected.meshEntity(entity.getId()) || client.reflections().meshEntity(entity.getId());
+        return projected != null && projected.meshEntity(entityId) || client.reflections().meshEntity(entityId);
     }
 
     public static Predicate<? super Entity> worldEntityPredicate(Entity source, Predicate<? super Entity> selector) {

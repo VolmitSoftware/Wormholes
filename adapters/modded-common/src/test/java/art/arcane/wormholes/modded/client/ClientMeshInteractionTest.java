@@ -1,6 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
+import art.arcane.wormholes.modded.mixin.SeamlessEntityAccess;
 import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.entity.EntitySnapshot;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
@@ -43,6 +44,7 @@ import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 
 public class ClientMeshInteractionTest extends MinecraftTestBase {
     @Test
@@ -277,8 +279,9 @@ public class ClientMeshInteractionTest extends MinecraftTestBase {
     }
 
     private static Entity entity(int id, AABB bounds) {
-        Entity entity = mock(Entity.class);
+        Entity entity = mock(Entity.class, withSettings().extraInterfaces(SeamlessEntityAccess.class));
         when(entity.getId()).thenReturn(id);
+        when(((SeamlessEntityAccess) entity).wormholesEntityId()).thenReturn(id);
         when(entity.isPickable()).thenReturn(true);
         when(entity.canBePickedFromInside()).thenReturn(true);
         when(entity.getBoundingBox()).thenReturn(bounds);

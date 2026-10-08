@@ -2,6 +2,7 @@ package art.arcane.wormholes.modded.mixin.client;
 
 import art.arcane.wormholes.modded.client.render.sodium.SodiumPortalRenderer;
 import art.arcane.wormholes.modded.client.render.sodium.SodiumSectionDiscovery;
+import art.arcane.wormholes.modded.client.render.stencil.PortalStencilRenderer;
 import net.caffeinemc.mods.sodium.client.render.SodiumWorldRenderer;
 import net.caffeinemc.mods.sodium.client.render.chunk.RenderSectionManager;
 import net.caffeinemc.mods.sodium.client.render.chunk.UniformBufferManager;
@@ -118,5 +119,13 @@ public abstract class SodiumPortalRendererMixin implements SodiumPortalRenderer 
     private void wormholes$discoverAfterCrossing(Camera camera, Viewport viewport, FogParameters fog, boolean occlusion, boolean immediate,
                                                 Matrix4f cullMatrix, CallbackInfo callback) {
         SodiumSectionDiscovery.terrainReady((SodiumWorldRenderer) (Object) this, viewport, fog);
+    }
+
+    @Inject(method = "setupTerrain", at = @At("HEAD"), cancellable = true)
+    private void wormholes$keepSharedTerrain(Camera camera, Viewport viewport, FogParameters fog, boolean occlusion, boolean immediate,
+                                             Matrix4f cullMatrix, CallbackInfo callback) {
+        if (PortalStencilRenderer.instance().sharedLayer()) {
+            callback.cancel();
+        }
     }
 }
