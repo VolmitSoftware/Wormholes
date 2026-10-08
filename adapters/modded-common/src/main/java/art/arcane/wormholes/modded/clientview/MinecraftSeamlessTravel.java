@@ -3,6 +3,7 @@ package art.arcane.wormholes.modded.clientview;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.optics.crossing.Pose;
+import art.arcane.optics.crossing.PoseTransform;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.Similarity;
@@ -21,7 +22,6 @@ import art.arcane.wormholes.nexus.NetworkMember;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.render.client.session.ClientViewTravel;
 import art.arcane.wormholes.render.client.session.SeamlessCrossCheck;
-import art.arcane.wormholes.transit.ArrivalPose;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.PositionMoveRotation;
@@ -194,7 +194,8 @@ final class MinecraftSeamlessTravel {
         Vec3d position = new Vec3d(source.x(), source.y(), source.z());
         Pose departed = new Pose(position, position, position, crossing.velocity(), source.yaw(), source.pitch(),
             source.yaw(), source.pitch(), source.yaw(), source.yaw(), source.yaw(), source.yaw());
-        Pose arrived = ArrivalPose.arrive(departed, crossing, Similarity.of(crossing.toward(destination, destinationOrigin), 1.0D), destination, rules);
+        Pose arrived = PoseTransform.arrive(departed, crossing, Similarity.of(crossing.toward(destination, destinationOrigin), 1.0D), destination,
+            rules.orientation(), rules.gravityFlip(), rules.momentum(), rules.momentum().maxSpeed());
         return new TravelMessage.TravelPose(arrival.x(), arrival.y(), arrival.z(), arrived.yaw(), arrived.pitch());
     }
 

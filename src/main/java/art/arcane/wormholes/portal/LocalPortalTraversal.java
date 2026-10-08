@@ -3,6 +3,7 @@ package art.arcane.wormholes.portal;
 import art.arcane.wormholes.access.PortalAdmission;
 import art.arcane.optics.aperture.SizeRatio;
 import art.arcane.optics.crossing.Pose;
+import art.arcane.optics.crossing.PoseTransform;
 import art.arcane.optics.crossing.ScaleRule;
 import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.math.Angles;
@@ -57,7 +58,6 @@ import art.arcane.wormholes.service.WormholesHud;
 import art.arcane.wormholes.service.WormholesTelemetry;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.transit.AdaptiveArrivalMask;
-import art.arcane.wormholes.transit.ArrivalPose;
 import art.arcane.wormholes.transit.BukkitScaleAccess;
 import art.arcane.wormholes.transit.ConvoyGraph;
 import art.arcane.wormholes.transit.ConvoyLocalTraversal;
@@ -856,7 +856,8 @@ final class LocalPortalTraversal
 		PlaneCrossing crossing = t.crossing();
 		Similarity toward = crossing.toward(frame, portal.getOrigin(), scale.travelScale(ratio));
 		TravelMessage.ArrivalRules rules = TravelMessage.ArrivalRules.of(orientation, momentum, transit.gravityFlipEnabled, transit.momentumMaxSpeed, scale);
-		Pose arrived = ArrivalPose.arrive(departurePose(t), crossing, toward, frame, rules);
+		Pose arrived = PoseTransform.arrive(departurePose(t), crossing, toward, frame, rules.orientation(), rules.gravityFlip(), rules.momentum(),
+			rules.momentum().maxSpeed());
 		Location exit = BukkitGeometry.bukkit(arrived.position()).toLocation(portal.getStructure().getWorld());
 		Location target = exit.clone();
 		target.setYaw(arrived.yaw());

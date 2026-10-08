@@ -1,6 +1,7 @@
 package art.arcane.wormholes.network;
 
 import art.arcane.optics.crossing.Pose;
+import art.arcane.optics.crossing.PoseTransform;
 import art.arcane.optics.crossing.ScaleRule;
 import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.math.Vec3d;
@@ -25,7 +26,6 @@ import art.arcane.wormholes.modded.mixin.ServerConnectionAccess;
 import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.wormholes.portal.DepartureHoldPolicy;
 import art.arcane.wormholes.network.client.TravelMessage;
-import art.arcane.wormholes.transit.ArrivalPose;
 import art.arcane.wormholes.transit.MomentumPolicy;
 import art.arcane.wormholes.transit.OrientationPolicy;
 import net.minecraft.commands.Commands;
@@ -494,8 +494,9 @@ public final class MinecraftPlayerHandoffs implements AutoCloseable {
                 OrientationPolicy.parse(config.orientationDefault, OrientationPolicy.FRAME));
             TravelMessage.ArrivalRules rules = TravelMessage.ArrivalRules.of(orientation, momentum, config.gravityFlipEnabled, config.momentumMaxSpeed,
                 ScaleRule.OFF);
-            Pose landed = ArrivalPose.arrive(MinecraftArrivalPose.departure(crossing), crossing,
-                Similarity.of(crossing.toward(exit.getFrame(), exit.getOrigin()), 1.0D), exit.getFrame(), rules);
+            Pose landed = PoseTransform.arrive(MinecraftArrivalPose.departure(crossing), crossing,
+                Similarity.of(crossing.toward(exit.getFrame(), exit.getOrigin()), 1.0D), exit.getFrame(), rules.orientation(),
+                rules.gravityFlip(), rules.momentum(), rules.momentum().maxSpeed());
             Vec3d velocity = landed.velocity();
             ticket = runtime.preSend().preSend(player, level, target.blockX(), target.blockZ());
             Entity placed = player.teleport(new TeleportTransition(level, vector(target), vector(velocity), landed.yaw(), landed.pitch(),

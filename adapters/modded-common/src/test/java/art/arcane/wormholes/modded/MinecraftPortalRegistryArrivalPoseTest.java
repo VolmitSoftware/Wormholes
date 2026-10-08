@@ -7,14 +7,13 @@ import art.arcane.optics.crossing.MomentumRule;
 import art.arcane.optics.crossing.OrientationRule;
 import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.optics.crossing.Pose;
+import art.arcane.optics.crossing.PoseTransform;
 import art.arcane.optics.crossing.ScaleRule;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.math.Angles;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Vec3d;
-import art.arcane.wormholes.network.client.TravelMessage;
-import art.arcane.wormholes.transit.ArrivalPose;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import org.junit.Test;
@@ -28,8 +27,7 @@ import static org.mockito.Mockito.when;
 public class MinecraftPortalRegistryArrivalPoseTest extends MinecraftTestBase {
     private static final Vec3d ENTRY = new Vec3d(10.5D, 64.0D, 20.5D);
     private static final Vec3d EXIT = new Vec3d(-40.5D, 90.0D, 300.5D);
-    private static final TravelMessage.ArrivalRules FRAME = new TravelMessage.ArrivalRules(OrientationRule.FRAME, false,
-        new MomentumRule(MomentumRule.Mode.PRESERVE, 1.0D, 0.0D, null), ScaleRule.OFF);
+    private static final MomentumRule PRESERVE = new MomentumRule(MomentumRule.Mode.PRESERVE, 1.0D, 0.0D, null);
 
     @Test
     public void aMobLookingStraightDownIntoAnUpwardExitArrivesLookingStraightUpWithItsBodyUnderItsHead() {
@@ -46,7 +44,8 @@ public class MinecraftPortalRegistryArrivalPoseTest extends MinecraftTestBase {
             Angles.direction(30.0F, 90.0F), true);
         Frame exit = Frame.canonical(Face.D);
 
-        Pose landed = ArrivalPose.arrive(MinecraftArrivalPose.departure(mob, crossing), crossing, crossing.toward(exit, EXIT, 1.0D), exit, FRAME);
+        Pose landed = PoseTransform.arrive(MinecraftArrivalPose.departure(mob, crossing), crossing, crossing.toward(exit, EXIT, 1.0D), exit,
+            OrientationRule.FRAME, false, PRESERVE, 0.0D);
         LookTransfer predicted = ArrivalOrientation.transfer(crossing, LookTransfer.cameraUp(30.0F, 90.0F), exit, OrientationRule.FRAME, false);
         MinecraftArrivalPose.apply(mob, landed);
 
@@ -72,7 +71,8 @@ public class MinecraftPortalRegistryArrivalPoseTest extends MinecraftTestBase {
             Angles.direction(0.0F, 90.0F), true);
         Frame exit = Frame.canonical(Face.N);
 
-        Pose landed = ArrivalPose.arrive(MinecraftArrivalPose.departure(armorStand, crossing), crossing, crossing.toward(exit, EXIT, 1.0D), exit, FRAME);
+        Pose landed = PoseTransform.arrive(MinecraftArrivalPose.departure(armorStand, crossing), crossing, crossing.toward(exit, EXIT, 1.0D), exit,
+            OrientationRule.FRAME, false, PRESERVE, 0.0D);
         Vec3d look = Angles.direction(landed.yaw(), landed.pitch());
 
         assertEquals(0.0F, landed.pitch(), 1.0E-3F);

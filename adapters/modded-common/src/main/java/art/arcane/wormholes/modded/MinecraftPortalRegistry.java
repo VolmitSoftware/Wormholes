@@ -2,6 +2,7 @@ package art.arcane.wormholes.modded;
 
 import art.arcane.optics.aperture.SizeRatio;
 import art.arcane.optics.crossing.Pose;
+import art.arcane.optics.crossing.PoseTransform;
 import art.arcane.optics.crossing.ScaleRule;
 import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.math.Vec3d;
@@ -22,7 +23,6 @@ import art.arcane.optics.aperture.ApertureCells;
 import art.arcane.wormholes.portal.PortalStateCodec;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.DimensionalPortalKind;
-import art.arcane.wormholes.transit.ArrivalPose;
 import art.arcane.wormholes.transit.MomentumPolicy;
 import art.arcane.wormholes.transit.OrientationPolicy;
 import art.arcane.wormholes.transit.TravellerScale;
@@ -736,7 +736,8 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
                         Passage passage, MinecraftPortal source, boolean predicted) {
         TransitConfig config = runtime.configuration().settings().getTransit();
         TravelMessage.ArrivalRules rules = arrivalRules(source);
-        Pose landed = ArrivalPose.arrive(MinecraftArrivalPose.departure(entity, crossing), crossing, passage.toward(), destination.getFrame(), rules);
+        Pose landed = PoseTransform.arrive(MinecraftArrivalPose.departure(entity, crossing), crossing, passage.toward(), destination.getFrame(),
+            rules.orientation(), rules.gravityFlip(), rules.momentum(), rules.momentum().maxSpeed());
         Vec3d target = landed.position();
         Vec3d velocity = landed.velocity();
         List<ChunkPreSendTicket<ServerLevel, ServerPlayer>> preSend = new ArrayList<>();

@@ -1,6 +1,7 @@
 package art.arcane.wormholes.portal.rtp;
 
 import art.arcane.optics.crossing.Pose;
+import art.arcane.optics.crossing.PoseTransform;
 import art.arcane.optics.crossing.ScaleRule;
 import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.math.Angles;
@@ -29,7 +30,6 @@ import art.arcane.wormholes.portal.PortalStateCodec;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.wormholes.network.client.TravelMessage;
-import art.arcane.wormholes.transit.ArrivalPose;
 import art.arcane.wormholes.transit.MomentumPolicy;
 import art.arcane.wormholes.transit.OrientationPolicy;
 import net.minecraft.server.MinecraftServer;
@@ -446,8 +446,9 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
                 OrientationPolicy.parse(config.orientationDefault, OrientationPolicy.FRAME));
             TravelMessage.ArrivalRules rules = TravelMessage.ArrivalRules.of(orientation, momentum, config.gravityFlipEnabled, config.momentumMaxSpeed,
                 ScaleRule.OFF);
-            Pose landed = ArrivalPose.arrive(MinecraftArrivalPose.departure(active.entity, active.crossing), active.crossing,
-                Similarity.of(active.crossing.toward(frame, new Vec3d(target.x, target.y, target.z)), 1.0D), frame, rules);
+            Pose landed = PoseTransform.arrive(MinecraftArrivalPose.departure(active.entity, active.crossing), active.crossing,
+                Similarity.of(active.crossing.toward(frame, new Vec3d(target.x, target.y, target.z)), 1.0D), frame, rules.orientation(),
+                rules.gravityFlip(), rules.momentum(), rules.momentum().maxSpeed());
             Vec3d velocity = landed.velocity();
             Angles.Look look = new Angles.Look(landed.yaw(), landed.pitch());
             for (Entity member : active.entity.getSelfAndPassengers().toList()) {
