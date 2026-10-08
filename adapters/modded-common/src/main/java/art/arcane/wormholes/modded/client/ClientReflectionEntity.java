@@ -17,7 +17,6 @@ import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
-import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
 import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -74,7 +73,7 @@ public final class ClientReflectionEntity {
     public void tick(ClientLevel level, LocalPlayer player, ClientPacketListener connection, ClientViewSession session, ClientViewTick tick,
                      boolean enabled) {
         if (!enabled || level == null || player == null || connection == null || !tick.attached() || player.isSpectator()) {
-            clear(level, connection);
+            clear();
             return;
         }
         seen.clear();
@@ -97,6 +96,9 @@ public final class ClientReflectionEntity {
             OpticTransform space = mesh ? portal.geometry().mirrorTransform() : mirror.transform();
             Reflection reflection = reflections.get(portalKey);
             if (reflection == null || reflection.entity.isRemoved() || reflection.entity.level() != level) {
+                if (reflection != null) {
+                    remove(reflection);
+                }
                 reflections.remove(portalKey);
                 reflection = spawn(level, player, connection, space);
                 if (reflection == null) {
@@ -114,17 +116,17 @@ public final class ClientReflectionEntity {
         while (iterator.hasNext()) {
             Int2ObjectMap.Entry<Reflection> entry = iterator.next();
             if (!seen.contains(entry.getIntKey())) {
-                remove(level, connection, entry.getValue());
+                remove(entry.getValue());
                 iterator.remove();
             }
         }
     }
 
-    public void clear(ClientLevel level, ClientPacketListener connection) {
+    public void clear() {
         meshIds.clear();
         ObjectIterator<Reflection> iterator = reflections.values().iterator();
         while (iterator.hasNext()) {
-            remove(level, connection, iterator.next());
+            remove(iterator.next());
         }
         reflections.clear();
     }
@@ -269,9 +271,10 @@ public final class ClientReflectionEntity {
         return mirror.mirrorTransform().flipsWorldUp();
     }
 
-    private static void remove(ClientLevel level, ClientPacketListener connection, Reflection reflection) {
-        if (connection != null && level != null && reflection.entity.level() == level && !reflection.entity.isRemoved()) {
-            new ClientboundRemoveEntitiesPacket(reflection.entity.getId()).handle(connection);
+    private static void remove(Reflection reflection) {
+        Mannequin entity = reflection.entity;
+        if (entity.level() instanceof ClientLevel owner && owner.getEntity(entity.getId()) == entity) {
+            owner.removeEntity(entity.getId(), Entity.RemovalReason.DISCARDED);
         }
     }
 

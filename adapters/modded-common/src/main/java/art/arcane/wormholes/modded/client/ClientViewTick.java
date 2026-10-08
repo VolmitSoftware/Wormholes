@@ -113,6 +113,9 @@ public final class ClientViewTick implements ClientViewSession.Sink {
         if (overlay != null) {
             ProjectionOverlay.deactivate(overlay);
         }
+        if (entities != null) {
+            entities.clear();
+        }
         surface = levelSurface;
         overlay = new ProjectionOverlay(levelToken);
         applier = new ClientProjectionApplier(surface, overlay, session.palette());
@@ -145,6 +148,9 @@ public final class ClientViewTick implements ClientViewSession.Sink {
         }
         if (surface != null && light != null) {
             surface.detachLight(light);
+        }
+        if (entities != null) {
+            entities.clear();
         }
         surface = null;
         overlay = null;

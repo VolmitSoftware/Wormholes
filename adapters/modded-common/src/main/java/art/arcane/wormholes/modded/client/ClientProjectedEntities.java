@@ -193,11 +193,6 @@ public final class ClientProjectedEntities {
         portals.clear();
     }
 
-    public void discard() {
-        meshIds.clear();
-        portals.clear();
-    }
-
     public int tracked() {
         int count = 0;
         for (PortalEntities state : portals.values()) {

@@ -211,6 +211,32 @@ public class ClientViewSceneTest extends MinecraftTestBase {
     }
 
     @Test
+    public void reattachingOrDetachingTheViewRemovesEverySpawnedCopyFromItsLevel() throws ViewStreamProtocolException {
+        ClientViewHarness harness = new ClientViewHarness();
+        harness.stream();
+        harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
+        long cell = harness.tick.overlay().keys().getLong(0);
+        UUID inside = UUID.randomUUID();
+        EntitySnapshot stand = stand(inside, CellKeys.unpackX(cell) + 0.5D, CellKeys.unpackY(cell), CellKeys.unpackZ(cell) + 0.5D);
+        harness.receive(new ViewStreamMessage.EntityFrame(ClientViewHarness.PORTAL_KEY, 1, List.of(stand), List.of(inside), true),
+            ViewStreamLimits.FLAG_LAST);
+        harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
+        assertEquals(1, harness.scene.entities.size());
+        ClientViewHarness.FakeScene next = new ClientViewHarness.FakeScene();
+        harness.tick.attach(new Object(), harness.surface, next);
+        assertTrue(harness.scene.entities.isEmpty());
+        assertTrue(harness.scene.identities.isEmpty());
+        harness.receive(new ViewStreamMessage.EntityFrame(ClientViewHarness.PORTAL_KEY, 2, List.of(stand), List.of(inside), true),
+            ViewStreamLimits.FLAG_LAST);
+        harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
+        harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
+        assertEquals(1, next.entities.size());
+        harness.tick.detach();
+        assertTrue(next.entities.isEmpty());
+        assertTrue(next.identities.isEmpty());
+    }
+
+    @Test
     public void entityFramesForUnknownPortalsAreIgnored() throws ViewStreamProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();

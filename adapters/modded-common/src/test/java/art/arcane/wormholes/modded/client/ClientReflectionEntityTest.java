@@ -1,14 +1,21 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.decoration.Mannequin;
 import net.minecraft.world.phys.Vec3;
 import org.junit.Test;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -42,5 +49,37 @@ public class ClientReflectionEntityTest extends MinecraftTestBase {
         assertEquals(45, reflection.yHeadRot, 0);
         assertEquals(20, reflection.yBodyRotO, 0);
         assertEquals(30, reflection.yBodyRot, 0);
+    }
+
+    @Test
+    public void clearingRemovesEachReflectionFromTheLevelItWasSpawnedInEvenAfterALevelSwitch() throws ReflectiveOperationException {
+        ClientReflectionEntity reflections = new ClientReflectionEntity();
+        ClientLevel previous = mock(ClientLevel.class);
+        Mannequin stale = mannequin(previous, ClientEntityIds.REFLECTION_MIN);
+        Mannequin replaced = mannequin(previous, ClientEntityIds.REFLECTION_MIN + 1);
+        when(previous.getEntity(ClientEntityIds.REFLECTION_MIN)).thenReturn(stale);
+        track(reflections, 7, stale);
+        track(reflections, 8, replaced);
+        reflections.clear();
+        verify(previous).removeEntity(ClientEntityIds.REFLECTION_MIN, Entity.RemovalReason.DISCARDED);
+        verify(previous, never()).removeEntity(ClientEntityIds.REFLECTION_MIN + 1, Entity.RemovalReason.DISCARDED);
+        assertEquals(0, reflections.size());
+    }
+
+    private static Mannequin mannequin(ClientLevel level, int id) {
+        Mannequin mannequin = mock(Mannequin.class);
+        when(mannequin.getId()).thenReturn(id);
+        when(mannequin.level()).thenReturn(level);
+        return mannequin;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void track(ClientReflectionEntity reflections, int portalKey, Mannequin mannequin) throws ReflectiveOperationException {
+        Class<?> type = Class.forName(ClientReflectionEntity.class.getName() + "$Reflection");
+        Constructor<?> constructor = type.getDeclaredConstructor(Mannequin.class);
+        constructor.setAccessible(true);
+        Field field = ClientReflectionEntity.class.getDeclaredField("reflections");
+        field.setAccessible(true);
+        ((Int2ObjectOpenHashMap<Object>) field.get(reflections)).put(portalKey, constructor.newInstance(mannequin));
     }
 }

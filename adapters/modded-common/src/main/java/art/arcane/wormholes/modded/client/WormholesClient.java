@@ -203,7 +203,7 @@ public final class WormholesClient {
         seamlessTravel.clear();
         portalViews.clear();
         PortalStencilRenderer.instance().clear();
-        reflections.clear(null, null);
+        reflections.clear();
         detach();
         meshViews.clear();
         freshSession();
@@ -215,7 +215,7 @@ public final class WormholesClient {
         tick.effectsActive(!minecraft.isPaused() && minecraft.isWindowActive());
         ClientLevel level = minecraft.level;
         if (level == null) {
-            reflections.clear(null, null);
+            reflections.clear();
             if (attachedLevel != null) {
                 detach();
             }
