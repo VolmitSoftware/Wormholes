@@ -5,6 +5,7 @@ import net.minecraft.world.entity.Entity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 
@@ -17,6 +18,15 @@ public final class ProjectedEntityGuard {
 
     public static boolean projected(Entity entity) {
         return ProjectedEntityIdentity.isEntityId(entity.getId());
+    }
+
+    public static boolean visualCopy(Entity entity) {
+        int id = entity.getId();
+        return ProjectedEntityIdentity.isEntityId(id) || ClientEntityIds.isProjected(id) || ClientEntityIds.isReflection(id);
+    }
+
+    public static List<Entity> pushTargets(Entity source, List<Entity> targets) {
+        return visualCopy(source) ? List.of() : targets;
     }
 
     public static Predicate<Entity> excluding(Predicate<Entity> predicate) {

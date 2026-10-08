@@ -1,6 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
+import art.arcane.wormholes.render.ProjectedEntityIdentity;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
@@ -10,7 +11,6 @@ import net.minecraft.world.entity.InterpolationHandler;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.junit.Test;
-import org.mockito.MockedStatic;
 
 import java.lang.reflect.Field;
 import java.util.List;
@@ -25,10 +25,12 @@ import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 public class ClientProjectedPlayerPhysicsTest extends MinecraftTestBase {
+    private static final double SCALED_ARRIVAL_SPEED = 0.0393D;
+    private static final double COPY_LEAD = 0.2D;
+
     @Test
     public void specializedClientPushQueryCannotLetTwoPlayerCopiesPushTheRealPlayer() throws ReflectiveOperationException {
         ClientLevel level = mock(ClientLevel.class);
@@ -50,8 +52,8 @@ public class ClientProjectedPlayerPhysicsTest extends MinecraftTestBase {
         }).when(player).setDeltaMovement(any(Vec3.class));
         doCallRealMethod().when(player).push(any(Entity.class));
         doCallRealMethod().when(player).push(anyDouble(), anyDouble(), anyDouble());
-        RemotePlayer first = copy(level, -100, 0.1);
-        RemotePlayer second = copy(level, -101, 0.2);
+        RemotePlayer first = copy(level, ClientEntityIds.PROJECTED_MAX, 0.1);
+        RemotePlayer second = copy(level, ClientEntityIds.REFLECTION_MIN, 0.2);
         doCallRealMethod().when(level).getPushableEntities(any(), any());
         assertEquals(List.of(player), level.getPushableEntities(first, first.getBoundingBox()));
         push(level, first);
@@ -59,29 +61,54 @@ public class ClientProjectedPlayerPhysicsTest extends MinecraftTestBase {
         assertTrue(velocity.get().lengthSqr() > 0);
         velocity.set(Vec3.ZERO);
 
-        WormholesClient client = mock(WormholesClient.class);
-        ClientViewTick tick = mock(ClientViewTick.class);
-        ClientProjectedEntities projected = mock(ClientProjectedEntities.class);
-        when(client.tickState()).thenReturn(tick);
-        when(tick.entities()).thenReturn(projected);
-        when(client.reflections()).thenReturn(new ClientReflectionEntity());
-        when(projected.meshEntity(-100)).thenReturn(true);
-        when(projected.meshEntity(-101)).thenReturn(true);
-        doAnswer(call -> ClientMeshEntities.worldPushableEntities(call.getArgument(0),
-            (List<Entity>) call.callRealMethod())).when(level).getPushableEntities(any(), any());
-        try (MockedStatic<WormholesClient> clients = mockStatic(WormholesClient.class)) {
-            clients.when(WormholesClient::instance).thenReturn(client);
-            for (int tickIndex = 0; tickIndex < 40; tickIndex++) {
-                push(level, first);
-                push(level, second);
-            }
-            assertEquals(Vec3.ZERO, velocity.get());
-            RemotePlayer real = copy(level, 100, 0.1);
-            List<Entity> ordinary = List.of(player);
-            assertSame(ordinary, ClientMeshEntities.worldPushableEntities(real, ordinary));
-            push(level, real);
-            assertTrue(velocity.get().lengthSqr() > 0);
+        doAnswer(call -> ProjectedEntityGuard.pushTargets(call.getArgument(0), (List<Entity>) call.callRealMethod()))
+            .when(level).getPushableEntities(any(), any());
+        for (int tickIndex = 0; tickIndex < 40; tickIndex++) {
+            push(level, first);
+            push(level, second);
         }
+        assertEquals(Vec3.ZERO, velocity.get());
+        RemotePlayer real = copy(level, 100, 0.1);
+        List<Entity> ordinary = List.of(player);
+        assertSame(ordinary, ProjectedEntityGuard.pushTargets(real, ordinary));
+        push(level, real);
+        assertTrue(velocity.get().lengthSqr() > 0);
+    }
+
+    @Test
+    public void visualCopiesAheadOfAScaledArrivalCannotPushTheTravellerBackThroughThePortal() throws ReflectiveOperationException {
+        ClientLevel level = mock(ClientLevel.class);
+        Minecraft minecraft = mock(Minecraft.class);
+        LocalPlayer player = mock(LocalPlayer.class);
+        minecraft.player = player;
+        Field minecraftField = ClientLevel.class.getDeclaredField("minecraft");
+        minecraftField.setAccessible(true);
+        minecraftField.set(level, minecraft);
+        when(level.isClientSide()).thenReturn(true);
+        when(player.isLocalPlayer()).thenReturn(true);
+        when(player.isPushable()).thenReturn(true);
+        when(player.getBoundingBox()).thenReturn(new AABB(-0.3, 0, -0.3, 0.3, 2, 0.3));
+        Vec3 arrival = new Vec3(SCALED_ARRIVAL_SPEED, 0.0D, 0.0D);
+        AtomicReference<Vec3> velocity = new AtomicReference<>(arrival);
+        when(player.getDeltaMovement()).thenAnswer(call -> velocity.get());
+        doAnswer(call -> {
+            velocity.set(call.getArgument(0));
+            return null;
+        }).when(player).setDeltaMovement(any(Vec3.class));
+        doCallRealMethod().when(player).push(any(Entity.class));
+        doCallRealMethod().when(player).push(anyDouble(), anyDouble(), anyDouble());
+        doAnswer(call -> ProjectedEntityGuard.pushTargets(call.getArgument(0), (List<Entity>) call.callRealMethod()))
+            .when(level).getPushableEntities(any(), any());
+        List<RemotePlayer> copies = List.of(copy(level, ClientEntityIds.PROJECTED_MAX, COPY_LEAD), copy(level, ClientEntityIds.PROJECTED_MAX - 1, COPY_LEAD),
+            copy(level, ClientEntityIds.REFLECTION_MIN, COPY_LEAD), copy(level, ProjectedEntityIdentity.MAX_ENTITY_ID, COPY_LEAD));
+        for (int tickIndex = 0; tickIndex < 3; tickIndex++) {
+            for (RemotePlayer copy : copies) {
+                push(level, copy);
+            }
+        }
+        assertEquals(arrival, velocity.get());
+        push(level, copy(level, 100, COPY_LEAD));
+        assertTrue(velocity.get().x < SCALED_ARRIVAL_SPEED);
     }
 
     @Test

@@ -26,10 +26,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class ClientLevelMixin {
     @ModifyReturnValue(method = "getPushableEntities", at = @At("RETURN"))
     private List<Entity> wormholesVisualPushTargets(List<Entity> entities, Entity source, AABB bounds) {
-        if (ProjectedEntityGuard.projected(source)) {
-            return List.of();
-        }
-        return ClientMeshEntities.worldPushableEntities(source, entities);
+        return ProjectedEntityGuard.pushTargets(source, entities);
     }
 
     @ModifyArg(method = "tickEntities", at = @At(value = "INVOKE",

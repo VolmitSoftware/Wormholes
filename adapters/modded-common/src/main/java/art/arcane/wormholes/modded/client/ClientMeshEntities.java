@@ -129,10 +129,6 @@ public final class ClientMeshEntities {
         };
     }
 
-    public static List<Entity> worldPushableEntities(Entity source, List<Entity> entities) {
-        return hiddenFromWorld(source) ? List.of() : entities;
-    }
-
     public static boolean interactionTarget(Entity entity) {
         return EntitySelector.CAN_BE_PICKED.test(entity) && !hiddenFromWorld(entity);
     }
