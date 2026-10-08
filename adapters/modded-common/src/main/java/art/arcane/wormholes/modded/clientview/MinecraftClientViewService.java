@@ -359,6 +359,7 @@ public final class MinecraftClientViewService implements AutoCloseable {
     }
 
     public void crossed(ServerPlayer player, ServerLevel origin, ServerLevel destination, boolean seamlessMove, boolean masked) {
+        seamlessTravel.relocated(player.getUUID());
         String reason = fallbacks.remove(player.getUUID());
         if (seamlessMove) {
             LOGGER.info("Crossing seamless {} {} -> {}", player.getScoreboardName(), origin.dimension().identifier(), destination.dimension().identifier());

@@ -180,6 +180,13 @@ final class MinecraftSeamlessTravel {
         arm(travel, player);
     }
 
+    void relocated(UUID player) {
+        Traveler traveler = travelers.get(player);
+        if (traveler != null) {
+            traveler.sides.relocated();
+        }
+    }
+
     void forget(UUID player) {
         travelers.remove(player);
     }
@@ -234,7 +241,7 @@ final class MinecraftSeamlessTravel {
             }
             UUID sourceId = source.getId();
             Arm current = traveler.arms.get(sourceId);
-            boolean front = current != null && nearPlane(player, source, speed) ? current.front() : MinecraftClientViewPortalAccess.front(player, source);
+            boolean front = traveler.sides.front(current != null, current != null && current.front(), planeDistance(player, source), speed);
             long identity = peer.portals().routeIdentity(source);
             if (current != null && current.matches(source, destination, route, front, identity)) {
                 live.add(sourceId);
@@ -260,14 +267,14 @@ final class MinecraftSeamlessTravel {
             travel.sendTravel(new TravelMessage.TravelCancel(entry.getValue().begin().token(), entry.getValue().begin().generation()));
         }
         traveler.retired.removeIf(retired -> retired.until() < tick);
+        traveler.sides.evaluated();
     }
 
-    private static boolean nearPlane(ServerPlayer player, MinecraftPortal portal, double speed) {
+    private static double planeDistance(ServerPlayer player, MinecraftPortal portal) {
         Vec3d origin = portal.getOrigin();
         Vec3 eye = player.getEyePosition();
-        double distance = (eye.x - origin.x()) * portal.getFrame().getNormal().x() + (eye.y - origin.y()) * portal.getFrame().getNormal().y()
+        return (eye.x - origin.x()) * portal.getFrame().getNormal().x() + (eye.y - origin.y()) * portal.getFrame().getNormal().y()
             + (eye.z - origin.z()) * portal.getFrame().getNormal().z();
-        return keepsSide(distance, speed);
     }
 
     static boolean keepsSide(double distance, double speed) {
@@ -466,6 +473,22 @@ final class MinecraftSeamlessTravel {
         }
     }
 
+    static final class SideMemory {
+        private boolean relocated;
+
+        boolean front(boolean armed, boolean remembered, double distance, double speed) {
+            return armed && !relocated && keepsSide(distance, speed) ? remembered : distance >= 0.0D;
+        }
+
+        void relocated() {
+            relocated = true;
+        }
+
+        void evaluated() {
+            relocated = false;
+        }
+    }
+
     private static final class Flight {
         private final Arm arm;
         private final TravelMessage.TravelCross request;
@@ -485,6 +508,7 @@ final class MinecraftSeamlessTravel {
         private final Map<UUID, Arm> arms = new HashMap<>();
         private final List<Retired> retired = new ArrayList<>();
         private final ClaimGrace grace = new ClaimGrace();
+        private final SideMemory sides = new SideMemory();
         private Flight flight;
         private long crossingTick = Long.MIN_VALUE;
         private int crossings;

@@ -39,6 +39,25 @@ public class SeamlessArmTimingTest {
     }
 
     @Test
+    public void anArmKeepsItsRememberedSideWhileTheTravelerMovesAlongThePlane() {
+        MinecraftSeamlessTravel.SideMemory sides = new MinecraftSeamlessTravel.SideMemory();
+        assertFalse(sides.front(true, false, 0.4D, 0.0D));
+        assertTrue(sides.front(true, true, -0.4D, 0.0D));
+        assertTrue(sides.front(false, false, 0.4D, 0.0D));
+        assertFalse(sides.front(true, true, -2.5D, 0.0D));
+    }
+
+    @Test
+    public void aCrossingThatLandsBesideAPortalArmsItFromTheSideItLandedOn() {
+        MinecraftSeamlessTravel.SideMemory sides = new MinecraftSeamlessTravel.SideMemory();
+        sides.relocated();
+        assertTrue(sides.front(true, false, 0.0003D, 0.0D));
+        assertFalse(sides.front(true, true, -1.6D, 0.0D));
+        sides.evaluated();
+        assertTrue(sides.front(true, true, -1.6D, 0.0D));
+    }
+
+    @Test
     public void aDifferentPortalStartsAFreshGrace() {
         MinecraftSeamlessTravel.ClaimGrace grace = new MinecraftSeamlessTravel.ClaimGrace();
         assertTrue(grace.waiting(FLOOR, 10L));
