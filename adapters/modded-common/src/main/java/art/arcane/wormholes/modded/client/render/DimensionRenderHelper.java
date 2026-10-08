@@ -16,12 +16,15 @@ import net.minecraft.world.attribute.EnvironmentAttributeProbe;
 import net.minecraft.world.phys.Vec3;
 
 final class DimensionRenderHelper implements AutoCloseable {
+    private static final long STALE_NANOS = 100_000_000L;
+
     private final ClientLevel level;
     private final Lightmap lightmap;
     private final EnvironmentAttributeProbe probe;
     private final LightmapRenderState lightmapState = new LightmapRenderState();
     private FogRenderer fogRenderer;
-    private long tickedAt = Long.MIN_VALUE;
+    private long tickedAt;
+    private boolean ticked;
     private boolean closed;
 
     private DimensionRenderHelper(ClientLevel level, Lightmap lightmap, EnvironmentAttributeProbe probe) {
@@ -63,16 +66,17 @@ final class DimensionRenderHelper implements AutoCloseable {
         return fogRenderer;
     }
 
-    void tick(Vec3 position, long tick) {
+    void tick(Vec3 position) {
         probe.tick(level, position);
-        tickedAt = tick;
+        tickedAt = System.nanoTime();
+        ticked = true;
     }
 
-    void enter(Vec3 position, long tick) {
-        if (tickedAt < tick - 1L) {
+    void enter(Vec3 position) {
+        if (!ticked || System.nanoTime() - tickedAt > STALE_NANOS) {
             probe.reset();
         }
-        tick(position, tick);
+        tick(position);
     }
 
     boolean installedInGame() {

@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.client.render.PreparedLevelExtractor;
 import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.wormholes.modded.mixin.client.PreparedPacketAccess;
 import art.arcane.wormholes.network.client.TravelMessage;

@@ -689,34 +689,16 @@ public class ClientSodiumTerrainTest extends MinecraftTestBase {
     }
 
     @Test
-    public void residentSwapInstallsTheRetainedDestinationRendererAndKeepsTheSourceRendererForTheReturn() throws Exception {
-        Minecraft minecraft = mock(Minecraft.class);
-        set(minecraft, "options", mock(Options.class));
-        when(minecraft.options.getEffectiveRenderDistance()).thenReturn(10);
-        set(minecraft, "levelRenderer", mock(LevelRenderer.class, withSettings().extraInterfaces(PortalSodiumRendererAccess.class)));
-        ClientLevel source = mock(ClientLevel.class);
-        ClientLevel destination = mock(ClientLevel.class);
-        minecraft.level = source;
-        SodiumWorldRenderer main = mock(SodiumWorldRenderer.class);
-        SodiumWorldRenderer prepared = mock(SodiumWorldRenderer.class);
+    public void aLevelTakenOverByItsOwnWorldRendererIsReleasedWithoutClosingTheRenderer() throws Exception {
+        ClientLevel level = mock(ClientLevel.class);
+        SodiumWorldRenderer renderer = mock(SodiumWorldRenderer.class);
         Map<ClientLevel, ClientSodiumTerrain.State> states = states();
-        ClientSodiumTerrain.State retained = state(destination, prepared);
-        states.put(destination, retained);
-        try (MockedStatic<Minecraft> clients = mockStatic(Minecraft.class);
-             MockedStatic<SodiumWorldRenderer> renderers = mockStatic(SodiumWorldRenderer.class);
-             MockedStatic<PortalShaderScope> shaders = mockStatic(PortalShaderScope.class)) {
-            clients.when(Minecraft::getInstance).thenReturn(minecraft);
-            renderers.when(SodiumWorldRenderer::instance).thenReturn(main);
-            renderers.when(SodiumWorldRenderer::instanceNullable).thenReturn(main);
-            try (ClientSodiumTerrain.Handoff ignored = ClientSodiumTerrain.residentHandoff(destination)) {
-                minecraft.level = destination;
-                ClientSodiumTerrain.beforeLevelChange(destination);
-            }
-            verify((PortalSodiumRendererAccess) minecraft.levelRenderer).wormholes$terrainRenderer(prepared);
-            assertSame(retained, states.get(destination));
-            assertSame(main, renderer(states.get(source)));
-            verify(prepared, never()).setLevel(null);
-            verify(main, never()).setLevel(null);
+        states.put(level, state(level, renderer));
+        try {
+            ClientSodiumTerrain.disown(level);
+            assertFalse(states.containsKey(level));
+            verify(renderer, never()).setLevel(null);
+            ClientSodiumTerrain.disown(level);
         } finally {
             states.clear();
         }

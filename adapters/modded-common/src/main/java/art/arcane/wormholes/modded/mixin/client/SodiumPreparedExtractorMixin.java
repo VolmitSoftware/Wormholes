@@ -1,6 +1,7 @@
 package art.arcane.wormholes.modded.mixin.client;
 
 import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
+import art.arcane.wormholes.modded.client.render.ClientWorldLoader;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import net.minecraft.client.Minecraft;
@@ -20,6 +21,10 @@ public abstract class SodiumPreparedExtractorMixin {
 
     @WrapMethod(method = "setLevel")
     private void wormholes$restoreTerrain(ClientLevel level, Operation<Void> original) {
+        if (ClientWorldLoader.switching()) {
+            original.call(level);
+            return;
+        }
         boolean previousInvalidation = shouldInvalidateCompiledGeometry;
         ClientSodiumTerrain.beforeLevelChange(level);
         original.call(level);

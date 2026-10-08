@@ -14,4 +14,9 @@ public abstract class ClientWorldMinecraftMixin {
     private void wormholes$cleanUpClientWorlds(ClientLevel level, boolean stopSound, CallbackInfo callback) {
         ClientWorldLoader.cleanUp();
     }
+
+    @Inject(method = "renderFrame", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/LevelRenderer;endFrame()V", shift = At.Shift.AFTER))
+    private void wormholes$endClientWorldFrames(boolean advanceGameTime, CallbackInfo callback) {
+        ClientWorldLoader.endFrame();
+    }
 }

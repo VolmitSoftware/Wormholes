@@ -86,7 +86,6 @@
     "client.IrisPortalCompositeMixin",
     "client.IrisPortalPipelineAccess",
     "client.IrisPortalMainPipelineMixin",
-    "client.IrisPortalMainMinecraftMixin",
     "client.IrisPortalMainRenderingMixin",
     "client.IrisPortalDhAccess",
     "client.IrisPortalSettingsAccess",
@@ -181,7 +180,13 @@
     "client.ClientWorldFogAccess",
     "client.ClientWorldGameRendererAccess",
     "client.ClientWorldLightmapAccess",
-    "client.ClientWorldMinecraftMixin"
+    "client.ClientWorldMinecraftMixin",
+    "client.ClientWorldMinecraftAccess",
+    "client.ClientWorldLevelRendererAccess",
+    "client.ClientWorldExtractorAccess",
+    "client.ClientWorldExtractorMixin",
+    "client.ClientWorldSkyAccess",
+    "client.ClientWorldCloudAccess"
   ],
   "injectors": {
     "defaultRequire": 1

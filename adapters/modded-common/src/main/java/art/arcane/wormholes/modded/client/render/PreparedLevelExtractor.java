@@ -1,4 +1,4 @@
-package art.arcane.wormholes.modded.client;
+package art.arcane.wormholes.modded.client.render;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -7,8 +7,8 @@ import net.minecraft.client.renderer.state.level.LevelRenderState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
 
-final class PreparedLevelExtractor extends LevelExtractor {
-    PreparedLevelExtractor(Minecraft minecraft) {
+public final class PreparedLevelExtractor extends LevelExtractor {
+    public PreparedLevelExtractor(Minecraft minecraft) {
         super(minecraft, new LevelRenderState(), minecraft.levelRenderer);
     }
 

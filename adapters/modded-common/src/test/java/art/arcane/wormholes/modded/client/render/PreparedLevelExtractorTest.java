@@ -1,4 +1,4 @@
-package art.arcane.wormholes.modded.client;
+package art.arcane.wormholes.modded.client.render;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import net.minecraft.client.Minecraft;

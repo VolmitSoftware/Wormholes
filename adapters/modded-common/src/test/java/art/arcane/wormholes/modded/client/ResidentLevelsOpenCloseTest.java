@@ -1,6 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.optics.stream.EnvironmentState;
+import art.arcane.wormholes.modded.client.render.PreparedLevelExtractor;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
 import art.arcane.wormholes.modded.client.render.ClientWorldLoader;
@@ -257,6 +258,10 @@ public class ResidentLevelsOpenCloseTest extends MinecraftTestBase {
             access.when(Minecraft::getInstance).thenReturn(minecraft);
             terrain = mockStatic(ClientSodiumTerrain.class);
             worlds = mockStatic(ClientWorldLoader.class);
+            worlds.when(() -> ClientWorldLoader.withWorldRenderer(any(), any())).thenAnswer(call -> {
+                call.<Runnable>getArgument(1).run();
+                return null;
+            });
             extractors = mockConstruction(PreparedLevelExtractor.class);
             levels = mockConstruction(ClientLevel.class, (level, context) -> {
                 ClientChunkCache cache = mock(ClientChunkCache.class, withSettings().extraInterfaces(PreparedChunkColumns.class));

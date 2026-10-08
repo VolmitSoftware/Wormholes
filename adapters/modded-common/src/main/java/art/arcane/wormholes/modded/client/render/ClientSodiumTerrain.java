@@ -258,6 +258,16 @@ public final class ClientSodiumTerrain {
         }
     }
 
+    static void disown(ClientLevel level) {
+        if (!AVAILABLE || STATES.isEmpty()) {
+            return;
+        }
+        State state = STATES.remove(level);
+        if (state != null) {
+            releaseColumns(state);
+        }
+    }
+
     public static boolean retainColumn(ClientLevel level, RenderSectionManager manager, int x, int z) {
         State state = ownedState(level, manager);
         if (state == null) {
@@ -391,10 +401,6 @@ public final class ClientSodiumTerrain {
 
     public static Handoff authoritativeHandoff(ClientLevel level) {
         return new Handoff(level, HandoffKind.AUTHORITATIVE);
-    }
-
-    public static Handoff residentHandoff(ClientLevel level) {
-        return new Handoff(level, HandoffKind.RESIDENT);
     }
 
     public static void beforeLevelChange(ClientLevel level) {
@@ -576,8 +582,6 @@ public final class ClientSodiumTerrain {
                 case PREPARED -> ready(destination) || retained != null && retained.viewport != null
                     && destination == Minecraft.getInstance().level && retained.compatible() && compatible(destination)
                     ? retained : null;
-                case RESIDENT -> retained != null && retained.renderer != SodiumWorldRenderer.instanceNullable() && retained.compatible()
-                    && compatible(destination) ? retained : null;
             };
             handoff = this;
         }
@@ -596,7 +600,7 @@ public final class ClientSodiumTerrain {
     }
 
     private enum HandoffKind {
-        PREPARED, AUTHORITATIVE, RESIDENT
+        PREPARED, AUTHORITATIVE
     }
 
     enum WarmStage {

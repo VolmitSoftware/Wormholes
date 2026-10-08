@@ -12,6 +12,7 @@ The Wormholes modded client ports Immersive Portals' per-dimension client world 
 
 Derived files (paths relative to `adapters/modded-common/src/main/java/art/arcane/wormholes/modded/`):
 
+- `client/ClientLevelSwitch.java` (seamless level switch, from `teleportation/ClientTeleportationManager.changePlayerDimension`)
 - `client/render/ClientWorldLoader.java` (from `ClientWorldLoader`)
 - `client/render/DimensionRenderHelper.java` (from `render/context_management/DimensionRenderHelper`)
 - `client/render/FogRendererContext.java` (from `render/context_management/FogRendererContext`)

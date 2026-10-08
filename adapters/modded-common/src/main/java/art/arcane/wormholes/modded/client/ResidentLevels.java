@@ -137,7 +137,7 @@ public final class ResidentLevels {
         access.wormholes$level(level);
         access.wormholes$data(level.getLevelData());
         try {
-            action.run();
+            ClientWorldLoader.withWorldRenderer(level, action);
         } finally {
             routing = outer;
             if (minecraft.level == level && minecraft.getConnection() == connection) {

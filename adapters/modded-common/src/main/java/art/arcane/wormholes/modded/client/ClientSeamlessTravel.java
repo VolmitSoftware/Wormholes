@@ -170,7 +170,10 @@ public final class ClientSeamlessTravel {
             rollback(oldest, "no server answer within " + ACCEPT_TIMEOUT_MILLIS + " ms");
         }
         expireReturnWorld(minecraft.level);
-        ClientWorldLoader.tick(views(minecraft.level), player.getEyePosition());
+        List<PortalWorldView> current = views(minecraft.level);
+        if (!current.isEmpty()) {
+            ClientWorldLoader.tick(current, player.getEyePosition());
+        }
         if (arms.isEmpty() && returning == null) {
             if (straddling) {
                 straddling = false;

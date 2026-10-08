@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.mixin.client;
 
+import art.arcane.wormholes.modded.client.render.ClientWorldLoader;
 import art.arcane.wormholes.modded.client.PreparedChunkColumns;
 import art.arcane.wormholes.modded.client.PreparedChunkStorage;
 import art.arcane.wormholes.modded.client.WormholesClient;
@@ -57,7 +58,7 @@ public abstract class PreparedChunkCacheMixin implements PreparedChunkColumns {
 
     @Inject(method = "onLightUpdate", at = @At("HEAD"), cancellable = true)
     private void wormholesPreparedLight(LightLayer layer, SectionPos position, CallbackInfo callback) {
-        if (!WormholesClient.activeLevel(level)) {
+        if (!WormholesClient.activeLevel(level) && !ClientWorldLoader.switchedTo(level)) {
             callback.cancel();
         }
     }
