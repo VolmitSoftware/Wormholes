@@ -4,7 +4,9 @@ import com.mojang.blaze3d.pipeline.PipelineCache;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.renderpearl.api.pipeline.BindGroupLayout;
+import com.mojang.renderpearl.api.pipeline.BlendFunction;
 import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.CompareOp;
 import com.mojang.renderpearl.api.pipeline.CompiledRenderPipeline;
 import com.mojang.renderpearl.api.pipeline.DepthStencilState;
 import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
@@ -30,11 +32,14 @@ import java.util.Map;
 
 final class PortalPipelines implements AutoCloseable {
     private static final BindGroupLayout PORTAL = BindGroupLayout.builder().withUniform("Portal", UniformType.UNIFORM_BUFFER).build();
+    private static final BindGroupLayout FEATHER = BindGroupLayout.builder().withUniform("Feather", UniformType.UNIFORM_BUFFER).build();
     private final EnumMap<ChunkSectionLayer, RenderPipeline> terrain = new EnumMap<>(ChunkSectionLayer.class);
     private final EnumMap<ChunkSectionLayer, RenderPipeline> reflectedTerrain = new EnumMap<>(ChunkSectionLayer.class);
     private final EnumMap<ChunkSectionLayer, RenderPipeline> extendedTerrain = new EnumMap<>(ChunkSectionLayer.class);
     private final EnumMap<ChunkSectionLayer, RenderPipeline> reflectedExtendedTerrain = new EnumMap<>(ChunkSectionLayer.class);
     private final RenderPipeline composite;
+    private final RenderPipeline compositeShape;
+    private final RenderPipeline feather;
     private final RenderPipeline layer;
     private final Sources sources;
     private final PipelineCache cache;
@@ -54,6 +59,8 @@ final class PortalPipelines implements AutoCloseable {
         reflectedExtendedTerrain.put(ChunkSectionLayer.CUTOUT, terrain("cutout_warming_reflected", RenderPipelines.CUTOUT_BLOCK, rgss, PortalTerrainVertices.FORMAT));
         reflectedExtendedTerrain.put(ChunkSectionLayer.TRANSLUCENT, terrain("translucent_warming_reflected", RenderPipelines.TRANSLUCENT_BLOCK, rgss, PortalTerrainVertices.FORMAT));
         composite = compositePipeline();
+        compositeShape = compositeShapePipeline();
+        feather = featherPipeline();
         layer = layerPipeline();
         sources = new Sources(Minecraft.getInstance().getResourceManager());
         cache = new PipelineCache(RenderSystem.getDevice(), sources);
@@ -68,6 +75,30 @@ final class PortalPipelines implements AutoCloseable {
             .withBindGroupLayout(PORTAL).withDepthStencilState(DepthStencilState.DEFAULT)
             .withColorTargetState(ColorTargetState.DEFAULT).withCull(false)
             .withVertexBinding(0, DefaultVertexFormat.POSITION).withPrimitiveTopology(PrimitiveTopology.QUADS).build();
+    }
+
+    static RenderPipeline compositeShapePipeline() {
+        return RenderPipeline.builder().withLocation(Identifier.fromNamespaceAndPath("wormholes", "portal_composite_shape"))
+            .withVertexShader(Identifier.fromNamespaceAndPath("wormholes", "core/portal_composite")).withFragmentShader(Identifier.fromNamespaceAndPath("wormholes", "core/portal_composite"))
+            .withShaderDefine("PORTAL_SHAPE")
+            .withBindGroupLayout(BindGroupLayout.builder().withUniform("Projection", UniformType.UNIFORM_BUFFER)
+                .withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER)
+                .withUniform("Sampler0", UniformType.COMBINED_IMAGE_SAMPLER).build())
+            .withBindGroupLayout(PORTAL).withDepthStencilState(DepthStencilState.DEFAULT)
+            .withColorTargetState(ColorTargetState.DEFAULT).withCull(false)
+            .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX).withPrimitiveTopology(PrimitiveTopology.TRIANGLES).build();
+    }
+
+    static RenderPipeline featherPipeline() {
+        return RenderPipeline.builder().withLocation(Identifier.fromNamespaceAndPath("wormholes", "portal_feather"))
+            .withVertexShader(Identifier.fromNamespaceAndPath("wormholes", "core/portal_composite")).withFragmentShader(Identifier.fromNamespaceAndPath("wormholes", "core/portal_feather"))
+            .withShaderDefine("PORTAL_SHAPE")
+            .withBindGroupLayout(BindGroupLayout.builder().withUniform("Projection", UniformType.UNIFORM_BUFFER)
+                .withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER).build())
+            .withBindGroupLayout(PORTAL).withBindGroupLayout(FEATHER)
+            .withDepthStencilState(new DepthStencilState(CompareOp.GREATER_THAN_OR_EQUAL, false))
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT)).withCull(false)
+            .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX).withPrimitiveTopology(PrimitiveTopology.TRIANGLES).build();
     }
 
     static RenderPipeline layerPipeline() {
@@ -92,6 +123,14 @@ final class PortalPipelines implements AutoCloseable {
 
     CompiledRenderPipeline composite() {
         return cache.get(composite);
+    }
+
+    CompiledRenderPipeline compositeShape() {
+        return cache.get(compositeShape);
+    }
+
+    CompiledRenderPipeline feather() {
+        return cache.get(feather);
     }
 
     PipelineCache reflectedFeatures() {

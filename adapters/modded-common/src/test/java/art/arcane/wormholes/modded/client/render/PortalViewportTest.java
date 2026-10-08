@@ -17,6 +17,7 @@ import org.joml.Matrix4d;
 import org.joml.Matrix4f;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
@@ -132,6 +133,20 @@ public class PortalViewportTest {
         assertTrue(root.cullFrustum.isVisible(new AABB(114, 199, 279, 116, 201, 281)));
     }
 
+    @Test
+    public void shapedCoverageSpansTheWholeApertureRectangle() {
+        boolean[] center = new boolean[49];
+        center[24] = true;
+        boolean[] open = new boolean[49];
+        Arrays.fill(open, true);
+        Matrix4d transform = new Matrix4d().scaling(0.1, 0.1, 1).translate(-3.5, -3.5, 0);
+        PortalViewport shaped = PortalViewport.coverage(square(ShapeDescriptor.parse("circle"), center), transform, 1920, 1080, true);
+        PortalViewport whole = PortalViewport.coverage(square(ShapeDescriptor.FULL, open), transform, 1920, 1080, true);
+        PortalViewport cell = PortalViewport.coverage(square(ShapeDescriptor.FULL, center), transform, 1920, 1080, true);
+        assertEquals(whole, shaped);
+        assertTrue((long) cell.width() * cell.height() < (long) whole.width() * whole.height());
+    }
+
     private static CameraRenderState camera(boolean zeroToOne) {
         CameraRenderState camera = new CameraRenderState();
         camera.pos = new Vec3(100, 200, 300);
@@ -139,6 +154,12 @@ public class PortalViewportTest {
         camera.cullFrustum = new Frustum(camera.viewRotationMatrix, camera.projectionMatrix);
         camera.cullFrustum.prepare(camera.pos.x, camera.pos.y, camera.pos.z);
         return camera;
+    }
+
+    private static AperturePolygon square(ShapeDescriptor shape, boolean[] open) {
+        return AperturePolygon.from(new ApertureDescriptor(0, 0, 0, Face.S.ordinal(), true, 0, false, 7, 7,
+            ApertureDescriptor.apertureMask(7, 7, open), shape, 0.0F, 0.0F, 1.0F, 64, 0, 0, 0, 0, 0, 0, ApertureKind.FRAME,
+            0.0D, 0, 1L, List.of()));
     }
 
     private static AperturePolygon aperture() {

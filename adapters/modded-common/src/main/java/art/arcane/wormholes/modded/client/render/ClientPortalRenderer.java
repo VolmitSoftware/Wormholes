@@ -2,12 +2,14 @@ package art.arcane.wormholes.modded.client.render;
 
 import art.arcane.wormholes.modded.client.ClientMeshWorld;
 import art.arcane.wormholes.modded.client.WormholesClient;
+import art.arcane.wormholes.modded.client.WormholesClientConfig;
 
 import art.arcane.optics.aperture.AperturePolygon;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.math.Vec3d;
+import art.arcane.optics.shape.ShapeMesh;
 import art.arcane.wormholes.portal.ApertureKind;
 import com.mojang.blaze3d.ProjectionType;
 import com.mojang.blaze3d.pipeline.RenderTarget;
@@ -158,6 +160,11 @@ public final class ClientPortalRenderer {
         }
         return "gpu=" + portals.size() + "/" + visible.size() + " mesh=" + sections + " pending=" + pendingBuilds
             + " shaderKiB=" + (shaderRenderer == null ? 0 : shaderRenderer.bytes() >> 10) + " gpuKiB=" + (gpuBytes >> 10) + " targetKiB=" + (targets.bytes() >> 10) + " unavailable=" + failures;
+    }
+
+    public ShapeMesh apertureShape(int portalKey) {
+        Portal portal = portals.get(portalKey);
+        return portal == null || portal.apertureMesh == null ? null : portal.apertureShape;
     }
 
     public boolean available(int portalKey) {
@@ -456,13 +463,13 @@ public final class ClientPortalRenderer {
             shaderRenderer.resetHistory(portalKey);
         }
         if (!changed) {
+            if (!apertureSettingsCurrent(portal)) {
+                closeAperture(portal);
+            }
             return;
         }
         portal.updateGeometry();
-        if (portal.apertureMesh != null) {
-            portal.apertureMesh.close();
-            portal.apertureMesh = null;
-        }
+        closeAperture(portal);
         if (portal.parentClip != null) {
             portal.parentClip.close();
             portal.parentClip = null;
@@ -1111,12 +1118,13 @@ public final class ClientPortalRenderer {
             return;
         }
         camera = portal.camera;
-        pass.setPipeline(pipelines.composite());
+        boolean shaped = portal.aperture.hasShape();
+        pass.setPipeline(shaped ? pipelines.compositeShape() : pipelines.composite());
         RenderSystem.bindDefaultUniforms(pass);
-        pass.setUniform("DynamicTransforms", transform(portal.scene.geometry().originX(), portal.scene.geometry().originY(), portal.scene.geometry().originZ()));
-        if (parent == null) {
-            pass.setUniform("Portal", portal.compositeUniform);
-        } else {
+        GpuBufferSlice transform = transform(portal.scene.geometry().originX(), portal.scene.geometry().originY(), portal.scene.geometry().originZ());
+        pass.setUniform("DynamicTransforms", transform);
+        GpuBuffer clip = portal.compositeUniform;
+        if (parent != null) {
             if (portal.parentClip != null && (portal.parentClipGeometry != parent.scene.geometry()
                 || !portal.parentClipToRoot.equals(parent.toRoot)
                 || portal.parentClipWidth != parent.target.width || portal.parentClipHeight != parent.target.height)) {
@@ -1137,10 +1145,40 @@ public final class ClientPortalRenderer {
                 portal.parentClip = uniform(new Vector4f(side * (float) transformed.x, side * (float) transformed.y,
                     side * (float) transformed.z, side * (float) offset), new PortalViewport(0, 0, parent.target.width, parent.target.height));
             }
-            pass.setUniform("Portal", portal.parentClip);
+            clip = portal.parentClip;
         }
+        pass.setUniform("Portal", clip);
         pass.setUniform("Sampler0", portal.target.getColorTextureView(), sampler());
         portal.apertureMesh.draw(pass);
+        if (shaped && portal.apertureFeather > 0.0F) {
+            pass.setPipeline(pipelines.feather());
+            RenderSystem.bindDefaultUniforms(pass);
+            pass.setUniform("DynamicTransforms", transform);
+            pass.setUniform("Portal", clip);
+            pass.setUniform("Feather", featherUniform(portal));
+            portal.apertureMesh.draw(pass);
+        }
+    }
+
+    private static GpuBuffer featherUniform(Portal portal) {
+        EnvironmentState.Color color = portal.scene.environment().fog().color();
+        if (portal.featherUniform != null && color.equals(portal.featherColor) && portal.featherWidth == portal.apertureFeather) {
+            return portal.featherUniform;
+        }
+        if (portal.featherUniform != null) {
+            portal.featherUniform.close();
+        }
+        ByteBuffer data = MemoryUtil.memAlloc(32);
+        try {
+            data.putFloat(color.red()).putFloat(color.green()).putFloat(color.blue()).putFloat(1.0f);
+            data.putFloat(portal.apertureFeather).putFloat(0.0f).putFloat(0.0f).putFloat(0.0f).flip();
+            portal.featherUniform = RenderSystem.getDevice().createBuffer(() -> "Portal edge feather", GpuBuffer.USAGE_UNIFORM, data);
+        } finally {
+            MemoryUtil.memFree(data);
+        }
+        portal.featherColor = color;
+        portal.featherWidth = portal.apertureFeather;
+        return portal.featherUniform;
     }
 
     private void maintain(Portal portal) {
@@ -1679,8 +1717,9 @@ public final class ClientPortalRenderer {
                 portal.scene.geometry().parentPortalKey() == 0 ? frameWidth : dimensions.width(),
                 portal.scene.geometry().parentPortalKey() == 0 ? frameHeight : dimensions.height()));
         }
-        if (portal.apertureMesh == null) {
+        if (!portal.apertureReady) {
             portal.apertureMesh = apertureMesh(portal);
+            portal.apertureReady = true;
         }
         if (portal.environment == null) {
             portal.environment = new PortalEnvironmentRenderer();
@@ -1863,19 +1902,50 @@ public final class ClientPortalRenderer {
         return portal.sortedSections;
     }
 
-    private PortalGpuMesh apertureMesh(Portal portal) {
-        try (ByteBufferBuilder allocation = new ByteBufferBuilder(1024)) {
-            BufferBuilder builder = new BufferBuilder(allocation, PrimitiveTopology.QUADS, DefaultVertexFormat.POSITION);
-            for (AperturePolygon.Rectangle rectangle : portal.aperture.rectangles()) {
-                for (Vec3d point : portal.aperture.vertices(rectangle)) {
-                    builder.addVertex((float) (point.x() - portal.scene.geometry().originX()),
-                        (float) (point.y() - portal.scene.geometry().originY()), (float) (point.z() - portal.scene.geometry().originZ()));
-                }
-            }
-            try (MeshData mesh = builder.buildOrThrow()) {
-                return new PortalGpuMesh(mesh, null);
-            }
+    private static PortalGpuMesh apertureMesh(Portal portal) {
+        if (!portal.aperture.hasShape()) {
+            return PortalApertureMesh.quads(portal.aperture, portal.geometry);
         }
+        int requested = requestedShapeSubdivisions();
+        int subdivisions = PortalApertureMesh.subdivisions(requested, portal.geometry.apertureWidth(), portal.geometry.apertureHeight());
+        if (subdivisions < requested) {
+            LOGGER.info("Shaped portal {} spans {}x{} cells and uses {} edge subdivisions instead of {} to stay within the mesh budget",
+                portal.key, portal.geometry.apertureWidth(), portal.geometry.apertureHeight(), subdivisions, requested);
+        }
+        portal.apertureSubdivisions = subdivisions;
+        portal.apertureFeather = edgeFeather();
+        portal.apertureShape = portal.aperture.planeShape().mesh(subdivisions, PortalApertureMesh.renderMask(portal.geometry, portal.aperture.planeShape()));
+        return PortalApertureMesh.shaped(portal.apertureShape, portal.aperture, portal.geometry);
+    }
+
+    private static boolean apertureSettingsCurrent(Portal portal) {
+        return !portal.apertureReady || !portal.aperture.hasShape()
+            || portal.apertureSubdivisions == PortalApertureMesh.subdivisions(requestedShapeSubdivisions(),
+                portal.geometry.apertureWidth(), portal.geometry.apertureHeight()) && portal.apertureFeather == edgeFeather();
+    }
+
+    private static void closeAperture(Portal portal) {
+        if (portal.apertureMesh != null) {
+            portal.apertureMesh.close();
+            portal.apertureMesh = null;
+        }
+        if (portal.featherUniform != null) {
+            portal.featherUniform.close();
+            portal.featherUniform = null;
+        }
+        portal.featherColor = null;
+        portal.apertureShape = null;
+        portal.apertureReady = false;
+    }
+
+    private static int requestedShapeSubdivisions() {
+        WormholesClient client = WormholesClient.instance();
+        return client == null ? WormholesClientConfig.DEFAULT_PORTAL_SHAPE_SUBDIVISIONS : client.config().portalShapeSubdivisions;
+    }
+
+    private static float edgeFeather() {
+        WormholesClient client = WormholesClient.instance();
+        return client == null ? 0.0f : (float) client.config().portalEdgeFeather;
     }
 
     private GpuBufferSlice transform(int x, int y, int z) {
@@ -1975,10 +2045,7 @@ public final class ClientPortalRenderer {
             portal.environment.close();
             portal.environment = null;
         }
-        if (portal.apertureMesh != null) {
-            portal.apertureMesh.close();
-            portal.apertureMesh = null;
-        }
+        closeAperture(portal);
     }
 
     private void retainedMeshesChanged(Portal portal) {
@@ -2269,6 +2336,13 @@ public final class ClientPortalRenderer {
         private TextureTarget target;
         private PortalEnvironmentRenderer environment;
         private PortalGpuMesh apertureMesh;
+        private boolean apertureReady;
+        private ShapeMesh apertureShape;
+        private int apertureSubdivisions;
+        private float apertureFeather;
+        private GpuBuffer featherUniform;
+        private EnvironmentState.Color featherColor;
+        private float featherWidth;
         private GpuBuffer compositeUniform;
 
         private Portal(int key, PortalScene scene) {

@@ -1,11 +1,14 @@
 package art.arcane.wormholes.modded.client.render;
 
 import art.arcane.optics.aperture.AperturePolygon;
+import art.arcane.optics.shape.PlaneShape;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import org.joml.Matrix4dc;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
+
+import java.util.List;
 
 record PortalViewport(int x, int y, int width, int height) {
     private static final int TILE = 64;
@@ -18,7 +21,7 @@ record PortalViewport(int x, int y, int width, int height) {
         double maxY = 0;
         AperturePolygon.ClipDepth depth = zeroToOne ? AperturePolygon.ClipDepth.ZERO_TO_ONE
             : AperturePolygon.ClipDepth.NEGATIVE_ONE_TO_ONE;
-        for (AperturePolygon.Rectangle rectangle : aperture.rectangles()) {
+        for (AperturePolygon.Rectangle rectangle : covered(aperture)) {
             for (AperturePolygon.ClipVertex vertex : aperture.project(rectangle, matrix, depth)) {
                 double screenX = (vertex.x() / vertex.w() + 1) * width * 0.5;
                 double screenY = (vertex.y() / vertex.w() + 1) * height * 0.5;
@@ -83,4 +86,11 @@ record PortalViewport(int x, int y, int width, int height) {
         return frustum;
     }
 
+    private static List<AperturePolygon.Rectangle> covered(AperturePolygon aperture) {
+        if (!aperture.hasShape()) {
+            return aperture.rectangles();
+        }
+        PlaneShape plane = aperture.planeShape();
+        return List.of(new AperturePolygon.Rectangle(0, 0, plane.columns(), plane.rows()));
+    }
 }

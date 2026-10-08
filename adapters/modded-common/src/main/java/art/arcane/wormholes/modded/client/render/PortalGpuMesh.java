@@ -52,6 +52,19 @@ final class PortalGpuMesh implements AutoCloseable {
         }
     }
 
+    PortalGpuMesh(ByteBuffer vertexData, ByteBuffer indexData, IndexType indexType, int indexCount) {
+        vertices = RenderSystem.getDevice().createBuffer(() -> "Portal vertices", GpuBuffer.USAGE_VERTEX, vertexData);
+        this.indexCount = indexCount;
+        this.indexType = indexType;
+        sorting = null;
+        try {
+            indices = uploadIndices(indexData);
+        } catch (RuntimeException | Error failure) {
+            vertices.close();
+            throw failure;
+        }
+    }
+
     private static GpuBuffer uploadIndices(ByteBuffer data) {
         return RenderSystem.getDevice().createBuffer(() -> "Portal indices", GpuBuffer.USAGE_INDEX | GpuBuffer.USAGE_COPY_DST, data);
     }

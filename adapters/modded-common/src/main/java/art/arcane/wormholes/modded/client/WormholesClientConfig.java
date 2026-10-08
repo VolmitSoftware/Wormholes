@@ -21,6 +21,9 @@ public class WormholesClientConfig {
     public static final double MAX_ATMOSPHERE_DOMINANCE_BLOCKS = 16.0D;
     public static final int MIN_RESIDENT_LEVEL_MEMORY_MB = 64;
     public static final int MAX_RESIDENT_LEVEL_MEMORY_MB = 8192;
+    public static final int DEFAULT_PORTAL_SHAPE_SUBDIVISIONS = 8;
+    public static final int MAX_PORTAL_SHAPE_SUBDIVISIONS = 16;
+    public static final double MAX_PORTAL_EDGE_FEATHER = 2.0D;
 
     @ConfigDescription("Portal renderer: native uses ClientView; block-packets uses the server's standard block and entity packets. Restart the game after changing it.")
     public String renderer = Renderer.NATIVE.key();
@@ -44,6 +47,10 @@ public class WormholesClientConfig {
     public boolean clientRecursion = true;
     @ConfigDescription("Show your own reflection in mirrors drawn by this client.")
     public boolean selfReflection = true;
+    @ConfigDescription("Mesh subdivisions per block along the edge of shaped portals, 1 to 16. Higher values give a smoother edge. Very large shaped portals use fewer.")
+    public int portalShapeSubdivisions = DEFAULT_PORTAL_SHAPE_SUBDIVISIONS;
+    @ConfigDescription("Width in blocks of a band inside the edge of shaped portals tinted with the destination's fog color, 0 to 2. 0 disables the band.")
+    public double portalEdgeFeather = 0.0D;
 
     public static WormholesClientConfig load(Path configDirectory) {
         WormholesClientConfig loaded = TomlCodec.loadOrCreate(configDirectory.resolve(FILE_NAME).toFile(), WormholesClientConfig.class);
@@ -64,6 +71,11 @@ public class WormholesClientConfig {
             atmosphereDominanceBlocks = 0.0D;
         }
         atmosphereDominanceBlocks = Math.min(MAX_ATMOSPHERE_DOMINANCE_BLOCKS, atmosphereDominanceBlocks);
+        portalShapeSubdivisions = Math.max(1, Math.min(MAX_PORTAL_SHAPE_SUBDIVISIONS, portalShapeSubdivisions));
+        if (!Double.isFinite(portalEdgeFeather) || portalEdgeFeather < 0.0D) {
+            portalEdgeFeather = 0.0D;
+        }
+        portalEdgeFeather = Math.min(MAX_PORTAL_EDGE_FEATHER, portalEdgeFeather);
     }
 
     public Renderer rendererMode() {

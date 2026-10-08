@@ -1692,6 +1692,7 @@ public class ClientPortalRendererTest extends MinecraftTestBase {
         when(scene.sectionKeys()).thenReturn(LongArrayList.of(section));
         when(scene.revision(section)).thenReturn(1L);
         set(portal, "apertureMesh", mock(PortalGpuMesh.class));
+        set(portal, "apertureReady", true);
         PortalEnvironmentRenderer environment = mock(PortalEnvironmentRenderer.class);
         set(portal, "environment", environment);
         Class<?> dimensions = Class.forName(ClientPortalRenderer.class.getName() + "$RenderDimensions");
@@ -1704,11 +1705,13 @@ public class ClientPortalRendererTest extends MinecraftTestBase {
         set(child, "uniformHeight", 1080);
         set(child, "compositeUniform", mock(GpuBuffer.class));
         set(child, "apertureMesh", mock(PortalGpuMesh.class));
+        set(child, "apertureReady", true);
         set(child, "environment", mock(PortalEnvironmentRenderer.class));
         set(sibling, "uniformWidth", 1920);
         set(sibling, "uniformHeight", 1080);
         set(sibling, "compositeUniform", mock(GpuBuffer.class));
         set(sibling, "apertureMesh", mock(PortalGpuMesh.class));
+        set(sibling, "apertureReady", true);
         set(sibling, "environment", mock(PortalEnvironmentRenderer.class));
         Method prepare = ClientPortalRenderer.class.getDeclaredMethod("prepareDestination", portal.getClass(), dimensions);
         prepare.setAccessible(true);
@@ -1839,6 +1842,7 @@ public class ClientPortalRendererTest extends MinecraftTestBase {
                 set(portal, "compositeUniform", mock(GpuBuffer.class));
                 PortalGpuMesh aperture = mock(PortalGpuMesh.class);
                 set(portal, "apertureMesh", aperture);
+                set(portal, "apertureReady", true);
                 PortalEnvironmentRenderer destination = mock(PortalEnvironmentRenderer.class);
                 set(portal, "environment", destination);
                 assertEquals(false, render.invoke(renderer, portal, new Matrix4d(), null,
@@ -1880,6 +1884,7 @@ public class ClientPortalRendererTest extends MinecraftTestBase {
         set(section, "clip", sectionClip);
         set(portal, "parentClip", parentClip);
         set(portal, "apertureMesh", aperture);
+        set(portal, "apertureReady", true);
         ((Long2ObjectOpenHashMap<Object>) get(portal, "sections")).put(key, section);
         int generation = (int) get(portal, "generation");
         try {

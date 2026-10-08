@@ -15,7 +15,6 @@ import art.arcane.wormholes.modded.mixin.client.PreparedPacketAccess;
 import art.arcane.wormholes.network.client.ClientTravelWindow;
 import art.arcane.wormholes.network.client.ClientViewExtensions;
 import art.arcane.optics.aperture.ApertureDescriptor;
-import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.OpticTransform;
 import io.netty.buffer.Unpooled;
 import io.netty.buffer.ByteBuf;
@@ -1790,20 +1789,7 @@ public final class ClientPreparedTravel {
             return false;
         }
         Vec3 intersection = previous.lerp(current, before / (before - after));
-        Frame frame = Frame.canonical(geometry.facingDirection());
-        int columnAxis = frame.getRight().axisIndex();
-        int rowAxis = frame.getUp().axisIndex();
-        int column = (int) Math.floor(component(intersection, columnAxis)) - origin(geometry, columnAxis);
-        int row = (int) Math.floor(component(intersection, rowAxis)) - origin(geometry, rowAxis);
-        return geometry.apertureOpen(column, row);
-    }
-
-    private static double component(Vec3 point, int axis) {
-        return switch (axis) { case 0 -> point.x; case 1 -> point.y; default -> point.z; };
-    }
-
-    private static int origin(ApertureDescriptor geometry, int axis) {
-        return switch (axis) { case 0 -> geometry.originX(); case 1 -> geometry.originY(); default -> geometry.originZ(); };
+        return geometry.containsPoint(intersection.x, intersection.y, intersection.z);
     }
 
     private static Vec3d vector(Vec3 point) {
