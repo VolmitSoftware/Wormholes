@@ -43,5 +43,6 @@ public final class FabricTestBootstrap implements TestFunctionLoader, PreLaunchE
         register.accept(ResourceKey.create(Registries.TEST_FUNCTION, WormholesGameTests.CLIENTVIEW_STREAM), WormholesGameTests::clientViewStream);
         register.accept(ResourceKey.create(Registries.TEST_FUNCTION, WormholesGameTests.SEAMLESS_VALIDATION), WormholesGameTests::seamlessValidation);
         register.accept(ResourceKey.create(Registries.TEST_FUNCTION, WormholesGameTests.REMOTE_VIEW), WormholesGameTests::remoteView);
+        register.accept(ResourceKey.create(Registries.TEST_FUNCTION, WormholesGameTests.APERTURE_SHAPE_RUNTIME), WormholesGameTests::apertureShapeRuntime);
     }
 }

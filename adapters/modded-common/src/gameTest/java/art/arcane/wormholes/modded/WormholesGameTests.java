@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.wormholes.modded.clientview.MinecraftApertureShapeGameTest;
 import art.arcane.wormholes.modded.clientview.MinecraftClientViewGameTest;
 import art.arcane.wormholes.modded.seamless.MinecraftRemoteViewGameTest;
 import art.arcane.wormholes.modded.seamless.MinecraftSeamlessValidationGameTest;
@@ -67,6 +68,7 @@ public final class WormholesGameTests {
     public static final Identifier CLIENTVIEW_STREAM = Identifier.fromNamespaceAndPath("wormholes", "clientview_stream");
     public static final Identifier SEAMLESS_VALIDATION = Identifier.fromNamespaceAndPath("wormholes", "seamless_validation");
     public static final Identifier REMOTE_VIEW = Identifier.fromNamespaceAndPath("wormholes", "remote_view");
+    public static final Identifier APERTURE_SHAPE_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "aperture_shape_runtime");
     private static final Set<CompletableFuture<?>> REPORTED_FAILURES = new HashSet<>();
     private static final Logger LOGGER = LoggerFactory.getLogger("WormholesGameTest");
 
@@ -111,6 +113,10 @@ public final class WormholesGameTests {
 
     public static void lookLabelRuntime(GameTestHelper helper) {
         MinecraftLookLabelGameTest.run(helper);
+    }
+
+    public static void apertureShapeRuntime(GameTestHelper helper) {
+        MinecraftApertureShapeGameTest.run(helper);
     }
 
     public static void opsRuntime(GameTestHelper helper) {

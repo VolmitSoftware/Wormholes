@@ -77,6 +77,8 @@ public final class ForgeGameTests {
             event.register(Registries.TEST_FUNCTION, WormholesGameTests.SEAMLESS_VALIDATION, () -> WormholesGameTests::seamlessValidation));
         RegisterEvent.getBus(context.getModBusGroup()).addListener(event ->
             event.register(Registries.TEST_FUNCTION, WormholesGameTests.REMOTE_VIEW, () -> WormholesGameTests::remoteView));
+        RegisterEvent.getBus(context.getModBusGroup()).addListener(event ->
+            event.register(Registries.TEST_FUNCTION, WormholesGameTests.APERTURE_SHAPE_RUNTIME, () -> WormholesGameTests::apertureShapeRuntime));
         Channel<CustomPacketPayload> clientView = ChannelBuilder.named(ClientViewPayload.ID).optional().payloadChannel().any()
             .bidirectional().add(ClientViewPayload.TYPE, ClientViewPayload.CODEC, ForgeGameTests::clientViewPayload)
             .build();

@@ -72,6 +72,8 @@ public final class NeoForgeGameTests {
             WormholesGameTests.SEAMLESS_VALIDATION, () -> WormholesGameTests::seamlessValidation));
         bus.addListener((RegisterEvent event) -> event.register(Registries.TEST_FUNCTION,
             WormholesGameTests.REMOTE_VIEW, () -> WormholesGameTests::remoteView));
+        bus.addListener((RegisterEvent event) -> event.register(Registries.TEST_FUNCTION,
+            WormholesGameTests.APERTURE_SHAPE_RUNTIME, () -> WormholesGameTests::apertureShapeRuntime));
         NeoForge.EVENT_BUS.addListener((RegisterCommandsEvent event) -> WormholesGameTests.RUNTIME.registerCommands(event.getDispatcher()));
         NeoForge.EVENT_BUS.addListener((ServerStartedEvent event) -> WormholesGameTests.start(event.getServer()));
         NeoForge.EVENT_BUS.addListener((ServerTickEvent.Post event) -> tick());
