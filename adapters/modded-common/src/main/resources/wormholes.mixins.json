@@ -175,7 +175,13 @@
     "client.ResidentLevelEffectsMixin",
     "client.ResidentLevelTickMixin",
     "client.StraddleLocalPlayerMixin",
-    "client.StraddleOverlayMixin"
+    "client.StraddleOverlayMixin",
+    "client.ClientWorldAtmosphereAccess",
+    "client.ClientWorldCameraAccess",
+    "client.ClientWorldFogAccess",
+    "client.ClientWorldGameRendererAccess",
+    "client.ClientWorldLightmapAccess",
+    "client.ClientWorldMinecraftMixin"
   ],
   "injectors": {
     "defaultRequire": 1

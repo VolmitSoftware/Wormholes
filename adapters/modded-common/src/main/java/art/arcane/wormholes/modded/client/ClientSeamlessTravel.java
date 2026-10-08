@@ -15,7 +15,9 @@ import art.arcane.optics.math.Vec3d;
 import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
+import art.arcane.wormholes.modded.client.render.ClientWorldLoader;
 import art.arcane.wormholes.modded.client.render.PortalIrisMainPipelines;
+import art.arcane.wormholes.modded.client.render.PortalWorldView;
 import art.arcane.wormholes.modded.MinecraftScaleAccess;
 import art.arcane.wormholes.modded.clientview.MinecraftPortalEnvironment;
 import art.arcane.wormholes.modded.seamless.StraddleTracker;
@@ -35,7 +37,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -51,11 +56,15 @@ public final class ClientSeamlessTravel {
     private static final float LOOK_TOLERANCE = 0.5F;
     private static final long CROSS_REVISION = 1L;
     private static final float TICK_END_PARTIAL = 0.0F;
+    private static final long RETURN_VIEW_GRACE_MILLIS = 500L;
+    private static final double RETURN_VIEW_MATCH = 0.5D;
     private static final TravellerScale<Entity> TRAVELLER_SCALE = new TravellerScale<>(MinecraftScaleAccess.scaleAttribute());
 
     private final Consumer<TravelMessage> sender;
     private final ResidentLevels residents;
     private final Map<UUID, TravelMessage.TravelBegin> arms = new LinkedHashMap<>();
+    private final Map<UUID, ClientLevel> armLevels = new HashMap<>();
+    private final List<PortalWorldView> views = new ArrayList<>();
     private final ArrayDeque<Crossing> pending = new ArrayDeque<>();
     private final ClientEntityCrossings entities = new ClientEntityCrossings();
     private final ClientCameraRoll cameraRoll = new ClientCameraRoll();
@@ -64,6 +73,7 @@ public final class ClientSeamlessTravel {
     private Vec3 previousEye;
     private UUID declined;
     private StraddleTracker.Straddle returning;
+    private ReturnWorld returnWorld;
     private boolean straddling;
 
     public ClientSeamlessTravel(Consumer<TravelMessage> sender, ResidentLevels residents) {
@@ -75,6 +85,8 @@ public final class ClientSeamlessTravel {
         return switch (message) {
             case TravelMessage.TravelBegin begin when begin.seamless() -> {
                 arms.put(begin.sourcePortal(), begin);
+                armLevels.put(begin.sourcePortal(), serverLevel());
+                supersedeReturnWorld(begin);
                 yield true;
             }
             case TravelMessage.TravelAccept accept -> {
@@ -107,6 +119,26 @@ public final class ClientSeamlessTravel {
         return arms.containsKey(source);
     }
 
+    public List<PortalWorldView> views(ClientLevel current) {
+        views.clear();
+        if (current == null) {
+            return views;
+        }
+        for (TravelMessage.TravelBegin arm : arms.values()) {
+            if (!arm.resident() || armLevels.get(arm.sourcePortal()) != current) {
+                continue;
+            }
+            ClientLevel level = residents.level(arm.levelHandle());
+            if (level != null && level != current) {
+                views.add(new PortalWorldView(arm.sourcePortal(), level, arm.sourceGeometry(), Similarity.IDENTITY, arm.sourceToDestination()));
+            }
+        }
+        if (returnWorld != null && returnWorld.shownIn() == current && returnWorld.view().level() != current) {
+            views.add(returnWorld.view());
+        }
+        return views;
+    }
+
     public boolean beforeFrame(Camera camera, DeltaTracker tracker) {
         Minecraft minecraft = Minecraft.getInstance();
         LocalPlayer player = minecraft.player;
@@ -137,6 +169,8 @@ public final class ClientSeamlessTravel {
         if (oldest != null && System.currentTimeMillis() >= oldest.deadline()) {
             rollback(oldest, "no server answer within " + ACCEPT_TIMEOUT_MILLIS + " ms");
         }
+        expireReturnWorld(minecraft.level);
+        ClientWorldLoader.tick(views(minecraft.level), player.getEyePosition());
         if (arms.isEmpty() && returning == null) {
             if (straddling) {
                 straddling = false;
@@ -159,6 +193,9 @@ public final class ClientSeamlessTravel {
 
     public void clear() {
         arms.clear();
+        armLevels.clear();
+        views.clear();
+        returnWorld = null;
         pending.clear();
         entities.clear();
         retireReturnView();
@@ -288,6 +325,7 @@ public final class ClientSeamlessTravel {
             ClientTravelMotion.vector(player.getEyePosition()), 1.0D / arm.scale());
         StraddleTracker.register(player, returning);
         straddling = true;
+        returnWorld = target == source ? null : ReturnWorld.of(arm, source, target, Long.MAX_VALUE);
         return checkpoint(arm, toward, previous, eye);
     }
 
@@ -313,6 +351,9 @@ public final class ClientSeamlessTravel {
         residents.crossing(next == null || next.source() == next.target() ? null : next.source());
         if (crossing.source() != crossing.target()) {
             residents.retire(crossing.source());
+        }
+        if (returnWorld != null && returnWorld.token().equals(arm.token())) {
+            returnWorld = returnWorld.expiring(System.currentTimeMillis() + RETURN_VIEW_GRACE_MILLIS);
         }
         WormholesClient client = WormholesClient.instance();
         if (client != null) {
@@ -371,6 +412,7 @@ public final class ClientSeamlessTravel {
         if (target != source) {
             ClientLevelSwitch.activate(residents, target, placed, carried);
             residents.retire(source);
+            returnWorld = arm == null ? null : ReturnWorld.of(arm, source, target, System.currentTimeMillis() + RETURN_VIEW_GRACE_MILLIS);
         } else {
             ClientTravelMotion.apply(player, placed);
             carried.restore(player);
@@ -396,6 +438,7 @@ public final class ClientSeamlessTravel {
             TravelMessage.TravelBegin arm = iterator.next().getValue();
             if (arm.token().equals(cancel.token()) && arm.generation() == cancel.generation()) {
                 iterator.remove();
+                armLevels.remove(arm.sourcePortal());
                 return true;
             }
         }
@@ -414,6 +457,7 @@ public final class ClientSeamlessTravel {
         residents.crossing(next == null || next.source() == next.target() ? null : next.source());
         previousEye = null;
         returning = null;
+        returnWorld = null;
         if (player == null) {
             return;
         }
@@ -575,6 +619,41 @@ public final class ClientSeamlessTravel {
 
     private static Box box(AABB bounds) {
         return new Box(bounds.minX, bounds.maxX, bounds.minY, bounds.maxY, bounds.minZ, bounds.maxZ);
+    }
+
+    private ClientLevel serverLevel() {
+        Crossing first = pending.peekFirst();
+        return first == null ? Minecraft.getInstance().level : first.source();
+    }
+
+    private void supersedeReturnWorld(TravelMessage.TravelBegin begin) {
+        if (returnWorld == null || serverLevel() != returnWorld.shownIn()) {
+            return;
+        }
+        PortalWorldView view = returnWorld.view();
+        Vec3d surfaceCenter = view.surface().point(view.geometry().apertureArea().center());
+        Vec3d armCenter = begin.sourceGeometry().apertureArea().center();
+        if (surfaceCenter.subtract(armCenter).lengthSquared() <= RETURN_VIEW_MATCH * RETURN_VIEW_MATCH) {
+            returnWorld = null;
+        }
+    }
+
+    private void expireReturnWorld(ClientLevel current) {
+        if (returnWorld != null && (returnWorld.shownIn() != current || System.currentTimeMillis() >= returnWorld.expiresAt())) {
+            returnWorld = null;
+        }
+    }
+
+    private record ReturnWorld(PortalWorldView view, ClientLevel shownIn, UUID token, long expiresAt) {
+        private static ReturnWorld of(TravelMessage.TravelBegin arm, ClientLevel source, ClientLevel shownIn, long expiresAt) {
+            Similarity toward = arm.sourceToDestination();
+            return new ReturnWorld(new PortalWorldView(arm.token(), source, arm.sourceGeometry(), toward, toward.inverse()),
+                shownIn, arm.token(), expiresAt);
+        }
+
+        private ReturnWorld expiring(long at) {
+            return new ReturnWorld(view, shownIn, token, Math.min(expiresAt, at));
+        }
     }
 
     private record Crossing(TravelMessage.TravelBegin arm, ClientLevel source, ClientLevel target, Pose before, ClientTravelMotion.Carry carry,

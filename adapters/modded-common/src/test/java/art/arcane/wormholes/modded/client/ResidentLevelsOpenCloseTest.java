@@ -3,6 +3,7 @@ package art.arcane.wormholes.modded.client;
 import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
+import art.arcane.wormholes.modded.client.render.ClientWorldLoader;
 import art.arcane.wormholes.network.client.TravelMessage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientChunkCache;
@@ -243,6 +244,7 @@ public class ResidentLevelsOpenCloseTest extends MinecraftTestBase {
         final List<TravelMessage> sent = new ArrayList<>();
         final MockedStatic<Minecraft> access;
         final MockedStatic<ClientSodiumTerrain> terrain;
+        final MockedStatic<ClientWorldLoader> worlds;
         final MockedConstruction<ClientLevel> levels;
         final MockedConstruction<PreparedLevelExtractor> extractors;
 
@@ -254,6 +256,7 @@ public class ResidentLevelsOpenCloseTest extends MinecraftTestBase {
             access = mockStatic(Minecraft.class);
             access.when(Minecraft::getInstance).thenReturn(minecraft);
             terrain = mockStatic(ClientSodiumTerrain.class);
+            worlds = mockStatic(ClientWorldLoader.class);
             extractors = mockConstruction(PreparedLevelExtractor.class);
             levels = mockConstruction(ClientLevel.class, (level, context) -> {
                 ClientChunkCache cache = mock(ClientChunkCache.class, withSettings().extraInterfaces(PreparedChunkColumns.class));
@@ -272,6 +275,7 @@ public class ResidentLevelsOpenCloseTest extends MinecraftTestBase {
         public void close() {
             levels.close();
             extractors.close();
+            worlds.close();
             terrain.close();
             access.close();
         }

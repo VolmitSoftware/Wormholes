@@ -2,6 +2,7 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.optics.crossing.Pose;
 import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
+import art.arcane.wormholes.modded.client.render.ClientWorldLoader;
 import art.arcane.wormholes.modded.client.render.PortalIrisMainPipelines;
 import art.arcane.wormholes.modded.client.render.PortalShaderWarmup;
 import art.arcane.wormholes.modded.mixin.client.ParticleEngineAccess;
@@ -39,6 +40,7 @@ final class ClientLevelSwitch {
     static void activate(ResidentLevels residents, ClientLevel destination, Pose pose, ClientTravelMotion.Carry carry) {
         Minecraft minecraft = Minecraft.getInstance();
         LocalPlayer player = minecraft.player;
+        ClientWorldLoader.initializeIfNeeded();
         if (minecraft.level != null) {
             minecraft.level.removeEntity(player.getId(), Entity.RemovalReason.CHANGED_DIMENSION);
         }
@@ -64,6 +66,7 @@ final class ClientLevelSwitch {
             minecraft.levelExtractor.setLevel(destination);
         }
         residents.particles().swap((ParticleEngineAccess) minecraft.particleEngine, destination);
+        ClientWorldLoader.changeLevel(destination, minecraft.player.getEyePosition());
         minecraft.gameRenderer.setLevel(destination);
         ((PreparedChunkColumns) destination.getChunkSource()).wormholes$announceColumns();
     }
