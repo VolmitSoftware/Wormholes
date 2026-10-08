@@ -85,6 +85,7 @@
     "client.IrisPortalHandMixin",
     "client.IrisPortalLoadingMixin",
     "client.IrisPortalReloadMixin",
+    "client.IrisPortalUniformFrameMixin",
     "client.IrisPortalCompositeMixin",
     "client.IrisPortalPipelineAccess",
     "client.IrisPortalTerrainLightingMixin",

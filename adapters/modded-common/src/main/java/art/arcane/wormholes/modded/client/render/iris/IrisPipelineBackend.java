@@ -2,7 +2,8 @@
  * Derived from Immersive Portals (https://github.com/iPortalTeam/ImmersivePortalsMod),
  * Copyright 2020 qouteall, licensed under the Apache License, Version 2.0.
  * Modified for Wormholes: the Iris pipeline handling of IrisInterface and MyGameRenderer.switchAndRenderTheWorld, keeping the
- * level renderer's pipeline slot and Iris's selected pipeline across a portal layer and carrying the layer's clip plane.
+ * level renderer's pipeline slot and Iris's selected pipeline across a portal layer, carrying the layer's clip plane and making
+ * the layer rewrite Iris's per-frame program uniforms and shadow terrain uniforms.
  */
 package art.arcane.wormholes.modded.client.render.iris;
 
@@ -48,17 +49,23 @@ public final class IrisPipelineBackend implements PipelineBackend {
         LevelRenderer renderer = layer.renderer();
         VarHandle slot = rendererPipeline();
         WorldRenderingPipeline rendering = slot == null ? null : (WorldRenderingPipeline) slot.get(renderer);
-        layers.push(new Layer(renderer, manager.getPipelineNullable(), rendering));
+        IrisShadowUniforms shadows = deferred() ? IrisShadowUniforms.reset(renderer) : null;
+        layers.push(new Layer(renderer, manager.getPipelineNullable(), rendering, shadows));
         if (slot != null) {
             slot.set(renderer, (WorldRenderingPipeline) null);
         }
         IrisClipPlanes.push(layer.clipSpacePlane());
+        IrisLayerUniforms.transition();
     }
 
     @Override
     public void endLayer(PortalLayer layer) {
         Layer entered = layers.pop();
         IrisClipPlanes.pop();
+        IrisLayerUniforms.transition();
+        if (entered.shadows() != null) {
+            entered.shadows().restore();
+        }
         VarHandle slot = rendererPipeline();
         if (slot != null) {
             slot.set(entered.renderer(), entered.rendering());
@@ -80,6 +87,6 @@ public final class IrisPipelineBackend implements PipelineBackend {
         return rendererPipeline;
     }
 
-    private record Layer(LevelRenderer renderer, WorldRenderingPipeline selected, WorldRenderingPipeline rendering) {
+    private record Layer(LevelRenderer renderer, WorldRenderingPipeline selected, WorldRenderingPipeline rendering, IrisShadowUniforms shadows) {
     }
 }
