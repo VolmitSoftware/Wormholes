@@ -324,8 +324,11 @@ final class PortalWorldRenderer {
     }
 
     private static boolean showsPlayer(PortalView view, LocalPlayer player, ClientLevel destination, Vec3 camera) {
-        return view.kind() == PortalView.Kind.MIRROR && WormholesClient.instance().config().selfReflection
-            && detached(player, destination, camera);
+        return switch (view.kind()) {
+            case MIRROR -> WormholesClient.instance().config().selfReflection && detached(player, destination, camera);
+            case CROSSING -> detached(player, destination, camera);
+            case ARM, RETURN -> false;
+        };
     }
 
     private static boolean detached(LocalPlayer player, ClientLevel destination, Vec3 camera) {

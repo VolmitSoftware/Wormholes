@@ -267,7 +267,7 @@ public final class PortalStencilRenderer {
         client.portalViews().frame(home, new Vec3d(eye.x, eye.y, eye.z), client.seamlessTravel().arms(),
             config.clientMirror && client.session().active() && client.session().has(ViewStreamCapability.CLIENT_MIRROR)
                 && client.viewsAttachedTo(home), config.clientRecursion,
-            client.session().portals().values());
+            client.session().portals().values(), client.seamlessTravel().crossing());
         world.beginFrame(minecraft.level, renderer, minecraft.levelExtractor);
         if (!available(minecraft)) {
             return false;
@@ -275,7 +275,8 @@ public final class PortalStencilRenderer {
         layers.beginFrame(MAX_VIEWS_PER_FRAME);
         long now = System.currentTimeMillis();
         for (PortalView view : client.portalViews().current()) {
-            if (view.kind() != PortalView.Kind.RETURN && view.source() == minecraft.level && renderable(view, now)) {
+            if ((view.kind() == PortalView.Kind.ARM || view.kind() == PortalView.Kind.MIRROR) && view.source() == minecraft.level
+                && renderable(view, now)) {
                 claimed.add(view);
             }
         }
@@ -316,7 +317,7 @@ public final class PortalStencilRenderer {
                 continue;
             }
             Box area = view.surface().area();
-            double distance = distance(area, eye);
+            double distance = view.surface().distance(eye);
             if (distance > range) {
                 continue;
             }
@@ -335,7 +336,7 @@ public final class PortalStencilRenderer {
         }
         ClientLevel destination = view.destination();
         if (destination != world.homeLevel()) {
-            return ClientWorldLoader.residentRenderer(destination) != null;
+            return destination == ClientWorldLoader.mainLevel() || ClientWorldLoader.residentRenderer(destination) != null;
         }
         Minecraft minecraft = Minecraft.getInstance();
         Vec3d mapped = view.toDestination().point(view.surface().planePoint());
@@ -407,13 +408,6 @@ public final class PortalStencilRenderer {
     private static Matrix4f apertureView(CameraRenderState camera, PortalSurface surface) {
         Matrix4d relative = new Matrix4d().translation(-camera.pos.x, -camera.pos.y, -camera.pos.z).mul(surface.model());
         return new Matrix4f(camera.viewRotationMatrix).mul(new Matrix4f(relative));
-    }
-
-    private static double distance(Box area, Vec3d point) {
-        double x = Math.clamp(point.x(), area.getXa(), area.getXb());
-        double y = Math.clamp(point.y(), area.getYa(), area.getYb());
-        double z = Math.clamp(point.z(), area.getZa(), area.getZb());
-        return point.distance(new Vec3d(x, y, z));
     }
 
     private static RenderPass open(RenderTarget main, String label) {

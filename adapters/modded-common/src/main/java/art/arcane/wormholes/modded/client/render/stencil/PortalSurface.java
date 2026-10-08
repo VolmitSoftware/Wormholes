@@ -80,6 +80,13 @@ public final class PortalSurface {
         return point.subtract(planePoint).dot(servedNormal);
     }
 
+    public double distance(Vec3d point) {
+        double x = Math.clamp(point.x(), area.getXa(), area.getXb());
+        double y = Math.clamp(point.y(), area.getYa(), area.getYb());
+        double z = Math.clamp(point.z(), area.getZa(), area.getZb());
+        return point.distance(new Vec3d(x, y, z));
+    }
+
     public boolean servesEye(Vec3d eye) {
         return signedDistance(eye) > 0.0D;
     }

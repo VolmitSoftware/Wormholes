@@ -111,6 +111,7 @@ public final class PortalView implements AutoCloseable {
     public enum Kind {
         ARM,
         MIRROR,
-        RETURN
+        RETURN,
+        CROSSING
     }
 }

@@ -70,6 +70,10 @@ public final class ClientWorldLoader {
         FogRendererContext.initialize(level);
     }
 
+    public static ClientLevel mainLevel() {
+        return mainLevel;
+    }
+
     public static WorldRenderer worldRenderer(ClientLevel level) {
         initializeIfNeeded();
         WorldRenderer world = WORLD_RENDERER_MAP.get(level);
@@ -205,7 +209,7 @@ public final class ClientWorldLoader {
     }
 
     public static void withWorldRenderer(ClientLevel level, Runnable action) {
-        WorldRenderer world = level == mainLevel ? null : WORLD_RENDERER_MAP.get(level);
+        WorldRenderer world = level == mainLevel && switchedLevel == null ? null : WORLD_RENDERER_MAP.get(level);
         if (world == null) {
             action.run();
             return;

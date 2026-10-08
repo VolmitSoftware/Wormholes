@@ -20,14 +20,13 @@ import java.util.Set;
 
 public final class PortalViews {
     public static final int DEFAULT_RECURSION = 3;
-    private static final long RETURN_VIEW_MILLIS = 30_000L;
+    private static final double RETURN_VIEW_BLOCKS = 16.0D;
 
     private final ResidentLevels residents;
     private final Map<Object, PortalView> views = new HashMap<>();
     private final List<PortalView> current = new ArrayList<>();
     private final Set<Object> live = new HashSet<>();
     private PortalView returning;
-    private long returningUntil;
     private ClientLevel lastHome;
     private Vec3d lastEye;
 
@@ -47,11 +46,8 @@ public final class PortalViews {
     }
 
     public void frame(ClientLevel home, Vec3d eye, Collection<TravelMessage.TravelBegin> arms, boolean mirrors, boolean recursion,
-                      Collection<ClientPortal> portals) {
-        long now = System.currentTimeMillis();
-        if (lastHome != null && home != lastHome && lastEye != null) {
-            startReturn(lastHome, home, lastEye, now);
-        }
+                      Collection<ClientPortal> portals, Crossing crossing) {
+        follow(home);
         live.clear();
         current.clear();
         String dimension = home.dimension().identifier().toString();
@@ -75,7 +71,11 @@ public final class PortalViews {
                     Similarity.of(geometry.mirrorTransform(), 1.0D), recursion);
             }
         }
-        keepReturn(home, now);
+        if (crossing != null && crossing.level() != home) {
+            track(new CrossingKey(crossing.key()), PortalView.Kind.CROSSING, crossing.level(), home, crossing.surface().through(crossing.toward()),
+                crossing.toward().inverse(), depth(crossing.surface().geometry(), recursion));
+        }
+        keepReturn(home, eye);
         Iterator<Map.Entry<Object, PortalView>> iterator = views.entrySet().iterator();
         while (iterator.hasNext()) {
             Map.Entry<Object, PortalView> entry = iterator.next();
@@ -92,21 +92,37 @@ public final class PortalViews {
         return current;
     }
 
+    public PortalView follow(ClientLevel home) {
+        if (home == null) {
+            return null;
+        }
+        if (lastHome != null && home != lastHome && lastEye != null) {
+            startReturn(lastHome, home, lastEye);
+        }
+        lastHome = home;
+        return returning != null && returning.source() == home ? returning : null;
+    }
+
     private void track(Object key, PortalView.Kind kind, ClientLevel home, ClientLevel destination, ApertureDescriptor geometry,
                        Similarity toDestination, boolean recursion) {
+        track(key, kind, home, destination, PortalSurface.of(geometry), toDestination, depth(geometry, recursion));
+    }
+
+    private void track(Object key, PortalView.Kind kind, ClientLevel source, ClientLevel destination, PortalSurface surface,
+                       Similarity toDestination, int recursion) {
         PortalView view = views.get(key);
-        if (view == null || view.source() != home || view.destination() != destination) {
+        if (view == null || view.source() != source || view.destination() != destination) {
             if (view != null) {
                 view.close();
             }
-            view = new PortalView(kind, key, home, destination, PortalSurface.of(geometry), toDestination, depth(geometry, recursion));
+            view = new PortalView(kind, key, source, destination, surface, toDestination, recursion);
             views.put(key, view);
         }
         live.add(key);
         current.add(view);
     }
 
-    private void startReturn(ClientLevel departed, ClientLevel home, Vec3d eye, long now) {
+    private void startReturn(ClientLevel departed, ClientLevel home, Vec3d eye) {
         PortalView crossed = null;
         double nearest = Double.POSITIVE_INFINITY;
         for (PortalView view : current) {
@@ -125,15 +141,14 @@ public final class PortalViews {
         }
         returning = new PortalView(PortalView.Kind.RETURN, new ReturnKey(crossed.key()), home, departed,
             crossed.surface().through(crossed.toDestination()), crossed.toDestination().inverse(), crossed.recursion());
-        returningUntil = now + RETURN_VIEW_MILLIS;
     }
 
-    private void keepReturn(ClientLevel home, long now) {
+    private void keepReturn(ClientLevel home, Vec3d eye) {
         if (returning == null) {
             return;
         }
-        if (now > returningUntil || returning.source() != home || ClientWorldLoader.residentRenderer(returning.destination()) == null
-            || armed(returning.surface())) {
+        if (returning.source() != home || returning.surface().distance(eye) > RETURN_VIEW_BLOCKS
+            || ClientWorldLoader.residentRenderer(returning.destination()) == null || armed(returning.surface())) {
             closeReturn();
             return;
         }
@@ -167,5 +182,11 @@ public final class PortalViews {
     }
 
     private record ReturnKey(Object crossed) {
+    }
+
+    private record CrossingKey(Object entered) {
+    }
+
+    public record Crossing(Object key, ClientLevel level, PortalSurface surface, Similarity toward) {
     }
 }

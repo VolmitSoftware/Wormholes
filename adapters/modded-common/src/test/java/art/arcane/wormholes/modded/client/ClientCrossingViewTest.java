@@ -2,10 +2,13 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.optics.frame.AxisPermutation;
 import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.math.Angles;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftTestBase;
+import art.arcane.wormholes.modded.client.render.stencil.PortalSurface;
+import art.arcane.wormholes.modded.client.render.stencil.PortalView;
 import art.arcane.wormholes.modded.mixin.client.CameraPoseAccess;
 import art.arcane.wormholes.network.client.TravelMessage;
 import net.minecraft.client.Camera;
@@ -23,6 +26,7 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyFloat;
@@ -56,7 +60,7 @@ public class ClientCrossingViewTest extends MinecraftTestBase {
     @Test
     public void aCameraBehindTheArmedPlaneRendersFromTheDestinationUntilTheFrameEnds() {
         try (Scene scene = new Scene(new Vec3(0.5D, 1.62D, 0.7D))) {
-            scene.view.update(scene.camera, scene.tracker, List.of(scene.begin));
+            scene.view.update(scene.camera, scene.tracker, List.of(scene.begin), null);
             assertTrue(scene.view.active());
             assertEquals(0.0D, scene.view.bobFactor(), 0.0D);
             Vec3d mapped = scene.begin.sourceToDestination().point(new Vec3d(0.5D, 1.62D, 0.7D));
@@ -73,10 +77,32 @@ public class ClientCrossingViewTest extends MinecraftTestBase {
     @Test
     public void aCameraOnTheNearSideKeepsTheSourceView() {
         try (Scene scene = new Scene(new Vec3(0.5D, 1.62D, 0.1D))) {
-            scene.view.update(scene.camera, scene.tracker, List.of(scene.begin));
+            scene.view.update(scene.camera, scene.tracker, List.of(scene.begin), null);
             assertFalse(scene.view.active());
             verify(scene.pose, never()).wormholes$position(any());
             verify(scene.pose, never()).wormholes$rotation(anyFloat(), anyFloat());
+        }
+    }
+
+    @Test
+    public void aCameraBehindTheReturnViewRendersTheDepartedWorldBeforeTheArrivalPortalIsArmed() {
+        try (Scene scene = new Scene(new Vec3(0.5D, 1.62D, 0.7D))) {
+            ClientLevel departed = mock(ClientLevel.class);
+            Similarity back = scene.begin.sourceToDestination();
+            PortalView returning = mock(PortalView.class);
+            when(returning.key()).thenReturn("return");
+            when(returning.destination()).thenReturn(departed);
+            when(returning.surface()).thenReturn(PortalSurface.of(ClientTravelTestFixtures.geometry()));
+            when(returning.toDestination()).thenReturn(back);
+            scene.view.update(scene.camera, scene.tracker, List.of(), returning);
+            assertTrue(scene.view.active());
+            assertEquals(departed, scene.view.crossing().level());
+            assertEquals("return", scene.view.crossing().key());
+            Vec3d mapped = back.point(new Vec3d(0.5D, 1.62D, 0.7D));
+            verify(scene.pose).wormholes$position(new Vec3(mapped.x(), mapped.y(), mapped.z()));
+            scene.view.update(scene.camera, scene.tracker, List.of(), null);
+            assertFalse(scene.view.active());
+            assertNull(scene.view.crossing());
         }
     }
 

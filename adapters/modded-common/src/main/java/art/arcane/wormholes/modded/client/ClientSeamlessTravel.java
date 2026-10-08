@@ -11,6 +11,7 @@ import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.math.Angles;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Vec3d;
+import art.arcane.wormholes.modded.client.render.stencil.PortalViews;
 import art.arcane.wormholes.modded.client.world.ClientWorldLoader;
 import art.arcane.wormholes.modded.MinecraftScaleAccess;
 import art.arcane.wormholes.modded.seamless.StraddleTracker;
@@ -136,6 +137,10 @@ public final class ClientSeamlessTravel {
         return !pending.isEmpty();
     }
 
+    public PortalViews.Crossing crossing() {
+        return view.crossing();
+    }
+
     public boolean armed(UUID source) {
         return arms.containsKey(source);
     }
@@ -144,7 +149,8 @@ public final class ClientSeamlessTravel {
         if (beforeFrame(camera, tracker)) {
             camera.update(tracker);
         }
-        view.update(camera, tracker, arms.values());
+        WormholesClient client = WormholesClient.instance();
+        view.update(camera, tracker, arms.values(), client == null ? null : client.portalViews().follow(Minecraft.getInstance().level));
         cameraRoll.apply(camera, System.currentTimeMillis());
     }
 

@@ -9,6 +9,10 @@ import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.math.Angles;
 import art.arcane.optics.math.Box;
+import art.arcane.optics.math.Vec3d;
+import art.arcane.wormholes.modded.client.render.stencil.PortalSurface;
+import art.arcane.wormholes.modded.client.render.stencil.PortalView;
+import art.arcane.wormholes.modded.client.render.stencil.PortalViews;
 import art.arcane.wormholes.modded.client.world.ClientWorldLoader;
 import art.arcane.wormholes.modded.mixin.client.CameraPoseAccess;
 import art.arcane.wormholes.modded.mixin.client.ClientWorldCameraAccess;
@@ -43,6 +47,7 @@ public final class ClientCrossingView {
     private final ResidentLevels residents;
     private double bobFactor = 1.0D;
     private View applied;
+    private PortalViews.Crossing crossing;
 
     ClientCrossingView(ResidentLevels residents) {
         this.residents = residents;
@@ -52,12 +57,17 @@ public final class ClientCrossingView {
         return bobFactor;
     }
 
+    public PortalViews.Crossing crossing() {
+        return crossing;
+    }
+
     public boolean active() {
         return applied != null;
     }
 
-    public void update(Camera camera, DeltaTracker tracker, Collection<TravelMessage.TravelBegin> arms) {
+    public void update(Camera camera, DeltaTracker tracker, Collection<TravelMessage.TravelBegin> arms, PortalView returning) {
         applied = null;
+        crossing = null;
         Minecraft minecraft = Minecraft.getInstance();
         LocalPlayer player = minecraft.player;
         if (minecraft.level == null || player == null || !camera.isInitialized() || camera.entity() != player) {
@@ -85,6 +95,10 @@ public final class ClientCrossingView {
         bobFactor = dampedBob(bobFactor, nearest);
         if (through != null) {
             enter(minecraft, camera, player, through, eye);
+            return;
+        }
+        if (returning != null) {
+            enterReturn(camera, player, returning, eye, position);
         }
     }
 
@@ -163,8 +177,28 @@ public final class ClientCrossingView {
             return;
         }
         Vec3 position = camera.position();
-        Similarity toward = arm.sourceToDestination();
-        Vec3 mapped = camera.isDetached() ? detachedPosition(level, player, arm, eye, position) : ClientTravelMotion.point(toward, position);
+        ApertureDescriptor geometry = arm.sourceGeometry();
+        enter(camera, player, level, geometry.signedDistance(eye.x, eye.y, eye.z), geometry.signedDistance(position.x, position.y, position.z),
+            arm.sourceToDestination(), eye);
+        crossing = new PortalViews.Crossing(arm.token(), level, PortalSurface.of(geometry), arm.sourceToDestination());
+    }
+
+    private void enterReturn(Camera camera, LocalPlayer player, PortalView returning, Vec3 eye, Vec3 position) {
+        Vec3d from = new Vec3d(eye.x, eye.y, eye.z);
+        Vec3d to = new Vec3d(position.x, position.y, position.z);
+        double before = returning.surface().signedDistance(from);
+        double after = returning.surface().signedDistance(to);
+        if (before <= 0.0D || after > 0.0D || !returning.surface().contains(from.add(to.subtract(from).multiply(before / (before - after))))) {
+            return;
+        }
+        enter(camera, player, returning.destination(), before, after, returning.toDestination(), eye);
+        crossing = new PortalViews.Crossing(returning.key(), returning.destination(), returning.surface(), returning.toDestination());
+    }
+
+    private void enter(Camera camera, LocalPlayer player, ClientLevel level, double before, double after, Similarity toward, Vec3 eye) {
+        Vec3 position = camera.position();
+        Vec3 mapped = camera.isDetached() ? detachedPosition(level, player, before, after, toward, eye, position)
+            : ClientTravelMotion.point(toward, position);
         Angles.Look look = ClientTravelMotion.look(toward.rigid(), camera.yRot(), camera.xRot());
         applied = new View(level, position, camera.yRot(), camera.xRot());
         CameraPoseAccess access = (CameraPoseAccess) camera;
@@ -173,11 +207,8 @@ public final class ClientCrossingView {
         access.wormholes$cullFrustum(camera.getViewRotationMatrix(new Matrix4f()), access.wormholes$cullingProjection(), mapped);
     }
 
-    private static Vec3 detachedPosition(ClientLevel level, LocalPlayer player, TravelMessage.TravelBegin arm, Vec3 eye, Vec3 position) {
-        ApertureDescriptor geometry = arm.sourceGeometry();
-        Similarity toward = arm.sourceToDestination();
-        double before = geometry.signedDistance(eye.x, eye.y, eye.z);
-        double after = geometry.signedDistance(position.x, position.y, position.z);
+    private static Vec3 detachedPosition(ClientLevel level, LocalPlayer player, double before, double after, Similarity toward, Vec3 eye,
+                                         Vec3 position) {
         Vec3 start = ClientTravelMotion.point(toward, eye.lerp(position, before / (before - after)));
         double distance = player.getAttributeValue(Attributes.CAMERA_DISTANCE) * player.getScale();
         Vec3 end = ClientTravelMotion.point(toward, eye.add(position.subtract(eye).normalize().scale(distance)));
