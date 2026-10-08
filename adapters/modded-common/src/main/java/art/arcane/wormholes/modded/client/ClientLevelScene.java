@@ -75,7 +75,7 @@ public final class ClientLevelScene implements ClientSceneWorld {
     public boolean spawn(int entityId, UUID projectionId, EntitySnapshot visual) {
         ClientPacketListener connection = listener.get();
         EntityType<?> type = type(visual.typeKey());
-        if (connection == null || type == null) {
+        if (connection == null || type == null || connection.getLevel() != level || !claimIdentity(projectionId, visual)) {
             return false;
         }
         try {
@@ -317,6 +317,18 @@ public final class ClientLevelScene implements ClientSceneWorld {
 
     private Optional<Holder<WorldClock>> clockHolder() {
         return level.dimensionType().defaultClock();
+    }
+
+    private boolean claimIdentity(UUID projectionId, EntitySnapshot visual) {
+        Entity holder = level.getEntity(projectionId);
+        if (holder == null) {
+            return true;
+        }
+        if (!ProjectedEntityGuard.visualCopy(holder)) {
+            return false;
+        }
+        remove(holder.getId(), visual);
+        return true;
     }
 
     private void removePlayerInfo(int entityId, ClientPacketListener connection) {

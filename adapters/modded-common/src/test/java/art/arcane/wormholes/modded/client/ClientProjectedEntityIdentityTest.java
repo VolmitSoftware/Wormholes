@@ -13,6 +13,7 @@ import net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket;
 import net.minecraft.world.entity.Entity;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 
 import java.util.HashSet;
 import java.util.List;
@@ -22,6 +23,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.never;
@@ -87,6 +91,7 @@ public class ClientProjectedEntityIdentityTest extends MinecraftTestBase {
         ClientPacketListener connection = mock(ClientPacketListener.class);
         when(level.registryAccess()).thenReturn(RegistryAccess.EMPTY);
         when(level.getEntity(-100)).thenReturn(mock(Entity.class));
+        when(connection.getLevel()).thenReturn(level);
         ClientLevelScene scene = new ClientLevelScene(level, () -> connection);
         UUID projection = UUID.randomUUID();
         EntitySnapshot player = visual(UUID.randomUUID(), "minecraft:player", 1);
@@ -128,12 +133,54 @@ public class ClientProjectedEntityIdentityTest extends MinecraftTestBase {
         ClientLevel level = mock(ClientLevel.class);
         ClientPacketListener connection = mock(ClientPacketListener.class);
         when(level.registryAccess()).thenReturn(RegistryAccess.EMPTY);
+        when(connection.getLevel()).thenReturn(level);
         ClientLevelScene scene = new ClientLevelScene(level, () -> connection);
         UUID projection = UUID.randomUUID();
         assertFalse(scene.spawn(-100, projection, visual(UUID.randomUUID(), "minecraft:player", 1)));
         ArgumentCaptor<ClientboundPlayerInfoRemovePacket> remove = ArgumentCaptor.forClass(ClientboundPlayerInfoRemovePacket.class);
         verify(connection).handlePlayerInfoRemove(remove.capture());
         assertEquals(List.of(projection), remove.getValue().profileIds());
+    }
+
+    @Test
+    public void staleCopyHoldingTheProjectionIdentityLeavesTheLevelBeforeTheNewCopyIsAdded() {
+        ClientLevel level = mock(ClientLevel.class);
+        ClientPacketListener connection = mock(ClientPacketListener.class);
+        when(level.registryAccess()).thenReturn(RegistryAccess.EMPTY);
+        when(connection.getLevel()).thenReturn(level);
+        UUID projection = UUID.randomUUID();
+        Entity stale = mock(Entity.class);
+        when(stale.getId()).thenReturn(ClientEntityIds.PROJECTED_MAX);
+        when(level.getEntity(projection)).thenReturn(stale);
+        when(level.getEntity(ClientEntityIds.PROJECTED_MAX)).thenReturn(stale);
+        when(level.getEntity(ClientEntityIds.PROJECTED_MAX - 1)).thenReturn(mock(Entity.class));
+        ClientLevelScene scene = new ClientLevelScene(level, () -> connection);
+        assertTrue(scene.spawn(ClientEntityIds.PROJECTED_MAX - 1, projection, visual(UUID.randomUUID(), "minecraft:pig", 1)));
+        InOrder order = inOrder(level, connection);
+        order.verify(level).removeEntity(ClientEntityIds.PROJECTED_MAX, Entity.RemovalReason.DISCARDED);
+        order.verify(connection).handleAddEntity(any(ClientboundAddEntityPacket.class));
+    }
+
+    @Test
+    public void identityHeldByARealEntityOrAConnectionInAnotherLevelRefusesTheSpawnWithoutAddingAnything() {
+        ClientLevel level = mock(ClientLevel.class);
+        ClientPacketListener connection = mock(ClientPacketListener.class);
+        when(level.registryAccess()).thenReturn(RegistryAccess.EMPTY);
+        when(connection.getLevel()).thenReturn(level);
+        UUID projection = UUID.randomUUID();
+        Entity real = mock(Entity.class);
+        when(real.getId()).thenReturn(12);
+        when(level.getEntity(projection)).thenReturn(real);
+        ClientLevelScene scene = new ClientLevelScene(level, () -> connection);
+        assertFalse(scene.spawn(ClientEntityIds.PROJECTED_MAX, projection, visual(UUID.randomUUID(), "minecraft:player", 1)));
+        verify(connection, never()).handleAddEntity(any(ClientboundAddEntityPacket.class));
+        verify(connection, never()).handlePlayerInfoUpdate(any(ClientboundPlayerInfoUpdatePacket.class));
+        verify(level, never()).removeEntity(anyInt(), any(Entity.RemovalReason.class));
+        ClientPacketListener elsewhere = mock(ClientPacketListener.class);
+        when(elsewhere.getLevel()).thenReturn(mock(ClientLevel.class));
+        ClientLevelScene switched = new ClientLevelScene(level, () -> elsewhere);
+        assertFalse(switched.spawn(ClientEntityIds.PROJECTED_MAX, UUID.randomUUID(), visual(UUID.randomUUID(), "minecraft:pig", 1)));
+        verify(elsewhere, never()).handleAddEntity(any(ClientboundAddEntityPacket.class));
     }
 
     private static EntitySnapshot visual(UUID id, String type, int revision) {
