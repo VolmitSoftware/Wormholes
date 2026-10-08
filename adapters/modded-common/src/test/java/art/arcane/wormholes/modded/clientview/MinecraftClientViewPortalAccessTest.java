@@ -38,6 +38,7 @@ import art.arcane.optics.claim.BlockClaim;
 import art.arcane.optics.view.WorldChangeTracker;
 import art.arcane.optics.recursion.RecursiveEndpoints;
 import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.shape.ShapeDescriptor;
 import art.arcane.optics.plate.ViewPlateBuilder;
 import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.plate.PlateCaptureJob;
@@ -334,6 +335,22 @@ public class MinecraftClientViewPortalAccessTest extends MinecraftTestBase {
         } finally {
             FidelitySettings.sharedPlate = shared;
         }
+    }
+
+    @Test
+    public void geometryCarriesTheApertureShapeAndBothRevisionsMixIt() {
+        Fixture fixture = fixture(PortalType.PORTAL);
+        MinecraftClientViewPortalAccess portals = new MinecraftClientViewPortalAccess(fixture.runtime());
+        SessionPalette palette = new SessionPalette();
+        UUID id = fixture.source().getId();
+        long full = portals.geometryRevision(fixture.peer(), id);
+        long effect = portals.effectGeometryRevision(fixture.peer(), id);
+        assertEquals(ShapeDescriptor.FULL, portals.geometry(fixture.peer(), id, palette).shape());
+        when(fixture.source().getApertureShape()).thenReturn(ShapeDescriptor.parse("circle"));
+        assertNotEquals(full, portals.geometryRevision(fixture.peer(), id));
+        assertNotEquals(effect, portals.effectGeometryRevision(fixture.peer(), id));
+        assertEquals(ShapeDescriptor.parse("circle"), portals.geometry(fixture.peer(), id, palette).shape());
+        assertEquals(ShapeDescriptor.parse("circle"), portals.effectGeometry(fixture.peer(), id, palette).shape());
     }
 
     @Test
@@ -651,6 +668,7 @@ public class MinecraftClientViewPortalAccessTest extends MinecraftTestBase {
         geometry.setArea(new Box(x, x + 2.999D, 64.0D, 66.999D, 0.0D, 0.999D));
         when(portal.getId()).thenReturn(UUID.randomUUID());
         when(portal.getGeometry()).thenReturn(geometry);
+        when(portal.getApertureShape()).thenReturn(ShapeDescriptor.FULL);
         when(portal.getFrame()).thenReturn(Frame.canonical(Face.S));
         when(portal.getOrigin()).thenReturn(new Vec3d(x + 1.5D, 65.5D, 0.5D));
         when(portal.frame()).thenCallRealMethod();

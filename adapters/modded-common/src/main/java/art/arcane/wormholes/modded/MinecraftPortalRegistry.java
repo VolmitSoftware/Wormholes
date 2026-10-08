@@ -128,7 +128,7 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
         runtime.requireServerThread();
         String worldKey = level.dimension().identifier().toString();
         for (MinecraftPortal portal : portals.values()) {
-            if (worldKey.equals(portal.getWorldKey()) && portal.getGeometry().containsBlock(position.getX(), position.getY(), position.getZ())) {
+            if (worldKey.equals(portal.getWorldKey()) && portal.getBuiltGeometry().containsBlock(position.getX(), position.getY(), position.getZ())) {
                 return portal;
             }
         }
@@ -343,7 +343,7 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
                 boolean retained = deferred != null && deferred.source() == source && retainedCrossing(deferred, now) && deferred.crossing().frame().getNormal().x() * (detectEnd.x() - source.getOrigin().x())
                         + deferred.crossing().frame().getNormal().y() * (detectEnd.y() - source.getOrigin().y())
                         + deferred.crossing().frame().getNormal().z() * (detectEnd.z() - source.getOrigin().z()) <= 0.0D;
-                if (!retained && (intersection == null || !source.getGeometry().contains(intersection))) {
+                if (!retained && (intersection == null || !source.admits(intersection, lift.y() > 0.0D ? 0.0D : root.getEyeHeight()))) {
                     continue;
                 }
                 Arrival arrival = arrivals.get(root.getUUID());

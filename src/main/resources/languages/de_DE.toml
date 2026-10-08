@@ -25,6 +25,7 @@
 #   {block}  Ausgewähltes Blockmaterial
 #   {blocks}  Vom Neubau betroffene platzierte Blöcke
 #   {cancel}  Abbruchwort für die Chateingabe
+#   {cells}  Anzahl offener Zellen der Portalöffnung
 #   {code}  Einladungscode für Server oder Portal
 #   {color}  Ausgewählte Anzeigefarbe
 #   {command}  Befehlspfad
@@ -97,6 +98,7 @@
 #   {section}  Bereich des Spracheditors
 #   {send}  Sendestatus der Projektion
 #   {server}  Servername oder -kennung
+#   {shape}  Form der Portalöffnung
 #   {size}  Taschenraumgröße in Blöcken
 #   {skin}  Ausgewähltes Portaldesign
 #   {skipped}  Anzahl übersprungener Aktionen
@@ -503,6 +505,12 @@ destination = ["&6&lZiel&r", "&7Wähle ein Portal zum Verknüpfen.", "&7Aktuell 
 "destination.empty" = ["&7Keine Ziele zum Verknüpfen verfügbar."]
 render_mode = ["&b&lRender-Modus &f&l{mode}&r", "&7Wie viel vom Zielvolumen dieses Portal projiziert.", "", "&7Modus: &f{mode}", "", "&8PanOptic rendert das gesamte Zielvolumen.", "&8Venticular blendet Geometrie hinter sichtbaren undurchsichtigen Flächen aus.", "", "&8Links: Modus wechseln."]
 ambient_particles = ["&b&lUmgebungspartikel&r", "&7Dekorativer Staub, der um dieses Portal schwebt.", "", "&7Stil: &f{style} &8({color})", "", "&8Links: Stil wechseln.", "&8Rechts: Farbe wählen."]
+aperture_shape = ["&b&lÖffnungsform&r", "&7Der Umriss der Öffnung innerhalb des Rahmens.", "", "&7Form: &f{shape}", "&7Offene Zellen: &f{cells}", "", "&8Links: nächste Form.", "&8Rechts: um 45 Grad drehen.", "&8Umschalttaste + Rechts: auf full zurücksetzen."]
+"aperture_shape.label" = "Öffnungsform"
+"aperture_shape.too_small" = "&c{shape} lässt in diesem Rahmen keine offene Zelle übrig."
+"aperture_shape.invalid" = "&8[&6Wormholes&8] &cDie Form konnte nicht gelesen werden: {reason}"
+"aperture_shape.current" = "&8[&6Wormholes&8] &f{portal}&7: Öffnungsform &f{shape}&7 ({cells} offene Zellen)"
+"aperture_shape.set" = "&8[&6Wormholes&8] &f{portal}&a: Öffnungsform auf &f{shape}&a gesetzt ({cells} offene Zellen)."
 surface_skin = ["&b&lOberflächen-Skin&r", "&7Bedecke die Portalöffnung mit einer gerenderten Block- oder Flüssigkeitsfläche.", "", "&7Skin: &f{skin}", "", "&8Links: Skin entfernen.", "&8Rechts: Skin-Optionen öffnen."]
 "surface_skin.placard" = ["&6&lOberflächen-Skin&r", "&7Rechtsklicke das Portal mit einem Block oder Eimer, um einen Skin anzuwenden.", "", "&7Skin: &f{skin}"]
 "surface_skin.glass" = ["&b&lGlas-Skin&r", "&7Ein klares Glasfenster über der Öffnung.", "", "&8Zum Anwenden von Glas klicken."]
@@ -1517,6 +1525,9 @@ portals = "Portale auflisten, ansehen und in Menge bearbeiten"
 "portals.rename_server.old" = "Servername, der heute in den Verknuepfungen steht"
 "portals.rename_server.new" = "Stattdessen zu speichernder Servername"
 "portals.rename_server.confirm" = "Noetig, um die Verknuepfungen umzuschreiben"
+"portals.shape" = "Die Oeffnungsform eines Portals anzeigen oder festlegen"
+"portals.shape.portal" = "Portalname oder Id"
+"portals.shape.shape" = "Formtext wie circle, flower(petals=7) oder full; leer zeigt die aktuelle Form"
 # ---- end lane:ops ----
 
 # ---- lane:clientview (clientview.*) ----

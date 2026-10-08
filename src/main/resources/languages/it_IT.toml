@@ -25,6 +25,7 @@
 #   {block}  Materiale del blocco selezionato
 #   {blocks}  Blocchi posizionati interessati dalla ricostruzione
 #   {cancel}  Parola per annullare l’inserimento in chat
+#   {cells}  Numero di celle aperte dell’apertura
 #   {code}  Codice d’invito del server o del portale
 #   {color}  Colore di visualizzazione selezionato
 #   {command}  Percorso del comando
@@ -97,6 +98,7 @@
 #   {section}  Sezione dell’editor delle lingue
 #   {send}  Stato di invio della proiezione
 #   {server}  Nome o identificatore del server
+#   {shape}  Forma dell’apertura del portale
 #   {size}  Dimensione dello spazio tascabile in blocchi
 #   {skin}  Aspetto del portale selezionato
 #   {skipped}  Numero di operazioni saltate
@@ -503,6 +505,12 @@ destination = ["&6&lDestinazione&r", "&7Scegli un portale da collegare.", "&7Col
 "destination.empty" = ["&7Nessuna destinazione disponibile da collegare."]
 render_mode = ["&b&lModalità di rendering &f&l{mode}&r", "&7Quanto del volume di destinazione proietta questo portale.", "", "&7Modalità: &f{mode}", "", "&8PanOptic renderizza l'intero volume di destinazione.", "&8Venticular nasconde la geometria dietro le superfici opache visibili.", "", "&8Sinistra: cambia modalità."]
 ambient_particles = ["&b&lParticelle ambientali&r", "&7Polvere decorativa che fluttua attorno a questo portale.", "", "&7Stile: &f{style} &8({color})", "", "&8Sinistro: cambia stile.", "&8Destro: scegli un colore."]
+aperture_shape = ["&b&lForma dell'apertura&r", "&7Il contorno dell'apertura all'interno del telaio.", "", "&7Forma: &f{shape}", "&7Celle aperte: &f{cells}", "", "&8Sinistro: forma successiva.", "&8Destro: ruota di 45 gradi.", "&8Maiusc + destro: ripristina a full."]
+"aperture_shape.label" = "Forma dell'apertura"
+"aperture_shape.too_small" = "&c{shape} non lascia alcuna cella aperta in questo telaio."
+"aperture_shape.invalid" = "&8[&6Wormholes&8] &cImpossibile leggere la forma: {reason}"
+"aperture_shape.current" = "&8[&6Wormholes&8] &f{portal}&7: forma dell'apertura &f{shape}&7 ({cells} celle aperte)"
+"aperture_shape.set" = "&8[&6Wormholes&8] &f{portal}&a: forma dell'apertura impostata su &f{shape}&a ({cells} celle aperte)."
 surface_skin = ["&b&lAspetto superficie&r", "&7Copri l'apertura del portale con un pannello di blocco o fluido renderizzato.", "", "&7Aspetto: &f{skin}", "", "&8Sinistro: rimuovi l'aspetto.", "&8Destro: apri le opzioni aspetto."]
 "surface_skin.placard" = ["&6&lAspetto superficie&r", "&7Fai clic destro sul portale con un blocco o un secchio per applicare un aspetto.", "", "&7Aspetto: &f{skin}"]
 "surface_skin.glass" = ["&b&lAspetto vetro&r", "&7Una finestra di vetro trasparente sull'apertura.", "", "&8Fai clic per applicare il vetro."]
@@ -1517,6 +1525,9 @@ portals = "Elencare, ispezionare e modificare i portali in blocco"
 "portals.rename_server.old" = "Nome server oggi memorizzato nei collegamenti"
 "portals.rename_server.new" = "Nome server da memorizzare al suo posto"
 "portals.rename_server.confirm" = "Necessario per riscrivere i collegamenti"
+"portals.shape" = "Mostrare o impostare la forma dell'apertura di un portale"
+"portals.shape.portal" = "Nome o id del portale"
+"portals.shape.shape" = "Testo della forma come circle, flower(petals=7) o full; vuoto mostra la forma attuale"
 # ---- end lane:ops ----
 
 # ---- lane:clientview (clientview.*) ----

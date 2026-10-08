@@ -18,6 +18,7 @@ import art.arcane.optics.math.Face;
 import org.junit.jupiter.api.Test;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.recursion.ClientRecursionPlanner;
+import art.arcane.optics.shape.ShapeDescriptor;
 import art.arcane.wormholes.portal.ApertureKind;
 
 final class ClientRecursionPlannerTest {
@@ -152,7 +153,7 @@ final class ClientRecursionPlannerTest {
     private static ApertureDescriptor withKind(ApertureDescriptor geometry, int kind) {
         return new ApertureDescriptor(geometry.originX(), geometry.originY(), geometry.originZ(), geometry.facing(),
             geometry.frontSide(), geometry.quarterTurns(), geometry.mirror(), geometry.apertureWidth(), geometry.apertureHeight(),
-            geometry.apertureMask(), geometry.nearPlanePadding(), geometry.aperturePadding(), geometry.frustumCullingRatio(),
+            geometry.apertureMask(), ShapeDescriptor.FULL, geometry.nearPlanePadding(), geometry.aperturePadding(), geometry.frustumCullingRatio(),
             geometry.depthBlocks(), geometry.recursionDepth(), geometry.blackoutPolicy(), geometry.blackoutState(),
             geometry.maskAirPolicy(), geometry.lightingPolicy(), geometry.fidelityFlags(), kind,
             kind == ApertureKind.DOOR ? DoorwayPlane.planeOffset(geometry.facingDirection()) : 0.0D, geometry.parentPortalKey(),
@@ -169,6 +170,6 @@ final class ClientRecursionPlannerTest {
         aperture.setArea(new Box(x, x + 0.999D, 64.0D, 66.999D, z - 1.0D, z + 1.999D));
         return ApertureDescriptor.fromPortal(new ApertureDescriptor.Source(aperture, Frame.canonical(Face.E), frontSide, mirror, 0,
             2.0D, 0.75D, 0.2D, 32, recursionDepth, ApertureDescriptor.BLACKOUT_OFF, 0, ApertureDescriptor.MASK_AIR_PROJECT,
-            BlockClaim.LightingPolicy.SOURCE, 0, ApertureKind.FRAME, 0.0D, 0, 0L, nested)).orElseThrow();
+            BlockClaim.LightingPolicy.SOURCE, 0, ApertureKind.FRAME, 0.0D, 0, 0L, ShapeDescriptor.FULL, nested)).orElseThrow();
     }
 }

@@ -15,6 +15,7 @@ import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.AxisPermutation;
+import art.arcane.optics.shape.ShapeDescriptor;
 import it.unimi.dsi.fastutil.longs.LongLinkedOpenHashSet;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.LongSet;
@@ -607,7 +608,7 @@ public class ClientLocalMeshSourcesTest extends MinecraftTestBase {
 
         private void add(int key) throws Exception {
             ApertureDescriptor geometry = new ApertureDescriptor(0, 0, 0, Face.S.ordinal(), true, 0, true, 1, 1,
-                new long[] {1}, 0, 0, 0, 16, 0, 0, 0, 0, 0, 0, 0, 0.0D, 0, key, List.of());
+                new long[] {1}, ShapeDescriptor.FULL, 0, 0, 0, 16, 0, 0, 0, 0, 0, 0, 0, 0.0D, 0, key, List.of());
             session.handle(new ViewStreamMessage.Portal(key, 1, geometry), sink);
             session.handle(new ViewStreamMessage.MeshBegin(key, 1, BOUNDS, 1), sink);
             session.handle(new ViewStreamMessage.Environment(key, PortalEnvironmentTest.environment(PortalEnvironmentTest.identity())), sink);

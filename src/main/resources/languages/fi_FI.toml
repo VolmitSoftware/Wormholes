@@ -25,6 +25,7 @@
 #   {block}  Valittu lohkomateriaali
 #   {blocks}  Uudelleenrakennukseen kuuluvat asetetut lohkot
 #   {cancel}  Chat-syötteen peruutussana
+#   {cells}  Aukon avointen solujen määrä
 #   {code}  Palvelimen tai portaalin kutsukoodi
 #   {color}  Valittu näyttöväri
 #   {command}  Komentopolku
@@ -97,6 +98,7 @@
 #   {section}  Kielieditorin osio
 #   {send}  Heijastuksen lähetystila
 #   {server}  Palvelimen nimi tai tunniste
+#   {shape}  Portaalin aukon muoto
 #   {size}  Taskutilan koko lohkoina
 #   {skin}  Portaalin valittu ulkoasu
 #   {skipped}  Ohitettujen toimintojen määrä
@@ -468,6 +470,12 @@ destination = ["&6&lKohde&r", "&7Valitse portaali, johon linkitetään.", "&7Nyk
 "destination.empty" = ["&7Ei linkitettäviä kohteita saatavilla."]
 render_mode = ["&b&lRenderöintitila &f&l{mode}&r", "&7Kuinka suuren osan kohdetilavuudesta tämä portaali projisoi.", "", "&7Tila: &f{mode}", "", "&8PanOptic renderöi koko kohdetilavuuden.", "&8Venticular piilottaa näkyvien läpinäkymättömien pintojen takana olevan geometrian.", "", "&8Vasen: vaihda tilaa."]
 ambient_particles = ["&b&lYmpäristöhiukkaset&r", "&7Koristeellista pölyä, joka leijuu tämän portaalin ympärillä.", "", "&7Tyyli: &f{style} &8({color})", "", "&8Vasen: vaihda tyyliä.", "&8Oikea: valitse väri."]
+aperture_shape = ["&b&lAukon muoto&r", "&7Kehyksen sisällä olevan aukon ääriviiva.", "", "&7Muoto: &f{shape}", "&7Avoimet solut: &f{cells}", "", "&8Vasen: seuraava muoto.", "&8Oikea: kierrä 45 astetta.", "&8Shift + oikea: palauta muotoon full."]
+"aperture_shape.label" = "Aukon muoto"
+"aperture_shape.too_small" = "&c{shape} ei jätä tähän kehykseen yhtään avointa solua."
+"aperture_shape.invalid" = "&8[&6Wormholes&8] &cMuotoa ei voitu lukea: {reason}"
+"aperture_shape.current" = "&8[&6Wormholes&8] &f{portal}&7: aukon muoto &f{shape}&7 ({cells} avointa solua)"
+"aperture_shape.set" = "&8[&6Wormholes&8] &f{portal}&a: aukon muodoksi asetettiin &f{shape}&a ({cells} avointa solua)."
 surface_skin = ["&b&lPinnan ulkoasu&r", "&7Peitä portaalin aukko renderöidyllä lohko- tai nestepaneelilla.", "", "&7Ulkoasu: &f{skin}", "", "&8Vasen: poista ulkoasu.", "&8Oikea: avaa ulkoasun asetukset."]
 "surface_skin.placard" = ["&6&lPinnan ulkoasu&r", "&7Napsauta portaalia hiiren oikealla lohkolla tai ämpärillä ottaaksesi ulkoasun käyttöön.", "", "&7Ulkoasu: &f{skin}"]
 "surface_skin.glass" = ["&b&lLasi-ulkoasu&r", "&7Kirkas lasi-ikkuna aukon päällä.", "", "&8Napsauta ottaaksesi lasin käyttöön."]
@@ -1517,6 +1525,9 @@ portals = "Listaa, tarkastele ja muokkaa portaaleja joukolla"
 "portals.rename_server.old" = "Linkeissa nyt oleva palvelinnimi"
 "portals.rename_server.new" = "Tilalle tallennettava palvelinnimi"
 "portals.rename_server.confirm" = "Vaaditaan linkkien uudelleenkirjoittamiseen"
+"portals.shape" = "Nayta tai aseta portaalin aukon muoto"
+"portals.shape.portal" = "Portaalin nimi tai tunnus"
+"portals.shape.shape" = "Muototeksti, esimerkiksi circle, flower(petals=7) tai full; tyhja nayttaa nykyisen muodon"
 # ---- end lane:ops ----
 
 # ---- lane:clientview (clientview.*) ----

@@ -25,6 +25,7 @@
 #   {block}  선택한 블록 재료
 #   {blocks}  재건축에 영향을 받는 설치된 블록 수
 #   {cancel}  채팅 입력 취소 단어
+#   {cells}  입구의 열린 칸 수
 #   {code}  서버 또는 포털 초대 코드
 #   {color}  선택한 표시 색상
 #   {command}  명령 경로
@@ -97,6 +98,7 @@
 #   {section}  언어 편집기 섹션
 #   {send}  투영 송신 상태
 #   {server}  서버 이름 또는 식별자
+#   {shape}  포털 입구 모양
 #   {size}  포켓 크기(블록)
 #   {skin}  선택한 포털 스킨
 #   {skipped}  건너뛴 작업 수
@@ -503,6 +505,12 @@ destination = ["&6&l목적지&r", "&7연결할 포털을 선택합니다.", "&7�
 "destination.empty" = ["&7연결할 수 있는 목적지가 없습니다."]
 render_mode = ["&b&l렌더링 모드 &f&l{mode}&r", "&7이 포털이 투영하는 대상 볼륨의 범위.", "", "&7모드: &f{mode}", "", "&8PanOptic은 전체 대상 볼륨을 렌더링합니다.", "&8Venticular은 보이는 불투명 표면 뒤의 지오메트리를 생략합니다.", "", "&8좌클릭: 모드 전환."]
 ambient_particles = ["&b&l환경 파티클&r", "&7이 포털 주위를 떠다니는 장식용 먼지.", "", "&7스타일: &f{style} &8({color})", "", "&8왼쪽: 스타일 전환.", "&8오른쪽: 색상 선택."]
+aperture_shape = ["&b&l입구 모양&r", "&7프레임 안쪽 입구의 윤곽.", "", "&7모양: &f{shape}", "&7열린 칸: &f{cells}", "", "&8왼쪽: 다음 모양.", "&8오른쪽: 45도 회전.", "&8Shift + 오른쪽: full로 초기화."]
+"aperture_shape.label" = "입구 모양"
+"aperture_shape.too_small" = "&c{shape} 모양으로는 이 프레임에 열린 칸이 남지 않습니다."
+"aperture_shape.invalid" = "&8[&6Wormholes&8] &c모양을 읽을 수 없습니다: {reason}"
+"aperture_shape.current" = "&8[&6Wormholes&8] &f{portal}&7 입구 모양: &f{shape}&7 (열린 칸 {cells}개)"
+"aperture_shape.set" = "&8[&6Wormholes&8] &f{portal}&a 입구 모양을 &f{shape}&a(으)로 설정했습니다 (열린 칸 {cells}개)."
 surface_skin = ["&b&l표면 스킨&r", "&7렌더링된 블록 또는 유체 패널로 포털 입구를 덮습니다.", "", "&7스킨: &f{skin}", "", "&8왼쪽: 스킨 제거.", "&8오른쪽: 스킨 옵션 열기."]
 "surface_skin.placard" = ["&6&l표면 스킨&r", "&7블록이나 양동이를 들고 포털을 우클릭하여 스킨을 적용합니다.", "", "&7스킨: &f{skin}"]
 "surface_skin.glass" = ["&b&l유리 스킨&r", "&7입구를 덮는 투명한 유리창.", "", "&8클릭하여 유리를 적용합니다."]
@@ -1517,6 +1525,9 @@ portals = "포털 나열, 확인, 일괄 편집"
 "portals.rename_server.old" = "현재 연결에 저장된 서버 이름"
 "portals.rename_server.new" = "대신 저장할 서버 이름"
 "portals.rename_server.confirm" = "연결을 다시 쓰려면 필요"
+"portals.shape" = "포털 입구 모양을 표시하거나 설정"
+"portals.shape.portal" = "포털 이름 또는 식별자"
+"portals.shape.shape" = "circle, flower(petals=7), full 같은 모양 텍스트. 비우면 현재 모양을 표시"
 # ---- end lane:ops ----
 
 # ---- lane:clientview (clientview.*) ----

@@ -82,17 +82,17 @@ public final class AmbientOutlineGeometryTest
 		ApertureCells structure = new ApertureCells();
         structure.setBlocks(List.of(new Vec3d(0, 0, 0), new Vec3d(1, 0, 0)));
 
-		List<double[]> first = geometry.points(7L, Axis.Z, structure);
-		List<double[]> repeated = geometry.points(7L, Axis.Z, structure);
+		List<double[]> first = geometry.points(7L, Axis.Z, structure, null);
+		List<double[]> repeated = geometry.points(7L, Axis.Z, structure, null);
 		assertSame(first, repeated);
 
-		List<double[]> reoriented = geometry.points(7L, Axis.Y, structure);
+		List<double[]> reoriented = geometry.points(7L, Axis.Y, structure, null);
 		assertNotSame(first, reoriented);
 
-		List<double[]> revised = geometry.points(8L, Axis.Y, structure);
+		List<double[]> revised = geometry.points(8L, Axis.Y, structure, null);
 		assertNotSame(reoriented, revised);
 
-		List<double[]> revisedRepeated = geometry.points(8L, Axis.Y, structure);
+		List<double[]> revisedRepeated = geometry.points(8L, Axis.Y, structure, null);
 		assertSame(revised, revisedRepeated);
 
 		assertFalse(revised.isEmpty());
@@ -106,10 +106,10 @@ public final class AmbientOutlineGeometryTest
         first.setBlocks(List.of(new Vec3d(-4, -5, -6)));
         second.setBlocks(List.of(new Vec3d(20, 30, 40)));
         assertEquals(first.getRevision(), second.getRevision());
-        List<double[]> original = cache.points(first.getRevision(), Axis.Z, first);
-        List<double[]> replacement = cache.points(second.getRevision(), Axis.Z, second);
+        List<double[]> original = cache.points(first.getRevision(), Axis.Z, first, null);
+        List<double[]> replacement = cache.points(second.getRevision(), Axis.Z, second, null);
         assertNotSame(original, replacement);
-        assertSame(replacement, cache.points(second.getRevision(), Axis.Z, second));
+        assertSame(replacement, cache.points(second.getRevision(), Axis.Z, second, null));
         for (double[] point : replacement) {
             assertEquals(40.5D, point[2], EPSILON);
         }

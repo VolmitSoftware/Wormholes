@@ -25,6 +25,7 @@
 #   {block}  所選方塊材質
 #   {blocks}  重建影響的已放置方塊數量
 #   {cancel}  取消聊天輸入的詞語
+#   {cells}  開口中的開放格數
 #   {code}  伺服器或傳送門邀請碼
 #   {color}  所選顯示顏色
 #   {command}  指令路徑
@@ -97,6 +98,7 @@
 #   {section}  語言編輯器區段
 #   {send}  投影傳送狀態
 #   {server}  伺服器名稱或識別碼
+#   {shape}  傳送門開口形狀
 #   {size}  口袋空間大小（方塊）
 #   {skin}  所選傳送門外觀
 #   {skipped}  已略過操作數量
@@ -503,6 +505,12 @@ destination = ["&6&l目的地&r", "&7選擇要連結的傳送門。", "&7目前�
 "destination.empty" = ["&7沒有可連結的目的地。"]
 render_mode = ["&b&l渲染模式 &f&l{mode}&r", "&7此傳送門投影目標區域的多少體積。", "", "&7模式: &f{mode}", "", "&8PanOptic 渲染完整的目標區域體積。", "&8Venticular 隱藏可見不透明表面後方的幾何體。", "", "&8左鍵: 切換模式。"]
 ambient_particles = ["&b&l環境粒子&r", "&7在此傳送門周圍漂浮的裝飾性塵埃。", "", "&7樣式：&f{style} &8({color})", "", "&8左鍵：切換樣式。", "&8右鍵：選擇顏色。"]
+aperture_shape = ["&b&l開口形狀&r", "&7框架內開口的輪廓。", "", "&7形狀：&f{shape}", "&7開放格數：&f{cells}", "", "&8左鍵：下一個形狀。", "&8右鍵：旋轉 45 度。", "&8Shift + 右鍵：重設為 full。"]
+"aperture_shape.label" = "開口形狀"
+"aperture_shape.too_small" = "&c{shape} 在此框架中沒有留下任何開放格。"
+"aperture_shape.invalid" = "&8[&6Wormholes&8] &c無法讀取形狀：{reason}"
+"aperture_shape.current" = "&8[&6Wormholes&8] &f{portal}&7 的開口形狀：&f{shape}&7（{cells} 個開放格）"
+"aperture_shape.set" = "&8[&6Wormholes&8] &f{portal}&a 的開口形狀已設為 &f{shape}&a（{cells} 個開放格）。"
 surface_skin = ["&b&l表面外觀&r", "&7以算繪的方塊或流體面板覆蓋傳送門開口。", "", "&7外觀：&f{skin}", "", "&8左鍵：清除外觀。", "&8右鍵：開啟外觀選項。"]
 "surface_skin.placard" = ["&6&l表面外觀&r", "&7手持方塊或桶右鍵點擊傳送門以套用外觀。", "", "&7外觀：&f{skin}"]
 "surface_skin.glass" = ["&b&l玻璃外觀&r", "&7覆蓋開口的透明玻璃窗。", "", "&8點擊以套用玻璃。"]
@@ -1517,6 +1525,9 @@ portals = "列出、檢視並批次編輯傳送門"
 "portals.rename_server.old" = "連結中目前儲存的伺服器名稱"
 "portals.rename_server.new" = "要改存的伺服器名稱"
 "portals.rename_server.confirm" = "改寫連結所必需"
+"portals.shape" = "顯示或設定傳送門的開口形狀"
+"portals.shape.portal" = "傳送門名稱或 id"
+"portals.shape.shape" = "形狀文字，例如 circle、flower(petals=7) 或 full；留空則顯示目前形狀"
 # ---- end lane:ops ----
 
 # ---- lane:clientview (clientview.*) ----

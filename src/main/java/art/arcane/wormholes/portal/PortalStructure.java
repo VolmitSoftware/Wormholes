@@ -15,6 +15,8 @@ import java.util.ArrayList;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.util.Vector;
 
 import art.arcane.wormholes.Settings;
@@ -27,12 +29,18 @@ import art.arcane.volmlib.util.collection.KSet;
 import art.arcane.volmlib.util.bukkit.WorldIdentity;
 import art.arcane.volmlib.util.json.JSONObject;
 import art.arcane.optics.aperture.ApertureCells;
+import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.aperture.CellAperture;
+import art.arcane.optics.frame.Frame;
+import art.arcane.optics.shape.ShapeDescriptor;
 
 public class PortalStructure implements IWritable, CellAperture
 {
 	private Box captureZone;
+	private final ApertureCells built = new ApertureCells();
 	private final ApertureCells geometry = new ApertureCells();
+	private volatile ShapedAperture shaped;
+	private Frame orientation;
 	private Box box;
 	private World world;
 	private KMap<Face, Box> faceCache = new KMap<>();
@@ -46,7 +54,7 @@ public class PortalStructure implements IWritable, CellAperture
 	@Override
 	public void saveJSON(JSONObject j)
 	{
-        JSONObject encoded = new JSONObject(PortalStateCodec.writeGeometry(WorldIdentity.serialize(world), geometry));
+        JSONObject encoded = new JSONObject(PortalStateCodec.writeGeometry(WorldIdentity.serialize(world), built));
         for(String key : encoded.keySet()) {
             j.put(key, encoded.get(key));
         }
@@ -56,7 +64,8 @@ public class PortalStructure implements IWritable, CellAperture
 	public void loadJSON(JSONObject j)
 	{
         setWorld(WorldIdentity.resolve(j.getString("worldKey")).orElse(null));
-        PortalStateCodec.readGeometry(BukkitJsonDocuments.values(j), geometry);
+        PortalStateCodec.readGeometry(BukkitJsonDocuments.values(j), built);
+		rebuildEffective();
 		rebuildCaptureZone();
 		invalidateCache();
 	}
@@ -92,7 +101,7 @@ public class PortalStructure implements IWritable, CellAperture
 		Location cached = centerCache;
 		if(cached == null)
 		{
-			Vec3d center = geometry.getApertureCenter();
+			Vec3d center = built.getApertureCenter();
 			cached = new Location(getWorld(), center.x(), center.y(), center.z());
 			centerCache = cached;
 		}
@@ -102,7 +111,7 @@ public class PortalStructure implements IWritable, CellAperture
 	@Override
 	public Vec3d getApertureCenter()
 	{
-		return geometry.getApertureCenter();
+		return built.getApertureCenter();
 	}
 
 	public Location randomCellCentre()
@@ -163,7 +172,8 @@ public class PortalStructure implements IWritable, CellAperture
 
 	public void setArea(Cuboid area)
 	{
-		geometry.setArea(BukkitGeometry.bounds(area));
+		built.setArea(BukkitGeometry.bounds(area));
+		rebuildEffective();
 		rebuildCaptureZone();
 		invalidateCache();
 	}
@@ -180,7 +190,8 @@ public class PortalStructure implements IWritable, CellAperture
         }
         if(cells.isEmpty()) { return; }
         setWorld(blockWorld);
-        geometry.setBlocks(cells);
+        built.setBlocks(cells);
+        rebuildEffective();
         rebuildCaptureZone();
         invalidateCache();
 	}
@@ -197,7 +208,70 @@ public class PortalStructure implements IWritable, CellAperture
 			return false;
 		}
 
-		return containsBlock(location.getBlockX(), location.getBlockY(), location.getBlockZ());
+		ShapedAperture current = shaped;
+		return current == null
+				? containsBlock(location.getBlockX(), location.getBlockY(), location.getBlockZ())
+				: current.contains(location.getX(), location.getY(), location.getZ());
+	}
+
+	public boolean admits(Location intersection, Entity traveller)
+	{
+		ShapedAperture current = shaped;
+		if(current == null)
+		{
+			return contains(intersection);
+		}
+		if(intersection == null || getWorld() != null && intersection.getWorld() != null && !getWorld().equals(intersection.getWorld()))
+		{
+			return false;
+		}
+		return current.admits(intersection.getX(), intersection.getY(), intersection.getZ(), eyeHeight(traveller));
+	}
+
+	public ShapeDescriptor getApertureShape()
+	{
+		ShapedAperture current = shaped;
+		return current == null ? ShapeDescriptor.FULL : current.shape();
+	}
+
+	public boolean setApertureShape(ShapeDescriptor shape, Frame frame)
+	{
+		ShapeDescriptor requested = shape == null ? ShapeDescriptor.FULL : shape;
+		if(requested.isFull())
+		{
+			orientation = frame;
+			shaped = null;
+			restoreEffective(built.getBlockPositions());
+			return true;
+		}
+		ShapedAperture candidate = frame == null || built.getArea() == null ? null : ShapedAperture.of(built, frame, requested);
+		if(candidate == null)
+		{
+			return false;
+		}
+		orientation = frame;
+		shaped = candidate;
+		restoreEffective(candidate.cells());
+		return true;
+	}
+
+	public void orient(Frame frame)
+	{
+		if(frame == null || frame.equals(orientation))
+		{
+			return;
+		}
+		orientation = frame;
+		if(shaped != null)
+		{
+			rebuildEffective();
+		}
+	}
+
+	public ApertureDescriptor shapeOutline()
+	{
+		ShapedAperture current = shaped;
+		return current == null ? null : current.outline();
 	}
 
 	public boolean containsBlock(int x, int y, int z)
@@ -207,7 +281,7 @@ public class PortalStructure implements IWritable, CellAperture
 
 	public boolean containsOrAdjoinsBlock(int x, int y, int z)
 	{
-        return geometry.containsOrAdjoinsBlock(x, y, z);
+        return built.containsOrAdjoinsBlock(x, y, z);
 	}
 
 	public KList<Vector> getBlockPositions()
@@ -228,6 +302,25 @@ public class PortalStructure implements IWritable, CellAperture
 	public boolean isFullCuboid()
 	{
         return geometry.isFullCuboid();
+	}
+
+	private static double eyeHeight(Entity traveller)
+	{
+		return traveller instanceof LivingEntity living ? living.getEyeHeight() : traveller.getHeight() * 0.5D;
+	}
+
+	private void rebuildEffective()
+	{
+		ShapedAperture current = shaped;
+		if(current == null || !setApertureShape(current.shape(), orientation))
+		{
+			setApertureShape(ShapeDescriptor.FULL, orientation);
+		}
+	}
+
+	private void restoreEffective(List<Vec3d> cells)
+	{
+		geometry.restore(built.getArea(), cells);
 	}
 
 	private void invalidateCache()

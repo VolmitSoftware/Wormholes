@@ -12,6 +12,7 @@ import art.arcane.wormholes.network.client.ClientTravelWindow;
 import art.arcane.wormholes.network.client.ClientViewExtensions;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.shape.ShapeDescriptor;
 import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.client.Minecraft;
@@ -289,7 +290,7 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
             ClientPreparedTravel travel = ClientTravelTestFixtures.travel(ignored -> { });
             TravelMessage.TravelBegin original = begin();
             ApertureDescriptor aperture = new ApertureDescriptor(0, 0, 0, Face.N.ordinal(), true, 0, false, 2, 3,
-                new long[]{1}, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, kind, 0.0D, 0, 11, List.of());
+                new long[]{1}, ShapeDescriptor.FULL, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, kind, 0.0D, 0, 11, List.of());
             TravelMessage.TravelBegin begin = new TravelMessage.TravelBegin(original.token(), original.generation(),
                 original.sourcePortal(), original.sourceWorld(), aperture, original.destinationToSource(), original.world(),
                 original.arrival(), original.chunks(), original.environment(), original.expiresMillis(), TravelMessage.ArrivalRules.FRAME, false, 0, false);
@@ -323,7 +324,7 @@ public class ClientPreparedTravelRetentionTest extends MinecraftTestBase {
                 travel.discardManagedVanillaPortal(level, ClientTravelTestFixtures.geometry());
                 assertEquals(managed, travel.managesVanillaPortal(level, open));
                 ApertureDescriptor reverseSide = new ApertureDescriptor(0, 0, 0, Face.N.ordinal(), false, 0, false, 2, 3,
-                    new long[]{1}, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, kind, 0.0D, 0, 11, List.of());
+                    new long[]{1}, ShapeDescriptor.FULL, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, kind, 0.0D, 0, 11, List.of());
                 travel.discardManagedVanillaPortal(level, reverseSide);
                 invoke(travel, "retainActualWorlds", new Class<?>[0]);
                 assertFalse(travel.managesVanillaPortal(level, open));

@@ -16,6 +16,7 @@ import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.ViewStreamCodec;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.ViewStreamMessage;
+import art.arcane.optics.shape.ShapeDescriptor;
 import art.arcane.wormholes.portal.ApertureKind;
 
 public final class ClientViewFixtures {
@@ -79,8 +80,9 @@ public final class ClientViewFixtures {
 
     static TravelMessage.TravelBegin seamlessBegin() {
         TravelMessage.TravelBegin base = travelBegin();
-        return new TravelMessage.TravelBegin(base.token(), base.generation(), base.sourcePortal(), base.sourceWorld(), base.sourceGeometry(),
-            base.destinationToSource(), base.world(), base.arrival(), base.chunks(), base.environment(), base.expiresMillis(),
+        return new TravelMessage.TravelBegin(base.token(), base.generation(), base.sourcePortal(), base.sourceWorld(),
+            base.sourceGeometry().withShape(ShapeDescriptor.parse("circle")), base.destinationToSource(), base.world(), base.arrival(),
+            base.chunks(), base.environment(), base.expiresMillis(),
             new TravelMessage.ArrivalRules(OrientationRule.LOOK, true, new MomentumRule(MomentumRule.Mode.SCALE, 0.75D, 3.5D,
                 new Vec3d(0.0D, 0.25D, 0.0D))), true, 4, true);
     }
@@ -117,7 +119,7 @@ public final class ClientViewFixtures {
         for (int i = 0; i < open.length; i++) {
             open[i] = i != 4;
         }
-        return new ApertureDescriptor(635, 64, -4682, 3, true, 0, false, 3, 3, ApertureDescriptor.apertureMask(3, 3, open),
+        return new ApertureDescriptor(635, 64, -4682, 3, true, 0, false, 3, 3, ApertureDescriptor.apertureMask(3, 3, open), ShapeDescriptor.FULL,
             0.25F, 0.75F, 1.2F, 64, 1, 1, 6, 0, 1, ApertureDescriptor.FIDELITY_DISPLAY_ENTITIES | ApertureDescriptor.FIDELITY_WEATHER,
             ApertureKind.RTP, 0.0D, 0, 0x7A7A7A7A7A7A7A7AL, List.of());
     }

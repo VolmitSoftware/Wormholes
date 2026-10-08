@@ -202,7 +202,7 @@ final class MinecraftPortalSurfaces implements AutoCloseable {
             return;
         }
         List<double[]> points = outlines.computeIfAbsent(portal.getId(), ignored -> new AmbientOutlineGeometry())
-            .points(portal.getGeometry().getRevision(), portal.getDirection().getAxis(), portal.getGeometry());
+            .points(portal.getGeometry().getRevision(), portal.getDirection().getAxis(), portal.getGeometry(), portal.shapeOutline());
         for (int index = 0; index < Math.min(points.size(), portal.isOpen() ? 32 : 8); index++) {
             double[] point = points.get(Math.floorMod(cursor + index, points.size()));
             particle(dust, point[0], point[1], point[2]);

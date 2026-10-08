@@ -2,6 +2,7 @@ package art.arcane.wormholes.modded.client.render;
 
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.shape.ShapeDescriptor;
 import art.arcane.wormholes.portal.ApertureKind;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import net.minecraft.core.BlockPos;
@@ -53,7 +54,7 @@ public class ClientEndPortalSurfaceTest {
     private static ApertureDescriptor geometry(int kind, int parent) {
         boolean[] cells = {true, true, true, true, false, true, true, true, true};
         return new ApertureDescriptor(-1, 64, -1, Face.U.ordinal(), true, 0, false,
-            3, 3, ApertureDescriptor.apertureMask(3, 3, cells), 0, 0, 1, 64, 0,
+            3, 3, ApertureDescriptor.apertureMask(3, 3, cells), ShapeDescriptor.FULL, 0, 0, 1, 64, 0,
             0, 0, 0, 0, 0, kind, 0.0D, parent, 1, List.of());
     }
 }

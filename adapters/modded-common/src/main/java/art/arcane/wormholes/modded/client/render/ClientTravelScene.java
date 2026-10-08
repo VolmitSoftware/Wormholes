@@ -4,6 +4,7 @@ import art.arcane.optics.stream.EnvironmentState;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.frame.OpticTransform;
+import art.arcane.optics.shape.ShapeDescriptor;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -71,7 +72,7 @@ public final class ClientTravelScene implements PortalScene {
 
     private static ApertureDescriptor geometry(TravelMessage.TravelPose arrival) {
         return new ApertureDescriptor((int) Math.floor(arrival.x()), (int) Math.floor(arrival.y()),
-            (int) Math.floor(arrival.z()), Face.N.ordinal(), true, 0, false, 1, 1, new long[]{1L},
+            (int) Math.floor(arrival.z()), Face.N.ordinal(), true, 0, false, 1, 1, new long[]{1L}, ShapeDescriptor.FULL,
             0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0.0D, 0, -1L, List.of());
     }
 

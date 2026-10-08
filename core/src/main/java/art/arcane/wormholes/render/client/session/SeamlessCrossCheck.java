@@ -62,7 +62,7 @@ public final class SeamlessCrossCheck {
             return Refusal.NO_CROSSING;
         }
         Vec3d intersection = cross.previousEye().add(cross.currentEye().subtract(cross.previousEye()).multiply(before / (before - after)));
-        return geometry.aperture().contains(intersection) ? Refusal.NONE : Refusal.OUTSIDE_APERTURE;
+        return geometry.containsPoint(intersection.x(), intersection.y(), intersection.z()) ? Refusal.NONE : Refusal.OUTSIDE_APERTURE;
     }
 
     public static boolean sameSurface(ApertureDescriptor armed, ApertureDescriptor current) {
@@ -70,7 +70,7 @@ public final class SeamlessCrossCheck {
             && armed.originZ() == current.originZ() && armed.facing() == current.facing() && armed.frontSide() == current.frontSide()
             && armed.quarterTurns() == current.quarterTurns() && armed.kind() == current.kind()
             && armed.apertureWidth() == current.apertureWidth() && armed.apertureHeight() == current.apertureHeight()
-            && Arrays.equals(armed.apertureMask(), current.apertureMask());
+            && Arrays.equals(armed.apertureMask(), current.apertureMask()) && armed.shape().equals(current.shape());
     }
 
     public enum Refusal {

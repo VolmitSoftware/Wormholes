@@ -185,7 +185,8 @@ public final class MinecraftClientViewScene implements EntityScenes<MinecraftCli
         AmbientOutlineGeometry outline = outlines.computeIfAbsent(portalId, ignored -> new AmbientOutlineGeometry());
         ClientViewEmitters.ambient(new ClientViewEmitters.Ambient(portal.getAmbientStyle(), portal.getAmbientColor(), portal.isOpen(),
             FidelitySettings.ambientParticleIntervalTicks, SURFACE_CADENCE_TICKS, portal.getGeometry().getArea(),
-            outline.points(portal.getGeometry().getRevision(), portal.getDirection().getAxis(), portal.getGeometry())), emitters);
+            outline.points(portal.getGeometry().getRevision(), portal.getDirection().getAxis(), portal.getGeometry(), portal.shapeOutline())),
+            emitters);
         if (bed != null && emitters.size() < FxMessage.MAX_FX_EMITTERS) {
             emitters.add(ClientViewEmitters.sound(bed, AcousticsBridge.AMBIENT_INTERVAL_TICKS));
         }

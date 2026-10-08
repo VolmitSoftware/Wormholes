@@ -5,6 +5,7 @@ import art.arcane.optics.view.WorldChangeTracker;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.wormholes.render.client.session.ClientPreparedTravelServer;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.shape.ShapeDescriptor;
 import art.arcane.wormholes.portal.ApertureKind;
 import org.junit.jupiter.api.Test;
 
@@ -166,7 +167,7 @@ class ClientPreparedTravelCrossingTest {
     @Test
     void horizontalCameraCrossingCanFollowAnEarlierFeetCrossingInTheSameWorld() {
         ApertureDescriptor geometry = new ApertureDescriptor(0, 64, 0, Face.U.ordinal(), true, 0, false, 1, 3,
-            new long[]{7}, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, ApertureKind.FRAME, 0.0D, 0, 1, List.of());
+            new long[]{7}, ShapeDescriptor.FULL, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, ApertureKind.FRAME, 0.0D, 0, 1, List.of());
         Fixture fixture = ready(geometry, ClientViewFixtures.travelBegin().world().dimension());
         assertEquals(fixture.begin().sourceWorld(), fixture.begin().world().dimension());
         assertEquals(ClientPreparedTravelServer.AutomaticCross.DEFER, fixture.server().automaticCross(fixture.begin().sourcePortal(), 3));
@@ -191,7 +192,7 @@ class ClientPreparedTravelCrossingTest {
 
     private static Fixture ready() {
         ApertureDescriptor geometry = new ApertureDescriptor(0, 64, 0, Face.S.ordinal(), true, 0, false, 1, 3,
-            new long[]{7}, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, ApertureKind.FRAME, 0.0D, 0, 1, List.of());
+            new long[]{7}, ShapeDescriptor.FULL, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, ApertureKind.FRAME, 0.0D, 0, 1, List.of());
         return ready(geometry, ClientViewFixtures.travelBegin().sourceWorld());
     }
 

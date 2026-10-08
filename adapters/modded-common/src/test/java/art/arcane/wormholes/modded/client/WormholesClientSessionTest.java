@@ -11,6 +11,7 @@ import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.AxisPermutation;
+import art.arcane.optics.shape.ShapeDescriptor;
 import art.arcane.wormholes.render.client.session.ClientViewEmitters;
 import net.minecraft.client.Minecraft;
 import org.junit.Rule;
@@ -63,7 +64,7 @@ public class WormholesClientSessionTest extends MinecraftTestBase {
             } else if (change == 3) {
                 ApertureDescriptor changed = new ApertureDescriptor(geometry.originX(), geometry.originY(), geometry.originZ(),
                     geometry.facing(), geometry.frontSide(), geometry.quarterTurns(), geometry.mirror(), geometry.apertureWidth(),
-                    geometry.apertureHeight(), geometry.apertureMask(), geometry.nearPlanePadding(), geometry.aperturePadding(),
+                    geometry.apertureHeight(), geometry.apertureMask(), ShapeDescriptor.FULL, geometry.nearPlanePadding(), geometry.aperturePadding(),
                     geometry.frustumCullingRatio(), geometry.depthBlocks(), geometry.recursionDepth(), geometry.blackoutPolicy(),
                     geometry.blackoutState(), geometry.maskAirPolicy(), geometry.lightingPolicy(), geometry.fidelityFlags(),
                     geometry.kind(), geometry.planeOffset(), geometry.parentPortalKey(), geometry.targetIdentity() + 1, geometry.nested());

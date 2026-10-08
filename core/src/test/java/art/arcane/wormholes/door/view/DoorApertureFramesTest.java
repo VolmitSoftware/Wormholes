@@ -15,6 +15,7 @@ import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.crossing.PlaneCrossing;
+import art.arcane.optics.shape.ShapeDescriptor;
 import art.arcane.wormholes.portal.ApertureKind;
 import org.junit.jupiter.api.Test;
 
@@ -54,7 +55,7 @@ class DoorApertureFramesTest {
                     for (boolean front : new boolean[]{true, false}) {
                         ApertureDescriptor geometry = ApertureDescriptor.fromPortal(new ApertureDescriptor.Source(cells, frame,
                             front, false, 0, padding, padding, 1, 128, 4, 0, 0, 0, BlockClaim.LightingPolicy.LOCAL,
-                            0, ApertureKind.DOOR, DoorwayPlane.planeOffset(frame.getNormal()), 0, 1, List.of())).orElseThrow();
+                            0, ApertureKind.DOOR, DoorwayPlane.planeOffset(frame.getNormal()), 0, 1, ShapeDescriptor.FULL, List.of())).orElseThrow();
                         assertEquals(frame, geometry.frame());
                         assertEquals(plane.planeY(), geometry.planeCoordinate(), 0.0D);
                         AperturePolygon aperture = AperturePolygon.from(geometry);

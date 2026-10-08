@@ -491,6 +491,25 @@ public final class WormholesMessages {
             "",
             "&8Left: cycle style.",
             "&8Right: choose a color.");
+    public static final LinesKey PORTAL_MENU_APERTURE_SHAPE = lines("portal.menu.aperture_shape",
+            "&b&lAperture Shape&r",
+            "&7The outline of the opening inside the frame.",
+            "",
+            "&7Shape: &f{shape}",
+            "&7Open cells: &f{cells}",
+            "",
+            "&8Left: next shape.",
+            "&8Right: rotate 45 degrees.",
+            "&8Shift-right: reset to full.");
+    public static final TextKey PORTAL_LABEL_APERTURE_SHAPE = text("portal.menu.aperture_shape.label", "Aperture Shape");
+    public static final TextKey PORTAL_APERTURE_SHAPE_TOO_SMALL = text("portal.menu.aperture_shape.too_small",
+            "&c{shape} leaves no open cell in this frame.");
+    public static final TextKey PORTAL_APERTURE_SHAPE_INVALID = text("portal.menu.aperture_shape.invalid",
+            "&8[&6Wormholes&8] &cCould not read the shape: {reason}");
+    public static final TextKey PORTAL_APERTURE_SHAPE_CURRENT = text("portal.menu.aperture_shape.current",
+            "&8[&6Wormholes&8] &f{portal}&7 aperture shape: &f{shape}&7 ({cells} open cells)");
+    public static final TextKey PORTAL_APERTURE_SHAPE_SET = text("portal.menu.aperture_shape.set",
+            "&8[&6Wormholes&8] &f{portal}&a aperture shape set to &f{shape}&a ({cells} open cells).");
     public static final LinesKey PORTAL_MENU_AMBIENT_COLOR_PLACARD = lines("portal.menu.ambient_color.placard",
             "&6&lAmbient Color&r",
             "&7Color of the ambient dust particles.",

@@ -34,7 +34,7 @@ final class MinecraftPortalInteractions {
         }
         for (MinecraftPortal portal : runtime.portals().snapshot()) {
             if (runtime.portals().resolveLevel(portal) == player.level()
-                && portal.getGeometry().containsOrAdjoinsBlock(position.getX(), position.getY(), position.getZ())
+                && portal.getBuiltGeometry().containsOrAdjoinsBlock(position.getX(), position.getY(), position.getZ())
                 && runtime.portals().canManage(player, portal)) {
                 if (hand == InteractionHand.MAIN_HAND) {
                     if (!portal.getSurfaceSkin().isEmpty() && runtime.access().permission(player, "wormholes.admin")) {

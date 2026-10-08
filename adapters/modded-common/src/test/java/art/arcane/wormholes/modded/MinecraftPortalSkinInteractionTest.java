@@ -37,7 +37,7 @@ public class MinecraftPortalSkinInteractionTest extends MinecraftTestBase {
         when(runtime.portals().snapshot()).thenReturn(List.of(portal));
         when(runtime.portals().resolveLevel(portal)).thenReturn(level);
         when(runtime.portals().canManage(player, portal)).thenReturn(true);
-        when(portal.getGeometry().containsOrAdjoinsBlock(0, 0, 0)).thenReturn(true);
+        when(portal.getBuiltGeometry().containsOrAdjoinsBlock(0, 0, 0)).thenReturn(true);
         when(portal.getSurfaceSkin()).thenReturn("minecraft:stone");
         when(runtime.access().permission(player, "wormholes.admin")).thenReturn(true);
         assertTrue(MinecraftPortalInteractions.frame(runtime, player, InteractionHand.MAIN_HAND, BlockPos.ZERO));

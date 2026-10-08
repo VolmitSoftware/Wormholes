@@ -7,6 +7,7 @@ import art.arcane.optics.frame.Frame;
 import art.arcane.optics.claim.BlockClaim;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.shape.ShapeDescriptor;
 import art.arcane.wormholes.portal.ApertureKind;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
@@ -146,7 +147,7 @@ public class PortalViewportTest {
         ApertureDescriptor geometry = ApertureDescriptor.fromPortal(new ApertureDescriptor.Source(aperture,
             Frame.canonical(Face.S), true, false, 0, 0, 0, 0, 64, 0,
             ApertureDescriptor.BLACKOUT_OFF, 0, ApertureDescriptor.MASK_AIR_PROJECT,
-            BlockClaim.LightingPolicy.LOCAL, 0, ApertureKind.FRAME, 0.0D, 0, 0, List.of())).orElseThrow();
+            BlockClaim.LightingPolicy.LOCAL, 0, ApertureKind.FRAME, 0.0D, 0, 0, ShapeDescriptor.FULL, List.of())).orElseThrow();
         return AperturePolygon.from(geometry);
     }
 }

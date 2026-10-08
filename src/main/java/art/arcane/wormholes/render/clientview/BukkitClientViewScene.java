@@ -112,7 +112,7 @@ final class BukkitClientViewScene implements EntityScenes<ClientViewObserver>, C
         List<double[]> outline = List.of();
         if (portal.getFrame() != null) {
             outline = outlines.computeIfAbsent(structure, ignored -> new AmbientOutlineGeometry())
-                .points(structure.getRevision(), portal.getFrame().getNormal().getAxis(), structure.geometry());
+                .points(structure.getRevision(), portal.getFrame().getNormal().getAxis(), structure.geometry(), structure.shapeOutline());
         }
         ClientViewEmitters.ambient(new ClientViewEmitters.Ambient(portal.getAmbientStyle(), portal.getAmbientColor(), portal.isOpen(),
             Settings.AMBIENT_PARTICLE_INTERVAL_TICKS, AMBIENT_CADENCE_TICKS, structure.getArea(), outline), emitters);

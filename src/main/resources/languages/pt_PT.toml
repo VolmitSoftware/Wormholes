@@ -25,6 +25,7 @@
 #   {block}  Material do bloco selecionado
 #   {blocks}  Blocos colocados afetados pela reconstrução
 #   {cancel}  Palavra para cancelar a entrada na conversa
+#   {cells}  Número de células abertas da abertura
 #   {code}  Código de convite do servidor ou portal
 #   {color}  Cor de apresentação selecionada
 #   {command}  Caminho do comando
@@ -97,6 +98,7 @@
 #   {section}  Secção do editor de idiomas
 #   {send}  Estado de envio da projeção
 #   {server}  Nome ou identificador do servidor
+#   {shape}  Forma da abertura do portal
 #   {size}  Tamanho do espaço de bolso em blocos
 #   {skin}  Aspeto do portal selecionado
 #   {skipped}  Número de operações ignoradas
@@ -468,6 +470,12 @@ destination = ["&6&lDestino&r", "&7Escolha um portal para ligar.", "&7Ligação 
 "destination.empty" = ["&7Não há destinos disponíveis para ligar."]
 render_mode = ["&b&lModo de renderização &f&l{mode}&r", "&7Quanto do volume de destino este portal projeta.", "", "&7Modo: &f{mode}", "", "&8PanOptic renderiza todo o volume de destino.", "&8Venticular oculta a geometria atrás de superfícies opacas visíveis.", "", "&8Esquerda: alternar modo."]
 ambient_particles = ["&b&lPartículas ambientais&r", "&7Poeira decorativa que flutua ao redor deste portal.", "", "&7Estilo: &f{style} &8({color})", "", "&8Esquerdo: mudar de estilo.", "&8Direito: escolher uma cor."]
+aperture_shape = ["&b&lForma da abertura&r", "&7O contorno da abertura dentro da moldura.", "", "&7Forma: &f{shape}", "&7Células abertas: &f{cells}", "", "&8Esquerdo: forma seguinte.", "&8Direito: rodar 45 graus.", "&8Shift + direito: repor para full."]
+"aperture_shape.label" = "Forma da abertura"
+"aperture_shape.too_small" = "&c{shape} não deixa nenhuma célula aberta nesta moldura."
+"aperture_shape.invalid" = "&8[&6Wormholes&8] &cNão foi possível ler a forma: {reason}"
+"aperture_shape.current" = "&8[&6Wormholes&8] &f{portal}&7: forma da abertura &f{shape}&7 ({cells} células abertas)"
+"aperture_shape.set" = "&8[&6Wormholes&8] &f{portal}&a: forma da abertura definida como &f{shape}&a ({cells} células abertas)."
 surface_skin = ["&b&lAparência de superfície&r", "&7Cobre a abertura do portal com um painel de bloco ou fluido renderizado.", "", "&7Aparência: &f{skin}", "", "&8Esquerdo: remover a aparência.", "&8Direito: abrir opções de aparência."]
 "surface_skin.placard" = ["&6&lAparência de superfície&r", "&7Clique com o botão direito no portal com um bloco ou balde para aplicar uma aparência.", "", "&7Aparência: &f{skin}"]
 "surface_skin.glass" = ["&b&lAparência de vidro&r", "&7Uma janela de vidro transparente sobre a abertura.", "", "&8Clique para aplicar vidro."]
@@ -1517,6 +1525,9 @@ portals = "Listar, inspecionar e editar portais em massa"
 "portals.rename_server.old" = "Nome de servidor hoje guardado nas ligacoes"
 "portals.rename_server.new" = "Nome de servidor a guardar em vez disso"
 "portals.rename_server.confirm" = "Necessario para reescrever as ligacoes"
+"portals.shape" = "Mostrar ou definir a forma da abertura de um portal"
+"portals.shape.portal" = "Nome ou id do portal"
+"portals.shape.shape" = "Texto da forma como circle, flower(petals=7) ou full; vazio mostra a forma atual"
 # ---- end lane:ops ----
 
 # ---- lane:clientview (clientview.*) ----

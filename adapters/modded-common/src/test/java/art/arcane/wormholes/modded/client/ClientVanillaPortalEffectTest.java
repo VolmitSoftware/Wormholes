@@ -6,6 +6,7 @@ import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.shape.ShapeDescriptor;
 import art.arcane.wormholes.modded.mixin.client.VanillaPortalEffectMixin;
 import art.arcane.wormholes.portal.ApertureKind;
 import net.minecraft.client.Minecraft;
@@ -120,7 +121,7 @@ public class ClientVanillaPortalEffectTest extends MinecraftTestBase {
 
     private static ApertureDescriptor geometry(int kind) {
         return new ApertureDescriptor(10, 64, -8, Face.N.ordinal(), true, 0, false, 3, 3,
-            new long[]{0x1efL}, 0.0F, 0.0F, 0.0F, 8, 0, ApertureDescriptor.BLACKOUT_OFF, 0,
+            new long[]{0x1efL}, ShapeDescriptor.FULL, 0.0F, 0.0F, 0.0F, 8, 0, ApertureDescriptor.BLACKOUT_OFF, 0,
             ApertureDescriptor.MASK_AIR_PROJECT, 0, 0, kind, 0.0D, 0, 0L, List.of());
     }
 }

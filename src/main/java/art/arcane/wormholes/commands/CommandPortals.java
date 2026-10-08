@@ -1,5 +1,7 @@
 package art.arcane.wormholes.commands;
 
+import art.arcane.volmlib.util.collection.KList;
+import art.arcane.volmlib.util.director.DirectorParameterHandler;
 import art.arcane.volmlib.util.director.annotations.Director;
 import art.arcane.volmlib.util.director.annotations.Param;
 import art.arcane.volmlib.util.localization.LinesKey;
@@ -17,12 +19,14 @@ import art.arcane.wormholes.ops.PortalListModel;
 import art.arcane.wormholes.ops.PortalLocator;
 import art.arcane.wormholes.ops.PortalMaintenance;
 import art.arcane.wormholes.ops.PortalSafeLanding;
+import art.arcane.wormholes.portal.ApertureShapeChange;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.IPortal;
 import art.arcane.wormholes.portal.ITunnel;
 import art.arcane.wormholes.portal.LocalPortal;
 import art.arcane.wormholes.portal.UniversalTunnel;
 import art.arcane.wormholes.service.WormholesAudience;
+import art.arcane.optics.shape.Shapes;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -32,6 +36,7 @@ import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 /**
@@ -186,6 +191,42 @@ public class CommandPortals {
         found.unlink();
         send(sender, OpsMessages.PORTALS_UNLINKED, WormholesLocalization.args(
                 MessageArgument.untrusted("portal", found.getName())));
+    }
+
+    @Director(name = "shape", sync = true, descriptionKey = OpsMessages.PORTALS_SHAPE_HELP,
+            description = "Show or set the aperture shape of a portal")
+    public void shape(@Param(name = "sender", contextual = true) CommandSender sender,
+                      @Param(name = "portal", descriptionKey = OpsMessages.PORTALS_SHAPE_PORTAL_HELP,
+                              description = "Portal name or id") String portal,
+                      @Param(name = "shape", descriptionKey = OpsMessages.PORTALS_SHAPE_SHAPE_HELP,
+                              description = "Shape text such as circle, flower(petals=7) or full; omit to show the current shape",
+                              defaultValue = "", customHandler = ShapeHandler.class) String shape) {
+        if (!allowed(sender)) {
+            return;
+        }
+        ILocalPortal found = require(sender, portal);
+        if (found == null) {
+            return;
+        }
+        if (!(found instanceof LocalPortal local)) {
+            send(sender, OpsMessages.PORTALS_NOT_FOUND, WormholesLocalization.args(MessageArgument.untrusted("name", portal)));
+            return;
+        }
+        ApertureShapeChange change = ApertureShapeChange.request(shape, local.getApertureShape(), local::setApertureShape);
+        TextKey message = switch (change.status()) {
+            case SHOWN -> WormholesMessages.PORTAL_APERTURE_SHAPE_CURRENT;
+            case SET -> WormholesMessages.PORTAL_APERTURE_SHAPE_SET;
+            case INVALID -> WormholesMessages.PORTAL_APERTURE_SHAPE_INVALID;
+            case TOO_SMALL -> WormholesMessages.PORTAL_APERTURE_SHAPE_TOO_SMALL;
+        };
+        MessageArgs arguments = switch (change.status()) {
+            case SHOWN, SET -> WormholesLocalization.args(MessageArgument.untrusted("portal", local.getName()),
+                    MessageArgument.untrusted("shape", change.shape().format()),
+                    MessageArgument.untrusted("cells", Integer.valueOf(local.getStructure().getBlockPositions().size())));
+            case INVALID -> WormholesLocalization.args(MessageArgument.untrusted("reason", change.reason()));
+            case TOO_SMALL -> WormholesLocalization.args(MessageArgument.untrusted("shape", change.shape().format()));
+        };
+        send(sender, message, arguments);
     }
 
     @Director(name = "prune", sync = true, descriptionKey = OpsMessages.PORTALS_PRUNE_HELP,
@@ -388,6 +429,43 @@ public class CommandPortals {
     private static void sendLines(CommandSender sender, LinesKey key, MessageArgs arguments) {
         for (Component line : Wormholes.text().components(sender, key, arguments)) {
             WormholesAudience.sendMessage(sender, line);
+        }
+    }
+
+    public static final class ShapeHandler implements DirectorParameterHandler<String> {
+        @Override
+        public KList<String> getPossibilities() {
+            return new KList<>(Shapes.presetNames());
+        }
+
+        @Override
+        public KList<String> getPossibilities(String input) {
+            if (input == null || input.isBlank()) {
+                return getPossibilities();
+            }
+            String needle = input.trim().toLowerCase(Locale.ROOT);
+            KList<String> matches = new KList<>();
+            for (String name : Shapes.presetNames()) {
+                if (name.startsWith(needle)) {
+                    matches.add(name);
+                }
+            }
+            return matches;
+        }
+
+        @Override
+        public String toString(String value) {
+            return value == null ? "" : value;
+        }
+
+        @Override
+        public String parse(String input, boolean force) {
+            return input == null ? "" : input.trim();
+        }
+
+        @Override
+        public boolean supports(Class<?> type) {
+            return type == String.class;
         }
     }
 }

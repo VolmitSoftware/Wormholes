@@ -25,6 +25,7 @@
 #   {block}  Materiał wybranego bloku
 #   {blocks}  Postawione bloki objęte przebudową
 #   {cancel}  Słowo anulujące wprowadzanie na czacie
+#   {cells}  Liczba otwartych komórek otworu
 #   {code}  Kod zaproszenia do serwera lub portalu
 #   {color}  Wybrany kolor wyświetlania
 #   {command}  Ścieżka polecenia
@@ -97,6 +98,7 @@
 #   {section}  Sekcja edytora języka
 #   {send}  Stan wysyłania projekcji
 #   {server}  Nazwa lub identyfikator serwera
+#   {shape}  Kształt otworu portalu
 #   {size}  Rozmiar kieszeni w blokach
 #   {skin}  Wybrany wygląd portalu
 #   {skipped}  Liczba pominiętych operacji
@@ -468,6 +470,12 @@ destination = ["&6&lCel&r", "&7Wybierz portal do połączenia.", "&7Bieżące po
 "destination.empty" = ["&7Brak celów dostępnych do połączenia."]
 render_mode = ["&b&lTryb renderowania &f&l{mode}&r", "&7Jaką część docelowej objętości projektuje ten portal.", "", "&7Tryb: &f{mode}", "", "&8PanOptic renderuje całą docelową objętość.", "&8Venticular ukrywa geometrię za widocznymi nieprzezroczystymi powierzchniami.", "", "&8Lewy: zmień tryb."]
 ambient_particles = ["&b&lCząstki otoczenia&r", "&7Dekoracyjny pył unoszący się wokół tego portalu.", "", "&7Styl: &f{style} &8({color})", "", "&8Lewy: zmień styl.", "&8Prawy: wybierz kolor."]
+aperture_shape = ["&b&lKształt otworu&r", "&7Obrys otworu wewnątrz ramy.", "", "&7Kształt: &f{shape}", "&7Otwarte komórki: &f{cells}", "", "&8Lewy: następny kształt.", "&8Prawy: obróć o 45 stopni.", "&8Shift + prawy: przywróć full."]
+"aperture_shape.label" = "Kształt otworu"
+"aperture_shape.too_small" = "&c{shape} nie pozostawia w tej ramie żadnej otwartej komórki."
+"aperture_shape.invalid" = "&8[&6Wormholes&8] &cNie udało się odczytać kształtu: {reason}"
+"aperture_shape.current" = "&8[&6Wormholes&8] &f{portal}&7: kształt otworu &f{shape}&7 (otwarte komórki: {cells})"
+"aperture_shape.set" = "&8[&6Wormholes&8] &f{portal}&a: ustawiono kształt otworu &f{shape}&a (otwarte komórki: {cells})."
 surface_skin = ["&b&lSkórka powierzchni&r", "&7Zakryj otwór portalu wyrenderowanym panelem bloku lub cieczy.", "", "&7Skórka: &f{skin}", "", "&8Lewy: usuń skórkę.", "&8Prawy: otwórz opcje skórki."]
 "surface_skin.placard" = ["&6&lSkórka powierzchni&r", "&7Kliknij portal prawym przyciskiem, trzymając blok lub wiadro, aby zastosować skórkę.", "", "&7Skórka: &f{skin}"]
 "surface_skin.glass" = ["&b&lSzklana skórka&r", "&7Przezroczyste szklane okno nad otworem.", "", "&8Kliknij, aby zastosować szkło."]
@@ -1517,6 +1525,9 @@ portals = "Wypisuj, sprawdzaj i masowo edytuj portale"
 "portals.rename_server.old" = "Nazwa serwera zapisana dzis w polaczeniach"
 "portals.rename_server.new" = "Nazwa serwera do zapisania zamiast niej"
 "portals.rename_server.confirm" = "Wymagane do przepisania polaczen"
+"portals.shape" = "Pokaz lub ustaw ksztalt otworu portalu"
+"portals.shape.portal" = "Nazwa lub identyfikator portalu"
+"portals.shape.shape" = "Tekst ksztaltu, np. circle, flower(petals=7) lub full; puste pokazuje biezacy ksztalt"
 # ---- end lane:ops ----
 
 # ---- lane:clientview (clientview.*) ----

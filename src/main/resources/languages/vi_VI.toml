@@ -25,6 +25,7 @@
 #   {block}  Vật liệu khối đã chọn
 #   {blocks}  Số khối đã đặt bị ảnh hưởng khi xây lại
 #   {cancel}  Từ để hủy nhập trong trò chuyện
+#   {cells}  Số ô mở của lỗ mở
 #   {code}  Mã máy chủ hoặc lời mời cổng
 #   {color}  Màu hiển thị đã chọn
 #   {command}  Đường dẫn lệnh
@@ -97,6 +98,7 @@
 #   {section}  Mục trong trình chỉnh sửa ngôn ngữ
 #   {send}  Trạng thái gửi hình chiếu
 #   {server}  Tên hoặc mã định danh máy chủ
+#   {shape}  Hình dạng lỗ mở của cổng
 #   {size}  Kích thước không gian túi theo khối
 #   {skin}  Diện mạo cổng đã chọn
 #   {skipped}  Số thao tác đã bỏ qua
@@ -503,6 +505,12 @@ destination = ["&6&lĐiểm đến&r", "&7Chọn cổng để liên kết.", "&7
 "destination.empty" = ["&7Không có điểm đến nào để liên kết."]
 render_mode = ["&b&lChế độ kết xuất &f&l{mode}&r", "&7Cổng này chiếu bao nhiêu phần của khối tích đích.", "", "&7Chế độ: &f{mode}", "", "&8PanOptic kết xuất toàn bộ khối tích đích.", "&8Venticular ẩn hình học phía sau các bề mặt mờ đục nhìn thấy được.", "", "&8Trái: đổi chế độ."]
 ambient_particles = ["&b&lHạt môi trường&r", "&7Bụi trang trí bay lơ lửng quanh cổng này.", "", "&7Kiểu: &f{style} &8({color})", "", "&8Trái: đổi kiểu.", "&8Phải: chọn màu."]
+aperture_shape = ["&b&lHình dạng lỗ mở&r", "&7Đường viền của lỗ mở bên trong khung cổng.", "", "&7Hình dạng: &f{shape}", "&7Ô mở: &f{cells}", "", "&8Trái: hình dạng tiếp theo.", "&8Phải: xoay 45 độ.", "&8Shift + phải: đặt lại về full."]
+"aperture_shape.label" = "Hình dạng lỗ mở"
+"aperture_shape.too_small" = "&c{shape} không để lại ô mở nào trong khung cổng này."
+"aperture_shape.invalid" = "&8[&6Wormholes&8] &cKhông thể đọc hình dạng: {reason}"
+"aperture_shape.current" = "&8[&6Wormholes&8] &f{portal}&7: hình dạng lỗ mở &f{shape}&7 ({cells} ô mở)"
+"aperture_shape.set" = "&8[&6Wormholes&8] &f{portal}&a: đã đặt hình dạng lỗ mở thành &f{shape}&a ({cells} ô mở)."
 surface_skin = ["&b&lGiao diện bề mặt&r", "&7Phủ khung cổng bằng một tấm khối hoặc chất lỏng được kết xuất.", "", "&7Giao diện: &f{skin}", "", "&8Trái: xóa giao diện.", "&8Phải: mở tùy chọn giao diện."]
 "surface_skin.placard" = ["&6&lGiao diện bề mặt&r", "&7Nhấp chuột phải vào cổng khi cầm khối hoặc xô để áp dụng giao diện.", "", "&7Giao diện: &f{skin}"]
 "surface_skin.glass" = ["&b&lGiao diện kính&r", "&7Một cửa sổ kính trong suốt trên khung cổng.", "", "&8Nhấp để áp dụng kính."]
@@ -1517,6 +1525,9 @@ portals = "Liet ke, xem va sua cong hang loat"
 "portals.rename_server.old" = "Ten may chu hien dang luu trong lien ket"
 "portals.rename_server.new" = "Ten may chu se luu thay the"
 "portals.rename_server.confirm" = "Bat buoc de viet lai cac lien ket"
+"portals.shape" = "Hien thi hoac dat hinh dang lo mo cua mot cong"
+"portals.shape.portal" = "Ten hoac id cong"
+"portals.shape.shape" = "Van ban hinh dang nhu circle, flower(petals=7) hoac full; de trong se hien thi hinh dang hien tai"
 # ---- end lane:ops ----
 
 # ---- lane:clientview (clientview.*) ----

@@ -78,10 +78,13 @@ function f32(value) {
   return Math.fround(value)
 }
 
-function portalGeometry(nested) {
+const FULL_SHAPE = Buffer.alloc(0)
+const CIRCLE_SHAPE = Buffer.from('00020000803f0000803f', 'hex')
+
+function portalGeometry(nested, shape) {
   return {
     originX: 635, originY: 64, originZ: -4682, facing: 3, frontSide: true, quarterTurns: 0, mirror: false,
-    apertureWidth: 3, apertureHeight: 3, apertureMask: [0x1efn],
+    apertureWidth: 3, apertureHeight: 3, apertureMask: [0x1efn], shape,
     nearPlanePadding: 0.25, aperturePadding: 0.75, frustumCullingRatio: f32(1.2), depthBlocks: 64, recursionDepth: 1,
     blackoutPolicy: 1, blackoutState: 6, maskAirPolicy: 0, lightingPolicy: 1, fidelityFlags: 5, kind: 1, planeOffset: 0,
     parentPortalKey: 0, targetIdentity: 0x7a7a7a7a7a7a7a7an, nested
@@ -168,8 +171,8 @@ describe('ClientView golden vectors', () => {
 
   it('decodes the handshake fields', () => {
     const offer = decodeVector(vector('offer'))
-    assert.deepEqual(offer, { type: 'OFFER', wire: 6, mcDataVersion: 4325, serverCaps: ALL_CAPS, maxFrameBytes: 524288, zeroCopyNonce: 0x1122334455667788n })
-    assert.deepEqual(decodeVector(vector('hello')), { type: 'HELLO', wire: 6, mcDataVersion: 4325, clientCaps: HELLO_CAPS, maxFrameBytes: 524288, plateMemoryMb: 256, zeroCopyNonceEcho: 0x1122334455667788n, brandTag: 'fabric' })
+    assert.deepEqual(offer, { type: 'OFFER', wire: 7, mcDataVersion: 4325, serverCaps: ALL_CAPS, maxFrameBytes: 524288, zeroCopyNonce: 0x1122334455667788n })
+    assert.deepEqual(decodeVector(vector('hello')), { type: 'HELLO', wire: 7, mcDataVersion: 4325, clientCaps: HELLO_CAPS, maxFrameBytes: 524288, plateMemoryMb: 256, zeroCopyNonceEcho: 0x1122334455667788n, brandTag: 'fabric' })
     assert.deepEqual(decodeVector(vector('accept')), { type: 'ACCEPT', sessionId: 42, caps: HELLO_CAPS, tickRate: 20, maxFrameBytes: 524288, hashSalt: 0x0f1e2d3c4b5a6978n, ackWindowFrames: 8 })
     assert.deepEqual(decodeVector(vector('decline')), { type: 'DECLINE', reason: 'DATA_VERSION_MISMATCH' })
     assert.deepEqual(capabilityNames(HELLO_CAPS), ['PLATES', 'BRICK_CACHE', 'DEST_LIGHT', 'ENTITY_FRAMES', 'VIEW_STATS'])
@@ -192,15 +195,15 @@ describe('ClientView golden vectors', () => {
 
   it('decodes portal geometry including nested portals', () => {
     const portal = decodeVector(vector('portal'))
-    assert.deepEqual(portal, { type: 'PORTAL', portalKey: 7, geometryRevision: 2, geometry: portalGeometry([]) })
+    assert.deepEqual(portal, { type: 'PORTAL', portalKey: 7, geometryRevision: 2, geometry: portalGeometry([], CIRCLE_SHAPE) })
     assert.equal(apertureOpenCells(portal.geometry), 8)
     const child = {
       originX: 2, originY: 0, originZ: 5, facing: 2, frontSide: false, quarterTurns: 1, mirror: true,
-      apertureWidth: 2, apertureHeight: 2, apertureMask: [0xfn], nearPlanePadding: 0.25, aperturePadding: 0.5, frustumCullingRatio: 1,
+      apertureWidth: 2, apertureHeight: 2, apertureMask: [0xfn], shape: FULL_SHAPE, nearPlanePadding: 0.25, aperturePadding: 0.5, frustumCullingRatio: 1,
       depthBlocks: 32, recursionDepth: 0, blackoutPolicy: 0, blackoutState: 0, maskAirPolicy: 1, lightingPolicy: 0, fidelityFlags: 0,
       kind: 0, planeOffset: 0, parentPortalKey: 7, targetIdentity: 0n, nested: []
     }
-    assert.deepEqual(decodeVector(vector('portal_nested')), { type: 'PORTAL', portalKey: 8, geometryRevision: 1, geometry: portalGeometry([child]) })
+    assert.deepEqual(decodeVector(vector('portal_nested')), { type: 'PORTAL', portalKey: 8, geometryRevision: 1, geometry: portalGeometry([child], CIRCLE_SHAPE) })
     assert.deepEqual(decodeVector(vector('portal_drop')), { type: 'PORTAL_DROP', portalKey: 7 })
   })
 
@@ -302,13 +305,14 @@ describe('ClientView golden vectors', () => {
     const begin = decodeVector(vector('travel_begin'))
     assert.deepEqual(begin, {
       type: 'TRAVEL_BEGIN', token: TEST_UUID, generation: 3n, sourcePortal: '00000000-0000-0038-0000-00000000004e', sourceWorld: 'minecraft:the_nether',
-      sourceGeometry: portalGeometry([]), destinationToSource: begin.destinationToSource, world: TRAVEL_WORLD, arrival: TRAVEL_ARRIVAL,
+      sourceGeometry: portalGeometry([], FULL_SHAPE), destinationToSource: begin.destinationToSource, world: TRAVEL_WORLD, arrival: TRAVEL_ARRIVAL,
       chunks: [{ x: -32, z: -10 }], environment: fixtureEnvironment('minecraft:overworld', IDENTITY_TRANSFORM), expiresMillis: 30000,
       rules: { orientation: 'FRAME', gravityFlip: false, momentum: begin.rules.momentum }, resident: false, levelHandle: 0, seamless: false
     })
     assert.deepEqual(begin.destinationToSource.translation, { x: 4, y: 0, z: 6 })
     const seamless = decodeVector(vector('travel_begin_seamless'))
     assert.deepEqual([seamless.resident, seamless.levelHandle, seamless.seamless], [true, 4, true])
+    assert.deepEqual(seamless.sourceGeometry, portalGeometry([], CIRCLE_SHAPE))
     assert.deepEqual(seamless.rules, { orientation: 'LOOK', gravityFlip: true, momentum: { mode: 'SCALE', factor: 0.75, maxSpeed: 3.5, impulse: { x: 0, y: 0.25, z: 0 } } })
     assert.deepEqual(decodeVector(vector('travel_chunk')), { type: 'TRAVEL_CHUNK', token: TEST_UUID, generation: 3n, chunkX: -32, chunkZ: -10, revision: 2,
       fragmentIndex: 0, fragmentCount: 1, totalBytes: 4, payload: Buffer.from([1, 2, 3, 4]) })

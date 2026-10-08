@@ -266,7 +266,8 @@ final class LocalPortalEffects
 			return;
 		}
 
-		List<double[]> points = ambientOutline.points(structure.getRevision(), frame.getNormal().getAxis(), structure.geometry());
+		List<double[]> points = ambientOutline.points(structure.getRevision(), frame.getNormal().getAxis(), structure.geometry(),
+				structure.shapeOutline());
 		if(points.isEmpty())
 		{
 			return;

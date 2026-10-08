@@ -32,6 +32,9 @@ import art.arcane.wormholes.network.mesh.DestinationPolicy;
 import art.arcane.wormholes.portal.DimensionalPortalKind;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.aperture.ApertureCells;
+import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.shape.ShapeDescriptor;
+import art.arcane.wormholes.portal.ShapedAperture;
 import art.arcane.wormholes.portal.PortalStateCodec;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.rtp.RtpSettings;
@@ -46,25 +49,33 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Predicate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class MinecraftPortal extends Portal implements PortalSettingsTarget {
-    private final ApertureCells geometry;
+    private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
+    private static final String APERTURE_SHAPE = "apertureShape";
+
+    private final ApertureCells built;
+    private final ApertureCells geometry = new ApertureCells();
     private final String worldKey;
     private final Map<String, Object> values;
     private boolean open = true;
     private DestinationPolicy meshPolicy;
+    private ShapedAperture shaped;
 
     public MinecraftPortal(Definition definition) {
         super(definition.state().id(), definition.state().origin());
         restore(definition.state());
-        geometry = definition.geometry();
+        built = definition.geometry();
         worldKey = definition.worldKey();
         values = new LinkedHashMap<>(definition.values());
         meshPolicy = DestinationPolicy.decode(values.get("mesh.policy") instanceof String encoded ? encoded : "");
         values.putIfAbsent("access.permissionKey", PortalPermissionKey.sanitize(definition.state().name()));
         if (!definition.state().explicitFrame()) {
-            applyFrame(Frame.derive(geometry.getArea(), getDirection()));
+            applyFrame(Frame.derive(built.getArea(), getDirection()));
         }
+        restoreApertureShape();
         setNetworkViewDepth(getNetworkViewDepth());
         setNetworkViewLateralPad(getNetworkViewLateralPad());
         setNetworkViewHeartbeatTicks(getNetworkViewHeartbeatTicks());
@@ -90,7 +101,7 @@ public final class MinecraftPortal extends Portal implements PortalSettingsTarge
     public Map<String, Object> write() {
         Map<String, Object> result = new LinkedHashMap<>(values);
         PortalStateCodec.write(result, new State(getId(), getOrigin(), getName(), getFrame(), true));
-        result.put("structure", PortalStateCodec.writeGeometry(worldKey, geometry));
+        result.put("structure", PortalStateCodec.writeGeometry(worldKey, built));
         return result;
     }
 
@@ -101,6 +112,48 @@ public final class MinecraftPortal extends Portal implements PortalSettingsTarge
 
     public ApertureCells getGeometry() {
         return geometry;
+    }
+
+    public ApertureCells getBuiltGeometry() {
+        return built;
+    }
+
+    public ShapeDescriptor getApertureShape() {
+        ShapedAperture current = shaped;
+        return current == null ? ShapeDescriptor.FULL : current.shape();
+    }
+
+    public boolean acceptsApertureShape(ShapeDescriptor shape) {
+        return shape == null || shape.isFull() || built.getArea() != null && ShapedAperture.of(built, getFrame(), shape) != null;
+    }
+
+    public boolean setApertureShape(ShapeDescriptor shape) {
+        ShapeDescriptor requested = shape == null ? ShapeDescriptor.FULL : shape;
+        if (requested.isFull()) {
+            shaped = null;
+            values.remove(APERTURE_SHAPE);
+            geometry.restore(built.getArea(), built.getBlockPositions());
+            return true;
+        }
+        ShapedAperture candidate = built.getArea() == null ? null : ShapedAperture.of(built, getFrame(), requested);
+        if (candidate == null) {
+            return false;
+        }
+        shaped = candidate;
+        values.put(APERTURE_SHAPE, requested.format());
+        geometry.restore(built.getArea(), candidate.cells());
+        return true;
+    }
+
+    public ApertureDescriptor shapeOutline() {
+        ShapedAperture current = shaped;
+        return current == null ? null : current.outline();
+    }
+
+    public boolean admits(Vec3d intersection, double eyeHeight) {
+        ShapedAperture current = shaped;
+        return current == null ? geometry.contains(intersection)
+            : intersection != null && current.admits(intersection.x(), intersection.y(), intersection.z(), eyeHeight);
     }
 
     public String getWorldKey() {
@@ -136,6 +189,14 @@ public final class MinecraftPortal extends Portal implements PortalSettingsTarge
 
     public void setFrame(Frame frame) {
         applyFrame(frame);
+    }
+
+    @Override
+    protected void applyFrame(Frame frame) {
+        super.applyFrame(frame);
+        if (shaped != null && !setApertureShape(shaped.shape())) {
+            setApertureShape(ShapeDescriptor.FULL);
+        }
     }
 
     public ProjectionMode getProjectionMode() {
@@ -472,6 +533,25 @@ public final class MinecraftPortal extends Portal implements PortalSettingsTarge
 
     public String getDestinationServer() {
         return values.get("tunnel") instanceof Map<?, ?> tunnel && tunnel.get("server") instanceof String server ? server : null;
+    }
+
+    private void restoreApertureShape() {
+        if (!(values.get(APERTURE_SHAPE) instanceof String stored) || stored.isBlank()) {
+            setApertureShape(ShapeDescriptor.FULL);
+            return;
+        }
+        ShapeDescriptor shape;
+        try {
+            shape = ShapeDescriptor.parse(stored);
+        } catch (IllegalArgumentException exception) {
+            setApertureShape(ShapeDescriptor.FULL);
+            LOGGER.warn("Portal {} has an unreadable aperture shape \"{}\" ({}); using a full aperture", getId(), stored, exception.getMessage());
+            return;
+        }
+        if (!setApertureShape(shape)) {
+            setApertureShape(ShapeDescriptor.FULL);
+            LOGGER.warn("Portal {} aperture shape {} leaves no open cell in its frame; using a full aperture", getId(), shape.format());
+        }
     }
 
     private int intValue(String key, int fallback) {

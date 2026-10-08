@@ -24,6 +24,7 @@ import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.ViewStreamLimits;
 import art.arcane.optics.stream.ViewStreamMessage;
+import art.arcane.optics.shape.ShapeDescriptor;
 
 final class TravelExtensionCodecTest {
     private static final UUID TOKEN = new UUID(12, 34);
@@ -473,7 +474,7 @@ final class TravelExtensionCodecTest {
     private static ApertureDescriptor geometry(ApertureDescriptor value, boolean mirror, int parent,
                                                   List<ApertureDescriptor> nested) {
         return new ApertureDescriptor(value.originX(), value.originY(), value.originZ(), value.facing(), value.frontSide(),
-            value.quarterTurns(), mirror, value.apertureWidth(), value.apertureHeight(), value.apertureMask(),
+            value.quarterTurns(), mirror, value.apertureWidth(), value.apertureHeight(), value.apertureMask(), ShapeDescriptor.FULL,
             value.nearPlanePadding(), value.aperturePadding(), value.frustumCullingRatio(), value.depthBlocks(),
             value.recursionDepth(), value.blackoutPolicy(), value.blackoutState(), value.maskAirPolicy(), value.lightingPolicy(),
             value.fidelityFlags(), value.kind(), value.planeOffset(), parent, value.targetIdentity(), nested);

@@ -25,6 +25,7 @@
 #   {block}  Matériau du bloc sélectionné
 #   {blocks}  Blocs placés concernés par la reconstruction
 #   {cancel}  Mot d’annulation de la saisie dans le chat
+#   {cells}  Nombre de cellules ouvertes de l’ouverture
 #   {code}  Code d’invitation du serveur ou du portail
 #   {color}  Couleur d’affichage sélectionnée
 #   {command}  Chemin de la commande
@@ -97,6 +98,7 @@
 #   {section}  Section de l’éditeur de langue
 #   {send}  État d’envoi de la projection
 #   {server}  Nom ou identifiant du serveur
+#   {shape}  Forme de l’ouverture du portail
 #   {size}  Taille de l’espace de poche en blocs
 #   {skin}  Apparence de portail sélectionnée
 #   {skipped}  Nombre d’opérations ignorées
@@ -503,6 +505,12 @@ destination = ["&6&lDestination&r", "&7Choisissez un portail à relier.", "&7Lie
 "destination.empty" = ["&7Aucune destination disponible à lier."]
 render_mode = ["&b&lMode de rendu &f&l{mode}&r", "&7Quelle part du volume de destination ce portail projette.", "", "&7Mode : &f{mode}", "", "&8PanOptic rend l'intégralité du volume de destination.", "&8Venticular masque la géométrie derrière les surfaces opaques visibles.", "", "&8Gauche : changer de mode."]
 ambient_particles = ["&b&lParticules d'ambiance&r", "&7Poussière décorative qui flotte autour de ce portail.", "", "&7Style : &f{style} &8({color})", "", "&8Gauche : changer de style.", "&8Droit : choisir une couleur."]
+aperture_shape = ["&b&lForme de l'ouverture&r", "&7Le contour de l'ouverture à l'intérieur du cadre.", "", "&7Forme : &f{shape}", "&7Cellules ouvertes : &f{cells}", "", "&8Gauche : forme suivante.", "&8Droit : pivoter de 45 degrés.", "&8Maj + droit : réinitialiser à full."]
+"aperture_shape.label" = "Forme de l'ouverture"
+"aperture_shape.too_small" = "&c{shape} ne laisse aucune cellule ouverte dans ce cadre."
+"aperture_shape.invalid" = "&8[&6Wormholes&8] &cImpossible de lire la forme : {reason}"
+"aperture_shape.current" = "&8[&6Wormholes&8] &f{portal}&7 : forme de l'ouverture &f{shape}&7 ({cells} cellules ouvertes)"
+"aperture_shape.set" = "&8[&6Wormholes&8] &f{portal}&a : forme de l'ouverture définie sur &f{shape}&a ({cells} cellules ouvertes)."
 surface_skin = ["&b&lHabillage de surface&r", "&7Recouvre l'ouverture du portail d'un panneau de bloc ou de fluide rendu.", "", "&7Habillage : &f{skin}", "", "&8Gauche : retirer l'habillage.", "&8Droit : ouvrir les options d'habillage."]
 "surface_skin.placard" = ["&6&lHabillage de surface&r", "&7Clic droit sur le portail avec un bloc ou un seau pour appliquer un habillage.", "", "&7Habillage : &f{skin}"]
 "surface_skin.glass" = ["&b&lHabillage en verre&r", "&7Une fenêtre en verre transparent sur l'ouverture.", "", "&8Cliquez pour appliquer du verre."]
@@ -1517,6 +1525,9 @@ portals = "Lister, inspecter et modifier les portails en masse"
 "portals.rename_server.old" = "Nom de serveur actuellement stocke dans les liaisons"
 "portals.rename_server.new" = "Nom de serveur a stocker a la place"
 "portals.rename_server.confirm" = "Necessaire pour reecrire les liaisons"
+"portals.shape" = "Afficher ou definir la forme de l'ouverture d'un portail"
+"portals.shape.portal" = "Nom ou id du portail"
+"portals.shape.shape" = "Texte de forme comme circle, flower(petals=7) ou full ; vide affiche la forme actuelle"
 # ---- end lane:ops ----
 
 # ---- lane:clientview (clientview.*) ----

@@ -1,7 +1,7 @@
 import { deflateSync, inflateSync } from 'node:zlib'
 
-export const CHANNEL = 'wormholes:v6'
-export const WIRE_VERSION = 6
+export const CHANNEL = 'wormholes:v7'
+export const WIRE_VERSION = 7
 export const S2C_HEADER_BYTES = 6
 export const FLAG_DEFLATED = 1
 export const FLAG_LAST = 2
@@ -37,6 +37,7 @@ export const MAX_FX_EMITTERS = 255
 export const WORLD_FX_KEY = 0
 export const MAX_APERTURE_MASK_WORDS = 1024
 export const MAX_NESTED_GEOMETRY = 16
+export const MAX_SHAPE_BYTES = 2048
 export const MAX_GEOMETRY_DEPTH = 6
 export const MAX_BRICK_MISS_WORDS = (MAX_BRICKS_PER_PLATE + 63) >> 6
 export const MAX_BRICK_MISS_PLATES = 255
@@ -754,6 +755,7 @@ function readGeometry(reader, depth) {
   }
   const words = reader.checkedCount(reader.varint(), MAX_APERTURE_MASK_WORDS, 8)
   geometry.apertureMask = reader.longs(words)
+  geometry.shape = reader.bytes(reader.checkedCount(reader.varint(), MAX_SHAPE_BYTES, 1))
   geometry.nearPlanePadding = reader.f32()
   geometry.aperturePadding = reader.f32()
   geometry.frustumCullingRatio = reader.f32()
@@ -787,6 +789,10 @@ function writeGeometry(writer, geometry, depth) {
   writer.u16(geometry.apertureHeight)
   writer.varint(geometry.apertureMask.length)
   writer.longs(geometry.apertureMask)
+  const shape = geometry.shape ?? Buffer.alloc(0)
+  if (shape.length > MAX_SHAPE_BYTES) throw new ClientViewProtocolError(`portal shape of ${shape.length} bytes`)
+  writer.varint(shape.length)
+  writer.bytes(shape)
   writer.f32(geometry.nearPlanePadding)
   writer.f32(geometry.aperturePadding)
   writer.f32(geometry.frustumCullingRatio)

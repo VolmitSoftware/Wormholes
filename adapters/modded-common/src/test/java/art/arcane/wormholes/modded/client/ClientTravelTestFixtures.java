@@ -2,6 +2,7 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.shape.ShapeDescriptor;
 import art.arcane.wormholes.network.client.TravelMessage;
 
 import java.lang.reflect.Field;
@@ -21,7 +22,7 @@ final class ClientTravelTestFixtures {
     }
 
     static ApertureDescriptor geometry(boolean front, long mask) {
-        return new ApertureDescriptor(0, 0, 0, Face.N.ordinal(), front, 0, false, 2, 3, new long[]{mask},
+        return new ApertureDescriptor(0, 0, 0, Face.N.ordinal(), front, 0, false, 2, 3, new long[]{mask}, ShapeDescriptor.FULL,
             0, 0, 1, 64, 0, 0, 0, 0, 0, 0, 0, 0.0D, 0, 11, List.of());
     }
 

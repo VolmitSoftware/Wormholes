@@ -2,6 +2,7 @@ package art.arcane.wormholes.modded.client.render;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.shape.ShapeDescriptor;
 import art.arcane.optics.math.Face;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongSet;
@@ -51,6 +52,7 @@ public class ClientPortalPlayerCoverageTest extends MinecraftTestBase {
         when(geometry.apertureWidth()).thenReturn(1);
         when(geometry.apertureHeight()).thenReturn(1);
         when(geometry.apertureMask()).thenReturn(new long[]{1});
+        when(geometry.shape()).thenReturn(ShapeDescriptor.FULL);
         when(scene.geometry()).thenReturn(geometry);
         when(scene.inLevel(level)).thenReturn(true);
         when(scene.revision(key)).thenReturn(39L);
@@ -122,6 +124,7 @@ public class ClientPortalPlayerCoverageTest extends MinecraftTestBase {
         when(geometry.apertureWidth()).thenReturn(1);
         when(geometry.apertureHeight()).thenReturn(1);
         when(geometry.apertureMask()).thenReturn(new long[]{1});
+        when(geometry.shape()).thenReturn(ShapeDescriptor.FULL);
         when(scene.geometry()).thenReturn(geometry);
         when(scene.inLevel(level)).thenReturn(true);
         when(scene.revision(key)).thenReturn(39L);

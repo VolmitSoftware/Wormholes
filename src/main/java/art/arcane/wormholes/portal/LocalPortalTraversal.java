@@ -792,7 +792,7 @@ final class LocalPortalTraversal
 		start.setPitch(end.getPitch());
         Vec3d intersection = PlaneCrossing.intersection(portal.getFrame(), portal.getOrigin(),
             BukkitGeometry.vector(start), BukkitGeometry.vector(end));
-        if(intersection == null || !portal.getStructure().contains(BukkitGeometry.location(intersection, start.getWorld()))) {
+        if(intersection == null || !portal.getStructure().admits(BukkitGeometry.location(intersection, start.getWorld()), i)) {
             return null;
         }
 		return buildCrossing(i, start, end.toVector(), velocity);

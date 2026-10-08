@@ -2,6 +2,7 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.shape.ShapeDescriptor;
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.network.client.TravelMessage;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
@@ -93,7 +94,7 @@ public class ClientPreparedTravelEntityResidencyTest extends MinecraftTestBase {
         ClientViewTick tick = mock(ClientViewTick.class);
         ClientProjectedEntities entities = mock(ClientProjectedEntities.class);
         ApertureDescriptor source = ClientTravelTestFixtures.geometry();
-        ApertureDescriptor other = new ApertureDescriptor(5, 0, 0, Face.N.ordinal(), true, 0, false, 2, 3, new long[]{63L},
+        ApertureDescriptor other = new ApertureDescriptor(5, 0, 0, Face.N.ordinal(), true, 0, false, 2, 3, new long[]{63L}, ShapeDescriptor.FULL,
             0, 0, 1, 64, 0, 0, 0, 0, 0, 0, 0, 0.0D, 0, 12, List.of());
         Int2ObjectOpenHashMap<ClientPortal> portals = new Int2ObjectOpenHashMap<>();
         portals.put(7, new ClientPortal(7, source, 1, 0));

@@ -25,6 +25,7 @@
 #   {block}  Seçilen blok malzemesi
 #   {blocks}  Yeniden yapımdan etkilenen yerleştirilmiş bloklar
 #   {cancel}  Sohbet girdisini iptal etme sözcüğü
+#   {cells}  Açıklıktaki açık hücre sayısı
 #   {code}  Sunucu veya portal davet kodu
 #   {color}  Seçilen görüntüleme rengi
 #   {command}  Komut yolu
@@ -97,6 +98,7 @@
 #   {section}  Dil düzenleyicisi bölümü
 #   {send}  Yansıtma gönderme durumu
 #   {server}  Sunucu adı veya kimliği
+#   {shape}  Portal açıklığının şekli
 #   {size}  Blok cinsinden cep boyutu
 #   {skin}  Seçilen portal görünümü
 #   {skipped}  Atlanan işlem sayısı
@@ -503,6 +505,12 @@ destination = ["&6&lHedef&r", "&7Bağlanacak portalı seçin.", "&7Mevcut bağla
 "destination.empty" = ["&7Bağlanabilecek hedef yok."]
 render_mode = ["&b&lGörüntüleme modu &f&l{mode}&r", "&7Bu portalın hedef hacminin ne kadarını yansıttığı.", "", "&7Mod: &f{mode}", "", "&8PanOptic tüm hedef hacmi görüntüler.", "&8Venticular görünür opak yüzeylerin arkasındaki geometriyi gizler.", "", "&8Sol: modu değiştir."]
 ambient_particles = ["&b&lOrtam Parçacıkları&r", "&7Bu portalın etrafında süzülen dekoratif toz.", "", "&7Stil: &f{style} &8({color})", "", "&8Sol: stili değiştir.", "&8Sağ: bir renk seç."]
+aperture_shape = ["&b&lAçıklık Şekli&r", "&7Çerçevenin içindeki açıklığın dış hatları.", "", "&7Şekil: &f{shape}", "&7Açık hücreler: &f{cells}", "", "&8Sol: sonraki şekil.", "&8Sağ: 45 derece döndür.", "&8Shift + sağ: full olarak sıfırla."]
+"aperture_shape.label" = "Açıklık Şekli"
+"aperture_shape.too_small" = "&c{shape} bu çerçevede hiç açık hücre bırakmıyor."
+"aperture_shape.invalid" = "&8[&6Wormholes&8] &cŞekil okunamadı: {reason}"
+"aperture_shape.current" = "&8[&6Wormholes&8] &f{portal}&7 açıklık şekli: &f{shape}&7 ({cells} açık hücre)"
+"aperture_shape.set" = "&8[&6Wormholes&8] &f{portal}&a açıklık şekli &f{shape}&a olarak ayarlandı ({cells} açık hücre)."
 surface_skin = ["&b&lYüzey Görünümü&r", "&7Portal açıklığını işlenmiş bir blok veya sıvı paneliyle kapatın.", "", "&7Görünüm: &f{skin}", "", "&8Sol: görünümü kaldır.", "&8Sağ: görünüm seçeneklerini aç."]
 "surface_skin.placard" = ["&6&lYüzey Görünümü&r", "&7Bir görünüm uygulamak için portala blok veya kova ile sağ tıklayın.", "", "&7Görünüm: &f{skin}"]
 "surface_skin.glass" = ["&b&lCam Görünümü&r", "&7Açıklığın üzerinde şeffaf bir cam pencere.", "", "&8Cam uygulamak için tıklayın."]
@@ -1517,6 +1525,9 @@ portals = "Portallari listele, incele ve toplu duzenle"
 "portals.rename_server.old" = "Baglarda bugun kayitli olan sunucu adi"
 "portals.rename_server.new" = "Onun yerine kaydedilecek sunucu adi"
 "portals.rename_server.confirm" = "Baglari yeniden yazmak icin gerekli"
+"portals.shape" = "Bir portalin aciklik seklini goster veya ayarla"
+"portals.shape.portal" = "Portal adi veya kimligi"
+"portals.shape.shape" = "circle, flower(petals=7) veya full gibi sekil metni; bos birakilirsa gecerli sekil gosterilir"
 # ---- end lane:ops ----
 
 # ---- lane:clientview (clientview.*) ----

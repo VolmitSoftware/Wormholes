@@ -19,6 +19,7 @@ import art.arcane.optics.view.WorldChangeTracker;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.wormholes.render.client.session.ClientPreparedTravelServer;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.shape.ShapeDescriptor;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
@@ -218,7 +219,7 @@ public class MinecraftPreparedTravelWarmupTest extends MinecraftTestBase {
             Holder.Reference<DimensionType> dimension = mock(Holder.Reference.class);
             Frame frame = Frame.canonical(Face.N);
             ApertureDescriptor geometry = new ApertureDescriptor(0, 64, 0, Face.N.ordinal(), true, 0, false,
-                2, 3, new long[]{63}, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, 0, 0.0D, 0, 11, List.of());
+                2, 3, new long[]{63}, ShapeDescriptor.FULL, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, 0, 0.0D, 0, 11, List.of());
             when(runtime.portals()).thenReturn(registry);
             when(registry.arrivalRules(any())).thenReturn(TravelMessage.ArrivalRules.FRAME);
             when(runtime.leases()).thenReturn(leases);

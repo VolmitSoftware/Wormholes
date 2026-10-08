@@ -10,30 +10,37 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 
 import art.arcane.optics.math.Axis;
 import art.arcane.optics.aperture.ApertureCells;
+import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.aperture.BoundarySamples;
+import art.arcane.optics.aperture.ShapeBoundarySamples;
 
 public final class AmbientOutlineGeometry
 {
 	static final int SAMPLES_PER_EDGE = 3;
+	private static final double SHAPE_SAMPLE_SPACING = 1.0D / SAMPLES_PER_EDGE;
 
 	private long cachedRevision = Long.MIN_VALUE;
 	private Axis cachedAxis;
 	private ApertureCells cachedStructure;
+	private ApertureDescriptor cachedShape;
 	private List<double[]> cachedPoints;
 
-	public List<double[]> points(long revision, Axis normalAxis, ApertureCells structure)
+	public List<double[]> points(long revision, Axis normalAxis, ApertureCells structure, ApertureDescriptor shapeOutline)
 	{
 		List<double[]> current = cachedPoints;
-		if(current != null && cachedRevision == revision && cachedAxis == normalAxis && cachedStructure == structure)
+		if(current != null && cachedRevision == revision && cachedAxis == normalAxis && cachedStructure == structure && cachedShape == shapeOutline)
 		{
 			return current;
 		}
 
-		List<double[]> built = build(structure.getBlockPositions(), normalAxis);
+		List<double[]> built = shapeOutline == null || shapeOutline.shape().isFull()
+			? build(structure.getBlockPositions(), normalAxis)
+			: shaped(shapeOutline);
 		cachedPoints = built;
 		cachedRevision = revision;
 		cachedAxis = normalAxis;
 		cachedStructure = structure;
+		cachedShape = shapeOutline;
 		return built;
 	}
 
@@ -77,4 +84,10 @@ public final class AmbientOutlineGeometry
 		return List.copyOf(outline);
 	}
 
+	private static List<double[]> shaped(ApertureDescriptor shapeOutline)
+	{
+		List<double[]> outline = new ArrayList<double[]>();
+		ShapeBoundarySamples.append(outline, shapeOutline, SHAPE_SAMPLE_SPACING, (x, y, z) -> new double[] {x, y, z});
+		return List.copyOf(outline);
+	}
 }

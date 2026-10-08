@@ -226,7 +226,8 @@ public final class ClientViewPortalSource {
             Settings.PROJECTION_RECURSIVE_PORTAL_DEPTH,
             blackoutPolicy, blackoutId, ApertureDescriptor.MASK_AIR_PROJECT, lightingPolicy(fidelity), fidelityFlags(fidelity),
             kind, DoorApertureFrames.geometryPlaneOffset(kind, portal.getFrame()), 0,
-            nativeMesh ? PassRevision.mix(identitySalt, meshTargetRevision()) : targetIdentity(rtpTarget, identitySalt), List.of())).orElse(null);
+            nativeMesh ? PassRevision.mix(identitySalt, meshTargetRevision()) : targetIdentity(rtpTarget, identitySalt),
+            portal.getStructure().getApertureShape(), List.of())).orElse(null);
     }
 
     public void noteAcoustics(AcousticsBridge<Player> bridge, long nowMillis) {
@@ -250,6 +251,7 @@ public final class ClientViewPortalSource {
         }
         long hash = PassRevision.mix(REVISION_SEED, System.identityHashCode(structure));
         hash = PassRevision.mix(hash, structure.getRevision());
+        hash = PassRevision.mix(hash, structure.getApertureShape().hashCode());
         hash = PassRevision.mix(hash, frame.getNormal().ordinal());
         hash = PassRevision.mix(hash, frame.getRight().ordinal());
         hash = PassRevision.mix(hash, frame.getUp().ordinal());
@@ -268,7 +270,8 @@ public final class ClientViewPortalSource {
         return ApertureDescriptor.fromPortal(new ApertureDescriptor.Source(structure, frame, ProjectorPlates.frontSide(portal, eye), false, 0,
             Settings.NEAR_PLANE_PADDING, Settings.PROJECTION_APERTURE_PADDING_BLOCKS, Settings.FRUSTUM_CULLING_RATIO, portal.getNetworkViewDepth(), 0,
             ApertureDescriptor.BLACKOUT_OFF, ViewStreamLimits.PALETTE_AIR, ApertureDescriptor.MASK_AIR_PROJECT,
-            BlockClaim.LightingPolicy.LOCAL, 0, kind, DoorApertureFrames.geometryPlaneOffset(kind, frame), 0, 0L, List.of())).orElse(null);
+            BlockClaim.LightingPolicy.LOCAL, 0, kind, DoorApertureFrames.geometryPlaneOffset(kind, frame), 0, 0L, structure.getApertureShape(),
+            List.of())).orElse(null);
     }
 
     private static int effectKind(ILocalPortal portal) {
@@ -302,6 +305,8 @@ public final class ClientViewPortalSource {
         Frame frame = portal.getFrame();
         Box area = structure.getArea();
         long hash = PassRevision.mix(REVISION_SEED, System.identityHashCode(structure));
+        hash = PassRevision.mix(hash, structure.getRevision());
+        hash = PassRevision.mix(hash, structure.getApertureShape().hashCode());
         if (area != null) {
             hash = PassRevision.mix(hash, Double.doubleToLongBits(area.getXa()));
             hash = PassRevision.mix(hash, Double.doubleToLongBits(area.getYa()));

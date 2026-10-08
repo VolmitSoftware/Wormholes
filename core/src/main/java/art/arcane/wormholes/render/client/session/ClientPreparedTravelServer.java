@@ -365,7 +365,7 @@ public final class ClientPreparedTravelServer implements WorldChangeListener, Au
         }
         Vec3d intersection = value.previousEye().add(value.currentEye().subtract(value.previousEye())
             .multiply(previous / (previous - current)));
-        return geometry.aperture().contains(intersection);
+        return geometry.containsPoint(intersection.x(), intersection.y(), intersection.z());
     }
 
     public synchronized void unavailable(TravelMessage.TravelCoordinate position) {
@@ -454,7 +454,7 @@ public final class ClientPreparedTravelServer implements WorldChangeListener, Au
             && first.originZ() == second.originZ() && first.facing() == second.facing() && first.quarterTurns() == second.quarterTurns()
             && first.kind() == second.kind() && first.apertureWidth() == second.apertureWidth()
             && first.apertureHeight() == second.apertureHeight() && first.targetIdentity() == second.targetIdentity()
-            && Arrays.equals(first.apertureMask(), second.apertureMask());
+            && Arrays.equals(first.apertureMask(), second.apertureMask()) && first.shape().equals(second.shape());
     }
 
     private boolean complete() {

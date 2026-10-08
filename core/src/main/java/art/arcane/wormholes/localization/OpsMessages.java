@@ -132,6 +132,9 @@ public final class OpsMessages {
     public static final String PORTALS_RENAME_SERVER_OLD_HELP = "ops.command.help.portals.rename_server.old";
     public static final String PORTALS_RENAME_SERVER_NEW_HELP = "ops.command.help.portals.rename_server.new";
     public static final String PORTALS_RENAME_SERVER_CONFIRM_HELP = "ops.command.help.portals.rename_server.confirm";
+    public static final String PORTALS_SHAPE_HELP = "ops.command.help.portals.shape";
+    public static final String PORTALS_SHAPE_PORTAL_HELP = "ops.command.help.portals.shape.portal";
+    public static final String PORTALS_SHAPE_SHAPE_HELP = "ops.command.help.portals.shape.shape";
 
     static {
         GROUP.text(BACKUP_HELP, "Create, list, restore, and exchange portal backups");
@@ -181,6 +184,9 @@ public final class OpsMessages {
         GROUP.text(PORTALS_RENAME_SERVER_OLD_HELP, "Server name stored in the links today");
         GROUP.text(PORTALS_RENAME_SERVER_NEW_HELP, "Server name to store instead");
         GROUP.text(PORTALS_RENAME_SERVER_CONFIRM_HELP, "Required to rewrite the links");
+        GROUP.text(PORTALS_SHAPE_HELP, "Show or set the aperture shape of a portal");
+        GROUP.text(PORTALS_SHAPE_PORTAL_HELP, "Portal name or id");
+        GROUP.text(PORTALS_SHAPE_SHAPE_HELP, "Shape text such as circle, flower(petals=7) or full; omit to show the current shape");
     }
 
     private OpsMessages() {

@@ -25,6 +25,7 @@
 #   {block}  Geselecteerd blokmateriaal
 #   {blocks}  Geplaatste blokken die door herbouw worden beïnvloed
 #   {cancel}  Annuleringswoord voor chatinvoer
+#   {cells}  Aantal open cellen in de opening
 #   {code}  Uitnodigingscode van de server of het portaal
 #   {color}  Geselecteerde weergavekleur
 #   {command}  Opdrachtpad
@@ -97,6 +98,7 @@
 #   {section}  Onderdeel van de taaleditor
 #   {send}  Verzendstatus van de projectie
 #   {server}  Servernaam of -identificatie
+#   {shape}  Vorm van de portaalopening
 #   {size}  Grootte van de pocketruimte in blokken
 #   {skin}  Geselecteerd portaaluiterlijk
 #   {skipped}  Aantal overgeslagen bewerkingen
@@ -503,6 +505,12 @@ destination = ["&6&lBestemming&r", "&7Kies een portaal om mee te verbinden.", "&
 "destination.empty" = ["&7Er zijn geen bestemmingen beschikbaar om te koppelen."]
 render_mode = ["&b&lWeergavemodus &f&l{mode}&r", "&7Hoeveel van het bestemmingsvolume dit portaal projecteert.", "", "&7Modus: &f{mode}", "", "&8PanOptic geeft het volledige bestemmingsvolume weer.", "&8Venticular verbergt geometrie achter zichtbare ondoorzichtige oppervlakken.", "", "&8Links: modus wisselen."]
 ambient_particles = ["&b&lOmgevingsdeeltjes&r", "&7Decoratief stof dat rond dit portaal zweeft.", "", "&7Stijl: &f{style} &8({color})", "", "&8Links: stijl wisselen.", "&8Rechts: een kleur kiezen."]
+aperture_shape = ["&b&lOpeningsvorm&r", "&7De omtrek van de opening binnen het frame.", "", "&7Vorm: &f{shape}", "&7Open cellen: &f{cells}", "", "&8Links: volgende vorm.", "&8Rechts: 45 graden draaien.", "&8Shift + rechts: terugzetten naar full."]
+"aperture_shape.label" = "Openingsvorm"
+"aperture_shape.too_small" = "&c{shape} laat in dit frame geen open cel over."
+"aperture_shape.invalid" = "&8[&6Wormholes&8] &cDe vorm kon niet worden gelezen: {reason}"
+"aperture_shape.current" = "&8[&6Wormholes&8] &f{portal}&7: openingsvorm &f{shape}&7 ({cells} open cellen)"
+"aperture_shape.set" = "&8[&6Wormholes&8] &f{portal}&a: openingsvorm ingesteld op &f{shape}&a ({cells} open cellen)."
 surface_skin = ["&b&lOppervlakteskin&r", "&7Bedek de portaalopening met een gerenderd blok- of vloeistofpaneel.", "", "&7Skin: &f{skin}", "", "&8Links: skin wissen.", "&8Rechts: skinopties openen."]
 "surface_skin.placard" = ["&6&lOppervlakteskin&r", "&7Rechtsklik op het portaal met een blok of emmer om een skin toe te passen.", "", "&7Skin: &f{skin}"]
 "surface_skin.glass" = ["&b&lGlazen skin&r", "&7Een helder glazen venster over de opening.", "", "&8Klik om glas toe te passen."]
@@ -1517,6 +1525,9 @@ portals = "Portalen tonen, bekijken en in bulk bewerken"
 "portals.rename_server.old" = "Servernaam die nu in de koppelingen staat"
 "portals.rename_server.new" = "Servernaam die in plaats daarvan wordt opgeslagen"
 "portals.rename_server.confirm" = "Nodig om de koppelingen te herschrijven"
+"portals.shape" = "De openingsvorm van een portaal tonen of instellen"
+"portals.shape.portal" = "Portaalnaam of id"
+"portals.shape.shape" = "Vormtekst zoals circle, flower(petals=7) of full; leeg toont de huidige vorm"
 # ---- end lane:ops ----
 
 # ---- lane:clientview (clientview.*) ----

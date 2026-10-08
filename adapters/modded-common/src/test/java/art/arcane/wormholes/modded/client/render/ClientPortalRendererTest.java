@@ -15,6 +15,7 @@ import art.arcane.optics.claim.BlockClaim;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.shape.ShapeDescriptor;
 import art.arcane.wormholes.portal.ApertureKind;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.pipeline.TextureTarget;
@@ -2329,7 +2330,7 @@ public class ClientPortalRendererTest extends MinecraftTestBase {
         ApertureDescriptor geometry = ApertureDescriptor.fromPortal(new ApertureDescriptor.Source(aperture,
             Frame.canonical(Face.S), front, false, 0, 0, 0, 0, 64, 0,
             ApertureDescriptor.BLACKOUT_OFF, 0, ApertureDescriptor.MASK_AIR_PROJECT,
-            BlockClaim.LightingPolicy.LOCAL, 0, ApertureKind.FRAME, 0.0D, parent, 0, List.of())).orElseThrow();
+            BlockClaim.LightingPolicy.LOCAL, 0, ApertureKind.FRAME, 0.0D, parent, 0, ShapeDescriptor.FULL, List.of())).orElseThrow();
         when(scene.geometry()).thenReturn(geometry);
         when(scene.sectionKeys()).thenReturn(new LongArrayList());
         return scene;

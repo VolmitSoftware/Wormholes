@@ -2,8 +2,10 @@ package art.arcane.wormholes.modded;
 
 import art.arcane.volmlib.util.localization.MessageArgs;
 import art.arcane.volmlib.util.localization.TextKey;
+import art.arcane.optics.shape.ShapeDescriptor;
 import art.arcane.wormholes.access.PortalPermissionKey;
 import art.arcane.wormholes.localization.WormholesMessages;
+import art.arcane.wormholes.portal.ApertureShapePresets;
 import art.arcane.wormholes.portal.DimensionalPortalKind;
 import art.arcane.wormholes.portal.NetworkViewQuality;
 import art.arcane.wormholes.portal.PortalPermissionMode;
@@ -67,6 +69,7 @@ final class MinecraftPortalSettingsMenu {
             window.setElement(3, 2, networkViewNumberElement(window, p, portal, VIEW_GRACE));
             window.setElement(-4, 3, cosmetics.blackoutElement(window, p, portal));
             window.setElement(-2, 3, cosmetics.ambientParticlesElement(window, p, portal));
+            window.setElement(-1, 3, apertureShapeElement(window, p, portal));
             window.setElement(0, 3, networkViewFallbackElement(p, window, portal));
             window.setElement(2, 3, cosmetics.surfaceSkinElement(window, p, portal));
             window.setElement(4, 3, activationRangeElement(window, p, portal));
@@ -81,6 +84,7 @@ final class MinecraftPortalSettingsMenu {
             window.setElement(-2, 2, activationRangeElement(window, p, portal));
             window.setElement(0, 2, renderModeElement(window, p, portal));
             window.setElement(2, 2, cosmetics.ambientParticlesElement(window, p, portal));
+            window.setElement(3, 2, apertureShapeElement(window, p, portal));
             window.setElement(4, 2, cosmetics.surfaceSkinElement(window, p, portal));
             window.setElement(-1, 3, publicLookLabelElement(window, p, portal));
             window.setElement(1, 3, costOpenerElement(window, p, portal));
@@ -402,6 +406,49 @@ final class MinecraftPortalSettingsMenu {
         return element;
     }
 
+    private MinecraftElement apertureShapeElement(MinecraftWindow window, ServerPlayer viewer, MinecraftPortal portal) {
+        MinecraftElement element = new MinecraftElement("aperture-shape");
+        ShapeCursor cursor = new ShapeCursor();
+        element.onLeftClick(clicked -> changeApertureShape(window, viewer, portal, element, cursor,
+            ApertureShapePresets.next(cursor.refused == null ? portal.getApertureShape() : cursor.refused)));
+        element.onRightClick(clicked -> changeApertureShape(window, viewer, portal, element, cursor,
+            ApertureShapePresets.rotated(portal.getApertureShape())));
+        element.onShiftRightClick(clicked -> changeApertureShape(window, viewer, portal, element, cursor, ShapeDescriptor.FULL));
+        applyApertureShapeElement(viewer, element, portal, cursor);
+        return element;
+    }
+
+    private void changeApertureShape(MinecraftWindow window, ServerPlayer viewer, MinecraftPortal portal, MinecraftElement element,
+                                     ShapeCursor cursor, ShapeDescriptor requested) {
+        if (portal.acceptsApertureShape(requested)) {
+            cursor.refused = null;
+            if (menus.update(viewer, portal, target -> target.setApertureShape(requested))) {
+                MinecraftPortalText.notifySetting(viewer, portal, WormholesMessages.PORTAL_NETWORK_VALUE_CHANGED, MinecraftPortalText.arguments(
+                    "label", MinecraftPortalText.localized(viewer, WormholesMessages.PORTAL_LABEL_APERTURE_SHAPE),
+                    "value", requested.format()));
+            }
+        } else {
+            cursor.refused = requested;
+            MinecraftPortalText.notifySetting(viewer, portal, WormholesMessages.PORTAL_APERTURE_SHAPE_TOO_SMALL,
+                MinecraftPortalText.arguments("shape", requested.format()));
+        }
+        applyApertureShapeElement(viewer, element, portal, cursor);
+        window.updateInventory();
+    }
+
+    private void applyApertureShapeElement(ServerPlayer viewer, MinecraftElement element, MinecraftPortal portal, ShapeCursor cursor) {
+        ShapeDescriptor shape = portal.getApertureShape();
+        MinecraftLegacyText.apply(viewer, element, WormholesMessages.PORTAL_MENU_APERTURE_SHAPE, MinecraftPortalText.arguments(
+            "shape", shape.format(),
+            "cells", Integer.valueOf(portal.getGeometry().getBlockPositions().size())));
+        if (cursor.refused != null) {
+            element.addLore(MinecraftLegacyText.text(viewer, WormholesMessages.PORTAL_APERTURE_SHAPE_TOO_SMALL,
+                MinecraftPortalText.arguments("shape", cursor.refused.format())));
+        }
+        element.setMaterial(shape.isFull() ? Items.GLASS_PANE : Items.STAINED_GLASS_PANE.cyan());
+        element.setEnchanted(!shape.isFull());
+    }
+
     private MinecraftElement publicLookLabelElement(MinecraftWindow window, ServerPlayer viewer, MinecraftPortal portal) {
         MinecraftElement element = new MinecraftElement("public-look-label");
         element.onLeftClick(clicked -> {
@@ -475,5 +522,9 @@ final class MinecraftPortalSettingsMenu {
 
     private record NumberControl(String id, TextKey label, TextKey description, Item material, ToIntFunction<MinecraftPortal> getter,
                                  ObjIntConsumer<MinecraftPortal> setter, int step, int largeStep) {
+    }
+
+    private static final class ShapeCursor {
+        private ShapeDescriptor refused;
     }
 }

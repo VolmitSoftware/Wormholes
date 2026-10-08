@@ -25,6 +25,7 @@
 #   {block}  選択したブロック素材
 #   {blocks}  再構築の影響を受ける設置済みブロック数
 #   {cancel}  チャット入力を取り消す語
+#   {cells}  開口部の開いているセル数
 #   {code}  サーバーまたはポータル招待コード
 #   {color}  選択した表示色
 #   {command}  コマンドのパス
@@ -97,6 +98,7 @@
 #   {section}  言語エディターのセクション
 #   {send}  投影の送信状態
 #   {server}  サーバー名または識別子
+#   {shape}  ポータル開口部の形状
 #   {size}  ポケットサイズ（ブロック）
 #   {skin}  選択したポータルスキン
 #   {skipped}  スキップした操作数
@@ -503,6 +505,12 @@ destination = ["&6&l目的地&r", "&7リンクするポータルを選びます�
 "destination.empty" = ["&7リンクできる目的地がありません。"]
 render_mode = ["&b&lレンダリングモード &f&l{mode}&r", "&7このポータルが投影する目的地ボリュームの範囲。", "", "&7モード: &f{mode}", "", "&8PanOptic は目的地ボリューム全体をレンダリングします。", "&8Venticular は表示される不透明な表面の背後にある形状を省略します。", "", "&8左クリック: モードを切り替え。"]
 ambient_particles = ["&b&lアンビエントパーティクル&r", "&7このポータルの周りに漂う装飾的なほこり。", "", "&7スタイル: &f{style} &8({color})", "", "&8左: スタイルを切り替え。", "&8右: 色を選択。"]
+aperture_shape = ["&b&l開口部の形状&r", "&7フレーム内の開口部の輪郭。", "", "&7形状: &f{shape}", "&7開いているセル: &f{cells}", "", "&8左: 次の形状。", "&8右: 45 度回転。", "&8Shift + 右: full にリセット。"]
+"aperture_shape.label" = "開口部の形状"
+"aperture_shape.too_small" = "&c{shape} ではこのフレームに開いているセルが残りません。"
+"aperture_shape.invalid" = "&8[&6Wormholes&8] &c形状を読み取れませんでした: {reason}"
+"aperture_shape.current" = "&8[&6Wormholes&8] &f{portal}&7 の開口部の形状: &f{shape}&7 (開いているセル {cells} 個)"
+"aperture_shape.set" = "&8[&6Wormholes&8] &f{portal}&a の開口部の形状を &f{shape}&a に設定しました (開いているセル {cells} 個)。"
 surface_skin = ["&b&l表面スキン&r", "&7レンダリングされたブロックまたは液体のパネルでポータルの開口部を覆います。", "", "&7スキン: &f{skin}", "", "&8左: スキンを削除。", "&8右: スキンオプションを開く。"]
 "surface_skin.placard" = ["&6&l表面スキン&r", "&7ブロックまたはバケツを持ってポータルを右クリックしてスキンを適用します。", "", "&7スキン: &f{skin}"]
 "surface_skin.glass" = ["&b&lガラススキン&r", "&7開口部を覆う透明なガラスの窓。", "", "&8クリックしてガラスを適用します。"]
@@ -1517,6 +1525,9 @@ portals = "ポータルの一覧、確認、一括編集"
 "portals.rename_server.old" = "現在リンクに保存されているサーバー名"
 "portals.rename_server.new" = "代わりに保存するサーバー名"
 "portals.rename_server.confirm" = "リンクを書き換えるために必要"
+"portals.shape" = "ポータルの開口部の形状を表示または設定する"
+"portals.shape.portal" = "ポータル名または ID"
+"portals.shape.shape" = "circle、flower(petals=7)、full などの形状テキスト。空なら現在の形状を表示する"
 # ---- end lane:ops ----
 
 # ---- lane:clientview (clientview.*) ----

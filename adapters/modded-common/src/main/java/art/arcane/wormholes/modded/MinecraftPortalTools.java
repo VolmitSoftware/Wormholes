@@ -1,6 +1,10 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.optics.shape.Shapes;
+import art.arcane.volmlib.util.localization.MessageArgs;
+import art.arcane.volmlib.util.localization.TextKey;
 import art.arcane.wormholes.WandSelectionGeometry;
+import art.arcane.wormholes.portal.ApertureShapeChange;
 import art.arcane.wormholes.portal.PortalType;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -91,7 +95,16 @@ public final class MinecraftPortalTools implements AutoCloseable {
                     .executes(context -> remove(context.getSource(), UuidArgument.getUuid(context, "portal")))))
                 .then(Commands.literal("name").then(Commands.argument("portal", UuidArgument.uuid())
                     .then(Commands.argument("name", StringArgumentType.greedyString()).executes(context ->
-                        rename(context.getSource(), UuidArgument.getUuid(context, "portal"), StringArgumentType.getString(context, "name"))))))));
+                        rename(context.getSource(), UuidArgument.getUuid(context, "portal"), StringArgumentType.getString(context, "name"))))))
+                .then(Commands.literal("shape").then(Commands.argument("portal", UuidArgument.uuid())
+                    .executes(context -> shape(context.getSource(), UuidArgument.getUuid(context, "portal"), ""))
+                    .then(Commands.argument("shape", StringArgumentType.greedyString()).suggests((context, suggestions) -> {
+                        for (String name : Shapes.presetNames()) {
+                            suggestions.suggest(name);
+                        }
+                        return suggestions.buildFuture();
+                    }).executes(context -> shape(context.getSource(), UuidArgument.getUuid(context, "portal"),
+                        StringArgumentType.getString(context, "shape"))))))));
     }
 
     public void suppressSwing(ServerPlayer player) {
@@ -339,6 +352,36 @@ public final class MinecraftPortalTools implements AutoCloseable {
 
     private int rename(CommandSourceStack source, UUID id, String name) throws CommandSyntaxException {
         return changed(source, runtime.portals().update(source.getPlayerOrException(), id, portal -> portal.setName(name)), "Portal renamed.");
+    }
+
+    private int shape(CommandSourceStack source, UUID id, String text) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        MinecraftPortal portal = runtime.portals().get(id);
+        if (portal == null || !runtime.portals().canManage(player, portal)) {
+            return changed(source, false, "");
+        }
+        ApertureShapeChange change = ApertureShapeChange.request(text, portal.getApertureShape(),
+            shape -> portal.acceptsApertureShape(shape) && runtime.portals().update(player, id, target -> target.setApertureShape(shape)));
+        TextKey message = switch (change.status()) {
+            case SHOWN -> WormholesMessages.PORTAL_APERTURE_SHAPE_CURRENT;
+            case SET -> WormholesMessages.PORTAL_APERTURE_SHAPE_SET;
+            case INVALID -> WormholesMessages.PORTAL_APERTURE_SHAPE_INVALID;
+            case TOO_SMALL -> WormholesMessages.PORTAL_APERTURE_SHAPE_TOO_SMALL;
+        };
+        MessageArgs arguments = switch (change.status()) {
+            case SHOWN, SET -> MinecraftPortalText.arguments("portal", portal.getName(), "shape", change.shape().format(),
+                "cells", Integer.valueOf(portal.getGeometry().getBlockPositions().size()));
+            case INVALID -> MinecraftPortalText.arguments("reason", change.reason());
+            case TOO_SMALL -> MinecraftPortalText.arguments("shape", change.shape().format());
+        };
+        Component reply = MinecraftMenuText.text(player, message, arguments);
+        boolean succeeded = change.status() == ApertureShapeChange.Status.SHOWN || change.status() == ApertureShapeChange.Status.SET;
+        if (!succeeded) {
+            source.sendFailure(reply);
+            return 0;
+        }
+        source.sendSuccess(() -> reply, change.status() == ApertureShapeChange.Status.SET);
+        return 1;
     }
 
     private static int changed(CommandSourceStack source, boolean changed, String message) {

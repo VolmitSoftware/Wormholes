@@ -13,6 +13,7 @@ import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.network.PortalSyncService;
 import art.arcane.volmlib.util.json.JSONObject;
 import art.arcane.optics.frame.QuarterTurn;
+import art.arcane.optics.shape.ShapeDescriptor;
 
 final class LocalPortalSettings
 {
@@ -102,6 +103,11 @@ final class LocalPortalSettings
 		j.put("ambientColor", ambientColor);
 		j.put("surfaceSkin", surfaceSkin);
 		j.put("publicLookLabel", publicLookLabel);
+		ShapeDescriptor apertureShape = getApertureShape();
+		if(!apertureShape.isFull())
+		{
+			j.put("apertureShape", apertureShape.format());
+		}
 		if(travelCost != null)
 		{
 			j.put("travelCost", travelCost.toJson());
@@ -132,6 +138,7 @@ final class LocalPortalSettings
 		ambientColor = normalizeAmbientColor(j.optInt("ambientColor", DEFAULT_AMBIENT_COLOR));
 		surfaceSkin = PortalSurfaceSkins.normalizeSkin(j.optString("surfaceSkin", DEFAULT_SURFACE_SKIN));
 		publicLookLabel = j.optBoolean("publicLookLabel", DEFAULT_PUBLIC_LOOK_LABEL);
+		loadApertureShape(j);
 		boolean malformedTravelCost = j.has("travelCost")
 				&& !j.isNull("travelCost")
 				&& j.optJSONObject("travelCost") == null;
@@ -676,6 +683,26 @@ final class LocalPortalSettings
 		renderSettingsChanged();
 	}
 
+	ShapeDescriptor getApertureShape()
+	{
+		return portal.getStructure().getApertureShape();
+	}
+
+	boolean setApertureShape(ShapeDescriptor shape)
+	{
+		ShapeDescriptor requested = shape == null ? ShapeDescriptor.FULL : shape;
+		if(requested.equals(getApertureShape()))
+		{
+			return true;
+		}
+		if(!portal.getStructure().setApertureShape(requested, portal.getFrame()))
+		{
+			return false;
+		}
+		renderSettingsChanged();
+		return true;
+	}
+
 	boolean isPublicLookLabel()
 	{
 		return publicLookLabel;
@@ -710,6 +737,32 @@ final class LocalPortalSettings
 			Wormholes.portalSyncService.broadcastSettingsToggle(portal);
 		}
 		refreshOpenMenusUnlessApplyingRemote();
+	}
+
+	private void loadApertureShape(JSONObject j)
+	{
+		String stored = j.optString("apertureShape", "");
+		if(stored.isBlank())
+		{
+			portal.getStructure().setApertureShape(ShapeDescriptor.FULL, portal.getFrame());
+			return;
+		}
+		ShapeDescriptor shape;
+		try
+		{
+			shape = ShapeDescriptor.parse(stored);
+		}
+		catch(IllegalArgumentException exception)
+		{
+			portal.getStructure().setApertureShape(ShapeDescriptor.FULL, portal.getFrame());
+			Wormholes.w("Portal " + portal.getId() + " has an unreadable aperture shape \"" + stored + "\" (" + exception.getMessage() + "); using a full aperture");
+			return;
+		}
+		if(!portal.getStructure().setApertureShape(shape, portal.getFrame()))
+		{
+			portal.getStructure().setApertureShape(ShapeDescriptor.FULL, portal.getFrame());
+			Wormholes.w("Portal " + portal.getId() + " aperture shape " + shape.format() + " leaves no open cell in its frame; using a full aperture");
+		}
 	}
 
 	private void networkViewSettingsChanged()

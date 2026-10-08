@@ -20,6 +20,7 @@ import art.arcane.volmlib.util.inventorygui.WindowResolution;
 import art.arcane.volmlib.util.localization.MessageArgs;
 import art.arcane.volmlib.util.localization.TextKey;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
+import art.arcane.optics.shape.ShapeDescriptor;
 
 final class LocalPortalSettingsMenu
 {
@@ -74,6 +75,7 @@ final class LocalPortalSettingsMenu
 					Material.REDSTONE, portal::getNetworkViewUnsubscribeGraceSeconds, portal::setNetworkViewUnsubscribeGraceSeconds, 5, 30));
 			window.setElement(-4, 3, menus.cosmetics().blackoutElement(window, p));
 			window.setElement(-2, 3, menus.cosmetics().ambientParticlesElement(window, p));
+			window.setElement(-1, 3, apertureShapeElement(window, p));
 			window.setElement(0, 3, networkViewFallbackElement(p, window));
 			window.setElement(2, 3, menus.cosmetics().surfaceSkinElement(window, p));
 			window.setElement(4, 3, activationRangeElement(window, p));
@@ -91,6 +93,7 @@ final class LocalPortalSettingsMenu
 			window.setElement(-2, 2, activationRangeElement(window, p));
 			window.setElement(0, 2, renderModeElement(window, p));
 			window.setElement(2, 2, menus.cosmetics().ambientParticlesElement(window, p));
+			window.setElement(3, 2, apertureShapeElement(window, p));
 			window.setElement(4, 2, menus.cosmetics().surfaceSkinElement(window, p));
 			window.setElement(-1, 3, publicLookLabelElement(window, p));
 			window.setElement(1, 3, costOpenerElement(window, p));
@@ -478,6 +481,55 @@ final class LocalPortalSettingsMenu
 		return element;
 	}
 
+	private Element apertureShapeElement(Window window, Player viewer)
+	{
+		UIElement element = new UIElement("aperture-shape");
+		ShapeCursor cursor = new ShapeCursor();
+		element.onLeftClick((event) -> changeApertureShape(window, viewer, element, cursor,
+				ApertureShapePresets.next(cursor.refused == null ? portal.getApertureShape() : cursor.refused)));
+		element.onRightClick((event) -> changeApertureShape(window, viewer, element, cursor,
+				ApertureShapePresets.rotated(portal.getApertureShape())));
+		element.onShiftRightClick((event) -> changeApertureShape(window, viewer, element, cursor, ShapeDescriptor.FULL));
+		applyApertureShapeElement(element, cursor);
+		return element;
+	}
+
+	private void changeApertureShape(Window window, Player viewer, Element element, ShapeCursor cursor, ShapeDescriptor requested)
+	{
+		if(portal.setApertureShape(requested))
+		{
+			cursor.refused = null;
+			menus.text().notifySetting(viewer, WormholesMessages.PORTAL_NETWORK_VALUE_CHANGED,
+					LocalPortalText.arguments(
+							"label", LocalPortalText.localized(WormholesMessages.PORTAL_LABEL_APERTURE_SHAPE),
+							"value", requested.format()));
+		}
+		else
+		{
+			cursor.refused = requested;
+			menus.text().notifySetting(viewer, WormholesMessages.PORTAL_APERTURE_SHAPE_TOO_SMALL,
+					LocalPortalText.arguments("shape", requested.format()));
+		}
+		applyApertureShapeElement(element, cursor);
+		window.updateInventory();
+	}
+
+	private void applyApertureShapeElement(Element element, ShapeCursor cursor)
+	{
+		ShapeDescriptor shape = portal.getApertureShape();
+		Wormholes.text().apply(element, WormholesMessages.PORTAL_MENU_APERTURE_SHAPE,
+				LocalPortalText.arguments(
+						"shape", shape.format(),
+						"cells", Integer.valueOf(portal.getStructure().getBlockPositions().size())));
+		if(cursor.refused != null)
+		{
+			element.addLore(Wormholes.text().legacy(WormholesMessages.PORTAL_APERTURE_SHAPE_TOO_SMALL,
+					LocalPortalText.arguments("shape", cursor.refused.format())));
+		}
+		element.setMaterial(new MaterialBlock(shape.isFull() ? Material.GLASS_PANE : Material.CYAN_STAINED_GLASS_PANE));
+		element.setEnchanted(!shape.isFull());
+	}
+
 	private Element publicLookLabelElement(Window window, Player viewer)
 	{
 		UIElement element = new UIElement("public-look-label");
@@ -568,5 +620,10 @@ final class LocalPortalSettingsMenu
 						"node", portal.getPermissionNode()));
 		element.setEnchanted(mode == PortalPermissionMode.WHITELIST);
 		element.setMaterial(new MaterialBlock(mode == PortalPermissionMode.WHITELIST ? Material.GOLDEN_HELMET : Material.IRON_HELMET));
+	}
+
+	private static final class ShapeCursor
+	{
+		private ShapeDescriptor refused;
 	}
 }

@@ -8,6 +8,7 @@ import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.stream.Brick;
 import art.arcane.optics.stream.ViewStreamMessage;
 import art.arcane.optics.math.BlockBox;
+import art.arcane.optics.shape.ShapeDescriptor;
 import net.minecraft.core.SectionPos;
 import org.junit.Test;
 
@@ -184,7 +185,7 @@ public class ClientViewMeshTest extends MinecraftTestBase {
     private static ApertureDescriptor mirror(List<ApertureDescriptor> nested) {
         ApertureDescriptor source = ClientViewHarness.geometry();
         return new ApertureDescriptor(source.originX(), source.originY(), source.originZ(), source.facing(), source.frontSide(),
-            source.quarterTurns(), true, source.apertureWidth(), source.apertureHeight(), source.apertureMask(),
+            source.quarterTurns(), true, source.apertureWidth(), source.apertureHeight(), source.apertureMask(), ShapeDescriptor.FULL,
             source.nearPlanePadding(), source.aperturePadding(), source.frustumCullingRatio(), source.depthBlocks(), 3,
             source.blackoutPolicy(), source.blackoutState(), source.maskAirPolicy(), source.lightingPolicy(), source.fidelityFlags(),
             source.kind(), source.planeOffset(), 0, 0L, nested);

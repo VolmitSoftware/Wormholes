@@ -17,6 +17,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import art.arcane.optics.aperture.ApertureDescriptor;
+import art.arcane.optics.shape.ShapeDescriptor;
 import art.arcane.wormholes.portal.ApertureKind;
 
 final class ClientPortalGeometryPlaneOffsetTest {
@@ -74,6 +75,6 @@ final class ClientPortalGeometryPlaneOffsetTest {
         aperture.setArea(new Box(min[0], max[0] + 0.999D, min[1], max[1] + 0.999D, min[2], max[2] + 0.999D));
         return ApertureDescriptor.fromPortal(new ApertureDescriptor.Source(aperture, frame, true, false, 0, 2.0D, 0.75D, 0.2D, 64, 3,
             ApertureDescriptor.BLACKOUT_OFF, 0, ApertureDescriptor.MASK_AIR_PROJECT, BlockClaim.LightingPolicy.LOCAL, 0,
-            kind, planeOffset, 0, 11L, nested)).orElseThrow();
+            kind, planeOffset, 0, 11L, ShapeDescriptor.FULL, nested)).orElseThrow();
     }
 }

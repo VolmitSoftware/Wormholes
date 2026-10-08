@@ -321,6 +321,7 @@ public final class MinecraftClientViewPortalAccess implements ViewStreamEndpoint
 
     private long revision(MinecraftClientViewPeer peer, ServerPlayer player, MinecraftPortal portal, boolean front) {
         long stamp = PassRevision.mix(portal.getGeometry().getRevision(), front ? 1L : 2L);
+        stamp = PassRevision.mix(stamp, portal.getApertureShape().hashCode());
         stamp = PassRevision.mix(stamp, peer.portals().routeIdentity(portal));
         if (peer.meshDepth() > 0) {
             stamp = PassRevision.mix(stamp, meshTargetRevision(peer, portal, front));
@@ -366,7 +367,7 @@ public final class MinecraftClientViewPortalAccess implements ViewStreamEndpoint
             blackout ? ApertureDescriptor.BLACKOUT_SHELL : ApertureDescriptor.BLACKOUT_OFF,
             blackoutState, ApertureDescriptor.MASK_AIR_PROJECT, lighting, fidelity(portal, render), kind,
             DoorApertureFrames.geometryPlaneOffset(kind, portal.getFrame()), 0,
-            targetIdentity, List.of());
+            targetIdentity, portal.getApertureShape(), List.of());
         return ApertureDescriptor.fromPortal(source).orElse(null);
     }
 
@@ -404,6 +405,7 @@ public final class MinecraftClientViewPortalAccess implements ViewStreamEndpoint
             return 0L;
         }
         long stamp = PassRevision.mix(portal.getGeometry().getRevision(), front(player, portal) ? 1L : 2L);
+        stamp = PassRevision.mix(stamp, portal.getApertureShape().hashCode());
         stamp = PassRevision.mix(stamp, portal.getNetworkViewDepth());
         stamp = PassRevision.mix(stamp, kind(peer, portal));
         stamp = PassRevision.mix(stamp, System.identityHashCode(player.level()));
@@ -429,7 +431,7 @@ public final class MinecraftClientViewPortalAccess implements ViewStreamEndpoint
             projection.nearPlanePadding, projection.aperturePaddingBlocks, projection.frustumCullingRatio, portal.getNetworkViewDepth(), 0,
             ApertureDescriptor.BLACKOUT_OFF, ViewStreamLimits.PALETTE_AIR, ApertureDescriptor.MASK_AIR_PROJECT,
             BlockClaim.LightingPolicy.LOCAL, 0, kind, DoorApertureFrames.geometryPlaneOffset(kind, portal.getFrame()), 0, 0L,
-            List.of());
+            portal.getApertureShape(), List.of());
         return ApertureDescriptor.fromPortal(source).orElse(null);
     }
 

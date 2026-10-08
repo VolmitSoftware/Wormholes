@@ -25,6 +25,7 @@
 #   {block}  Pasirinkta bloko medžiaga
 #   {blocks}  Perstatymo paveikti padėti blokai
 #   {cancel}  Pokalbio įvesties atšaukimo žodis
+#   {cells}  Atvirų angos langelių skaičius
 #   {code}  Serverio arba portalo kvietimo kodas
 #   {color}  Pasirinkta rodymo spalva
 #   {command}  Komandos kelias
@@ -97,6 +98,7 @@
 #   {section}  Kalbos redaktoriaus skyrius
 #   {send}  Projekcijos siuntimo būsena
 #   {server}  Serverio pavadinimas arba identifikatorius
+#   {shape}  Portalo angos forma
 #   {size}  Kišeninės erdvės dydis blokais
 #   {skin}  Pasirinkta portalo išvaizda
 #   {skipped}  Praleistų operacijų skaičius
@@ -468,6 +470,12 @@ destination = ["&6&lTikslas&r", "&7Pasirinkite susietiną portalą.", "&7Dabarti
 "destination.empty" = ["&7Nėra paskirties vietų, kurias būtų galima susieti."]
 render_mode = ["&b&lAtvaizdavimo režimas &f&l{mode}&r", "&7Kiek paskirties tūrio projektuoja šis portalas.", "", "&7Režimas: &f{mode}", "", "&8PanOptic atvaizduoja visą paskirties tūrį.", "&8Venticular paslepia geometriją už matomų nepermatomų paviršių.", "", "&8Kairysis: keisti režimą."]
 ambient_particles = ["&b&lAplinkos dalelės&r", "&7Dekoratyvios dulkės, sklandančios aplink šį portalą.", "", "&7Stilius: &f{style} &8({color})", "", "&8Kairys: keisti stilių.", "&8Dešinys: pasirinkti spalvą."]
+aperture_shape = ["&b&lAngos forma&r", "&7Angos kontūras rėmo viduje.", "", "&7Forma: &f{shape}", "&7Atviri langeliai: &f{cells}", "", "&8Kairys: kita forma.", "&8Dešinys: pasukti 45 laipsnius.", "&8Shift + dešinys: atkurti full."]
+"aperture_shape.label" = "Angos forma"
+"aperture_shape.too_small" = "&c{shape} šiame rėme nepalieka nė vieno atviro langelio."
+"aperture_shape.invalid" = "&8[&6Wormholes&8] &cNepavyko perskaityti formos: {reason}"
+"aperture_shape.current" = "&8[&6Wormholes&8] &f{portal}&7: angos forma &f{shape}&7 (atvirų langelių: {cells})"
+"aperture_shape.set" = "&8[&6Wormholes&8] &f{portal}&a: angos forma nustatyta į &f{shape}&a (atvirų langelių: {cells})."
 surface_skin = ["&b&lPaviršiaus apdanga&r", "&7Uždenkite portalo angą atvaizduota bloko arba skysčio plokštuma.", "", "&7Apdanga: &f{skin}", "", "&8Kairys: pašalinti apdangą.", "&8Dešinys: atverti apdangos parinktis."]
 "surface_skin.placard" = ["&6&lPaviršiaus apdanga&r", "&7Spustelėkite portalą dešiniuoju pelės mygtuku laikydami bloką arba kibirą, kad pritaikytumėte apdangą.", "", "&7Apdanga: &f{skin}"]
 "surface_skin.glass" = ["&b&lStiklo apdanga&r", "&7Skaidrus stiklo langas virš angos.", "", "&8Spustelėkite, kad pritaikytumėte stiklą."]
@@ -1517,6 +1525,9 @@ portals = "Isvardyti, perziureti ir masiskai keisti portalus"
 "portals.rename_server.old" = "Serverio pavadinimas, siandien esantis sasajose"
 "portals.rename_server.new" = "Serverio pavadinimas, kuri irasyti vietoje jo"
 "portals.rename_server.confirm" = "Butinas sasajoms perrasyti"
+"portals.shape" = "Rodyti arba nustatyti portalo angos forma"
+"portals.shape.portal" = "Portalo pavadinimas arba identifikatorius"
+"portals.shape.shape" = "Formos tekstas, pvz., circle, flower(petals=7) arba full; tuscias rodo dabartine forma"
 # ---- end lane:ops ----
 
 # ---- lane:clientview (clientview.*) ----

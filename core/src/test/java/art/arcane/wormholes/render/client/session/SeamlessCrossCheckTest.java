@@ -3,6 +3,7 @@ package art.arcane.wormholes.render.client.session;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Vec3d;
+import art.arcane.optics.shape.ShapeDescriptor;
 import art.arcane.wormholes.network.client.ClientViewFixtures;
 import art.arcane.wormholes.network.client.TravelMessage;
 import art.arcane.wormholes.portal.ApertureKind;
@@ -15,11 +16,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class SeamlessCrossCheckTest {
     private static final ApertureDescriptor GEOMETRY = new ApertureDescriptor(0, 64, 0, Face.S.ordinal(), true, 0, false, 1, 3,
-        new long[]{7}, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, ApertureKind.FRAME, 0.0D, 0, 1, List.of());
+        new long[]{7}, ShapeDescriptor.FULL, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, ApertureKind.FRAME, 0.0D, 0, 1, List.of());
     private static final ApertureDescriptor BACK = new ApertureDescriptor(0, 64, 0, Face.S.ordinal(), false, 0, false, 1, 3,
-        new long[]{7}, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, ApertureKind.FRAME, 0.0D, 0, 1, List.of());
+        new long[]{7}, ShapeDescriptor.FULL, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, ApertureKind.FRAME, 0.0D, 0, 1, List.of());
     private static final ApertureDescriptor FLOOR = new ApertureDescriptor(0, 60, 0, Face.U.ordinal(), true, 0, false, 3, 3,
-        new long[]{511}, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, ApertureKind.FRAME, 0.0D, 0, 1, List.of());
+        new long[]{511}, ShapeDescriptor.FULL, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, ApertureKind.FRAME, 0.0D, 0, 1, List.of());
     private static final double EYE = 1.62D;
 
     @Test

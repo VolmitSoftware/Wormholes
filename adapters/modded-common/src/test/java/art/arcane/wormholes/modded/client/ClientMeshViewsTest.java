@@ -12,6 +12,7 @@ import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.math.Face;
 import art.arcane.optics.frame.OpticTransform;
 import art.arcane.optics.frame.AxisPermutation;
+import art.arcane.optics.shape.ShapeDescriptor;
 import art.arcane.wormholes.portal.ApertureKind;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -137,7 +138,7 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
         ClientPortalRenderer renderer = mock(ClientPortalRenderer.class);
         ClientLevel level = mock(ClientLevel.class);
         ApertureDescriptor base = new ApertureDescriptor(0, 64, 0, Face.S.ordinal(), true, 0, true,
-            1, 2, new long[]{3}, 0, 0, 1, 64, 3, 0, 0, 0, 0, 0, ApertureKind.FRAME, 0.0D, 0, 1, List.of());
+            1, 2, new long[]{3}, ShapeDescriptor.FULL, 0, 0, 1, 64, 3, 0, 0, 0, 0, 0, ApertureKind.FRAME, 0.0D, 0, 1, List.of());
         when(session.active()).thenReturn(true);
         when(session.meshes()).thenReturn(meshes);
         when(meshes.view(7)).thenReturn(view);
@@ -607,7 +608,7 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
             when(view.bounds()).thenReturn(new BlockBox(-16, -64, -16, 48, 384, 48));
             when(level.registryAccess()).thenReturn(RegistryAccess.EMPTY);
             ApertureDescriptor geometry = new ApertureDescriptor(0, 64, 0, Face.S.ordinal(), true, 0, true,
-                1, 2, new long[]{3}, 0, 0, 1, 64, 3, 0, 0, 0, 0, 0, ApertureKind.FRAME, 0.0D, 0, 1, List.of());
+                1, 2, new long[]{3}, ShapeDescriptor.FULL, 0, 0, 1, 64, 3, 0, 0, 0, 0, 0, ApertureKind.FRAME, 0.0D, 0, 1, List.of());
             when(portal.portalKey()).thenReturn(7);
             when(portal.geometry()).thenReturn(geometry);
             when(session.portal(7)).thenReturn(portal);
@@ -628,7 +629,7 @@ public class ClientMeshViewsTest extends MinecraftTestBase {
 
     private static ApertureDescriptor surface(ApertureDescriptor base, int quarterTurns, long targetIdentity) {
         return new ApertureDescriptor(base.originX(), base.originY(), base.originZ(), base.facing(), base.frontSide(), quarterTurns,
-            base.mirror(), base.apertureWidth(), base.apertureHeight(), base.apertureMask(), base.nearPlanePadding(),
+            base.mirror(), base.apertureWidth(), base.apertureHeight(), base.apertureMask(), ShapeDescriptor.FULL, base.nearPlanePadding(),
             base.aperturePadding(), base.frustumCullingRatio(), base.depthBlocks(), base.recursionDepth(), base.blackoutPolicy(),
             base.blackoutState(), base.maskAirPolicy(), base.lightingPolicy(), base.fidelityFlags(), base.kind(), base.planeOffset(),
             base.parentPortalKey(), targetIdentity, base.nested());

@@ -17,6 +17,7 @@ import art.arcane.optics.fidelity.BlockEntitySample;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.BlockBox;
 import art.arcane.optics.math.Face;
+import art.arcane.optics.shape.ShapeDescriptor;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -161,7 +162,7 @@ final class ClientViewHarness {
         boolean[] open = new boolean[9];
         Arrays.fill(open, true);
         return new ApertureDescriptor(0, 64, 10, Face.S.ordinal(), true, 0, false, 3, 3,
-            ApertureDescriptor.apertureMask(3, 3, open), 0.0F, 0.0F, 0.0F, 8, 0,
+            ApertureDescriptor.apertureMask(3, 3, open), ShapeDescriptor.FULL, 0.0F, 0.0F, 0.0F, 8, 0,
             ApertureDescriptor.BLACKOUT_OFF, 0, ApertureDescriptor.MASK_AIR_PROJECT, 0, 0,
             ApertureKind.FRAME, 0.0D, 0, 0L, List.of());
     }

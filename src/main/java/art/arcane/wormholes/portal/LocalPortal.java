@@ -31,6 +31,7 @@ import art.arcane.volmlib.util.json.JSONObject;
 import art.arcane.optics.crossing.PlaneCrossing;
 import art.arcane.optics.frame.Frame;
 import art.arcane.optics.frame.QuarterTurn;
+import art.arcane.optics.shape.ShapeDescriptor;
 
 public class LocalPortal extends Portal implements ILocalPortal, Listener, PortalSettingsTarget
 {
@@ -148,6 +149,17 @@ public class LocalPortal extends Portal implements ILocalPortal, Listener, Porta
 	void assignStructure(PortalStructure structure)
 	{
 		this.structure = structure;
+	}
+
+	@Override
+	protected void applyFrame(Frame frame)
+	{
+		super.applyFrame(frame);
+		PortalStructure current = structure;
+		if(current != null)
+		{
+			current.orient(frame);
+		}
 	}
 
 	@Override
@@ -897,6 +909,16 @@ public class LocalPortal extends Portal implements ILocalPortal, Listener, Porta
 	public void setAmbientColor(int color)
 	{
 		settings.setAmbientColor(color);
+	}
+
+	public ShapeDescriptor getApertureShape()
+	{
+		return settings.getApertureShape();
+	}
+
+	public boolean setApertureShape(ShapeDescriptor shape)
+	{
+		return settings.setApertureShape(shape);
 	}
 
 	@Override
