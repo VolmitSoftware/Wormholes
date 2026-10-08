@@ -35,8 +35,6 @@ final class PortalPipelines implements AutoCloseable {
     private static final BindGroupLayout FEATHER = BindGroupLayout.builder().withUniform("Feather", UniformType.UNIFORM_BUFFER).build();
     private final EnumMap<ChunkSectionLayer, RenderPipeline> terrain = new EnumMap<>(ChunkSectionLayer.class);
     private final EnumMap<ChunkSectionLayer, RenderPipeline> reflectedTerrain = new EnumMap<>(ChunkSectionLayer.class);
-    private final EnumMap<ChunkSectionLayer, RenderPipeline> extendedTerrain = new EnumMap<>(ChunkSectionLayer.class);
-    private final EnumMap<ChunkSectionLayer, RenderPipeline> reflectedExtendedTerrain = new EnumMap<>(ChunkSectionLayer.class);
     private final RenderPipeline composite;
     private final RenderPipeline compositeShape;
     private final RenderPipeline feather;
@@ -52,12 +50,6 @@ final class PortalPipelines implements AutoCloseable {
         reflectedTerrain.put(ChunkSectionLayer.SOLID, terrain("solid_reflected", RenderPipelines.SOLID_BLOCK, rgss, DefaultVertexFormat.BLOCK));
         reflectedTerrain.put(ChunkSectionLayer.CUTOUT, terrain("cutout_reflected", RenderPipelines.CUTOUT_BLOCK, rgss, DefaultVertexFormat.BLOCK));
         reflectedTerrain.put(ChunkSectionLayer.TRANSLUCENT, terrain("translucent_reflected", RenderPipelines.TRANSLUCENT_BLOCK, rgss, DefaultVertexFormat.BLOCK));
-        extendedTerrain.put(ChunkSectionLayer.SOLID, terrain("solid_warming", RenderPipelines.SOLID_BLOCK, rgss, PortalTerrainVertices.FORMAT));
-        extendedTerrain.put(ChunkSectionLayer.CUTOUT, terrain("cutout_warming", RenderPipelines.CUTOUT_BLOCK, rgss, PortalTerrainVertices.FORMAT));
-        extendedTerrain.put(ChunkSectionLayer.TRANSLUCENT, terrain("translucent_warming", RenderPipelines.TRANSLUCENT_BLOCK, rgss, PortalTerrainVertices.FORMAT));
-        reflectedExtendedTerrain.put(ChunkSectionLayer.SOLID, terrain("solid_warming_reflected", RenderPipelines.SOLID_BLOCK, rgss, PortalTerrainVertices.FORMAT));
-        reflectedExtendedTerrain.put(ChunkSectionLayer.CUTOUT, terrain("cutout_warming_reflected", RenderPipelines.CUTOUT_BLOCK, rgss, PortalTerrainVertices.FORMAT));
-        reflectedExtendedTerrain.put(ChunkSectionLayer.TRANSLUCENT, terrain("translucent_warming_reflected", RenderPipelines.TRANSLUCENT_BLOCK, rgss, PortalTerrainVertices.FORMAT));
         composite = compositePipeline();
         compositeShape = compositeShapePipeline();
         feather = featherPipeline();
@@ -115,10 +107,8 @@ final class PortalPipelines implements AutoCloseable {
         return cache.get(layer);
     }
 
-    CompiledRenderPipeline terrain(ChunkSectionLayer layer, boolean reflected, boolean extended) {
-        EnumMap<ChunkSectionLayer, RenderPipeline> selected = extended
-            ? (reflected ? reflectedExtendedTerrain : extendedTerrain) : (reflected ? reflectedTerrain : terrain);
-        return cache.get(selected.get(layer));
+    CompiledRenderPipeline terrain(ChunkSectionLayer layer, boolean reflected) {
+        return cache.get((reflected ? reflectedTerrain : terrain).get(layer));
     }
 
     CompiledRenderPipeline composite() {

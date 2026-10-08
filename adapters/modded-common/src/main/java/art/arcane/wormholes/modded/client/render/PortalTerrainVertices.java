@@ -13,8 +13,8 @@ import org.lwjgl.system.MemoryUtil;
 import java.nio.ByteBuffer;
 import java.util.Objects;
 
-final class PortalTerrainVertices implements VertexConsumer {
-    static final VertexFormat FORMAT = VertexFormat.builder(0)
+public final class PortalTerrainVertices implements VertexConsumer {
+    public static final VertexFormat FORMAT = VertexFormat.builder(0)
         .addAttribute("Position", GpuFormat.RGB32_FLOAT)
         .addAttribute("Color", GpuFormat.RGBA8_UNORM)
         .addAttribute("UV0", GpuFormat.RG32_FLOAT)

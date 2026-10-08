@@ -37,17 +37,23 @@ public final class IrisPipelines {
 
     public static boolean loadingStep() {
         List<String> pending = pending();
-        if (pending.isEmpty()) {
-            return true;
+        if (!pending.isEmpty()) {
+            create(pending.getFirst());
+            return false;
         }
-        create(pending.getFirst());
-        return pending.size() == 1;
+        if (Iris.getCurrentPack().isPresent()) {
+            IrisMeshFrame.warm();
+        }
+        return true;
     }
 
     public static void createAll() {
         FAILED.clear();
         for (String dimension : pending()) {
             create(dimension);
+        }
+        if (Iris.getCurrentPack().isPresent()) {
+            IrisMeshFrame.warm();
         }
     }
 

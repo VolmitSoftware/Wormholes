@@ -12,6 +12,7 @@ import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.client.WormholesClient;
 import art.arcane.wormholes.modded.client.WormholesClientConfig;
+import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.client.render.PortalGpuMesh;
 import art.arcane.wormholes.modded.client.world.ClientWorldLoader;
 import com.mojang.blaze3d.pipeline.RenderTarget;
@@ -60,6 +61,7 @@ public final class PortalStencilRenderer {
     private final List<List<Candidate>> candidates = new ArrayList<>();
     private boolean active;
     private boolean deferredFrame;
+    private Camera shadedCamera;
     private boolean pipelinesReady;
     private int pipelineGeneration = -1;
     private Vec3 homeEye = Vec3.ZERO;
@@ -81,7 +83,11 @@ public final class PortalStencilRenderer {
     }
 
     public boolean nested() {
-        return layers.nested();
+        return layers.nested() || shadedCamera != null;
+    }
+
+    public boolean deferredActive() {
+        return active && deferredFrame;
     }
 
     public boolean active() {
@@ -101,6 +107,9 @@ public final class PortalStencilRenderer {
     }
 
     public Camera camera() {
+        if (shadedCamera != null) {
+            return shadedCamera;
+        }
         return layers.nested() ? world.camera() : null;
     }
 
@@ -182,7 +191,8 @@ public final class PortalStencilRenderer {
         List<Candidate> visible = candidates.get(depth);
         visible.clear();
         collect(minecraft.level, camera, visible);
-        if (visible.isEmpty()) {
+        boolean meshes = depth == 0 && ClientPortalRenderer.instance().shadedViews();
+        if (visible.isEmpty() && !meshes) {
             return;
         }
         RenderTarget main = minecraft.gameRenderer.mainRenderTarget();
@@ -203,6 +213,9 @@ public final class PortalStencilRenderer {
                     LOGGER.error("Unable to render the {} portal view into {}", view.kind(), view.destination().dimension().identifier(), failure);
                 }
             }
+            if (meshes) {
+                ClientPortalRenderer.instance().renderShadedViews();
+            }
             if (depth == 0) {
                 deferred.finish(main);
             }
@@ -210,6 +223,19 @@ public final class PortalStencilRenderer {
             visible.clear();
             PortalStencil.restore(0);
         }
+    }
+
+    public void shadedView(PortalGpuMesh aperture, boolean shaped, Matrix4f apertureView, Camera camera, Runnable render) {
+        RenderTarget main = Minecraft.getInstance().gameRenderer.mainRenderTarget();
+        deferred.mark(0, aperture, shaped, apertureView, projection, null);
+        deferred.forget(1);
+        shadedCamera = camera;
+        try {
+            render.run();
+        } finally {
+            shadedCamera = null;
+        }
+        deferred.composite(main, 1, 0);
     }
 
     public boolean clearLayer(Vector4fc fogColor) {
