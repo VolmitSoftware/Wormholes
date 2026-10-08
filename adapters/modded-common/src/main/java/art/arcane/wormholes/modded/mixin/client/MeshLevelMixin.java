@@ -1,6 +1,7 @@
 package art.arcane.wormholes.modded.mixin.client;
 
 import art.arcane.wormholes.modded.client.ClientMeshEntities;
+import art.arcane.wormholes.modded.client.ProjectedEntityGuard;
 import net.minecraft.core.BlockPos;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.entity.Entity;
@@ -21,7 +22,8 @@ public abstract class MeshLevelMixin {
     @ModifyVariable(method = "getEntities(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/phys/AABB;Ljava/util/function/Predicate;)Ljava/util/List;",
         at = @At("HEAD"), argsOnly = true)
     private Predicate<? super Entity> wormholesWorldEntities(Predicate<? super Entity> selector, Entity source, AABB bounds, Predicate<? super Entity> originalSelector) {
-        return (Object) this instanceof ClientLevel ? ClientMeshEntities.worldEntityPredicate(source, selector) : selector;
+        return (Object) this instanceof ClientLevel
+            ? ProjectedEntityGuard.localTargets(source, ClientMeshEntities.worldEntityPredicate(source, selector)) : selector;
     }
 
     @Inject(method = "getBlockState", at = @At("HEAD"), cancellable = true)

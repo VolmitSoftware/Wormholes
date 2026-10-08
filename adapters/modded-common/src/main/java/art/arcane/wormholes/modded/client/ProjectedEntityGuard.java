@@ -16,10 +16,6 @@ public final class ProjectedEntityGuard {
     private ProjectedEntityGuard() {
     }
 
-    public static boolean projected(Entity entity) {
-        return ProjectedEntityIdentity.isEntityId(entity.getId());
-    }
-
     public static boolean visualCopy(Entity entity) {
         int id = entity.getId();
         return ProjectedEntityIdentity.isEntityId(id) || ClientEntityIds.isProjected(id) || ClientEntityIds.isReflection(id);
@@ -30,7 +26,14 @@ public final class ProjectedEntityGuard {
     }
 
     public static Predicate<Entity> excluding(Predicate<Entity> predicate) {
-        return entity -> predicate.test(entity) && !projected(entity);
+        return entity -> predicate.test(entity) && !visualCopy(entity);
+    }
+
+    public static Predicate<? super Entity> localTargets(Entity source, Predicate<? super Entity> selector) {
+        if (source == null || !source.isLocalInstanceAuthoritative()) {
+            return selector;
+        }
+        return entity -> !visualCopy(entity) && selector.test(entity);
     }
 
     public static boolean refusesSpawn(int spawnedId, int playerId) {
