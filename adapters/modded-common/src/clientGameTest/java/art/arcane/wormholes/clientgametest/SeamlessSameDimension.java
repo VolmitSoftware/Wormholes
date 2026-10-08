@@ -40,6 +40,9 @@ final class SeamlessSameDimension {
         SeamlessScenario.Crossing crossing = pass.turning() ? SeamlessScenario.walkThroughTurning(client, pass.label())
             : SeamlessScenario.walkThrough(client, pass.label());
         SeamlessScenario.assertSeamlessTravel(client, route, crossing, SeamlessScenario.RETURN_VIEW_TICKS);
+        SeamlessScenario.turnBack(client, route);
+        SeamlessScenario.Crossing inbound = SeamlessScenario.walkThrough(client, pass.label() + "-return");
+        SeamlessScenario.assertSeamlessReturn(client, route, inbound, SeamlessScenario.RETURN_VIEW_TICKS);
         SeamlessScenario.finish(client, server, route);
     }
 
