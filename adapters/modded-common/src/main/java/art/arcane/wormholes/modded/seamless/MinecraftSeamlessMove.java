@@ -166,6 +166,7 @@ public final class MinecraftSeamlessMove implements SeamlessMove.Steps {
         ServerPlayer player = context.player();
         player.teleportSetPosition(context.pose(), Set.of());
         player.connection.resetPosition();
+        player.setOnGroundWithMovement(player.onGround(), Vec3.ZERO);
     }
 
     @Override

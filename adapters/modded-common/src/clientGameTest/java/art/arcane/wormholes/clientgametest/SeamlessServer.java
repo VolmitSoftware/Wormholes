@@ -22,6 +22,8 @@ interface SeamlessServer {
 
     void approachFrom(ResourceKey<Level> level, Vec3 position, float yaw);
 
+    boolean chunkEverLoaded(ResourceKey<Level> level, int chunkX, int chunkZ);
+
     SeamlessFallLoop.Loop buildFallLoop();
 
     void removeFallLoop(SeamlessFallLoop.Loop loop);

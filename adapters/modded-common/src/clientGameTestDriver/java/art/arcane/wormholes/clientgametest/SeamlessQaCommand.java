@@ -34,6 +34,7 @@ public final class SeamlessQaCommand {
             .then(Commands.literal("fallloop").executes(SeamlessQaCommand::fallLoop))
             .then(Commands.literal("centers").then(Commands.argument(ARGUMENT, StringArgumentType.greedyString()).executes(SeamlessQaCommand::centers)))
             .then(Commands.literal("lit").then(Commands.argument(ARGUMENT, StringArgumentType.greedyString()).executes(SeamlessQaCommand::lit)))
+            .then(Commands.literal("loaded").then(Commands.argument(ARGUMENT, StringArgumentType.greedyString()).executes(SeamlessQaCommand::loaded)))
             .then(Commands.literal("approachfrom").then(Commands.argument(ARGUMENT, StringArgumentType.greedyString())
                 .executes(SeamlessQaCommand::approachFrom))));
     }
@@ -94,6 +95,18 @@ public final class SeamlessQaCommand {
                 RouteCodec.position(StringArgumentType.getString(context, ARGUMENT).trim())));
         } catch (RuntimeException | AssertionError failure) {
             fail(player, "lit", failure);
+        }
+        return 1;
+    }
+
+    private static int loaded(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer player = context.getSource().getPlayerOrException();
+        try {
+            String[] fields = StringArgumentType.getString(context, ARGUMENT).trim().split(" ");
+            ServerLevel level = Objects.requireNonNull(context.getSource().getServer().getLevel(RouteCodec.level(fields[0])), "level " + fields[0]);
+            reply(player, "loaded " + LoadedChunks.everLoaded(level, Integer.parseInt(fields[1]), Integer.parseInt(fields[2])));
+        } catch (RuntimeException | AssertionError failure) {
+            fail(player, "loaded", failure);
         }
         return 1;
     }

@@ -65,6 +65,12 @@ final class FabricSeamlessServer implements SeamlessServer {
     }
 
     @Override
+    public boolean chunkEverLoaded(ResourceKey<Level> level, int chunkX, int chunkZ) {
+        return server.computeOnServer(minecraftServer -> LoadedChunks.everLoaded(Objects.requireNonNull(minecraftServer.getLevel(level)),
+            chunkX, chunkZ));
+    }
+
+    @Override
     public void approachFrom(ResourceKey<Level> level, Vec3 position, float yaw) {
         server.runOnServer(minecraftServer -> connection.getServerPlayer().teleportTo(Objects.requireNonNull(minecraftServer.getLevel(level)),
             position.x, position.y, position.z, Set.of(), yaw, 0.0F, false));

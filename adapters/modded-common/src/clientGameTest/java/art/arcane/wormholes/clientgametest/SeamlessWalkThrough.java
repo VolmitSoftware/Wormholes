@@ -108,9 +108,15 @@ final class SeamlessWalkThrough {
             face(client, source);
             walk(client, label + "-" + trip, failures);
             client.waitTicks(ARRIVAL_PAUSE_TICKS);
+            if (server.chunkEverLoaded(Level.NETHER, FRAME_SOURCE.getX() >> 4, FRAME_SOURCE.getZ() >> 4)) {
+                failures.add(label + "-" + trip + " loaded the nether chunk under the overworld source portal");
+            }
             face(client, destination);
             walk(client, label + "-" + trip + "-return", failures);
             client.waitTicks(ARRIVAL_PAUSE_TICKS);
+            if (server.chunkEverLoaded(Level.OVERWORLD, FRAME_DESTINATION.getX() >> 4, FRAME_DESTINATION.getZ() >> 4)) {
+                failures.add(label + "-" + trip + "-return loaded the overworld chunk under the nether destination portal");
+            }
         }
         SeamlessScenario.finish(client, server, route);
         SeamlessScenario.assertTrue(failures.isEmpty(), label + ": " + failures);

@@ -67,6 +67,12 @@ final class CommandSeamlessServer implements SeamlessServer {
     }
 
     @Override
+    public boolean chunkEverLoaded(ResourceKey<Level> level, int chunkX, int chunkZ) {
+        return Boolean.parseBoolean(client.command("wormholesqa loaded " + RouteCodec.level(level) + " " + chunkX + " " + chunkZ, "loaded",
+            REPLY_TIMEOUT_TICKS).trim());
+    }
+
+    @Override
     public void approachFrom(ResourceKey<Level> level, Vec3 position, float yaw) {
         client.command("wormholesqa approachfrom " + RouteCodec.level(level) + " " + position.x + "," + position.y + "," + position.z + " " + yaw,
             "approached", REPLY_TIMEOUT_TICKS);
