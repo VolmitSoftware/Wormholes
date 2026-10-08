@@ -1,7 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.optics.animation.Easing;
-import art.arcane.wormholes.modded.mixin.client.CameraRotationAccess;
+import art.arcane.wormholes.modded.mixin.client.CameraPoseAccess;
 import net.minecraft.client.Camera;
 import org.joml.Quaternionf;
 
@@ -50,7 +50,7 @@ public final class ClientCameraRoll {
         }
         Quaternionf rotation = camera.rotation();
         rotation.mul(turn.rotationZ((float) Math.toRadians(degrees)));
-        CameraRotationAccess access = (CameraRotationAccess) camera;
+        CameraPoseAccess access = (CameraPoseAccess) camera;
         access.wormholes$up().set(0.0F, 1.0F, 0.0F).rotate(rotation);
         access.wormholes$left().set(-1.0F, 0.0F, 0.0F).rotate(rotation);
     }

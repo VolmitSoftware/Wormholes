@@ -66,6 +66,7 @@ public final class ClientSeamlessTravel {
     private final ArrayDeque<Crossing> pending = new ArrayDeque<>();
     private final ClientEntityCrossings entities = new ClientEntityCrossings();
     private final ClientCameraRoll cameraRoll = new ClientCameraRoll();
+    private final ClientCrossingView view;
     private ClientLevel warmedSource;
     private EnvironmentState warmedEnvironment;
     private Vec3 previousEye;
@@ -76,10 +77,15 @@ public final class ClientSeamlessTravel {
     public ClientSeamlessTravel(Consumer<TravelMessage> sender, ResidentLevels residents) {
         this.sender = sender;
         this.residents = residents;
+        this.view = new ClientCrossingView(residents);
     }
 
     public ResidentLevels residents() {
         return residents;
+    }
+
+    public ClientCrossingView view() {
+        return view;
     }
 
     public void deliver(TravelMessage message) {
@@ -143,6 +149,14 @@ public final class ClientSeamlessTravel {
         return arms.containsKey(source);
     }
 
+    public void frame(Camera camera, DeltaTracker tracker) {
+        if (beforeFrame(camera, tracker)) {
+            camera.update(tracker);
+        }
+        view.update(camera, tracker, arms.values());
+        cameraRoll.apply(camera, System.currentTimeMillis());
+    }
+
     public boolean beforeFrame(Camera camera, DeltaTracker tracker) {
         Minecraft minecraft = Minecraft.getInstance();
         LocalPlayer player = minecraft.player;
@@ -198,6 +212,7 @@ public final class ClientSeamlessTravel {
         pending.clear();
         entities.clear();
         retireReturnView();
+        view.clear();
         residents.clear();
         previousEye = null;
         declined = null;

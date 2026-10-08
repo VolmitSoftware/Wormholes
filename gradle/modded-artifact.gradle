@@ -75,6 +75,8 @@ abstract class VerifyModdedArtifact extends DefaultTask {
                         if (constants.contains(renderHook) && (opticsClass
                             || !entry.name.startsWith('art/arcane/wormholes/modded/client/render/')
                             && !entry.name.startsWith('art/arcane/wormholes/modded/client/world/')
+                            && !(entry.name == 'art/arcane/wormholes/modded/client/ClientCrossingView.class'
+                                && renderHook == 'net/minecraft/client/renderer/LevelRenderer')
                             && !portalRenderMixins.any { String name -> entry.name == "art/arcane/wormholes/modded/mixin/${name.replace('.', '/')}.class" })) {
                             throw new GradleException("${artifact.name} references the render pipeline (${renderHook}) in ${entry.name}")
                         }

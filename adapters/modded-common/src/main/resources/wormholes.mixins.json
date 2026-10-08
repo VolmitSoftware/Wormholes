@@ -144,7 +144,7 @@
     "client.DebugScreenEntriesAccessor",
     "client.ReflectionDataAccessor",
     "client.AvatarDataAccessor",
-    "client.CameraRotationAccess",
+    "client.CameraPoseAccess",
     "client.WalkAnimationAccessor",
     "client.IrisPortalCameraHistoryMixin",
     "client.IrisPortalMatrixHistoryMixin",
