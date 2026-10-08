@@ -41,7 +41,7 @@ public final class WormholesClient {
 
     private final WormholesClientConfig config;
     private final ClientViewStats stats;
-    private final ClientPreparedTravel preparedTravel;
+    private final ClientSeamlessTravel seamlessTravel;
     private final ClientLocalMeshSources localMeshes = new ClientLocalMeshSources(this::send);
     private final ClientMeshViews meshViews = new ClientMeshViews();
     private final ClientReflectionEntity reflections;
@@ -61,7 +61,7 @@ public final class WormholesClient {
         this.sender = Objects.requireNonNull(sender, "sender");
         this.stats = new ClientViewStats();
         Consumer<TravelMessage> travel = message -> send(TravelExtension.INSTANCE.wrap(message));
-        this.preparedTravel = new ClientPreparedTravel(travel, new ResidentLevels(travel, config.residentLevelMemoryBytes()));
+        this.seamlessTravel = new ClientSeamlessTravel(travel, new ResidentLevels(travel, config.residentLevelMemoryBytes()));
         this.reflections = new ClientReflectionEntity();
         this.dataVersion = SharedConstants.getCurrentVersion().dataVersion().version();
         this.brandTag = ClientBrandRetriever.getClientModName();
@@ -89,7 +89,7 @@ public final class WormholesClient {
 
     public static boolean activeLevel(ClientLevel level) {
         WormholesClient client = instance;
-        return (client == null ? Minecraft.getInstance().level : client.preparedTravel.residents().activeLevel()) == level;
+        return (client == null ? Minecraft.getInstance().level : client.seamlessTravel.residents().activeLevel()) == level;
     }
 
     public static void reconfiguring() {
@@ -109,19 +109,14 @@ public final class WormholesClient {
     public static void blockChanged(Object level, BlockPos position) {
         WormholesClient client = instance;
         if (client != null) {
-            client.preparedTravel.blockChanged(level, position);
             client.tick.blockChanged(level, position.getX(), position.getY(), position.getZ());
             client.localMeshes.blockChanged(level, position);
         }
     }
 
     public static void localChunkChanged(ClientLevel level, int x, int z) {
-        if (ClientPreparedTravel.applyingColumn(level, x, z)) {
-            return;
-        }
         WormholesClient client = instance;
         if (client != null) {
-            client.preparedTravel.chunkChanged(level, x, z);
             client.localMeshes.chunkChanged(level, x, z);
         }
     }
@@ -132,9 +127,6 @@ public final class WormholesClient {
     }
 
     public static void localSectionChanged(ClientLevel level, int x, int y, int z) {
-        if (ClientPreparedTravel.applyingColumn(level, x, z)) {
-            return;
-        }
         Minecraft minecraft = Minecraft.getInstance();
         if (!minecraft.isSameThread()) {
             minecraft.execute(() -> localSectionChanged(level, x, y, z));
@@ -142,15 +134,11 @@ public final class WormholesClient {
         }
         WormholesClient client = instance;
         if (client != null) {
-            client.preparedTravel.sectionChanged(level, x, y, z);
             client.localMeshes.blockChanged(level, new BlockPos(x << 4, y << 4, z << 4));
         }
     }
 
     public static void localLightChanged(ClientLevel level, SectionPos position) {
-        if (ClientPreparedTravel.applyingColumn(level, position.x(), position.z())) {
-            return;
-        }
         Minecraft minecraft = Minecraft.getInstance();
         if (!minecraft.isSameThread()) {
             minecraft.execute(() -> localLightChanged(level, position));
@@ -158,18 +146,16 @@ public final class WormholesClient {
         }
         WormholesClient client = instance;
         if (client != null) {
-            client.preparedTravel.lightChanged(level, position);
             client.localMeshes.blockChanged(level, position.origin());
         }
     }
 
-    public ClientPreparedTravel preparedTravel() {
-        return preparedTravel;
+    public ClientSeamlessTravel seamlessTravel() {
+        return seamlessTravel;
     }
 
     public boolean managesVanillaPortal(ClientLevel level, BlockPos position) {
-        return attachedLevel == level && session.managesVanillaPortal(position.getX(), position.getY(), position.getZ())
-            || preparedTravel.managesVanillaPortal(level, position);
+        return attachedLevel == level && session.managesVanillaPortal(position.getX(), position.getY(), position.getZ());
     }
 
     public void dropProjectedEntities(ApertureDescriptor geometry) {
@@ -193,7 +179,7 @@ public final class WormholesClient {
     }
 
     public void connected() {
-        preparedTravel.clear();
+        seamlessTravel.clear();
         if (session.state() == ClientViewSession.State.VANILLA || session.state() == ClientViewSession.State.DECLINED) {
             return;
         }
@@ -208,7 +194,7 @@ public final class WormholesClient {
             minecraft.execute(this::disconnected);
             return;
         }
-        preparedTravel.clear();
+        seamlessTravel.clear();
         ClientSodiumTerrain.clear();
         reflections.clear(null, null);
         detach();
@@ -218,10 +204,7 @@ public final class WormholesClient {
 
     public void tick(Minecraft minecraft) {
         ClientPortalRenderer.instance().finishBuilds();
-        preparedTravel.tick();
-        if (preparedTravel.pendingCrossing()) {
-            return;
-        }
+        seamlessTravel.tick();
         tick.effectsActive(!minecraft.isPaused() && minecraft.isWindowActive());
         ClientLevel level = minecraft.level;
         if (level == null) {
@@ -310,7 +293,7 @@ public final class WormholesClient {
         ClientViewSession next = new ClientViewSession(config, new ClientPalette(BuiltInRegistries.BLOCK), dataVersion, brandTag);
         next.meshes().otherMemory(() -> next.plates().bytes() + localMeshes.bytes());
         ClientViewReceiver nextReceiver = new ClientViewReceiver(next);
-        nextReceiver.travel(preparedTravel::receive);
+        nextReceiver.travel(seamlessTravel::deliver);
         ClientViewTick nextTick = new ClientViewTick(next, nextReceiver, config, stats);
         nextTick.sender(this::send);
         session = next;

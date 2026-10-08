@@ -14,7 +14,7 @@ public abstract class ResidentLevelTickMixin {
     private void wormholes$residentLevels(CallbackInfo callback) {
         WormholesClient client = WormholesClient.instance();
         if (client != null) {
-            client.preparedTravel().residents().tick();
+            client.seamlessTravel().residents().tick();
         }
     }
 
@@ -22,7 +22,7 @@ public abstract class ResidentLevelTickMixin {
     private void wormholes$tickEndCrossing(CallbackInfo callback) {
         WormholesClient client = WormholesClient.instance();
         if (client != null) {
-            client.preparedTravel().seamless().afterTick();
+            client.seamlessTravel().afterTick();
         }
     }
 }

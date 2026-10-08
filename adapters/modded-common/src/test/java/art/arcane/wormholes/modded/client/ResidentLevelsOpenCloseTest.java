@@ -218,7 +218,7 @@ public class ResidentLevelsOpenCloseTest extends MinecraftTestBase {
         ClientLevel current = ResidentTestFixtures.level(ResidentTestFixtures.OVERWORLD);
         try (Scope scope = new Scope(current)) {
             WormholesClient client = WormholesClient.initialize(folder.newFolder().toPath(), bytes -> { });
-            ResidentLevels residents = client.preparedTravel().residents();
+            ResidentLevels residents = client.seamlessTravel().residents();
             ClientLevel nether = residents.open(ResidentTestFixtures.open(1, ResidentTestFixtures.NETHER, 0, 13));
             client.connected();
             assertFalse(residents.has(1));

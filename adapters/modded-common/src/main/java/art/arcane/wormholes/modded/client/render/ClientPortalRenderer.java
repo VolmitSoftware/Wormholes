@@ -52,8 +52,6 @@ import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.util.Util;
 import net.minecraft.world.phys.AABB;
 import org.joml.Matrix4f;
@@ -182,22 +180,6 @@ public final class ClientPortalRenderer {
         travel = new Portal(arrival != null && arrival.key == -1 ? -2 : -1, scene);
         travelCamera = arrivalCamera;
         portals.put(travel.key, travel);
-    }
-
-    public void prepareTravelSource(ClientTravelScene scene) {
-        EnvironmentState environment = scene.environment();
-        if (environment != null && environment.equals(travelSourceEnvironment)) {
-            Portal previous = portals.remove(-3);
-            if (previous != null) {
-                previous.active = false;
-                release(previous);
-            }
-        } else {
-            retireTravelSource();
-            prepareTravelSourceEnvironment(environment);
-        }
-        travelSource = new Portal(-3, scene);
-        portals.put(travelSource.key, travelSource);
     }
 
     public void retireTravelSource() {
@@ -369,52 +351,6 @@ public final class ClientPortalRenderer {
         }
     }
 
-    public boolean coversLocalPlayer(Entity entity) {
-        Minecraft minecraft = Minecraft.getInstance();
-        Portal cover = arrival == null ? travelTransition ? travel : null : arrival;
-        if (entity != minecraft.player || minecraft.level == null || entity.level() != minecraft.level
-            || cover == null || !cover.active || !cover.rendered || cover.target == null
-            || cover.target.getColorTexture() == null || cover.target.getDepthTexture() == null
-            || !(cover.scene instanceof ClientTravelScene scene) || !scene.inLevel(minecraft.level)) {
-            return false;
-        }
-        BlockPos position = entity.blockPosition();
-        if (minecraft.level.getChunkSource().getChunk(position.getX() >> 4, position.getZ() >> 4, ChunkStatus.FULL, false) == null) {
-            return false;
-        }
-        long key = SectionPos.asLong(position);
-        long revision = scene.revision(key);
-        if (revision < 0 || cover.dirty.contains(key) || cover.building.contains(key)) {
-            return false;
-        }
-        Section section = cover.sections.get(key);
-        return scene.empty(key) || section != null && section.revision == revision;
-    }
-
-    public boolean coversMainSection(long key) {
-        Minecraft minecraft = Minecraft.getInstance();
-        Portal cover = arrival == null ? travelTransition ? travel : null : arrival;
-        if (minecraft.level == null || cover == null || !cover.active || cover.target == null
-            || cover.target.getColorTexture() == null || cover.target.getDepthTexture() == null
-            || !(cover.scene instanceof ClientTravelScene scene) || !scene.inLevel(minecraft.level)) {
-            return false;
-        }
-        if (minecraft.level.getChunkSource().getChunk(SectionPos.x(key), SectionPos.z(key), ChunkStatus.FULL, false) == null) {
-            return false;
-        }
-        long revision = scene.revision(key);
-        Section section = cover.sections.get(key);
-        return revision >= 0 && section != null && section.revision == revision
-            && !cover.dirty.contains(key) && !cover.building.contains(key);
-    }
-
-    private boolean mainOwnsTravelSection(Portal portal, long key) {
-        Portal cover = arrival == null ? travelTransition ? travel : null : arrival;
-        return portal == cover && camera == portal.camera && coversMainSection(key)
-            && Minecraft.getInstance().levelRenderer.isSectionCompiledAndVisible(new BlockPos(
-                (SectionPos.x(key) << 4) + 8, (SectionPos.y(key) << 4) + 8, (SectionPos.z(key) << 4) + 8), 0);
-    }
-
     public boolean coversEndPortalSurface(BlockPos position) {
         for (Portal portal : portals.values()) {
             ApertureDescriptor geometry = portal.scene.geometry();
@@ -557,10 +493,6 @@ public final class ClientPortalRenderer {
 
     public void resourceReload() {
         ClientSodiumTerrain.clear();
-        WormholesClient client = WormholesClient.instance();
-        if (client != null) {
-            client.preparedTravel().discardSourcePreparation();
-        }
         clearRetainedMeshes();
         buildDemand.clear();
         releaseFrameTargets();
@@ -744,7 +676,7 @@ public final class ClientPortalRenderer {
         if (travelSourceEnvironment == null || source != null && !source.active) {
             return;
         }
-        boolean nativeTerrain = source == null || nativeTravelTerrain(source);
+        boolean nativeTerrain = source == null;
         CameraRenderState previous = camera;
         camera = rootCamera;
         if (source != null) {
@@ -781,7 +713,7 @@ public final class ClientPortalRenderer {
     }
 
     private void renderTravel(RenderDimensions dimensions) {
-        if (travel == null || !travel.active || nativeTravelTerrain(travel)) {
+        if (travel == null || !travel.active) {
             return;
         }
         if (!travelTransition && travelReady()) {
@@ -793,9 +725,6 @@ public final class ClientPortalRenderer {
     }
 
     private void renderTravelView(Portal portal, CameraRenderState arrival, boolean transition, RenderDimensions dimensions) {
-        if (nativeTravelTerrain(portal)) {
-            return;
-        }
         CameraRenderState previous = camera;
         if (!transition) {
             arrival.projectionMatrix.set(frameProjection);
@@ -992,9 +921,6 @@ public final class ClientPortalRenderer {
             return false;
         }
         Minecraft minecraft = Minecraft.getInstance();
-        if (cover.scene instanceof ClientTravelScene scene && !scene.inLevel(minecraft.level)) {
-            return false;
-        }
         LevelRenderer renderer = minecraft.levelRenderer;
         long fade = Util.toMillis(minecraft.options.chunkSectionFadeInTime().get());
         boolean indexed = false;
@@ -1212,9 +1138,6 @@ public final class ClientPortalRenderer {
     }
 
     private void maintain(Portal portal) {
-        if (nativeTravelTerrain(portal)) {
-            return;
-        }
         int cameraSectionX = camera.blockPos.getX() >> 4;
         int cameraSectionY = camera.blockPos.getY() >> 4;
         int cameraSectionZ = camera.blockPos.getZ() >> 4;
@@ -1328,8 +1251,7 @@ public final class ClientPortalRenderer {
     }
 
     private Portal nextBuildPortal(boolean resident, boolean canCompile, long deadline) {
-        boolean preparationPending = travel != null && travel.active && !travelTransition
-            && !nativeTravelTerrain(travel) && !travelReady();
+        boolean preparationPending = travel != null && travel.active && !travelTransition && !travelReady();
         int start = 0;
         for (int index = 0; index < buildDemand.size(); index++) {
             if (buildDemand.get(index).key == lastBuildPortal) {
@@ -1339,9 +1261,6 @@ public final class ClientPortalRenderer {
         }
         for (int checked = 0; checked < buildDemand.size(); checked++) {
             Portal portal = buildDemand.get((start + checked) % buildDemand.size());
-            if (nativeTravelTerrain(portal)) {
-                continue;
-            }
             if (portal == travelSource && preparationPending) {
                 continue;
             }
@@ -1430,7 +1349,7 @@ public final class ClientPortalRenderer {
         portal.building.remove(key);
         long currentRevision = portal.scene.revision(key);
         Section displayed = portal.sections.get(key);
-        if (!portal.active || nativeTravelTerrain(portal) || portal.generation != generation || currentRevision < 0
+        if (!portal.active || portal.generation != generation || currentRevision < 0
             || displayed != null && displayed.revision > revision) {
             if (mesh != null) {
                 mesh.close();
@@ -1853,7 +1772,7 @@ public final class ClientPortalRenderer {
             pass.setUniform("Sampler2", portal.environment.lightmap(), RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));
             for (Section section : portal.drawSections) {
                 PortalGpuMesh mesh = section.layers.get(layer);
-                if (mesh == null || mainOwnsTravelSection(portal, section.key)) {
+                if (mesh == null) {
                     continue;
                 }
                 if (portal.shader == null && section.clip == null) {
@@ -2050,15 +1969,6 @@ public final class ClientPortalRenderer {
         return portal.cullFrustum.isVisible(new AABB(x - 1, y - 1, z - 1, x + 17, y + 17, z + 17));
     }
 
-    private boolean nativeTravelTerrain(Portal portal) {
-        if (portal == travelSource) {
-            Portal destination = travel == null ? arrival : travel;
-            return destination != null && nativeTravelTerrain(destination);
-        }
-        return (portal == travel || portal == arrival) && portal.scene instanceof ClientTravelScene scene
-            && ClientSodiumTerrain.usesPreparedTerrain(scene.level());
-    }
-
     private void release(Portal portal) {
         retainedMeshesChanged(portal);
         for (Section section : portal.sections.values()) {
@@ -2190,8 +2100,7 @@ public final class ClientPortalRenderer {
     }
 
     private void restoreRetainedMeshes(Portal portal) {
-        if (buildBudgetNanos <= 0L || retainedMeshes.isEmpty() || !portal.active || portal.failure != null
-            || nativeTravelTerrain(portal)) {
+        if (buildBudgetNanos <= 0L || retainedMeshes.isEmpty() || !portal.active || portal.failure != null) {
             return;
         }
         PortalScene.MeshIdentity context = portal.scene.meshContext();

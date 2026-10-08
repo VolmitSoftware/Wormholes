@@ -15,16 +15,6 @@ final class SeamlessSameDimension {
     private SeamlessSameDimension() {
     }
 
-    static void prepared(SeamlessClient client, SeamlessServer server, String label) {
-        SeamlessScenario.join(client);
-        SeamlessScenario.Route route = server.build(spec(FAR_SOURCE, FAR_DESTINATION));
-        server.approach(route);
-        SeamlessScenario.awaitPrepared(client);
-        SeamlessScenario.Crossing crossing = SeamlessScenario.walkThrough(client, label);
-        SeamlessScenario.assertPreparedTravel(client, crossing, false);
-        SeamlessScenario.finish(client, server, route);
-    }
-
     static void seamless(SeamlessClient client, SeamlessServer server, String label) {
         SeamlessScenario.join(client);
         SeamlessScenario.assertSeamlessNegotiated(client);

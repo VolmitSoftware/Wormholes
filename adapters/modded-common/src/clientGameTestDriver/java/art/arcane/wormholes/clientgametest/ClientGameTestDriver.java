@@ -21,7 +21,6 @@ public final class ClientGameTestDriver {
     private static final Logger LOGGER = LoggerFactory.getLogger("WormholesClientGameTest");
     private static final String ENABLED = "wormholes.clientgametest";
     private static final String SERVER = "wormholes.clientgametest.server";
-    private static final String SERVER_SEAMLESS = "wormholes.clientgametest.serverSeamless";
     private static final String FILTER = "wormholes.clientgametest.filter";
     private static final int RENDER_DISTANCE = 5;
     private static final int FRAMERATE_LIMIT = 120;
@@ -74,7 +73,7 @@ public final class ClientGameTestDriver {
                     continue;
                 }
                 if (address.isEmpty()) {
-                    ClientViewTestConfig.enableSeamless(pass.seamless());
+                    ClientViewTestConfig.enableSeamless(true);
                     worlds.singleplayer(() -> pass(passed, pass));
                 } else {
                     worlds.dedicated(address, () -> pass(passed, pass));
@@ -92,26 +91,17 @@ public final class ClientGameTestDriver {
         CommandSeamlessServer server = new CommandSeamlessServer(client);
         if (address.isEmpty()) {
             return List.of(
-                new Pass("same-dimension-prepared-singleplayer", false, label -> SeamlessSameDimension.prepared(client, server, label)),
-                new Pass("cross-dimension-prepared-singleplayer", false, label -> SeamlessCrossDimension.prepared(client, server, label)),
-                new Pass("same-dimension-singleplayer", true, label -> SeamlessSameDimension.seamless(client, server, label)),
-                new Pass("cross-dimension-singleplayer-frame", true,
-                    label -> SeamlessCrossDimension.seamless(client, server, label, OrientationPolicy.FRAME)),
-                new Pass("cross-dimension-stress-singleplayer", true, label -> SeamlessCrossDimension.stress(client, server, label)),
-                new Pass("walk-nether-portal-singleplayer", true, label -> SeamlessWalkThrough.netherPortal(client, server, label, WALK_TRIPS)),
-                new Pass("walk-frame-portal-singleplayer", true, label -> SeamlessWalkThrough.framePortal(client, server, label, WALK_TRIPS)),
-                new Pass("fall-loop-singleplayer", true, label -> SeamlessFallLoop.run(client, server, label)));
-        }
-        if (Boolean.parseBoolean(System.getProperty(SERVER_SEAMLESS, "true"))) {
-            return List.of(
-                new Pass("same-dimension-dedicated", true, label -> SeamlessSameDimension.seamless(client, server, label)),
-                new Pass("cross-dimension-dedicated-mirror", true,
-                    label -> SeamlessCrossDimension.seamless(client, server, label, OrientationPolicy.MIRROR)),
-                new Pass("cross-dimension-stress-dedicated", true, label -> SeamlessCrossDimension.stress(client, server, label)));
+                new Pass("same-dimension-singleplayer", label -> SeamlessSameDimension.seamless(client, server, label)),
+                new Pass("cross-dimension-singleplayer-frame", label -> SeamlessCrossDimension.seamless(client, server, label, OrientationPolicy.FRAME)),
+                new Pass("cross-dimension-stress-singleplayer", label -> SeamlessCrossDimension.stress(client, server, label)),
+                new Pass("walk-nether-portal-singleplayer", label -> SeamlessWalkThrough.netherPortal(client, server, label, WALK_TRIPS)),
+                new Pass("walk-frame-portal-singleplayer", label -> SeamlessWalkThrough.framePortal(client, server, label, WALK_TRIPS)),
+                new Pass("fall-loop-singleplayer", label -> SeamlessFallLoop.run(client, server, label)));
         }
         return List.of(
-            new Pass("same-dimension-prepared-dedicated", false, label -> SeamlessSameDimension.prepared(client, server, label)),
-            new Pass("cross-dimension-prepared-dedicated", false, label -> SeamlessCrossDimension.prepared(client, server, label)));
+            new Pass("same-dimension-dedicated", label -> SeamlessSameDimension.seamless(client, server, label)),
+            new Pass("cross-dimension-dedicated-mirror", label -> SeamlessCrossDimension.seamless(client, server, label, OrientationPolicy.MIRROR)),
+            new Pass("cross-dimension-stress-dedicated", label -> SeamlessCrossDimension.stress(client, server, label)));
     }
 
     private static void pass(List<String> passed, Pass pass) {
@@ -144,6 +134,6 @@ public final class ClientGameTestDriver {
         LOGGER.info("WORMHOLES_CLIENT_MIXIN_AUDIT complete");
     }
 
-    private record Pass(String label, boolean seamless, Consumer<String> body) {
+    private record Pass(String label, Consumer<String> body) {
     }
 }

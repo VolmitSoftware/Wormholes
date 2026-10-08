@@ -49,7 +49,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.ArgumentMatchers.any;
-import art.arcane.wormholes.network.client.TravelMessage;
 import art.arcane.wormholes.portal.ApertureKind;
 
 public class ClientProjectedMeshReuseTest extends MinecraftTestBase {
@@ -223,46 +222,6 @@ public class ClientProjectedMeshReuseTest extends MinecraftTestBase {
             assertTrue(fixture.cache().isEmpty());
             assertEquals(0L, field(fixture.renderer, "retainedProofBytes"));
             assertTrue(((Map<?, ?>) field(fixture.renderer, "retainedProofReferences")).isEmpty());
-        }
-    }
-
-    @Test
-    public void travelAndProjectedMeshesShareByteBudgetsAndClearReleasesEveryReference() throws Exception {
-        try (Fixture fixture = new Fixture()) {
-            ClientMeshSections.View view = fixture.store.view(7);
-            PortalScene.MeshIdentity projected = fixture.world(view, 0L).meshIdentity();
-            Class<?> travelType = Class.forName("art.arcane.wormholes.modded.client.render.ClientTravelScene$MeshIdentity");
-            Constructor<?> travelConstructor = travelType.getDeclaredConstructor(TravelMessage.TravelWorld.class, byte[][].class);
-            travelConstructor.setAccessible(true);
-            PortalScene.MeshIdentity travel = (PortalScene.MeshIdentity) travelConstructor.newInstance(new TravelMessage.TravelWorld(
-                "minecraft:overworld", "minecraft:overworld", 7, false, false, 63, -64, 384), new byte[][]{new byte[]{1}});
-            Object portal = fixture.portal(7, view);
-            when(fixture.scene.revision(anyLong())).thenReturn(1L);
-            Class<?> sectionType = Class.forName(ClientPortalRenderer.class.getName() + "$Section");
-            Constructor<?> constructor = sectionType.getDeclaredConstructor(long.class, long.class);
-            constructor.setAccessible(true);
-            Method retain = ClientPortalRenderer.class.getDeclaredMethod("retainMesh", portal.getClass(), sectionType);
-            retain.setAccessible(true);
-            Object old = constructor.newInstance(-1L, 1L);
-            set(old, "identity", travel);
-            assertTrue((boolean) retain.invoke(fixture.renderer, portal, old));
-            for (int key = 0; key < 2048; key++) {
-                Object section = constructor.newInstance((long) key, 1L);
-                set(section, "identity", projected);
-                assertTrue((boolean) retain.invoke(fixture.renderer, portal, section));
-            }
-            assertEquals(2049, fixture.cache().size());
-            assertTrue((long) field(fixture.renderer, "retainedProofBytes") < 32L * 1024 * 1024);
-            assertEquals(0L, field(fixture.renderer, "gpuBytes"));
-            @SuppressWarnings("unchecked")
-            IdentityHashMap<Object, Integer> references = (IdentityHashMap<Object, Integer>) field(fixture.renderer, "retainedProofReferences");
-            assertEquals(Integer.valueOf(1), references.get(travel));
-            assertEquals(Integer.valueOf(2048), references.get(projected));
-            assertEquals(Integer.valueOf(2048), references.get(view.section(0L)));
-            fixture.renderer.clear();
-            assertTrue(fixture.cache().isEmpty());
-            assertTrue(references.isEmpty());
-            assertEquals(0L, field(fixture.renderer, "retainedProofBytes"));
         }
     }
 

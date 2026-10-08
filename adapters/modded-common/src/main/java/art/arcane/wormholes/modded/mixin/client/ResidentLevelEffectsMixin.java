@@ -16,7 +16,7 @@ public abstract class ResidentLevelEffectsMixin {
         "playPlayerSound", "addDestroyBlockEffect", "addBreakingBlockEffects", "createFireworks"}, at = @At("HEAD"), cancellable = true)
     private void wormholes$muteResidentLevel(CallbackInfo callback) {
         WormholesClient client = WormholesClient.instance();
-        if (client != null && client.preparedTravel().residents().muted(this)) {
+        if (client != null && client.seamlessTravel().residents().muted(this)) {
             callback.cancel();
         }
     }

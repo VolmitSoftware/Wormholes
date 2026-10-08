@@ -75,9 +75,6 @@ public class RemoteRoutesRankingTest extends MinecraftTestBase {
         assertEquals(2, RemoteRoutes.fullRadius(0, 12));
         assertEquals(16, RemoteRoutes.fullRadius(32, 32));
         assertEquals(16, RouteWindow.MAX_RADIUS);
-        assertEquals(RemoteRoutes.MIN_CORE_RADIUS, RemoteRoutes.coreRadius(2));
-        assertEquals(5, RemoteRoutes.coreRadius(15));
-        assertEquals(2, RemoteRoutes.coreRadius(3));
     }
 
     @Test
@@ -93,7 +90,6 @@ public class RemoteRoutesRankingTest extends MinecraftTestBase {
                 assertEquals(view.contains(x, z), window.contains(x, z));
             }
         }
-        assertEquals(window.keys().size(), window.coordinates().size());
         assertEquals(ChunkPos.pack(-2, 2), window.keys().getLong(0));
     }
 

@@ -214,15 +214,15 @@ public final class LookContinuityClientGameTest implements FabricClientGameTest 
 
     private static void prepare(ClientGameTestContext context, UUID source, String label) {
         for (int tick = 0; tick < PREPARE_TIMEOUT_TICKS; tick++) {
-            boolean ready = context.computeOnClient(client -> WormholesClient.instance().preparedTravel().seamless().armed(source)
-                && WormholesClient.instance().preparedTravel().seamless().unprepared() == null);
+            boolean ready = context.computeOnClient(client -> WormholesClient.instance().seamlessTravel().armed(source)
+                && WormholesClient.instance().seamlessTravel().unprepared() == null);
             if (ready) {
                 return;
             }
             context.waitTicks(1);
         }
         LOGGER.info("[{}] crossing before the travel was prepared: {}", label,
-            context.computeOnClient(client -> WormholesClient.instance().preparedTravel().seamless().unprepared()));
+            context.computeOnClient(client -> WormholesClient.instance().seamlessTravel().unprepared()));
     }
 
     private static void place(ClientGameTestContext context, TestServerContext server, ServerPlayer player, Vec3 position, float yaw, float pitch,

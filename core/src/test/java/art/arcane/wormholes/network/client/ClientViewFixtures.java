@@ -46,24 +46,11 @@ public final class ClientViewFixtures {
     static List<Vector> travelVectors() {
         List<Vector> out = new ArrayList<Vector>();
         out.add(travel("travel_begin", travelBegin(), ViewStreamCapability.ALL, 18, 0));
-        out.add(travel("travel_chunk", new TravelMessage.TravelChunk(new UUID(12, 34), 3L, -32, -10, 2, 0, 1,
-            4, new byte[] {1, 2, 3, 4}), ViewStreamCapability.ALL, 19, 0));
-        out.add(travel("travel_end", new TravelMessage.TravelEnd(new UUID(12, 34), 3L, 9L,
-            List.of(new TravelMessage.TravelChunkRevision(-32, -10, 2))), ViewStreamCapability.ALL, 20, ViewStreamLimits.FLAG_LAST));
-        out.add(travel("travel_commit", new TravelMessage.TravelCommit(new UUID(12, 34), 3L, 9L,
-            "minecraft:the_nether", "minecraft:overworld", travelBegin().arrival(), new Vec3d(0.25D, -0.5D, 1.0D)), ViewStreamCapability.ALL, 21,
-            ViewStreamLimits.FLAG_LAST));
         out.add(travel("travel_cancel", new TravelMessage.TravelCancel(new UUID(12, 34), 3L), ViewStreamCapability.ALL, 22,
             ViewStreamLimits.FLAG_LAST));
         out.add(travel("travel_cross", new TravelMessage.TravelCross(new UUID(12, 34), 3L, 9L,
             new TravelMessage.TravelPose(635.5D, 65.0D, -4681.4D, 90.0F, -12.0F),
             new Vec3d(635.5D, 66.62D, -4681.6D), new Vec3d(635.5D, 66.62D, -4681.4D)), ViewStreamCapability.NONE, 0, 0));
-        byte[] travelHash = new byte[32];
-        for (int index = 0; index < travelHash.length; index++) {
-            travelHash[index] = (byte) index;
-        }
-        out.add(travel("travel_reuse", new TravelMessage.TravelReuse(new UUID(12, 34), 3L, -32, -10, 2, travelHash),
-            ViewStreamCapability.ALL, 23, ViewStreamLimits.FLAG_LAST));
         out.add(travel("travel_begin_resident", residentBegin(), ViewStreamCapability.ALL, 25, 0));
         out.add(travel("remote_level_open", new TravelMessage.RemoteLevelOpen(4, travelBegin().world(), travelBegin().environment(), 8,
             new TravelMessage.TravelCoordinate(-32, -10)), ViewStreamCapability.ALL, 26, 0));
@@ -80,7 +67,7 @@ public final class ClientViewFixtures {
         TravelMessage.TravelBegin base = travelBegin();
         return new TravelMessage.TravelBegin(base.token(), base.generation(), base.sourcePortal(), base.sourceWorld(),
             base.sourceGeometry().withShape(ShapeDescriptor.parse("circle")), base.destinationToSource(), 3.0F, base.world(), base.arrival(),
-            base.chunks(), base.environment().withScale(1.0F / 3.0F), base.expiresMillis(),
+            base.environment().withScale(1.0F / 3.0F),
             new TravelMessage.ArrivalRules(OrientationRule.LOOK, true, new MomentumRule(MomentumRule.Mode.SCALE, 0.75D, 3.5D,
                 new Vec3d(0.0D, 0.25D, 0.0D)), ScaleRule.ratio(0.25D, 4.0D)), true, 4);
     }
@@ -97,7 +84,7 @@ public final class ClientViewFixtures {
             geometry(), OpticTransform.of(AxisPermutation.of(Face.S, Face.U, Face.E), 4, 0, 6), 1.0F,
             new TravelMessage.TravelWorld("minecraft:overworld", "minecraft:overworld", 123456789L, false, true, 63, -64, 384),
             new TravelMessage.TravelPose(-511.5D, 81.0D, -159.5D, 90.0F, -12.0F),
-            List.of(new TravelMessage.TravelCoordinate(-32, -10)), environment, 30_000, TravelMessage.ArrivalRules.FRAME, false, 0);
+            environment, TravelMessage.ArrivalRules.FRAME, false, 0);
     }
 
     static EnvironmentState environment() {

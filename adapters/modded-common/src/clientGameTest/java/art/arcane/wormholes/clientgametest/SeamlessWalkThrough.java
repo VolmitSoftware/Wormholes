@@ -3,7 +3,7 @@ package art.arcane.wormholes.clientgametest;
 import art.arcane.wormholes.clientgametest.mixin.ParticleGroupTap;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.WormholesModRuntime;
-import art.arcane.wormholes.modded.client.ClientPreparedTravel;
+import art.arcane.wormholes.modded.client.ClientSeamlessTravel;
 import art.arcane.wormholes.modded.client.WormholesClient;
 import art.arcane.wormholes.modded.mixin.client.ParticleEngineAccess;
 import art.arcane.wormholes.transit.OrientationPolicy;
@@ -229,11 +229,8 @@ final class SeamlessWalkThrough {
     }
 
     private static String travelState(Minecraft minecraft) {
-        ClientPreparedTravel travel = WormholesClient.instance().preparedTravel();
-        return "active " + travel.active() + " adopted " + travel.adopted() + " confirmed " + travel.positionConfirmed() + " ready "
-            + travel.readyRevision() + " pending " + travel.pendingCrossing() + " armed " + travel.seamless().armed() + " seamless pending "
-            + travel.seamless().pending() + " staged "
-            + (travel.level() == null ? "none" : travel.level().dimension().identifier() + (travel.level() == minecraft.level ? " (current)" : ""));
+        ClientSeamlessTravel travel = WormholesClient.instance().seamlessTravel();
+        return "armed " + travel.armed() + " pending " + travel.pending() + " level " + minecraft.level.dimension().identifier();
     }
 
     private static void face(SeamlessClient client, Vec3 target) {
@@ -243,10 +240,10 @@ final class SeamlessWalkThrough {
     }
 
     private static String prepare(SeamlessClient client) {
-        String unprepared = client.computeOnClient(minecraft -> WormholesClient.instance().preparedTravel().seamless().unprepared());
+        String unprepared = client.computeOnClient(minecraft -> WormholesClient.instance().seamlessTravel().unprepared());
         for (int tick = 0; tick < PREPARE_TIMEOUT_TICKS && unprepared != null; tick++) {
             client.waitTicks(1);
-            unprepared = client.computeOnClient(minecraft -> WormholesClient.instance().preparedTravel().seamless().unprepared());
+            unprepared = client.computeOnClient(minecraft -> WormholesClient.instance().seamlessTravel().unprepared());
         }
         return unprepared;
     }

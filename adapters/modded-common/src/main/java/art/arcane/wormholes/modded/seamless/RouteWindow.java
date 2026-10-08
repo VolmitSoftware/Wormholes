@@ -6,8 +6,6 @@ import it.unimi.dsi.fastutil.longs.LongList;
 import net.minecraft.server.level.ChunkTrackingView;
 import net.minecraft.world.level.ChunkPos;
 
-import java.util.ArrayList;
-import java.util.List;
 
 public final class RouteWindow {
     public static final int MAX_RADIUS = TravelMessage.MAX_REMOTE_VIEW_RADIUS;
@@ -95,15 +93,6 @@ public final class RouteWindow {
 
     public ChunkTrackingView.Positioned view() {
         return new ChunkTrackingView.Positioned(new ChunkPos(centerX, centerZ), radius);
-    }
-
-    public List<TravelMessage.TravelCoordinate> coordinates() {
-        List<TravelMessage.TravelCoordinate> coordinates = new ArrayList<>(ordered.size());
-        for (int index = 0; index < ordered.size(); index++) {
-            long key = ordered.getLong(index);
-            coordinates.add(new TravelMessage.TravelCoordinate(ChunkPos.getX(key), ChunkPos.getZ(key)));
-        }
-        return coordinates;
     }
 
     public boolean within(ChunkTrackingView view) {

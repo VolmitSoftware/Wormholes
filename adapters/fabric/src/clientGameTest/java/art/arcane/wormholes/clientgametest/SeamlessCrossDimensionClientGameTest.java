@@ -10,12 +10,6 @@ import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContex
 public final class SeamlessCrossDimensionClientGameTest implements FabricClientGameTest {
     @Override
     public void runTest(ClientGameTestContext context) {
-        ClientViewTestConfig.enableSeamless(false);
-        try (TestDedicatedServerContext server = context.worldBuilder().createServer(ClientViewTestConfig.serverProperties());
-             TestDedicatedServerConnection connection = server.connect()) {
-            SeamlessCrossDimension.prepared(new FabricSeamlessClient(context, connection), new FabricSeamlessServer(server, connection),
-                "cross-dimension-prepared");
-        }
         ClientViewTestConfig.enableSeamless(true);
         try (TestSingleplayerContext singleplayer = context.worldBuilder().create()) {
             SeamlessCrossDimension.seamless(new FabricSeamlessClient(context, singleplayer.getConnection()),

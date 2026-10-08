@@ -1,8 +1,6 @@
 package art.arcane.wormholes.network.client;
 
 import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -20,12 +18,8 @@ import art.arcane.wormholes.transit.OrientationPolicy;
 
 public sealed interface TravelMessage {
     int TRAVEL_BEGIN = 41;
-    int TRAVEL_CHUNK = 42;
-    int TRAVEL_END = 43;
-    int TRAVEL_COMMIT = 45;
     int TRAVEL_CANCEL = 46;
     int TRAVEL_CROSS = 47;
-    int TRAVEL_REUSE = 48;
     int REMOTE_LEVEL_OPEN = 51;
     int REMOTE_LEVEL_CLOSE = 52;
     int ROUTED_PACKET = 53;
@@ -36,12 +30,7 @@ public sealed interface TravelMessage {
     int FIRST_ID = 41;
     int LAST_ID = 63;
 
-    int TRAVEL_HASH_BYTES = 32;
-    int MAX_TRAVEL_CHUNKS = 1089;
-    int MAX_TRAVEL_CHUNK_BYTES = 2 * 1024 * 1024;
-    int MAX_TRAVEL_BYTES = 64 * 1024 * 1024;
     int TRAVEL_FRAGMENT_BYTES = 48 * 1024;
-    int MAX_TRAVEL_EXPIRY_MILLIS = 300_000;
     int MAX_LEVEL_HANDLE = 255;
     int MAX_REMOTE_VIEW_RADIUS = 16;
     int MAX_ROUTED_PACKET_BYTES = 2 * 1024 * 1024;
@@ -91,14 +80,6 @@ public sealed interface TravelMessage {
     record TravelCoordinate(int x, int z) {
     }
 
-    record TravelChunkRevision(int x, int z, int revision) {
-        public TravelChunkRevision {
-            if (revision <= 0) {
-                throw new IllegalArgumentException("Travel chunk revision");
-            }
-        }
-    }
-
     record ArrivalRules(OrientationRule orientation, boolean gravityFlip, MomentumRule momentum, ScaleRule scale) {
         public static final ArrivalRules FRAME = new ArrivalRules(OrientationRule.FRAME, false,
             new MomentumRule(MomentumRule.Mode.PRESERVE, 1.0D, 0.0D, new Vec3d(0.0D, 0.0D, 0.0D)), ScaleRule.OFF);
@@ -118,8 +99,8 @@ public sealed interface TravelMessage {
     }
 
     record TravelBegin(UUID token, long generation, UUID sourcePortal, String sourceWorld, ApertureDescriptor sourceGeometry,
-                       OpticTransform destinationToSource, float scale, TravelWorld world, TravelPose arrival, List<TravelCoordinate> chunks,
-                       EnvironmentState environment, int expiresMillis, ArrivalRules rules, boolean resident, int levelHandle)
+                       OpticTransform destinationToSource, float scale, TravelWorld world, TravelPose arrival, EnvironmentState environment,
+                       ArrivalRules rules, boolean resident, int levelHandle)
         implements TravelMessage {
         public TravelBegin {
             travelIdentity(token, generation);
@@ -137,13 +118,9 @@ public sealed interface TravelMessage {
             Objects.requireNonNull(world, "world");
             Objects.requireNonNull(arrival, "arrival");
             Objects.requireNonNull(environment, "environment");
-            chunks = List.copyOf(chunks);
             if (sourceWorld.isEmpty() || sourceWorld.length() > 256
                 || !sourceGeometry.valid() || sourceGeometry.mirror() || sourceGeometry.parentPortalKey() != 0
                 || !sourceGeometry.nested().isEmpty()
-                || chunks.isEmpty() || chunks.size() > MAX_TRAVEL_CHUNKS
-                || new HashSet<>(chunks).size() != chunks.size()
-                || expiresMillis <= 0 || expiresMillis > MAX_TRAVEL_EXPIRY_MILLIS
                 || !world.dimension().equals(environment.world().dimensionKey())
                 || !environment.transform().isIdentity()) {
                 throw new IllegalArgumentException("Travel preparation");
@@ -162,120 +139,6 @@ public sealed interface TravelMessage {
         @Override
         public int id() {
             return TRAVEL_BEGIN;
-        }
-    }
-
-    record TravelChunk(UUID token, long generation, int chunkX, int chunkZ, int revision, int fragmentIndex,
-                       int fragmentCount, int totalBytes, byte[] payload) implements TravelMessage {
-        public TravelChunk {
-            travelIdentity(token, generation);
-            Objects.requireNonNull(payload, "payload");
-            if (revision <= 0 || totalBytes <= 0 || totalBytes > MAX_TRAVEL_CHUNK_BYTES
-                || fragmentCount != (totalBytes + TRAVEL_FRAGMENT_BYTES - 1) / TRAVEL_FRAGMENT_BYTES
-                || fragmentIndex < 0 || fragmentIndex >= fragmentCount
-                || payload.length != Math.min(TRAVEL_FRAGMENT_BYTES, totalBytes - fragmentIndex * TRAVEL_FRAGMENT_BYTES)) {
-                throw new IllegalArgumentException("Travel chunk fragment");
-            }
-            payload = payload.clone();
-        }
-
-        @Override
-        public byte[] payload() {
-            return payload.clone();
-        }
-
-        @Override
-        public boolean equals(Object other) {
-            return other instanceof TravelChunk that && token.equals(that.token) && generation == that.generation
-                && chunkX == that.chunkX && chunkZ == that.chunkZ && revision == that.revision
-                && fragmentIndex == that.fragmentIndex && fragmentCount == that.fragmentCount && totalBytes == that.totalBytes
-                && Arrays.equals(payload, that.payload);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(token, generation, chunkX, chunkZ, revision, fragmentIndex, fragmentCount, totalBytes) * 31
-                + Arrays.hashCode(payload);
-        }
-
-        @Override
-        public int id() {
-            return TRAVEL_CHUNK;
-        }
-    }
-
-    record TravelReuse(UUID token, long generation, int chunkX, int chunkZ, int revision, byte[] hash) implements TravelMessage {
-        public TravelReuse {
-            travelIdentity(token, generation);
-            Objects.requireNonNull(hash, "hash");
-            if (revision <= 0 || hash.length != TRAVEL_HASH_BYTES) {
-                throw new IllegalArgumentException("Travel cache proof");
-            }
-            hash = hash.clone();
-        }
-
-        @Override
-        public byte[] hash() {
-            return hash.clone();
-        }
-
-        @Override
-        public boolean equals(Object other) {
-            return other instanceof TravelReuse that && token.equals(that.token) && generation == that.generation
-                && chunkX == that.chunkX && chunkZ == that.chunkZ && revision == that.revision
-                && Arrays.equals(hash, that.hash);
-        }
-
-        @Override
-        public int hashCode() {
-            int result = Objects.hash(token, generation, chunkX, chunkZ, revision);
-            return 31 * result + Arrays.hashCode(hash);
-        }
-
-        @Override
-        public int id() {
-            return TRAVEL_REUSE;
-        }
-    }
-
-    record TravelEnd(UUID token, long generation, long contentRevision, List<TravelChunkRevision> chunks) implements TravelMessage {
-        public TravelEnd {
-            travelIdentity(token, generation);
-            chunks = List.copyOf(chunks);
-            if (contentRevision <= 0 || chunks.isEmpty() || chunks.size() > MAX_TRAVEL_CHUNKS) {
-                throw new IllegalArgumentException("Travel manifest");
-            }
-            HashSet<TravelCoordinate> coordinates = new HashSet<>();
-            for (TravelChunkRevision chunk : chunks) {
-                if (!coordinates.add(new TravelCoordinate(chunk.x(), chunk.z()))) {
-                    throw new IllegalArgumentException("Repeated travel chunk");
-                }
-            }
-        }
-
-        @Override
-        public int id() {
-            return TRAVEL_END;
-        }
-    }
-
-    record TravelCommit(UUID token, long generation, long contentRevision, String sourceWorld, String destinationWorld,
-                        TravelPose arrival, Vec3d velocity) implements TravelMessage {
-        public TravelCommit {
-            travelIdentity(token, generation);
-            travelVector(velocity);
-            Objects.requireNonNull(sourceWorld, "sourceWorld");
-            Objects.requireNonNull(destinationWorld, "destinationWorld");
-            Objects.requireNonNull(arrival, "arrival");
-            if (contentRevision <= 0 || sourceWorld.isEmpty() || destinationWorld.isEmpty()
-                || sourceWorld.length() > 256 || destinationWorld.length() > 256) {
-                throw new IllegalArgumentException("Travel commit");
-            }
-        }
-
-        @Override
-        public int id() {
-            return TRAVEL_COMMIT;
         }
     }
 

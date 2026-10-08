@@ -10,7 +10,7 @@ import art.arcane.optics.math.Face;
 import art.arcane.optics.math.Vec3d;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.WormholesModRuntime;
-import art.arcane.wormholes.modded.client.ClientPreparedTravel;
+import art.arcane.wormholes.modded.client.ClientSeamlessTravel;
 import art.arcane.wormholes.modded.client.WormholesClient;
 import art.arcane.wormholes.network.client.ClientViewExtensions;
 import art.arcane.wormholes.portal.PortalType;
@@ -189,9 +189,8 @@ final class SeamlessScenario {
     }
 
     static boolean ready(Minecraft minecraft) {
-        ClientPreparedTravel travel = WormholesClient.instance().preparedTravel();
-        return (travel.readyRevision() > 0 || travel.seamless().armed()) && !travel.adopted() && !travel.pendingCrossing()
-            && !travel.seamless().pending();
+        ClientSeamlessTravel travel = WormholesClient.instance().seamlessTravel();
+        return travel.armed() && !travel.pending();
     }
 
     static void assertSeamlessNegotiated(SeamlessClient client) {
@@ -199,17 +198,6 @@ final class SeamlessScenario {
             && WormholesClient.instance().session().has(ClientViewExtensions.REMOTE_VIEW)
             && WormholesClient.instance().session().has(ClientViewExtensions.SEAMLESS_TRAVEL));
         assertTrue(seamless, "the server did not negotiate REMOTE_VIEW and SEAMLESS_TRAVEL for this session");
-    }
-
-    static void assertPreparedTravel(SeamlessClient client, Crossing crossing, boolean dimensionChanged) {
-        client.waitFor(minecraft -> !WormholesClient.instance().preparedTravel().pendingCrossing()
-            && !WormholesClient.instance().preparedTravel().seamless().pending(), ACCEPT_TIMEOUT_TICKS);
-        client.waitTicks(SETTLE_TICKS);
-        reportFrameTimes(crossing);
-        assertTrue(!dimensionChanged || TravelTap.respawns() > 0, crossing.label() + ": prepared travel received no respawn packet");
-        assertTrue(TravelTap.positions() > 0, crossing.label() + ": prepared travel received no position packet");
-        assertTrue(!TravelTap.loadingScreenShown(), crossing.label() + ": the level loading screen was shown");
-        assertSamePlayer(client, crossing);
     }
 
     static void assertSeamlessTravel(SeamlessClient client, Route route, Crossing crossing, int returnViewTicks) {
@@ -240,11 +228,10 @@ final class SeamlessScenario {
     }
 
     private static void assertSeamless(SeamlessClient client, Crossing crossing, Leg leg, BlockPos returnPortal, int returnViewTicks) {
-        client.waitFor(minecraft -> !WormholesClient.instance().preparedTravel().pendingCrossing()
-            && !WormholesClient.instance().preparedTravel().seamless().pending(), ACCEPT_TIMEOUT_TICKS);
+        client.waitFor(minecraft -> !WormholesClient.instance().seamlessTravel().pending(), ACCEPT_TIMEOUT_TICKS);
         boolean levelChanged = client.computeOnClient(minecraft -> minecraft.level != crossing.source());
         if (levelChanged) {
-            client.waitFor(minecraft -> WormholesClient.instance().preparedTravel().residents().handle(crossing.source()) > 0, returnViewTicks);
+            client.waitFor(minecraft -> WormholesClient.instance().seamlessTravel().residents().handle(crossing.source()) > 0, returnViewTicks);
         }
         int returnView = ticksUntil(client, minecraft -> NativeClientViewAssertions.sections(NativeClientViewAssertions.portalKey(returnPortal)) > 0,
             returnViewTicks, crossing.label() + ": the return view had no sections");
@@ -341,11 +328,10 @@ final class SeamlessScenario {
     }
 
     private static String arrivalState(Minecraft minecraft, Route route, Crossing crossing) {
-        ClientPreparedTravel travel = WormholesClient.instance().preparedTravel();
+        ClientSeamlessTravel travel = WormholesClient.instance().seamlessTravel();
         StringBuilder state = new StringBuilder();
         state.append("level ").append(minecraft.level.dimension().identifier()).append(minecraft.level == crossing.source() ? " (crossing source)" : " (swapped)")
-            .append(", player ").append(minecraft.player.position()).append(", pending ").append(travel.pendingCrossing())
-            .append(", adopted ").append(travel.adopted()).append(", confirmed ").append(travel.positionConfirmed());
+            .append(", player ").append(minecraft.player.position()).append(", pending ").append(travel.pending());
         for (int handle = 1; handle <= MAX_LOGGED_HANDLE; handle++) {
             if (travel.residents().has(handle)) {
                 ClientLevel level = travel.residents().level(handle);

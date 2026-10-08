@@ -39,22 +39,12 @@ List<String> sharedClientTestClasses = [
     'art.arcane.wormholes.modded.client.render.PortalIrisHandTest',
     'art.arcane.wormholes.modded.client.render.PortalIrisDepthTargetTest',
     'art.arcane.wormholes.modded.client.render.ClientSodiumTerrainTest',
-    'art.arcane.wormholes.modded.client.ClientPreparedTravelCachedTest',
-    'art.arcane.wormholes.modded.client.ClientPreparedTravelCameraTest',
-    'art.arcane.wormholes.modded.client.ClientPreparedTravelFrameTest',
-    'art.arcane.wormholes.modded.client.ClientPreparedTravelDecodeTest',
-    'art.arcane.wormholes.modded.client.ClientPreparedTravelLightTest',
-    'art.arcane.wormholes.modded.client.ClientPreparedTravelRetentionTest',
-    'art.arcane.wormholes.modded.client.ClientPreparedTravelRespawnTest',
-    'art.arcane.wormholes.modded.client.ClientPreparedTravelRollbackTest',
-    'art.arcane.wormholes.modded.client.ClientPreparedTravelPacketBudgetTest',
     'art.arcane.wormholes.modded.client.ClientSeamlessTravelTest',
+    'art.arcane.wormholes.modded.client.ClientTravelCrossingDeclineTest',
     'art.arcane.wormholes.modded.client.ClientSeamlessTravelScaleTest',
     'art.arcane.wormholes.modded.client.ClientParticleLevelsTest',
     'art.arcane.wormholes.modded.client.ClientLevelSwitchProbeTest',
     'art.arcane.wormholes.modded.client.ClientEntityCrossingsTest',
-    'art.arcane.wormholes.modded.client.ClientPreparedTravelNoSuppressionTest',
-    'art.arcane.wormholes.modded.client.ClientPreparedTravelEntityResidencyTest',
     'art.arcane.wormholes.modded.client.ResidentLevelsOpenCloseTest',
     'art.arcane.wormholes.modded.client.ResidentLevelsRoutingTest',
     'art.arcane.wormholes.modded.client.ResidentLevelsMemoryBudgetTest',
@@ -62,7 +52,6 @@ List<String> sharedClientTestClasses = [
     'art.arcane.wormholes.modded.seamless.RemoteViewerPairingTest',
     'art.arcane.wormholes.modded.client.ClientTravelMotionTest',
     'art.arcane.wormholes.modded.client.ClientTravelMotionLookTest',
-    'art.arcane.wormholes.modded.client.PreparedTravelChunkCacheTest',
     'art.arcane.wormholes.modded.client.PreparedChunkCacheTest',
     'art.arcane.wormholes.modded.client.ResourceArgumentGrammarTest',
     'art.arcane.wormholes.modded.client.ClientVanillaPortalEffectTest'
@@ -182,7 +171,6 @@ neoForge {
             gameDirectory = file('build/run/clientGameTest')
             systemProperty('wormholes.clientgametest', 'true')
             systemProperty('wormholes.clientgametest.server', providers.gradleProperty('clientGameTestServer').getOrElse(''))
-            systemProperty('wormholes.clientgametest.serverSeamless', providers.gradleProperty('clientGameTestServerSeamless').getOrElse('true'))
             systemProperty('wormholes.clientgametest.filter', providers.gradleProperty('clientGameTestFilter').getOrElse(''))
         }
     }

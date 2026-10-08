@@ -28,7 +28,6 @@ import com.mojang.renderpearl.api.textures.GpuSampler;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
 import net.minecraft.client.Camera;
-import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.DynamicGpuData;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.GameRenderer;
@@ -344,71 +343,6 @@ public class ClientPortalRendererTest extends MinecraftTestBase {
     }
 
     @Test
-    public void promotingIdenticalSourceEnvironmentPreservesItsReadyShaderLeaseAndRetiresOldScene() throws ReflectiveOperationException {
-        ClientPortalRenderer renderer = ClientPortalRenderer.instance();
-        renderer.clear();
-        PortalShaderRenderer shaders = mock(PortalShaderRenderer.class);
-        PortalShaderRenderer.Session lease = mock(PortalShaderRenderer.Session.class);
-        when(lease.ready()).thenReturn(true);
-        EnvironmentState environment = PortalEnvironmentTest.environment(OpticTransform.IDENTITY);
-        ClientTravelScene initial = mock(ClientTravelScene.class);
-        ClientTravelScene replacement = mock(ClientTravelScene.class);
-        ApertureDescriptor geometry = scene().geometry();
-        when(initial.geometry()).thenReturn(geometry);
-        when(replacement.geometry()).thenReturn(geometry);
-        when(initial.environment()).thenReturn(environment);
-        EnvironmentState sameEnvironment = new EnvironmentState(environment.gameTime(), environment.sky(), environment.fog(),
-            environment.lighting(), environment.clouds(), environment.transform(), environment.dimension(), environment.world(), 1.0F);
-        when(replacement.environment()).thenReturn(sameEnvironment);
-        set(renderer, "shaderRenderer", shaders);
-        try {
-            renderer.prepareTravelSourceEnvironment(environment);
-            set(renderer, "travelSourceShaders", lease);
-            clearInvocations(shaders);
-            renderer.prepareTravelSource(initial);
-            Object previous = get(renderer, "travelSource");
-            renderer.prepareTravelSource(replacement);
-            assertSame(lease, get(renderer, "travelSourceShaders"));
-            assertSame(environment, get(renderer, "travelSourceEnvironment"));
-            assertFalse((boolean) get(previous, "active"));
-            assertSame(replacement, get(get(renderer, "travelSource"), "scene"));
-            verify(shaders, never()).remove(-3);
-            renderer.retireTravelSource();
-            verify(shaders).remove(-3);
-            assertEquals(null, get(renderer, "travelSourceShaders"));
-        } finally {
-            renderer.clear();
-        }
-    }
-
-    @Test
-    public void changedSourceEnvironmentRetiresShaderLeaseBeforeInstallingFullScene() throws ReflectiveOperationException {
-        ClientPortalRenderer renderer = ClientPortalRenderer.instance();
-        renderer.clear();
-        PortalShaderRenderer shaders = mock(PortalShaderRenderer.class);
-        PortalShaderRenderer.Session lease = mock(PortalShaderRenderer.Session.class);
-        EnvironmentState environment = PortalEnvironmentTest.environment(OpticTransform.IDENTITY);
-        EnvironmentState changed = environment.withTransform(OpticTransform.of(AxisPermutation.of(Face.E, Face.U, Face.S), 16, 0, 0));
-        ClientTravelScene replacement = mock(ClientTravelScene.class);
-        ApertureDescriptor geometry = scene().geometry();
-        when(replacement.geometry()).thenReturn(geometry);
-        when(replacement.environment()).thenReturn(changed);
-        set(renderer, "shaderRenderer", shaders);
-        try {
-            renderer.prepareTravelSourceEnvironment(environment);
-            set(renderer, "travelSourceShaders", lease);
-            clearInvocations(shaders);
-            renderer.prepareTravelSource(replacement);
-            verify(shaders, times(2)).remove(-3);
-            assertEquals(null, get(renderer, "travelSourceShaders"));
-            assertSame(changed, get(renderer, "travelSourceEnvironment"));
-            assertSame(replacement, get(get(renderer, "travelSource"), "scene"));
-        } finally {
-            renderer.clear();
-        }
-    }
-
-    @Test
     public void returnShadersWarmWithoutSourceSnapshotsAndReleaseForDimensionReuse() throws ReflectiveOperationException {
         ClientPortalRenderer renderer = ClientPortalRenderer.instance();
         renderer.clear();
@@ -451,67 +385,6 @@ public class ClientPortalRendererTest extends MinecraftTestBase {
             assertEquals(null, get(renderer, "travelSourceEnvironment"));
             bindings.when(PortalShaderScope::shaders).thenReturn(false);
             assertTrue(renderer.travelSourceShaderReady());
-        } finally {
-            renderer.clear();
-        }
-    }
-
-    @Test
-    @SuppressWarnings("unchecked")
-    public void nativePreparationSkipsFullCoverBuildsAndUploadsWithoutSkippingProjectedPortals() throws ReflectiveOperationException {
-        ClientPortalRenderer renderer = ClientPortalRenderer.instance();
-        renderer.clear();
-        ClientLevel destination = mock(ClientLevel.class);
-        ApertureDescriptor geometry = scene().geometry();
-        ClientTravelScene travel = mock(ClientTravelScene.class);
-        when(travel.geometry()).thenReturn(geometry);
-        when(travel.sectionKeys()).thenReturn(new LongArrayList());
-        when(travel.level()).thenReturn(destination);
-        when(travel.revision(1L)).thenReturn(1L);
-        ClientTravelScene source = mock(ClientTravelScene.class);
-        when(source.geometry()).thenReturn(geometry);
-        when(source.sectionKeys()).thenReturn(new LongArrayList());
-        renderer.prepareTravel(travel, new CameraRenderState());
-        renderer.prepareTravelSource(source);
-        renderer.replaceScene(10, scene());
-        Object cover = get(renderer, "travel");
-        Object sourceCover = get(renderer, "travelSource");
-        Map<Integer, Object> portals = (Map<Integer, Object>) get(renderer, "portals");
-        Object projected = portals.get(10);
-        List<Object> demand = (List<Object>) get(renderer, "buildDemand");
-        demand.add(sourceCover);
-        demand.add(cover);
-        demand.add(projected);
-        for (Object portal : demand) {
-            set(portal, "hasInitialBuild", true);
-        }
-        Method maintain = ClientPortalRenderer.class.getDeclaredMethod("maintain", cover.getClass());
-        maintain.setAccessible(true);
-        Method next = ClientPortalRenderer.class.getDeclaredMethod("nextBuildPortal", boolean.class, boolean.class, long.class);
-        next.setAccessible(true);
-        Method finish = ClientPortalRenderer.class.getDeclaredMethod("finish", cover.getClass(), long.class, long.class,
-            int.class, PortalScene.MeshIdentity.class, PortalSectionMesh.class, Throwable.class);
-        finish.setAccessible(true);
-        Method nativeCover = ClientPortalRenderer.class.getDeclaredMethod("nativeTravelTerrain", cover.getClass());
-        nativeCover.setAccessible(true);
-        PortalSectionMesh completed = mock(PortalSectionMesh.class);
-        try (MockedStatic<ClientSodiumTerrain> terrain = mockStatic(ClientSodiumTerrain.class)) {
-            terrain.when(() -> ClientSodiumTerrain.usesPreparedTerrain(destination)).thenReturn(true);
-            clearInvocations(travel, source);
-            maintain.invoke(renderer, cover);
-            maintain.invoke(renderer, sourceCover);
-            verify(travel, never()).sectionKeys();
-            verify(source, never()).sectionKeys();
-            assertSame(projected, next.invoke(renderer, false, true, Long.MAX_VALUE));
-            set(renderer, "pendingBuilds", 1);
-            finish.invoke(renderer, cover, 1L, 1L, 0, null, completed, null);
-            verify(completed).close();
-            verify(completed, never()).meshes();
-            assertEquals(0, get(renderer, "pendingBuilds"));
-            assertTrue((boolean) nativeCover.invoke(renderer, sourceCover));
-            terrain.when(() -> ClientSodiumTerrain.usesPreparedTerrain(destination)).thenReturn(false);
-            assertFalse((boolean) nativeCover.invoke(renderer, cover));
-            assertFalse((boolean) nativeCover.invoke(renderer, sourceCover));
         } finally {
             renderer.clear();
         }

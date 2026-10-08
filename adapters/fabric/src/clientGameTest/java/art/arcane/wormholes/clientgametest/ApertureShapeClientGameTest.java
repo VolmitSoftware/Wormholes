@@ -241,7 +241,7 @@ public final class ApertureShapeClientGameTest implements FabricClientGameTest {
         context.waitFor(client -> client.player.position().distanceTo(start) < 0.05D && client.player.getAbilities().flying, STREAM_TIMEOUT_TICKS);
         if (crosses) {
             for (int tick = 0; tick < PREPARE_TIMEOUT_TICKS
-                && context.computeOnClient(client -> WormholesClient.instance().preparedTravel().seamless().unprepared()) != null; tick++) {
+                && context.computeOnClient(client -> WormholesClient.instance().seamlessTravel().unprepared()) != null; tick++) {
                 context.waitTicks(1);
             }
         }

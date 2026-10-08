@@ -1,95 +1,58 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
-import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
-import art.arcane.wormholes.modded.client.render.PortalIrisMainPipelines;
+import art.arcane.wormholes.network.client.TravelMessage;
 import net.minecraft.client.Camera;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.core.RegistryAccess;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import org.junit.Test;
 import org.mockito.MockedStatic;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
-import static art.arcane.wormholes.modded.client.ClientTravelTestFixtures.set;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import art.arcane.wormholes.network.client.TravelMessage;
 
 public class ClientTravelCrossingDeclineTest extends MinecraftTestBase {
     @Test
-    public void unreadyPreparationDeclinesOnlyAtItsPhysicalApertureAndKeepsArrivalCover() throws ReflectiveOperationException {
+    public void crossingIntoAClosedResidentLevelIsDeclinedWithoutMovingThePlayer() throws ReflectiveOperationException {
         try (Fixture fixture = new Fixture()) {
-            set(fixture.travel, "acknowledgedRevision", 50L);
-            set(fixture.travel, "staged", mock(ClientLevel.class));
-            Object arrival = mock(Class.forName(ClientPreparedTravel.class.getName() + "$Arrival"));
-            set(fixture.travel, "arrival", arrival);
             fixture.eye(new Vec3(0.5, 1.62, 0.3));
             fixture.eye(new Vec3(0.5, 1.62, 0.4));
-            assertTrue(fixture.sent.isEmpty());
-            assertTrue(fixture.travel.active());
+            assertNull(fixture.declined());
             fixture.eye(new Vec3(0.5, 1.62, 0.6));
-            assertEquals(List.of(new TravelMessage.TravelCancel(fixture.begin.token(), fixture.begin.generation())), fixture.sent);
-            assertFalse(fixture.travel.active());
-            assertSame(arrival, get(fixture.travel, "arrival"));
-            assertNull(get(fixture.travel, "prediction"));
-            verify(fixture.renderer).cancelTravel();
-            verify(fixture.renderer, never()).retireArrival();
+            assertEquals(fixture.begin.token(), fixture.declined());
+            assertTrue(fixture.sent.isEmpty());
+            assertFalse(fixture.travel.pending());
+            assertSame(fixture.level, fixture.minecraft.level);
             fixture.eye(new Vec3(0.5, 1.62, 0.7));
-            assertEquals(1, fixture.sent.size());
+            assertTrue(fixture.sent.isEmpty());
         }
     }
 
     @Test
-    public void coveredCoverStillRebuildingStaysPresentableAndAHoleDoesNot() throws ReflectiveOperationException {
-        try (Fixture fixture = new Fixture(); MockedStatic<PortalIrisMainPipelines> iris = mockStatic(PortalIrisMainPipelines.class)) {
-            iris.when(() -> PortalIrisMainPipelines.ready(any())).thenReturn(true);
-            set(fixture.travel, "acknowledgedRevision", 50L);
-            set(fixture.travel, "staged", mock(ClientLevel.class));
-            when(fixture.renderer.travelSourceShaderReady()).thenReturn(true);
-            when(fixture.renderer.travelReady()).thenReturn(false);
-            when(fixture.renderer.travelCovered()).thenReturn(true);
-            assertTrue(fixture.presentable());
-            when(fixture.renderer.travelCovered()).thenReturn(false);
-            assertFalse(fixture.presentable());
-            when(fixture.renderer.travelCovered()).thenReturn(true);
-            set(fixture.travel, "acknowledgedRevision", 0L);
-            assertFalse(fixture.presentable());
-            set(fixture.travel, "acknowledgedRevision", 50L);
-            set(fixture.travel, "deadline", System.currentTimeMillis() - 1L);
-            assertFalse(fixture.presentable());
-        }
-    }
-
-    @Test
-    public void crossingAnotherWorldOrOutsideTheApertureDoesNotDecline() throws ReflectiveOperationException {
+    public void crossingAnotherWorldOrOutsideTheApertureIsNeverAttempted() throws ReflectiveOperationException {
         try (Fixture fixture = new Fixture()) {
             fixture.eye(new Vec3(2.5, 1.62, 0.3));
             fixture.eye(new Vec3(2.5, 1.62, 0.6));
-            when(fixture.level.dimension()).thenReturn(Level.OVERWORLD);
+            when(fixture.level.dimension()).thenReturn(Level.NETHER);
             fixture.eye(new Vec3(0.5, 1.62, 0.3));
             fixture.eye(new Vec3(0.5, 1.62, 0.6));
+            assertNull(fixture.declined());
             assertTrue(fixture.sent.isEmpty());
-            assertTrue(fixture.travel.active());
-            verify(fixture.renderer, never()).cancelTravel();
         }
     }
 
@@ -97,72 +60,52 @@ public class ClientTravelCrossingDeclineTest extends MinecraftTestBase {
     public void ordinaryAuthoritativeTeleportCannotBecomeAContinuousPortalCrossing() throws ReflectiveOperationException {
         try (Fixture fixture = new Fixture()) {
             fixture.eye(new Vec3(0.5, 1.62, 0.3));
-            fixture.travel.beforeServerPosition();
-            assertNull(get(fixture.travel, "previousCamera"));
+            fixture.travel.serverPosition();
             fixture.eye(new Vec3(0.5, 1.62, 0.8));
+            assertNull(fixture.declined());
             assertTrue(fixture.sent.isEmpty());
-            assertTrue(fixture.travel.active());
-            assertSame(fixture.begin, get(fixture.travel, "begin"));
-            verify(fixture.renderer, never()).cancelTravel();
+            assertTrue(fixture.travel.armed(fixture.begin.sourcePortal()));
         }
-    }
-
-    private static Object get(Object target, String name) throws ReflectiveOperationException {
-        Field field = target.getClass().getDeclaredField(name);
-        field.setAccessible(true);
-        return field.get(target);
     }
 
     private static final class Fixture implements AutoCloseable {
         private final Minecraft minecraft = mock(Minecraft.class);
-        private final LocalPlayer player = mock(LocalPlayer.class);
+        private final LocalPlayer player = SeamlessTravelFixtures.player();
         private final ClientLevel level = mock(ClientLevel.class);
         private final Camera camera = mock(Camera.class);
         private final DeltaTracker tracker = mock(DeltaTracker.class);
-        private final ClientPortalRenderer renderer = mock(ClientPortalRenderer.class);
         private final List<TravelMessage> sent = new ArrayList<>();
-        private final ClientPreparedTravel travel = ClientTravelTestFixtures.travel(sent::add);
-        private final TravelMessage.TravelBegin begin;
+        private final ClientSeamlessTravel travel = ClientTravelTestFixtures.travel(sent::add);
+        private final TravelMessage.TravelBegin begin = SeamlessTravelFixtures.begin(true);
         private final MockedStatic<Minecraft> minecraftAccess;
-        private final MockedStatic<ClientPortalRenderer> rendererAccess;
 
-        private Fixture() throws ReflectiveOperationException {
-            Method fixture = ClientPreparedTravelPendingTest.class.getDeclaredMethod("begin", long.class);
-            fixture.setAccessible(true);
-            begin = (TravelMessage.TravelBegin) fixture.invoke(null, 12L);
-            set(travel, "begin", begin);
-            set(travel, "deadline", System.currentTimeMillis() + 30_000);
+        private Fixture() {
             minecraft.player = player;
             minecraft.level = level;
-            Field gui = Minecraft.class.getDeclaredField("gui");
-            set(minecraft, "gui", mock(gui.getType()));
-            ClientPacketListener connection = mock(ClientPacketListener.class);
-            when(minecraft.getConnection()).thenReturn(connection);
-            when(connection.registryAccess()).thenReturn(RegistryAccess.EMPTY);
-            when(level.dimension()).thenReturn(Level.NETHER);
+            when(minecraft.getConnection()).thenReturn(mock(ClientPacketListener.class));
+            when(level.dimension()).thenReturn(Level.OVERWORLD);
             when(camera.isInitialized()).thenReturn(true);
             when(camera.entity()).thenReturn(player);
             when(camera.getCameraEntityPartialTicks(tracker)).thenReturn(0.5f);
             minecraftAccess = mockStatic(Minecraft.class);
             minecraftAccess.when(Minecraft::getInstance).thenReturn(minecraft);
-            rendererAccess = mockStatic(ClientPortalRenderer.class);
-            rendererAccess.when(ClientPortalRenderer::instance).thenReturn(renderer);
+            assertTrue(travel.receive(begin));
         }
 
-        private boolean presentable() throws ReflectiveOperationException {
-            Method unpresentable = ClientPreparedTravel.class.getDeclaredMethod("unpresentable");
-            unpresentable.setAccessible(true);
-            return unpresentable.invoke(travel) == null;
+        private Object declined() throws ReflectiveOperationException {
+            Field field = ClientSeamlessTravel.class.getDeclaredField("declined");
+            field.setAccessible(true);
+            return field.get(travel);
         }
 
         private void eye(Vec3 position) {
             when(player.getEyePosition(0.5f)).thenReturn(position);
+            when(player.getPosition(0.5f)).thenReturn(position.subtract(0, 1.62, 0));
             assertFalse(travel.beforeFrame(camera, tracker));
         }
 
         @Override
         public void close() {
-            rendererAccess.close();
             minecraftAccess.close();
         }
     }

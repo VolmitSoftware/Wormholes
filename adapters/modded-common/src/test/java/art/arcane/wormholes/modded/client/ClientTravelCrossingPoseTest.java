@@ -25,8 +25,6 @@ import net.minecraft.world.phys.Vec3;
 import org.junit.Test;
 import org.mockito.MockedStatic;
 
-import java.lang.reflect.Method;
-import java.util.List;
 import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
@@ -47,7 +45,7 @@ public class ClientTravelCrossingPoseTest extends MinecraftTestBase {
     private static final Vec3d CROSSING = new Vec3d(0.5, 1, 0);
 
     @Test
-    public void standingReverseCrossingPreservesExactFeetAboveDestinationFloor() throws ReflectiveOperationException {
+    public void standingReverseCrossingPreservesExactFeetAboveDestinationFloor() {
         TravelMessage.TravelPose pose = pose(new Vec3(1001.5, 200, 0.4), 0.75f);
         OpticTransform transform = OpticTransform.of(AxisPermutation.of(Face.E, Face.U, Face.S), -102, 120, 0);
         Vec3 destination = ClientTravelMotion.point(Similarity.of(transform.inverse(), 1.0D), new Vec3(pose.x(), pose.y(), pose.z()));
@@ -56,7 +54,7 @@ public class ClientTravelCrossingPoseTest extends MinecraftTestBase {
     }
 
     @Test
-    public void fractionalInterpolatedFeetAreNotReconstructedFromTheEye() throws ReflectiveOperationException {
+    public void fractionalInterpolatedFeetAreNotReconstructedFromTheEye() {
         Vec3 feet = new Vec3(1001.3125, 200.375, 0.4375);
         TravelMessage.TravelPose pose = pose(feet, 0.375f);
         assertEquals(feet.x, pose.x(), 0);
@@ -71,7 +69,7 @@ public class ClientTravelCrossingPoseTest extends MinecraftTestBase {
         Minecraft minecraft = mock(Minecraft.class);
         Camera camera = mock(Camera.class);
         DeltaTracker tracker = mock(DeltaTracker.class);
-        ClientPreparedTravel travel = ClientTravelTestFixtures.travel(ignored -> { });
+        ClientSeamlessTravel travel = ClientTravelTestFixtures.travel(ignored -> { });
         try (MockedStatic<Minecraft> access = mockStatic(Minecraft.class)) {
             access.when(Minecraft::getInstance).thenReturn(minecraft);
             assertFalse(travel.beforeFrame(camera, tracker));
@@ -85,7 +83,7 @@ public class ClientTravelCrossingPoseTest extends MinecraftTestBase {
         minecraft.player = mock(LocalPlayer.class);
         Camera camera = mock(Camera.class);
         DeltaTracker tracker = mock(DeltaTracker.class);
-        ClientPreparedTravel travel = ClientTravelTestFixtures.travel(ignored -> { });
+        ClientSeamlessTravel travel = ClientTravelTestFixtures.travel(ignored -> { });
         try (MockedStatic<Minecraft> access = mockStatic(Minecraft.class)) {
             access.when(Minecraft::getInstance).thenReturn(minecraft);
             assertFalse(travel.beforeFrame(camera, tracker));
@@ -100,7 +98,7 @@ public class ClientTravelCrossingPoseTest extends MinecraftTestBase {
         minecraft.level = mock(ClientLevel.class);
         Camera camera = mock(Camera.class);
         DeltaTracker tracker = mock(DeltaTracker.class);
-        ClientPreparedTravel travel = ClientTravelTestFixtures.travel(ignored -> { });
+        ClientSeamlessTravel travel = ClientTravelTestFixtures.travel(ignored -> { });
         try (MockedStatic<Minecraft> access = mockStatic(Minecraft.class)) {
             access.when(Minecraft::getInstance).thenReturn(minecraft);
             assertFalse(travel.beforeFrame(camera, tracker));
@@ -196,8 +194,7 @@ public class ClientTravelCrossingPoseTest extends MinecraftTestBase {
         OpticTransform destinationToSource = OpticTransform.between(destination, new Vec3d(100, 64, 100), source, new Vec3d(0, 0, 0));
         return new TravelMessage.TravelBegin(new UUID(1, 2), 3, new UUID(4, 5), "minecraft:overworld", ClientTravelTestFixtures.geometry(),
             destinationToSource, 1.0F, new TravelMessage.TravelWorld("minecraft:overworld", "minecraft:overworld", 7, false, false, 63, -64, 384),
-            new TravelMessage.TravelPose(100, 64, 100, 0, 0), List.of(new TravelMessage.TravelCoordinate(6, 6)),
-            PortalEnvironmentTest.environment(OpticTransform.IDENTITY), 30_000,
+            new TravelMessage.TravelPose(100, 64, 100, 0, 0), PortalEnvironmentTest.environment(OpticTransform.IDENTITY),
             new TravelMessage.ArrivalRules(orientation, gravityFlip, momentum, ScaleRule.OFF), true, 1);
     }
 
@@ -214,13 +211,11 @@ public class ClientTravelCrossingPoseTest extends MinecraftTestBase {
         assertTrue("expected " + expected + " but was " + actual, actual.subtract(expected).lengthSquared() < 0.000001D * 0.000001D);
     }
 
-    private static TravelMessage.TravelPose pose(Vec3 feet, float partial) throws ReflectiveOperationException {
+    private static TravelMessage.TravelPose pose(Vec3 feet, float partial) {
         LocalPlayer player = mock(LocalPlayer.class);
         when(player.getPosition(partial)).thenReturn(feet);
         when(player.getYRot()).thenReturn(180f);
         when(player.getXRot()).thenReturn(15f);
-        Method method = ClientPreparedTravel.class.getDeclaredMethod("crossingPose", LocalPlayer.class, float.class);
-        method.setAccessible(true);
-        return (TravelMessage.TravelPose) method.invoke(null, player, partial);
+        return ClientSeamlessTravel.crossingPose(player, partial);
     }
 }

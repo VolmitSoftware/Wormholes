@@ -30,14 +30,15 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.ObjLongConsumer;
 
 import it.unimi.dsi.fastutil.longs.LongSet;
-import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.core.BlockPos;
@@ -344,93 +345,10 @@ public class ClientTravelMeshReuseTest extends MinecraftTestBase {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void currentPreparedDestinationClaimsCompilationBeforeFutureSourceWarmup() throws ReflectiveOperationException {
-        ClientPortalRenderer renderer = ClientPortalRenderer.instance();
-        renderer.clear();
-        PortalScene currentScene = fixtureScene();
-        ClientTravelScene sourceScene = mock(ClientTravelScene.class);
-        ApertureDescriptor sourceGeometry = fixtureScene().geometry();
-        when(sourceScene.geometry()).thenReturn(sourceGeometry);
-        renderer.prepareTravel(currentScene, null);
-        renderer.prepareTravelSource(sourceScene);
-        Object current = field(renderer, "travel");
-        Object source = field(renderer, "travelSource");
-        set(current, "hasInitialBuild", true);
-        set(current, "initialSection", 7L);
-        set(source, "hasInitialBuild", true);
-        set(source, "initialSection", 8L);
-        set(renderer, "lastBuildPortal", field(current, "key"));
-        List<Object> demand = (List<Object>) field(renderer, "buildDemand");
-        demand.add(current);
-        demand.add(source);
-        Method select = ClientPortalRenderer.class.getDeclaredMethod("nextBuildPortal", boolean.class, boolean.class, long.class);
-        select.setAccessible(true);
-        try {
-            assertSame(current, select.invoke(renderer, false, true, Long.MAX_VALUE));
-            set(current, "hasInitialBuild", false);
-            when(currentScene.sectionKeys()).thenReturn(new LongArrayList(new long[]{7L}));
-            when(currentScene.revision(7L)).thenReturn(-1L);
-            set(renderer, "travelDrawn", true);
-            assertEquals(null, select.invoke(renderer, false, true, Long.MAX_VALUE));
-            when(currentScene.revision(7L)).thenReturn(1L);
-            when(currentScene.empty(7L)).thenReturn(true);
-            assertSame(source, select.invoke(renderer, false, true, Long.MAX_VALUE));
-            set(current, "hasInitialBuild", true);
-            set(renderer, "travelTransition", true);
-            assertSame(source, select.invoke(renderer, false, true, Long.MAX_VALUE));
-        } finally {
-            renderer.clear();
-        }
-    }
-
-    @Test
-    @SuppressWarnings("unchecked")
-    public void retiringSourcePreparationDropsSceneOwnershipButKeepsReusableBuffersAndPipelineLease() throws ReflectiveOperationException {
-        ClientPortalRenderer renderer = ClientPortalRenderer.instance();
-        renderer.clear();
-        ClientTravelScene scene = mock(ClientTravelScene.class);
-        doCallRealMethod().when(scene).matchesMeshIdentity(anyLong(), any());
-        ApertureDescriptor geometry = fixtureScene().geometry();
-        when(scene.geometry()).thenReturn(geometry);
-        when(scene.revision(7)).thenReturn(42L);
-        renderer.prepareTravel(fixtureScene(), null);
-        Object destination = field(renderer, "travel");
-        renderer.prepareTravelSource(scene);
-        Object source = field(renderer, "travelSource");
-        Class<?> sectionType = Class.forName(ClientPortalRenderer.class.getName() + "$Section");
-        Constructor<?> constructor = sectionType.getDeclaredConstructor(long.class, long.class);
-        constructor.setAccessible(true);
-        Object section = constructor.newInstance(7L, 42L);
-        set(section, "identity", identity((byte) 1));
-        PortalGpuMesh mesh = mock(PortalGpuMesh.class);
-        ((EnumMap<ChunkSectionLayer, PortalGpuMesh>) field(section, "layers")).put(ChunkSectionLayer.SOLID, mesh);
-        ((Long2ObjectOpenHashMap<Object>) field(source, "sections")).put(7, section);
-        PortalShaderRenderer shaders = mock(PortalShaderRenderer.class);
-        set(renderer, "shaderRenderer", shaders);
-        try {
-            renderer.retireTravelSource();
-            assertEquals(null, field(renderer, "travelSource"));
-            assertFalse(((Map<?, ?>) field(renderer, "portals")).containsKey(-3));
-            assertSame(destination, field(renderer, "travel"));
-            assertEquals(1, ((Map<?, ?>) field(renderer, "retainedMeshes")).size());
-            verify(mesh, never()).close();
-            verify(shaders).remove(-3);
-            verify(shaders, never()).discard(-3);
-            renderer.retireTravelSource();
-            renderer.resourceReload();
-            verify(mesh).close();
-            assertTrue(((Map<?, ?>) field(renderer, "retainedMeshes")).isEmpty());
-        } finally {
-            renderer.clear();
-        }
-    }
-
-    @Test
-    @SuppressWarnings("unchecked")
     public void occupiedAsyncSlotsDoNotBlockCachedGpuOrEmptySectionCompletion() throws ReflectiveOperationException {
         ClientPortalRenderer renderer = ClientPortalRenderer.instance();
         renderer.clear();
-        ClientTravelScene scene = mock(ClientTravelScene.class);
+        PortalScene scene = mock(PortalScene.class);
         doCallRealMethod().when(scene).matchesMeshIdentity(anyLong(), any());
         ApertureDescriptor geometry = fixtureScene().geometry();
         when(scene.geometry()).thenReturn(geometry);
@@ -438,7 +356,7 @@ public class ClientTravelMeshReuseTest extends MinecraftTestBase {
         when(scene.revision(8)).thenReturn(42L);
         when(scene.revision(9)).thenReturn(42L);
         when(scene.empty(8)).thenReturn(true);
-        ClientTravelScene.MeshIdentity identity = identity((byte) 1);
+        ColumnIdentity identity = identity((byte) 1);
         when(scene.meshContext()).thenReturn(identity((byte) 1));
         when(scene.meshIdentity(7)).thenReturn(identity);
         CameraRenderState camera = new CameraRenderState();
@@ -489,7 +407,7 @@ public class ClientTravelMeshReuseTest extends MinecraftTestBase {
     public void busyCompilersDoNotRescanRebuildPrioritiesForEachCachedCompletion() throws ReflectiveOperationException {
         ClientPortalRenderer renderer = ClientPortalRenderer.instance();
         renderer.clear();
-        ClientTravelScene scene = mock(ClientTravelScene.class);
+        PortalScene scene = mock(PortalScene.class);
         doCallRealMethod().when(scene).matchesMeshIdentity(anyLong(), any());
         ApertureDescriptor geometry = fixtureScene().geometry();
         when(scene.geometry()).thenReturn(geometry);
@@ -540,13 +458,13 @@ public class ClientTravelMeshReuseTest extends MinecraftTestBase {
     private static void reuse(boolean changed) throws ReflectiveOperationException {
         ClientPortalRenderer renderer = ClientPortalRenderer.instance();
         renderer.clear();
-        ClientTravelScene scene = mock(ClientTravelScene.class);
+        PortalScene scene = mock(PortalScene.class);
         doCallRealMethod().when(scene).matchesMeshIdentity(anyLong(), any());
         PortalScene geometry = fixtureScene();
         ApertureDescriptor nativeGeometry = geometry.geometry();
         when(scene.geometry()).thenReturn(nativeGeometry);
         when(scene.revision(7)).thenReturn(42L);
-        ClientTravelScene.MeshIdentity original = identity((byte) 1);
+        ColumnIdentity original = identity((byte) 1);
         when(scene.meshContext()).thenReturn(identity((byte) 1));
         when(scene.meshIdentity(7)).thenReturn(original);
         renderer.prepareTravel(scene, null);
@@ -587,7 +505,7 @@ public class ClientTravelMeshReuseTest extends MinecraftTestBase {
     public void compiledZeroGeometryReusesFreshProofButRejectsChangedHaloAndUncompiledAir() throws ReflectiveOperationException {
         ClientPortalRenderer renderer = ClientPortalRenderer.instance();
         renderer.clear();
-        ClientTravelScene scene = mock(ClientTravelScene.class);
+        PortalScene scene = mock(PortalScene.class);
         doCallRealMethod().when(scene).matchesMeshIdentity(anyLong(), any());
         ApertureDescriptor geometry = fixtureScene().geometry();
         when(scene.geometry()).thenReturn(geometry);
@@ -651,7 +569,7 @@ public class ClientTravelMeshReuseTest extends MinecraftTestBase {
     public void activeGpuPressureEvictsOnlyAvailableCachedEntries() throws ReflectiveOperationException {
         ClientPortalRenderer renderer = ClientPortalRenderer.instance();
         renderer.clear();
-        ClientTravelScene scene = mock(ClientTravelScene.class);
+        PortalScene scene = mock(PortalScene.class);
         doCallRealMethod().when(scene).matchesMeshIdentity(anyLong(), any());
         ApertureDescriptor geometry = fixtureScene().geometry();
         when(scene.geometry()).thenReturn(geometry);
@@ -679,16 +597,6 @@ public class ClientTravelMeshReuseTest extends MinecraftTestBase {
             set(renderer, "gpuBytes", 0L);
             renderer.clear();
         }
-    }
-
-    @Test
-    public void proofIncludesExactWorldMetadataAndEveryNativeColumnByte() {
-        ClientTravelScene.MeshIdentity first = identity((byte) 1);
-        assertTrue(first.same(identity((byte) 1)));
-        assertFalse(first.same(identity((byte) 2)));
-        TravelMessage.TravelWorld world = new TravelMessage.TravelWorld("other", "minecraft:overworld", 7,
-            false, false, 63, -64, 384);
-        assertFalse(first.same(new ClientTravelScene.MeshIdentity(world, identity((byte) 1).columns())));
     }
 
     private static final class BulkFixture implements AutoCloseable {
@@ -857,22 +765,22 @@ public class ClientTravelMeshReuseTest extends MinecraftTestBase {
         }
     }
 
-    private static ClientTravelScene.MeshIdentity largeIdentity() {
+    private static ColumnIdentity largeIdentity() {
         byte[][] columns = new byte[9][];
         columns[0] = new byte[17 * 1024 * 1024];
         for (int index = 1; index < columns.length; index++) {
             columns[index] = new byte[0];
         }
-        return new ClientTravelScene.MeshIdentity(identity((byte) 1).world(), columns);
+        return new ColumnIdentity(identity((byte) 1).world(), columns);
     }
 
-    private static ClientTravelScene.MeshIdentity identity(byte last) {
+    private static ColumnIdentity identity(byte last) {
         byte[][] columns = new byte[9][];
         for (int index = 0; index < columns.length; index++) {
             columns[index] = new byte[]{1, 2, 3};
         }
         columns[8][2] = last;
-        return new ClientTravelScene.MeshIdentity(new TravelMessage.TravelWorld("minecraft:overworld", "minecraft:overworld",
+        return new ColumnIdentity(new TravelMessage.TravelWorld("minecraft:overworld", "minecraft:overworld",
             7, false, false, 63, -64, 384), columns);
     }
 
@@ -892,5 +800,38 @@ public class ClientTravelMeshReuseTest extends MinecraftTestBase {
         Field field = owner.getClass().getDeclaredField(name);
         field.setAccessible(true);
         field.set(owner, value);
+    }
+
+    private record ColumnIdentity(TravelMessage.TravelWorld world, byte[][] columns) implements PortalScene.MeshIdentity {
+        @Override
+        public int contextHash() {
+            return world.hashCode();
+        }
+
+        @Override
+        public boolean sameContext(PortalScene.MeshIdentity other) {
+            return other instanceof ColumnIdentity identity && world.equals(identity.world);
+        }
+
+        @Override
+        public boolean same(PortalScene.MeshIdentity value) {
+            if (!(value instanceof ColumnIdentity other) || !sameContext(other) || columns.length != other.columns.length) {
+                return false;
+            }
+            for (int index = 0; index < columns.length; index++) {
+                if (!Arrays.equals(columns[index], other.columns[index])) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        @Override
+        public void references(ObjLongConsumer<Object> consumer) {
+            consumer.accept(this, 48L + 16 + columns.length * 8L);
+            for (byte[] column : columns) {
+                consumer.accept(column, (long) column.length);
+            }
+        }
     }
 }

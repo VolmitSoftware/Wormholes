@@ -18,11 +18,9 @@ import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import art.arcane.optics.stream.ViewStreamProtocolException;
 import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.optics.stream.ViewStreamLimits;
@@ -43,85 +41,6 @@ final class TravelExtensionCodecTest {
     }
 
     @Test
-    void chunkFragmentsPreserveTheFullBoundaryAndFinalPartialPayload() throws ViewStreamProtocolException {
-        int total = TravelMessage.TRAVEL_FRAGMENT_BYTES + 17;
-        byte[] first = new byte[TravelMessage.TRAVEL_FRAGMENT_BYTES];
-        for (int index = 0; index < first.length; index++) {
-            first[index] = (byte) index;
-        }
-        byte[] last = new byte[17];
-        Arrays.fill(last, (byte) 0xFF);
-        for (TravelMessage.TravelChunk chunk : List.of(
-            new TravelMessage.TravelChunk(TOKEN, 3, -32, -10, 9, 0, 2, total, first),
-            new TravelMessage.TravelChunk(TOKEN, 3, -32, -10, 9, 1, 2, total, last))) {
-            byte[] frame = ClientViewFixtures.CODEC.encodeS2C(TravelExtension.INSTANCE.wrap(chunk), 11, ViewStreamLimits.FLAG_LAST, true);
-            assertTrue(frame.length < ViewStreamLimits.MIN_MAX_FRAME_BYTES);
-            assertEquals(TravelExtension.INSTANCE.wrap(chunk), ClientViewFixtures.CODEC.decodeS2C(frame, ViewStreamCapability.ALL).message());
-        }
-    }
-
-    @Test
-    void payloadAndManifestCopiesCannotBeChangedAfterConstruction() {
-        byte[] bytes = new byte[]{1, 2, 3};
-        TravelMessage.TravelChunk chunk = new TravelMessage.TravelChunk(TOKEN, 3, 0, 0, 1, 0, 1, 3, bytes);
-        bytes[0] = 9;
-        byte[] returned = chunk.payload();
-        returned[1] = 9;
-        assertArrayEquals(new byte[]{1, 2, 3}, chunk.payload());
-        List<TravelMessage.TravelChunkRevision> manifest = new ArrayList<>(
-            List.of(new TravelMessage.TravelChunkRevision(-32, -10, 9)));
-        TravelMessage.TravelEnd end = new TravelMessage.TravelEnd(TOKEN, 3, 19, manifest);
-        manifest.clear();
-        assertEquals(1, end.chunks().size());
-        assertThrows(UnsupportedOperationException.class, () -> end.chunks().clear());
-    }
-
-    @Test
-    void manifestBoundFitsAFrameAndRejectsEmptyDuplicateAndOversizedCoordinates() throws ViewStreamProtocolException {
-        List<TravelMessage.TravelChunkRevision> chunks = new ArrayList<>(TravelMessage.MAX_TRAVEL_CHUNKS);
-        for (int index = 0; index < TravelMessage.MAX_TRAVEL_CHUNKS; index++) {
-            chunks.add(new TravelMessage.TravelChunkRevision(index - 544, -index, index + 1));
-        }
-        TravelMessage.TravelEnd end = new TravelMessage.TravelEnd(TOKEN, 3, 19, chunks);
-        byte[] frame = encode(TravelExtension.INSTANCE.wrap(end));
-        assertTrue(frame.length < ViewStreamLimits.MIN_MAX_FRAME_BYTES);
-        assertEquals(TravelExtension.INSTANCE.wrap(end), decode(frame, true));
-        assertThrows(IllegalArgumentException.class, () -> new TravelMessage.TravelEnd(TOKEN, 3, 19, List.of()));
-        assertThrows(IllegalArgumentException.class, () -> new TravelMessage.TravelEnd(TOKEN, 3, 19,
-            List.of(new TravelMessage.TravelChunkRevision(0, 0, 1), new TravelMessage.TravelChunkRevision(0, 0, 2))));
-        chunks.add(new TravelMessage.TravelChunkRevision(2000, 2000, 1));
-        assertThrows(IllegalArgumentException.class, () -> new TravelMessage.TravelEnd(TOKEN, 3, 19, chunks));
-        for (int count : new int[]{0, TravelMessage.MAX_TRAVEL_CHUNKS + 1, 65535}) {
-            byte[] invalid = frame.clone();
-            buffer(invalid).putShort(ViewStreamLimits.S2C_HEADER_BYTES + 32, (short) count);
-            assertThrows(ViewStreamProtocolException.class, () -> decode(invalid, true));
-        }
-    }
-
-    @Test
-    void decoderRejectsInconsistentFragmentIndicesCountsSizesAndRevisions() throws ViewStreamProtocolException {
-        byte[] frame = encode(TravelExtension.INSTANCE.wrap(new TravelMessage.TravelChunk(TOKEN, 3, -32, -10, 9, 0, 1, 4, new byte[]{1, 2, 3, 4})));
-        int start = ViewStreamLimits.S2C_HEADER_BYTES + 24;
-        for (int revision : new int[]{0, -1}) {
-            byte[] invalid = frame.clone();
-            buffer(invalid).putInt(start + 8, revision);
-            assertThrows(ViewStreamProtocolException.class, () -> decode(invalid, true));
-        }
-        for (int offset : new int[]{start + 12, start + 14}) {
-            byte[] invalid = frame.clone();
-            buffer(invalid).putShort(offset, (short) 2);
-            assertThrows(ViewStreamProtocolException.class, () -> decode(invalid, true));
-        }
-        for (int offset : new int[]{start + 16, start + 20}) {
-            for (int size : new int[]{0, -1, TravelMessage.MAX_TRAVEL_CHUNK_BYTES + 1}) {
-                byte[] invalid = frame.clone();
-                buffer(invalid).putInt(offset, size);
-                assertThrows(ViewStreamProtocolException.class, () -> decode(invalid, true));
-            }
-        }
-    }
-
-    @Test
     void decoderRejectsNonpositiveGenerationAndBarrierRevision() throws ViewStreamProtocolException {
         for (ClientViewFixtures.Vector vector : travelVectors()) {
             if (!identified(vector.travel())) {
@@ -134,9 +53,7 @@ final class TravelExtensionCodecTest {
                 buffer(invalid).putLong(header + 16, generation);
                 assertThrows(ViewStreamProtocolException.class, () -> decode(invalid, vector.clientbound()));
             }
-            if (vector.travel() instanceof TravelMessage.TravelEnd
-                || vector.travel() instanceof TravelMessage.TravelCommit
-                || vector.travel() instanceof TravelMessage.TravelCross
+            if (vector.travel() instanceof TravelMessage.TravelCross
                 || vector.travel() instanceof TravelMessage.TravelAccept) {
                 byte[] invalid = frame.clone();
                 buffer(invalid).putLong(header + 24, 0);
@@ -146,25 +63,22 @@ final class TravelExtensionCodecTest {
     }
 
     @Test
-    void preparationRequiresARealDestinationEnvironmentAndBoundedLifetime() {
+    void preparationRequiresARealDestinationEnvironment() {
         TravelMessage.TravelBegin begin = ClientViewFixtures.travelBegin();
         TravelMessage.TravelBegin sameWorld = new TravelMessage.TravelBegin(TOKEN, 3, begin.sourcePortal(),
-            begin.world().dimension(), begin.sourceGeometry(), begin.destinationToSource(), 1.0F, begin.world(), begin.arrival(), begin.chunks(),
-            begin.environment(), begin.expiresMillis(), TravelMessage.ArrivalRules.FRAME, false, 0);
+            begin.world().dimension(), begin.sourceGeometry(), begin.destinationToSource(), 1.0F, begin.world(), begin.arrival(), begin.environment(),
+            TravelMessage.ArrivalRules.FRAME, false, 0);
         assertEquals(sameWorld.sourceWorld(), sameWorld.world().dimension());
         for (ApertureDescriptor geometry : List.of(geometry(begin.sourceGeometry(), true, 0, List.of()),
             geometry(begin.sourceGeometry(), false, 7, List.of()),
             geometry(begin.sourceGeometry(), false, 0, List.of(begin.sourceGeometry())))) {
             assertThrows(IllegalArgumentException.class, () -> new TravelMessage.TravelBegin(TOKEN, 3, begin.sourcePortal(),
-                begin.sourceWorld(), geometry, begin.destinationToSource(), 1.0F, begin.world(), begin.arrival(), begin.chunks(),
-                begin.environment(), begin.expiresMillis(), TravelMessage.ArrivalRules.FRAME, false, 0));
+                begin.sourceWorld(), geometry, begin.destinationToSource(), 1.0F, begin.world(), begin.arrival(), begin.environment(),
+                TravelMessage.ArrivalRules.FRAME, false, 0));
         }
         assertThrows(IllegalArgumentException.class, () -> new TravelMessage.TravelBegin(TOKEN, 3, begin.sourcePortal(),
-            begin.sourceWorld(), begin.sourceGeometry(), begin.destinationToSource(), 1.0F, begin.world(), begin.arrival(), begin.chunks(), ClientViewFixtures.environment(), begin.expiresMillis(), TravelMessage.ArrivalRules.FRAME, false, 0));
-        for (int expiry : new int[]{0, -1, TravelMessage.MAX_TRAVEL_EXPIRY_MILLIS + 1}) {
-            assertThrows(IllegalArgumentException.class, () -> new TravelMessage.TravelBegin(TOKEN, 3, begin.sourcePortal(),
-                begin.sourceWorld(), begin.sourceGeometry(), begin.destinationToSource(), 1.0F, begin.world(), begin.arrival(), begin.chunks(), begin.environment(), expiry, TravelMessage.ArrivalRules.FRAME, false, 0));
-        }
+            begin.sourceWorld(), begin.sourceGeometry(), begin.destinationToSource(), 1.0F, begin.world(), begin.arrival(), ClientViewFixtures.environment(),
+            TravelMessage.ArrivalRules.FRAME, false, 0));
         for (double coordinate : new double[]{Double.NaN, Double.POSITIVE_INFINITY, 30_000_001}) {
             assertThrows(IllegalArgumentException.class, () -> new TravelMessage.TravelPose(coordinate, 80, 0, 0, 0));
         }
@@ -193,7 +107,7 @@ final class TravelExtensionCodecTest {
     }
 
     @Test
-    void crossingRejectsNonfiniteVectorsAndCommitRejectsNonfiniteVelocity() {
+    void crossingRejectsNonfiniteVectors() {
         TravelMessage.TravelPose pose = ClientViewFixtures.travelBegin().arrival();
         for (double coordinate : new double[]{Double.NaN, Double.POSITIVE_INFINITY, 30_000_001}) {
             Vec3d invalid = new Vec3d(coordinate, 0, 0);
@@ -201,10 +115,6 @@ final class TravelExtensionCodecTest {
                 invalid, new Vec3d(0, 0, 0)));
             assertThrows(IllegalArgumentException.class, () -> new TravelMessage.TravelCross(TOKEN, 3, 9, pose,
                 new Vec3d(0, 0, 0), invalid));
-            if (!Double.isFinite(coordinate)) {
-                assertThrows(IllegalArgumentException.class, () -> new TravelMessage.TravelCommit(TOKEN, 3, 9,
-                    "minecraft:overworld", "minecraft:overworld", pose, invalid));
-            }
         }
     }
 
@@ -264,8 +174,7 @@ final class TravelExtensionCodecTest {
         TravelMessage.ArrivalRules rules = new TravelMessage.ArrivalRules(OrientationRule.MIRROR, true,
             new MomentumRule(MomentumRule.Mode.IMPULSE, 0.5D, 3.0D, new Vec3d(0.0D, 0.25D, -1.0D)), ScaleRule.OFF);
         TravelMessage.TravelBegin begin = new TravelMessage.TravelBegin(base.token(), base.generation(), base.sourcePortal(), base.sourceWorld(),
-            base.sourceGeometry(), base.destinationToSource(), 1.0F, base.world(), base.arrival(), base.chunks(), base.environment(), base.expiresMillis(),
-            rules, true, 7);
+            base.sourceGeometry(), base.destinationToSource(), 1.0F, base.world(), base.arrival(), base.environment(), rules, true, 7);
         ViewStreamMessage wrapped = TravelExtension.INSTANCE.wrap(begin);
         assertEquals(wrapped, decode(encode(wrapped), true));
         assertEquals(TravelMessage.ArrivalRules.FRAME, base.rules());
@@ -279,8 +188,8 @@ final class TravelExtensionCodecTest {
         TravelMessage.ArrivalRules rules = new TravelMessage.ArrivalRules(OrientationRule.FRAME, false,
             TravelMessage.ArrivalRules.FRAME.momentum(), ScaleRule.ratio(0.5D, 3.0D));
         TravelMessage.TravelBegin begin = new TravelMessage.TravelBegin(base.token(), base.generation(), base.sourcePortal(), base.sourceWorld(),
-            base.sourceGeometry(), base.destinationToSource(), 3.0F, base.world(), base.arrival(), base.chunks(), base.environment().withScale(0.25F),
-            base.expiresMillis(), rules, true, 7);
+            base.sourceGeometry(), base.destinationToSource(), 3.0F, base.world(), base.arrival(), base.environment().withScale(0.25F),
+            rules, true, 7);
         ViewStreamMessage wrapped = TravelExtension.INSTANCE.wrap(begin);
         TravelMessage.TravelBegin decoded = (TravelMessage.TravelBegin) ((ViewStreamMessage.Extension) decode(encode(wrapped), true)).payload();
 
@@ -297,8 +206,8 @@ final class TravelExtensionCodecTest {
         TravelMessage.TravelBegin base = ClientViewFixtures.travelBegin();
         for (float scale : new float[] {0.0F, -1.0F, Float.NaN, Float.POSITIVE_INFINITY}) {
             assertThrows(IllegalArgumentException.class, () -> new TravelMessage.TravelBegin(base.token(), base.generation(), base.sourcePortal(),
-                base.sourceWorld(), base.sourceGeometry(), base.destinationToSource(), scale, base.world(), base.arrival(), base.chunks(),
-                base.environment(), base.expiresMillis(), base.rules(), false, 0));
+                base.sourceWorld(), base.sourceGeometry(), base.destinationToSource(), scale, base.world(), base.arrival(), base.environment(), base.rules(),
+                false, 0));
         }
     }
 
@@ -310,8 +219,8 @@ final class TravelExtensionCodecTest {
         OpticTransform wire = TravelMessage.TravelBegin.destinationToSource(toward);
         TravelMessage.TravelBegin base = ClientViewFixtures.travelBegin();
         TravelMessage.TravelBegin begin = new TravelMessage.TravelBegin(base.token(), base.generation(), base.sourcePortal(), base.sourceWorld(),
-            base.sourceGeometry(), OpticTransform.decode(wire.normalized().encode()), 3.0F, base.world(), base.arrival(), base.chunks(),
-            base.environment(), base.expiresMillis(), base.rules(), false, 0);
+            base.sourceGeometry(), OpticTransform.decode(wire.normalized().encode()), 3.0F, base.world(), base.arrival(), base.environment(),
+            base.rules(), false, 0);
         for (Vec3d point : List.of(new Vec3d(635.5D, 65.5D, -4681.0D), new Vec3d(636.25D, 64.0D, -4680.5D), new Vec3d(0.0D, 0.0D, 0.0D))) {
             Vec3d expected = toward.point(point);
             Vec3d actual = begin.sourceToDestination().point(point);
@@ -486,7 +395,7 @@ final class TravelExtensionCodecTest {
             }
         }
         assertEquals(List.of(47, 55, 56), serverbound);
-        assertEquals(List.of(41, 42, 43, 45, 46, 48, 51, 52, 53, 54, 57), clientbound);
+        assertEquals(List.of(41, 46, 51, 52, 53, 54, 57), clientbound);
         assertEquals(41, TRAVEL.firstId());
         assertEquals(63, TRAVEL.lastId());
         assertEquals(ClientViewExtensions.REMOTE_VIEW | ClientViewExtensions.SEAMLESS_TRAVEL, TRAVEL.capabilities());
@@ -519,8 +428,7 @@ final class TravelExtensionCodecTest {
 
     private static TravelMessage.TravelBegin withResidency(TravelMessage.TravelBegin base, boolean resident, int handle) {
         return new TravelMessage.TravelBegin(base.token(), base.generation(), base.sourcePortal(), base.sourceWorld(), base.sourceGeometry(),
-            base.destinationToSource(), 1.0F, base.world(), base.arrival(), base.chunks(), base.environment(), base.expiresMillis(), base.rules(),
-            resident, handle);
+            base.destinationToSource(), 1.0F, base.world(), base.arrival(), base.environment(), base.rules(), resident, handle);
     }
 
     private static ApertureDescriptor geometry(ApertureDescriptor value, boolean mirror, int parent,

@@ -60,7 +60,6 @@ import java.util.UUID;
 
 public final class RemoteRoutes implements AutoCloseable {
     public static final int VIEWER_INTERVAL_TICKS = 10;
-    public static final int MIN_CORE_RADIUS = 2;
     private static final int LINGER_TICKS = RouteStream.FORGET_HYSTERESIS_TICKS;
     private static final int MAX_LEASES_PER_TICK = 16;
     private static final int MAX_NEAR_ROUTES = 16;
@@ -105,10 +104,6 @@ public final class RemoteRoutes implements AutoCloseable {
         double y = point.y() - Math.clamp(point.y(), area.getYa(), area.getYb());
         double z = point.z() - Math.clamp(point.z(), area.getZa(), area.getZb());
         return Math.sqrt(x * x + y * y + z * z);
-    }
-
-    public static int coreRadius(int fullRadius) {
-        return Math.min(fullRadius, Math.max(MIN_CORE_RADIUS, (fullRadius + 2) / 3));
     }
 
     public static RouteWindow window(Vec3d anchor, int radius) {

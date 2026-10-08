@@ -13,8 +13,8 @@ final class ClientTravelTestFixtures {
     private ClientTravelTestFixtures() {
     }
 
-    static ClientPreparedTravel travel(Consumer<TravelMessage> sender) {
-        return new ClientPreparedTravel(sender, new ResidentLevels(sender, 512L << 20));
+    static ClientSeamlessTravel travel(Consumer<TravelMessage> sender) {
+        return new ClientSeamlessTravel(sender, new ResidentLevels(sender, 512L << 20));
     }
 
     static ApertureDescriptor geometry() {

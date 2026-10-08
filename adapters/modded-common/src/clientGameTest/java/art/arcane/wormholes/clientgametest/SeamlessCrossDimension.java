@@ -12,16 +12,6 @@ final class SeamlessCrossDimension {
     private SeamlessCrossDimension() {
     }
 
-    static void prepared(SeamlessClient client, SeamlessServer server, String label) {
-        SeamlessScenario.join(client);
-        SeamlessScenario.Route route = server.build(spec(OrientationPolicy.FRAME, false));
-        server.approach(route);
-        SeamlessScenario.awaitPrepared(client);
-        SeamlessScenario.Crossing crossing = SeamlessScenario.walkThrough(client, label);
-        SeamlessScenario.assertPreparedTravel(client, crossing, true);
-        SeamlessScenario.finish(client, server, route);
-    }
-
     static void seamless(SeamlessClient client, SeamlessServer server, String label, OrientationPolicy orientation) {
         SeamlessScenario.join(client);
         SeamlessScenario.assertSeamlessNegotiated(client);

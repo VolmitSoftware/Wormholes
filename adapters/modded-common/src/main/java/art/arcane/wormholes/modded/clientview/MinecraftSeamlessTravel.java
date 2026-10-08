@@ -16,7 +16,6 @@ import art.arcane.wormholes.modded.mixin.SeamlessListenerAccess;
 import art.arcane.wormholes.modded.seamless.MinecraftSeamlessMove;
 import art.arcane.wormholes.modded.seamless.RemoteRoute;
 import art.arcane.wormholes.modded.seamless.RemoteRoutes;
-import art.arcane.wormholes.modded.seamless.RouteWindow;
 import art.arcane.wormholes.network.MinecraftGatewayPolicies;
 import art.arcane.wormholes.network.client.TravelMessage;
 import art.arcane.wormholes.nexus.NetworkMember;
@@ -231,8 +230,6 @@ final class MinecraftSeamlessTravel {
         long tick = runtime.server().getTickCount();
         List<RemoteRoute> active = routes.routes(playerId);
         Set<UUID> live = new HashSet<>(active.size() * 2);
-        int coreRadius = RemoteRoutes.coreRadius(RemoteRoutes.fullRadius(player.requestedViewDistance(),
-            runtime.server().getPlayerList().getViewDistance()));
         MinecraftClientViewPeer peer = travel.player();
         double speed = runtime.portals().observedVelocity(player).distance(new Vec3d(0.0D, 0.0D, 0.0D));
         for (int index = 0; index < active.size(); index++) {
@@ -254,7 +251,7 @@ final class MinecraftSeamlessTravel {
                 live.add(sourceId);
                 continue;
             }
-            Arm next = arm(travel, player, source, destination, route, front, identity, coreRadius);
+            Arm next = arm(travel, player, source, destination, route, front, identity);
             if (next != null && travel.sendTravel(next.begin())) {
                 if (current != null) {
                     traveler.retire(current, tick);
@@ -293,7 +290,7 @@ final class MinecraftSeamlessTravel {
     }
 
     private Arm arm(ClientViewTravel<MinecraftClientViewPeer> travel, ServerPlayer player, MinecraftPortal source, MinecraftPortal destination,
-                    RemoteRoute route, boolean front, long identity, int coreRadius) {
+                    RemoteRoute route, boolean front, long identity) {
         MinecraftClientViewPeer peer = travel.player();
         ServerLevel world = route.level();
         ApertureDescriptor geometry = portals.travelGeometry(peer, source, front);
@@ -305,15 +302,13 @@ final class MinecraftSeamlessTravel {
         Vec3d feet = PlaneCrossing.planePoint(source.getFrame(), source.getOrigin(), new Vec3d(player.getX(), player.getY(), player.getZ()),
             destination.getFrame(), destination.getOrigin());
         Vec3d eye = feet.add(new Vec3d(0, player.getEyeHeight(), 0));
-        Vec3d anchor = destination.getOrigin();
-        RouteWindow core = new RouteWindow((int) Math.floor(anchor.x()) >> 4, (int) Math.floor(anchor.z()) >> 4, coreRadius);
         Similarity toward = MinecraftPortalRegistry.towardDestination(source, destination, front);
         OpticTransform destinationToSource = toward.isRigid() ? mapped.frame().transform() : TravelMessage.TravelBegin.destinationToSource(toward);
         TravelMessage.TravelBegin begin = new TravelMessage.TravelBegin(UUID.randomUUID(), ++generation, source.getId(),
             player.level().dimension().identifier().toString(), geometry, destinationToSource, (float) toward.scale(), metadata,
-            new TravelMessage.TravelPose(feet.x(), feet.y(), feet.z(), player.getYRot(), player.getXRot()), core.coordinates(),
-            MinecraftPortalEnvironment.capture(world, eye, OpticTransform.IDENTITY, world.isFlat()), TravelMessage.MAX_TRAVEL_EXPIRY_MILLIS,
-            rules(peer, source), route.resident(), route.handle());
+            new TravelMessage.TravelPose(feet.x(), feet.y(), feet.z(), player.getYRot(), player.getXRot()),
+            MinecraftPortalEnvironment.capture(world, eye, OpticTransform.IDENTITY, world.isFlat()), rules(peer, source), route.resident(),
+            route.handle());
         return new Arm(source, destination, world, front, identity, route.handle(), begin);
     }
 

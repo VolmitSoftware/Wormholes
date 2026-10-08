@@ -26,11 +26,17 @@ import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.renderer.culling.Frustum;
+import net.minecraft.client.renderer.state.level.CameraRenderState;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Matrix4f;
+import org.joml.Quaternionf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,8 +77,37 @@ public final class ClientSeamlessTravel {
         this.residents = residents;
     }
 
+    public ResidentLevels residents() {
+        return residents;
+    }
+
+    public void deliver(TravelMessage message) {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (!minecraft.isSameThread()) {
+            minecraft.execute(() -> deliver(message));
+            return;
+        }
+        try {
+            receive(message);
+        } catch (RuntimeException failure) {
+            LOGGER.warn("Unable to apply portal travel message {}", message.getClass().getSimpleName(), failure);
+        }
+    }
+
     public boolean receive(TravelMessage message) {
         return switch (message) {
+            case TravelMessage.RemoteLevelOpen open -> {
+                residents.open(open);
+                yield true;
+            }
+            case TravelMessage.RemoteLevelClose close -> {
+                residents.close(close);
+                yield true;
+            }
+            case TravelMessage.RoutedPacket packet -> {
+                residents.route(packet);
+                yield true;
+            }
             case TravelMessage.TravelBegin begin -> {
                 arms.put(begin.sourcePortal(), begin);
                 yield true;
@@ -162,14 +197,31 @@ public final class ClientSeamlessTravel {
         pending.clear();
         entities.clear();
         retireReturnView();
-        residents.crossing(null);
+        residents.clear();
         previousEye = null;
         declined = null;
         returning = null;
+        straddling = false;
         LocalPlayer player = Minecraft.getInstance().player;
         if (player != null) {
             StraddleTracker.clear(player);
         }
+    }
+
+    static boolean crossed(ApertureDescriptor geometry, Vec3 previous, Vec3 current) {
+        double side = geometry.frontSide() ? 1 : -1;
+        double before = geometry.signedDistance(previous.x, previous.y, previous.z) * side;
+        double after = geometry.signedDistance(current.x, current.y, current.z) * side;
+        if (before <= 0 || after > 0) {
+            return false;
+        }
+        Vec3 intersection = previous.lerp(current, before / (before - after));
+        return geometry.containsPoint(intersection.x, intersection.y, intersection.z);
+    }
+
+    static TravelMessage.TravelPose crossingPose(LocalPlayer player, float partial) {
+        Vec3 feet = player.getPosition(partial);
+        return new TravelMessage.TravelPose(feet.x, feet.y, feet.z, player.getYRot(), player.getXRot());
     }
 
     static StraddleTracker.Straddle straddle(TravelMessage.TravelBegin value, Level destination, Box stretched, Vec3d eye) {
@@ -226,7 +278,7 @@ public final class ClientSeamlessTravel {
         double nearestDistance = Double.POSITIVE_INFINITY;
         for (TravelMessage.TravelBegin arm : arms.values()) {
             ApertureDescriptor geometry = arm.sourceGeometry();
-            if (!arm.sourceWorld().equals(dimension) || !ClientPreparedTravel.crossed(geometry, previous, eye)) {
+            if (!arm.sourceWorld().equals(dimension) || !crossed(geometry, previous, eye)) {
                 continue;
             }
             double distance = Math.abs(geometry.signedDistance(previous.x, previous.y, previous.z));
@@ -242,9 +294,9 @@ public final class ClientSeamlessTravel {
         ClientLevel source = minecraft.level;
         ClientLevel target = arm.resident() ? residents.level(arm.levelHandle()) : source;
         Pose before = ClientTravelMotion.capture(player);
-        Vec3 feet = player.getPosition(partial);
+        TravelMessage.TravelPose crossingPose = crossingPose(player, partial);
+        Vec3 feet = new Vec3(crossingPose.x(), crossingPose.y(), crossingPose.z());
         Vec3d crossingFeet = new Vec3d(feet.x, feet.y, feet.z);
-        TravelMessage.TravelPose crossingPose = new TravelMessage.TravelPose(feet.x, feet.y, feet.z, player.getYRot(), player.getXRot());
         Pose after = ClientTravelMotion.arrive(arm, before, crossingFeet);
         String refusal = target == null ? "resident level " + arm.levelHandle() + " is not open"
             : arrivalLoaded(target, after.position()) ? null : "arrival terrain not received";
@@ -507,7 +559,7 @@ public final class ClientSeamlessTravel {
                 warmReturnView(minecraft.level, player);
             }
             if (!IRIS || PortalIrisMainPipelines.prepare(level)) {
-                ClientSodiumTerrain.prepare(level, nearest.environment(), ClientPreparedTravel.travelCamera(nearest));
+                ClientSodiumTerrain.prepare(level, nearest.environment(), travelCamera(nearest));
             }
         } catch (RuntimeException failure) {
             LOGGER.warn("Unable to prepare the {} terrain behind portal {}", level.dimension().identifier(), nearest.sourcePortal(), failure);
@@ -561,6 +613,34 @@ public final class ClientSeamlessTravel {
         Vec3 motion = ClientTravelMotion.position(toward.vector(ClientTravelMotion.vector(eye.subtract(previous))));
         Vec3 mapped = ClientTravelMotion.point(toward, crossing);
         return motion.lengthSqr() == 0.0D ? mapped : mapped.add(motion.normalize().scale(CHECKPOINT_NUDGE));
+    }
+
+    private static CameraRenderState travelCamera(TravelMessage.TravelBegin value) {
+        Minecraft minecraft = Minecraft.getInstance();
+        LocalPlayer player = minecraft.player;
+        float eyeHeight = player == null ? EntityTypes.PLAYER.getDimensions().eyeHeight() : player.getEyeHeight();
+        if (player == null || minecraft.level == null || !value.sourceWorld().equals(minecraft.level.dimension().identifier().toString())) {
+            return arrivalCamera(value.arrival(), eyeHeight);
+        }
+        Vec3d feet = value.sourceToDestination().point(new Vec3d(player.getX(), player.getY(), player.getZ()));
+        Angles.Look look = ClientTravelMotion.look(value.destinationToSource().inverse(), player.getYRot(), player.getXRot());
+        return arrivalCamera(new TravelMessage.TravelPose(feet.x(), feet.y(), feet.z(), look.yaw(), look.pitch()), eyeHeight);
+    }
+
+    private static CameraRenderState arrivalCamera(TravelMessage.TravelPose arrival, float eyeHeight) {
+        CameraRenderState camera = new CameraRenderState();
+        camera.pos = new Vec3(arrival.x(), arrival.y() + eyeHeight, arrival.z());
+        camera.blockPos = BlockPos.containing(camera.pos);
+        camera.xRot = arrival.pitch();
+        camera.yRot = arrival.yaw();
+        camera.orientation = new Quaternionf().rotationYXZ((float) (Math.PI - Math.toRadians(arrival.yaw())),
+            (float) Math.toRadians(-arrival.pitch()), 0);
+        camera.viewRotationMatrix = new Matrix4f().rotation(camera.orientation).transpose();
+        camera.projectionMatrix = new Matrix4f();
+        camera.cullFrustum = new Frustum(camera.viewRotationMatrix, camera.projectionMatrix);
+        camera.cullFrustum.prepare(camera.pos.x, camera.pos.y, camera.pos.z);
+        camera.initialized = true;
+        return camera;
     }
 
     private static Vec3d planePoint(ApertureDescriptor geometry) {

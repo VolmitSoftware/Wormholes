@@ -2,7 +2,7 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.MinecraftTestBase;
 import art.arcane.wormholes.modded.mixin.client.PreparedPacketAccess;
-import art.arcane.wormholes.modded.mixin.client.PreparedTravelWorldPacketsMixin;
+import art.arcane.wormholes.modded.mixin.client.CrossingWorldPacketsMixin;
 import art.arcane.wormholes.network.client.TravelMessage;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -161,9 +161,9 @@ public class ResidentLevelsRoutingTest extends MinecraftTestBase {
         try (ResidentLevelsOpenCloseTest.Scope scope = new ResidentLevelsOpenCloseTest.Scope(current);
              MockedStatic<WormholesClient> clients = mockStatic(WormholesClient.class)) {
             ResidentLevels residents = new ResidentLevels(scope.sent::add, 512L << 20);
-            ClientPreparedTravel travel = new ClientPreparedTravel(scope.sent::add, residents);
+            ClientSeamlessTravel travel = new ClientSeamlessTravel(scope.sent::add, residents);
             WormholesClient client = mock(WormholesClient.class);
-            when(client.preparedTravel()).thenReturn(travel);
+            when(client.seamlessTravel()).thenReturn(travel);
             clients.when(WormholesClient::instance).thenReturn(client);
             ClientLevel nether = residents.open(ResidentTestFixtures.open(3, ResidentTestFixtures.NETHER, 12, -4));
             residents.crossing(current);
@@ -192,9 +192,9 @@ public class ResidentLevelsRoutingTest extends MinecraftTestBase {
         try (ResidentLevelsOpenCloseTest.Scope scope = new ResidentLevelsOpenCloseTest.Scope(current);
              MockedStatic<WormholesClient> clients = mockStatic(WormholesClient.class)) {
             ResidentLevels residents = new ResidentLevels(scope.sent::add, 512L << 20);
-            ClientPreparedTravel travel = new ClientPreparedTravel(scope.sent::add, residents);
+            ClientSeamlessTravel travel = new ClientSeamlessTravel(scope.sent::add, residents);
             WormholesClient client = mock(WormholesClient.class);
-            when(client.preparedTravel()).thenReturn(travel);
+            when(client.seamlessTravel()).thenReturn(travel);
             clients.when(WormholesClient::instance).thenReturn(client);
             ClientLevel nether = residents.open(ResidentTestFixtures.open(3, ResidentTestFixtures.NETHER, 12, -4));
             residents.crossing(current);
@@ -226,8 +226,8 @@ public class ResidentLevelsRoutingTest extends MinecraftTestBase {
     }
 
     private static void dispatch(Packet<?> packet, Operation<Void> original) throws ReflectiveOperationException {
-        PreparedTravelWorldPacketsMixin mixin = mock(PreparedTravelWorldPacketsMixin.class, CALLS_REAL_METHODS);
-        Method method = PreparedTravelWorldPacketsMixin.class.getDeclaredMethod("wormholes$sourceWorld", Packet.class, Operation.class);
+        CrossingWorldPacketsMixin mixin = mock(CrossingWorldPacketsMixin.class, CALLS_REAL_METHODS);
+        Method method = CrossingWorldPacketsMixin.class.getDeclaredMethod("wormholes$sourceWorld", Packet.class, Operation.class);
         method.setAccessible(true);
         method.invoke(mixin, packet, original);
     }

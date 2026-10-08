@@ -111,7 +111,6 @@ function fixtureEnvironment(dimensionKey, transform, scale = 1) {
 const IDENTITY_TRANSFORM = { permutation: 0, translation: { x: 0, y: 0, z: 0 } }
 const TRAVEL_WORLD = { dimension: 'minecraft:overworld', dimensionType: 'minecraft:overworld', seed: 123456789n, debug: false, flat: true, seaLevel: 63, minY: -64, height: 384 }
 const TRAVEL_ARRIVAL = { x: -511.5, y: 81, z: -159.5, yaw: 90, pitch: -12 }
-const TRAVEL_HASH = Buffer.from(Array.from({ length: 32 }, (_, index) => index))
 
 function randomSource(seed) {
   let state = seed >>> 0
@@ -307,7 +306,7 @@ describe('ClientView golden vectors', () => {
     assert.deepEqual(begin, {
       type: 'TRAVEL_BEGIN', token: TEST_UUID, generation: 3n, sourcePortal: '00000000-0000-0038-0000-00000000004e', sourceWorld: 'minecraft:the_nether',
       sourceGeometry: portalGeometry([], FULL_SHAPE), destinationToSource: begin.destinationToSource, scale: 1, world: TRAVEL_WORLD, arrival: TRAVEL_ARRIVAL,
-      chunks: [{ x: -32, z: -10 }], environment: fixtureEnvironment('minecraft:overworld', IDENTITY_TRANSFORM), expiresMillis: 30000,
+      environment: fixtureEnvironment('minecraft:overworld', IDENTITY_TRANSFORM),
       rules: { orientation: 'FRAME', gravityFlip: false, momentum: begin.rules.momentum, scale: { mode: 'OFF', min: 0.0625, max: 16 } },
       resident: false, levelHandle: 0
     })
@@ -319,15 +318,9 @@ describe('ClientView golden vectors', () => {
       scale: { mode: 'RATIO', min: 0.25, max: 4 } })
     assert.equal(resident.scale, 3)
     assert.equal(resident.environment.scale, f32(1 / 3))
-    assert.deepEqual(decodeVector(vector('travel_chunk')), { type: 'TRAVEL_CHUNK', token: TEST_UUID, generation: 3n, chunkX: -32, chunkZ: -10, revision: 2,
-      fragmentIndex: 0, fragmentCount: 1, totalBytes: 4, payload: Buffer.from([1, 2, 3, 4]) })
-    assert.deepEqual(decodeVector(vector('travel_end')), { type: 'TRAVEL_END', token: TEST_UUID, generation: 3n, contentRevision: 9n, chunks: [{ x: -32, z: -10, revision: 2 }] })
-    assert.deepEqual(decodeVector(vector('travel_commit')), { type: 'TRAVEL_COMMIT', token: TEST_UUID, generation: 3n, contentRevision: 9n,
-      sourceWorld: 'minecraft:the_nether', destinationWorld: 'minecraft:overworld', arrival: TRAVEL_ARRIVAL, velocity: { x: 0.25, y: -0.5, z: 1 } })
     assert.deepEqual(decodeVector(vector('travel_cancel')), { type: 'TRAVEL_CANCEL', token: TEST_UUID, generation: 3n })
     assert.deepEqual(decodeVector(vector('travel_cross')), { type: 'TRAVEL_CROSS', token: TEST_UUID, generation: 3n, contentRevision: 9n,
       sourcePose: { x: 635.5, y: 65, z: -4681.4, yaw: 90, pitch: -12 }, previousEye: { x: 635.5, y: 66.62, z: -4681.6 }, currentEye: { x: 635.5, y: 66.62, z: -4681.4 } })
-    assert.deepEqual(decodeVector(vector('travel_reuse')), { type: 'TRAVEL_REUSE', token: TEST_UUID, generation: 3n, chunkX: -32, chunkZ: -10, revision: 2, hash: TRAVEL_HASH })
   })
 
   it('decodes seamless travel and remote view messages', () => {

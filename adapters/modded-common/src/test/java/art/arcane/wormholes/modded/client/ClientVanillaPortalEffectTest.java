@@ -64,22 +64,16 @@ public class ClientVanillaPortalEffectTest extends MinecraftTestBase {
         ClientLevel source = mock(ClientLevel.class);
         ClientLevel destination = mock(ClientLevel.class);
         ClientViewSession session = mock(ClientViewSession.class);
-        ClientPreparedTravel travel = mock(ClientPreparedTravel.class);
         Field attached = WormholesClient.class.getDeclaredField("attachedLevel");
         attached.setAccessible(true);
         attached.set(client, source);
         Field currentSession = WormholesClient.class.getDeclaredField("session");
         currentSession.setAccessible(true);
         currentSession.set(client, session);
-        Field prepared = WormholesClient.class.getDeclaredField("preparedTravel");
-        prepared.setAccessible(true);
-        prepared.set(client, travel);
         BlockPos position = new BlockPos(10, 64, -8);
         when(session.managesVanillaPortal(10, 64, -8)).thenReturn(true);
         assertTrue(client.managesVanillaPortal(source, position));
         assertFalse(client.managesVanillaPortal(destination, position));
-        when(travel.managesVanillaPortal(destination, position)).thenReturn(true);
-        assertTrue(client.managesVanillaPortal(destination, position));
     }
 
     @Test

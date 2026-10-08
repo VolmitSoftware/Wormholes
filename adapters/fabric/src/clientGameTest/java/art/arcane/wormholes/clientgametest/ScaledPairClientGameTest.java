@@ -222,14 +222,14 @@ public final class ScaledPairClientGameTest implements FabricClientGameTest {
 
     private static List<TravelTap.Frame> walk(ClientGameTestContext context, UUID source, String label) {
         for (int tick = 0; tick < PREPARE_TIMEOUT_TICKS; tick++) {
-            boolean ready = context.computeOnClient(client -> WormholesClient.instance().preparedTravel().seamless().armed(source)
-                && WormholesClient.instance().preparedTravel().seamless().unprepared() == null);
+            boolean ready = context.computeOnClient(client -> WormholesClient.instance().seamlessTravel().armed(source)
+                && WormholesClient.instance().seamlessTravel().unprepared() == null);
             if (ready) {
                 break;
             }
             context.waitTicks(1);
         }
-        LOGGER.info("[{}] walking with travel {}", label, context.computeOnClient(client -> WormholesClient.instance().preparedTravel().seamless().unprepared()));
+        LOGGER.info("[{}] walking with travel {}", label, context.computeOnClient(client -> WormholesClient.instance().seamlessTravel().unprepared()));
         context.runOnClient(client -> TravelTap.reset());
         context.getInput().holdKey(options -> options.keyUp);
         try {

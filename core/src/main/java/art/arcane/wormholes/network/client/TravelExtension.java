@@ -1,7 +1,5 @@
 package art.arcane.wormholes.network.client;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 
 import art.arcane.optics.aperture.ApertureDescriptor;
@@ -46,8 +44,7 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
     @Override
     public boolean clientbound(int id) {
         return switch (id) {
-            case TravelMessage.TRAVEL_BEGIN, TravelMessage.TRAVEL_CHUNK, TravelMessage.TRAVEL_END, TravelMessage.TRAVEL_COMMIT,
-                 TravelMessage.TRAVEL_CANCEL, TravelMessage.TRAVEL_REUSE, TravelMessage.REMOTE_LEVEL_OPEN, TravelMessage.REMOTE_LEVEL_CLOSE,
+            case TravelMessage.TRAVEL_BEGIN, TravelMessage.TRAVEL_CANCEL, TravelMessage.REMOTE_LEVEL_OPEN, TravelMessage.REMOTE_LEVEL_CLOSE,
                  TravelMessage.ROUTED_PACKET, TravelMessage.TRAVEL_ACCEPT, TravelMessage.ENTITY_CROSSED -> true;
             default -> false;
         };
@@ -62,12 +59,8 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
     public String name(int id) {
         return switch (id) {
             case TravelMessage.TRAVEL_BEGIN -> "TRAVEL_BEGIN";
-            case TravelMessage.TRAVEL_CHUNK -> "TRAVEL_CHUNK";
-            case TravelMessage.TRAVEL_END -> "TRAVEL_END";
-            case TravelMessage.TRAVEL_COMMIT -> "TRAVEL_COMMIT";
             case TravelMessage.TRAVEL_CANCEL -> "TRAVEL_CANCEL";
             case TravelMessage.TRAVEL_CROSS -> "TRAVEL_CROSS";
-            case TravelMessage.TRAVEL_REUSE -> "TRAVEL_REUSE";
             case TravelMessage.REMOTE_LEVEL_OPEN -> "REMOTE_LEVEL_OPEN";
             case TravelMessage.REMOTE_LEVEL_CLOSE -> "REMOTE_LEVEL_CLOSE";
             case TravelMessage.ROUTED_PACKET -> "ROUTED_PACKET";
@@ -108,46 +101,10 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
                 out.f32(begin.scale());
                 world(out, begin.world());
                 pose(out, begin.arrival());
-                out.u16(begin.chunks().size());
-                for (TravelMessage.TravelCoordinate chunk : begin.chunks()) {
-                    out.i32(chunk.x());
-                    out.i32(chunk.z());
-                }
                 EnvironmentStateCodec.write(out, begin.environment());
-                out.i32(begin.expiresMillis());
                 rules(out, begin.rules());
                 out.u8(begin.resident() ? 1 : 0);
                 out.u8(begin.levelHandle());
-            }
-            case TravelMessage.TravelChunk chunk -> {
-                identity(out, chunk.token(), chunk.generation());
-                out.i32(chunk.chunkX());
-                out.i32(chunk.chunkZ());
-                out.i32(chunk.revision());
-                out.u16(chunk.fragmentIndex());
-                out.u16(chunk.fragmentCount());
-                out.i32(chunk.totalBytes());
-                byte[] payload = chunk.payload();
-                out.i32(payload.length);
-                out.bytes(payload);
-            }
-            case TravelMessage.TravelEnd end -> {
-                identity(out, end.token(), end.generation());
-                out.i64(end.contentRevision());
-                out.u16(end.chunks().size());
-                for (TravelMessage.TravelChunkRevision chunk : end.chunks()) {
-                    out.i32(chunk.x());
-                    out.i32(chunk.z());
-                    out.i32(chunk.revision());
-                }
-            }
-            case TravelMessage.TravelCommit commit -> {
-                identity(out, commit.token(), commit.generation());
-                out.i64(commit.contentRevision());
-                out.string(commit.sourceWorld());
-                out.string(commit.destinationWorld());
-                pose(out, commit.arrival());
-                vector(out, commit.velocity());
             }
             case TravelMessage.TravelCross cross -> {
                 identity(out, cross.token(), cross.generation());
@@ -155,13 +112,6 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
                 pose(out, cross.sourcePose());
                 vector(out, cross.previousEye());
                 vector(out, cross.currentEye());
-            }
-            case TravelMessage.TravelReuse reuse -> {
-                identity(out, reuse.token(), reuse.generation());
-                out.i32(reuse.chunkX());
-                out.i32(reuse.chunkZ());
-                out.i32(reuse.revision());
-                out.bytes(reuse.hash());
             }
             case TravelMessage.TravelCancel cancel -> identity(out, cancel.token(), cancel.generation());
             case TravelMessage.RemoteLevelOpen open -> {
@@ -213,8 +163,7 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
     public TravelMessage decode(int id, ViewStreamReader in) throws ViewStreamProtocolException {
         try {
             return switch (id) {
-                case TravelMessage.TRAVEL_BEGIN, TravelMessage.TRAVEL_CHUNK, TravelMessage.TRAVEL_END, TravelMessage.TRAVEL_COMMIT,
-                     TravelMessage.TRAVEL_CANCEL, TravelMessage.TRAVEL_CROSS, TravelMessage.TRAVEL_REUSE, TravelMessage.TRAVEL_ACCEPT
+                case TravelMessage.TRAVEL_BEGIN, TravelMessage.TRAVEL_CANCEL, TravelMessage.TRAVEL_CROSS, TravelMessage.TRAVEL_ACCEPT
                     -> decodeTravel(id, uuid(in), in.i64(), in);
                 case TravelMessage.REMOTE_LEVEL_OPEN -> new TravelMessage.RemoteLevelOpen(in.u8(), world(in), EnvironmentStateCodec.read(in), in.u8(),
                     new TravelMessage.TravelCoordinate(in.i32(), in.i32()));
@@ -248,36 +197,10 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
                 float scale = in.f32();
                 TravelMessage.TravelWorld world = world(in);
                 TravelMessage.TravelPose pose = pose(in);
-                int count = count(in);
-                List<TravelMessage.TravelCoordinate> chunks = new ArrayList<>(count);
-                for (int index = 0; index < count; index++) {
-                    chunks.add(new TravelMessage.TravelCoordinate(in.i32(), in.i32()));
-                }
-                yield new TravelMessage.TravelBegin(token, generation, portal, source, geometry, transform, scale, world, pose, chunks,
-                    EnvironmentStateCodec.read(in), in.i32(), rules(in), bool(in), in.u8());
+                yield new TravelMessage.TravelBegin(token, generation, portal, source, geometry, transform, scale, world, pose,
+                    EnvironmentStateCodec.read(in), rules(in), bool(in), in.u8());
             }
-            case TravelMessage.TRAVEL_CHUNK -> {
-                int x = in.i32();
-                int z = in.i32();
-                int revision = in.i32();
-                int index = in.u16();
-                int fragments = in.u16();
-                int total = in.i32();
-                yield new TravelMessage.TravelChunk(token, generation, x, z, revision, index, fragments, total, fragment(in));
-            }
-            case TravelMessage.TRAVEL_END -> {
-                long revision = in.i64();
-                int count = count(in);
-                List<TravelMessage.TravelChunkRevision> chunks = new ArrayList<>(count);
-                for (int index = 0; index < count; index++) {
-                    chunks.add(new TravelMessage.TravelChunkRevision(in.i32(), in.i32(), in.i32()));
-                }
-                yield new TravelMessage.TravelEnd(token, generation, revision, chunks);
-            }
-            case TravelMessage.TRAVEL_COMMIT -> new TravelMessage.TravelCommit(token, generation, in.i64(), in.string(), in.string(), pose(in), vector(in));
             case TravelMessage.TRAVEL_CANCEL -> new TravelMessage.TravelCancel(token, generation);
-            case TravelMessage.TRAVEL_REUSE -> new TravelMessage.TravelReuse(token, generation, in.i32(), in.i32(), in.i32(),
-                in.bytes(TravelMessage.TRAVEL_HASH_BYTES));
             case TravelMessage.TRAVEL_CROSS -> new TravelMessage.TravelCross(token, generation, in.i64(), pose(in), vector(in), vector(in));
             case TravelMessage.TRAVEL_ACCEPT -> new TravelMessage.TravelAccept(token, generation, in.i64(), pose(in), vector(in), in.u8(), bool(in),
                 in.i64());
@@ -330,14 +253,6 @@ public final class TravelExtension implements ViewStreamExtension<TravelMessage>
         return new TravelMessage.ArrivalRules(OrientationRule.values()[orientation], gravityFlip,
             new MomentumRule(MomentumRule.Mode.values()[mode], factor, maxSpeed, impulse),
             new ScaleRule(ScaleRule.Mode.values()[scaleMode], scaleMin, scaleMax));
-    }
-
-    private static int count(ViewStreamReader in) throws ViewStreamProtocolException {
-        int count = in.u16();
-        if (count <= 0 || count > TravelMessage.MAX_TRAVEL_CHUNKS) {
-            throw new ViewStreamProtocolException("Travel manifest count");
-        }
-        return count;
     }
 
     private static void identity(ViewStreamWriter out, UUID token, long generation) {

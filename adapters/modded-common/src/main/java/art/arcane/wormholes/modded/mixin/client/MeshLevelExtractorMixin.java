@@ -2,13 +2,6 @@ package art.arcane.wormholes.modded.mixin.client;
 
 import art.arcane.wormholes.modded.client.ClientMeshEntities;
 import art.arcane.wormholes.modded.client.WormholesClient;
-import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
-import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
-import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
-import com.llamalad7.mixinextras.sugar.Local;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.LevelRenderer;
-import net.minecraft.core.BlockPos;
 import net.minecraft.client.Camera;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.renderer.culling.Frustum;
@@ -28,14 +21,6 @@ public abstract class MeshLevelExtractorMixin {
         if (ClientMeshEntities.hiddenFromWorld(entity)) {
             callback.setReturnValue(false);
         }
-    }
-
-    @WrapOperation(method = "isEntityVisible", at = @At(value = "INVOKE",
-        target = "Lnet/minecraft/client/renderer/LevelRenderer;isSectionCompiledAndVisible(Lnet/minecraft/core/BlockPos;J)Z"))
-    private boolean wormholesPreparedPlayerSection(LevelRenderer renderer, BlockPos position, long fade,
-                                                   Operation<Boolean> original, @Local(argsOnly = true) Entity entity) {
-        return original.call(renderer, position, fade)
-            || Minecraft.getInstance().levelExtractor == (Object) this && ClientPortalRenderer.instance().coversLocalPlayer(entity);
     }
 
     @Inject(method = "extract", at = @At("TAIL"))

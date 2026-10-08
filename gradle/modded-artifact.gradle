@@ -15,9 +15,8 @@ abstract class VerifyModdedArtifact extends DefaultTask {
                                      'client.MeshLevelExtractorMixin', 'client.MeshEntityRendererMixin', 'client.MeshFeatureWindingMixin',
                                      'client.EndPortalSurfaceMixin', 'client.MeshBlockModelLighterMixin', 'client.MeshFluidLightingMixin',
                                      'client.PortalShaderGameRendererMixin', 'client.IrisPortalMainMinecraftMixin',
-                                     'client.PreparedSectionFadeMixin', 'client.PreparedLevelAccess',
-                                     'client.PreparedLevelMetadataMixin', 'client.PreparedTravelPacketMixin',
-                                     'client.PreparedTravelCameraMixin', 'client.SodiumPreparedRendererMixin',
+                                     'client.PreparedLevelAccess', 'client.PreparedLevelMetadataMixin',
+                                     'client.CrossingCameraMixin', 'client.SodiumPreparedRendererMixin',
                                      'client.SodiumPreparedExtractorMixin', 'client.IrisPortalHandAccess',
                                      'client.IrisPortalHandBuffersAccess', 'client.IrisPortalHandFrameAccess',
                                      'client.LocalMeshChunkMixin', 'client.StraddleOverlayMixin',
@@ -76,8 +75,6 @@ abstract class VerifyModdedArtifact extends DefaultTask {
                         if (constants.contains(renderHook) && (opticsClass
                             || !entry.name.startsWith('art/arcane/wormholes/modded/client/render/')
                             && !entry.name.startsWith('art/arcane/wormholes/modded/client/world/')
-                            && !(entry.name == 'art/arcane/wormholes/modded/client/ClientPreparedTravel.class'
-                                && renderHook == 'net/minecraft/client/renderer/LevelRenderer')
                             && !portalRenderMixins.any { String name -> entry.name == "art/arcane/wormholes/modded/mixin/${name.replace('.', '/')}.class" })) {
                             throw new GradleException("${artifact.name} references the render pipeline (${renderHook}) in ${entry.name}")
                         }

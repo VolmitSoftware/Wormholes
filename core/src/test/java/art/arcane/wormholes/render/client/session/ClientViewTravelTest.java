@@ -94,7 +94,7 @@ final class ClientViewTravelTest {
     }
 
     @Test
-    void seamlessSessionsSendArmsButNeverPreparedTravel() throws ViewStreamProtocolException {
+    void seamlessSessionsSendArmsButNeverServerboundTravel() throws ViewStreamProtocolException {
         ViewStreamSession<String, String> session = open();
         ClientViewTravel<String> travel = ClientViewTravel.of(session);
         negotiate(session, SEAMLESS);
@@ -103,8 +103,7 @@ final class ClientViewTravelTest {
         assertTrue(travel.seamlessSelected());
         assertTrue(travel.sendTravel(cancel()));
         assertEquals(TravelExtension.INSTANCE.wrap(cancel()), CODEC.decodeS2C(frames.getLast(), ViewStreamCapability.ALL).message());
-        assertFalse(travel.sendTravel(new TravelMessage.TravelReuse(new UUID(1L, 2L), 3L, 0, 0, 1, new byte[TravelMessage.TRAVEL_HASH_BYTES])),
-            "prepared travel is never sent");
+        assertFalse(travel.sendTravel(cross()), "serverbound travel is never sent");
         assertTrue(travel.sendTravel(new TravelMessage.EntityCrossed(0, 42, OpticTransform.IDENTITY, new Vec3d(0, 0, 0), Face.U,
             new Vec3d(0, 0, 0))));
         assertEquals(2, frames.size());

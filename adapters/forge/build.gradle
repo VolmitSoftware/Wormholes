@@ -189,7 +189,6 @@ minecraft {
             workingDir = layout.buildDirectory.dir('run/clientGameTest')
             systemProperty('wormholes.clientgametest', 'true')
             systemProperty('wormholes.clientgametest.server', providers.gradleProperty('clientGameTestServer').getOrElse(''))
-            systemProperty('wormholes.clientgametest.serverSeamless', providers.gradleProperty('clientGameTestServerSeamless').getOrElse('true'))
             systemProperty('wormholes.clientgametest.filter', providers.gradleProperty('clientGameTestFilter').getOrElse(''))
         }
     }

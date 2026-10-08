@@ -1,11 +1,7 @@
 fx S2C ffffffff0004ffef 11 2
 travel_begin S2C ffffffff0004ffef 18 0
-travel_chunk S2C ffffffff0004ffef 19 0
-travel_end S2C ffffffff0004ffef 20 2
-travel_commit S2C ffffffff0004ffef 21 2
 travel_cancel S2C ffffffff0004ffef 22 2
 travel_cross C2S 0 0 0
-travel_reuse S2C ffffffff0004ffef 23 2
 travel_begin_resident S2C ffffffff0004ffef 25 0
 remote_level_open S2C ffffffff0004ffef 26 0
 remote_level_close S2C ffffffff0004ffef 27 2
