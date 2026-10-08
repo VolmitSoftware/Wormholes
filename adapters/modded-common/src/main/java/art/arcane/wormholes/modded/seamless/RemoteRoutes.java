@@ -390,6 +390,7 @@ public final class RemoteRoutes implements AutoCloseable {
         if (state == null) {
             return null;
         }
+        retireDuplicates(state, key);
         RemoteRoute route = new RemoteRoute(key, level, anchor, window, handle);
         route.viewer(new RemoteViewerConnection(player, route, state.sends));
         route.opened(true);
@@ -529,6 +530,17 @@ public final class RemoteRoutes implements AutoCloseable {
         route.stream().clear();
         route.opened(false);
         route.handle(0);
+    }
+
+    private void retireDuplicates(PlayerRoutes state, RemoteRoute.Key key) {
+        Iterator<RemoteRoute> iterator = state.routes.iterator();
+        while (iterator.hasNext()) {
+            RemoteRoute route = iterator.next();
+            if (route.sourceId().equals(key.source()) && route.destinationId().equals(key.destination())) {
+                retire(state, route, true);
+                iterator.remove();
+            }
+        }
     }
 
     private void retire(PlayerRoutes state, RemoteRoute route, boolean notify) {
