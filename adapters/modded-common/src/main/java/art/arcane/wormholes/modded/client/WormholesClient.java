@@ -213,7 +213,6 @@ public final class WormholesClient {
         ClientPortalRenderer.instance().finishBuilds();
         seamlessTravel.tick();
         tick.effectsActive(!minecraft.isPaused() && minecraft.isWindowActive());
-        tick.travelPending(seamlessTravel.pending());
         ClientLevel level = minecraft.level;
         if (level == null) {
             reflections.clear();

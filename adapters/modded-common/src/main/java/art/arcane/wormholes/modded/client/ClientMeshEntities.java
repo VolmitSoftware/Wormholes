@@ -13,7 +13,6 @@ import it.unimi.dsi.fastutil.longs.LongIterator;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderDispatcher;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
@@ -396,50 +395,15 @@ public final class ClientMeshEntities {
         }
         ClientProjectedEntities projected = client.tickState().entities();
         if (projected != null) {
-            extractProjectedEntities(portalKey, client.session(), projected, Minecraft.getInstance().player, renderer, partialTick, states);
+            extractProjectedEntities(portalKey, projected, renderer, partialTick, states);
         }
         extractLocalEntities(client.localMeshes().entities(portalKey), renderer, partialTick, states);
         extractEntity(client.reflections().entity(portalKey), renderer, partialTick, states);
     }
 
-    void extractProjectedEntities(int portalKey, ClientViewSession session, ClientProjectedEntities projected, LocalPlayer player,
-                                  EntityRenderDispatcher renderer, float partialTick, List<EntityRenderState> states) {
-        LocalPlayer self = localSelf(portalKey, session, projected, player);
-        int excluded = self == null ? 0 : projected.entityId(portalKey, session.selfEntityId());
-        projected.forEachEntity(portalKey, id -> {
-            if (id != excluded) {
-                extractEntity(level.getEntity(id), renderer, partialTick, states);
-            }
-        });
-        if (self != null) {
-            extractLocalSelf(self, renderer, partialTick, states);
-        }
-    }
-
-    private LocalPlayer localSelf(int portalKey, ClientViewSession session, ClientProjectedEntities projected, LocalPlayer player) {
-        UUID id = session.selfEntityId();
-        ClientPortal portal = session.portal(portalKey);
-        EnvironmentState environment = session.environment(portalKey);
-        if (id == null || player == null || portal == null || portal.geometry().mirror()
-            || environment == null || !environment.world().dimensionKey().equals(level.dimension().identifier().toString())
-            || !projected.presentPlayer(portalKey, id) || player.level() != level) {
-            return null;
-        }
-        return player;
-    }
-
-    private void extractLocalSelf(LocalPlayer player, EntityRenderDispatcher renderer, float partialTick, List<EntityRenderState> states) {
-        ClientMeshEntities previous = ACTIVE.get();
-        ACTIVE.remove();
-        try {
-            extractEntity(player, renderer, partialTick, states);
-        } finally {
-            if (previous == null) {
-                ACTIVE.remove();
-            } else {
-                ACTIVE.set(previous);
-            }
-        }
+    void extractProjectedEntities(int portalKey, ClientProjectedEntities projected, EntityRenderDispatcher renderer, float partialTick,
+                                  List<EntityRenderState> states) {
+        projected.forEachEntity(portalKey, id -> extractEntity(level.getEntity(id), renderer, partialTick, states));
     }
 
     void extractLocalEntities(Set<UUID> local, EntityRenderDispatcher renderer, float partialTick, List<EntityRenderState> states) {

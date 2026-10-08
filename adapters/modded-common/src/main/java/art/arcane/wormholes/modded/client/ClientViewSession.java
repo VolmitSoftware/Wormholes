@@ -17,7 +17,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.ChatFormatting;
 
 import java.util.Objects;
-import java.util.UUID;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.function.Consumer;
@@ -56,7 +55,6 @@ public final class ClientViewSession {
     private long ignoredSceneMessages;
     private long protocolFailures;
     private boolean memoryFailureReported;
-    private UUID selfEntityId;
 
     public ClientViewSession(WormholesClientConfig config, ClientPalette palette, int dataVersion, String brandTag) {
         this.config = Objects.requireNonNull(config, "config");
@@ -81,7 +79,7 @@ public final class ClientViewSession {
         long capabilities = ViewStreamCapability.of(ViewStreamCapability.PLATES, ViewStreamCapability.BRICK_CACHE, ViewStreamCapability.DEST_LIGHT,
             ViewStreamCapability.ENTITY_FRAMES, ViewStreamCapability.ENTITY_EVENTS, ViewStreamCapability.ATMOSPHERE, ViewStreamCapability.ZERO_COPY,
             ViewStreamCapability.CONFIG_PHASE, ViewStreamCapability.LINK_UNCOMPRESSED, ViewStreamCapability.VIEW_STATS, ViewStreamCapability.MESH_RENDER,
-            ViewStreamCapability.LOCAL_MESH, ViewStreamCapability.MESH_REUSE, ViewStreamCapability.ENTITY_SELF)
+            ViewStreamCapability.LOCAL_MESH, ViewStreamCapability.MESH_REUSE)
             | ClientViewExtensions.FX_EMITTERS
             | ClientViewExtensions.REMOTE_VIEW | ClientViewExtensions.SEAMLESS_TRAVEL;
         if (config.clientMirror) {
@@ -117,20 +115,12 @@ public final class ClientViewSession {
         accept = received;
         declineReason = null;
         caps = ViewStreamCapability.intersection(received.caps(), clientCapabilities());
-        if (!ViewStreamCapability.ENTITY_SELF.in(caps)) {
-            selfEntityId = null;
-        }
         nativeSelected |= ViewStreamCapability.MESH_RENDER.in(caps);
         state = nativeSelected && !ViewStreamCapability.MESH_RENDER.in(caps) ? State.NATIVE_RECOVERING : State.CLIENT_VIEW;
     }
 
-    public UUID selfEntityId() {
-        return selfEntityId;
-    }
-
     public void decline(ViewStreamMessage.Decline received) {
         Objects.requireNonNull(received, "received");
-        selfEntityId = null;
         declineReason = received.reason();
         state = nativeSelected ? State.NATIVE_RECOVERING : State.DECLINED;
     }
@@ -147,7 +137,6 @@ public final class ClientViewSession {
             return;
         }
         state = nativeSelected ? State.NATIVE_RECOVERING : State.VANILLA;
-        selfEntityId = null;
         sink.reset(ViewStreamMessage.ResetReason.PROTOCOL);
         clearPortals();
     }
@@ -245,11 +234,6 @@ public final class ClientViewSession {
                         sink.entityEvent(event);
                     } else {
                         ignoredSceneMessages++;
-                    }
-                }
-                case ViewStreamMessage.EntitySelf self -> {
-                    if (ViewStreamCapability.ENTITY_SELF.in(caps)) {
-                        selfEntityId = self.projectedId();
                     }
                 }
                 case ViewStreamMessage.EntityFrame frame -> {
@@ -589,14 +573,12 @@ public final class ClientViewSession {
     }
 
     private void restart(Sink sink) {
-        selfEntityId = null;
         sink.restarted();
         clearPortals();
         palette.reset();
     }
 
     private void reset(ViewStreamMessage.ResetReason reason, Sink sink) {
-        selfEntityId = null;
         lastReset = reason;
         resets++;
         sink.reset(reason);

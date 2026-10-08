@@ -44,8 +44,8 @@ final class BukkitClientViewSceneTest {
     }
 
     @Test
-    void observerBindingMatchesItsOpaqueVisualBeforeTheFirstEntityFrame() throws ViewStreamProtocolException {
-        try (ClientViewFixture fixture = negotiated(ClientViewFixture.CLIENT_CAPS | ViewStreamCapability.ENTITY_SELF.mask())) {
+    void streamedMirrorFramesCarryTheObserverReflection() throws ViewStreamProtocolException {
+        try (ClientViewFixture fixture = negotiated(ClientViewFixture.CLIENT_CAPS)) {
             EntitySnapshot self = EntitySnapshot.full(fixture.playerId, "minecraft:player", 1.5D, 64.0D, 3.0D, 1.8D,
                 0.0D, 0.0D, 1.0D, 0.0F, 0.0F, 0.0D, 0.0D, 0.0D, true, "Observer", "", "", null, null,
                 EntitySnapshot.EMPTY, EntitySnapshot.EMPTY, 0);
@@ -53,20 +53,11 @@ final class BukkitClientViewSceneTest {
             when(entities.getEntities(anyDouble(), anyDouble(), anyDouble(), anyDouble())).thenReturn(List.of(self));
             when(entities.isVisibleTo(any(Player.class), eq(fixture.playerId))).thenReturn(true);
             fixture.route();
-            List<ViewStreamMessage> messages = fixture.messages();
-            ViewStreamMessage.EntitySelf binding = null;
-            for (ViewStreamMessage message : messages) {
-                if (message instanceof ViewStreamMessage.EntitySelf found) {
-                    binding = found;
-                } else if (message instanceof ViewStreamMessage.EntityFrame frame) {
-                    assertNotNull(binding, "binding must precede the observer's first frame");
-                    assertEquals(List.of(binding.projectedId()), frame.presentIds());
-                    assertNotEquals(fixture.playerId, binding.projectedId());
-                }
-            }
-            assertNotNull(binding);
             fixture.route();
-            assertTrue(fixture.messages().stream().noneMatch(message -> message instanceof ViewStreamMessage.EntitySelf));
+            ViewStreamMessage.EntityFrame frame = lastFrame(fixture.messages());
+            assertNotNull(frame);
+            assertEquals(1, frame.presentIds().size(), "a streamed mirror shows the observer's reflection");
+            assertNotEquals(fixture.playerId, frame.presentIds().getFirst());
         }
     }
 

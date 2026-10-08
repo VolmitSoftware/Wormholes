@@ -1,7 +1,7 @@
 import { deflateSync, inflateSync } from 'node:zlib'
 
 export const CHANNEL = 'wormholes:v7'
-export const WIRE_VERSION = 7
+export const WIRE_VERSION = 8
 export const S2C_HEADER_BYTES = 6
 export const FLAG_DEFLATED = 1
 export const FLAG_LAST = 2
@@ -90,7 +90,6 @@ export const MESSAGE_TYPES = Object.freeze({
   MESH_DROP: { id: 18, direction: 'S2C' },
   ENVIRONMENT: { id: 19, direction: 'S2C' },
   ENTITY_EVENT: { id: 20, direction: 'S2C' },
-  ENTITY_SELF: { id: 21, direction: 'S2C' },
   HELLO: { id: 32, direction: 'C2S' },
   BRICK_MISS: { id: 33, direction: 'C2S' },
   ACK: { id: 34, direction: 'C2S' },
@@ -128,7 +127,6 @@ export const CAPABILITIES = Object.freeze({
   ENTITY_EVENTS: 13,
   LOCAL_MESH: 14,
   MESH_REUSE: 15,
-  ENTITY_SELF: 18,
   FX_EMITTERS: 32,
   REMOTE_VIEW: 35,
   SEAMLESS_TRAVEL: 36
@@ -1273,8 +1271,6 @@ export function readBody(reader, type, caps) {
       if (!Number.isFinite(message.yaw) || (!message.hurt && ![0, 2, 3, 4, 5].includes(message.animation))) throw new ClientViewProtocolError('invalid entity event')
       return message
     }
-    case 'ENTITY_SELF':
-      return { type, projectedId: readUuid(reader) }
     case 'MESH_LOCAL': {
       const portalKey = reader.varint()
       const generation = reader.i32()
@@ -1516,9 +1512,6 @@ export function writeBody(writer, message) {
       writer.u8(message.hurt ? 1 : 0)
       writer.u8(message.animation)
       writer.f32(message.yaw)
-      return
-    case 'ENTITY_SELF':
-      writeUuid(writer, message.projectedId)
       return
     case 'MESH_LOCAL':
       writer.varint(message.portalKey)
@@ -1769,8 +1762,6 @@ export function summarize(message) {
       return { portalKey: message.portalKey, skybox: message.environment.sky.skybox, gameTime: Number(message.environment.gameTime), dimension: message.environment.world.dimensionKey }
     case 'ENTITY_EVENT':
       return { portalKey: message.portalKey, eventSeq: message.eventSeq, entityId: message.entityId, hurt: message.hurt, animation: message.animation }
-    case 'ENTITY_SELF':
-      return { projectedId: message.projectedId }
     case 'MESH_LOCAL':
       return { portalKey: message.portalKey, generation: message.generation, sections: message.sections.length, entities: message.entities.length }
     case 'MESH_CACHED':

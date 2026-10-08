@@ -377,7 +377,7 @@ public final class ProjectedEntityRenderer {
                 occluder.hideLocalEntities(observer, localPortal, frustum, projectionDepth);
             }
             visualProjector.apply(observer, new SnapshotProjector.Pass<>(localPortal, remotePortal, entityView, transform, frustum,
-                projectionPath, entityOcclusion, range, entityLimit()));
+                projectionPath, entityOcclusion, range, entityLimit(), localPortal != null && localPortal.isMirrorMode()));
         } catch (RuntimeException error) {
             batchFailure = error;
             throw error;

@@ -106,11 +106,6 @@ final class PortalCamera extends Camera {
     }
 
     @Override
-    public Frustum getCapturedFrustum() {
-        return frustum;
-    }
-
-    @Override
     public Entity entity() {
         return entity;
     }

@@ -232,7 +232,7 @@ final class PortalWorldRenderer {
             if (destination != homeLevel) {
                 state.particlesRenderState.reset();
             }
-            CrossPortalEntities.inner(view, state, previousLevel, portalCamera, partialTicks);
+            CrossPortalEntities.inner(view, state, previousLevel, partialTicks);
             renderer.render(gameAccess.wormholes$resourcePool(), false, state.cameraRenderState, fogSlice, fog.color, true, false);
         } finally {
             if (pipelineStarted) {
@@ -324,10 +324,8 @@ final class PortalWorldRenderer {
     }
 
     private static boolean showsPlayer(PortalView view, LocalPlayer player, ClientLevel destination, Vec3 camera) {
-        if (view.kind() == PortalView.Kind.MIRROR && !WormholesClient.instance().config().selfReflection) {
-            return false;
-        }
-        return detached(player, destination, camera);
+        return view.kind() == PortalView.Kind.MIRROR && WormholesClient.instance().config().selfReflection
+            && detached(player, destination, camera);
     }
 
     private static boolean detached(LocalPlayer player, ClientLevel destination, Vec3 camera) {

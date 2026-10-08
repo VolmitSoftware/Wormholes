@@ -12,9 +12,9 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class MinecraftClientViewEntitySelfTest {
+public class MinecraftClientViewObserverTest {
     @Test
-    public void sessionBindingUsesTheActualNativeObserverNamespaceOnly() {
+    public void observerMatchesOnlyItsOwnProjectedId() {
         MinecraftClientViewScene scene = new MinecraftClientViewScene(mock(WormholesModRuntime.class),
             mock(MinecraftClientViewPortalAccess.class));
         MinecraftClientViewPeer observer = mock(MinecraftClientViewPeer.class);

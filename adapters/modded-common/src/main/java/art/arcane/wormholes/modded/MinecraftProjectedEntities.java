@@ -124,7 +124,7 @@ public final class MinecraftProjectedEntities implements AutoCloseable {
     private void render(View view, EntityPath<ServerLevel, MinecraftPortal> path, int limit) {
         double range = Math.min(runtime.configuration().settings().getRender().entitySpoofRange, view.depth());
         projector.apply(observer, new SnapshotProjector.Pass<>(source, view.anchor(), view.entities(), view.transform(), view.frustum(), path,
-            view.occlusion(), range, limit));
+            view.occlusion(), range, limit, source.isMirrorMode()));
         registry.commitDestroyed();
     }
 

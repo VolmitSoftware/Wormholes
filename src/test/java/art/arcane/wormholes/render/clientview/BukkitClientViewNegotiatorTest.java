@@ -44,9 +44,7 @@ final class BukkitClientViewNegotiatorTest {
             ViewStreamMessage.Offer offer = (ViewStreamMessage.Offer) messages.get(0);
             ViewStreamMessage.Accept accept = (ViewStreamMessage.Accept) messages.get(1);
             assertTrue(ViewStreamCapability.LOCAL_MESH.in(offer.serverCaps()));
-            assertTrue(ViewStreamCapability.ENTITY_SELF.in(offer.serverCaps()));
             assertTrue(ViewStreamCapability.LOCAL_MESH.in(accept.caps()));
-            assertTrue(ViewStreamCapability.ENTITY_SELF.in(accept.caps()));
             assertTrue(ViewStreamCapability.MESH_RENDER.in(accept.caps()));
         }
     }

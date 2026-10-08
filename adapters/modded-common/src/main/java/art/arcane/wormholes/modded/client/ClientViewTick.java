@@ -74,7 +74,6 @@ public final class ClientViewTick implements ClientViewSession.Sink {
     private int nextRecoveryTick;
     private boolean handleFailureLogged;
     private boolean effectsActive = true;
-    private boolean travelPending;
     private boolean frameEffectsActive = true;
     private long effectsResumedAtNanos;
 
@@ -204,10 +203,6 @@ public final class ClientViewTick implements ClientViewSession.Sink {
         return sendFailures;
     }
 
-    public void travelPending(boolean pending) {
-        travelPending = pending;
-    }
-
     public void effectsActive(boolean active) {
         if (effectsActive == active) {
             return;
@@ -257,7 +252,6 @@ public final class ClientViewTick implements ClientViewSession.Sink {
             applier.flush();
             light.tick();
         }
-        entities.hide(travelPending ? session.selfEntityId() : null);
         entities.tick(portals, key -> session.nativeSelected() || session.meshes().view(key) != null);
         fx.tick(portals);
         atmosphere.tick(eyeX, eyeY, eyeZ, portals, session.meshes(), effectsActive);

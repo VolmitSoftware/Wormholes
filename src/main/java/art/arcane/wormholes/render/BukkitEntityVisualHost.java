@@ -38,6 +38,11 @@ public final class BukkitEntityVisualHost implements EntityFeed<Player, World, P
     }
 
     @Override
+    public boolean isObserver(Player observer, UUID entityId) {
+        return observer.getUniqueId().equals(entityId);
+    }
+
+    @Override
     public EntityProfile profile(ProjectionEntityView view, UUID entityId) {
         return view.getProfile(entityId);
     }

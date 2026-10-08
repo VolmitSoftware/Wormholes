@@ -100,7 +100,7 @@ public final class PortalStencilRenderer {
         if (!active || client == null || level == null) {
             return;
         }
-        CrossPortalEntities.outer(client.portalViews().current(), level, state, camera, partialTicks);
+        CrossPortalEntities.outer(client.portalViews().current(), level, state, partialTicks);
     }
 
     public boolean sharedLayer() {

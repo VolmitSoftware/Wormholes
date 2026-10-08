@@ -43,6 +43,11 @@ public final class MinecraftEntityVisualHost implements EntityFeed<ServerPlayer,
     }
 
     @Override
+    public boolean isObserver(ServerPlayer observer, UUID entityId) {
+        return observer.getUUID().equals(entityId);
+    }
+
+    @Override
     public EntityProfile profile(ProjectionEntityData<SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment> view, UUID entityId) {
         return view.getProfile(entityId);
     }

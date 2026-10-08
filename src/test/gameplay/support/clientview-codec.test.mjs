@@ -171,8 +171,8 @@ describe('ClientView golden vectors', () => {
 
   it('decodes the handshake fields', () => {
     const offer = decodeVector(vector('offer'))
-    assert.deepEqual(offer, { type: 'OFFER', wire: 7, mcDataVersion: 4325, serverCaps: ALL_CAPS, maxFrameBytes: 524288, zeroCopyNonce: 0x1122334455667788n })
-    assert.deepEqual(decodeVector(vector('hello')), { type: 'HELLO', wire: 7, mcDataVersion: 4325, clientCaps: HELLO_CAPS, maxFrameBytes: 524288, plateMemoryMb: 256, zeroCopyNonceEcho: 0x1122334455667788n, brandTag: 'fabric' })
+    assert.deepEqual(offer, { type: 'OFFER', wire: 8, mcDataVersion: 4325, serverCaps: ALL_CAPS, maxFrameBytes: 524288, zeroCopyNonce: 0x1122334455667788n })
+    assert.deepEqual(decodeVector(vector('hello')), { type: 'HELLO', wire: 8, mcDataVersion: 4325, clientCaps: HELLO_CAPS, maxFrameBytes: 524288, plateMemoryMb: 256, zeroCopyNonceEcho: 0x1122334455667788n, brandTag: 'fabric' })
     assert.deepEqual(decodeVector(vector('accept')), { type: 'ACCEPT', sessionId: 42, caps: HELLO_CAPS, tickRate: 20, maxFrameBytes: 524288, hashSalt: 0x0f1e2d3c4b5a6978n, ackWindowFrames: 8 })
     assert.deepEqual(decodeVector(vector('decline')), { type: 'DECLINE', reason: 'DATA_VERSION_MISMATCH' })
     assert.deepEqual(capabilityNames(HELLO_CAPS), ['PLATES', 'BRICK_CACHE', 'DEST_LIGHT', 'ENTITY_FRAMES', 'VIEW_STATS'])
@@ -284,10 +284,9 @@ describe('ClientView golden vectors', () => {
     assert.deepEqual(encodeC2S({ type: 'PLATE_REFUSED', portalKey: 7, plateRevision: 3 }), vector('plate_refused').bytes)
   })
 
-  it('decodes entity events, the projected self identity and the environment transform', () => {
+  it('decodes entity events and the environment transform', () => {
     assert.deepEqual(decodeVector(vector('entity_swing')), { type: 'ENTITY_EVENT', portalKey: 7, eventSeq: 3, entityId: TEST_UUID, hurt: false, animation: 3, yaw: 0 })
     assert.deepEqual(decodeVector(vector('entity_hurt')), { type: 'ENTITY_EVENT', portalKey: 7, eventSeq: 4, entityId: TEST_UUID, hurt: true, animation: 0, yaw: 179.5 })
-    assert.deepEqual(decodeVector(vector('entity_self')), { type: 'ENTITY_SELF', projectedId: TEST_UUID })
     assert.deepEqual(decodeVector(vector('environment')), { type: 'ENVIRONMENT', portalKey: 7,
       environment: fixtureEnvironment('test:destination', { permutation: 44, translation: { x: -128.5, y: 96, z: 33.25 } }, 0.5) })
   })
@@ -336,7 +335,7 @@ describe('ClientView golden vectors', () => {
 
   it('names the extension capabilities at the bits the server offers', () => {
     assert.deepEqual(capabilityNames(decodeVector(vector('offer')).serverCaps), ['PLATES', 'BRICK_CACHE', 'DEST_LIGHT', 'ENTITY_FRAMES', 'ATMOSPHERE', 'ZERO_COPY', 'CLIENT_RECURSION',
-      'CLIENT_MIRROR', 'CONFIG_PHASE', 'LINK_UNCOMPRESSED', 'VIEW_STATS', 'MESH_RENDER', 'ENTITY_EVENTS', 'LOCAL_MESH', 'MESH_REUSE', 'ENTITY_SELF',
+      'CLIENT_MIRROR', 'CONFIG_PHASE', 'LINK_UNCOMPRESSED', 'VIEW_STATS', 'MESH_RENDER', 'ENTITY_EVENTS', 'LOCAL_MESH', 'MESH_REUSE',
       'FX_EMITTERS', 'REMOTE_VIEW', 'SEAMLESS_TRAVEL'])
     assert.equal(capabilitySet('FX_EMITTERS'), 1n << 32n)
     assert.equal(capabilitySet('SEAMLESS_TRAVEL'), 1n << 36n)

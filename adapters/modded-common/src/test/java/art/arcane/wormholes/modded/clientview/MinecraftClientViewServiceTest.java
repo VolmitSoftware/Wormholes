@@ -87,7 +87,6 @@ public class MinecraftClientViewServiceTest extends MinecraftTestBase {
         service.channelRegistered(player(overworld));
         ViewStreamMessage.Offer offer = (ViewStreamMessage.Offer) message(sent.get(sent.size() - 1));
         assertTrue(ViewStreamCapability.LOCAL_MESH.in(offer.serverCaps()));
-        assertTrue(ViewStreamCapability.ENTITY_SELF.in(offer.serverCaps()));
         assertTrue((offer.serverCaps() & ClientViewExtensions.REMOTE_VIEW) != 0L);
         assertTrue((offer.serverCaps() & ClientViewExtensions.SEAMLESS_TRAVEL) != 0L);
 
@@ -96,7 +95,6 @@ public class MinecraftClientViewServiceTest extends MinecraftTestBase {
         assertEquals(ViewStreamInbound.HELLO_ACCEPTED, service.receive(connection, hello));
         ViewStreamMessage.Accept accept = (ViewStreamMessage.Accept) message(sent.get(sent.size() - 1));
         assertTrue(ViewStreamCapability.LOCAL_MESH.in(accept.caps()));
-        assertTrue(ViewStreamCapability.ENTITY_SELF.in(accept.caps()));
         assertTrue(ViewStreamCapability.MESH_RENDER.in(accept.caps()));
         assertTrue((accept.caps() & ClientViewExtensions.REMOTE_VIEW) != 0L);
         assertTrue((accept.caps() & ClientViewExtensions.SEAMLESS_TRAVEL) != 0L);
