@@ -70,6 +70,8 @@
     "client.ProjectedEntitySpawnMixin",
     "client.EntityCrossingMixin",
     "client.PortalLevelRendererMixin",
+    "client.PortalClipShaderMixin",
+    "client.PortalClipProjectionMixin",
     "client.IrisPortalTextureMixin",
     "client.IrisPortalGlShaderMixin",
     "client.IrisPortalShaderCreatorMixin",
