@@ -10,8 +10,11 @@ Build all platform distributions with Java 25 and `./gradlew buildAllToOut`. The
 
 ## Known issues
 
-- On Fabric, Forge, and NeoForge clients, copies of players shown in a portal view that uses standard projection instead of the mod's own renderer still collide. They can push the real player, and between portals that are rotated relative to each other they reuse the real player's entity ID.
-- Right after a crossing, the view through the arrival portal can take up to about 10 seconds to appear when the CPU is heavily loaded.
-- On macOS with shaders enabled, the first approach to a newly activated portal stutters for a few seconds while the shaders compile, because the graphics driver compiles them on the render thread.
+These apply to players with the client mod. [ClientView](https://github.com/VolmitSoftware/docs/blob/master/wormholes/05-projection-modes-settings.md#clientview) describes world views and streamed views.
+
+- Streamed views, which Paper, Purpur, and Folia servers use for every linked portal and other servers use for random teleport portals and cross-server gateways, are shaded with the Iris shader programs of the dimension you are in instead of the destination's, and get no shadow pass of their own.
+- With an Iris shader pack, a streamed view or a view into the dimension you are in shares one shader pipeline with your own view, so temporal effects such as TAA or motion blur can smear inside it.
+- Portal views into another dimension show no particles from that dimension.
+- `portal-edge-feather` draws its edge band only in streamed views.
 
 See [LICENSE.md](LICENSE.md).
