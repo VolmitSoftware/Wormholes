@@ -144,6 +144,7 @@ tasks.named('shadowJar', ShadowJar).configure {
     exclude('META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA')
     exclude('META-INF/versions/**', 'module-info.class')
     from('../../LICENSE.md')
+    from('../../THIRD-PARTY-NOTICES.md')
     addMultiReleaseAttribute.set(false)
     from(project.configurations.nestedApi) {
         into('META-INF/jars')
