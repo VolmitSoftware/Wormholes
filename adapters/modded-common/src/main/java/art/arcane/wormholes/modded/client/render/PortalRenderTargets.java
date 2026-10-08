@@ -42,13 +42,6 @@ final class PortalRenderTargets implements AutoCloseable {
         return travel.get(key).sky();
     }
 
-    void releaseTravel(int key) {
-        Target target = travel.remove(key);
-        if (target != null) {
-            target.close();
-        }
-    }
-
     TextureTarget layer(int width, int height) {
         return layer.resize(width, height);
     }

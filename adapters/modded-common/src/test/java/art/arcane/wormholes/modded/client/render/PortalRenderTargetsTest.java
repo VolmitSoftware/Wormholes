@@ -10,7 +10,6 @@ import org.mockito.MockedStatic;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.mockConstruction;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -52,10 +51,6 @@ public class PortalRenderTargetsTest {
             assertNotSame(rootSky, nextRootSky);
             assertNotSame(travelSky, nextTravelSky);
             assertSame(childSky, targets.sky(1));
-            targets.releaseTravel(-1);
-            verify(nextTravelSky).close();
-            verify(resizedTravel).destroyBuffers();
-            assertNull(targets.travel(-1));
             targets.close();
             targets.close();
             verify(nextRootSky, times(1)).close();
@@ -63,28 +58,6 @@ public class PortalRenderTargetsTest {
             verify(resizedRoot, times(1)).destroyBuffers();
             verify(resizedTravel, times(1)).destroyBuffers();
             assertEquals(0L, targets.bytes());
-        }
-    }
-
-    @Test
-    public void stationaryTravelTargetIsPrivateAndReleasedWithoutClosingOrdinaryRoots() {
-        try (MockedConstruction<TextureTarget> construction = mockConstruction(TextureTarget.class, (target, context) -> {
-            target.width = (Integer) context.arguments().get(1);
-            target.height = (Integer) context.arguments().get(2);
-        }); PortalRenderTargets targets = new PortalRenderTargets()) {
-            assertNull(targets.travel(-1));
-            TextureTarget root = targets.scratch(0, 1920, 1080);
-            TextureTarget travel = targets.travel(-1, 1920, 1080);
-            assertNotSame(root, travel);
-            assertSame(travel, targets.travel(-1, 1920, 1080));
-            assertSame(travel, targets.travel(-1));
-            assertSame(root, targets.scratch(0, 1920, 1080));
-            assertEquals(2L * 1920 * 1080 * 8, targets.bytes());
-            targets.releaseTravel(-1);
-            verify(travel).destroyBuffers();
-            assertNull(targets.travel(-1));
-            assertSame(root, targets.scratch(0, 1920, 1080));
-            assertEquals(1L * 1920 * 1080 * 8, targets.bytes());
         }
     }
 
