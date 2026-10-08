@@ -8,7 +8,7 @@ Wormholes includes source code derived from the following third-party project.
 - Copyright 2020 qouteall
 - License: Apache License, Version 2.0 (reproduced below)
 
-The Wormholes modded client ports Immersive Portals' per-dimension client world state: a level renderer, light map, environment attribute probe and fog context kept for every client level, and switching the client into another level in place without a respawn. It also ports the view-bobbing reduction near portals, the cross-portal view for a camera that is already through a portal, and portal rendering: the destination level drawn by its own level renderer under a stencil mask, the clip plane injected into the world's shaders, visible section discovery for the portal camera and cross-portal entity rendering, and the Sodium terrain path: per-layer render lists and draw batches on each level's Sodium renderer, the clip plane in Sodium's terrain shader and frustum, and a synchronous section rebuild after a crossing. The code was adapted to Minecraft 26.3 and modified for Wormholes. Each derived file carries a header that names Immersive Portals and states that it was modified.
+The Wormholes modded client ports Immersive Portals' per-dimension client world state: a level renderer, light map, environment attribute probe and fog context kept for every client level, and switching the client into another level in place without a respawn. It also ports the view-bobbing reduction near portals, the cross-portal view for a camera that is already through a portal, and portal rendering: the destination level drawn by its own level renderer under a stencil mask, the clip plane injected into the world's shaders, visible section discovery for the portal camera and cross-portal entity rendering, and the Sodium terrain path: per-layer render lists and draw batches on each level's Sodium renderer, the clip plane in Sodium's terrain shader and frustum, and a synchronous section rebuild after a crossing. With Iris shaders, portal content is rendered through the destination dimension's own shader pipeline and composited from per-layer framebuffers under the stencil, with the clip plane added to every transformed Iris program. The code was adapted to Minecraft 26.3 and modified for Wormholes. Each derived file carries a header that names Immersive Portals and states that it was modified.
 
 Derived files (paths relative to `adapters/modded-common/src/main/java/art/arcane/wormholes/modded/`):
 
@@ -18,11 +18,14 @@ Derived files (paths relative to `adapters/modded-common/src/main/java/art/arcan
 - `client/world/DimensionRenderHelper.java` (from `render/context_management/DimensionRenderHelper`)
 - `client/world/FogRendererContext.java` (from `render/context_management/FogRendererContext`)
 - `client/render/stencil/ClipShaderTransformation.java` (from `render/ShaderCodeTransformation`)
+- `client/render/iris/IrisClipPlanes.java` (clip equation upload, from `compat/mixin/iris/MixinIrisSodiumShader` and `render/FrontClipping`)
+- `client/render/iris/IrisPipelineBackend.java` (from `compat/iris_compatibility/IrisInterface` and `render/MyGameRenderer`)
 - `client/render/stencil/CrossPortalEntities.java` (from `render/CrossPortalEntityRenderer`)
+- `client/render/stencil/DeferredLayers.java` (deferred framebuffers, from `compat/iris_compatibility/IrisPortalRenderer`)
 - `client/render/stencil/PortalCamera.java` (per-layer camera, from `render/MyGameRenderer`)
 - `client/render/stencil/PortalLayerMath.java` (from `render/renderer/PortalRenderer` camera transformation and `render/FrontClipping`)
 - `client/render/stencil/PortalStencil.java` (stencil state, from `render/renderer/RendererUsingStencil`)
-- `client/render/stencil/PortalStencilRenderer.java` (from `render/renderer/RendererUsingStencil` and `render/renderer/PortalRenderer`)
+- `client/render/stencil/PortalStencilRenderer.java` (from `render/renderer/RendererUsingStencil`, `render/renderer/PortalRenderer` and `compat/iris_compatibility/IrisPortalRenderer`)
 - `client/render/stencil/PortalWorldRenderer.java` (from `render/MyGameRenderer`)
 - `client/render/stencil/StencilLayers.java` (portal layer stack, from `render/context_management/PortalRendering`)
 - `client/render/stencil/VanillaTerrainBackend.java` (from `render/VisibleSectionDiscovery`)
@@ -34,6 +37,8 @@ Derived files (paths relative to `adapters/modded-common/src/main/java/art/arcan
 - `client/render/sodium/SodiumSectionDiscovery.java` (from `render/ForceMainThreadRebuild` and `compat/mixin/sodium/MixinSodiumFlawlessFrames`)
 - `client/world/StaticFieldsSwappingManager.java` (from `render/context_management/StaticFieldsSwappingManager`)
 - `mixin/client/CrossingCameraMixin.java` (view-bobbing translation scaling, from `mixin/client/render/MixinGameRenderer`)
+- `mixin/client/IrisPortalClippedProgramMixin.java` (from `compat/mixin/iris/MixinIrisSodiumShader`)
+- `mixin/client/IrisPortalTransformMixin.java` (from `compat/mixin/iris/MixinIrisTransformPatcher`)
 - `mixin/client/SodiumPortalRegionMixin.java` (from `compat/mixin/sodium/MixinSodiumRenderRegion`)
 
 ## Apache License, Version 2.0

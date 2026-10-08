@@ -2,7 +2,8 @@
  * Derived from Immersive Portals (https://github.com/iPortalTeam/ImmersivePortalsMod),
  * Copyright 2020 qouteall, licensed under the Apache License, Version 2.0.
  * Modified for Wormholes: RendererUsingStencil and PortalRenderer driven from the 26.x main level pass, drawing the portal
- * opening with the Wormholes aperture mesh and handing terrain and shader specifics to backends.
+ * opening with the Wormholes aperture mesh and handing terrain and shader specifics to backends; with a deferred shader
+ * backend the IrisPortalRenderer flow renders each layer after the level and composites it from per-layer framebuffers.
  */
 package art.arcane.wormholes.modded.client.render.stencil;
 
@@ -53,10 +54,12 @@ public final class PortalStencilRenderer {
 
     private final StencilLayers layers = new StencilLayers(MAX_DEPTH);
     private final PortalWorldRenderer world = new PortalWorldRenderer(MAX_DEPTH);
+    private final DeferredLayers deferred = new DeferredLayers(MAX_DEPTH);
     private final Matrix4f projection = new Matrix4f();
     private final List<PortalView> claimed = new ArrayList<>();
     private final List<List<Candidate>> candidates = new ArrayList<>();
     private boolean active;
+    private boolean deferredFrame;
     private boolean pipelinesReady;
     private int pipelineGeneration = -1;
     private Vec3 homeEye = Vec3.ZERO;
@@ -102,7 +105,7 @@ public final class PortalStencilRenderer {
     }
 
     public String debugLine() {
-        return "stencil=" + (active ? "on" : "off") + " views=" + claimed.size() + " backends=" + PortalBackends.describe();
+        return "stencil=" + (active ? deferredFrame ? "deferred" : "on" : "off") + " views=" + claimed.size() + " backends=" + PortalBackends.describe();
     }
 
     public boolean claims(ApertureDescriptor geometry) {
@@ -120,15 +123,18 @@ public final class PortalStencilRenderer {
             list.clear();
         }
         world.close();
+        deferred.close();
         active = false;
+        deferredFrame = false;
         pipelineGeneration = -1;
     }
 
     public void renderPortals(LevelRenderer renderer, CameraRenderState camera) {
         if (!layers.nested()) {
             active = beginFrame(renderer, camera);
+            deferredFrame = active && PortalBackends.pipeline().deferred();
         }
-        if (!active) {
+        if (!active || deferredFrame) {
             return;
         }
         Minecraft minecraft = Minecraft.getInstance();
@@ -167,8 +173,47 @@ public final class PortalStencilRenderer {
         }
     }
 
+    public void renderDeferredPortals(CameraRenderState camera) {
+        if (!active || !deferredFrame) {
+            return;
+        }
+        Minecraft minecraft = Minecraft.getInstance();
+        int depth = layers.depth();
+        List<Candidate> visible = candidates.get(depth);
+        visible.clear();
+        collect(minecraft.level, camera, visible);
+        if (visible.isEmpty()) {
+            return;
+        }
+        RenderTarget main = minecraft.gameRenderer.mainRenderTarget();
+        long now = System.currentTimeMillis();
+        WormholesClient client = WormholesClient.instance();
+        int subdivisions = client == null ? WormholesClientConfig.DEFAULT_PORTAL_SHAPE_SUBDIVISIONS : client.config().portalShapeSubdivisions;
+        try {
+            deferred.capture(main, depth);
+            for (Candidate candidate : visible) {
+                PortalView view = candidate.view();
+                if (!layers.canEnter(view.recursion()) || !layers.claimView()) {
+                    continue;
+                }
+                try {
+                    renderDeferredView(view, camera, depth, main, subdivisions);
+                } catch (RuntimeException failure) {
+                    view.failed(now + FAILURE_RETRY_MILLIS);
+                    LOGGER.error("Unable to render the {} portal view into {}", view.kind(), view.destination().dimension().identifier(), failure);
+                }
+            }
+            if (depth == 0) {
+                deferred.finish(main);
+            }
+        } finally {
+            visible.clear();
+            PortalStencil.restore(0);
+        }
+    }
+
     public boolean clearLayer(Vector4fc fogColor) {
-        if (!layers.nested()) {
+        if (!layers.nested() || deferredFrame) {
             return false;
         }
         RenderTarget main = Minecraft.getInstance().gameRenderer.mainRenderTarget();
@@ -217,6 +262,7 @@ public final class PortalStencilRenderer {
         if (generation != pipelineGeneration) {
             pipelineGeneration = generation;
             world.close();
+            deferred.close();
             pipelinesReady = true;
             for (RenderPipeline pipeline : StencilPipelines.ALL) {
                 if (RenderSystem.getCompiledPipelineNullable(pipeline) == null) {
@@ -303,6 +349,23 @@ public final class PortalStencilRenderer {
             PortalStencil.clamp(outer);
             fill(main, StencilPipelines.CLAMP, "Wormholes portal stencil clamp");
         }
+    }
+
+    private void renderDeferredView(PortalView view, CameraRenderState camera, int outer, RenderTarget main, int subdivisions) {
+        PortalGpuMesh mesh = view.mesh(subdivisions);
+        if (mesh == null) {
+            return;
+        }
+        deferred.mark(outer, mesh, view.shaped(), apertureView(camera, view.surface()), projection, outer == 0 ? null : world.clipPlane());
+        boolean outerMirrored = layers.mirrored();
+        int inner = layers.enter(PortalLayerMath.mirrored(view.toDestination()));
+        deferred.forget(inner);
+        try {
+            world.render(view, camera, projection, inner, layers.mirrored(), outerMirrored);
+        } finally {
+            layers.exit();
+        }
+        deferred.composite(main, inner, outer);
     }
 
     private static void fill(RenderTarget main, RenderPipeline pipeline, String label) {

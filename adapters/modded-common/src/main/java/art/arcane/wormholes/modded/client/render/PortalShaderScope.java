@@ -45,7 +45,7 @@ public final class PortalShaderScope implements AutoCloseable {
         return IRIS.open(false);
     }
 
-    static PortalShaderScope rendering() {
+    public static PortalShaderScope rendering() {
         return IRIS.open(true);
     }
 

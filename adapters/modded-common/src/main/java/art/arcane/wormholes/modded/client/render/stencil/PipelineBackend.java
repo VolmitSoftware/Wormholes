@@ -8,6 +8,11 @@ public interface PipelineBackend {
         }
 
         @Override
+        public boolean deferred() {
+            return false;
+        }
+
+        @Override
         public void beginLayer(PortalLayer layer) {
         }
 
@@ -17,6 +22,8 @@ public interface PipelineBackend {
     };
 
     String name();
+
+    boolean deferred();
 
     void beginLayer(PortalLayer layer);
 

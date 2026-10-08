@@ -5,6 +5,7 @@ import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.client.render.stencil.PortalStencilRenderer;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import com.mojang.blaze3d.resource.GraphicsResourceAllocator;
 import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
 import com.mojang.renderpearl.api.commands.CommandEncoder;
 import com.mojang.renderpearl.api.commands.RenderPass;
@@ -16,6 +17,7 @@ import net.minecraft.client.renderer.feature.FeatureRenderDispatcher;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.state.level.LevelRenderState;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Vector4f;
 import org.joml.Vector4fc;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -37,6 +39,12 @@ public abstract class PortalLevelRendererMixin {
         if (wormholes$meshViews()) {
             ClientPortalRenderer.instance().prepare(levelRenderState.cameraRenderState, fog);
         }
+    }
+
+    @Inject(method = "render", at = @At("RETURN"))
+    private void wormholes$deferredPortals(GraphicsResourceAllocator allocator, boolean outline, CameraRenderState camera, GpuBufferSlice fog,
+                                          Vector4f fogColor, boolean sky, boolean consistentDepth, CallbackInfo callback) {
+        PortalStencilRenderer.instance().renderDeferredPortals(camera);
     }
 
     @Inject(method = "executeSolid", at = @At("TAIL"))

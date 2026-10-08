@@ -48,6 +48,7 @@ import org.joml.Matrix4f;
 import org.joml.Matrix4fStack;
 import org.joml.Vector4d;
 import org.joml.Vector4f;
+import org.joml.Vector4fc;
 
 import java.util.ArrayDeque;
 import java.util.Collections;
@@ -62,6 +63,7 @@ final class PortalWorldRenderer {
     private final Set<ClientLevel> litLevels = Collections.newSetFromMap(new IdentityHashMap<>());
     private final ArrayDeque<LevelRenderer> renderers = new ArrayDeque<>();
     private PortalCamera camera;
+    private Vector4f layerClipPlane;
     private boolean shared;
     private ClientLevel homeLevel;
     private LevelRenderer homeRenderer;
@@ -91,6 +93,10 @@ final class PortalWorldRenderer {
         return camera;
     }
 
+    Vector4fc clipPlane() {
+        return layerClipPlane;
+    }
+
     boolean shared() {
         return shared;
     }
@@ -105,6 +111,7 @@ final class PortalWorldRenderer {
         litLevels.clear();
         renderers.clear();
         camera = null;
+        layerClipPlane = null;
         shared = false;
         homeLevel = null;
         homeRenderer = null;
@@ -164,6 +171,7 @@ final class PortalWorldRenderer {
         GpuBufferSlice previousFog = RenderSystem.getShaderFog();
         boolean previousRenderingLevel = RenderSystem.isRenderingLevel;
         PortalCamera previousCamera = camera;
+        Vector4f previousClipPlane = layerClipPlane;
         boolean previousShared = shared;
         Lighting lighting = gameAccess.wormholes$lighting();
         DeltaTracker deltaTracker = minecraft.getDeltaTracker();
@@ -171,6 +179,7 @@ final class PortalWorldRenderer {
         Matrix4fStack modelView = RenderSystem.getModelViewStack();
         TerrainBackend terrain = PortalBackends.terrain();
         PipelineBackend pipeline = PortalBackends.pipeline();
+        boolean deferred = pipeline.deferred();
         PortalLayer portalLayer = null;
         boolean contextPushed = false;
         boolean terrainStarted = false;
@@ -178,6 +187,7 @@ final class PortalWorldRenderer {
         modelView.pushMatrix().identity();
         minecraft.level = destination;
         camera = portalCamera;
+        layerClipPlane = clipPlane;
         shared = sharedRenderer;
         renderers.push(renderer);
         try {
@@ -203,9 +213,11 @@ final class PortalWorldRenderer {
             rendererAccess.wormholes$features(layer.features(minecraft));
             rendererAccess.wormholes$visibleSections(layer.visible());
             rendererAccess.wormholes$nearbyVisibleSections(layer.nearby());
-            PortalStencil.clipping(true);
             PortalStencil.mirrored(mirrored);
-            PortalStencil.limit(depth);
+            if (!deferred) {
+                PortalStencil.clipping(true);
+                PortalStencil.limit(depth);
+            }
             portalLayer = new PortalLayer(depth, destination, renderer, sharedRenderer, state.cameraRenderState, worldPlane, clipPlane,
                 layer.visible(), layer.nearby());
             terrain.beginLayer(portalLayer);
@@ -227,7 +239,9 @@ final class PortalWorldRenderer {
             if (terrainStarted) {
                 terrain.endLayer(portalLayer);
             }
-            PortalStencil.clipping(depth > 1);
+            if (!deferred) {
+                PortalStencil.clipping(depth > 1);
+            }
             PortalStencil.mirrored(outerMirrored);
             rendererAccess.wormholes$visibleSections(previousVisible);
             rendererAccess.wormholes$nearbyVisibleSections(previousNearby);
@@ -248,6 +262,7 @@ final class PortalWorldRenderer {
             }
             renderers.pop();
             shared = previousShared;
+            layerClipPlane = previousClipPlane;
             camera = previousCamera;
             minecraft.level = previousLevel;
             modelView.popMatrix();
