@@ -74,7 +74,7 @@ public final class MinecraftNetworkService implements AutoCloseable {
         server = runtime.server();
         network = new NetworkManager(LOGGER, new NetworkManager.Options(runtime.configuration().settings().getNetwork(),
             SharedConstants.getCurrentVersion().name(), version(), server.getPort(),
-            server.getServerDirectory().resolve("config/wormholes"), MinecraftJsonDocuments.INSTANCE,
+            runtime.stores().data(), MinecraftJsonDocuments.INSTANCE,
             SharedConstants.getCurrentVersion().protocolVersion()));
         network.setGameBindHost(server.getLocalIp());
         NetworkConfig.ReplicationConfig replication = network.activeConfig().replication;

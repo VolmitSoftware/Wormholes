@@ -46,7 +46,7 @@ public final class MinecraftAtlasService implements AutoCloseable {
 
     public void start() {
         runtime.requireServerThread();
-        store = new AtlasPlayerStore(runtime.server().getServerDirectory().resolve("config/wormholes/atlas/players"),
+        store = new AtlasPlayerStore(runtime.stores().data().resolve("atlas").resolve("players"),
             MinecraftJsonDocuments.INSTANCE);
         ticks = 99;
         running = true;

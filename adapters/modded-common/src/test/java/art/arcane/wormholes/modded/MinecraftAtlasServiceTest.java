@@ -42,7 +42,7 @@ public class MinecraftAtlasServiceTest {
         WormholesModRuntime runtime = mock(WormholesModRuntime.class);
         MinecraftServer server = mock(MinecraftServer.class);
         when(runtime.server()).thenReturn(server);
-        when(server.getServerDirectory()).thenReturn(temporary.getRoot().toPath());
+        when(runtime.stores()).thenReturn(MinecraftStorePaths.dedicated(temporary.getRoot().toPath()));
         doAnswer(invocation -> {
             Runnable task = invocation.getArgument(0);
             if (Thread.currentThread() == serverThread) {

@@ -71,6 +71,7 @@ public final class WormholesModRuntime {
     private MinecraftChunkLeasePlatform leasePlatform;
     private ChunkPreSendService<ServerLevel, ServerPlayer> preSend;
     private WormholesModConfiguration configuration;
+    private MinecraftStorePaths stores;
     private MinecraftPortalRegistry portals;
     private final MinecraftWormholesApi api = new MinecraftWormholesApi(this);
     private long tick;
@@ -85,8 +86,9 @@ public final class WormholesModRuntime {
         this.server = Objects.requireNonNull(server, "server");
         requireServerThread();
         try {
-            configuration = new WormholesModConfiguration(server.getServerDirectory().resolve("config/wormholes"),
+            configuration = new WormholesModConfiguration(MinecraftStorePaths.configDirectory(server.getServerDirectory()),
                 new WormholesModConfiguration.Execution(server::execute, this::requireServerThread));
+            stores = MinecraftStorePaths.of(server, configuration.settings().getMain().sharedSingleplayerStore);
             FidelitySettings.refresh(configuration.settings());
             tick = 0;
             sequence = 0;
@@ -95,12 +97,11 @@ public final class WormholesModRuntime {
                 new ChunkLeaseRegistry.Options(1000L, 50L, 3));
             preSend = new ChunkPreSendService<>(new MinecraftChunkPreSendPlatform(this), configuration::preSendOptions);
             portals = new MinecraftPortalRegistry(this, new MinecraftPortalRegistry.Options(
-                server.getServerDirectory().resolve("config/wormholes/portals"), new PortalAccess()));
+                stores.data().resolve("portals"), new PortalAccess()));
             try {
                 portals.load();
-                doors.load(new MinecraftDoorService.Options(
-                    server.getServerDirectory().resolve("config/wormholes"), new PortalAccess()));
-                localization.start(server.getServerDirectory().resolve("config/wormholes"), configuration.settings());
+                doors.load(new MinecraftDoorService.Options(stores.doors(), new PortalAccess()));
+                localization.start(stores.config(), configuration.settings());
             } catch (IOException error) {
                 throw new UncheckedIOException("Could not load Wormholes portal data", error);
             }
@@ -455,6 +456,11 @@ public final class WormholesModRuntime {
         return Objects.requireNonNull(configuration, "Wormholes is not running");
     }
 
+    public MinecraftStorePaths stores() {
+        requireServerThread();
+        return Objects.requireNonNull(stores, "Wormholes is not running");
+    }
+
     public void requireServerThread() {
         if (!server().isSameThread()) {
             throw new IllegalStateException("Wormholes world operations require the server thread");
@@ -540,6 +546,7 @@ public final class WormholesModRuntime {
         pending.clear();
         portals = null;
         configuration = null;
+        stores = null;
         preSend = null;
         leases = null;
         leasePlatform = null;

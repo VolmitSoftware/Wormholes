@@ -287,8 +287,7 @@ public final class MinecraftRulesMenus {
         }
 
         private void populateTemplates(MinecraftWindow window, ServerPlayer viewer, int requestedPage) {
-            RuleTemplates templates = new RuleTemplates(runtime.server().getServerDirectory().resolve("config/wormholes"),
-                runtime.configuration().settings().getRules());
+            RuleTemplates templates = new RuleTemplates(runtime.stores().data(), runtime.configuration().settings().getRules());
             List<String> names = templates.list();
             int page = RulesMenuModel.clampPage(requestedPage, names.size());
             List<String> visible = RulesMenuModel.page(names, page);

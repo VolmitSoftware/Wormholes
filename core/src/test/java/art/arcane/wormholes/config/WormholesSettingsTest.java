@@ -124,6 +124,19 @@ class WormholesSettingsTest {
     }
 
     @Test
+    void sharedSingleplayerStoreDefaultsOffAndIsEmittedWithItsDescription() {
+        WormholesSettings defaults = WormholesSettings.loadSnapshot("schema = 3\n".getBytes(StandardCharsets.UTF_8));
+        String canonical = new String(defaults.canonicalSnapshot(), StandardCharsets.UTF_8);
+        assertFalse(defaults.getMain().sharedSingleplayerStore);
+        assertTrue(canonical.contains("shared-singleplayer-store = false"));
+        assertTrue(canonical.contains("every singleplayer world"));
+
+        WormholesSettings shared = WormholesSettings.loadSnapshot("schema = 3\n[main]\nshared-singleplayer-store = true\n"
+            .getBytes(StandardCharsets.UTF_8));
+        assertTrue(shared.getMain().sharedSingleplayerStore);
+    }
+
+    @Test
     void clientViewValuesAreClampedAtLoad() {
         String source = "schema = 3\n[client-view]\nhello-grace-millis = -5\nmax-frame-kb = 9000\nack-window-frames = 900\n";
         WormholesSettings settings = WormholesSettings.loadSnapshot(source.getBytes(StandardCharsets.UTF_8));

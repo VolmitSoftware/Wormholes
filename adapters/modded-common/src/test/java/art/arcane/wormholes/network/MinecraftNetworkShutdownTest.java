@@ -9,6 +9,7 @@ import art.arcane.wormholes.config.toml.RenderConfig;
 import art.arcane.wormholes.modded.MinecraftJsonDocuments;
 import art.arcane.wormholes.modded.MinecraftNetworkService;
 import art.arcane.wormholes.modded.MinecraftPortalRegistry;
+import art.arcane.wormholes.modded.MinecraftStorePaths;
 import art.arcane.wormholes.modded.WormholesModConfiguration;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.modded.mixin.ServerConnectionAccess;
@@ -59,7 +60,7 @@ public class MinecraftNetworkShutdownTest extends MinecraftTestBase {
         when(configuration.settings()).thenReturn(new WormholesSettings(new MainConfig(), new ProjectionConfig(), new RenderConfig(), config));
         when(runtime.portals()).thenReturn(mock(MinecraftPortalRegistry.class));
         when(server.registryAccess()).thenReturn(mock(RegistryAccess.Frozen.class));
-        when(server.getServerDirectory()).thenReturn(directory.getRoot().toPath());
+        when(runtime.stores()).thenReturn(MinecraftStorePaths.dedicated(directory.getRoot().toPath()));
         when(server.getLocalIp()).thenReturn("127.0.0.1");
         when(server.getPort()).thenReturn(25999);
         when(server.getPlayerList()).thenReturn(players);

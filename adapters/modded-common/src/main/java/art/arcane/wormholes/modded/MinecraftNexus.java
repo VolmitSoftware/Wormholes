@@ -59,7 +59,7 @@ public final class MinecraftNexus implements AutoCloseable {
 
     public void start() {
         runtime.requireServerThread();
-        networks = new NetworkRegistry(runtime.server().getServerDirectory().resolve("config/wormholes/atlas/networks"), MinecraftJsonDocuments.INSTANCE);
+        networks = new NetworkRegistry(runtime.stores().data().resolve("atlas").resolve("networks"), MinecraftJsonDocuments.INSTANCE);
         networks.load();
         SERVICES.put(runtime.server(), this);
         for (MinecraftPortal portal : runtime.portals().snapshot()) {

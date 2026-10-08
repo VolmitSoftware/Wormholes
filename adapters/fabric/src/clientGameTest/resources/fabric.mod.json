@@ -21,7 +21,8 @@
       "art.arcane.wormholes.clientgametest.SeamlessWalkThroughClientGameTest",
       "art.arcane.wormholes.clientgametest.SeamlessFallLoopClientGameTest",
       "art.arcane.wormholes.clientgametest.LookContinuityClientGameTest",
-      "art.arcane.wormholes.clientgametest.ScaledPairClientGameTest"
+      "art.arcane.wormholes.clientgametest.ScaledPairClientGameTest",
+      "art.arcane.wormholes.clientgametest.SingleplayerStoreClientGameTest"
     ]
   },
   "mixins": [

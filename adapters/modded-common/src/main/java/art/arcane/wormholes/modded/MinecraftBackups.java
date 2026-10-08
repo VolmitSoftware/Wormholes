@@ -46,8 +46,9 @@ import java.util.function.Consumer;
 
 final class MinecraftBackups implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
-    private static final List<String> RESET_FOLDERS = List.of("identity", "routes", "trust", "portals", "doors",
-        "atlas", "rules", "mesh", "backups", "convoy", "pockets");
+    private static final List<String> DATA_RESET_FOLDERS = List.of("identity", "routes", "trust", "portals", "atlas", "rules",
+        "mesh", "backups", "convoy");
+    private static final List<String> DOOR_RESET_FOLDERS = List.of("doors", "pockets");
     private final WormholesModRuntime runtime;
     private ExecutorService worker;
     private long nextBackup;
@@ -108,13 +109,16 @@ final class MinecraftBackups implements AutoCloseable {
             return 0;
         }
         long retiredSlots = runtime.doors().state().snapshot().nextPocketSlot();
-        Path directory = directory();
+        MinecraftStorePaths stores = runtime.stores();
         replaceData(source, () -> {
-            Files.deleteIfExists(directory.resolve(WormholesSettings.CONFIG_FILE_NAME));
-            for (String folder : RESET_FOLDERS) {
-                deleteTree(directory.resolve(folder));
+            Files.deleteIfExists(stores.config().resolve(WormholesSettings.CONFIG_FILE_NAME));
+            for (String folder : DATA_RESET_FOLDERS) {
+                deleteTree(stores.data().resolve(folder));
             }
-            DimensionalDoorRepository.under(directory, MinecraftJsonDocuments.INSTANCE).save(new DoorStoreSnapshot(
+            for (String folder : DOOR_RESET_FOLDERS) {
+                deleteTree(stores.doors().resolve(folder));
+            }
+            DimensionalDoorRepository.under(stores.doors(), MinecraftJsonDocuments.INSTANCE).save(new DoorStoreSnapshot(
                 DoorStoreSnapshot.CURRENT_SCHEMA, retiredSlots, List.of(), List.of(), List.of(), List.of(), List.of()));
             return 0;
         }, ignored -> source.sendSuccess(() -> Component.literal("Wormholes data, configuration, trust, and network identity reset."), true));
@@ -289,7 +293,7 @@ final class MinecraftBackups implements AutoCloseable {
     }
 
     private BackupService service() {
-        Path folder = directory();
+        Path folder = runtime.stores().data();
         Map<String, String> worlds = new LinkedHashMap<>();
         for (ServerLevel level : runtime.server().getAllLevels()) {
             String key = level.dimension().identifier().toString();
@@ -302,10 +306,6 @@ final class MinecraftBackups implements AutoCloseable {
                 DoorStoreSnapshot.CURRENT_SCHEMA, System.currentTimeMillis(), worlds, serverName,
                 signer == null ? "unsigned" : signer.fingerprint());
         });
-    }
-
-    private Path directory() {
-        return runtime.server().getServerDirectory().resolve("config/wormholes");
     }
 
     private <T> CompletableFuture<T> work(IoTask<T> task) {

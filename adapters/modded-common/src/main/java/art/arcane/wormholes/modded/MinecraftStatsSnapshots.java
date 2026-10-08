@@ -30,7 +30,7 @@ final class MinecraftStatsSnapshots implements AutoCloseable {
 
     Path path() {
         String configured = runtime.configuration().settings().getNetwork().stats.pathOverride;
-        Path directory = runtime.server().getServerDirectory().resolve("config/wormholes");
+        Path directory = runtime.stores().config();
         return configured == null || configured.isBlank() ? directory.resolve("stats-snapshot.txt") : directory.resolve(configured);
     }
 

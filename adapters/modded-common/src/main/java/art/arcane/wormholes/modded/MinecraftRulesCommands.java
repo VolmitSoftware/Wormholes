@@ -162,8 +162,7 @@ public final class MinecraftRulesCommands {
     }
 
     private RuleTemplates templates() {
-        return new RuleTemplates(runtime.server().getServerDirectory().resolve("config/wormholes"),
-            runtime.configuration().settings().getRules());
+        return new RuleTemplates(runtime.stores().data(), runtime.configuration().settings().getRules());
     }
 
     private void send(CommandSourceStack source, TextKey key, Map<String, ?> values) {

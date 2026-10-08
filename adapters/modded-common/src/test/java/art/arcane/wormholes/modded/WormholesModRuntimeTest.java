@@ -4,12 +4,14 @@ import art.arcane.wormholes.config.WormholesSettings;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.players.PlayerList;
 import net.minecraft.world.item.crafting.RecipeManager;
+import net.minecraft.world.level.storage.LevelResource;
 import net.minecraft.world.level.storage.WorldData;
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
 import org.junit.Test;
 
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
@@ -144,8 +146,61 @@ public class WormholesModRuntimeTest extends MinecraftTestBase {
         runtime.stop();
     }
 
+    @Test
+    public void eachSingleplayerWorldOpensItsOwnStoreWithinOneSession() {
+        Path game = directory.getRoot().toPath();
+        Path first = game.resolve("saves/First");
+        Path second = game.resolve("saves/Second");
+        WormholesModRuntime runtime = new WormholesModRuntime();
+        runtime.start(singleplayer(first));
+        assertEquals(MinecraftStorePaths.singleplayer(game, first, false), runtime.stores());
+        runtime.stop();
+        runtime.start(singleplayer(second));
+        assertEquals(MinecraftStorePaths.singleplayer(game, second, false), runtime.stores());
+        runtime.stop();
+        assertTrue(Files.isRegularFile(game.resolve("config/wormholes/wormholes.toml")));
+        assertFalse(Files.exists(first.resolve("wormholes/wormholes.toml")));
+    }
+
+    @Test
+    public void reloadKeepsTheStoreChosenWhenTheWorldOpened() throws Exception {
+        Path game = directory.getRoot().toPath();
+        Path save = game.resolve("saves/World");
+        MinecraftServer server = singleplayer(save);
+        BlockingQueue<Runnable> serverTasks = new LinkedBlockingQueue<>();
+        doAnswer(invocation -> {
+            serverTasks.add(invocation.getArgument(0, Runnable.class));
+            return null;
+        }).when(server).execute(any(Runnable.class));
+        WormholesModRuntime runtime = new WormholesModRuntime();
+        runtime.start(server);
+        try {
+            Files.writeString(game.resolve("config/wormholes/wormholes.toml"),
+                "schema = 3\n[main]\nshared-singleplayer-store = true\n");
+            CompletableFuture<WormholesSettings> reload = runtime.configuration().reload();
+            Runnable apply = serverTasks.poll(5L, TimeUnit.SECONDS);
+            assertNotNull(apply);
+            apply.run();
+            assertTrue(reload.get(5L, TimeUnit.SECONDS).getMain().sharedSingleplayerStore);
+            assertEquals(MinecraftStorePaths.singleplayer(game, save, false), runtime.stores());
+        } finally {
+            runtime.stop();
+        }
+        runtime.start(server);
+        assertEquals(MinecraftStorePaths.singleplayer(game, save, true), runtime.stores());
+        runtime.stop();
+    }
+
+    private MinecraftServer singleplayer(Path save) {
+        MinecraftServer server = server();
+        when(server.isDedicatedServer()).thenReturn(false);
+        when(server.getWorldPath(LevelResource.ROOT)).thenReturn(save.resolve("."));
+        return server;
+    }
+
     private MinecraftServer server() {
         MinecraftServer server = mock(MinecraftServer.class);
+        when(server.isDedicatedServer()).thenReturn(true);
         PlayerList players = mock(PlayerList.class);
         when(players.getPlayers()).thenReturn(List.of());
         when(server.getPlayerList()).thenReturn(players);

@@ -93,7 +93,7 @@ public class MinecraftBackupsTest extends MinecraftTestBase {
         when(doors.state()).thenReturn(state);
         when(state.snapshot()).thenReturn(new DoorStoreSnapshot(DoorStoreSnapshot.CURRENT_SCHEMA, 42L,
             List.of(), List.of(), List.of(), List.of(), List.of()));
-        when(server.getServerDirectory()).thenReturn(root);
+        when(runtime.stores()).thenReturn(MinecraftStorePaths.dedicated(root));
         doAnswer(invocation -> { invocation.<Runnable>getArgument(0).run(); return null; }).when(server).execute(any());
         CountDownLatch restarted = new CountDownLatch(1);
         doAnswer(invocation -> { restarted.countDown(); return null; }).when(runtime).start(server);
@@ -104,5 +104,42 @@ public class MinecraftBackupsTest extends MinecraftTestBase {
         assertFalse(Files.exists(data.resolve(WormholesSettings.CONFIG_FILE_NAME)));
         assertEquals("world data", Files.readString(world));
         assertEquals(42L, DimensionalDoorRepository.under(data, MinecraftJsonDocuments.INSTANCE).load().nextPocketSlot());
+    }
+
+    @Test
+    public void resetClearsSharedPortalDataAndOnlyThisWorldsDoors() throws Exception {
+        Path game = temporary.newFolder().toPath();
+        Path save = game.resolve("saves/World");
+        MinecraftStorePaths stores = MinecraftStorePaths.singleplayer(game, save, true);
+        Files.createDirectories(stores.data().resolve("portals"));
+        Files.writeString(stores.data().resolve("portals/portal.json"), "{}");
+        Files.writeString(stores.config().resolve(WormholesSettings.CONFIG_FILE_NAME), "old");
+        Files.createDirectories(stores.doors().resolve("pockets/templates"));
+        Files.writeString(stores.doors().resolve("pockets/templates/room.nbt"), "nbt");
+        Path region = save.resolve("region/r.0.0.mca");
+        Files.createDirectories(region.getParent());
+        Files.writeString(region, "world data");
+        WormholesModRuntime runtime = mock(WormholesModRuntime.class);
+        MinecraftServer server = mock(MinecraftServer.class);
+        MinecraftDoorService doors = mock(MinecraftDoorService.class);
+        DoorStateService state = mock(DoorStateService.class);
+        when(runtime.server()).thenReturn(server);
+        when(runtime.stores()).thenReturn(stores);
+        when(runtime.doors()).thenReturn(doors);
+        when(doors.resetAllowed()).thenReturn(true);
+        when(doors.state()).thenReturn(state);
+        when(state.snapshot()).thenReturn(new DoorStoreSnapshot(DoorStoreSnapshot.CURRENT_SCHEMA, 7L,
+            List.of(), List.of(), List.of(), List.of(), List.of()));
+        doAnswer(invocation -> { invocation.<Runnable>getArgument(0).run(); return null; }).when(server).execute(any());
+        CountDownLatch restarted = new CountDownLatch(1);
+        doAnswer(invocation -> { restarted.countDown(); return null; }).when(runtime).start(server);
+        assertEquals(1, new MinecraftBackups(runtime).reset(mock(CommandSourceStack.class)));
+        assertTrue(restarted.await(5, TimeUnit.SECONDS));
+        assertFalse(Files.exists(stores.data().resolve("portals/portal.json")));
+        assertFalse(Files.exists(stores.config().resolve(WormholesSettings.CONFIG_FILE_NAME)));
+        assertFalse(Files.exists(stores.doors().resolve("pockets/templates/room.nbt")));
+        assertFalse(Files.exists(stores.data().resolve("doors")));
+        assertEquals("world data", Files.readString(region));
+        assertEquals(7L, DimensionalDoorRepository.under(stores.doors(), MinecraftJsonDocuments.INSTANCE).load().nextPocketSlot());
     }
 }

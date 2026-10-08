@@ -60,4 +60,7 @@ public class MainConfig {
     public double chunkSendRateTarget = 1000.0;
     @ConfigDescription("Target per-player chunk load rate in chunks per second. Paper's compiled default is 100. Zero or negative means unlimited, and anything above 10000 is treated as unlimited.")
     public double chunkLoadRateTarget = 1000.0;
+
+    @ConfigDescription("Fabric, Forge and NeoForge singleplayer only: keep portals, atlas discoveries, Nexus networks, rule templates, backups, and network identity in config/wormholes in the game folder, shared by every singleplayer world, instead of in each world's save folder. Dimensional doors and pocket rooms always stay with their world. Takes effect the next time a world is opened.")
+    public boolean sharedSingleplayerStore = false;
 }

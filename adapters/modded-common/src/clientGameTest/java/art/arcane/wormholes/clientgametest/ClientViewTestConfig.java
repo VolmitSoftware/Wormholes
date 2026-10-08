@@ -28,20 +28,25 @@ final class ClientViewTestConfig {
     }
 
     static void enable() {
-        write(true, true);
+        write(true, true, false);
     }
 
     static void enable(boolean lightingFidelity) {
-        write(lightingFidelity, true);
+        write(lightingFidelity, true, false);
     }
 
     static void enableSeamless(boolean seamlessTravel) {
-        write(true, seamlessTravel);
+        write(true, seamlessTravel, false);
     }
 
-    private static void write(boolean lightingFidelity, boolean seamlessTravel) {
+    static void enableSharedStore(boolean sharedStore) {
+        write(true, true, sharedStore);
+    }
+
+    private static void write(boolean lightingFidelity, boolean seamlessTravel, boolean sharedStore) {
         Path directory = Path.of("config", "wormholes");
         WormholesConfigFile file = new WormholesConfigFile();
+        file.main.sharedSingleplayerStore = sharedStore;
         file.clientView.enabled = true;
         file.clientView.seamlessTravel = seamlessTravel;
         file.render.lightingFidelity = lightingFidelity;

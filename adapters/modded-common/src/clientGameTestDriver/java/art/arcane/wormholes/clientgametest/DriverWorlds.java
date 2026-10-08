@@ -21,14 +21,6 @@ import net.minecraft.world.level.gamerules.GameRules;
 import net.minecraft.world.level.levelgen.presets.WorldPreset;
 import net.minecraft.world.level.levelgen.presets.WorldPresets;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Comparator;
-import java.util.List;
-import java.util.stream.Stream;
-
 final class DriverWorlds {
     private static final int LOAD_TIMEOUT_TICKS = 1200;
 
@@ -39,7 +31,6 @@ final class DriverWorlds {
     }
 
     void singleplayer(Runnable body) {
-        client.runOnClient(DriverWorlds::clearPortalStore);
         client.runOnClient(DriverWorlds::openCreateWorld);
         client.clickButton("selectWorld.create");
         awaitWorld();
@@ -90,21 +81,6 @@ final class DriverWorlds {
     private void returnToTitle() {
         client.waitTicks(2);
         client.runOnClient(minecraft -> minecraft.gui.setScreen(new TitleScreen()));
-    }
-
-    private static void clearPortalStore(Minecraft minecraft) {
-        Path store = minecraft.gameDirectory.toPath().resolve("config/wormholes/portals");
-        if (!Files.isDirectory(store)) {
-            return;
-        }
-        try (Stream<Path> paths = Files.walk(store)) {
-            List<Path> ordered = paths.sorted(Comparator.reverseOrder()).toList();
-            for (Path path : ordered) {
-                Files.delete(path);
-            }
-        } catch (IOException failure) {
-            throw new UncheckedIOException("singleplayer portal store could not be cleared at " + store, failure);
-        }
     }
 
     private static void openCreateWorld(Minecraft minecraft) {

@@ -93,7 +93,7 @@ final class MinecraftDiagnostics implements AutoCloseable {
         }
         long submitted = generation;
         String state = stats.capture();
-        Path path = runtime.server().getServerDirectory().resolve("config/wormholes/debug/report-" + System.currentTimeMillis() + "-" + UUID.randomUUID() + ".txt");
+        Path path = runtime.stores().config().resolve("debug").resolve("report-" + System.currentTimeMillis() + "-" + UUID.randomUUID() + ".txt");
         pending = CompletableFuture.supplyAsync(() -> write(path, report(state), upload), writer);
         pending.whenCompleteAsync((result, failure) -> {
             if (generation != submitted || !runtime.running()) {
