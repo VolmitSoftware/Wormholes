@@ -2,6 +2,7 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
+import art.arcane.wormholes.modded.client.render.stencil.PortalStencilRenderer;
 import art.arcane.wormholes.modded.client.render.stencil.PortalViews;
 
 import art.arcane.wormholes.modded.mixin.client.DebugScreenEntriesAccessor;
@@ -207,6 +208,7 @@ public final class WormholesClient {
         }
         seamlessTravel.clear();
         portalViews.clear();
+        PortalStencilRenderer.instance().clear();
         ClientSodiumTerrain.clear();
         reflections.clear(null, null);
         detach();
@@ -262,7 +264,7 @@ public final class WormholesClient {
             + " unknown=" + current.palette().unknownStates()
             + " entities=" + (state == null || state.entities() == null ? 0 : state.entities().spawned())
             + " fx=" + (state == null || state.fx() == null ? 0 : state.fx().emitters())
-            + " " + ClientPortalRenderer.instance().debugLine();
+            + " " + ClientPortalRenderer.instance().debugLine() + " " + PortalStencilRenderer.instance().debugLine();
     }
 
     public WormholesClientConfig config() {

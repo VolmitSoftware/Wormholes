@@ -25,7 +25,11 @@ abstract class VerifyModdedArtifact extends DefaultTask {
                                      'client.ClientWorldMinecraftAccess', 'client.ClientWorldMinecraftMixin',
                                      'client.ClientWorldLevelRendererAccess', 'client.ClientWorldExtractorAccess',
                                      'client.ClientWorldExtractorMixin', 'client.ClientWorldSkyAccess',
-                                     'client.ClientWorldCloudAccess', 'client.ClientWorldOcclusionAccess'] as Set
+                                     'client.ClientWorldCloudAccess', 'client.ClientWorldOcclusionAccess',
+                                     'client.PortalLevelRendererAccess', 'client.PortalGameRendererAccess',
+                                     'client.PortalLevelExtractorAccess', 'client.PortalLevelExtractorMixin',
+                                     'client.PortalClipShaderMixin', 'client.PortalClipProjectionMixin',
+                                     'client.PortalStencilPipelinesMixin'] as Set
 
     @InputFile
     @PathSensitive(PathSensitivity.NONE)
