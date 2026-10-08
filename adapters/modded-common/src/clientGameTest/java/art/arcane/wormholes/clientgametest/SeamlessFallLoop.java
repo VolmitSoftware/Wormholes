@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 import static art.arcane.wormholes.clientgametest.NativeClientViewAssertions.runtime;
 
@@ -56,22 +57,25 @@ final class SeamlessFallLoop {
         SeamlessScenario.assertSeamlessNegotiated(client);
         Loop loop = server.buildFallLoop();
         List<UUID> fallers = loop.fallers();
-        ServerPacketDelivery.waitFor(client, SeamlessScenario::ready, ARM_TIMEOUT_TICKS, label + ": the fall loop portals did not arm");
         client.waitForChunksDownload();
-        ServerPacketDelivery.ticks(client, SETTLE_TICKS);
-        ServerPacketDelivery.waitFor(client, minecraft -> visible(minecraft, fallers), ARM_TIMEOUT_TICKS, label + ": the fall loop entities were not visible");
-        client.runOnClient(minecraft -> TravelTap.reset());
         List<Sample> player = new ArrayList<>(LOOP_TICKS);
         List<List<Observation>> observed = new ArrayList<>(fallers.size());
         for (int index = 0; index < fallers.size(); index++) {
             observed.add(new ArrayList<>(LOOP_TICKS));
         }
-        for (int tick = 0; tick < LOOP_TICKS; tick++) {
-            ServerPacketDelivery.tick(client);
-            player.add(client.computeOnClient(minecraft -> new Sample(minecraft.player.position(), minecraft.player.getDeltaMovement().y)));
-            for (int index = 0; index < fallers.size(); index++) {
-                UUID id = fallers.get(index);
-                observed.get(index).add(client.computeOnClient(minecraft -> observe(minecraft, id)));
+        try (TickStepper stepper = client.lockstep()) {
+            await(stepper, SeamlessScenario::ready, label + ": the fall loop portals did not arm");
+            for (int tick = 0; tick < SETTLE_TICKS; tick++) {
+                stepper.step(minecraft -> Boolean.TRUE);
+            }
+            await(stepper, minecraft -> visible(minecraft, fallers), label + ": the fall loop entities were not visible");
+            client.runOnClient(minecraft -> TravelTap.reset());
+            for (int tick = 0; tick < LOOP_TICKS; tick++) {
+                Snapshot snapshot = stepper.step(minecraft -> snapshot(minecraft, fallers));
+                player.add(snapshot.player());
+                for (int index = 0; index < fallers.size(); index++) {
+                    observed.get(index).add(snapshot.entities().get(index));
+                }
             }
         }
         List<String> failures = new ArrayList<>();
@@ -147,6 +151,23 @@ final class SeamlessFallLoop {
         SeamlessScenario.assertTrue(runtime.portals().link(player, up.getId(), down.getId()), "floor portal link rejected");
         SeamlessScenario.assertTrue(runtime.portals().link(player, down.getId(), up.getId()), "ceiling portal link rejected");
         return List.of(up.getId(), down.getId());
+    }
+
+    private static void await(TickStepper stepper, Predicate<Minecraft> condition, String failure) {
+        for (int tick = 0; tick <= ARM_TIMEOUT_TICKS; tick++) {
+            if (stepper.step(condition::test)) {
+                return;
+            }
+        }
+        throw new AssertionError(failure + " within " + ARM_TIMEOUT_TICKS + " ticks");
+    }
+
+    private static Snapshot snapshot(Minecraft minecraft, List<UUID> fallers) {
+        List<Observation> entities = new ArrayList<>(fallers.size());
+        for (UUID id : fallers) {
+            entities.add(observe(minecraft, id));
+        }
+        return new Snapshot(new Sample(minecraft.player.position(), minecraft.player.getDeltaMovement().y), entities);
     }
 
     private static boolean visible(Minecraft minecraft, List<UUID> fallers) {
@@ -297,5 +318,8 @@ final class SeamlessFallLoop {
     }
 
     private record Observation(Vec3 position, int tick) {
+    }
+
+    private record Snapshot(Sample player, List<Observation> entities) {
     }
 }

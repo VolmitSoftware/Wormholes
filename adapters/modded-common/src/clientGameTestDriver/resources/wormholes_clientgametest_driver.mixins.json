@@ -5,6 +5,8 @@
   "compatibilityLevel": "JAVA_21",
   "client": [
     "CursorFrameTap",
+    "LockstepClientTicks",
+    "LockstepServerTicks",
     "QaReplyTap"
   ],
   "injectors": {

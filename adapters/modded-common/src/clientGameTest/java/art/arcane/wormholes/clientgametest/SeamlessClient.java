@@ -30,4 +30,6 @@ interface SeamlessClient {
     void moveCursor(double deltaX, double deltaY);
 
     void restoreDefaultGameOptions();
+
+    TickStepper lockstep();
 }

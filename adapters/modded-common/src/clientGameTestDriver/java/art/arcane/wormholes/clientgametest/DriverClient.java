@@ -17,6 +17,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.locks.LockSupport;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -26,6 +27,7 @@ final class DriverClient implements SeamlessClient {
     private static final long STALL_MILLIS = 120_000L;
     private static final int CHUNK_TIMEOUT_TICKS = 1200;
     private static final String REPLY_PREFIX = "[whqa] ";
+    private static final long LOCKSTEP_POLL_NANOS = 200_000L;
 
     private final Minecraft minecraft;
     private final Object tickLock = new Object();
@@ -134,6 +136,13 @@ final class DriverClient implements SeamlessClient {
         releaseForward();
     }
 
+    @Override
+    public TickStepper lockstep() {
+        ServerPacketDelivery.Channels channels = computeOnClient(ServerPacketDelivery::channels);
+        DriverLockstep.activate();
+        return new Lockstep(this, channels);
+    }
+
     void ticked() {
         synchronized (tickLock) {
             ticks++;
@@ -226,6 +235,16 @@ final class DriverClient implements SeamlessClient {
         return false;
     }
 
+    private static void awaitServerTick(long before) {
+        long deadline = System.currentTimeMillis() + STALL_MILLIS;
+        while (DriverLockstep.serverTicks() <= before) {
+            if (System.currentTimeMillis() > deadline) {
+                throw new AssertionError("the integrated server did not tick within " + STALL_MILLIS + " ms");
+            }
+            LockSupport.parkNanos(LOCKSTEP_POLL_NANOS);
+        }
+    }
+
     private static <T> T await(CompletableFuture<T> future) {
         try {
             return future.get(STALL_MILLIS, TimeUnit.MILLISECONDS);
@@ -243,6 +262,25 @@ final class DriverClient implements SeamlessClient {
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
             throw new AssertionError("interrupted while waiting for the client", interrupted);
+        }
+    }
+
+    private record Lockstep(DriverClient client, ServerPacketDelivery.Channels channels) implements TickStepper {
+        @Override
+        public <T> T step(Function<Minecraft, T> sample) {
+            ServerPacketDelivery.drain(channels.client(), channels.server());
+            long served = DriverLockstep.serverTicks();
+            DriverLockstep.permitServerTick();
+            awaitServerTick(served);
+            ServerPacketDelivery.drain(channels.server(), channels.client());
+            DriverLockstep.permitClientTick();
+            client.waitTicks(1);
+            return client.computeOnClient(sample);
+        }
+
+        @Override
+        public void close() {
+            DriverLockstep.deactivate();
         }
     }
 }

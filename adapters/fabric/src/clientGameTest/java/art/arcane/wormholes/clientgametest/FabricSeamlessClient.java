@@ -76,4 +76,9 @@ final class FabricSeamlessClient implements SeamlessClient {
     public void restoreDefaultGameOptions() {
         context.restoreDefaultGameOptions();
     }
+
+    @Override
+    public TickStepper lockstep() {
+        return ServerPacketDelivery.stepper(this);
+    }
 }
