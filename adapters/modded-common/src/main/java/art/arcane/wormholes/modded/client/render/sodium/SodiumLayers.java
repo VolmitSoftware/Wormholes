@@ -24,7 +24,7 @@ public final class SodiumLayers {
 
     public static DynamicGpuDataStorage.DynamicGpuData clipped(DynamicGpuDataStorage.DynamicGpuData globals, ChunkRenderMatrices matrices) {
         int offset = SodiumClipShaders.planeOffset();
-        if (offset < 0) {
+        if (offset < 0 || SodiumTerrainBackend.shaderTerrain()) {
             return globals;
         }
         return new SodiumClipUniforms(globals, offset, plane(matrices));

@@ -1,5 +1,7 @@
 package art.arcane.wormholes.modded.client.render.sodium;
 
+import art.arcane.wormholes.modded.client.render.stencil.PipelineBackend;
+import art.arcane.wormholes.modded.client.render.stencil.PortalBackends;
 import art.arcane.wormholes.modded.client.render.stencil.PortalLayer;
 import art.arcane.wormholes.modded.client.render.stencil.TerrainBackend;
 
@@ -9,6 +11,10 @@ public final class SodiumTerrainBackend implements TerrainBackend {
     private SodiumTerrainBackend() {
     }
 
+    static boolean shaderTerrain() {
+        return PortalBackends.pipeline() != PipelineBackend.NONE;
+    }
+
     @Override
     public String name() {
         return "sodium";
@@ -16,7 +22,7 @@ public final class SodiumTerrainBackend implements TerrainBackend {
 
     @Override
     public boolean clipsTerrain() {
-        return SodiumClipShaders.ready();
+        return SodiumClipShaders.ready() || shaderTerrain();
     }
 
     @Override

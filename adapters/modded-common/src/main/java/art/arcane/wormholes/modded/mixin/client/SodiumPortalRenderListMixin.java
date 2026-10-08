@@ -1,6 +1,5 @@
 package art.arcane.wormholes.modded.mixin.client;
 
-import art.arcane.wormholes.modded.client.render.sodium.SodiumLayers;
 import art.arcane.wormholes.modded.client.render.sodium.SodiumPortalRegion;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
@@ -16,6 +15,6 @@ public abstract class SodiumPortalRenderListMixin {
     @WrapOperation(method = "prepareForRender", at = @At(value = "INVOKE",
         target = "Lnet/caffeinemc/mods/sodium/client/render/chunk/region/RenderRegion;clearAllCachedBatches()V"))
     private void wormholes$clearOwnBatches(RenderRegion region, Operation<Void> original) {
-        ((SodiumPortalRegion) region).wormholes$clearListBatches(SodiumLayers.slot());
+        ((SodiumPortalRegion) region).wormholes$listChanged((ChunkRenderList) (Object) this);
     }
 }

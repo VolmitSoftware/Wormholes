@@ -1,5 +1,7 @@
 package art.arcane.wormholes.modded.client.render.sodium;
 
+import net.caffeinemc.mods.sodium.client.render.chunk.lists.ChunkRenderList;
+
 public interface SodiumPortalRegion {
-    void wormholes$clearListBatches(int slot);
+    void wormholes$listChanged(ChunkRenderList list);
 }
