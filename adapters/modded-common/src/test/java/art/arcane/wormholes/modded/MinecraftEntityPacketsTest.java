@@ -28,16 +28,18 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class MinecraftEntityPacketsTest extends MinecraftTestBase {
+    private static final int VEHICLE_ID = ProjectedEntityIdentity.MAX_ENTITY_ID;
+    private static final int RIDER_ID = ProjectedEntityIdentity.MIN_ENTITY_ID;
     private static final AtomicInteger ENTITY_IDS = new AtomicInteger(1);
 
     @Test
     public void projectedSwingUsesTheNativeAnimationActionAndFakeId() {
-        ClientboundSwingAnimationPacket packet = (ClientboundSwingAnimationPacket) MinecraftEntityPackets.animation(1_900_000_001,
+        ClientboundSwingAnimationPacket packet = (ClientboundSwingAnimationPacket) MinecraftEntityPackets.animation(VEHICLE_ID,
             MinecraftEntityPackets.ANIMATION_SWING_OFF_HAND);
-        assertEquals(1_900_000_001, packet.entityId());
+        assertEquals(VEHICLE_ID, packet.entityId());
         assertEquals(InteractionHand.OFF_HAND, packet.hand());
         assertEquals(MinecraftEntityPackets.ANIMATION_SWING_OFF_HAND, MinecraftEntityPackets.animationId(packet));
-        ClientboundAnimatePacket critical = (ClientboundAnimatePacket) MinecraftEntityPackets.animation(1_900_000_001,
+        ClientboundAnimatePacket critical = (ClientboundAnimatePacket) MinecraftEntityPackets.animation(VEHICLE_ID,
             MinecraftEntityPackets.ANIMATION_CRITICAL_HIT);
         assertEquals(ClientboundAnimatePacket.CRITICAL_HIT, critical.getAction());
         assertEquals(MinecraftEntityPackets.ANIMATION_CRITICAL_HIT, MinecraftEntityPackets.animationId(critical));
@@ -59,14 +61,14 @@ public class MinecraftEntityPacketsTest extends MinecraftTestBase {
 
     @Test
     public void relationshipsAndAbsoluteMotionUseFakeEntityIds() {
-        ClientboundSetPassengersPacket riders = MinecraftEntityPackets.passengersPacket(1_900_000_001, new int[] {1_900_000_002});
-        assertEquals(1_900_000_001, riders.getVehicle());
-        assertArrayEquals(new int[] {1_900_000_002}, riders.getPassengers());
-        ClientboundSetEntityLinkPacket leash = MinecraftEntityPackets.leashPacket(1_900_000_002, -1);
-        assertEquals(1_900_000_002, leash.getSourceId());
+        ClientboundSetPassengersPacket riders = MinecraftEntityPackets.passengersPacket(VEHICLE_ID, new int[] {RIDER_ID});
+        assertEquals(VEHICLE_ID, riders.getVehicle());
+        assertArrayEquals(new int[] {RIDER_ID}, riders.getPassengers());
+        ClientboundSetEntityLinkPacket leash = MinecraftEntityPackets.leashPacket(RIDER_ID, -1);
+        assertEquals(RIDER_ID, leash.getSourceId());
         assertEquals(-1, leash.getDestId());
         Vec3 position = new Vec3(-120.25D, 65.75D, 340.5D);
-        ClientboundTeleportEntityPacket teleport = MinecraftEntityPackets.teleport(1_900_000_001, position, 37.0F, -22.0F, true);
+        ClientboundTeleportEntityPacket teleport = MinecraftEntityPackets.teleport(VEHICLE_ID, position, 37.0F, -22.0F, true);
         assertEquals(position, teleport.change().position());
         assertTrue(teleport.relatives().isEmpty());
         assertTrue(teleport.onGround());

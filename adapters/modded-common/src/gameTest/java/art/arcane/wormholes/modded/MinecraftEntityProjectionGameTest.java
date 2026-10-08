@@ -8,6 +8,7 @@ import art.arcane.optics.occlusion.EntityOcclusion;
 import art.arcane.optics.occlusion.ViewOcclusion;
 import art.arcane.optics.view.ContentView;
 import art.arcane.optics.frame.OpticTransform;
+import art.arcane.wormholes.render.ProjectedEntityIdentity;
 import io.netty.channel.embedded.EmbeddedChannel;
 import com.mojang.authlib.GameProfile;
 import net.minecraft.network.Connection;
@@ -115,13 +116,13 @@ public final class MinecraftEntityProjectionGameTest {
         renderer.apply(view);
         options.channel().runPendingTasks();
         for (Object packet : options.channel().outboundMessages()) {
-            if (packet instanceof ClientboundAddEntityPacket spawn && spawn.getType() == EntityTypes.ARMOR_STAND && spawn.getId() >= 1_900_000_000) {
+            if (packet instanceof ClientboundAddEntityPacket spawn && spawn.getType() == EntityTypes.ARMOR_STAND && ProjectedEntityIdentity.isEntityId(spawn.getId())) {
                 fakeId = spawn.getId();
                 helper.assertTrue(Math.abs(spawn.getX() - display.x) < 0.01D && Math.abs(spawn.getZ() - display.z) < 0.01D,
                     "Projected entity spawn did not use portal coordinates");
             }
         }
-        helper.assertTrue(fakeId >= 1_900_000_000, "Native renderer sent no projected entity spawn");
+        helper.assertTrue(ProjectedEntityIdentity.isEntityId(fakeId), "Native renderer sent no projected entity spawn");
         helper.assertTrue(options.channel().outboundMessages().stream().anyMatch(packet -> packet instanceof ClientboundSetEntityDataPacket),
             "Native renderer sent no captured entity metadata");
         helper.assertTrue(runtime.projections().isEntityHidden(player.getUUID(), local.getUUID()), "Local entity behind aperture was not hidden");

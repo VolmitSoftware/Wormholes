@@ -2,13 +2,15 @@ package art.arcane.wormholes.modded.client;
 
 import java.util.function.IntPredicate;
 
+import art.arcane.wormholes.render.ProjectedEntityIdentity;
+
 public final class ClientEntityIds {
     public static final int NONE = 0;
     public static final int REFLECTION_SLOTS = 0x4000;
     public static final int REFLECTION_MIN = Integer.MIN_VALUE;
     public static final int REFLECTION_MAX = REFLECTION_MIN + REFLECTION_SLOTS - 1;
     public static final int PROJECTED_MIN = REFLECTION_MAX + 1;
-    public static final int PROJECTED_MAX = -0x10000000;
+    public static final int PROJECTED_MAX = ProjectedEntityIdentity.MIN_ENTITY_ID - 1;
 
     private ClientEntityIds() {
     }

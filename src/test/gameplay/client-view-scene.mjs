@@ -7,10 +7,15 @@ import {
   loadHarnessModule
 } from './support/clientview-client.mjs'
 
-const FAKE_ENTITY_ID_FLOOR = 1_900_000_000
+const FAKE_ENTITY_ID_MIN = -0x3FFFFFFF
+const FAKE_ENTITY_ID_MAX = -0x20000000
 const ENTITY_PACKETS = ['entity_velocity', 'rel_entity_move', 'entity_move_look', 'entity_look', 'sync_entity_position', 'entity_teleport']
 const SCENE_TYPES = ['ENTITY_FRAME', 'FX', 'ATMOSPHERE']
 const LIFECYCLE_PARTICLES = new Set(['end_rod', 'portal', 'reverse_portal', 'enchant', 'flash', 'electric_spark', 'smoke', 'explosion', 'sculk_soul', 'block'])
+
+function isWormholesEntityId(id) {
+  return id >= FAKE_ENTITY_ID_MIN && id <= FAKE_ENTITY_ID_MAX
+}
 
 function number(value, fallback) {
   if (value === undefined || value === '') return fallback
@@ -50,9 +55,9 @@ function sceneCounter(bot, center, lightRadius) {
   const state = { counting: false, entity: {}, particles: {}, light: 0, farLight: 0, lightChunks: {}, blockChanges: 0, wormholesEntityIds: new Set() }
   const onPacket = (data, meta) => {
     if (meta.state !== 'play') return
-    if (meta.name === 'spawn_entity' && data.entityId >= FAKE_ENTITY_ID_FLOOR) state.wormholesEntityIds.add(data.entityId)
+    if (meta.name === 'spawn_entity' && isWormholesEntityId(data.entityId)) state.wormholesEntityIds.add(data.entityId)
     if (!state.counting) return
-    if (ENTITY_PACKETS.includes(meta.name) && data.entityId >= FAKE_ENTITY_ID_FLOOR) {
+    if (ENTITY_PACKETS.includes(meta.name) && isWormholesEntityId(data.entityId)) {
       state.entity[meta.name] = (state.entity[meta.name] ?? 0) + 1
     }
     if (meta.name === 'world_particles') {

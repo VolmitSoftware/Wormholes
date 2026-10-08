@@ -23,11 +23,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import art.arcane.optics.entity.SpoofRegistry;
 import art.arcane.optics.entity.SpoofedEntity;
 import art.arcane.wormholes.platform.QueuedOpticsScheduler;
-import java.util.concurrent.atomic.AtomicInteger;
 
 final class ProjectedEntityAnimationTest {
-    private static final AtomicInteger ENTITY_IDS = new AtomicInteger(1);
-
     @ParameterizedTest
     @EnumSource(value = ServerVersion.class, names = {"V_26_1_2", "V_26_2", "V_26_3"})
     void bothHandsAndHurtSerializeForProjectedPlayersAndMobs(ServerVersion version) {
@@ -41,7 +38,7 @@ final class ProjectedEntityAnimationTest {
             ProjectedEntityRenderer renderer = new ProjectedEntityRenderer(output, registry, new QueuedOpticsScheduler());
             for (boolean player : new boolean[] {true, false}) {
                 UUID sourceId = player ? observer.getUniqueId() : UUID.randomUUID();
-                SpoofedEntity entity = SpoofedEntity.create(ENTITY_IDS::getAndIncrement, player, false, true);
+                SpoofedEntity entity = SpoofedEntity.create(output::allocateEntityId, player, false, true);
                 registry.track(sourceId, entity);
                 recorder.sent().clear();
 
@@ -96,7 +93,7 @@ final class ProjectedEntityAnimationTest {
             SpoofRegistry<Player, Vector3d> registry = new SpoofRegistry<>(output);
             ProjectedEntityRenderer renderer = new ProjectedEntityRenderer(output, registry, new QueuedOpticsScheduler());
             UUID sourceId = UUID.randomUUID();
-            registry.track(sourceId, SpoofedEntity.create(ENTITY_IDS::getAndIncrement, false, false, false));
+            registry.track(sourceId, SpoofedEntity.create(output::allocateEntityId, false, false, false));
 
             renderer.sendAnimation(observer, sourceId, EntityAnimationType.SWING_MAIN_ARM);
             renderer.sendAnimation(observer, sourceId, EntityAnimationType.SWING_OFF_HAND);

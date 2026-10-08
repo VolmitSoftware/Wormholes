@@ -87,8 +87,8 @@ public final class ProjectedItemFramePacketTest {
             assertEquals(Integer.valueOf(3), valueAt(metadataPackets.get(1).getEntityMetadata(), 10));
             List<WrapperPlayServerMapData> mapPackets = recorder.sentOfType(WrapperPlayServerMapData.class);
             assertEquals(1, mapPackets.size());
-            int virtualMapId = -spawns.get(1).getEntityId();
-            assertEquals(virtualMapId, mapPackets.get(0).getMapId());
+            int virtualMapId = mapPackets.get(0).getMapId();
+            assertTrue(virtualMapId < 0);
             ItemStack projectedMap = (ItemStack) valueAt(metadataPackets.get(1).getEntityMetadata(), 9);
             assertEquals(Integer.valueOf(virtualMapId),
                 projectedMap.getComponent(ComponentTypes.MAP_ID).orElseThrow());

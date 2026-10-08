@@ -508,7 +508,7 @@ public final class ProjectedEntityRenderer {
             renderer.sendAnimation(observer, sourceId, type);
         }
         int fakeId = registry.livingId(sourceId);
-        if (fakeId < 0) {
+        if (!ProjectedEntityIdentity.isEntityId(fakeId)) {
             // Swing/hurt animations are LivingEntity-only on the client (handleAnimate casts to
             // LivingEntity); sending one for a projected non-living entity (e.g. an arrow) crashes
             // the viewer with a ClassCastException.
@@ -533,7 +533,7 @@ public final class ProjectedEntityRenderer {
             renderer.sendHurt(observer, sourceId, yaw);
         }
         int fakeId = registry.livingId(sourceId);
-        if (fakeId < 0) {
+        if (!ProjectedEntityIdentity.isEntityId(fakeId)) {
             return;
         }
         channel.send(observer, new WrapperPlayServerHurtAnimation(fakeId, yaw));

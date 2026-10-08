@@ -59,7 +59,6 @@ public final class PortalSkinRenderer {
     private static final int FULL_BRIGHT = (15 << 4) | (15 << 20);
     private static final float VIEW_RANGE = 64.0F;
     private static final long SHUTDOWN_WAIT_MILLIS = 2_000L;
-    private static final AtomicInteger NEXT_SKIN_ID = new AtomicInteger(1_800_000_000);
     private static final ObserverScheduler ENTITY_SCHEDULER = PortalSkinRenderer::scheduleObserverTask;
 
     private final ProjectionClaimArbiter claimArbiter;
@@ -447,7 +446,7 @@ public final class PortalSkinRenderer {
         RuntimeException failure = null;
         try {
             for (SkinTransform pane : panes) {
-                int id = NEXT_SKIN_ID.getAndIncrement();
+                int id = ProjectedEntityIdentity.nextEntityId();
                 ids[allocatedCount] = id;
                 allocatedCount++;
                 sendDisplay(observer, user, id, pane, globalId);

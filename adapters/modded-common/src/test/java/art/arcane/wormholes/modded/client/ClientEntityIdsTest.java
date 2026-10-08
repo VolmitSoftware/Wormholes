@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.render.ProjectedEntityIdentity;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import org.junit.Test;
 
@@ -21,6 +22,18 @@ public class ClientEntityIdsTest {
         }
         assertFalse(ClientEntityIds.isProjected(0));
         assertFalse(ClientEntityIds.isReflection(0));
+    }
+
+    @Test
+    public void clientRangesStayClearOfServerProjectedEntityIds() {
+        assertTrue(ClientEntityIds.PROJECTED_MAX < ProjectedEntityIdentity.MIN_ENTITY_ID);
+        int[] edges = {ClientEntityIds.REFLECTION_MIN, ClientEntityIds.REFLECTION_MAX, ClientEntityIds.PROJECTED_MIN, ClientEntityIds.PROJECTED_MAX};
+        for (int id : edges) {
+            assertFalse("client id " + id + " overlaps the server projected range", ProjectedEntityIdentity.isEntityId(id));
+        }
+        assertFalse(ClientEntityIds.isProjected(ProjectedEntityIdentity.MIN_ENTITY_ID));
+        assertFalse(ClientEntityIds.isProjected(ProjectedEntityIdentity.MAX_ENTITY_ID));
+        assertFalse(ClientEntityIds.isReflection(ProjectedEntityIdentity.MIN_ENTITY_ID));
     }
 
     @Test

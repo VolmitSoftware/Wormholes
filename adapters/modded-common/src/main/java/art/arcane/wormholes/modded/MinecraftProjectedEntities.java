@@ -12,6 +12,7 @@ import art.arcane.optics.recursion.EntityPath;
 import art.arcane.optics.entity.SpoofRegistry;
 import art.arcane.optics.entity.SnapshotProjector;
 import art.arcane.wormholes.render.FidelitySettings;
+import art.arcane.wormholes.render.ProjectedEntityIdentity;
 import art.arcane.optics.volume.ViewVolume;
 import art.arcane.optics.occlusion.EntityOcclusion;
 import art.arcane.optics.volume.LocalEntityEnvelope;
@@ -101,7 +102,7 @@ public final class MinecraftProjectedEntities implements AutoCloseable {
             child.event(event);
         }
         int fakeId = registry.livingId(event.entityId());
-        if (fakeId < 0) {
+        if (!ProjectedEntityIdentity.isEntityId(fakeId)) {
             return;
         }
         if (event.hurt()) {
