@@ -74,6 +74,10 @@ public final class NeoForgeGameTests {
             WormholesGameTests.REMOTE_VIEW, () -> WormholesGameTests::remoteView));
         bus.addListener((RegisterEvent event) -> event.register(Registries.TEST_FUNCTION,
             WormholesGameTests.APERTURE_SHAPE_RUNTIME, () -> WormholesGameTests::apertureShapeRuntime));
+        bus.addListener((RegisterEvent event) -> event.register(Registries.TEST_FUNCTION,
+            WormholesGameTests.LOOK_CONTINUITY_RUNTIME, () -> WormholesGameTests::lookContinuityRuntime));
+        bus.addListener((RegisterEvent event) -> event.register(Registries.TEST_FUNCTION,
+            WormholesGameTests.SCALED_TRAVEL_RUNTIME, () -> WormholesGameTests::scaledTravelRuntime));
         NeoForge.EVENT_BUS.addListener((RegisterCommandsEvent event) -> WormholesGameTests.RUNTIME.registerCommands(event.getDispatcher()));
         NeoForge.EVENT_BUS.addListener((ServerStartedEvent event) -> WormholesGameTests.start(event.getServer()));
         NeoForge.EVENT_BUS.addListener((ServerTickEvent.Post event) -> tick());

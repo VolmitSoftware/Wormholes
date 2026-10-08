@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "wormholes:scaled_travel_runtime",
+  "environment": "wormholes:scaled_travel_runtime",
+  "structure": "wormholes:empty",
+  "max_ticks": 600,
+  "setup_ticks": 5,
+  "sky_access": true
+}

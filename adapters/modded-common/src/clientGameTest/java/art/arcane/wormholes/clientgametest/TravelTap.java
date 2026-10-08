@@ -7,7 +7,9 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.LevelLoadingScreen;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Vector3fc;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -22,6 +24,7 @@ public final class TravelTap {
     private static final AtomicInteger ACCEPTS = new AtomicInteger();
     private static final IntList RESPAWN_FRAMES = new IntArrayList();
     private static final IntList POSITION_FRAMES = new IntArrayList();
+    private static final List<ScalePacket> SCALE_PACKETS = new ArrayList<>();
     private static int respawns;
     private static int positions;
     private static boolean loadingScreen;
@@ -37,6 +40,7 @@ public final class TravelTap {
         ADDED.clear();
         RESPAWN_FRAMES.clear();
         POSITION_FRAMES.clear();
+        SCALE_PACKETS.clear();
         ACCEPTS.set(0);
         respawns = 0;
         positions = 0;
@@ -52,6 +56,14 @@ public final class TravelTap {
     public static synchronized void position() {
         positions++;
         POSITION_FRAMES.add(FRAMES.size());
+    }
+
+    public static synchronized void scalePacket(double before) {
+        SCALE_PACKETS.add(new ScalePacket(FRAMES.size(), before));
+    }
+
+    public static synchronized List<ScalePacket> scalePackets() {
+        return List.copyOf(SCALE_PACKETS);
     }
 
     public static synchronized String events() {
@@ -93,7 +105,8 @@ public final class TravelTap {
             minecraft.level.dimension().identifier().toString(), System.identityHashCode(minecraft.level),
             System.identityHashCode(minecraft.player), gameTicks + minecraft.getDeltaTracker().getGameTimeDeltaPartialTick(true),
             minecraft.player.position().distanceTo(new Vec3(minecraft.player.xo, minecraft.player.yo, minecraft.player.zo)),
-            Mth.wrapDegrees(minecraft.player.getYRot() - minecraft.player.yHeadRot), 0L));
+            Mth.wrapDegrees(minecraft.player.getYRot() - minecraft.player.yHeadRot), 0L, vector(camera.forwardVector()), vector(camera.upVector()),
+            minecraft.player.getAttributeValue(Attributes.SCALE), System.nanoTime()));
     }
 
     public static synchronized List<Frame> frames() {
@@ -146,6 +159,10 @@ public final class TravelTap {
         return -1;
     }
 
+    private static Vec3 vector(Vector3fc vector) {
+        return new Vec3(vector.x(), vector.y(), vector.z());
+    }
+
     private static int countSince(IntList frames, int frame) {
         int count = 0;
         for (int index = 0; index < frames.size(); index++) {
@@ -157,9 +174,12 @@ public final class TravelTap {
     }
 
     public record Frame(int index, Vec3 camera, float yaw, float pitch, String dimension, int level, int player, double clock, double tickSpeed,
-                        float headLag, long tickNanos) {
+                        float headLag, long tickNanos, Vec3 forward, Vec3 up, double scale, long wallNanos) {
         Frame withTickNanos(long nanos) {
-            return new Frame(index, camera, yaw, pitch, dimension, level, player, clock, tickSpeed, headLag, nanos);
+            return new Frame(index, camera, yaw, pitch, dimension, level, player, clock, tickSpeed, headLag, nanos, forward, up, scale, wallNanos);
         }
+    }
+
+    public record ScalePacket(int frame, double before) {
     }
 }

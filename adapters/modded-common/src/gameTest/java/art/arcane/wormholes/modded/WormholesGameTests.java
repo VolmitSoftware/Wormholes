@@ -69,6 +69,8 @@ public final class WormholesGameTests {
     public static final Identifier SEAMLESS_VALIDATION = Identifier.fromNamespaceAndPath("wormholes", "seamless_validation");
     public static final Identifier REMOTE_VIEW = Identifier.fromNamespaceAndPath("wormholes", "remote_view");
     public static final Identifier APERTURE_SHAPE_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "aperture_shape_runtime");
+    public static final Identifier LOOK_CONTINUITY_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "look_continuity_runtime");
+    public static final Identifier SCALED_TRAVEL_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "scaled_travel_runtime");
     private static final Set<CompletableFuture<?>> REPORTED_FAILURES = new HashSet<>();
     private static final Logger LOGGER = LoggerFactory.getLogger("WormholesGameTest");
 
@@ -117,6 +119,14 @@ public final class WormholesGameTests {
 
     public static void apertureShapeRuntime(GameTestHelper helper) {
         MinecraftApertureShapeGameTest.run(helper);
+    }
+
+    public static void lookContinuityRuntime(GameTestHelper helper) {
+        MinecraftLookContinuityGameTest.run(helper);
+    }
+
+    public static void scaledTravelRuntime(GameTestHelper helper) {
+        MinecraftScaledTravelGameTest.run(helper);
     }
 
     public static void opsRuntime(GameTestHelper helper) {

@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "wormholes:look_continuity_runtime",
+  "environment": "wormholes:look_continuity_runtime",
+  "structure": "wormholes:empty",
+  "max_ticks": 600,
+  "setup_ticks": 5,
+  "sky_access": true
+}
