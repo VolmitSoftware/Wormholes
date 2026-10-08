@@ -35,7 +35,6 @@ import org.joml.Matrix4f;
 import java.util.Collection;
 
 public final class ClientCrossingView {
-    private static final boolean IRIS = ClientCrossingView.class.getClassLoader().getResource("net/irisshaders/iris/Iris.class") != null;
     private static final double BOB_FULL_DISTANCE = 2.0D;
     private static final double BOB_NONE_DISTANCE = 1.0D;
     private static final double BOB_RECOVERY = 0.1D;
@@ -160,7 +159,7 @@ public final class ClientCrossingView {
 
     private void enter(Minecraft minecraft, Camera camera, LocalPlayer player, TravelMessage.TravelBegin arm, Vec3 eye) {
         ClientLevel level = arm.resident() ? residents.level(arm.levelHandle()) : minecraft.level;
-        if (level == null || level != minecraft.level && IRIS) {
+        if (level == null) {
             return;
         }
         Vec3 position = camera.position();
