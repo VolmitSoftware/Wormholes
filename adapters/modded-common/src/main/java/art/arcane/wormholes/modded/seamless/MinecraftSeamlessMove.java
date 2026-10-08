@@ -56,6 +56,12 @@ public final class MinecraftSeamlessMove implements SeamlessMove.Steps {
         return moved;
     }
 
+    static List<ClientboundGameEventPacket> weather(boolean raining, float rainLevel, float thunderLevel) {
+        return List.of(new ClientboundGameEventPacket(raining ? ClientboundGameEventPacket.START_RAINING : ClientboundGameEventPacket.STOP_RAINING, 0.0F),
+            new ClientboundGameEventPacket(ClientboundGameEventPacket.RAIN_LEVEL_CHANGE, rainLevel),
+            new ClientboundGameEventPacket(ClientboundGameEventPacket.THUNDER_LEVEL_CHANGE, thunderLevel));
+    }
+
     @Override
     public void moving(boolean moving) {
         context.runtime().seamlessMoving(context.player(), moving);
@@ -133,12 +139,8 @@ public final class MinecraftSeamlessMove implements SeamlessMove.Steps {
         player.connection.send(new ClientboundInitializeBorderPacket(destination.getWorldBorder()));
         player.connection.send(destination.getServer().clockManager().createFullSyncPacket());
         player.connection.send(new ClientboundSetDefaultSpawnPositionPacket(destination.getRespawnData()));
-        if (destination.isRaining()) {
-            player.connection.send(new ClientboundGameEventPacket(ClientboundGameEventPacket.START_RAINING, 0.0F));
-            player.connection.send(new ClientboundGameEventPacket(ClientboundGameEventPacket.RAIN_LEVEL_CHANGE, destination.getRainLevel(1.0F)));
-            player.connection.send(new ClientboundGameEventPacket(ClientboundGameEventPacket.THUNDER_LEVEL_CHANGE, destination.getThunderLevel(1.0F)));
-        } else {
-            player.connection.send(new ClientboundGameEventPacket(ClientboundGameEventPacket.STOP_RAINING, 0.0F));
+        for (ClientboundGameEventPacket weather : weather(destination.isRaining(), destination.getRainLevel(1.0F), destination.getThunderLevel(1.0F))) {
+            player.connection.send(weather);
         }
         player.connection.send(new ClientboundChangeDifficultyPacket(data.getDifficulty(), data.isDifficultyLocked()));
     }
