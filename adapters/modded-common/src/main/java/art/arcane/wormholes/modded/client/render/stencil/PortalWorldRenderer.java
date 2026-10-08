@@ -8,6 +8,7 @@ package art.arcane.wormholes.modded.client.render.stencil;
 
 import art.arcane.optics.frame.Similarity;
 import art.arcane.optics.math.Vec3d;
+import art.arcane.wormholes.modded.client.WormholesClient;
 import art.arcane.wormholes.modded.client.world.ClientWorldLoader;
 import art.arcane.wormholes.modded.mixin.client.ClientWorldExtractorAccess;
 import art.arcane.wormholes.modded.mixin.client.ClientWorldGameRendererAccess;
@@ -149,7 +150,8 @@ final class PortalWorldRenderer {
         EnvironmentAttributeProbe probe = ClientWorldLoader.portalProbe(destination, innerPosition);
         LocalPlayer player = minecraft.player;
         PortalCamera portalCamera = layer.camera();
-        portalCamera.place(destination, player, innerPosition, view3, projection, frustum, probe, detached(player, destination, innerPosition));
+        portalCamera.place(destination, player, innerPosition, view3, projection, frustum, probe,
+            showsPlayer(view, player, destination, innerPosition));
         boolean sharedRenderer = renderer == homeRenderer || renderers.contains(renderer);
         LevelRenderState state = layer.state();
         PortalLevelRendererAccess rendererAccess = (PortalLevelRendererAccess) renderer;
@@ -319,6 +321,13 @@ final class PortalWorldRenderer {
         target.projectionMatrix.set(projection);
         target.viewRotationMatrix.set(view);
         target.entityRenderState = outer.entityRenderState;
+    }
+
+    private static boolean showsPlayer(PortalView view, LocalPlayer player, ClientLevel destination, Vec3 camera) {
+        if (view.kind() == PortalView.Kind.MIRROR && !WormholesClient.instance().config().selfReflection) {
+            return false;
+        }
+        return detached(player, destination, camera);
     }
 
     private static boolean detached(LocalPlayer player, ClientLevel destination, Vec3 camera) {

@@ -10,6 +10,7 @@ package art.arcane.wormholes.modded.client.render.stencil;
 import art.arcane.optics.aperture.ApertureDescriptor;
 import art.arcane.optics.math.Box;
 import art.arcane.optics.math.Vec3d;
+import art.arcane.optics.stream.ViewStreamCapability;
 import art.arcane.wormholes.modded.client.WormholesClient;
 import art.arcane.wormholes.modded.client.WormholesClientConfig;
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
@@ -264,7 +265,8 @@ public final class PortalStencilRenderer {
         Vec3 eye = player.getEyePosition();
         WormholesClientConfig config = client.config();
         client.portalViews().frame(home, new Vec3d(eye.x, eye.y, eye.z), client.seamlessTravel().arms(),
-            config.clientMirror && client.session().active() && client.viewsAttachedTo(home), config.clientRecursion,
+            config.clientMirror && client.session().active() && client.session().has(ViewStreamCapability.CLIENT_MIRROR)
+                && client.viewsAttachedTo(home), config.clientRecursion,
             client.session().portals().values());
         world.beginFrame(minecraft.level, renderer, minecraft.levelExtractor);
         if (!available(minecraft)) {
