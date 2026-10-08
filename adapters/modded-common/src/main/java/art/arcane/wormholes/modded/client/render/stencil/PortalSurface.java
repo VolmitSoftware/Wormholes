@@ -11,6 +11,8 @@ import org.joml.Matrix4d;
 import java.util.Objects;
 
 public final class PortalSurface {
+    private static final double COINCIDENT_BLOCKS = 1.0D;
+    private static final double COINCIDENT_ALIGNMENT = 0.99D;
     private static final Vec3d UNIT_X = new Vec3d(1.0D, 0.0D, 0.0D);
     private static final Vec3d UNIT_Y = new Vec3d(0.0D, 1.0D, 0.0D);
     private static final Vec3d UNIT_Z = new Vec3d(0.0D, 0.0D, 1.0D);
@@ -114,8 +116,14 @@ public final class PortalSurface {
             .m30(origin.x()).m31(origin.y()).m32(origin.z());
     }
 
-    public boolean sameSurface(PortalSurface other) {
-        return reversed == other.reversed && geometry.sameSurface(other.geometry) && placement.equals(other.placement);
+    public boolean coincides(PortalSurface other) {
+        return planePoint.distance(other.planePoint) < COINCIDENT_BLOCKS && servedNormal.dot(other.servedNormal) > COINCIDENT_ALIGNMENT;
+    }
+
+    public boolean sameOpening(ApertureDescriptor other) {
+        return placement.isRigid() && placement.rigid().isIdentity() && geometry.originX() == other.originX()
+            && geometry.originY() == other.originY() && geometry.originZ() == other.originZ() && geometry.facing() == other.facing()
+            && geometry.apertureWidth() == other.apertureWidth() && geometry.apertureHeight() == other.apertureHeight();
     }
 
     private static Vec3d localPlanePoint(ApertureDescriptor geometry) {

@@ -2,6 +2,7 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
 import art.arcane.wormholes.modded.client.render.ClientSodiumTerrain;
+import art.arcane.wormholes.modded.client.render.stencil.PortalViews;
 
 import art.arcane.wormholes.modded.mixin.client.DebugScreenEntriesAccessor;
 import art.arcane.optics.stream.ViewStreamCapability;
@@ -42,6 +43,7 @@ public final class WormholesClient {
     private final WormholesClientConfig config;
     private final ClientViewStats stats;
     private final ClientSeamlessTravel seamlessTravel;
+    private final PortalViews portalViews;
     private final ClientLocalMeshSources localMeshes = new ClientLocalMeshSources(this::send);
     private final ClientMeshViews meshViews = new ClientMeshViews();
     private final ClientReflectionEntity reflections;
@@ -62,6 +64,7 @@ public final class WormholesClient {
         this.stats = new ClientViewStats();
         Consumer<TravelMessage> travel = message -> send(TravelExtension.INSTANCE.wrap(message));
         this.seamlessTravel = new ClientSeamlessTravel(travel, new ResidentLevels(travel, config.residentLevelMemoryBytes()));
+        this.portalViews = new PortalViews(seamlessTravel.residents());
         this.reflections = new ClientReflectionEntity();
         this.dataVersion = SharedConstants.getCurrentVersion().dataVersion().version();
         this.brandTag = ClientBrandRetriever.getClientModName();
@@ -154,6 +157,14 @@ public final class WormholesClient {
         return seamlessTravel;
     }
 
+    public PortalViews portalViews() {
+        return portalViews;
+    }
+
+    public boolean viewsAttachedTo(ClientLevel level) {
+        return attachedLevel == level;
+    }
+
     public boolean managesVanillaPortal(ClientLevel level, BlockPos position) {
         return attachedLevel == level && session.managesVanillaPortal(position.getX(), position.getY(), position.getZ());
     }
@@ -195,6 +206,7 @@ public final class WormholesClient {
             return;
         }
         seamlessTravel.clear();
+        portalViews.clear();
         ClientSodiumTerrain.clear();
         reflections.clear(null, null);
         detach();

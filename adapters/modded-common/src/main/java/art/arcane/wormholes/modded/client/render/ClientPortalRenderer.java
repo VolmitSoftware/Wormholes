@@ -3,6 +3,7 @@ package art.arcane.wormholes.modded.client.render;
 import art.arcane.wormholes.modded.client.ClientMeshWorld;
 import art.arcane.wormholes.modded.client.WormholesClient;
 import art.arcane.wormholes.modded.client.WormholesClientConfig;
+import art.arcane.wormholes.modded.client.render.stencil.PortalStencilRenderer;
 
 import art.arcane.optics.aperture.AperturePolygon;
 import art.arcane.optics.aperture.ApertureDescriptor;
@@ -440,7 +441,8 @@ public final class ClientPortalRenderer {
             portal.target = null;
         }
         for (Portal portal : portals.values()) {
-            if (!portal.scene.fullWorld() && portal.scene.geometry().parentPortalKey() == 0 && renderTree(portal, new Matrix4d(), null, dimensions)) {
+            if (!portal.scene.fullWorld() && portal.scene.geometry().parentPortalKey() == 0
+                && !PortalStencilRenderer.instance().claims(portal.scene.geometry()) && renderTree(portal, new Matrix4d(), null, dimensions)) {
                 if (portalLayer == null) {
                     portalLayer = targets.layer(main.width, main.height);
                     try (RenderPass clear = RenderSystem.getDevice().createCommandEncoder().createRenderPass(() -> "Wormholes portal layer clear",

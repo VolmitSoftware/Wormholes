@@ -22,6 +22,7 @@ import net.caffeinemc.mods.sodium.client.world.LevelRendererExtension;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.client.renderer.Lightmap;
 import net.minecraft.client.renderer.SectionOcclusionGraph;
 import net.minecraft.client.renderer.SkyRenderer;
 import net.minecraft.client.renderer.ViewArea;
@@ -101,6 +102,27 @@ public final class ClientWorldLoader {
         if (level != mainLevel) {
             helper(level).rendered(camera);
         }
+    }
+
+    public static EnvironmentAttributeProbe portalProbe(ClientLevel level, Vec3 camera) {
+        DimensionRenderHelper helper = helper(level);
+        if (level != mainLevel) {
+            helper.prime(camera);
+            helper.rendered(camera);
+        }
+        return helper.probe();
+    }
+
+    public static Lightmap lightmap(ClientLevel level) {
+        return helper(level).lightmap();
+    }
+
+    public static void pushRenderContext(ClientLevel level) {
+        FogRendererContext.pushSwapping(level);
+    }
+
+    public static void popRenderContext() {
+        FogRendererContext.popSwapping();
     }
 
     public static void tick() {

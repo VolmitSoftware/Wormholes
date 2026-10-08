@@ -8,7 +8,7 @@ Wormholes includes source code derived from the following third-party project.
 - Copyright 2020 qouteall
 - License: Apache License, Version 2.0 (reproduced below)
 
-The Wormholes modded client ports Immersive Portals' per-dimension client world state: a level renderer, light map, environment attribute probe and fog context kept for every client level, and switching the client into another level in place without a respawn. It also ports the view-bobbing reduction near portals and the cross-portal view for a camera that is already through a portal. The code was adapted to Minecraft 26.3 and modified for Wormholes. Each derived file carries a header that names Immersive Portals and states that it was modified.
+The Wormholes modded client ports Immersive Portals' per-dimension client world state: a level renderer, light map, environment attribute probe and fog context kept for every client level, and switching the client into another level in place without a respawn. It also ports the view-bobbing reduction near portals, the cross-portal view for a camera that is already through a portal, and portal rendering: the destination level drawn by its own level renderer under a stencil mask, the clip plane injected into the world's shaders, visible section discovery for the portal camera and cross-portal entity rendering. The code was adapted to Minecraft 26.3 and modified for Wormholes. Each derived file carries a header that names Immersive Portals and states that it was modified.
 
 Derived files (paths relative to `adapters/modded-common/src/main/java/art/arcane/wormholes/modded/`):
 
@@ -17,6 +17,15 @@ Derived files (paths relative to `adapters/modded-common/src/main/java/art/arcan
 - `client/world/ClientWorldLoader.java` (from `ClientWorldLoader`)
 - `client/world/DimensionRenderHelper.java` (from `render/context_management/DimensionRenderHelper`)
 - `client/world/FogRendererContext.java` (from `render/context_management/FogRendererContext`)
+- `client/render/stencil/ClipShaderTransformation.java` (from `render/ShaderCodeTransformation`)
+- `client/render/stencil/CrossPortalEntities.java` (from `render/CrossPortalEntityRenderer`)
+- `client/render/stencil/PortalCamera.java` (per-layer camera, from `render/MyGameRenderer`)
+- `client/render/stencil/PortalLayerMath.java` (from `render/renderer/PortalRenderer` camera transformation and `render/FrontClipping`)
+- `client/render/stencil/PortalStencil.java` (stencil state, from `render/renderer/RendererUsingStencil`)
+- `client/render/stencil/PortalStencilRenderer.java` (from `render/renderer/RendererUsingStencil` and `render/renderer/PortalRenderer`)
+- `client/render/stencil/PortalWorldRenderer.java` (from `render/MyGameRenderer`)
+- `client/render/stencil/StencilLayers.java` (portal layer stack, from `render/context_management/PortalRendering`)
+- `client/render/stencil/VanillaTerrainBackend.java` (from `render/VisibleSectionDiscovery`)
 - `client/world/StaticFieldsSwappingManager.java` (from `render/context_management/StaticFieldsSwappingManager`)
 - `mixin/client/CrossingCameraMixin.java` (view-bobbing translation scaling, from `mixin/client/render/MixinGameRenderer`)
 

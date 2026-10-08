@@ -11,7 +11,7 @@ import org.lwjgl.system.MemoryUtil;
 
 import java.nio.ByteBuffer;
 
-final class PortalGpuMesh implements AutoCloseable {
+public final class PortalGpuMesh implements AutoCloseable {
     private final GpuBuffer vertices;
     private final GpuBuffer indices;
     private final IndexType indexType;
@@ -95,7 +95,7 @@ final class PortalGpuMesh implements AutoCloseable {
         sortZ = z;
     }
 
-    void draw(RenderPass pass) {
+    public void draw(RenderPass pass) {
         pass.setVertexBuffer(0, vertices.slice());
         pass.setIndexBuffer(indices, indexType);
         pass.drawIndexed(indexCount, 1, 0, 0, 0);

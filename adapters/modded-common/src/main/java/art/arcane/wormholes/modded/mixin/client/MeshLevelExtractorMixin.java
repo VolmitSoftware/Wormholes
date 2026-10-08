@@ -2,6 +2,7 @@ package art.arcane.wormholes.modded.mixin.client;
 
 import art.arcane.wormholes.modded.client.ClientMeshEntities;
 import art.arcane.wormholes.modded.client.WormholesClient;
+import art.arcane.wormholes.modded.client.render.stencil.PortalStencilRenderer;
 import net.minecraft.client.Camera;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.renderer.culling.Frustum;
@@ -26,7 +27,7 @@ public abstract class MeshLevelExtractorMixin {
     @Inject(method = "extract", at = @At("TAIL"))
     private void wormholesExtractPortalEntities(DeltaTracker delta, Camera camera, float partialTick, CallbackInfo callback) {
         WormholesClient client = WormholesClient.instance();
-        if (client != null) {
+        if (client != null && !PortalStencilRenderer.instance().nested()) {
             client.meshViews().extract(camera, partialTick);
         }
     }

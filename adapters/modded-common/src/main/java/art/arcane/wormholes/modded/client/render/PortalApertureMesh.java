@@ -17,7 +17,7 @@ import org.lwjgl.system.MemoryUtil;
 
 import java.nio.ByteBuffer;
 
-final class PortalApertureMesh {
+public final class PortalApertureMesh {
     static final int MAX_SUBDIVIDED_CELLS = 1 << 22;
     static final int SHAPE_VERTEX_BYTES = 20;
     private static final double TOUCH_DISTANCE_CELLS = 0.75D;
@@ -25,7 +25,7 @@ final class PortalApertureMesh {
     private PortalApertureMesh() {
     }
 
-    static int subdivisions(int requested, int columns, int rows) {
+    public static int subdivisions(int requested, int columns, int rows) {
         long cells = Math.max(1L, (long) columns * rows);
         int budget = (int) Math.floor(Math.sqrt((double) MAX_SUBDIVIDED_CELLS / cells));
         while ((long) budget * budget * cells > MAX_SUBDIVIDED_CELLS) {
@@ -34,7 +34,7 @@ final class PortalApertureMesh {
         return Math.max(1, Math.min(requested, budget));
     }
 
-    static long[] renderMask(ApertureDescriptor geometry, PlaneShape plane) {
+    public static long[] renderMask(ApertureDescriptor geometry, PlaneShape plane) {
         long[] mask = geometry.apertureMask();
         ShapeRaster raster = plane.raster(ShapeRaster.DEFAULT_SUBSAMPLES);
         Bounds2 reach = plane.bounds().grown(TOUCH_DISTANCE_CELLS);
@@ -53,7 +53,7 @@ final class PortalApertureMesh {
         return mask;
     }
 
-    static PortalGpuMesh quads(AperturePolygon aperture, ApertureDescriptor geometry) {
+    public static PortalGpuMesh quads(AperturePolygon aperture, ApertureDescriptor geometry) {
         try (ByteBufferBuilder allocation = new ByteBufferBuilder(1024)) {
             BufferBuilder builder = new BufferBuilder(allocation, PrimitiveTopology.QUADS, DefaultVertexFormat.POSITION);
             for (AperturePolygon.Rectangle rectangle : aperture.rectangles()) {
@@ -68,7 +68,7 @@ final class PortalApertureMesh {
         }
     }
 
-    static PortalGpuMesh shaped(ShapeMesh shape, AperturePolygon aperture, ApertureDescriptor geometry) {
+    public static PortalGpuMesh shaped(ShapeMesh shape, AperturePolygon aperture, ApertureDescriptor geometry) {
         if (shape.isEmpty()) {
             return null;
         }

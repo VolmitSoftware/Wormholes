@@ -42,6 +42,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayDeque;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -135,6 +137,10 @@ public final class ClientSeamlessTravel {
 
     public boolean armed() {
         return !arms.isEmpty();
+    }
+
+    public Collection<TravelMessage.TravelBegin> arms() {
+        return Collections.unmodifiableCollection(arms.values());
     }
 
     public ClientCameraRoll cameraRoll() {

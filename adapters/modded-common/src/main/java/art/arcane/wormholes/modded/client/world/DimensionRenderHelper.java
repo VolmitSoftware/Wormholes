@@ -48,6 +48,16 @@ final class DimensionRenderHelper implements AutoCloseable {
         return probe;
     }
 
+    Lightmap lightmap() {
+        return lightmap;
+    }
+
+    void prime(Vec3 position) {
+        if (!ticked) {
+            tick(position);
+        }
+    }
+
     void tick(Vec3 position) {
         probe.tick(level, position);
         tickedAt = System.nanoTime();
