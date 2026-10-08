@@ -139,8 +139,7 @@ final class PortalWorldRenderer {
         Vector4f clipPlane = PortalLayerMath.clipPlane(PortalLayerMath.viewPlane(worldPlane, inner, view3), projection);
         Frustum frustum = new Frustum(view3, projection);
         frustum.prepare(inner.x(), inner.y(), inner.z());
-        EnvironmentAttributeProbe probe = destination == homeLevel ? gameRenderer.mainCamera().attributeProbe()
-            : ClientWorldLoader.portalProbe(destination, innerPosition);
+        EnvironmentAttributeProbe probe = ClientWorldLoader.portalProbe(destination, innerPosition);
         LocalPlayer player = minecraft.player;
         PortalCamera portalCamera = layer.camera();
         portalCamera.place(destination, player, innerPosition, view3, projection, frustum, probe, detached(player, destination, innerPosition));
@@ -173,6 +172,7 @@ final class PortalWorldRenderer {
         TerrainBackend terrain = PortalBackends.terrain();
         PipelineBackend pipeline = PortalBackends.pipeline();
         PortalLayer portalLayer = null;
+        boolean contextPushed = false;
         boolean terrainStarted = false;
         boolean pipelineStarted = false;
         modelView.pushMatrix().identity();
@@ -180,10 +180,11 @@ final class PortalWorldRenderer {
         camera = portalCamera;
         shared = sharedRenderer;
         renderers.push(renderer);
-        ClientWorldLoader.pushRenderContext(destination);
         try {
-            if (destination != homeLevel) {
-                Lightmap lightmap = ClientWorldLoader.lightmap(destination);
+            ClientWorldLoader.pushRenderContext(destination);
+            contextPushed = true;
+            Lightmap lightmap = ClientWorldLoader.lightmap(destination);
+            if (lightmap != previousLightmap) {
                 lightAccess.wormholes$lightmap(lightmap);
                 refreshLightmap(gameRenderer, destination, lightmap, layer);
             }
@@ -242,7 +243,9 @@ final class PortalWorldRenderer {
             RenderSystem.setGlobalSettingsUniform(previousGlobals);
             lighting.updateLevel(previousLevel.dimensionType().cardinalLightType());
             lightAccess.wormholes$lightmap(previousLightmap);
-            ClientWorldLoader.popRenderContext();
+            if (contextPushed) {
+                ClientWorldLoader.popRenderContext();
+            }
             renderers.pop();
             shared = previousShared;
             camera = previousCamera;
