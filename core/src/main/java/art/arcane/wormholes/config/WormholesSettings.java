@@ -37,6 +37,7 @@ public final class WormholesSettings {
 
     private final String language;
     private final boolean metrics;
+    private final boolean updateNotifications;
     private final String languageFallbacks;
     private final MainConfig main;
     private final ProjectionConfig projection;
@@ -49,12 +50,13 @@ public final class WormholesSettings {
     private final VisualQualityProfile visualQualityProfile;
 
     public WormholesSettings(MainConfig main, ProjectionConfig projection, RenderConfig render, NetworkConfig network) {
-        this("en_US", true, "", main, projection, render, network, new RecipesConfig(), FeatureSections.defaults(), VisualQualityProfile.AUTO);
+        this("en_US", true, true, "", main, projection, render, network, new RecipesConfig(), FeatureSections.defaults(), VisualQualityProfile.AUTO);
     }
 
-    private WormholesSettings(String language, boolean metrics, String languageFallbacks, MainConfig main, ProjectionConfig projection, RenderConfig render, NetworkConfig network, RecipesConfig recipes, FeatureSections features, VisualQualityProfile visualQualityProfile) {
+    private WormholesSettings(String language, boolean metrics, boolean updateNotifications, String languageFallbacks, MainConfig main, ProjectionConfig projection, RenderConfig render, NetworkConfig network, RecipesConfig recipes, FeatureSections features, VisualQualityProfile visualQualityProfile) {
         this.language = WormholesLocales.normalize(language);
         this.metrics = metrics;
+        this.updateNotifications = updateNotifications;
         this.languageFallbacks = languageFallbacks;
         this.main = main;
         this.projection = projection;
@@ -179,12 +181,16 @@ public final class WormholesSettings {
     }
 
     public WormholesSettings withLanguage(String locale) {
-        return new WormholesSettings(locale, metrics, languageFallbacks, main, projection, render, network,
+        return new WormholesSettings(locale, metrics, updateNotifications, languageFallbacks, main, projection, render, network,
                 recipes, features, visualQualityProfile);
     }
 
     public String getLanguage() {
         return language;
+    }
+
+    public boolean isUpdateNotifications() {
+        return updateNotifications;
     }
 
     public boolean isMetrics() {
@@ -306,13 +312,14 @@ public final class WormholesSettings {
         RenderConfig render = file.render == null ? new RenderConfig() : file.render;
         NetworkConfig network = file.network == null ? new NetworkConfig() : file.network;
         RecipesConfig recipes = file.recipes == null ? new RecipesConfig() : file.recipes;
-        return new WormholesSettings(file.language, file.metrics, file.languageFallbacks, main, projection, render, network, recipes, FeatureSections.fromFile(file), profile);
+        return new WormholesSettings(file.language, file.metrics, file.updateNotifications, file.languageFallbacks, main, projection, render, network, recipes, FeatureSections.fromFile(file), profile);
     }
 
     private WormholesConfigFile toFile() {
         WormholesConfigFile file = new WormholesConfigFile();
         file.language = language;
         file.metrics = metrics;
+        file.updateNotifications = updateNotifications;
         file.languageFallbacks = languageFallbacks;
         file.schema = WormholesConfigFile.CURRENT_SCHEMA;
         file.quality = visualQualityProfile.configValue();

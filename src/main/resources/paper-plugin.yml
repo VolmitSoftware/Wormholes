@@ -31,6 +31,9 @@ dependencies:
       required: false
       join-classpath: true
 permissions:
+  wormholes.update:
+    description: Receive shared Volmit update notifications and check this plugin for updates
+    default: op
   wormholes.debugdump:
     description: Allows creating and optionally uploading diagnostic reports.
     default: op

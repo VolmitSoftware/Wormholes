@@ -148,6 +148,7 @@ final class WormholesReloadCoordinator {
         byte[] appliedSnapshot = defaults.canonicalSnapshot();
         WormholesSettings previous = Wormholes.settings;
         Wormholes.settings = defaults;
+        plugin.reconfigureUpdates();
         Settings.refresh(defaults);
         ChunkSendRateTuner.applySettingsReload(plugin, previous, defaults);
         reloadLocalization(defaults);
@@ -291,6 +292,7 @@ final class WormholesReloadCoordinator {
         WormholesSettings previous = Wormholes.settings;
         applyLocalization(localization);
         Wormholes.settings = reloaded;
+        plugin.reconfigureUpdates();
         Settings.refresh(reloaded);
         ChunkSendRateTuner.applySettingsReload(plugin, previous, reloaded);
         diagnostics.synchronizeDebugTelemetrySetting();

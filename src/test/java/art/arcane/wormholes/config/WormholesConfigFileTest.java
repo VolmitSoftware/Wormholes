@@ -29,6 +29,28 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class WormholesConfigFileTest {
+    @Test
+    void programmaticSettingsEnableUpdateNotifications() {
+        WormholesSettings settings = new WormholesSettings(
+                new MainConfig(), new ProjectionConfig(), new RenderConfig(), new NetworkConfig());
+        assertTrue(settings.isUpdateNotifications());
+        assertTrue(settings.withLanguage("fr_FR").isUpdateNotifications());
+    }
+
+    @Test
+    void updateNotificationsSurvivePersistenceAndLanguageChanges() throws IOException {
+        WormholesSettings defaults = WormholesSettings.loadAll(tempDir);
+        assertTrue(defaults.isUpdateNotifications());
+        Path file = tempDir.resolve(WormholesSettings.CONFIG_FILE_NAME);
+        String edited = Files.readString(file).replace("update-notifications = true", "update-notifications = false");
+        Files.writeString(file, edited);
+        WormholesSettings disabled = WormholesSettings.loadAll(tempDir);
+        assertFalse(disabled.isUpdateNotifications());
+        disabled.withLanguage("fr_FR").save(tempDir);
+        assertFalse(WormholesSettings.loadAll(tempDir).isUpdateNotifications());
+        assertTrue(defaults.isUpdateNotifications());
+    }
+
     @TempDir
     Path tempDir;
 
@@ -49,6 +71,7 @@ class WormholesConfigFileTest {
         assertEquals("language-fallbacks = \"\"", emitted.get(2));
         assertEquals("schema = 3", emitted.get(3));
         assertEquals("quality = \"auto\"", emitted.get(4));
+        assertEquals("update-notifications = true", emitted.get(5));
         assertTrue(emitted.contains("[main]"));
         assertTrue(emitted.contains("[network]"));
         assertTrue(emitted.contains("[network.transport]"));

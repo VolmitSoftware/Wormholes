@@ -1,5 +1,7 @@
 package art.arcane.wormholes;
 
+import art.arcane.volmlib.util.update.BukkitUpdateService;
+
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CompletableFuture;
 import art.arcane.optics.view.WorldChangeTracker;
@@ -117,6 +119,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
     public static volatile WormholesLocalization localization;
     private PluginLanguageService languageService;
     private BukkitLanguageSwitcher languageSwitcher;
+    private BukkitUpdateService updateService;
     private BukkitDebugDump debugDump;
     public static volatile WormholesPlaceholders placeholders;
 
@@ -173,6 +176,9 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
             localization = new WormholesLocalization();
             reloads.reloadLocalization(settings);
             enableLanguageSwitcher();
+            updateService = BukkitUpdateService.register(this,
+                    new BukkitUpdateService.Options("VolmitSoftware", "Wormholes",
+                            "wormholes.update", () -> settings.isUpdateNotifications()));
             debugDump = BukkitDebugDump.create(this, new BukkitDebugDump.Options(
                 () -> true,
                 () -> () -> "",
@@ -308,6 +314,10 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
 
     @Override
     public void onDisable() {
+        if (updateService != null) {
+            updateService.close();
+            updateService = null;
+        }
         if (debugDump != null) {
             debugDump.close();
             debugDump = null;
@@ -323,6 +333,8 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
     }
 
     @Override
+    public CompletionStage<Void> commitReload(ReloadAware.PreUnloadReason reason) {
+        getLogger().info("BileTools reload commit started (" + reason + "). Tearing down Wormholes managers and PacketEvents.");
     public CompletionStage<Void> commitReload(ReloadAware.PreUnloadReason reason) {
         getLogger().info("BileTools pre-unload hook fired (" + reason + "). Tearing down Wormholes managers and PacketEvents.");
         tearDownBeforeDrain();
@@ -542,6 +554,12 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
 
     public ResetResult resetEverythingNow() throws IOException {
         return reloads.resetEverythingNow();
+    }
+
+    void reconfigureUpdates() {
+        if (updateService != null) {
+            updateService.reconfigure();
+        }
     }
 
     public WormholesSettings getSettings() {

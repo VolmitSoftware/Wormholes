@@ -24,6 +24,9 @@ public class WormholesConfigFile {
     @ConfigDescription("Visual profile: auto, performance, balanced, or cinematic.")
     public String quality = "auto";
 
+    @ConfigDescription("Checks GitHub releases and includes Wormholes in the shared Volmit update notice. Does not download or install updates.")
+    public boolean updateNotifications = true;
+
     public MainConfig main = new MainConfig();
     public NetworkConfig network = new NetworkConfig();
     public ProjectionConfig projection = new ProjectionConfig();
